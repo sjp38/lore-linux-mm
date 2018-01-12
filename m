@@ -1,137 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F2CD6B025F
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 19:56:05 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id 23so2487781otv.0
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 16:56:05 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q186si5335757oif.514.2018.01.11.16.56.04
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 770A36B0038
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 20:31:03 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id b75so1830045pfk.22
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 17:31:03 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id n76si1569565pfi.56.2018.01.11.17.31.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jan 2018 16:56:04 -0800 (PST)
-Date: Fri, 12 Jan 2018 08:55:49 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
- runtime for CONFIG_SPARSEMEM_EXTREME=y
-Message-ID: <20180112005549.GA2265@dhcp-128-65.nay.redhat.com>
-References: <1515302062.6507.18.camel@gmx.de>
- <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
- <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
- <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
- <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
- <20180109054131.GB1935@localhost.localdomain>
- <20180109072440.GA6521@dhcp-128-65.nay.redhat.com>
- <20180109090552.45ddfk2y25lf4uyn@node.shutemov.name>
- <20180110030804.GB1744@dhcp-128-110.nay.redhat.com>
- <20180110111603.56disgew7ipusgjy@black.fi.intel.com>
+        Thu, 11 Jan 2018 17:31:01 -0800 (PST)
+Date: Thu, 11 Jan 2018 20:30:57 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180111203057.5b1a8f8f@gandalf.local.home>
+In-Reply-To: <20180111112908.50de440a@vmware.local.home>
+References: <20180110132418.7080-1-pmladek@suse.com>
+	<20180110140547.GZ3668920@devbig577.frc2.facebook.com>
+	<20180110130517.6ff91716@vmware.local.home>
+	<20180111045817.GA494@jagdpanzerIV>
+	<20180111093435.GA24497@linux.suse>
+	<20180111103845.GB477@jagdpanzerIV>
+	<20180111112908.50de440a@vmware.local.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180110111603.56disgew7ipusgjy@black.fi.intel.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Baoquan He <bhe@redhat.com>, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Petr Mladek <pmladek@suse.com>, Tejun Heo <tj@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On 01/10/18 at 02:16pm, Kirill A. Shutemov wrote:
-> On Wed, Jan 10, 2018 at 03:08:04AM +0000, Dave Young wrote:
-> > On Tue, Jan 09, 2018 at 12:05:52PM +0300, Kirill A. Shutemov wrote:
-> > > On Tue, Jan 09, 2018 at 03:24:40PM +0800, Dave Young wrote:
-> > > > On 01/09/18 at 01:41pm, Baoquan He wrote:
-> > > > > On 01/09/18 at 09:09am, Dave Young wrote:
-> > > > > 
-> > > > > > As for the macro name, VMCOREINFO_SYMBOL_ARRAY sounds better.
-> > > 
-> > > Yep, that's better.
-> > > 
-> > > > > I still think using vmcoreinfo_append_str is better. Unless we replace
-> > > > > all array variables with the newly added macro.
-> > > > > 
-> > > > > vmcoreinfo_append_str("SYMBOL(mem_section)=%lx\n",
-> > > > >                                 (unsigned long)mem_section);
-> > > > 
-> > > > I have no strong opinion, either change all array uses or just introduce
-> > > > the macro and start to use it from now on if we have similar array
-> > > > symbols.
-> > > 
-> > > Do you need some action on my side or will you folks take care about this?
+On Thu, 11 Jan 2018 11:29:08 -0500
+Steven Rostedt <rostedt@goodmis.org> wrote:
+
+> > claiming that for any given A, B, C the following is always true
 > > 
-> > I think Baoquan was suggesting to update all array users in current
-> > code, if you can check every VMCOREINFO_SYMBOL and update all the arrays
-> > he will be happy. But if can not do it easily I'm fine with a
-> > VMCOREINFO_SYMBOL_ARRAY changes only now, we kdump people can do it
-> > later as well. 
+> > 				A * B < C
+> > 
+> > where
+> > 	A is the amount of data to print in the worst case
+> > 	B the time call_console_drivers() needs to print a single
+> > 	  char to all registered and enabled consoles
+> > 	C the watchdog's threshold
+> > 
+> > is not really a step forward.  
 > 
-> It seems it's the only array we have there. swapper_pg_dir is a potential
-> candidate, but it's 'unsigned long' on arm.
-> 
-> Below it patch with corrected macro name.
-> 
-> Please, consider applying.
-> 
-> From 70f3a84b97f2de98d1364f7b10b7a42a1d8e9968 Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Tue, 9 Jan 2018 02:55:47 +0300
-> Subject: [PATCH] kdump: Write a correct address of mem_section into vmcoreinfo
-> 
-> Depending on configuration mem_section can now be an array or a pointer
-> to an array allocated dynamically. In most cases, we can continue to refer
-> to it as 'mem_section' regardless of what it is.
-> 
-> But there's one exception: '&mem_section' means "address of the array" if
-> mem_section is an array, but if mem_section is a pointer, it would mean
-> "address of the pointer".
-> 
-> We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
-> writes down address of pointer into vmcoreinfo, not array as we wanted.
-> 
-> Let's introduce VMCOREINFO_SYMBOL_ARRAY() that would handle the
-> situation correctly for both cases.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
-> ---
->  include/linux/crash_core.h | 2 ++
->  kernel/crash_core.c        | 2 +-
->  2 files changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/crash_core.h b/include/linux/crash_core.h
-> index 06097ef30449..b511f6d24b42 100644
-> --- a/include/linux/crash_core.h
-> +++ b/include/linux/crash_core.h
-> @@ -42,6 +42,8 @@ phys_addr_t paddr_vmcoreinfo_note(void);
->  	vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
->  #define VMCOREINFO_SYMBOL(name) \
->  	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
-> +#define VMCOREINFO_SYMBOL_ARRAY(name) \
-> +	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)name)
->  #define VMCOREINFO_SIZE(name) \
->  	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
->  			      (unsigned long)sizeof(name))
-> diff --git a/kernel/crash_core.c b/kernel/crash_core.c
-> index b3663896278e..4f63597c824d 100644
-> --- a/kernel/crash_core.c
-> +++ b/kernel/crash_core.c
-> @@ -410,7 +410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
->  	VMCOREINFO_SYMBOL(contig_page_data);
->  #endif
->  #ifdef CONFIG_SPARSEMEM
-> -	VMCOREINFO_SYMBOL(mem_section);
-> +	VMCOREINFO_SYMBOL_ARRAY(mem_section);
->  	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
->  	VMCOREINFO_STRUCT_SIZE(mem_section);
->  	VMCOREINFO_OFFSET(mem_section, section_mem_map);
-> -- 
->  Kirill A. Shutemov
+> It's no different than what we have, except that we currently have A
+> being infinite. My patch makes A no longer infinite, but a constant.
+> Yes that constant is mutable, but it's still a constant, and
+> controlled by the user. That to me is definitely a BIG step forward.
 
+I have to say that your analysis here really does point out the benefit
+of my patch.
 
-Acked-by: Dave Young <dyoung@redhat.com>
+Today, printk() can print for a time of A * B, where, as you state
+above:
 
-If stable kernel took the mem section commits, then should also cc
-stable.  Andrew, can you help to make this in 4.15?
+   A is the amount of data to print in the worst case
+   B the time call_console_drivers() needs to print a single
+	  char to all registered and enabled consoles
 
-Thanks
-Dave
+In the worse case, the current approach is A is infinite. That is,
+printk() never stops, as long as there is a printk happening on another
+CPU before B can finish. A will keep growing. The call to printk() will
+never return. The more CPUs you have, the more likely this will occur.
+All it takes is a few CPUs doing periodic printks. If there is a slow
+console, where the periodic printk on other CPUs occur quicker than the
+first can finish, the first one will be stuck forever. Doesn't take
+much to have this happen.
+
+With my patch, A is fixed to the size of the buffer. A single printk()
+can never print more than that. If another CPU comes in and does a
+printk, then it will take over the task of printing, and release the
+first printk.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
