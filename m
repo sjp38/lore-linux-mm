@@ -1,57 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A01996B0038
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 07:24:08 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id s105so3280644wrc.23
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 04:24:08 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 54C7A6B0038
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 07:27:55 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id 194so3098387wmv.9
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 04:27:55 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s1si13896512wre.212.2018.01.12.04.24.07
+        by mx.google.com with ESMTPS id v5si222656wmg.171.2018.01.12.04.27.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 12 Jan 2018 04:24:07 -0800 (PST)
-Date: Fri, 12 Jan 2018 13:24:05 +0100
+        Fri, 12 Jan 2018 04:27:53 -0800 (PST)
+Date: Fri, 12 Jan 2018 13:27:52 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4] mm/memcg: try harder to decrease
- [memory,memsw].limit_in_bytes
-Message-ID: <20180112122405.GK1732@dhcp22.suse.cz>
-References: <20180109152622.31ca558acb0cc25a1b14f38c@linux-foundation.org>
- <20180110124317.28887-1-aryabinin@virtuozzo.com>
- <20180111104239.GZ1732@dhcp22.suse.cz>
- <4a8f667d-c2ae-e3df-00fd-edc01afe19e1@virtuozzo.com>
- <20180111124629.GA1732@dhcp22.suse.cz>
- <ce885a69-67af-5f4c-1116-9f6803fb45ee@virtuozzo.com>
- <20180111162947.GG1732@dhcp22.suse.cz>
- <560a77b5-02d7-cbae-35f3-0b20a1c384c2@virtuozzo.com>
+Subject: Re: [PATCH] mm: ratelimit end_swap_bio_write() error
+Message-ID: <20180112122752.GL1732@dhcp22.suse.cz>
+References: <20180106043407.25193-1-sergey.senozhatsky@gmail.com>
+ <20180106094124.GB16576@dhcp22.suse.cz>
+ <20180106100313.GA527@tigerII.localdomain>
+ <20180106133417.GA23629@dhcp22.suse.cz>
+ <20180108015818.GA533@jagdpanzerIV>
+ <20180108083742.GB5717@dhcp22.suse.cz>
+ <20180108102234.GA818@jagdpanzerIV>
+ <20180112044133.GA4314@jagdpanzerIV>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <560a77b5-02d7-cbae-35f3-0b20a1c384c2@virtuozzo.com>
+In-Reply-To: <20180112044133.GA4314@jagdpanzerIV>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 12-01-18 00:59:38, Andrey Ryabinin wrote:
-> On 01/11/2018 07:29 PM, Michal Hocko wrote:
-[...]
-> > I do not think so. Consider that this reclaim races with other
-> > reclaimers. Now you are reclaiming a large chunk so you might end up
-> > reclaiming more than necessary. SWAP_CLUSTER_MAX would reduce the over
-> > reclaim to be negligible.
+On Fri 12-01-18 13:41:33, Sergey Senozhatsky wrote:
+> On (01/08/18 19:22), Sergey Senozhatsky wrote:
+> [..]
+> > > Your changelog is rather modest on the information.
 > > 
+> > fair point!
+> > 
+> > > Could you be more specific on how the problem actually happens how
+> > > likely it is?
+> > 
+> > ok. so what we have is
+> > 
+> > 	slow_path / swap-out page
+> > 	 __zram_bvec_write(page)
+> > 	  compressed_page = zcomp_compress(page)
+> > 	   zs_malloc(compressed_page)
+> > 	    // no available zspage found, need to allocate new
+> > 	     alloc_zspage()
+> > 	     {
+> > 		for (i = 0; i < class->pages_per_zspage; i++)
+> > 		    page = alloc_page(gfp);
+> > 		    if (!page)
+> > 			    return NULL
+> > 	     }
+> > 
+> > 	 return -ENOMEM
+> > 	...
+> > 	printk("Write-error on swap-device...");
+> > 
+> > 
+> > zspage-s can consist of up to ->pages_per_zspage normal pages.
+> > if alloc_page() fails then we can't allocate the entire zspage,
+> > so we can't store the swapped out page, so it remains in ram
+> > and we don't make any progress. so we try to swap another page
+> > and may be do the whole zs_malloc()->alloc_zspage() again, may
+> > be not. depending on how bad the OOM situation is there can be
+> > few or many "Write-error on swap-device" errors.
+> > 
+> > > And again, I do not think the throttling is an appropriate counter
+> > > measure. We do want to print those messages when a critical situation
+> > > happens. If we have a fallback then simply do not print at all.
+> > 
+> > sure, but with the ratelimited printk we still print those messages.
+> > we just don't print it for every single page we failed to write
+> > to the device. the existing error messages can (*sometimes*) be noisy
+> > and not very informative - "Write-error on swap-device (%u:%u:%llu)\n";
+> > it's not like 1000 of those tell more than 1 or 10.
 > 
-> I did consider this. And I think, I already explained that sort of race in previous email.
-> Whether "Task B" is really a task in cgroup or it's actually a bunch of reclaimers,
-> doesn't matter. That doesn't change anything.
+> Michal, does that make sense? with the updated/reworked commit
+> message will the patch be good enough?
 
-I would _really_ prefer two patches here. The first one removing the
-hard coded reclaim count. That thing is just dubious at best. If you
-_really_ think that the higher reclaim target is meaningfull then make
-it a separate patch. I am not conviced but I will not nack it it either.
-But it will make our life much easier if my over reclaim concern is
-right and we will need to revert it. Conceptually those two changes are
-independent anywa.
-
+I am sorry but I didn't get to look into this yet. I still _believe_
+that the ratelimit is just papering over a real problem here. So I would
+prefer if the real fix was done instead. Maybe that is not that easy
+easy, I haven't checked. Maybe I just do not understand the issue here.
 -- 
 Michal Hocko
 SUSE Labs
