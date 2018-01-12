@@ -1,220 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5732C6B0033
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 11:54:59 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id w7so5477656pfd.4
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 08:54:59 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y5si2808891pll.243.2018.01.12.08.54.57
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F097B6B0038
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 12:04:46 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id b7so3709782wrd.16
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 09:04:46 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id k12si3530231edl.288.2018.01.12.09.04.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jan 2018 08:54:58 -0800 (PST)
-Date: Fri, 12 Jan 2018 11:54:54 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v5 1/2] printk: Add console owner and waiter logic to
- load balance console writes
-Message-ID: <20180112115454.17c03c8f@gandalf.local.home>
-In-Reply-To: <20180110132418.7080-2-pmladek@suse.com>
-References: <20180110132418.7080-1-pmladek@suse.com>
-	<20180110132418.7080-2-pmladek@suse.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 12 Jan 2018 09:04:45 -0800 (PST)
+Date: Fri, 12 Jan 2018 12:05:01 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 07/15] mm: memcontrol: fix excessive complexity in
+ memory.stat reporting
+Message-ID: <20180112170501.GA10320@cmpxchg.org>
+References: <5a208303.hxMsAOT0gjSsd0Gf%akpm@linux-foundation.org>
+ <20171201135750.GB8097@cmpxchg.org>
+ <20171206170635.e3e45c895750538ee9283033@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171206170635.e3e45c895750538ee9283033@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, mhocko@suse.com, vdavydov.dev@gmail.com
 
-On Wed, 10 Jan 2018 14:24:17 +0100
-Petr Mladek <pmladek@suse.com> wrote:
+Sorry, this email slipped through the cracks.
 
-> From: Steven Rostedt <rostedt@goodmis.org>
+On Wed, Dec 06, 2017 at 05:06:35PM -0800, Andrew Morton wrote:
+> On Fri, 1 Dec 2017 13:57:50 +0000 Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> From: Steven Rostedt (VMware) <rostedt@goodmis.org>
+> > The memcg cpu_dead callback can be called early during startup
+> > (CONFIG_DEBUG_HOTPLUG_CPU0) with preemption enabled, which triggers a
+> > warning in its __this_cpu_xchg() calls. But CPU locality is always
+> > guaranteed, which is the only thing we really care about here.
+> > 
+> > Using the preemption-safe this_cpu_xchg() addresses this problem.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > ---
+> > 
+> > Andrew, can you please merge this fixlet into the original patch?
 > 
-> This patch implements what I discussed in Kernel Summit. I added
-> lockdep annotation (hopefully correctly), and it hasn't had any splats
-> (since I fixed some bugs in the first iterations). It did catch
-> problems when I had the owner covering too much. But now that the owner
-> is only set when actively calling the consoles, lockdep has stayed
-> quiet.
+> Did.
 > 
-> Here's the design again:
-> 
-> I added a "console_owner" which is set to a task that is actively
-> writing to the consoles. It is *not* the same as the owner of the
-> console_lock. It is only set when doing the calls to the console
-> functions. It is protected by a console_owner_lock which is a raw spin
-> lock.
-> 
-> There is a console_waiter. This is set when there is an active console
-> owner that is not current, and waiter is not set. This too is protected
-> by console_owner_lock.
-> 
-> In printk() when it tries to write to the consoles, we have:
-> 
-> 	if (console_trylock())
-> 		console_unlock();
-> 
-> Now I added an else, which will check if there is an active owner, and
-> no current waiter. If that is the case, then console_waiter is set, and
-> the task goes into a spin until it is no longer set.
-> 
-> When the active console owner finishes writing the current message to
-> the consoles, it grabs the console_owner_lock and sees if there is a
-> waiter, and clears console_owner.
-> 
-> If there is a waiter, then it breaks out of the loop, clears the waiter
-> flag (because that will release the waiter from its spin), and exits.
-> Note, it does *not* release the console semaphore. Because it is a
-> semaphore, there is no owner. Another task may release it. This means
-> that the waiter is guaranteed to be the new console owner! Which it
-> becomes.
-> 
-> Then the waiter calls console_unlock() and continues to write to the
-> consoles.
-> 
-> If another task comes along and does a printk() it too can become the
-> new waiter, and we wash rinse and repeat!
-> 
-> By Petr Mladek about possible new deadlocks:
-> 
-> The thing is that we move console_sem only to printk() call
-> that normally calls console_unlock() as well. It means that
-> the transferred owner should not bring new type of dependencies.
-> As Steven said somewhere: "If there is a deadlock, it was
-> there even before."
-> 
-> We could look at it from this side. The possible deadlock would
-> look like:
-> 
-> CPU0                            CPU1
-> 
-> console_unlock()
-> 
->   console_owner = current;
-> 
-> 				spin_lockA()
-> 				  printk()
-> 				    spin = true;
-> 				    while (...)
-> 
->     call_console_drivers()
->       spin_lockA()
-> 
-> This would be a deadlock. CPU0 would wait for the lock A.
-> While CPU1 would own the lockA and would wait for CPU0
-> to finish calling the console drivers and pass the console_sem
-> owner.
-> 
-> But if the above is true than the following scenario was
-> already possible before:
-> 
-> CPU0
-> 
-> spin_lockA()
->   printk()
->     console_unlock()
->       call_console_drivers()
-> 	spin_lockA()
-> 
-> By other words, this deadlock was there even before. Such
-> deadlocks are prevented by using printk_deferred() in
-> the sections guarded by the lock A.
+> I see that lkp-robot identified a performance regression and pointed
+> the finger at this patch?
 
-Petr,
-
-Please add this here:
-
-====
-
-To demonstrate the issue, this module has been shown to lock up a
-system with 4 CPUs and a slow console (like a serial console). It is
-also able to lock up a 8 CPU system with only a fast (VGA) console, by
-passing in "loops=100". The changes in this commit prevent this module
-from locking up the system.
-
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/sched.h>
-#include <linux/mutex.h>
-#include <linux/workqueue.h>
-#include <linux/hrtimer.h>
-
-static bool stop_testing;
-static unsigned int loops = 1;
-
-static void preempt_printk_workfn(struct work_struct *work)
-{
-	int i;
-
-	while (!READ_ONCE(stop_testing)) {
-		for (i = 0; i < loops && !READ_ONCE(stop_testing); i++) {
-			preempt_disable();
-			pr_emerg("%5d%-75s\n", smp_processor_id(),
-				 " XXX NOPREEMPT");
-			preempt_enable();
-		}
-		msleep(1);
-	}
-}
-
-static struct work_struct __percpu *works;
-
-static void finish(void)
-{
-	int cpu;
-
-	WRITE_ONCE(stop_testing, true);
-	for_each_online_cpu(cpu)
-		flush_work(per_cpu_ptr(works, cpu));
-	free_percpu(works);
-}
-
-static int __init test_init(void)
-{
-	int cpu;
-
-	works = alloc_percpu(struct work_struct);
-	if (!works)
-		return -ENOMEM;
-
-	/*
-	 * This is just a test module. This will break if you
-	 * do any CPU hot plugging between loading and
-	 * unloading the module.
-	 */
-
-	for_each_online_cpu(cpu) {
-		struct work_struct *work = per_cpu_ptr(works, cpu);
-
-		INIT_WORK(work, &preempt_printk_workfn);
-		schedule_work_on(cpu, work);
-	}
-
-	return 0;
-}
-
-static void __exit test_exit(void)
-{
-	finish();
-}
-
-module_param(loops, uint, 0);
-module_init(test_init);
-module_exit(test_exit);
-MODULE_LICENSE("GPL");
-====
-
-Hmm, how does one have git commit not remove the C preprocessor at the
-start of the module?
-
--- Steve
-
-> 
-> Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
-> [pmladek@suse.com: Commit message about possible deadlocks]
-> ---
+Right, it reports a perf drop in page fault stress tests, but that is
+to be the expected trade-off. Before, we'd do everything per cpu, and
+have to collapse all counters everytime somebody would read the stats.
+Now we fold them in batches, which introduces a periodic atomic when
+the batches are flushed (same frequency as we per-cpu cache charges
+for the atomic page_counter).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
