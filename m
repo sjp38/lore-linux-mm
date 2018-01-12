@@ -1,79 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 49EF36B0038
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 04:08:08 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id i2so4279196pgq.8
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 01:08:08 -0800 (PST)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00114.outbound.protection.outlook.com. [40.107.0.114])
-        by mx.google.com with ESMTPS id v186si7629568pfb.284.2018.01.12.01.08.06
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 18BD26B0253
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 04:11:51 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id a74so4541695pfg.20
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 01:11:51 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id v3si357164ply.111.2018.01.12.01.11.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 12 Jan 2018 01:08:07 -0800 (PST)
-Subject: Re: [PATCH v4] mm/memcg: try harder to decrease
- [memory,memsw].limit_in_bytes
-References: <20180109152622.31ca558acb0cc25a1b14f38c@linux-foundation.org>
- <20180110124317.28887-1-aryabinin@virtuozzo.com>
- <20180110143121.cf2a1c5497b31642c9b38b2a@linux-foundation.org>
- <47856d2b-1534-6198-c2e2-6d2356973bef@virtuozzo.com>
- <20180111162134.53aa5a44c59689ec0399db57@linux-foundation.org>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <8f706bc5-cc9c-01f5-1918-41cd0501f4f0@virtuozzo.com>
-Date: Fri, 12 Jan 2018 12:08:12 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Jan 2018 01:11:49 -0800 (PST)
+Message-ID: <5A587C61.2010204@intel.com>
+Date: Fri, 12 Jan 2018 17:14:09 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180111162134.53aa5a44c59689ec0399db57@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Subject: Re: [PATCH v21 2/5 RESEND] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <1515501687-7874-1-git-send-email-wei.w.wang@intel.com>	<201801092342.FCH56215.LJHOMVFFFOOSQt@I-love.SAKURA.ne.jp>	<5A55EA71.6020309@intel.com> <201801112006.EHD48461.LOtVFFSOJMOFHQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <201801112006.EHD48461.LOtVFFSOJMOFHQ@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mst@redhat.com
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+
+On 01/11/2018 07:06 PM, Tetsuo Handa wrote:
+> Wei Wang wrote:
+>> Michael, could we merge patch 3-5 first?
+> No! I'm repeatedly asking you to propose only VIRTIO_BALLOON_F_SG changes.
+> Please don't ignore me.
+>
+>
+>
+> Patch 4 depends on patch 2. Thus, back to patch 2.
+
+There is not strict dependence per se. I plan to split the two features 
+into 2 series, and post out 3-5 first, and the corresponding hypervisor 
+code.
+After that's done, I'll get back to the discussion of patch 2.
 
 
 
-On 01/12/2018 03:21 AM, Andrew Morton wrote:
-> On Thu, 11 Jan 2018 14:59:23 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> 
->> On 01/11/2018 01:31 AM, Andrew Morton wrote:
->>> On Wed, 10 Jan 2018 15:43:17 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->>>
->>>> mem_cgroup_resize_[memsw]_limit() tries to free only 32 (SWAP_CLUSTER_MAX)
->>>> pages on each iteration. This makes practically impossible to decrease
->>>> limit of memory cgroup. Tasks could easily allocate back 32 pages,
->>>> so we can't reduce memory usage, and once retry_count reaches zero we return
->>>> -EBUSY.
->>>>
->>>> Easy to reproduce the problem by running the following commands:
->>>>
->>>>   mkdir /sys/fs/cgroup/memory/test
->>>>   echo $$ >> /sys/fs/cgroup/memory/test/tasks
->>>>   cat big_file > /dev/null &
->>>>   sleep 1 && echo $((100*1024*1024)) > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
->>>>   -bash: echo: write error: Device or resource busy
->>>>
->>>> Instead of relying on retry_count, keep retrying the reclaim until
->>>> the desired limit is reached or fail if the reclaim doesn't make
->>>> any progress or a signal is pending.
->>>>
->>>
->>> Is there any situation under which that mem_cgroup_resize_limit() can
->>> get stuck semi-indefinitely in a livelockish state?  It isn't very
->>> obvious that we're protected from this, so perhaps it would help to
->>> have a comment which describes how loop termination is assured?
->>>
->>
->> We are not protected from this. If tasks in cgroup *indefinitely* generate reclaimable memory at high rate
->> and user asks to set unreachable limit, like 'echo 4096 > memory.limit_in_bytes', than
->> try_to_free_mem_cgroup_pages() will return non-zero indefinitely.
->>
->> Is that a big deal? At least loop can be interrupted by a signal, and we don't hold any locks here.
-> 
-> It may be better to detect this condition, give up and return an error?
-> 
 
-That's basically what how v1 worked, "if (curusage >= oldusage)" used to be
-the way to detect this potential livelock.
-So we can just go back to it?
+> Now, proceeding to patch 4.
+>
+> Your patch is trying to call add_one_sg() for multiple times based on
+>
+> ----------------------------------------
+> +	/*
+> +	 * This is expected to never fail: there is always at least 1 entry
+> +	 * available on the vq, because when the vq is full the worker thread
+> +	 * that adds the sg will be put into sleep until at least 1 entry is
+> +	 * available to use.
+> +	 */
+
+This will be more clear in the new version which is not together with 
+patch 2.
+
+
+>
+> Now, I suspect we need to add VIRTIO_BALLOON_F_FREE_PAGE_VQ flag. I want to see
+> the patch for the hypervisor side which makes use of VIRTIO_BALLOON_F_FREE_PAGE_VQ
+> flag because its usage becomes tricky. Between the guest kernel obtains snapshot of
+> free memory blocks and the hypervisor is told that some pages are currently free,
+> these pages can become in use. That is, I don't think
+>
+>    The second feature enables the optimization of the 1st round memory
+>    transfer - the hypervisor can skip the transfer of guest free pages in the
+>    1st round.
+>
+> is accurate. The hypervisor is allowed to mark pages which are told as "currently
+> unused" by the guest kernel as "write-protected" before starting the 1st round.
+> Then, the hypervisor performs copying all pages except write-protected pages as
+> the 1st round. Then, the 2nd and later rounds will be the same. That is,
+> VIRTIO_BALLOON_F_FREE_PAGE_VQ requires the hypervisor to do 0th round as
+> preparation. Thus, I want to see the patch for the hypervisor side.
+>
+> Now, what if all free pages in the guest kernel were reserved as ballooned pages?
+> There will be no free pages which VIRTIO_BALLOON_F_FREE_PAGE_VQ flag would help.
+> The hypervisor will have to copy all pages because all pages are either currently
+> in-use or currently in balloons. After ballooning to appropriate size, there will
+> be little free memory in the guest kernel, and the hypervisor already knows which
+> pages are in the balloon. Thus, the hypervisor can skip copying the content of
+> pages in the balloon, without using VIRTIO_BALLOON_F_FREE_PAGE_VQ flag.
+>
+> Then, why can't we do "inflate the balloon up to reasonable level (e.g. no need to
+> wait for reclaim and no need to deflate)" instead of "find all the free pages as of
+> specific moment" ? That is, code for VIRTIO_BALLOON_F_DEFLATE_ON_OOM could be reused
+> instead of VIRTIO_BALLOON_F_FREE_PAGE_VQ ?
+>
+
+I think you misunderstood the work, which seems not easy to explain 
+everything from the beginning here. I wish to review patch 4 (I'll send 
+out a new independent version) with Michael if possible.
+I'll discuss with you about patch 2 later. Thanks.
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
