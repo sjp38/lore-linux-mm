@@ -1,93 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 54C7A6B0038
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 07:27:55 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id 194so3098387wmv.9
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 04:27:55 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v5si222656wmg.171.2018.01.12.04.27.53
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B4DFA6B0038
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 07:55:42 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id t94so3326936wrc.18
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 04:55:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s9sor9714205wra.14.2018.01.12.04.55.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 12 Jan 2018 04:27:53 -0800 (PST)
-Date: Fri, 12 Jan 2018 13:27:52 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: ratelimit end_swap_bio_write() error
-Message-ID: <20180112122752.GL1732@dhcp22.suse.cz>
-References: <20180106043407.25193-1-sergey.senozhatsky@gmail.com>
- <20180106094124.GB16576@dhcp22.suse.cz>
- <20180106100313.GA527@tigerII.localdomain>
- <20180106133417.GA23629@dhcp22.suse.cz>
- <20180108015818.GA533@jagdpanzerIV>
- <20180108083742.GB5717@dhcp22.suse.cz>
- <20180108102234.GA818@jagdpanzerIV>
- <20180112044133.GA4314@jagdpanzerIV>
+        (Google Transport Security);
+        Fri, 12 Jan 2018 04:55:41 -0800 (PST)
+Date: Fri, 12 Jan 2018 13:55:38 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [REGRESSION] testing/selftests/x86/ pkeys build failures (was: Re:
+ [PATCH] mm, x86: pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change signal
+ semantics)
+Message-ID: <20180112125537.bdl376ziiaqp664o@gmail.com>
+References: <360ef254-48bc-aee6-70f9-858f773b8693@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20180112044133.GA4314@jagdpanzerIV>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <360ef254-48bc-aee6-70f9-858f773b8693@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Florian Weimer <fweimer@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, x86@kernel.org, Dave Hansen <dave.hansen@intel.com>, Ram Pai <linuxram@us.ibm.com>
 
-On Fri 12-01-18 13:41:33, Sergey Senozhatsky wrote:
-> On (01/08/18 19:22), Sergey Senozhatsky wrote:
-> [..]
-> > > Your changelog is rather modest on the information.
-> > 
-> > fair point!
-> > 
-> > > Could you be more specific on how the problem actually happens how
-> > > likely it is?
-> > 
-> > ok. so what we have is
-> > 
-> > 	slow_path / swap-out page
-> > 	 __zram_bvec_write(page)
-> > 	  compressed_page = zcomp_compress(page)
-> > 	   zs_malloc(compressed_page)
-> > 	    // no available zspage found, need to allocate new
-> > 	     alloc_zspage()
-> > 	     {
-> > 		for (i = 0; i < class->pages_per_zspage; i++)
-> > 		    page = alloc_page(gfp);
-> > 		    if (!page)
-> > 			    return NULL
-> > 	     }
-> > 
-> > 	 return -ENOMEM
-> > 	...
-> > 	printk("Write-error on swap-device...");
-> > 
-> > 
-> > zspage-s can consist of up to ->pages_per_zspage normal pages.
-> > if alloc_page() fails then we can't allocate the entire zspage,
-> > so we can't store the swapped out page, so it remains in ram
-> > and we don't make any progress. so we try to swap another page
-> > and may be do the whole zs_malloc()->alloc_zspage() again, may
-> > be not. depending on how bad the OOM situation is there can be
-> > few or many "Write-error on swap-device" errors.
-> > 
-> > > And again, I do not think the throttling is an appropriate counter
-> > > measure. We do want to print those messages when a critical situation
-> > > happens. If we have a fallback then simply do not print at all.
-> > 
-> > sure, but with the ratelimited printk we still print those messages.
-> > we just don't print it for every single page we failed to write
-> > to the device. the existing error messages can (*sometimes*) be noisy
-> > and not very informative - "Write-error on swap-device (%u:%u:%llu)\n";
-> > it's not like 1000 of those tell more than 1 or 10.
+
+* Florian Weimer <fweimer@redhat.com> wrote:
+
+> This patch is based on the previous discussion (pkeys: Support setting
+> access rights for signal handlers):
 > 
-> Michal, does that make sense? with the updated/reworked commit
-> message will the patch be good enough?
+>   https://marc.info/?t=151285426000001
+> 
+> It aligns the signal semantics of the x86 implementation with the upcoming
+> POWER implementation, and defines a new flag, so that applications can
+> detect which semantics the kernel uses.
+> 
+> A change in this area is needed to make memory protection keys usable for
+> protecting the GOT in the dynamic linker.
+> 
+> (Feel free to replace the trigraphs in the commit message before committing,
+> or to remove the program altogether.)
 
-I am sorry but I didn't get to look into this yet. I still _believe_
-that the ratelimit is just papering over a real problem here. So I would
-prefer if the real fix was done instead. Maybe that is not that easy
-easy, I haven't checked. Maybe I just do not understand the issue here.
--- 
-Michal Hocko
-SUSE Labs
+Could you please send patches not as MIME attachments?
+
+Also, the protection keys testcase first need to be fixed, before we complicate 
+them - for example on a pretty regular Ubuntu x86-64 installation they fail to 
+build with the build errors attached further below.
+
+On an older Fedora 23 installation, the testcases themselves don't build at all:
+
+ fomalhaut:~/tip2/tools/testing/selftests/x86> make protection_keys
+ gcc -O2 -g -std=gnu99 -pthread -Wall -no-pie    protection_keys.c   -o protection_keys
+ gcc: error: unrecognized command line option a??-no-piea??
+ <builtin>: recipe for target 'protection_keys' failed
+ make: *** [protection_keys] Error 1
+
+so it's one big mess at the moment that needs some love ...
+
+Thanks,
+
+	Ingo
+
+==================>
+
+triton:~/tip/tools/testing/selftests/x86> make
+gcc -m32 -o /home/mingo/tip/tools/testing/selftests/x86/protection_keys_32 -O2 -g -std=gnu99 -pthread -Wall -no-pie  protection_keys.c -lrt -ldl -lm
+In file included from /usr/include/signal.h:57:0,
+                 from protection_keys.c:33:
+protection_keys.c: In function a??signal_handlera??:
+protection_keys.c:253:6: error: expected a??=a??, a??,a??, a??;a??, a??asma?? or a??__attribute__a?? before a??.a?? token
+  u64 si_pkey;
+      ^
+protection_keys.c:253:6: error: expected expression before a??.a?? token
+protection_keys.c:295:2: error: a??_sifieldsa?? undeclared (first use in this function)
+  si_pkey = *si_pkey_ptr;
+  ^
+protection_keys.c:295:2: note: each undeclared identifier is reported only once for each function it appears in
+In file included from protection_keys.c:46:0:
+pkey-helpers.h: In function a??sigsafe_printfa??:
+pkey-helpers.h:42:3: warning: ignoring return value of a??writea??, declared with attribute warn_unused_result [-Wunused-result]
+   write(1, dprint_in_signal_buffer, len);
+   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+protection_keys.c: In function a??dumpita??:
+protection_keys.c:419:3: warning: ignoring return value of a??writea??, declared with attribute warn_unused_result [-Wunused-result]
+   write(1, buf, nr_read);
+   ^~~~~~~~~~~~~~~~~~~~~~
+Makefile:47: recipe for target '/home/mingo/tip/tools/testing/selftests/x86/protection_keys_32' failed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
