@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 90D9E6B0033
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 10:26:51 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id v18so3573241wrf.21
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 07:26:51 -0800 (PST)
-Received: from relay4-d.mail.gandi.net (relay4-d.mail.gandi.net. [2001:4b98:c:538::196])
-        by mx.google.com with ESMTPS id x66si2444757wmb.268.2018.01.12.07.26.49
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A01B6B0038
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 10:37:59 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id w7so5325119pfd.4
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 07:37:59 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id r1si15805957plb.581.2018.01.12.07.37.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jan 2018 07:26:50 -0800 (PST)
-Subject: Re: [PATCH] mm, THP: vmf_insert_pfn_pud depends on
- CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-References: <1515660811-12293-1-git-send-email-aghiti@upmem.com>
- <20180111100620.GY1732@dhcp22.suse.cz>
- <71853228-0beb-1e69-df47-59fa1bc5bd2f@upmem.com>
- <20180111162825.4cdaba2a21d8f15b21c45c75@linux-foundation.org>
-From: Alexandre Ghiti <aghiti@upmem.com>
-Message-ID: <01df063e-8cfd-11fd-a335-1e4a26377f95@upmem.com>
-Date: Fri, 12 Jan 2018 16:26:09 +0100
+        Fri, 12 Jan 2018 07:37:58 -0800 (PST)
+Date: Fri, 12 Jan 2018 10:37:54 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v5 2/2] printk: Hide console waiter logic into helpers
+Message-ID: <20180112103754.1916a1e2@gandalf.local.home>
+In-Reply-To: <20180111120341.GB24419@linux.suse>
+References: <20180110132418.7080-1-pmladek@suse.com>
+	<20180110132418.7080-3-pmladek@suse.com>
+	<20180110125220.69f5f930@vmware.local.home>
+	<20180111120341.GB24419@linux.suse>
 MIME-Version: 1.0
-In-Reply-To: <20180111162825.4cdaba2a21d8f15b21c45c75@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu, gregkh@linuxfoundation.org, n-horiguchi@ah.jp.nec.com, mark.rutland@arm.com, linux-kernel@vger.kernel.org
+To: Petr Mladek <pmladek@suse.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On 12/01/2018 01:28, Andrew Morton wrote:
-> On Thu, 11 Jan 2018 14:05:34 +0100 Alexandre Ghiti <aghiti@upmem.com> wrote:
->
->> On 11/01/2018 11:06, Michal Hocko wrote:
->>> On Thu 11-01-18 09:53:31, Alexandre Ghiti wrote:
->>>> The only definition of vmf_insert_pfn_pud depends on
->>>> CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD being defined. Then its declaration in
->>>> include/linux/huge_mm.h should have the same restriction so that we do
->>>> not expose this function if CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD is
->>>> not defined.
->>> Why is this a problem? Compiler should simply throw away any
->>> declarations which are not used?
->> It is not a big problem but surrounding the declaration with the #ifdef
->> makes the compilation of external modules fail with an "error: implicit
->> declaration of function vmf_insert_pfn_pud" if
->> CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD is not defined. I think it is
->> cleaner than generating a .ko which would not load anyway.
-> Disagree.  We'd have to put an absolutely vast amount of complex and
-> hard-to-maintain ifdefs in headers if we were to ensure that such
-> errors were to be detected at compile time.
->
-> Whereas if we defer the detection of the errors until link time (or
-> depmod or modprobe time) then yes, a handful of people will detect
-> their mistake a minute or three later but that's a small cost compared
-> to permanently and badly messing up the header files.
-Ok, thanks for your time and explanations.
+On Thu, 11 Jan 2018 13:03:41 +0100
+Petr Mladek <pmladek@suse.com> wrote:
+
+> > > +static DEFINE_RAW_SPINLOCK(console_owner_lock);
+> > > +static struct task_struct *console_owner;
+> > > +static bool console_waiter;
+> > > +
+> > > +/**
+> > > + * console_lock_spinning_enable - mark beginning of code where another
+> > > + *	thread might safely busy wait
+> > > + *
+> > > + * This might be called in sections where the current console_lock owner  
+> > 
+> > 
+> > "might be"? It has to be called in sections where the current
+> > console_lock owner can not sleep. It's basically saying "console lock is
+> > now acting like a spinlock".  
+> 
+> I am afraid that both explanations are confusing. Your one sounds like
+> it must be called every time we enter non-preemptive context in
+> console_unlock. What about the following?
+> 
+>  * This is basically saying that "console lock is now acting like
+>  * a spinlock". It can be called _only_ in sections where the current
+>  * console_lock owner could not sleep. Also it must be ready to hand
+>  * over the lock at the end of the section.
+
+I would reword the above:
+
+   * This basically converts console_lock into a spinlock. This marks
+   * the section where the console_lock owner can not sleep, because
+   * there may be a waiter spinning (like a spinlock). Also it must be
+   * ready to hand over the lock at the end of the section.
+
+> 
+> > > + * cannot sleep. It is a signal that another thread might start busy
+> > > + * waiting for console_lock.
+> > > + */  
+> 
+> All the other changes look good to me. I will use them in the next version.
+
+Great.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
