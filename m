@@ -1,72 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 89CA86B0253
-	for <linux-mm@kvack.org>; Sat, 13 Jan 2018 02:31:05 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id p17so6675289pfh.18
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 23:31:05 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f4sor7806615plb.116.2018.01.12.23.31.04
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 300F96B025F
+	for <linux-mm@kvack.org>; Sat, 13 Jan 2018 05:48:49 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id p4so5001643wrf.4
+        for <linux-mm@kvack.org>; Sat, 13 Jan 2018 02:48:49 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h3sor1774269wre.21.2018.01.13.02.48.47
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 12 Jan 2018 23:31:04 -0800 (PST)
-Date: Sat, 13 Jan 2018 16:31:00 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180113073100.GB1701@tigerII.localdomain>
-References: <20180110130517.6ff91716@vmware.local.home>
- <20180111045817.GA494@jagdpanzerIV>
- <20180111093435.GA24497@linux.suse>
- <20180111103845.GB477@jagdpanzerIV>
- <20180111112908.50de440a@vmware.local.home>
- <20180112025612.GB6419@jagdpanzerIV>
- <20180111222140.7fd89d52@gandalf.local.home>
- <20180112100544.GA441@jagdpanzerIV>
- <20180112072123.33bb567d@gandalf.local.home>
- <20180112125536.GC24497@linux.suse>
+        Sat, 13 Jan 2018 02:48:47 -0800 (PST)
+Date: Sat, 13 Jan 2018 11:48:38 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] kdump: Write a correct address of mem_section into
+ vmcoreinfo
+Message-ID: <20180113104838.ht57uooqk3fo546o@gmail.com>
+References: <20180112162532.35896-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180112125536.GC24497@linux.suse>
+In-Reply-To: <20180112162532.35896-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Young <dyoung@redhat.com>, Baoquan He <bhe@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org, stable@vger.kernel.org
 
-On (01/12/18 13:55), Petr Mladek wrote:
-[..]
-> > I'm not fixing console_unlock(), I'm fixing printk(). BTW, all my
-> > kernels are CONFIG_PREEMPT (I'm a RT guy), my mind thinks more about
-> > PREEMPT kernels than !PREEMPT ones.
+
+* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
+
+> Depending on configuration mem_section can now be an array or a pointer
+> to an array allocated dynamically. In most cases, we can continue to refer
+> to it as 'mem_section' regardless of what it is.
 > 
-> I would say that the patch improves also console_unlock() but only in
-> non-preemttive context.
+> But there's one exception: '&mem_section' means "address of the array" if
+> mem_section is an array, but if mem_section is a pointer, it would mean
+> "address of the pointer".
 > 
-> By other words, it makes console_unlock() finite in preemptible context
-> (limited by buffer size). It might still be unlimited in
-> non-preemtible context.
-
-could you elaborate a bit?
-
-[..]
-> > > reverting 6b97a20d3a7909daa06625d4440c2c52d7bf08d7 may be the right
-> > > thing after all.
-> > 
-> > I would analyze that more before doing so. Because with my patch, I
-> > think we make those that can do long prints (without triggering a
-> > watchdog), the ones most likely doing the long prints.
+> We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
+> writes down address of pointer into vmcoreinfo, not array as we wanted.
 > 
-> IMHO, it might make sense because it would help to see the messages
-> faster. But I would prefer to handle this separately because it
-> might also increase the risk of softlockups. Therefore it might
-> cause regressions.
+> Let's introduce VMCOREINFO_SYMBOL_ARRAY() that would handle the
+> situation correctly for both cases.
 > 
-> We should also take into account the commit 8d91f8b15361dfb438ab6
-> ("printk: do cond_resched() between lines while outputting to
-> consoles"). It has the same effect for console_lock() callers.
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
+> Cc: stable@vger.kernel.org
+> Acked-by: Baoquan He <bhe@redhat.com>
+> Acked-by: Dave Young <dyoung@redhat.com>
 
-I replied in another email.
+You forgot the Reported-by - I added that to the commit.
 
-	-ss
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
