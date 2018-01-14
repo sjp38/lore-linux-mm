@@ -1,57 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DFF9B6B0038
-	for <linux-mm@kvack.org>; Sun, 14 Jan 2018 18:07:28 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id f26so10467352iob.13
-        for <linux-mm@kvack.org>; Sun, 14 Jan 2018 15:07:28 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id j78si6214752itj.85.2018.01.14.15.07.27
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BB46A6B0038
+	for <linux-mm@kvack.org>; Sun, 14 Jan 2018 18:44:13 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id 102so4915255ior.2
+        for <linux-mm@kvack.org>; Sun, 14 Jan 2018 15:44:13 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k195sor1442319ith.86.2018.01.14.15.44.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 14 Jan 2018 15:07:27 -0800 (PST)
-Date: Sun, 14 Jan 2018 15:07:19 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 04/36] usercopy: Prepare for usercopy whitelisting
-Message-ID: <20180114230719.GB32027@bombadil.infradead.org>
-References: <1515531365-37423-1-git-send-email-keescook@chromium.org>
- <1515531365-37423-5-git-send-email-keescook@chromium.org>
- <alpine.DEB.2.20.1801101219390.7926@nuc-kabylake>
+        (Google Transport Security);
+        Sun, 14 Jan 2018 15:44:12 -0800 (PST)
+Date: Sun, 14 Jan 2018 15:44:09 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
+In-Reply-To: <20180113171432.GA23484@cmpxchg.org>
+Message-ID: <alpine.DEB.2.10.1801141536380.131380@chino.kir.corp.google.com>
+References: <20171130152824.1591-1-guro@fb.com> <20171130123930.cf3217c816fd270fa35a40cb@linux-foundation.org> <alpine.DEB.2.10.1801091556490.173445@chino.kir.corp.google.com> <20180110131143.GB26913@castle.DHCP.thefacebook.com>
+ <20180110113345.54dd571967fd6e70bfba68c3@linux-foundation.org> <20180113171432.GA23484@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1801101219390.7926@nuc-kabylake>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, linux-mm@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jan 10, 2018 at 12:28:23PM -0600, Christopher Lameter wrote:
-> On Tue, 9 Jan 2018, Kees Cook wrote:
-> > +struct kmem_cache *kmem_cache_create_usercopy(const char *name,
-> > +			size_t size, size_t align, slab_flags_t flags,
-> > +			size_t useroffset, size_t usersize,
-> > +			void (*ctor)(void *));
+On Sat, 13 Jan 2018, Johannes Weiner wrote:
+
+> You don't have any control and no accounting of the stuff situated
+> inside the root cgroup, so it doesn't make sense to leave anything in
+> there while also using sophisticated containerization mechanisms like
+> this group oom setting.
 > 
-> Hmmm... At some point we should switch kmem_cache_create to pass a struct
-> containing all the parameters. Otherwise the API will blow up with
-> additional functions.
+> In fact, the laptop I'm writing this email on runs an unmodified
+> mainstream Linux distribution. The only thing in the root cgroup are
+> kernel threads.
+> 
+> The decisions are good enough for the rare cases you forget something
+> in there and it explodes.
+> 
 
-Obviously I agree with you.  I'm inclined to not let that delay Kees'
-patches; we can fix the few places that use this API later.  At this
-point, my proposal for the ultimate form would be:
+It's quite trivial to allow the root mem cgroup to be compared exactly the 
+same as another cgroup.  Please see 
+https://marc.info/?l=linux-kernel&m=151579459920305.
 
-struct kmem_cache_attr {
-	const char name[32];
-	void (*ctor)(void *);
-	unsigned int useroffset;
-	unsigned int user_size; 
-};
+> This assumes you even need one. Right now, the OOM killer picks the
+> biggest MM, so you can evade selection by forking your MM. This patch
+> allows picking the biggest cgroup, so you can evade by forking groups.
+> 
 
-kmem_create_cache_attr(const struct kmem_cache_attr *attr, unsigned int size,
-			unsigned int align, slab_flags_t flags)
+It's quite trivial to prevent any cgroup from evading the oom killer by 
+either forking their mm or attaching all their processes to subcontainers.  
+Please see https://marc.info/?l=linux-kernel&m=151579459920305.
 
-(my rationale is that everything in attr should be const, but size, align
-and flags all get modified by the slab code).
+> It's not a new vector, and clearly nobody cares. This has never been
+> brought up against the current design that I know of.
+> 
+
+As cgroup v2 becomes more popular, people will organize their cgroup 
+hierarchies for all controllers they need to use.  We do this today, for 
+example, by attaching some individual consumers to child mem cgroups 
+purely for the rich statistics and vmscan stats that mem cgroup provides 
+without any limitation on those cgroups.
+
+> Note, however, that there actually *is* a way to guard against it: in
+> cgroup2 there is a hierarchical limit you can configure for the number
+> of cgroups that are allowed to be created in the subtree. See
+> 1a926e0bbab8 ("cgroup: implement hierarchy limits").
+> 
+
+Not allowing the user to create subcontainers to track statistics to paper 
+over an obvious and acknowledged shortcoming in the design of the cgroup 
+aware oom killer seems like a pretty nasty shortcoming itself.
+
+> It could be useful, but we have no concensus on the desired
+> semantics. And it's not clear why we couldn't add it later as long as
+> the default settings of a new knob maintain the default behavior
+> (which would have to be preserved anyway, since we rely on it).
+>
+
+The active proposal is 
+https://marc.info/?l=linux-kernel&m=151579459920305, which describes an 
+extendable interface and one that covers all the shortcomings of this 
+patchset without polluting the mem cgroup filesystem.  The default oom 
+policy in that proposal would be "none", i.e. we do what we do today, 
+based on process usage.  You can configure that, without the mount option 
+this patchset introduces for local or hierarchical cgroup targeting.
+ 
+> > > > I proposed a solution in 
+> > > > https://marc.info/?l=linux-kernel&m=150956897302725, which was never 
+> > > > responded to, for all of these issues.  The idea is to do hierarchical 
+> > > > accounting of mem cgroup hierarchies so that the hierarchy is traversed 
+> > > > comparing total usage at each level to select target cgroups.  Admins and 
+> > > > users can use memory.oom_score_adj to influence that decisionmaking at 
+> > > > each level.
+> 
+> We did respond repeatedly: this doesn't work for a lot of setups.
+> 
+
+We need to move this discussion to the active proposal at 
+https://marc.info/?l=linux-kernel&m=151579459920305, because it does 
+address your setup, so it's not good use of anyones time to further 
+discuss simply memory.oom_score_adj.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
