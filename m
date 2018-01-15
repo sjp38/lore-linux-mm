@@ -1,141 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 20C706B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 00:57:06 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id n6so9328020pfg.19
-        for <linux-mm@kvack.org>; Sun, 14 Jan 2018 21:57:06 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q9sor1365182pfl.92.2018.01.14.21.57.04
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 796166B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 03:51:20 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id d7so8078062wre.15
+        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 00:51:20 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x13si20771533wre.270.2018.01.15.00.51.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 14 Jan 2018 21:57:04 -0800 (PST)
-Date: Sun, 14 Jan 2018 21:57:01 -0800
-From: Omar Sandoval <osandov@osandov.com>
-Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
- runtime for CONFIG_SPARSEMEM_EXTREME=y
-Message-ID: <20180115055701.GA9071@vader>
-References: <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
- <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
- <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
- <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
- <20180109054131.GB1935@localhost.localdomain>
- <20180109072440.GA6521@dhcp-128-65.nay.redhat.com>
- <20180109090552.45ddfk2y25lf4uyn@node.shutemov.name>
- <20180110030804.GB1744@dhcp-128-110.nay.redhat.com>
- <20180110111603.56disgew7ipusgjy@black.fi.intel.com>
- <20180112005549.GA2265@dhcp-128-65.nay.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 15 Jan 2018 00:51:18 -0800 (PST)
+Date: Mon, 15 Jan 2018 09:51:15 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180115085115.h73vimlyuuj56be7@pathway.suse.cz>
+References: <20180111045817.GA494@jagdpanzerIV>
+ <20180111093435.GA24497@linux.suse>
+ <20180111103845.GB477@jagdpanzerIV>
+ <20180111112908.50de440a@vmware.local.home>
+ <20180112025612.GB6419@jagdpanzerIV>
+ <20180111222140.7fd89d52@gandalf.local.home>
+ <20180112100544.GA441@jagdpanzerIV>
+ <20180112072123.33bb567d@gandalf.local.home>
+ <20180112125536.GC24497@linux.suse>
+ <20180113073100.GB1701@tigerII.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180112005549.GA2265@dhcp-128-65.nay.redhat.com>
+In-Reply-To: <20180113073100.GB1701@tigerII.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Young <dyoung@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Baoquan He <bhe@redhat.com>, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On Fri, Jan 12, 2018 at 08:55:49AM +0800, Dave Young wrote:
-> On 01/10/18 at 02:16pm, Kirill A. Shutemov wrote:
-> > On Wed, Jan 10, 2018 at 03:08:04AM +0000, Dave Young wrote:
-> > > On Tue, Jan 09, 2018 at 12:05:52PM +0300, Kirill A. Shutemov wrote:
-> > > > On Tue, Jan 09, 2018 at 03:24:40PM +0800, Dave Young wrote:
-> > > > > On 01/09/18 at 01:41pm, Baoquan He wrote:
-> > > > > > On 01/09/18 at 09:09am, Dave Young wrote:
-> > > > > > 
-> > > > > > > As for the macro name, VMCOREINFO_SYMBOL_ARRAY sounds better.
-> > > > 
-> > > > Yep, that's better.
-> > > > 
-> > > > > > I still think using vmcoreinfo_append_str is better. Unless we replace
-> > > > > > all array variables with the newly added macro.
-> > > > > > 
-> > > > > > vmcoreinfo_append_str("SYMBOL(mem_section)=%lx\n",
-> > > > > >                                 (unsigned long)mem_section);
-> > > > > 
-> > > > > I have no strong opinion, either change all array uses or just introduce
-> > > > > the macro and start to use it from now on if we have similar array
-> > > > > symbols.
-> > > > 
-> > > > Do you need some action on my side or will you folks take care about this?
-> > > 
-> > > I think Baoquan was suggesting to update all array users in current
-> > > code, if you can check every VMCOREINFO_SYMBOL and update all the arrays
-> > > he will be happy. But if can not do it easily I'm fine with a
-> > > VMCOREINFO_SYMBOL_ARRAY changes only now, we kdump people can do it
-> > > later as well. 
+On Sat 2018-01-13 16:31:00, Sergey Senozhatsky wrote:
+> On (01/12/18 13:55), Petr Mladek wrote:
+> [..]
+> > > I'm not fixing console_unlock(), I'm fixing printk(). BTW, all my
+> > > kernels are CONFIG_PREEMPT (I'm a RT guy), my mind thinks more about
+> > > PREEMPT kernels than !PREEMPT ones.
 > > 
-> > It seems it's the only array we have there. swapper_pg_dir is a potential
-> > candidate, but it's 'unsigned long' on arm.
+> > I would say that the patch improves also console_unlock() but only in
+> > non-preemttive context.
 > > 
-> > Below it patch with corrected macro name.
-> > 
-> > Please, consider applying.
-> > 
-> > From 70f3a84b97f2de98d1364f7b10b7a42a1d8e9968 Mon Sep 17 00:00:00 2001
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > Date: Tue, 9 Jan 2018 02:55:47 +0300
-> > Subject: [PATCH] kdump: Write a correct address of mem_section into vmcoreinfo
-> > 
-> > Depending on configuration mem_section can now be an array or a pointer
-> > to an array allocated dynamically. In most cases, we can continue to refer
-> > to it as 'mem_section' regardless of what it is.
-> > 
-> > But there's one exception: '&mem_section' means "address of the array" if
-> > mem_section is an array, but if mem_section is a pointer, it would mean
-> > "address of the pointer".
-> > 
-> > We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
-> > writes down address of pointer into vmcoreinfo, not array as we wanted.
-> > 
-> > Let's introduce VMCOREINFO_SYMBOL_ARRAY() that would handle the
-> > situation correctly for both cases.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
-> > ---
-> >  include/linux/crash_core.h | 2 ++
-> >  kernel/crash_core.c        | 2 +-
-> >  2 files changed, 3 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/include/linux/crash_core.h b/include/linux/crash_core.h
-> > index 06097ef30449..b511f6d24b42 100644
-> > --- a/include/linux/crash_core.h
-> > +++ b/include/linux/crash_core.h
-> > @@ -42,6 +42,8 @@ phys_addr_t paddr_vmcoreinfo_note(void);
-> >  	vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
-> >  #define VMCOREINFO_SYMBOL(name) \
-> >  	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
-> > +#define VMCOREINFO_SYMBOL_ARRAY(name) \
-> > +	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)name)
-> >  #define VMCOREINFO_SIZE(name) \
-> >  	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
-> >  			      (unsigned long)sizeof(name))
-> > diff --git a/kernel/crash_core.c b/kernel/crash_core.c
-> > index b3663896278e..4f63597c824d 100644
-> > --- a/kernel/crash_core.c
-> > +++ b/kernel/crash_core.c
-> > @@ -410,7 +410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
-> >  	VMCOREINFO_SYMBOL(contig_page_data);
-> >  #endif
-> >  #ifdef CONFIG_SPARSEMEM
-> > -	VMCOREINFO_SYMBOL(mem_section);
-> > +	VMCOREINFO_SYMBOL_ARRAY(mem_section);
-> >  	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
-> >  	VMCOREINFO_STRUCT_SIZE(mem_section);
-> >  	VMCOREINFO_OFFSET(mem_section, section_mem_map);
-> > -- 
-> >  Kirill A. Shutemov
+> > By other words, it makes console_unlock() finite in preemptible context
+> > (limited by buffer size). It might still be unlimited in
+> > non-preemtible context.
 > 
-> 
-> Acked-by: Dave Young <dyoung@redhat.com>
-> 
-> If stable kernel took the mem section commits, then should also cc
-> stable.  Andrew, can you help to make this in 4.15?
-> 
-> Thanks
-> Dave
+> could you elaborate a bit?
 
-Hm, this fix means that the vmlinux symbol table and vmcoreinfo have
-different values for mem_section. That seems... odd. I had to patch
-makedumpfile to fix the case of an explicit vmlinux being passed on the
-command line (which I realized I don't need to do, but it should still
-work):
+Ah, I am sorry, I swapped the conditions. I meant that
+console_unlock() is finite in non-preemptible context.
+
+There are two possibilities if console_unlock() is in atomic context
+and never sleeps. First, if there are new printk() callers, they could
+take over the job. Second. if they are no more callers, the
+current owner will release the lock after processing the existing
+messages. In both situations, the current owner will not handle more
+than the entire buffer. Therefore it is limited. We might argue
+if it is enough. But the point is that it is limited which is
+a step forward. And I think that you already agreed that this
+was a step forward.
+
+The chance of taking over the lock is lower when console_unlock()
+owner could sleep. But then there is not a danger of a softlockup.
+In each case, this patch did not make it worse. Could we agree
+on this, please?
+
+All in all, this patch improved one scenario and did not make
+worse another one. We know that it does not fix everything.
+But it is a step forward. Could we agree on this, please?
+
+Best Regards,
+Petr
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
