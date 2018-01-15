@@ -1,110 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BB46A6B0038
-	for <linux-mm@kvack.org>; Sun, 14 Jan 2018 18:44:13 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id 102so4915255ior.2
-        for <linux-mm@kvack.org>; Sun, 14 Jan 2018 15:44:13 -0800 (PST)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 20C706B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 00:57:06 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id n6so9328020pfg.19
+        for <linux-mm@kvack.org>; Sun, 14 Jan 2018 21:57:06 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k195sor1442319ith.86.2018.01.14.15.44.12
+        by mx.google.com with SMTPS id q9sor1365182pfl.92.2018.01.14.21.57.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 14 Jan 2018 15:44:12 -0800 (PST)
-Date: Sun, 14 Jan 2018 15:44:09 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
-In-Reply-To: <20180113171432.GA23484@cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1801141536380.131380@chino.kir.corp.google.com>
-References: <20171130152824.1591-1-guro@fb.com> <20171130123930.cf3217c816fd270fa35a40cb@linux-foundation.org> <alpine.DEB.2.10.1801091556490.173445@chino.kir.corp.google.com> <20180110131143.GB26913@castle.DHCP.thefacebook.com>
- <20180110113345.54dd571967fd6e70bfba68c3@linux-foundation.org> <20180113171432.GA23484@cmpxchg.org>
+        Sun, 14 Jan 2018 21:57:04 -0800 (PST)
+Date: Sun, 14 Jan 2018 21:57:01 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
+ runtime for CONFIG_SPARSEMEM_EXTREME=y
+Message-ID: <20180115055701.GA9071@vader>
+References: <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
+ <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
+ <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
+ <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
+ <20180109054131.GB1935@localhost.localdomain>
+ <20180109072440.GA6521@dhcp-128-65.nay.redhat.com>
+ <20180109090552.45ddfk2y25lf4uyn@node.shutemov.name>
+ <20180110030804.GB1744@dhcp-128-110.nay.redhat.com>
+ <20180110111603.56disgew7ipusgjy@black.fi.intel.com>
+ <20180112005549.GA2265@dhcp-128-65.nay.redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180112005549.GA2265@dhcp-128-65.nay.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, linux-mm@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Young <dyoung@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Baoquan He <bhe@redhat.com>, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
 
-On Sat, 13 Jan 2018, Johannes Weiner wrote:
-
-> You don't have any control and no accounting of the stuff situated
-> inside the root cgroup, so it doesn't make sense to leave anything in
-> there while also using sophisticated containerization mechanisms like
-> this group oom setting.
+On Fri, Jan 12, 2018 at 08:55:49AM +0800, Dave Young wrote:
+> On 01/10/18 at 02:16pm, Kirill A. Shutemov wrote:
+> > On Wed, Jan 10, 2018 at 03:08:04AM +0000, Dave Young wrote:
+> > > On Tue, Jan 09, 2018 at 12:05:52PM +0300, Kirill A. Shutemov wrote:
+> > > > On Tue, Jan 09, 2018 at 03:24:40PM +0800, Dave Young wrote:
+> > > > > On 01/09/18 at 01:41pm, Baoquan He wrote:
+> > > > > > On 01/09/18 at 09:09am, Dave Young wrote:
+> > > > > > 
+> > > > > > > As for the macro name, VMCOREINFO_SYMBOL_ARRAY sounds better.
+> > > > 
+> > > > Yep, that's better.
+> > > > 
+> > > > > > I still think using vmcoreinfo_append_str is better. Unless we replace
+> > > > > > all array variables with the newly added macro.
+> > > > > > 
+> > > > > > vmcoreinfo_append_str("SYMBOL(mem_section)=%lx\n",
+> > > > > >                                 (unsigned long)mem_section);
+> > > > > 
+> > > > > I have no strong opinion, either change all array uses or just introduce
+> > > > > the macro and start to use it from now on if we have similar array
+> > > > > symbols.
+> > > > 
+> > > > Do you need some action on my side or will you folks take care about this?
+> > > 
+> > > I think Baoquan was suggesting to update all array users in current
+> > > code, if you can check every VMCOREINFO_SYMBOL and update all the arrays
+> > > he will be happy. But if can not do it easily I'm fine with a
+> > > VMCOREINFO_SYMBOL_ARRAY changes only now, we kdump people can do it
+> > > later as well. 
+> > 
+> > It seems it's the only array we have there. swapper_pg_dir is a potential
+> > candidate, but it's 'unsigned long' on arm.
+> > 
+> > Below it patch with corrected macro name.
+> > 
+> > Please, consider applying.
+> > 
+> > From 70f3a84b97f2de98d1364f7b10b7a42a1d8e9968 Mon Sep 17 00:00:00 2001
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > Date: Tue, 9 Jan 2018 02:55:47 +0300
+> > Subject: [PATCH] kdump: Write a correct address of mem_section into vmcoreinfo
+> > 
+> > Depending on configuration mem_section can now be an array or a pointer
+> > to an array allocated dynamically. In most cases, we can continue to refer
+> > to it as 'mem_section' regardless of what it is.
+> > 
+> > But there's one exception: '&mem_section' means "address of the array" if
+> > mem_section is an array, but if mem_section is a pointer, it would mean
+> > "address of the pointer".
+> > 
+> > We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
+> > writes down address of pointer into vmcoreinfo, not array as we wanted.
+> > 
+> > Let's introduce VMCOREINFO_SYMBOL_ARRAY() that would handle the
+> > situation correctly for both cases.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
+> > ---
+> >  include/linux/crash_core.h | 2 ++
+> >  kernel/crash_core.c        | 2 +-
+> >  2 files changed, 3 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/include/linux/crash_core.h b/include/linux/crash_core.h
+> > index 06097ef30449..b511f6d24b42 100644
+> > --- a/include/linux/crash_core.h
+> > +++ b/include/linux/crash_core.h
+> > @@ -42,6 +42,8 @@ phys_addr_t paddr_vmcoreinfo_note(void);
+> >  	vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
+> >  #define VMCOREINFO_SYMBOL(name) \
+> >  	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
+> > +#define VMCOREINFO_SYMBOL_ARRAY(name) \
+> > +	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)name)
+> >  #define VMCOREINFO_SIZE(name) \
+> >  	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
+> >  			      (unsigned long)sizeof(name))
+> > diff --git a/kernel/crash_core.c b/kernel/crash_core.c
+> > index b3663896278e..4f63597c824d 100644
+> > --- a/kernel/crash_core.c
+> > +++ b/kernel/crash_core.c
+> > @@ -410,7 +410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
+> >  	VMCOREINFO_SYMBOL(contig_page_data);
+> >  #endif
+> >  #ifdef CONFIG_SPARSEMEM
+> > -	VMCOREINFO_SYMBOL(mem_section);
+> > +	VMCOREINFO_SYMBOL_ARRAY(mem_section);
+> >  	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
+> >  	VMCOREINFO_STRUCT_SIZE(mem_section);
+> >  	VMCOREINFO_OFFSET(mem_section, section_mem_map);
+> > -- 
+> >  Kirill A. Shutemov
 > 
-> In fact, the laptop I'm writing this email on runs an unmodified
-> mainstream Linux distribution. The only thing in the root cgroup are
-> kernel threads.
 > 
-> The decisions are good enough for the rare cases you forget something
-> in there and it explodes.
+> Acked-by: Dave Young <dyoung@redhat.com>
 > 
-
-It's quite trivial to allow the root mem cgroup to be compared exactly the 
-same as another cgroup.  Please see 
-https://marc.info/?l=linux-kernel&m=151579459920305.
-
-> This assumes you even need one. Right now, the OOM killer picks the
-> biggest MM, so you can evade selection by forking your MM. This patch
-> allows picking the biggest cgroup, so you can evade by forking groups.
+> If stable kernel took the mem section commits, then should also cc
+> stable.  Andrew, can you help to make this in 4.15?
 > 
+> Thanks
+> Dave
 
-It's quite trivial to prevent any cgroup from evading the oom killer by 
-either forking their mm or attaching all their processes to subcontainers.  
-Please see https://marc.info/?l=linux-kernel&m=151579459920305.
-
-> It's not a new vector, and clearly nobody cares. This has never been
-> brought up against the current design that I know of.
-> 
-
-As cgroup v2 becomes more popular, people will organize their cgroup 
-hierarchies for all controllers they need to use.  We do this today, for 
-example, by attaching some individual consumers to child mem cgroups 
-purely for the rich statistics and vmscan stats that mem cgroup provides 
-without any limitation on those cgroups.
-
-> Note, however, that there actually *is* a way to guard against it: in
-> cgroup2 there is a hierarchical limit you can configure for the number
-> of cgroups that are allowed to be created in the subtree. See
-> 1a926e0bbab8 ("cgroup: implement hierarchy limits").
-> 
-
-Not allowing the user to create subcontainers to track statistics to paper 
-over an obvious and acknowledged shortcoming in the design of the cgroup 
-aware oom killer seems like a pretty nasty shortcoming itself.
-
-> It could be useful, but we have no concensus on the desired
-> semantics. And it's not clear why we couldn't add it later as long as
-> the default settings of a new knob maintain the default behavior
-> (which would have to be preserved anyway, since we rely on it).
->
-
-The active proposal is 
-https://marc.info/?l=linux-kernel&m=151579459920305, which describes an 
-extendable interface and one that covers all the shortcomings of this 
-patchset without polluting the mem cgroup filesystem.  The default oom 
-policy in that proposal would be "none", i.e. we do what we do today, 
-based on process usage.  You can configure that, without the mount option 
-this patchset introduces for local or hierarchical cgroup targeting.
- 
-> > > > I proposed a solution in 
-> > > > https://marc.info/?l=linux-kernel&m=150956897302725, which was never 
-> > > > responded to, for all of these issues.  The idea is to do hierarchical 
-> > > > accounting of mem cgroup hierarchies so that the hierarchy is traversed 
-> > > > comparing total usage at each level to select target cgroups.  Admins and 
-> > > > users can use memory.oom_score_adj to influence that decisionmaking at 
-> > > > each level.
-> 
-> We did respond repeatedly: this doesn't work for a lot of setups.
-> 
-
-We need to move this discussion to the active proposal at 
-https://marc.info/?l=linux-kernel&m=151579459920305, because it does 
-address your setup, so it's not good use of anyones time to further 
-discuss simply memory.oom_score_adj.
-
-Thanks.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Hm, this fix means that the vmlinux symbol table and vmcoreinfo have
+different values for mem_section. That seems... odd. I had to patch
+makedumpfile to fix the case of an explicit vmlinux being passed on the
+command line (which I realized I don't need to do, but it should still
+work):
