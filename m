@@ -1,98 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 28EAF6B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:05:02 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id a6so7324598wrh.10
-        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 09:05:02 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c9sor41595wrg.66.2018.01.15.09.05.00
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 138196B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:37:42 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id v195so6168862qka.10
+        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 09:37:42 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id u1si149489qkh.42.2018.01.15.09.37.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 15 Jan 2018 09:05:00 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Jan 2018 09:37:40 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0FHUfLR012861
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:37:39 -0500
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2fgx91fkkh-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:37:39 -0500
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 15 Jan 2018 17:37:36 -0000
+Subject: Re: [PATCH v6 01/24] x86/mm: Define CONFIG_SPF
+References: <1515777968-867-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1515777968-867-2-git-send-email-ldufour@linux.vnet.ibm.com>
+ <alpine.DEB.2.20.1801121955150.2371@nanos>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Mon, 15 Jan 2018 18:37:25 +0100
 MIME-Version: 1.0
-In-Reply-To: <e5e92227-0931-dfc1-841e-c036131e66a8@virtuozzo.com>
-References: <20180109152622.31ca558acb0cc25a1b14f38c@linux-foundation.org>
- <20180110124317.28887-1-aryabinin@virtuozzo.com> <20180111104239.GZ1732@dhcp22.suse.cz>
- <4a8f667d-c2ae-e3df-00fd-edc01afe19e1@virtuozzo.com> <20180111124629.GA1732@dhcp22.suse.cz>
- <ce885a69-67af-5f4c-1116-9f6803fb45ee@virtuozzo.com> <20180111162947.GG1732@dhcp22.suse.cz>
- <560a77b5-02d7-cbae-35f3-0b20a1c384c2@virtuozzo.com> <20180112122405.GK1732@dhcp22.suse.cz>
- <CALvZod6y8EfQt02+rNOP_JXgzpJJHjuVzd++T3E=NEMwwBv_CQ@mail.gmail.com> <e5e92227-0931-dfc1-841e-c036131e66a8@virtuozzo.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Mon, 15 Jan 2018 09:04:58 -0800
-Message-ID: <CALvZod6k-pwbVRFis0QyGeQbAdmBHx2V0suD_7r-0OTfdxJhGA@mail.gmail.com>
-Subject: Re: [PATCH v4] mm/memcg: try harder to decrease [memory,memsw].limit_in_bytes
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <alpine.DEB.2.20.1801121955150.2371@nanos>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <753d7b28-3d7e-0c01-0386-8dad161f88ea@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Mon, Jan 15, 2018 at 4:29 AM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->
->
-> On 01/13/2018 01:57 AM, Shakeel Butt wrote:
->> On Fri, Jan 12, 2018 at 4:24 AM, Michal Hocko <mhocko@kernel.org> wrote:
->>> On Fri 12-01-18 00:59:38, Andrey Ryabinin wrote:
->>>> On 01/11/2018 07:29 PM, Michal Hocko wrote:
->>> [...]
->>>>> I do not think so. Consider that this reclaim races with other
->>>>> reclaimers. Now you are reclaiming a large chunk so you might end up
->>>>> reclaiming more than necessary. SWAP_CLUSTER_MAX would reduce the over
->>>>> reclaim to be negligible.
->>>>>
->>>>
->>>> I did consider this. And I think, I already explained that sort of race in previous email.
->>>> Whether "Task B" is really a task in cgroup or it's actually a bunch of reclaimers,
->>>> doesn't matter. That doesn't change anything.
->>>
->>> I would _really_ prefer two patches here. The first one removing the
->>> hard coded reclaim count. That thing is just dubious at best. If you
->>> _really_ think that the higher reclaim target is meaningfull then make
->>> it a separate patch. I am not conviced but I will not nack it it either.
->>> But it will make our life much easier if my over reclaim concern is
->>> right and we will need to revert it. Conceptually those two changes are
->>> independent anywa.
->>>
->>
->> Personally I feel that the cgroup-v2 semantics are much cleaner for
->> setting limit. There is no race with the allocators in the memcg,
->> though oom-killer can be triggered. For cgroup-v1, the user does not
->> expect OOM killer and EBUSY is expected on unsuccessful reclaim. How
->> about we do something similar here and make sure oom killer can not be
->> triggered for the given memcg?
->>
->> // pseudo code
->> disable_oom(memcg)
->> old = xchg(&memcg->memory.limit, requested_limit)
->>
->> reclaim memory until usage gets below new limit or retries are exhausted
->>
->> if (unsuccessful) {
->>   reset_limit(memcg, old)
->>   ret = EBUSY
->> } else
->>   ret = 0;
->> enable_oom(memcg)
->>
->> This way there is no race with the allocators and oom killer will not
->> be triggered. The processes in the memcg can suffer but that should be
->> within the expectation of the user. One disclaimer though, disabling
->> oom for memcg needs more thought.
->
-> That's might be worse. If limit is too low, all allocations (except __GFP_NOFAIL of course) will start
-> failing. And the kernel not always careful enough in -ENOMEM handling.
-> Also, it's not much different from oom killing everything, the end result is almost the same -
-> nothing will work in that cgroup.
->
+Hi Thomas,
 
-By disabling memcg oom, I meant to treat all allocations from that
-memcg as __GFP_NOFAIL until the oom is disabled. I will see if I can
-convert this into an actual code.
+Thanks for reviewing this series.
 
->
->> Shakeel
+On 12/01/2018 19:57, Thomas Gleixner wrote:
+> On Fri, 12 Jan 2018, Laurent Dufour wrote:
+> 
+>> Introduce CONFIG_SPF which turns on the Speculative Page Fault handler when
+>> building for 64bits with SMP.
 >>
+>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>> ---
+>>  arch/x86/Kconfig | 4 ++++
+>>  1 file changed, 4 insertions(+)
+>>
+>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>> index a317d5594b6a..d74353b85aaf 100644
+>> --- a/arch/x86/Kconfig
+>> +++ b/arch/x86/Kconfig
+>> @@ -2882,6 +2882,10 @@ config X86_DMA_REMAP
+>>  config HAVE_GENERIC_GUP
+>>  	def_bool y
+>>  
+>> +config SPF
+>> +	def_bool y
+>> +	depends on X86_64 && SMP
+> 
+> Can you please put that into a generic place as
+> 
+>     config SPF
+>     	   bool
+> 
+> and let the architectures select it.
+
+I'll change that to let the architectures (x86 and ppc64 currently)
+selecting it, but the definition will remain in the arch/xxx/Kconfig file
+since it depends on the architecture support in the page fault handler.
+
+> Also SPF could be bit more elaborate and self explaining for the causual
+> reader. 3 letter acronyms are reserved for non existing agencies.
+
+That's true 3 letter acronyms are already reserved...
+I'll change it to CONFIG_SPECULATIVE_PAGE_FAULT as suggested by Matthew Wilcox.
+
+Thanks,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
