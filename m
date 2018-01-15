@@ -1,114 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 462EC6B0069
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 11:39:41 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 33so6190653wrs.3
-        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 08:39:41 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id n1si266423edf.548.2018.01.15.08.39.39
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 28EAF6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:05:02 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id a6so7324598wrh.10
+        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 09:05:02 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c9sor41595wrg.66.2018.01.15.09.05.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 15 Jan 2018 08:39:39 -0800 (PST)
-Date: Mon, 15 Jan 2018 11:39:52 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: LSF/MM 2018: Call for Proposals
-Message-ID: <20180115163952.GB26120@cmpxchg.org>
+        (Google Transport Security);
+        Mon, 15 Jan 2018 09:05:00 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <e5e92227-0931-dfc1-841e-c036131e66a8@virtuozzo.com>
+References: <20180109152622.31ca558acb0cc25a1b14f38c@linux-foundation.org>
+ <20180110124317.28887-1-aryabinin@virtuozzo.com> <20180111104239.GZ1732@dhcp22.suse.cz>
+ <4a8f667d-c2ae-e3df-00fd-edc01afe19e1@virtuozzo.com> <20180111124629.GA1732@dhcp22.suse.cz>
+ <ce885a69-67af-5f4c-1116-9f6803fb45ee@virtuozzo.com> <20180111162947.GG1732@dhcp22.suse.cz>
+ <560a77b5-02d7-cbae-35f3-0b20a1c384c2@virtuozzo.com> <20180112122405.GK1732@dhcp22.suse.cz>
+ <CALvZod6y8EfQt02+rNOP_JXgzpJJHjuVzd++T3E=NEMwwBv_CQ@mail.gmail.com> <e5e92227-0931-dfc1-841e-c036131e66a8@virtuozzo.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Mon, 15 Jan 2018 09:04:58 -0800
+Message-ID: <CALvZod6k-pwbVRFis0QyGeQbAdmBHx2V0suD_7r-0OTfdxJhGA@mail.gmail.com>
+Subject: Re: [PATCH v4] mm/memcg: try harder to decrease [memory,memsw].limit_in_bytes
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ide@vger.kernel.org, linux-scsi@vger.kernel.org, linux-nvme@lists.infradead.org, linux-kernel@vger.kernel.org
-Cc: lsf-pc@lists.linux-foundation.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-The annual Linux Storage, Filesystem and Memory Management (LSF/MM)
-Summit for 2018 will be held from April 23-25 at the Deer Valley
-Lodges in Park City, Utah. LSF/MM is an invitation-only technical
-workshop to map out improvements to the Linux storage, filesystem and
-memory management subsystems that will make their way into the
-mainline kernel within the coming years.
+On Mon, Jan 15, 2018 at 4:29 AM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+>
+>
+> On 01/13/2018 01:57 AM, Shakeel Butt wrote:
+>> On Fri, Jan 12, 2018 at 4:24 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>>> On Fri 12-01-18 00:59:38, Andrey Ryabinin wrote:
+>>>> On 01/11/2018 07:29 PM, Michal Hocko wrote:
+>>> [...]
+>>>>> I do not think so. Consider that this reclaim races with other
+>>>>> reclaimers. Now you are reclaiming a large chunk so you might end up
+>>>>> reclaiming more than necessary. SWAP_CLUSTER_MAX would reduce the over
+>>>>> reclaim to be negligible.
+>>>>>
+>>>>
+>>>> I did consider this. And I think, I already explained that sort of race in previous email.
+>>>> Whether "Task B" is really a task in cgroup or it's actually a bunch of reclaimers,
+>>>> doesn't matter. That doesn't change anything.
+>>>
+>>> I would _really_ prefer two patches here. The first one removing the
+>>> hard coded reclaim count. That thing is just dubious at best. If you
+>>> _really_ think that the higher reclaim target is meaningfull then make
+>>> it a separate patch. I am not conviced but I will not nack it it either.
+>>> But it will make our life much easier if my over reclaim concern is
+>>> right and we will need to revert it. Conceptually those two changes are
+>>> independent anywa.
+>>>
+>>
+>> Personally I feel that the cgroup-v2 semantics are much cleaner for
+>> setting limit. There is no race with the allocators in the memcg,
+>> though oom-killer can be triggered. For cgroup-v1, the user does not
+>> expect OOM killer and EBUSY is expected on unsuccessful reclaim. How
+>> about we do something similar here and make sure oom killer can not be
+>> triggered for the given memcg?
+>>
+>> // pseudo code
+>> disable_oom(memcg)
+>> old = xchg(&memcg->memory.limit, requested_limit)
+>>
+>> reclaim memory until usage gets below new limit or retries are exhausted
+>>
+>> if (unsuccessful) {
+>>   reset_limit(memcg, old)
+>>   ret = EBUSY
+>> } else
+>>   ret = 0;
+>> enable_oom(memcg)
+>>
+>> This way there is no race with the allocators and oom killer will not
+>> be triggered. The processes in the memcg can suffer but that should be
+>> within the expectation of the user. One disclaimer though, disabling
+>> oom for memcg needs more thought.
+>
+> That's might be worse. If limit is too low, all allocations (except __GFP_NOFAIL of course) will start
+> failing. And the kernel not always careful enough in -ENOMEM handling.
+> Also, it's not much different from oom killing everything, the end result is almost the same -
+> nothing will work in that cgroup.
+>
 
-	http://events.linuxfoundation.org/events/linux-storage-filesystem-and-mm-summit
+By disabling memcg oom, I meant to treat all allocations from that
+memcg as __GFP_NOFAIL until the oom is disabled. I will see if I can
+convert this into an actual code.
 
-LSF/MM 2018 will be a three day, stand-alone conference with three
-subsystem-specific tracks, cross-track discussions, as well as BoF and
-hacking sessions.
-
-On behalf of the committee I am issuing a call for agenda proposals
-that are suitable for cross-track discussion as well as technical
-subjects for the breakout sessions.
-
-If advance notice is required for visa applications then please point
-that out in your proposal or request to attend, and submit the topic
-as soon as possible.
-
-1) Proposals for agenda topics should be sent before January 31st,
-2018 to:
-
-	lsf-pc@lists.linux-foundation.org
-
-and CC the mailing lists that are relevant for the topic in question:
-
-	FS:	linux-fsdevel@vger.kernel.org
-	MM:	linux-mm@kvack.org
-	Block:	linux-block@vger.kernel.org
-	ATA:	linux-ide@vger.kernel.org
-	SCSI:	linux-scsi@vger.kernel.org
-	NVMe:	linux-nvme@lists.infradead.org
-
-Please tag your proposal with [LSF/MM TOPIC] to make it easier to
-track. In addition, please make sure to start a new thread for each
-topic rather than following up to an existing one. Agenda topics and
-attendees will be selected by the program committee, but the final
-agenda will be formed by consensus of the attendees on the day.
-
-2) Requests to attend the summit for those that are not proposing a
-topic should be sent to:
-
-	lsf-pc@lists.linux-foundation.org
-
-Please summarize what expertise you will bring to the meeting, and
-what you would like to discuss. Please also tag your email with
-[LSF/MM ATTEND] and send it as a new thread so there is less chance of
-it getting lost.
-
-We will try to cap attendance at around 25-30 per track to facilitate
-discussions although the final numbers will depend on the room sizes
-at the venue.
-
-For discussion leaders, slides and visualizations are encouraged to
-outline the subject matter and focus the discussions. Please refrain
-from lengthy presentations and talks; the sessions are supposed to be
-interactive, inclusive discussions.
-
-There will be no recording or audio bridge. However, we expect that
-written minutes will be published as we did in previous years:
-
-2017: https://lwn.net/Articles/lsfmm2017/
-
-2016: https://lwn.net/Articles/lsfmm2016/
-
-2015: https://lwn.net/Articles/lsfmm2015/
-
-2014: http://lwn.net/Articles/LSFMM2014/
-
-2013: http://lwn.net/Articles/548089/
-
-3) If you have feedback on last year's meeting that we can use to
-improve this year's, please also send that to:
-
-	lsf-pc@lists.linux-foundation.org
-
-Thank you on behalf of the program committee:
-
-	Anna Schumaker (Filesystems)
-	Jens Axboe (Storage)
-	Josef Bacik (Filesystems)
-	Martin K. Petersen (Storage)
-	Michal Hocko (MM)
-	Rik van Riel (MM)
-
-Johannes Weiner
+>
+>> Shakeel
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
