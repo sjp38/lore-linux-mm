@@ -1,227 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B6A686B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 05:17:50 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id h1so8248751wre.20
-        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 02:17:50 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a5si1900554wme.238.2018.01.15.02.17.48
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CB23A6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 05:45:08 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id p202so3562949iod.18
+        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 02:45:08 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id a69si7114460itc.154.2018.01.15.02.45.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 15 Jan 2018 02:17:48 -0800 (PST)
-Date: Mon, 15 Jan 2018 11:17:43 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180115101743.qh5whicsn6hmac32@pathway.suse.cz>
-References: <20180110130517.6ff91716@vmware.local.home>
- <20180111045817.GA494@jagdpanzerIV>
- <20180111093435.GA24497@linux.suse>
- <20180111103845.GB477@jagdpanzerIV>
- <20180111112908.50de440a@vmware.local.home>
- <20180112025612.GB6419@jagdpanzerIV>
- <20180111222140.7fd89d52@gandalf.local.home>
- <20180112100544.GA441@jagdpanzerIV>
- <20180112072123.33bb567d@gandalf.local.home>
- <20180113072834.GA1701@tigerII.localdomain>
-MIME-Version: 1.0
+        Mon, 15 Jan 2018 02:45:06 -0800 (PST)
+Subject: Re: INFO: task hung in filemap_fault
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <CACT4Y+baPvzHB7w8gv=Cger80qoiyOKWO-KPgBAd7mcMD9QNLA@mail.gmail.com>
+	<201801020027.GIG26598.OFSMVLQtFHJOOF@I-love.SAKURA.ne.jp>
+	<CACT4Y+ZPHerom6rNYj8HL8vSySi7n4ArySnpFbxQX31n-QumNg@mail.gmail.com>
+	<201801081948.HAE82801.FQOSHtMOFVLFOJ@I-love.SAKURA.ne.jp>
+	<CACT4Y+bkuk3dkwdn7QCbWWWJ=R_nW8Qi6+y35VofLEHYu+6m7w@mail.gmail.com>
+In-Reply-To: <CACT4Y+bkuk3dkwdn7QCbWWWJ=R_nW8Qi6+y35VofLEHYu+6m7w@mail.gmail.com>
+Message-Id: <201801151944.FII09821.FMVQFJtHOOOSLF@I-love.SAKURA.ne.jp>
+Date: Mon, 15 Jan 2018 19:44:42 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180113072834.GA1701@tigerII.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: dvyukov@google.com
+Cc: bot+980f5e5fc060c37505bd65abb49a963518b269d9@syzkaller.appspotmail.com, ak@linux.intel.com, akpm@linux-foundation.org, jack@suse.cz, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, mingo@kernel.org, npiggin@gmail.com, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, axboe@kernel.dk, tom.leiming@gmail.com, hare@suse.de, osandov@fb.com, shli@fb.com
 
-Hi Sergey,
-
-I wonder if there is still some miss understanding.
-
-Steven and me are trying to get this patch in because we believe
-that it is a step forward. We know that it is not perfect. But
-we believe that it makes things better. In particular, it limits
-the time spent in console_unlock() in atomic context. It does
-not make it worse in preemptible context.
-
-It does not block further improvements, including offloading
-to the kthread. We will happily discuss and review further
-improvements, it they prove to be necessary.
-
-The advantage of this approach is that it is incremental. It should
-be easier for review and analyzing possible regressions.
-
-What is the aim of your mails, please?
-Do you want to say that this patch might cause regressions?
-Or do you want to say that it does not solve all scenarios?
-
-Please, answer the above questions. I am still confused.
-
-
-On Sat 2018-01-13 16:28:34, Sergey Senozhatsky wrote:
-> On (01/12/18 07:21), Steven Rostedt wrote:
-> [..]
-> > Yep, but I'm still not convinced you are seeing an issue with a single
-> > printk.
-> 
-> what do you mean by this?
-> 
-> > An OOM does not do everything in one printk, it calls hundreds.
-> > Having hundreds of printks is an issue, especially in critical sections.
-> 
-> unless your console_sem owner is preempted. as long as it is preempted
-> it doesn't really matter how many times we call printk from which CPUs
-> and from which sections, but what matters - who is going to print that all
-> out when console_sem is running again and how much time will it take.
-> that's what I'm saying.
-
-Yes, this is a problem. We might need to solve it. But the same
-problem is there even without the patch. Therefore we might
-solve it later. Do you agree, please?
-
-
-> [..]
-> > > with slow serial console, call_console_drivers() takes enough time to
-> > > to make preemption of a current console_sem owner right after it irqrestore()
-> > > highly possible; unless there is a spinning console_waiter. which easily may
-> > > not be there; but can come in while current console_sem is preempted, why not.
-> > > so when preempted console_sem owner comes back - it suddenly has a whole bunch
-> > > of new messages to print and on one to hand off printing to. in a super
-> > > imperfect and ugly world, BTW, this is how console_unlock() still can be
-> > > O(infinite): schedule between the printed lines [even !PREEMPT kernel tries
-> > 
-> > I'm not fixing console_unlock(), I'm fixing printk().
-> 
-> which is not what I was talking about. the point was that you said
+Dmitry Vyukov wrote:
+> On Mon, Jan 8, 2018 at 11:48 AM, Tetsuo Handa
+> <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> > Dmitry Vyukov wrote:
+> >> >> Hi Tetsuo,
+> >> >>
+> >> >> syzbot always re-runs the same workload on a new machine. If it
+> >> >> manages to reproduce the problem, it provides a reproducer. In this
+> >> >> case it didn't.
+> >> >
+> >> > Even if it did not manage to reproduce the problem, showing raw.log in
+> >> > C format is helpful for me. For example,
+> >> >
+> >> >   ioctl$LOOP_CHANGE_FD(r3, 0x4c00, r1)
+> >> >
+> >> > is confusing. 0x4c00 is not LOOP_CHANGE_FD but LOOP_SET_FD.
+> >> > If the message were
+> >> >
+> >> >   ioctl(r3, 0x4c00, r1)
+> >> >
+> >> > more people will be able to read what the program tried to do.
+> >> > There are many operations done on loop devices, but are too hard
+> >> > for me to pick up only loop related actions.
+> >>
+> >>
+> >> Hi Tetsuo,
+> >>
+> >> The main purpose of this format is different, this is a complete
+> >> representation of programs that allows replaying them using syzkaller
+> >> tools.
+> >
+> > What is ioctl$LOOP_CHANGE_FD(r3, 0x4c00, r1) ?
+> > 0x4c00 is LOOP_SET_FD. Why LOOP_CHANGE_FD is there?
 > 
 > 
->  :                                                .... and what about the
->  : printks that haven't gotten out yet? Delay them to something else, and
->  : if the machine were to crash in the transfer, we lost all that data.
->  :
->  : My method, there's really no delay between a hand off. There's always
->  : an active CPU doing printing. It matches the current method which works
->  : well for getting information out. A delayed approach will break that
+> In short, it specifies exact discrimination of the syscall which
+> affects parsing of the rest of the arguments. For some syscalls
+> (ioctl/setsockopt/sendmsg) kernel has hundreds of different
+> discriminations with radically different arguments.
+> Now if you are asking why the discrimination is LOOP_CHANGE_FD, but
+> the actual command is LOOP_SET_FD, that's because this is a fuzzer,
+> it's sole purpose is to mess things in unexpected ways.
+
+??? I can't catch what you want to say.
+
+I understand that a fuzzer intentionally tests various cases.
+My question is simple. Why don't you use actual command name like
+ioctl$LOOP_SET_FD(r3, 0x4c00, r1) ?
+Writing like ioctl$LOOP_CHANGE_FD is confusing. I consider it as a bug.
+
 > 
 > 
-> that is not true. we can have preemption "during" hand off. hand off,
-> thus, is a "delayed approach", by definition. so if you consider the
-> possibility of "if the machine were to crash in the transfer, we lost
-> all that data" and if you consider this to be important [otherwise you
-> wouldn't bring that up, would you] then the reality is that your patch
-> has the same problem as printk_kthread.
+> >>        We can't simply drop info from there. Do you propose to add
+> >> another attached file that contains the same info in a different
+> >> format? What is the exact format you are proposing?
+> >
+> > Plain C program which can be compiled without installing additional
+> > program/library packages (except those needed for building kernels).
+> >
+> >>                                                     Is it just
+> >> dropping the syscall name part after $ sign? Note that it's still not
+> >> C, more complex syscall generally look as follows:
+> >>
+> >> perf_event_open(&(0x7f0000b5a000)={0x4000000002, 0x78, 0x1e2, 0x0,
+> >> 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xffff, 0x0,
+> >> 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+> >> 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+> >> @perf_bp={&(0x7f0000000000)=0x0, 0x0}, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+> >> 0x0, 0x0}, 0x0, 0x0, 0xffffffffffffffff, 0x0)
+> >> recvmmsg(0xffffffffffffffff, &(0x7f0000003000)=[{{0x0, 0x0,
+> >> &(0x7f0000002000)=[{&(0x7f000000a000)=""/193, 0xc1},
+> >> {&(0x7f0000007000-0x3d)=""/61, 0x3d}], 0x2,
+> >> &(0x7f0000005000-0x67)=""/103, 0x67, 0x0}, 0x0}], 0x1, 0x0,
+> >> &(0x7f0000003000-0x10)={0x77359400, 0x0})
+> >> bpf$PROG_LOAD(0x5, &(0x7f0000000000)={0x1, 0x5,
+> >> &(0x7f0000002000)=@framed={{0x18, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+> >> 0x0}, [@jmp={0x5, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}], {0x95, 0x0, 0x0,
+> >> 0x0}}, &(0x7f0000004000-0xa)='syzkaller\x00', 0x3, 0xc3,
+> >> &(0x7f0000386000)=""/195, 0x0, 0x0, [0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+> >> 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0], 0x0}, 0x48)
+> >>
+> >> Note: you can convert any syzkaller program to equivalent C code using
+> >> syz-prog2c utility that comes with syzkaller.
+> >
+> > I won't install go language into my environment for analyzing/reproducing your
+> > reports. If syz-prog2c is provided as a CGI service (e.g. receive URL containing
+> > raw.log and print the converted C program), I might try it.
 > 
-> so very schematically, for hand-off it's something like
 > 
-> 	if (... console_trylock_spinning()) // grabbed the ownership
+> raw.log is not a _program_, it's hundreds of separate programs that
+> were executed before the crash. It's also very compressed
+> representation as compared to equivalent C programs. For example for
+> this program:
 > 
-> 		<< ... preempted ... >>
+> mmap(&(0x7f0000000000/0xfff000)=nil, 0xfff000, 0x3, 0x32,
+> 0xffffffffffffffff, 0x0)
+> r0 = socket$nl_generic(0x10, 0x3, 0x10)
+> sendmsg$nl_generic(r0,
+> &(0x7f0000b3e000-0x38)={&(0x7f0000d4a000-0xc)={0x10, 0x0, 0x0, 0x0},
+> 0xc, &(0x7f0000007000)={&(0x7f0000f7c000-0x15c)={0x24, 0x1c, 0x109,
+> 0xffffffffffffffff, 0xffffffffffffffff, {0x4, 0x0, 0x0},
+> [@nested={0x10, 0x9, [@typed={0xc, 0x0, @u32=0x0}]}]}, 0x24}, 0x1,
+> 0x0, 0x0, 0x0}, 0x0)
 > 
-> 		console_unlock();
+> you can get up to this amount of C code:
+> https://gist.githubusercontent.com/dvyukov/eeaeb4e4ac45c3a251f72098c9295bf9/raw/700cd583507eca90711ba11b42e406f317553371/gistfile1.txt
 > 
+> that is, 700 lines of C source for 3 line program. So instead of a 1MB
+> file that will be 100MB, and then it probably should be a gzip archive
+> with hundreds of separate C files. There are people on this list
+> complaining even about 200K of attachments. I don't see that this will
+> be better and well accepted.
 > 
-> for printk_kthread it's something like
-> 
-> 		wake_up_process(printk_kthread);
-> 		up(console_sem);
 
-Good question!
+No problem. In the "tty: User triggerable soft lockup." case, I manually
+trimmed the reproducer at https://marc.info/?l=linux-mm&m=151368630414963 .
+That is,
 
-Is this really the same? The console_trylock_spinning() caller will
-get preempted only when interrupts (timers?) still work. This is
-a sign that the system is still somehow living. Also this information
-is quite up-to-date because you checked this after a relatively
-short busy wait.
+ (1) Can the problem be reproduced even if setup_tun(0, true); is commented out?
 
-On the other hand, wake_up_process() just puts printk_kthread
-into a running state. It does not check if the processes are
-still actively being rescheduled on the system. It might check
-some flags. But they might be pretty outdated when this is
-done after half of the watchdog limit.
+ (2) Can the problem be reproduced even if NONFAILING(A = B); is replaced with
+     plain A = B; assignment?
 
+ (3) Can the problem be reproduced even if install_segv_handler(); is commented
+     out?
 
-In each case, the preemption after console_trylock_spinning()
-has the same effect like preemption in console_unlock().
-It is possible already now. Therefore I do not consider
-this as a regression.
+ (4) Can the problem be reproduced even if some syscalls (e.g. __NR_memfd_create,
+     __NR_getsockopt, __NR_perf_event_open) are replaced with no-op?
 
+and so on. Then, I finally reached a reproducer which I sent, and the bug was fixed.
 
-> hence the following:
-> 
-> [..]
-> > > reverting 6b97a20d3a7909daa06625d4440c2c52d7bf08d7 may be the right
-> > > thing after all.
-> 
-> this was cryptic and misleading. sorry.
-> some clarifications.
-> 
-> what I meant was that with 6b97a20d3a7909daa06625d4440c2c52d7bf08d7
-> I think I badly broke printk() [some of paths]. I know what I tried
-> to fix (and you don't have to explain to me what a lock up is) with
-> that patch, but I don't think the patch ended up to be a clear win.
-> a very simple explanation would be:
-> 
-> instead of having a direct nonpreemptible path
-> 
-> 	logbuf -> for(;;) call_console_drivers -> happy user
-> 
-> we now have
-> 
-> 	logbuf -> for(;;) { call_console_drivers, scheduler ... ???} -> happy user
-> 
-> which is a big change. with a non-zero potential for regressions.
-> and it didn't take long to find out that not all "happy users" were
-> exactly happy with the new scheme of things. glance through Tetsuo's
-> emails [see links in my another email], Tetsuo reported that printk can
-> stall for minutes now. basically, the worse the system state is the lower
-> printk throughput can be [down to zero chars in the worst case]. that's
-> why I think that my patch was a mistake. and that's why in my out-of-tree
-> patches I'm moving towards the non-preemptible path from logbuf through
-> console to a happy user [just like it used to be]. but, obviously, I can't
-> just restore preempt_disable()/preempt_enable() in vprintk_emit(). that's
-> why I bound console_unlock() to watchdog threshold and move towards the
-> batched non-preemptible print outs (enabling preemption and up()-ing the
-> console_sem at the end of each print out batch). this is not super good,
-> preemption is still here, but at least not after every line console_unlock()
-> prints. up() console_sem also increases chances that, for instance, systemd
-> or any other task that is sleeping in TASK_UNINTERRUPTIBLE on console_sem
-> now has a chance to be woken up sooner (not only after we flush all pending
-> logbuf messages and finally up() the console_sem).
-
-I see your point. But this is an orthogonal problem. It is more about
-loosing messages because console_unlock() is slow when sleeping. This
-patch is about limiting time spent in console_unlock() in atomic
-context.
-
-If you want to revert the above mentioned commit, please send a patch
-so that we could discuss this separately.
-
-Best Regards,
-Petr
-
-
-PS: Sergey, you have many good points. The printk-stuff is very
-complex and we could spend years discussing the perfect solution.
-
-But I am never sure if you discuss this in this thread because
-this patch might cause regression or because it does not address
-all the issues.
-
-Could we please make it more simple? If you believe that this
-patch might cause regression than please say this clearly.
-You actually mentioned the word regression few times.
-I am not sure if we managed to persuade you about the opposite.
-
-If you think that this patch is not good enough and not worth
-merging upstream, please state this clearly as well.
-
-If you think that this patch does not address all problems,
-please send further improvements on top of it so that we
-could discuss this. If you want to discuss the problems
-in advance, please open another thread. IMHO, this thread
-brought many ideas for the perfect solution but it is
-already too scattered.
-
-Best Regards,
-Petr
+What is important is that everyone can try simplifying the reproducer written
+in plain C in order to narrow down the culprit. Providing a (e.g.) CGI service
+which generates plain C reproducer like gistfile1.txt will be helpful to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
