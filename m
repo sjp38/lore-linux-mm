@@ -1,69 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 632D26B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 11:08:30 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id c11so3404523wrb.23
-        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 08:08:30 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e13si8732895wra.463.2018.01.15.08.08.27
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 718326B0253
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 11:24:59 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id w141so834900wme.1
+        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 08:24:59 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id o17si17855edf.520.2018.01.15.08.24.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 15 Jan 2018 08:08:28 -0800 (PST)
-Date: Mon, 15 Jan 2018 17:08:20 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v5 2/2] printk: Hide console waiter logic into helpers
-Message-ID: <20180115160820.vsn7wyejlp2f654s@pathway.suse.cz>
-References: <20180110132418.7080-1-pmladek@suse.com>
- <20180110132418.7080-3-pmladek@suse.com>
- <20180110125220.69f5f930@vmware.local.home>
- <20180111120341.GB24419@linux.suse>
- <20180112103754.1916a1e2@gandalf.local.home>
- <20180112160837.GD24497@linux.suse>
- <20180112113627.7c454063@gandalf.local.home>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 15 Jan 2018 08:24:58 -0800 (PST)
+Date: Mon, 15 Jan 2018 11:25:00 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
+Message-ID: <20180115162500.GA26120@cmpxchg.org>
+References: <20171130152824.1591-1-guro@fb.com>
+ <20171130123930.cf3217c816fd270fa35a40cb@linux-foundation.org>
+ <alpine.DEB.2.10.1801091556490.173445@chino.kir.corp.google.com>
+ <20180110131143.GB26913@castle.DHCP.thefacebook.com>
+ <20180110113345.54dd571967fd6e70bfba68c3@linux-foundation.org>
+ <20180113171432.GA23484@cmpxchg.org>
+ <alpine.DEB.2.10.1801141536380.131380@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180112113627.7c454063@gandalf.local.home>
+In-Reply-To: <alpine.DEB.2.10.1801141536380.131380@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, linux-mm@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 2018-01-12 11:36:27, Steven Rostedt wrote:
-> On Fri, 12 Jan 2018 17:08:37 +0100
-> Petr Mladek <pmladek@suse.com> wrote:
-> > >From f67f70d910d9cf310a7bc73e97bf14097d31b059 Mon Sep 17 00:00:00 2001  
-> > From: Petr Mladek <pmladek@suse.com>
-> > Date: Fri, 22 Dec 2017 18:58:46 +0100
-> > Subject: [PATCH v6 2/4] printk: Hide console waiter logic into helpers
-> > 
-> > The commit ("printk: Add console owner and waiter logic to load balance
-> > console writes") made vprintk_emit() and console_unlock() even more
-> > complicated.
-> > 
-> > This patch extracts the new code into 3 helper functions. They should
-> > help to keep it rather self-contained. It will be easier to use and
-> > maintain.
-> > 
-> > This patch just shuffles the existing code. It does not change
-> > the functionality.
-> > 
-> Besides the typos (which should be fixed)...
+On Sun, Jan 14, 2018 at 03:44:09PM -0800, David Rientjes wrote:
+> On Sat, 13 Jan 2018, Johannes Weiner wrote:
 > 
-> Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+> > You don't have any control and no accounting of the stuff situated
+> > inside the root cgroup, so it doesn't make sense to leave anything in
+> > there while also using sophisticated containerization mechanisms like
+> > this group oom setting.
+> > 
+> > In fact, the laptop I'm writing this email on runs an unmodified
+> > mainstream Linux distribution. The only thing in the root cgroup are
+> > kernel threads.
+> > 
+> > The decisions are good enough for the rare cases you forget something
+> > in there and it explodes.
+> 
+> It's quite trivial to allow the root mem cgroup to be compared exactly the 
+> same as another cgroup.  Please see 
+> https://marc.info/?l=linux-kernel&m=151579459920305.
 
-JFYI, I have fixed the typos, updated the commit message for
-the 1st patch and pushed all into printk.git,
-branch for-4.16-console-waiter-logic, see
-https://git.kernel.org/pub/scm/linux/kernel/git/pmladek/printk.git/log/?h=for-4.16-console-waiter-logic
+This only says "that will be fixed" and doesn't address why I care.
 
-I know that the discussion is not completely finished but it is
-somehow cycling. Sergey few times wrote that he would not block
-these patches. It is high time, I put it into linux-next. I could
-always remove it if decided in the discussion.
+> > This assumes you even need one. Right now, the OOM killer picks the
+> > biggest MM, so you can evade selection by forking your MM. This patch
+> > allows picking the biggest cgroup, so you can evade by forking groups.
+> 
+> It's quite trivial to prevent any cgroup from evading the oom killer by 
+> either forking their mm or attaching all their processes to subcontainers.  
+> Please see https://marc.info/?l=linux-kernel&m=151579459920305.
 
-Best Regards,
-Petr
+This doesn't address anything I wrote.
+
+> > It's not a new vector, and clearly nobody cares. This has never been
+> > brought up against the current design that I know of.
+> 
+> As cgroup v2 becomes more popular, people will organize their cgroup 
+> hierarchies for all controllers they need to use.  We do this today, for 
+> example, by attaching some individual consumers to child mem cgroups 
+> purely for the rich statistics and vmscan stats that mem cgroup provides 
+> without any limitation on those cgroups.
+
+There is no connecting tissue between what I wrote and what you wrote.
+
+> > Note, however, that there actually *is* a way to guard against it: in
+> > cgroup2 there is a hierarchical limit you can configure for the number
+> > of cgroups that are allowed to be created in the subtree. See
+> > 1a926e0bbab8 ("cgroup: implement hierarchy limits").
+> 
+> Not allowing the user to create subcontainers to track statistics to paper 
+> over an obvious and acknowledged shortcoming in the design of the cgroup 
+> aware oom killer seems like a pretty nasty shortcoming itself.
+
+It's not what I proposed. There is a big difference between cgroup
+fork bombs and having a couple of groups for statistics.
+
+> > > > > I proposed a solution in 
+> > > > > https://marc.info/?l=linux-kernel&m=150956897302725, which was never 
+> > > > > responded to, for all of these issues.  The idea is to do hierarchical 
+> > > > > accounting of mem cgroup hierarchies so that the hierarchy is traversed 
+> > > > > comparing total usage at each level to select target cgroups.  Admins and 
+> > > > > users can use memory.oom_score_adj to influence that decisionmaking at 
+> > > > > each level.
+> > 
+> > We did respond repeatedly: this doesn't work for a lot of setups.
+> 
+> We need to move this discussion to the active proposal at 
+> https://marc.info/?l=linux-kernel&m=151579459920305, because it does 
+> address your setup, so it's not good use of anyones time to further 
+> discuss simply memory.oom_score_adj.
+
+No, we don't.
+
+We have a patch set that was developed, iterated and improved over 10+
+revisions, based on evaluating and weighing trade-offs. It's reached a
+state where the memcg maintainers are happy with it and don't have any
+concern about future extendabilty to cover more specialized setups.
+
+You've had nine months to contribute and shape this patch series
+productively, and instead resorted to a cavalcade of polemics,
+evasion, and repetition of truisms and refuted points. A ten paragraph
+proposal of vague ideas at this point is simply not a valid argument.
+
+You can send patches to replace or improve on Roman's code and make
+the case for them.
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
