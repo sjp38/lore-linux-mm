@@ -1,85 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 138196B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:37:42 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id v195so6168862qka.10
-        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 09:37:42 -0800 (PST)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8ECD76B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:42:25 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id p141so460901qke.4
+        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 09:42:25 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id u1si149489qkh.42.2018.01.15.09.37.40
+        by mx.google.com with ESMTPS id v22si146353qtc.308.2018.01.15.09.42.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Jan 2018 09:37:40 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0FHUfLR012861
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:37:39 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2fgx91fkkh-1
+        Mon, 15 Jan 2018 09:42:24 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0FHdG0Z048202
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:42:24 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2fgy4yd6gh-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:37:39 -0500
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 12:42:23 -0500
 Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Mon, 15 Jan 2018 17:37:36 -0000
-Subject: Re: [PATCH v6 01/24] x86/mm: Define CONFIG_SPF
+	Mon, 15 Jan 2018 17:42:21 -0000
+Subject: Re: [PATCH v6 16/24] mm: Protect mm_rb tree with a rwlock
 References: <1515777968-867-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1515777968-867-2-git-send-email-ldufour@linux.vnet.ibm.com>
- <alpine.DEB.2.20.1801121955150.2371@nanos>
+ <1515777968-867-17-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20180112184821.GB7590@bombadil.infradead.org>
 From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Mon, 15 Jan 2018 18:37:25 +0100
+Date: Mon, 15 Jan 2018 18:42:11 +0100
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1801121955150.2371@nanos>
+In-Reply-To: <20180112184821.GB7590@bombadil.infradead.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <753d7b28-3d7e-0c01-0386-8dad161f88ea@linux.vnet.ibm.com>
+Message-Id: <9c21cf88-84bd-c951-59eb-c0a5b31dadb3@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-Hi Thomas,
+Hi Matthew,
 
 Thanks for reviewing this series.
 
-On 12/01/2018 19:57, Thomas Gleixner wrote:
-> On Fri, 12 Jan 2018, Laurent Dufour wrote:
+On 12/01/2018 19:48, Matthew Wilcox wrote:
+> On Fri, Jan 12, 2018 at 06:26:00PM +0100, Laurent Dufour wrote:
+>> -static void __vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
+>> +static void __vma_rb_erase(struct vm_area_struct *vma, struct mm_struct *mm)
+>>  {
+>> +	struct rb_root *root = &mm->mm_rb;
+>>  	/*
+>>  	 * Note rb_erase_augmented is a fairly large inline function,
+>>  	 * so make sure we instantiate it only once with our desired
+>>  	 * augmented rbtree callbacks.
+>>  	 */
+>> +#ifdef CONFIG_SPF
+>> +	write_lock(&mm->mm_rb_lock);
+>> +#endif
+>>  	rb_erase_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
+>> +#ifdef CONFIG_SPF
+>> +	write_unlock(&mm->mm_rb_lock); /* wmb */
+>> +#endif
 > 
->> Introduce CONFIG_SPF which turns on the Speculative Page Fault handler when
->> building for 64bits with SMP.
->>
->> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
->> ---
->>  arch/x86/Kconfig | 4 ++++
->>  1 file changed, 4 insertions(+)
->>
->> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
->> index a317d5594b6a..d74353b85aaf 100644
->> --- a/arch/x86/Kconfig
->> +++ b/arch/x86/Kconfig
->> @@ -2882,6 +2882,10 @@ config X86_DMA_REMAP
->>  config HAVE_GENERIC_GUP
->>  	def_bool y
->>  
->> +config SPF
->> +	def_bool y
->> +	depends on X86_64 && SMP
+> I can't say I love this.  Have you considered:
 > 
-> Can you please put that into a generic place as
-> 
->     config SPF
->     	   bool
-> 
-> and let the architectures select it.
+> #ifdef CONFIG_SPF
+> #define vma_rb_write_lock(mm)	write_lock(&mm->mm_rb_lock)
+> #define vma_rb_write_unlock(mm)	write_unlock(&mm->mm_rb_lock)
+> #else
+> #define vma_rb_write_lock(mm)	do { } while (0)
+> #define vma_rb_write_unlock(mm)	do { } while (0)
+> #endif
 
-I'll change that to let the architectures (x86 and ppc64 currently)
-selecting it, but the definition will remain in the arch/xxx/Kconfig file
-since it depends on the architecture support in the page fault handler.
+I haven't consider this, but this sounds to be smarter. I'll do that.
 
-> Also SPF could be bit more elaborate and self explaining for the causual
-> reader. 3 letter acronyms are reserved for non existing agencies.
+> Also, SPF is kind of uninformative.  CONFIG_MM_SPF might be better?
+> Or perhaps even CONFIG_SPECULATIVE_PAGE_FAULT, just to make it really
+> painful to do these one-liner ifdefs that make the code so hard to read.
 
-That's true 3 letter acronyms are already reserved...
-I'll change it to CONFIG_SPECULATIVE_PAGE_FAULT as suggested by Matthew Wilcox.
+Thomas also complained about that, and I agree, SPF is quite cryptic. This
+being said, I don't think that CONFIG_MM_SPF will be far better, so I'll
+change this define to CONFIG_SPECULATIVE_PAGE_FAULT, even if it's longer,
+it should not be too much present in the code.
 
 Thanks,
 Laurent.
