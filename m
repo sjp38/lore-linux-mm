@@ -1,60 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D916B6B0292
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:45:00 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id q185so13489396qke.2
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:45:00 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id s66sor2124960qkc.162.2018.01.16.11.45.00
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 650C16B0293
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:46:16 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 31so6561885wru.0
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:46:16 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id f24si2785593edc.398.2018.01.16.11.46.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Jan 2018 11:45:00 -0800 (PST)
-Date: Tue, 16 Jan 2018 11:44:56 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180116194456.GS3460072@devbig577.frc2.facebook.com>
-References: <20180110132418.7080-1-pmladek@suse.com>
- <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
- <20180110130517.6ff91716@vmware.local.home>
- <20180111045817.GA494@jagdpanzerIV>
- <20180111093435.GA24497@linux.suse>
- <20180111103845.GB477@jagdpanzerIV>
- <20180111112908.50de440a@vmware.local.home>
- <20180111203057.5b1a8f8f@gandalf.local.home>
- <20180111215547.2f66a23a@gandalf.local.home>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jan 2018 11:46:15 -0800 (PST)
+Date: Tue, 16 Jan 2018 20:46:14 +0100
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [RFC PATCH 00/16] PTI support for x86-32
+Message-ID: <20180116194614.GF28161@8bytes.org>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+ <1c7da3dc-279a-fa07-247b-7596cf758a55@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180111215547.2f66a23a@gandalf.local.home>
+In-Reply-To: <1c7da3dc-279a-fa07-247b-7596cf758a55@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
 
-Hello, Steven.
-
-On Thu, Jan 11, 2018 at 09:55:47PM -0500, Steven Rostedt wrote:
-> All I did was start off a work queue on each CPU, and each CPU does one
-> printk() followed by a millisecond sleep. No 10,000 printks, nothing
-> in an interrupt handler. Preemption is disabled while the printk
-> happens, but that's normal.
+On Tue, Jan 16, 2018 at 10:14:19AM -0800, Dave Hansen wrote:
+> Joerg,
 > 
-> This is much closer to an OOM happening all over the system, where OOMs
-> stack dumps are occurring on different CPUS.
+> Very cool!.
 
-OOMs can't happen all over the system.  It can only happen on a single
-CPU at a time.  If you're printing from multiple CPUs, your solution
-would work great.  That is the situation your patches are designed to
-address to begin with.  That isn't the problem that I reported tho.  I
-understand that your solution works for that class of problems and
-that is great.  I really wish that it could address the other class of
-problems too tho, and it doesn't seem like it would be that difficult
-to cover both cases, right?
+Thanks :)
 
-Thanks.
+> I really appreciate you putting this together.  I don't see any real
+> showstoppers or things that I think will *break* 64-bit.  I just hope
+> that we can merge this _slowly_ in case it breaks 64-bit along the way.
 
--- 
-tejun
+Sure, it needs a lot more testing and most likely fixing anyway. So
+there is still some way to go before this is ready for merging.
+
+
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
