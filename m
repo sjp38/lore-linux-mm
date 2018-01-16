@@ -1,50 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C54F6B0289
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:34:48 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id p202so7671043iod.18
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:34:48 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c38sor1490156iod.34.2018.01.16.11.34.47
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C6906B028B
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:35:12 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 31so6543844wru.0
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:35:12 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id c21si19974wrc.92.2018.01.16.11.35.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Jan 2018 11:34:47 -0800 (PST)
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 16 Jan 2018 11:35:10 -0800 (PST)
+Date: Tue, 16 Jan 2018 20:34:59 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 07/16] x86/mm: Move two more functions from pgtable_64.h
+ to pgtable.h
+In-Reply-To: <20180116191105.GC28161@8bytes.org>
+Message-ID: <alpine.DEB.2.20.1801162033220.2366@nanos>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org> <1516120619-1159-8-git-send-email-joro@8bytes.org> <727a7eba-41a0-d5bb-df54-8e58b33fde76@intel.com> <20180116191105.GC28161@8bytes.org>
 MIME-Version: 1.0
-In-Reply-To: <201801170233.JDG21842.OFOJMQSHtOFFLV@I-love.SAKURA.ne.jp>
-References: <201801142054.FAD95378.LVOOFQJOFtMFSH@I-love.SAKURA.ne.jp>
- <CA+55aFwvgm+KKkRLaFsuAjTdfQooS=UaMScC0CbZQ9WnX_AF=g@mail.gmail.com>
- <201801160115.w0G1FOIG057203@www262.sakura.ne.jp> <CA+55aFxOn5n4O2JNaivi8rhDmeFhTQxEHD4xE33J9xOrFu=7kQ@mail.gmail.com>
- <201801170233.JDG21842.OFOJMQSHtOFFLV@I-love.SAKURA.ne.jp>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 16 Jan 2018 11:34:46 -0800
-Message-ID: <CA+55aFyxyjN0Mqnz66B4a0R+uR8DdfxdMhcg5rJVi8LwnpSRfA@mail.gmail.com>
-Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
 
-On Tue, Jan 16, 2018 at 9:33 AM, Tetsuo Handa
-<penguin-kernel@i-love.sakura.ne.jp> wrote:
->
-> Since I got a faster reproducer, I tried full bisection between 4.11 and 4.12-rc1.
-> But I have no idea why bisection arrives at c0332694903a37cf.
+On Tue, 16 Jan 2018, Joerg Roedel wrote:
 
-I don't think your reproducer is 100% reliable.
+> On Tue, Jan 16, 2018 at 10:03:09AM -0800, Dave Hansen wrote:
+> > On 01/16/2018 08:36 AM, Joerg Roedel wrote:
+> > > +	return (((ptr & ~PAGE_MASK) / sizeof(pgd_t)) < KERNEL_PGD_BOUNDARY);
+> > > +}
+> > 
+> > One of the reasons to implement it the other way:
+> > 
+> > -	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
+> > 
+> > is that the compiler can do this all quickly.  KERNEL_PGD_BOUNDARY
+> > depends on PAGE_OFFSET which depends on a variable.  IOW, the compiler
+> > can't do it.
+> > 
+> > How much worse is the code that this generates?
+> 
+> I havn't looked at the actual code this generates, but the
+> (PAGE_SIZE / 2) comparison doesn't work on 32 bit where the address
+> space is not always evenly split. I'll look into a better way to check
+> this.
 
-And bisection is great because it's very aggressive and optimal when
-it comes to testing. But that also implies that if *any* of the
-good/bad choices were incorrect, then the end result is pure garbage
-and isn't even *close* to the right commit.
+It should be trivial enough to do
 
-> It turned out that CONFIG_FLATMEM was irrelevant. I just did not hit it.
+   return (ptr & ~PAGE_MASK) < PGD_SPLIT_SIZE);
 
-So have you actually been able to see the problem with FLATMEM, or is
-this based on the bisect? Because I really think the bisect is pretty
-much guaranteed to be wrong.
+and define it PAGE_SIZE/2 for 64bit and for PAE make it depend on the
+configured address space split.
 
-               Linus
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
