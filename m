@@ -1,58 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 39B846B0253
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 09:52:42 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id q8so6421155pfh.12
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 06:52:42 -0800 (PST)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C8B76B025F
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 09:59:47 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id x16so4080151pfe.20
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 06:59:47 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id y2si1737582pgo.759.2018.01.16.06.52.41
+        by mx.google.com with ESMTPS id h34si2064230pld.202.2018.01.16.06.59.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 16 Jan 2018 06:52:41 -0800 (PST)
-Date: Tue, 16 Jan 2018 06:52:40 -0800
+        Tue, 16 Jan 2018 06:59:46 -0800 (PST)
+Date: Tue, 16 Jan 2018 06:58:46 -0800
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [LSF/MM TOPIC] A high-performance userspace block driver
-Message-ID: <20180116145240.GD30073@bombadil.infradead.org>
+Subject: Re: [PATCH v6 22/24] mm: Speculative page fault handler return VMA
+Message-ID: <20180116145846.GE30073@bombadil.infradead.org>
+References: <1515777968-867-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1515777968-867-23-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20180112190251.GC7590@bombadil.infradead.org>
+ <20180113042354.GA24241@bombadil.infradead.org>
+ <6d958348-bece-2c21-e8dc-4e5a65e82f9b@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <6d958348-bece-2c21-e8dc-4e5a65e82f9b@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
+On Tue, Jan 16, 2018 at 03:47:51PM +0100, Laurent Dufour wrote:
+> On 13/01/2018 05:23, Matthew Wilcox wrote:
+> > Of course, we don't need to change them all.  Try this:
+> 
+> That would be good candidate for a clean up but I'm not sure this should be
+> part of this already too long series.
+> 
+> If you don't mind, unless a global agreement is stated on that, I'd prefer
+> to postpone such a change once the initial series is accepted.
 
-I see the improvements that Facebook have been making to the nbd driver,
-and I think that's a wonderful thing.  Maybe the outcome of this topic
-is simply: "Shut up, Matthew, this is good enough".
-
-It's clear that there's an appetite for userspace block devices; not for
-swap devices or the root device, but for accessing data that's stored
-in that silo over there, and I really don't want to bring that entire
-mess of CORBA / Go / Rust / whatever into the kernel to get to it,
-but it would be really handy to present it as a block device.
-
-I've looked at a few block-driver-in-userspace projects that exist, and
-they all seem pretty bad.  For example, one API maps a few gigabytes of
-address space and plays games with vm_insert_page() to put page cache
-pages into the address space of the client process.  Of course, the TLB
-flush overhead of that solution is criminal.
-
-I've looked at pipes, and they're not an awful solution.  We've almost
-got enough syscalls to treat other objects as pipes.  The problem is
-that they're not seekable.  So essentially you're looking at having one
-pipe per outstanding command.  If yu want to make good use of a modern
-NAND device, you want a few hundred outstanding commands, and that's a
-bit of a shoddy interface.
-
-Right now, I'm leaning towards combining these two approaches; adding
-a VM_NOTLB flag so the mmaped bits of the page cache never make it into
-the process's address space, so the TLB shootdown can be safely skipped.
-Then check it in follow_page_mask() and return the appropriate struct
-page.  As long as the userspace process does everything using O_DIRECT,
-I think this will work.
-
-It's either that or make pipes seekable ...
+Actually, I think this can go in first, independently of the speculative
+fault series.  It's a win in memory savings, and probably shaves a
+cycle or two off the fault handler due to less argument marshalling in
+the call-stack.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
