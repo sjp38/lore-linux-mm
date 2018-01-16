@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C331A6B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 00:23:07 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id w23so1136781plk.5
-        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 21:23:07 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CE4E6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 01:10:20 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id i2so8724385pgq.8
+        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 22:10:20 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r16sor291079pfh.69.2018.01.15.21.23.06
+        by mx.google.com with SMTPS id g184sor285675pgc.162.2018.01.15.22.10.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 15 Jan 2018 21:23:06 -0800 (PST)
-Date: Tue, 16 Jan 2018 14:23:01 +0900
+        Mon, 15 Jan 2018 22:10:19 -0800 (PST)
+Date: Tue, 16 Jan 2018 15:10:13 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180116052301.GC13731@jagdpanzerIV>
-References: <20180111045817.GA494@jagdpanzerIV>
- <20180111093435.GA24497@linux.suse>
+Message-ID: <20180116061013.GA19801@jagdpanzerIV>
+References: <20180111093435.GA24497@linux.suse>
  <20180111103845.GB477@jagdpanzerIV>
  <20180111112908.50de440a@vmware.local.home>
  <20180112025612.GB6419@jagdpanzerIV>
@@ -23,10 +22,11 @@ References: <20180111045817.GA494@jagdpanzerIV>
  <20180112072123.33bb567d@gandalf.local.home>
  <20180113072834.GA1701@tigerII.localdomain>
  <20180115101743.qh5whicsn6hmac32@pathway.suse.cz>
+ <20180115115013.cyeocszurvguc3xu@pathway.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180115101743.qh5whicsn6hmac32@pathway.suse.cz>
+In-Reply-To: <20180115115013.cyeocszurvguc3xu@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Petr Mladek <pmladek@suse.com>
@@ -34,44 +34,64 @@ Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@g
 
 Hi,
 
-On (01/15/18 11:17), Petr Mladek wrote:
-> Hi Sergey,
+On (01/15/18 12:50), Petr Mladek wrote:
+> On Mon 2018-01-15 11:17:43, Petr Mladek wrote:
+> > PS: Sergey, you have many good points. The printk-stuff is very
+> > complex and we could spend years discussing the perfect solution.
 > 
-> I wonder if there is still some miss understanding.
+> BTW: One solution that comes to my mind is based on ideas
+> already mentioned in this thread:
 > 
-> Steven and me are trying to get this patch in because we believe
-> that it is a step forward. We know that it is not perfect. But
-> we believe that it makes things better. In particular, it limits
-> the time spent in console_unlock() in atomic context. It does
-> not make it worse in preemptible context.
+> void console_unlock(void)
+> {
+> 	disable_preemtion();
 > 
-> It does not block further improvements, including offloading
-> to the kthread. We will happily discuss and review further
-> improvements, it they prove to be necessary.
+> 	while(pending_message) {
 > 
-> The advantage of this approach is that it is incremental. It should
-> be easier for review and analyzing possible regressions.
+> 	    call_console_drivers();
 > 
-> What is the aim of your mails, please?
-> Do you want to say that this patch might cause regressions?
-> Or do you want to say that it does not solve all scenarios?
+> 	    if (too_long_here() && current != printk_kthread) {
+> 	       wake_up_process(printk_kthread())
 > 
-> Please, answer the above questions. I am still confused.
+> 	}
+> 
+> 	enable_preemtion();
+> }
 
-I ACK-ed the patch set, given that I hope that we at least will
-do (a)
+unfortunately disabling preemtion in console_unlock() is a bit
+dangerous :( we have paths that call console_unlock() exactly
+to flush everything (not only new pending messages, but everything)
+that is in logbuf and we cannot return from console_unlock()
+preliminary in that case.
 
-a) remove preemption out of printk()->user critical path
+> bool too_long_here(void)
+> {
+> 	return should_resched();
+> or
+> 	return spent_here() > 1 / HZ / 2;
+> or
+> 	what ever we agree on
+> }
+> 
+> 
+> int printk_kthread_func(void *data)
+> {
+> 	while(1) {
+> 		 if (!pending_messaged)
+> 			schedule();
+> 
+> 		if (console_trylock_spinning())
+> 			console_unlock();
+> 
+> 		cond_resched();
+> 	}
+> }
 
-
----
-
-b) the next thing would be - O(logbuf) is not a good boundary
-
-c) the thing after that would be to - O(logbuf) boundary can be
-   broken in both preemptible and non-preemptible contexts.
-
-but (b) and (c) can wait.
+overall that's very close to what I have in one of my private branches.
+console_trylock_spinning() for some reason does not perform really
+well on my made-up internal printk torture tests. it seems that I
+have a much better stability (no lockups and so on) when I also let
+printk_kthread to sleep on console_sem(). but I will look further.
 
 	-ss
 
