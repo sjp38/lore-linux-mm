@@ -1,72 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7220B6B0294
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:55:45 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id h1so11417754wre.20
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:55:45 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id h2si2689332edf.540.2018.01.16.11.55.44
+	by kanga.kvack.org (Postfix) with ESMTP id D18826B0296
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 15:30:27 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 31so6626372wru.0
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 12:30:27 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id z66si2372723wmh.76.2018.01.16.12.30.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 11:55:44 -0800 (PST)
-Date: Tue, 16 Jan 2018 20:55:43 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [RFC PATCH 00/16] PTI support for x86-32
-Message-ID: <20180116195543.GG28161@8bytes.org>
-References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
- <CA+55aFx8V4JKfqZ+a9K355mopVYBBLNdx5Bh_oQuTGwdBFnoWg@mail.gmail.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 16 Jan 2018 12:30:26 -0800 (PST)
+Date: Tue, 16 Jan 2018 21:30:14 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 02/16] x86/entry/32: Enter the kernel via trampoline
+ stack
+In-Reply-To: <1516120619-1159-3-git-send-email-joro@8bytes.org>
+Message-ID: <alpine.DEB.2.20.1801162117330.2366@nanos>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org> <1516120619-1159-3-git-send-email-joro@8bytes.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFx8V4JKfqZ+a9K355mopVYBBLNdx5Bh_oQuTGwdBFnoWg@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Joerg Roedel <jroedel@suse.de>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
 
-Hi Linus,
+On Tue, 16 Jan 2018, Joerg Roedel wrote:
+> @@ -89,13 +89,9 @@ static inline void refresh_sysenter_cs(struct thread_struct *thread)
+>  /* This is used when switching tasks or entering/exiting vm86 mode. */
+>  static inline void update_sp0(struct task_struct *task)
+>  {
+> -	/* On x86_64, sp0 always points to the entry trampoline stack, which is constant: */
+> -#ifdef CONFIG_X86_32
+> -	load_sp0(task->thread.sp0);
+> -#else
+> +	/* sp0 always points to the entry trampoline stack, which is constant: */
+>  	if (static_cpu_has(X86_FEATURE_XENPV))
+>  		load_sp0(task_top_of_stack(task));
+> -#endif
+>  }
+>  
+>  #endif /* _ASM_X86_SWITCH_TO_H */
+> diff --git a/arch/x86/kernel/asm-offsets_32.c b/arch/x86/kernel/asm-offsets_32.c
+> index 654229bac2fc..7270dd834f4b 100644
+> --- a/arch/x86/kernel/asm-offsets_32.c
+> +++ b/arch/x86/kernel/asm-offsets_32.c
+> @@ -47,9 +47,11 @@ void foo(void)
+>  	BLANK();
+>  
+>  	/* Offset from the sysenter stack to tss.sp0 */
+> -	DEFINE(TSS_sysenter_stack, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
+> +	DEFINE(TSS_sysenter_stack, offsetof(struct cpu_entry_area, tss.x86_tss.sp1) -
+>  	       offsetofend(struct cpu_entry_area, entry_stack_page.stack));
+>  
+> +	OFFSET(TSS_sp1, tss_struct, x86_tss.sp1);
 
-On Tue, Jan 16, 2018 at 10:59:01AM -0800, Linus Torvalds wrote:
-> Yes, I'm very happy to see that this is actually not nearly as bad as
-> I feared it might be,
+Can you please split out the change of TSS_sysenter_stack into a separate
+patch?
 
-Yeah, I was looking at the original PTI patches and my impression was
-that a lot of the complicated stuff (like setting up the cpu_entry_area)
-was already in there for 32 bit too. So it was mostly about the entry
-code and some changes to the 32bit page-table code.
+Other than that, this looks good.
 
-> Some of those #ifdef's in the PTI code you added might want more
-> commentary about what the exact differences are. And maybe they could
-> be done more cleanly with some abstraction. But nothing looked
-> _horrible_.
+Thanks,
 
-I'll add more comments and better abstraction, Dave has already
-suggested some improvements here. Reading some of my comments again,
-they need a rework anyway.
-
-> .. and please run all the segment and syscall selfchecks that Andy has written.
-
-Didn't know about them yet, thanks. I will run them too in my testing
-
-> Xen PV and PTI don't work together even on x86-64 afaik, the Xen
-> people apparently felt it wasn't worth it.  See the
-> 
->         if (hypervisor_is_type(X86_HYPER_XEN_PV)) {
->                 pti_print_if_insecure("disabled on XEN PV.");
->                 return;
->         }
-> 
-> in pti_check_boottime_disable().
-
-But I might have broken something for them anyway, honestly I didn't pay
-much attention to the XEN_PV case as I was trying to get it running
-here. My hope is that someone who knows Xen better than I do will help
-out :)
-
-
-Regards,
-
-	Joerg
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
