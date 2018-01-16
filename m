@@ -1,76 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9963B6B027C
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 13:36:04 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id y18so7887484wrh.12
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 10:36:04 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id r185si2220415wma.190.2018.01.16.10.36.02
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A87486B027D
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 13:59:03 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id u4so4503306iti.2
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 10:59:03 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 103sor1395796iok.306.2018.01.16.10.59.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Jan 2018 10:36:02 -0800 (PST)
-Date: Tue, 16 Jan 2018 19:35:51 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 01/16] x86/entry/32: Rename TSS_sysenter_sp0 to
- TSS_sysenter_stack
-In-Reply-To: <1516120619-1159-2-git-send-email-joro@8bytes.org>
-Message-ID: <alpine.DEB.2.20.1801161935130.2366@nanos>
-References: <1516120619-1159-1-git-send-email-joro@8bytes.org> <1516120619-1159-2-git-send-email-joro@8bytes.org>
+        (Google Transport Security);
+        Tue, 16 Jan 2018 10:59:02 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 16 Jan 2018 10:59:01 -0800
+Message-ID: <CA+55aFx8V4JKfqZ+a9K355mopVYBBLNdx5Bh_oQuTGwdBFnoWg@mail.gmail.com>
+Subject: Re: [RFC PATCH 00/16] PTI support for x86-32
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joerg Roedel <joro@8bytes.org>
-Cc: Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Joerg Roedel <jroedel@suse.de>
 
-On Tue, 16 Jan 2018, Joerg Roedel wrote:
+On Tue, Jan 16, 2018 at 8:36 AM, Joerg Roedel <joro@8bytes.org> wrote:
+>
+> here is my current WIP code to enable PTI on x86-32. It is
+> still in a pretty early state, but it successfully boots my
+> KVM guest with PAE and with legacy paging. The existing PTI
+> code for x86-64 already prepares a lot of the stuff needed
+> for 32 bit too, thanks for that to all the people involved
+> in its development :)
 
-> From: Joerg Roedel <jroedel@suse.de>
-> 
-> The stack addresss doesn't need to be stored in tss.sp0 if
-> we switch manually like on sysenter. Rename the offset so
-> that it still makes sense when we its location.
+Yes, I'm very happy to see that this is actually not nearly as bad as
+I feared it might be,
 
--ENOSENTENCE
+Some of those #ifdef's in the PTI code you added might want more
+commentary about what the exact differences are. And maybe they could
+be done more cleanly with some abstraction. But nothing looked
+_horrible_.
 
-Other than that. Makes sense.
+> The code has not run on bare-metal yet, I'll test that in
+> the next days once I setup a 32 bit box again. I also havn't
+> tested Wine and DosEMU yet, so this might also be broken.
 
-> Signed-off-by: Joerg Roedel <jroedel@suse.de>
-> ---
->  arch/x86/entry/entry_32.S        | 2 +-
->  arch/x86/kernel/asm-offsets_32.c | 2 +-
->  2 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-> index a1f28a54f23a..eb8c5615777b 100644
-> --- a/arch/x86/entry/entry_32.S
-> +++ b/arch/x86/entry/entry_32.S
-> @@ -401,7 +401,7 @@ ENTRY(xen_sysenter_target)
->   * 0(%ebp) arg6
->   */
->  ENTRY(entry_SYSENTER_32)
-> -	movl	TSS_sysenter_sp0(%esp), %esp
-> +	movl	TSS_sysenter_stack(%esp), %esp
->  .Lsysenter_past_esp:
->  	pushl	$__USER_DS		/* pt_regs->ss */
->  	pushl	%ebp			/* pt_regs->sp (stashed in bp) */
-> diff --git a/arch/x86/kernel/asm-offsets_32.c b/arch/x86/kernel/asm-offsets_32.c
-> index fa1261eefa16..654229bac2fc 100644
-> --- a/arch/x86/kernel/asm-offsets_32.c
-> +++ b/arch/x86/kernel/asm-offsets_32.c
-> @@ -47,7 +47,7 @@ void foo(void)
->  	BLANK();
->  
->  	/* Offset from the sysenter stack to tss.sp0 */
-> -	DEFINE(TSS_sysenter_sp0, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
-> +	DEFINE(TSS_sysenter_stack, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
->  	       offsetofend(struct cpu_entry_area, entry_stack_page.stack));
->  
->  #ifdef CONFIG_CC_STACKPROTECTOR
-> -- 
-> 2.13.6
-> 
-> 
+.. and please run all the segment and syscall selfchecks that Andy has written.
+
+But yes, checking bare metal, and checking the "odd" applications like
+Wine and dosemu (and kvm etc) within the PTI kernel is certainly a
+good idea.
+
+> One of the things that are surely broken is XEN_PV support.
+> I'd appreciate any help with testing and bugfixing on that
+> front.
+
+Xen PV and PTI don't work together even on x86-64 afaik, the Xen
+people apparently felt it wasn't worth it.  See the
+
+        if (hypervisor_is_type(X86_HYPER_XEN_PV)) {
+                pti_print_if_insecure("disabled on XEN PV.");
+                return;
+        }
+
+in pti_check_boottime_disable().
+
+            Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
