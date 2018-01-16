@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B76A2280244
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:28:51 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id b195so1235563wmb.1
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:28:51 -0800 (PST)
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 49305280244
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:28:54 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id 19so1265922uae.15
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:28:54 -0800 (PST)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id o5si2436321eda.525.2018.01.16.08.39.20
+        by mx.google.com with ESMTPS id 5si2484322edb.158.2018.01.16.08.39.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 16 Jan 2018 08:39:20 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 07/16] x86/mm: Move two more functions from pgtable_64.h to pgtable.h
-Date: Tue, 16 Jan 2018 17:36:50 +0100
-Message-Id: <1516120619-1159-8-git-send-email-joro@8bytes.org>
+Subject: [PATCH 08/16] x86/pgtable/32: Allocate 8k page-tables when PTI is enabled
+Date: Tue, 16 Jan 2018 17:36:51 +0100
+Message-Id: <1516120619-1159-9-git-send-email-joro@8bytes.org>
 In-Reply-To: <1516120619-1159-1-git-send-email-joro@8bytes.org>
 References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,80 +22,113 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-These two functions are required for PTI on 32 bit:
-
-	* pgdp_maps_userspace()
-	* pgd_large()
-
-Also re-implement pgdp_maps_userspace() so that it will work
-on 64 and 32 bit kernels.
+Allocate a kernel and a user page-table root when PTI is
+enabled. Also allocate a full page per root for PAEm because
+otherwise the bit to flip in cr3 to switch between them
+would be non-constant, which creates a lot of hassle.
+Keep that for a later optimization.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable.h    | 16 ++++++++++++++++
- arch/x86/include/asm/pgtable_64.h | 15 ---------------
- 2 files changed, 16 insertions(+), 15 deletions(-)
+ arch/x86/kernel/head_32.S | 23 ++++++++++++++++++-----
+ arch/x86/mm/pgtable.c     | 11 ++++++-----
+ 2 files changed, 24 insertions(+), 10 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 0a9f746cbdc1..abafe4d7fd3e 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -1109,6 +1109,22 @@ static inline int pud_write(pud_t pud)
- 	return pud_flags(pud) & _PAGE_RW;
- }
+diff --git a/arch/x86/kernel/head_32.S b/arch/x86/kernel/head_32.S
+index c29020907886..fc550559bf58 100644
+--- a/arch/x86/kernel/head_32.S
++++ b/arch/x86/kernel/head_32.S
+@@ -512,28 +512,41 @@ ENTRY(initial_code)
+ ENTRY(setup_once_ref)
+ 	.long setup_once
  
-+/*
-+ * Page table pages are page-aligned.  The lower half of the top
-+ * level is used for userspace and the top half for the kernel.
-+ *
-+ * Returns true for parts of the PGD that map userspace and
-+ * false for the parts that map the kernel.
-+ */
-+static inline bool pgdp_maps_userspace(void *__ptr)
-+{
-+	unsigned long ptr = (unsigned long)__ptr;
-+
-+	return (((ptr & ~PAGE_MASK) / sizeof(pgd_t)) < KERNEL_PGD_BOUNDARY);
-+}
-+
-+static inline int pgd_large(pgd_t pgd) { return 0; }
-+
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++#define	PGD_ALIGN	(2 * PAGE_SIZE)
++#define PTI_USER_PGD_FILL	1024
++#else
++#define	PGD_ALIGN	(PAGE_SIZE)
++#define PTI_USER_PGD_FILL	0
++#endif
  /*
-  * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 58d7f10e937d..3c5a73c8bb50 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -131,20 +131,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
- #endif
- }
- 
--/*
-- * Page table pages are page-aligned.  The lower half of the top
-- * level is used for userspace and the top half for the kernel.
-- *
-- * Returns true for parts of the PGD that map userspace and
-- * false for the parts that map the kernel.
-- */
--static inline bool pgdp_maps_userspace(void *__ptr)
--{
--	unsigned long ptr = (unsigned long)__ptr;
--
--	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
--}
--
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
- pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd);
- 
-@@ -208,7 +194,6 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
- /*
-  * Level 4 access.
+  * BSS section
   */
--static inline int pgd_large(pgd_t pgd) { return 0; }
- #define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
+ __PAGE_ALIGNED_BSS
+-	.align PAGE_SIZE
++	.align PGD_ALIGN
+ #ifdef CONFIG_X86_PAE
+ .globl initial_pg_pmd
+ initial_pg_pmd:
+ 	.fill 1024*KPMDS,4,0
++	.fill PTI_USER_PGD_FILL,4,0
+ #else
+ .globl initial_page_table
+ initial_page_table:
+ 	.fill 1024,4,0
++	.fill PTI_USER_PGD_FILL,4,0
+ #endif
++	.align PGD_ALIGN
+ initial_pg_fixmap:
+ 	.fill 1024,4,0
+-.globl empty_zero_page
+-empty_zero_page:
+-	.fill 4096,1,0
++	.fill PTI_USER_PGD_FILL,4,0
+ .globl swapper_pg_dir
++	.align PGD_ALIGN
+ swapper_pg_dir:
+ 	.fill 1024,4,0
++	.fill PTI_USER_PGD_FILL,4,0
++.globl empty_zero_page
++empty_zero_page:
++	.fill 4096,1,0
+ EXPORT_SYMBOL(empty_zero_page)
  
- /* PUD - Level3 access */
+ /*
+@@ -542,7 +555,7 @@ EXPORT_SYMBOL(empty_zero_page)
+ #ifdef CONFIG_X86_PAE
+ __PAGE_ALIGNED_DATA
+ 	/* Page-aligned for the benefit of paravirt? */
+-	.align PAGE_SIZE
++	.align PGD_ALIGN
+ ENTRY(initial_page_table)
+ 	.long	pa(initial_pg_pmd+PGD_IDENT_ATTR),0	/* low identity map */
+ # if KPMDS == 3
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 004abf9ebf12..48abefd95924 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -313,7 +313,7 @@ static int __init pgd_cache_init(void)
+ 	 * When PAE kernel is running as a Xen domain, it does not use
+ 	 * shared kernel pmd. And this requires a whole page for pgd.
+ 	 */
+-	if (!SHARED_KERNEL_PMD)
++	if (static_cpu_has(X86_FEATURE_PTI) || !SHARED_KERNEL_PMD)
+ 		return 0;
+ 
+ 	/*
+@@ -337,8 +337,9 @@ static inline pgd_t *_pgd_alloc(void)
+ 	 * If no SHARED_KERNEL_PMD, PAE kernel is running as a Xen domain.
+ 	 * We allocate one page for pgd.
+ 	 */
+-	if (!SHARED_KERNEL_PMD)
+-		return (pgd_t *)__get_free_page(PGALLOC_GFP);
++	if (static_cpu_has(X86_FEATURE_PTI) || !SHARED_KERNEL_PMD)
++		return (pgd_t *)__get_free_pages(PGALLOC_GFP,
++						 PGD_ALLOCATION_ORDER);
+ 
+ 	/*
+ 	 * Now PAE kernel is not running as a Xen domain. We can allocate
+@@ -349,8 +350,8 @@ static inline pgd_t *_pgd_alloc(void)
+ 
+ static inline void _pgd_free(pgd_t *pgd)
+ {
+-	if (!SHARED_KERNEL_PMD)
+-		free_page((unsigned long)pgd);
++	if (static_cpu_has(X86_FEATURE_PTI) || !SHARED_KERNEL_PMD)
++		free_pages((unsigned long)pgd, PGD_ALLOCATION_ORDER);
+ 	else
+ 		kmem_cache_free(pgd_cache, pgd);
+ }
 -- 
 2.13.6
 
