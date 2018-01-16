@@ -1,57 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 58EC36B0273
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 13:07:54 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id h200so4365866itb.3
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 10:07:54 -0800 (PST)
-Received: from resqmta-po-04v.sys.comcast.net (resqmta-po-04v.sys.comcast.net. [2001:558:fe16:19:96:114:154:163])
-        by mx.google.com with ESMTPS id a16si2708704itb.3.2018.01.16.10.07.53
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5765A6B0275
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 13:11:16 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id k4so9780015pgq.15
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 10:11:16 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id r3si2363775plo.432.2018.01.16.10.11.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 10:07:53 -0800 (PST)
-Date: Tue, 16 Jan 2018 12:07:49 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: kmem_cache_attr (was Re: [PATCH 04/36] usercopy: Prepare for
- usercopy whitelisting)
-In-Reply-To: <20180116174315.GA10461@bombadil.infradead.org>
-Message-ID: <alpine.DEB.2.20.1801161205590.1771@nuc-kabylake>
-References: <1515531365-37423-1-git-send-email-keescook@chromium.org> <1515531365-37423-5-git-send-email-keescook@chromium.org> <alpine.DEB.2.20.1801101219390.7926@nuc-kabylake> <20180114230719.GB32027@bombadil.infradead.org> <alpine.DEB.2.20.1801160913260.3908@nuc-kabylake>
- <20180116160525.GF30073@bombadil.infradead.org> <alpine.DEB.2.20.1801161049320.5162@nuc-kabylake> <20180116174315.GA10461@bombadil.infradead.org>
+        Tue, 16 Jan 2018 10:11:15 -0800 (PST)
+Subject: Re: [PATCH 12/16] x86/mm/pae: Populate the user page-table with user
+ pgd's
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+ <1516120619-1159-13-git-send-email-joro@8bytes.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <df637ada-c2f6-c137-0287-0964e29fc11f@intel.com>
+Date: Tue, 16 Jan 2018 10:11:14 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <1516120619-1159-13-git-send-email-joro@8bytes.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
 
-On Tue, 16 Jan 2018, Matthew Wilcox wrote:
+On 01/16/2018 08:36 AM, Joerg Roedel wrote:
+> +#ifdef CONFIG_X86_64
+>  	/*
+>  	 * If this is normal user memory, make it NX in the kernel
+>  	 * pagetables so that, if we somehow screw up and return to
+> @@ -134,10 +135,16 @@ pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
+>  	 *     may execute from it
+>  	 *  - we don't have NX support
+>  	 *  - we're clearing the PGD (i.e. the new pgd is not present).
+> +	 *  - We run on a 32 bit kernel. 2-level paging doesn't support NX at
+> +	 *    all and PAE paging does not support it on the PGD level. We can
+> +	 *    set it in the PMD level there in the future, but that means we
+> +	 *    need to unshare the PMDs between the kernel and the user
+> +	 *    page-tables.
+>  	 */
+>  	if ((pgd.pgd & (_PAGE_USER|_PAGE_PRESENT)) == (_PAGE_USER|_PAGE_PRESENT) &&
+>  	    (__supported_pte_mask & _PAGE_NX))
+>  		pgd.pgd |= _PAGE_NX;
+> +#endif
 
-> > Sure this data is never changed. It can be const.
->
-> It's changed at initialisation.  Look:
->
-> kmem_cache_create(const char *name, size_t size, size_t align,
->                   slab_flags_t flags, void (*ctor)(void *))
->         s = create_cache(cache_name, size, size,
->                          calculate_alignment(flags, align, size),
->                          flags, ctor, NULL, NULL);
->
-> The 'align' that ends up in s->align, is not the user-specified align.
-> It's also dependent on runtime information (cache_line_size()), so it
-> can't be calculated at compile time.
+Ugh.  The ghosts of PAE have come back to haunt us.
 
-Then we would need another align field in struct kmem_cache that takes the
-changes value?
+Could we do:
 
-> 'flags' also gets mangled:
->         flags &= CACHE_CREATE_MASK;
+static inline bool pgd_supports_nx(unsigned long)
+{
+#ifdef CONFIG_X86_64
+	return (__supported_pte_mask & _PAGE_NX);
+#else
+	/* No 32-bit page tables support NX at PGD level */
+	return 0;
+#endif
+}
 
-Well ok then that also belongs into kmem_cache and the original value
-stays in kmem_cache_attr.
-
-> unsigned int would be my preference.
-
-Great.
+Nobody will ever spot the #ifdef the way you laid it out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
