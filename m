@@ -1,62 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D0CA6B0282
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:29:32 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id k19so4582903ita.8
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:29:32 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id z22si2362173ioi.297.2018.01.16.11.29.30
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FAEF6B0285
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:30:57 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id 79so15836154ion.20
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:30:57 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p10sor1728475ite.108.2018.01.16.11.30.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 11:29:31 -0800 (PST)
-From: Henry Willard <henry.willard@oracle.com>
-Subject: [PATCH] mm: numa: Do not trap faults on shared data section pages.
-Date: Tue, 16 Jan 2018 11:28:44 -0800
-Message-Id: <1516130924-3545-2-git-send-email-henry.willard@oracle.com>
-In-Reply-To: <1516130924-3545-1-git-send-email-henry.willard@oracle.com>
-References: <1516130924-3545-1-git-send-email-henry.willard@oracle.com>
+        (Google Transport Security);
+        Tue, 16 Jan 2018 11:30:56 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <7f100b0f-3588-be25-41f6-a0e4dde27916@linux.intel.com>
+References: <201801142054.FAD95378.LVOOFQJOFtMFSH@I-love.SAKURA.ne.jp>
+ <CA+55aFwvgm+KKkRLaFsuAjTdfQooS=UaMScC0CbZQ9WnX_AF=g@mail.gmail.com>
+ <201801160115.w0G1FOIG057203@www262.sakura.ne.jp> <CA+55aFxOn5n4O2JNaivi8rhDmeFhTQxEHD4xE33J9xOrFu=7kQ@mail.gmail.com>
+ <7f100b0f-3588-be25-41f6-a0e4dde27916@linux.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 16 Jan 2018 11:30:54 -0800
+Message-ID: <CA+55aFyThu2FrxUh-4WrGHAd_QX=v1H2L+UNnUkks7n+dSvcfA@mail.gmail.com>
+Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mgorman@suse.de, kstewart@linuxfoundation.org, zi.yan@cs.rutgers.edu, pombredanne@nexb.com, aarcange@redhat.com, gregkh@linuxfoundation.org, aneesh.kumar@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, jglisse@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>
 
-Workloads consisting of a large number processes running the same program
-with a large shared data section may suffer from excessive numa balancing
-page migration of the pages in the shared data section. This shows up as
-high I/O wait time and degraded performance on machines with higher socket
-or node counts.
+On Tue, Jan 16, 2018 at 12:06 AM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+> On 01/15/2018 06:14 PM, Linus Torvalds wrote:
+>> But I'm adding Dave Hansen explicitly to the cc, in case he has any
+>> ideas. Not because I blame him, but he's touched the sparsemem code
+>> fairly recently, so maybe he'd have some idea on adding sanity
+>> checking to the sparsemem version of pfn_to_page().
+>
+> I swear I haven't touched it lately!
 
-This patch skips shared copy-on-write pages in change_pte_range() for the
-numa balancing case.
+Heh. I did
 
-Signed-off-by: Henry Willard <henry.willard@oracle.com>
-Reviewed-by: HAJPYkon Bugge <haakon.bugge@oracle.com>
-Reviewed-by: Steve Sistare steven.sistare@oracle.com
----
- mm/mprotect.c | 5 +++++
- 1 file changed, 5 insertions(+)
+    git blame -C mm/sparse.c | grep 2017
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index ec39f730a0bf..fbbb3ab70818 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -84,6 +84,11 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				if (!page || PageKsm(page))
- 					continue;
- 
-+				/* Also skip shared copy-on-write pages */
-+				if (is_cow_mapping(vma->vm_flags) &&
-+				    page_mapcount(page) != 1)
-+					continue;
-+
- 				/* Avoid TLB flush if possible */
- 				if (pte_protnone(oldpte))
- 					continue;
--- 
-1.8.3.1
+and your name shows up at the beginning a lot because of commit
+c4e1be9ec113 ("mm, sparsemem: break out of loops early").
+
+And Michal Hocko (who shows up even more) was already on the cc.
+
+> I'm not sure I'd go after pfn_to_page().  *Maybe* if we were close to
+> the places where we've done a pfn_to_page(), but I'm not seeing those.
+
+Fair enough. I just wanted to add debugging, looked at Tetsuo's
+config, and went "no way am I adding debugging to the sparsemem case
+because it's so confusing".
+
+That said, I also started looking at "kmap_to_page()". That's
+something that is *really* different with HIGHMEM, and while most of
+the users are in random drivers that do crazy things, I do note that
+one of the users is in mm/swap.c.
+
+That thing goes back to commit 5a178119b0fb ("mm: add support for
+direct_IO to highmem pages") and was only used for swap_writepage(),
+if I read this right.
+
+That swap_writepage() use of kmap()'ed patches was removed some time
+later in commit 62a8067a7f35 ("bio_vec-backed iov_iter"), but the
+crazy kmap_to_page() thing remained.
+
+I see nothing actively wrong in there, but it really feels like a
+"that is all bogus" thing to me.
+
+> Did anyone else notice the
+>
+>         [   31.068198]  ? vmalloc_sync_all+0x150/0x150
+>
+> present in a bunch of the stack traces?  That should be pretty uncommon.
+
+No, didn't notice that. And yes, vmalloc_sync_all() might be interesting.
+
+>  Is it just part of the normal do_page_fault() stack and the stack
+> dumper picks up on it?
+
+I don't think so. It should *not* happen normally. The fact that it
+shows up in the trace means it happened that time.
+
+It doesn't seem HIGHMEM-related, though. Or maybe the highmem signal
+is bogus too, and it's just that Tetsuo's reproducer needs magical
+timing.
+
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
