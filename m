@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 109ED6B025E
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:28:30 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id l14so1229248uaa.17
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:28:30 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id d5si2448027edj.327.2018.01.16.08.39.23
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 956476B0260
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:28:32 -0500 (EST)
+Received: by mail-ua0-f200.google.com with SMTP id t9so1257778uac.20
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:28:32 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id 6si2518739edi.36.2018.01.16.08.39.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 16 Jan 2018 08:39:23 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 16/16] x86/pti: Allow CONFIG_PAGE_TABLE_ISOLATION for x86_32
-Date: Tue, 16 Jan 2018 17:36:59 +0100
-Message-Id: <1516120619-1159-17-git-send-email-joro@8bytes.org>
+Subject: [PATCH 11/16] x86/mm/pgtable: Move pti_set_user_pgd() to pgtable.h
+Date: Tue, 16 Jan 2018 17:36:54 +0100
+Message-Id: <1516120619-1159-12-git-send-email-joro@8bytes.org>
 In-Reply-To: <1516120619-1159-1-git-send-email-joro@8bytes.org>
 References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,26 +22,82 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Allow PTI to be compiled on x86_32.
+There it is also usable from 32 bit code.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- security/Kconfig | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/include/asm/pgtable.h    | 23 +++++++++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h | 21 ---------------------
+ 2 files changed, 23 insertions(+), 21 deletions(-)
 
-diff --git a/security/Kconfig b/security/Kconfig
-index b0cb9a5f9448..93d85fda0f54 100644
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -57,7 +57,7 @@ config SECURITY_NETWORK
- config PAGE_TABLE_ISOLATION
- 	bool "Remove the kernel mapping in user mode"
- 	default y
--	depends on X86_64 && !UML
-+	depends on X86 && !UML
- 	help
- 	  This feature reduces the number of hardware side channels by
- 	  ensuring that the majority of kernel addresses are not mapped
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index abafe4d7fd3e..248721971532 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -618,8 +618,31 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
+ 
+ pmd_t *populate_extra_pmd(unsigned long vaddr);
+ pte_t *populate_extra_pte(unsigned long vaddr);
++
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd);
++
++/*
++ * Take a PGD location (pgdp) and a pgd value that needs to be set there.
++ * Populates the user and returns the resulting PGD that must be set in
++ * the kernel copy of the page tables.
++ */
++static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++{
++	if (!static_cpu_has(X86_FEATURE_PTI))
++		return pgd;
++	return __pti_set_user_pgd(pgdp, pgd);
++}
++#else   /* CONFIG_PAGE_TABLE_ISOLATION */
++static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++{
++	return pgd;
++}
++#endif  /* CONFIG_PAGE_TABLE_ISOLATION */
++
+ #endif	/* __ASSEMBLY__ */
+ 
++
+ #ifdef CONFIG_X86_32
+ # include <asm/pgtable_32.h>
+ #else
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 3c5a73c8bb50..50a02a32a0b3 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -131,27 +131,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ #endif
+ }
+ 
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd);
+-
+-/*
+- * Take a PGD location (pgdp) and a pgd value that needs to be set there.
+- * Populates the user and returns the resulting PGD that must be set in
+- * the kernel copy of the page tables.
+- */
+-static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
+-{
+-	if (!static_cpu_has(X86_FEATURE_PTI))
+-		return pgd;
+-	return __pti_set_user_pgd(pgdp, pgd);
+-}
+-#else
+-static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
+-{
+-	return pgd;
+-}
+-#endif
+-
+ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ {
+ #if defined(CONFIG_PAGE_TABLE_ISOLATION) && !defined(CONFIG_X86_5LEVEL)
 -- 
 2.13.6
 
