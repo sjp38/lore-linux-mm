@@ -1,65 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AE8196B025F
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:06:38 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id r28so16138pgu.1
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 08:06:38 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c80si2152319pfl.173.2018.01.16.08.06.37
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ECD56B0069
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:52:54 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id d17so15177409ioc.23
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 08:52:54 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id d190si2123909iog.214.2018.01.16.08.52.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 08:06:37 -0800 (PST)
-Date: Tue, 16 Jan 2018 11:06:33 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180116110633.56f48cf7@gandalf.local.home>
-In-Reply-To: <20180116061013.GA19801@jagdpanzerIV>
-References: <20180111093435.GA24497@linux.suse>
-	<20180111103845.GB477@jagdpanzerIV>
-	<20180111112908.50de440a@vmware.local.home>
-	<20180112025612.GB6419@jagdpanzerIV>
-	<20180111222140.7fd89d52@gandalf.local.home>
-	<20180112100544.GA441@jagdpanzerIV>
-	<20180112072123.33bb567d@gandalf.local.home>
-	<20180113072834.GA1701@tigerII.localdomain>
-	<20180115101743.qh5whicsn6hmac32@pathway.suse.cz>
-	<20180115115013.cyeocszurvguc3xu@pathway.suse.cz>
-	<20180116061013.GA19801@jagdpanzerIV>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 16 Jan 2018 08:52:49 -0800 (PST)
+Date: Tue, 16 Jan 2018 17:52:13 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 06/16] x86/mm/ldt: Reserve high address-space range for
+ the LDT
+Message-ID: <20180116165213.GF2228@hirez.programming.kicks-ass.net>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+ <1516120619-1159-7-git-send-email-joro@8bytes.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1516120619-1159-7-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
 
-On Tue, 16 Jan 2018 15:10:13 +0900
-Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> wrote:
+On Tue, Jan 16, 2018 at 05:36:49PM +0100, Joerg Roedel wrote:
+> From: Joerg Roedel <jroedel@suse.de>
+> 
+> Reserve 2MB/4MB of address space for mapping the LDT to
+> user-space.
 
-> overall that's very close to what I have in one of my private branches.
-> console_trylock_spinning() for some reason does not perform really
-> well on my made-up internal printk torture tests. it seems that I
-
-One thing I noticed in my test with the module that does printks on all
-cpus, was that the patch spreads out the processing of the consoles.
-Before my patch, one printk user would be doing all the work, and all
-the other printks only had to load their data into the logbuf then
-exit. The majority of printks took a few microseconds, which looks
-great if you ignore the one worker that is taking milliseconds to
-complete. After my patch, since a printk that comes in while another
-one was running would block, then it would start printing, it did
-lengthen the time for individual printks to finish. Worst case it
-would double the time to do printk. But it removed the burden of a
-single printk doing all the work for all new printks that came in.
-
-In other words, I would expect this to make printk on average slower.
-But no longer unlimited.
-
--- Steve
-
-
-> have a much better stability (no lockups and so on) when I also let
-> printk_kthread to sleep on console_sem(). but I will look further.
+LDT is 64k, we need 2 per CPU, and NR_CPUS <= 64 on 32bit, that gives
+64K*2*64=8M > 2M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
