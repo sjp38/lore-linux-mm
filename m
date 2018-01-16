@@ -1,100 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 88FB528024A
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 16:36:24 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id f67so4926768itf.2
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 13:36:24 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 4sor1484122itk.82.2018.01.16.13.36.23
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 08DED28024A
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 16:38:35 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id v25so12609182pfg.14
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 13:38:35 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id r5si2868520plj.687.2018.01.16.13.38.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Jan 2018 13:36:23 -0800 (PST)
-Date: Tue, 16 Jan 2018 13:36:21 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
-In-Reply-To: <20180115115433.GA22473@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1801161323550.242486@chino.kir.corp.google.com>
-References: <20171130152824.1591-1-guro@fb.com> <20171130123930.cf3217c816fd270fa35a40cb@linux-foundation.org> <alpine.DEB.2.10.1801091556490.173445@chino.kir.corp.google.com> <20180110131143.GB26913@castle.DHCP.thefacebook.com>
- <20180110113345.54dd571967fd6e70bfba68c3@linux-foundation.org> <20180111090809.GW1732@dhcp22.suse.cz> <20180111131845.GA13726@castle.DHCP.thefacebook.com> <alpine.DEB.2.10.1801121331110.120129@chino.kir.corp.google.com>
- <20180115115433.GA22473@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 16 Jan 2018 13:38:33 -0800 (PST)
+Date: Tue, 16 Jan 2018 13:38:33 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [RFC] kvzalloc_hdr_arr()
+Message-ID: <20180116213833.GB7791@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: keithp@keithp.com
 
-On Mon, 15 Jan 2018, Michal Hocko wrote:
 
-> > No, this isn't how kernel features get introduced.  We don't design a new 
-> > kernel feature with its own API for a highly specialized usecase and then 
-> > claim we'll fix the problems later.  Users will work around the 
-> > constraints of the new feature, if possible, and then we can end up 
-> > breaking them later.  Or, we can pollute the mem cgroup v2 filesystem with 
-> > even more tunables to cover up for mistakes in earlier designs.
-> 
-> This is a blatant misinterpretation of the proposed changes. I haven't
-> heard _any_ single argument against the proposed user interface except
-> for complaints for missing tunables. This is not how the kernel
-> development works and should work. The usecase was clearly described and
-> far from limited to a single workload or company.
->  
+I'd like to thank Keith Packard for offering suggestions on this version.
+I've included a couple of conversions, just so you can see how it looks
+from a user point of view.
 
-The complaint about the user interface is that it is not extensible, as my 
-next line states.  This doesn't need to be opted into with a mount option 
-locking the entire system into a single oom policy.  That, itself, is the 
-result of a poor design.  What is needed is a way for users to define an 
-oom policy that is generally useful, not something that is locked in for 
-the whole system.  We don't need several different cgroup mount options 
-only for mem cgroup oom policies.  We also don't need random 
-memory.groupoom files being added to the mem cgroup v2 filesystem only for 
-one or two particular policies and being no-ops otherwise.  It can easily 
-be specified as part of the policy itself.  My suggestion adds two new 
-files to the mem cgroup v2 filesystem and no mount option, and allows any 
-policy to be added later that only uses these two files.  I see you've 
-ignored all of that in this email, so perhaps reading it would be 
-worthwhile so that you can provide constructive feedback.
-
-> > The key point to all three of my objections: extensibility.
-> 
-> And it has been argued that further _features_ can be added on top. I am
-> absolutely fed up discussing those things again and again without any
-> progress. You simply keep _ignoring_ counter arguments and that is a
-> major PITA to be honest with you. You are basically blocking a useful
-> feature because it doesn't solve your particular workload. This is
-> simply not acceptable in the kernel development.
-> 
-
-As the thread says, this has nothing to do with my own particular 
-workload, it has to do with three obvious shortcomings in the design that 
-the user has no control over.  We can't add features on top if the 
-heuristic itself changes as a result of the proposal, it needs to be 
-introduced in an extensible way so that additional changes can be made 
-later, if necessary, while still working around the very obvious problems 
-with this current implementation.  My suggestion is that we introduce a 
-way to define the oom policy once so that we don't have to change it later 
-and are left with needless mount options or mem cgroup v2 files that 
-become no-ops with the suggested design.  I hope that you will read the 
-proposal for that extensible interface and comment on it about any 
-concerns that you have, because that feedback would generally be useful.
-
-> > Both you and Michal have acknowledged blantently obvious shortcomings in 
-> > the design.
-> 
-> What you call blatant shortcomings we do not see affecting any
-> _existing_ workloads. If they turn out to be real issues then we can fix
-> them without deprecating any user APIs added by this patchset.
-> 
-
-There are existing workloads that use mem cgroup subcontainers purely for 
-tracking charging and vmscan stats, which results in this logic being 
-evaded.  It's a real issue, and a perfectly acceptable usecase for mem 
-cgroup.  It's a result of the entire oom policy either being opted into or 
-opted out of for the entire system and impossible for the user to 
-configure or avoid.  That can be done better by enabling the oom policy 
-only for a subtree, as I've suggested, but you've ignored.  It would also 
-render both the mount option and the additional file in the mem cgroup v2 
-filesystem added by this patchset to be no-ops.
+diff --git a/drivers/media/v4l2-core/v4l2-event.c b/drivers/media/v4l2-core/v4l2-event.c
+index 968c2eb08b5a..1dc4d2185a7a 100644
+--- a/drivers/media/v4l2-core/v4l2-event.c
++++ b/drivers/media/v4l2-core/v4l2-event.c
+@@ -215,8 +215,7 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
+ 	if (elems < 1)
+ 		elems = 1;
+ 
+-	sev = kvzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems,
+-		       GFP_KERNEL);
++	sev = kvzalloc_hdr_arr(sev, events, elems, GFP_KERNEL);
+ 	if (!sev)
+ 		return -ENOMEM;
+ 	for (i = 0; i < elems; i++)
+diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
+index 33ac2b186b85..c6c5e839fca4 100644
+--- a/drivers/vhost/vhost.c
++++ b/drivers/vhost/vhost.c
+@@ -1292,7 +1292,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
+ 		return -EOPNOTSUPP;
+ 	if (mem.nregions > max_mem_regions)
+ 		return -E2BIG;
+-	newmem = kvzalloc(size + mem.nregions * sizeof(*m->regions), GFP_KERNEL);
++	newmem = kvzalloc_hdr_arr(newmem, regions, mem.nregions, GFP_KERNEL);
+ 	if (!newmem)
+ 		return -ENOMEM;
+ 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index fe1ee4313add..46ee6bac61a0 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -557,6 +557,31 @@ static inline void *kvmalloc_array(size_t n, size_t size, gfp_t flags)
+ 	return kvmalloc(n * size, flags);
+ }
+ 
++static inline void *kvzalloc_ab_c(size_t n, size_t size, size_t c, gfp_t flags)
++{
++	if (size != 0 && n > (SIZE_MAX - c) / size)
++		return NULL;
++
++	return kvzalloc(n * size + c, flags);
++}
++
++/**
++ * kvzalloc_hdr_arr() - Allocate a zero-filled array with a header.
++ * @p: Pointer to the header.
++ * @member: Name of the array member.
++ * @n: Number of elements in the array.
++ * @gfp: Memory allocation flags.
++ *
++ * Allocate (and zero-fill) enough memory for a structure with an array
++ * of @n elements.
++ *
++ * Return: Zero-filled memory or a NULL pointer.
++ */
++#define kvzalloc_hdr_arr(p, member, n, gfp)				\
++	(typeof(p))kvzalloc_ab_c(n,					\
++		sizeof(*(p)->member) + __must_be_array((p)->member),	\
++		offsetof(typeof(*(p)), member), gfp)
++
+ extern void kvfree(const void *addr);
+ 
+ static inline atomic_t *compound_mapcount_ptr(struct page *page)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
