@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D7F626B025F
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:27:53 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id b111so1429481wrd.16
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:27:53 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id t7si1183246edc.248.2018.01.16.08.39.26
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D80F46B0069
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:28:27 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id v26so1254195uaj.19
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:28:27 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id i5si1312103edc.211.2018.01.16.08.39.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 08:39:26 -0800 (PST)
+        Tue, 16 Jan 2018 08:39:23 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 13/16] x86/mm/pti: Add an overflow check to pti_clone_pmds()
-Date: Tue, 16 Jan 2018 17:36:56 +0100
-Message-Id: <1516120619-1159-14-git-send-email-joro@8bytes.org>
+Subject: [PATCH 15/16] x86/entry/32: Switch between kernel and user cr3 on entry/exit
+Date: Tue, 16 Jan 2018 17:36:58 +0100
+Message-Id: <1516120619-1159-16-git-send-email-joro@8bytes.org>
 In-Reply-To: <1516120619-1159-1-git-send-email-joro@8bytes.org>
 References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,31 +22,66 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The addr counter will overflow if we clone the last PMD of
-the address space, resulting in an endless loop.
-
-Check for that and bail out of the loop when it happens.
+Add the cr3 switches between the kernel and the user
+page-table when PTI is enabled.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ arch/x86/entry/entry_32.S | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index a561b5625d6c..faea5faeddc5 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -293,6 +293,10 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
- 		p4d_t *p4d;
- 		pud_t *pud;
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 14018eeb11c3..6a1d9f1e1f89 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -221,6 +221,25 @@
+ 	POP_GS_EX
+ .endm
  
-+		/* Overflow check */
-+		if (addr < start)
-+			break;
++#define PTI_SWITCH_MASK         (1 << PAGE_SHIFT)
 +
- 		pgd = pgd_offset_k(addr);
- 		if (WARN_ON(pgd_none(*pgd)))
- 			return;
++.macro SWITCH_TO_KERNEL_CR3
++        ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
++        movl    %cr3, %edi
++        andl    $(~PTI_SWITCH_MASK), %edi
++        movl    %edi, %cr3
++.Lend_\@:
++.endm
++
++.macro SWITCH_TO_USER_CR3
++        ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
++        mov     %cr3, %edi
++        /* Flip the PGD to the user version */
++        orl     $(PTI_SWITCH_MASK), %edi
++        mov     %edi, %cr3
++.Lend_\@:
++.endm
++
+ /*
+  * Switch from the entry-trampline stack to the kernel stack of the
+  * running task.
+@@ -240,6 +259,7 @@
+ 	.endif
+ 
+ 	pushl %edi
++	SWITCH_TO_KERNEL_CR3
+ 	movl  %esp, %edi
+ 
+ 	/*
+@@ -309,9 +329,12 @@
+ 	.endif
+ 
+ 	pushl 4(%edi)   /* fs */
++	pushl  (%edi)   /* edi */
++
++	SWITCH_TO_USER_CR3
+ 	
+ 	/* Restore user %edi and user %fs */
+-	movl (%edi), %edi
++	popl %edi
+ 	popl %fs
+ 
+ .Lend_\@:
 -- 
 2.13.6
 
