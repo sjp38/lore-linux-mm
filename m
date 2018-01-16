@@ -1,74 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CE5986B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 10:21:34 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id b11so3986142itj.0
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 07:21:34 -0800 (PST)
-Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
-        by mx.google.com with ESMTPS id u4si2374352iti.93.2018.01.16.07.21.33
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 185F36B026B
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 10:45:14 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id a12so6285351pll.21
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 07:45:14 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id x1si2132426plb.137.2018.01.16.07.45.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 07:21:33 -0800 (PST)
-Date: Tue, 16 Jan 2018 09:21:30 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: kmem_cache_attr (was Re: [PATCH 04/36] usercopy: Prepare for usercopy
- whitelisting)
-In-Reply-To: <20180114230719.GB32027@bombadil.infradead.org>
-Message-ID: <alpine.DEB.2.20.1801160913260.3908@nuc-kabylake>
-References: <1515531365-37423-1-git-send-email-keescook@chromium.org> <1515531365-37423-5-git-send-email-keescook@chromium.org> <alpine.DEB.2.20.1801101219390.7926@nuc-kabylake> <20180114230719.GB32027@bombadil.infradead.org>
+        Tue, 16 Jan 2018 07:45:12 -0800 (PST)
+Date: Tue, 16 Jan 2018 10:45:08 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180116104508.515ca393@gandalf.local.home>
+In-Reply-To: <20180116044716.GE6607@jagdpanzerIV>
+References: <20180111103845.GB477@jagdpanzerIV>
+	<20180111112908.50de440a@vmware.local.home>
+	<20180112025612.GB6419@jagdpanzerIV>
+	<20180111222140.7fd89d52@gandalf.local.home>
+	<20180112100544.GA441@jagdpanzerIV>
+	<20180112072123.33bb567d@gandalf.local.home>
+	<20180113072834.GA1701@tigerII.localdomain>
+	<20180115070637.1915ac20@gandalf.local.home>
+	<20180115144530.pej3k3xmkybjr6zb@pathway.suse.cz>
+	<20180116022349.GD6607@jagdpanzerIV>
+	<20180116044716.GE6607@jagdpanzerIV>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Petr Mladek <pmladek@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On Sun, 14 Jan 2018, Matthew Wilcox wrote:
+On Tue, 16 Jan 2018 13:47:16 +0900
+Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> wrote:
 
-> > Hmmm... At some point we should switch kmem_cache_create to pass a struct
-> > containing all the parameters. Otherwise the API will blow up with
-> > additional functions.
->
-> Obviously I agree with you.  I'm inclined to not let that delay Kees'
-> patches; we can fix the few places that use this API later.  At this
-> point, my proposal for the ultimate form would be:
+> From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Subject: [PATCH] printk: never set console_may_schedule in console_trylock()
+> 
+> This patch, basically, reverts commit 6b97a20d3a79 ("printk:
+> set may_schedule for some of console_trylock() callers").
+> That commit was a mistake, it introduced a big dependency
+> on the scheduler, by enabling preemption under console_sem
+> in printk()->console_unlock() path, which is rather too
+> critical. The patch did not significantly reduce the
+> possibilities of printk() lockups, but made it possible to
+> stall printk(), as has been reported by Tetsuo Handa [1].
+> 
+> Another issues is that preemption under console_sem also
+> messes up with Steven Rostedt's hand off scheme, by making
+> it possible to sleep with console_sem both in console_unlock()
+> and in vprintk_emit(), after acquiring the console_sem
+> ownership (anywhere between printk_safe_exit_irqrestore() in
+> console_trylock_spinning() and printk_safe_enter_irqsave()
+> in console_unlock()). This makes hand off less likely and,
+> at the same time, may result in a significant amount of
+> pending logbuf messages. Preempted console_sem owner makes
+> it impossible for other CPUs to emit logbuf messages, but
+> does not make it impossible for other CPUs to append new
+> messages to the logbuf.
+> 
+> Reinstate the old behavior and make printk() non-preemptible.
+> Should any printk() lockup reports arrive they must be handled
+> in a different way.
+> 
+> [1] https://marc.info/?l=linux-mm&m=145692016122716
 
-Right. Thats why I said "at some point"....
+Especially since Konstantin is working on pulling in all LKML archives,
+the above should be denoted as:
 
->
-> struct kmem_cache_attr {
-> 	const char name[32];
+ Link: http://lkml.kernel.org/r/201603022101.CAH73907.OVOOMFHFFtQJSL%20()%20I-love%20!%20SAKURA%20!%20ne%20!%20jp
 
-Want to avoid the string reference mess that occurred in the past?
-Is that really necessary? But it would limit the size of the name.
+Although the above is for linux-mm and not LKML (it still works), I
+should ask Konstantin if he will be pulling in any of the other
+archives. Perhaps have both? (in case marc.info goes away).
 
-> 	void (*ctor)(void *);
-> 	unsigned int useroffset;
-> 	unsigned int user_size;
-> };
->
-> kmem_create_cache_attr(const struct kmem_cache_attr *attr, unsigned int size,
-> 			unsigned int align, slab_flags_t flags)
->
-> (my rationale is that everything in attr should be const, but size, align
-> and flags all get modified by the slab code).
+> Fixes: 6b97a20d3a79 ("printk: set may_schedule for some of console_trylock() callers")
 
-Thought about putting all the parameters into the kmem_cache_attr struct.
+Should we Cc stable@vger.kernel.org?
 
-So
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> ---
+>  kernel/printk/printk.c | 22 ++++++++--------------
+>  1 file changed, 8 insertions(+), 14 deletions(-)
+> 
+> diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+> index ffe05024c622..9cb943c90d98 100644
+> --- a/kernel/printk/printk.c
+> +++ b/kernel/printk/printk.c
+> @@ -1895,6 +1895,12 @@ asmlinkage int vprintk_emit(int facility, int level,
+>  
+>  	/* If called from the scheduler, we can not call up(). */
+>  	if (!in_sched) {
+> +		/*
+> +		 * Disable preemption to avoid being preempted while holding
+> +		 * console_sem which would prevent anyone from printing to
+> +		 * console
+> +		 */
+> +		preempt_disable();
+>  		/*
+>  		 * Try to acquire and then immediately release the console
+>  		 * semaphore.  The release will print out buffers and wake up
+> @@ -1902,6 +1908,7 @@ asmlinkage int vprintk_emit(int facility, int level,
+>  		 */
+>  		if (console_trylock_spinning())
+>  			console_unlock();
+> +		preempt_enable();
+>  	}
+>  
+>  	return printed_len;
+> @@ -2229,20 +2236,7 @@ int console_trylock(void)
+>  		return 0;
+>  	}
+>  	console_locked = 1;
+> -	/*
+> -	 * When PREEMPT_COUNT disabled we can't reliably detect if it's
+> -	 * safe to schedule (e.g. calling printk while holding a spin_lock),
+> -	 * because preempt_disable()/preempt_enable() are just barriers there
+> -	 * and preempt_count() is always 0.
+> -	 *
+> -	 * RCU read sections have a separate preemption counter when
+> -	 * PREEMPT_RCU enabled thus we must take extra care and check
+> -	 * rcu_preempt_depth(), otherwise RCU read sections modify
+> -	 * preempt_count().
+> -	 */
+> -	console_may_schedule = !oops_in_progress &&
+> -			preemptible() &&
+> -			!rcu_preempt_depth();
+> +	console_may_schedule = 0;
+>  	return 1;
+>  }
+>  EXPORT_SYMBOL(console_trylock);
 
-struct kmem_cache_attr {
-	char *name;
-	size_t size;
-	size_t align;
-	slab_flags_t flags;
-	unsigned int useroffset;
-	unsinged int usersize;
-	void (*ctor)(void *);
-	kmem_isolate_func *isolate;
-	kmem_migrate_func *migrate;
-	...
-}
+Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+
+Thanks Sergey!
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
