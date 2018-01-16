@@ -1,109 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D66536B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 21:23:55 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id 34so4941612plm.23
-        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 18:23:55 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CBB5E6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 21:38:03 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id m12so9757897wrm.1
+        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 18:38:03 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g12sor321012plt.0.2018.01.15.18.23.54
+        by mx.google.com with SMTPS id w102sor452744wrb.45.2018.01.15.18.38.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 15 Jan 2018 18:23:54 -0800 (PST)
-Date: Tue, 16 Jan 2018 11:23:49 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180116022349.GD6607@jagdpanzerIV>
-References: <20180111093435.GA24497@linux.suse>
- <20180111103845.GB477@jagdpanzerIV>
- <20180111112908.50de440a@vmware.local.home>
- <20180112025612.GB6419@jagdpanzerIV>
- <20180111222140.7fd89d52@gandalf.local.home>
- <20180112100544.GA441@jagdpanzerIV>
- <20180112072123.33bb567d@gandalf.local.home>
- <20180113072834.GA1701@tigerII.localdomain>
- <20180115070637.1915ac20@gandalf.local.home>
- <20180115144530.pej3k3xmkybjr6zb@pathway.suse.cz>
+        Mon, 15 Jan 2018 18:38:02 -0800 (PST)
+Date: Tue, 16 Jan 2018 03:37:59 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [REGRESSION] testing/selftests/x86/ pkeys build failures
+Message-ID: <20180116023759.4xpgkc53qfbtmemb@gmail.com>
+References: <360ef254-48bc-aee6-70f9-858f773b8693@redhat.com>
+ <20180112125537.bdl376ziiaqp664o@gmail.com>
+ <063ba398-88e6-8650-2905-c378ee1fb8b2@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180115144530.pej3k3xmkybjr6zb@pathway.suse.cz>
+In-Reply-To: <063ba398-88e6-8650-2905-c378ee1fb8b2@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Shuah Khan <shuahkh@osg.samsung.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, x86@kernel.org, Dave Hansen <dave.hansen@intel.com>, Ram Pai <linuxram@us.ibm.com>
 
-On (01/15/18 15:45), Petr Mladek wrote:
-[..]
-> > With the preempt_disable() there really isn't a delay. I agree, we
-> > shouldn't let printk preempt (unless we have CONFIG_PREEMPT_RT enabled,
-> > but that's another story).
+
+* Florian Weimer <fweimer@redhat.com> wrote:
+
+> On 01/12/2018 01:55 PM, Ingo Molnar wrote:
 > > 
-> > > 
-> > > so very schematically, for hand-off it's something like
-> > > 
-> > > 	if (... console_trylock_spinning()) // grabbed the ownership
-> > > 
-> > > 		<< ... preempted ... >>
-> > > 
-> > > 		console_unlock();
+> > * Florian Weimer <fweimer@redhat.com> wrote:
 > > 
-> > Which I think we should stop, with the preempt_disable().
+> > > This patch is based on the previous discussion (pkeys: Support setting
+> > > access rights for signal handlers):
+> > > 
+> > >    https://marc.info/?t=151285426000001
+> > > 
+> > > It aligns the signal semantics of the x86 implementation with the upcoming
+> > > POWER implementation, and defines a new flag, so that applications can
+> > > detect which semantics the kernel uses.
+> > > 
+> > > A change in this area is needed to make memory protection keys usable for
+> > > protecting the GOT in the dynamic linker.
+> > > 
+> > > (Feel free to replace the trigraphs in the commit message before committing,
+> > > or to remove the program altogether.)
+> > 
+> > Could you please send patches not as MIME attachments?
 > 
-> Adding the preempt_disable() basically means to revert the already
-> mentioned commit 6b97a20d3a7909daa06625 ("printk: set may_schedule
-> for some of console_trylock() callers").
+> My mail infrastructure corrupts patches not sent as attachments, sorry.
+
+Your headers suggest the following mail client:
+
+  User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+        Thunderbird/52.5.0
+
+Have you seen the suggestions in Documentation/process/email-clients.rst, which 
+lists a handful of Thunderbird tips:
+
+  Thunderbird (GUI)
+  *****************
+
+  Thunderbird is an Outlook clone that likes to mangle text, but there are ways
+  to coerce it into behaving.
+
+?
+
+> > Also, the protection keys testcase first need to be fixed, before we complicate
+> > them - for example on a pretty regular Ubuntu x86-64 installation they fail to
+> > build with the build errors attached further below.
 > 
-> I originally wanted to solve this separately to make it easier. But
-> the change looks fine to me. Therefore we reached a mutual agreement.
-> Sergey, do you want to send a patch or should I just put it at
-> the end of this patchset?
+> I can fix things up so that they build on Fedora 26, Debian stretch, and Red
+> Hat Enterprise Linux 7.  Would that be sufficient?
 
-you can add the patch.
+Yeah, I think so.
 
-[..]
-> > I think adding the preempt_disable() would fix printk() but let non
-> > printk console_unlock() still preempt.
+> Fedora 23 is out of support and I'd prefer not invest any work into it.
 > 
-> I would personally remove cond_resched() from console_unlock()
-> completely.
+> Note that I find it strange to make this a precondition for even looking at
+> the patch.
 
-hmm, not so sure. I think it's there for !PREEMPT systems which have
-to print a lot of messages. the case I'm speaking about in particular
-is when we register a CON_PRINTBUFFER console and need to console_unlock()
-(flush) all of the messages we currently have in the logbuf. we better
-have that cond_resched() there, I think.
+I wanted to try the patch to give review feedback, but found these annoyances. 
+It's customary to make new features dependent on the cleanliness of the underlying 
+code.
 
-> Sleeping in console_unlock() increases the chance that more messages
-> would need to be handled. And more importantly it reduces the chance
-> of a successful handover.
-> 
-> As a result, the caller might spend there very long time, it might
-> be getting increasingly far behind. There is higher risk of lost
-> messages. Also the eventual taker might have too much to proceed
-> in preemption disabled context.
+Thanks,
 
-yes.
-
-> Removing cond_resched() is in sync with printk() priorities.
-
-hmm, not sure. we have sleeping console_lock()->console_unlock() path
-for PREEMPT kernels, that cond_resched() makes the !PREEMPT kernels to
-have the same sleeping console_lock()->console_unlock().
-
-printk()->console_unlock() seems to be a pretty independent thing,
-unfortunately (!), yet sleeping console_lock()->console_unlock()
-messes up with it a lot.
-
-> The highest one is to get the messages out.
-> 
-> Finally, removing cond_resched() should make the behavior more
-> predictable (never preempted)
-
-but we are always preempted in PREEMPT kernels when the current
-console_sem owner acquired the lock via console_lock(), not via
-console_trylock(). cond_resched() does the same, but for !PREEMPT.
-
-	-ss
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
