@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 64002280244
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:28:48 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id z83so1225076wmc.5
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:28:48 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id p90si2509759edp.379.2018.01.16.08.39.21
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B76A2280244
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:28:51 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id b195so1235563wmb.1
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:28:51 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id o5si2436321eda.525.2018.01.16.08.39.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 08:39:21 -0800 (PST)
+        Tue, 16 Jan 2018 08:39:20 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 09/16] x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on x86_32
-Date: Tue, 16 Jan 2018 17:36:52 +0100
-Message-Id: <1516120619-1159-10-git-send-email-joro@8bytes.org>
+Subject: [PATCH 07/16] x86/mm: Move two more functions from pgtable_64.h to pgtable.h
+Date: Tue, 16 Jan 2018 17:36:50 +0100
+Message-Id: <1516120619-1159-8-git-send-email-joro@8bytes.org>
 In-Reply-To: <1516120619-1159-1-git-send-email-joro@8bytes.org>
 References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,58 +22,80 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Cloning on the P4D level would clone the complete kernel
-address space into the user-space page-tables for PAE
-kernels. Cloning on PMD level is fine for PAE and legacy
-paging.
+These two functions are required for PTI on 32 bit:
+
+	* pgdp_maps_userspace()
+	* pgd_large()
+
+Also re-implement pgdp_maps_userspace() so that it will work
+on 64 and 32 bit kernels.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ arch/x86/include/asm/pgtable.h    | 16 ++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h | 15 ---------------
+ 2 files changed, 16 insertions(+), 15 deletions(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index ce38f165489b..20be21301a59 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -308,6 +308,7 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
- 	}
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 0a9f746cbdc1..abafe4d7fd3e 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1109,6 +1109,22 @@ static inline int pud_write(pud_t pud)
+ 	return pud_flags(pud) & _PAGE_RW;
  }
  
-+#ifdef CONFIG_X86_64
++/*
++ * Page table pages are page-aligned.  The lower half of the top
++ * level is used for userspace and the top half for the kernel.
++ *
++ * Returns true for parts of the PGD that map userspace and
++ * false for the parts that map the kernel.
++ */
++static inline bool pgdp_maps_userspace(void *__ptr)
++{
++	unsigned long ptr = (unsigned long)__ptr;
++
++	return (((ptr & ~PAGE_MASK) / sizeof(pgd_t)) < KERNEL_PGD_BOUNDARY);
++}
++
++static inline int pgd_large(pgd_t pgd) { return 0; }
++
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
  /*
-  * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
-  * next-level entry on 5-level systems.
-@@ -322,13 +323,29 @@ static void __init pti_clone_p4d(unsigned long addr)
- 	kernel_p4d = p4d_offset(kernel_pgd, addr);
- 	*user_p4d = *kernel_p4d;
+  * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 58d7f10e937d..3c5a73c8bb50 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -131,20 +131,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ #endif
  }
-+#endif
  
+-/*
+- * Page table pages are page-aligned.  The lower half of the top
+- * level is used for userspace and the top half for the kernel.
+- *
+- * Returns true for parts of the PGD that map userspace and
+- * false for the parts that map the kernel.
+- */
+-static inline bool pgdp_maps_userspace(void *__ptr)
+-{
+-	unsigned long ptr = (unsigned long)__ptr;
+-
+-	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
+-}
+-
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd);
+ 
+@@ -208,7 +194,6 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
  /*
-  * Clone the CPU_ENTRY_AREA into the user space visible page table.
+  * Level 4 access.
   */
- static void __init pti_clone_user_shared(void)
- {
-+#ifdef CONFIG_X86_32
-+	/*
-+	 * On 32 bit PAE systems with 1GB of Kernel address space there is only
-+	 * one pgd/p4d for the whole kernel. Cloning that would map the whole
-+	 * address space into the user page-tables, making PTI useless. So clone
-+	 * the page-table on the PMD level to prevent that.
-+	 */
-+	unsigned long start, end;
-+
-+	start = CPU_ENTRY_AREA_BASE;
-+	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
-+
-+	pti_clone_pmds(start, end, _PAGE_GLOBAL);
-+#else
- 	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
-+#endif
- }
+-static inline int pgd_large(pgd_t pgd) { return 0; }
+ #define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
  
- /*
+ /* PUD - Level3 access */
 -- 
 2.13.6
 
