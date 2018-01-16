@@ -1,91 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FAEF6B0285
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:30:57 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id 79so15836154ion.20
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:30:57 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p10sor1728475ite.108.2018.01.16.11.30.56
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E7F26B0287
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:31:37 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id b111so4364565wrd.16
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:31:37 -0800 (PST)
+Received: from SMTP.EU.CITRIX.COM (smtp.ctxuk.citrix.com. [185.25.65.24])
+        by mx.google.com with ESMTPS id p6si264118edh.215.2018.01.16.11.31.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Jan 2018 11:30:56 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jan 2018 11:31:36 -0800 (PST)
+Subject: Re: [RFC PATCH 00/16] PTI support for x86-32
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+ <CA+55aFx8V4JKfqZ+a9K355mopVYBBLNdx5Bh_oQuTGwdBFnoWg@mail.gmail.com>
+From: Andrew Cooper <andrew.cooper3@citrix.com>
+Message-ID: <aaa34988-84c4-a7cd-2c4d-f5e10ce8f289@citrix.com>
+Date: Tue, 16 Jan 2018 19:21:00 +0000
 MIME-Version: 1.0
-In-Reply-To: <7f100b0f-3588-be25-41f6-a0e4dde27916@linux.intel.com>
-References: <201801142054.FAD95378.LVOOFQJOFtMFSH@I-love.SAKURA.ne.jp>
- <CA+55aFwvgm+KKkRLaFsuAjTdfQooS=UaMScC0CbZQ9WnX_AF=g@mail.gmail.com>
- <201801160115.w0G1FOIG057203@www262.sakura.ne.jp> <CA+55aFxOn5n4O2JNaivi8rhDmeFhTQxEHD4xE33J9xOrFu=7kQ@mail.gmail.com>
- <7f100b0f-3588-be25-41f6-a0e4dde27916@linux.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 16 Jan 2018 11:30:54 -0800
-Message-ID: <CA+55aFyThu2FrxUh-4WrGHAd_QX=v1H2L+UNnUkks7n+dSvcfA@mail.gmail.com>
-Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CA+55aFx8V4JKfqZ+a9K355mopVYBBLNdx5Bh_oQuTGwdBFnoWg@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+Content-Language: en-GB
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H .
+ Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Joerg Roedel <jroedel@suse.de>, Juergen Gross <JGross@suse.com>, Jan Beulich <JBeulich@suse.com>
 
-On Tue, Jan 16, 2018 at 12:06 AM, Dave Hansen
-<dave.hansen@linux.intel.com> wrote:
-> On 01/15/2018 06:14 PM, Linus Torvalds wrote:
->> But I'm adding Dave Hansen explicitly to the cc, in case he has any
->> ideas. Not because I blame him, but he's touched the sparsemem code
->> fairly recently, so maybe he'd have some idea on adding sanity
->> checking to the sparsemem version of pfn_to_page().
+On 16/01/18 18:59, Linus Torvalds wrote:
+> On Tue, Jan 16, 2018 at 8:36 AM, Joerg Roedel <joro@8bytes.org> wrote:
+>> One of the things that are surely broken is XEN_PV support.
+>> I'd appreciate any help with testing and bugfixing on that
+>> front.
+> Xen PV and PTI don't work together even on x86-64 afaik, the Xen
+> people apparently felt it wasn't worth it.  See the
 >
-> I swear I haven't touched it lately!
+>         if (hypervisor_is_type(X86_HYPER_XEN_PV)) {
+>                 pti_print_if_insecure("disabled on XEN PV.");
+>                 return;
+>         }
 
-Heh. I did
+64bit PV guests under Xen already have split pagetables.A  It is a base
+and necessary part of the ABI, because segment limits stopped working in
+64bit.
 
-    git blame -C mm/sparse.c | grep 2017
+32bit PV guests aren't split, but by far the most efficient way of doing
+this is to introduce a new enlightenment and have Xen switch all this
+stuff (and IBRS, for that matter) on behalf of the guest kernel on
+context switch.
 
-and your name shows up at the beginning a lot because of commit
-c4e1be9ec113 ("mm, sparsemem: break out of loops early").
-
-And Michal Hocko (who shows up even more) was already on the cc.
-
-> I'm not sure I'd go after pfn_to_page().  *Maybe* if we were close to
-> the places where we've done a pfn_to_page(), but I'm not seeing those.
-
-Fair enough. I just wanted to add debugging, looked at Tetsuo's
-config, and went "no way am I adding debugging to the sparsemem case
-because it's so confusing".
-
-That said, I also started looking at "kmap_to_page()". That's
-something that is *really* different with HIGHMEM, and while most of
-the users are in random drivers that do crazy things, I do note that
-one of the users is in mm/swap.c.
-
-That thing goes back to commit 5a178119b0fb ("mm: add support for
-direct_IO to highmem pages") and was only used for swap_writepage(),
-if I read this right.
-
-That swap_writepage() use of kmap()'ed patches was removed some time
-later in commit 62a8067a7f35 ("bio_vec-backed iov_iter"), but the
-crazy kmap_to_page() thing remained.
-
-I see nothing actively wrong in there, but it really feels like a
-"that is all bogus" thing to me.
-
-> Did anyone else notice the
->
->         [   31.068198]  ? vmalloc_sync_all+0x150/0x150
->
-> present in a bunch of the stack traces?  That should be pretty uncommon.
-
-No, didn't notice that. And yes, vmalloc_sync_all() might be interesting.
-
->  Is it just part of the normal do_page_fault() stack and the stack
-> dumper picks up on it?
-
-I don't think so. It should *not* happen normally. The fact that it
-shows up in the trace means it happened that time.
-
-It doesn't seem HIGHMEM-related, though. Or maybe the highmem signal
-is bogus too, and it's just that Tetsuo's reproducer needs magical
-timing.
-
-             Linus
+~Andrew
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
