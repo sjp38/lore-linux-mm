@@ -1,51 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 375E528024A
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 17:52:08 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id q1so6936247plr.15
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:52:08 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y12si2768612pff.4.2018.01.16.14.52.07
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EB36628024A
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 18:04:10 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id h18so12712881pfi.2
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 15:04:10 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t5sor1097651plq.92.2018.01.16.15.04.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 14:52:07 -0800 (PST)
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id DF7F821781
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 22:52:06 +0000 (UTC)
-Received: by mail-io0-f169.google.com with SMTP id w188so18619307iod.10
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:52:06 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20180116165213.GF2228@hirez.programming.kicks-ass.net>
-References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
- <1516120619-1159-7-git-send-email-joro@8bytes.org> <20180116165213.GF2228@hirez.programming.kicks-ass.net>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Tue, 16 Jan 2018 14:51:45 -0800
-Message-ID: <CALCETrUgZondzbUTYF2U2YtxOiHExd2H4xD1Mjz-G=VJKzNfVw@mail.gmail.com>
-Subject: Re: [PATCH 06/16] x86/mm/ldt: Reserve high address-space range for
- the LDT
+        (Google Transport Security);
+        Tue, 16 Jan 2018 15:04:09 -0800 (PST)
+Message-ID: <1516143846.5023.13.camel@slavad-ubuntu-14.04>
+Subject: Re: [LSF/MM TOPIC] A high-performance userspace block driver
+From: Viacheslav Dubeyko <slava@dubeyko.com>
+Date: Tue, 16 Jan 2018 15:04:06 -0800
+In-Reply-To: <20180116145240.GD30073@bombadil.infradead.org>
+References: <20180116145240.GD30073@bombadil.infradead.org>
 Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Joerg Roedel <jroedel@suse.de>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
 
-On Tue, Jan 16, 2018 at 8:52 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Tue, Jan 16, 2018 at 05:36:49PM +0100, Joerg Roedel wrote:
->> From: Joerg Roedel <jroedel@suse.de>
->>
->> Reserve 2MB/4MB of address space for mapping the LDT to
->> user-space.
->
-> LDT is 64k, we need 2 per CPU, and NR_CPUS <= 64 on 32bit, that gives
-> 64K*2*64=8M > 2M.
+On Tue, 2018-01-16 at 06:52 -0800, Matthew Wilcox wrote:
+> I see the improvements that Facebook have been making to the nbd driver,
+> and I think that's a wonderful thing.  Maybe the outcome of this topic
+> is simply: "Shut up, Matthew, this is good enough".
+> 
+> It's clear that there's an appetite for userspace block devices; not for
+> swap devices or the root device, but for accessing data that's stored
+> in that silo over there, and I really don't want to bring that entire
+> mess of CORBA / Go / Rust / whatever into the kernel to get to it,
+> but it would be really handy to present it as a block device.
+> 
+> I've looked at a few block-driver-in-userspace projects that exist, and
+> they all seem pretty bad.  For example, one API maps a few gigabytes of
+> address space and plays games with vm_insert_page() to put page cache
+> pages into the address space of the client process.  Of course, the TLB
+> flush overhead of that solution is criminal.
+> 
+> I've looked at pipes, and they're not an awful solution.  We've almost
+> got enough syscalls to treat other objects as pipes.  The problem is
+> that they're not seekable.  So essentially you're looking at having one
+> pipe per outstanding command.  If yu want to make good use of a modern
+> NAND device, you want a few hundred outstanding commands, and that's a
+> bit of a shoddy interface.
+> 
+> Right now, I'm leaning towards combining these two approaches; adding
+> a VM_NOTLB flag so the mmaped bits of the page cache never make it into
+> the process's address space, so the TLB shootdown can be safely skipped.
+> Then check it in follow_page_mask() and return the appropriate struct
+> page.  As long as the userspace process does everything using O_DIRECT,
+> I think this will work.
+> 
+> It's either that or make pipes seekable ...
 
-If this works like it does on 64-bit, it only needs 128k regardless of
-the number of CPUs.  The LDT mapping is specific to the mm.
+I like the whole idea. But why pipes? What's about shared memory? To
+make the pipes seekable sounds like the killing of initial concept.
+Usually, we treat pipe as FIFO communication channel. So, to make the
+pipe seekable sounds really strange, from my point of view. Maybe, we
+need in some new abstraction?
 
-How are you dealing with PAE here?  That is, what's your pagetable
-layout?  What parts of the address space are owned by what code?
+By the way, what's use-case(s) you have in mind for the suggested
+approach?
+
+Thanks,
+Vyacheslav Dubeyko.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
