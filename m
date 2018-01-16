@@ -1,87 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E64DC6B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 21:14:52 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id c33so2316662itf.8
-        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 18:14:52 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e15sor503777ioe.155.2018.01.15.18.14.51
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D66536B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 21:23:55 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id 34so4941612plm.23
+        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 18:23:55 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g12sor321012plt.0.2018.01.15.18.23.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 15 Jan 2018 18:14:51 -0800 (PST)
+        Mon, 15 Jan 2018 18:23:54 -0800 (PST)
+Date: Tue, 16 Jan 2018 11:23:49 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180116022349.GD6607@jagdpanzerIV>
+References: <20180111093435.GA24497@linux.suse>
+ <20180111103845.GB477@jagdpanzerIV>
+ <20180111112908.50de440a@vmware.local.home>
+ <20180112025612.GB6419@jagdpanzerIV>
+ <20180111222140.7fd89d52@gandalf.local.home>
+ <20180112100544.GA441@jagdpanzerIV>
+ <20180112072123.33bb567d@gandalf.local.home>
+ <20180113072834.GA1701@tigerII.localdomain>
+ <20180115070637.1915ac20@gandalf.local.home>
+ <20180115144530.pej3k3xmkybjr6zb@pathway.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <201801160115.w0G1FOIG057203@www262.sakura.ne.jp>
-References: <201801142054.FAD95378.LVOOFQJOFtMFSH@I-love.SAKURA.ne.jp>
- <CA+55aFwvgm+KKkRLaFsuAjTdfQooS=UaMScC0CbZQ9WnX_AF=g@mail.gmail.com> <201801160115.w0G1FOIG057203@www262.sakura.ne.jp>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 15 Jan 2018 18:14:49 -0800
-Message-ID: <CA+55aFxOn5n4O2JNaivi8rhDmeFhTQxEHD4xE33J9xOrFu=7kQ@mail.gmail.com>
-Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180115144530.pej3k3xmkybjr6zb@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>
+To: Petr Mladek <pmladek@suse.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On Mon, Jan 15, 2018 at 5:15 PM, Tetsuo Handa
-<penguin-kernel@i-love.sakura.ne.jp> wrote:
->
-> I can't reproduce this with CONFIG_FLATMEM=y . But I'm not sure whether
-> we are hitting a bug in CONFIG_SPARSEMEM=y code, for the bug is highly
-> timing dependent.
+On (01/15/18 15:45), Petr Mladek wrote:
+[..]
+> > With the preempt_disable() there really isn't a delay. I agree, we
+> > shouldn't let printk preempt (unless we have CONFIG_PREEMPT_RT enabled,
+> > but that's another story).
+> > 
+> > > 
+> > > so very schematically, for hand-off it's something like
+> > > 
+> > > 	if (... console_trylock_spinning()) // grabbed the ownership
+> > > 
+> > > 		<< ... preempted ... >>
+> > > 
+> > > 		console_unlock();
+> > 
+> > Which I think we should stop, with the preempt_disable().
+> 
+> Adding the preempt_disable() basically means to revert the already
+> mentioned commit 6b97a20d3a7909daa06625 ("printk: set may_schedule
+> for some of console_trylock() callers").
+> 
+> I originally wanted to solve this separately to make it easier. But
+> the change looks fine to me. Therefore we reached a mutual agreement.
+> Sergey, do you want to send a patch or should I just put it at
+> the end of this patchset?
 
-Hmm. Maybe. But sparsemem really also generates *much* more complex
-code particularly for the pfn_to_page() case.
+you can add the patch.
 
-It also has much less testing. For example, on x86-64 we do use
-sparsemem, but we use the VMEMMAP version of sparsemem: the version
-that does *not* play really odd and complex games with that whole
-pfn_to_page().
+[..]
+> > I think adding the preempt_disable() would fix printk() but let non
+> > printk console_unlock() still preempt.
+> 
+> I would personally remove cond_resched() from console_unlock()
+> completely.
 
-I've always felt like sparsemem was really damn complicated.  The
-whole "section_mem_map" encoding is really subtle and odd.
+hmm, not so sure. I think it's there for !PREEMPT systems which have
+to print a lot of messages. the case I'm speaking about in particular
+is when we register a CON_PRINTBUFFER console and need to console_unlock()
+(flush) all of the messages we currently have in the logbuf. we better
+have that cond_resched() there, I think.
 
-And considering that we're getting what appears to be a invalid page,
-in one of the more complicated sequences that very much does that
-whole pfn_to_page(), I really wonder.
+> Sleeping in console_unlock() increases the chance that more messages
+> would need to be handled. And more importantly it reduces the chance
+> of a successful handover.
+> 
+> As a result, the caller might spend there very long time, it might
+> be getting increasingly far behind. There is higher risk of lost
+> messages. Also the eventual taker might have too much to proceed
+> in preemption disabled context.
 
-I wonder if somebody could add some VM_BUG_ON() checks to the
-non-vmemmap case of sparsemem in include/asm-generic/memory_model.h.
+yes.
 
-Because this:
+> Removing cond_resched() is in sync with printk() priorities.
 
-  #define __pfn_to_page(pfn)                              \
-  ({      unsigned long __pfn = (pfn);                    \
-          struct mem_section *__sec = __pfn_to_section(__pfn);    \
-          __section_mem_map_addr(__sec) + __pfn;          \
-  })
+hmm, not sure. we have sleeping console_lock()->console_unlock() path
+for PREEMPT kernels, that cond_resched() makes the !PREEMPT kernels to
+have the same sleeping console_lock()->console_unlock().
 
-is really subtle, and if we have some case where we pass in an
-out-of-range pfn, or some case where we get the section wrong (because
-the pfn is between sections or whatever due to some subtle setup bug),
-things will really go sideways.
+printk()->console_unlock() seems to be a pretty independent thing,
+unfortunately (!), yet sleeping console_lock()->console_unlock()
+messes up with it a lot.
 
-The reason I was hoping you could do this for FLATMEM is that it's
-much easier to verify the pfn range in that case.  The sparsemem cases
-really makes it much nastier.
+> The highest one is to get the messages out.
+> 
+> Finally, removing cond_resched() should make the behavior more
+> predictable (never preempted)
 
-That said, all of that code is really old. Most of it goes back to
--05/06 or so. But since you seem to be able to reproduce at least back
-to 4.8, I guess this bug does back years too.
+but we are always preempted in PREEMPT kernels when the current
+console_sem owner acquired the lock via console_lock(), not via
+console_trylock(). cond_resched() does the same, but for !PREEMPT.
 
-But I'm adding Dave Hansen explicitly to the cc, in case he has any
-ideas. Not because I blame him, but he's touched the sparsemem code
-fairly recently, so maybe he'd have some idea on adding sanity
-checking to the sparsemem version of pfn_to_page().
-
-> I dont know why but selecting CONFIG_FLATMEM=y seems to avoid a different bug
-> where bootup of qemu randomly fails at
-
-Hmm. That looks very different indeed. But if CONFIG_SPARSEMEM
-(presumably together with HIGHMEM) has some odd off-by-one corner case
-or similar, who knows *what* issues it could trigger.
-
-                 Linus
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
