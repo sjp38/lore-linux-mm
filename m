@@ -1,144 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 185F36B026B
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 10:45:14 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id a12so6285351pll.21
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 07:45:14 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x1si2132426plb.137.2018.01.16.07.45.12
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 50E8D6B025E
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:05:34 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id g202so4071595ita.4
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 08:05:34 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id a85si2325936itb.127.2018.01.16.08.05.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 07:45:12 -0800 (PST)
-Date: Tue, 16 Jan 2018 10:45:08 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180116104508.515ca393@gandalf.local.home>
-In-Reply-To: <20180116044716.GE6607@jagdpanzerIV>
-References: <20180111103845.GB477@jagdpanzerIV>
-	<20180111112908.50de440a@vmware.local.home>
-	<20180112025612.GB6419@jagdpanzerIV>
-	<20180111222140.7fd89d52@gandalf.local.home>
-	<20180112100544.GA441@jagdpanzerIV>
-	<20180112072123.33bb567d@gandalf.local.home>
-	<20180113072834.GA1701@tigerII.localdomain>
-	<20180115070637.1915ac20@gandalf.local.home>
-	<20180115144530.pej3k3xmkybjr6zb@pathway.suse.cz>
-	<20180116022349.GD6607@jagdpanzerIV>
-	<20180116044716.GE6607@jagdpanzerIV>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 16 Jan 2018 08:05:33 -0800 (PST)
+Date: Tue, 16 Jan 2018 08:05:25 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: kmem_cache_attr (was Re: [PATCH 04/36] usercopy: Prepare for
+ usercopy whitelisting)
+Message-ID: <20180116160525.GF30073@bombadil.infradead.org>
+References: <1515531365-37423-1-git-send-email-keescook@chromium.org>
+ <1515531365-37423-5-git-send-email-keescook@chromium.org>
+ <alpine.DEB.2.20.1801101219390.7926@nuc-kabylake>
+ <20180114230719.GB32027@bombadil.infradead.org>
+ <alpine.DEB.2.20.1801160913260.3908@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1801160913260.3908@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Petr Mladek <pmladek@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On Tue, 16 Jan 2018 13:47:16 +0900
-Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> wrote:
-
-> From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Subject: [PATCH] printk: never set console_may_schedule in console_trylock()
+On Tue, Jan 16, 2018 at 09:21:30AM -0600, Christopher Lameter wrote:
+> > struct kmem_cache_attr {
+> > 	const char name[32];
 > 
-> This patch, basically, reverts commit 6b97a20d3a79 ("printk:
-> set may_schedule for some of console_trylock() callers").
-> That commit was a mistake, it introduced a big dependency
-> on the scheduler, by enabling preemption under console_sem
-> in printk()->console_unlock() path, which is rather too
-> critical. The patch did not significantly reduce the
-> possibilities of printk() lockups, but made it possible to
-> stall printk(), as has been reported by Tetsuo Handa [1].
+> Want to avoid the string reference mess that occurred in the past?
+> Is that really necessary? But it would limit the size of the name.
+
+I think that's a good thing!  /proc/slabinfo really starts to get grotty
+above 16 bytes.  I'd like to chop off "_cache" from the name of every
+single slab!  If ext4_allocation_context has to become ext4_alloc_ctx,
+I don't think we're going to lose any valuable information.
+
+My real intent was to reduce the number of allocations; if we can make
+it not necessary to kstrdup the name, I think that'd be appreciated by
+our CONFIG_TINY friends.
+
+> > (my rationale is that everything in attr should be const, but size, align
+> > and flags all get modified by the slab code).
 > 
-> Another issues is that preemption under console_sem also
-> messes up with Steven Rostedt's hand off scheme, by making
-> it possible to sleep with console_sem both in console_unlock()
-> and in vprintk_emit(), after acquiring the console_sem
-> ownership (anywhere between printk_safe_exit_irqrestore() in
-> console_trylock_spinning() and printk_safe_enter_irqsave()
-> in console_unlock()). This makes hand off less likely and,
-> at the same time, may result in a significant amount of
-> pending logbuf messages. Preempted console_sem owner makes
-> it impossible for other CPUs to emit logbuf messages, but
-> does not make it impossible for other CPUs to append new
-> messages to the logbuf.
+> Thought about putting all the parameters into the kmem_cache_attr struct.
 > 
-> Reinstate the old behavior and make printk() non-preemptible.
-> Should any printk() lockup reports arrive they must be handled
-> in a different way.
+> So
 > 
-> [1] https://marc.info/?l=linux-mm&m=145692016122716
+> struct kmem_cache_attr {
+> 	char *name;
+> 	size_t size;
+> 	size_t align;
+> 	slab_flags_t flags;
+> 	unsigned int useroffset;
+> 	unsinged int usersize;
+> 	void (*ctor)(void *);
+> 	kmem_isolate_func *isolate;
+> 	kmem_migrate_func *migrate;
+> 	...
+> }
 
-Especially since Konstantin is working on pulling in all LKML archives,
-the above should be denoted as:
+In these slightly-more-security-conscious days, it's considered poor
+practice to have function pointers in writable memory.  That was why
+I wanted to make the kmem_cache_attr const.
 
- Link: http://lkml.kernel.org/r/201603022101.CAH73907.OVOOMFHFFtQJSL%20()%20I-love%20!%20SAKURA%20!%20ne%20!%20jp
-
-Although the above is for linux-mm and not LKML (it still works), I
-should ask Konstantin if he will be pulling in any of the other
-archives. Perhaps have both? (in case marc.info goes away).
-
-> Fixes: 6b97a20d3a79 ("printk: set may_schedule for some of console_trylock() callers")
-
-Should we Cc stable@vger.kernel.org?
-
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  kernel/printk/printk.c | 22 ++++++++--------------
->  1 file changed, 8 insertions(+), 14 deletions(-)
-> 
-> diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-> index ffe05024c622..9cb943c90d98 100644
-> --- a/kernel/printk/printk.c
-> +++ b/kernel/printk/printk.c
-> @@ -1895,6 +1895,12 @@ asmlinkage int vprintk_emit(int facility, int level,
->  
->  	/* If called from the scheduler, we can not call up(). */
->  	if (!in_sched) {
-> +		/*
-> +		 * Disable preemption to avoid being preempted while holding
-> +		 * console_sem which would prevent anyone from printing to
-> +		 * console
-> +		 */
-> +		preempt_disable();
->  		/*
->  		 * Try to acquire and then immediately release the console
->  		 * semaphore.  The release will print out buffers and wake up
-> @@ -1902,6 +1908,7 @@ asmlinkage int vprintk_emit(int facility, int level,
->  		 */
->  		if (console_trylock_spinning())
->  			console_unlock();
-> +		preempt_enable();
->  	}
->  
->  	return printed_len;
-> @@ -2229,20 +2236,7 @@ int console_trylock(void)
->  		return 0;
->  	}
->  	console_locked = 1;
-> -	/*
-> -	 * When PREEMPT_COUNT disabled we can't reliably detect if it's
-> -	 * safe to schedule (e.g. calling printk while holding a spin_lock),
-> -	 * because preempt_disable()/preempt_enable() are just barriers there
-> -	 * and preempt_count() is always 0.
-> -	 *
-> -	 * RCU read sections have a separate preemption counter when
-> -	 * PREEMPT_RCU enabled thus we must take extra care and check
-> -	 * rcu_preempt_depth(), otherwise RCU read sections modify
-> -	 * preempt_count().
-> -	 */
-> -	console_may_schedule = !oops_in_progress &&
-> -			preemptible() &&
-> -			!rcu_preempt_depth();
-> +	console_may_schedule = 0;
->  	return 1;
->  }
->  EXPORT_SYMBOL(console_trylock);
-
-Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
-
-Thanks Sergey!
-
--- Steve
+Also, there's no need for 'size' and 'align' to be size_t.  Slab should
+never support allocations above 4GB in size.  I'm not even keen on seeing
+allocations above 64kB, but I see my laptop has six 512kB allocations (!),
+three 256kB allocations and seven 128kB allocations, so I must reluctantly
+concede that using an unsigned int is necessary.  If I were really into
+bitshaving, I might force all allocations to be a multiple of 32-bytes
+in size, and then we could use 16 bits to represent an allocation between
+32 and 2MB, but I think that tips us beyond the complexity boundary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
