@@ -1,129 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C961A6B0282
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:29:31 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id u10so13013010qtg.5
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:29:31 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id f100si3117516qkf.204.2018.01.16.11.29.30
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D0CA6B0282
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 14:29:32 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id k19so4582903ita.8
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 11:29:32 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id z22si2362173ioi.297.2018.01.16.11.29.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 11:29:30 -0800 (PST)
+        Tue, 16 Jan 2018 11:29:31 -0800 (PST)
 From: Henry Willard <henry.willard@oracle.com>
-Subject: [PATCH] mm: numa: numa balancing performance problem
-Date: Tue, 16 Jan 2018 11:28:43 -0800
-Message-Id: <1516130924-3545-1-git-send-email-henry.willard@oracle.com>
+Subject: [PATCH] mm: numa: Do not trap faults on shared data section pages.
+Date: Tue, 16 Jan 2018 11:28:44 -0800
+Message-Id: <1516130924-3545-2-git-send-email-henry.willard@oracle.com>
+In-Reply-To: <1516130924-3545-1-git-send-email-henry.willard@oracle.com>
+References: <1516130924-3545-1-git-send-email-henry.willard@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: mgorman@suse.de, kstewart@linuxfoundation.org, zi.yan@cs.rutgers.edu, pombredanne@nexb.com, aarcange@redhat.com, gregkh@linuxfoundation.org, aneesh.kumar@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, jglisse@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Workloads consisting of a large number of processes running the same program
-with a very large shared data section may experience performance problems 
-when numa balancing attempts to migrate the shared cow pages. This manifests
-itself with many processes or tasks in TASK_UNINTERRUPTIBLE state waiting
-for the shared pages to be migrated.
+Workloads consisting of a large number processes running the same program
+with a large shared data section may suffer from excessive numa balancing
+page migration of the pages in the shared data section. This shows up as
+high I/O wait time and degraded performance on machines with higher socket
+or node counts.
 
-This patch changes change_pte_range() to skip shared copy-on-write pages when
-called from change_prot_numa(). 
+This patch skips shared copy-on-write pages in change_pte_range() for the
+numa balancing case.
 
-The program listed below simulates the conditions with these results when 
-run with 288 processes on a 144 core/8 socket machine.
-
-Average throughput 	Average throughput     Average throughput
-with numa_balancing=0	with numa_balancing=1  with numa_balancing=1
-     			without the patch      with the patch
----------------------	---------------------  ---------------------
-2118782			2021534		       2107979
-
-Complex production environments show less variability and fewer poorly 
-performing outliers accompanied with a smaller number of processes waiting 
-on NUMA page migration. In some cases, %iowait drops from 16%-26% to 0.
-
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
- */
-#include <sys/time.h>
-#include <stdio.h>
-#include <wait.h>
-#include <sys/mman.h>
-
-int a[1000000] = {13};
-
-int  main(int argc, const char **argv)
-{
-	int n = 0;
-	int i;
-	pid_t pid;
-	int stat;
-	int *count_array;
-	int cpu_count = 288;
-	long total = 0;
-
-	struct timeval t1, t2 = {(argc > 1 ? atoi(argv[1]) : 10), 0};
-
-	if (argc > 2)
-		cpu_count = atoi(argv[2]);
-
-	count_array = mmap(NULL, cpu_count * sizeof(int),
-			   (PROT_READ|PROT_WRITE),
-			   (MAP_SHARED|MAP_ANONYMOUS), 0, 0);
-
-	if (count_array == MAP_FAILED) {
-		perror("mmap:");
-		return 0;
-	}
-
-
-	for (i = 0; i < cpu_count; ++i) {
-		pid = fork();
-		if (pid <= 0)
-			break;
-		if ((i & 0xf) == 0)
-			usleep(2);
-	}
-
-	if (pid != 0) {
-		if (i == 0) {
-			perror("fork:");
-			return 0;
-		}
-
-		for (;;) {
-			pid = wait(&stat);
-			if (pid < 0)
-				break;
-		}
-
-		for (i = 0; i < cpu_count; ++i)
-			total += count_array[i];
-
-		printf("Total %ld\n", total);
-		munmap(count_array, cpu_count * sizeof(int));
-		return 0;
-	}
-
-	gettimeofday(&t1, 0);
-	timeradd(&t1, &t2, &t1);
-	while (timercmp(&t2, &t1, <)) {
-		int b = 0;
-		int j;
-
-		for (j = 0; j < 1000000; j++)
-			b += a[j];
-		gettimeofday(&t2, 0);
-		n++;
-	}
-	count_array[i] = n;
-	return 0;
-}
-
-
-
+Signed-off-by: Henry Willard <henry.willard@oracle.com>
+Reviewed-by: HAJPYkon Bugge <haakon.bugge@oracle.com>
+Reviewed-by: Steve Sistare steven.sistare@oracle.com
+---
  mm/mprotect.c | 5 +++++
  1 file changed, 5 insertions(+)
 
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index ec39f730a0bf..fbbb3ab70818 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -84,6 +84,11 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 				if (!page || PageKsm(page))
+ 					continue;
+ 
++				/* Also skip shared copy-on-write pages */
++				if (is_cow_mapping(vma->vm_flags) &&
++				    page_mapcount(page) != 1)
++					continue;
++
+ 				/* Avoid TLB flush if possible */
+ 				if (pte_protnone(oldpte))
+ 					continue;
 -- 
 1.8.3.1
 
