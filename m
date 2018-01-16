@@ -1,76 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A1E976B026E
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 16:03:24 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id d17so15800831ioc.23
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 13:03:24 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id d22si2999536itb.72.2018.01.16.13.03.23
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 381D56B0286
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 16:03:30 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id e19so11018404otf.4
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 13:03:30 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w130si1107072oib.393.2018.01.16.13.03.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 16 Jan 2018 13:03:23 -0800 (PST)
-Date: Tue, 16 Jan 2018 13:03:13 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: kmem_cache_attr (was Re: [PATCH 04/36] usercopy: Prepare for
- usercopy whitelisting)
-Message-ID: <20180116210313.GA7791@bombadil.infradead.org>
-References: <1515531365-37423-1-git-send-email-keescook@chromium.org>
- <1515531365-37423-5-git-send-email-keescook@chromium.org>
- <alpine.DEB.2.20.1801101219390.7926@nuc-kabylake>
- <20180114230719.GB32027@bombadil.infradead.org>
- <alpine.DEB.2.20.1801160913260.3908@nuc-kabylake>
- <20180116160525.GF30073@bombadil.infradead.org>
- <alpine.DEB.2.20.1801161049320.5162@nuc-kabylake>
- <20180116174315.GA10461@bombadil.infradead.org>
- <alpine.DEB.2.20.1801161205590.1771@nuc-kabylake>
- <alpine.DEB.2.20.1801161215500.2945@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jan 2018 13:03:29 -0800 (PST)
+Date: Tue, 16 Jan 2018 16:03:21 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: [LSF/MM TOPIC] CAPI/CCIX cache coherent device memory (NUMA too ?)
+Message-ID: <20180116210321.GB8801@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1801161215500.2945@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Jonathan Masters <jcm@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Tue, Jan 16, 2018 at 12:17:01PM -0600, Christopher Lameter wrote:
-> Draft patch of how the data structs could change. kmem_cache_attr is read
-> only.
+CAPI (on IBM Power8 and 9) and CCIX are two new standard that
+build on top of existing interconnect (like PCIE) and add the
+possibility for cache coherent access both way (from CPU to
+device memory and from device to main memory). This extend
+what we are use to with PCIE (where only device to main memory
+can be cache coherent but not CPU to device memory).
 
-Looks good.  Although I would add Kees' user feature:
+How is this memory gonna be expose to the kernel and how the
+kernel gonna expose this to user space is the topic i want to
+discuss. I believe this is highly device specific for instance
+for GPU you want the device memory allocation and usage to be
+under the control of the GPU device driver. Maybe other type
+of device want different strategy.
 
-struct kmem_cache_attr {
-	char name[16];
-	unsigned int size;
-	unsigned int align;
-+	unsigned int useroffset;
-+	unsigned int usersize;
-	slab_flags_t flags;
-	kmem_cache_ctor ctor;
-}
+The HMAT patchset is partialy related to all this as it is about
+exposing different type of memory available in a system for CPU
+(HBM, main memory, ...) and some of their properties (bandwidth,
+latency, ...).
 
-And I'd start with 
-+struct kmem_cache *kmem_cache_create_attr(const kmem_cache_attr *);
 
-leaving the old kmem_cache_create to kmalloc a kmem_cache_attr and
-initialise it.
+We can start by looking at how CAPI and CCIX plan to expose this
+to the kernel and try to list some of the type of devices we
+expect to see. Discussion can then happen on how to represent this
+internaly to the kernel and how to expose this to userspace.
 
-Can we also do something like this?
+Note this might also trigger discussion on a NUMA like model or
+on extending/replacing it by something more generic.
 
--#define KMEM_CACHE(__struct, __flags) kmem_cache_create(#__struct,\
--		sizeof(struct __struct), __alignof__(struct __struct),\
--		(__flags), NULL)
-+#define KMEM_CACHE(__struct, __flags) ({				\
-+	const struct kmem_cache_attr kca ## __stringify(__struct) = {	\
-+		.name = #__struct,					\
-+		.size = sizeof(struct __struct),			\
-+		.align = __alignof__(struct __struct),			\
-+		.flags = (__flags),					\
-+	};								\
-+	kmem_cache_create_attr(&kca ## __stringify(__struct));		\
-+})
 
-That way we won't need to convert any of those users.
+Peoples (alphabetical order on first name) sorry if i missed
+anyone:
+    "Anshuman Khandual" <khandual@linux.vnet.ibm.com>
+    "Balbir Singh" <bsingharora@gmail.com>
+    "Dan Williams" <dan.j.williams@intel.com>
+    "John Hubbard" <jhubbard@nvidia.com>
+    "Jonathan Masters" <jcm@redhat.com>
+    "Ross Zwisler" <ross.zwisler@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
