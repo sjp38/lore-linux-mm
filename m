@@ -1,67 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 620426B0038
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 08:24:54 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id b26so12101674qtb.18
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 05:24:54 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id v25si2200233qkv.286.2018.01.16.05.24.53
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A849E6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 09:14:02 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id z3so6133172pln.6
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 06:14:02 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id e3si2053916plk.542.2018.01.16.06.13.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 05:24:53 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0GDOS3p087399
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 08:24:52 -0500
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2fhfb68gx5-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 08:24:51 -0500
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 16 Jan 2018 13:24:49 -0000
-Subject: Re: [PATCH v6 18/24] mm: Try spin lock in speculative path
-References: <1515777968-867-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1515777968-867-19-git-send-email-ldufour@linux.vnet.ibm.com>
- <20180112181840.GA7590@bombadil.infradead.org>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Tue, 16 Jan 2018 14:24:39 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 16 Jan 2018 06:13:58 -0800 (PST)
+Date: Tue, 16 Jan 2018 06:13:54 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [LSF/MM TOPIC] Matthew's minor MM topics
+Message-ID: <20180116141354.GB30073@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180112181840.GA7590@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <fd55ce33-2d7d-2613-7483-b6e2764e8865@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On 12/01/2018 19:18, Matthew Wilcox wrote:
-> On Fri, Jan 12, 2018 at 06:26:02PM +0100, Laurent Dufour wrote:
->> There is a deadlock when a CPU is doing a speculative page fault and
->> another one is calling do_unmap().
->>
->> The deadlock occurred because the speculative path try to spinlock the
->> pte while the interrupt are disabled. When the other CPU in the
->> unmap's path has locked the pte then is waiting for all the CPU to
->> invalidate the TLB. As the CPU doing the speculative fault have the
->> interrupt disable it can't invalidate the TLB, and can't get the lock.
->>
->> Since we are in a speculative path, we can race with other mm action.
->> So let assume that the lock may not get acquired and fail the
->> speculative page fault.
-> 
-> It seems like you introduced this bug in the previous patch, and now
-> you're fixing it in this patch?  Why not merge the two?
+(trying again with the right MM mailing list address.  Sorry.)
 
-You're right this is a fix from the previous patch. Initially my idea was
-to keep the original Peter's patch as is, but sounds that this is not a
-good idea.
-I'll merge it in the previous one.
+I have a number of things I'd like to discuss that are purely MM related.
+I don't know if any of them rise to the level of an entire session,
+but maybe lightning talks, or maybe we can dispose of them on the list
+before the summit.
 
-Thanks,
-Laurent.
+1. GFP_DMA / GFP_HIGHMEM / GFP_DMA32
+
+The documentation is clear that only one of these three bits is allowed
+to be set.  Indeed, we have code that checks that only one of these
+three bits is set.  So why do we have three bits?  Surely this encoding
+works better:
+
+00b (normal)
+01b GFP_DMA
+10b GFP_DMA32
+11b GFP_HIGHMEM
+(or some other clever encoding that maps well to the zone_type index)
+
+2. kvzalloc_ab_c()
+
+We could bikeshed on this name all summit long, but the idea is to provide
+an equivalent of kvmalloc_array() which works for array-plus-header.
+These allocations are legion throughout the kernel.  Here's the first
+one I found with a grep:
+
+drivers/vhost/vhost.c:  newmem = kvzalloc(size + mem.nregions * sizeof(*m->regions), GFP_KERNEL);
+
+... and, yep, that one's a security hole.
+
+The implementation is not hard, viz:
+
++static inline void *kvzalloc_ab_c(size_t n, size_t size, size_t c, gfp_t flags)
++{
++       if (size != 0 && n > (SIZE_MAX - c) / size)
++               return NULL;
++
++       return kvmalloc(n * size + c, flags);
++}
+
+but the name will tie us in knots and getting people to actually use
+it will be worse.  (I actually stole the name from another project,
+but I can't find it now).
+
+We also need to go through and convert dozens of callers that are
+doing kvzalloc(a * b) into kvzalloc_array(a, b).  Maybe we can ask for
+some coccinelle / smatch / checkpatch help here.
+
+3. Maybe we could rename kvfree() to just free()?  Please?  There's
+nothing special about it.  One fewer thing for somebody to learn when
+coming fresh to kernel programming.
+
+4. vmf_insert_(page|pfn|mixed|...)
+
+vm_insert_foo are invariably called from fault handlers, usually as
+the last thing we do before returning a VM_FAULT code.  As such, why do
+they return an errno that has to be translated?  We would be better off
+returning VM_FAULT codes from these functions.
+
+Related, I'd like to introduce a new vm_fault_t typedef for unsigned
+int that indicates that the function returns VM_FAULT flags rather than
+an errno.  We've had so many mistakes in this area.
+
+
+----- End forwarded message -----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
