@@ -1,89 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CBB5E6B0038
-	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 21:38:03 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id m12so9757897wrm.1
-        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 18:38:03 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w102sor452744wrb.45.2018.01.15.18.38.02
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 94E7D6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Jan 2018 22:09:37 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id p190so1502657wmd.0
+        for <linux-mm@kvack.org>; Mon, 15 Jan 2018 19:09:37 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w102sor470468wrb.45.2018.01.15.19.09.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 15 Jan 2018 18:38:02 -0800 (PST)
-Date: Tue, 16 Jan 2018 03:37:59 +0100
+        Mon, 15 Jan 2018 19:09:36 -0800 (PST)
+Date: Tue, 16 Jan 2018 04:09:32 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [REGRESSION] testing/selftests/x86/ pkeys build failures
-Message-ID: <20180116023759.4xpgkc53qfbtmemb@gmail.com>
-References: <360ef254-48bc-aee6-70f9-858f773b8693@redhat.com>
- <20180112125537.bdl376ziiaqp664o@gmail.com>
- <063ba398-88e6-8650-2905-c378ee1fb8b2@redhat.com>
+Subject: Re: [PATCHv2-resend] x86/mm, mm/hwpoison: Don't unconditionally
+ unmap kernel 1:1 pages.
+Message-ID: <20180116030932.itshfy2i4326bvoo@gmail.com>
+References: <20171129192446.21090-1-tony.luck@intel.com>
+ <20180110201947.32727-1-tony.luck@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <063ba398-88e6-8650-2905-c378ee1fb8b2@redhat.com>
+In-Reply-To: <20180110201947.32727-1-tony.luck@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Shuah Khan <shuahkh@osg.samsung.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, x86@kernel.org, Dave Hansen <dave.hansen@intel.com>, Ram Pai <linuxram@us.ibm.com>
+To: Tony Luck <tony.luck@intel.com>
+Cc: Borislav Petkov <bp@suse.de>, Denys Vlasenko <dvlasenk@redhat.com>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Brian Gerst <brgerst@gmail.com>, "Hansen, Dave" <dave.hansen@intel.com>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Robert (Persistent Memory)" <elliott@hpe.com>, Thomas Gleixner <tglx@linutronix.de>
 
 
-* Florian Weimer <fweimer@redhat.com> wrote:
+* Tony Luck <tony.luck@intel.com> wrote:
 
-> On 01/12/2018 01:55 PM, Ingo Molnar wrote:
-> > 
-> > * Florian Weimer <fweimer@redhat.com> wrote:
-> > 
-> > > This patch is based on the previous discussion (pkeys: Support setting
-> > > access rights for signal handlers):
-> > > 
-> > >    https://marc.info/?t=151285426000001
-> > > 
-> > > It aligns the signal semantics of the x86 implementation with the upcoming
-> > > POWER implementation, and defines a new flag, so that applications can
-> > > detect which semantics the kernel uses.
-> > > 
-> > > A change in this area is needed to make memory protection keys usable for
-> > > protecting the GOT in the dynamic linker.
-> > > 
-> > > (Feel free to replace the trigraphs in the commit message before committing,
-> > > or to remove the program altogether.)
-> > 
-> > Could you please send patches not as MIME attachments?
-> 
-> My mail infrastructure corrupts patches not sent as attachments, sorry.
+> v1->v2 0-day reported a build warning on 32-bit. Don't do 32-bit (see comment
+> at end of commit message). This fixed the build error, but then discussion on
+> the list went quiet. Repost to wake things up.
 
-Your headers suggest the following mail client:
+It seems dubious to me to introduce a difference in behavior on 32-bit:
 
-  User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
-        Thunderbird/52.5.0
+> +static void mce_unmap_kpfn(unsigned long pfn)
+> +{
+> +#ifdef CONFIG_X86_64
+> +	unsigned long decoy_addr;
 
-Have you seen the suggestions in Documentation/process/email-clients.rst, which 
-lists a handful of Thunderbird tips:
+> +	if (set_memory_np(decoy_addr, 1))
+> +		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
+> +#endif
 
-  Thunderbird (GUI)
-  *****************
+... to fix a build warning?
 
-  Thunderbird is an Outlook clone that likes to mangle text, but there are ways
-  to coerce it into behaving.
-
-?
-
-> > Also, the protection keys testcase first need to be fixed, before we complicate
-> > them - for example on a pretty regular Ubuntu x86-64 installation they fail to
-> > build with the build errors attached further below.
-> 
-> I can fix things up so that they build on Fedora 26, Debian stretch, and Red
-> Hat Enterprise Linux 7.  Would that be sufficient?
-
-Yeah, I think so.
-
-> Fedora 23 is out of support and I'd prefer not invest any work into it.
-> 
-> Note that I find it strange to make this a precondition for even looking at
-> the patch.
-
-I wanted to try the patch to give review feedback, but found these annoyances. 
-It's customary to make new features dependent on the cleanliness of the underlying 
-code.
+32-bit kernels might be under-tested, but if it's supposed to work I don't think 
+we should bifurcate the behavior and uglify the code here.
 
 Thanks,
 
