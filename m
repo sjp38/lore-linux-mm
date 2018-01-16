@@ -1,63 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 381D56B0286
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 978236B028A
 	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 16:03:30 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id e19so11018404otf.4
+Received: by mail-wm0-f72.google.com with SMTP id r63so2759789wmb.9
         for <linux-mm@kvack.org>; Tue, 16 Jan 2018 13:03:30 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w130si1107072oib.393.2018.01.16.13.03.29
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id r10si2538459wrr.500.2018.01.16.13.03.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
         Tue, 16 Jan 2018 13:03:29 -0800 (PST)
-Date: Tue, 16 Jan 2018 16:03:21 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: [LSF/MM TOPIC] CAPI/CCIX cache coherent device memory (NUMA too ?)
-Message-ID: <20180116210321.GB8801@redhat.com>
+Date: Tue, 16 Jan 2018 22:03:19 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 09/16] x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on
+ x86_32
+In-Reply-To: <1516120619-1159-10-git-send-email-joro@8bytes.org>
+Message-ID: <alpine.DEB.2.20.1801162158350.2366@nanos>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org> <1516120619-1159-10-git-send-email-joro@8bytes.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Jonathan Masters <jcm@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
 
-CAPI (on IBM Power8 and 9) and CCIX are two new standard that
-build on top of existing interconnect (like PCIE) and add the
-possibility for cache coherent access both way (from CPU to
-device memory and from device to main memory). This extend
-what we are use to with PCIE (where only device to main memory
-can be cache coherent but not CPU to device memory).
+On Tue, 16 Jan 2018, Joerg Roedel wrote:
+> +#ifdef CONFIG_X86_64
+>  /*
+>   * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
+>   * next-level entry on 5-level systems.
+> @@ -322,13 +323,29 @@ static void __init pti_clone_p4d(unsigned long addr)
+>  	kernel_p4d = p4d_offset(kernel_pgd, addr);
+>  	*user_p4d = *kernel_p4d;
+>  }
+> +#endif
+>  
+>  /*
+>   * Clone the CPU_ENTRY_AREA into the user space visible page table.
+>   */
+>  static void __init pti_clone_user_shared(void)
+>  {
+> +#ifdef CONFIG_X86_32
+> +	/*
+> +	 * On 32 bit PAE systems with 1GB of Kernel address space there is only
+> +	 * one pgd/p4d for the whole kernel. Cloning that would map the whole
+> +	 * address space into the user page-tables, making PTI useless. So clone
+> +	 * the page-table on the PMD level to prevent that.
+> +	 */
+> +	unsigned long start, end;
+> +
+> +	start = CPU_ENTRY_AREA_BASE;
+> +	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
+> +
+> +	pti_clone_pmds(start, end, _PAGE_GLOBAL);
+> +#else
+>  	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
+> +#endif
+>  }
 
-How is this memory gonna be expose to the kernel and how the
-kernel gonna expose this to user space is the topic i want to
-discuss. I believe this is highly device specific for instance
-for GPU you want the device memory allocation and usage to be
-under the control of the GPU device driver. Maybe other type
-of device want different strategy.
+Just a minor nit. You already wrap pti_clone_p4d() into X86_64. So it would
+be cleaner to do:
 
-The HMAT patchset is partialy related to all this as it is about
-exposing different type of memory available in a system for CPU
-(HBM, main memory, ...) and some of their properties (bandwidth,
-latency, ...).
+  	kernel_p4d = p4d_offset(kernel_pgd, addr);
+  	*user_p4d = *kernel_p4d;
+}
 
+static void __init pti_clone_user_shared(void)
+{
+  	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
+}
 
-We can start by looking at how CAPI and CCIX plan to expose this
-to the kernel and try to list some of the type of devices we
-expect to see. Discussion can then happen on how to represent this
-internaly to the kernel and how to expose this to userspace.
+#else /* CONFIG_X86_64 */
 
-Note this might also trigger discussion on a NUMA like model or
-on extending/replacing it by something more generic.
+/*
+ * Big fat comment.
+ */
+static void __init pti_clone_user_shared(void)
+{
+	....
+}
+#endif /* !CONFIG_X86_64 */
 
+Thanks,
 
-Peoples (alphabetical order on first name) sorry if i missed
-anyone:
-    "Anshuman Khandual" <khandual@linux.vnet.ibm.com>
-    "Balbir Singh" <bsingharora@gmail.com>
-    "Dan Williams" <dan.j.williams@intel.com>
-    "John Hubbard" <jhubbard@nvidia.com>
-    "Jonathan Masters" <jcm@redhat.com>
-    "Ross Zwisler" <ross.zwisler@linux.intel.com>
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
