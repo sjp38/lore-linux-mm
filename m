@@ -1,82 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 92182280281
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:56:32 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id g65so3743758wmf.7
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 00:56:32 -0800 (PST)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id c29si3351627wmi.226.2018.01.17.00.56.31
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A755280281
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:57:29 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id z37so3078518qtj.15
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 00:57:29 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id p60si4003053qtd.169.2018.01.17.00.57.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jan 2018 00:56:31 -0800 (PST)
-Date: Wed, 17 Jan 2018 09:56:29 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 0/1] Re: kernel BUG at fs/userfaultfd.c:LINE!
-Message-ID: <20180117085629.GA20303@amd>
-References: <20171222222346.GB28786@zzz.localdomain>
- <20171223002505.593-1-aarcange@redhat.com>
- <CACT4Y+av2MyJHHpPQLQ2EGyyW5vAe3i-U0pfVXshFm96t-1tBQ@mail.gmail.com>
+        Wed, 17 Jan 2018 00:57:28 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0H8uSWR064712
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:57:27 -0500
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2fj1v9v1w2-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:57:27 -0500
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 17 Jan 2018 08:57:24 -0000
+Subject: Re: [PATCH v6 03/24] mm: Dont assume page-table invariance during
+ faults
+References: <1515777968-867-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1515777968-867-4-git-send-email-ldufour@linux.vnet.ibm.com>
+ <87d129tccz.fsf@linux.intel.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 17 Jan 2018 09:57:14 +0100
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="tKW2IUtsqtDRztdT"
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+av2MyJHHpPQLQ2EGyyW5vAe3i-U0pfVXshFm96t-1tBQ@mail.gmail.com>
+In-Reply-To: <87d129tccz.fsf@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <476660c5-771c-0125-7d04-0e5a8d8bf65d@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Biggers <ebiggers3@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs@googlegroups.com
+To: Andi Kleen <ak@linux.intel.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
+On 17/01/2018 04:04, Andi Kleen wrote:
+> Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
+> 
+>> From: Peter Zijlstra <peterz@infradead.org>
+>>
+>> One of the side effects of speculating on faults (without holding
+>> mmap_sem) is that we can race with free_pgtables() and therefore we
+>> cannot assume the page-tables will stick around.
+>>
+>> Remove the reliance on the pte pointer.
+> 
+> This needs a lot more explanation. So why is this code not needed with
+> SPF only?
 
---tKW2IUtsqtDRztdT
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Hi Andi,
 
-Hi!
+This is a good question, and I should detail that more in the commit's log.
 
-> > Andrea Arcangeli (1):
-> >   userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK
-> >     fails
-> >
-> >  fs/userfaultfd.c | 20 ++++++++++++++++++--
-> >  1 file changed, 18 insertions(+), 2 deletions(-)
->=20
-> The original report footer was stripped, so:
->=20
-> Please credit me with: Reported-by: syzbot <syzkaller@googlegroups.com>
+Here is my response to Balbir when he asked for:
 
-Please don't. We don't credit our CPUs, and we don't credit Qemu. We
-credit humans.
+On 10/07/2017 19:48, Laurent Dufour wrote:
+> On 07/07/2017 09:07, Balbir Singh wrote:
+>> On Fri, 2017-06-16 at 19:52 +0200, Laurent Dufour wrote:
+>>> From: Peter Zijlstra <peterz@infradead.org>
+>>>
+>>> One of the side effects of speculating on faults (without holding
+>>> mmap_sem) is that we can race with free_pgtables() and therefore we
+>>> cannot assume the page-tables will stick around.
+>>>
+>>> Remove the relyance on the pte pointer.
+>>              ^^ reliance
+>>
+>> Looking at the changelog and the code the impact is not clear.
+>> It looks like after this patch we always assume the pte is not
+>> the same. What is the impact of this patch?
+> 
+> Hi Balbir,
+> 
+> In most of the case pte_unmap_same() was returning 1, which meaning that
+> do_swap_page() should do its processing.
+> 
+> So in most of the case there will be no impact.
+> 
+> Now regarding the case where pte_unmap_safe() was returning 0, and thus
+> do_swap_page return 0 too, this happens when the page has already been
+> swapped back. This may happen before do_swap_page() get called or while in
+> the call to do_swap_page(). In that later case, the check done when
+> swapin_readahead() returns will detect that case.
+> 
+> The worst case would be that a page fault is occuring on 2 threads at the
+> same time on the same swapped out page. In that case one thread will take
+> much time looping in __read_swap_cache_async(). But in the regular page
+> fault path, this is even worse since the thread would wait for semaphore to
+> be released before starting anything.
+> 
+> Cheers,
+> Laurent.
+> 
 
-> and we also need to tell syzbot about the fix with:
->=20
-> #syz fix:
-> userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK fails
+I'll add that to the commit's log.
 
-Now you claimed you care about bugs being fixed. What about actually
-testing Andrea's fix and telling us if it fixes the problem or not,
-and maybe saying "thank you"?
-
-Thank you,
-									Pavel
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---tKW2IUtsqtDRztdT
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlpfD70ACgkQMOfwapXb+vJ4mwCbBiOye7rXY81/XZEDrhf/d3ZQ
-9ZMAn0XYMRhiZrQEC0i+QA5adVGWvKRN
-=a93L
------END PGP SIGNATURE-----
-
---tKW2IUtsqtDRztdT--
+Thanks,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
