@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 366C5280286
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 77D45280288
 	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:08 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id e12so6364779pgu.11
+Received: by mail-pf0-f197.google.com with SMTP id p20so5837322pfh.17
         for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:08 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id a9si4425879pgv.684.2018.01.17.12.23.06
+        by mx.google.com with ESMTPS id p13si4561828pgn.11.2018.01.17.12.23.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:23:07 -0800 (PST)
+        Wed, 17 Jan 2018 12:23:06 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 92/99] f2fs: Convert pids radix tree to XArray
-Date: Wed, 17 Jan 2018 12:21:56 -0800
-Message-Id: <20180117202203.19756-93-willy@infradead.org>
+Subject: [PATCH v6 90/99] btrfs: Convert delayed_nodes_tree to XArray
+Date: Wed, 17 Jan 2018 12:21:54 -0800
+Message-Id: <20180117202203.19756-91-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,135 +22,179 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The XArray API works out rather well for this user.
+Rename it to just 'delayed_nodes' and remove it from the protection of
+btrfs_root->inode_lock.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/f2fs/super.c |  2 --
- fs/f2fs/trace.c | 60 ++++-----------------------------------------------------
- fs/f2fs/trace.h |  2 --
- 3 files changed, 4 insertions(+), 60 deletions(-)
+ fs/btrfs/ctree.h         |  8 +++---
+ fs/btrfs/delayed-inode.c | 65 ++++++++++++++++--------------------------------
+ fs/btrfs/disk-io.c       |  2 +-
+ fs/btrfs/inode.c         |  2 +-
+ 4 files changed, 27 insertions(+), 50 deletions(-)
 
-diff --git a/fs/f2fs/super.c b/fs/f2fs/super.c
-index 708155d9c2e4..d608edffe69e 100644
---- a/fs/f2fs/super.c
-+++ b/fs/f2fs/super.c
-@@ -2831,8 +2831,6 @@ static int __init init_f2fs_fs(void)
+diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
+index 87984ce3a4c2..9acfdc623d15 100644
+--- a/fs/btrfs/ctree.h
++++ b/fs/btrfs/ctree.h
+@@ -1219,11 +1219,9 @@ struct btrfs_root {
+ 	/* red-black tree that keeps track of in-memory inodes */
+ 	struct rb_root inode_tree;
+ 
+-	/*
+-	 * radix tree that keeps track of delayed nodes of every inode,
+-	 * protected by inode_lock
+-	 */
+-	struct radix_tree_root delayed_nodes_tree;
++	/* track delayed nodes of every inode */
++	struct xarray delayed_nodes;
++
+ 	/*
+ 	 * right now this just gets used so that a root has its own devid
+ 	 * for stat.  It may be used for more later
+diff --git a/fs/btrfs/delayed-inode.c b/fs/btrfs/delayed-inode.c
+index 056276101c63..156a762f3809 100644
+--- a/fs/btrfs/delayed-inode.c
++++ b/fs/btrfs/delayed-inode.c
+@@ -86,7 +86,7 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(
+ 	}
+ 
+ 	spin_lock(&root->inode_lock);
+-	node = radix_tree_lookup(&root->delayed_nodes_tree, ino);
++	node = xa_load(&root->delayed_nodes, ino);
+ 
+ 	if (node) {
+ 		if (btrfs_inode->delayed_node) {
+@@ -131,10 +131,9 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(
+ static struct btrfs_delayed_node *btrfs_get_or_create_delayed_node(
+ 		struct btrfs_inode *btrfs_inode)
  {
- 	int err;
+-	struct btrfs_delayed_node *node;
++	struct btrfs_delayed_node *node, *exists;
+ 	struct btrfs_root *root = btrfs_inode->root;
+ 	u64 ino = btrfs_ino(btrfs_inode);
+-	int ret;
  
--	f2fs_build_trace_ios();
+ again:
+ 	node = btrfs_get_delayed_node(btrfs_inode);
+@@ -149,23 +148,18 @@ static struct btrfs_delayed_node *btrfs_get_or_create_delayed_node(
+ 	/* cached in the btrfs inode and can be accessed */
+ 	refcount_set(&node->refs, 2);
+ 
+-	ret = radix_tree_preload(GFP_NOFS);
+-	if (ret) {
++	xa_lock(&root->delayed_nodes);
++	exists = __xa_cmpxchg(&root->delayed_nodes, ino, NULL, node, GFP_NOFS);
++	if (unlikely(exists)) {
++		int ret = xa_err(exists);
++		xa_unlock(&root->delayed_nodes);
+ 		kmem_cache_free(delayed_node_cache, node);
++		if (ret == -EEXIST)
++			goto again;
+ 		return ERR_PTR(ret);
+ 	}
 -
- 	err = init_inodecache();
- 	if (err)
- 		goto fail;
-diff --git a/fs/f2fs/trace.c b/fs/f2fs/trace.c
-index bccbbf2616d2..f316a42c547f 100644
---- a/fs/f2fs/trace.c
-+++ b/fs/f2fs/trace.c
-@@ -16,8 +16,7 @@
- #include "f2fs.h"
- #include "trace.h"
- 
--static RADIX_TREE(pids, GFP_ATOMIC);
--static spinlock_t pids_lock;
-+static DEFINE_XARRAY(pids);
- static struct last_io_info last_io;
- 
- static inline void __print_last_io(void)
-@@ -57,28 +56,13 @@ void f2fs_trace_pid(struct page *page)
- {
- 	struct inode *inode = page->mapping->host;
- 	pid_t pid = task_pid_nr(current);
--	void *p;
- 
- 	set_page_private(page, (unsigned long)pid);
- 
--	if (radix_tree_preload(GFP_NOFS))
--		return;
--
--	spin_lock(&pids_lock);
--	p = radix_tree_lookup(&pids, pid);
--	if (p == current)
--		goto out;
--	if (p)
--		radix_tree_delete(&pids, pid);
--
--	f2fs_radix_tree_insert(&pids, pid, current);
--
--	trace_printk("%3x:%3x %4x %-16s\n",
-+	if (xa_store(&pids, pid, current, GFP_NOFS) != current)
-+		trace_printk("%3x:%3x %4x %-16s\n",
- 			MAJOR(inode->i_sb->s_dev), MINOR(inode->i_sb->s_dev),
- 			pid, current->comm);
--out:
--	spin_unlock(&pids_lock);
+-	spin_lock(&root->inode_lock);
+-	ret = radix_tree_insert(&root->delayed_nodes_tree, ino, node);
+-	if (ret == -EEXIST) {
+-		spin_unlock(&root->inode_lock);
+-		kmem_cache_free(delayed_node_cache, node);
+-		radix_tree_preload_end();
+-		goto again;
+-	}
+ 	btrfs_inode->delayed_node = node;
+-	spin_unlock(&root->inode_lock);
 -	radix_tree_preload_end();
- }
++	xa_unlock(&root->delayed_nodes);
  
- void f2fs_trace_ios(struct f2fs_io_info *fio, int flush)
-@@ -120,43 +104,7 @@ void f2fs_trace_ios(struct f2fs_io_info *fio, int flush)
- 	return;
+ 	return node;
  }
+@@ -278,15 +272,12 @@ static void __btrfs_release_delayed_node(
+ 	if (refcount_dec_and_test(&delayed_node->refs)) {
+ 		struct btrfs_root *root = delayed_node->root;
  
--void f2fs_build_trace_ios(void)
--{
--	spin_lock_init(&pids_lock);
--}
--
--#define PIDVEC_SIZE	128
--static unsigned int gang_lookup_pids(pid_t *results, unsigned long first_index,
--							unsigned int max_items)
--{
--	struct radix_tree_iter iter;
--	void **slot;
--	unsigned int ret = 0;
--
--	if (unlikely(!max_items))
--		return 0;
--
--	radix_tree_for_each_slot(slot, &pids, &iter, first_index) {
--		results[ret] = iter.index;
--		if (++ret == max_items)
--			break;
--	}
--	return ret;
--}
--
- void f2fs_destroy_trace_ios(void)
+-		spin_lock(&root->inode_lock);
+ 		/*
+ 		 * Once our refcount goes to zero, nobody is allowed to bump it
+ 		 * back up.  We can delete it now.
+ 		 */
+ 		ASSERT(refcount_read(&delayed_node->refs) == 0);
+-		radix_tree_delete(&root->delayed_nodes_tree,
+-				  delayed_node->inode_id);
+-		spin_unlock(&root->inode_lock);
++		xa_erase(&root->delayed_nodes, delayed_node->inode_id);
+ 		kmem_cache_free(delayed_node_cache, delayed_node);
+ 	}
+ }
+@@ -1926,31 +1917,19 @@ void btrfs_kill_delayed_inode_items(struct btrfs_inode *inode)
+ 
+ void btrfs_kill_all_delayed_nodes(struct btrfs_root *root)
  {
--	pid_t pid[PIDVEC_SIZE];
--	pid_t next_pid = 0;
--	unsigned int found;
+-	u64 inode_id = 0;
+-	struct btrfs_delayed_node *delayed_nodes[8];
+-	int i, n;
 -
--	spin_lock(&pids_lock);
--	while ((found = gang_lookup_pids(pid, next_pid, PIDVEC_SIZE))) {
--		unsigned idx;
+-	while (1) {
+-		spin_lock(&root->inode_lock);
+-		n = radix_tree_gang_lookup(&root->delayed_nodes_tree,
+-					   (void **)delayed_nodes, inode_id,
+-					   ARRAY_SIZE(delayed_nodes));
+-		if (!n) {
+-			spin_unlock(&root->inode_lock);
+-			break;
+-		}
 -
--		next_pid = pid[found - 1] + 1;
--		for (idx = 0; idx < found; idx++)
--			radix_tree_delete(&pids, pid[idx]);
--	}
--	spin_unlock(&pids_lock);
-+	xa_destroy(&pids);
+-		inode_id = delayed_nodes[n - 1]->inode_id + 1;
+-
+-		for (i = 0; i < n; i++)
+-			refcount_inc(&delayed_nodes[i]->refs);
+-		spin_unlock(&root->inode_lock);
++	struct btrfs_delayed_node *node;
++	unsigned long inode_id = 0;
+ 
+-		for (i = 0; i < n; i++) {
+-			__btrfs_kill_delayed_node(delayed_nodes[i]);
+-			btrfs_release_delayed_node(delayed_nodes[i]);
+-		}
++	xa_lock(&root->delayed_nodes);
++	xa_for_each(&root->delayed_nodes, node, inode_id, ULONG_MAX,
++								XA_PRESENT) {
++		refcount_inc(&node->refs);
++		xa_unlock(&root->delayed_nodes);
++		__btrfs_kill_delayed_node(node);
++		btrfs_release_delayed_node(node);
++		xa_lock(&root->delayed_nodes);
+ 	}
++	xa_unlock(&root->delayed_nodes);
  }
-diff --git a/fs/f2fs/trace.h b/fs/f2fs/trace.h
-index 67db24ac1e85..157e4564e48b 100644
---- a/fs/f2fs/trace.h
-+++ b/fs/f2fs/trace.h
-@@ -34,12 +34,10 @@ struct last_io_info {
  
- extern void f2fs_trace_pid(struct page *);
- extern void f2fs_trace_ios(struct f2fs_io_info *, int);
--extern void f2fs_build_trace_ios(void);
- extern void f2fs_destroy_trace_ios(void);
- #else
- #define f2fs_trace_pid(p)
- #define f2fs_trace_ios(i, n)
--#define f2fs_build_trace_ios()
- #define f2fs_destroy_trace_ios()
+ void btrfs_destroy_delayed_inodes(struct btrfs_fs_info *fs_info)
+diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+index 650d1350b64d..593be6c53fae 100644
+--- a/fs/btrfs/disk-io.c
++++ b/fs/btrfs/disk-io.c
+@@ -1149,7 +1149,7 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
+ 	root->nr_ordered_extents = 0;
+ 	root->name = NULL;
+ 	root->inode_tree = RB_ROOT;
+-	INIT_RADIX_TREE(&root->delayed_nodes_tree, GFP_ATOMIC);
++	xa_init(&root->delayed_nodes);
+ 	root->block_rsv = NULL;
+ 	root->orphan_block_rsv = NULL;
  
- #endif
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index d7d2c556d5a2..9b6d08ca6d0c 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -3793,7 +3793,7 @@ static int btrfs_read_locked_inode(struct inode *inode)
+ 	 * cache.
+ 	 *
+ 	 * This is required for both inode re-read from disk and delayed inode
+-	 * in delayed_nodes_tree.
++	 * in delayed_nodes.
+ 	 */
+ 	if (BTRFS_I(inode)->last_trans == fs_info->generation)
+ 		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
 -- 
 2.15.1
 
