@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 72FC6280294
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:24:22 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id p20so5839717pfh.17
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:24:22 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B57A2280294
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:24:30 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id r28so2618284pgu.1
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:24:30 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id r1si4367198pgp.320.2018.01.17.12.22.50
+        by mx.google.com with ESMTPS id q188si4476895pga.444.2018.01.17.12.22.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Wed, 17 Jan 2018 12:22:51 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 55/99] f2fs: Convert to XArray
-Date: Wed, 17 Jan 2018 12:21:19 -0800
-Message-Id: <20180117202203.19756-56-willy@infradead.org>
+Subject: [PATCH v6 57/99] dax: Convert dax_unlock_mapping_entry to XArray
+Date: Wed, 17 Jan 2018 12:21:21 -0800
+Message-Id: <20180117202203.19756-58-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,108 +22,103 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This is a straightforward conversion.
+Replace slot_locked() with dax_locked() and inline unlock_slot() into
+its only caller.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/f2fs/data.c   |  3 +--
- fs/f2fs/dir.c    |  5 +----
- fs/f2fs/inline.c |  6 +-----
- fs/f2fs/node.c   | 10 ++--------
- 4 files changed, 5 insertions(+), 19 deletions(-)
+ fs/dax.c | 48 ++++++++++++++++--------------------------------
+ 1 file changed, 16 insertions(+), 32 deletions(-)
 
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index c8f6d9806896..1f3f192f152f 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -2175,8 +2175,7 @@ void f2fs_set_page_dirty_nobuffers(struct page *page)
- 	xa_lock_irqsave(&mapping->pages, flags);
- 	WARN_ON_ONCE(!PageUptodate(page));
- 	account_page_dirtied(page, mapping);
--	radix_tree_tag_set(&mapping->pages,
--			page_index(page), PAGECACHE_TAG_DIRTY);
-+	__xa_set_tag(&mapping->pages, page_index(page), PAGECACHE_TAG_DIRTY);
- 	xa_unlock_irqrestore(&mapping->pages, flags);
- 	unlock_page_memcg(page);
+diff --git a/fs/dax.c b/fs/dax.c
+index 5097a606da1a..f3463d93a6ce 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -73,6 +73,11 @@ fs_initcall(init_dax_wait_table);
+ #define DAX_ZERO_PAGE	(1UL << 2)
+ #define DAX_EMPTY	(1UL << 3)
  
-diff --git a/fs/f2fs/dir.c b/fs/f2fs/dir.c
-index b5515ea6bb2f..296070016ec9 100644
---- a/fs/f2fs/dir.c
-+++ b/fs/f2fs/dir.c
-@@ -708,7 +708,6 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
- 	unsigned int bit_pos;
- 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
- 	struct address_space *mapping = page_mapping(page);
--	unsigned long flags;
- 	int i;
- 
- 	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
-@@ -739,10 +738,8 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
- 
- 	if (bit_pos == NR_DENTRY_IN_BLOCK &&
- 			!truncate_hole(dir, page->index, page->index + 1)) {
--		xa_lock_irqsave(&mapping->pages, flags);
--		radix_tree_tag_clear(&mapping->pages, page_index(page),
-+		xa_clear_tag(&mapping->pages, page_index(page),
- 				     PAGECACHE_TAG_DIRTY);
--		xa_unlock_irqrestore(&mapping->pages, flags);
- 
- 		clear_page_dirty_for_io(page);
- 		ClearPagePrivate(page);
-diff --git a/fs/f2fs/inline.c b/fs/f2fs/inline.c
-index 7858b8e15f33..d3c3f84beca9 100644
---- a/fs/f2fs/inline.c
-+++ b/fs/f2fs/inline.c
-@@ -204,7 +204,6 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
- 	void *src_addr, *dst_addr;
- 	struct dnode_of_data dn;
- 	struct address_space *mapping = page_mapping(page);
--	unsigned long flags;
- 	int err;
- 
- 	set_new_dnode(&dn, inode, NULL, NULL, 0);
-@@ -226,10 +225,7 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
- 	kunmap_atomic(src_addr);
- 	set_page_dirty(dn.inode_page);
- 
--	xa_lock_irqsave(&mapping->pages, flags);
--	radix_tree_tag_clear(&mapping->pages, page_index(page),
--			     PAGECACHE_TAG_DIRTY);
--	xa_unlock_irqrestore(&mapping->pages, flags);
-+	xa_clear_tag(&mapping->pages, page_index(page), PAGECACHE_TAG_DIRTY);
- 
- 	set_inode_flag(inode, FI_APPEND_WRITE);
- 	set_inode_flag(inode, FI_DATA_EXIST);
-diff --git a/fs/f2fs/node.c b/fs/f2fs/node.c
-index 6b64a3009d55..0a6d5c2f996e 100644
---- a/fs/f2fs/node.c
-+++ b/fs/f2fs/node.c
-@@ -88,14 +88,10 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
- static void clear_node_page_dirty(struct page *page)
++static bool dax_locked(void *entry)
++{
++	return xa_to_value(entry) & DAX_ENTRY_LOCK;
++}
++
+ static unsigned long dax_radix_sector(void *entry)
  {
- 	struct address_space *mapping = page->mapping;
--	unsigned int long flags;
+ 	return xa_to_value(entry) >> DAX_SHIFT;
+@@ -180,16 +185,6 @@ static void dax_wake_mapping_entry_waiter(struct address_space *mapping,
+ 		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
+ }
  
- 	if (PageDirty(page)) {
--		xa_lock_irqsave(&mapping->pages, flags);
--		radix_tree_tag_clear(&mapping->pages,
--				page_index(page),
-+		xa_clear_tag(&mapping->pages, page_index(page),
- 				PAGECACHE_TAG_DIRTY);
--		xa_unlock_irqrestore(&mapping->pages, flags);
+-/*
+- * Check whether the given slot is locked.  Must be called with xa_lock held.
+- */
+-static inline int slot_locked(struct address_space *mapping, void **slot)
+-{
+-	unsigned long entry = xa_to_value(
+-		radix_tree_deref_slot_protected(slot, &mapping->pages.xa_lock));
+-	return entry & DAX_ENTRY_LOCK;
+-}
+-
+ /*
+  * Mark the given slot as locked.  Must be called with xa_lock held.
+  */
+@@ -202,18 +197,6 @@ static inline void *lock_slot(struct address_space *mapping, void **slot)
+ 	return entry;
+ }
  
- 		clear_page_dirty_for_io(page);
- 		dec_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_NODES);
-@@ -1142,9 +1138,7 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
+-/*
+- * Mark the given slot as unlocked.  Must be called with xa_lock held.
+- */
+-static inline void *unlock_slot(struct address_space *mapping, void **slot)
+-{
+-	unsigned long v = xa_to_value(
+-		radix_tree_deref_slot_protected(slot, &mapping->pages.xa_lock));
+-	void *entry = xa_mk_value(v & ~DAX_ENTRY_LOCK);
+-	radix_tree_replace_slot(&mapping->pages, slot, entry);
+-	return entry;
+-}
+-
+ /*
+  * Lookup entry in radix tree, wait for it to become unlocked if it is
+  * a DAX entry and return it. The caller must call
+@@ -237,8 +220,7 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
+ 		entry = __radix_tree_lookup(&mapping->pages, index, NULL,
+ 					  &slot);
+ 		if (!entry ||
+-		    WARN_ON_ONCE(!xa_is_value(entry)) ||
+-		    !slot_locked(mapping, slot)) {
++		    WARN_ON_ONCE(!xa_is_value(entry)) || !dax_locked(entry)) {
+ 			if (slotp)
+ 				*slotp = slot;
+ 			return entry;
+@@ -257,17 +239,19 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
+ static void dax_unlock_mapping_entry(struct address_space *mapping,
+ 				     pgoff_t index)
+ {
+-	void *entry, **slot;
++	XA_STATE(xas, &mapping->pages, index);
++	void *entry;
+ 
+-	xa_lock_irq(&mapping->pages);
+-	entry = __radix_tree_lookup(&mapping->pages, index, NULL, &slot);
+-	if (WARN_ON_ONCE(!entry || !xa_is_value(entry) ||
+-			 !slot_locked(mapping, slot))) {
+-		xa_unlock_irq(&mapping->pages);
++	xas_lock_irq(&xas);
++	entry = xas_load(&xas);
++	if (WARN_ON_ONCE(!entry || !xa_is_value(entry) || !dax_locked(entry))) {
++		xas_unlock_irq(&xas);
  		return;
- 	f2fs_bug_on(sbi, check_nid_range(sbi, nid));
- 
--	rcu_read_lock();
--	apage = radix_tree_lookup(&NODE_MAPPING(sbi)->pages, nid);
--	rcu_read_unlock();
-+	apage = xa_load(&NODE_MAPPING(sbi)->pages, nid);
- 	if (apage)
- 		return;
+ 	}
+-	unlock_slot(mapping, slot);
+-	xa_unlock_irq(&mapping->pages);
++	entry = xa_mk_value(xa_to_value(entry) & ~DAX_ENTRY_LOCK);
++	xas_store(&xas, entry);
++	/* Safe to not call xas_pause here -- we don't touch the array after */
++	xas_unlock_irq(&xas);
+ 	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
+ }
  
 -- 
 2.15.1
