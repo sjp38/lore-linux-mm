@@ -1,54 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E6E3280263
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 21:48:09 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id e69so10820108iod.17
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 18:48:09 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id m139si3524176itb.88.2018.01.16.18.48.08
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 07F10280263
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 21:49:27 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c142so3255524wmh.4
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 18:49:26 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 90sor295155wrp.23.2018.01.16.18.49.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 18:48:08 -0800 (PST)
-Subject: Re: [PATCH 02/16] x86/entry/32: Enter the kernel via trampoline stack
-References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
- <1516120619-1159-3-git-send-email-joro@8bytes.org>
-From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Message-ID: <476d7100-2414-d09e-abf1-5aa4d369a3b7@oracle.com>
-Date: Tue, 16 Jan 2018 21:47:06 -0500
+        (Google Transport Security);
+        Tue, 16 Jan 2018 18:49:25 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1516120619-1159-3-git-send-email-joro@8bytes.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180116145240.GD30073@bombadil.infradead.org>
+References: <20180116145240.GD30073@bombadil.infradead.org>
+From: Ming Lei <tom.leiming@gmail.com>
+Date: Wed, 17 Jan 2018 10:49:24 +0800
+Message-ID: <CACVXFVPqJ6xYq31Ve5tXCKiNne_S1ve8csA+j_wCPnnZCPahvg@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] A high-performance userspace block driver
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
+To: Matthew Wilcox <willy@infradead.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-block <linux-block@vger.kernel.org>
 
+On Tue, Jan 16, 2018 at 10:52 PM, Matthew Wilcox <willy@infradead.org> wrote:
+>
+> I see the improvements that Facebook have been making to the nbd driver,
+> and I think that's a wonderful thing.  Maybe the outcome of this topic
+> is simply: "Shut up, Matthew, this is good enough".
+>
+> It's clear that there's an appetite for userspace block devices; not for
+> swap devices or the root device, but for accessing data that's stored
+> in that silo over there, and I really don't want to bring that entire
+> mess of CORBA / Go / Rust / whatever into the kernel to get to it,
+> but it would be really handy to present it as a block device.
 
+I like the idea, and one line code of Python/... may need thousands
+of C code to be done in kernel.
 
-On 01/16/2018 11:36 AM, Joerg Roedel wrote:
+>
+> I've looked at a few block-driver-in-userspace projects that exist, and
+> they all seem pretty bad.  For example, one API maps a few gigabytes of
+> address space and plays games with vm_insert_page() to put page cache
+> pages into the address space of the client process.  Of course, the TLB
+> flush overhead of that solution is criminal.
+>
+> I've looked at pipes, and they're not an awful solution.  We've almost
+> got enough syscalls to treat other objects as pipes.  The problem is
+> that they're not seekable.  So essentially you're looking at having one
+> pipe per outstanding command.  If yu want to make good use of a modern
+> NAND device, you want a few hundred outstanding commands, and that's a
+> bit of a shoddy interface.
+>
+> Right now, I'm leaning towards combining these two approaches; adding
+> a VM_NOTLB flag so the mmaped bits of the page cache never make it into
+> the process's address space, so the TLB shootdown can be safely skipped.
+> Then check it in follow_page_mask() and return the appropriate struct
+> page.  As long as the userspace process does everything using O_DIRECT,
+> I think this will work.
+>
+> It's either that or make pipes seekable ...
 
->   
->   /*
-> + * Switch from the entry-trampline stack to the kernel stack of the
-> + * running task.
-> + *
-> + * nr_regs is the number of dwords to push from the entry stack to the
-> + * task stack. If it is > 0 it expects an irq frame at the bottom of the
-> + * stack.
-> + *
-> + * check_user != 0 it will add a check to only switch stacks if the
-> + * kernel entry was from user-space.
-> + */
-> +.macro SWITCH_TO_KERNEL_STACK nr_regs=0 check_user=0
+Userfaultfd might be another choice:
 
+1) map the block LBA space into a range of process vm space
 
-This (and next patch's SWITCH_TO_ENTRY_STACK) need X86_FEATURE_PTI check.
+2) when READ/WRITE req comes, convert it to page fault on the
+mapped range, and let userland to take control of it, and meantime
+kernel req context is slept
 
-With those macros fixed I was able to boot 32-bit Xen PV guest.
+3) IO req context in kernel side is waken up after userspace completed
+the IO request via userfaultfd
 
--boris
+4) kernel side continue to complete the IO, such as copying page from
+storage range to req(bio) pages.
+
+Seems READ should be fine since it is very similar with the use case
+of QEMU postcopy live migration, WRITE can be a bit different, and
+maybe need some change on userfaultfd.
+
+-- 
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
