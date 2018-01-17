@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B76228029C
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:24:46 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id g186so4649308pfb.11
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:24:46 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6938928029C
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:24:48 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id y13so8199248pfl.16
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:24:48 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id h4si4462795pgq.466.2018.01.17.12.23.08
+        by mx.google.com with ESMTPS id bd7si4823744plb.637.2018.01.17.12.23.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:23:08 -0800 (PST)
+        Wed, 17 Jan 2018 12:23:09 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 84/99] btrfs: Convert fs_roots_radix to XArray
-Date: Wed, 17 Jan 2018 12:21:48 -0800
-Message-Id: <20180117202203.19756-85-willy@infradead.org>
+Subject: [PATCH v6 96/99] dma-debug: Convert to XArray
+Date: Wed, 17 Jan 2018 12:22:00 -0800
+Message-Id: <20180117202203.19756-97-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,312 +22,217 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Most of the gang lookups being done can be expressed just as efficiently
-and somewhat more naturally as xa_for_each() loops.  I opted not to
-change the one in btrfs_cleanup_fs_roots() as it's using SRCU which is
-subtle and quick to anger.
+This is an unusual way to use the xarray tags.  If any other users
+come up, we can add an xas_get_tags() / xas_set_tags() API, but until
+then I don't want to encourage this kind of abuse.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/btrfs/ctree.h             |  3 +-
- fs/btrfs/disk-io.c           | 65 +++++++++++----------------------
- fs/btrfs/tests/btrfs-tests.c |  3 +-
- fs/btrfs/transaction.c       | 87 ++++++++++++++++++--------------------------
- 4 files changed, 59 insertions(+), 99 deletions(-)
+ lib/dma-debug.c | 105 +++++++++++++++++++++++++-------------------------------
+ 1 file changed, 46 insertions(+), 59 deletions(-)
 
-diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
-index 13c260b525a1..173d72dfaab6 100644
---- a/fs/btrfs/ctree.h
-+++ b/fs/btrfs/ctree.h
-@@ -741,8 +741,7 @@ struct btrfs_fs_info {
- 	/* the log root tree is a directory of all the other log roots */
- 	struct btrfs_root *log_root_tree;
+diff --git a/lib/dma-debug.c b/lib/dma-debug.c
+index fb4af570ce04..965b3837d060 100644
+--- a/lib/dma-debug.c
++++ b/lib/dma-debug.c
+@@ -22,7 +22,6 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/sched/task.h>
+ #include <linux/stacktrace.h>
+-#include <linux/radix-tree.h>
+ #include <linux/dma-debug.h>
+ #include <linux/spinlock.h>
+ #include <linux/vmalloc.h>
+@@ -30,6 +29,7 @@
+ #include <linux/uaccess.h>
+ #include <linux/export.h>
+ #include <linux/device.h>
++#include <linux/xarray.h>
+ #include <linux/types.h>
+ #include <linux/sched.h>
+ #include <linux/ctype.h>
+@@ -465,9 +465,8 @@ EXPORT_SYMBOL(debug_dma_dump_mappings);
+  * At any time debug_dma_assert_idle() can be called to trigger a
+  * warning if any cachelines in the given page are in the active set.
+  */
+-static RADIX_TREE(dma_active_cacheline, GFP_NOWAIT);
+-static DEFINE_SPINLOCK(radix_lock);
+-#define ACTIVE_CACHELINE_MAX_OVERLAP ((1 << RADIX_TREE_MAX_TAGS) - 1)
++static DEFINE_XARRAY_FLAGS(dma_active_cacheline, XA_FLAGS_LOCK_IRQ);
++#define ACTIVE_CACHELINE_MAX_OVERLAP ((1 << XA_MAX_TAGS) - 1)
+ #define CACHELINE_PER_PAGE_SHIFT (PAGE_SHIFT - L1_CACHE_SHIFT)
+ #define CACHELINES_PER_PAGE (1 << CACHELINE_PER_PAGE_SHIFT)
  
--	spinlock_t fs_roots_radix_lock;
--	struct radix_tree_root fs_roots_radix;
-+	struct xarray fs_roots;
- 
- 	/* block group cache stuff */
- 	spinlock_t block_group_cache_lock;
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index a8ecccfc36de..62995a55d112 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -1519,13 +1519,7 @@ int btrfs_init_fs_root(struct btrfs_root *root)
- struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
- 					u64 root_id)
- {
--	struct btrfs_root *root;
--
--	spin_lock(&fs_info->fs_roots_radix_lock);
--	root = radix_tree_lookup(&fs_info->fs_roots_radix,
--				 (unsigned long)root_id);
--	spin_unlock(&fs_info->fs_roots_radix_lock);
--	return root;
-+	return xa_load(&fs_info->fs_roots, (unsigned long)root_id);
+@@ -477,37 +476,40 @@ static phys_addr_t to_cacheline_number(struct dma_debug_entry *entry)
+ 		(entry->offset >> L1_CACHE_SHIFT);
  }
  
- int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
-@@ -1533,18 +1527,13 @@ int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
+-static int active_cacheline_read_overlap(phys_addr_t cln)
++static unsigned int active_cacheline_read_overlap(struct xa_state *xas)
  {
- 	int ret;
+-	int overlap = 0, i;
++	unsigned int tags = 0;
++	xa_tag_t tag;
  
--	ret = radix_tree_preload(GFP_NOFS);
--	if (ret)
--		return ret;
--
--	spin_lock(&fs_info->fs_roots_radix_lock);
--	ret = radix_tree_insert(&fs_info->fs_roots_radix,
-+	xa_lock(&fs_info->fs_roots);
-+	ret = __xa_insert(&fs_info->fs_roots,
- 				(unsigned long)root->root_key.objectid,
--				root);
-+				root, GFP_NOFS);
- 	if (ret == 0)
- 		set_bit(BTRFS_ROOT_IN_RADIX, &root->state);
--	spin_unlock(&fs_info->fs_roots_radix_lock);
--	radix_tree_preload_end();
-+	xa_unlock(&fs_info->fs_roots);
- 
- 	return ret;
+-	for (i = RADIX_TREE_MAX_TAGS - 1; i >= 0; i--)
+-		if (radix_tree_tag_get(&dma_active_cacheline, cln, i))
+-			overlap |= 1 << i;
+-	return overlap;
++	for (tag = 0; tag < XA_MAX_TAGS; tag++)
++		if (xas_get_tag(xas, tag))
++			tags |= 1U << tag;
++
++	return tags;
  }
-@@ -2079,33 +2068,25 @@ static void free_root_pointers(struct btrfs_fs_info *info, int chunk_root)
  
- void btrfs_free_fs_roots(struct btrfs_fs_info *fs_info)
+-static int active_cacheline_set_overlap(phys_addr_t cln, int overlap)
++static int active_cacheline_set_overlap(struct xa_state *xas, int overlap)
  {
--	int ret;
--	struct btrfs_root *gang[8];
 -	int i;
-+	struct btrfs_root *root;
-+	unsigned long i = 0;
++	xa_tag_t tag;
  
- 	while (!list_empty(&fs_info->dead_roots)) {
--		gang[0] = list_entry(fs_info->dead_roots.next,
-+		root = list_entry(fs_info->dead_roots.next,
- 				     struct btrfs_root, root_list);
--		list_del(&gang[0]->root_list);
-+		list_del(&root->root_list);
+ 	if (overlap > ACTIVE_CACHELINE_MAX_OVERLAP || overlap < 0)
+ 		return overlap;
  
--		if (test_bit(BTRFS_ROOT_IN_RADIX, &gang[0]->state)) {
--			btrfs_drop_and_free_fs_root(fs_info, gang[0]);
-+		if (test_bit(BTRFS_ROOT_IN_RADIX, &root->state)) {
-+			btrfs_drop_and_free_fs_root(fs_info, root);
- 		} else {
--			free_extent_buffer(gang[0]->node);
--			free_extent_buffer(gang[0]->commit_root);
--			btrfs_put_fs_root(gang[0]);
-+			free_extent_buffer(root->node);
-+			free_extent_buffer(root->commit_root);
-+			btrfs_put_fs_root(root);
- 		}
- 	}
+-	for (i = RADIX_TREE_MAX_TAGS - 1; i >= 0; i--)
+-		if (overlap & 1 << i)
+-			radix_tree_tag_set(&dma_active_cacheline, cln, i);
++	for (tag = 0; tag < XA_MAX_TAGS; tag++) {
++		if (overlap & (1U << tag))
++			xas_set_tag(xas, tag);
+ 		else
+-			radix_tree_tag_clear(&dma_active_cacheline, cln, i);
++			xas_clear_tag(xas, tag);
++	}
  
--	while (1) {
--		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
--					     (void **)gang, 0,
--					     ARRAY_SIZE(gang));
--		if (!ret)
+ 	return overlap;
+ }
+ 
+-static void active_cacheline_inc_overlap(phys_addr_t cln)
++static void active_cacheline_inc_overlap(struct xa_state *xas)
+ {
+-	int overlap = active_cacheline_read_overlap(cln);
++	int overlap = active_cacheline_read_overlap(xas);
+ 
+-	overlap = active_cacheline_set_overlap(cln, ++overlap);
++	overlap = active_cacheline_set_overlap(xas, ++overlap);
+ 
+ 	/* If we overflowed the overlap counter then we're potentially
+ 	 * leaking dma-mappings.  Otherwise, if maps and unmaps are
+@@ -517,21 +519,22 @@ static void active_cacheline_inc_overlap(phys_addr_t cln)
+ 	 */
+ 	WARN_ONCE(overlap > ACTIVE_CACHELINE_MAX_OVERLAP,
+ 		  "DMA-API: exceeded %d overlapping mappings of cacheline %pa\n",
+-		  ACTIVE_CACHELINE_MAX_OVERLAP, &cln);
++		  ACTIVE_CACHELINE_MAX_OVERLAP, &xas->xa_index);
+ }
+ 
+-static int active_cacheline_dec_overlap(phys_addr_t cln)
++static int active_cacheline_dec_overlap(struct xa_state *xas)
+ {
+-	int overlap = active_cacheline_read_overlap(cln);
++	int overlap = active_cacheline_read_overlap(xas);
+ 
+-	return active_cacheline_set_overlap(cln, --overlap);
++	return active_cacheline_set_overlap(xas, --overlap);
+ }
+ 
+ static int active_cacheline_insert(struct dma_debug_entry *entry)
+ {
+ 	phys_addr_t cln = to_cacheline_number(entry);
++	XA_STATE(xas, &dma_active_cacheline, cln);
+ 	unsigned long flags;
+-	int rc;
++	struct dma_debug_entry *exists;
+ 
+ 	/* If the device is not writing memory then we don't have any
+ 	 * concerns about the cpu consuming stale data.  This mitigates
+@@ -540,32 +543,32 @@ static int active_cacheline_insert(struct dma_debug_entry *entry)
+ 	if (entry->direction == DMA_TO_DEVICE)
+ 		return 0;
+ 
+-	spin_lock_irqsave(&radix_lock, flags);
+-	rc = radix_tree_insert(&dma_active_cacheline, cln, entry);
+-	if (rc == -EEXIST)
+-		active_cacheline_inc_overlap(cln);
+-	spin_unlock_irqrestore(&radix_lock, flags);
++	xas_lock_irqsave(&xas, flags);
++	exists = xas_create(&xas);
++	if (exists)
++		active_cacheline_inc_overlap(&xas);
++	else
++		xas_store(&xas, entry);
++	xas_unlock_irqrestore(&xas, flags);
+ 
+-	return rc;
++	return xas_error(&xas);
+ }
+ 
+ static void active_cacheline_remove(struct dma_debug_entry *entry)
+ {
+ 	phys_addr_t cln = to_cacheline_number(entry);
++	XA_STATE(xas, &dma_active_cacheline, cln);
+ 	unsigned long flags;
+ 
+ 	/* ...mirror the insert case */
+ 	if (entry->direction == DMA_TO_DEVICE)
+ 		return;
+ 
+-	spin_lock_irqsave(&radix_lock, flags);
+-	/* since we are counting overlaps the final put of the
+-	 * cacheline will occur when the overlap count is 0.
+-	 * active_cacheline_dec_overlap() returns -1 in that case
+-	 */
+-	if (active_cacheline_dec_overlap(cln) < 0)
+-		radix_tree_delete(&dma_active_cacheline, cln);
+-	spin_unlock_irqrestore(&radix_lock, flags);
++	xas_lock_irqsave(&xas, flags);
++	xas_load(&xas);
++	if (active_cacheline_dec_overlap(&xas) < 0)
++		xas_store(&xas, NULL);
++	xas_unlock_irqrestore(&xas, flags);
+ }
+ 
+ /**
+@@ -578,12 +581,8 @@ static void active_cacheline_remove(struct dma_debug_entry *entry)
+  */
+ void debug_dma_assert_idle(struct page *page)
+ {
+-	static struct dma_debug_entry *ents[CACHELINES_PER_PAGE];
+-	struct dma_debug_entry *entry = NULL;
+-	void **results = (void **) &ents;
+-	unsigned int nents, i;
+-	unsigned long flags;
+-	phys_addr_t cln;
++	struct dma_debug_entry *entry;
++	unsigned long cln;
+ 
+ 	if (dma_debug_disabled())
+ 		return;
+@@ -591,21 +590,9 @@ void debug_dma_assert_idle(struct page *page)
+ 	if (!page)
+ 		return;
+ 
+-	cln = (phys_addr_t) page_to_pfn(page) << CACHELINE_PER_PAGE_SHIFT;
+-	spin_lock_irqsave(&radix_lock, flags);
+-	nents = radix_tree_gang_lookup(&dma_active_cacheline, results, cln,
+-				       CACHELINES_PER_PAGE);
+-	for (i = 0; i < nents; i++) {
+-		phys_addr_t ent_cln = to_cacheline_number(ents[i]);
+-
+-		if (ent_cln == cln) {
+-			entry = ents[i];
 -			break;
--		for (i = 0; i < ret; i++)
--			btrfs_drop_and_free_fs_root(fs_info, gang[i]);
+-		} else if (ent_cln >= cln + CACHELINES_PER_PAGE)
+-			break;
 -	}
-+	xa_for_each(&fs_info->fs_roots, root, i, ULONG_MAX, XA_PRESENT)
-+		btrfs_drop_and_free_fs_root(fs_info, root);
- 
- 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
- 		btrfs_free_log_root_tree(NULL, fs_info);
-@@ -2447,7 +2428,7 @@ int open_ctree(struct super_block *sb,
- 		goto fail_delalloc_bytes;
- 	}
- 
--	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
-+	xa_init(&fs_info->fs_roots);
- 	INIT_RADIX_TREE(&fs_info->buffer_radix, GFP_ATOMIC);
- 	INIT_LIST_HEAD(&fs_info->trans_list);
- 	INIT_LIST_HEAD(&fs_info->dead_roots);
-@@ -2456,7 +2437,6 @@ int open_ctree(struct super_block *sb,
- 	INIT_LIST_HEAD(&fs_info->caching_block_groups);
- 	spin_lock_init(&fs_info->delalloc_root_lock);
- 	spin_lock_init(&fs_info->trans_lock);
--	spin_lock_init(&fs_info->fs_roots_radix_lock);
- 	spin_lock_init(&fs_info->delayed_iput_lock);
- 	spin_lock_init(&fs_info->defrag_inodes_lock);
- 	spin_lock_init(&fs_info->tree_mod_seq_lock);
-@@ -3573,10 +3553,7 @@ int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
- void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
- 				  struct btrfs_root *root)
- {
--	spin_lock(&fs_info->fs_roots_radix_lock);
--	radix_tree_delete(&fs_info->fs_roots_radix,
--			  (unsigned long)root->root_key.objectid);
--	spin_unlock(&fs_info->fs_roots_radix_lock);
-+	xa_erase(&fs_info->fs_roots, (unsigned long)root->root_key.objectid);
- 
- 	if (btrfs_root_refs(&root->root_item) == 0)
- 		synchronize_srcu(&fs_info->subvol_srcu);
-@@ -3632,9 +3609,9 @@ int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
- 
- 	while (1) {
- 		index = srcu_read_lock(&fs_info->subvol_srcu);
--		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
--					     (void **)gang, root_objectid,
--					     ARRAY_SIZE(gang));
-+		ret = xa_extract(&fs_info->fs_roots, (void **)gang,
-+				root_objectid, ULONG_MAX, ARRAY_SIZE(gang),
-+				XA_PRESENT);
- 		if (!ret) {
- 			srcu_read_unlock(&fs_info->subvol_srcu, index);
- 			break;
-diff --git a/fs/btrfs/tests/btrfs-tests.c b/fs/btrfs/tests/btrfs-tests.c
-index d3f25376a0f8..570bce31a301 100644
---- a/fs/btrfs/tests/btrfs-tests.c
-+++ b/fs/btrfs/tests/btrfs-tests.c
-@@ -114,7 +114,6 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
- 	spin_lock_init(&fs_info->qgroup_lock);
- 	spin_lock_init(&fs_info->qgroup_op_lock);
- 	spin_lock_init(&fs_info->super_lock);
--	spin_lock_init(&fs_info->fs_roots_radix_lock);
- 	spin_lock_init(&fs_info->tree_mod_seq_lock);
- 	mutex_init(&fs_info->qgroup_ioctl_lock);
- 	mutex_init(&fs_info->qgroup_rescan_lock);
-@@ -127,7 +126,7 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
- 	INIT_LIST_HEAD(&fs_info->dead_roots);
- 	INIT_LIST_HEAD(&fs_info->tree_mod_seq_list);
- 	INIT_RADIX_TREE(&fs_info->buffer_radix, GFP_ATOMIC);
--	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
-+	xa_init(&fs_info->fs_roots);
- 	extent_io_tree_init(&fs_info->freed_extents[0], NULL);
- 	extent_io_tree_init(&fs_info->freed_extents[1], NULL);
- 	fs_info->pinned_extents = &fs_info->freed_extents[0];
-diff --git a/fs/btrfs/transaction.c b/fs/btrfs/transaction.c
-index 5a8c2649af2f..2d6606df0fa3 100644
---- a/fs/btrfs/transaction.c
-+++ b/fs/btrfs/transaction.c
-@@ -33,7 +33,7 @@
- #include "dev-replace.h"
- #include "qgroup.h"
- 
--#define BTRFS_ROOT_TRANS_TAG 0
-+#define BTRFS_ROOT_TRANS_TAG XA_TAG_0
- 
- static const unsigned int btrfs_blocked_trans_types[TRANS_STATE_MAX] = {
- 	[TRANS_STATE_RUNNING]		= 0U,
-@@ -333,15 +333,15 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
- 		 */
- 		smp_wmb();
- 
--		spin_lock(&fs_info->fs_roots_radix_lock);
-+		xa_lock(&fs_info->fs_roots);
- 		if (root->last_trans == trans->transid && !force) {
--			spin_unlock(&fs_info->fs_roots_radix_lock);
-+			xa_unlock(&fs_info->fs_roots);
- 			return 0;
- 		}
--		radix_tree_tag_set(&fs_info->fs_roots_radix,
-+		__xa_set_tag(&fs_info->fs_roots,
- 				   (unsigned long)root->root_key.objectid,
- 				   BTRFS_ROOT_TRANS_TAG);
--		spin_unlock(&fs_info->fs_roots_radix_lock);
-+		xa_unlock(&fs_info->fs_roots);
- 		root->last_trans = trans->transid;
- 
- 		/* this is pretty tricky.  We don't want to
-@@ -383,11 +383,8 @@ void btrfs_add_dropped_root(struct btrfs_trans_handle *trans,
- 	spin_unlock(&cur_trans->dropped_roots_lock);
- 
- 	/* Make sure we don't try to update the root at commit time */
--	spin_lock(&fs_info->fs_roots_radix_lock);
--	radix_tree_tag_clear(&fs_info->fs_roots_radix,
--			     (unsigned long)root->root_key.objectid,
-+	xa_clear_tag(&fs_info->fs_roots, (unsigned long)root->root_key.objectid,
- 			     BTRFS_ROOT_TRANS_TAG);
--	spin_unlock(&fs_info->fs_roots_radix_lock);
- }
- 
- int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
-@@ -1255,53 +1252,41 @@ void btrfs_add_dead_root(struct btrfs_root *root)
- static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
- 				    struct btrfs_fs_info *fs_info)
- {
--	struct btrfs_root *gang[8];
--	int i;
--	int ret;
-+	struct btrfs_root *root;
-+	unsigned long index = 0;
- 	int err = 0;
- 
--	spin_lock(&fs_info->fs_roots_radix_lock);
--	while (1) {
--		ret = radix_tree_gang_lookup_tag(&fs_info->fs_roots_radix,
--						 (void **)gang, 0,
--						 ARRAY_SIZE(gang),
--						 BTRFS_ROOT_TRANS_TAG);
--		if (ret == 0)
--			break;
--		for (i = 0; i < ret; i++) {
--			struct btrfs_root *root = gang[i];
--			radix_tree_tag_clear(&fs_info->fs_roots_radix,
--					(unsigned long)root->root_key.objectid,
--					BTRFS_ROOT_TRANS_TAG);
--			spin_unlock(&fs_info->fs_roots_radix_lock);
+-	spin_unlock_irqrestore(&radix_lock, flags);
 -
--			btrfs_free_log(trans, root);
--			btrfs_update_reloc_root(trans, root);
--			btrfs_orphan_commit_root(trans, root);
--
--			btrfs_save_ino_cache(root, trans);
--
--			/* see comments in should_cow_block() */
--			clear_bit(BTRFS_ROOT_FORCE_COW, &root->state);
--			smp_mb__after_atomic();
--
--			if (root->commit_root != root->node) {
--				list_add_tail(&root->dirty_list,
--					&trans->transaction->switch_commits);
--				btrfs_set_root_node(&root->root_item,
--						    root->node);
--			}
-+	xa_lock(&fs_info->fs_roots);
-+	xa_for_each(&fs_info->fs_roots, root, index, ULONG_MAX,
-+						BTRFS_ROOT_TRANS_TAG) {
-+		__xa_clear_tag(&fs_info->fs_roots, index, BTRFS_ROOT_TRANS_TAG);
-+		xa_unlock(&fs_info->fs_roots);
- 
--			err = btrfs_update_root(trans, fs_info->tree_root,
--						&root->root_key,
--						&root->root_item);
--			spin_lock(&fs_info->fs_roots_radix_lock);
--			if (err)
--				break;
--			btrfs_qgroup_free_meta_all(root);
-+		btrfs_free_log(trans, root);
-+		btrfs_update_reloc_root(trans, root);
-+		btrfs_orphan_commit_root(trans, root);
-+
-+		btrfs_save_ino_cache(root, trans);
-+
-+		/* see comments in should_cow_block() */
-+		clear_bit(BTRFS_ROOT_FORCE_COW, &root->state);
-+		smp_mb__after_atomic();
-+
-+		if (root->commit_root != root->node) {
-+			list_add_tail(&root->dirty_list,
-+				&trans->transaction->switch_commits);
-+			btrfs_set_root_node(&root->root_item, root->node);
- 		}
-+
-+		err = btrfs_update_root(trans, fs_info->tree_root,
-+					&root->root_key, &root->root_item);
-+		xa_lock(&fs_info->fs_roots);
-+		if (err)
-+			break;
-+		btrfs_qgroup_free_meta_all(root);
-+		index = 0;
- 	}
--	spin_unlock(&fs_info->fs_roots_radix_lock);
-+	xa_unlock(&fs_info->fs_roots);
- 	return err;
- }
++	cln = page_to_pfn(page) << CACHELINE_PER_PAGE_SHIFT;
++	entry = xa_find(&dma_active_cacheline, &cln,
++			cln + CACHELINES_PER_PAGE - 1, XA_PRESENT);
+ 	if (!entry)
+ 		return;
  
 -- 
 2.15.1
