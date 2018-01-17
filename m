@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BA2816B026D
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:24:03 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id h18so15050066pfi.2
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:24:03 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9874D6B0271
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:24:12 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id n2so12215540pgs.0
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:24:12 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 94si4987644ple.726.2018.01.17.12.22.33
+        by mx.google.com with ESMTPS id t21si5030747pfh.167.2018.01.17.12.22.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:22:33 -0800 (PST)
+        Wed, 17 Jan 2018 12:22:36 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 15/99] xarray: Add xas_next and xas_prev
-Date: Wed, 17 Jan 2018 12:20:39 -0800
-Message-Id: <20180117202203.19756-16-willy@infradead.org>
+Subject: [PATCH v6 22/99] page cache: Convert hole search to XArray
+Date: Wed, 17 Jan 2018 12:20:46 -0800
+Message-Id: <20180117202203.19756-23-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,485 +22,212 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-These two functions move the xas index by one position, and adjust the
-rest of the iterator state to match it.  This is more efficient than
-calling xas_set() as it keeps the iterator at the leaves of the tree
-instead of walking the iterator from the root each time.
+The page cache offers the ability to search for a miss in the previous or
+next N locations.  Rather than teach the XArray about the page cache's
+definition of a miss, use xas_prev() and xas_next() to search the page
+array.  This should be more efficient as it does not have to start the
+lookup from the top for each index.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/xarray.h                 |  67 +++++++++
- lib/xarray.c                           |  74 ++++++++++
- tools/testing/radix-tree/xarray-test.c | 259 +++++++++++++++++++++++++++++++++
- 3 files changed, 400 insertions(+)
+ fs/nfs/blocklayout/blocklayout.c |   2 +-
+ include/linux/pagemap.h          |   4 +-
+ mm/filemap.c                     | 110 ++++++++++++++++++---------------------
+ mm/readahead.c                   |   4 +-
+ 4 files changed, 55 insertions(+), 65 deletions(-)
 
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index d106b2fe4cec..01ce313fc00e 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -660,6 +660,12 @@ static inline bool xas_not_node(struct xa_node *node)
- 	return ((unsigned long)node & 3) || !node;
- }
- 
-+/* True if the node represents RESTART or an error */
-+static inline bool xas_frozen(struct xa_node *node)
-+{
-+	return (unsigned long)node & 2;
-+}
-+
- /* True if the node represents head-of-tree, RESTART or BOUNDS */
- static inline bool xas_top(struct xa_node *node)
- {
-@@ -901,6 +907,67 @@ enum {
- 	for (entry = xas_find_tag(xas, max, tag); entry; \
- 	     entry = xas_next_tag(xas, max, tag))
- 
-+void *__xas_next(struct xa_state *);
-+void *__xas_prev(struct xa_state *);
-+
-+/**
-+ * xas_prev() - Move iterator to previous index.
-+ * @xas: XArray operation state.
-+ *
-+ * If the @xas was in an error state, it will remain in an error state
-+ * and this function will return %NULL.  If the @xas has never been walked,
-+ * it will have the effect of calling xas_load().  Otherwise one will be
-+ * subtracted from the index and the state will be walked to the correct
-+ * location in the array for the next operation.
-+ *
-+ * If the iterator was referencing index 0, this function wraps
-+ * around to %ULONG_MAX.
-+ *
-+ * Return: The entry at the new index.  This may be %NULL or an internal
-+ * entry, although it should never be a node entry.
-+ */
-+static inline void *xas_prev(struct xa_state *xas)
-+{
-+	struct xa_node *node = xas->xa_node;
-+
-+	if (unlikely(xas_not_node(node) || node->shift ||
-+				xas->xa_offset == 0))
-+		return __xas_prev(xas);
-+
-+	xas->xa_index--;
-+	xas->xa_offset--;
-+	return xa_entry(xas->xa, node, xas->xa_offset);
-+}
-+
-+/**
-+ * xas_next() - Move state to next index.
-+ * @xas: XArray operation state.
-+ *
-+ * If the @xas was in an error state, it will remain in an error state
-+ * and this function will return %NULL.  If the @xas has never been walked,
-+ * it will have the effect of calling xas_load().  Otherwise one will be
-+ * added to the index and the state will be walked to the correct
-+ * location in the array for the next operation.
-+ *
-+ * If the iterator was referencing index %ULONG_MAX, this function wraps
-+ * around to 0.
-+ *
-+ * Return: The entry at the new index.  This may be %NULL or an internal
-+ * entry, although it should never be a node entry.
-+ */
-+static inline void *xas_next(struct xa_state *xas)
-+{
-+	struct xa_node *node = xas->xa_node;
-+
-+	if (unlikely(xas_not_node(node) || node->shift ||
-+				xas->xa_offset == XA_CHUNK_MASK))
-+		return __xas_next(xas);
-+
-+	xas->xa_index++;
-+	xas->xa_offset++;
-+	return xa_entry(xas->xa, node, xas->xa_offset);
-+}
-+
- /* Internal functions, mostly shared between radix-tree.c, xarray.c and idr.c */
- void xas_destroy(struct xa_state *);
- 
-diff --git a/lib/xarray.c b/lib/xarray.c
-index af81d4bf9ae1..e8ece1fff9fd 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -838,6 +838,80 @@ void xas_pause(struct xa_state *xas)
- }
- EXPORT_SYMBOL_GPL(xas_pause);
- 
-+/*
-+ * __xas_prev() - Find the previous entry in the XArray.
-+ * @xas: XArray operation state.
-+ *
-+ * Helper function for xas_prev() which handles all the complex cases
-+ * out of line.
-+ */
-+void *__xas_prev(struct xa_state *xas)
-+{
-+	void *entry;
-+
-+	if (!xas_frozen(xas->xa_node))
-+		xas->xa_index--;
-+	if (xas_not_node(xas->xa_node))
-+		return xas_load(xas);
-+
-+	if (xas->xa_offset != get_offset(xas->xa_index, xas->xa_node))
-+		xas->xa_offset--;
-+
-+	while (xas->xa_offset == 255) {
-+		xas->xa_offset = xas->xa_node->offset - 1;
-+		xas->xa_node = xa_parent(xas->xa, xas->xa_node);
-+		if (!xas->xa_node)
-+			return set_bounds(xas);
-+	}
-+
-+	for (;;) {
-+		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-+		if (!xa_is_node(entry))
-+			return entry;
-+
-+		xas->xa_node = xa_to_node(entry);
-+		xas_set_offset(xas);
-+	}
-+}
-+EXPORT_SYMBOL_GPL(__xas_prev);
-+
-+/*
-+ * __xas_next() - Find the next entry in the XArray.
-+ * @xas: XArray operation state.
-+ *
-+ * Helper function for xas_next() which handles all the complex cases
-+ * out of line.
-+ */
-+void *__xas_next(struct xa_state *xas)
-+{
-+	void *entry;
-+
-+	if (!xas_frozen(xas->xa_node))
-+		xas->xa_index++;
-+	if (xas_not_node(xas->xa_node))
-+		return xas_load(xas);
-+
-+	if (xas->xa_offset != get_offset(xas->xa_index, xas->xa_node))
-+		xas->xa_offset++;
-+
-+	while (xas->xa_offset == XA_CHUNK_SIZE) {
-+		xas->xa_offset = xas->xa_node->offset + 1;
-+		xas->xa_node = xa_parent(xas->xa, xas->xa_node);
-+		if (!xas->xa_node)
-+			return set_bounds(xas);
-+	}
-+
-+	for (;;) {
-+		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-+		if (!xa_is_node(entry))
-+			return entry;
-+
-+		xas->xa_node = xa_to_node(entry);
-+		xas_set_offset(xas);
-+	}
-+}
-+EXPORT_SYMBOL_GPL(__xas_next);
-+
- /**
-  * xas_find() - Find the next present entry in the XArray.
-  * @xas: XArray operation state.
-diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
-index 26b25be81656..2ad460c1febf 100644
---- a/tools/testing/radix-tree/xarray-test.c
-+++ b/tools/testing/radix-tree/xarray-test.c
-@@ -49,6 +49,147 @@ void check_xa_tag(struct xarray *xa)
- 	assert(xa_get_tag(xa, 0, XA_TAG_0) == false);
- }
- 
-+/* Check that putting the xas into an error state works correctly */
-+void check_xas_error(struct xarray *xa)
-+{
-+	XA_STATE(xas, xa, 0);
-+
-+	assert(xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL) == 0);
-+	assert(xa_load(xa, 1) == xa_mk_value(1));
-+
-+	assert(xas_error(&xas) == 0);
-+
-+	xas_set_err(&xas, -ENOTTY);
-+	assert(xas_error(&xas) == -ENOTTY);
-+
-+	xas_set_err(&xas, -ENOSPC);
-+	assert(xas_error(&xas) == -ENOSPC);
-+
-+	xas_set_err(&xas, -ENOMEM);
-+	assert(xas_error(&xas) == -ENOMEM);
-+
-+	assert(xas_load(&xas) == NULL);
-+	assert(xas_store(&xas, &xas) == NULL);
-+	assert(xas_load(&xas) == NULL);
-+
-+	assert(xas.xa_index == 0);
-+	assert(xas_next(&xas) == NULL);
-+	assert(xas.xa_index == 0);
-+
-+	assert(xas_prev(&xas) == NULL);
-+	assert(xas.xa_index == 0);
-+
-+	xas_retry(&xas, XA_RETRY_ENTRY);
-+	assert(xas_error(&xas) == 0);
-+
-+	assert(xas_find(&xas, ULONG_MAX) == xa_mk_value(1));
-+	assert(xas.xa_index == 1);
-+	assert(xas_error(&xas) == 0);
-+
-+	assert(xas_find(&xas, ULONG_MAX) == NULL);
-+	assert(xas.xa_index > 1);
-+	assert(xas_error(&xas) == 0);
-+	assert(xas.xa_node == XAS_BOUNDS);
-+}
-+
-+void check_xas_pause(struct xarray *xa)
-+{
-+	XA_STATE(xas, xa, 0);
-+	void *entry;
-+	unsigned int seen;
-+
-+	xa_store(xa, 0, xa_mk_value(0), GFP_KERNEL);
-+	xa_set_tag(xa, 0, XA_TAG_0);
-+
-+	seen = 0;
-+	rcu_read_lock();
-+	xas_for_each_tag(&xas, entry, ULONG_MAX, XA_TAG_0) {
-+		if (!seen++) {
-+			xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
-+			xa_set_tag(xa, 1, XA_TAG_0);
-+		}
-+	}
-+	rcu_read_unlock();
-+	/* We don't see an entry that was added after we started */
-+	assert(seen == 1);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	rcu_read_lock();
-+	xas_for_each_tag(&xas, entry, ULONG_MAX, XA_TAG_0) {
-+		if (!seen++)
-+			xa_erase(xa, 1);
-+	}
-+	rcu_read_unlock();
-+	assert(seen == 1);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	rcu_read_lock();
-+	xas_for_each(&xas, entry, ULONG_MAX) {
-+		if (!seen++)
-+			xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
-+	}
-+	rcu_read_unlock();
-+	assert(seen == 1);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	rcu_read_lock();
-+	xas_for_each(&xas, entry, ULONG_MAX) {
-+		if (!seen++)
-+			xa_erase(xa, 1);
-+	}
-+	rcu_read_unlock();
-+	assert(seen == 1);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	rcu_read_lock();
-+	for (entry = xas_load(&xas); entry; entry = xas_next(&xas)) {
-+		if (!seen++)
-+			xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
-+	}
-+	rcu_read_unlock();
-+	assert(seen == 2);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	rcu_read_lock();
-+	for (entry = xas_load(&xas); entry; entry = xas_next(&xas)) {
-+		if (!seen++)
-+			xa_erase(xa, 1);
-+	}
-+	rcu_read_unlock();
-+	assert(seen == 1);
-+
-+	xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	xas_for_each(&xas, entry, ULONG_MAX) {
-+		if (!seen++)
-+			xas_pause(&xas);
-+	}
-+	assert(seen == 2);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	for (entry = xas_load(&xas); entry; entry = xas_next(&xas)) {
-+		if (!seen++)
-+			xas_pause(&xas);
-+	}
-+	assert(seen == 2);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	xa_set_tag(xa, 1, XA_TAG_0);
-+	xas_for_each_tag(&xas, entry, ULONG_MAX, XA_TAG_0) {
-+		if (!seen++)
-+			xas_pause(&xas);
-+	}
-+	assert(seen == 2);
-+}
-+
- void check_xas_retry(struct xarray *xa)
- {
- 	XA_STATE(xas, xa, 0);
-@@ -257,9 +398,108 @@ void check_xas_delete(struct xarray *xa)
+diff --git a/fs/nfs/blocklayout/blocklayout.c b/fs/nfs/blocklayout/blocklayout.c
+index 995d707537da..7bd643538cff 100644
+--- a/fs/nfs/blocklayout/blocklayout.c
++++ b/fs/nfs/blocklayout/blocklayout.c
+@@ -826,7 +826,7 @@ static u64 pnfs_num_cont_bytes(struct inode *inode, pgoff_t idx)
+ 	end = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+ 	if (end != inode->i_mapping->nrpages) {
+ 		rcu_read_lock();
+-		end = page_cache_next_hole(mapping, idx + 1, ULONG_MAX);
++		end = page_cache_next_gap(mapping, idx + 1, ULONG_MAX);
+ 		rcu_read_unlock();
  	}
+ 
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 80a6149152d4..0db127c3ccac 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -241,9 +241,9 @@ static inline gfp_t readahead_gfp_mask(struct address_space *x)
+ 
+ typedef int filler_t(void *, struct page *);
+ 
+-pgoff_t page_cache_next_hole(struct address_space *mapping,
++pgoff_t page_cache_next_gap(struct address_space *mapping,
+ 			     pgoff_t index, unsigned long max_scan);
+-pgoff_t page_cache_prev_hole(struct address_space *mapping,
++pgoff_t page_cache_prev_gap(struct address_space *mapping,
+ 			     pgoff_t index, unsigned long max_scan);
+ 
+ #define FGP_ACCESSED		0x00000001
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 309be963140c..146e8ec16ec0 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1327,86 +1327,76 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
  }
  
-+void check_move_small(struct xarray *xa, unsigned long idx)
-+{
-+	XA_STATE(xas, xa, 0);
-+	unsigned long i;
-+
-+	xa_store(xa, 0, xa_mk_value(0), GFP_KERNEL);
-+	xa_store(xa, idx, xa_mk_value(idx), GFP_KERNEL);
-+
-+	for (i = 0; i < idx * 4; i++) {
-+		void *entry = xas_next(&xas);
-+		if (i <= idx)
-+			assert(xas.xa_node != XAS_RESTART);
-+		assert(xas.xa_index == i);
-+		if (i == 0 || i == idx)
-+			assert(entry == xa_mk_value(i));
-+		else
-+			assert(entry == NULL);
-+	}
-+	xas_next(&xas);
-+	assert(xas.xa_index == i);
-+
-+	do {
-+		void *entry = xas_prev(&xas);
-+		i--;
-+		if (i <= idx)
-+			assert(xas.xa_node != XAS_RESTART);
-+		assert(xas.xa_index == i);
-+		if (i == 0 || i == idx)
-+			assert(entry == xa_mk_value(i));
-+		else
-+			assert(entry == NULL);
-+	} while (i > 0);
-+
-+	xas_set(&xas, ULONG_MAX);
-+	assert(xas_next(&xas) == NULL);
-+	assert(xas.xa_index == ULONG_MAX);
-+	assert(xas_next(&xas) == xa_mk_value(0));
-+	assert(xas.xa_index == 0);
-+	assert(xas_prev(&xas) == NULL);
-+	assert(xas.xa_index == ULONG_MAX);
-+}
-+
-+void check_move(struct xarray *xa)
-+{
-+	XA_STATE(xas, xa, (1 << 16) - 1);
-+	unsigned long i;
-+
-+	for (i = 0; i < (1 << 16); i++) {
-+		xa_store(xa, i, xa_mk_value(i), GFP_KERNEL);
-+	}
-+
-+	do {
-+		void *entry = xas_prev(&xas);
-+		i--;
-+		assert(entry == xa_mk_value(i));
-+		assert(i == xas.xa_index);
-+	} while (i != 0);
-+
-+	assert(xas_prev(&xas) == NULL);
-+	assert(xas.xa_index == ULONG_MAX);
-+
-+	do {
-+		void *entry = xas_next(&xas);
-+		assert(entry == xa_mk_value(i));
-+		assert(i == xas.xa_index);
-+		i++;
-+	} while (i < (1 << 16));
-+
-+	for (i = (1 << 8); i < (1 << 15); i++) {
-+		xa_erase(xa, i);
-+	}
-+
-+	i = xas.xa_index;
-+
-+	do {
-+		void *entry = xas_prev(&xas);
-+		i--;
-+		if ((i < (1 << 8)) || (i >= (1 << 15)))
-+			assert(entry == xa_mk_value(i));
-+		else
-+			assert(entry == NULL);
-+		assert(i == xas.xa_index);
-+	} while (i != 0);
-+
-+	assert(xas_prev(&xas) == NULL);
-+	assert(xas.xa_index == ULONG_MAX);
-+
-+	do {
-+		void *entry = xas_next(&xas);
-+		if ((i < (1 << 8)) || (i >= (1 << 15)))
-+			assert(entry == xa_mk_value(i));
-+		else
-+			assert(entry == NULL);
-+		assert(i == xas.xa_index);
-+		i++;
-+	} while (i < (1 << 16));
-+}
-+
- void xarray_checks(void)
+ /**
+- * page_cache_next_hole - find the next hole (not-present entry)
+- * @mapping: mapping
+- * @index: index
+- * @max_scan: maximum range to search
+- *
+- * Search the set [index, min(index+max_scan-1, MAX_INDEX)] for the
+- * lowest indexed hole.
+- *
+- * Returns: the index of the hole if found, otherwise returns an index
+- * outside of the set specified (in which case 'return - index >=
+- * max_scan' will be true). In rare cases of index wrap-around, 0 will
+- * be returned.
+- *
+- * page_cache_next_hole may be called under rcu_read_lock. However,
+- * like radix_tree_gang_lookup, this will not atomically search a
+- * snapshot of the tree at a single point in time. For example, if a
+- * hole is created at index 5, then subsequently a hole is created at
+- * index 10, page_cache_next_hole covering both indexes may return 10
+- * if called under rcu_read_lock.
++ * page_cache_next_gap() - Find the next gap in the page cache.
++ * @mapping: Mapping.
++ * @index: Index.
++ * @max_scan: Maximum range to search.
++ *
++ * Search the range [index, min(index + max_scan - 1, ULONG_MAX)] for the
++ * gap with the lowest index.
++ *
++ * This function may be called under the rcu_read_lock.  However, this will
++ * not atomically search a snapshot of the cache at a single point in time.
++ * For example, if a gap is created at index 5, then subsequently a gap is
++ * created at index 10, page_cache_next_gap covering both indices may
++ * return 10 if called under the rcu_read_lock.
++ *
++ * Return: The index of the gap if found, otherwise an index outside the
++ * range specified (in which case 'return - index >= max_scan' will be true).
++ * In the rare case of index wrap-around, 0 will be returned.
+  */
+-pgoff_t page_cache_next_hole(struct address_space *mapping,
++pgoff_t page_cache_next_gap(struct address_space *mapping,
+ 			     pgoff_t index, unsigned long max_scan)
  {
- 	DEFINE_XARRAY(array);
-+	unsigned long i;
+-	unsigned long i;
++	XA_STATE(xas, &mapping->pages, index);
  
- 	check_xa_err(&array);
- 	item_kill_tree(&array);
-@@ -267,9 +507,15 @@ void xarray_checks(void)
- 	check_xa_tag(&array);
- 	item_kill_tree(&array);
+-	for (i = 0; i < max_scan; i++) {
+-		struct page *page;
+-
+-		page = radix_tree_lookup(&mapping->pages, index);
+-		if (!page || xa_is_value(page))
++	while (max_scan--) {
++		void *entry = xas_next(&xas);
++		if (!entry || xa_is_value(entry))
+ 			break;
+-		index++;
+-		if (index == 0)
++		if (xas.xa_index == 0)
+ 			break;
+ 	}
  
-+	check_xas_error(&array);
-+	item_kill_tree(&array);
-+
- 	check_xas_retry(&array);
- 	item_kill_tree(&array);
- 
-+	check_xas_pause(&array);
-+	item_kill_tree(&array);
-+
- 	check_xa_load(&array);
- 	item_kill_tree(&array);
- 
-@@ -283,6 +529,19 @@ void xarray_checks(void)
- 	check_find(&array);
- 	check_xas_delete(&array);
- 	item_kill_tree(&array);
-+
-+	for (i = 0; i < 16; i++) {
-+		check_move_small(&array, 1UL << i);
-+		item_kill_tree(&array);
-+	}
-+
-+	for (i = 2; i < 16; i++) {
-+		check_move_small(&array, (1UL << i) - 1);
-+		item_kill_tree(&array);
-+	}
-+
-+	check_move(&array);
-+	item_kill_tree(&array);
+-	return index;
++	return xas.xa_index;
  }
+-EXPORT_SYMBOL(page_cache_next_hole);
++EXPORT_SYMBOL(page_cache_next_gap);
  
- int __weak main(void)
+ /**
+- * page_cache_prev_hole - find the prev hole (not-present entry)
+- * @mapping: mapping
+- * @index: index
+- * @max_scan: maximum range to search
+- *
+- * Search backwards in the range [max(index-max_scan+1, 0), index] for
+- * the first hole.
+- *
+- * Returns: the index of the hole if found, otherwise returns an index
+- * outside of the set specified (in which case 'index - return >=
+- * max_scan' will be true). In rare cases of wrap-around, ULONG_MAX
+- * will be returned.
+- *
+- * page_cache_prev_hole may be called under rcu_read_lock. However,
+- * like radix_tree_gang_lookup, this will not atomically search a
+- * snapshot of the tree at a single point in time. For example, if a
+- * hole is created at index 10, then subsequently a hole is created at
+- * index 5, page_cache_prev_hole covering both indexes may return 5 if
+- * called under rcu_read_lock.
++ * page_cache_prev_gap() - Find the next gap in the page cache.
++ * @mapping: Mapping.
++ * @index: Index.
++ * @max_scan: Maximum range to search.
++ *
++ * Search the range [max(index - max_scan + 1, 0), index] for the
++ * gap with the highest index.
++ *
++ * This function may be called under the rcu_read_lock.  However, this will
++ * not atomically search a snapshot of the cache at a single point in time.
++ * For example, if a gap is created at index 10, then subsequently a gap is
++ * created at index 5, page_cache_prev_gap() covering both indices may
++ * return 5 if called under the rcu_read_lock.
++ *
++ * Return: The index of the gap if found, otherwise an index outside the
++ * range specified (in which case 'index - return >= max_scan' will be true).
++ * In the rare case of wrap-around, ULONG_MAX will be returned.
+  */
+-pgoff_t page_cache_prev_hole(struct address_space *mapping,
++pgoff_t page_cache_prev_gap(struct address_space *mapping,
+ 			     pgoff_t index, unsigned long max_scan)
+ {
+-	unsigned long i;
+-
+-	for (i = 0; i < max_scan; i++) {
+-		struct page *page;
++	XA_STATE(xas, &mapping->pages, index);
+ 
+-		page = radix_tree_lookup(&mapping->pages, index);
+-		if (!page || xa_is_value(page))
++	while (max_scan--) {
++		void *entry = xas_prev(&xas);
++		if (!entry || xa_is_value(entry))
+ 			break;
+-		index--;
+-		if (index == ULONG_MAX)
++		if (xas.xa_index == ULONG_MAX)
+ 			break;
+ 	}
+ 
+-	return index;
++	return xas.xa_index;
+ }
+-EXPORT_SYMBOL(page_cache_prev_hole);
++EXPORT_SYMBOL(page_cache_prev_gap);
+ 
+ /**
+  * find_get_entry - find and get a page cache entry
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 4851f002605f..f64b31b3a84a 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -329,7 +329,7 @@ static pgoff_t count_history_pages(struct address_space *mapping,
+ 	pgoff_t head;
+ 
+ 	rcu_read_lock();
+-	head = page_cache_prev_hole(mapping, offset - 1, max);
++	head = page_cache_prev_gap(mapping, offset - 1, max);
+ 	rcu_read_unlock();
+ 
+ 	return offset - 1 - head;
+@@ -417,7 +417,7 @@ ondemand_readahead(struct address_space *mapping,
+ 		pgoff_t start;
+ 
+ 		rcu_read_lock();
+-		start = page_cache_next_hole(mapping, offset + 1, max_pages);
++		start = page_cache_next_gap(mapping, offset + 1, max_pages);
+ 		rcu_read_unlock();
+ 
+ 		if (!start || start - offset > max_pages)
 -- 
 2.15.1
 
