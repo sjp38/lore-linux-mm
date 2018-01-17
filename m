@@ -1,70 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C948D280263
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 19:41:51 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id 34so7040114plm.23
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 16:41:51 -0800 (PST)
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com. [68.232.141.245])
-        by mx.google.com with ESMTPS id i191si2602152pgd.201.2018.01.16.16.41.49
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 80479280263
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 19:45:29 -0500 (EST)
+Received: by mail-yb0-f200.google.com with SMTP id d13so2497119ybn.14
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 16:45:29 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id y186si801554ywe.612.2018.01.16.16.45.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Jan 2018 16:41:50 -0800 (PST)
-From: Bart Van Assche <Bart.VanAssche@wdc.com>
-Subject: Re: [LSF/MM TOPIC] A high-performance userspace block driver
-Date: Wed, 17 Jan 2018 00:41:46 +0000
-Message-ID: <1516149705.2844.79.camel@wdc.com>
-References: <20180116145240.GD30073@bombadil.infradead.org>
-In-Reply-To: <20180116145240.GD30073@bombadil.infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <8B249AEF72F7E1429AF209BDBBB1CD3A@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        Tue, 16 Jan 2018 16:45:28 -0800 (PST)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
+Subject: Re: [PATCH] mm: numa: Do not trap faults on shared data section
+ pages.
+From: Henry Willard <henry.willard@oracle.com>
+In-Reply-To: <20180116212614.gudglzw7kwzd3get@suse.de>
+Date: Tue, 16 Jan 2018 16:45:22 -0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <E6D833F4-C32F-45F3-AA88-26D6E58E10E4@oracle.com>
+References: <1516130924-3545-1-git-send-email-henry.willard@oracle.com>
+ <1516130924-3545-2-git-send-email-henry.willard@oracle.com>
+ <20180116212614.gudglzw7kwzd3get@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "willy@infradead.org" <willy@infradead.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: akpm@linux-foundation.org, kstewart@linuxfoundation.org, zi.yan@cs.rutgers.edu, pombredanne@nexb.com, aarcange@redhat.com, gregkh@linuxfoundation.org, aneesh.kumar@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, jglisse@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-T24gVHVlLCAyMDE4LTAxLTE2IGF0IDA2OjUyIC0wODAwLCBNYXR0aGV3IFdpbGNveCB3cm90ZToN
-Cj4gSSBzZWUgdGhlIGltcHJvdmVtZW50cyB0aGF0IEZhY2Vib29rIGhhdmUgYmVlbiBtYWtpbmcg
-dG8gdGhlIG5iZCBkcml2ZXIsDQo+IGFuZCBJIHRoaW5rIHRoYXQncyBhIHdvbmRlcmZ1bCB0aGlu
-Zy4gIE1heWJlIHRoZSBvdXRjb21lIG9mIHRoaXMgdG9waWMNCj4gaXMgc2ltcGx5OiAiU2h1dCB1
-cCwgTWF0dGhldywgdGhpcyBpcyBnb29kIGVub3VnaCIuDQo+IA0KPiBJdCdzIGNsZWFyIHRoYXQg
-dGhlcmUncyBhbiBhcHBldGl0ZSBmb3IgdXNlcnNwYWNlIGJsb2NrIGRldmljZXM7IG5vdCBmb3IN
-Cj4gc3dhcCBkZXZpY2VzIG9yIHRoZSByb290IGRldmljZSwgYnV0IGZvciBhY2Nlc3NpbmcgZGF0
-YSB0aGF0J3Mgc3RvcmVkDQo+IGluIHRoYXQgc2lsbyBvdmVyIHRoZXJlLCBhbmQgSSByZWFsbHkg
-ZG9uJ3Qgd2FudCB0byBicmluZyB0aGF0IGVudGlyZQ0KPiBtZXNzIG9mIENPUkJBIC8gR28gLyBS
-dXN0IC8gd2hhdGV2ZXIgaW50byB0aGUga2VybmVsIHRvIGdldCB0byBpdCwNCj4gYnV0IGl0IHdv
-dWxkIGJlIHJlYWxseSBoYW5keSB0byBwcmVzZW50IGl0IGFzIGEgYmxvY2sgZGV2aWNlLg0KPiAN
-Cj4gSSd2ZSBsb29rZWQgYXQgYSBmZXcgYmxvY2stZHJpdmVyLWluLXVzZXJzcGFjZSBwcm9qZWN0
-cyB0aGF0IGV4aXN0LCBhbmQNCj4gdGhleSBhbGwgc2VlbSBwcmV0dHkgYmFkLiAgRm9yIGV4YW1w
-bGUsIG9uZSBBUEkgbWFwcyBhIGZldyBnaWdhYnl0ZXMgb2YNCj4gYWRkcmVzcyBzcGFjZSBhbmQg
-cGxheXMgZ2FtZXMgd2l0aCB2bV9pbnNlcnRfcGFnZSgpIHRvIHB1dCBwYWdlIGNhY2hlDQo+IHBh
-Z2VzIGludG8gdGhlIGFkZHJlc3Mgc3BhY2Ugb2YgdGhlIGNsaWVudCBwcm9jZXNzLiAgT2YgY291
-cnNlLCB0aGUgVExCDQo+IGZsdXNoIG92ZXJoZWFkIG9mIHRoYXQgc29sdXRpb24gaXMgY3JpbWlu
-YWwuDQo+IA0KPiBJJ3ZlIGxvb2tlZCBhdCBwaXBlcywgYW5kIHRoZXkncmUgbm90IGFuIGF3ZnVs
-IHNvbHV0aW9uLiAgV2UndmUgYWxtb3N0DQo+IGdvdCBlbm91Z2ggc3lzY2FsbHMgdG8gdHJlYXQg
-b3RoZXIgb2JqZWN0cyBhcyBwaXBlcy4gIFRoZSBwcm9ibGVtIGlzDQo+IHRoYXQgdGhleSdyZSBu
-b3Qgc2Vla2FibGUuICBTbyBlc3NlbnRpYWxseSB5b3UncmUgbG9va2luZyBhdCBoYXZpbmcgb25l
-DQo+IHBpcGUgcGVyIG91dHN0YW5kaW5nIGNvbW1hbmQuICBJZiB5dSB3YW50IHRvIG1ha2UgZ29v
-ZCB1c2Ugb2YgYSBtb2Rlcm4NCj4gTkFORCBkZXZpY2UsIHlvdSB3YW50IGEgZmV3IGh1bmRyZWQg
-b3V0c3RhbmRpbmcgY29tbWFuZHMsIGFuZCB0aGF0J3MgYQ0KPiBiaXQgb2YgYSBzaG9kZHkgaW50
-ZXJmYWNlLg0KPiANCj4gUmlnaHQgbm93LCBJJ20gbGVhbmluZyB0b3dhcmRzIGNvbWJpbmluZyB0
-aGVzZSB0d28gYXBwcm9hY2hlczsgYWRkaW5nDQo+IGEgVk1fTk9UTEIgZmxhZyBzbyB0aGUgbW1h
-cGVkIGJpdHMgb2YgdGhlIHBhZ2UgY2FjaGUgbmV2ZXIgbWFrZSBpdCBpbnRvDQo+IHRoZSBwcm9j
-ZXNzJ3MgYWRkcmVzcyBzcGFjZSwgc28gdGhlIFRMQiBzaG9vdGRvd24gY2FuIGJlIHNhZmVseSBz
-a2lwcGVkLg0KPiBUaGVuIGNoZWNrIGl0IGluIGZvbGxvd19wYWdlX21hc2soKSBhbmQgcmV0dXJu
-IHRoZSBhcHByb3ByaWF0ZSBzdHJ1Y3QNCj4gcGFnZS4gIEFzIGxvbmcgYXMgdGhlIHVzZXJzcGFj
-ZSBwcm9jZXNzIGRvZXMgZXZlcnl0aGluZyB1c2luZyBPX0RJUkVDVCwNCj4gSSB0aGluayB0aGlz
-IHdpbGwgd29yay4NCj4gDQo+IEl0J3MgZWl0aGVyIHRoYXQgb3IgbWFrZSBwaXBlcyBzZWVrYWJs
-ZSAuLi4NCg0KSG93IGFib3V0IHVzaW5nIHRoZSBSRE1BIEFQSSBhbmQgdGhlIHJkbWFfcnhlIGRy
-aXZlciBvdmVyIGxvb3BiYWNrPyBUaGUgUkRNQQ0KQVBJIHN1cHBvcnRzIHplcm8tY29weSBjb21t
-dW5pY2F0aW9uIHdoaWNoIGlzIHNvbWV0aGluZyB0aGUgQlNEIHNvY2tldCBBUEkNCmRvZXMgbm90
-IHN1cHBvcnQuIFRoZSBSRE1BIEFQSSBhbHNvIHN1cHBvcnRzIGJ5dGUtbGV2ZWwgZ3JhbnVsYXJp
-dHkgYW5kIHRoZQ0KaG90IHBhdGggKGliX3Bvc3Rfc2VuZCgpLCBpYl9wb3N0X3JlY3YoKSwgaWJf
-cG9sbF9jcSgpKSBkb2VzIG5vdCByZXF1aXJlIGFueQ0Kc3lzdGVtIGNhbGxzIGZvciBQQ0llIFJE
-TUEgYWRhcHRlcnMuIFRoZSByZG1hX3J4ZSBkcml2ZXIgaG93ZXZlciB1c2VzIGEgc3lzdGVtDQpj
-YWxsIHRvIHRyaWdnZXIgdGhlIHNlbmQgZG9vcmJlbGwuDQoNCkJhcnQuDQo=
+
+
+> On Jan 16, 2018, at 1:26 PM, Mel Gorman <mgorman@suse.de> wrote:
+>=20
+> On Tue, Jan 16, 2018 at 11:28:44AM -0800, Henry Willard wrote:
+>> Workloads consisting of a large number processes running the same =
+program
+>> with a large shared data section may suffer from excessive numa =
+balancing
+>> page migration of the pages in the shared data section. This shows up =
+as
+>> high I/O wait time and degraded performance on machines with higher =
+socket
+>> or node counts.
+>>=20
+>> This patch skips shared copy-on-write pages in change_pte_range() for =
+the
+>> numa balancing case.
+>>=20
+>> Signed-off-by: Henry Willard <henry.willard@oracle.com>
+>> Reviewed-by: H=C3=A5kon Bugge <haakon.bugge@oracle.com>
+>> Reviewed-by: Steve Sistare steven.sistare@oracle.com
+>=20
+> Merge the leader and this mail together. It would have been nice to =
+see
+> data on other realistic workloads as well.
+>=20
+> My main source of discomfort is the fact that this is permanent as two
+> processes perfectly isolated but with a suitably shared COW mapping
+> will never migrate the data. A potential improvement to get the =
+reported
+> bandwidth up in the test program would be to skip the rest of the VMA =
+if
+> page_mapcount !=3D 1 in a COW mapping as it would be reasonable to =
+assume
+> the remaining pages in the VMA are also affected and the scan is =
+wasteful.
+> There are counter-examples to this but I suspect that the full VMA =
+being
+> shared is the common case. Whether you do that or not;
+>=20
+> Acked-by: Mel Gorman <mgorman@suse.de>
+
+Thanks. The real customer cases where this was observed involved large, =
+1TB or more, eight socket machines running very active RDBMS workloads. =
+These customers saw high iowait times and a loss in performance when =
+numa balancing was enabled. Previously there was no reported iowait =
+time. The extent of the loss of performance was variable depending on =
+the activity and never quantified. The little test program is a =
+distillation of what was observed. In the real workload, a large part of =
+the VMA is shared, but not all of it, so this seemed the simplest and =
+most reliable patch.
+
+Henry
+
+>=20
+> --=20
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
