@@ -1,85 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 07F10280263
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 21:49:27 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c142so3255524wmh.4
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 18:49:26 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 90sor295155wrp.23.2018.01.16.18.49.25
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F29D1280272
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 22:04:22 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id 61so7307283plz.3
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 19:04:22 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id m5si2825310pgd.250.2018.01.16.19.04.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Jan 2018 18:49:25 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jan 2018 19:04:21 -0800 (PST)
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH v6 03/24] mm: Dont assume page-table invariance during faults
+References: <1515777968-867-1-git-send-email-ldufour@linux.vnet.ibm.com>
+	<1515777968-867-4-git-send-email-ldufour@linux.vnet.ibm.com>
+Date: Tue, 16 Jan 2018 19:04:12 -0800
+In-Reply-To: <1515777968-867-4-git-send-email-ldufour@linux.vnet.ibm.com>
+	(Laurent Dufour's message of "Fri, 12 Jan 2018 18:25:47 +0100")
+Message-ID: <87d129tccz.fsf@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180116145240.GD30073@bombadil.infradead.org>
-References: <20180116145240.GD30073@bombadil.infradead.org>
-From: Ming Lei <tom.leiming@gmail.com>
-Date: Wed, 17 Jan 2018 10:49:24 +0800
-Message-ID: <CACVXFVPqJ6xYq31Ve5tXCKiNne_S1ve8csA+j_wCPnnZCPahvg@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] A high-performance userspace block driver
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-block <linux-block@vger.kernel.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Tue, Jan 16, 2018 at 10:52 PM, Matthew Wilcox <willy@infradead.org> wrote:
+Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
+
+> From: Peter Zijlstra <peterz@infradead.org>
 >
-> I see the improvements that Facebook have been making to the nbd driver,
-> and I think that's a wonderful thing.  Maybe the outcome of this topic
-> is simply: "Shut up, Matthew, this is good enough".
+> One of the side effects of speculating on faults (without holding
+> mmap_sem) is that we can race with free_pgtables() and therefore we
+> cannot assume the page-tables will stick around.
 >
-> It's clear that there's an appetite for userspace block devices; not for
-> swap devices or the root device, but for accessing data that's stored
-> in that silo over there, and I really don't want to bring that entire
-> mess of CORBA / Go / Rust / whatever into the kernel to get to it,
-> but it would be really handy to present it as a block device.
+> Remove the reliance on the pte pointer.
 
-I like the idea, and one line code of Python/... may need thousands
-of C code to be done in kernel.
+This needs a lot more explanation. So why is this code not needed with
+SPF only?
 
->
-> I've looked at a few block-driver-in-userspace projects that exist, and
-> they all seem pretty bad.  For example, one API maps a few gigabytes of
-> address space and plays games with vm_insert_page() to put page cache
-> pages into the address space of the client process.  Of course, the TLB
-> flush overhead of that solution is criminal.
->
-> I've looked at pipes, and they're not an awful solution.  We've almost
-> got enough syscalls to treat other objects as pipes.  The problem is
-> that they're not seekable.  So essentially you're looking at having one
-> pipe per outstanding command.  If yu want to make good use of a modern
-> NAND device, you want a few hundred outstanding commands, and that's a
-> bit of a shoddy interface.
->
-> Right now, I'm leaning towards combining these two approaches; adding
-> a VM_NOTLB flag so the mmaped bits of the page cache never make it into
-> the process's address space, so the TLB shootdown can be safely skipped.
-> Then check it in follow_page_mask() and return the appropriate struct
-> page.  As long as the userspace process does everything using O_DIRECT,
-> I think this will work.
->
-> It's either that or make pipes seekable ...
-
-Userfaultfd might be another choice:
-
-1) map the block LBA space into a range of process vm space
-
-2) when READ/WRITE req comes, convert it to page fault on the
-mapped range, and let userland to take control of it, and meantime
-kernel req context is slept
-
-3) IO req context in kernel side is waken up after userspace completed
-the IO request via userfaultfd
-
-4) kernel side continue to complete the IO, such as copying page from
-storage range to req(bio) pages.
-
-Seems READ should be fine since it is very similar with the use case
-of QEMU postcopy live migration, WRITE can be a bit different, and
-maybe need some change on userfaultfd.
-
--- 
-Ming Lei
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
