@@ -1,106 +1,325 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A755280281
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:57:29 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id z37so3078518qtj.15
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 00:57:29 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id p60si4003053qtd.169.2018.01.17.00.57.28
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B5D8280281
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:57:48 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id e29so7982135plj.12
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 00:57:48 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 4si3977943plc.812.2018.01.17.00.57.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jan 2018 00:57:28 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0H8uSWR064712
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:57:27 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2fj1v9v1w2-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:57:27 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 17 Jan 2018 08:57:24 -0000
-Subject: Re: [PATCH v6 03/24] mm: Dont assume page-table invariance during
- faults
-References: <1515777968-867-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1515777968-867-4-git-send-email-ldufour@linux.vnet.ibm.com>
- <87d129tccz.fsf@linux.intel.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 17 Jan 2018 09:57:14 +0100
+        Wed, 17 Jan 2018 00:57:46 -0800 (PST)
+Message-ID: <5A5F109B.7090200@intel.com>
+Date: Wed, 17 Jan 2018 17:00:11 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <87d129tccz.fsf@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Subject: Re: [PATCH v22 2/3] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+References: <1516165812-3995-1-git-send-email-wei.w.wang@intel.com> <1516165812-3995-3-git-send-email-wei.w.wang@intel.com> <1003745745.1007975.1516177271163.JavaMail.zimbra@redhat.com>
+In-Reply-To: <1003745745.1007975.1516177271163.JavaMail.zimbra@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <476660c5-771c-0125-7d04-0e5a8d8bf65d@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Pankaj Gupta <pagupta@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang opensource <liliang.opensource@gmail.com>, yang zhang wz <yang.zhang.wz@gmail.com>, quan xu0 <quan.xu0@gmail.com>, nilal@redhat.com, riel@redhat.com
 
-On 17/01/2018 04:04, Andi Kleen wrote:
-> Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
-> 
->> From: Peter Zijlstra <peterz@infradead.org>
+On 01/17/2018 04:21 PM, Pankaj Gupta wrote:
+>> Negotiation of the VIRTIO_BALLOON_F_FREE_PAGE_VQ feature indicates the
+>> support of reporting hints of guest free pages to host via virtio-balloon.
 >>
->> One of the side effects of speculating on faults (without holding
->> mmap_sem) is that we can race with free_pgtables() and therefore we
->> cannot assume the page-tables will stick around.
+>> Host requests the guest to report free pages by sending a new cmd
+>> id to the guest via the free_page_report_cmd_id configuration register.
 >>
->> Remove the reliance on the pte pointer.
-> 
-> This needs a lot more explanation. So why is this code not needed with
-> SPF only?
-
-Hi Andi,
-
-This is a good question, and I should detail that more in the commit's log.
-
-Here is my response to Balbir when he asked for:
-
-On 10/07/2017 19:48, Laurent Dufour wrote:
-> On 07/07/2017 09:07, Balbir Singh wrote:
->> On Fri, 2017-06-16 at 19:52 +0200, Laurent Dufour wrote:
->>> From: Peter Zijlstra <peterz@infradead.org>
->>>
->>> One of the side effects of speculating on faults (without holding
->>> mmap_sem) is that we can race with free_pgtables() and therefore we
->>> cannot assume the page-tables will stick around.
->>>
->>> Remove the relyance on the pte pointer.
->>              ^^ reliance
+>> When the guest starts to report, the first element added to the free page
+>> vq is the cmd id given by host. When the guest finishes the reporting
+>> of all the free pages, VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID is added
+>> to the vq to tell host that the reporting is done. Host may also requests
+>> the guest to stop the reporting in advance by sending the stop cmd id to
+>> the guest via the configuration register.
 >>
->> Looking at the changelog and the code the impact is not clear.
->> It looks like after this patch we always assume the pte is not
->> the same. What is the impact of this patch?
-> 
-> Hi Balbir,
-> 
-> In most of the case pte_unmap_same() was returning 1, which meaning that
-> do_swap_page() should do its processing.
-> 
-> So in most of the case there will be no impact.
-> 
-> Now regarding the case where pte_unmap_safe() was returning 0, and thus
-> do_swap_page return 0 too, this happens when the page has already been
-> swapped back. This may happen before do_swap_page() get called or while in
-> the call to do_swap_page(). In that later case, the check done when
-> swapin_readahead() returns will detect that case.
-> 
-> The worst case would be that a page fault is occuring on 2 threads at the
-> same time on the same swapped out page. In that case one thread will take
-> much time looping in __read_swap_cache_async(). But in the regular page
-> fault path, this is even worse since the thread would wait for semaphore to
-> be released before starting anything.
-> 
-> Cheers,
-> Laurent.
-> 
+>> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+>> Signed-off-by: Liang Li <liang.z.li@intel.com>
+>> Cc: Michael S. Tsirkin <mst@redhat.com>
+>> Cc: Michal Hocko <mhocko@kernel.org>
+>> ---
+>>   drivers/virtio/virtio_balloon.c     | 242
+>>   +++++++++++++++++++++++++++++++-----
+>>   include/uapi/linux/virtio_balloon.h |   4 +
+>>   2 files changed, 214 insertions(+), 32 deletions(-)
+>>
+>> diff --git a/drivers/virtio/virtio_balloon.c
+>> b/drivers/virtio/virtio_balloon.c
+>> index a1fb52c..b9561a5 100644
+>> --- a/drivers/virtio/virtio_balloon.c
+>> +++ b/drivers/virtio/virtio_balloon.c
+>> @@ -53,7 +53,12 @@ static struct vfsmount *balloon_mnt;
+>>   
+>>   struct virtio_balloon {
+>>   	struct virtio_device *vdev;
+>> -	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
+>> +	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
+>> +
+>> +	/* Balloon's own wq for cpu-intensive work items */
+>> +	struct workqueue_struct *balloon_wq;
+>> +	/* The free page reporting work item submitted to the balloon wq */
+>> +	struct work_struct report_free_page_work;
+>>   
+>>   	/* The balloon servicing is delegated to a freezable workqueue. */
+>>   	struct work_struct update_balloon_stats_work;
+>> @@ -63,6 +68,13 @@ struct virtio_balloon {
+>>   	spinlock_t stop_update_lock;
+>>   	bool stop_update;
+>>   
+>> +	/* Start to report free pages */
+>> +	bool report_free_page;
+>> +	/* Stores the cmd id given by host to start the free page reporting */
+>> +	uint32_t start_cmd_id;
+>> +	/* Stores STOP_ID as a sign to tell host that the reporting is done */
+>> +	uint32_t stop_cmd_id;
+>> +
+>>   	/* Waiting for host to ack the pages we released. */
+>>   	wait_queue_head_t acked;
+>>   
+>> @@ -281,6 +293,71 @@ static unsigned int update_balloon_stats(struct
+>> virtio_balloon *vb)
+>>   	return idx;
+>>   }
+>>   
+>> +static void add_one_sg(struct virtqueue *vq, unsigned long pfn, uint32_t
+>> len)
+>> +{
+>> +	struct scatterlist sg;
+>> +	unsigned int unused;
+>> +	int err;
+>> +
+>> +	sg_init_table(&sg, 1);
+>> +	sg_set_page(&sg, pfn_to_page(pfn), len, 0);
+>> +
+>> +	/* Detach all the used buffers from the vq */
+>> +	while (virtqueue_get_buf(vq, &unused))
+>> +		;
+>> +
+>> +	/*
+>> +	 * Since this is an optimization feature, losing a couple of free
+>> +	 * pages to report isn't important. We simply resturn without adding
+>> +	 * the page if the vq is full. We are adding one entry each time,
+>> +	 * which essentially results in no memory allocation, so the
+>> +	 * GFP_KERNEL flag below can be ignored.
+>> +	 */
+>> +	if (vq->num_free) {
+>> +		err = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
+>> +		/*
+>> +		 * This is expected to never fail, because there is always an
+>> +		 * entry available on the vq.
+>> +		 */
+>> +		BUG_ON(err);
+>> +	}
+>> +}
+>> +
+>> +static void batch_free_page_sg(struct virtqueue *vq,
+>> +			       unsigned long pfn,
+>> +			       uint32_t len)
+>> +{
+>> +	add_one_sg(vq, pfn, len);
+>> +
+>> +	/* Batch till the vq is full */
+>> +	if (!vq->num_free)
+>> +		virtqueue_kick(vq);
+>> +}
+>> +
+>> +static void send_cmd_id(struct virtqueue *vq, void *addr)
+>> +{
+>> +	struct scatterlist sg;
+>> +	unsigned int unused;
+>> +	int err;
+>> +
+>> +	sg_init_one(&sg, addr, sizeof(uint32_t));
+>> +
+>> +	/*
+>> +	 * This handles the cornercase that the vq happens to be full when
+>> +	 * adding a cmd id. Rarely happen in practice.
+>> +	 */
+>> +	while (!vq->num_free)
+>> +		virtqueue_get_buf(vq, &unused);
+>> +
+>> +	err = virtqueue_add_outbuf(vq, &sg, 1, vq, GFP_KERNEL);
+>> +	/*
+>> +	 * This is expected to never fail, because there is always an
+>> +	 * entry available on the vq.
+>> +	 */
+>> +	BUG_ON(err);
+>> +	virtqueue_kick(vq);
+>> +}
+>> +
+>>   /*
+>>    * While most virtqueues communicate guest-initiated requests to the
+>>    hypervisor,
+>>    * the stats queue operates in reverse.  The driver initializes the
+>>    virtqueue
+>> @@ -316,17 +393,6 @@ static void stats_handle_request(struct virtio_balloon
+>> *vb)
+>>   	virtqueue_kick(vq);
+>>   }
+>>   
+>> -static void virtballoon_changed(struct virtio_device *vdev)
+>> -{
+>> -	struct virtio_balloon *vb = vdev->priv;
+>> -	unsigned long flags;
+>> -
+>> -	spin_lock_irqsave(&vb->stop_update_lock, flags);
+>> -	if (!vb->stop_update)
+>> -		queue_work(system_freezable_wq, &vb->update_balloon_size_work);
+>> -	spin_unlock_irqrestore(&vb->stop_update_lock, flags);
+>> -}
+>> -
+>>   static inline s64 towards_target(struct virtio_balloon *vb)
+>>   {
+>>   	s64 target;
+>> @@ -343,6 +409,36 @@ static inline s64 towards_target(struct virtio_balloon
+>> *vb)
+>>   	return target - vb->num_pages;
+>>   }
+>>   
+>> +static void virtballoon_changed(struct virtio_device *vdev)
+>> +{
+>> +	struct virtio_balloon *vb = vdev->priv;
+>> +	unsigned long flags;
+>> +	__u32 cmd_id;
+>> +	s64 diff = towards_target(vb);
+>> +
+>> +	if (diff) {
+>> +		spin_lock_irqsave(&vb->stop_update_lock, flags);
+>> +		if (!vb->stop_update)
+>> +			queue_work(system_freezable_wq,
+>> +				   &vb->update_balloon_size_work);
+>> +		spin_unlock_irqrestore(&vb->stop_update_lock, flags);
+>> +	}
+>> +
+>> +	virtio_cread(vb->vdev, struct virtio_balloon_config,
+>> +		     free_page_report_cmd_id, &cmd_id);
+>> +	if (cmd_id == VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID) {
+>> +		WRITE_ONCE(vb->report_free_page, false);
+>> +	} else if (cmd_id != vb->start_cmd_id) {
+>> +		/*
+>> +		 * Host requests to start the reporting by sending a new cmd
+>> +		 * id.
+>> +		 */
+>> +		WRITE_ONCE(vb->report_free_page, true);
+>> +		vb->start_cmd_id = cmd_id;
+>> +		queue_work(vb->balloon_wq, &vb->report_free_page_work);
+>> +	}
+>> +}
+>> +
+>>   static void update_balloon_size(struct virtio_balloon *vb)
+>>   {
+>>   	u32 actual = vb->num_pages;
+>> @@ -417,40 +513,113 @@ static void update_balloon_size_func(struct
+>> work_struct *work)
+>>   
+>>   static int init_vqs(struct virtio_balloon *vb)
+>>   {
+>> -	struct virtqueue *vqs[3];
+>> -	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
+>> -	static const char * const names[] = { "inflate", "deflate", "stats" };
+>> -	int err, nvqs;
+>> +	struct virtqueue **vqs;
+>> +	vq_callback_t **callbacks;
+>> +	const char **names;
+>> +	struct scatterlist sg;
+>> +	int i, nvqs, err = -ENOMEM;
+>> +
+>> +	/* Inflateq and deflateq are used unconditionally */
+>> +	nvqs = 2;
+>> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ))
+>> +		nvqs++;
+>> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ))
+>> +		nvqs++;
+>> +
+>> +	/* Allocate space for find_vqs parameters */
+>> +	vqs = kcalloc(nvqs, sizeof(*vqs), GFP_KERNEL);
+>> +	if (!vqs)
+>> +		goto err_vq;
+>> +	callbacks = kmalloc_array(nvqs, sizeof(*callbacks), GFP_KERNEL);
+>> +	if (!callbacks)
+>> +		goto err_callback;
+>> +	names = kmalloc_array(nvqs, sizeof(*names), GFP_KERNEL);
+>> +	if (!names)
+>> +		goto err_names;
+>> +
+>> +	callbacks[0] = balloon_ack;
+>> +	names[0] = "inflate";
+>> +	callbacks[1] = balloon_ack;
+>> +	names[1] = "deflate";
+>> +
+>> +	i = 2;
+>> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+>> +		callbacks[i] = stats_request;
+>> +		names[i] = "stats";
+>> +		i++;
+>> +	}
+>>   
+>> -	/*
+>> -	 * We expect two virtqueues: inflate and deflate, and
+>> -	 * optionally stat.
+>> -	 */
+>> -	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
+>> -	err = virtio_find_vqs(vb->vdev, nvqs, vqs, callbacks, names, NULL);
+>> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ)) {
+>> +		callbacks[i] = NULL;
+>> +		names[i] = "free_page_vq";
+>> +	}
+>> +
+>> +	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names,
+>> +					 NULL, NULL);
+>>   	if (err)
+>> -		return err;
+>> +		goto err_find;
+>>   
+>>   	vb->inflate_vq = vqs[0];
+>>   	vb->deflate_vq = vqs[1];
+>> +	i = 2;
+>>   	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+>> -		struct scatterlist sg;
+>> -		unsigned int num_stats;
+>> -		vb->stats_vq = vqs[2];
+>> -
+>> +		vb->stats_vq = vqs[i++];
+>>   		/*
+>>   		 * Prime this virtqueue with one buffer so the hypervisor can
+>>   		 * use it to signal us later (it can't be broken yet!).
+>>   		 */
+>> -		num_stats = update_balloon_stats(vb);
+>> -
+>> -		sg_init_one(&sg, vb->stats, sizeof(vb->stats[0]) * num_stats);
+>> +		sg_init_one(&sg, vb->stats, sizeof(vb->stats));
+>>   		if (virtqueue_add_outbuf(vb->stats_vq, &sg, 1, vb, GFP_KERNEL)
+>> -		    < 0)
+>> -			BUG();
+>> +		    < 0) {
+>> +			dev_warn(&vb->vdev->dev, "%s: add stat_vq failed\n",
+>> +				 __func__);
+>> +			goto err_find;
+>> +		}
+>>   		virtqueue_kick(vb->stats_vq);
+>>   	}
+>> +
+>> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ))
+>> +		vb->free_page_vq = vqs[i];
+>> +
+>> +	kfree(names);
+>> +	kfree(callbacks);
+>> +	kfree(vqs);
+>>   	return 0;
+>   
+> We can assign err=0 and remove above duplicate code?
+>   
 
-I'll add that to the commit's log.
+Where do you want to assign err=0? Could you show it using code?
 
-Thanks,
-Laurent.
+
+Best,
+Wei
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
