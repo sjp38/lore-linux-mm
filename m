@@ -1,73 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C3FA828029C
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 08:04:18 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id 194so4104532wmv.9
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 05:04:18 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F17A28029C
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 08:14:47 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id b193so3950439wmd.7
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 05:14:47 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t12si4329368wra.453.2018.01.17.05.04.15
+        by mx.google.com with ESMTPS id p4si3633504wmd.264.2018.01.17.05.14.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Jan 2018 05:04:16 -0800 (PST)
-Date: Wed, 17 Jan 2018 14:04:07 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180117130407.unwy6noeorzretvn@pathway.suse.cz>
-References: <20180111222140.7fd89d52@gandalf.local.home>
- <20180112100544.GA441@jagdpanzerIV>
- <20180112072123.33bb567d@gandalf.local.home>
- <20180113072834.GA1701@tigerII.localdomain>
- <20180115070637.1915ac20@gandalf.local.home>
- <20180115144530.pej3k3xmkybjr6zb@pathway.suse.cz>
- <20180116022349.GD6607@jagdpanzerIV>
- <20180116044716.GE6607@jagdpanzerIV>
- <20180116104508.515ca393@gandalf.local.home>
- <20180117021856.GA423@jagdpanzerIV>
+        Wed, 17 Jan 2018 05:14:45 -0800 (PST)
+Subject: Re: [RFC] mm: why vfree() do not free page table memory?
+References: <5A4603AB.8060809@huawei.com>
+ <0ffd113e-84da-bd49-2b63-3d27d2702580@suse.cz> <5A5F1C09.9040000@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <6598f55a-49c6-c5df-974a-e697317ade9b@suse.cz>
+Date: Wed, 17 Jan 2018 14:14:42 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180117021856.GA423@jagdpanzerIV>
+In-Reply-To: <5A5F1C09.9040000@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "Wujiangtao (A)" <wu.wujiangtao@huawei.com>
 
-On Wed 2018-01-17 11:18:56, Sergey Senozhatsky wrote:
-> On (01/16/18 10:45), Steven Rostedt wrote:
-> [..]
-> > > [1] https://marc.info/?l=linux-mm&m=145692016122716
-> > 
-> > Especially since Konstantin is working on pulling in all LKML archives,
-> > the above should be denoted as:
-> > 
-> >  Link: http://lkml.kernel.org/r/201603022101.CAH73907.OVOOMFHFFtQJSL%20()%20I-love%20!%20SAKURA%20!%20ne%20!%20jp
+On 01/17/2018 10:48 AM, Xishi Qiu wrote:
+> On 2018/1/17 17:16, Vlastimil Babka wrote:
 > 
-> hm, may I ask why? is there a new rule now to percent-encode commit messages?
-
-IMHO, the most important thing is that Steven's link is based
-on the Message-ID and the stable redirector
-https://lkml.kernel.org/. It has a better chance to work
-even in the future.
-
-I have been asked by other people to use this type
-of links as well.
-
-> > Although the above is for linux-mm and not LKML (it still works), I
-> > should ask Konstantin if he will be pulling in any of the other
-> > archives. Perhaps have both? (in case marc.info goes away).
-> > 
-> > > Fixes: 6b97a20d3a79 ("printk: set may_schedule for some of console_trylock() callers")
-> > 
-> > Should we Cc stable@vger.kernel.org?
+>> On 12/29/2017 09:58 AM, Xishi Qiu wrote:
+>>> When calling vfree(), it calls unmap_vmap_area() to clear page table,
+>>> but do not free the memory of page table, why? just for performance?
+>>
+>> I guess it's expected that the free virtual range and associated page
+>> tables it might be reused later.
+>>
 > 
-> that's a good question... maybe yes, maybe no... I'd say this
-> change is "safer" when we have hand-off.
+> Hi Vlastimili 1/4 ?
+> 
+> If use vmalloc/vfree different size, then there will be some hols during 
+> VMALLOC_START to VMALLOC_END, and this holes takes page table memory, right?
 
-I would keep it as is in stable kernels unless there are
-many bug reports.
+Possibly. But to free a page table page, there has to be contiguous
+aligned 2MB hole.
 
-Best Regards,
-Petr
+>>> If a driver use vmalloc() and vfree() frequently, we will lost much
+>>> page table memory, maybe oom later.
+>>
+>> If it's reused, then not really.
+>>
+>> Did you notice an actual issue, or is this just theoretical concern.
+>>
+> 
+> Yes, we have this problem on our production line.
+> I find the page table memory takes 200-300M.
+
+Well, can you verify that it's really due to vmalloc holes? And that the
+holes are there because of an unfortunate sequence of vmalloc/vfree, and
+not due to some bug in vmalloc failing to reuse freed areas properly?
+And do the holes contain enough 2MB aligned ranges to make it possible
+to free the page tables?
+
+Vlastimil
+
+> Thanks,
+> Xishi Qiu
+> 
+>>> Thanks,
+>>> Xishi Qiu
+>>>
+>>
+>>
+>> .
+>>
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
