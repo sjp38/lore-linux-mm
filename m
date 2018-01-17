@@ -1,58 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 433F3280272
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 22:48:12 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 199so4777717pfy.18
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 19:48:12 -0800 (PST)
-Received: from heian.cn.fujitsu.com (mail.cn.fujitsu.com. [183.91.158.132])
-        by mx.google.com with ESMTP id n4si2974757pgu.65.2018.01.16.19.48.10
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A362128027D
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 23:54:20 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id m1so7558726pls.20
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 20:54:20 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id 33si3509532pll.277.2018.01.16.20.54.17
         for <linux-mm@kvack.org>;
-        Tue, 16 Jan 2018 19:48:11 -0800 (PST)
-From: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Subject: [PATCH] mm/page_poison: Make early_page_poison_param __init
-Date: Wed, 17 Jan 2018 11:47:57 +0800
-Message-ID: <20180117034757.27024-1-douly.fnst@cn.fujitsu.com>
+        Tue, 16 Jan 2018 20:54:18 -0800 (PST)
+Subject: Re: [PATCH v5 1/2] printk: Add console owner and waiter logic to load
+ balance console writes
+From: Byungchul Park <byungchul.park@lge.com>
+References: <20180110132418.7080-1-pmladek@suse.com>
+ <20180110132418.7080-2-pmladek@suse.com>
+ <f4ea1404-404d-11d2-550c-7367add3f5fa@lge.com>
+Message-ID: <83e4baf9-6ece-6e81-1864-689934b7733a@lge.com>
+Date: Wed, 17 Jan 2018 13:54:15 +0900
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <f4ea1404-404d-11d2-550c-7367add3f5fa@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Dou Liyang <douly.fnst@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Michal Hocko <mhocko@suse.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org
+To: Petr Mladek <pmladek@suse.com>, Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-The early_param() is only called during kernel initialization, So Linux
-marks the function of it with __init macro to save memory.
+On 1/17/2018 11:19 AM, Byungchul Park wrote:
+> On 1/10/2018 10:24 PM, Petr Mladek wrote:
+>> From: Steven Rostedt <rostedt@goodmis.org>
+>>
+>> From: Steven Rostedt (VMware) <rostedt@goodmis.org>
+>>
+>> This patch implements what I discussed in Kernel Summit. I added
+>> lockdep annotation (hopefully correctly), and it hasn't had any splats
+>> (since I fixed some bugs in the first iterations). It did catch
+>> problems when I had the owner covering too much. But now that the owner
+>> is only set when actively calling the consoles, lockdep has stayed
+>> quiet.
+>>
+>> Here's the design again:
+>>
+>> I added a "console_owner" which is set to a task that is actively
+>> writing to the consoles. It is *not* the same as the owner of the
+>> console_lock. It is only set when doing the calls to the console
+>> functions. It is protected by a console_owner_lock which is a raw spin
+>> lock.
+>>
+>> There is a console_waiter. This is set when there is an active console
+>> owner that is not current, and waiter is not set. This too is protected
+>> by console_owner_lock.
+>>
+>> In printk() when it tries to write to the consoles, we have:
+>>
+>> A A A A if (console_trylock())
+>> A A A A A A A  console_unlock();
+>>
+>> Now I added an else, which will check if there is an active owner, and
+>> no current waiter. If that is the case, then console_waiter is set, and
+>> the task goes into a spin until it is no longer set.
+>>
+>> When the active console owner finishes writing the current message to
+>> the consoles, it grabs the console_owner_lock and sees if there is a
+>> waiter, and clears console_owner.
+>>
+>> If there is a waiter, then it breaks out of the loop, clears the waiter
+>> flag (because that will release the waiter from its spin), and exits.
+>> Note, it does *not* release the console semaphore. Because it is a
+>> semaphore, there is no owner. Another task may release it. This means
+>> that the waiter is guaranteed to be the new console owner! Which it
+>> becomes.
+>>
+>> Then the waiter calls console_unlock() and continues to write to the
+>> consoles.
+>>
+>> If another task comes along and does a printk() it too can become the
+>> new waiter, and we wash rinse and repeat!
+>>
+>> By Petr Mladek about possible new deadlocks:
+>>
+>> The thing is that we move console_sem only to printk() call
+>> that normally calls console_unlock() as well. It means that
+>> the transferred owner should not bring new type of dependencies.
+>> As Steven said somewhere: "If there is a deadlock, it was
+>> there even before."
+>>
+>> We could look at it from this side. The possible deadlock would
+>> look like:
+>>
+>> CPU0A A A A A A A A A A A A A A A A A A A A A A A A A A A  CPU1
+>>
+>> console_unlock()
+>>
+>> A A  console_owner = current;
+>>
+>> A A A A A A A A A A A A A A A  spin_lockA()
+>> A A A A A A A A A A A A A A A A A  printk()
+>> A A A A A A A A A A A A A A A A A A A  spin = true;
+>> A A A A A A A A A A A A A A A A A A A  while (...)
+>>
+>> A A A A  call_console_drivers()
+>> A A A A A A  spin_lockA()
+>>
+>> This would be a deadlock. CPU0 would wait for the lock A.
+>> While CPU1 would own the lockA and would wait for CPU0
+>> to finish calling the console drivers and pass the console_sem
+>> owner.
+>>
+>> But if the above is true than the following scenario was
+>> already possible before:
+>>
+>> CPU0
+>>
+>> spin_lockA()
+>> A A  printk()
+>> A A A A  console_unlock()
+>> A A A A A A  call_console_drivers()
+>> A A A A spin_lockA()
+>>
+>> By other words, this deadlock was there even before. Such
+>> deadlocks are prevented by using printk_deferred() in
+>> the sections guarded by the lock A.
+> 
+> Hello,
+> 
+> I didn't see what you did, at the last version. You were
+> tring to transfer the semaphore owner and make it taken
+> over. I see.
+> 
+> But, what I mentioned last time is still valid. See below.
 
-But it forgot to mark the early_page_poison_param(). So, Make it __init
-as well.
+Of course, it's not an important thing but trivial one though.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Philippe Ombredanne <pombredanne@nexb.com>
-Cc: Kate Stewart <kstewart@linuxfoundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-mm@kvack.org
-Signed-off-by: Dou Liyang <douly.fnst@cn.fujitsu.com>
----
- mm/page_poison.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/page_poison.c b/mm/page_poison.c
-index e83fd44867de..aa2b3d34e8ea 100644
---- a/mm/page_poison.c
-+++ b/mm/page_poison.c
-@@ -9,7 +9,7 @@
- 
- static bool want_page_poisoning __read_mostly;
- 
--static int early_page_poison_param(char *buf)
-+static int __init early_page_poison_param(char *buf)
- {
- 	if (!buf)
- 		return -EINVAL;
 -- 
-2.14.3
-
-
+Thanks,
+Byungchul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
