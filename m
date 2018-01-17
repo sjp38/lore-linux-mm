@@ -1,144 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F4786B0271
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 18:04:03 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id g13so14182579wrh.19
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:04:03 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f5si3914513wmg.258.2018.01.17.15.04.01
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 03E106B0261
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 18:15:35 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id e185so15351524pfg.23
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:15:34 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m12sor1879724pls.118.2018.01.17.15.15.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jan 2018 15:04:02 -0800 (PST)
-Date: Wed, 17 Jan 2018 15:03:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/2] mm: skip HWPoisoned pages when onlining pages
-Message-Id: <20180117150359.655bb93d8f1d663a2cd48c33@linux-foundation.org>
-In-Reply-To: <20170428063048.GA9399@dhcp22.suse.cz>
-References: <1493130472-22843-1-git-send-email-ldufour@linux.vnet.ibm.com>
-	<1493130472-22843-3-git-send-email-ldufour@linux.vnet.ibm.com>
-	<1493172615.4828.3.camel@gmail.com>
-	<20170426031255.GB11619@hori1.linux.bs1.fc.nec.co.jp>
-	<20170428063048.GA9399@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 17 Jan 2018 15:15:33 -0800 (PST)
+Date: Wed, 17 Jan 2018 15:15:24 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Hang with v4.15-rc trying to swap back in
+In-Reply-To: <20180117145847.ee3137777a42199fd3ea67b8@linux-foundation.org>
+Message-ID: <alpine.LSU.2.11.1801171513030.5943@eggly.anvils>
+References: <1514398340.3986.10.camel@HansenPartnership.com> <1514407817.4169.4.camel@HansenPartnership.com> <20171227232650.GA9702@bbox> <1514417689.3083.1.camel@HansenPartnership.com> <20171227235643.GA10532@bbox> <1514482907.3040.15.camel@HansenPartnership.com>
+ <1514487640.3040.21.camel@HansenPartnership.com> <alpine.LSU.2.11.1801171423490.5238@eggly.anvils> <20180117145847.ee3137777a42199fd3ea67b8@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="0-198722094-1516230931=:5943"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Balbir Singh <bsingharora@gmail.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Wen Congyang <wency@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Linux Memory Management List <linux-mm@kvack.org>, Thorsten Leemhuis <regressions@leemhuis.info>
 
-On Fri, 28 Apr 2017 08:30:48 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> On Wed 26-04-17 03:13:04, Naoya Horiguchi wrote:
-> > On Wed, Apr 26, 2017 at 12:10:15PM +1000, Balbir Singh wrote:
-> > > On Tue, 2017-04-25 at 16:27 +0200, Laurent Dufour wrote:
-> > > > The commit b023f46813cd ("memory-hotplug: skip HWPoisoned page when
-> > > > offlining pages") skip the HWPoisoned pages when offlining pages, but
-> > > > this should be skipped when onlining the pages too.
-> > > >
-> > > > Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> > > > ---
-> > > >  mm/memory_hotplug.c | 4 ++++
-> > > >  1 file changed, 4 insertions(+)
-> > > >
-> > > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > > > index 6fa7208bcd56..741ddb50e7d2 100644
-> > > > --- a/mm/memory_hotplug.c
-> > > > +++ b/mm/memory_hotplug.c
-> > > > @@ -942,6 +942,10 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
-> > > >  	if (PageReserved(pfn_to_page(start_pfn)))
-> > > >  		for (i = 0; i < nr_pages; i++) {
-> > > >  			page = pfn_to_page(start_pfn + i);
-> > > > +			if (PageHWPoison(page)) {
-> > > > +				ClearPageReserved(page);
-> > >
-> > > Why do we clear page reserved? Also if the page is marked PageHWPoison, it
-> > > was never offlined to begin with? Or do you expect this to be set on newly
-> > > hotplugged memory? Also don't we need to skip the entire pageblock?
-> > 
-> > If I read correctly, to "skip HWPoiosned page" in commit b023f46813cd means
-> > that we skip the page status check for hwpoisoned pages *not* to prevent
-> > memory offlining for memblocks with hwpoisoned pages. That means that
-> > hwpoisoned pages can be offlined.
-> 
-> Is this patch actually correct? I am trying to wrap my head around it
-> but it smells like it tries to avoid the problem rather than fix it
-> properly. I might be wrong here of course but to me it sounds like
-> poisoned page should simply be offlined and keep its poison state all
-> the time. If the memory is hot-removed and added again we have lost the
-> struct page along with the state which is the expected behavior. If it
-> is still broken we will re-poison it.
-> 
-> Anyway a patch to skip over poisoned pages during online makes perfect
-> sense to me. The PageReserved fiddling around much less so.
-> 
-> Or am I missing something. Let's CC Wen Congyang for the clarification
-> here.
+--0-198722094-1516230931=:5943
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-Wen Congyang appears to have disappeared and this fix isn't yet
-finalized.  Can we all please revisit it and have a think about
-Michal's questions?
+On Wed, 17 Jan 2018, Andrew Morton wrote:
+> On Wed, 17 Jan 2018 14:33:21 -0800 (PST) Hugh Dickins <hughd@google.com> =
+wrote:
+> > On Thu, 28 Dec 2017, James Bottomley wrote:
+> > > On Thu, 2017-12-28 at 09:41 -0800, James Bottomley wrote:
+> > > > I'd guess that since they're both in io_schedule, the problem is th=
+at
+> > > > the io_scheduler is taking far too long servicing the requests due =
+to
+> > > > some priority issue you've introduced.
+> > >=20
+> > > OK, so after some analysis, that turned out to be incorrect. =A0The
+> > > problem seems to be that we're exiting do_swap_page() with locked pag=
+es
+> > > that have been read in from swap.
+> > >=20
+> > > Your changelogs are entirely unclear on why you changed the swapcache
+> > > setting logic in this patch:
+> > >=20
+> > > commit 0bcac06f27d7528591c27ac2b093ccd71c5d0168
+> > > Author: Minchan Kim <minchan@kernel.org>
+> > > Date:=A0=A0=A0Wed Nov 15 17:33:07 2017 -0800
+> > >=20
+> > > =A0=A0=A0=A0mm, swap: skip swapcache for swapin of synchronous device
+> > >=20
+> > > But I think you're using swapcache =3D=3D NULL as a signal the page c=
+ame
+> > > from a synchronous device. =A0In which case the bug is that you've
+> > > forgotten we may already have picked up a page in
+> > > swap_readahead_detect() which you're wrongly keeping swapcache =3D=3D=
+ NULL
+> > > for and the fix is this (it works on my system, although I'm still
+> > > getting an unaccountable shutdown delay).
+> > >=20
+> > > I still think we should revert this series, because this may not be t=
+he
+> > > only bug lurking in the code, so it should go through a lot more
+> > > rigorous testing than it has.
+> >=20
+> > Andrew, neither the fix below (works for me, though I have seen other
+> > swap funniness, most probably unrelated), nor the reversion preferred
+> > by James and Minchan (later in this linux-mm thread), was in 4.15-rc8:
+> > the sands of time are running out...
+>=20
+> Yup.  I'm actually planning on sending in this one.  OK by you?
 
-Thanks.
+Thanks, yes, that looks equivalent to what I've been running with.
 
+>=20
+>=20
+> From: Minchan Kim <minchan@kernel.org>
+> Subject: mm/memory.c: release locked page in do_swap_page()
+>=20
+> James reported a bug in swap paging-in from his testing.  It is that
+> do_swap_page doesn't release locked page so system hang-up happens due to
+> a deadlock on PG_locked.
+>=20
+> It was introduced by 0bcac06f27d7 ("mm, swap: skip swapcache for swapin o=
+f
+> synchronous device") because I missed swap cache hit places to update
+> swapcache variable to work well with other logics against swapcache in
+> do_swap_page.
+>=20
+> This patch fixes it.
+>=20
+> Debugged by James Bottomley.
+>=20
+> Link: http://lkml.kernel.org/r/<1514407817.4169.4.camel@HansenPartnership=
+=2Ecom>
+> Link: http://lkml.kernel.org/r/20180102235606.GA19438@bbox
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> Reported-by: James Bottomley <James.Bottomley@hansenpartnership.com>
+> Cc: Hugh Dickins <hughd@google.com>
 
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: mm: skip HWPoisoned pages when onlining pages
+Acked-by: Hugh Dickins <hughd@google.com>
 
-b023f46813cd ("memory-hotplug: skip HWPoisoned page when offlining pages")
-skipped the HWPoisoned pages when offlining pages, but this should be
-skipped when onlining the pages too.
-
-n-horiguchi@ah.jp.nec.com said:
-
-: If I read correctly, to "skip HWPoiosned page" in commit b023f46813cd
-: means that we skip the page status check for hwpoisoned pages *not* to
-: prevent memory offlining for memblocks with hwpoisoned pages.  That
-: means that hwpoisoned pages can be offlined.
-: 
-: And another reason to clear PageReserved is that we could reuse the
-: hwpoisoned page after onlining back with replacing the broken DIMM.  In
-: this usecase, we first do unpoisoning to clear PageHWPoison, but it
-: doesn't work if PageReserved is set.  My simple testing shows the BUG
-: below in unpoisoning (without the ClearPageReserved):
-: 
-:   Unpoison: Software-unpoisoned page 0x18000
-:   BUG: Bad page state in process page-types  pfn:18000
-:   page:ffffda5440600000 count:0 mapcount:0 mapping:          (null) index:0x70006b599
-:   flags: 0x1fffc00004081a(error|uptodate|dirty|reserved|swapbacked)
-:   raw: 001fffc00004081a 0000000000000000 000000070006b599 00000000ffffffff
-:   raw: dead000000000100 dead000000000200 0000000000000000 0000000000000000
-:   page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
-:   bad because of flags: 0x800(reserved)
-
-Link: http://lkml.kernel.org/r/1493130472-22843-3-git-send-email-ldufour@linux.vnet.ibm.com
-Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrey Vagin <avagin@openvz.org>
-Cc: Glauber Costa <glommer@openvz.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Balbir Singh <bsingharora@gmail.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/memory_hotplug.c |    4 ++++
- 1 file changed, 4 insertions(+)
-
-diff -puN mm/memory_hotplug.c~mm-skip-hwpoisoned-pages-when-onlining-pages mm/memory_hotplug.c
---- a/mm/memory_hotplug.c~mm-skip-hwpoisoned-pages-when-onlining-pages
-+++ a/mm/memory_hotplug.c
-@@ -696,6 +696,10 @@ static int online_pages_range(unsigned l
- 	if (PageReserved(pfn_to_page(start_pfn)))
- 		for (i = 0; i < nr_pages; i++) {
- 			page = pfn_to_page(start_pfn + i);
-+			if (PageHWPoison(page)) {
-+				ClearPageReserved(page);
-+				continue;
-+			}
- 			(*online_page_callback)(page);
- 			onlined_pages++;
- 		}
-_
+> Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Cc: Huang Ying <ying.huang@intel.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>=20
+>  mm/memory.c |   10 ++++++++--
+>  1 file changed, 8 insertions(+), 2 deletions(-)
+>=20
+> diff -puN mm/memory.c~mm-release-locked-page-in-do_swap_page mm/memory.c
+> --- a/mm/memory.c~mm-release-locked-page-in-do_swap_page
+> +++ a/mm/memory.c
+> @@ -2857,8 +2857,11 @@ int do_swap_page(struct vm_fault *vmf)
+>  =09int ret =3D 0;
+>  =09bool vma_readahead =3D swap_use_vma_readahead();
+> =20
+> -=09if (vma_readahead)
+> +=09if (vma_readahead) {
+>  =09=09page =3D swap_readahead_detect(vmf, &swap_ra);
+> +=09=09swapcache =3D page;
+> +=09}
+> +
+>  =09if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte)) {
+>  =09=09if (page)
+>  =09=09=09put_page(page);
+> @@ -2889,9 +2892,12 @@ int do_swap_page(struct vm_fault *vmf)
+> =20
+> =20
+>  =09delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+> -=09if (!page)
+> +=09if (!page) {
+>  =09=09page =3D lookup_swap_cache(entry, vma_readahead ? vma : NULL,
+>  =09=09=09=09=09 vmf->address);
+> +=09=09swapcache =3D page;
+> +=09}
+> +
+>  =09if (!page) {
+>  =09=09struct swap_info_struct *si =3D swp_swap_info(entry);
+> =20
+> _
+--0-198722094-1516230931=:5943--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
