@@ -1,69 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 228C76B0033
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 09:47:46 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id r74so8258372iod.15
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 06:47:46 -0800 (PST)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [69.252.207.41])
-        by mx.google.com with ESMTPS id j63si4655302itb.37.2018.01.17.06.47.45
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AA056B0069
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 10:15:15 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id h32so9784809qtb.9
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 07:15:15 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q19sor2319616qta.61.2018.01.17.07.15.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jan 2018 06:47:45 -0800 (PST)
-Date: Wed, 17 Jan 2018 08:46:41 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: kmem_cache_attr (was Re: [PATCH 04/36] usercopy: Prepare for
- usercopy whitelisting)
-In-Reply-To: <20180116210313.GA7791@bombadil.infradead.org>
-Message-ID: <alpine.DEB.2.20.1801170843550.12151@nuc-kabylake>
-References: <1515531365-37423-1-git-send-email-keescook@chromium.org> <1515531365-37423-5-git-send-email-keescook@chromium.org> <alpine.DEB.2.20.1801101219390.7926@nuc-kabylake> <20180114230719.GB32027@bombadil.infradead.org> <alpine.DEB.2.20.1801160913260.3908@nuc-kabylake>
- <20180116160525.GF30073@bombadil.infradead.org> <alpine.DEB.2.20.1801161049320.5162@nuc-kabylake> <20180116174315.GA10461@bombadil.infradead.org> <alpine.DEB.2.20.1801161205590.1771@nuc-kabylake> <alpine.DEB.2.20.1801161215500.2945@nuc-kabylake>
- <20180116210313.GA7791@bombadil.infradead.org>
+        (Google Transport Security);
+        Wed, 17 Jan 2018 07:15:14 -0800 (PST)
+Date: Wed, 17 Jan 2018 07:15:09 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180117151509.GT3460072@devbig577.frc2.facebook.com>
+References: <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
+ <20180110130517.6ff91716@vmware.local.home>
+ <20180111045817.GA494@jagdpanzerIV>
+ <20180111093435.GA24497@linux.suse>
+ <20180111103845.GB477@jagdpanzerIV>
+ <20180111112908.50de440a@vmware.local.home>
+ <20180111203057.5b1a8f8f@gandalf.local.home>
+ <20180111215547.2f66a23a@gandalf.local.home>
+ <20180116194456.GS3460072@devbig577.frc2.facebook.com>
+ <20180117091208.ezvuhumnsarz5thh@pathway.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180117091208.ezvuhumnsarz5thh@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Petr Mladek <pmladek@suse.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On Tue, 16 Jan 2018, Matthew Wilcox wrote:
+Hello,
 
-> On Tue, Jan 16, 2018 at 12:17:01PM -0600, Christopher Lameter wrote:
-> > Draft patch of how the data structs could change. kmem_cache_attr is read
-> > only.
->
-> Looks good.  Although I would add Kees' user feature:
+On Wed, Jan 17, 2018 at 10:12:08AM +0100, Petr Mladek wrote:
+> IMHO, the bad scenario with OOM was that any printk() called in
+> the OOM report became console_lock owner and was responsible
+> for pushing all new messages to the console. There was a possible
+> livelock because OOM Killer was blocked in console_unlock() while
+> other CPUs repeatedly complained about failed allocations.
 
-Sure I tried to do this quickly so that the basic struct changes are
-visible.
+I don't know why we're constantly back into this same loop on this
+topic but that's not the problem we've been seeing.  There are no
+other CPUs involved.
 
-> And I'd start with
-> +struct kmem_cache *kmem_cache_create_attr(const kmem_cache_attr *);
->
-> leaving the old kmem_cache_create to kmalloc a kmem_cache_attr and
-> initialise it.
+It's great that Steven's patches solve a good number of problems.  It
+is also true that there's a class of problems that it doesn't solve,
+which other approaches do.  The productive thing to do here is trying
+to solve the unsolved one too, especially given that it doesn't seem
+too difficuilt to do so on top of what's proposed.
 
-Well at some point we should convert the callers by putting the
-definitions into const kmem_cache_attr initializations. That way
-the callbacks function pointers are safe.
+Thanks.
 
-> Can we also do something like this?
->
-> -#define KMEM_CACHE(__struct, __flags) kmem_cache_create(#__struct,\
-> -		sizeof(struct __struct), __alignof__(struct __struct),\
-> -		(__flags), NULL)
-> +#define KMEM_CACHE(__struct, __flags) ({				\
-> +	const struct kmem_cache_attr kca ## __stringify(__struct) = {	\
-> +		.name = #__struct,					\
-> +		.size = sizeof(struct __struct),			\
-> +		.align = __alignof__(struct __struct),			\
-> +		.flags = (__flags),					\
-> +	};								\
-> +	kmem_cache_create_attr(&kca ## __stringify(__struct));		\
-> +})
->
-> That way we won't need to convert any of those users.
-
-Yep thats what I was planning.
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
