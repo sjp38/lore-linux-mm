@@ -1,60 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EF6226B0033
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 13:12:54 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id s22so3158417pfh.21
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 10:12:54 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id p2si4830537plo.798.2018.01.17.10.12.53
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D4036B0033
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 13:24:07 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id d17so18577656ioc.23
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 10:24:07 -0800 (PST)
+Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [69.252.207.37])
+        by mx.google.com with ESMTPS id g131si4881648iog.1.2018.01.17.10.24.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jan 2018 10:12:53 -0800 (PST)
-Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 7376D21742
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 18:12:53 +0000 (UTC)
-Received: by mail-io0-f176.google.com with SMTP id f34so16592883ioi.13
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 10:12:53 -0800 (PST)
+        Wed, 17 Jan 2018 10:24:06 -0800 (PST)
+Date: Wed, 17 Jan 2018 12:23:04 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm: numa: Do not trap faults on shared data section
+ pages.
+In-Reply-To: <20180116212614.gudglzw7kwzd3get@suse.de>
+Message-ID: <alpine.DEB.2.20.1801171219270.23209@nuc-kabylake>
+References: <1516130924-3545-1-git-send-email-henry.willard@oracle.com> <1516130924-3545-2-git-send-email-henry.willard@oracle.com> <20180116212614.gudglzw7kwzd3get@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20180117141006.GR28161@8bytes.org>
-References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
- <1516120619-1159-4-git-send-email-joro@8bytes.org> <CALCETrW9F4QDFPG=ATs0QiyQO526SK0s==oYKhvVhxaYCw+65g@mail.gmail.com>
- <20180117092442.GJ28161@8bytes.org> <CAMzpN2j5EUh5TJDVWPPvL9Wn9LCcouCTjZ-CUuKRRo+rvsiH+g@mail.gmail.com>
- <20180117141006.GR28161@8bytes.org>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 17 Jan 2018 10:12:32 -0800
-Message-ID: <CALCETrVQitDeZATQDoZQ6TKxqT=QNWs-qytUp8edrMDxXBbxYw@mail.gmail.com>
-Subject: Re: [PATCH 03/16] x86/entry/32: Leave the kernel via the trampoline stack
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Brian Gerst <brgerst@gmail.com>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Joerg Roedel <jroedel@suse.de>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Henry Willard <henry.willard@oracle.com>, akpm@linux-foundation.org, kstewart@linuxfoundation.org, zi.yan@cs.rutgers.edu, pombredanne@nexb.com, aarcange@redhat.com, gregkh@linuxfoundation.org, aneesh.kumar@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, jglisse@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jan 17, 2018 at 6:10 AM, Joerg Roedel <joro@8bytes.org> wrote:
-> On Wed, Jan 17, 2018 at 05:57:53AM -0800, Brian Gerst wrote:
->> On Wed, Jan 17, 2018 at 1:24 AM, Joerg Roedel <joro@8bytes.org> wrote:
->
->> > I have no real idea on how to switch back to the entry stack without
->> > access to per_cpu variables. I also can't access the cpu_entry_area for
->> > the cpu yet, because for that we need to be on the entry stack already.
->>
->> Switch to the trampoline stack before loading user segments.
->
-> That requires to copy most of pt_regs from task- to trampoline-stack,
-> not sure if that is faster than temporily restoring kernel %fs.
->
+On Tue, 16 Jan 2018, Mel Gorman wrote:
 
-I would optimize for simplicity, not speed.  You're already planning
-to write to CR3, which is serializing, blows away the TLB, *and* takes
-the absurdly large amount of time that the microcode needs to blow
-away the TLB.
+> My main source of discomfort is the fact that this is permanent as two
+> processes perfectly isolated but with a suitably shared COW mapping
+> will never migrate the data. A potential improvement to get the reported
+> bandwidth up in the test program would be to skip the rest of the VMA if
+> page_mapcount != 1 in a COW mapping as it would be reasonable to assume
+> the remaining pages in the VMA are also affected and the scan is wasteful.
+> There are counter-examples to this but I suspect that the full VMA being
+> shared is the common case. Whether you do that or not;
 
-(For whatever reason, Intel doesn't seem to have hardware that can
-quickly wipe the TLB.  I suspect that the actual implementation does
-it in a loop and wipes little pieces at a time.  Whatever it actually
-does, the CR3 write itself is very slow.)
+Same concern here. Typically CAP_SYS_NICE will bypass the check that the
+page is only mapped to a single process and the check looks exactly like
+the ones for manual migration. Using CAP_SYS_NICE would be surprising
+here since autonuma is not triggered by the currently running process.
+
+Can we configure this somehow via sysfs?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
