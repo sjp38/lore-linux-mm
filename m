@@ -1,71 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8288D280263
-	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 21:24:15 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id r28so810230pgu.1
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 18:24:15 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k3sor624923pgf.39.2018.01.16.18.24.14
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C745280263
+	for <linux-mm@kvack.org>; Tue, 16 Jan 2018 21:30:32 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id z73so9923538oia.16
+        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 18:30:32 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r131si1352186oih.19.2018.01.16.18.30.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Jan 2018 18:24:14 -0800 (PST)
-Date: Wed, 17 Jan 2018 11:24:09 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180117022409.GB423@jagdpanzerIV>
-References: <20180112025612.GB6419@jagdpanzerIV>
- <20180111222140.7fd89d52@gandalf.local.home>
- <20180112100544.GA441@jagdpanzerIV>
- <20180112072123.33bb567d@gandalf.local.home>
- <20180113072834.GA1701@tigerII.localdomain>
- <20180115070637.1915ac20@gandalf.local.home>
- <20180115144530.pej3k3xmkybjr6zb@pathway.suse.cz>
- <20180116022349.GD6607@jagdpanzerIV>
- <20180116044716.GE6607@jagdpanzerIV>
- <20180116101903.iuzgln2agdr46jfy@pathway.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Jan 2018 18:30:30 -0800 (PST)
+Date: Tue, 16 Jan 2018 21:30:24 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [LSF/MM TOPIC] CAPI/CCIX cache coherent device memory (NUMA too
+ ?)
+Message-ID: <20180117023024.GB3492@redhat.com>
+References: <20180116210321.GB8801@redhat.com>
+ <CAF7GXvpsAPhHWFV3g9LdzKg6Fe=Csp+kecG+HznoaT0Hiu9HCw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20180116101903.iuzgln2agdr46jfy@pathway.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAF7GXvpsAPhHWFV3g9LdzKg6Fe=Csp+kecG+HznoaT0Hiu9HCw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: "Figo.zhang" <figo1802@gmail.com>
+Cc: lsf-pc@lists.linux-foundation.org, Linux MM <linux-mm@kvack.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Jonathan Masters <jcm@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On (01/16/18 11:19), Petr Mladek wrote:
-[..]
-> > [1] https://marc.info/?l=linux-mm&m=145692016122716
-> > Fixes: 6b97a20d3a79 ("printk: set may_schedule for some of console_trylock() callers")
-> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+On Wed, Jan 17, 2018 at 09:55:14AM +0800, Figo.zhang wrote:
+> 2018-01-17 5:03 GMT+08:00 Jerome Glisse <jglisse@redhat.com>:
 > 
-> IMHO, this is a step in the right direction.
+> > CAPI (on IBM Power8 and 9) and CCIX are two new standard that
+> > build on top of existing interconnect (like PCIE) and add the
+> > possibility for cache coherent access both way (from CPU to
+> > device memory and from device to main memory). This extend
+> > what we are use to with PCIE (where only device to main memory
+> > can be cache coherent but not CPU to device memory).
+> >
 > 
-> Reviewed-by: Petr Mladek <pmladek@suse.com>
-> 
-> I'll wait for Steven's review and push this into printk.git.
-> I'll also add your Acks for the other patches.
-> 
-> Thanks for the patch and the various observations.
+> the UPI bus also support cache coherency for Intel platform, right?
 
-thanks!
+AFAIK the UPI only apply between processors and is not expose to devices
+except integrated Intel devices (like Intel GPU or FPGA) thus it is less
+generic/open than CAPI/CCIX.
+
+> it seem the specification of CCIX/CAPI protocol is not public, we cannot
+> know the details about them, your topic will cover the details?
+
+I can only cover what will be public at the time of summit but for
+the sake of discussion the important characteristic is the cache
+coherency aspect. Discussing how it is implemented, cache line
+protocol and all the gory details of protocol is of little interest
+from kernel point of view.
 
 
-a side note,
+> > How is this memory gonna be expose to the kernel and how the
+> > kernel gonna expose this to user space is the topic i want to
+> > discuss. I believe this is highly device specific for instance
+> > for GPU you want the device memory allocation and usage to be
+> > under the control of the GPU device driver. Maybe other type
+> > of device want different strategy.
+> >
+> i see it lack of some simple example for how to use the HMM, because
+> GPU driver is more complicate for linux driver developer  except the
+> ATI/NVIDIA developers.
 
-our console output is still largely preemptible. a typical system
-acquires console_sem via console_lock() all the time, so we still
-can have "where is my printk output?" cases.
+HMM require a device with an MMU and capable of pausing workload that
+do pagefault. Only devices complex enough i know of are GPU, Infiniband
+and FPGA. HMM from feedback i had so far is that most people working on
+any such device driver understand HMM. I am always happy to answer any
+specific questions on the API and how it is intended to be use by device
+driver (and improve kernel documentation in the process).
 
+How HMM functionality is then expose to userspace by the device driver
+is under the control of each individual device driver.
 
-for instance, my IDLE PREEMPT x86 box, has the following stats
-
-uptime 15 min
-
-# of console_lock() calls: 10981          // can sleep under console_sem
-# of vprintk_emit() calls: 825            // cannot sleep under console_sem
-
-	-ss
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
