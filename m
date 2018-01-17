@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C033280247
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DBD29280254
 	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:22:37 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id h18so15047468pfi.2
+Received: by mail-pg0-f71.google.com with SMTP id o11so12181808pgp.14
         for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:22:37 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id i185si4503717pge.533.2018.01.17.12.22.35
+        by mx.google.com with ESMTPS id q5si4820353pll.252.2018.01.17.12.22.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:22:35 -0800 (PST)
+        Wed, 17 Jan 2018 12:22:36 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 23/99] page cache: Add page_cache_range_empty function
-Date: Wed, 17 Jan 2018 12:20:47 -0800
-Message-Id: <20180117202203.19756-24-willy@infradead.org>
+Subject: [PATCH v6 21/99] xarray: Add xa_reserve and xa_release
+Date: Wed, 17 Jan 2018 12:20:45 -0800
+Message-Id: <20180117202203.19756-22-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,166 +22,168 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-btrfs has its own custom function for determining whether the page cache
-has any pages in a particular range.  Move this functionality to the
-page cache, and call it from btrfs.
+This function simply creates a slot in the XArray for users which need
+to acquire multiple locks before storing their entry in the tree and
+so cannot use a plain xa_store().
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/btrfs/btrfs_inode.h  |  7 ++++-
- fs/btrfs/inode.c        | 70 -------------------------------------------------
- include/linux/pagemap.h |  2 ++
- mm/filemap.c            | 26 ++++++++++++++++++
- 4 files changed, 34 insertions(+), 71 deletions(-)
+ include/linux/xarray.h                 | 14 ++++++++++
+ lib/xarray.c                           | 51 ++++++++++++++++++++++++++++++++++
+ tools/testing/radix-tree/xarray-test.c | 25 +++++++++++++++++
+ 3 files changed, 90 insertions(+)
 
-diff --git a/fs/btrfs/btrfs_inode.h b/fs/btrfs/btrfs_inode.h
-index 63f0ccc92a71..a48bd6e0a0bb 100644
---- a/fs/btrfs/btrfs_inode.h
-+++ b/fs/btrfs/btrfs_inode.h
-@@ -365,6 +365,11 @@ static inline void btrfs_print_data_csum_error(struct btrfs_inode *inode,
- 			logical_start, csum, csum_expected, mirror_num);
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index 6f59f1f60205..c3f7405c5517 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -259,6 +259,7 @@ void *xa_load(struct xarray *, unsigned long index);
+ void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
+ void *xa_cmpxchg(struct xarray *, unsigned long index,
+ 			void *old, void *entry, gfp_t);
++int xa_reserve(struct xarray *, unsigned long index, gfp_t);
+ bool xa_get_tag(struct xarray *, unsigned long index, xa_tag_t);
+ void xa_set_tag(struct xarray *, unsigned long index, xa_tag_t);
+ void xa_clear_tag(struct xarray *, unsigned long index, xa_tag_t);
+@@ -373,6 +374,19 @@ static inline int xa_insert(struct xarray *xa, unsigned long index,
+ 	return -EEXIST;
  }
  
--bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end);
-+static inline bool btrfs_page_exists_in_range(struct inode *inode,
-+						loff_t start, loff_t end)
++/**
++ * xa_release() - Release a reserved entry.
++ * @xa: XArray.
++ * @index: Index of entry.
++ *
++ * After calling xa_reserve(), you can call this function to release the
++ * reservation.  It is harmless to call this function if the entry was used.
++ */
++static inline void xa_release(struct xarray *xa, unsigned long index)
 +{
-+	return page_cache_range_empty(inode->i_mapping, start >> PAGE_SHIFT,
-+							end >> PAGE_SHIFT);
++	xa_cmpxchg(xa, index, NULL, NULL, 0);
 +}
- 
- #endif
-diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index dbdb5bf6bca1..d7d2c556d5a2 100644
---- a/fs/btrfs/inode.c
-+++ b/fs/btrfs/inode.c
-@@ -7541,76 +7541,6 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
- 	return ret;
- }
- 
--bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
--{
--	struct radix_tree_root *root = &inode->i_mapping->pages;
--	bool found = false;
--	void **pagep = NULL;
--	struct page *page = NULL;
--	unsigned long start_idx;
--	unsigned long end_idx;
--
--	start_idx = start >> PAGE_SHIFT;
--
--	/*
--	 * end is the last byte in the last page.  end == start is legal
--	 */
--	end_idx = end >> PAGE_SHIFT;
--
--	rcu_read_lock();
--
--	/* Most of the code in this while loop is lifted from
--	 * find_get_page.  It's been modified to begin searching from a
--	 * page and return just the first page found in that range.  If the
--	 * found idx is less than or equal to the end idx then we know that
--	 * a page exists.  If no pages are found or if those pages are
--	 * outside of the range then we're fine (yay!) */
--	while (page == NULL &&
--	       radix_tree_gang_lookup_slot(root, &pagep, NULL, start_idx, 1)) {
--		page = radix_tree_deref_slot(pagep);
--		if (unlikely(!page))
--			break;
--
--		if (radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page)) {
--				page = NULL;
--				continue;
--			}
--			/*
--			 * Otherwise, shmem/tmpfs must be storing a swap entry
--			 * here so return it without attempting to raise page
--			 * count.
--			 */
--			page = NULL;
--			break; /* TODO: Is this relevant for this use case? */
--		}
--
--		if (!page_cache_get_speculative(page)) {
--			page = NULL;
--			continue;
--		}
--
--		/*
--		 * Has the page moved?
--		 * This is part of the lockless pagecache protocol. See
--		 * include/linux/pagemap.h for details.
--		 */
--		if (unlikely(page != *pagep)) {
--			put_page(page);
--			page = NULL;
--		}
--	}
--
--	if (page) {
--		if (page->index <= end_idx)
--			found = true;
--		put_page(page);
--	}
--
--	rcu_read_unlock();
--	return found;
--}
--
- static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
- 			      struct extent_state **cached_state, int writing)
- {
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 0db127c3ccac..34d4fa3ad1c5 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -245,6 +245,8 @@ pgoff_t page_cache_next_gap(struct address_space *mapping,
- 			     pgoff_t index, unsigned long max_scan);
- pgoff_t page_cache_prev_gap(struct address_space *mapping,
- 			     pgoff_t index, unsigned long max_scan);
-+bool page_cache_range_empty(struct address_space *mapping,
-+				pgoff_t index, pgoff_t max);
- 
- #define FGP_ACCESSED		0x00000001
- #define FGP_LOCK		0x00000002
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 146e8ec16ec0..f1b4480723dd 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1398,6 +1398,32 @@ pgoff_t page_cache_prev_gap(struct address_space *mapping,
- }
- EXPORT_SYMBOL(page_cache_prev_gap);
- 
-+bool page_cache_range_empty(struct address_space *mapping, pgoff_t index,
-+				pgoff_t max)
-+{
-+	struct page *page;
-+	XA_STATE(xas, &mapping->pages, index);
 +
-+	rcu_read_lock();
+ #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
+ #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
+ #define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
+diff --git a/lib/xarray.c b/lib/xarray.c
+index ace309cc9253..b4dec8e2d202 100644
+--- a/lib/xarray.c
++++ b/lib/xarray.c
+@@ -1275,6 +1275,8 @@ void *xa_cmpxchg(struct xarray *xa, unsigned long index,
+ 	do {
+ 		xas_lock(&xas);
+ 		curr = xas_load(&xas);
++		if (curr == XA_ZERO_ENTRY)
++			curr = NULL;
+ 		if (curr == old)
+ 			xas_store(&xas, entry);
+ 		xas_unlock(&xas);
+@@ -1310,6 +1312,8 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
+ 
+ 	do {
+ 		curr = xas_load(&xas);
++		if (curr == XA_ZERO_ENTRY)
++			curr = NULL;
+ 		if (curr == old)
+ 			xas_store(&xas, entry);
+ 	} while (__xas_nomem(&xas, gfp));
+@@ -1318,6 +1322,53 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
+ }
+ EXPORT_SYMBOL(__xa_cmpxchg);
+ 
++/**
++ * xa_reserve() - Reserve this index in the XArray.
++ * @xa: XArray.
++ * @index: Index into array.
++ * @gfp: Memory allocation flags.
++ *
++ * Ensures there is somewhere to store an entry at @index in the array.
++ * If there is already something stored at @index, this function does
++ * nothing.  If there was nothing there, the entry is marked as reserved.
++ * Loads from @index will continue to see a %NULL pointer until a
++ * subsequent store to @index.
++ *
++ * If you do not use the entry that you have reserved, call xa_release()
++ * or xa_erase() to free any unnecessary memory.
++ *
++ * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
++ */
++int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
++{
++	XA_STATE(xas, xa, index);
++	unsigned int lock_type = xa_lock_type(xa);
++	void *curr;
++
 +	do {
-+		page = xas_find(&xas, max);
-+		if (xas_retry(&xas, page))
-+			continue;
-+		/* Shadow entries don't count */
-+		if (xa_is_value(page))
-+			continue;
-+		/*
-+		 * We don't need to try to pin this page; we're about to
-+		 * release the RCU lock anyway.  It is enough to know that
-+		 * there was a page here recently.
-+		 */
-+	} while (0);
-+	rcu_read_unlock();
++		if (lock_type == XA_LOCK_IRQ)
++			xas_lock_irq(&xas);
++		else if (lock_type == XA_LOCK_BH)
++			xas_lock_bh(&xas);
++		else
++			xas_lock(&xas);
 +
-+	return page != NULL;
++		curr = xas_create(&xas);
++		if (!curr)
++			xas_store(&xas, XA_ZERO_ENTRY);
++
++                if (lock_type == XA_LOCK_IRQ)
++                        xas_unlock_irq(&xas);
++                else if (lock_type == XA_LOCK_BH)
++                        xas_unlock_bh(&xas);
++                else
++                        xas_unlock(&xas);
++	} while (xas_nomem(&xas, gfp));
++
++	return xas_error(&xas);
 +}
-+EXPORT_SYMBOL_GPL(page_cache_range_empty);
++EXPORT_SYMBOL(xa_reserve);
 +
  /**
-  * find_get_entry - find and get a page cache entry
-  * @mapping: the address_space to search
+  * __xa_set_tag() - Set this tag on this entry while locked.
+  * @xa: XArray.
+diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
+index 4d3541ac31e9..fe38b53df2ab 100644
+--- a/tools/testing/radix-tree/xarray-test.c
++++ b/tools/testing/radix-tree/xarray-test.c
+@@ -502,6 +502,29 @@ void check_move(struct xarray *xa)
+ 	} while (i < (1 << 16));
+ }
+ 
++void check_reserve(struct xarray *xa)
++{
++	assert(xa_empty(xa));
++	xa_reserve(xa, 12345678, GFP_KERNEL);
++	assert(!xa_empty(xa));
++	assert(!xa_load(xa, 12345678));
++	xa_release(xa, 12345678);
++	assert(xa_empty(xa));
++
++	xa_reserve(xa, 12345678, GFP_KERNEL);
++	assert(!xa_store(xa, 12345678, xa_mk_value(12345678), GFP_NOWAIT));
++	xa_release(xa, 12345678);
++	assert(xa_erase(xa, 12345678) == xa_mk_value(12345678));
++	assert(xa_empty(xa));
++
++	xa_reserve(xa, 12345678, GFP_KERNEL);
++	assert(!xa_cmpxchg(xa, 12345678, NULL, xa_mk_value(12345678),
++								GFP_NOWAIT));
++	xa_release(xa, 12345678);
++	assert(xa_erase(xa, 12345678) == xa_mk_value(12345678));
++	assert(xa_empty(xa));
++}
++
+ void xarray_checks(void)
+ {
+ 	DEFINE_XARRAY(array);
+@@ -548,6 +571,8 @@ void xarray_checks(void)
+ 
+ 	check_move(&array);
+ 	item_kill_tree(&array);
++
++	check_reserve(&array);
+ }
+ 
+ int __weak main(void)
 -- 
 2.15.1
 
