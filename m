@@ -1,48 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C20E3280281
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 02:59:47 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id q8so8036147pfh.12
-        for <linux-mm@kvack.org>; Tue, 16 Jan 2018 23:59:47 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q4si3256359pgn.232.2018.01.16.23.59.46
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AB5EF280281
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:07:33 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id g65so3671793wmf.7
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 00:07:33 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 62si3234410wmf.96.2018.01.17.00.07.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 16 Jan 2018 23:59:46 -0800 (PST)
-Date: Wed, 17 Jan 2018 08:59:24 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 06/16] x86/mm/ldt: Reserve high address-space range for
- the LDT
-Message-ID: <20180117075924.GI2228@hirez.programming.kicks-ass.net>
-References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
- <1516120619-1159-7-git-send-email-joro@8bytes.org>
- <20180116165213.GF2228@hirez.programming.kicks-ass.net>
- <CALCETrUgZondzbUTYF2U2YtxOiHExd2H4xD1Mjz-G=VJKzNfVw@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 17 Jan 2018 00:07:32 -0800 (PST)
+Date: Wed, 17 Jan 2018 09:07:31 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: ppc elf_map breakage with MAP_FIXED_NOREPLACE
+Message-ID: <20180117080731.GA2900@dhcp22.suse.cz>
+References: <7e35e16a-d71c-2ec8-03ed-b07c2af562f8@linux.vnet.ibm.com>
+ <20180105084631.GG2801@dhcp22.suse.cz>
+ <e81dce2b-5d47-b7d3-efbf-27bc171ba4ab@linux.vnet.ibm.com>
+ <20180107090229.GB24862@dhcp22.suse.cz>
+ <87mv1phptq.fsf@concordia.ellerman.id.au>
+ <7a44f42e-39d0-1c4b-19e0-7df1b0842c18@linux.vnet.ibm.com>
+ <87tvvw80f2.fsf@concordia.ellerman.id.au>
+ <96458c0a-e273-3fb9-a33b-f6f2d536f90b@linux.vnet.ibm.com>
+ <20180109161355.GL1732@dhcp22.suse.cz>
+ <a495f210-0015-efb2-a6a7-868f30ac4ace@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrUgZondzbUTYF2U2YtxOiHExd2H4xD1Mjz-G=VJKzNfVw@mail.gmail.com>
+In-Reply-To: <a495f210-0015-efb2-a6a7-868f30ac4ace@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Joerg Roedel <jroedel@suse.de>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
 
-On Tue, Jan 16, 2018 at 02:51:45PM -0800, Andy Lutomirski wrote:
-> On Tue, Jan 16, 2018 at 8:52 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> > On Tue, Jan 16, 2018 at 05:36:49PM +0100, Joerg Roedel wrote:
-> >> From: Joerg Roedel <jroedel@suse.de>
-> >>
-> >> Reserve 2MB/4MB of address space for mapping the LDT to
-> >> user-space.
-> >
-> > LDT is 64k, we need 2 per CPU, and NR_CPUS <= 64 on 32bit, that gives
-> > 64K*2*64=8M > 2M.
+On Thu 11-01-18 15:38:37, Anshuman Khandual wrote:
+> On 01/09/2018 09:43 PM, Michal Hocko wrote:
+[...]
+> > Did you manage to catch _who_ is requesting that anonymous mapping? Do
+> > you need a help with the debugging patch?
 > 
-> If this works like it does on 64-bit, it only needs 128k regardless of
-> the number of CPUs.  The LDT mapping is specific to the mm.
+> Not yet, will get back on this.
 
-Ah, then I got my LDT things confused again... which is certainly
-possible, we had a few too many variants back then.
+ping?
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
