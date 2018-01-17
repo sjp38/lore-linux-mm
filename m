@@ -1,95 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 93EFF6B0261
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 18:26:35 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id f133so8060069itb.1
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:26:35 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p198sor3037327ioe.240.2018.01.17.15.26.34
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C40186B0261
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 18:41:30 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id q1so12618305pgv.4
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:41:30 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 31si5328794plj.417.2018.01.17.15.41.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Jan 2018 15:26:34 -0800 (PST)
-Date: Wed, 17 Jan 2018 15:26:31 -0800
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: [PATCH 0/1] Re: kernel BUG at fs/userfaultfd.c:LINE!
-Message-ID: <20180117232631.gniczgvil5lsml6p@gmail.com>
-References: <20171222222346.GB28786@zzz.localdomain>
- <20171223002505.593-1-aarcange@redhat.com>
- <CACT4Y+av2MyJHHpPQLQ2EGyyW5vAe3i-U0pfVXshFm96t-1tBQ@mail.gmail.com>
- <20180117085629.GA20303@amd>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jan 2018 15:41:29 -0800 (PST)
+Received: from mail-it0-f54.google.com (mail-it0-f54.google.com [209.85.214.54])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id EAB7F2177D
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 23:41:28 +0000 (UTC)
+Received: by mail-it0-f54.google.com with SMTP id b5so11323678itc.3
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:41:28 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180117085629.GA20303@amd>
+In-Reply-To: <1516120619-1159-15-git-send-email-joro@8bytes.org>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org> <1516120619-1159-15-git-send-email-joro@8bytes.org>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 17 Jan 2018 15:41:07 -0800
+Message-ID: <CALCETrWDiXxuUSS4jF7=tNtCYyQX7bSHQLF76bAd_whz1zPcjw@mail.gmail.com>
+Subject: Re: [PATCH 14/16] x86/mm/legacy: Populate the user page-table with
+ user pgd's
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs@googlegroups.com
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Joerg Roedel <jroedel@suse.de>
 
-On Wed, Jan 17, 2018 at 09:56:29AM +0100, Pavel Machek wrote:
-> Hi!
-> 
-> > > Andrea Arcangeli (1):
-> > >   userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK
-> > >     fails
-> > >
-> > >  fs/userfaultfd.c | 20 ++++++++++++++++++--
-> > >  1 file changed, 18 insertions(+), 2 deletions(-)
-> > 
-> > The original report footer was stripped, so:
-> > 
-> > Please credit me with: Reported-by: syzbot <syzkaller@googlegroups.com>
-> 
-> Please don't. We don't credit our CPUs, and we don't credit Qemu. We
-> credit humans.
-> 
+On Tue, Jan 16, 2018 at 8:36 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> From: Joerg Roedel <jroedel@suse.de>
+>
+> Also populate the user-spage pgd's in the user page-table.
+>
+> Signed-off-by: Joerg Roedel <jroedel@suse.de>
+> ---
+>  arch/x86/include/asm/pgtable-2level.h | 3 +++
+>  1 file changed, 3 insertions(+)
+>
+> diff --git a/arch/x86/include/asm/pgtable-2level.h b/arch/x86/include/asm/pgtable-2level.h
+> index 685ffe8a0eaf..d96486d23c58 100644
+> --- a/arch/x86/include/asm/pgtable-2level.h
+> +++ b/arch/x86/include/asm/pgtable-2level.h
+> @@ -19,6 +19,9 @@ static inline void native_set_pte(pte_t *ptep , pte_t pte)
+>
+>  static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+>  {
+> +#ifdef CONFIG_PAGE_TABLE_ISOLATION
+> +       pmd.pud.p4d.pgd = pti_set_user_pgd(&pmdp->pud.p4d.pgd, pmd.pud.p4d.pgd);
+> +#endif
+>         *pmdp = pmd;
+>  }
+>
 
-The difference is that unlike your CPU or QEMU, syzbot is a program specifically
-written to find and report Linux kernel bugs.  And although Dmitry Vyukov has
-done most of the work, syzkaller and syzbot have had many contributors, and you
-are welcome to contribute too: https://github.com/google/syzkaller
-
-> > and we also need to tell syzbot about the fix with:
-> > 
-> > #syz fix:
-> > userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK fails
-> 
-> Now you claimed you care about bugs being fixed. What about actually
-> testing Andrea's fix and telling us if it fixes the problem or not,
-> and maybe saying "thank you"?
-
-Of course the syzbot team cares about bugs being fixed, why else would they
-report them?
-
-I too would like to see syzbot become smarter about handling bugs with
-reproducers.  For example it could bisect to find the commit which introduced
-the bug, and could automatically detect where the bug has/hasn't been fixed.  Of
-course due to the nature of the kernel it's not possible with every bug, but for
-some it is possible.
-
-Nevertheless, at the end of the day, no matter how a bug is reported or who
-reports it, it is primarily the responsibility of the person patching the bug to
-test their patch.  I've never really understood why people try to patch
-reproducible bugs without even testing their fix; it just doesn't make any
-sense.  It's pretty easy to run the syzkaller-provided reproducers too.
-Personally I've fixed 20+ syzkaller-reported bugs, and I always run the
-reproducer if there is one.  In fact the reproducer is usually needed to even
-figure out what to fix in the first place...
-
-Yes, Andrea deserves thanks for fixing this bug!  But so does syzbot and its
-authors for reporting this bug.  And personally I am not at all impressed by the
-fact that userfaultfd has no maintainer listed in MAINTAINERS, nor did any of
-the authors feel responsible enough to quickly patch a critical security bug in
-code they wrote less than a year ago, even after I Cc'ed them with a simplified
-reproducer and explanation of the problem.  Note that userfaultfd is usable by
-unprivileged users and is enabled on most major Linux distros.  Does syzbot need
-to start automatically requesting CVE's as well? :-)
-
-(And yes, I wanted to fix this myself, as I've done with a lot of other of the
-syzbot-reported bugs, but unfortunately I wasn't familiar enough with the
-userfaultfd code, and there are 200 other bugs to work on too...)
-
-Eric
+Nothing against your patch, but this seems like a perfectly fine place
+to rant: I *hate* the way we deal with page table folding.  Grr.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
