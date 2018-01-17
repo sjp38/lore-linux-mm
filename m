@@ -1,61 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E62B280281
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:43:35 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id g13so12598978wrh.19
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 00:43:35 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t6si3057806wmh.147.2018.01.17.00.43.33
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 92182280281
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 03:56:32 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id g65so3743758wmf.7
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 00:56:32 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id c29si3351627wmi.226.2018.01.17.00.56.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Jan 2018 00:43:34 -0800 (PST)
-Subject: Re: [PATCH] mm/compaction: fix the comment for try_to_compact_pages
-References: <1515801336-20611-1-git-send-email-yang.shi@linux.alibaba.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <149a38e1-a8cc-1029-eb68-5cce1fa39496@suse.cz>
-Date: Wed, 17 Jan 2018 09:43:32 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jan 2018 00:56:31 -0800 (PST)
+Date: Wed, 17 Jan 2018 09:56:29 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 0/1] Re: kernel BUG at fs/userfaultfd.c:LINE!
+Message-ID: <20180117085629.GA20303@amd>
+References: <20171222222346.GB28786@zzz.localdomain>
+ <20171223002505.593-1-aarcange@redhat.com>
+ <CACT4Y+av2MyJHHpPQLQ2EGyyW5vAe3i-U0pfVXshFm96t-1tBQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1515801336-20611-1-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="tKW2IUtsqtDRztdT"
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+av2MyJHHpPQLQ2EGyyW5vAe3i-U0pfVXshFm96t-1tBQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Biggers <ebiggers3@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs@googlegroups.com
 
-On 01/13/2018 12:55 AM, Yang Shi wrote:
-> "mode" argument is not used by try_to_compact_pages() and sub functions
-> anymore, it has been replaced by "prio". Fix the comment to explain the
-> use of "prio" argument.
-> 
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+--tKW2IUtsqtDRztdT
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> ---
->  mm/compaction.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 10cd757..2c8999d 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1738,7 +1738,7 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
->   * @order: The order of the current allocation
->   * @alloc_flags: The allocation flags of the current allocation
->   * @ac: The context of current allocation
-> - * @mode: The migration mode for async, sync light, or sync migration
-> + * @prio: Determines how hard direct compaction should try to succeed
->   *
->   * This is the main entry point for direct page compaction.
->   */
-> 
+Hi!
+
+> > Andrea Arcangeli (1):
+> >   userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK
+> >     fails
+> >
+> >  fs/userfaultfd.c | 20 ++++++++++++++++++--
+> >  1 file changed, 18 insertions(+), 2 deletions(-)
+>=20
+> The original report footer was stripped, so:
+>=20
+> Please credit me with: Reported-by: syzbot <syzkaller@googlegroups.com>
+
+Please don't. We don't credit our CPUs, and we don't credit Qemu. We
+credit humans.
+
+> and we also need to tell syzbot about the fix with:
+>=20
+> #syz fix:
+> userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK fails
+
+Now you claimed you care about bugs being fixed. What about actually
+testing Andrea's fix and telling us if it fixes the problem or not,
+and maybe saying "thank you"?
+
+Thank you,
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--tKW2IUtsqtDRztdT
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAlpfD70ACgkQMOfwapXb+vJ4mwCbBiOye7rXY81/XZEDrhf/d3ZQ
+9ZMAn0XYMRhiZrQEC0i+QA5adVGWvKRN
+=a93L
+-----END PGP SIGNATURE-----
+
+--tKW2IUtsqtDRztdT--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
