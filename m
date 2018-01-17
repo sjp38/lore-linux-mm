@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DF46280274
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 62F1F280275
 	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:22:57 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id n2so12213185pgs.0
+Received: by mail-pf0-f198.google.com with SMTP id v25so15057691pfg.14
         for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:22:57 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 137si4436940pgd.237.2018.01.17.12.22.55
+        by mx.google.com with ESMTPS id p9si4956970pls.316.2018.01.17.12.22.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:22:55 -0800 (PST)
+        Wed, 17 Jan 2018 12:22:56 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 67/99] mm: Convert cgroup writeback to XArray
-Date: Wed, 17 Jan 2018 12:21:31 -0800
-Message-Id: <20180117202203.19756-68-willy@infradead.org>
+Subject: [PATCH v6 68/99] vmalloc: Convert to XArray
+Date: Wed, 17 Jan 2018 12:21:32 -0800
+Message-Id: <20180117202203.19756-69-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,123 +22,117 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This is a fairly naive conversion, leaving in place the GFP_ATOMIC
-allocation.  By switching the locking around, we could use GFP_KERNEL
-and probably simplify the error handling.
+The radix tree of vmap blocks is simpler to express as an XArray.
+Saves a couple of hundred bytes of text and eliminates a user of the
+radix tree preload API.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/backing-dev-defs.h |  2 +-
- include/linux/backing-dev.h      |  2 +-
- mm/backing-dev.c                 | 22 ++++++++++------------
- 3 files changed, 12 insertions(+), 14 deletions(-)
+ mm/vmalloc.c | 39 +++++++++++++--------------------------
+ 1 file changed, 13 insertions(+), 26 deletions(-)
 
-diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index bfe86b54f6c1..074a54aad33c 100644
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -187,7 +187,7 @@ struct backing_dev_info {
- 	struct bdi_writeback wb;  /* the root writeback info for this bdi */
- 	struct list_head wb_list; /* list of all wbs */
- #ifdef CONFIG_CGROUP_WRITEBACK
--	struct radix_tree_root cgwb_tree; /* radix tree of active cgroup wbs */
-+	struct xarray cgwb_xa;		/* radix tree of active cgroup wbs */
- 	struct rb_root cgwb_congested_tree; /* their congested states */
- #else
- 	struct bdi_writeback_congested *wb_congested;
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 3df0d20e23f3..27e7b31bd802 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -271,7 +271,7 @@ static inline struct bdi_writeback *wb_find_current(struct backing_dev_info *bdi
- 	if (!memcg_css->parent)
- 		return &bdi->wb;
- 
--	wb = radix_tree_lookup(&bdi->cgwb_tree, memcg_css->id);
-+	wb = xa_load(&bdi->cgwb_xa, memcg_css->id);
- 
- 	/*
- 	 * %current's blkcg equals the effective blkcg of its memcg.  No
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index b5f940ce0143..aa0f85df0928 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -417,8 +417,8 @@ static void wb_exit(struct bdi_writeback *wb)
- #include <linux/memcontrol.h>
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 673942094328..b6c138633592 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -23,7 +23,7 @@
+ #include <linux/list.h>
+ #include <linux/notifier.h>
+ #include <linux/rbtree.h>
+-#include <linux/radix-tree.h>
++#include <linux/xarray.h>
+ #include <linux/rcupdate.h>
+ #include <linux/pfn.h>
+ #include <linux/kmemleak.h>
+@@ -821,12 +821,11 @@ struct vmap_block {
+ static DEFINE_PER_CPU(struct vmap_block_queue, vmap_block_queue);
  
  /*
-- * cgwb_lock protects bdi->cgwb_tree, bdi->cgwb_congested_tree,
-- * blkcg->cgwb_list, and memcg->cgwb_list.  bdi->cgwb_tree is also RCU
-+ * cgwb_lock protects bdi->cgwb_xa, bdi->cgwb_congested_tree,
-+ * blkcg->cgwb_list, and memcg->cgwb_list.  bdi->cgwb_xa is also RCU
-  * protected.
+- * Radix tree of vmap blocks, indexed by address, to quickly find a vmap block
++ * XArray of vmap blocks, indexed by address, to quickly find a vmap block
+  * in the free path. Could get rid of this if we change the API to return a
+  * "cookie" from alloc, to be passed to free. But no big deal yet.
   */
- static DEFINE_SPINLOCK(cgwb_lock);
-@@ -539,7 +539,7 @@ static void cgwb_kill(struct bdi_writeback *wb)
+-static DEFINE_SPINLOCK(vmap_block_tree_lock);
+-static RADIX_TREE(vmap_block_tree, GFP_ATOMIC);
++static DEFINE_XARRAY(vmap_block_tree);
+ 
+ /*
+  * We should probably have a fallback mechanism to allocate virtual memory
+@@ -865,8 +864,8 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
+ 	struct vmap_block *vb;
+ 	struct vmap_area *va;
+ 	unsigned long vb_idx;
+-	int node, err;
+-	void *vaddr;
++	int node;
++	void *ret, *vaddr;
+ 
+ 	node = numa_node_id();
+ 
+@@ -883,13 +882,6 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
+ 		return ERR_CAST(va);
+ 	}
+ 
+-	err = radix_tree_preload(gfp_mask);
+-	if (unlikely(err)) {
+-		kfree(vb);
+-		free_vmap_area(va);
+-		return ERR_PTR(err);
+-	}
+-
+ 	vaddr = vmap_block_vaddr(va->va_start, 0);
+ 	spin_lock_init(&vb->lock);
+ 	vb->va = va;
+@@ -902,11 +894,12 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
+ 	INIT_LIST_HEAD(&vb->free_list);
+ 
+ 	vb_idx = addr_to_vb_idx(va->va_start);
+-	spin_lock(&vmap_block_tree_lock);
+-	err = radix_tree_insert(&vmap_block_tree, vb_idx, vb);
+-	spin_unlock(&vmap_block_tree_lock);
+-	BUG_ON(err);
+-	radix_tree_preload_end();
++	ret = xa_store(&vmap_block_tree, vb_idx, vb, gfp_mask);
++	if (xa_is_err(ret)) {
++		kfree(vb);
++		free_vmap_area(va);
++		return ERR_PTR(xa_err(ret));
++	}
+ 
+ 	vbq = &get_cpu_var(vmap_block_queue);
+ 	spin_lock(&vbq->lock);
+@@ -923,9 +916,7 @@ static void free_vmap_block(struct vmap_block *vb)
+ 	unsigned long vb_idx;
+ 
+ 	vb_idx = addr_to_vb_idx(vb->va->va_start);
+-	spin_lock(&vmap_block_tree_lock);
+-	tmp = radix_tree_delete(&vmap_block_tree, vb_idx);
+-	spin_unlock(&vmap_block_tree_lock);
++	tmp = xa_erase(&vmap_block_tree, vb_idx);
+ 	BUG_ON(tmp != vb);
+ 
+ 	free_vmap_area_noflush(vb->va);
+@@ -1031,7 +1022,6 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
+ static void vb_free(const void *addr, unsigned long size)
  {
- 	lockdep_assert_held(&cgwb_lock);
+ 	unsigned long offset;
+-	unsigned long vb_idx;
+ 	unsigned int order;
+ 	struct vmap_block *vb;
  
--	WARN_ON(!radix_tree_delete(&wb->bdi->cgwb_tree, wb->memcg_css->id));
-+	WARN_ON(xa_erase(&wb->bdi->cgwb_xa, wb->memcg_css->id) != wb);
- 	list_del(&wb->memcg_node);
- 	list_del(&wb->blkcg_node);
- 	percpu_ref_kill(&wb->refcnt);
-@@ -571,7 +571,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
+@@ -1045,10 +1035,7 @@ static void vb_free(const void *addr, unsigned long size)
+ 	offset = (unsigned long)addr & (VMAP_BLOCK_SIZE - 1);
+ 	offset >>= PAGE_SHIFT;
  
- 	/* look up again under lock and discard on blkcg mismatch */
- 	spin_lock_irqsave(&cgwb_lock, flags);
--	wb = radix_tree_lookup(&bdi->cgwb_tree, memcg_css->id);
-+	wb = xa_load(&bdi->cgwb_xa, memcg_css->id);
- 	if (wb && wb->blkcg_css != blkcg_css) {
- 		cgwb_kill(wb);
- 		wb = NULL;
-@@ -614,8 +614,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
- 	spin_lock_irqsave(&cgwb_lock, flags);
- 	if (test_bit(WB_registered, &bdi->wb.state) &&
- 	    blkcg_cgwb_list->next && memcg_cgwb_list->next) {
--		/* we might have raced another instance of this function */
--		ret = radix_tree_insert(&bdi->cgwb_tree, memcg_css->id, wb);
-+		ret = xa_insert(&bdi->cgwb_xa, memcg_css->id, wb, GFP_ATOMIC);
- 		if (!ret) {
- 			list_add_tail_rcu(&wb->bdi_node, &bdi->wb_list);
- 			list_add(&wb->memcg_node, memcg_cgwb_list);
-@@ -682,7 +681,7 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
+-	vb_idx = addr_to_vb_idx((unsigned long)addr);
+-	rcu_read_lock();
+-	vb = radix_tree_lookup(&vmap_block_tree, vb_idx);
+-	rcu_read_unlock();
++	vb = xa_load(&vmap_block_tree, addr_to_vb_idx((unsigned long)addr));
+ 	BUG_ON(!vb);
  
- 	do {
- 		rcu_read_lock();
--		wb = radix_tree_lookup(&bdi->cgwb_tree, memcg_css->id);
-+		wb = xa_load(&bdi->cgwb_xa, memcg_css->id);
- 		if (wb) {
- 			struct cgroup_subsys_state *blkcg_css;
- 
-@@ -704,7 +703,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
- {
- 	int ret;
- 
--	INIT_RADIX_TREE(&bdi->cgwb_tree, GFP_ATOMIC);
-+	xa_init(&bdi->cgwb_xa);
- 	bdi->cgwb_congested_tree = RB_ROOT;
- 
- 	ret = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
-@@ -717,15 +716,14 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
- 
- static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
- {
--	struct radix_tree_iter iter;
--	void **slot;
-+	XA_STATE(xas, &bdi->cgwb_xa, 0);
- 	struct bdi_writeback *wb;
- 
- 	WARN_ON(test_bit(WB_registered, &bdi->wb.state));
- 
- 	spin_lock_irq(&cgwb_lock);
--	radix_tree_for_each_slot(slot, &bdi->cgwb_tree, &iter, 0)
--		cgwb_kill(*slot);
-+	xas_for_each(&xas, wb, ULONG_MAX)
-+		cgwb_kill(wb);
- 
- 	while (!list_empty(&bdi->wb_list)) {
- 		wb = list_first_entry(&bdi->wb_list, struct bdi_writeback,
+ 	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
 -- 
 2.15.1
 
