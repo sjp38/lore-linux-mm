@@ -1,69 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BA716B028C
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 16:21:47 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id p20so5960064pfh.17
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 13:21:47 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 68si5175753pla.376.2018.01.17.13.21.46
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 338F26B0038
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 16:39:51 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id n19so3001095iob.7
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 13:39:51 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id i5sor2672641ioe.107.2018.01.17.13.39.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 13:21:46 -0800 (PST)
-Date: Wed, 17 Jan 2018 13:21:44 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [LSF/MM TOPIC] A high-performance userspace block driver
-Message-ID: <20180117212144.GD25862@bombadil.infradead.org>
-References: <20180116145240.GD30073@bombadil.infradead.org>
- <CACVXFVPqJ6xYq31Ve5tXCKiNne_S1ve8csA+j_wCPnnZCPahvg@mail.gmail.com>
+        (Google Transport Security);
+        Wed, 17 Jan 2018 13:39:49 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACVXFVPqJ6xYq31Ve5tXCKiNne_S1ve8csA+j_wCPnnZCPahvg@mail.gmail.com>
+In-Reply-To: <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
+References: <CA+55aFwvgm+KKkRLaFsuAjTdfQooS=UaMScC0CbZQ9WnX_AF=g@mail.gmail.com>
+ <201801160115.w0G1FOIG057203@www262.sakura.ne.jp> <CA+55aFxOn5n4O2JNaivi8rhDmeFhTQxEHD4xE33J9xOrFu=7kQ@mail.gmail.com>
+ <201801170233.JDG21842.OFOJMQSHtOFFLV@I-love.SAKURA.ne.jp>
+ <CA+55aFyxyjN0Mqnz66B4a0R+uR8DdfxdMhcg5rJVi8LwnpSRfA@mail.gmail.com> <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 17 Jan 2018 13:39:48 -0800
+Message-ID: <CA+55aFw_itrZGTkDPL41DtwCBEBHmxXsucp5HUbNDX9hwOFddw@mail.gmail.com>
+Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <tom.leiming@gmail.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-block <linux-block@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Tony Luck <tony.luck@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
 
-On Wed, Jan 17, 2018 at 10:49:24AM +0800, Ming Lei wrote:
-> Userfaultfd might be another choice:
-> 
-> 1) map the block LBA space into a range of process vm space
+On Wed, Jan 17, 2018 at 3:08 AM, Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+>
+> I needed to bisect between 4.10 and 4.11, and I got plausible culprit.
+> [...]
+> git bisect bad b4fb8f66f1ae2e167d06c12d018025a8d4d3ba7e
+> # first bad commit: [b4fb8f66f1ae2e167d06c12d018025a8d4d3ba7e] mm, page_alloc: Add missing check for memory holes
 
-That would limit the size of a block device to ~200TB (with my laptop's
-CPU).  That's probably OK for most users, but I suspect there are some
-who would chafe at such a restriction (before the 57-bit CPUs arrive).
+Ok, that is indeed much more likely, and very much matches the whole
+"this problem only happens with sparsemem" issue.
 
-> 2) when READ/WRITE req comes, convert it to page fault on the
-> mapped range, and let userland to take control of it, and meantime
-> kernel req context is slept
+In fact, the whole
 
-You don't want to sleep the request; you want it to be able to submit
-more I/O.  But we have infrastructure in place to inform the submitter
-when I/Os have completed.
+   pfn_valid_within(buddy_pfn)
 
-> 3) IO req context in kernel side is waken up after userspace completed
-> the IO request via userfaultfd
-> 
-> 4) kernel side continue to complete the IO, such as copying page from
-> storage range to req(bio) pages.
-> 
-> Seems READ should be fine since it is very similar with the use case
-> of QEMU postcopy live migration, WRITE can be a bit different, and
-> maybe need some change on userfaultfd.
+test looks very odd. Maybe the pfn of the buddy is valid, but it's not
+in the same zone? Then we'd combine the two pages in two different
+zones into one combined page.
 
-I like this idea, and maybe extending UFFD is the way to solve this
-problem.  Perhaps I should explain a little more what the requirements
-are.  At the point the driver gets the I/O, pages to copy data into (for
-a read) or copy data from (for a write) have already been allocated.
-At all costs, we need to avoid playing VM tricks (because TLB flushes
-are expensive).  So one copy is probably OK, but we'd like to avoid it
-if reasonable.
+Maybe that's why HIGHMEM matters? The low DMA zone is obviously
+aligned in the whole PAGE_ORDER range. But the highmem zone might not
+be. I used to know the highmem code, but I've happily forgotten
+everything. But I think we end up deciding on some random non-aligned
+number in the 900MB range as being the limit between the regular zone
+and the HIGHMEM zone.
 
-Let's assume that the userspace program looks at the request metadata and
-decides that it needs to send a network request.  Ideally, it would find
-a way to have the data from the response land in the pre-allocated pages
-(for a read) or send the data straight from the pages in the request
-(for a write).  I'm not sure UFFD helps us with that part of the problem.
+So maybe something like this to test the theory?
+
+    diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+    index 76c9688b6a0a..f919a5548943 100644
+    --- a/mm/page_alloc.c
+    +++ b/mm/page_alloc.c
+    @@ -756,6 +756,8 @@ static inline void rmv_page_order(struct page *page)
+     static inline int page_is_buddy(struct page *page, struct page *buddy,
+                                                            unsigned int order)
+     {
+    +       if (WARN_ON_ONCE(page_zone(page) != page_zone(buddy)))
+    +               return 0;
+            if (page_is_guard(buddy) && page_order(buddy) == order) {
+                    if (page_zone_id(page) != page_zone_id(buddy))
+                            return 0;
+
+I don't know. Does that warning trigger for you?
+
+The above is completely untested. It might not compile. If it compiles
+it might not work. And even if it "works", it might not matter,
+because perhaps the boundary between regular memory and HIGHMEM is
+already sufficiently aligned.
+
+Comments?
+
+                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
