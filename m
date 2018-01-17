@@ -1,46 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A1B996B028C
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 16:18:08 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 31so9187724wru.0
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 13:18:08 -0800 (PST)
-Received: from outpost3.zedat.fu-berlin.de (outpost3.zedat.fu-berlin.de. [130.133.4.78])
-        by mx.google.com with ESMTPS id k17si4082245eda.24.2018.01.17.13.18.06
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BA716B028C
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 16:21:47 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id p20so5960064pfh.17
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 13:21:47 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id 68si5175753pla.376.2018.01.17.13.21.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jan 2018 13:18:07 -0800 (PST)
-Subject: Re: [PATCH v6 20/99] ida: Convert to XArray
-References: <20180117202203.19756-1-willy@infradead.org>
- <20180117202203.19756-21-willy@infradead.org>
-From: John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
-Message-ID: <e8c42206-e4d7-dda3-2bb7-2c1faa6ff5be@physik.fu-berlin.de>
-Date: Wed, 17 Jan 2018 22:17:55 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 17 Jan 2018 13:21:46 -0800 (PST)
+Date: Wed, 17 Jan 2018 13:21:44 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [LSF/MM TOPIC] A high-performance userspace block driver
+Message-ID: <20180117212144.GD25862@bombadil.infradead.org>
+References: <20180116145240.GD30073@bombadil.infradead.org>
+ <CACVXFVPqJ6xYq31Ve5tXCKiNne_S1ve8csA+j_wCPnnZCPahvg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180117202203.19756-21-willy@infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACVXFVPqJ6xYq31Ve5tXCKiNne_S1ve8csA+j_wCPnnZCPahvg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, Bjorn Andersson <bjorn.andersson@linaro.org>, Stefano Stabellini <sstabellini@kernel.org>, iommu@lists.linux-foundation.org, linux-remoteproc@vger.kernel.org, linux-s390@vger.kernel.org, intel-gfx@lists.freedesktop.org, cgroups@vger.kernel.org, linux-sh@vger.kernel.org, David Howells <dhowells@redhat.com>
+To: Ming Lei <tom.leiming@gmail.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-block <linux-block@vger.kernel.org>
 
-Hi Matthew!
+On Wed, Jan 17, 2018 at 10:49:24AM +0800, Ming Lei wrote:
+> Userfaultfd might be another choice:
+> 
+> 1) map the block LBA space into a range of process vm space
 
-On 01/17/2018 09:20 PM, Matthew Wilcox wrote:
-> Use the xarray infrstructure like we used the radix tree infrastructure.
-> This lets us get rid of idr_get_free() from the radix tree code.
+That would limit the size of a block device to ~200TB (with my laptop's
+CPU).  That's probably OK for most users, but I suspect there are some
+who would chafe at such a restriction (before the 57-bit CPUs arrive).
 
-There's a typo: infrstructure => infratructure
+> 2) when READ/WRITE req comes, convert it to page fault on the
+> mapped range, and let userland to take control of it, and meantime
+> kernel req context is slept
 
-Cheers,
-Adrian
+You don't want to sleep the request; you want it to be able to submit
+more I/O.  But we have infrastructure in place to inform the submitter
+when I/Os have completed.
 
--- 
- .''`.  John Paul Adrian Glaubitz
-: :' :  Debian Developer - glaubitz@debian.org
-`. `'   Freie Universitaet Berlin - glaubitz@physik.fu-berlin.de
-  `-    GPG: 62FF 8A75 84E0 2956 9546  0006 7426 3B37 F5B5 F913
+> 3) IO req context in kernel side is waken up after userspace completed
+> the IO request via userfaultfd
+> 
+> 4) kernel side continue to complete the IO, such as copying page from
+> storage range to req(bio) pages.
+> 
+> Seems READ should be fine since it is very similar with the use case
+> of QEMU postcopy live migration, WRITE can be a bit different, and
+> maybe need some change on userfaultfd.
+
+I like this idea, and maybe extending UFFD is the way to solve this
+problem.  Perhaps I should explain a little more what the requirements
+are.  At the point the driver gets the I/O, pages to copy data into (for
+a read) or copy data from (for a write) have already been allocated.
+At all costs, we need to avoid playing VM tricks (because TLB flushes
+are expensive).  So one copy is probably OK, but we'd like to avoid it
+if reasonable.
+
+Let's assume that the userspace program looks at the request metadata and
+decides that it needs to send a network request.  Ideally, it would find
+a way to have the data from the response land in the pre-allocated pages
+(for a read) or send the data straight from the pages in the request
+(for a write).  I'm not sure UFFD helps us with that part of the problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
