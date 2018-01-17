@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 430EA6B025E
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:22:32 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id e28so12094704pgn.23
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:22:32 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B86E6B0260
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:22:33 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id n2so12212399pgs.0
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:22:33 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id p13si5178163pll.733.2018.01.17.12.22.30
+        by mx.google.com with ESMTPS id x80si4516985pgx.249.2018.01.17.12.22.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:22:30 -0800 (PST)
+        Wed, 17 Jan 2018 12:22:31 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 06/99] xarray: Define struct xa_node
-Date: Wed, 17 Jan 2018 12:20:30 -0800
-Message-Id: <20180117202203.19756-7-willy@infradead.org>
+Subject: [PATCH v6 07/99] xarray: Add documentation
+Date: Wed, 17 Jan 2018 12:20:31 -0800
+Message-Id: <20180117202203.19756-8-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,454 +22,395 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This is a direct replacement for struct radix_tree_node.  A couple of
-struct members have changed name, so convert those.  Use a #define so
-that radix tree users continue to work without change.
+This is documentation on how to use the XArray, not details about its
+internal implementation.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/radix-tree.h            | 29 +++------------------
- include/linux/xarray.h                | 24 ++++++++++++++++++
- lib/radix-tree.c                      | 48 +++++++++++++++++------------------
- mm/workingset.c                       | 16 ++++++------
- tools/testing/radix-tree/multiorder.c | 30 +++++++++++-----------
- 5 files changed, 74 insertions(+), 73 deletions(-)
+ Documentation/core-api/index.rst  |   1 +
+ Documentation/core-api/xarray.rst | 361 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 362 insertions(+)
+ create mode 100644 Documentation/core-api/xarray.rst
 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index c8a33e9e9a3c..f64beb9ba175 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -32,6 +32,7 @@
- 
- /* Keep unconverted code working */
- #define radix_tree_root		xarray
-+#define radix_tree_node		xa_node
- 
- /*
-  * The bottom two bits of the slot determine how the remaining bits in the
-@@ -60,41 +61,17 @@ static inline bool radix_tree_is_internal_node(void *ptr)
- 
- /*** radix-tree API starts here ***/
- 
--#define RADIX_TREE_MAX_TAGS 3
--
- #define RADIX_TREE_MAP_SHIFT	XA_CHUNK_SHIFT
- #define RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
- #define RADIX_TREE_MAP_MASK	(RADIX_TREE_MAP_SIZE-1)
- 
--#define RADIX_TREE_TAG_LONGS	\
--	((RADIX_TREE_MAP_SIZE + BITS_PER_LONG - 1) / BITS_PER_LONG)
-+#define RADIX_TREE_MAX_TAGS	XA_MAX_TAGS
-+#define RADIX_TREE_TAG_LONGS	XA_TAG_LONGS
- 
- #define RADIX_TREE_INDEX_BITS  (8 /* CHAR_BIT */ * sizeof(unsigned long))
- #define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
- 					  RADIX_TREE_MAP_SHIFT))
- 
--/*
-- * @count is the count of every non-NULL element in the ->slots array
-- * whether that is a data entry, a retry entry, a user pointer,
-- * a sibling entry or a pointer to the next level of the tree.
-- * @exceptional is the count of every element in ->slots which is
-- * either a data entry or a sibling entry for data.
-- */
--struct radix_tree_node {
--	unsigned char	shift;		/* Bits remaining in each slot */
--	unsigned char	offset;		/* Slot offset in parent */
--	unsigned char	count;		/* Total entry count */
--	unsigned char	exceptional;	/* Exceptional entry count */
--	struct radix_tree_node *parent;		/* Used when ascending tree */
--	struct radix_tree_root *root;		/* The tree we belong to */
--	union {
--		struct list_head private_list;	/* For tree user */
--		struct rcu_head	rcu_head;	/* Used when freeing node */
--	};
--	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
--	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
--};
--
- /* The IDR tag is stored in the low bits of xa_flags */
- #define ROOT_IS_IDR	((__force gfp_t)4)
- /* The top bits of xa_flags are used to store the root tags */
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index 3d2f1fafb7ec..3d5f7804ef45 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -187,6 +187,30 @@ static inline void xa_init(struct xarray *xa)
- #endif
- #define XA_CHUNK_SIZE		(1UL << XA_CHUNK_SHIFT)
- #define XA_CHUNK_MASK		(XA_CHUNK_SIZE - 1)
-+#define XA_MAX_TAGS		3
-+#define XA_TAG_LONGS		DIV_ROUND_UP(XA_CHUNK_SIZE, BITS_PER_LONG)
+diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
+index d5bbe035316d..eb16ba30aeb6 100644
+--- a/Documentation/core-api/index.rst
++++ b/Documentation/core-api/index.rst
+@@ -18,6 +18,7 @@ Core utilities
+    local_ops
+    workqueue
+    genericirq
++   xarray
+    flexible-arrays
+    librs
+    genalloc
+diff --git a/Documentation/core-api/xarray.rst b/Documentation/core-api/xarray.rst
+new file mode 100644
+index 000000000000..914999c0bf3f
+--- /dev/null
++++ b/Documentation/core-api/xarray.rst
+@@ -0,0 +1,361 @@
++.. SPDX-License-Identifier: CC-BY-SA-4.0
 +
-+/*
-+ * @count is the count of every non-NULL element in the ->slots array
-+ * whether that is a value entry, a retry entry, a user pointer,
-+ * a sibling entry or a pointer to the next level of the tree.
-+ * @nr_values is the count of every element in ->slots which is
-+ * either a value entry or a sibling entry to a value entry.
-+ */
-+struct xa_node {
-+	unsigned char	shift;		/* Bits remaining in each slot */
-+	unsigned char	offset;		/* Slot offset in parent */
-+	unsigned char	count;		/* Total entry count */
-+	unsigned char	nr_values;	/* Value entry count */
-+	struct xa_node __rcu *parent;	/* NULL at top of tree */
-+	struct xarray	*array;		/* The array we belong to */
-+	union {
-+		struct list_head private_list;	/* For tree user */
-+		struct rcu_head	rcu_head;	/* Used when freeing node */
-+	};
-+	void __rcu	*slots[XA_CHUNK_SIZE];
-+	unsigned long	tags[XA_MAX_TAGS][XA_TAG_LONGS];
-+};
- 
- /* Private */
- static inline bool xa_is_node(const void *entry)
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 126eeb06cfef..74a6ddd1d6ad 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -259,11 +259,11 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
- {
- 	unsigned long i;
- 
--	pr_debug("radix node: %p offset %d indices %lu-%lu parent %p tags %lx %lx %lx shift %d count %d exceptional %d\n",
-+	pr_debug("radix node: %p offset %d indices %lu-%lu parent %p tags %lx %lx %lx shift %d count %d nr_values %d\n",
- 		node, node->offset, index, index | node_maxindex(node),
- 		node->parent,
- 		node->tags[0][0], node->tags[1][0], node->tags[2][0],
--		node->shift, node->count, node->exceptional);
-+		node->shift, node->count, node->nr_values);
- 
- 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
- 		unsigned long first = index | (i << node->shift);
-@@ -353,7 +353,7 @@ static struct radix_tree_node *
- radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
- 			struct radix_tree_root *root,
- 			unsigned int shift, unsigned int offset,
--			unsigned int count, unsigned int exceptional)
-+			unsigned int count, unsigned int nr_values)
- {
- 	struct radix_tree_node *ret = NULL;
- 
-@@ -400,9 +400,9 @@ radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
- 		ret->shift = shift;
- 		ret->offset = offset;
- 		ret->count = count;
--		ret->exceptional = exceptional;
-+		ret->nr_values = nr_values;
- 		ret->parent = parent;
--		ret->root = root;
-+		ret->array = root;
- 	}
- 	return ret;
- }
-@@ -632,8 +632,8 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
- 		if (radix_tree_is_internal_node(entry)) {
- 			entry_to_node(entry)->parent = node;
- 		} else if (xa_is_value(entry)) {
--			/* Moving an exceptional root->xa_head to a node */
--			node->exceptional = 1;
-+			/* Moving a value entry root->xa_head to a node */
-+			node->nr_values = 1;
- 		}
- 		/*
- 		 * entry was already in the radix tree, so we do not need
-@@ -919,12 +919,12 @@ static inline int insert_entries(struct radix_tree_node *node,
- 		if (xa_is_node(old))
- 			radix_tree_free_nodes(old);
- 		if (xa_is_value(old))
--			node->exceptional--;
-+			node->nr_values--;
- 	}
- 	if (node) {
- 		node->count += n;
- 		if (xa_is_value(item))
--			node->exceptional += n;
-+			node->nr_values += n;
- 	}
- 	return n;
- }
-@@ -938,7 +938,7 @@ static inline int insert_entries(struct radix_tree_node *node,
- 	if (node) {
- 		node->count++;
- 		if (xa_is_value(item))
--			node->exceptional++;
-+			node->nr_values++;
- 	}
- 	return 1;
- }
-@@ -1072,7 +1072,7 @@ void *radix_tree_lookup(const struct radix_tree_root *root, unsigned long index)
- EXPORT_SYMBOL(radix_tree_lookup);
- 
- static inline void replace_sibling_entries(struct radix_tree_node *node,
--				void __rcu **slot, int count, int exceptional)
-+				void __rcu **slot, int count, int values)
- {
- #ifdef CONFIG_RADIX_TREE_MULTIORDER
- 	unsigned offset = get_slot_offset(node, slot);
-@@ -1085,21 +1085,21 @@ static inline void replace_sibling_entries(struct radix_tree_node *node,
- 			node->slots[offset] = NULL;
- 			node->count--;
- 		}
--		node->exceptional += exceptional;
-+		node->nr_values += values;
- 	}
- #endif
- }
- 
- static void replace_slot(void __rcu **slot, void *item,
--		struct radix_tree_node *node, int count, int exceptional)
-+		struct radix_tree_node *node, int count, int values)
- {
- 	if (WARN_ON_ONCE(radix_tree_is_internal_node(item)))
- 		return;
- 
--	if (node && (count || exceptional)) {
-+	if (node && (count || values)) {
- 		node->count += count;
--		node->exceptional += exceptional;
--		replace_sibling_entries(node, slot, count, exceptional);
-+		node->nr_values += values;
-+		replace_sibling_entries(node, slot, count, values);
- 	}
- 
- 	rcu_assign_pointer(*slot, item);
-@@ -1153,17 +1153,17 @@ void __radix_tree_replace(struct radix_tree_root *root,
- 			  radix_tree_update_node_t update_node)
- {
- 	void *old = rcu_dereference_raw(*slot);
--	int exceptional = !!xa_is_value(item) - !!xa_is_value(old);
-+	int values = !!xa_is_value(item) - !!xa_is_value(old);
- 	int count = calculate_count(root, node, slot, item, old);
- 
- 	/*
--	 * This function supports replacing exceptional entries and
-+	 * This function supports replacing value entries and
- 	 * deleting entries, but that needs accounting against the
- 	 * node unless the slot is root->xa_head.
- 	 */
- 	WARN_ON_ONCE(!node && (slot != (void __rcu **)&root->xa_head) &&
--			(count || exceptional));
--	replace_slot(slot, item, node, count, exceptional);
-+			(count || values));
-+	replace_slot(slot, item, node, count, values);
- 
- 	if (!node)
- 		return;
-@@ -1185,7 +1185,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
-  * across slot lookup and replacement.
-  *
-  * NOTE: This cannot be used to switch between non-entries (empty slots),
-- * regular entries, and exceptional entries, as that requires accounting
-+ * regular entries, and value entries, as that requires accounting
-  * inside the radix tree node. When switching from one type of entry or
-  * deleting, use __radix_tree_lookup() and __radix_tree_replace() or
-  * radix_tree_iter_replace().
-@@ -1293,7 +1293,7 @@ int radix_tree_split(struct radix_tree_root *root, unsigned long index,
- 		rcu_assign_pointer(parent->slots[end], RADIX_TREE_RETRY);
- 	}
- 	rcu_assign_pointer(parent->slots[offset], RADIX_TREE_RETRY);
--	parent->exceptional -= (end - offset);
-+	parent->nr_values -= (end - offset);
- 
- 	if (order == parent->shift)
- 		return 0;
-@@ -1953,7 +1953,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
- 				struct radix_tree_node *node, void __rcu **slot)
- {
- 	void *old = rcu_dereference_raw(*slot);
--	int exceptional = xa_is_value(old) ? -1 : 0;
-+	int values = xa_is_value(old) ? -1 : 0;
- 	unsigned offset = get_slot_offset(node, slot);
- 	int tag;
- 
-@@ -1963,7 +1963,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
- 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
- 			node_tag_clear(root, node, tag, offset);
- 
--	replace_slot(slot, NULL, node, -1, exceptional);
-+	replace_slot(slot, NULL, node, -1, values);
- 	return node && delete_node(root, node, NULL);
- }
- 
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 3afeb84720f4..91b6e16ad4c1 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -348,7 +348,7 @@ void workingset_update_node(struct radix_tree_node *node)
- 	 * already where they should be. The list_empty() test is safe
- 	 * as node->private_list is protected by mapping->pages.xa_lock.
- 	 */
--	if (node->count && node->count == node->exceptional) {
-+	if (node->count && node->count == node->nr_values) {
- 		if (list_empty(&node->private_list))
- 			list_lru_add(&shadow_nodes, &node->private_list);
- 	} else {
-@@ -427,8 +427,8 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
- 	 * to reclaim, take the node off-LRU, and drop the lru_lock.
- 	 */
- 
--	node = container_of(item, struct radix_tree_node, private_list);
--	mapping = container_of(node->root, struct address_space, pages);
-+	node = container_of(item, struct xa_node, private_list);
-+	mapping = container_of(node->array, struct address_space, pages);
- 
- 	/* Coming from the list, invert the lock order */
- 	if (!xa_trylock(&mapping->pages)) {
-@@ -445,25 +445,25 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
- 	 * no pages, so we expect to be able to remove them all and
- 	 * delete and free the empty node afterwards.
- 	 */
--	if (WARN_ON_ONCE(!node->exceptional))
-+	if (WARN_ON_ONCE(!node->nr_values))
- 		goto out_invalid;
--	if (WARN_ON_ONCE(node->count != node->exceptional))
-+	if (WARN_ON_ONCE(node->count != node->nr_values))
- 		goto out_invalid;
- 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
- 		if (node->slots[i]) {
- 			if (WARN_ON_ONCE(!xa_is_value(node->slots[i])))
- 				goto out_invalid;
--			if (WARN_ON_ONCE(!node->exceptional))
-+			if (WARN_ON_ONCE(!node->nr_values))
- 				goto out_invalid;
- 			if (WARN_ON_ONCE(!mapping->nrexceptional))
- 				goto out_invalid;
- 			node->slots[i] = NULL;
--			node->exceptional--;
-+			node->nr_values--;
- 			node->count--;
- 			mapping->nrexceptional--;
- 		}
- 	}
--	if (WARN_ON_ONCE(node->exceptional))
-+	if (WARN_ON_ONCE(node->nr_values))
- 		goto out_invalid;
- 	inc_lruvec_page_state(virt_to_page(node), WORKINGSET_NODERECLAIM);
- 	__radix_tree_delete_node(&mapping->pages, node,
-diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-index 24293a2fd82d..ed51edc008fd 100644
---- a/tools/testing/radix-tree/multiorder.c
-+++ b/tools/testing/radix-tree/multiorder.c
-@@ -392,7 +392,7 @@ static void multiorder_join2(unsigned order1, unsigned order2)
- 	radix_tree_insert(&tree, 1 << order2, xa_mk_value(5));
- 	item2 = __radix_tree_lookup(&tree, 1 << order2, &node, NULL);
- 	assert(item2 == xa_mk_value(5));
--	assert(node->exceptional == 1);
-+	assert(node->nr_values == 1);
- 
- 	item2 = radix_tree_lookup(&tree, 0);
- 	free(item2);
-@@ -400,7 +400,7 @@ static void multiorder_join2(unsigned order1, unsigned order2)
- 	radix_tree_join(&tree, 0, order1, item1);
- 	item2 = __radix_tree_lookup(&tree, 1 << order2, &node, NULL);
- 	assert(item2 == item1);
--	assert(node->exceptional == 0);
-+	assert(node->nr_values == 0);
- 	item_kill_tree(&tree);
- }
- 
-@@ -408,7 +408,7 @@ static void multiorder_join2(unsigned order1, unsigned order2)
-  * This test revealed an accounting bug for inline data entries at one point.
-  * Nodes were being freed back into the pool with an elevated exception count
-  * by radix_tree_join() and then radix_tree_split() was failing to zero the
-- * count of exceptional entries.
-+ * count of value entries.
-  */
- static void multiorder_join3(unsigned int order)
- {
-@@ -432,7 +432,7 @@ static void multiorder_join3(unsigned int order)
- 	}
- 
- 	__radix_tree_lookup(&tree, 0, &node, NULL);
--	assert(node->exceptional == node->count);
-+	assert(node->nr_values == node->count);
- 
- 	item_kill_tree(&tree);
- }
-@@ -519,7 +519,7 @@ static void __multiorder_split2(int old_order, int new_order)
- 
- 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
- 	assert(item == xa_mk_value(5));
--	assert(node->exceptional > 0);
-+	assert(node->nr_values > 0);
- 
- 	radix_tree_split(&tree, 0, new_order);
- 	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
-@@ -529,7 +529,7 @@ static void __multiorder_split2(int old_order, int new_order)
- 
- 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
- 	assert(item != xa_mk_value(5));
--	assert(node->exceptional == 0);
-+	assert(node->nr_values == 0);
- 
- 	item_kill_tree(&tree);
- }
-@@ -546,7 +546,7 @@ static void __multiorder_split3(int old_order, int new_order)
- 
- 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
- 	assert(item == xa_mk_value(5));
--	assert(node->exceptional > 0);
-+	assert(node->nr_values > 0);
- 
- 	radix_tree_split(&tree, 0, new_order);
- 	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
-@@ -555,7 +555,7 @@ static void __multiorder_split3(int old_order, int new_order)
- 
- 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
- 	assert(item == xa_mk_value(7));
--	assert(node->exceptional > 0);
-+	assert(node->nr_values > 0);
- 
- 	item_kill_tree(&tree);
- 
-@@ -563,7 +563,7 @@ static void __multiorder_split3(int old_order, int new_order)
- 
- 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
- 	assert(item == xa_mk_value(5));
--	assert(node->exceptional > 0);
-+	assert(node->nr_values > 0);
- 
- 	radix_tree_split(&tree, 0, new_order);
- 	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
-@@ -576,13 +576,13 @@ static void __multiorder_split3(int old_order, int new_order)
- 
- 	item = __radix_tree_lookup(&tree, 1 << new_order, &node, NULL);
- 	assert(item == xa_mk_value(7));
--	assert(node->count == node->exceptional);
-+	assert(node->count == node->nr_values);
- 	do {
- 		node = node->parent;
- 		if (!node)
- 			break;
- 		assert(node->count == 1);
--		assert(node->exceptional == 0);
-+		assert(node->nr_values == 0);
- 	} while (1);
- 
- 	item_kill_tree(&tree);
-@@ -610,15 +610,15 @@ static void multiorder_account(void)
- 
- 	__radix_tree_insert(&tree, 1 << 5, 5, xa_mk_value(5));
- 	__radix_tree_lookup(&tree, 0, &node, NULL);
--	assert(node->count == node->exceptional * 2);
-+	assert(node->count == node->nr_values * 2);
- 	radix_tree_delete(&tree, 1 << 5);
--	assert(node->exceptional == 0);
-+	assert(node->nr_values == 0);
- 
- 	__radix_tree_insert(&tree, 1 << 5, 5, xa_mk_value(5));
- 	__radix_tree_lookup(&tree, 1 << 5, &node, &slot);
--	assert(node->count == node->exceptional * 2);
-+	assert(node->count == node->nr_values * 2);
- 	__radix_tree_replace(&tree, node, slot, NULL, NULL);
--	assert(node->exceptional == 0);
-+	assert(node->nr_values == 0);
- 
- 	item_kill_tree(&tree);
- }
++======
++XArray
++======
++
++:Author: Matthew Wilcox
++
++Overview
++========
++
++The XArray is an abstract data type which behaves like a very large array
++of pointers.  It meets many of the same needs as a hash or a conventional
++resizable array.  Unlike a hash, it allows you to sensibly go to the
++next or previous entry in a cache-efficient manner.  In contrast to
++a resizable array, there is no need for copying data or changing MMU
++mappings in order to grow the array.  It is more memory-efficient,
++parallelisable and cache friendly than a doubly-linked list.  It takes
++advantage of RCU to perform lookups without locking.
++
++The XArray implementation is efficient when the indices used are densely
++clustered; hashing the object and using the hash as the index will not
++perform well.  The XArray is optimised for small indices, but still has
++good performance with large indices.  If your index can be larger than
++``ULONG_MAX`` then the XArray is not the data type for you.  The most
++important user of the XArray is the page cache.
++
++A freshly-initialised XArray contains a ``NULL`` pointer at every index.
++Each non-``NULL`` entry in the array has three bits associated with it
++called tags.  Each tag may be set or cleared independently of the others.
++You can iterate over entries which are tagged.
++
++Normal pointers may be stored in the XArray directly.  They must be 4-byte
++aligned, which is true for any pointer returned from :c:func:`kmalloc` and
++:c:func:`alloc_page`.  It isn't true for arbitrary user-space pointers,
++nor for function pointers.  You can store pointers to statically allocated
++objects, as long as those objects have an alignment of at least 4.
++
++You can also store integers between 0 and ``LONG_MAX`` in the XArray.
++You must first convert it into an entry using :c:func:`xa_mk_value`.
++When you retrieve an entry from the XArray, you can check whether it is
++a value entry by calling :c:func:`xa_is_value`, and convert it back to
++an integer by calling :c:func:`xa_to_value`.
++
++The XArray does not support storing :c:func:`IS_ERR` pointers as some
++conflict with value entries or internal entries.
++
++An unusual feature of the XArray is the ability to create entries which
++occupy a range of indices.  Once stored to, looking up any index in
++the range will return the same entry as looking up any other index in
++the range.  Setting a tag on one index will set it on all of them.
++Storing to any index will store to all of them.  Multi-index entries can
++be explicitly split into smaller entries, or storing ``NULL`` into any
++entry will cause the XArray to forget about the range.
++
++Normal API
++==========
++
++Start by initialising an XArray, either with :c:func:`DEFINE_XARRAY`
++for statically allocated XArrays or :c:func:`xa_init` for dynamically
++allocated ones.
++
++You can then set entries using :c:func:`xa_store` and get entries
++using :c:func:`xa_load`.  xa_store will overwrite any entry with the
++new entry and return the previous entry stored at that index.  You can
++use :c:func:`xa_erase` instead of calling :c:func:`xa_store` with a
++%NULL entry.  There is no difference between an entry that has never
++been stored to and one that has most recently had ``NULL`` stored to it.
++
++You can conditionally replace an entry at an index by using
++:c:func:`xa_cmpxchg`.  Like :c:func:`cmpxchg`, it will only succeed if
++the entry at that index has the 'old' value.  It also returns the entry
++which was at that index; if it returns the same entry which was passed as
++'old', then :c:func:`xa_cmpxchg` succeeded.
++
++If you want to only store a new entry to an index if the current entry
++at that index is ``NULL``, you can use :c:func:`xa_insert` which
++returns ``-EEXIST`` if the entry is not empty.
++
++Calling :c:func:`xa_reserve` ensures that there is enough memory allocated
++to store an entry at the specified index.  This is not normally needed,
++but some users have a complicated locking scheme.
++
++You can enquire whether a tag is set on an entry by using
++:c:func:`xa_get_tag`.  If the entry is not ``NULL``, you can set a tag
++on it by using :c:func:`xa_set_tag` and remove the tag from an entry by
++calling :c:func:`xa_clear_tag`.  You can ask whether any entry in the
++XArray has a particular tag set by calling :c:func:`xa_tagged`.
++
++You can copy entries out of the XArray into a plain array by calling
++:c:func:`xa_extract`.  Or you can iterate over the present entries in
++the XArray by calling :c:func:`xa_for_each`.  You may prefer to use
++:c:func:`xa_find` or :c:func:`xa_find_after` to move to the next present
++entry in the XArray.
++
++Finally, you can remove all entries from an XArray by calling
++:c:func:`xa_destroy`.  If the XArray entries are pointers, you may wish
++to free the entries first.  You can do this by iterating over all present
++entries in the XArray using the :c:func:`xa_for_each` iterator.
++
++Memory allocation
++-----------------
++
++The :c:func:`xa_store`, :c:func:`xa_cmpxchg`, :c:func:`xa_reserve`
++and :c:func:`xa_insert` functions take a gfp_t parameter in case
++the XArray needs to allocate memory to store this entry.  If the entry
++being stored is ``NULL``, no memory allocation needs to be performed,
++and the GFP flags specified will be ignored.
++
++It is possible for no memory to be allocatable, particularly if you pass
++a restrictive set of GFP flags.  In that case, the functions return a
++special value which can be turned into an errno using :c:func:`xa_err`.
++If you don't need to know exactly which error occurred, using
++:c:func:`xa_is_err` is slightly more efficient.
++
++Locking
++-------
++
++When using the Normal API, you do not have to worry about locking.
++The XArray uses RCU and an internal spinlock to synchronise access:
++
++No lock needed:
++ * :c:func:`xa_empty`
++ * :c:func:`xa_tagged`
++
++Takes RCU read lock:
++ * :c:func:`xa_load`
++ * :c:func:`xa_for_each`
++ * :c:func:`xa_find`
++ * :c:func:`xa_find_after`
++ * :c:func:`xa_extract`
++ * :c:func:`xa_get_tag`
++
++Takes xa_lock internally:
++ * :c:func:`xa_store`
++ * :c:func:`xa_insert`
++ * :c:func:`xa_erase`
++ * :c:func:`xa_cmpxchg`
++ * :c:func:`xa_reserve`
++ * :c:func:`xa_destroy`
++ * :c:func:`xa_set_tag`
++ * :c:func:`xa_clear_tag`
++
++Assumes xa_lock held on entry:
++ * :c:func:`__xa_store`
++ * :c:func:`__xa_insert`
++ * :c:func:`__xa_erase`
++ * :c:func:`__xa_cmpxchg`
++ * :c:func:`__xa_set_tag`
++ * :c:func:`__xa_clear_tag`
++
++If you want to take advantage of the lock to protect the data structures
++that you are storing in the XArray, you can call :c:func:`xa_lock`
++before calling :c:func:`xa_load`, then take a reference count on the
++object you have found before calling :c:func:`xa_unlock`.  This will
++prevent stores from removing the object from the array between looking
++up the object and incrementing the refcount.  You can also use RCU to
++avoid dereferencing freed memory, but an explanation of that is beyond
++the scope of this document.
++
++The XArray does not disable interrupts or softirqs while modifying
++the array.  It is safe to read the XArray from interrupt or softirq
++context as the RCU lock provides enough protection.
++
++If, for example, you want to store entries in the XArray in process
++context and then erase them in softirq context, you can do that this way::
++
++    foo_init(struct foo *foo)
++    {
++        xa_init_flags(&foo->array, XA_FLAGS_LOCK_BH);
++    }
++
++    foo_store(struct foo *foo, unsigned long index, void *entry)
++    {
++        xa_lock_bh(&foo->array);
++        __xa_store(&foo->array, index, entry, GFP_KERNEL);
++        foo->count++;
++        xa_unlock_bh(&foo->array);
++    }
++
++    /* foo_erase() is only called from softirq context */
++    foo_erase(struct foo *foo, unsigned long index)
++    {
++        xa_erase(&foo->array, index);
++    }
++
++If you are going to modify the XArray from interrupt or softirq context,
++you need to initialise the array using :c:func:`xa_init_flags`, passing
++``XA_FLAGS_LOCK_IRQ`` or ``XA_FLAGS_LOCK_BH``.
++
++The above example also shows a common pattern of wanting to extend the
++coverage of the xa_lock on the store side to protect some statistics
++associated with the array.
++
++Sharing the XArray with interrupt context is also possible, either
++using :c:func:`xa_lock_irqsave` in both the interrupt handler and process
++context, or :c:func:`xa_lock_irq` in process context and :c:func:`xa_lock`
++in the interrupt handler.
++
++Sometimes you need to protect access to the XArray with a mutex because
++that lock sits above another mutex in the locking hierarchy.  That does
++not entitle you to use functions like :c:func:`__xa_erase` without taking
++the xa_lock; the xa_lock is used for lockdep validation and will be used
++for other purposes in the future.
++
++The :c:func:`__xa_set_tag` and :c:func:`__xa_clear_tag` functions are also
++available for situations where you look up an entry and want to atomically
++set or clear a tag.  It may be more efficient to use the advanced API
++in this case, as it will save you from walking the tree twice.
++
++Advanced API
++============
++
++The advanced API offers more flexibility and better performance at the
++cost of an interface which can be harder to use and has fewer safeguards.
++No locking is done for you by the advanced API, and you are required
++to use the xa_lock while modifying the array.  You can choose whether
++to use the xa_lock or the RCU lock while doing read-only operations on
++the array.  You can mix advanced and normal operations on the same array;
++indeed the normal API is implemented in terms of the advanced API.  The
++advanced API is only available to modules with a GPL-compatible license.
++
++The advanced API is based around the xa_state.  This is an opaque data
++structure which you declare on the stack using the :c:func:`XA_STATE`
++macro.  This macro initialises the xa_state ready to start walking
++around the XArray.  It is used as a cursor to maintain the position
++in the XArray and let you compose various operations together without
++having to restart from the top every time.
++
++The xa_state is also used to store errors.  You can call
++:c:func:`xas_error` to retrieve the error.  All operations check whether
++the xa_state is in an error state before proceeding, so there's no need
++for you to check for an error after each call; you can make multiple
++calls in succession and only check at a convenient point.  The only
++errors currently generated by the xarray code itself are %ENOMEM and
++%EINVAL, but it supports arbitrary errors in case you want to call
++:c:func:`xas_set_err` yourself.
++
++If the xa_state is holding an %ENOMEM error, calling :c:func:`xas_nomem`
++will attempt to allocate more memory using the specified gfp flags and
++cache it in the xa_state for the next attempt.  The idea is that you take
++the xa_lock, attempt the operation and drop the lock.  The operation
++attempts to allocate memory while holding the lock, but it is more
++likely to fail.  Once you have dropped the lock, :c:func:`xas_nomem`
++can try harder to allocate more memory.  It will return ``true`` if it
++is worth retrying the operation (i.e. that there was a memory error *and*
++more memory was allocated).  If it has previously allocated memory, and
++that memory wasn't used, and there is no error (or some error that isn't
++%ENOMEM), then it will free the memory previously allocated.
++
++Internal Entries
++----------------
++
++The XArray reserves some entries for its own purposes.  These are never
++exposed through the normal API, but when using the advanced API, it's
++possible to see them.  Usually the best way to handle them is to pass them
++to :c:func:`xas_retry`, and retry the operation if it returns ``true``.
++
++.. flat-table::
++   :widths: 1 1 6
++
++   * - Name
++     - Test
++     - Usage
++
++   * - Node
++     - :c:func:`xa_is_node`
++     - An XArray node.  Should never be visible; all functions should recurse
++       into an XArray node.
++
++   * - Sibling
++     - :c:func:`xa_is_sibling`
++     - A non-canonical entry for a multi-index entry.  The value indicates
++       which slot in this node has the canonical entry.
++
++   * - Retry
++     - :c:func:`xa_is_retry`
++     - This entry is currently being modified by a thread which has the
++       xa_lock.  The node containing this entry may be freed at the end of
++       this RCU period.  You should restart the lookup from the head of the
++       array.
++
++Other internal entries may be added in the future.  As far as possible, they
++will be handled by :c:func:`xas_retry`.
++
++Additional functionality
++------------------------
++
++The :c:func:`xas_create` function ensures that there is somewhere in the
++XArray to store an entry.  It will store ENOMEM in the xa_state if it
++cannot allocate memory.  You do not normally need to call this function
++yourself as it is called by :c:func:`xas_store`.
++
++You can use :c:func:`xas_init_tags` to reset the tags on an entry
++to their default state.  This is usually all tags clear, unless the
++XArray is marked with ``XA_FLAGS_TRACK_FREE``, in which case tag 0 is set
++and all other tags are clear.  Replacing one entry with another using
++:c:func:`xas_store` will not reset the tags on that entry; if you want
++the tags reset, you should do that explicitly.
++
++The :c:func:`xas_load` will walk the xa_state as close to the entry
++as it can.  If you know the xa_state has already been walked to the
++entry and need to check that the entry hasn't changed, you can use
++:c:func:`xas_reload` to save a function call.
++
++If you need to move to a different index in the XArray, call
++:c:func:`xas_set`.  This reinitialises the cursor, which will generally
++have the effect of making the next operation walk the cursor to the
++desired spot in the tree.  If you want to move to the next or previous
++index, call :c:func:`xas_next` or :c:func:`xas_prev`.  Setting the index
++does not walk the cursor around the array so does not require a lock to
++be held, while moving to the next or previous index does.
++
++You can create a multi-index entry by using :c:func:`xas_set_order`.
++If a load or find operation finds a multi-index entry, the index in the
++xa_state will be the one searched for, and not necessarily the
++lowest or highest index used by the entry.
++Currently the only supported multi-index entries supported are powers
++of two, but there are two potential users of arbitrary ranges, so that
++functionality may be added soon.
++
++You can search for the next present entry using :c:func:`xas_find`.  This
++is the equivalent of both :c:func:`xa_find` and :c:func:`xa_find_after`;
++if the cursor has been walked to an entry, then it will find the next
++entry after the one currently referenced.  If not, it will return the
++entry at the index of the xa_state.  Using :c:func:`xas_next_entry` to
++move to the next present entry instead of :c:func:`xas_find` will save
++a function call in the majority of cases at the expense of emitting more
++inline code.
++
++The :c:func:`xas_find_tag` function is similar, returning the first tagged
++entry after the entry referenced by the xa_state if it has already been
++walked, and returning the entry at the index of the xa_state if it is
++tagged, and the xa_state has not been walked.  The :c:func:`xas_next_tag`
++function is the equivalent of :c:func:`xas_next_entry`.
++
++When iterating over a range of the XArray using :c:func:`xas_for_each`
++or :c:func:`xas_for_each_tag`, it may be necessary to temporarily stop
++the iteration.  The :c:func:`xas_pause` function exists for this purpose.
++After you have done the necessary work and wish to resume, the xa_state
++is in an appropriate state to continue the iteration after the entry
++you last processed.  If you have interrupts disabled while iterating,
++then it is good manners to pause the iteration and reenable interrupts
++every ``XA_CHECK_SCHED`` entries.
++
++The :c:func:`xas_get_tag`, :c:func:`xas_set_tag` and
++:c:func:`xas_clear_tag` functions require the xa_state cursor to have
++been moved to the appropriate location in the xarray; they will do
++nothing if you have called :c:func:`xas_pause` or :c:func:`xas_set`
++immediately before.
++
++You can call :c:func:`xas_set_update` to have a callback function
++called each time the XArray updates a node.  This is used by the page
++cache workingset code to maintain its list of nodes which contain only
++shadow entries.
++
++Functions and structures
++========================
++
++.. kernel-doc:: include/linux/xarray.h
++.. kernel-doc:: lib/xarray.c
 -- 
 2.15.1
 
