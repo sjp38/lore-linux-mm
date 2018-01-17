@@ -1,113 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FBB86B0266
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 10:15:39 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id h4so15164361qtj.0
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 07:15:39 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id p80si5637598qkp.168.2018.01.17.07.15.38
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B0186B0038
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 10:23:29 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id e186so5219494iof.9
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 07:23:29 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id k66si5364021itd.82.2018.01.17.07.23.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jan 2018 07:15:38 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0HFC5Bb024707
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 10:15:37 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2fj64q8yp0-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 10:15:37 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 17 Jan 2018 15:15:33 -0000
-Subject: Re: [PATCH v6 00/24] Speculative page faults
-References: <1515777968-867-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <20180116151145.74odvlj6mjuwq3rr@node.shutemov.name>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 17 Jan 2018 16:15:23 +0100
+        Wed, 17 Jan 2018 07:23:28 -0800 (PST)
+Subject: Re: [PATCH 02/16] x86/entry/32: Enter the kernel via trampoline stack
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+ <1516120619-1159-3-git-send-email-joro@8bytes.org>
+ <476d7100-2414-d09e-abf1-5aa4d369a3b7@oracle.com>
+ <20180117090238.GH28161@8bytes.org>
+ <97298add-9484-7d83-50a3-1c668ce3107d@citrix.com>
+From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Message-ID: <b3357c67-15b9-3218-8b32-caa335a5ad1d@oracle.com>
+Date: Wed, 17 Jan 2018 10:22:24 -0500
 MIME-Version: 1.0
-In-Reply-To: <20180116151145.74odvlj6mjuwq3rr@node.shutemov.name>
+In-Reply-To: <97298add-9484-7d83-50a3-1c668ce3107d@citrix.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <8dd74917-2f61-cf49-a350-73e4d54c72c1@linux.vnet.ibm.com>
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Andrew Cooper <andrew.cooper3@citrix.com>, Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
 
-Hi Kirill,
-
-Thanks for reviewing this series.
-
-On 16/01/2018 16:11, Kirill A. Shutemov wrote:
-> On Fri, Jan 12, 2018 at 06:25:44PM +0100, Laurent Dufour wrote:
->> ------------------
->> Benchmarks results
+On 01/17/2018 09:04 AM, Andrew Cooper wrote:
+> On 17/01/18 09:02, Joerg Roedel wrote:
+>> Hi Boris,
 >>
->> Base kernel is 4.15-rc6-mmotm-2018-01-04-16-19
->> SPF is BASE + this series
-> 
-> Do you have THP=always here? Lack of THP support worries me.
+>> thanks for testing this :)
+>>
+>> On Tue, Jan 16, 2018 at 09:47:06PM -0500, Boris Ostrovsky wrote:
+>>> On 01/16/2018 11:36 AM, Joerg Roedel wrote:
+>>>> +.macro SWITCH_TO_KERNEL_STACK nr_regs=0 check_user=0
+>>> This (and next patch's SWITCH_TO_ENTRY_STACK) need X86_FEATURE_PTI check.
+>>>
+>>> With those macros fixed I was able to boot 32-bit Xen PV guest.
+>> Hmm, on bare metal the stack switch happens regardless of the
+>> X86_FEATURE_PTI feature being set, because we always program tss.sp0
+>> with the systenter stack. How is the kernel entry stack setup on xen-pv?
+>> I think something is missing there instead.
+> There is one single stack registered with Xen, on which you get a normal
+> exception frame in all cases, even via the registered (virtual)
+> syscall/sysenter/failsafe handlers.
 
-Yes my kernel is built with THP=always.
+And so the check should be at least against X86_FEATURE_XENPV, not
+necessarily X86_FEATURE_PTI.
 
-For the record, I wrote all the code to support THP, but when I was about
-to plug it into the speculative page fault handler, I was wondering about
-the pmd_none() check and this raises the issue with khugepaged and the way
-it is invalidating the pmd before collapsing the underlying pages.
-Currently, there is no easy way to detect when such a collapsing operation
-is occurring.
+But I guess you can still check against X86_FEATURE_PTI since without it
+there is not much reason to switch stacks?
 
-> What is performance in the worst case scenario? Like when we go far enough into
-> speculative code path on every page fault and then fallback to normal page
-> fault?
-
-I did further tests focusing on the THP with a patched ebizzy (to use
-posix_memalign() and MADV_HUGEPAGE) to force the use of the transparent
-huge pages. I double checked that use through /proc/#/smaps.
-
-Here is the result I got on a 16 CPUs x86 VM (higher the best):
-	BASE	SPF
-mean	276.83	276.93	record/s
-max	280	280	record/s
-
-The run was done 100 times using a large enough size records (128 MB).
-
-Here is also the event I recorded when running ebizzy during 60s:
-
-275 records/s
- Performance counter stats for './ebizzy -HT -s 134217728':
-
-           182,470      faults
-
-             5,085      spf
-
-           176,634      pagefault:spf_vma_notsup
-
-
-      10.518504612 seconds time elapsed
-
-Most of the speculative page fault events were aborted because the VMA was
-not supported, which is matching the huge pages (pagefault:spf_vma_notsup).
-Only 5,000 were managed fully without holding the mmap_sem, I guess for
-other part of the memory's process.
-
-Running the same command on the Base kernel gave:
-
-293 records/s
- Performance counter stats for './ebizzy -HT -s 134217728':
-
-           183,170      faults
-
-
-      10.660787623 seconds time elapsed
-
-So I'd say that aborting the speculative page fault handler when a THP is
-detected, has no visible impact.
-
-Cheers,
-Laurent.
+-boris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
