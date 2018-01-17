@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 63D35280277
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:01 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id s22so3479408pfh.21
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:01 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D01B280277
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:02 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id q1so12202638pgv.4
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:02 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id v70si2809526pgd.414.2018.01.17.12.22.59
+        by mx.google.com with ESMTPS id g12si5519376pln.6.2018.01.17.12.23.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:22:59 -0800 (PST)
+        Wed, 17 Jan 2018 12:23:00 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 74/99] usb: Convert xhci-mem to XArray
-Date: Wed, 17 Jan 2018 12:21:38 -0800
-Message-Id: <20180117202203.19756-75-willy@infradead.org>
+Subject: [PATCH v6 70/99] xfs: Convert m_perag_tree to XArray
+Date: Wed, 17 Jan 2018 12:21:34 -0800
+Message-Id: <20180117202203.19756-71-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,178 +22,253 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The XArray API is a slightly better fit for xhci_insert_segment_mapping()
-than the radix tree API was.
+Getting rid of the m_perag_lock lets us also get rid of the call to
+radix_tree_preload().  This is a relatively naive conversion; we could
+improve performance over the radix tree implementation by passing around
+xa_state pointers instead of indices, possibly at the expense of extending
+rcu_read_lock() periods.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- drivers/usb/host/xhci-mem.c | 68 +++++++++++++++++++--------------------------
- drivers/usb/host/xhci.h     |  6 ++--
- 2 files changed, 32 insertions(+), 42 deletions(-)
+ fs/xfs/libxfs/xfs_sb.c |  9 ++++-----
+ fs/xfs/xfs_icache.c    | 35 +++++++++--------------------------
+ fs/xfs/xfs_icache.h    |  6 +++---
+ fs/xfs/xfs_mount.c     | 19 ++++---------------
+ fs/xfs/xfs_mount.h     |  3 +--
+ 5 files changed, 21 insertions(+), 51 deletions(-)
 
-diff --git a/drivers/usb/host/xhci-mem.c b/drivers/usb/host/xhci-mem.c
-index 3a29b32a3bd0..a2e15a9abc30 100644
---- a/drivers/usb/host/xhci-mem.c
-+++ b/drivers/usb/host/xhci-mem.c
-@@ -149,70 +149,60 @@ static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *ring,
+diff --git a/fs/xfs/libxfs/xfs_sb.c b/fs/xfs/libxfs/xfs_sb.c
+index 9b5aae2bcc0b..3b0b65eb8224 100644
+--- a/fs/xfs/libxfs/xfs_sb.c
++++ b/fs/xfs/libxfs/xfs_sb.c
+@@ -59,7 +59,7 @@ xfs_perag_get(
+ 	int			ref = 0;
+ 
+ 	rcu_read_lock();
+-	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
++	pag = xa_load(&mp->m_perag_xa, agno);
+ 	if (pag) {
+ 		ASSERT(atomic_read(&pag->pag_ref) >= 0);
+ 		ref = atomic_inc_return(&pag->pag_ref);
+@@ -78,14 +78,13 @@ xfs_perag_get_tag(
+ 	xfs_agnumber_t		first,
+ 	int			tag)
+ {
++	XA_STATE(xas, &mp->m_perag_xa, first);
+ 	struct xfs_perag	*pag;
+-	int			found;
+ 	int			ref;
+ 
+ 	rcu_read_lock();
+-	found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
+-					(void **)&pag, first, 1, tag);
+-	if (found <= 0) {
++	pag = xas_find_tag(&xas, ULONG_MAX, tag);
++	if (!pag) {
+ 		rcu_read_unlock();
+ 		return NULL;
+ 	}
+diff --git a/fs/xfs/xfs_icache.c b/fs/xfs/xfs_icache.c
+index 3861d61fb265..65a8b91b2e70 100644
+--- a/fs/xfs/xfs_icache.c
++++ b/fs/xfs/xfs_icache.c
+@@ -156,13 +156,10 @@ static void
+ xfs_reclaim_work_queue(
+ 	struct xfs_mount        *mp)
+ {
+-
+-	rcu_read_lock();
+-	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_RECLAIM_TAG)) {
++	if (xa_tagged(&mp->m_perag_xa, XFS_ICI_RECLAIM_TAG)) {
+ 		queue_delayed_work(mp->m_reclaim_workqueue, &mp->m_reclaim_work,
+ 			msecs_to_jiffies(xfs_syncd_centisecs / 6 * 10));
+ 	}
+-	rcu_read_unlock();
  }
  
  /*
-- * We need a radix tree for mapping physical addresses of TRBs to which stream
-- * ID they belong to.  We need to do this because the host controller won't tell
-+ * We need to map physical addresses of TRBs to the stream ID they belong to.
-+ * We need to do this because the host controller won't tell
-  * us which stream ring the TRB came from.  We could store the stream ID in an
-  * event data TRB, but that doesn't help us for the cancellation case, since the
-  * endpoint may stop before it reaches that event data TRB.
-  *
-- * The radix tree maps the upper portion of the TRB DMA address to a ring
-+ * The xarray maps the upper portion of the TRB DMA address to a ring
-  * segment that has the same upper portion of DMA addresses.  For example, say I
-  * have segments of size 1KB, that are always 1KB aligned.  A segment may
-  * start at 0x10c91000 and end at 0x10c913f0.  If I use the upper 10 bits, the
-- * key to the stream ID is 0x43244.  I can use the DMA address of the TRB to
-- * pass the radix tree a key to get the right stream ID:
-+ * index of the stream ID is 0x43244.  I can use the DMA address of the TRB as
-+ * the xarray index to get the right stream ID:
-  *
-  *	0x10c90fff >> 10 = 0x43243
-  *	0x10c912c0 >> 10 = 0x43244
-  *	0x10c91400 >> 10 = 0x43245
-  *
-  * Obviously, only those TRBs with DMA addresses that are within the segment
-- * will make the radix tree return the stream ID for that ring.
-+ * will make the xarray return the stream ID for that ring.
-  *
-- * Caveats for the radix tree:
-+ * Caveats for the xarray:
-  *
-- * The radix tree uses an unsigned long as a key pair.  On 32-bit systems, an
-+ * The xarray uses an unsigned long for the index.  On 32-bit systems, an
-  * unsigned long will be 32-bits; on a 64-bit system an unsigned long will be
-  * 64-bits.  Since we only request 32-bit DMA addresses, we can use that as the
-- * key on 32-bit or 64-bit systems (it would also be fine if we asked for 64-bit
-- * PCI DMA addresses on a 64-bit system).  There might be a problem on 32-bit
-- * extended systems (where the DMA address can be bigger than 32-bits),
-+ * index on 32-bit or 64-bit systems (it would also be fine if we asked for
-+ * 64-bit PCI DMA addresses on a 64-bit system).  There might be a problem on
-+ * 32-bit extended systems (where the DMA address can be bigger than 32-bits),
-  * if we allow the PCI dma mask to be bigger than 32-bits.  So don't do that.
+@@ -194,10 +191,7 @@ xfs_perag_set_reclaim_tag(
+ 		return;
+ 
+ 	/* propagate the reclaim tag up into the perag radix tree */
+-	spin_lock(&mp->m_perag_lock);
+-	radix_tree_tag_set(&mp->m_perag_tree, pag->pag_agno,
+-			   XFS_ICI_RECLAIM_TAG);
+-	spin_unlock(&mp->m_perag_lock);
++	xa_set_tag(&mp->m_perag_xa, pag->pag_agno, XFS_ICI_RECLAIM_TAG);
+ 
+ 	/* schedule periodic background inode reclaim */
+ 	xfs_reclaim_work_queue(mp);
+@@ -216,10 +210,7 @@ xfs_perag_clear_reclaim_tag(
+ 		return;
+ 
+ 	/* clear the reclaim tag from the perag radix tree */
+-	spin_lock(&mp->m_perag_lock);
+-	radix_tree_tag_clear(&mp->m_perag_tree, pag->pag_agno,
+-			     XFS_ICI_RECLAIM_TAG);
+-	spin_unlock(&mp->m_perag_lock);
++	xa_clear_tag(&mp->m_perag_xa, pag->pag_agno, XFS_ICI_RECLAIM_TAG);
+ 	trace_xfs_perag_clear_reclaim(mp, pag->pag_agno, -1, _RET_IP_);
+ }
+ 
+@@ -847,12 +838,10 @@ void
+ xfs_queue_eofblocks(
+ 	struct xfs_mount *mp)
+ {
+-	rcu_read_lock();
+-	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_EOFBLOCKS_TAG))
++	if (xa_tagged(&mp->m_perag_xa, XFS_ICI_EOFBLOCKS_TAG))
+ 		queue_delayed_work(mp->m_eofblocks_workqueue,
+ 				   &mp->m_eofblocks_work,
+ 				   msecs_to_jiffies(xfs_eofb_secs * 1000));
+-	rcu_read_unlock();
+ }
+ 
+ void
+@@ -874,12 +863,10 @@ void
+ xfs_queue_cowblocks(
+ 	struct xfs_mount *mp)
+ {
+-	rcu_read_lock();
+-	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_COWBLOCKS_TAG))
++	if (xa_tagged(&mp->m_perag_xa, XFS_ICI_COWBLOCKS_TAG))
+ 		queue_delayed_work(mp->m_eofblocks_workqueue,
+ 				   &mp->m_cowblocks_work,
+ 				   msecs_to_jiffies(xfs_cowb_secs * 1000));
+-	rcu_read_unlock();
+ }
+ 
+ void
+@@ -1557,7 +1544,7 @@ __xfs_inode_set_blocks_tag(
+ 	void		(*execute)(struct xfs_mount *mp),
+ 	void		(*set_tp)(struct xfs_mount *mp, xfs_agnumber_t agno,
+ 				  int error, unsigned long caller_ip),
+-	int		tag)
++	xa_tag_t	tag)
+ {
+ 	struct xfs_mount *mp = ip->i_mount;
+ 	struct xfs_perag *pag;
+@@ -1581,11 +1568,9 @@ __xfs_inode_set_blocks_tag(
+ 			   XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino), tag);
+ 	if (!tagged) {
+ 		/* propagate the eofblocks tag up into the perag radix tree */
+-		spin_lock(&ip->i_mount->m_perag_lock);
+-		radix_tree_tag_set(&ip->i_mount->m_perag_tree,
++		xa_set_tag(&ip->i_mount->m_perag_xa,
+ 				   XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino),
+ 				   tag);
+-		spin_unlock(&ip->i_mount->m_perag_lock);
+ 
+ 		/* kick off background trimming */
+ 		execute(ip->i_mount);
+@@ -1612,7 +1597,7 @@ __xfs_inode_clear_blocks_tag(
+ 	xfs_inode_t	*ip,
+ 	void		(*clear_tp)(struct xfs_mount *mp, xfs_agnumber_t agno,
+ 				    int error, unsigned long caller_ip),
+-	int		tag)
++	xa_tag_t	tag)
+ {
+ 	struct xfs_mount *mp = ip->i_mount;
+ 	struct xfs_perag *pag;
+@@ -1628,11 +1613,9 @@ __xfs_inode_clear_blocks_tag(
+ 			     XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino), tag);
+ 	if (!radix_tree_tagged(&pag->pag_ici_root, tag)) {
+ 		/* clear the eofblocks tag from the perag radix tree */
+-		spin_lock(&ip->i_mount->m_perag_lock);
+-		radix_tree_tag_clear(&ip->i_mount->m_perag_tree,
++		xa_clear_tag(&ip->i_mount->m_perag_xa,
+ 				     XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino),
+ 				     tag);
+-		spin_unlock(&ip->i_mount->m_perag_lock);
+ 		clear_tp(ip->i_mount, pag->pag_agno, -1, _RET_IP_);
+ 	}
+ 
+diff --git a/fs/xfs/xfs_icache.h b/fs/xfs/xfs_icache.h
+index d4a77588eca1..dfbf13b530bc 100644
+--- a/fs/xfs/xfs_icache.h
++++ b/fs/xfs/xfs_icache.h
+@@ -37,9 +37,9 @@ struct xfs_eofblocks {
   */
--static int xhci_insert_segment_mapping(struct radix_tree_root *trb_address_map,
-+
-+static unsigned long trb_index(dma_addr_t dma)
-+{
-+	return (unsigned long)(dma >> TRB_SEGMENT_SHIFT);
-+}
-+
-+static int xhci_insert_segment_mapping(struct xarray *trb_address_map,
- 		struct xhci_ring *ring,
- 		struct xhci_segment *seg,
--		gfp_t mem_flags)
-+		gfp_t gfp)
- {
--	unsigned long key;
--	int ret;
+ #define XFS_ICI_NO_TAG		(-1)	/* special flag for an untagged lookup
+ 					   in xfs_inode_ag_iterator */
+-#define XFS_ICI_RECLAIM_TAG	0	/* inode is to be reclaimed */
+-#define XFS_ICI_EOFBLOCKS_TAG	1	/* inode has blocks beyond EOF */
+-#define XFS_ICI_COWBLOCKS_TAG	2	/* inode can have cow blocks to gc */
++#define XFS_ICI_RECLAIM_TAG	XA_TAG_0 /* inode is to be reclaimed */
++#define XFS_ICI_EOFBLOCKS_TAG	XA_TAG_1 /* inode has blocks beyond EOF */
++#define XFS_ICI_COWBLOCKS_TAG	XA_TAG_2 /* inode can have cow blocks to gc */
+ 
+ /*
+  * Flags for xfs_iget()
+diff --git a/fs/xfs/xfs_mount.c b/fs/xfs/xfs_mount.c
+index c879b517cc94..0541aeb8449c 100644
+--- a/fs/xfs/xfs_mount.c
++++ b/fs/xfs/xfs_mount.c
+@@ -156,9 +156,7 @@ xfs_free_perag(
+ 	struct xfs_perag *pag;
+ 
+ 	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+-		spin_lock(&mp->m_perag_lock);
+-		pag = radix_tree_delete(&mp->m_perag_tree, agno);
+-		spin_unlock(&mp->m_perag_lock);
++		pag = xa_erase(&mp->m_perag_xa, agno);
+ 		ASSERT(pag);
+ 		ASSERT(atomic_read(&pag->pag_ref) == 0);
+ 		xfs_buf_hash_destroy(pag);
+@@ -219,19 +217,11 @@ xfs_initialize_perag(
+ 			goto out_free_pag;
+ 		init_waitqueue_head(&pag->pagb_wait);
+ 
+-		if (radix_tree_preload(GFP_NOFS))
+-			goto out_hash_destroy;
 -
--	key = (unsigned long)(seg->dma >> TRB_SEGMENT_SHIFT);
- 	/* Skip any segments that were already added. */
--	if (radix_tree_lookup(trb_address_map, key))
--		return 0;
--
--	ret = radix_tree_maybe_preload(mem_flags);
--	if (ret)
--		return ret;
--	ret = radix_tree_insert(trb_address_map,
--			key, ring);
--	radix_tree_preload_end();
--	return ret;
-+	return xa_err(xa_cmpxchg(trb_address_map, trb_index(seg->dma), NULL,
-+								ring, gfp));
- }
- 
--static void xhci_remove_segment_mapping(struct radix_tree_root *trb_address_map,
-+static void xhci_remove_segment_mapping(struct xarray *trb_address_map,
- 		struct xhci_segment *seg)
- {
--	unsigned long key;
--
--	key = (unsigned long)(seg->dma >> TRB_SEGMENT_SHIFT);
--	if (radix_tree_lookup(trb_address_map, key))
--		radix_tree_delete(trb_address_map, key);
-+	xa_erase(trb_address_map, trb_index(seg->dma));
- }
- 
- static int xhci_update_stream_segment_mapping(
--		struct radix_tree_root *trb_address_map,
-+		struct xarray *trb_address_map,
- 		struct xhci_ring *ring,
- 		struct xhci_segment *first_seg,
- 		struct xhci_segment *last_seg,
-@@ -574,8 +564,8 @@ struct xhci_ring *xhci_dma_to_transfer_ring(
- 		u64 address)
- {
- 	if (ep->ep_state & EP_HAS_STREAMS)
--		return radix_tree_lookup(&ep->stream_info->trb_address_map,
--				address >> TRB_SEGMENT_SHIFT);
-+		return xa_load(&ep->stream_info->trb_address_map,
-+				trb_index(address));
- 	return ep->ring;
- }
- 
-@@ -654,10 +644,10 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
- 	if (!stream_info->free_streams_command)
- 		goto cleanup_ctx;
- 
--	INIT_RADIX_TREE(&stream_info->trb_address_map, GFP_ATOMIC);
-+	xa_init(&stream_info->trb_address_map);
- 
- 	/* Allocate rings for all the streams that the driver will use,
--	 * and add their segment DMA addresses to the radix tree.
-+	 * and add their segment DMA addresses to the map.
- 	 * Stream 0 is reserved.
+-		spin_lock(&mp->m_perag_lock);
+-		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
++		if (xa_store(&mp->m_perag_xa, index, pag, GFP_NOFS)) {
+ 			BUG();
+-			spin_unlock(&mp->m_perag_lock);
+-			radix_tree_preload_end();
+ 			error = -EEXIST;
+ 			goto out_hash_destroy;
+ 		}
+-		spin_unlock(&mp->m_perag_lock);
+-		radix_tree_preload_end();
+ 		/* first new pag is fully initialized */
+ 		if (first_initialised == NULLAGNUMBER)
+ 			first_initialised = index;
+@@ -252,7 +242,7 @@ xfs_initialize_perag(
+ out_unwind_new_pags:
+ 	/* unwind any prior newly initialized pags */
+ 	for (index = first_initialised; index < agcount; index++) {
+-		pag = radix_tree_delete(&mp->m_perag_tree, index);
++		pag = xa_erase(&mp->m_perag_xa, index);
+ 		if (!pag)
+ 			break;
+ 		xfs_buf_hash_destroy(pag);
+@@ -816,8 +806,7 @@ xfs_mountfs(
+ 	/*
+ 	 * Allocate and initialize the per-ag data.
  	 */
- 
-@@ -2376,7 +2366,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
- 	 * Initialize the ring segment pool.  The ring must be a contiguous
- 	 * structure comprised of TRBs.  The TRBs must be 16 byte aligned,
- 	 * however, the command ring segment needs 64-byte aligned segments
--	 * and our use of dma addresses in the trb_address_map radix tree needs
-+	 * and our use of dma addresses in the trb_address_map xarray needs
- 	 * TRB_SEGMENT_SIZE alignment, so we pick the greater alignment need.
- 	 */
- 	xhci->segment_pool = dma_pool_create("xHCI ring segments", dev,
-diff --git a/drivers/usb/host/xhci.h b/drivers/usb/host/xhci.h
-index 054ce74524af..e8208a3eee3c 100644
---- a/drivers/usb/host/xhci.h
-+++ b/drivers/usb/host/xhci.h
-@@ -15,7 +15,7 @@
- #include <linux/usb.h>
- #include <linux/timer.h>
- #include <linux/kernel.h>
--#include <linux/radix-tree.h>
-+#include <linux/xarray.h>
- #include <linux/usb/hcd.h>
- #include <linux/io-64-nonatomic-lo-hi.h>
- 
-@@ -837,7 +837,7 @@ struct xhci_stream_info {
- 	unsigned int			num_stream_ctxs;
- 	dma_addr_t			ctx_array_dma;
- 	/* For mapping physical TRB addresses to segments in stream rings */
--	struct radix_tree_root		trb_address_map;
-+	struct xarray			trb_address_map;
- 	struct xhci_command		*free_streams_command;
- };
- 
-@@ -1584,7 +1584,7 @@ struct xhci_ring {
- 	unsigned int		bounce_buf_len;
- 	enum xhci_ring_type	type;
- 	bool			last_td_was_short;
--	struct radix_tree_root	*trb_address_map;
-+	struct xarray		*trb_address_map;
- };
- 
- struct xhci_erst_entry {
+-	spin_lock_init(&mp->m_perag_lock);
+-	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_ATOMIC);
++	xa_init(&mp->m_perag_xa);
+ 	error = xfs_initialize_perag(mp, sbp->sb_agcount, &mp->m_maxagi);
+ 	if (error) {
+ 		xfs_warn(mp, "Failed per-ag init: %d", error);
+diff --git a/fs/xfs/xfs_mount.h b/fs/xfs/xfs_mount.h
+index e0792d036be2..6e5ad7b26f46 100644
+--- a/fs/xfs/xfs_mount.h
++++ b/fs/xfs/xfs_mount.h
+@@ -134,8 +134,7 @@ typedef struct xfs_mount {
+ 	xfs_extlen_t		m_ag_prealloc_blocks; /* reserved ag blocks */
+ 	uint			m_alloc_set_aside; /* space we can't use */
+ 	uint			m_ag_max_usable; /* max space per AG */
+-	struct radix_tree_root	m_perag_tree;	/* per-ag accounting info */
+-	spinlock_t		m_perag_lock;	/* lock for m_perag_tree */
++	struct xarray		m_perag_xa;	/* per-ag accounting info */
+ 	struct mutex		m_growlock;	/* growfs mutex */
+ 	int			m_fixedfsid[2];	/* unchanged for life of FS */
+ 	uint			m_dmevmask;	/* DMI events for this FS */
 -- 
 2.15.1
 
