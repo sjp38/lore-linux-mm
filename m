@@ -1,83 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 11062280298
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 05:02:27 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id v10so5405944wrv.22
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 02:02:27 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v6si843781wrg.302.2018.01.17.02.02.25
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D9E9280298
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 05:45:13 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id i2so11176215pgq.8
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 02:45:13 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id s9si4092556plr.684.2018.01.17.02.45.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Jan 2018 02:02:25 -0800 (PST)
-Subject: Re: [PATCH v2] mm/page_owner: Clean up init_pages_in_zone()
-References: <20180110084355.GA22822@techadventures.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <8395025d-90fd-7341-09b7-115ff131f6ac@suse.cz>
-Date: Wed, 17 Jan 2018 11:02:24 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Jan 2018 02:45:12 -0800 (PST)
+Message-ID: <5A5F29C9.4040706@intel.com>
+Date: Wed, 17 Jan 2018 18:47:37 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180110084355.GA22822@techadventures.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Subject: Re: [PATCH v22 2/3] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+References: <1516165812-3995-1-git-send-email-wei.w.wang@intel.com> <1516165812-3995-3-git-send-email-wei.w.wang@intel.com> <1003745745.1007975.1516177271163.JavaMail.zimbra@redhat.com> <5A5F109B.7090200@intel.com> <1239524301.1023371.1516181271621.JavaMail.zimbra@redhat.com>
+In-Reply-To: <1239524301.1023371.1516181271621.JavaMail.zimbra@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>, linux-mm@kvack.org
-Cc: mhocko@suse.com, akpm@linux-foundation.org
+To: Pankaj Gupta <pagupta@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang opensource <liliang.opensource@gmail.com>, yang zhang wz <yang.zhang.wz@gmail.com>, quan xu0 <quan.xu0@gmail.com>, nilal@redhat.com, riel@redhat.com
 
-On 01/10/2018 09:43 AM, Oscar Salvador wrote:
-> This patch removes two redundant assignments in init_pages_in_zone function.
-> 
-> Signed-off-by: Oscar Salvador <osalvador@techadventures.net>
+On 01/17/2018 05:27 PM, Pankaj Gupta wrote:
+>> On 01/17/2018 04:21 PM, Pankaj Gupta wrote:
+>>
+> o.k  you have initialize "err = -ENOMEM;"
+>
+> Remove these four lines.
+>   
+>   -        kfree(names);
+>   -        kfree(callbacks);
+>   -        kfree(vqs);
+>   -        return 0;
+>
+>   +        err = 0;              // if executed without any error
+>
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+OK, thanks. "error = 0" is not needed actually.
 
-A nitpick below.
-
-> ---
->  mm/page_owner.c | 7 ++-----
->  1 file changed, 2 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/page_owner.c b/mm/page_owner.c
-> index 69f83fc763bb..b361781e5ab6 100644
-> --- a/mm/page_owner.c
-> +++ b/mm/page_owner.c
-> @@ -528,14 +528,11 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
->  
->  static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
->  {
-> -	struct page *page;
-> -	struct page_ext *page_ext;
->  	unsigned long pfn = zone->zone_start_pfn, block_end_pfn;
-
-block_end_pfn declaration could be moved to the outer for loop
-
->  	unsigned long end_pfn = pfn + zone->spanned_pages;
-
-While here, I would use zone_end_pfn() on the line above.
-
->  	unsigned long count = 0;
->  
->  	/* Scan block by block. First and last block may be incomplete */
-
-Now the comment is stray, I would just remove it too.
-
-> -	pfn = zone->zone_start_pfn;
->  
->  	/*
->  	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
-> @@ -551,9 +548,9 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
->  		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
->  		block_end_pfn = min(block_end_pfn, end_pfn);
->  
-> -		page = pfn_to_page(pfn);
-> -
->  		for (; pfn < block_end_pfn; pfn++) {
-> +			struct page *page;
-> +			struct page_ext *page_ext;
->  			if (!pfn_valid_within(pfn))
->  				continue;
->  
-> 
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
