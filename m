@@ -1,67 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 988CB6B0033
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 11:00:08 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id i6so13310948wre.6
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 08:00:08 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t67si3846555wmg.85.2018.01.17.08.00.07
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 25D366B0069
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 11:29:43 -0500 (EST)
+Received: by mail-ua0-f197.google.com with SMTP id p17so7081577uap.12
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 08:29:43 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x7sor2009000vkg.275.2018.01.17.08.29.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Jan 2018 08:00:07 -0800 (PST)
-Date: Wed, 17 Jan 2018 17:00:04 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch -mm 3/4] mm, memcg: replace memory.oom_group with policy
- tunable
-Message-ID: <20180117160004.GH2900@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1801161812550.28198@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1801161814130.28198@chino.kir.corp.google.com>
- <20180117154155.GU3460072@devbig577.frc2.facebook.com>
+        (Google Transport Security);
+        Wed, 17 Jan 2018 08:29:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180117154155.GU3460072@devbig577.frc2.facebook.com>
+In-Reply-To: <20180116210321.GB8801@redhat.com>
+References: <20180116210321.GB8801@redhat.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Wed, 17 Jan 2018 21:59:40 +0530
+Message-ID: <CAKTCnznQ95Ao5hOEH=pecaoU9G9xYvitV64shf8S39vzfH+uyA@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] CAPI/CCIX cache coherent device memory (NUMA too ?)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: lsf-pc <lsf-pc@lists.linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Jonathan Masters <jcm@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Wed 17-01-18 07:41:55, Tejun Heo wrote:
-> Hello, David.
-> 
-> On Tue, Jan 16, 2018 at 06:15:08PM -0800, David Rientjes wrote:
-> > The behavior of killing an entire indivisible memory consumer, enabled
-> > by memory.oom_group, is an oom policy itself.  It specifies that all
-> 
-> I thought we discussed this before but maybe I'm misremembering.
-> There are two parts to the OOM policy.  One is victim selection, the
-> other is the action to take thereafter.
+On Wed, Jan 17, 2018 at 2:33 AM, Jerome Glisse <jglisse@redhat.com> wrote:
+> CAPI (on IBM Power8 and 9) and CCIX are two new standard that
+> build on top of existing interconnect (like PCIE) and add the
+> possibility for cache coherent access both way (from CPU to
+> device memory and from device to main memory). This extend
+> what we are use to with PCIE (where only device to main memory
+> can be cache coherent but not CPU to device memory).
+>
+> How is this memory gonna be expose to the kernel and how the
+> kernel gonna expose this to user space is the topic i want to
+> discuss. I believe this is highly device specific for instance
+> for GPU you want the device memory allocation and usage to be
+> under the control of the GPU device driver. Maybe other type
+> of device want different strategy.
+>
+> The HMAT patchset is partialy related to all this as it is about
+> exposing different type of memory available in a system for CPU
+> (HBM, main memory, ...) and some of their properties (bandwidth,
+> latency, ...).
+>
+>
+> We can start by looking at how CAPI and CCIX plan to expose this
+> to the kernel and try to list some of the type of devices we
+> expect to see. Discussion can then happen on how to represent this
+> internaly to the kernel and how to expose this to userspace.
+>
+> Note this might also trigger discussion on a NUMA like model or
+> on extending/replacing it by something more generic.
+>
 
-Yes we have. Multiple times! The last time I've said the very same thing
-was yesterday http://lkml.kernel.org/r/20180116220907.GD17351@dhcp22.suse.cz
+Yes, I agree. I've had some experience with both NUMA and HMM/CDM
+models. I think we should compare and contrast the trade-offs
+and also discuss how we want to expose some of the ZONE_DEVICE
+information back to user space.
 
-> The two are different and conflating the two don't work too well.  For
-> example, please consider what should be given to the delegatee when
-> delegating a subtree, which often is a good excercise when designing
-> these APIs.
+>
+> Peoples (alphabetical order on first name) sorry if i missed
+> anyone:
+>     "Anshuman Khandual" <khandual@linux.vnet.ibm.com>
+>     "Balbir Singh" <bsingharora@gmail.com>
+>     "Dan Williams" <dan.j.williams@intel.com>
+>     "John Hubbard" <jhubbard@nvidia.com>
+>     "Jonathan Masters" <jcm@redhat.com>
+>     "Ross Zwisler" <ross.zwisler@linux.intel.com>
 
-Absolutely agreed! And moreover, there are not all that many ways what
-to do as an action. You just kill a logical entity - be it a process or
-a logical group of processes. But you have way too many policies how
-to select that entity. Do you want to chose the youngest process/group
-because all the older ones have been computing real stuff and you would
-lose days of your cpu time? Or should those who pay more should be
-protected (aka give them static priorities), or you name it...
+I'd love to be there if invited.
 
-I am sorry, I still didn't grasp the full semantic of the proposed
-soluton but the mere fact it is starting by conflating selection and the
-action is a no go and a wrong API. This is why I've said that what you
-(David) outlined yesterday is probably going to suffer from a much
-longer discussion and most likely to be not acceptable. Your patchset
-proves me correct...
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
