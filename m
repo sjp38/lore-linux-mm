@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 16F35280274
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 63D35280277
 	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:01 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id j26so14982267pff.8
+Received: by mail-pf0-f197.google.com with SMTP id s22so3479408pfh.21
         for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:01 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id a63si5102653pla.727.2018.01.17.12.22.59
+        by mx.google.com with ESMTPS id v70si2809526pgd.414.2018.01.17.12.22.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Wed, 17 Jan 2018 12:22:59 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 73/99] xfs: Convert mru cache to XArray
-Date: Wed, 17 Jan 2018 12:21:37 -0800
-Message-Id: <20180117202203.19756-74-willy@infradead.org>
+Subject: [PATCH v6 74/99] usb: Convert xhci-mem to XArray
+Date: Wed, 17 Jan 2018 12:21:38 -0800
+Message-Id: <20180117202203.19756-75-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,213 +22,178 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This eliminates a call to radix_tree_preload().
+The XArray API is a slightly better fit for xhci_insert_segment_mapping()
+than the radix tree API was.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/xfs/xfs_mru_cache.c | 72 +++++++++++++++++++++++---------------------------
- 1 file changed, 33 insertions(+), 39 deletions(-)
+ drivers/usb/host/xhci-mem.c | 68 +++++++++++++++++++--------------------------
+ drivers/usb/host/xhci.h     |  6 ++--
+ 2 files changed, 32 insertions(+), 42 deletions(-)
 
-diff --git a/fs/xfs/xfs_mru_cache.c b/fs/xfs/xfs_mru_cache.c
-index f8a674d7f092..2179bede5396 100644
---- a/fs/xfs/xfs_mru_cache.c
-+++ b/fs/xfs/xfs_mru_cache.c
-@@ -101,10 +101,9 @@
-  * an infinite loop in the code.
-  */
- struct xfs_mru_cache {
--	struct radix_tree_root	store;     /* Core storage data structure.  */
-+	struct xarray		store;     /* Core storage data structure.  */
- 	struct list_head	*lists;    /* Array of lists, one per grp.  */
- 	struct list_head	reap_list; /* Elements overdue for reaping. */
--	spinlock_t		lock;      /* Lock to protect this struct.  */
- 	unsigned int		grp_count; /* Number of discrete groups.    */
- 	unsigned int		grp_time;  /* Time period spanned by grps.  */
- 	unsigned int		lru_grp;   /* Group containing time zero.   */
-@@ -232,22 +231,21 @@ _xfs_mru_cache_list_insert(
-  * data store, removing it from the reap list, calling the client's free
-  * function and deleting the element from the element zone.
-  *
-- * We get called holding the mru->lock, which we drop and then reacquire.
-- * Sparse need special help with this to tell it we know what we are doing.
-+ * We get called holding the mru->store lock, which we drop and then reacquire.
-+ * Sparse needs special help with this to tell it we know what we are doing.
-  */
- STATIC void
- _xfs_mru_cache_clear_reap_list(
- 	struct xfs_mru_cache	*mru)
--		__releases(mru->lock) __acquires(mru->lock)
-+		__releases(mru->store) __acquires(mru->store)
- {
- 	struct xfs_mru_cache_elem *elem, *next;
- 	struct list_head	tmp;
- 
- 	INIT_LIST_HEAD(&tmp);
- 	list_for_each_entry_safe(elem, next, &mru->reap_list, list_node) {
--
- 		/* Remove the element from the data store. */
--		radix_tree_delete(&mru->store, elem->key);
-+		__xa_erase(&mru->store, elem->key);
- 
- 		/*
- 		 * remove to temp list so it can be freed without
-@@ -255,14 +253,14 @@ _xfs_mru_cache_clear_reap_list(
- 		 */
- 		list_move(&elem->list_node, &tmp);
- 	}
--	spin_unlock(&mru->lock);
-+	xa_unlock(&mru->store);
- 
- 	list_for_each_entry_safe(elem, next, &tmp, list_node) {
- 		list_del_init(&elem->list_node);
- 		mru->free_func(elem);
- 	}
- 
--	spin_lock(&mru->lock);
-+	xa_lock(&mru->store);
+diff --git a/drivers/usb/host/xhci-mem.c b/drivers/usb/host/xhci-mem.c
+index 3a29b32a3bd0..a2e15a9abc30 100644
+--- a/drivers/usb/host/xhci-mem.c
++++ b/drivers/usb/host/xhci-mem.c
+@@ -149,70 +149,60 @@ static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *ring,
  }
  
  /*
-@@ -284,7 +282,7 @@ _xfs_mru_cache_reap(
- 	if (!mru || !mru->lists)
- 		return;
- 
--	spin_lock(&mru->lock);
-+	xa_lock(&mru->store);
- 	next = _xfs_mru_cache_migrate(mru, jiffies);
- 	_xfs_mru_cache_clear_reap_list(mru);
- 
-@@ -298,7 +296,7 @@ _xfs_mru_cache_reap(
- 		queue_delayed_work(xfs_mru_reap_wq, &mru->work, next);
- 	}
- 
--	spin_unlock(&mru->lock);
-+	xa_unlock(&mru->store);
- }
- 
- int
-@@ -358,13 +356,8 @@ xfs_mru_cache_create(
- 	for (grp = 0; grp < mru->grp_count; grp++)
- 		INIT_LIST_HEAD(mru->lists + grp);
- 
--	/*
--	 * We use GFP_KERNEL radix tree preload and do inserts under a
--	 * spinlock so GFP_ATOMIC is appropriate for the radix tree itself.
--	 */
--	INIT_RADIX_TREE(&mru->store, GFP_ATOMIC);
-+	xa_init(&mru->store);
- 	INIT_LIST_HEAD(&mru->reap_list);
--	spin_lock_init(&mru->lock);
- 	INIT_DELAYED_WORK(&mru->work, _xfs_mru_cache_reap);
- 
- 	mru->grp_time  = grp_time;
-@@ -394,17 +387,17 @@ xfs_mru_cache_flush(
- 	if (!mru || !mru->lists)
- 		return;
- 
--	spin_lock(&mru->lock);
-+	xa_lock(&mru->store);
- 	if (mru->queued) {
--		spin_unlock(&mru->lock);
-+		xa_unlock(&mru->store);
- 		cancel_delayed_work_sync(&mru->work);
--		spin_lock(&mru->lock);
-+		xa_lock(&mru->store);
- 	}
- 
- 	_xfs_mru_cache_migrate(mru, jiffies + mru->grp_count * mru->grp_time);
- 	_xfs_mru_cache_clear_reap_list(mru);
- 
--	spin_unlock(&mru->lock);
-+	xa_unlock(&mru->store);
- }
- 
- void
-@@ -431,24 +424,24 @@ xfs_mru_cache_insert(
- 	unsigned long		key,
- 	struct xfs_mru_cache_elem *elem)
+- * We need a radix tree for mapping physical addresses of TRBs to which stream
+- * ID they belong to.  We need to do this because the host controller won't tell
++ * We need to map physical addresses of TRBs to the stream ID they belong to.
++ * We need to do this because the host controller won't tell
+  * us which stream ring the TRB came from.  We could store the stream ID in an
+  * event data TRB, but that doesn't help us for the cancellation case, since the
+  * endpoint may stop before it reaches that event data TRB.
+  *
+- * The radix tree maps the upper portion of the TRB DMA address to a ring
++ * The xarray maps the upper portion of the TRB DMA address to a ring
+  * segment that has the same upper portion of DMA addresses.  For example, say I
+  * have segments of size 1KB, that are always 1KB aligned.  A segment may
+  * start at 0x10c91000 and end at 0x10c913f0.  If I use the upper 10 bits, the
+- * key to the stream ID is 0x43244.  I can use the DMA address of the TRB to
+- * pass the radix tree a key to get the right stream ID:
++ * index of the stream ID is 0x43244.  I can use the DMA address of the TRB as
++ * the xarray index to get the right stream ID:
+  *
+  *	0x10c90fff >> 10 = 0x43243
+  *	0x10c912c0 >> 10 = 0x43244
+  *	0x10c91400 >> 10 = 0x43245
+  *
+  * Obviously, only those TRBs with DMA addresses that are within the segment
+- * will make the radix tree return the stream ID for that ring.
++ * will make the xarray return the stream ID for that ring.
+  *
+- * Caveats for the radix tree:
++ * Caveats for the xarray:
+  *
+- * The radix tree uses an unsigned long as a key pair.  On 32-bit systems, an
++ * The xarray uses an unsigned long for the index.  On 32-bit systems, an
+  * unsigned long will be 32-bits; on a 64-bit system an unsigned long will be
+  * 64-bits.  Since we only request 32-bit DMA addresses, we can use that as the
+- * key on 32-bit or 64-bit systems (it would also be fine if we asked for 64-bit
+- * PCI DMA addresses on a 64-bit system).  There might be a problem on 32-bit
+- * extended systems (where the DMA address can be bigger than 32-bits),
++ * index on 32-bit or 64-bit systems (it would also be fine if we asked for
++ * 64-bit PCI DMA addresses on a 64-bit system).  There might be a problem on
++ * 32-bit extended systems (where the DMA address can be bigger than 32-bits),
+  * if we allow the PCI dma mask to be bigger than 32-bits.  So don't do that.
+  */
+-static int xhci_insert_segment_mapping(struct radix_tree_root *trb_address_map,
++
++static unsigned long trb_index(dma_addr_t dma)
++{
++	return (unsigned long)(dma >> TRB_SEGMENT_SHIFT);
++}
++
++static int xhci_insert_segment_mapping(struct xarray *trb_address_map,
+ 		struct xhci_ring *ring,
+ 		struct xhci_segment *seg,
+-		gfp_t mem_flags)
++		gfp_t gfp)
  {
-+	XA_STATE(xas, &mru->store, key);
- 	int			error;
- 
- 	ASSERT(mru && mru->lists);
- 	if (!mru || !mru->lists)
- 		return -EINVAL;
- 
--	if (radix_tree_preload(GFP_NOFS))
--		return -ENOMEM;
+-	unsigned long key;
+-	int ret;
 -
- 	INIT_LIST_HEAD(&elem->list_node);
- 	elem->key = key;
- 
--	spin_lock(&mru->lock);
--	error = radix_tree_insert(&mru->store, key, elem);
+-	key = (unsigned long)(seg->dma >> TRB_SEGMENT_SHIFT);
+ 	/* Skip any segments that were already added. */
+-	if (radix_tree_lookup(trb_address_map, key))
+-		return 0;
+-
+-	ret = radix_tree_maybe_preload(mem_flags);
+-	if (ret)
+-		return ret;
+-	ret = radix_tree_insert(trb_address_map,
+-			key, ring);
 -	radix_tree_preload_end();
--	if (!error)
--		_xfs_mru_cache_list_insert(mru, elem);
--	spin_unlock(&mru->lock);
-+	do {
-+		xas_lock(&xas);
-+		xas_store(&xas, elem);
-+		error = xas_error(&xas);
-+		if (!error)
-+			_xfs_mru_cache_list_insert(mru, elem);
-+		xas_unlock(&xas);
-+	} while (xas_nomem(&xas, GFP_NOFS));
- 
- 	return error;
+-	return ret;
++	return xa_err(xa_cmpxchg(trb_address_map, trb_index(seg->dma), NULL,
++								ring, gfp));
  }
-@@ -470,11 +463,11 @@ xfs_mru_cache_remove(
- 	if (!mru || !mru->lists)
- 		return NULL;
  
--	spin_lock(&mru->lock);
--	elem = radix_tree_delete(&mru->store, key);
-+	xa_lock(&mru->store);
-+	elem = __xa_erase(&mru->store, key);
- 	if (elem)
- 		list_del(&elem->list_node);
--	spin_unlock(&mru->lock);
-+	xa_unlock(&mru->store);
- 
- 	return elem;
- }
-@@ -520,20 +513,21 @@ xfs_mru_cache_lookup(
- 	struct xfs_mru_cache	*mru,
- 	unsigned long		key)
+-static void xhci_remove_segment_mapping(struct radix_tree_root *trb_address_map,
++static void xhci_remove_segment_mapping(struct xarray *trb_address_map,
+ 		struct xhci_segment *seg)
  {
-+	XA_STATE(xas, &mru->store, key);
- 	struct xfs_mru_cache_elem *elem;
- 
- 	ASSERT(mru && mru->lists);
- 	if (!mru || !mru->lists)
- 		return NULL;
- 
--	spin_lock(&mru->lock);
--	elem = radix_tree_lookup(&mru->store, key);
-+	xas_lock(&xas);
-+	elem = xas_load(&xas);
- 	if (elem) {
- 		list_del(&elem->list_node);
- 		_xfs_mru_cache_list_insert(mru, elem);
--		__release(mru_lock); /* help sparse not be stupid */
-+		__release(&xas); /* help sparse not be stupid */
- 	} else
--		spin_unlock(&mru->lock);
-+		xas_unlock(&xas);
- 
- 	return elem;
+-	unsigned long key;
+-
+-	key = (unsigned long)(seg->dma >> TRB_SEGMENT_SHIFT);
+-	if (radix_tree_lookup(trb_address_map, key))
+-		radix_tree_delete(trb_address_map, key);
++	xa_erase(trb_address_map, trb_index(seg->dma));
  }
-@@ -546,7 +540,7 @@ xfs_mru_cache_lookup(
- void
- xfs_mru_cache_done(
- 	struct xfs_mru_cache	*mru)
--		__releases(mru->lock)
-+		__releases(mru->store)
+ 
+ static int xhci_update_stream_segment_mapping(
+-		struct radix_tree_root *trb_address_map,
++		struct xarray *trb_address_map,
+ 		struct xhci_ring *ring,
+ 		struct xhci_segment *first_seg,
+ 		struct xhci_segment *last_seg,
+@@ -574,8 +564,8 @@ struct xhci_ring *xhci_dma_to_transfer_ring(
+ 		u64 address)
  {
--	spin_unlock(&mru->lock);
-+	xa_unlock(&mru->store);
+ 	if (ep->ep_state & EP_HAS_STREAMS)
+-		return radix_tree_lookup(&ep->stream_info->trb_address_map,
+-				address >> TRB_SEGMENT_SHIFT);
++		return xa_load(&ep->stream_info->trb_address_map,
++				trb_index(address));
+ 	return ep->ring;
  }
+ 
+@@ -654,10 +644,10 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
+ 	if (!stream_info->free_streams_command)
+ 		goto cleanup_ctx;
+ 
+-	INIT_RADIX_TREE(&stream_info->trb_address_map, GFP_ATOMIC);
++	xa_init(&stream_info->trb_address_map);
+ 
+ 	/* Allocate rings for all the streams that the driver will use,
+-	 * and add their segment DMA addresses to the radix tree.
++	 * and add their segment DMA addresses to the map.
+ 	 * Stream 0 is reserved.
+ 	 */
+ 
+@@ -2376,7 +2366,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
+ 	 * Initialize the ring segment pool.  The ring must be a contiguous
+ 	 * structure comprised of TRBs.  The TRBs must be 16 byte aligned,
+ 	 * however, the command ring segment needs 64-byte aligned segments
+-	 * and our use of dma addresses in the trb_address_map radix tree needs
++	 * and our use of dma addresses in the trb_address_map xarray needs
+ 	 * TRB_SEGMENT_SIZE alignment, so we pick the greater alignment need.
+ 	 */
+ 	xhci->segment_pool = dma_pool_create("xHCI ring segments", dev,
+diff --git a/drivers/usb/host/xhci.h b/drivers/usb/host/xhci.h
+index 054ce74524af..e8208a3eee3c 100644
+--- a/drivers/usb/host/xhci.h
++++ b/drivers/usb/host/xhci.h
+@@ -15,7 +15,7 @@
+ #include <linux/usb.h>
+ #include <linux/timer.h>
+ #include <linux/kernel.h>
+-#include <linux/radix-tree.h>
++#include <linux/xarray.h>
+ #include <linux/usb/hcd.h>
+ #include <linux/io-64-nonatomic-lo-hi.h>
+ 
+@@ -837,7 +837,7 @@ struct xhci_stream_info {
+ 	unsigned int			num_stream_ctxs;
+ 	dma_addr_t			ctx_array_dma;
+ 	/* For mapping physical TRB addresses to segments in stream rings */
+-	struct radix_tree_root		trb_address_map;
++	struct xarray			trb_address_map;
+ 	struct xhci_command		*free_streams_command;
+ };
+ 
+@@ -1584,7 +1584,7 @@ struct xhci_ring {
+ 	unsigned int		bounce_buf_len;
+ 	enum xhci_ring_type	type;
+ 	bool			last_td_was_short;
+-	struct radix_tree_root	*trb_address_map;
++	struct xarray		*trb_address_map;
+ };
+ 
+ struct xhci_erst_entry {
 -- 
 2.15.1
 
