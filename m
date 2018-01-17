@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B57A2280294
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:24:30 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id r28so2618284pgu.1
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:24:30 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 8E8FA280294
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:24:34 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id m3so451716pgd.20
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:24:34 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q188si4476895pga.444.2018.01.17.12.22.51
+        by mx.google.com with ESMTPS id v8si4366933pgo.413.2018.01.17.12.22.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:22:51 -0800 (PST)
+        Wed, 17 Jan 2018 12:22:52 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 57/99] dax: Convert dax_unlock_mapping_entry to XArray
-Date: Wed, 17 Jan 2018 12:21:21 -0800
-Message-Id: <20180117202203.19756-58-willy@infradead.org>
+Subject: [PATCH v6 61/99] dax: Convert dax_writeback_one to XArray
+Date: Wed, 17 Jan 2018 12:21:25 -0800
+Message-Id: <20180117202203.19756-62-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,102 +22,74 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Replace slot_locked() with dax_locked() and inline unlock_slot() into
-its only caller.
+Likewise easy
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/dax.c | 48 ++++++++++++++++--------------------------------
- 1 file changed, 16 insertions(+), 32 deletions(-)
+ fs/dax.c | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index 5097a606da1a..f3463d93a6ce 100644
+index 9a30224da4d6..b66b8c896ed8 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -73,6 +73,11 @@ fs_initcall(init_dax_wait_table);
- #define DAX_ZERO_PAGE	(1UL << 2)
- #define DAX_EMPTY	(1UL << 3)
- 
-+static bool dax_locked(void *entry)
-+{
-+	return xa_to_value(entry) & DAX_ENTRY_LOCK;
-+}
-+
- static unsigned long dax_radix_sector(void *entry)
+@@ -632,8 +632,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 		struct dax_device *dax_dev, struct address_space *mapping,
+ 		pgoff_t index, void *entry)
  {
- 	return xa_to_value(entry) >> DAX_SHIFT;
-@@ -180,16 +185,6 @@ static void dax_wake_mapping_entry_waiter(struct address_space *mapping,
- 		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
- }
- 
--/*
-- * Check whether the given slot is locked.  Must be called with xa_lock held.
-- */
--static inline int slot_locked(struct address_space *mapping, void **slot)
--{
--	unsigned long entry = xa_to_value(
--		radix_tree_deref_slot_protected(slot, &mapping->pages.xa_lock));
--	return entry & DAX_ENTRY_LOCK;
--}
--
- /*
-  * Mark the given slot as locked.  Must be called with xa_lock held.
-  */
-@@ -202,18 +197,6 @@ static inline void *lock_slot(struct address_space *mapping, void **slot)
- 	return entry;
- }
- 
--/*
-- * Mark the given slot as unlocked.  Must be called with xa_lock held.
-- */
--static inline void *unlock_slot(struct address_space *mapping, void **slot)
--{
--	unsigned long v = xa_to_value(
--		radix_tree_deref_slot_protected(slot, &mapping->pages.xa_lock));
--	void *entry = xa_mk_value(v & ~DAX_ENTRY_LOCK);
--	radix_tree_replace_slot(&mapping->pages, slot, entry);
--	return entry;
--}
--
- /*
-  * Lookup entry in radix tree, wait for it to become unlocked if it is
-  * a DAX entry and return it. The caller must call
-@@ -237,8 +220,7 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- 		entry = __radix_tree_lookup(&mapping->pages, index, NULL,
- 					  &slot);
- 		if (!entry ||
--		    WARN_ON_ONCE(!xa_is_value(entry)) ||
--		    !slot_locked(mapping, slot)) {
-+		    WARN_ON_ONCE(!xa_is_value(entry)) || !dax_locked(entry)) {
- 			if (slotp)
- 				*slotp = slot;
- 			return entry;
-@@ -257,17 +239,19 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- static void dax_unlock_mapping_entry(struct address_space *mapping,
- 				     pgoff_t index)
- {
--	void *entry, **slot;
+-	struct radix_tree_root *pages = &mapping->pages;
+-	XA_STATE(xas, pages, index);
 +	XA_STATE(xas, &mapping->pages, index);
-+	void *entry;
+ 	void *entry2, *kaddr;
+ 	long ret = 0, id;
+ 	sector_t sector;
+@@ -648,7 +647,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	if (WARN_ON(!xa_is_value(entry)))
+ 		return -EIO;
  
 -	xa_lock_irq(&mapping->pages);
--	entry = __radix_tree_lookup(&mapping->pages, index, NULL, &slot);
--	if (WARN_ON_ONCE(!entry || !xa_is_value(entry) ||
--			 !slot_locked(mapping, slot))) {
--		xa_unlock_irq(&mapping->pages);
 +	xas_lock_irq(&xas);
-+	entry = xas_load(&xas);
-+	if (WARN_ON_ONCE(!entry || !xa_is_value(entry) || !dax_locked(entry))) {
-+		xas_unlock_irq(&xas);
- 		return;
+ 	entry2 = get_unlocked_mapping_entry(&xas);
+ 	/* Entry got punched out / reallocated? */
+ 	if (!entry2 || WARN_ON_ONCE(!xa_is_value(entry2)))
+@@ -667,7 +666,7 @@ static int dax_writeback_one(struct block_device *bdev,
  	}
--	unlock_slot(mapping, slot);
+ 
+ 	/* Another fsync thread may have already written back this entry */
+-	if (!radix_tree_tag_get(pages, index, PAGECACHE_TAG_TOWRITE))
++	if (!xas_get_tag(&xas, PAGECACHE_TAG_TOWRITE))
+ 		goto put_unlocked;
+ 	/* Lock the entry to serialize with page faults */
+ 	entry = lock_slot(&xas);
+@@ -678,8 +677,8 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	 * at the entry only under xa_lock and once they do that they will
+ 	 * see the entry locked and wait for it to unlock.
+ 	 */
+-	radix_tree_tag_clear(pages, index, PAGECACHE_TAG_TOWRITE);
 -	xa_unlock_irq(&mapping->pages);
-+	entry = xa_mk_value(xa_to_value(entry) & ~DAX_ENTRY_LOCK);
-+	xas_store(&xas, entry);
-+	/* Safe to not call xas_pause here -- we don't touch the array after */
++	xas_clear_tag(&xas, PAGECACHE_TAG_TOWRITE);
 +	xas_unlock_irq(&xas);
- 	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
+ 
+ 	/*
+ 	 * Even if dax_writeback_mapping_range() was given a wbc->range_start
+@@ -717,9 +716,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	 * the pfn mappings are writeprotected and fault waits for mapping
+ 	 * entry lock.
+ 	 */
+-	xa_lock_irq(&mapping->pages);
+-	radix_tree_tag_clear(pages, index, PAGECACHE_TAG_DIRTY);
+-	xa_unlock_irq(&mapping->pages);
++	xa_clear_tag(&mapping->pages, index, PAGECACHE_TAG_DIRTY);
+ 	trace_dax_writeback_one(mapping->host, index, size >> PAGE_SHIFT);
+  dax_unlock:
+ 	dax_read_unlock(id);
+@@ -728,7 +725,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 
+  put_unlocked:
+ 	put_unlocked_mapping_entry(&xas, entry2);
+-	xa_unlock_irq(&mapping->pages);
++	xas_unlock_irq(&xas);
+ 	return ret;
  }
  
 -- 
