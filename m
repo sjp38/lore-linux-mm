@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CC25280279
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F039B28027B
 	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:02 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id k6so1238874pgt.15
+Received: by mail-pg0-f69.google.com with SMTP id m3so448873pgd.20
         for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:02 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id w34si5110492pla.163.2018.01.17.12.23.00
+        by mx.google.com with ESMTPS id x13si4405513pgc.630.2018.01.17.12.23.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:23:00 -0800 (PST)
+        Wed, 17 Jan 2018 12:23:01 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 76/99] irqdomain: Convert to XArray
-Date: Wed, 17 Jan 2018 12:21:40 -0800
-Message-Id: <20180117202203.19756-77-willy@infradead.org>
+Subject: [PATCH v6 80/99] blk-ioc: Convert to XArray
+Date: Wed, 17 Jan 2018 12:21:44 -0800
+Message-Id: <20180117202203.19756-81-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,231 +22,114 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-In a non-critical path, irqdomain wants to know how many entries are
-stored in the xarray, so add xa_count().  This is a pretty straightforward
-conversion; mostly just removing now-redundant locking.  The only thing
-of note is just how much simpler irq_domain_fix_revmap() becomes.
+Skip converting the lock to use xa_lock; I think this code can live with
+the double-locking.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-Acked-by: Marc Zyngier <marc.zyngier@arm.com>
 ---
- include/linux/irqdomain.h | 10 ++++------
- include/linux/xarray.h    |  1 +
- kernel/irq/irqdomain.c    | 39 ++++++++++-----------------------------
- lib/xarray.c              | 25 +++++++++++++++++++++++++
- 4 files changed, 40 insertions(+), 35 deletions(-)
+ block/blk-ioc.c           | 13 +++++++------
+ include/linux/iocontext.h |  6 +++---
+ 2 files changed, 10 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/irqdomain.h b/include/linux/irqdomain.h
-index 48c7e86bb556..6c69d9141709 100644
---- a/include/linux/irqdomain.h
-+++ b/include/linux/irqdomain.h
-@@ -33,8 +33,7 @@
- #include <linux/types.h>
- #include <linux/irqhandler.h>
- #include <linux/of.h>
--#include <linux/mutex.h>
+diff --git a/block/blk-ioc.c b/block/blk-ioc.c
+index f23311e4b201..baf83c8ac503 100644
+--- a/block/blk-ioc.c
++++ b/block/blk-ioc.c
+@@ -68,7 +68,7 @@ static void ioc_destroy_icq(struct io_cq *icq)
+ 
+ 	lockdep_assert_held(&ioc->lock);
+ 
+-	radix_tree_delete(&ioc->icq_tree, icq->q->id);
++	xa_erase(&ioc->icq_array, icq->q->id);
+ 	hlist_del_init(&icq->ioc_node);
+ 	list_del_init(&icq->q_node);
+ 
+@@ -278,7 +278,7 @@ int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int node)
+ 	atomic_set(&ioc->nr_tasks, 1);
+ 	atomic_set(&ioc->active_ref, 1);
+ 	spin_lock_init(&ioc->lock);
+-	INIT_RADIX_TREE(&ioc->icq_tree, GFP_ATOMIC | __GFP_HIGH);
++	xa_init_flags(&ioc->icq_array, XA_FLAGS_LOCK_IRQ);
+ 	INIT_HLIST_HEAD(&ioc->icq_list);
+ 	INIT_WORK(&ioc->release_work, ioc_release_fn);
+ 
+@@ -363,7 +363,7 @@ struct io_cq *ioc_lookup_icq(struct io_context *ioc, struct request_queue *q)
+ 	if (icq && icq->q == q)
+ 		goto out;
+ 
+-	icq = radix_tree_lookup(&ioc->icq_tree, q->id);
++	icq = xa_load(&ioc->icq_array, q->id);
+ 	if (icq && icq->q == q)
+ 		rcu_assign_pointer(ioc->icq_hint, icq);	/* allowed to race */
+ 	else
+@@ -398,7 +398,7 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
+ 	if (!icq)
+ 		return NULL;
+ 
+-	if (radix_tree_maybe_preload(gfp_mask) < 0) {
++	if (xa_reserve(&ioc->icq_array, q->id, gfp_mask)) {
+ 		kmem_cache_free(et->icq_cache, icq);
+ 		return NULL;
+ 	}
+@@ -412,7 +412,8 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
+ 	spin_lock_irq(q->queue_lock);
+ 	spin_lock(&ioc->lock);
+ 
+-	if (likely(!radix_tree_insert(&ioc->icq_tree, q->id, icq))) {
++	if (likely(!xa_store(&ioc->icq_array, q->id, icq,
++						GFP_ATOMIC | __GFP_HIGH))) {
+ 		hlist_add_head(&icq->ioc_node, &ioc->icq_list);
+ 		list_add(&icq->q_node, &q->icq_list);
+ 		if (et->uses_mq && et->ops.mq.init_icq)
+@@ -421,6 +422,7 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
+ 			et->ops.sq.elevator_init_icq_fn(icq);
+ 	} else {
+ 		kmem_cache_free(et->icq_cache, icq);
++		xa_erase(&ioc->icq_array, q->id);
+ 		icq = ioc_lookup_icq(ioc, q);
+ 		if (!icq)
+ 			printk(KERN_ERR "cfq: icq link failed!\n");
+@@ -428,7 +430,6 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
+ 
+ 	spin_unlock(&ioc->lock);
+ 	spin_unlock_irq(q->queue_lock);
+-	radix_tree_preload_end();
+ 	return icq;
+ }
+ 
+diff --git a/include/linux/iocontext.h b/include/linux/iocontext.h
+index dba15ca8e60b..e16224f70084 100644
+--- a/include/linux/iocontext.h
++++ b/include/linux/iocontext.h
+@@ -2,9 +2,9 @@
+ #ifndef IOCONTEXT_H
+ #define IOCONTEXT_H
+ 
 -#include <linux/radix-tree.h>
+ #include <linux/rcupdate.h>
+ #include <linux/workqueue.h>
 +#include <linux/xarray.h>
  
- struct device_node;
- struct irq_domain;
-@@ -151,7 +150,7 @@ struct irq_domain_chip_generic;
-  * @revmap_direct_max_irq: The largest hwirq that can be set for controllers that
-  *                         support direct mapping
-  * @revmap_size: Size of the linear map table @linear_revmap[]
-- * @revmap_tree: Radix map tree for hwirqs that don't fit in the linear map
-+ * @revmap_array: hwirqs that don't fit in the linear map
-  * @linear_revmap: Linear table of hwirq->virq reverse mappings
-  */
- struct irq_domain {
-@@ -177,8 +176,7 @@ struct irq_domain {
- 	irq_hw_number_t hwirq_max;
- 	unsigned int revmap_direct_max_irq;
- 	unsigned int revmap_size;
--	struct radix_tree_root revmap_tree;
--	struct mutex revmap_tree_mutex;
-+	struct xarray revmap_array;
- 	unsigned int linear_revmap[];
- };
+ enum {
+ 	ICQ_EXITED		= 1 << 2,
+@@ -56,7 +56,7 @@ enum {
+  * - ioc->icq_list and icq->ioc_node are protected by ioc lock.
+  *   q->icq_list and icq->q_node by q lock.
+  *
+- * - ioc->icq_tree and ioc->icq_hint are protected by ioc lock, while icq
++ * - ioc->icq_array and ioc->icq_hint are protected by ioc lock, while icq
+  *   itself is protected by q lock.  However, both the indexes and icq
+  *   itself are also RCU managed and lookup can be performed holding only
+  *   the q lock.
+@@ -111,7 +111,7 @@ struct io_context {
+ 	int nr_batch_requests;     /* Number of requests left in the batch */
+ 	unsigned long last_waited; /* Time last woken after wait for request */
  
-@@ -378,7 +376,7 @@ extern void irq_dispose_mapping(unsigned int virq);
-  * This is a fast path alternative to irq_find_mapping() that can be
-  * called directly by irq controller code to save a handful of
-  * instructions. It is always safe to call, but won't find irqs mapped
-- * using the radix tree.
-+ * using the xarray.
-  */
- static inline unsigned int irq_linear_revmap(struct irq_domain *domain,
- 					     irq_hw_number_t hwirq)
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index c3f7405c5517..892288fe9595 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -269,6 +269,7 @@ void *xa_find_after(struct xarray *xa, unsigned long *index,
- 		unsigned long max, xa_tag_t) __attribute__((nonnull(2)));
- unsigned int xa_extract(struct xarray *, void **dst, unsigned long start,
- 		unsigned long max, unsigned int n, xa_tag_t);
-+unsigned long xa_count(struct xarray *);
- void xa_destroy(struct xarray *);
+-	struct radix_tree_root	icq_tree;
++	struct xarray		icq_array;
+ 	struct io_cq __rcu	*icq_hint;
+ 	struct hlist_head	icq_list;
  
- /**
-diff --git a/kernel/irq/irqdomain.c b/kernel/irq/irqdomain.c
-index 62068ad46930..d6da3a8eadd2 100644
---- a/kernel/irq/irqdomain.c
-+++ b/kernel/irq/irqdomain.c
-@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(irq_domain_free_fwnode);
- /**
-  * __irq_domain_add() - Allocate a new irq_domain data structure
-  * @fwnode: firmware node for the interrupt controller
-- * @size: Size of linear map; 0 for radix mapping only
-+ * @size: Size of linear map; 0 for xarray mapping only
-  * @hwirq_max: Maximum number of interrupts supported by controller
-  * @direct_max: Maximum value of direct maps; Use ~0 for no limit; 0 for no
-  *              direct mapping
-@@ -209,8 +209,7 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
- 	of_node_get(of_node);
- 
- 	/* Fill structure */
--	INIT_RADIX_TREE(&domain->revmap_tree, GFP_KERNEL);
--	mutex_init(&domain->revmap_tree_mutex);
-+	xa_init(&domain->revmap_array);
- 	domain->ops = ops;
- 	domain->host_data = host_data;
- 	domain->hwirq_max = hwirq_max;
-@@ -241,7 +240,7 @@ void irq_domain_remove(struct irq_domain *domain)
- 	mutex_lock(&irq_domain_mutex);
- 	debugfs_remove_domain_dir(domain);
- 
--	WARN_ON(!radix_tree_empty(&domain->revmap_tree));
-+	WARN_ON(!xa_empty(&domain->revmap_array));
- 
- 	list_del(&domain->link);
- 
-@@ -462,9 +461,7 @@ static void irq_domain_clear_mapping(struct irq_domain *domain,
- 	if (hwirq < domain->revmap_size) {
- 		domain->linear_revmap[hwirq] = 0;
- 	} else {
--		mutex_lock(&domain->revmap_tree_mutex);
--		radix_tree_delete(&domain->revmap_tree, hwirq);
--		mutex_unlock(&domain->revmap_tree_mutex);
-+		xa_erase(&domain->revmap_array, hwirq);
- 	}
- }
- 
-@@ -475,9 +472,7 @@ static void irq_domain_set_mapping(struct irq_domain *domain,
- 	if (hwirq < domain->revmap_size) {
- 		domain->linear_revmap[hwirq] = irq_data->irq;
- 	} else {
--		mutex_lock(&domain->revmap_tree_mutex);
--		radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
--		mutex_unlock(&domain->revmap_tree_mutex);
-+		xa_store(&domain->revmap_array, hwirq, irq_data, GFP_KERNEL);
- 	}
- }
- 
-@@ -585,7 +580,7 @@ EXPORT_SYMBOL_GPL(irq_domain_associate_many);
-  * This routine is used for irq controllers which can choose the hardware
-  * interrupt numbers they generate. In such a case it's simplest to use
-  * the linux irq as the hardware interrupt number. It still uses the linear
-- * or radix tree to store the mapping, but the irq controller can optimize
-+ * or xarray to store the mapping, but the irq controller can optimize
-  * the revmap path by using the hwirq directly.
-  */
- unsigned int irq_create_direct_mapping(struct irq_domain *domain)
-@@ -890,9 +885,7 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
- 	if (hwirq < domain->revmap_size)
- 		return domain->linear_revmap[hwirq];
- 
--	rcu_read_lock();
--	data = radix_tree_lookup(&domain->revmap_tree, hwirq);
--	rcu_read_unlock();
-+	data = xa_load(&domain->revmap_array, hwirq);
- 	return data ? data->irq : 0;
- }
- EXPORT_SYMBOL_GPL(irq_find_mapping);
-@@ -943,8 +936,6 @@ static int virq_debug_show(struct seq_file *m, void *private)
- 	unsigned long flags;
- 	struct irq_desc *desc;
- 	struct irq_domain *domain;
--	struct radix_tree_iter iter;
--	void __rcu **slot;
- 	int i;
- 
- 	seq_printf(m, " %-16s  %-6s  %-10s  %-10s  %s\n",
-@@ -953,7 +944,6 @@ static int virq_debug_show(struct seq_file *m, void *private)
- 	list_for_each_entry(domain, &irq_domain_list, link) {
- 		struct device_node *of_node;
- 		const char *name;
--
- 		int count = 0;
- 
- 		of_node = irq_domain_get_of_node(domain);
-@@ -965,8 +955,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
- 		else
- 			name = "";
- 
--		radix_tree_for_each_slot(slot, &domain->revmap_tree, &iter, 0)
--			count++;
-+		count = xa_count(&domain->revmap_array);
- 		seq_printf(m, "%c%-16s  %6u  %10u  %10u  %s\n",
- 			   domain == irq_default_domain ? '*' : ' ', domain->name,
- 			   domain->revmap_size + count, domain->revmap_size,
-@@ -1452,17 +1441,9 @@ int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
- /* The irq_data was moved, fix the revmap to refer to the new location */
- static void irq_domain_fix_revmap(struct irq_data *d)
- {
--	void __rcu **slot;
--
- 	if (d->hwirq < d->domain->revmap_size)
--		return; /* Not using radix tree. */
--
--	/* Fix up the revmap. */
--	mutex_lock(&d->domain->revmap_tree_mutex);
--	slot = radix_tree_lookup_slot(&d->domain->revmap_tree, d->hwirq);
--	if (slot)
--		radix_tree_replace_slot(&d->domain->revmap_tree, slot, d);
--	mutex_unlock(&d->domain->revmap_tree_mutex);
-+		return;
-+	xa_store(&d->domain->revmap_array, d->hwirq, d, GFP_KERNEL);
- }
- 
- /**
-diff --git a/lib/xarray.c b/lib/xarray.c
-index b4dec8e2d202..62642e5508ee 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -1625,6 +1625,31 @@ unsigned int xa_extract(struct xarray *xa, void **dst, unsigned long start,
- }
- EXPORT_SYMBOL(xa_extract);
- 
-+/**
-+ * xa_count() - Count the number of present entries in the XArray
-+ * @xa: XArray.
-+ *
-+ * This function walks the XArray counting how many entries are present.
-+ * If every entry in the XArray is full, this function will return 0.  If
-+ * this is a theoretical possibility, check xa_empty() first.
-+ *
-+ * This is a naive implementation; faster implementations are possible.
-+ * If speed is important, consider maintaining a count variable in your
-+ * own data structure.
-+ */
-+unsigned long xa_count(struct xarray *xa)
-+{
-+	XA_STATE(xas, xa, 0);
-+	void *p;
-+	unsigned long count = 0;
-+
-+	xas_for_each(&xas, p, ULONG_MAX)
-+		count++;
-+
-+	return count;
-+}
-+EXPORT_SYMBOL(xa_count);
-+
- /**
-  * xa_destroy() - Free all internal data structures.
-  * @xa: XArray.
 -- 
 2.15.1
 
