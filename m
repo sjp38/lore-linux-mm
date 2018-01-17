@@ -1,66 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 33D88280281
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 04:49:53 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id z142so6447359itc.6
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 01:49:53 -0800 (PST)
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id u185si1948910ioe.331.2018.01.17.01.49.50
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F299280298
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 04:55:09 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id v14so3850716wmd.3
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 01:55:09 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id g7si513034edj.376.2018.01.17.01.55.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jan 2018 01:49:52 -0800 (PST)
-Message-ID: <5A5F1C09.9040000@huawei.com>
-Date: Wed, 17 Jan 2018 17:48:57 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Wed, 17 Jan 2018 01:55:08 -0800 (PST)
+Date: Wed, 17 Jan 2018 10:55:07 +0100
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [RFC PATCH 00/16] PTI support for x86-32
+Message-ID: <20180117095507.GM28161@8bytes.org>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+ <alpine.DEB.2.20.1801162212080.2366@nanos>
 MIME-Version: 1.0
-Subject: Re: [RFC] mm: why vfree() do not free page table memory?
-References: <5A4603AB.8060809@huawei.com> <0ffd113e-84da-bd49-2b63-3d27d2702580@suse.cz>
-In-Reply-To: <0ffd113e-84da-bd49-2b63-3d27d2702580@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1801162212080.2366@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "Wujiangtao (A)" <wu.wujiangtao@huawei.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
 
-On 2018/1/17 17:16, Vlastimil Babka wrote:
+Hi Thomas,
 
-> On 12/29/2017 09:58 AM, Xishi Qiu wrote:
->> When calling vfree(), it calls unmap_vmap_area() to clear page table,
->> but do not free the memory of page table, why? just for performance?
+thanks for your review, I'll work in your suggestions for the next post.
+
+On Tue, Jan 16, 2018 at 10:20:40PM +0100, Thomas Gleixner wrote:
+> On Tue, 16 Jan 2018, Joerg Roedel wrote:
+
+> >  16 files changed, 333 insertions(+), 123 deletions(-)
 > 
-> I guess it's expected that the free virtual range and associated page
-> tables it might be reused later.
-> 
+> Impressively small and well done !
 
-Hi Vlastimili 1/4 ?
+Thanks :)
 
-If use vmalloc/vfree different size, then there will be some hols during 
-VMALLOC_START to VMALLOC_END, and this holes takes page table memory, right?
+> Can you please make that patch set against
+> 
+>    git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86-pti-for-linus
+> 
+> so we immediately have it backportable for 4.14 stable? It's only a trivial
+> conflict in pgtable.h, but we'd like to make the life of stable as simple
+> as possible. They have enough headache with the pre 4.14 trees.
 
->> If a driver use vmalloc() and vfree() frequently, we will lost much
->> page table memory, maybe oom later.
-> 
-> If it's reused, then not really.
-> 
-> Did you notice an actual issue, or is this just theoretical concern.
-> 
+Sure, will do.
 
-Yes, we have this problem on our production line.
-I find the page table memory takes 200-300M.
+> We can pick some of the simple patches which make defines and inlines
+> available out of the pile right away and apply them to x86/pti to shrink
+> the amount of stuff you have to worry about.
+
+This should be patches 4, 5, 7, 11, and I think 13 is also simple
+enough. Feel free to take them, but I can also carry them forward if
+needed.
 
 Thanks,
-Xishi Qiu
 
->> Thanks,
->> Xishi Qiu
->>
-> 
-> 
-> .
-> 
-
-
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
