@@ -1,81 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F17A28029C
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 08:14:47 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id b193so3950439wmd.7
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 05:14:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p4si3633504wmd.264.2018.01.17.05.14.45
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E3B0C28029C
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 08:57:55 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id p202so9999024iod.18
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 05:57:55 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p198sor2425906ioe.240.2018.01.17.05.57.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Jan 2018 05:14:45 -0800 (PST)
-Subject: Re: [RFC] mm: why vfree() do not free page table memory?
-References: <5A4603AB.8060809@huawei.com>
- <0ffd113e-84da-bd49-2b63-3d27d2702580@suse.cz> <5A5F1C09.9040000@huawei.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <6598f55a-49c6-c5df-974a-e697317ade9b@suse.cz>
-Date: Wed, 17 Jan 2018 14:14:42 +0100
+        (Google Transport Security);
+        Wed, 17 Jan 2018 05:57:54 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <5A5F1C09.9040000@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180117092442.GJ28161@8bytes.org>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+ <1516120619-1159-4-git-send-email-joro@8bytes.org> <CALCETrW9F4QDFPG=ATs0QiyQO526SK0s==oYKhvVhxaYCw+65g@mail.gmail.com>
+ <20180117092442.GJ28161@8bytes.org>
+From: Brian Gerst <brgerst@gmail.com>
+Date: Wed, 17 Jan 2018 05:57:53 -0800
+Message-ID: <CAMzpN2j5EUh5TJDVWPPvL9Wn9LCcouCTjZ-CUuKRRo+rvsiH+g@mail.gmail.com>
+Subject: Re: [PATCH 03/16] x86/entry/32: Leave the kernel via the trampoline stack
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "Wujiangtao (A)" <wu.wujiangtao@huawei.com>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Joerg Roedel <jroedel@suse.de>
 
-On 01/17/2018 10:48 AM, Xishi Qiu wrote:
-> On 2018/1/17 17:16, Vlastimil Babka wrote:
-> 
->> On 12/29/2017 09:58 AM, Xishi Qiu wrote:
->>> When calling vfree(), it calls unmap_vmap_area() to clear page table,
->>> but do not free the memory of page table, why? just for performance?
+On Wed, Jan 17, 2018 at 1:24 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> On Tue, Jan 16, 2018 at 02:48:43PM -0800, Andy Lutomirski wrote:
+>> On Tue, Jan 16, 2018 at 8:36 AM, Joerg Roedel <joro@8bytes.org> wrote:
+>> > +       /* Restore user %edi and user %fs */
+>> > +       movl (%edi), %edi
+>> > +       popl %fs
 >>
->> I guess it's expected that the free virtual range and associated page
->> tables it might be reused later.
->>
-> 
-> Hi Vlastimili 1/4 ?
-> 
-> If use vmalloc/vfree different size, then there will be some hols during 
-> VMALLOC_START to VMALLOC_END, and this holes takes page table memory, right?
+>> Yikes!  We're not *supposed* to be able to observe an asynchronous
+>> descriptor table change, but if the LDT changes out from under you,
+>> this is going to blow up badly.  It would be really nice if you could
+>> pull this off without percpu access or without needing to do this
+>> dance where you load user FS, then kernel FS, then user FS.  If that's
+>> not doable, then you should at least add exception handling -- look at
+>> the other 'pop %fs' instructions in entry_32.S.
+>
+> You are right! This also means I need to do the 'popl %fs' before the
+> cr3-switch. I'll fix it in the next version.
+>
+> I have no real idea on how to switch back to the entry stack without
+> access to per_cpu variables. I also can't access the cpu_entry_area for
+> the cpu yet, because for that we need to be on the entry stack already.
 
-Possibly. But to free a page table page, there has to be contiguous
-aligned 2MB hole.
+Switch to the trampoline stack before loading user segments.
 
->>> If a driver use vmalloc() and vfree() frequently, we will lost much
->>> page table memory, maybe oom later.
->>
->> If it's reused, then not really.
->>
->> Did you notice an actual issue, or is this just theoretical concern.
->>
-> 
-> Yes, we have this problem on our production line.
-> I find the page table memory takes 200-300M.
-
-Well, can you verify that it's really due to vmalloc holes? And that the
-holes are there because of an unfortunate sequence of vmalloc/vfree, and
-not due to some bug in vmalloc failing to reuse freed areas properly?
-And do the holes contain enough 2MB aligned ranges to make it possible
-to free the page tables?
-
-Vlastimil
-
-> Thanks,
-> Xishi Qiu
-> 
->>> Thanks,
->>> Xishi Qiu
->>>
->>
->>
->> .
->>
-> 
-> 
-> 
+--
+Brian Gerst
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
