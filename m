@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CB7E280281
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:06 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id j6so12163427pgp.21
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:06 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 17894280281
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:07 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id z12so12213280pgv.6
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:07 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id f4si5131809plm.700.2018.01.17.12.23.04
+        by mx.google.com with ESMTPS id w9si5802966plq.598.2018.01.17.12.23.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:23:04 -0800 (PST)
+        Wed, 17 Jan 2018 12:23:05 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 86/99] btrfs: Convert reada_zones to XArray
-Date: Wed, 17 Jan 2018 12:21:50 -0800
-Message-Id: <20180117202203.19756-87-willy@infradead.org>
+Subject: [PATCH v6 71/99] xfs: Convert pag_ici_root to XArray
+Date: Wed, 17 Jan 2018 12:21:35 -0800
+Message-Id: <20180117202203.19756-72-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,184 +22,444 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The use of the reada_lock means we have to use the xa_reserve() API.
-If we can avoid using reada_lock to protect this xarray, we can drop
-the use of that function.
+Rename pag_ici_root to pag_ici_xa and use XArray APIs instead of radix
+tree APIs.  Shorter code, typechecking on tag numbers, better error
+checking in xfs_reclaim_inode(), and eliminates a call to
+radix_tree_preload().
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/btrfs/reada.c   | 54 +++++++++++++++++++-----------------------------------
- fs/btrfs/volumes.c |  2 +-
- fs/btrfs/volumes.h |  2 +-
- 3 files changed, 21 insertions(+), 37 deletions(-)
+ fs/xfs/libxfs/xfs_sb.c |   2 +-
+ fs/xfs/libxfs/xfs_sb.h |   2 +-
+ fs/xfs/xfs_icache.c    | 111 +++++++++++++++++++------------------------------
+ fs/xfs/xfs_icache.h    |   5 +--
+ fs/xfs/xfs_inode.c     |  24 ++++-------
+ fs/xfs/xfs_mount.c     |   3 +-
+ fs/xfs/xfs_mount.h     |   3 +-
+ 7 files changed, 56 insertions(+), 94 deletions(-)
 
-diff --git a/fs/btrfs/reada.c b/fs/btrfs/reada.c
-index ab852b8e3e37..ef8e84ff2012 100644
---- a/fs/btrfs/reada.c
-+++ b/fs/btrfs/reada.c
-@@ -239,17 +239,16 @@ static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
+diff --git a/fs/xfs/libxfs/xfs_sb.c b/fs/xfs/libxfs/xfs_sb.c
+index 3b0b65eb8224..8fb7c216c761 100644
+--- a/fs/xfs/libxfs/xfs_sb.c
++++ b/fs/xfs/libxfs/xfs_sb.c
+@@ -76,7 +76,7 @@ struct xfs_perag *
+ xfs_perag_get_tag(
+ 	struct xfs_mount	*mp,
+ 	xfs_agnumber_t		first,
+-	int			tag)
++	xa_tag_t		tag)
  {
- 	struct btrfs_fs_info *fs_info = dev->fs_info;
- 	int ret;
--	struct reada_zone *zone;
-+	struct reada_zone *curr, *zone;
- 	struct btrfs_block_group_cache *cache = NULL;
- 	u64 start;
- 	u64 end;
-+	unsigned long index = logical >> PAGE_SHIFT;
- 	int i;
- 
--	zone = NULL;
- 	spin_lock(&fs_info->reada_lock);
--	ret = radix_tree_gang_lookup(&dev->reada_zones, (void **)&zone,
--				     logical >> PAGE_SHIFT, 1);
--	if (ret == 1 && logical >= zone->start && logical <= zone->end) {
-+	zone = xa_find(&dev->reada_zones, &index, ULONG_MAX, XA_PRESENT);
-+	if (zone && logical >= zone->start && logical <= zone->end) {
- 		kref_get(&zone->refcnt);
- 		spin_unlock(&fs_info->reada_lock);
- 		return zone;
-@@ -269,7 +268,8 @@ static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
- 	if (!zone)
- 		return NULL;
- 
--	ret = radix_tree_preload(GFP_KERNEL);
-+	ret = xa_reserve(&dev->reada_zones,
-+			 (unsigned long)(end >> PAGE_SHIFT), GFP_KERNEL);
- 	if (ret) {
- 		kfree(zone);
- 		return NULL;
-@@ -290,21 +290,18 @@ static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
- 	zone->ndevs = bbio->num_stripes;
- 
- 	spin_lock(&fs_info->reada_lock);
--	ret = radix_tree_insert(&dev->reada_zones,
-+	curr = xa_cmpxchg(&dev->reada_zones,
- 				(unsigned long)(zone->end >> PAGE_SHIFT),
--				zone);
--
--	if (ret == -EEXIST) {
-+				NULL, zone, GFP_NOWAIT | __GFP_NOWARN);
-+	if (curr) {
- 		kfree(zone);
--		ret = radix_tree_gang_lookup(&dev->reada_zones, (void **)&zone,
--					     logical >> PAGE_SHIFT, 1);
--		if (ret == 1 && logical >= zone->start && logical <= zone->end)
-+		zone = curr;
-+		if (logical >= zone->start && logical <= zone->end)
- 			kref_get(&zone->refcnt);
- 		else
- 			zone = NULL;
- 	}
- 	spin_unlock(&fs_info->reada_lock);
--	radix_tree_preload_end();
- 
- 	return zone;
- }
-@@ -537,9 +534,7 @@ static void reada_zone_release(struct kref *kref)
- {
- 	struct reada_zone *zone = container_of(kref, struct reada_zone, refcnt);
- 
--	radix_tree_delete(&zone->device->reada_zones,
--			  zone->end >> PAGE_SHIFT);
--
-+	xa_erase(&zone->device->reada_zones, zone->end >> PAGE_SHIFT);
- 	kfree(zone);
- }
- 
-@@ -592,7 +587,7 @@ static void reada_peer_zones_set_lock(struct reada_zone *zone, int lock)
- 
- 	for (i = 0; i < zone->ndevs; ++i) {
- 		struct reada_zone *peer;
--		peer = radix_tree_lookup(&zone->devs[i]->reada_zones, index);
-+		peer = xa_load(&zone->devs[i]->reada_zones, index);
- 		if (peer && peer->device != zone->device)
- 			peer->locked = lock;
- 	}
-@@ -603,12 +598,11 @@ static void reada_peer_zones_set_lock(struct reada_zone *zone, int lock)
+ 	XA_STATE(xas, &mp->m_perag_xa, first);
+ 	struct xfs_perag	*pag;
+diff --git a/fs/xfs/libxfs/xfs_sb.h b/fs/xfs/libxfs/xfs_sb.h
+index 961e6475a309..d2de90b8f39c 100644
+--- a/fs/xfs/libxfs/xfs_sb.h
++++ b/fs/xfs/libxfs/xfs_sb.h
+@@ -23,7 +23,7 @@
   */
- static int reada_pick_zone(struct btrfs_device *dev)
+ extern struct xfs_perag *xfs_perag_get(struct xfs_mount *, xfs_agnumber_t);
+ extern struct xfs_perag *xfs_perag_get_tag(struct xfs_mount *, xfs_agnumber_t,
+-					   int tag);
++					   xa_tag_t tag);
+ extern void	xfs_perag_put(struct xfs_perag *pag);
+ extern int	xfs_initialize_perag_data(struct xfs_mount *, xfs_agnumber_t);
+ 
+diff --git a/fs/xfs/xfs_icache.c b/fs/xfs/xfs_icache.c
+index 65a8b91b2e70..10c76209227b 100644
+--- a/fs/xfs/xfs_icache.c
++++ b/fs/xfs/xfs_icache.c
+@@ -186,7 +186,7 @@ xfs_perag_set_reclaim_tag(
  {
--	struct reada_zone *top_zone = NULL;
-+	struct reada_zone *zone, *top_zone = NULL;
- 	struct reada_zone *top_locked_zone = NULL;
- 	u64 top_elems = 0;
- 	u64 top_locked_elems = 0;
- 	unsigned long index = 0;
--	int ret;
+ 	struct xfs_mount	*mp = pag->pag_mount;
  
- 	if (dev->reada_curr_zone) {
- 		reada_peer_zones_set_lock(dev->reada_curr_zone, 0);
-@@ -616,14 +610,7 @@ static int reada_pick_zone(struct btrfs_device *dev)
- 		dev->reada_curr_zone = NULL;
- 	}
- 	/* pick the zone with the most elements */
--	while (1) {
--		struct reada_zone *zone;
--
--		ret = radix_tree_gang_lookup(&dev->reada_zones,
--					     (void **)&zone, index, 1);
--		if (ret == 0)
--			break;
--		index = (zone->end >> PAGE_SHIFT) + 1;
-+	xa_for_each(&dev->reada_zones, zone, index, ULONG_MAX, XA_PRESENT) {
- 		if (zone->locked) {
- 			if (zone->elems > top_locked_elems) {
- 				top_locked_elems = zone->elems;
-@@ -819,15 +806,13 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
+-	lockdep_assert_held(&pag->pag_ici_lock);
++	lockdep_assert_held(&pag->pag_ici_xa.xa_lock);
+ 	if (pag->pag_ici_reclaimable++)
+ 		return;
  
- 	spin_lock(&fs_info->reada_lock);
- 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
-+		struct reada_zone *zone;
-+
- 		btrfs_debug(fs_info, "dev %lld has %d in flight", device->devid,
- 			atomic_read(&device->reada_in_flight));
- 		index = 0;
--		while (1) {
--			struct reada_zone *zone;
--			ret = radix_tree_gang_lookup(&device->reada_zones,
--						     (void **)&zone, index, 1);
--			if (ret == 0)
--				break;
-+		xa_for_each(&dev->reada_zones, zone, index, ULONG_MAX,
-+								XA_PRESENT) {
- 			pr_debug("  zone %llu-%llu elems %llu locked %d devs",
- 				    zone->start, zone->end, zone->elems,
- 				    zone->locked);
-@@ -839,7 +824,6 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
- 				pr_cont(" curr off %llu",
- 					device->reada_next - zone->start);
- 			pr_cont("\n");
--			index = (zone->end >> PAGE_SHIFT) + 1;
+@@ -205,7 +205,7 @@ xfs_perag_clear_reclaim_tag(
+ {
+ 	struct xfs_mount	*mp = pag->pag_mount;
+ 
+-	lockdep_assert_held(&pag->pag_ici_lock);
++	lockdep_assert_held(&pag->pag_ici_xa.xa_lock);
+ 	if (--pag->pag_ici_reclaimable)
+ 		return;
+ 
+@@ -228,16 +228,16 @@ xfs_inode_set_reclaim_tag(
+ 	struct xfs_perag	*pag;
+ 
+ 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
+-	spin_lock(&pag->pag_ici_lock);
++	xa_lock(&pag->pag_ici_xa);
+ 	spin_lock(&ip->i_flags_lock);
+ 
+-	radix_tree_tag_set(&pag->pag_ici_root, XFS_INO_TO_AGINO(mp, ip->i_ino),
++	__xa_set_tag(&pag->pag_ici_xa, XFS_INO_TO_AGINO(mp, ip->i_ino),
+ 			   XFS_ICI_RECLAIM_TAG);
+ 	xfs_perag_set_reclaim_tag(pag);
+ 	__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
+ 
+ 	spin_unlock(&ip->i_flags_lock);
+-	spin_unlock(&pag->pag_ici_lock);
++	xa_unlock(&pag->pag_ici_xa);
+ 	xfs_perag_put(pag);
+ }
+ 
+@@ -246,7 +246,7 @@ xfs_inode_clear_reclaim_tag(
+ 	struct xfs_perag	*pag,
+ 	xfs_ino_t		ino)
+ {
+-	radix_tree_tag_clear(&pag->pag_ici_root,
++	__xa_clear_tag(&pag->pag_ici_xa,
+ 			     XFS_INO_TO_AGINO(pag->pag_mount, ino),
+ 			     XFS_ICI_RECLAIM_TAG);
+ 	xfs_perag_clear_reclaim_tag(pag);
+@@ -367,8 +367,8 @@ xfs_iget_cache_hit(
+ 		/*
+ 		 * We need to set XFS_IRECLAIM to prevent xfs_reclaim_inode
+ 		 * from stomping over us while we recycle the inode.  We can't
+-		 * clear the radix tree reclaimable tag yet as it requires
+-		 * pag_ici_lock to be held exclusive.
++		 * clear the xarray reclaimable tag yet as it requires
++		 * pag_ici_xa.xa_lock to be held exclusive.
+ 		 */
+ 		ip->i_flags |= XFS_IRECLAIM;
+ 
+@@ -393,7 +393,7 @@ xfs_iget_cache_hit(
+ 			goto out_error;
  		}
- 		cnt = 0;
- 		index = 0;
-diff --git a/fs/btrfs/volumes.c b/fs/btrfs/volumes.c
-index cba286183ff9..8e683799b436 100644
---- a/fs/btrfs/volumes.c
-+++ b/fs/btrfs/volumes.c
-@@ -247,7 +247,7 @@ static struct btrfs_device *__alloc_device(void)
- 	atomic_set(&dev->reada_in_flight, 0);
- 	atomic_set(&dev->dev_stats_ccnt, 0);
- 	btrfs_device_data_ordered_init(dev);
--	INIT_RADIX_TREE(&dev->reada_zones, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
-+	xa_init(&dev->reada_zones);
- 	INIT_RADIX_TREE(&dev->reada_extents, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
  
- 	return dev;
-diff --git a/fs/btrfs/volumes.h b/fs/btrfs/volumes.h
-index 335fd1590458..aeabe03d3e44 100644
---- a/fs/btrfs/volumes.h
-+++ b/fs/btrfs/volumes.h
-@@ -139,7 +139,7 @@ struct btrfs_device {
- 	atomic_t reada_in_flight;
- 	u64 reada_next;
- 	struct reada_zone *reada_curr_zone;
--	struct radix_tree_root reada_zones;
-+	struct xarray reada_zones;
- 	struct radix_tree_root reada_extents;
+-		spin_lock(&pag->pag_ici_lock);
++		xa_lock(&pag->pag_ici_xa);
+ 		spin_lock(&ip->i_flags_lock);
  
- 	/* disk I/O failure stats. For detailed description refer to
+ 		/*
+@@ -410,7 +410,7 @@ xfs_iget_cache_hit(
+ 		init_rwsem(&inode->i_rwsem);
+ 
+ 		spin_unlock(&ip->i_flags_lock);
+-		spin_unlock(&pag->pag_ici_lock);
++		xa_unlock(&pag->pag_ici_xa);
+ 	} else {
+ 		/* If the VFS inode is being torn down, pause and try again. */
+ 		if (!igrab(inode)) {
+@@ -471,17 +471,6 @@ xfs_iget_cache_miss(
+ 		goto out_destroy;
+ 	}
+ 
+-	/*
+-	 * Preload the radix tree so we can insert safely under the
+-	 * write spinlock. Note that we cannot sleep inside the preload
+-	 * region. Since we can be called from transaction context, don't
+-	 * recurse into the file system.
+-	 */
+-	if (radix_tree_preload(GFP_NOFS)) {
+-		error = -EAGAIN;
+-		goto out_destroy;
+-	}
+-
+ 	/*
+ 	 * Because the inode hasn't been added to the radix-tree yet it can't
+ 	 * be found by another thread, so we can do the non-sleeping lock here.
+@@ -509,23 +498,18 @@ xfs_iget_cache_miss(
+ 	xfs_iflags_set(ip, iflags);
+ 
+ 	/* insert the new inode */
+-	spin_lock(&pag->pag_ici_lock);
+-	error = radix_tree_insert(&pag->pag_ici_root, agino, ip);
+-	if (unlikely(error)) {
+-		WARN_ON(error != -EEXIST);
+-		XFS_STATS_INC(mp, xs_ig_dup);
+-		error = -EAGAIN;
+-		goto out_preload_end;
+-	}
+-	spin_unlock(&pag->pag_ici_lock);
+-	radix_tree_preload_end();
++	error = xa_insert(&pag->pag_ici_xa, agino, ip, GFP_NOFS);
++	if (error)
++		goto out_unlock;
+ 
+ 	*ipp = ip;
+ 	return 0;
+ 
+-out_preload_end:
+-	spin_unlock(&pag->pag_ici_lock);
+-	radix_tree_preload_end();
++out_unlock:
++	if (error == -EEXIST) {
++		error = -EAGAIN;
++		XFS_STATS_INC(mp, xs_ig_dup);
++	}
+ 	if (lock_flags)
+ 		xfs_iunlock(ip, lock_flags);
+ out_destroy:
+@@ -592,7 +576,7 @@ xfs_iget(
+ again:
+ 	error = 0;
+ 	rcu_read_lock();
+-	ip = radix_tree_lookup(&pag->pag_ici_root, agino);
++	ip = xa_load(&pag->pag_ici_xa, agino);
+ 
+ 	if (ip) {
+ 		error = xfs_iget_cache_hit(pag, ip, ino, flags, lock_flags);
+@@ -731,7 +715,7 @@ xfs_inode_ag_walk(
+ 					   void *args),
+ 	int			flags,
+ 	void			*args,
+-	int			tag,
++	xa_tag_t		tag,
+ 	int			iter_flags)
+ {
+ 	uint32_t		first_index;
+@@ -752,15 +736,8 @@ xfs_inode_ag_walk(
+ 
+ 		rcu_read_lock();
+ 
+-		if (tag == -1)
+-			nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
+-					(void **)batch, first_index,
+-					XFS_LOOKUP_BATCH);
+-		else
+-			nr_found = radix_tree_gang_lookup_tag(
+-					&pag->pag_ici_root,
+-					(void **) batch, first_index,
+-					XFS_LOOKUP_BATCH, tag);
++		nr_found = xa_extract(&pag->pag_ici_xa, (void **)batch,
++				first_index, ULONG_MAX, XFS_LOOKUP_BATCH, tag);
+ 
+ 		if (!nr_found) {
+ 			rcu_read_unlock();
+@@ -896,8 +873,8 @@ xfs_inode_ag_iterator_flags(
+ 	ag = 0;
+ 	while ((pag = xfs_perag_get(mp, ag))) {
+ 		ag = pag->pag_agno + 1;
+-		error = xfs_inode_ag_walk(mp, pag, execute, flags, args, -1,
+-					  iter_flags);
++		error = xfs_inode_ag_walk(mp, pag, execute, flags, args,
++					  XFS_ICI_ALL, iter_flags);
+ 		xfs_perag_put(pag);
+ 		if (error) {
+ 			last_error = error;
+@@ -926,7 +903,7 @@ xfs_inode_ag_iterator_tag(
+ 					   void *args),
+ 	int			flags,
+ 	void			*args,
+-	int			tag)
++	xa_tag_t		tag)
+ {
+ 	struct xfs_perag	*pag;
+ 	int			error = 0;
+@@ -1040,7 +1017,7 @@ xfs_reclaim_inode(
+ 	int			sync_mode)
+ {
+ 	struct xfs_buf		*bp = NULL;
+-	xfs_ino_t		ino = ip->i_ino; /* for radix_tree_delete */
++	xfs_ino_t		ino = ip->i_ino;
+ 	int			error;
+ 
+ restart:
+@@ -1128,16 +1105,15 @@ xfs_reclaim_inode(
+ 	/*
+ 	 * Remove the inode from the per-AG radix tree.
+ 	 *
+-	 * Because radix_tree_delete won't complain even if the item was never
+-	 * added to the tree assert that it's been there before to catch
+-	 * problems with the inode life time early on.
++	 * Check that it was there before to catch problems with the
++	 * inode life time early on.
+ 	 */
+-	spin_lock(&pag->pag_ici_lock);
+-	if (!radix_tree_delete(&pag->pag_ici_root,
+-				XFS_INO_TO_AGINO(ip->i_mount, ino)))
++	xa_lock(&pag->pag_ici_xa);
++	if (__xa_erase(&pag->pag_ici_xa,
++				XFS_INO_TO_AGINO(ip->i_mount, ino)) != ip)
+ 		ASSERT(0);
+ 	xfs_perag_clear_reclaim_tag(pag);
+-	spin_unlock(&pag->pag_ici_lock);
++	xa_unlock(&pag->pag_ici_xa);
+ 
+ 	/*
+ 	 * Here we do an (almost) spurious inode lock in order to coordinate
+@@ -1213,10 +1189,9 @@ xfs_reclaim_inodes_ag(
+ 			int	i;
+ 
+ 			rcu_read_lock();
+-			nr_found = radix_tree_gang_lookup_tag(
+-					&pag->pag_ici_root,
++			nr_found = xa_extract(&pag->pag_ici_xa,
+ 					(void **)batch, first_index,
+-					XFS_LOOKUP_BATCH,
++					ULONG_MAX, XFS_LOOKUP_BATCH,
+ 					XFS_ICI_RECLAIM_TAG);
+ 			if (!nr_found) {
+ 				done = 1;
+@@ -1450,7 +1425,7 @@ __xfs_icache_free_eofblocks(
+ 	struct xfs_eofblocks	*eofb,
+ 	int			(*execute)(struct xfs_inode *ip, int flags,
+ 					   void *args),
+-	int			tag)
++	xa_tag_t		tag)
+ {
+ 	int flags = SYNC_TRYLOCK;
+ 
+@@ -1561,10 +1536,10 @@ __xfs_inode_set_blocks_tag(
+ 	spin_unlock(&ip->i_flags_lock);
+ 
+ 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
+-	spin_lock(&pag->pag_ici_lock);
++	xa_lock(&pag->pag_ici_xa);
+ 
+-	tagged = radix_tree_tagged(&pag->pag_ici_root, tag);
+-	radix_tree_tag_set(&pag->pag_ici_root,
++	tagged = xa_tagged(&pag->pag_ici_xa, tag);
++	__xa_set_tag(&pag->pag_ici_xa,
+ 			   XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino), tag);
+ 	if (!tagged) {
+ 		/* propagate the eofblocks tag up into the perag radix tree */
+@@ -1578,7 +1553,7 @@ __xfs_inode_set_blocks_tag(
+ 		set_tp(ip->i_mount, pag->pag_agno, -1, _RET_IP_);
+ 	}
+ 
+-	spin_unlock(&pag->pag_ici_lock);
++	xa_unlock(&pag->pag_ici_xa);
+ 	xfs_perag_put(pag);
+ }
+ 
+@@ -1607,11 +1582,11 @@ __xfs_inode_clear_blocks_tag(
+ 	spin_unlock(&ip->i_flags_lock);
+ 
+ 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
+-	spin_lock(&pag->pag_ici_lock);
++	xa_lock(&pag->pag_ici_xa);
+ 
+-	radix_tree_tag_clear(&pag->pag_ici_root,
++	__xa_clear_tag(&pag->pag_ici_xa,
+ 			     XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino), tag);
+-	if (!radix_tree_tagged(&pag->pag_ici_root, tag)) {
++	if (!xa_tagged(&pag->pag_ici_xa, tag)) {
+ 		/* clear the eofblocks tag from the perag radix tree */
+ 		xa_clear_tag(&ip->i_mount->m_perag_xa,
+ 				     XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino),
+@@ -1619,7 +1594,7 @@ __xfs_inode_clear_blocks_tag(
+ 		clear_tp(ip->i_mount, pag->pag_agno, -1, _RET_IP_);
+ 	}
+ 
+-	spin_unlock(&pag->pag_ici_lock);
++	xa_unlock(&pag->pag_ici_xa);
+ 	xfs_perag_put(pag);
+ }
+ 
+diff --git a/fs/xfs/xfs_icache.h b/fs/xfs/xfs_icache.h
+index dfbf13b530bc..80e2b1aed973 100644
+--- a/fs/xfs/xfs_icache.h
++++ b/fs/xfs/xfs_icache.h
+@@ -35,8 +35,7 @@ struct xfs_eofblocks {
+ /*
+  * tags for inode radix tree
+  */
+-#define XFS_ICI_NO_TAG		(-1)	/* special flag for an untagged lookup
+-					   in xfs_inode_ag_iterator */
++#define XFS_ICI_ALL		XA_PRESENT /* all inodes */
+ #define XFS_ICI_RECLAIM_TAG	XA_TAG_0 /* inode is to be reclaimed */
+ #define XFS_ICI_EOFBLOCKS_TAG	XA_TAG_1 /* inode has blocks beyond EOF */
+ #define XFS_ICI_COWBLOCKS_TAG	XA_TAG_2 /* inode can have cow blocks to gc */
+@@ -91,7 +90,7 @@ int xfs_inode_ag_iterator_flags(struct xfs_mount *mp,
+ 	int flags, void *args, int iter_flags);
+ int xfs_inode_ag_iterator_tag(struct xfs_mount *mp,
+ 	int (*execute)(struct xfs_inode *ip, int flags, void *args),
+-	int flags, void *args, int tag);
++	int flags, void *args, xa_tag_t tag);
+ 
+ static inline int
+ xfs_fs_eofblocks_from_user(
+diff --git a/fs/xfs/xfs_inode.c b/fs/xfs/xfs_inode.c
+index 6f95bdb408ce..3421edc49ca0 100644
+--- a/fs/xfs/xfs_inode.c
++++ b/fs/xfs/xfs_inode.c
+@@ -2300,7 +2300,7 @@ xfs_ifree_cluster(
+ 		for (i = 0; i < inodes_per_cluster; i++) {
+ retry:
+ 			rcu_read_lock();
+-			ip = radix_tree_lookup(&pag->pag_ici_root,
++			ip = xa_load(&pag->pag_ici_xa,
+ 					XFS_INO_TO_AGINO(mp, (inum + i)));
+ 
+ 			/* Inode not in memory, nothing to do */
+@@ -3198,7 +3198,7 @@ xfs_iflush_cluster(
+ {
+ 	struct xfs_mount	*mp = ip->i_mount;
+ 	struct xfs_perag	*pag;
+-	unsigned long		first_index, mask;
++	unsigned long		first_index, last_index, mask;
+ 	unsigned long		inodes_per_cluster;
+ 	int			cilist_size;
+ 	struct xfs_inode	**cilist;
+@@ -3216,12 +3216,12 @@ xfs_iflush_cluster(
+ 	if (!cilist)
+ 		goto out_put;
+ 
+-	mask = ~(((mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog)) - 1);
+-	first_index = XFS_INO_TO_AGINO(mp, ip->i_ino) & mask;
++	mask = (((mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog)) - 1);
++	first_index = XFS_INO_TO_AGINO(mp, ip->i_ino) & ~mask;
++	last_index = first_index | mask;
+ 	rcu_read_lock();
+-	/* really need a gang lookup range call here */
+-	nr_found = radix_tree_gang_lookup(&pag->pag_ici_root, (void**)cilist,
+-					first_index, inodes_per_cluster);
++	nr_found = xa_extract(&pag->pag_ici_xa, (void**)cilist, first_index,
++				last_index, inodes_per_cluster, XA_PRESENT);
+ 	if (nr_found == 0)
+ 		goto out_free;
+ 
+@@ -3242,16 +3242,6 @@ xfs_iflush_cluster(
+ 			spin_unlock(&cip->i_flags_lock);
+ 			continue;
+ 		}
+-
+-		/*
+-		 * Once we fall off the end of the cluster, no point checking
+-		 * any more inodes in the list because they will also all be
+-		 * outside the cluster.
+-		 */
+-		if ((XFS_INO_TO_AGINO(mp, cip->i_ino) & mask) != first_index) {
+-			spin_unlock(&cip->i_flags_lock);
+-			break;
+-		}
+ 		spin_unlock(&cip->i_flags_lock);
+ 
+ 		/*
+diff --git a/fs/xfs/xfs_mount.c b/fs/xfs/xfs_mount.c
+index 0541aeb8449c..fc517e424fae 100644
+--- a/fs/xfs/xfs_mount.c
++++ b/fs/xfs/xfs_mount.c
+@@ -210,9 +210,8 @@ xfs_initialize_perag(
+ 			goto out_unwind_new_pags;
+ 		pag->pag_agno = index;
+ 		pag->pag_mount = mp;
+-		spin_lock_init(&pag->pag_ici_lock);
+ 		mutex_init(&pag->pag_ici_reclaim_lock);
+-		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
++		xa_init(&pag->pag_ici_xa);
+ 		if (xfs_buf_hash_init(pag))
+ 			goto out_free_pag;
+ 		init_waitqueue_head(&pag->pagb_wait);
+diff --git a/fs/xfs/xfs_mount.h b/fs/xfs/xfs_mount.h
+index 6e5ad7b26f46..ab0f706d2fd7 100644
+--- a/fs/xfs/xfs_mount.h
++++ b/fs/xfs/xfs_mount.h
+@@ -374,8 +374,7 @@ typedef struct xfs_perag {
+ 
+ 	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */
+ 
+-	spinlock_t	pag_ici_lock;	/* incore inode cache lock */
+-	struct radix_tree_root pag_ici_root;	/* incore inode cache root */
++	struct xarray	pag_ici_xa;	/* incore inode cache */
+ 	int		pag_ici_reclaimable;	/* reclaimable inodes */
+ 	struct mutex	pag_ici_reclaim_lock;	/* serialisation point */
+ 	unsigned long	pag_ici_reclaim_cursor;	/* reclaim restart point */
 -- 
 2.15.1
 
