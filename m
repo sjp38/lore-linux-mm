@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 78210280286
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:10 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id n2so12213562pgs.0
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:10 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 14879280286
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:15 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id e12so6364957pgu.11
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:15 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id l19si5019793pfj.363.2018.01.17.12.23.09
+        by mx.google.com with ESMTPS id r59si5089691plb.455.2018.01.17.12.23.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:23:09 -0800 (PST)
+        Wed, 17 Jan 2018 12:23:13 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 99/99] null_blk: Convert to XArray
-Date: Wed, 17 Jan 2018 12:22:03 -0800
-Message-Id: <20180117202203.19756-100-willy@infradead.org>
+Subject: [PATCH v6 93/99] f2fs: Convert ino_root to XArray
+Date: Wed, 17 Jan 2018 12:21:57 -0800
+Message-Id: <20180117202203.19756-94-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,218 +22,214 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-We can probably avoid the call to xa_reserve() by changing the locking,
-but I didn't feel confident enough to do that.
+I did a fairly major rewrite of __add_ino_entry(); please check carefully.
+Also, we can remove ino_list unless it's important to write out orphan
+inodes in the order they were orphaned.  It may also make more sense to
+combine the array of inode_management structures into a single XArray
+with tags, but that would be a job for someone who understands this
+filesystem better than I do.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- drivers/block/null_blk.c | 87 +++++++++++++++++++++---------------------------
- 1 file changed, 38 insertions(+), 49 deletions(-)
+ fs/f2fs/checkpoint.c | 85 +++++++++++++++++++++++-----------------------------
+ fs/f2fs/f2fs.h       |  3 +-
+ 2 files changed, 38 insertions(+), 50 deletions(-)
 
-diff --git a/drivers/block/null_blk.c b/drivers/block/null_blk.c
-index ad0477ae820f..d90d173b8885 100644
---- a/drivers/block/null_blk.c
-+++ b/drivers/block/null_blk.c
-@@ -15,6 +15,7 @@
- #include <linux/lightnvm.h>
- #include <linux/configfs.h>
- #include <linux/badblocks.h>
-+#include <linux/xarray.h>
+diff --git a/fs/f2fs/checkpoint.c b/fs/f2fs/checkpoint.c
+index 4aa69bc1c70a..04d69679da13 100644
+--- a/fs/f2fs/checkpoint.c
++++ b/fs/f2fs/checkpoint.c
+@@ -403,33 +403,30 @@ static void __add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino,
+ 	struct inode_management *im = &sbi->im[type];
+ 	struct ino_entry *e, *tmp;
  
- #define SECTOR_SHIFT		9
- #define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
-@@ -90,8 +91,8 @@ struct nullb_page {
- struct nullb_device {
- 	struct nullb *nullb;
- 	struct config_item item;
--	struct radix_tree_root data; /* data stored in the disk */
--	struct radix_tree_root cache; /* disk cache data */
-+	struct xarray data; /* data stored in the disk */
-+	struct xarray cache; /* disk cache data */
- 	unsigned long flags; /* device flags */
- 	unsigned int curr_cache;
- 	struct badblocks badblocks;
-@@ -558,8 +559,8 @@ static struct nullb_device *null_alloc_dev(void)
- 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
- 	if (!dev)
- 		return NULL;
--	INIT_RADIX_TREE(&dev->data, GFP_ATOMIC);
--	INIT_RADIX_TREE(&dev->cache, GFP_ATOMIC);
-+	xa_init_flags(&dev->data, XA_FLAGS_LOCK_IRQ);
-+	xa_init_flags(&dev->cache, XA_FLAGS_LOCK_IRQ);
- 	if (badblocks_init(&dev->badblocks, 0)) {
- 		kfree(dev);
- 		return NULL;
-@@ -752,18 +753,18 @@ static void null_free_sector(struct nullb *nullb, sector_t sector,
- 	unsigned int sector_bit;
- 	u64 idx;
- 	struct nullb_page *t_page, *ret;
--	struct radix_tree_root *root;
-+	struct xarray *xa;
- 
--	root = is_cache ? &nullb->dev->cache : &nullb->dev->data;
-+	xa = is_cache ? &nullb->dev->cache : &nullb->dev->data;
- 	idx = sector >> PAGE_SECTORS_SHIFT;
- 	sector_bit = (sector & SECTOR_MASK);
- 
--	t_page = radix_tree_lookup(root, idx);
-+	t_page = xa_load(xa, idx);
- 	if (t_page) {
- 		__clear_bit(sector_bit, &t_page->bitmap);
- 
- 		if (!t_page->bitmap) {
--			ret = radix_tree_delete_item(root, idx, t_page);
-+			ret = xa_cmpxchg(xa, idx, t_page, NULL, 0);
- 			WARN_ON(ret != t_page);
- 			null_free_page(ret);
- 			if (is_cache)
-@@ -772,47 +773,34 @@ static void null_free_sector(struct nullb *nullb, sector_t sector,
+-	tmp = f2fs_kmem_cache_alloc(ino_entry_slab, GFP_NOFS);
+-
+-	radix_tree_preload(GFP_NOFS | __GFP_NOFAIL);
+-
+-	spin_lock(&im->ino_lock);
+-	e = radix_tree_lookup(&im->ino_root, ino);
+-	if (!e) {
+-		e = tmp;
+-		if (unlikely(radix_tree_insert(&im->ino_root, ino, e)))
+-			f2fs_bug_on(sbi, 1);
+-
+-		memset(e, 0, sizeof(struct ino_entry));
+-		e->ino = ino;
+-
+-		list_add_tail(&e->list, &im->ino_list);
+-		if (type != ORPHAN_INO)
+-			im->ino_num++;
++	xa_lock(&im->ino_root);
++	e = xa_load(&im->ino_root, ino);
++	if (e)
++		goto found;
++	xa_unlock(&im->ino_root);
++
++	tmp = f2fs_kmem_cache_alloc(ino_entry_slab, GFP_NOFS | __GFP_ZERO);
++	xa_lock(&im->ino_root);
++	e = __xa_cmpxchg(&im->ino_root, ino, NULL, tmp,
++						GFP_NOFS | __GFP_NOFAIL);
++	if (e) {
++		kmem_cache_free(ino_entry_slab, tmp);
++		goto found;
  	}
- }
++	e = tmp;
  
--static struct nullb_page *null_radix_tree_insert(struct nullb *nullb, u64 idx,
-+static struct nullb_page *null_xa_insert(struct nullb *nullb, u64 idx,
- 	struct nullb_page *t_page, bool is_cache)
- {
--	struct radix_tree_root *root;
-+	struct xarray *xa = is_cache ? &nullb->dev->cache : &nullb->dev->data;
-+	struct nullb_page *exist;
- 
--	root = is_cache ? &nullb->dev->cache : &nullb->dev->data;
++	e->ino = ino;
++	list_add_tail(&e->list, &im->ino_list);
++	if (type != ORPHAN_INO)
++		im->ino_num++;
++found:
+ 	if (type == FLUSH_INO)
+ 		f2fs_set_bit(devidx, (char *)&e->dirty_device);
 -
--	if (radix_tree_insert(root, idx, t_page)) {
-+	exist = xa_cmpxchg(xa, idx, NULL, t_page, GFP_ATOMIC);
-+	if (exist) {
- 		null_free_page(t_page);
--		t_page = radix_tree_lookup(root, idx);
--		WARN_ON(!t_page || t_page->page->index != idx);
-+		t_page = exist;
- 	} else if (is_cache)
- 		nullb->dev->curr_cache += PAGE_SIZE;
- 
-+	WARN_ON(t_page->page->index != idx);
- 	return t_page;
- }
- 
- static void null_free_device_storage(struct nullb_device *dev, bool is_cache)
- {
--	unsigned long pos = 0;
--	int nr_pages;
--	struct nullb_page *ret, *t_pages[FREE_BATCH];
--	struct radix_tree_root *root;
--
--	root = is_cache ? &dev->cache : &dev->data;
--
--	do {
--		int i;
--
--		nr_pages = radix_tree_gang_lookup(root,
--				(void **)t_pages, pos, FREE_BATCH);
--
--		for (i = 0; i < nr_pages; i++) {
--			pos = t_pages[i]->page->index;
--			ret = radix_tree_delete_item(root, pos, t_pages[i]);
--			WARN_ON(ret != t_pages[i]);
--			null_free_page(ret);
--		}
-+	struct nullb_page *t_page;
-+	XA_STATE(xas, is_cache ? &dev->cache : &dev->data, 0);
- 
--		pos++;
--	} while (nr_pages == FREE_BATCH);
-+	xas_lock(&xas);
-+	xas_for_each(&xas, t_page, ULONG_MAX) {
-+		xas_store(&xas, NULL);
-+		null_free_page(t_page);
-+	}
-+	xas_unlock(&xas);
- 
- 	if (is_cache)
- 		dev->curr_cache = 0;
-@@ -824,13 +812,13 @@ static struct nullb_page *__null_lookup_page(struct nullb *nullb,
- 	unsigned int sector_bit;
- 	u64 idx;
- 	struct nullb_page *t_page;
--	struct radix_tree_root *root;
-+	struct xarray *xa;
- 
- 	idx = sector >> PAGE_SECTORS_SHIFT;
- 	sector_bit = (sector & SECTOR_MASK);
- 
--	root = is_cache ? &nullb->dev->cache : &nullb->dev->data;
--	t_page = radix_tree_lookup(root, idx);
-+	xa = is_cache ? &nullb->dev->cache : &nullb->dev->data;
-+	t_page = xa_load(xa, idx);
- 	WARN_ON(t_page && t_page->page->index != idx);
- 
- 	if (t_page && (for_write || test_bit(sector_bit, &t_page->bitmap)))
-@@ -854,6 +842,7 @@ static struct nullb_page *null_lookup_page(struct nullb *nullb,
- static struct nullb_page *null_insert_page(struct nullb *nullb,
- 	sector_t sector, bool ignore_cache)
- {
-+	struct xarray *xa;
- 	u64 idx;
- 	struct nullb_page *t_page;
- 
-@@ -867,14 +856,14 @@ static struct nullb_page *null_insert_page(struct nullb *nullb,
- 	if (!t_page)
- 		goto out_lock;
- 
--	if (radix_tree_preload(GFP_NOIO))
-+	idx = sector >> PAGE_SECTORS_SHIFT;
-+	xa = ignore_cache ? &nullb->dev->data : &nullb->dev->cache;
-+	if (xa_reserve(xa, idx, GFP_NOIO))
- 		goto out_freepage;
- 
- 	spin_lock_irq(&nullb->lock);
--	idx = sector >> PAGE_SECTORS_SHIFT;
- 	t_page->page->index = idx;
--	t_page = null_radix_tree_insert(nullb, idx, t_page, !ignore_cache);
+-	spin_unlock(&im->ino_lock);
 -	radix_tree_preload_end();
-+	t_page = null_xa_insert(nullb, idx, t_page, !ignore_cache);
+-
+-	if (e != tmp)
+-		kmem_cache_free(ino_entry_slab, tmp);
++	xa_unlock(&im->ino_root);
+ }
  
- 	return t_page;
- out_freepage:
-@@ -900,8 +889,7 @@ static int null_flush_cache_page(struct nullb *nullb, struct nullb_page *c_page)
- 	if (test_bit(NULLB_PAGE_FREE, &c_page->bitmap)) {
- 		null_free_page(c_page);
- 		if (t_page && t_page->bitmap == 0) {
--			ret = radix_tree_delete_item(&nullb->dev->data,
--				idx, t_page);
-+			xa_cmpxchg(&nullb->dev->data, idx, t_page, NULL, 0);
- 			null_free_page(t_page);
- 		}
- 		return 0;
-@@ -926,7 +914,7 @@ static int null_flush_cache_page(struct nullb *nullb, struct nullb_page *c_page)
- 	kunmap_atomic(dst);
- 	kunmap_atomic(src);
+ static void __remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
+@@ -437,17 +434,14 @@ static void __remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
+ 	struct inode_management *im = &sbi->im[type];
+ 	struct ino_entry *e;
  
--	ret = radix_tree_delete_item(&nullb->dev->cache, idx, c_page);
-+	ret = xa_cmpxchg(&nullb->dev->cache, idx, c_page, NULL, 0);
- 	null_free_page(ret);
- 	nullb->dev->curr_cache -= PAGE_SIZE;
- 
-@@ -944,8 +932,9 @@ static int null_make_cache_space(struct nullb *nullb, unsigned long n)
- 	     nullb->dev->curr_cache + n || nullb->dev->curr_cache == 0)
- 		return 0;
- 
--	nr_pages = radix_tree_gang_lookup(&nullb->dev->cache,
--			(void **)c_pages, nullb->cache_flush_pos, FREE_BATCH);
-+	nr_pages = xa_extract(&nullb->dev->cache, (void **)c_pages,
-+				nullb->cache_flush_pos, ULONG_MAX,
-+				FREE_BATCH, XA_PRESENT);
- 	/*
- 	 * nullb_flush_cache_page could unlock before using the c_pages. To
- 	 * avoid race, we don't allow page free
-@@ -1086,7 +1075,7 @@ static int null_handle_flush(struct nullb *nullb)
- 			break;
+-	spin_lock(&im->ino_lock);
+-	e = radix_tree_lookup(&im->ino_root, ino);
++	xa_lock(&im->ino_root);
++	e = __xa_erase(&im->ino_root, ino);
+ 	if (e) {
+ 		list_del(&e->list);
+-		radix_tree_delete(&im->ino_root, ino);
+ 		im->ino_num--;
+-		spin_unlock(&im->ino_lock);
+ 		kmem_cache_free(ino_entry_slab, e);
+-		return;
  	}
+-	spin_unlock(&im->ino_lock);
++	xa_unlock(&im->ino_root);
+ }
  
--	WARN_ON(!radix_tree_empty(&nullb->dev->cache));
-+	WARN_ON(!xa_empty(&nullb->dev->cache));
- 	spin_unlock_irq(&nullb->lock);
+ void add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
+@@ -466,12 +460,8 @@ void remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
+ bool exist_written_data(struct f2fs_sb_info *sbi, nid_t ino, int mode)
+ {
+ 	struct inode_management *im = &sbi->im[mode];
+-	struct ino_entry *e;
+ 
+-	spin_lock(&im->ino_lock);
+-	e = radix_tree_lookup(&im->ino_root, ino);
+-	spin_unlock(&im->ino_lock);
+-	return e ? true : false;
++	return xa_load(&im->ino_root, ino) ? true : false;
+ }
+ 
+ void release_ino_entry(struct f2fs_sb_info *sbi, bool all)
+@@ -482,14 +472,14 @@ void release_ino_entry(struct f2fs_sb_info *sbi, bool all)
+ 	for (i = all ? ORPHAN_INO : APPEND_INO; i < MAX_INO_ENTRY; i++) {
+ 		struct inode_management *im = &sbi->im[i];
+ 
+-		spin_lock(&im->ino_lock);
++		xa_lock(&im->ino_root);
+ 		list_for_each_entry_safe(e, tmp, &im->ino_list, list) {
+ 			list_del(&e->list);
+-			radix_tree_delete(&im->ino_root, e->ino);
++			__xa_erase(&im->ino_root, e->ino);
+ 			kmem_cache_free(ino_entry_slab, e);
+ 			im->ino_num--;
+ 		}
+-		spin_unlock(&im->ino_lock);
++		xa_unlock(&im->ino_root);
+ 	}
+ }
+ 
+@@ -506,11 +496,11 @@ bool is_dirty_device(struct f2fs_sb_info *sbi, nid_t ino,
+ 	struct ino_entry *e;
+ 	bool is_dirty = false;
+ 
+-	spin_lock(&im->ino_lock);
+-	e = radix_tree_lookup(&im->ino_root, ino);
++	xa_lock(&im->ino_root);
++	e = xa_load(&im->ino_root, ino);
+ 	if (e && f2fs_test_bit(devidx, (char *)&e->dirty_device))
+ 		is_dirty = true;
+-	spin_unlock(&im->ino_lock);
++	xa_unlock(&im->ino_root);
+ 	return is_dirty;
+ }
+ 
+@@ -519,11 +509,11 @@ int acquire_orphan_inode(struct f2fs_sb_info *sbi)
+ 	struct inode_management *im = &sbi->im[ORPHAN_INO];
+ 	int err = 0;
+ 
+-	spin_lock(&im->ino_lock);
++	xa_lock(&im->ino_root);
+ 
+ #ifdef CONFIG_F2FS_FAULT_INJECTION
+ 	if (time_to_inject(sbi, FAULT_ORPHAN)) {
+-		spin_unlock(&im->ino_lock);
++		xa_unlock(&im->ino_root);
+ 		f2fs_show_injection_info(FAULT_ORPHAN);
+ 		return -ENOSPC;
+ 	}
+@@ -532,7 +522,7 @@ int acquire_orphan_inode(struct f2fs_sb_info *sbi)
+ 		err = -ENOSPC;
+ 	else
+ 		im->ino_num++;
+-	spin_unlock(&im->ino_lock);
++	xa_unlock(&im->ino_root);
+ 
  	return err;
  }
+@@ -541,10 +531,10 @@ void release_orphan_inode(struct f2fs_sb_info *sbi)
+ {
+ 	struct inode_management *im = &sbi->im[ORPHAN_INO];
+ 
+-	spin_lock(&im->ino_lock);
++	xa_lock(&im->ino_root);
+ 	f2fs_bug_on(sbi, im->ino_num == 0);
+ 	im->ino_num--;
+-	spin_unlock(&im->ino_lock);
++	xa_unlock(&im->ino_root);
+ }
+ 
+ void add_orphan_inode(struct inode *inode)
+@@ -677,7 +667,7 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
+ 	orphan_blocks = GET_ORPHAN_BLOCKS(im->ino_num);
+ 
+ 	/*
+-	 * we don't need to do spin_lock(&im->ino_lock) here, since all the
++	 * we don't need to lock the ino_root here, since all the
+ 	 * orphan inode operations are covered under f2fs_lock_op().
+ 	 * And, spin_lock should be avoided due to page operations below.
+ 	 */
+@@ -1433,8 +1423,7 @@ void init_ino_entry_info(struct f2fs_sb_info *sbi)
+ 	for (i = 0; i < MAX_INO_ENTRY; i++) {
+ 		struct inode_management *im = &sbi->im[i];
+ 
+-		INIT_RADIX_TREE(&im->ino_root, GFP_ATOMIC);
+-		spin_lock_init(&im->ino_lock);
++		xa_init(&im->ino_root);
+ 		INIT_LIST_HEAD(&im->ino_list);
+ 		im->ino_num = 0;
+ 	}
+diff --git a/fs/f2fs/f2fs.h b/fs/f2fs/f2fs.h
+index 6abf26c31d01..b3ee784b49bc 100644
+--- a/fs/f2fs/f2fs.h
++++ b/fs/f2fs/f2fs.h
+@@ -994,8 +994,7 @@ enum inode_type {
+ 
+ /* for inner inode cache management */
+ struct inode_management {
+-	struct radix_tree_root ino_root;	/* ino entry array */
+-	spinlock_t ino_lock;			/* for ino entry lock */
++	struct xarray ino_root;			/* ino entry array */
+ 	struct list_head ino_list;		/* inode list head */
+ 	unsigned long ino_num;			/* number of entries */
+ };
 -- 
 2.15.1
 
