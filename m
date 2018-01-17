@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 79FBD28027C
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:04 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id z12so12213193pgv.6
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:04 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D41D280280
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:23:05 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id q1so12202734pgv.4
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 12:23:05 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id i135si4465714pgc.459.2018.01.17.12.23.02
+        by mx.google.com with ESMTPS id y12si1607836pgq.380.2018.01.17.12.23.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Jan 2018 12:23:02 -0800 (PST)
+        Wed, 17 Jan 2018 12:23:03 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 82/99] s390: Convert gmap to XArray
-Date: Wed, 17 Jan 2018 12:21:46 -0800
-Message-Id: <20180117202203.19756-83-willy@infradead.org>
+Subject: [PATCH v6 78/99] sh: intc: Convert to XArray
+Date: Wed, 17 Jan 2018 12:21:42 -0800
+Message-Id: <20180117202203.19756-79-willy@infradead.org>
 In-Reply-To: <20180117202203.19756-1-willy@infradead.org>
 References: <20180117202203.19756-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,357 +22,232 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The three radix trees in gmap are all converted to the XArray.
-This is another case where the multiple locks held mandates the use
-of the xa_reserve() API.  The gmap_insert_rmap() function is
-considerably simplified by using the advanced API;
-gmap_radix_tree_free() turns out to just be xa_destroy(), and
-gmap_rmap_radix_tree_free() is a nice little iteration followed
-by xa_destroy().
+The radix tree was being protected by a raw spinlock.  I believe that
+was not necessary, and the new internal regular spinlock will be
+adequate for this array.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- arch/s390/include/asm/gmap.h |  12 ++--
- arch/s390/mm/gmap.c          | 133 +++++++++++++++----------------------------
- 2 files changed, 51 insertions(+), 94 deletions(-)
+ drivers/sh/intc/core.c      |  9 ++----
+ drivers/sh/intc/internals.h |  5 ++--
+ drivers/sh/intc/virq.c      | 72 +++++++++++++--------------------------------
+ 3 files changed, 25 insertions(+), 61 deletions(-)
 
-diff --git a/arch/s390/include/asm/gmap.h b/arch/s390/include/asm/gmap.h
-index e07cce88dfb0..7695a01d19d7 100644
---- a/arch/s390/include/asm/gmap.h
-+++ b/arch/s390/include/asm/gmap.h
-@@ -14,14 +14,14 @@
-  * @list: list head for the mm->context gmap list
-  * @crst_list: list of all crst tables used in the guest address space
-  * @mm: pointer to the parent mm_struct
-- * @guest_to_host: radix tree with guest to host address translation
-- * @host_to_guest: radix tree with pointer to segment table entries
-+ * @guest_to_host: guest to host address translation
-+ * @host_to_guest: pointers to segment table entries
-  * @guest_table_lock: spinlock to protect all entries in the guest page table
-  * @ref_count: reference counter for the gmap structure
-  * @table: pointer to the page directory
-  * @asce: address space control element for gmap page table
-  * @pfault_enabled: defines if pfaults are applicable for the guest
-- * @host_to_rmap: radix tree with gmap_rmap lists
-+ * @host_to_rmap: gmap_rmap lists
-  * @children: list of shadow gmap structures
-  * @pt_list: list of all page tables used in the shadow guest address space
-  * @shadow_lock: spinlock to protect the shadow gmap list
-@@ -35,8 +35,8 @@ struct gmap {
+diff --git a/drivers/sh/intc/core.c b/drivers/sh/intc/core.c
+index 8e72bcbd3d6d..356a423d9dcb 100644
+--- a/drivers/sh/intc/core.c
++++ b/drivers/sh/intc/core.c
+@@ -30,7 +30,6 @@
+ #include <linux/syscore_ops.h>
+ #include <linux/list.h>
+ #include <linux/spinlock.h>
+-#include <linux/radix-tree.h>
+ #include <linux/export.h>
+ #include <linux/sort.h>
+ #include "internals.h"
+@@ -78,11 +77,8 @@ static void __init intc_register_irq(struct intc_desc *desc,
+ 	struct intc_handle_int *hp;
+ 	struct irq_data *irq_data;
+ 	unsigned int data[2], primary;
+-	unsigned long flags;
+ 
+-	raw_spin_lock_irqsave(&intc_big_lock, flags);
+-	radix_tree_insert(&d->tree, enum_id, intc_irq_xlate_get(irq));
+-	raw_spin_unlock_irqrestore(&intc_big_lock, flags);
++	xa_store(&d->array, enum_id, intc_irq_xlate_get(irq), GFP_ATOMIC);
+ 
+ 	/*
+ 	 * Prefer single interrupt source bitmap over other combinations:
+@@ -196,8 +192,7 @@ int __init register_intc_controller(struct intc_desc *desc)
+ 	INIT_LIST_HEAD(&d->list);
+ 	list_add_tail(&d->list, &intc_list);
+ 
+-	raw_spin_lock_init(&d->lock);
+-	INIT_RADIX_TREE(&d->tree, GFP_ATOMIC);
++	xa_init(&d->array);
+ 
+ 	d->index = nr_intc_controllers;
+ 
+diff --git a/drivers/sh/intc/internals.h b/drivers/sh/intc/internals.h
+index fa73c173b56a..9b6fd07e99a6 100644
+--- a/drivers/sh/intc/internals.h
++++ b/drivers/sh/intc/internals.h
+@@ -5,7 +5,7 @@
+ #include <linux/list.h>
+ #include <linux/kernel.h>
+ #include <linux/types.h>
+-#include <linux/radix-tree.h>
++#include <linux/xarray.h>
+ #include <linux/device.h>
+ 
+ #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
+@@ -54,8 +54,7 @@ struct intc_subgroup_entry {
+ struct intc_desc_int {
  	struct list_head list;
- 	struct list_head crst_list;
- 	struct mm_struct *mm;
--	struct radix_tree_root guest_to_host;
--	struct radix_tree_root host_to_guest;
-+	struct xarray guest_to_host;
-+	struct xarray host_to_guest;
- 	spinlock_t guest_table_lock;
- 	atomic_t ref_count;
- 	unsigned long *table;
-@@ -45,7 +45,7 @@ struct gmap {
- 	void *private;
- 	bool pfault_enabled;
- 	/* Additional data for shadow guest address spaces */
--	struct radix_tree_root host_to_rmap;
-+	struct xarray host_to_rmap;
- 	struct list_head children;
- 	struct list_head pt_list;
- 	spinlock_t shadow_lock;
-diff --git a/arch/s390/mm/gmap.c b/arch/s390/mm/gmap.c
-index 05d459b638f5..818a5e80914d 100644
---- a/arch/s390/mm/gmap.c
-+++ b/arch/s390/mm/gmap.c
-@@ -60,9 +60,9 @@ static struct gmap *gmap_alloc(unsigned long limit)
- 	INIT_LIST_HEAD(&gmap->crst_list);
- 	INIT_LIST_HEAD(&gmap->children);
- 	INIT_LIST_HEAD(&gmap->pt_list);
--	INIT_RADIX_TREE(&gmap->guest_to_host, GFP_KERNEL);
--	INIT_RADIX_TREE(&gmap->host_to_guest, GFP_ATOMIC);
--	INIT_RADIX_TREE(&gmap->host_to_rmap, GFP_ATOMIC);
-+	xa_init(&gmap->guest_to_host);
-+	xa_init(&gmap->host_to_guest);
-+	xa_init(&gmap->host_to_rmap);
- 	spin_lock_init(&gmap->guest_table_lock);
- 	spin_lock_init(&gmap->shadow_lock);
- 	atomic_set(&gmap->ref_count, 1);
-@@ -121,55 +121,16 @@ static void gmap_flush_tlb(struct gmap *gmap)
- 		__tlb_flush_global();
- }
+ 	struct device dev;
+-	struct radix_tree_root tree;
+-	raw_spinlock_t lock;
++	struct xarray array;
+ 	unsigned int index;
+ 	unsigned long *reg;
+ #ifdef CONFIG_SMP
+diff --git a/drivers/sh/intc/virq.c b/drivers/sh/intc/virq.c
+index a638c3048207..801c9c8b7556 100644
+--- a/drivers/sh/intc/virq.c
++++ b/drivers/sh/intc/virq.c
+@@ -12,7 +12,6 @@
+ #include <linux/slab.h>
+ #include <linux/irq.h>
+ #include <linux/list.h>
+-#include <linux/radix-tree.h>
+ #include <linux/spinlock.h>
+ #include <linux/export.h>
+ #include "internals.h"
+@@ -27,10 +26,7 @@ struct intc_virq_list {
+ #define for_each_virq(entry, head) \
+ 	for (entry = head; entry; entry = entry->next)
  
--static void gmap_radix_tree_free(struct radix_tree_root *root)
--{
--	struct radix_tree_iter iter;
--	unsigned long indices[16];
--	unsigned long index;
--	void __rcu **slot;
--	int i, nr;
--
--	/* A radix tree is freed by deleting all of its entries */
--	index = 0;
--	do {
--		nr = 0;
--		radix_tree_for_each_slot(slot, root, &iter, index) {
--			indices[nr] = iter.index;
--			if (++nr == 16)
--				break;
--		}
--		for (i = 0; i < nr; i++) {
--			index = indices[i];
--			radix_tree_delete(root, index);
--		}
--	} while (nr > 0);
--}
--
--static void gmap_rmap_radix_tree_free(struct radix_tree_root *root)
-+static void gmap_rmap_free(struct xarray *xa)
+-/*
+- * Tags for the radix tree
+- */
+-#define INTC_TAG_VIRQ_NEEDS_ALLOC	0
++#define INTC_TAG_VIRQ_NEEDS_ALLOC	XA_TAG_0
+ 
+ void intc_irq_xlate_set(unsigned int irq, intc_enum id, struct intc_desc_int *d)
  {
- 	struct gmap_rmap *rmap, *rnext, *head;
--	struct radix_tree_iter iter;
--	unsigned long indices[16];
--	unsigned long index;
--	void __rcu **slot;
--	int i, nr;
+@@ -54,23 +50,18 @@ int intc_irq_lookup(const char *chipname, intc_enum enum_id)
+ 	int irq = -1;
+ 
+ 	list_for_each_entry(d, &intc_list, list) {
+-		int tagged;
 -
--	/* A radix tree is freed by deleting all of its entries */
--	index = 0;
--	do {
--		nr = 0;
--		radix_tree_for_each_slot(slot, root, &iter, index) {
--			indices[nr] = iter.index;
--			if (++nr == 16)
--				break;
--		}
--		for (i = 0; i < nr; i++) {
--			index = indices[i];
--			head = radix_tree_delete(root, index);
--			gmap_for_each_rmap_safe(rmap, rnext, head)
--				kfree(rmap);
--		}
--	} while (nr > 0);
-+	unsigned long index = 0;
-+
-+	xa_for_each(xa, head, index, ULONG_MAX, XA_PRESENT) {
-+		gmap_for_each_rmap_safe(rmap, rnext, head)
-+			kfree(rmap);
-+	}
-+	xa_destroy(xa);
- }
- 
- /**
-@@ -188,15 +149,15 @@ static void gmap_free(struct gmap *gmap)
- 	/* Free all segment & region tables. */
- 	list_for_each_entry_safe(page, next, &gmap->crst_list, lru)
- 		__free_pages(page, CRST_ALLOC_ORDER);
--	gmap_radix_tree_free(&gmap->guest_to_host);
--	gmap_radix_tree_free(&gmap->host_to_guest);
-+	xa_destroy(&gmap->guest_to_host);
-+	xa_destroy(&gmap->host_to_guest);
- 
- 	/* Free additional data for a shadow gmap */
- 	if (gmap_is_shadow(gmap)) {
- 		/* Free all page tables. */
- 		list_for_each_entry_safe(page, next, &gmap->pt_list, lru)
- 			page_table_free_pgste(page);
--		gmap_rmap_radix_tree_free(&gmap->host_to_rmap);
-+		gmap_rmap_free(&gmap->host_to_rmap);
- 		/* Release reference to the parent */
- 		gmap_put(gmap->parent);
- 	}
-@@ -358,7 +319,7 @@ static int __gmap_unlink_by_vmaddr(struct gmap *gmap, unsigned long vmaddr)
- 
- 	BUG_ON(gmap_is_shadow(gmap));
- 	spin_lock(&gmap->guest_table_lock);
--	entry = radix_tree_delete(&gmap->host_to_guest, vmaddr >> PMD_SHIFT);
-+	entry = xa_erase(&gmap->host_to_guest, vmaddr >> PMD_SHIFT);
- 	if (entry) {
- 		flush = (*entry != _SEGMENT_ENTRY_EMPTY);
- 		*entry = _SEGMENT_ENTRY_EMPTY;
-@@ -378,7 +339,7 @@ static int __gmap_unmap_by_gaddr(struct gmap *gmap, unsigned long gaddr)
- {
- 	unsigned long vmaddr;
- 
--	vmaddr = (unsigned long) radix_tree_delete(&gmap->guest_to_host,
-+	vmaddr = (unsigned long) xa_erase(&gmap->guest_to_host,
- 						   gaddr >> PMD_SHIFT);
- 	return vmaddr ? __gmap_unlink_by_vmaddr(gmap, vmaddr) : 0;
- }
-@@ -441,9 +402,9 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
- 		/* Remove old translation */
- 		flush |= __gmap_unmap_by_gaddr(gmap, to + off);
- 		/* Store new translation */
--		if (radix_tree_insert(&gmap->guest_to_host,
-+		if (xa_is_err(xa_store(&gmap->guest_to_host,
- 				      (to + off) >> PMD_SHIFT,
--				      (void *) from + off))
-+				      (void *) from + off, GFP_KERNEL)))
- 			break;
- 	}
- 	up_write(&gmap->mm->mmap_sem);
-@@ -474,7 +435,7 @@ unsigned long __gmap_translate(struct gmap *gmap, unsigned long gaddr)
- 	unsigned long vmaddr;
- 
- 	vmaddr = (unsigned long)
--		radix_tree_lookup(&gmap->guest_to_host, gaddr >> PMD_SHIFT);
-+		xa_load(&gmap->guest_to_host, gaddr >> PMD_SHIFT);
- 	/* Note: guest_to_host is empty for a shadow gmap */
- 	return vmaddr ? (vmaddr | (gaddr & ~PMD_MASK)) : -EFAULT;
- }
-@@ -588,21 +549,19 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
- 	if (pmd_large(*pmd))
- 		return -EFAULT;
- 	/* Link gmap segment table entry location to page table. */
--	rc = radix_tree_preload(GFP_KERNEL);
-+	rc = xa_reserve(&gmap->host_to_guest, vmaddr >> PMD_SHIFT, GFP_KERNEL);
- 	if (rc)
- 		return rc;
- 	ptl = pmd_lock(mm, pmd);
- 	spin_lock(&gmap->guest_table_lock);
- 	if (*table == _SEGMENT_ENTRY_EMPTY) {
--		rc = radix_tree_insert(&gmap->host_to_guest,
--				       vmaddr >> PMD_SHIFT, table);
-+		rc = xa_err(xa_store(&gmap->host_to_guest, vmaddr >> PMD_SHIFT,
-+				table, GFP_NOWAIT | __GFP_NOFAIL));
- 		if (!rc)
- 			*table = pmd_val(*pmd);
--	} else
--		rc = 0;
-+	}
- 	spin_unlock(&gmap->guest_table_lock);
- 	spin_unlock(ptl);
--	radix_tree_preload_end();
- 	return rc;
- }
- 
-@@ -660,7 +619,7 @@ void __gmap_zap(struct gmap *gmap, unsigned long gaddr)
- 	pte_t *ptep;
- 
- 	/* Find the vm address for the guest address */
--	vmaddr = (unsigned long) radix_tree_lookup(&gmap->guest_to_host,
-+	vmaddr = (unsigned long) xa_load(&gmap->guest_to_host,
- 						   gaddr >> PMD_SHIFT);
- 	if (vmaddr) {
- 		vmaddr |= gaddr & ~PMD_MASK;
-@@ -682,8 +641,7 @@ void gmap_discard(struct gmap *gmap, unsigned long from, unsigned long to)
- 	for (gaddr = from; gaddr < to;
- 	     gaddr = (gaddr + PMD_SIZE) & PMD_MASK) {
- 		/* Find the vm address for the guest address */
--		vmaddr = (unsigned long)
--			radix_tree_lookup(&gmap->guest_to_host,
-+		vmaddr = (unsigned long) xa_load(&gmap->guest_to_host,
- 					  gaddr >> PMD_SHIFT);
- 		if (!vmaddr)
+ 		if (strcmp(d->chip.name, chipname) != 0)
  			continue;
-@@ -1002,29 +960,24 @@ int gmap_read_table(struct gmap *gmap, unsigned long gaddr, unsigned long *val)
- EXPORT_SYMBOL_GPL(gmap_read_table);
  
- /**
-- * gmap_insert_rmap - add a rmap to the host_to_rmap radix tree
-+ * gmap_insert_rmap - add a rmap to the host_to_rmap
-  * @sg: pointer to the shadow guest address space structure
-  * @vmaddr: vm address associated with the rmap
-  * @rmap: pointer to the rmap structure
-  *
-- * Called with the sg->guest_table_lock
-+ * Called with the sg->guest_table_lock and page table lock held
-  */
- static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
- 				    struct gmap_rmap *rmap)
+ 		/*
+ 		 * Catch early lookups for subgroup VIRQs that have not
+-		 * yet been allocated an IRQ. This already includes a
+-		 * fast-path out if the tree is untagged, so there is no
+-		 * need to explicitly test the root tree.
++		 * yet been allocated an IRQ.
+ 		 */
+-		tagged = radix_tree_tag_get(&d->tree, enum_id,
+-					    INTC_TAG_VIRQ_NEEDS_ALLOC);
+-		if (unlikely(tagged))
++		if (unlikely(xa_get_tag(&d->array, enum_id,
++						INTC_TAG_VIRQ_NEEDS_ALLOC)))
+ 			break;
+ 
+-		ptr = radix_tree_lookup(&d->tree, enum_id);
++		ptr = xa_load(&d->array, enum_id);
+ 		if (ptr) {
+ 			irq = ptr - intc_irq_xlate;
+ 			break;
+@@ -148,22 +139,16 @@ static void __init intc_subgroup_init_one(struct intc_desc *desc,
  {
--	void __rcu **slot;
-+	XA_STATE(xas, &sg->host_to_rmap, vmaddr >> PAGE_SHIFT);
+ 	struct intc_map_entry *mapped;
+ 	unsigned int pirq;
+-	unsigned long flags;
+ 	int i;
  
- 	BUG_ON(!gmap_is_shadow(sg));
--	slot = radix_tree_lookup_slot(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT);
--	if (slot) {
--		rmap->next = radix_tree_deref_slot_protected(slot,
--							&sg->guest_table_lock);
--		radix_tree_replace_slot(&sg->host_to_rmap, slot, rmap);
--	} else {
--		rmap->next = NULL;
--		radix_tree_insert(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT,
--				  rmap);
+-	mapped = radix_tree_lookup(&d->tree, subgroup->parent_id);
+-	if (!mapped) {
+-		WARN_ON(1);
++	mapped = xa_load(&d->array, subgroup->parent_id);
++	if (WARN_ON(!mapped))
+ 		return;
 -	}
-+
-+	xas_lock(&xas);
-+	rmap->next = xas_load(&xas);
-+	xas_store(&xas, rmap);
-+	xas_unlock(&xas);
+ 
+ 	pirq = mapped - intc_irq_xlate;
+ 
+-	raw_spin_lock_irqsave(&d->lock, flags);
+-
+ 	for (i = 0; i < ARRAY_SIZE(subgroup->enum_ids); i++) {
+ 		struct intc_subgroup_entry *entry;
+-		int err;
+ 
+ 		if (!subgroup->enum_ids[i])
+ 			continue;
+@@ -176,15 +161,14 @@ static void __init intc_subgroup_init_one(struct intc_desc *desc,
+ 		entry->enum_id = subgroup->enum_ids[i];
+ 		entry->handle = intc_subgroup_data(subgroup, d, i);
+ 
+-		err = radix_tree_insert(&d->tree, entry->enum_id, entry);
+-		if (unlikely(err < 0))
++		if (xa_err(xa_store(&d->array, entry->enum_id, entry,
++						GFP_NOWAIT))) {
++			kfree(entry);
+ 			break;
+-
+-		radix_tree_tag_set(&d->tree, entry->enum_id,
++		}
++		xa_set_tag(&d->array, entry->enum_id,
+ 				   INTC_TAG_VIRQ_NEEDS_ALLOC);
+ 	}
+-
+-	raw_spin_unlock_irqrestore(&d->lock, flags);
  }
  
- /**
-@@ -1058,7 +1011,8 @@ static int gmap_protect_rmap(struct gmap *sg, unsigned long raddr,
- 		if (!rmap)
- 			return -ENOMEM;
- 		rmap->raddr = raddr;
--		rc = radix_tree_preload(GFP_KERNEL);
-+		rc = xa_reserve(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT,
-+				GFP_KERNEL);
- 		if (rc) {
- 			kfree(rmap);
- 			return rc;
-@@ -1074,7 +1028,7 @@ static int gmap_protect_rmap(struct gmap *sg, unsigned long raddr,
- 			spin_unlock(&sg->guest_table_lock);
- 			gmap_pte_op_end(ptl);
- 		}
--		radix_tree_preload_end();
-+		xa_release(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT);
- 		if (rc) {
- 			kfree(rmap);
- 			rc = gmap_pte_op_fixup(parent, paddr, vmaddr, prot);
-@@ -1962,7 +1916,8 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
- 			rc = vmaddr;
+ void __init intc_subgroup_init(struct intc_desc *desc, struct intc_desc_int *d)
+@@ -201,28 +185,16 @@ void __init intc_subgroup_init(struct intc_desc *desc, struct intc_desc_int *d)
+ static void __init intc_subgroup_map(struct intc_desc_int *d)
+ {
+ 	struct intc_subgroup_entry *entries[32];
+-	unsigned long flags;
+ 	unsigned int nr_found;
+ 	int i;
+ 
+-	raw_spin_lock_irqsave(&d->lock, flags);
+-
+-restart:
+-	nr_found = radix_tree_gang_lookup_tag_slot(&d->tree,
+-			(void ***)entries, 0, ARRAY_SIZE(entries),
+-			INTC_TAG_VIRQ_NEEDS_ALLOC);
++	nr_found = xa_extract(&d->array, (void **)entries, 0, ULONG_MAX,
++			ARRAY_SIZE(entries), INTC_TAG_VIRQ_NEEDS_ALLOC);
+ 
+ 	for (i = 0; i < nr_found; i++) {
+-		struct intc_subgroup_entry *entry;
+-		int irq;
++		struct intc_subgroup_entry *entry = entries[i];
++		int irq = irq_alloc_desc(numa_node_id());
+ 
+-		entry = radix_tree_deref_slot((void **)entries[i]);
+-		if (unlikely(!entry))
+-			continue;
+-		if (radix_tree_deref_retry(entry))
+-			goto restart;
+-
+-		irq = irq_alloc_desc(numa_node_id());
+ 		if (unlikely(irq < 0)) {
+ 			pr_err("no more free IRQs, bailing..\n");
  			break;
- 		}
--		rc = radix_tree_preload(GFP_KERNEL);
-+		rc = xa_reserve(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT,
-+				GFP_KERNEL);
- 		if (rc)
- 			break;
- 		rc = -EAGAIN;
-@@ -1974,7 +1929,8 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
- 			if (!tptep) {
- 				spin_unlock(&sg->guest_table_lock);
- 				gmap_pte_op_end(ptl);
--				radix_tree_preload_end();
-+				xa_release(&sg->host_to_rmap,
-+						vmaddr >> PAGE_SHIFT);
- 				break;
- 			}
- 			rc = ptep_shadow_pte(sg->mm, saddr, sptep, tptep, pte);
-@@ -1983,11 +1939,13 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
- 				gmap_insert_rmap(sg, vmaddr, rmap);
- 				rmap = NULL;
- 				rc = 0;
-+			} else {
-+				xa_release(&sg->host_to_rmap,
-+						vmaddr >> PAGE_SHIFT);
- 			}
- 			gmap_pte_op_end(ptl);
- 			spin_unlock(&sg->guest_table_lock);
- 		}
--		radix_tree_preload_end();
- 		if (!rc)
- 			break;
- 		rc = gmap_pte_op_fixup(parent, paddr, vmaddr, prot);
-@@ -2030,7 +1988,7 @@ static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
- 		return;
+@@ -250,13 +222,11 @@ static void __init intc_subgroup_map(struct intc_desc_int *d)
+ 		add_virq_to_pirq(entry->pirq, irq);
+ 		irq_set_chained_handler(entry->pirq, intc_virq_handler);
+ 
+-		radix_tree_tag_clear(&d->tree, entry->enum_id,
+-				     INTC_TAG_VIRQ_NEEDS_ALLOC);
+-		radix_tree_replace_slot(&d->tree, (void **)entries[i],
+-					&intc_irq_xlate[irq]);
++		xa_store(&d->array, entry->enum_id, &intc_irq_xlate[irq],
++				GFP_NOWAIT);
++		xa_clear_tag(&d->array, entry->enum_id,
++				INTC_TAG_VIRQ_NEEDS_ALLOC);
  	}
- 	/* Remove the page table tree from on specific entry */
--	head = radix_tree_delete(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT);
-+	head = xa_erase(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT);
- 	gmap_for_each_rmap_safe(rmap, rnext, head) {
- 		bits = rmap->raddr & _SHADOW_RMAP_MASK;
- 		raddr = rmap->raddr ^ bits;
-@@ -2078,8 +2036,7 @@ void ptep_notify(struct mm_struct *mm, unsigned long vmaddr,
- 	rcu_read_lock();
- 	list_for_each_entry_rcu(gmap, &mm->context.gmap_list, list) {
- 		spin_lock(&gmap->guest_table_lock);
--		table = radix_tree_lookup(&gmap->host_to_guest,
--					  vmaddr >> PMD_SHIFT);
-+		table = xa_load(&gmap->host_to_guest, vmaddr >> PMD_SHIFT);
- 		if (table)
- 			gaddr = __gmap_segment_gaddr(table) + offset;
- 		spin_unlock(&gmap->guest_table_lock);
+-
+-	raw_spin_unlock_irqrestore(&d->lock, flags);
+ }
+ 
+ void __init intc_finalize(void)
+@@ -264,6 +234,6 @@ void __init intc_finalize(void)
+ 	struct intc_desc_int *d;
+ 
+ 	list_for_each_entry(d, &intc_list, list)
+-		if (radix_tree_tagged(&d->tree, INTC_TAG_VIRQ_NEEDS_ALLOC))
++		if (xa_tagged(&d->array, INTC_TAG_VIRQ_NEEDS_ALLOC))
+ 			intc_subgroup_map(d);
+ }
 -- 
 2.15.1
 
