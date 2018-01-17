@@ -1,61 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4185B6B0268
-	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 18:16:06 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id q8so9812606pfh.12
-        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:16:06 -0800 (PST)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id j3si5204333plk.506.2018.01.17.15.16.04
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 93EFF6B0261
+	for <linux-mm@kvack.org>; Wed, 17 Jan 2018 18:26:35 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id f133so8060069itb.1
+        for <linux-mm@kvack.org>; Wed, 17 Jan 2018 15:26:35 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p198sor3037327ioe.240.2018.01.17.15.26.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jan 2018 15:16:05 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [bug report] hugetlb, mempolicy: fix the mbind hugetlb migration
-Date: Wed, 17 Jan 2018 23:15:03 +0000
-Message-ID: <396fb669-3466-3c31-51a1-6c483351e0ce@ah.jp.nec.com>
-References: <20180109200539.g7chrnzftxyn3nom@mwanda>
- <20180110104712.GR1732@dhcp22.suse.cz> <20180117121801.GE2900@dhcp22.suse.cz>
-In-Reply-To: <20180117121801.GE2900@dhcp22.suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <BB08AE993B185041A4C14E2DCAE1E264@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Wed, 17 Jan 2018 15:26:34 -0800 (PST)
+Date: Wed, 17 Jan 2018 15:26:31 -0800
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Re: [PATCH 0/1] Re: kernel BUG at fs/userfaultfd.c:LINE!
+Message-ID: <20180117232631.gniczgvil5lsml6p@gmail.com>
+References: <20171222222346.GB28786@zzz.localdomain>
+ <20171223002505.593-1-aarcange@redhat.com>
+ <CACT4Y+av2MyJHHpPQLQ2EGyyW5vAe3i-U0pfVXshFm96t-1tBQ@mail.gmail.com>
+ <20180117085629.GA20303@amd>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180117085629.GA20303@amd>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, Dan Carpenter <dan.carpenter@oracle.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs@googlegroups.com
 
-On 01/17/2018 09:18 PM, Michal Hocko wrote:
-> On Wed 10-01-18 11:47:12, Michal Hocko wrote:
->> [CC Mike and Naoya]
->=20
-> ping
->=20
->> From 7227218bd526cceb954a688727d78af0b5874e18 Mon Sep 17 00:00:00 2001
->> From: Michal Hocko <mhocko@suse.com>
->> Date: Wed, 10 Jan 2018 11:40:20 +0100
->> Subject: [PATCH] hugetlb, mbind: fall back to default policy if vma is N=
-ULL
->>
->> Dan Carpenter has noticed that mbind migration callback (new_page)
->> can get a NULL vma pointer and choke on it inside alloc_huge_page_vma
->> which relies on the VMA to get the hstate. We used to BUG_ON this
->> case but the BUG_+ON has been removed recently by "hugetlb, mempolicy:
->> fix the mbind hugetlb migration".
->>
->> The proper way to handle this is to get the hstate from the migrated
->> page and rely on huge_node (resp. get_vma_policy) do the right thing
->> with null VMA. We are currently falling back to the default mempolicy in
->> that case which is in line what THP path is doing here.
+On Wed, Jan 17, 2018 at 09:56:29AM +0100, Pavel Machek wrote:
+> Hi!
+> 
+> > > Andrea Arcangeli (1):
+> > >   userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK
+> > >     fails
+> > >
+> > >  fs/userfaultfd.c | 20 ++++++++++++++++++--
+> > >  1 file changed, 18 insertions(+), 2 deletions(-)
+> > 
+> > The original report footer was stripped, so:
+> > 
+> > Please credit me with: Reported-by: syzbot <syzkaller@googlegroups.com>
+> 
+> Please don't. We don't credit our CPUs, and we don't credit Qemu. We
+> credit humans.
+> 
 
-vma is used only for getting mempolicy in alloc_huge_page_vma(), so
-falling back to default mempolicy looks better to me than BUG_ON.
+The difference is that unlike your CPU or QEMU, syzbot is a program specifically
+written to find and report Linux kernel bugs.  And although Dmitry Vyukov has
+done most of the work, syzkaller and syzbot have had many contributors, and you
+are welcome to contribute too: https://github.com/google/syzkaller
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > and we also need to tell syzbot about the fix with:
+> > 
+> > #syz fix:
+> > userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK fails
+> 
+> Now you claimed you care about bugs being fixed. What about actually
+> testing Andrea's fix and telling us if it fixes the problem or not,
+> and maybe saying "thank you"?
 
-Thanks,
-Naoya Horiguchi=
+Of course the syzbot team cares about bugs being fixed, why else would they
+report them?
+
+I too would like to see syzbot become smarter about handling bugs with
+reproducers.  For example it could bisect to find the commit which introduced
+the bug, and could automatically detect where the bug has/hasn't been fixed.  Of
+course due to the nature of the kernel it's not possible with every bug, but for
+some it is possible.
+
+Nevertheless, at the end of the day, no matter how a bug is reported or who
+reports it, it is primarily the responsibility of the person patching the bug to
+test their patch.  I've never really understood why people try to patch
+reproducible bugs without even testing their fix; it just doesn't make any
+sense.  It's pretty easy to run the syzkaller-provided reproducers too.
+Personally I've fixed 20+ syzkaller-reported bugs, and I always run the
+reproducer if there is one.  In fact the reproducer is usually needed to even
+figure out what to fix in the first place...
+
+Yes, Andrea deserves thanks for fixing this bug!  But so does syzbot and its
+authors for reporting this bug.  And personally I am not at all impressed by the
+fact that userfaultfd has no maintainer listed in MAINTAINERS, nor did any of
+the authors feel responsible enough to quickly patch a critical security bug in
+code they wrote less than a year ago, even after I Cc'ed them with a simplified
+reproducer and explanation of the problem.  Note that userfaultfd is usable by
+unprivileged users and is enabled on most major Linux distros.  Does syzbot need
+to start automatically requesting CVE's as well? :-)
+
+(And yes, I wanted to fix this myself, as I've done with a lot of other of the
+syzbot-reported bugs, but unfortunately I wasn't familiar enough with the
+userfaultfd code, and there are 200 other bugs to work on too...)
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
