@@ -1,116 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FFDE6B0253
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:32:47 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id t27so13668048oij.17
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 14:32:47 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 55E256B025E
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:37:29 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id e9so13667034oib.10
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 14:37:29 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 9si3374847otb.422.2018.01.18.14.32.45
+        by mx.google.com with ESMTPS id 20si3256750oii.146.2018.01.18.14.37.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jan 2018 14:32:46 -0800 (PST)
-Date: Fri, 19 Jan 2018 00:32:38 +0200
+        Thu, 18 Jan 2018 14:37:28 -0800 (PST)
+Date: Fri, 19 Jan 2018 00:37:18 +0200
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v22 2/3] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
-Message-ID: <20180119003101-mutt-send-email-mst@kernel.org>
+Subject: Re: [PATCH v22 3/3] virtio-balloon: don't report free pages when
+ page poisoning is enabled
+Message-ID: <20180119003650-mutt-send-email-mst@kernel.org>
 References: <1516165812-3995-1-git-send-email-wei.w.wang@intel.com>
- <1516165812-3995-3-git-send-email-wei.w.wang@intel.com>
- <20180117180337-mutt-send-email-mst@kernel.org>
- <2bb0e3d9-1679-9ad3-b402-f0781f6cf094@I-love.SAKURA.ne.jp>
- <20180118210239-mutt-send-email-mst@kernel.org>
- <201801190611.HGI18722.FVtOMQLSHFFOOJ@I-love.SAKURA.ne.jp>
+ <1516165812-3995-4-git-send-email-wei.w.wang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201801190611.HGI18722.FVtOMQLSHFFOOJ@I-love.SAKURA.ne.jp>
+In-Reply-To: <1516165812-3995-4-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Fri, Jan 19, 2018 at 06:11:31AM +0900, Tetsuo Handa wrote:
-> Michael S. Tsirkin wrote:
-> > On Thu, Jan 18, 2018 at 10:30:18PM +0900, Tetsuo Handa wrote:
-> > > On 2018/01/18 1:44, Michael S. Tsirkin wrote:
-> > > >> +static void add_one_sg(struct virtqueue *vq, unsigned long pfn, uint32_t len)
-> > > >> +{
-> > > >> +	struct scatterlist sg;
-> > > >> +	unsigned int unused;
-> > > >> +	int err;
-> > > >> +
-> > > >> +	sg_init_table(&sg, 1);
-> > > >> +	sg_set_page(&sg, pfn_to_page(pfn), len, 0);
-> > > >> +
-> > > >> +	/* Detach all the used buffers from the vq */
-> > > >> +	while (virtqueue_get_buf(vq, &unused))
-> > > >> +		;
-> > > >> +
-> > > >> +	/*
-> > > >> +	 * Since this is an optimization feature, losing a couple of free
-> > > >> +	 * pages to report isn't important.
-> > > >> We simply resturn
-> > > > 
-> > > > return
-> > > > 
-> > > >> without adding
-> > > >> +	 * the page if the vq is full. We are adding one entry each time,
-> > > >> +	 * which essentially results in no memory allocation, so the
-> > > >> +	 * GFP_KERNEL flag below can be ignored.
-> > > >> +	 */
-> > > >> +	if (vq->num_free) {
-> > > >> +		err = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
-> > > > 
-> > > > Should we kick here? At least when ring is close to
-> > > > being full. Kick at half way full?
-> > > > Otherwise it's unlikely ring will
-> > > > ever be cleaned until we finish the scan.
-> > > 
-> > > Since this add_one_sg() is called between spin_lock_irqsave(&zone->lock, flags)
-> > > and spin_unlock_irqrestore(&zone->lock, flags), it is not permitted to sleep.
-> > 
-> > kick takes a while sometimes but it doesn't sleep.
+On Wed, Jan 17, 2018 at 01:10:12PM +0800, Wei Wang wrote:
+> The guest free pages should not be discarded by the live migration thread
+> when page poisoning is enabled with PAGE_POISONING_NO_SANITY=n, because
+> skipping the transfer of such poisoned free pages will trigger false
+> positive when new pages are allocated and checked on the destination.
+> This patch adds a config field, poison_val. Guest writes to the config
+> field to tell the host about the poisoning value. The value will be 0 in
+> the following cases:
+> 1) PAGE_POISONING_NO_SANITY is enabled;
+> 2) page poisoning is disabled; or
+> 3) PAGE_POISONING_ZERO is enabled.
 > 
-> I don't know about virtio. But the purpose of kicking here is to wait for pending data
-> to be flushed in order to increase vq->num_free, isn't it?
+> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> Suggested-by: Michael S. Tsirkin <mst@redhat.com>
+> Cc: Michal Hocko <mhocko@suse.com>
 
-It isn't. It's to wake up device out of sleep to make it start
-processing the pending data. If device isn't asleep, it's a nop.
 
-> Then, doesn't waiting for
-> pending data to be flushed involve sleeping? If yes, we can wait for completion of kick
-> but we can't wait for completion of flush. Is pending data flushed without sleep?
+Pls squash with the previous patch. It's not nice to break a
+config, then fix it up later.
+
+> ---
+>  drivers/virtio/virtio_balloon.c     | 8 ++++++++
+>  include/uapi/linux/virtio_balloon.h | 2 ++
+>  2 files changed, 10 insertions(+)
 > 
-> > 
-> > > And walk_free_mem_block() is not ready to handle resume.
-> > > 
-> > > By the way, specifying GFP_KERNEL here is confusing even though it is never used.
-> > > walk_free_mem_block() says:
-> > > 
-> > >   * The callback itself must not sleep or perform any operations which would
-> > >   * require any memory allocations directly (not even GFP_NOWAIT/GFP_ATOMIC)
-> > >   * or via any lock dependency. 
-> > 
-> > Yea, GFP_ATOMIC would do just as well. But I think any allocation
-> > on this path would be problematic.
-> > 
-> > How about a flag to make all allocations fail?
-> > 
-> > E.g. 
-> > 
-> > #define GFP_FORBIDDEN (___GFP_DMA | ___GFP_HIGHMEM)
-> > 
-> > Still this is not a blocker, we can worry about this later.
-> > 
-> > 
-> > > > 
-> > > >> +		/*
-> > > >> +		 * This is expected to never fail, because there is always an
-> > > >> +		 * entry available on the vq.
-> > > >> +		 */
-> > > >> +		BUG_ON(err);
-> > > >> +	}
-> > > >> +}
-> > 
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index b9561a5..5a42235 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -706,6 +706,7 @@ static struct file_system_type balloon_fs = {
+>  static int virtballoon_probe(struct virtio_device *vdev)
+>  {
+>  	struct virtio_balloon *vb;
+> +	__u32 poison_val;
+>  	int err;
+>  
+>  	if (!vdev->config->get) {
+> @@ -740,6 +741,13 @@ static int virtballoon_probe(struct virtio_device *vdev)
+>  					WQ_FREEZABLE | WQ_CPU_INTENSIVE, 0);
+>  		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
+>  		vb->stop_cmd_id = VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID;
+> +		if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY) ||
+> +		    !page_poisoning_enabled())
+> +			poison_val = 0;
+> +		else
+> +			poison_val = PAGE_POISON;
+> +		virtio_cwrite(vb->vdev, struct virtio_balloon_config,
+> +			      poison_val, &poison_val);
+>  	}
+>  
+>  	vb->nb.notifier_call = virtballoon_oom_notify;
+> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+> index 55e2456..5861876 100644
+> --- a/include/uapi/linux/virtio_balloon.h
+> +++ b/include/uapi/linux/virtio_balloon.h
+> @@ -47,6 +47,8 @@ struct virtio_balloon_config {
+>  	__u32 actual;
+>  	/* Free page report command id, readonly by guest */
+>  	__u32 free_page_report_cmd_id;
+> +	/* Stores PAGE_POISON if page poisoning with sanity check is in use */
+> +	__u32 poison_val;
+>  };
+>  
+>  #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
+> -- 
+> 2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
