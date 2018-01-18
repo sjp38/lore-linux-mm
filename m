@@ -1,126 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 17F6A6B0069
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 03:24:47 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id g187so5846243wmg.2
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 00:24:47 -0800 (PST)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id q103si5873325wrb.110.2018.01.18.00.24.45
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 17F8A6B0033
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 06:51:41 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id x24so14636503pge.13
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 03:51:41 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z75si6540964pfd.119.2018.01.18.03.51.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jan 2018 00:24:45 -0800 (PST)
-Date: Thu, 18 Jan 2018 09:24:44 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 0/1] Re: kernel BUG at fs/userfaultfd.c:LINE!
-Message-ID: <20180118082444.GA28474@amd>
-References: <20171222222346.GB28786@zzz.localdomain>
- <20171223002505.593-1-aarcange@redhat.com>
- <CACT4Y+av2MyJHHpPQLQ2EGyyW5vAe3i-U0pfVXshFm96t-1tBQ@mail.gmail.com>
- <20180117085629.GA20303@amd>
- <20180117232631.gniczgvil5lsml6p@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 18 Jan 2018 03:51:39 -0800 (PST)
+Date: Thu, 18 Jan 2018 12:51:30 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180118115130.eomcbftg4qvmrui7@pathway.suse.cz>
+References: <20180111093435.GA24497@linux.suse>
+ <20180111103845.GB477@jagdpanzerIV>
+ <20180111112908.50de440a@vmware.local.home>
+ <20180111203057.5b1a8f8f@gandalf.local.home>
+ <20180111215547.2f66a23a@gandalf.local.home>
+ <20180116194456.GS3460072@devbig577.frc2.facebook.com>
+ <20180117091208.ezvuhumnsarz5thh@pathway.suse.cz>
+ <20180117151509.GT3460072@devbig577.frc2.facebook.com>
+ <20180117121251.7283a56e@gandalf.local.home>
+ <20180117200551.GW3460072@devbig577.frc2.facebook.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="bp/iNruPH9dso1Pn"
-Content-Disposition: inline
-In-Reply-To: <20180117232631.gniczgvil5lsml6p@gmail.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs@googlegroups.com
-
-
---bp/iNruPH9dso1Pn
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20180117200551.GW3460072@devbig577.frc2.facebook.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On Wed 2018-01-17 15:26:31, Eric Biggers wrote:
-> On Wed, Jan 17, 2018 at 09:56:29AM +0100, Pavel Machek wrote:
-> > Hi!
-> >=20
-> > > > Andrea Arcangeli (1):
-> > > >   userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK
-> > > >     fails
-> > > >
-> > > >  fs/userfaultfd.c | 20 ++++++++++++++++++--
-> > > >  1 file changed, 18 insertions(+), 2 deletions(-)
-> > >=20
-> > > The original report footer was stripped, so:
-> > >=20
-> > > Please credit me with: Reported-by: syzbot <syzkaller@googlegroups.co=
-m>
-> >=20
-> > Please don't. We don't credit our CPUs, and we don't credit Qemu. We
-> > credit humans.
->=20
-> The difference is that unlike your CPU or QEMU, syzbot is a program speci=
-fically
-> written to find and report Linux kernel bugs.  And although Dmitry Vyukov=
- has
-> done most of the work, syzkaller and syzbot have had many contributors, a=
-nd you
-> are welcome to contribute too: https://github.com/google/syzkaller
+On Wed 2018-01-17 12:05:51, Tejun Heo wrote:
+> Hello, Steven.
+> 
+> On Wed, Jan 17, 2018 at 12:12:51PM -0500, Steven Rostedt wrote:
+> > From what I gathered, you said an OOM would trigger, and then the
+> > network console would not be able to allocate memory and it would
+> > trigger a printk too, and cause an infinite amount of printks.
+> 
+> Yeah, it falls into back-and-forth loop between the OOM code and
+> netconsole path.
+> 
+> > This could very well be a great place to force offloading. If a printk
+> > is called from within a printk, at the same context (normal, softirq,
+> > irq or NMI), then we should trigger the offloading.
+> 
+> I was thinking more of a timeout based approach (ie. if stuck for
+> longer than X or X messages, offload), but if local feedback loop is
+> the only thing we're missing after your improvements, detecting that
+> specific condition definitely works and is likely a better approach in
+> terms of message delivery guarantee.
 
-No.
+I think that we could combine both. The recursion can be detected
+rather easily and immediately so there is no reason to wait.
 
-Someone is responsible for sending those reports to lkml, and that
-someone is not a program, that is a human being.
+Once we have the code for offloading from recursion then we could
+kick_offload_thread() also from other reasons, e.g. when
+console_unlock() takes too long.
 
-And that someone should be in the From: address, and he gets the
-credit when it goes right, and blame when it gets wrong. Pick that
-person. He is responsible for reviewing mails the bot sends (perhaps
-adding information that would normally be there but syzbot is not yet
-able to add it automatically -- such as what tree it is to the
-subject), and he should act on replies.
+I think that Sergey is already playing with this. It seems
+that we all could be happy in the end.
 
-> > > and we also need to tell syzbot about the fix with:
-> > >=20
-> > > #syz fix:
-> > > userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK fai=
-ls
-> >=20
-> > Now you claimed you care about bugs being fixed. What about actually
-> > testing Andrea's fix and telling us if it fixes the problem or not,
-> > and maybe saying "thank you"?
->=20
-> Of course the syzbot team cares about bugs being fixed, why else would th=
-ey
-> report them?
 
-=46rom the emails it looks like the bot is doing that for fame.
+Best Regards,
+Petr
 
-> Nevertheless, at the end of the day, no matter how a bug is reported or w=
-ho
-> reports it, it is primarily the responsibility of the person patching the=
- bug to
-> test their patch.=20
-
-Umm. Really? That's not how it historically worked. You report a bug,
-you are expected to care enough to do the testing. You also say a
-"thank you" to person who fixes the bug. Just because.
-
-And syzbot does not do any of that, and that's why human should be in
-the loop.
-
-									Pavel
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---bp/iNruPH9dso1Pn
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlpgWcwACgkQMOfwapXb+vJgvgCfewlLgJgc3z7TIsLcKcqYmLkN
-f2UAoKsUyghe5uO6om+u9CF9kX1+WXqV
-=oUuh
------END PGP SIGNATURE-----
-
---bp/iNruPH9dso1Pn--
+PS: I am sorry for the answer yesterday. Tejun's mail did not mention
+any details about the problem. I evidently forgot them. I have OOM
+and printk issues associated with Tetsuo. So I messed it. Believe
+me. It is a big relief to realize that we are not in the cycle
+again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
