@@ -1,68 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D80156B025F
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 12:00:08 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id b111so9246151wrd.16
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 09:00:08 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f2si6622549wrf.518.2018.01.18.09.00.07
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 76FAA6B0260
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 12:02:15 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id g186so8056556pfb.11
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 09:02:15 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id k7si3069825pgq.759.2018.01.18.09.02.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Jan 2018 09:00:07 -0800 (PST)
-Date: Thu, 18 Jan 2018 18:00:06 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] Per file OOM badness
-Message-ID: <20180118170006.GG6584@dhcp22.suse.cz>
-References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 18 Jan 2018 09:02:14 -0800 (PST)
+Date: Thu, 18 Jan 2018 09:02:11 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v6 00/99] XArray version 6
+Message-ID: <20180118170211.GB23800@bombadil.infradead.org>
+References: <20180117202203.19756-1-willy@infradead.org>
+ <20180118160749.GP13726@twin.jikos.cz>
+ <20180118164843.GA23800@bombadil.infradead.org>
+ <20180118165612.GS13726@twin.jikos.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
+In-Reply-To: <20180118165612.GS13726@twin.jikos.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Grodzovsky <andrey.grodzovsky@amd.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org, Christian.Koenig@amd.com
+To: dsterba@suse.cz, linux-kernel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, Bjorn Andersson <bjorn.andersson@linaro.org>, Stefano Stabellini <sstabellini@kernel.org>, iommu@lists.linux-foundation.org, linux-remoteproc@vger.kernel.org, linux-s390@vger.kernel.org, intel-gfx@lists.freedesktop.org, cgroups@vger.kernel.org, linux-sh@vger.kernel.org, David Howells <dhowells@redhat.com>
 
-On Thu 18-01-18 11:47:48, Andrey Grodzovsky wrote:
-> Hi, this series is a revised version of an RFC sent by Christian Konig
-> a few years ago. The original RFC can be found at 
-> https://lists.freedesktop.org/archives/dri-devel/2015-September/089778.html
+On Thu, Jan 18, 2018 at 05:56:12PM +0100, David Sterba wrote:
+> On Thu, Jan 18, 2018 at 08:48:43AM -0800, Matthew Wilcox wrote:
+> > Thank you!  I shall attempt to debug.  Was this with a btrfs root
+> > filesystem?  I'm most suspicious of those patches right now, since they've
+> > received next to no testing.  I'm going to put together a smaller patchset
+> > which just does the page cache conversion and nothing else in the hope
+> > that we can get that merged this year.
 > 
-> This is the same idea and I've just adressed his concern from the original RFC 
-> and switched to a callback into file_ops instead of a new member in struct file.
+> No, the root is ext3 and there was no btrfs filesytem mounted at the
+> time.
 
-Please add the full description to the cover letter and do not make
-people hunt links.
-
-Here is the origin cover letter text
-: I'm currently working on the issue that when device drivers allocate memory on
-: behalf of an application the OOM killer usually doesn't knew about that unless
-: the application also get this memory mapped into their address space.
-: 
-: This is especially annoying for graphics drivers where a lot of the VRAM
-: usually isn't CPU accessible and so doesn't make sense to map into the
-: address space of the process using it.
-: 
-: The problem now is that when an application starts to use a lot of VRAM those
-: buffers objects sooner or later get swapped out to system memory, but when we
-: now run into an out of memory situation the OOM killer obviously doesn't knew
-: anything about that memory and so usually kills the wrong process.
-: 
-: The following set of patches tries to address this problem by introducing a per
-: file OOM badness score, which device drivers can use to give the OOM killer a
-: hint how many resources are bound to a file descriptor so that it can make
-: better decisions which process to kill.
-: 
-: So question at every one: What do you think about this approach?
-: 
-: My biggest concern right now is the patches are messing with a core kernel
-: structure (adding a field to struct file). Any better idea? I'm considering
-: to put a callback into file_ops instead.
-
--- 
-Michal Hocko
-SUSE Labs
+Found it; I was missing a prerequisite patch.  New (smaller) patch series
+coming soon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
