@@ -1,168 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 660A36B0038
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 18:36:11 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id w17so251382iow.23
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 15:36:11 -0800 (PST)
-Received: from ngdesktop.us.oracle.com (hqdc-proxy-mwg016-o.oracle.com. [148.87.23.19])
-        by mx.google.com with ESMTP id 186si6958224iow.155.2018.01.18.15.36.09
-        for <linux-mm@kvack.org>;
-        Thu, 18 Jan 2018 15:36:10 -0800 (PST)
-From: Nitin Gupta <nitingupta910@gmail.com>
-Subject: [PATCH v2] mm: Reduce memory bloat with THP
-Date: Thu, 18 Jan 2018 15:33:16 -0800
-Message-Id: <1516318444-30868-1-git-send-email-nitingupta910@gmail.com>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BA3026B0038
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 18:50:03 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id f3so54963wmc.8
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 15:50:03 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y8sor5475456edb.5.2018.01.18.15.50.02
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 18 Jan 2018 15:50:02 -0800 (PST)
+Date: Fri, 19 Jan 2018 02:49:55 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
+Message-ID: <20180118234955.nlo55rw2qsfnavfm@node.shutemov.name>
+References: <CA+55aFxOn5n4O2JNaivi8rhDmeFhTQxEHD4xE33J9xOrFu=7kQ@mail.gmail.com>
+ <201801170233.JDG21842.OFOJMQSHtOFFLV@I-love.SAKURA.ne.jp>
+ <CA+55aFyxyjN0Mqnz66B4a0R+uR8DdfxdMhcg5rJVi8LwnpSRfA@mail.gmail.com>
+ <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
+ <201801181712.BFD13039.LtHOSVMFJQFOFO@I-love.SAKURA.ne.jp>
+ <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name>
+ <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
+ <20180118145830.GA6406@redhat.com>
+ <20180118165629.kpdkezarsf4qymnw@node.shutemov.name>
+ <CA+55aFy43ypm0QvA5SqNR4O0ZJETbkR3NDR=dnSdvejc_nmSJQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFy43ypm0QvA5SqNR4O0ZJETbkR3NDR=dnSdvejc_nmSJQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com
-Cc: Nitin Gupta <nitin.m.gupta@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Nadav Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Vegard Nossum <vegard.nossum@oracle.com>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Shaohua Li <shli@fb.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Tobin C Harding <me@tobin.cc>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Tony Luck <tony.luck@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
 
-From: Nitin Gupta <nitin.m.gupta@oracle.com>
+On Thu, Jan 18, 2018 at 09:26:25AM -0800, Linus Torvalds wrote:
+> On Thu, Jan 18, 2018 at 8:56 AM, Kirill A. Shutemov
+> <kirill@shutemov.name> wrote:
+> >
+> > I can't say I fully grasp how 'diff' got this value and how it leads to both
+> > checks being false.
+> 
+> I think the problem is that page difference when they are in different sections.
+> 
+> When you do
+> 
+>      pte_page(*pvmw->pte) - pvmw->page
+> 
+> then the compiler takes the pointer difference, and then divides by
+> the size of "struct page" to get an index.
+> 
+> But - and this is important - it does so knowing that the division it
+> does will have no modulus: the two 'struct page *' pointers are really
+> in the same array, and they really are 'n*sizeof(struct page)' apart
+> for some 'n'.
+> 
+> That means that the compiler can optimize the division. In fact, for
+> this case, gcc will generate
+> 
+>         subl    %ebx, %eax
+>         sarl    $3, %eax
+>         imull   $-858993459, %eax, %eax
+> 
+> because 'struct page' is 40 bytes in size, and that magic sequence
+> happens to divide by 40 (first divide by 8, then that magical "imull"
+> will divide by 5 *IFF* the thing is evenly divisible by 5 (and not too
+> big - but the shift guarantees that).
+> 
+> Basically, it's a magic trick, because real divides are very
+> expensive, but you can fake them more quickly if you can limit the
+> input domain.
+> 
+> But what does it mean if the two "struct page *" are not in the same
+> array, and the two arrays were allocated not aligned exactly 40 bytes
+> away, but some random number of pages away?
+> 
+> You get *COMPLETE*GARBAGE* when you do the above optimized divide.
+> Suddenly the divide had a modulus (because the base of the two arrays
+> weren't 40-byte aligned), and the "trick" doesn't work.
+> 
+> So that's why you can't do pointer diffs between two arrays. Not
+> because you can't subtract the two pointers, but because the
+> *division* part of the C pointer diff rules leads to issues.
 
-Currently, if the THP enabled policy is "always", or the mode
-is "madvise" and a region is marked as MADV_HUGEPAGE, a hugepage
-is allocated on a page fault if the pud or pmd is empty.  This
-yields the best VA translation performance, but increases memory
-consumption if some small page ranges within the huge page are
-never accessed.
+Thanks a lot for the explanation!
 
-An alternate behavior for such page faults is to install a
-hugepage only when a region is actually found to be (almost)
-fully mapped and active.  This is a compromise between
-translation performance and memory consumption.  Currently there
-is no way for an application to choose this compromise for the
-page fault conditions above.
+I wounder if this may be a problem in other places?
 
-With this change, whenever an application issues MADV_DONTNEED on a
-memory region, the region is marked as "space-efficient". For such
-regions, a hugepage is not immediately allocated on first write.
-Instead, it is left to the khugepaged thread to do delayed hugepage
-promotion depending on whether the region is actually mapped and
-active. When application issues MADV_HUGEPAGE, the region is marked
-again as non-space-efficient wherein hugepage is allocated on first
-touch.
+For instance, perf uses address of a mutex to determinate the lock
+ordering. See mutex_lock_double(). The mutex is embedded into struct
+perf_event_context, which is allocated with kzalloc() so I don't see how
+we can presume that alignment is consistent between them.
 
-Testing:
+I don't think it's the only example in kernel. Are we just lucky?
 
-Wrote a test program which mmaps 128G area and writes to a random
-address in a loop. Together with writes, madvise(MADV_DONTNEED) are
-issued at another random addresses. Writes are issued with 70%
-probability and DONTNEED with 30%. With this test, I'm trying to
-emulate workload of a large in-memory hash-table.
-
-With the patch, I see that memory bloat is much less severe as the
-memory usage increases gradually. Eventually, only the memory actually
-found by khugepaged to be active is collapsed to hugepages.
-
-THP was set to 'always' mode in both cases but the result would be the
-same if madvise mode was used instead.
-
-All testing done on x86_64.
-
-Changes since v1:
- - Acquire mmap_sem write lock for MADV_DONTNEED calls to safely
-   change space_efficient flag of VMA.
- - Fix clearing of space_efficient flag when MADV_HUGEPAGE is called
-   on a region.
-
-Reviewed-by: Steve Sistare <steven.sistare@oracle.com>
-Signed-off-by: Nitin Gupta <nitin.m.gupta@oracle.com>
----
- include/linux/mm_types.h | 1 +
- mm/madvise.c             | 6 +++++-
- mm/memory.c              | 6 ++++--
- 3 files changed, 10 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index cfd0ac4e5e0e..6d0783acf1e2 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -339,6 +339,7 @@ struct vm_area_struct {
- 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
- #endif
- 	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
-+	bool space_efficient;
- } __randomize_layout;
- 
- struct core_thread {
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 751e97aa2210..6019cfe05832 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -39,7 +39,6 @@ static int madvise_need_mmap_write(int behavior)
- 	switch (behavior) {
- 	case MADV_REMOVE:
- 	case MADV_WILLNEED:
--	case MADV_DONTNEED:
- 	case MADV_FREE:
- 		return 0;
- 	default:
-@@ -60,6 +59,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 	int error = 0;
- 	pgoff_t pgoff;
- 	unsigned long new_flags = vma->vm_flags;
-+	bool space_efficient = vma->space_efficient;
- 
- 	switch (behavior) {
- 	case MADV_NORMAL:
-@@ -116,6 +116,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 		}
- 		break;
- 	case MADV_HUGEPAGE:
-+		space_efficient = false;
- 	case MADV_NOHUGEPAGE:
- 		error = hugepage_madvise(vma, &new_flags, behavior);
- 		if (error) {
-@@ -132,6 +133,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 
- 	if (new_flags == vma->vm_flags) {
- 		*prev = vma;
-+		vma->space_efficient = space_efficient;
- 		goto out;
- 	}
- 
-@@ -185,6 +187,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 	 * vm_flags is protected by the mmap_sem held in write mode.
- 	 */
- 	vma->vm_flags = new_flags;
-+	vma->space_efficient = space_efficient;
- out:
- 	return error;
- }
-@@ -508,6 +511,7 @@ static long madvise_dontneed_single_vma(struct vm_area_struct *vma,
- 					unsigned long start, unsigned long end)
- {
- 	zap_page_range(vma, start, end - start);
-+	vma->space_efficient = true;
- 	return 0;
- }
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index ca5674cbaff2..95311f25cd23 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4002,7 +4002,8 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 	vmf.pud = pud_alloc(mm, p4d, address);
- 	if (!vmf.pud)
- 		return VM_FAULT_OOM;
--	if (pud_none(*vmf.pud) && transparent_hugepage_enabled(vma)) {
-+	if (pud_none(*vmf.pud) && transparent_hugepage_enabled(vma)
-+		&& !vma->space_efficient) {
- 		ret = create_huge_pud(&vmf);
- 		if (!(ret & VM_FAULT_FALLBACK))
- 			return ret;
-@@ -4028,7 +4029,8 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 	vmf.pmd = pmd_alloc(mm, vmf.pud, address);
- 	if (!vmf.pmd)
- 		return VM_FAULT_OOM;
--	if (pmd_none(*vmf.pmd) && transparent_hugepage_enabled(vma)) {
-+	if (pmd_none(*vmf.pmd) && transparent_hugepage_enabled(vma)
-+		&& !vma->space_efficient) {
- 		ret = create_huge_pmd(&vmf);
- 		if (!(ret & VM_FAULT_FALLBACK))
- 			return ret;
 -- 
-2.13.3
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
