@@ -1,117 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0547F6B0033
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 08:12:15 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id 194so6281218wmv.9
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 05:12:14 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 4sor4663384edx.50.2018.01.18.05.12.13
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 38C2F6B0033
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 08:30:40 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id r12so14662846otr.11
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 05:30:40 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id e185si2746831oif.280.2018.01.18.05.30.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 18 Jan 2018 05:12:13 -0800 (PST)
-Date: Thu, 18 Jan 2018 16:12:10 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
-Message-ID: <20180118131210.456oyh6fw4scwv53@node.shutemov.name>
-References: <201801160115.w0G1FOIG057203@www262.sakura.ne.jp>
- <CA+55aFxOn5n4O2JNaivi8rhDmeFhTQxEHD4xE33J9xOrFu=7kQ@mail.gmail.com>
- <201801170233.JDG21842.OFOJMQSHtOFFLV@I-love.SAKURA.ne.jp>
- <CA+55aFyxyjN0Mqnz66B4a0R+uR8DdfxdMhcg5rJVi8LwnpSRfA@mail.gmail.com>
- <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
- <201801181712.BFD13039.LtHOSVMFJQFOFO@I-love.SAKURA.ne.jp>
- <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 18 Jan 2018 05:30:38 -0800 (PST)
+Subject: Re: [PATCH v22 2/3] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+References: <1516165812-3995-1-git-send-email-wei.w.wang@intel.com>
+ <1516165812-3995-3-git-send-email-wei.w.wang@intel.com>
+ <20180117180337-mutt-send-email-mst@kernel.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <2bb0e3d9-1679-9ad3-b402-f0781f6cf094@I-love.SAKURA.ne.jp>
+Date: Thu, 18 Jan 2018 22:30:18 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name>
+In-Reply-To: <20180117180337-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: torvalds@linux-foundation.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, tony.luck@intel.com, vbabka@suse.cz, mhocko@kernel.org, aarcange@redhat.com, hillf.zj@alibaba-inc.com, hughd@google.com, oleg@redhat.com, peterz@infradead.org, riel@redhat.com, srikar@linux.vnet.ibm.com, vdavydov.dev@gmail.com, dave.hansen@linux.intel.com, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: "Michael S. Tsirkin" <mst@redhat.com>, Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Thu, Jan 18, 2018 at 03:25:50PM +0300, Kirill A. Shutemov wrote:
-> On Thu, Jan 18, 2018 at 05:12:45PM +0900, Tetsuo Handa wrote:
-> > Tetsuo Handa wrote:
-> > > OK. I missed the mark. I overlooked that 4.11 already has this problem.
-> > > 
-> > > I needed to bisect between 4.10 and 4.11, and I got plausible culprit.
-> > > 
-> > > I haven't completed bisecting between b4fb8f66f1ae2e16 and c470abd4fde40ea6, but
-> > > b4fb8f66f1ae2e16 ("mm, page_alloc: Add missing check for memory holes") and
-> > > 13ad59df67f19788 ("mm, page_alloc: avoid page_to_pfn() when merging buddies")
-> > > are talking about memory holes, which matches the situation that I'm trivially
-> > > hitting the bug if CONFIG_SPARSEMEM=y .
-> > > 
-> > > Thus, I call for an attention by speculative execution. ;-)
-> > 
-> > Speculative execution failed. I was confused by jiffies precision bug.
-> > The final culprit is c7ab0d2fdc840266 ("mm: convert try_to_unmap_one() to use page_vma_mapped_walk()").
+On 2018/01/18 1:44, Michael S. Tsirkin wrote:
+>> +static void add_one_sg(struct virtqueue *vq, unsigned long pfn, uint32_t len)
+>> +{
+>> +	struct scatterlist sg;
+>> +	unsigned int unused;
+>> +	int err;
+>> +
+>> +	sg_init_table(&sg, 1);
+>> +	sg_set_page(&sg, pfn_to_page(pfn), len, 0);
+>> +
+>> +	/* Detach all the used buffers from the vq */
+>> +	while (virtqueue_get_buf(vq, &unused))
+>> +		;
+>> +
+>> +	/*
+>> +	 * Since this is an optimization feature, losing a couple of free
+>> +	 * pages to report isn't important.
+>> We simply resturn
 > 
-> I think I've tracked it down. check_pte() in mm/page_vma_mapped.c doesn't
-> work as intended.
+> return
 > 
-> I've added instrumentation below to prove it.
+>> without adding
+>> +	 * the page if the vq is full. We are adding one entry each time,
+>> +	 * which essentially results in no memory allocation, so the
+>> +	 * GFP_KERNEL flag below can be ignored.
+>> +	 */
+>> +	if (vq->num_free) {
+>> +		err = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
 > 
-> The BUG() triggers with following output:
-> 
-> [   10.084024] diff: -858690919
-> [   10.084258] hpage_nr_pages: 1
-> [   10.084386] check1: 0
-> [   10.084478] check2: 0
-> 
-> Basically, pte_page(*pvmw->pte) is below pvmw->page, but
-> (pte_page(*pvmw->pte) < pvmw->page) doesn't catch it.
-> 
-> Well, I can see how C lawyer can argue that you can only compare pointers
-> of the same memory object which is not the case here. But this is kinda
-> insane.
-> 
-> Any suggestions how to rewrite it in a way that compiler would
-> understand?
+> Should we kick here? At least when ring is close to
+> being full. Kick at half way full?
+> Otherwise it's unlikely ring will
+> ever be cleaned until we finish the scan.
 
-The patch below makes the crash go away for me.
+Since this add_one_sg() is called between spin_lock_irqsave(&zone->lock, flags)
+and spin_unlock_irqrestore(&zone->lock, flags), it is not permitted to sleep.
+And walk_free_mem_block() is not ready to handle resume.
 
-But this is situation is scary. So we cannot compare arbitrary pointers in
-kernel?
+By the way, specifying GFP_KERNEL here is confusing even though it is never used.
+walk_free_mem_block() says:
 
-Don't we rely on this for lock ordering in some cases? Like in
-mutex_lock_double()?
+  * The callback itself must not sleep or perform any operations which would
+  * require any memory allocations directly (not even GFP_NOWAIT/GFP_ATOMIC)
+  * or via any lock dependency. 
 
-diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-index d22b84310f6d..1f0f512fd127 100644
---- a/mm/page_vma_mapped.c
-+++ b/mm/page_vma_mapped.c
-@@ -51,6 +51,8 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
- 		WARN_ON_ONCE(1);
- #endif
- 	} else {
-+		unsigned long ptr1, ptr2;
-+
- 		if (is_swap_pte(*pvmw->pte)) {
- 			swp_entry_t entry;
- 
-@@ -63,12 +65,14 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
- 		if (!pte_present(*pvmw->pte))
- 			return false;
- 
--		/* THP can be referenced by any subpage */
--		if (pte_page(*pvmw->pte) - pvmw->page >=
--				hpage_nr_pages(pvmw->page)) {
-+		ptr1 = (unsigned long)pte_page(*pvmw->pte);
-+		ptr2 = (unsigned long)pvmw->page;
-+
-+		if (ptr1 < ptr2)
- 			return false;
--		}
--		if (pte_page(*pvmw->pte) < pvmw->page)
-+
-+		/* THP can be referenced by any subpage */
-+		if (ptr1 - ptr2 >= hpage_nr_pages(pvmw->page))
- 			return false;
- 	}
- 
--- 
- Kirill A. Shutemov
+> 
+>> +		/*
+>> +		 * This is expected to never fail, because there is always an
+>> +		 * entry available on the vq.
+>> +		 */
+>> +		BUG_ON(err);
+>> +	}
+>> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
