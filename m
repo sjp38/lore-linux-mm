@@ -1,96 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 55E256B025E
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:37:29 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id e9so13667034oib.10
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 14:37:29 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 20si3256750oii.146.2018.01.18.14.37.28
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A5FF6B0253
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:39:40 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y13so16625627wrb.17
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 14:39:40 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a5si6843655wrh.61.2018.01.18.14.39.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jan 2018 14:37:28 -0800 (PST)
-Date: Fri, 19 Jan 2018 00:37:18 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v22 3/3] virtio-balloon: don't report free pages when
- page poisoning is enabled
-Message-ID: <20180119003650-mutt-send-email-mst@kernel.org>
-References: <1516165812-3995-1-git-send-email-wei.w.wang@intel.com>
- <1516165812-3995-4-git-send-email-wei.w.wang@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1516165812-3995-4-git-send-email-wei.w.wang@intel.com>
+        Thu, 18 Jan 2018 14:39:38 -0800 (PST)
+Date: Thu, 18 Jan 2018 14:39:35 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 00/18] introduce a new tool, valid access checker
+Message-Id: <20180118143935.6d782b3ecaba5186dea4eecd@linux-foundation.org>
+In-Reply-To: <20171222015114.GC1729@js1304-P5Q-DELUXE>
+References: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<20171222015114.GC1729@js1304-P5Q-DELUXE>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Namhyung Kim <namhyung@kernel.org>, Wengang Wang <wen.gang.wang@oracle.com>
 
-On Wed, Jan 17, 2018 at 01:10:12PM +0800, Wei Wang wrote:
-> The guest free pages should not be discarded by the live migration thread
-> when page poisoning is enabled with PAGE_POISONING_NO_SANITY=n, because
-> skipping the transfer of such poisoned free pages will trigger false
-> positive when new pages are allocated and checked on the destination.
-> This patch adds a config field, poison_val. Guest writes to the config
-> field to tell the host about the poisoning value. The value will be 0 in
-> the following cases:
-> 1) PAGE_POISONING_NO_SANITY is enabled;
-> 2) page poisoning is disabled; or
-> 3) PAGE_POISONING_ZERO is enabled.
+On Fri, 22 Dec 2017 10:51:15 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+
+> On Tue, Nov 28, 2017 at 04:48:35PM +0900, js1304@gmail.com wrote:
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > 
+> > Hello,
+> > 
+> > This patchset introduces a new tool, valid access checker.
+> > 
+> > Vchecker is a dynamic memory error detector. It provides a new debug feature
+> > that can find out an un-intended access to valid area. Valid area here means
+> > the memory which is allocated and allowed to be accessed by memory owner and
+> > un-intended access means the read/write that is initiated by non-owner.
+> > Usual problem of this class is memory overwritten.
+> > 
+> > Most of debug feature focused on finding out un-intended access to
+> > in-valid area, for example, out-of-bound access and use-after-free, and,
+> > there are many good tools for it. But, as far as I know, there is no good tool
+> > to find out un-intended access to valid area. This kind of problem is really
+> > hard to solve so this tool would be very useful.
+> > 
+> > This tool doesn't automatically catch a problem. Manual runtime configuration
+> > to specify the target object is required.
+> > 
+> > Note that there was a similar attempt for the debugging overwritten problem
+> > however it requires manual code modifying and recompile.
+> > 
+> > http://lkml.kernel.org/r/<20171117223043.7277-1-wen.gang.wang@oracle.com>
+> > 
+> > To get more information about vchecker, please see a documention at
+> > the last patch.
+> > 
+> > Patchset can also be available at
+> > 
+> > https://github.com/JoonsooKim/linux/tree/vchecker-master-v1.0-next-20171122
+> > 
+> > Enjoy it.
+> > 
+> > Thanks.
 > 
-> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-
-
-Pls squash with the previous patch. It's not nice to break a
-config, then fix it up later.
-
-> ---
->  drivers/virtio/virtio_balloon.c     | 8 ++++++++
->  include/uapi/linux/virtio_balloon.h | 2 ++
->  2 files changed, 10 insertions(+)
+> Hello, Andrew.
 > 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index b9561a5..5a42235 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -706,6 +706,7 @@ static struct file_system_type balloon_fs = {
->  static int virtballoon_probe(struct virtio_device *vdev)
->  {
->  	struct virtio_balloon *vb;
-> +	__u32 poison_val;
->  	int err;
->  
->  	if (!vdev->config->get) {
-> @@ -740,6 +741,13 @@ static int virtballoon_probe(struct virtio_device *vdev)
->  					WQ_FREEZABLE | WQ_CPU_INTENSIVE, 0);
->  		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
->  		vb->stop_cmd_id = VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID;
-> +		if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY) ||
-> +		    !page_poisoning_enabled())
-> +			poison_val = 0;
-> +		else
-> +			poison_val = PAGE_POISON;
-> +		virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-> +			      poison_val, &poison_val);
->  	}
->  
->  	vb->nb.notifier_call = virtballoon_oom_notify;
-> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-> index 55e2456..5861876 100644
-> --- a/include/uapi/linux/virtio_balloon.h
-> +++ b/include/uapi/linux/virtio_balloon.h
-> @@ -47,6 +47,8 @@ struct virtio_balloon_config {
->  	__u32 actual;
->  	/* Free page report command id, readonly by guest */
->  	__u32 free_page_report_cmd_id;
-> +	/* Stores PAGE_POISON if page poisoning with sanity check is in use */
-> +	__u32 poison_val;
->  };
->  
->  #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
-> -- 
-> 2.7.4
+> Before the fixing some build failure on this patchset, I'd like to know
+> other reviewer's opinion on this patchset, especially, yours. :)
+> 
+> There are some interests on this patchset from some developers. Wengang
+> come up with a very similar change and Andi said that this looks useful.
+> Do you think that this tool is useful and can be merged?
+> 
+
+My main fear is that the feature will sit there and nobody will use it.
+
+Are there ways around that?  For example, can we arrange with the test
+robot(s) to get vchecker operating on their setups in some automatable
+fashion and have them checking for bugs?
+
+Any other suggestions as to how we could get this feature to be used by
+others and producing useful results?
+
+And has vchecker actually found any real bugs in existing code?  If so,
+a description of that would be illuminating.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
