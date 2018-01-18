@@ -1,101 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E4A86B025F
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 09:59:04 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id u194so12318439oie.20
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 06:59:04 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k6si2905769oib.121.2018.01.18.06.59.03
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 797DB6B0033
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 10:08:29 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 82so905286pfs.8
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 07:08:29 -0800 (PST)
+Received: from smtp.gentoo.org (dev.gentoo.org. [2001:470:ea4a:1:5054:ff:fec7:86e4])
+        by mx.google.com with ESMTPS id e4si6336547pgn.428.2018.01.18.07.08.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jan 2018 06:59:03 -0800 (PST)
-Date: Thu, 18 Jan 2018 15:58:30 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
-Message-ID: <20180118145830.GA6406@redhat.com>
-References: <201801160115.w0G1FOIG057203@www262.sakura.ne.jp>
- <CA+55aFxOn5n4O2JNaivi8rhDmeFhTQxEHD4xE33J9xOrFu=7kQ@mail.gmail.com>
- <201801170233.JDG21842.OFOJMQSHtOFFLV@I-love.SAKURA.ne.jp>
- <CA+55aFyxyjN0Mqnz66B4a0R+uR8DdfxdMhcg5rJVi8LwnpSRfA@mail.gmail.com>
- <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
- <201801181712.BFD13039.LtHOSVMFJQFOFO@I-love.SAKURA.ne.jp>
- <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name>
- <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
+        Thu, 18 Jan 2018 07:08:28 -0800 (PST)
+From: =?UTF-8?q?Christopher=20D=C3=ADaz=20Riveros?= <chrisadr@gentoo.org>
+Subject: [PATCH-next] MEMCG: memcontrol: make local symbol static
+Date: Thu, 18 Jan 2018 10:08:05 -0500
+Message-Id: <20180118150805.18521-1-chrisadr@gentoo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, torvalds@linux-foundation.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, tony.luck@intel.com, vbabka@suse.cz, mhocko@kernel.org, hillf.zj@alibaba-inc.com, hughd@google.com, oleg@redhat.com, peterz@infradead.org, riel@redhat.com, srikar@linux.vnet.ibm.com, vdavydov.dev@gmail.com, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com
+Cc: =?UTF-8?q?Christopher=20D=C3=ADaz=20Riveros?= <chrisadr@gentoo.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
 
-On Thu, Jan 18, 2018 at 06:45:00AM -0800, Dave Hansen wrote:
-> On 01/18/2018 04:25 AM, Kirill A. Shutemov wrote:
-> > [   10.084024] diff: -858690919
-> > [   10.084258] hpage_nr_pages: 1
-> > [   10.084386] check1: 0
-> > [   10.084478] check2: 0
-> ...
-> > diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-> > index d22b84310f6d..57b4397f1ea5 100644
-> > --- a/mm/page_vma_mapped.c
-> > +++ b/mm/page_vma_mapped.c
-> > @@ -70,6 +70,14 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
-> >  		}
-> >  		if (pte_page(*pvmw->pte) < pvmw->page)
-> >  			return false;
-> > +
-> > +		if (pte_page(*pvmw->pte) - pvmw->page) {
-> > +			printk("diff: %d\n", pte_page(*pvmw->pte) - pvmw->page);
-> > +			printk("hpage_nr_pages: %d\n", hpage_nr_pages(pvmw->page));
-> > +			printk("check1: %d\n", pte_page(*pvmw->pte) - pvmw->page < 0);
-> > +			printk("check2: %d\n", pte_page(*pvmw->pte) - pvmw->page >= hpage_nr_pages(pvmw->page));
-> > +			BUG();
-> > +		}
-> 
-> This says that pte_page(*pvmw->pte) and pvmw->page are roughly 4GB away
-> from each other (858690919*4=0xccba559c0).  That's not the compiler
-> being wonky, it just means that the virtual addresses of the memory
-> sections are that far apart.
-> 
-> This won't happen when you have vmemmap or flatmem because the mem_map[]
-> is virtually contiguous and pointer arithmetic just works against all
-> 'struct page' pointers.  But with classic sparsemem, it doesn't.
-> 
-> You need to make sure that the PFNs are in the same section before you
-> can do the math that you want to do here.
+Fixes the following sparse warning:
 
-Isn't it simply that pvmw->page isn't a page or pte_page(*pvmw->pte)
-isn't a page?
+mm/memcontrol.c:1097:14: warning:
+  symbol 'memcg1_stats' was not declared. Should it be static?
 
-The distance cannot matter, MMU isn't involved, this is pure 64bit
-aritmetics, 1giga 1 terabyte, 48bits 5level pagetables are meaningless
-in this comparison.
+Signed-off-by: Christopher DA-az Riveros <chrisadr@gentoo.org>
+---
+ mm/memcontrol.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-#include <stdio.h>
-
-int main()
-{
-	volatile long i;
-	struct x { char a[4000000000]; };
-	for (i = 0; i < 4000000000*3; i += 4000000000) {
-		printf("%ld\n", ((struct x *)0)-((((struct x *)i))));
-	}
-	printf("xxxx\n");
-	for (i = 0; i < 4000000000; i += 1) {
-		if (i==4)
-			i = 4000000000;
-		printf("%ld\n", ((struct x *)0)-((((struct x *)i))));
-	}
-	return 0;
-}
-
-You need to add two debug checks on "pte_page(*pvmw->pte) % 64" and
-same for pvmw->page to find out the one of the two that isn't a page.
-
-If both are real pages there's a bug that allocates page structs not
-naturally aligned.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c3d1eaef752d..396674fd97ef 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1094,7 +1094,7 @@ static bool mem_cgroup_wait_acct_move(struct mem_cgroup *memcg)
+ 	return false;
+ }
+ 
+-unsigned int memcg1_stats[] = {
++static unsigned int memcg1_stats[] = {
+ 	MEMCG_CACHE,
+ 	MEMCG_RSS,
+ 	MEMCG_RSS_HUGE,
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
