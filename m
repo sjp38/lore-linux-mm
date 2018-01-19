@@ -1,66 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E2C06B0038
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 05:33:49 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id p7so943806wre.18
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 02:33:49 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B84D06B0038
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 05:41:04 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id x16so1475880pfe.20
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 02:41:04 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g71si705883wmg.94.2018.01.19.02.33.47
+        by mx.google.com with ESMTPS id p2si8124875pgr.379.2018.01.19.02.41.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Jan 2018 02:33:48 -0800 (PST)
-Date: Fri, 19 Jan 2018 11:33:42 +0100
+        Fri, 19 Jan 2018 02:41:03 -0800 (PST)
+Date: Fri, 19 Jan 2018 11:40:58 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
-Message-ID: <20180119103342.GS6584@dhcp22.suse.cz>
-References: <CA+55aFxOn5n4O2JNaivi8rhDmeFhTQxEHD4xE33J9xOrFu=7kQ@mail.gmail.com>
- <201801170233.JDG21842.OFOJMQSHtOFFLV@I-love.SAKURA.ne.jp>
- <CA+55aFyxyjN0Mqnz66B4a0R+uR8DdfxdMhcg5rJVi8LwnpSRfA@mail.gmail.com>
- <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
- <201801181712.BFD13039.LtHOSVMFJQFOFO@I-love.SAKURA.ne.jp>
- <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name>
- <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
- <20180118154026.jzdgdhkcxiliaulp@node.shutemov.name>
- <20180118172213.GI6584@dhcp22.suse.cz>
- <20180119100259.rwq3evikkemtv7q5@node.shutemov.name>
+Subject: Re: [RFC] Per file OOM badness
+Message-ID: <20180119104058.GU6584@dhcp22.suse.cz>
+References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
+ <20180118170006.GG6584@dhcp22.suse.cz>
+ <20180118171355.GH6584@dhcp22.suse.cz>
+ <87k1wfgcmb.fsf@anholt.net>
+ <20180119082046.GL6584@dhcp22.suse.cz>
+ <0cfaf256-928c-4cb8-8220-b8992592071b@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20180119100259.rwq3evikkemtv7q5@node.shutemov.name>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <0cfaf256-928c-4cb8-8220-b8992592071b@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, torvalds@linux-foundation.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, tony.luck@intel.com, vbabka@suse.cz, aarcange@redhat.com, hillf.zj@alibaba-inc.com, hughd@google.com, oleg@redhat.com, peterz@infradead.org, riel@redhat.com, srikar@linux.vnet.ibm.com, vdavydov.dev@gmail.com, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
+Cc: Eric Anholt <eric@anholt.net>, Andrey Grodzovsky <andrey.grodzovsky@amd.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
 
-On Fri 19-01-18 13:02:59, Kirill A. Shutemov wrote:
-> On Thu, Jan 18, 2018 at 06:22:13PM +0100, Michal Hocko wrote:
-> > On Thu 18-01-18 18:40:26, Kirill A. Shutemov wrote:
-> > [...]
-> > > +	/*
-> > > +	 * Make sure that pages are in the same section before doing pointer
-> > > +	 * arithmetics.
-> > > +	 */
-> > > +	if (page_to_section(pvmw->page) != page_to_section(page))
-> > > +		return false;
-> > 
-> > OK, THPs shouldn't cross memory sections AFAIK. My brain is meltdown
-> > these days so this might be a completely stupid question. But why don't
-> > you simply compare pfns? This would be just simpler, no?
+On Fri 19-01-18 09:39:03, Christian Konig wrote:
+> Am 19.01.2018 um 09:20 schrieb Michal Hocko:
+[...]
+> > OK, in that case I would propose a different approach. We already
+> > have rss_stat. So why do not we simply add a new counter there
+> > MM_KERNELPAGES and consider those in oom_badness? The rule would be
+> > that such a memory is bound to the process life time. I guess we will
+> > find more users for this later.
 > 
-> In original code, we already had pvmw->page around and I thought it would
-> be easier to get page for the pte intead of looking for pfn for both
-> sides.
+> I already tried that and the problem with that approach is that some buffers
+> are not created by the application which actually uses them.
 > 
-> We these changes it's no longer the case.
+> For example X/Wayland is creating and handing out render buffers to
+> application which want to use OpenGL.
 > 
-> Do you care enough to send a patch? :)
+> So the result is when you always account the application who created the
+> buffer the OOM killer will certainly reap X/Wayland first. And that is
+> exactly what we want to avoid here.
 
-Well, memory sections are sparsemem concept IIRC. Unless I've missed
-something page_to_section is quarded by SECTION_IN_PAGE_FLAGS and that
-is conditional to CONFIG_SPARSEMEM. THP is a generic code so using it
-there is wrong unless I miss some subtle detail here.
-
-Comparing pfn should be generic enough.
+Then you have to find the target allocation context at the time of the
+allocation and account it. As follow up emails show, implementations
+might differ and any robust oom solution have to rely on the common
+counters.
 -- 
 Michal Hocko
 SUSE Labs
