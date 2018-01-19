@@ -1,180 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E5DE6B0038
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:07:54 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id x188so962577wmg.2
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 04:07:54 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A787F6B0038
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:13:54 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id v17so350086pgb.18
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 04:13:54 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y8si7277410wrh.446.2018.01.19.04.07.52
+        by mx.google.com with ESMTPS id p77si9120345pfa.247.2018.01.19.04.13.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Jan 2018 04:07:53 -0800 (PST)
-Date: Fri, 19 Jan 2018 13:07:47 +0100
+        Fri, 19 Jan 2018 04:13:53 -0800 (PST)
+Date: Fri, 19 Jan 2018 13:13:51 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
-Message-ID: <20180119120747.GV6584@dhcp22.suse.cz>
-References: <CA+55aFyxyjN0Mqnz66B4a0R+uR8DdfxdMhcg5rJVi8LwnpSRfA@mail.gmail.com>
- <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
- <201801181712.BFD13039.LtHOSVMFJQFOFO@I-love.SAKURA.ne.jp>
- <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name>
- <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
- <20180118154026.jzdgdhkcxiliaulp@node.shutemov.name>
- <20180118172213.GI6584@dhcp22.suse.cz>
- <20180119100259.rwq3evikkemtv7q5@node.shutemov.name>
- <20180119103342.GS6584@dhcp22.suse.cz>
- <20180119114917.rvghcgexgbm73xkq@node.shutemov.name>
+Subject: Re: [RFC] Per file OOM badness
+Message-ID: <20180119121351.GW6584@dhcp22.suse.cz>
+References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
+ <20180118170006.GG6584@dhcp22.suse.cz>
+ <20180118171355.GH6584@dhcp22.suse.cz>
+ <87k1wfgcmb.fsf@anholt.net>
+ <20180119082046.GL6584@dhcp22.suse.cz>
+ <0cfaf256-928c-4cb8-8220-b8992592071b@amd.com>
+ <20180119104058.GU6584@dhcp22.suse.cz>
+ <d4fe7e59-da2d-11a5-73e2-55f2f27cdfd8@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20180119114917.rvghcgexgbm73xkq@node.shutemov.name>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <d4fe7e59-da2d-11a5-73e2-55f2f27cdfd8@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, torvalds@linux-foundation.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, tony.luck@intel.com, vbabka@suse.cz, aarcange@redhat.com, hillf.zj@alibaba-inc.com, hughd@google.com, oleg@redhat.com, peterz@infradead.org, riel@redhat.com, srikar@linux.vnet.ibm.com, vdavydov.dev@gmail.com, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
+Cc: Eric Anholt <eric@anholt.net>, Andrey Grodzovsky <andrey.grodzovsky@amd.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
 
-On Fri 19-01-18 14:49:17, Kirill A. Shutemov wrote:
-> On Fri, Jan 19, 2018 at 11:33:42AM +0100, Michal Hocko wrote:
-> > On Fri 19-01-18 13:02:59, Kirill A. Shutemov wrote:
-> > > On Thu, Jan 18, 2018 at 06:22:13PM +0100, Michal Hocko wrote:
-> > > > On Thu 18-01-18 18:40:26, Kirill A. Shutemov wrote:
-> > > > [...]
-> > > > > +	/*
-> > > > > +	 * Make sure that pages are in the same section before doing pointer
-> > > > > +	 * arithmetics.
-> > > > > +	 */
-> > > > > +	if (page_to_section(pvmw->page) != page_to_section(page))
-> > > > > +		return false;
-> > > > 
-> > > > OK, THPs shouldn't cross memory sections AFAIK. My brain is meltdown
-> > > > these days so this might be a completely stupid question. But why don't
-> > > > you simply compare pfns? This would be just simpler, no?
-> > > 
-> > > In original code, we already had pvmw->page around and I thought it would
-> > > be easier to get page for the pte intead of looking for pfn for both
-> > > sides.
-> > > 
-> > > We these changes it's no longer the case.
-> > > 
-> > > Do you care enough to send a patch? :)
-> > 
-> > Well, memory sections are sparsemem concept IIRC. Unless I've missed
-> > something page_to_section is quarded by SECTION_IN_PAGE_FLAGS and that
-> > is conditional to CONFIG_SPARSEMEM. THP is a generic code so using it
-> > there is wrong unless I miss some subtle detail here.
-> > 
-> > Comparing pfn should be generic enough.
-> 
-> Good point.
-> 
-> What about something like this?
-> 
-> >From 861f68c555b87fd6c0ccc3428ace91b7e185b73a Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Thu, 18 Jan 2018 18:24:07 +0300
-> Subject: [PATCH] mm, page_vma_mapped: Drop faulty pointer arithmetics in
->  check_pte()
-> 
-> Tetsuo reported random crashes under memory pressure on 32-bit x86
-> system and tracked down to change that introduced
-> page_vma_mapped_walk().
-> 
-> The root cause of the issue is the faulty pointer math in check_pte().
-> As ->pte may point to an arbitrary page we have to check that they are
-> belong to the section before doing math. Otherwise it may lead to weird
-> results.
-> 
-> It wasn't noticed until now as mem_map[] is virtually contiguous on flatmem or
-> vmemmap sparsemem. Pointer arithmetic just works against all 'struct page'
-> pointers. But with classic sparsemem, it doesn't.
-
-it doesn't because each section memap is allocated separately and so
-consecutive pfns crossing two sections might have struct pages at
-completely unrelated addresses.
-
-> Let's restructure code a bit and replace pointer arithmetic with
-> operations on pfns.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> Fixes: ace71a19cec5 ("mm: introduce page_vma_mapped_walk()")
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-The patch makes sense but there is one more thing to fix here.
-
+On Fri 19-01-18 12:37:51, Christian Konig wrote:
 [...]
->  static bool check_pte(struct page_vma_mapped_walk *pvmw)
->  {
-> +	unsigned long pfn;
-> +
->  	if (pvmw->flags & PVMW_MIGRATION) {
->  #ifdef CONFIG_MIGRATION
->  		swp_entry_t entry;
-> @@ -41,37 +61,34 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
->  
->  		if (!is_migration_entry(entry))
->  			return false;
-> -		if (migration_entry_to_page(entry) - pvmw->page >=
-> -				hpage_nr_pages(pvmw->page)) {
-> -			return false;
-> -		}
-> -		if (migration_entry_to_page(entry) < pvmw->page)
-> -			return false;
-> +
-> +		pfn = migration_entry_to_pfn(entry);
->  #else
->  		WARN_ON_ONCE(1);
->  #endif
-> -	} else {
+> The per file descriptor badness is/was just the much easier approach to
+> solve the issue, because the drivers already knew which client is currently
+> using which buffer objects.
+> 
+> I of course agree that file descriptors can be shared between processes and
+> are by themselves not killable. But at least for our graphics driven use
+> case I don't see much of a problem killing all processes when a file
+> descriptor is used by more than one at the same time.
 
-now you allow to pass through with uninitialized pfn. We used to return
-true in that case so we should probably keep it in this WARN_ON_ONCE
-case. Please note that I haven't studied this particular case and the
-ifdef is definitely not an act of art but that is a separate topic.
-
-> -		if (is_swap_pte(*pvmw->pte)) {
-> -			swp_entry_t entry;
-> +	} else if (is_swap_pte(*pvmw->pte)) {
-> +		swp_entry_t entry;
->  
-> -			entry = pte_to_swp_entry(*pvmw->pte);
-> -			if (is_device_private_entry(entry) &&
-> -			    device_private_entry_to_page(entry) == pvmw->page)
-> -				return true;
-> -		}
-> +		/* Handle un-addressable ZONE_DEVICE memory */
-> +		entry = pte_to_swp_entry(*pvmw->pte);
-> +		if (!is_device_private_entry(entry))
-> +			return false;
->  
-> +		pfn = device_private_entry_to_pfn(entry);
-> +	} else {
->  		if (!pte_present(*pvmw->pte))
->  			return false;
->  
-> -		/* THP can be referenced by any subpage */
-> -		if (pte_page(*pvmw->pte) - pvmw->page >=
-> -				hpage_nr_pages(pvmw->page)) {
-> -			return false;
-> -		}
-> -		if (pte_page(*pvmw->pte) < pvmw->page)
-> -			return false;
-> +		pfn = pte_pfn(*pvmw->pte);
->  	}
->  
-> +	if (pfn < page_to_pfn(pvmw->page))
-> +		return false;
-> +
-> +	/* THP can be referenced by any subpage */
-> +	if (pfn - page_to_pfn(pvmw->page) >= hpage_nr_pages(pvmw->page))
-> +		return false;
-> +
->  	return true;
->  }
->  
-> -- 
->  Kirill A. Shutemov
-
+Ohh, I absolutely see why you have chosen this way for your particular
+usecase. I am just arguing that this would rather be more generic to be
+merged. If there is absolutely no other way around we can consider it
+but right now I do not see that all other options have been considered
+properly. Especially when the fd based approach is basically wrong for
+almost anybody else.
 -- 
 Michal Hocko
 SUSE Labs
