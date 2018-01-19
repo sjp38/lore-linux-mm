@@ -1,88 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5352C800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 14:40:32 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id w17so4936992iow.23
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:40:32 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id d16si703823iob.10.2018.01.24.11.40.30
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CD5A8800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 15:32:42 -0500 (EST)
+Received: by mail-vk0-f71.google.com with SMTP id s75so2804680vke.23
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 12:32:42 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id b128si3179367vkh.53.2018.01.24.12.32.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 11:40:30 -0800 (PST)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w0OJQrYV040005
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 19:40:30 GMT
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by userp2130.oracle.com with ESMTP id 2fq04ur6pe-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 19:40:30 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w0OJeT6o015188
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 19:40:29 GMT
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w0OJeTY8023249
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 19:40:29 GMT
-Received: by mail-ot0-f174.google.com with SMTP id t20so4606756ote.11
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:40:29 -0800 (PST)
+        Wed, 24 Jan 2018 12:32:41 -0800 (PST)
+Subject: Re: [PATCH v2] mm: Reduce memory bloat with THP
+References: <1516318444-30868-1-git-send-email-nitingupta910@gmail.com>
+ <20180119124957.GA6584@dhcp22.suse.cz>
+From: Nitin Gupta <nitin.m.gupta@oracle.com>
+Message-ID: <ce7c1498-9f28-2eb0-67b7-ade9b04b8e2b@oracle.com>
+Date: Fri, 19 Jan 2018 12:59:17 -0800
 MIME-Version: 1.0
-In-Reply-To: <20180112153734.1780ccc00ebced508fad397a@linux-foundation.org>
-References: <20180112183405.22193-1-pasha.tatashin@oracle.com> <20180112153734.1780ccc00ebced508fad397a@linux-foundation.org>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Wed, 24 Jan 2018 14:40:19 -0500
-Message-ID: <CAOAebxsL_8-KfX_L9aHWcBBNpMT0tbyF9ztofS1NkNqRmChPdw@mail.gmail.com>
-Subject: Re: [PATCH v1] mm: initialize pages on demand during boot
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180119124957.GA6584@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Nitin Gupta <nitingupta910@gmail.com>
+Cc: steven.sistare@oracle.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Nadav Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Vegard Nossum <vegard.nossum@oracle.com>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Shaohua Li <shli@fb.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Tobin C Harding <me@tobin.cc>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Andrew,
+On 1/19/18 4:49 AM, Michal Hocko wrote:
+> On Thu 18-01-18 15:33:16, Nitin Gupta wrote:
+>> From: Nitin Gupta <nitin.m.gupta@oracle.com>
+>>
+>> Currently, if the THP enabled policy is "always", or the mode
+>> is "madvise" and a region is marked as MADV_HUGEPAGE, a hugepage
+>> is allocated on a page fault if the pud or pmd is empty.  This
+>> yields the best VA translation performance, but increases memory
+>> consumption if some small page ranges within the huge page are
+>> never accessed.
+> 
+> Yes, this is true but hardly unexpected for MADV_HUGEPAGE or THP always
+> users.
+>  
 
-> Presumably this fixes some real-world problem which someone has observed?
+Yes, allocating hugepage on first touch is the current behavior for
+above two cases. However, I see issues with this current behavior.
+Firstly, THP=always mode is often too aggressive/wasteful to be useful
+for any realistic workloads. For THP=madvise, users may want to back
+active parts of memory region with hugepages while avoiding aggressive
+hugepage allocation on first touch. Or, they may really want the current
+behavior.
 
-Yes, linked below.
+With this patch, users would have the option to pick what behavior they
+want by passing hints to the kernel in the form of MADV_HUGEPAGE and
+MADV_DONTNEED madvise calls.
 
-> Please describe that problem for us in lavish detail.
 
-This change helps for three reasons:
+>> An alternate behavior for such page faults is to install a
+>> hugepage only when a region is actually found to be (almost)
+>> fully mapped and active.  This is a compromise between
+>> translation performance and memory consumption.  Currently there
+>> is no way for an application to choose this compromise for the
+>> page fault conditions above.
+> 
+> Is that really true? We have /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none
+> This is not reflected during the PF of course but you can control the
+> behavior there as well. Either by the global setting or a per proces
+> prctl.
+> 
 
-1. Insufficient amount of reserved memory due to arguments provided by
-user. User may request some buffers, increased hash tables sizes etc.
-Currently, machine panics during boot if it can't allocate memory due
-to insufficient amount of reserved memory. With this change, it will
-be able to grow zone before deferred pages are initialized.
+I think this part of patch description needs some rewording. This patch
+is to change *only* the page fault behavior.
 
-One observed example is described in the linked discussion [1] Mel
-Gorman writes:
+Once pages are installed, khugepaged does its job as usual, using
+max_ptes_none and other config values. I'm not trying to change any
+khugepaged behavior here.
 
-"
-Yasuaki Ishimatsu reported a premature OOM when trace_buf_size=100m was
-specified on a machine with many CPUs. The kernel tried to allocate 38.4GB
-but only 16GB was available due to deferred memory initialisation.
-"
 
-The allocations in the above scenario happen per-cpu in smp_init(),
-and before deferred pages are initialized. So, there is no way to
-predict how much memory we should put aside to boot successfully with
-deferred page initialization feature compiled in.
+>> With this change, whenever an application issues MADV_DONTNEED on a
+>> memory region, the region is marked as "space-efficient". For such
+>> regions, a hugepage is not immediately allocated on first write.
+> 
+> Kirill didn't like it in the previous version and I do not like this
+> either. You are adding a very subtle side effect which might completely
+> unexpected. Consider userspace memory allocator which uses MADV_DONTNEED
+> to free up unused memory. Now you have put it out of THP usage
+> basically.
+>
 
-2. The second reason is future proof. The kernel memory requirements
-may change, and we do not want to constantly update
-reset_deferred_meminit() to satisfy the new requirements. In addition,
-this function is currently in common code, but potentially would need
-to be split into arch specific variants, as more arches will start
-taking advantage of deferred page initialization feature.
+Userpsace may want a region to be considered by khugepaged while opting
+out of hugepage allocation on first touch. Asking userspace memory
+allocators to have to track and reclaim unused parts of a THP allocated
+hugepage does not seems right, as the kernel can use simple userspace
+hints to avoid allocating extra memory in the first place.
 
-3. On demand initialization of reserved pages guarantees that we will
-initialize only as many pages early in boot using only one thread as
-needed, the rest are going to be efficiently initialized in parallel.
+I agree that this patch is adding a subtle side-effect which may take
+some applications by surprise. However, I often see the opposite too:
+for many workloads, disabling THP is the first advise as this aggressive
+allocation of hugepages on first touch is unexpected and is too
+wasteful. For e.g.:
 
-[1] https://www.spinics.net/lists/linux-mm/msg139087.html
+1) Disabling THP for TokuDB (Storage engine for MySQL, MariaDB)
+http://www.chriscalender.com/disabling-transparent-hugepages-for-tokudb/
 
-Thank you,
-Pavel
+2) Disable THP on MongoDB
+https://docs.mongodb.com/manual/tutorial/transparent-huge-pages/
+
+3) Disable THP for Couchbase Server
+https://blog.couchbase.com/often-overlooked-linux-os-tweaks/
+
+4) Redis
+http://antirez.com/news/84
+
+
+> If the memory is used really scarce then we have MADV_NOHUGEPAGE.
+> 
+
+It's not really about memory scarcity but a more efficient use of it.
+Applications may want hugepage benefits without requiring any changes to
+app code which is what THP is supposed to provide, while still avoiding
+memory bloat.
+
+-Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
