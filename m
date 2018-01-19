@@ -1,76 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DF706B026B
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 11:30:56 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id a9so2197315pff.0
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 08:30:56 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u69si8448230pgb.10.2018.01.19.08.30.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jan 2018 08:30:55 -0800 (PST)
-Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id B6E2B21759
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 16:30:54 +0000 (UTC)
-Received: by mail-io0-f173.google.com with SMTP id f4so964489ioh.8
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 08:30:54 -0800 (PST)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 28ACD6B0253
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 11:48:29 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id l6so956196lfg.9
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 08:48:29 -0800 (PST)
+Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
+        by mx.google.com with ESMTP id r141si568176lfr.7.2018.01.19.08.48.26
+        for <linux-mm@kvack.org>;
+        Fri, 19 Jan 2018 08:48:27 -0800 (PST)
+Subject: Re: [RFC] Per file OOM badness
+References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
+ <20180118170006.GG6584@dhcp22.suse.cz> <20180118171355.GH6584@dhcp22.suse.cz>
+ <87k1wfgcmb.fsf@anholt.net> <20180119082046.GL6584@dhcp22.suse.cz>
+ <0cfaf256-928c-4cb8-8220-b8992592071b@amd.com>
+ <20180119104058.GU6584@dhcp22.suse.cz>
+ <d4fe7e59-da2d-11a5-73e2-55f2f27cdfd8@amd.com>
+From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
+Message-ID: <d1e54376-6ed4-dceb-1dfa-1b95a11ab3c8@daenzer.net>
+Date: Fri, 19 Jan 2018 17:48:24 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180119095523.GY28161@8bytes.org>
-References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
- <1516120619-1159-3-git-send-email-joro@8bytes.org> <CALCETrUqJ8Vga5pGWUuOox5cw6ER-4MhZXLb-4JPyh+Txsp4tg@mail.gmail.com>
- <20180117091853.GI28161@8bytes.org> <CALCETrUPcWfNA6ETktcs2vmcrPgJs32xMpoATGn_BFk+1ueU7g@mail.gmail.com>
- <20180119095523.GY28161@8bytes.org>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 19 Jan 2018 08:30:33 -0800
-Message-ID: <CALCETrWSUJY=Har-Fvcby4SY_BPSh=WL0X_MqsT2z+tfNshWDA@mail.gmail.com>
-Subject: Re: [PATCH 02/16] x86/entry/32: Enter the kernel via trampoline stack
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <d4fe7e59-da2d-11a5-73e2-55f2f27cdfd8@amd.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Joerg Roedel <jroedel@suse.de>
+To: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org
 
-On Fri, Jan 19, 2018 at 1:55 AM, Joerg Roedel <joro@8bytes.org> wrote:
-> Hey Andy,
->
-> On Wed, Jan 17, 2018 at 10:10:23AM -0800, Andy Lutomirski wrote:
->> On Wed, Jan 17, 2018 at 1:18 AM, Joerg Roedel <joro@8bytes.org> wrote:
->
->> > Just read up on vm86 mode control transfers and the stack layout then.
->> > Looks like I need to check for eflags.vm=1 and copy four more registers
->> > from/to the entry stack. Thanks for pointing that out.
->>
->> You could just copy those slots unconditionally.  After all, you're
->> slowing down entries by an epic amount due to writing CR3 on with PCID
->> off, so four words copied should be entirely lost in the noise.  OTOH,
->> checking for VM86 mode is just a single bt against EFLAGS.
->>
->> With the modern (rewritten a year or two ago by Brian Gerst) vm86
->> code, all the slots (those actually in pt_regs) are in the same
->> location regardless of whether we're in VM86 mode or not, but we're
->> still fiddling with the bottom of the stack.  Since you're controlling
->> the switch to the kernel thread stack, you can easily just write the
->> frame to the correct location, so you should not need to context
->> switch sp1 -- you can do it sanely and leave sp1 as the actual bottom
->> of the kernel stack no matter what.  In fact, you could probably avoid
->> context switching sp0, either, which would be a nice cleanup.
->
-> I am not sure what you mean by "not context switching sp0/sp1" ...
+On 2018-01-19 12:37 PM, Christian KA?nig wrote:
+> Am 19.01.2018 um 11:40 schrieb Michal Hocko:
+>> On Fri 19-01-18 09:39:03, Christian KA?nig wrote:
+>>> Am 19.01.2018 um 09:20 schrieb Michal Hocko:
+>> [...]
+>>>> OK, in that case I would propose a different approach. We already
+>>>> have rss_stat. So why do not we simply add a new counter there
+>>>> MM_KERNELPAGES and consider those in oom_badness? The rule would be
+>>>> that such a memory is bound to the process life time. I guess we will
+>>>> find more users for this later.
+>>> I already tried that and the problem with that approach is that some
+>>> buffers
+>>> are not created by the application which actually uses them.
+>>>
+>>> For example X/Wayland is creating and handing out render buffers to
+>>> application which want to use OpenGL.
+>>>
+>>> So the result is when you always account the application who created the
+>>> buffer the OOM killer will certainly reap X/Wayland first. And that is
+>>> exactly what we want to avoid here.
+>> Then you have to find the target allocation context at the time of the
+>> allocation and account it.
+> 
+> And exactly that's the root of the problem: The target allocation
+> context isn't known at the time of the allocation.
+> 
+> We could add callbacks so that when the memory is passed from the
+> allocator to the actual user of the memory. In other words when the
+> memory is passed from the X server to the client the driver would need
+> to decrement the X servers accounting and increment the clients accounting.
+> 
+> But I think that would go deep into the file descriptor handling (we
+> would at least need to handle dup/dup2 and passing the fd using unix
+> domain sockets) and most likely would be rather error prone.
+> 
+> The per file descriptor badness is/was just the much easier approach to
+> solve the issue, because the drivers already knew which client is
+> currently using which buffer objects.
+> 
+> I of course agree that file descriptors can be shared between processes
+> and are by themselves not killable. But at least for our graphics driven
+> use case I don't see much of a problem killing all processes when a file
+> descriptor is used by more than one at the same time.
 
-You're supposed to read what I meant, not what I said...
+In that case, accounting a BO as suggested by Michal above, in every
+process that shares it, should work fine, shouldn't it?
 
-I meant that we could have sp0 have a genuinely constant value per
-cpu.  That means that the entry trampoline ends up with RIP, etc in a
-different place depending on whether VM was in use, but the entry
-trampoline code should be able to handle that.  sp1 would have a value
-that varies by task, but it could just point to the top of the stack
-instead of being changed depending on whether VM is in use.  Instead,
-the entry trampoline would offset the registers as needed to keep
-pt_regs in the right place.
+The OOM killer will first select the process which has more memory
+accounted for other things than the BOs shared with another process.
 
-I think you already figured all of that out, though :)
+
+-- 
+Earthling Michel DA?nzer               |               http://www.amd.com
+Libre software enthusiast             |             Mesa and X developer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
