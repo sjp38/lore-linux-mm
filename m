@@ -1,160 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AD2B16B0292
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 21:02:20 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id e12so278140pgu.11
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 18:02:20 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id b188si7317092pgc.452.2018.01.18.18.02.19
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Jan 2018 18:02:19 -0800 (PST)
-Message-Id: <201801190201.w0J21YEM099982@www262.sakura.ne.jp>
-Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 352B96B027E
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 21:37:22 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id g186so384118pfb.11
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 18:37:22 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id r1si7123459pgp.320.2018.01.18.18.37.19
+        for <linux-mm@kvack.org>;
+        Thu, 18 Jan 2018 18:37:20 -0800 (PST)
+Subject: Re: [PATCH v5 1/2] printk: Add console owner and waiter logic to load
+ balance console writes
+References: <20180110132418.7080-1-pmladek@suse.com>
+ <20180110132418.7080-2-pmladek@suse.com>
+ <f4ea1404-404d-11d2-550c-7367add3f5fa@lge.com>
+ <20180117120446.44ewafav7epaibde@pathway.suse.cz>
+ <4a24ce1d-a606-3add-ec30-91ce9a1a1281@lge.com>
+ <20180117211953.2403d189@vmware.local.home>
+ <171cf5b9-2cb6-8e70-87f5-44ace35c2ce4@lge.com>
+ <20180118102139.43c04de5@gandalf.local.home>
+From: Byungchul Park <byungchul.park@lge.com>
+Message-ID: <45bc7a00-2f7f-3319-bfed-e7b9cd7a8571@lge.com>
+Date: Fri, 19 Jan 2018 11:37:13 +0900
 MIME-Version: 1.0
-Date: Fri, 19 Jan 2018 11:01:34 +0900
-References: <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com> <20180118154026.jzdgdhkcxiliaulp@node.shutemov.name>
-In-Reply-To: <20180118154026.jzdgdhkcxiliaulp@node.shutemov.name>
-Content-Type: text/plain; charset="ISO-2022-JP"
+In-Reply-To: <20180118102139.43c04de5@gandalf.local.home>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, torvalds@linux-foundation.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, tony.luck@intel.com, vbabka@suse.cz, mhocko@kernel.org, aarcange@redhat.com, hillf.zj@alibaba-inc.com, hughd@google.com, oleg@redhat.com, peterz@infradead.org, riel@redhat.com, srikar@linux.vnet.ibm.com, vdavydov.dev@gmail.com, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-Kirill A. Shutemov wrote:
-> Something like this?
+On 1/19/2018 12:21 AM, Steven Rostedt wrote:
+> On Thu, 18 Jan 2018 13:01:46 +0900
+> Byungchul Park <byungchul.park@lge.com> wrote:
 > 
+>>> I disagree. It is like a spinlock. You can say a spinlock() that is
+>>> blocked is also waiting for an event. That event being the owner does a
+>>> spin_unlock().
+>>
+>> That's exactly what I was saying. Excuse me but, I don't understand
+>> what you want to say. Could you explain more? What do you disagree?
 > 
-> From 251e124630da82482e8b320c73162ce89af04d5d Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Thu, 18 Jan 2018 18:24:07 +0300
-> Subject: [PATCH] mm, page_vma_mapped: Fix pointer arithmetics in check_pte()
-> 
-> Tetsuo reported random crashes under memory pressure on 32-bit x86
-> system and tracked down to change that introduced
-> page_vma_mapped_walk().
-> 
-> The root cause of the issue is the faulty pointer math in check_pte().
-> As ->pte may point to an arbitrary page we have to check that they are
-> belong to the section before doing math. Otherwise it may lead to weird
-> results.
-> 
-> It wasn't noticed until now as mem_map[] is virtually contiguous on flatmem or
-> vmemmap sparsemem. Pointer arithmetic just works against all 'struct page'
-> pointers. But with classic sparsemem, it doesn't.
-> 
-> Let's restructure code a bit and add necessary check.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> Fixes: ace71a19cec5 ("mm: introduce page_vma_mapped_walk()")
-> Cc: stable@vger.kernel.org
+> I guess I'm confused at what you are asking for then.
 
-This patch solves the problem. Thank you.
+Sorry for not enough explanation. What I asked you for is:
 
-Tested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+    1. Relocate acquire()s/release()s.
+    2. So make it simpler and remove unnecessary one.
+    3. So make it look like the following form,
+       because it's a thing simulating "wait and event".
 
-> ---
->  mm/page_vma_mapped.c | 66 +++++++++++++++++++++++++++++++++++-----------------
->  1 file changed, 45 insertions(+), 21 deletions(-)
+       A context
+       ---------
+       lock_map_acquire(wait); /* Or lock_map_acquire_read(wait) */
+                               /* "Read" one is better though..    */
+
+       /* A section, we suspect a wait for an event might happen. */
+       ...
+
+       lock_map_release(wait);
+
+       The place actually doing the wait
+       ---------------------------------
+       lock_map_acquire(wait);
+       lock_map_release(wait);
+
+       wait_for_event(wait); /* Actually do the wait */
+
+Honestly, you used acquire()s/release()s as if they are cross-
+release stuff which mainly handles general waits and events,
+not only things doing "acquire -> critical area -> release".
+But that's not in the mainline at the moment.
+
+>>> I find your way confusing. I'm simulating a spinlock not a wait for
+>>> completion. A wait for completion usually initiates something then
+>>
+>> I used the word, *event* instead of *completion*. wait_for_completion()
+>> and complete() are just an example of a pair of waiter and event.
+>> Lock and unlock can also be another example, too.
+>>
+>> Important thing is that who waits and who triggers the event. Using the
+>> pair, we can achieve various things, for examples:
+>>
+>>      1. Synchronization like wait_for_completion() does.
+>>      2. Control exclusively entering into a critical area.
+>>      3. Whatever.
+>>
+>>> waits for it to complete. This is trying to get into a critical area
+>>> but another task is currently in it. It's simulating a spinlock as far
+>>> as I can see.
+>>
+>> Anyway it's an example of "waiter for an event, and the event".
+>>
+>> JFYI, spinning or sleeping does not matter. Those are just methods to
+          ^
+          whether spining or sleeping doesn't matter.
+
+>> achieve a wait. I know you're not talking about this though. It's JFYI.
 > 
-> diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-> index d22b84310f6d..de195dcdfbd8 100644
-> --- a/mm/page_vma_mapped.c
-> +++ b/mm/page_vma_mapped.c
-> @@ -30,8 +30,28 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw)
->  	return true;
->  }
->  
-> +/**
-> + * check_pte - check if @pvmw->page is mapped at the @pvmw->pte
-> + *
-> + * page_vma_mapped_walk() found a place where @pvmw->page is *potentially*
-> + * mapped. check_pte() has to validate this.
-> + *
-> + * @pvmw->pte may point to empty PTE, swap PTE or PTE pointing to arbitrary
-> + * page.
-> + *
-> + * If PVMW_MIGRATION flag is set, returns true if @pvmw->pte contains migration
-> + * entry that points to @pvmw->page or any subpage in case of THP.
-> + *
-> + * If PVMW_MIGRATION flag is not set, returns true if @pvmw->pte points to
-> + * @pvmw->page or any subpage in case of THP.
-> + *
-> + * Otherwise, return false.
-> + *
-> + */
->  static bool check_pte(struct page_vma_mapped_walk *pvmw)
->  {
-> +	struct page *page;
-> +
->  	if (pvmw->flags & PVMW_MIGRATION) {
->  #ifdef CONFIG_MIGRATION
->  		swp_entry_t entry;
-> @@ -41,37 +61,41 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
->  
->  		if (!is_migration_entry(entry))
->  			return false;
-> -		if (migration_entry_to_page(entry) - pvmw->page >=
-> -				hpage_nr_pages(pvmw->page)) {
-> -			return false;
-> -		}
-> -		if (migration_entry_to_page(entry) < pvmw->page)
-> -			return false;
-> +
-> +		page = migration_entry_to_page(entry);
->  #else
->  		WARN_ON_ONCE(1);
->  #endif
-> -	} else {
-> -		if (is_swap_pte(*pvmw->pte)) {
-> -			swp_entry_t entry;
-> +	} else if (is_swap_pte(*pvmw->pte)) {
-> +		swp_entry_t entry;
->  
-> -			entry = pte_to_swp_entry(*pvmw->pte);
-> -			if (is_device_private_entry(entry) &&
-> -			    device_private_entry_to_page(entry) == pvmw->page)
-> -				return true;
-> -		}
-> +		/* Handle un-addressable ZONE_DEVICE memory */
-> +		entry = pte_to_swp_entry(*pvmw->pte);
-> +		if (!is_device_private_entry(entry))
-> +			return false;
->  
-> +		page = device_private_entry_to_page(entry);
-> +	} else {
->  		if (!pte_present(*pvmw->pte))
->  			return false;
->  
-> -		/* THP can be referenced by any subpage */
-> -		if (pte_page(*pvmw->pte) - pvmw->page >=
-> -				hpage_nr_pages(pvmw->page)) {
-> -			return false;
-> -		}
-> -		if (pte_page(*pvmw->pte) < pvmw->page)
-> -			return false;
-> +		page = pte_page(*pvmw->pte);
->  	}
->  
-> +	/*
-> +	 * Make sure that pages are in the same section before doing pointer
-> +	 * arithmetics.
-> +	 */
-> +	if (page_to_section(pvmw->page) != page_to_section(page))
-> +		return false;
-> +
-> +	if (page < pvmw->page)
-> +		return false;
-> +
-> +	/* THP can be referenced by any subpage */
-> +	if (page - pvmw->page >= hpage_nr_pages(pvmw->page))
-> +		return false;
-> +
->  	return true;
->  }
+> OK, if it is just FYI.
+
+Actually, the last paragraph is JFYI tho.
+
+> -- Steve
+> 
+> 
+> 
+
+-- 
+Thanks,
+Byungchul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
