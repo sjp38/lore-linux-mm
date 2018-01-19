@@ -1,81 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F20B6B0038
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 08:21:44 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id n6so1780882pfg.19
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 05:21:44 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id i188si8144550pgc.180.2018.01.19.05.21.42
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 98A9F6B0069
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 08:21:49 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id i2so1812906pgq.8
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 05:21:49 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id n14si9201297pfh.229.2018.01.19.05.21.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jan 2018 05:21:42 -0800 (PST)
-Date: Fri, 19 Jan 2018 14:21:33 +0100
-From: Petr Tesarik <ptesarik@suse.com>
-Subject: Re: [PATCH] Fix explanation of lower bits in the SPARSEMEM mem_map
- pointer
-Message-ID: <20180119142133.379d5145@ezekiel.suse.cz>
-In-Reply-To: <20180119123956.GZ6584@dhcp22.suse.cz>
-References: <20180119080908.3a662e6f@ezekiel.suse.cz>
-	<20180119123956.GZ6584@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 19 Jan 2018 05:21:48 -0800 (PST)
+Date: Fri, 19 Jan 2018 05:21:45 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [Bug 198497] New: handle_mm_fault / xen_pmd_val /
+ radix_tree_lookup_slot Null pointer
+Message-ID: <20180119132145.GB2897@bombadil.infradead.org>
+References: <bug-198497-27@https.bugzilla.kernel.org/>
+ <20180118135518.639141f0b0ea8bb047ab6306@linux-foundation.org>
+ <7ba7635e-249a-9071-75bb-7874506bd2b2@redhat.com>
+ <20180119030447.GA26245@bombadil.infradead.org>
+ <d38ff996-8294-81a6-075f-d7b2a60aa2f4@rimuhosting.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d38ff996-8294-81a6-075f-d7b2a60aa2f4@rimuhosting.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>
+To: xen@randomwebstuff.com
+Cc: Laura Abbott <labbott@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Fri, 19 Jan 2018 13:39:56 +0100
-Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Fri 19-01-18 08:09:08, Petr Tesarik wrote:
-> [...]
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index 67f2e3c38939..7522a6987595 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -1166,8 +1166,16 @@ extern unsigned long usemap_size(void);
-> >  
-> >  /*
-> >   * We use the lower bits of the mem_map pointer to store
-> > - * a little bit of information.  There should be at least
-> > - * 3 bits here due to 32-bit alignment.
-> > + * a little bit of information.  The pointer is calculated
-> > + * as mem_map - section_nr_to_pfn(pnum).  The result is
-> > + * aligned to the minimum alignment of the two values:
-> > + *   1. All mem_map arrays are page-aligned.
-> > + *   2. section_nr_to_pfn() always clears PFN_SECTION_SHIFT
-> > + *      lowest bits.  PFN_SECTION_SHIFT is arch-specific
-> > + *      (equal SECTION_SIZE_BITS - PAGE_SHIFT), and the
-> > + *      worst combination is powerpc with 256k pages,
-> > + *      which results in PFN_SECTION_SHIFT equal 6.
-> > + * To sum it up, at least 6 bits are available.
-> >   */  
+On Fri, Jan 19, 2018 at 04:14:42PM +1300, xen@randomwebstuff.com wrote:
 > 
-> This is _much_ better indeed. Do you think we can go one step further
-> and add BUG_ON into the sparse code to guarantee that every mmemap
-> is indeed aligned properly so that SECTION_MAP_LAST_BIT-1 bits are never
-> used?
+> On 19/01/18 4:04 PM, Matthew Wilcox wrote:
+> > On Thu, Jan 18, 2018 at 02:18:20PM -0800, Laura Abbott wrote:
+> > > On 01/18/2018 01:55 PM, Andrew Morton wrote:
+> > > > > [   24.647744] BUG: unable to handle kernel NULL pointer dereference at
+> > > > > 00000008
+> > > > > [   24.647801] IP: __radix_tree_lookup+0x14/0xa0
+> > > > > [   24.647811] *pdpt = 00000000253d6027 *pde = 0000000000000000
+> > > > > [   24.647828] Oops: 0000 [#1] SMP
+> > > > > [   24.647842] CPU: 5 PID: 3600 Comm: java Not tainted
+> > > > > 4.14.13-rh10-20180115190010.xenU.i386 #1
+> > > > > [   24.647855] task: e52518c0 task.stack: e4e7a000
+> > > > > [   24.647866] EIP: __radix_tree_lookup+0x14/0xa0
+> > > > > [   24.647876] EFLAGS: 00010286 CPU: 5
+> > > > > [   24.647884] EAX: 00000004 EBX: 00000007 ECX: 00000000 EDX: 00000000
 
-This is easy for the section_nr_to_pfn() part. I'd just add:
+If my understanding is right, EDX contains the index we're looking up.
+Which is zero.  So the swp_entry we got is one bit away from being NULL.
+Hmm.  Have you run memtest86 or some other memory tester on the system
+recently?
 
-  BUILD_BUG_ON(PFN_SECTION_SHIFT < SECTION_MAP_LAST_BIT);
+> PS: cannot recall seeing this issue on x86_64, just 32 bit.
 
-But for the mem_map arrays... Do you mean adding a run-time BUG_ON into
-all allocation paths?
+Laura has 64-bit instances of this.
 
-Note that mem_map arrays can be allocated by:
+PPS: reminder
+> this is on a Xen VM which per https://xenbits.xen.org/docs/unstable/man/xl.cfg.5.html#PVH-Guest-Specific-Options
+> has "out of sync pagetables" if that is relevant (we do not set that option,
+> I am unsure what default is used).
 
-  a) __earlyonly_bootmem_alloc
-  b) memblock_virt_alloc_try_nid
-  c) memblock_virt_alloc_try_nid_raw
-  d) alloc_remap (only arch/tile still has it)
-
-Some allocation paths are in mm/sparse.c, others are
-mm/sparse-vmemmap.c, so it becomes a bit messy, but since it's
-a single line in each, it may work.
-
-Petr T
+Laura also has non-Xen instances of this.  They may not all be the same
+bug, of course.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
