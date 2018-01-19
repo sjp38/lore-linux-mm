@@ -1,67 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 30C8A6B0038
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 02:09:29 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id h1so633177wre.20
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 23:09:29 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id e13si8119295wra.463.2018.01.18.23.09.26
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D0D576B0253
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 03:17:54 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id k126so687164wmd.5
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 00:17:54 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y22sor5382931edm.12.2018.01.19.00.17.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jan 2018 23:09:27 -0800 (PST)
-Date: Fri, 19 Jan 2018 08:09:08 +0100
-From: Petr Tesarik <ptesarik@suse.com>
-Subject: [PATCH] Fix explanation of lower bits in the SPARSEMEM mem_map
- pointer
-Message-ID: <20180119080908.3a662e6f@ezekiel.suse.cz>
+        (Google Transport Security);
+        Fri, 19 Jan 2018 00:17:53 -0800 (PST)
+Reply-To: christian.koenig@amd.com
+Subject: Re: [RFC] Per file OOM badness
+References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
+ <DM5PR1201MB012142B041369BF6911C5818FDEF0@DM5PR1201MB0121.namprd12.prod.outlook.com>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <ckoenig.leichtzumerken@gmail.com>
+Message-ID: <78121ca2-3693-d43e-5a5f-989380fb3667@gmail.com>
+Date: Fri, 19 Jan 2018 09:17:51 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <DM5PR1201MB012142B041369BF6911C5818FDEF0@DM5PR1201MB0121.namprd12.prod.outlook.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>
+To: "He, Roger" <Hongbo.He@amd.com>, "Grodzovsky, Andrey" <Andrey.Grodzovsky@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>
+Cc: "Koenig, Christian" <Christian.Koenig@amd.com>
 
-The comment is confusing. On the one hand, it refers to 32-bit
-alignment (struct page alignment on 32-bit platforms), but this
-would only guarantee that the 2 lowest bits must be zero. On the
-other hand, it claims that at least 3 bits are available, and 3 bits
-are actually used.
+Am 19.01.2018 um 06:39 schrieb He, Roger:
+> Basically the idea is right to me.
+>
+> 1. But we need smaller granularity to control the contribution to OOM badness.
+>       Because when the TTM buffer resides in VRAM rather than evict to system memory, we should not take this account into badness.
+>       But I think it is not easy to implement.
 
-This is not broken, because there is a stronger alignment guarantee,
-just less obvious. Let's fix the comment to make it clear how many
-bits are available and why.
+I was considering that as well when I wrote the original patch set, but 
+then decided against it at least for now.
 
-Signed-off-by: Petr Tesarik <ptesarik@suse.com>
----
- include/linux/mmzone.h | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+Basically all VRAM buffers can be swapped to system memory, so they 
+potentially need system memory as well. That is especially important 
+during suspend/resume.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 67f2e3c38939..7522a6987595 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1166,8 +1166,16 @@ extern unsigned long usemap_size(void);
- 
- /*
-  * We use the lower bits of the mem_map pointer to store
-- * a little bit of information.  There should be at least
-- * 3 bits here due to 32-bit alignment.
-+ * a little bit of information.  The pointer is calculated
-+ * as mem_map - section_nr_to_pfn(pnum).  The result is
-+ * aligned to the minimum alignment of the two values:
-+ *   1. All mem_map arrays are page-aligned.
-+ *   2. section_nr_to_pfn() always clears PFN_SECTION_SHIFT
-+ *      lowest bits.  PFN_SECTION_SHIFT is arch-specific
-+ *      (equal SECTION_SIZE_BITS - PAGE_SHIFT), and the
-+ *      worst combination is powerpc with 256k pages,
-+ *      which results in PFN_SECTION_SHIFT equal 6.
-+ * To sum it up, at least 6 bits are available.
-  */
- #define	SECTION_MARKED_PRESENT	(1UL<<0)
- #define SECTION_HAS_MEM_MAP	(1UL<<1)
--- 
-2.13.6
+>
+> 2. If the TTM buffer(GTT here) is mapped to user for CPU access, not quite sure the buffer size is already taken into account for kernel.
+>       If yes, at last the size will be counted again by your patches.
+
+No that isn't accounted for as far as I know.
+
+>
+> So, I am thinking if we can counted the TTM buffer size into:
+> struct mm_rss_stat {
+> 	atomic_long_t count[NR_MM_COUNTERS];
+> };
+> Which is done by kernel based on CPU VM (page table).
+>
+> Something like that:
+> When GTT allocate suceess:
+> add_mm_counter(vma->vm_mm, MM_ANONPAGES, buffer_size);
+>
+> When GTT swapped out:
+> dec_mm_counter from MM_ANONPAGES frist, then
+> add_mm_counter(vma->vm_mm, MM_SWAPENTS, buffer_size);  // or MM_SHMEMPAGES or add new item.
+>
+> Update the corresponding item in mm_rss_stat always.
+> If that, we can control the status update accurately.
+> What do you think about that?
+> And is there any side-effect for this approach?
+
+I already tried this when I originally worked on the issue and that 
+approach didn't worked because allocated buffers are not associated to 
+the process where they are created.
+
+E.g. most display surfaces are created by the X server, but used by 
+processes. So if you account the BO to the process who created it we 
+would start to kill X again and that is exactly what we try to avoid.
+
+Regards,
+Christian.
+
+>
+>
+> Thanks
+> Roger(Hongbo.He)
+>
+> -----Original Message-----
+> From: dri-devel [mailto:dri-devel-bounces@lists.freedesktop.org] On Behalf Of Andrey Grodzovsky
+> Sent: Friday, January 19, 2018 12:48 AM
+> To: linux-kernel@vger.kernel.org; linux-mm@kvack.org; dri-devel@lists.freedesktop.org; amd-gfx@lists.freedesktop.org
+> Cc: Koenig, Christian <Christian.Koenig@amd.com>
+> Subject: [RFC] Per file OOM badness
+>
+> Hi, this series is a revised version of an RFC sent by Christian KA?nig a few years ago. The original RFC can be found at https://lists.freedesktop.org/archives/dri-devel/2015-September/089778.html
+>
+> This is the same idea and I've just adressed his concern from the original RFC and switched to a callback into file_ops instead of a new member in struct file.
+>
+> Thanks,
+> Andrey
+>
+> _______________________________________________
+> dri-devel mailing list
+> dri-devel@lists.freedesktop.org
+> https://lists.freedesktop.org/mailman/listinfo/dri-devel
+> _______________________________________________
+> amd-gfx mailing list
+> amd-gfx@lists.freedesktop.org
+> https://lists.freedesktop.org/mailman/listinfo/amd-gfx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
