@@ -1,201 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D0C7B6B0038
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:49:33 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id q8so1730388pfh.12
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 04:49:33 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id 27si9193269pfk.250.2018.01.19.04.49.32
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E9A376B0069
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:50:01 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 31so1197486wru.0
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 04:50:01 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t48si8251806wrc.507.2018.01.19.04.50.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jan 2018 04:49:32 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2] mm, page_vma_mapped: Drop faulty pointer arithmetics in check_pte()
-Date: Fri, 19 Jan 2018 15:49:24 +0300
-Message-Id: <20180119124924.25642-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 Jan 2018 04:50:00 -0800 (PST)
+Date: Fri, 19 Jan 2018 13:49:57 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: Reduce memory bloat with THP
+Message-ID: <20180119124957.GA6584@dhcp22.suse.cz>
+References: <1516318444-30868-1-git-send-email-nitingupta910@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1516318444-30868-1-git-send-email-nitingupta910@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@kernel.org, penguin-kernel@I-love.SAKURA.ne.jp, torvalds@linux-foundation.org, aarcange@redhat.com, dave.hansen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org
+To: Nitin Gupta <nitingupta910@gmail.com>
+Cc: steven.sistare@oracle.com, Nitin Gupta <nitin.m.gupta@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Nadav Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Vegard Nossum <vegard.nossum@oracle.com>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Shaohua Li <shli@fb.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Tobin C Harding <me@tobin.cc>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Tetsuo reported random crashes under memory pressure on 32-bit x86
-system and tracked down to change that introduced
-page_vma_mapped_walk().
+On Thu 18-01-18 15:33:16, Nitin Gupta wrote:
+> From: Nitin Gupta <nitin.m.gupta@oracle.com>
+> 
+> Currently, if the THP enabled policy is "always", or the mode
+> is "madvise" and a region is marked as MADV_HUGEPAGE, a hugepage
+> is allocated on a page fault if the pud or pmd is empty.  This
+> yields the best VA translation performance, but increases memory
+> consumption if some small page ranges within the huge page are
+> never accessed.
 
-The root cause of the issue is the faulty pointer math in check_pte().
-As ->pte may point to an arbitrary page we have to check that they are
-belong to the section before doing math. Otherwise it may lead to weird
-results.
+Yes, this is true but hardly unexpected for MADV_HUGEPAGE or THP always
+users.
+ 
+> An alternate behavior for such page faults is to install a
+> hugepage only when a region is actually found to be (almost)
+> fully mapped and active.  This is a compromise between
+> translation performance and memory consumption.  Currently there
+> is no way for an application to choose this compromise for the
+> page fault conditions above.
 
-It wasn't noticed until now as mem_map[] is virtually contiguous on
-flatmem or vmemmap sparsemem. Pointer arithmetic just works against all
-'struct page' pointers. But with classic sparsemem, it doesn't because
-each section memap is allocated separately and so consecutive pfns
-crossing two sections might have struct pages at completely unrelated
-addresses.
+Is that really true? We have /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none
+This is not reflected during the PF of course but you can control the
+behavior there as well. Either by the global setting or a per proces
+prctl.
 
-Let's restructure code a bit and replace pointer arithmetic with
-operations on pfns.
+> With this change, whenever an application issues MADV_DONTNEED on a
+> memory region, the region is marked as "space-efficient". For such
+> regions, a hugepage is not immediately allocated on first write.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Fixes: ace71a19cec5 ("mm: introduce page_vma_mapped_walk()")
-Cc: stable@vger.kernel.org
----
- v2:
-   - Do not use uninitialized 'pfn' for !MIGRATION case (Michal)
+Kirill didn't like it in the previous version and I do not like this
+either. You are adding a very subtle side effect which might completely
+unexpected. Consider userspace memory allocator which uses MADV_DONTNEED
+to free up unused memory. Now you have put it out of THP usage
+basically.
 
----
- include/linux/swapops.h | 21 +++++++++++++++++
- mm/page_vma_mapped.c    | 63 +++++++++++++++++++++++++++++--------------------
- 2 files changed, 59 insertions(+), 25 deletions(-)
-
-diff --git a/include/linux/swapops.h b/include/linux/swapops.h
-index 9c5a2628d6ce..1d3877c39a00 100644
---- a/include/linux/swapops.h
-+++ b/include/linux/swapops.h
-@@ -124,6 +124,11 @@ static inline bool is_write_device_private_entry(swp_entry_t entry)
- 	return unlikely(swp_type(entry) == SWP_DEVICE_WRITE);
- }
- 
-+static inline unsigned long device_private_entry_to_pfn(swp_entry_t entry)
-+{
-+	return swp_offset(entry);
-+}
-+
- static inline struct page *device_private_entry_to_page(swp_entry_t entry)
- {
- 	return pfn_to_page(swp_offset(entry));
-@@ -154,6 +159,11 @@ static inline bool is_write_device_private_entry(swp_entry_t entry)
- 	return false;
- }
- 
-+static inline unsigned long device_private_entry_to_pfn(swp_entry_t entry)
-+{
-+	return 0;
-+}
-+
- static inline struct page *device_private_entry_to_page(swp_entry_t entry)
- {
- 	return NULL;
-@@ -189,6 +199,11 @@ static inline int is_write_migration_entry(swp_entry_t entry)
- 	return unlikely(swp_type(entry) == SWP_MIGRATION_WRITE);
- }
- 
-+static inline unsigned long migration_entry_to_pfn(swp_entry_t entry)
-+{
-+	return swp_offset(entry);
-+}
-+
- static inline struct page *migration_entry_to_page(swp_entry_t entry)
- {
- 	struct page *p = pfn_to_page(swp_offset(entry));
-@@ -218,6 +233,12 @@ static inline int is_migration_entry(swp_entry_t swp)
- {
- 	return 0;
- }
-+
-+static inline unsigned long migration_entry_to_pfn(swp_entry_t entry)
-+{
-+	return 0;
-+}
-+
- static inline struct page *migration_entry_to_page(swp_entry_t entry)
- {
- 	return NULL;
-diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-index d22b84310f6d..956015614395 100644
---- a/mm/page_vma_mapped.c
-+++ b/mm/page_vma_mapped.c
-@@ -30,10 +30,29 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw)
- 	return true;
- }
- 
-+/**
-+ * check_pte - check if @pvmw->page is mapped at the @pvmw->pte
-+ *
-+ * page_vma_mapped_walk() found a place where @pvmw->page is *potentially*
-+ * mapped. check_pte() has to validate this.
-+ *
-+ * @pvmw->pte may point to empty PTE, swap PTE or PTE pointing to arbitrary
-+ * page.
-+ *
-+ * If PVMW_MIGRATION flag is set, returns true if @pvmw->pte contains migration
-+ * entry that points to @pvmw->page or any subpage in case of THP.
-+ *
-+ * If PVMW_MIGRATION flag is not set, returns true if @pvmw->pte points to
-+ * @pvmw->page or any subpage in case of THP.
-+ *
-+ * Otherwise, return false.
-+ *
-+ */
- static bool check_pte(struct page_vma_mapped_walk *pvmw)
- {
-+	unsigned long pfn;
-+
- 	if (pvmw->flags & PVMW_MIGRATION) {
--#ifdef CONFIG_MIGRATION
- 		swp_entry_t entry;
- 		if (!is_swap_pte(*pvmw->pte))
- 			return false;
-@@ -41,37 +60,31 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
- 
- 		if (!is_migration_entry(entry))
- 			return false;
--		if (migration_entry_to_page(entry) - pvmw->page >=
--				hpage_nr_pages(pvmw->page)) {
--			return false;
--		}
--		if (migration_entry_to_page(entry) < pvmw->page)
--			return false;
--#else
--		WARN_ON_ONCE(1);
--#endif
--	} else {
--		if (is_swap_pte(*pvmw->pte)) {
--			swp_entry_t entry;
- 
--			entry = pte_to_swp_entry(*pvmw->pte);
--			if (is_device_private_entry(entry) &&
--			    device_private_entry_to_page(entry) == pvmw->page)
--				return true;
--		}
-+		pfn = migration_entry_to_pfn(entry);
-+	} else if (is_swap_pte(*pvmw->pte)) {
-+		swp_entry_t entry;
- 
--		if (!pte_present(*pvmw->pte))
-+		/* Handle un-addressable ZONE_DEVICE memory */
-+		entry = pte_to_swp_entry(*pvmw->pte);
-+		if (!is_device_private_entry(entry))
- 			return false;
- 
--		/* THP can be referenced by any subpage */
--		if (pte_page(*pvmw->pte) - pvmw->page >=
--				hpage_nr_pages(pvmw->page)) {
--			return false;
--		}
--		if (pte_page(*pvmw->pte) < pvmw->page)
-+		pfn = device_private_entry_to_pfn(entry);
-+	} else {
-+		if (!pte_present(*pvmw->pte))
- 			return false;
-+
-+		pfn = pte_pfn(*pvmw->pte);
- 	}
- 
-+	if (pfn < page_to_pfn(pvmw->page))
-+		return false;
-+
-+	/* THP can be referenced by any subpage */
-+	if (pfn - page_to_pfn(pvmw->page) >= hpage_nr_pages(pvmw->page))
-+		return false;
-+
- 	return true;
- }
- 
+If the memory is used really scarce then we have MADV_NOHUGEPAGE.
 -- 
-2.15.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
