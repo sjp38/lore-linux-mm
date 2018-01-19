@@ -1,67 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E9A376B0069
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:50:01 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 31so1197486wru.0
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 04:50:01 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t48si8251806wrc.507.2018.01.19.04.50.00
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 090826B0038
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:55:25 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id n2so1781906pgs.0
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 04:55:25 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id y20si8002470pgv.215.2018.01.19.04.55.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Jan 2018 04:50:00 -0800 (PST)
-Date: Fri, 19 Jan 2018 13:49:57 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: Reduce memory bloat with THP
-Message-ID: <20180119124957.GA6584@dhcp22.suse.cz>
-References: <1516318444-30868-1-git-send-email-nitingupta910@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 19 Jan 2018 04:55:23 -0800 (PST)
+Date: Fri, 19 Jan 2018 04:55:03 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
+Message-ID: <20180119125503.GA2897@bombadil.infradead.org>
+References: <201801170233.JDG21842.OFOJMQSHtOFFLV@I-love.SAKURA.ne.jp>
+ <CA+55aFyxyjN0Mqnz66B4a0R+uR8DdfxdMhcg5rJVi8LwnpSRfA@mail.gmail.com>
+ <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
+ <201801181712.BFD13039.LtHOSVMFJQFOFO@I-love.SAKURA.ne.jp>
+ <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name>
+ <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
+ <20180118145830.GA6406@redhat.com>
+ <20180118165629.kpdkezarsf4qymnw@node.shutemov.name>
+ <CA+55aFy43ypm0QvA5SqNR4O0ZJETbkR3NDR=dnSdvejc_nmSJQ@mail.gmail.com>
+ <20180118234955.nlo55rw2qsfnavfm@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1516318444-30868-1-git-send-email-nitingupta910@gmail.com>
+In-Reply-To: <20180118234955.nlo55rw2qsfnavfm@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <nitingupta910@gmail.com>
-Cc: steven.sistare@oracle.com, Nitin Gupta <nitin.m.gupta@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Nadav Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Vegard Nossum <vegard.nossum@oracle.com>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Shaohua Li <shli@fb.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Tobin C Harding <me@tobin.cc>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Tony Luck <tony.luck@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
 
-On Thu 18-01-18 15:33:16, Nitin Gupta wrote:
-> From: Nitin Gupta <nitin.m.gupta@oracle.com>
+On Fri, Jan 19, 2018 at 02:49:55AM +0300, Kirill A. Shutemov wrote:
+> > So that's why you can't do pointer diffs between two arrays. Not
+> > because you can't subtract the two pointers, but because the
+> > *division* part of the C pointer diff rules leads to issues.
 > 
-> Currently, if the THP enabled policy is "always", or the mode
-> is "madvise" and a region is marked as MADV_HUGEPAGE, a hugepage
-> is allocated on a page fault if the pud or pmd is empty.  This
-> yields the best VA translation performance, but increases memory
-> consumption if some small page ranges within the huge page are
-> never accessed.
+> Thanks a lot for the explanation!
+> 
+> I wounder if this may be a problem in other places?
+> 
+> For instance, perf uses address of a mutex to determinate the lock
+> ordering. See mutex_lock_double(). The mutex is embedded into struct
+> perf_event_context, which is allocated with kzalloc() so I don't see how
+> we can presume that alignment is consistent between them.
+> 
+> I don't think it's the only example in kernel. Are we just lucky?
 
-Yes, this is true but hardly unexpected for MADV_HUGEPAGE or THP always
-users.
- 
-> An alternate behavior for such page faults is to install a
-> hugepage only when a region is actually found to be (almost)
-> fully mapped and active.  This is a compromise between
-> translation performance and memory consumption.  Currently there
-> is no way for an application to choose this compromise for the
-> page fault conditions above.
+If you're just *comparing* the addresses of two objects, GCC doesn't
+care what the size of the object is.  ie there's a difference between
+'if (b < a)' and 'if ((a - b) < n)'.
 
-Is that really true? We have /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none
-This is not reflected during the PF of course but you can control the
-behavior there as well. Either by the global setting or a per proces
-prctl.
+But yes, if you go by the strict wording of the standard:
 
-> With this change, whenever an application issues MADV_DONTNEED on a
-> memory region, the region is marked as "space-efficient". For such
-> regions, a hugepage is not immediately allocated on first write.
+  When two pointers are compared, the result depends on the relative
+  locations in the address space of the objects pointed to. [...] In
+  all other cases, the behavior is undefined
 
-Kirill didn't like it in the previous version and I do not like this
-either. You are adding a very subtle side effect which might completely
-unexpected. Consider userspace memory allocator which uses MADV_DONTNEED
-to free up unused memory. Now you have put it out of THP usage
-basically.
+http://www.open-std.org/jtc1/sc22/WG14/www/docs/n1256.pdf
 
-If the memory is used really scarce then we have MADV_NOHUGEPAGE.
--- 
-Michal Hocko
-SUSE Labs
+So really we should be casting 'b' and 'a' to uintptr_t to be fully
+compliant with the spec.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
