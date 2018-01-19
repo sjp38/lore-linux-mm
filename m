@@ -1,51 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 641796B0277
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:30:07 -0500 (EST)
-Received: by mail-vk0-f70.google.com with SMTP id k20so1055655vki.11
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:30:07 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id z32si2814228edc.87.2018.01.17.01.02.39
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C52666B027A
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:31:36 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id e26so2034967pgv.16
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:31:36 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r6-v6si454480pls.684.2018.01.19.07.31.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Jan 2018 01:02:39 -0800 (PST)
-Date: Wed, 17 Jan 2018 10:02:38 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 02/16] x86/entry/32: Enter the kernel via trampoline stack
-Message-ID: <20180117090238.GH28161@8bytes.org>
-References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
- <1516120619-1159-3-git-send-email-joro@8bytes.org>
- <476d7100-2414-d09e-abf1-5aa4d369a3b7@oracle.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 Jan 2018 07:31:35 -0800 (PST)
+Date: Fri, 19 Jan 2018 16:31:32 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v5 2/2] mm/memcontrol.c: Reduce reclaim retries in
+ mem_cgroup_resize_limit()
+Message-ID: <20180119153132.GF6584@dhcp22.suse.cz>
+References: <20171220102429.31601-1-aryabinin@virtuozzo.com>
+ <20180119132544.19569-1-aryabinin@virtuozzo.com>
+ <20180119132544.19569-2-aryabinin@virtuozzo.com>
+ <20180119133510.GD6584@dhcp22.suse.cz>
+ <CALvZod7HS6P0OU6Rps8JeMJycaPd4dF5NjxV8k1y2-yosF2bdA@mail.gmail.com>
+ <20180119151118.GE6584@dhcp22.suse.cz>
+ <CALvZod6q8ExRW-EkG_eMyJeGhhMcbSQZMQEqmHEHj7PhRYwJ1w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <476d7100-2414-d09e-abf1-5aa4d369a3b7@oracle.com>
+In-Reply-To: <CALvZod6q8ExRW-EkG_eMyJeGhhMcbSQZMQEqmHEHj7PhRYwJ1w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-Hi Boris,
+On Fri 19-01-18 07:24:08, Shakeel Butt wrote:
+[...]
+> Thanks for the explanation. Another query, we do not call
+> drain_all_stock() in mem_cgroup_resize_limit() but memory_max_write()
+> does call drain_all_stock(). Was this intentional or missed
+> accidentally?
 
-thanks for testing this :)
-
-On Tue, Jan 16, 2018 at 09:47:06PM -0500, Boris Ostrovsky wrote:
-> On 01/16/2018 11:36 AM, Joerg Roedel wrote:
-> >+.macro SWITCH_TO_KERNEL_STACK nr_regs=0 check_user=0
-> 
-> 
-> This (and next patch's SWITCH_TO_ENTRY_STACK) need X86_FEATURE_PTI check.
-> 
-> With those macros fixed I was able to boot 32-bit Xen PV guest.
-
-Hmm, on bare metal the stack switch happens regardless of the
-X86_FEATURE_PTI feature being set, because we always program tss.sp0
-with the systenter stack. How is the kernel entry stack setup on xen-pv?
-I think something is missing there instead.
-
-Regards,
-
-	Joerg
+I think it is just an omission. I would have to look closer but I am
+just leaving now and will be back on Tuesday. This is unrelated so I
+would rather discuss it in a separate email thread.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
