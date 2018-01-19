@@ -1,57 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A1996B0033
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 12:44:28 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id p4so1721920wrf.4
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 09:44:28 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f199sor554476wme.71.2018.01.19.09.44.26
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE3F6B0033
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 13:01:56 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id e186so2615527iof.9
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:01:56 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id h62sor4858809iod.291.2018.01.19.10.01.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 19 Jan 2018 09:44:26 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH] kasan: add __asan_report_loadN/storeN_noabort callbacks
-Date: Fri, 19 Jan 2018 18:44:22 +0100
-Message-Id: <891fbd1fe77f46701fb1958e77bdd89651c12643.1516383788.git.andreyknvl@google.com>
+        Fri, 19 Jan 2018 10:01:55 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20180119124924.25642-1-kirill.shutemov@linux.intel.com>
+References: <20180119124924.25642-1-kirill.shutemov@linux.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 19 Jan 2018 10:01:54 -0800
+Message-ID: <CA+55aFxobYQ5cqnCZuf8xVWr3hCUmg=rTxDPV3zHWqeQysVkxA@mail.gmail.com>
+Subject: Re: [PATCHv2] mm, page_vma_mapped: Drop faulty pointer arithmetics in check_pte()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>
 
-Instead of __asan_report_load_n_noabort and __asan_report_store_n_noabort
-callbacks Clang emits differently named __asan_report_loadN_noabort and
-__asan_report_storeN_noabort (similar to __asan_loadN/storeN_noabort, whose
-names both GCC and Clang agree on).
+On Fri, Jan 19, 2018 at 4:49 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+>
+> +       if (pfn < page_to_pfn(pvmw->page))
+> +               return false;
+> +
+> +       /* THP can be referenced by any subpage */
+> +       if (pfn - page_to_pfn(pvmw->page) >= hpage_nr_pages(pvmw->page))
+> +               return false;
+> +
 
-Add callback implementation for __asan_report_loadN/storeN_noabort.
+Is gcc actually clever enough to merge these? The "page_to_pfn()"
+logic can be pretty expensive (exactly for the sparsemem case, but
+per-node DISCOTIGMEM has some complexity too.
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- mm/kasan/report.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+So I'd prefer to make that explicit, perhaps by having a helper
+function that does this something like
 
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index eff12e040498..caf4c9e948c6 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -450,3 +450,15 @@ void __asan_report_store_n_noabort(unsigned long addr, size_t size)
- 	kasan_report(addr, size, true, _RET_IP_);
- }
- EXPORT_SYMBOL(__asan_report_store_n_noabort);
-+
-+void __asan_report_loadN_noabort(unsigned long addr, size_t size)
-+{
-+	kasan_report(addr, size, false, _RET_IP_);
-+}
-+EXPORT_SYMBOL(__asan_report_loadN_noabort);
-+
-+void __asan_report_storeN_noabort(unsigned long addr, size_t size)
-+{
-+	kasan_report(addr, size, true, _RET_IP_);
-+}
-+EXPORT_SYMBOL(__asan_report_storeN_noabort);
--- 
-2.16.0.rc1.238.g530d649a79-goog
+   static inline bool pfn_in_hpage(unsigned long pfn, struct page *hpage)
+   {
+        unsigned long hpage_pfn = page_to_pfn(hpage);
+
+        return pfn >= hpage_pfn &&  pfn - hpage_pfn < hpage_nr_pages(hpage);
+    }
+
+and then just use
+
+    return pfn_in_hpage(pfn, pvmw->page);
+
+in that caller. Hmm? Wouldn't that be more legible, and avoid the
+repeated pvmw->page and page_to_pfn() cases?
+
+Even if maybe gcc can do the CSE and turn it all into the same thing
+in the end..
+
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
