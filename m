@@ -1,130 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F299E6B0033
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 17:13:34 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id b195so1728310wmb.1
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 14:13:34 -0800 (PST)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id a72si9327519wrc.311.2018.01.19.14.13.32
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D9EC6B0033
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 17:49:23 -0500 (EST)
+Received: by mail-vk0-f69.google.com with SMTP id d130so1738467vkf.6
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 14:49:23 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 74sor3548360ual.276.2018.01.19.14.49.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jan 2018 14:13:33 -0800 (PST)
-Date: Fri, 19 Jan 2018 22:12:43 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
-Message-ID: <20180119221243.GL13338@ZenIV.linux.org.uk>
-References: <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
- <201801181712.BFD13039.LtHOSVMFJQFOFO@I-love.SAKURA.ne.jp>
- <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name>
- <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
- <20180118145830.GA6406@redhat.com>
- <20180118165629.kpdkezarsf4qymnw@node.shutemov.name>
- <CA+55aFy43ypm0QvA5SqNR4O0ZJETbkR3NDR=dnSdvejc_nmSJQ@mail.gmail.com>
- <20180118234955.nlo55rw2qsfnavfm@node.shutemov.name>
- <20180119125503.GA2897@bombadil.infradead.org>
- <CA+55aFwWCeFrhN+WJDD8u9nqBzmvknXk428Q0dVwwXAvwhg_-w@mail.gmail.com>
+        (Google Transport Security);
+        Fri, 19 Jan 2018 14:49:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFwWCeFrhN+WJDD8u9nqBzmvknXk428Q0dVwwXAvwhg_-w@mail.gmail.com>
+In-Reply-To: <1515529383-35695-1-git-send-email-keescook@chromium.org>
+References: <1515529383-35695-1-git-send-email-keescook@chromium.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 19 Jan 2018 14:49:20 -0800
+Message-ID: <CAGXu5jJjHd9D=20jYnx4PSJHBbRsUOP3bAOJ11yyUWutqVHr2A@mail.gmail.com>
+Subject: Re: [PATCH 0/3] exec: Pin stack limit during exec
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Tony Luck <tony.luck@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Ben Hutchings <ben@decadent.org.uk>, Willy Tarreau <w@1wt.eu>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, "Jason A. Donenfeld" <Jason@zx2c4.com>, Rik van Riel <riel@redhat.com>, Laura Abbott <labbott@redhat.com>, Greg KH <greg@kroah.com>, Andy Lutomirski <luto@kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-hardening@lists.openwall.com
 
-On Fri, Jan 19, 2018 at 10:42:18AM -0800, Linus Torvalds wrote:
-> On Fri, Jan 19, 2018 at 4:55 AM, Matthew Wilcox <willy@infradead.org> wrote:
-> >
-> > So really we should be casting 'b' and 'a' to uintptr_t to be fully
-> > compliant with the spec.
-> 
-> That's an unnecessary technicality.
-> 
-> Any compiler that doesn't get pointer inequality testing right is not
-> worth even worrying about. We wouldn't want to use such a compiler,
-> because it's intentionally generating garbage just to f*ck with us.
-> Why would you go along with that?
-> 
-> So the only real issue is that pointer subtraction case.
-> 
-> I actually asked (long long ago) for an optinal compiler warning for
-> "pointer subtraction with non-power-of-2 sizes". Not because of it
-> being undefined, but simply because it's expensive. The
-> divide->multiply thing doesn't always work, and a real divide is
-> really quite expensive on many architectures.
-> 
-> We *should* be careful about it. I guess sparse could be made to warn,
-> but I'm afraid that we have so many of these things that a warning
-> isn't reasonable.
+On Tue, Jan 9, 2018 at 12:23 PM, Kees Cook <keescook@chromium.org> wrote:
+> Attempts to solve problems with the stack limit changing during exec
+> continue to be frustrated[1][2]. In addition to the specific issues
+> around the Stack Clash family of flaws, Andy Lutomirski pointed out[3]
+> other places during exec where the stack limit is used and is assumed
+> to be unchanging. Given the many places it gets used and the fact that
+> it can be manipulated/raced via setrlimit() and prlimit(), I think the
+> only way to handle this is to move away from the "current" view of the
+> stack limit and instead attach it to the bprm, and plumb this down into
+> the functions that need to know the stack limits. This series implements
+> the approach. I'd be curious to hear feedback on alternatives.
 
-You mean like -Wptr-subtraction-blows?
+Friendly ping -- looking for some people with spare cycles to look
+this over. If people want, I can toss it into -next as part of my kspp
+tree. It's been living happily in 0-day for  2 weeks...
 
-FWIW, allmodconfig on amd64 with C=2 CF=-Wptr-subtraction-blows is not too large
-The tail (alphabetically sorted) is
-lib/dynamic_debug.c:1013:9: warning: potentially expensive pointer subtraction
-lib/extable.c:70:28: warning: potentially expensive pointer subtraction
-mm/memory_hotplug.c:1530:13: warning: potentially expensive pointer subtraction
-mm/memory_hotplug.c:734:13: warning: potentially expensive pointer subtraction
-mm/memory_hotplug.c:831:41: warning: potentially expensive pointer subtraction
-mm/page_owner.c:607:38: warning: potentially expensive pointer subtraction
-mm/vmstat.c:1334:38: warning: potentially expensive pointer subtraction
-net/core/net-sysfs.c:1040:19: warning: potentially expensive pointer subtraction
-net/ipv4/ipmr.c:3026:32: warning: potentially expensive pointer subtraction
-net/ipv6/ip6mr.c:458:32: warning: potentially expensive pointer subtraction
-net/mac80211/tx.c:1307:41: warning: potentially expensive pointer subtraction
-net/mac80211/tx.c:1351:44: warning: potentially expensive pointer subtraction
-net/rds/ib_recv.c:345:49: warning: potentially expensive pointer subtraction
-net/rds/ib_recv.c:861:38: warning: potentially expensive pointer subtraction
-net/sched/cls_tcindex.c:622:43: warning: potentially expensive pointer subtraction
-net/sched/sch_cbs.c:302:35: warning: potentially expensive pointer subtraction
-net/sched/sch_hhf.c:367:23: warning: potentially expensive pointer subtraction
-net/sched/sch_hhf.c:434:38: warning: potentially expensive pointer subtraction
-net/sunrpc/svc_xprt.c:1377:43: warning: potentially expensive pointer subtraction
-sound/pci/hda/hda_generic.c:301:20: warning: potentially expensive pointer subtraction
+Thanks!
 
-IOW it's not terribly noisy.  Might be an interesting idea to teach sparse to
-print the type in question...  Aha - with
+-Kees
 
---- a/evaluate.c
-+++ b/evaluate.c
-@@ -848,7 +848,8 @@ static struct symbol *evaluate_ptr_sub(struct expression *expr)
- 
-                if (value & (value-1)) {
-                        if (Wptr_subtraction_blows)
--                               warning(expr->pos, "potentially expensive pointer subtraction");
-+                               warning(expr->pos, "[%s] potentially expensive pointer subtraction",
-+                                       show_typename(lbase));
-                }
- 
-                sub->op = '-';
+> [1] 04e35f4495dd ("exec: avoid RLIMIT_STACK races with prlimit()")
+> [2] 779f4e1c6c7c ("Revert "exec: avoid RLIMIT_STACK races with prlimit()"")
+> [3] to security@kernel.org, "Subject: existing rlimit races?"
 
-we get things like
-drivers/gpu/drm/i915/i915_gem_execbuffer.c:435:17: warning: [struct drm_i915_gem_exec_object2] potentially expensive pointer subtraction
-
-OK, the top sources of that warning are:
-     91 struct cpufreq_frequency_table
-     36 struct Indirect				(actually, that conflates ext2/ext4/minix/sysv)
-     21 struct ips_scb
-     18 struct runlist_element
-     13 struct zone
-     13 struct vring
-     11 struct usbhsh_device
-     10 struct xpc_partition
-      9 struct skge_element 
-      9 struct lock_class
-      9 struct hstate
-      7 struct nvme_rdma_queue
-      7 struct iso_context  
-      6 struct i915_power_well
-      6 struct hpet_dev 
-      6 struct ext4_extent
-      6 struct esas2r_target
-      5 struct iio_chan_spec
-      5 struct hwspinlock
-      4 struct myri10ge_slice_state
-      4 struct ext4_extent_idx
-
-everything beyond that is 3 instances or less...
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
