@@ -1,204 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 542306B0033
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 13:20:58 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id q8so2391410pfh.12
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:20:58 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id a24si8487180pgw.394.2018.01.19.10.20.56
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EB2216B0069
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 13:42:20 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id e69so2669578iod.17
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 10:42:20 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id n132sor1093290ita.136.2018.01.19.10.42.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jan 2018 10:20:56 -0800 (PST)
-Date: Fri, 19 Jan 2018 13:20:52 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180119132052.02b89626@gandalf.local.home>
-In-Reply-To: <20180117134201.0a9cbbbf@gandalf.local.home>
-References: <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
-	<20180110130517.6ff91716@vmware.local.home>
-	<20180111045817.GA494@jagdpanzerIV>
-	<20180111093435.GA24497@linux.suse>
-	<20180111103845.GB477@jagdpanzerIV>
-	<20180111112908.50de440a@vmware.local.home>
-	<20180111203057.5b1a8f8f@gandalf.local.home>
-	<20180111215547.2f66a23a@gandalf.local.home>
-	<20180116194456.GS3460072@devbig577.frc2.facebook.com>
-	<20180117091208.ezvuhumnsarz5thh@pathway.suse.cz>
-	<20180117151509.GT3460072@devbig577.frc2.facebook.com>
-	<20180117121251.7283a56e@gandalf.local.home>
-	<20180117134201.0a9cbbbf@gandalf.local.home>
+        (Google Transport Security);
+        Fri, 19 Jan 2018 10:42:19 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180119125503.GA2897@bombadil.infradead.org>
+References: <201801170233.JDG21842.OFOJMQSHtOFFLV@I-love.SAKURA.ne.jp>
+ <CA+55aFyxyjN0Mqnz66B4a0R+uR8DdfxdMhcg5rJVi8LwnpSRfA@mail.gmail.com>
+ <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
+ <201801181712.BFD13039.LtHOSVMFJQFOFO@I-love.SAKURA.ne.jp>
+ <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name> <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
+ <20180118145830.GA6406@redhat.com> <20180118165629.kpdkezarsf4qymnw@node.shutemov.name>
+ <CA+55aFy43ypm0QvA5SqNR4O0ZJETbkR3NDR=dnSdvejc_nmSJQ@mail.gmail.com>
+ <20180118234955.nlo55rw2qsfnavfm@node.shutemov.name> <20180119125503.GA2897@bombadil.infradead.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 19 Jan 2018 10:42:18 -0800
+Message-ID: <CA+55aFwWCeFrhN+WJDD8u9nqBzmvknXk428Q0dVwwXAvwhg_-w@mail.gmail.com>
+Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Tony Luck <tony.luck@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
 
-Tejun,
+On Fri, Jan 19, 2018 at 4:55 AM, Matthew Wilcox <willy@infradead.org> wrote:
+>
+> So really we should be casting 'b' and 'a' to uintptr_t to be fully
+> compliant with the spec.
 
-I was thinking about this a bit more, and instead of offloading a
-recursive printk, perhaps its best to simply throttle it. Because the
-problem may not go away if a printk thread takes over, because the bug
-is really the printk infrastructure filling the printk buffer keeping
-printk from ever stopping.
+That's an unnecessary technicality.
 
-This patch detects that printk is causing itself to print more and
-throttles it after 3 messages have printed due to recursion. Could you
-see if this helps your test cases?
+Any compiler that doesn't get pointer inequality testing right is not
+worth even worrying about. We wouldn't want to use such a compiler,
+because it's intentionally generating garbage just to f*ck with us.
+Why would you go along with that?
 
-I built this on top of linux-next (yesterday's branch).
+So the only real issue is that pointer subtraction case.
 
-It compiles and boots, but I didn't do any other tests on it.
+I actually asked (long long ago) for an optinal compiler warning for
+"pointer subtraction with non-power-of-2 sizes". Not because of it
+being undefined, but simply because it's expensive. The
+divide->multiply thing doesn't always work, and a real divide is
+really quite expensive on many architectures.
 
-Thanks!
+We *should* be careful about it. I guess sparse could be made to warn,
+but I'm afraid that we have so many of these things that a warning
+isn't reasonable.
 
--- Steve
+And most of the time, a pointer difference really is inside the same
+array. The operation doesn't tend to make sense otherwise.
 
-diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index 9cb943c90d98..2c7f18876224 100644
---- a/kernel/printk/printk.c
-+++ b/kernel/printk/printk.c
-@@ -1826,6 +1826,75 @@ static size_t log_output(int facility, int level, enum log_flags lflags, const c
- 	/* Store it in the record log */
- 	return log_store(facility, level, lflags, 0, dict, dictlen, text, text_len);
- }
-+/*
-+ * Used for which context the printk is in.
-+ *  NMI     = 0
-+ *  IRQ     = 1
-+ *  SOFTIRQ = 2
-+ *  NORMAL  = 3
-+ *
-+ * Stack ordered, where the lower number can preempt
-+ * the higher number: mask &= mask - 1, will only clear
-+ * the lowerest set bit.
-+ */
-+enum {
-+	CTX_NMI,
-+	CTX_IRQ,
-+	CTX_SOFTIRQ,
-+	CTX_NORMAL,
-+};
-+
-+static DEFINE_PER_CPU(int, recursion_bits);
-+static DEFINE_PER_CPU(int, recursion_count);
-+static atomic_t recursion_overflow;
-+static const int recursion_max = 3;
-+
-+static int __recursion_check_test(int val)
-+{
-+	unsigned long pc = preempt_count();
-+	int bit;
-+
-+	if (!(pc & (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET)))
-+		bit = CTX_NORMAL;
-+	else
-+		bit = pc & NMI_MASK ? CTX_NMI :
-+			pc & HARDIRQ_MASK ? CTX_IRQ : CTX_SOFTIRQ;
-+
-+	return val & (1 << bit);
-+}
-+
-+static bool recursion_check_test(void)
-+{
-+	int val = this_cpu_read(recursion_bits);
-+
-+	return __recursion_check_test(val);
-+}
-+
-+static bool recursion_check_start(void)
-+{
-+	int val = this_cpu_read(recursion_bits);
-+	int set;
-+
-+	set = __recursion_check_test(val);
-+
-+	if (unlikely(set))
-+		return true;
-+
-+	val |= set;
-+	this_cpu_write(recursion_bits, val);
-+	return false;
-+}
-+
-+static void recursion_check_finish(bool recursion)
-+{
-+	int val = this_cpu_read(recursion_bits);
-+
-+	if (recursion)
-+		return;
-+
-+	val &= val - 1;
-+	this_cpu_write(recursion_bits, val);
-+}
- 
- asmlinkage int vprintk_emit(int facility, int level,
- 			    const char *dict, size_t dictlen,
-@@ -1849,6 +1918,17 @@ asmlinkage int vprintk_emit(int facility, int level,
- 
- 	/* This stops the holder of console_sem just where we want him */
- 	logbuf_lock_irqsave(flags);
-+
-+	if (recursion_check_test()) {
-+		/* A printk happened within a printk at the same context */
-+		if (this_cpu_inc_return(recursion_count) > recursion_max) {
-+			atomic_inc(&recursion_overflow);
-+			logbuf_unlock_irqrestore(flags);
-+			printed_len = 0;
-+			goto out;
-+		}
-+	}
-+
- 	/*
- 	 * The printf needs to come first; we need the syslog
- 	 * prefix which might be passed-in as a parameter.
-@@ -1895,12 +1975,14 @@ asmlinkage int vprintk_emit(int facility, int level,
- 
- 	/* If called from the scheduler, we can not call up(). */
- 	if (!in_sched) {
-+		bool recursion;
- 		/*
- 		 * Disable preemption to avoid being preempted while holding
- 		 * console_sem which would prevent anyone from printing to
- 		 * console
- 		 */
- 		preempt_disable();
-+		recursion = recursion_check_start();
- 		/*
- 		 * Try to acquire and then immediately release the console
- 		 * semaphore.  The release will print out buffers and wake up
-@@ -1908,9 +1990,12 @@ asmlinkage int vprintk_emit(int facility, int level,
- 		 */
- 		if (console_trylock_spinning())
- 			console_unlock();
-+
-+		recursion_check_finish(recursion);
-+		this_cpu_write(recursion_count, 0);
- 		preempt_enable();
- 	}
--
-+out:
- 	return printed_len;
- }
- EXPORT_SYMBOL(vprintk_emit);
-@@ -2343,9 +2428,14 @@ void console_unlock(void)
- 			seen_seq = log_next_seq;
- 		}
- 
--		if (console_seq < log_first_seq) {
-+		if (console_seq < log_first_seq || atomic_read(&recursion_overflow)) {
-+			size_t missed;
-+
-+			missed = atomic_xchg(&recursion_overflow, 0);
-+			missed += log_first_seq - console_seq;
-+
- 			len = sprintf(text, "** %u printk messages dropped **\n",
--				      (unsigned)(log_first_seq - console_seq));
-+				      (unsigned)missed);
- 
- 			/* messages are gone, move to first one */
- 			console_seq = log_first_seq;
+           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
