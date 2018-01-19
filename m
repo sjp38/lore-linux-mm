@@ -1,65 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E6F546B0038
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:20:08 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id p190so1015382wmd.0
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 04:20:08 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p67si865660wma.231.2018.01.19.04.20.07
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AAAC76B0038
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 07:30:59 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id k6so1725653pgt.15
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 04:30:59 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id z14si8390494pgr.243.2018.01.19.04.30.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Jan 2018 04:20:07 -0800 (PST)
-Date: Fri, 19 Jan 2018 13:20:05 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] Per file OOM badness
-Message-ID: <20180119122005.GX6584@dhcp22.suse.cz>
-References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
- <20180118170006.GG6584@dhcp22.suse.cz>
- <20180118171355.GH6584@dhcp22.suse.cz>
- <87k1wfgcmb.fsf@anholt.net>
- <20180119082046.GL6584@dhcp22.suse.cz>
- <0cfaf256-928c-4cb8-8220-b8992592071b@amd.com>
- <20180119104058.GU6584@dhcp22.suse.cz>
- <d4fe7e59-da2d-11a5-73e2-55f2f27cdfd8@amd.com>
- <20180119121351.GW6584@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Jan 2018 04:30:58 -0800 (PST)
+Date: Fri, 19 Jan 2018 15:30:51 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
+Message-ID: <20180119123051.xd5orkoagxanp23d@black.fi.intel.com>
+References: <201801172008.CHH39543.FFtMHOOVSQJLFO@I-love.SAKURA.ne.jp>
+ <201801181712.BFD13039.LtHOSVMFJQFOFO@I-love.SAKURA.ne.jp>
+ <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name>
+ <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
+ <20180118154026.jzdgdhkcxiliaulp@node.shutemov.name>
+ <20180118172213.GI6584@dhcp22.suse.cz>
+ <20180119100259.rwq3evikkemtv7q5@node.shutemov.name>
+ <20180119103342.GS6584@dhcp22.suse.cz>
+ <20180119114917.rvghcgexgbm73xkq@node.shutemov.name>
+ <20180119120747.GV6584@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180119121351.GW6584@dhcp22.suse.cz>
+In-Reply-To: <20180119120747.GV6584@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
-Cc: Eric Anholt <eric@anholt.net>, Andrey Grodzovsky <andrey.grodzovsky@amd.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@linux.intel.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, torvalds@linux-foundation.org, akpm@linux-foundation.org, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, tony.luck@intel.com, vbabka@suse.cz, aarcange@redhat.com, hillf.zj@alibaba-inc.com, hughd@google.com, oleg@redhat.com, peterz@infradead.org, riel@redhat.com, srikar@linux.vnet.ibm.com, vdavydov.dev@gmail.com, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 
-On Fri 19-01-18 13:13:51, Michal Hocko wrote:
-> On Fri 19-01-18 12:37:51, Christian Konig wrote:
-> [...]
-> > The per file descriptor badness is/was just the much easier approach to
-> > solve the issue, because the drivers already knew which client is currently
-> > using which buffer objects.
+On Fri, Jan 19, 2018 at 12:07:47PM +0000, Michal Hocko wrote:
+> > >From 861f68c555b87fd6c0ccc3428ace91b7e185b73a Mon Sep 17 00:00:00 2001
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > Date: Thu, 18 Jan 2018 18:24:07 +0300
+> > Subject: [PATCH] mm, page_vma_mapped: Drop faulty pointer arithmetics in
+> >  check_pte()
 > > 
-> > I of course agree that file descriptors can be shared between processes and
-> > are by themselves not killable. But at least for our graphics driven use
-> > case I don't see much of a problem killing all processes when a file
-> > descriptor is used by more than one at the same time.
+> > Tetsuo reported random crashes under memory pressure on 32-bit x86
+> > system and tracked down to change that introduced
+> > page_vma_mapped_walk().
+> > 
+> > The root cause of the issue is the faulty pointer math in check_pte().
+> > As ->pte may point to an arbitrary page we have to check that they are
+> > belong to the section before doing math. Otherwise it may lead to weird
+> > results.
+> > 
+> > It wasn't noticed until now as mem_map[] is virtually contiguous on flatmem or
+> > vmemmap sparsemem. Pointer arithmetic just works against all 'struct page'
+> > pointers. But with classic sparsemem, it doesn't.
 > 
-> Ohh, I absolutely see why you have chosen this way for your particular
-> usecase. I am just arguing that this would rather be more generic to be
-> merged. If there is absolutely no other way around we can consider it
-> but right now I do not see that all other options have been considered
-> properly. Especially when the fd based approach is basically wrong for
-> almost anybody else.
+> it doesn't because each section memap is allocated separately and so
+> consecutive pfns crossing two sections might have struct pages at
+> completely unrelated addresses.
 
-And more importantly. Iterating over _all_ fd which is what is your
-approach is based on AFAIU is not acceptable for the OOM path. Even
-though oom_badness is not a hot path we do not really want it to take a
-lot of time either. Even the current iteration over all processes is
-quite time consuming. Now you want to add the number of opened files and
-that might be quite many per process.
+Okay, I'll amend it.
+
+> > Let's restructure code a bit and replace pointer arithmetic with
+> > operations on pfns.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+> > Fixes: ace71a19cec5 ("mm: introduce page_vma_mapped_walk()")
+> > Cc: stable@vger.kernel.org
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> 
+> The patch makes sense but there is one more thing to fix here.
+> 
+> [...]
+> >  static bool check_pte(struct page_vma_mapped_walk *pvmw)
+> >  {
+> > +	unsigned long pfn;
+> > +
+> >  	if (pvmw->flags & PVMW_MIGRATION) {
+> >  #ifdef CONFIG_MIGRATION
+> >  		swp_entry_t entry;
+> > @@ -41,37 +61,34 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
+> >  
+> >  		if (!is_migration_entry(entry))
+> >  			return false;
+> > -		if (migration_entry_to_page(entry) - pvmw->page >=
+> > -				hpage_nr_pages(pvmw->page)) {
+> > -			return false;
+> > -		}
+> > -		if (migration_entry_to_page(entry) < pvmw->page)
+> > -			return false;
+> > +
+> > +		pfn = migration_entry_to_pfn(entry);
+> >  #else
+> >  		WARN_ON_ONCE(1);
+> >  #endif
+> > -	} else {
+> 
+> now you allow to pass through with uninitialized pfn. We used to return
+> true in that case so we should probably keep it in this WARN_ON_ONCE
+> case. Please note that I haven't studied this particular case and the
+> ifdef is definitely not an act of art but that is a separate topic.
+
+Good catch. Thanks.
+
+I think returning true here is wrong as we don't validate in any way what
+is mapped there. I'll put "return false;".
+
+And I take a look if we can drop the #ifdef.
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
