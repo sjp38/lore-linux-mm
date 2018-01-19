@@ -1,132 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C246B0266
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 04:32:16 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id l88so511057lfi.19
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:32:16 -0800 (PST)
-Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
-        by mx.google.com with ESMTP id x78si296980lfa.268.2018.01.19.01.32.13
-        for <linux-mm@kvack.org>;
-        Fri, 19 Jan 2018 01:32:14 -0800 (PST)
-Subject: Re: [RFC] Per file OOM badness
-References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
- <20180118170006.GG6584@dhcp22.suse.cz> <20180118171355.GH6584@dhcp22.suse.cz>
- <87k1wfgcmb.fsf@anholt.net> <20180119082046.GL6584@dhcp22.suse.cz>
- <0cfaf256-928c-4cb8-8220-b8992592071b@amd.com>
-From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
-Message-ID: <a3f6dc22-fce2-4371-462a-a4898249cf61@daenzer.net>
-Date: Fri, 19 Jan 2018 10:32:09 +0100
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3076D6B0266
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 04:51:46 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 82so1374689pfs.8
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:51:46 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o2sor1853409pge.239.2018.01.19.01.51.44
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 19 Jan 2018 01:51:44 -0800 (PST)
+Date: Fri, 19 Jan 2018 18:51:41 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH v5 1/2] printk: Add console owner and waiter logic to
+ load balance console writes
+Message-ID: <20180119095141.GA29479@tigerII.localdomain>
+References: <20180110132418.7080-1-pmladek@suse.com>
+ <20180110132418.7080-2-pmladek@suse.com>
+ <20180112115454.17c03c8f@gandalf.local.home>
+ <20180112121148.20778932@gandalf.local.home>
+ <2c4e5175-e806-02f9-1467-081a9f533de1@prevas.dk>
 MIME-Version: 1.0
-In-Reply-To: <0cfaf256-928c-4cb8-8220-b8992592071b@amd.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2c4e5175-e806-02f9-1467-081a9f533de1@prevas.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Michal Hocko <mhocko@kernel.org>, Eric Anholt <eric@anholt.net>
-Cc: Andrey Grodzovsky <andrey.grodzovsky@amd.com>, amd-gfx@lists.freedesktop.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org
+To: Rasmus Villemoes <rasmus.villemoes@prevas.dk>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On 2018-01-19 09:39 AM, Christian KA?nig wrote:
-> Am 19.01.2018 um 09:20 schrieb Michal Hocko:
->> On Thu 18-01-18 12:01:32, Eric Anholt wrote:
->>> Michal Hocko <mhocko@kernel.org> writes:
->>>
->>>> On Thu 18-01-18 18:00:06, Michal Hocko wrote:
->>>>> On Thu 18-01-18 11:47:48, Andrey Grodzovsky wrote:
->>>>>> Hi, this series is a revised version of an RFC sent by Christian
->>>>>> KA?nig
->>>>>> a few years ago. The original RFC can be found at
->>>>>> https://lists.freedesktop.org/archives/dri-devel/2015-September/089778.html
->>>>>>
->>>>>>
->>>>>> This is the same idea and I've just adressed his concern from the
->>>>>> original RFC
->>>>>> and switched to a callback into file_ops instead of a new member
->>>>>> in struct file.
->>>>> Please add the full description to the cover letter and do not make
->>>>> people hunt links.
->>>>>
->>>>> Here is the origin cover letter text
->>>>> : I'm currently working on the issue that when device drivers
->>>>> allocate memory on
->>>>> : behalf of an application the OOM killer usually doesn't knew
->>>>> about that unless
->>>>> : the application also get this memory mapped into their address
->>>>> space.
->>>>> :
->>>>> : This is especially annoying for graphics drivers where a lot of
->>>>> the VRAM
->>>>> : usually isn't CPU accessible and so doesn't make sense to map
->>>>> into the
->>>>> : address space of the process using it.
->>>>> :
->>>>> : The problem now is that when an application starts to use a lot
->>>>> of VRAM those
->>>>> : buffers objects sooner or later get swapped out to system memory,
->>>>> but when we
->>>>> : now run into an out of memory situation the OOM killer obviously
->>>>> doesn't knew
->>>>> : anything about that memory and so usually kills the wrong process.
->>>> OK, but how do you attribute that memory to a particular OOM killable
->>>> entity? And how do you actually enforce that those resources get freed
->>>> on the oom killer action?
->>>>
->>>>> : The following set of patches tries to address this problem by
->>>>> introducing a per
->>>>> : file OOM badness score, which device drivers can use to give the
->>>>> OOM killer a
->>>>> : hint how many resources are bound to a file descriptor so that it
->>>>> can make
->>>>> : better decisions which process to kill.
->>>> But files are not killable, they can be shared... In other words this
->>>> doesn't help the oom killer to make an educated guess at all.
->>> Maybe some more context would help the discussion?
->>>
->>> The struct file in patch 3 is the DRM fd.A  That's effectively "my
->>> process's interface to talking to the GPU" not "a single GPU resource".
->>> Once that file is closed, all of the process's private, idle GPU buffers
->>> will be immediately freed (this will be most of their allocations), and
->>> some will be freed once the GPU completes some work (this will be most
->>> of the rest of their allocations).
->>>
->>> Some GEM BOs won't be freed just by closing the fd, if they've been
->>> shared between processes.A  Those are usually about 8-24MB total in a
->>> process, rather than the GBs that modern apps use (or that our testcases
->>> like to allocate and thus trigger oomkilling of the test harness instead
->>> of the offending testcase...)
->>>
->>> Even if we just had the private+idle buffers being accounted in OOM
->>> badness, that would be a huge step forward in system reliability.
->> OK, in that case I would propose a different approach. We already
->> have rss_stat. So why do not we simply add a new counter there
->> MM_KERNELPAGES and consider those in oom_badness? The rule would be
->> that such a memory is bound to the process life time. I guess we will
->> find more users for this later.
+On (01/17/18 20:13), Rasmus Villemoes wrote:
+[..]
+> >> Hmm, how does one have git commit not remove the C preprocessor at the
+> >> start of the module?
+> > 
+> > Probably just add a space in front of the entire program.
 > 
-> I already tried that and the problem with that approach is that some
-> buffers are not created by the application which actually uses them.
+> If you use at least git 2.0.0 [1], set commit.cleanup to "scissors".
+> Something like
 > 
-> For example X/Wayland is creating and handing out render buffers to
-> application which want to use OpenGL.
+>   git config commit.cleanup scissors
 > 
-> So the result is when you always account the application who created the
-> buffer the OOM killer will certainly reap X/Wayland first. And that is
-> exactly what we want to avoid here.
+> should do the trick. Instead of stripping all lines starting with #,
+> that will only strip stuff below a line containing
+> 
+> # ------------------------ >8 ------------------------
 
-FWIW, what you describe is true with DRI2, but not with DRI3 or Wayland
-anymore. With DRI3 and Wayland, buffers are allocated by the clients and
-then shared with the X / Wayland server.
-
-Also, in all cases, the amount of memory allocated for buffers shared
-between DRI/Wayland clients and the server should be relatively small
-compared to the amount of memory allocated for buffers used only locally
-in the client, particularly for clients which create significant memory
-pressure.
+one thing that it changes is that now when you squash commits
 
 
--- 
-Earthling Michel DA?nzer               |               http://www.amd.com
-Libre software enthusiast             |             Mesa and X developer
+# This is the first patch
+
+first patch commit messages
+
+# This is the second patch
+
+second patch commit message
+
+# ------------------------ >8 ------------------------
+
+
+
+those "# This is the first patch" and "# This is the second patch"
+won't be removed automatically. takes some time to get used to it.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
