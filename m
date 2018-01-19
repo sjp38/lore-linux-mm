@@ -1,121 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DCC16B0253
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 12:05:04 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id e26so2240770pgv.16
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 09:05:04 -0800 (PST)
-Received: from out02.mta.xmission.com (out02.mta.xmission.com. [166.70.13.232])
-        by mx.google.com with ESMTPS id h7si727009pgv.172.2018.01.19.09.05.02
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 732C96B0033
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 12:30:28 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id q4so1457552oti.6
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 09:30:28 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d74sor3201134oig.194.2018.01.19.09.30.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jan 2018 09:05:02 -0800 (PST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <1516326648-22775-1-git-send-email-linuxram@us.ibm.com>
-	<1516326648-22775-28-git-send-email-linuxram@us.ibm.com>
-	<87shb1de4a.fsf@xmission.com>
-	<20180119165050.GK5612@ram.oc3035372033.ibm.com>
-Date: Fri, 19 Jan 2018 11:04:02 -0600
-In-Reply-To: <20180119165050.GK5612@ram.oc3035372033.ibm.com> (Ram Pai's
-	message of "Fri, 19 Jan 2018 08:50:50 -0800")
-Message-ID: <87efmldblp.fsf@xmission.com>
+        (Google Transport Security);
+        Fri, 19 Jan 2018 09:30:27 -0800 (PST)
+Subject: Re: [Bug 198497] New: handle_mm_fault / xen_pmd_val /
+ radix_tree_lookup_slot Null pointer
+References: <bug-198497-27@https.bugzilla.kernel.org/>
+ <20180118135518.639141f0b0ea8bb047ab6306@linux-foundation.org>
+ <7ba7635e-249a-9071-75bb-7874506bd2b2@redhat.com>
+ <20180119030447.GA26245@bombadil.infradead.org>
+ <d38ff996-8294-81a6-075f-d7b2a60aa2f4@rimuhosting.com>
+ <20180119132145.GB2897@bombadil.infradead.org>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <9d2ddba4-3fb3-0fb4-a058-f2cfd1b05538@redhat.com>
+Date: Fri, 19 Jan 2018 09:30:23 -0800
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [PATCH v10 27/27] mm: display pkey in smaps if arch_pkeys_enabled() is true
+In-Reply-To: <20180119132145.GB2897@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com
+To: Matthew Wilcox <willy@infradead.org>, xen@randomwebstuff.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
 
-Ram Pai <linuxram@us.ibm.com> writes:
+On 01/19/2018 05:21 AM, Matthew Wilcox wrote:
+> On Fri, Jan 19, 2018 at 04:14:42PM +1300, xen@randomwebstuff.com wrote:
+>>
+>> On 19/01/18 4:04 PM, Matthew Wilcox wrote:
+>>> On Thu, Jan 18, 2018 at 02:18:20PM -0800, Laura Abbott wrote:
+>>>> On 01/18/2018 01:55 PM, Andrew Morton wrote:
+>>>>>> [   24.647744] BUG: unable to handle kernel NULL pointer dereference at
+>>>>>> 00000008
+>>>>>> [   24.647801] IP: __radix_tree_lookup+0x14/0xa0
+>>>>>> [   24.647811] *pdpt = 00000000253d6027 *pde = 0000000000000000
+>>>>>> [   24.647828] Oops: 0000 [#1] SMP
+>>>>>> [   24.647842] CPU: 5 PID: 3600 Comm: java Not tainted
+>>>>>> 4.14.13-rh10-20180115190010.xenU.i386 #1
+>>>>>> [   24.647855] task: e52518c0 task.stack: e4e7a000
+>>>>>> [   24.647866] EIP: __radix_tree_lookup+0x14/0xa0
+>>>>>> [   24.647876] EFLAGS: 00010286 CPU: 5
+>>>>>> [   24.647884] EAX: 00000004 EBX: 00000007 ECX: 00000000 EDX: 00000000
+> 
+> If my understanding is right, EDX contains the index we're looking up.
+> Which is zero.  So the swp_entry we got is one bit away from being NULL.
+> Hmm.  Have you run memtest86 or some other memory tester on the system
+> recently?
+> 
+>> PS: cannot recall seeing this issue on x86_64, just 32 bit.
+> 
+> Laura has 64-bit instances of this.
+> 
 
-> On Fri, Jan 19, 2018 at 10:09:41AM -0600, Eric W. Biederman wrote:
->> Ram Pai <linuxram@us.ibm.com> writes:
->> 
->> > Currently the  architecture  specific code is expected to
->> > display  the  protection  keys  in  smap  for a given vma.
->> > This can lead to redundant code and possibly to divergent
->> > formats in which the key gets displayed.
->> >
->> > This  patch  changes  the implementation. It displays the
->> > pkey only if the architecture support pkeys.
->> >
->> > x86 arch_show_smap() function is not needed anymore.
->> > Delete it.
->> >
->> > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
->> > ---
->> >  arch/x86/kernel/setup.c |    8 --------
->> >  fs/proc/task_mmu.c      |   11 ++++++-----
->> >  2 files changed, 6 insertions(+), 13 deletions(-)
->> >
->> > diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
->> > index 8af2e8d..ddf945a 100644
->> > --- a/arch/x86/kernel/setup.c
->> > +++ b/arch/x86/kernel/setup.c
->> > @@ -1326,11 +1326,3 @@ static int __init register_kernel_offset_dumper(void)
->> >  	return 0;
->> >  }
->> >  __initcall(register_kernel_offset_dumper);
->> > -
->> > -void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
->> > -{
->> > -	if (!boot_cpu_has(X86_FEATURE_OSPKE))
->> > -		return;
->> > -
->> > -	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
->> > -}
->> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
->> > index 0edd4da..4b39a94 100644
->> > --- a/fs/proc/task_mmu.c
->> > +++ b/fs/proc/task_mmu.c
->> > @@ -18,6 +18,7 @@
->> >  #include <linux/page_idle.h>
->> >  #include <linux/shmem_fs.h>
->> >  #include <linux/uaccess.h>
->> > +#include <linux/pkeys.h>
->> >  
->> >  #include <asm/elf.h>
->> >  #include <asm/tlb.h>
->> > @@ -728,10 +729,6 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
->> >  }
->> >  #endif /* HUGETLB_PAGE */
->> >  
->> > -void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
->> > -{
->> > -}
->> > -
->> >  static int show_smap(struct seq_file *m, void *v, int is_pid)
->> >  {
->> >  	struct proc_maps_private *priv = m->private;
->> > @@ -851,9 +848,13 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
->> >  			   (unsigned long)(mss->pss >> (10 + PSS_SHIFT)));
->> >  
->> >  	if (!rollup_mode) {
->> > -		arch_show_smap(m, vma);
->> > +#ifdef CONFIG_ARCH_HAS_PKEYS
->> > +		if (arch_pkeys_enabled())
->> > +			seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
->> > +#endif
->> 
->> Would it be worth it making vma_pkey a noop on architectures that don't
->> support protection keys so that we don't need the #ifdef here?
->
-> You mean something like this?
-> 	#define vma_pkey(vma)  
-> It will lead to compilation error.
->
->
-> I can make it
-> 	#define vma_pkey(vma)  0
->
-> and that will work and get rid of the #ifdef
+The 64-bit backtraces reported in the bugzilla looked different,
+I would consider it a different issue.
 
-Yes the second is what I was thinking.
-
-I don't know if it is worth it but #ifdefs can be problematic as the
-result in code not being compile tested.
-
-Eric
+> PPS: reminder
+>> this is on a Xen VM which per https://xenbits.xen.org/docs/unstable/man/xl.cfg.5.html#PVH-Guest-Specific-Options
+>> has "out of sync pagetables" if that is relevant (we do not set that option,
+>> I am unsure what default is used).
+> 
+> Laura also has non-Xen instances of this.  They may not all be the same
+> bug, of course.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
