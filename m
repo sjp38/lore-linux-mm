@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 600406B0069
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 20:52:47 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id d15so375608qtg.2
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:52:47 -0800 (PST)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 163026B0288
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 20:52:50 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id e20so345174qtg.8
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:52:50 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 29sor6183466qkv.87.2018.01.18.17.52.46
+        by mx.google.com with SMTPS id o62sor2602762qke.55.2018.01.18.17.52.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 18 Jan 2018 17:52:46 -0800 (PST)
+        Thu, 18 Jan 2018 17:52:48 -0800 (PST)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v10 22/27] powerpc/ptrace: Add memory protection key regset
-Date: Thu, 18 Jan 2018 17:50:43 -0800
-Message-Id: <1516326648-22775-23-git-send-email-linuxram@us.ibm.com>
+Subject: [PATCH v10 23/27] powerpc: Enable pkey subsystem
+Date: Thu, 18 Jan 2018 17:50:44 -0800
+Message-Id: <1516326648-22775-24-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1516326648-22775-1-git-send-email-linuxram@us.ibm.com>
 References: <1516326648-22775-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,177 +20,223 @@ List-ID: <linux-mm.kvack.org>
 To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com
 
-From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
+PAPR defines 'ibm,processor-storage-keys' property. It exports two
+values. The first value holds the number of data-access keys and the
+second holds the number of instruction-access keys.  Due to a bug in
+the  firmware, instruction-access  keys is  always  reported  as zero.
+However any key can be configured to disable data-access and/or disable
+execution-access. The inavailablity of the second value is not a
+big handicap, though it could have been used to determine if the
+platform supported disable-execution-access.
 
-The AMR/IAMR/UAMOR are part of the program context.
-Allow it to be accessed via ptrace and through core files.
+Non-PAPR platforms do not define this property in the device tree yet.
+Fortunately power8 is the only released Non-PAPR platform that is
+supported.  Here, we hardcode the number of supported pkey to 32, by
+consulting the PowerISA3.0
+
+This patch calculates the number of keys supported by the platform.
+Also it determines the platform support for read/write/execution access
+support for pkeys.
 
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-Signed-off-by: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/pkeys.h    |    5 +++
- arch/powerpc/include/uapi/asm/elf.h |    1 +
- arch/powerpc/kernel/ptrace.c        |   66 +++++++++++++++++++++++++++++++++++
- arch/powerpc/kernel/traps.c         |    7 ++++
- include/uapi/linux/elf.h            |    1 +
- 5 files changed, 80 insertions(+), 0 deletions(-)
+ arch/powerpc/include/asm/cputable.h |   16 ++++++---
+ arch/powerpc/include/asm/pkeys.h    |    3 ++
+ arch/powerpc/mm/pkeys.c             |   61 +++++++++++++++++++++++++++++-----
+ 3 files changed, 65 insertions(+), 15 deletions(-)
 
+diff --git a/arch/powerpc/include/asm/cputable.h b/arch/powerpc/include/asm/cputable.h
+index 0546663..5b54337 100644
+--- a/arch/powerpc/include/asm/cputable.h
++++ b/arch/powerpc/include/asm/cputable.h
+@@ -207,7 +207,7 @@ enum {
+ #define CPU_FTR_STCX_CHECKS_ADDRESS	LONG_ASM_CONST(0x0004000000000000)
+ #define CPU_FTR_POPCNTB			LONG_ASM_CONST(0x0008000000000000)
+ #define CPU_FTR_POPCNTD			LONG_ASM_CONST(0x0010000000000000)
+-/* Free					LONG_ASM_CONST(0x0020000000000000) */
++#define CPU_FTR_PKEY			LONG_ASM_CONST(0x0020000000000000)
+ #define CPU_FTR_VMX_COPY		LONG_ASM_CONST(0x0040000000000000)
+ #define CPU_FTR_TM			LONG_ASM_CONST(0x0080000000000000)
+ #define CPU_FTR_CFAR			LONG_ASM_CONST(0x0100000000000000)
+@@ -215,6 +215,7 @@ enum {
+ #define CPU_FTR_DAWR			LONG_ASM_CONST(0x0400000000000000)
+ #define CPU_FTR_DABRX			LONG_ASM_CONST(0x0800000000000000)
+ #define CPU_FTR_PMAO_BUG		LONG_ASM_CONST(0x1000000000000000)
++#define CPU_FTR_PKEY_EXECUTE		LONG_ASM_CONST(0x2000000000000000)
+ #define CPU_FTR_POWER9_DD1		LONG_ASM_CONST(0x4000000000000000)
+ #define CPU_FTR_POWER9_DD2_1		LONG_ASM_CONST(0x8000000000000000)
+ 
+@@ -437,7 +438,8 @@ enum {
+ 	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
+ 	    CPU_FTR_MMCRA | CPU_FTR_SMT | \
+ 	    CPU_FTR_COHERENT_ICACHE | CPU_FTR_PURR | \
+-	    CPU_FTR_STCX_CHECKS_ADDRESS | CPU_FTR_POPCNTB | CPU_FTR_DABRX)
++	    CPU_FTR_STCX_CHECKS_ADDRESS | CPU_FTR_POPCNTB | CPU_FTR_DABRX | \
++	    CPU_FTR_PKEY)
+ #define CPU_FTRS_POWER6 (CPU_FTR_USE_TB | CPU_FTR_LWSYNC | \
+ 	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
+ 	    CPU_FTR_MMCRA | CPU_FTR_SMT | \
+@@ -445,7 +447,7 @@ enum {
+ 	    CPU_FTR_PURR | CPU_FTR_SPURR | CPU_FTR_REAL_LE | \
+ 	    CPU_FTR_DSCR | CPU_FTR_UNALIGNED_LD_STD | \
+ 	    CPU_FTR_STCX_CHECKS_ADDRESS | CPU_FTR_POPCNTB | CPU_FTR_CFAR | \
+-	    CPU_FTR_DABRX)
++	    CPU_FTR_DABRX | CPU_FTR_PKEY)
+ #define CPU_FTRS_POWER7 (CPU_FTR_USE_TB | CPU_FTR_LWSYNC | \
+ 	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | CPU_FTR_ARCH_206 |\
+ 	    CPU_FTR_MMCRA | CPU_FTR_SMT | \
+@@ -454,7 +456,7 @@ enum {
+ 	    CPU_FTR_DSCR | CPU_FTR_SAO  | CPU_FTR_ASYM_SMT | \
+ 	    CPU_FTR_STCX_CHECKS_ADDRESS | CPU_FTR_POPCNTB | CPU_FTR_POPCNTD | \
+ 	    CPU_FTR_CFAR | CPU_FTR_HVMODE | \
+-	    CPU_FTR_VMX_COPY | CPU_FTR_HAS_PPR | CPU_FTR_DABRX)
++	    CPU_FTR_VMX_COPY | CPU_FTR_HAS_PPR | CPU_FTR_DABRX | CPU_FTR_PKEY)
+ #define CPU_FTRS_POWER8 (CPU_FTR_USE_TB | CPU_FTR_LWSYNC | \
+ 	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | CPU_FTR_ARCH_206 |\
+ 	    CPU_FTR_MMCRA | CPU_FTR_SMT | \
+@@ -464,7 +466,8 @@ enum {
+ 	    CPU_FTR_STCX_CHECKS_ADDRESS | CPU_FTR_POPCNTB | CPU_FTR_POPCNTD | \
+ 	    CPU_FTR_CFAR | CPU_FTR_HVMODE | CPU_FTR_VMX_COPY | \
+ 	    CPU_FTR_DBELL | CPU_FTR_HAS_PPR | CPU_FTR_DAWR | \
+-	    CPU_FTR_ARCH_207S | CPU_FTR_TM_COMP)
++	    CPU_FTR_ARCH_207S | CPU_FTR_TM_COMP | CPU_FTR_PKEY |\
++	    CPU_FTR_PKEY_EXECUTE)
+ #define CPU_FTRS_POWER8E (CPU_FTRS_POWER8 | CPU_FTR_PMAO_BUG)
+ #define CPU_FTRS_POWER8_DD1 (CPU_FTRS_POWER8 & ~CPU_FTR_DBELL)
+ #define CPU_FTRS_POWER9 (CPU_FTR_USE_TB | CPU_FTR_LWSYNC | \
+@@ -476,7 +479,8 @@ enum {
+ 	    CPU_FTR_STCX_CHECKS_ADDRESS | CPU_FTR_POPCNTB | CPU_FTR_POPCNTD | \
+ 	    CPU_FTR_CFAR | CPU_FTR_HVMODE | CPU_FTR_VMX_COPY | \
+ 	    CPU_FTR_DBELL | CPU_FTR_HAS_PPR | CPU_FTR_DAWR | \
+-	    CPU_FTR_ARCH_207S | CPU_FTR_TM_COMP | CPU_FTR_ARCH_300)
++	    CPU_FTR_ARCH_207S | CPU_FTR_TM_COMP | CPU_FTR_ARCH_300 | \
++	    CPU_FTR_PKEY | CPU_FTR_PKEY_EXECUTE)
+ #define CPU_FTRS_POWER9_DD1 ((CPU_FTRS_POWER9 | CPU_FTR_POWER9_DD1) & \
+ 			     (~CPU_FTR_SAO))
+ #define CPU_FTRS_POWER9_DD2_0 CPU_FTRS_POWER9
 diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
-index 7c45a40..0c480b2 100644
+index 0c480b2..92b6776 100644
 --- a/arch/powerpc/include/asm/pkeys.h
 +++ b/arch/powerpc/include/asm/pkeys.h
-@@ -213,6 +213,11 @@ static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 	return __arch_set_user_pkey_access(tsk, pkey, init_val);
+@@ -13,6 +13,7 @@
+ #define _ASM_POWERPC_KEYS_H
+ 
+ #include <linux/jump_label.h>
++#include <asm/firmware.h>
+ 
+ DECLARE_STATIC_KEY_TRUE(pkey_disabled);
+ extern int pkeys_total; /* total pkeys as per device tree */
+@@ -219,6 +220,8 @@ static inline bool arch_pkeys_enabled(void)
  }
  
-+static inline bool arch_pkeys_enabled(void)
-+{
-+	return !static_branch_likely(&pkey_disabled);
-+}
-+
  extern void pkey_mm_init(struct mm_struct *mm);
++extern bool arch_supports_pkeys(int cap);
++extern unsigned int arch_usable_pkeys(void);
  extern void thread_pkey_regs_save(struct thread_struct *thread);
  extern void thread_pkey_regs_restore(struct thread_struct *new_thread,
-diff --git a/arch/powerpc/include/uapi/asm/elf.h b/arch/powerpc/include/uapi/asm/elf.h
-index 5f201d4..860c592 100644
---- a/arch/powerpc/include/uapi/asm/elf.h
-+++ b/arch/powerpc/include/uapi/asm/elf.h
-@@ -97,6 +97,7 @@
- #define ELF_NTMSPRREG	3	/* include tfhar, tfiar, texasr */
- #define ELF_NEBB	3	/* includes ebbrr, ebbhr, bescr */
- #define ELF_NPMU	5	/* includes siar, sdar, sier, mmcr2, mmcr0 */
-+#define ELF_NPKEY	3	/* includes amr, iamr, uamor */
- 
- typedef unsigned long elf_greg_t64;
- typedef elf_greg_t64 elf_gregset_t64[ELF_NGREG];
-diff --git a/arch/powerpc/kernel/ptrace.c b/arch/powerpc/kernel/ptrace.c
-index f52ad5b..3718a04 100644
---- a/arch/powerpc/kernel/ptrace.c
-+++ b/arch/powerpc/kernel/ptrace.c
-@@ -35,6 +35,7 @@
- #include <linux/context_tracking.h>
- 
- #include <linux/uaccess.h>
-+#include <linux/pkeys.h>
- #include <asm/page.h>
- #include <asm/pgtable.h>
- #include <asm/switch_to.h>
-@@ -1775,6 +1776,61 @@ static int pmu_set(struct task_struct *target,
- 	return ret;
- }
- #endif
-+
-+#ifdef CONFIG_PPC_MEM_KEYS
-+static int pkey_active(struct task_struct *target,
-+		       const struct user_regset *regset)
-+{
-+	if (!arch_pkeys_enabled())
-+		return -ENODEV;
-+
-+	return regset->n;
-+}
-+
-+static int pkey_get(struct task_struct *target,
-+		    const struct user_regset *regset,
-+		    unsigned int pos, unsigned int count,
-+		    void *kbuf, void __user *ubuf)
-+{
-+	BUILD_BUG_ON(TSO(amr) + sizeof(unsigned long) != TSO(iamr));
-+	BUILD_BUG_ON(TSO(iamr) + sizeof(unsigned long) != TSO(uamor));
-+
-+	if (!arch_pkeys_enabled())
-+		return -ENODEV;
-+
-+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-+				   &target->thread.amr, 0,
-+				   ELF_NPKEY * sizeof(unsigned long));
-+}
-+
-+static int pkey_set(struct task_struct *target,
-+		      const struct user_regset *regset,
-+		      unsigned int pos, unsigned int count,
-+		      const void *kbuf, const void __user *ubuf)
-+{
-+	u64 new_amr;
-+	int ret;
-+
-+	if (!arch_pkeys_enabled())
-+		return -ENODEV;
-+
-+	/* Only the AMR can be set from userspace */
-+	if (pos != 0 || count != sizeof(new_amr))
-+		return -EINVAL;
-+
-+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-+				 &new_amr, 0, sizeof(new_amr));
-+	if (ret)
-+		return ret;
-+
-+	/* UAMOR determines which bits of the AMR can be set from userspace. */
-+	target->thread.amr = (new_amr & target->thread.uamor) |
-+		(target->thread.amr & ~target->thread.uamor);
-+
-+	return 0;
-+}
-+#endif /* CONFIG_PPC_MEM_KEYS */
-+
- /*
-  * These are our native regset flavors.
+ 				     struct thread_struct *old_thread);
+diff --git a/arch/powerpc/mm/pkeys.c b/arch/powerpc/mm/pkeys.c
+index 0701aa3..66a1091 100644
+--- a/arch/powerpc/mm/pkeys.c
++++ b/arch/powerpc/mm/pkeys.c
+@@ -10,11 +10,14 @@
   */
-@@ -1809,6 +1865,9 @@ enum powerpc_regset {
- 	REGSET_EBB,		/* EBB registers */
- 	REGSET_PMR,		/* Performance Monitor Registers */
- #endif
-+#ifdef CONFIG_PPC_MEM_KEYS
-+	REGSET_PKEY,		/* AMR register */
-+#endif
- };
  
- static const struct user_regset native_regsets[] = {
-@@ -1914,6 +1973,13 @@ enum powerpc_regset {
- 		.active = pmu_active, .get = pmu_get, .set = pmu_set
- 	},
- #endif
-+#ifdef CONFIG_PPC_MEM_KEYS
-+	[REGSET_PKEY] = {
-+		.core_note_type = NT_PPC_PKEY, .n = ELF_NPKEY,
-+		.size = sizeof(u64), .align = sizeof(u64),
-+		.active = pkey_active, .get = pkey_get, .set = pkey_set
-+	},
-+#endif
- };
+ #include <asm/mman.h>
++#include <asm/setup.h>
+ #include <linux/pkeys.h>
++#include <linux/of_device.h>
  
- static const struct user_regset_view user_ppc_native_view = {
-diff --git a/arch/powerpc/kernel/traps.c b/arch/powerpc/kernel/traps.c
-index 3753498..c42ca5b 100644
---- a/arch/powerpc/kernel/traps.c
-+++ b/arch/powerpc/kernel/traps.c
-@@ -292,6 +292,13 @@ void _exception_pkey(int signr, struct pt_regs *regs, int code,
- 		local_irq_enable();
+ DEFINE_STATIC_KEY_TRUE(pkey_disabled);
+ bool pkey_execute_disable_supported;
+ int  pkeys_total;		/* Total pkeys as per device tree */
++bool pkeys_devtree_defined;	/* pkey property exported by device tree */
+ u32  initial_allocation_mask;	/* Bits set for reserved keys */
+ u64  pkey_amr_uamor_mask;	/* Bits in AMR/UMOR not to be touched */
+ u64  pkey_iamr_mask;		/* Bits in AMR not to be touched */
+@@ -26,6 +29,35 @@
+ #define PKEY_REG_BITS (sizeof(u64)*8)
+ #define pkeyshift(pkey) (PKEY_REG_BITS - ((pkey+1) * AMR_BITS_PER_PKEY))
  
- 	current->thread.trap_nr = code;
++static void scan_pkey_feature(void)
++{
++	u32 vals[2];
++	struct device_node *cpu;
++
++	cpu = of_find_node_by_type(NULL, "cpu");
++	if (!cpu)
++		return;
++
++	if (of_property_read_u32_array(cpu,
++			"ibm,processor-storage-keys", vals, 2))
++		return;
 +
 +	/*
-+	 * Save all the pkey registers AMR/IAMR/UAMOR. Eg: Core dumps need
-+	 * to capture the content, if the task gets killed.
++	 * Since any pkey can be used for data or execute, we will just treat
++	 * all keys as equal and track them as one entity.
 +	 */
-+	thread_pkey_regs_save(&current->thread);
++	pkeys_total = be32_to_cpu(vals[0]);
++	pkeys_devtree_defined = true;
++}
 +
- 	memset(&info, 0, sizeof(info));
- 	info.si_signo = signr;
- 	info.si_code = code;
-diff --git a/include/uapi/linux/elf.h b/include/uapi/linux/elf.h
-index bb68369..3bf73fb 100644
---- a/include/uapi/linux/elf.h
-+++ b/include/uapi/linux/elf.h
-@@ -396,6 +396,7 @@
- #define NT_PPC_TM_CTAR	0x10d		/* TM checkpointed Target Address Register */
- #define NT_PPC_TM_CPPR	0x10e		/* TM checkpointed Program Priority Register */
- #define NT_PPC_TM_CDSCR	0x10f		/* TM checkpointed Data Stream Control Register */
-+#define NT_PPC_PKEY	0x110		/* Memory Protection Keys registers */
- #define NT_386_TLS	0x200		/* i386 TLS slots (struct user_desc) */
- #define NT_386_IOPERM	0x201		/* x86 io permission bitmap (1=deny) */
- #define NT_X86_XSTATE	0x202		/* x86 extended state using xsave */
++static inline bool pkey_mmu_enabled(void)
++{
++	if (firmware_has_feature(FW_FEATURE_LPAR))
++		return pkeys_total;
++	else
++		return cpu_has_feature(CPU_FTR_PKEY);
++}
++
+ int pkey_initialize(void)
+ {
+ 	int os_reserved, i;
+@@ -46,14 +78,17 @@ int pkey_initialize(void)
+ 		     __builtin_popcountl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT)
+ 				!= (sizeof(u64) * BITS_PER_BYTE));
+ 
++	/* scan the device tree for pkey feature */
++	scan_pkey_feature();
++
+ 	/*
+-	 * Disable the pkey system till everything is in place. A subsequent
+-	 * patch will enable it.
++	 * Let's assume 32 pkeys on P8 bare metal, if its not defined by device
++	 * tree. We make this exception since skiboot forgot to expose this
++	 * property on power8.
+ 	 */
+-	static_branch_enable(&pkey_disabled);
+-
+-	/* Lets assume 32 keys */
+-	pkeys_total = 32;
++	if (!pkeys_devtree_defined && !firmware_has_feature(FW_FEATURE_LPAR) &&
++			cpu_has_feature(CPU_FTRS_POWER8))
++		pkeys_total = 32;
+ 
+ 	/*
+ 	 * Adjust the upper limit, based on the number of bits supported by
+@@ -62,11 +97,19 @@ int pkey_initialize(void)
+ 	pkeys_total = min_t(int, pkeys_total,
+ 			(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT));
+ 
++	if (!pkey_mmu_enabled() || radix_enabled() || !pkeys_total)
++		static_branch_enable(&pkey_disabled);
++	else
++		static_branch_disable(&pkey_disabled);
++
++	if (static_branch_likely(&pkey_disabled))
++		return 0;
++
+ 	/*
+-	 * Disable execute_disable support for now. A subsequent patch will
+-	 * enable it.
++	 * The device tree cannot be relied on for execute_disable support.
++	 * Hence we depend on CPU FTR.
+ 	 */
+-	pkey_execute_disable_supported = false;
++	pkey_execute_disable_supported = cpu_has_feature(CPU_FTR_PKEY_EXECUTE);
+ 
+ #ifdef CONFIG_PPC_4K_PAGES
+ 	/*
 -- 
 1.7.1
 
