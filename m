@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B86B96B0260
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 20:51:54 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id h32so345633qtb.9
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:51:54 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 8956F6B0266
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 20:51:57 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id o22so323271qtb.17
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:51:57 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i95sor6314255qtb.132.2018.01.18.17.51.54
+        by mx.google.com with SMTPS id r197sor6103309qke.84.2018.01.18.17.51.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 18 Jan 2018 17:51:54 -0800 (PST)
+        Thu, 18 Jan 2018 17:51:56 -0800 (PST)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v10 05/27] powerpc: helper function to read,write AMR,IAMR,UAMOR registers
-Date: Thu, 18 Jan 2018 17:50:26 -0800
-Message-Id: <1516326648-22775-6-git-send-email-linuxram@us.ibm.com>
+Subject: [PATCH v10 06/27] powerpc: helper functions to initialize AMR, IAMR and UAMOR registers
+Date: Thu, 18 Jan 2018 17:50:27 -0800
+Message-Id: <1516326648-22775-7-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1516326648-22775-1-git-send-email-linuxram@us.ibm.com>
 References: <1516326648-22775-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,63 +20,76 @@ List-ID: <linux-mm.kvack.org>
 To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com
 
-Implements helper functions to read and write the key related
-registers; AMR, IAMR, UAMOR.
+Introduce  helper functions that can initialize the bits in the AMR,
+IAMR and UAMOR register; the bits that correspond to the given pkey.
 
-AMR register tracks the read,write permission of a key
-IAMR register tracks the execute permission of a key
-UAMOR register enables and disables a key
-
-Acked-by: Balbir Singh <bsingharora@gmail.com>
 Reviewed-by: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- arch/powerpc/mm/pkeys.c |   36 ++++++++++++++++++++++++++++++++++++
- 1 files changed, 36 insertions(+), 0 deletions(-)
+ arch/powerpc/mm/pkeys.c |   47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 47 insertions(+), 0 deletions(-)
 
 diff --git a/arch/powerpc/mm/pkeys.c b/arch/powerpc/mm/pkeys.c
-index e2f3992..6e8df6e 100644
+index 6e8df6e..e1dc45b 100644
 --- a/arch/powerpc/mm/pkeys.c
 +++ b/arch/powerpc/mm/pkeys.c
-@@ -71,3 +71,39 @@ void pkey_mm_init(struct mm_struct *mm)
- 		return;
- 	mm_pkey_allocation_map(mm) = initial_allocation_mask;
+@@ -16,6 +16,10 @@
+ int  pkeys_total;		/* Total pkeys as per device tree */
+ u32  initial_allocation_mask;	/* Bits set for reserved keys */
+ 
++#define AMR_BITS_PER_PKEY 2
++#define PKEY_REG_BITS (sizeof(u64)*8)
++#define pkeyshift(pkey) (PKEY_REG_BITS - ((pkey+1) * AMR_BITS_PER_PKEY))
++
+ int pkey_initialize(void)
+ {
+ 	int os_reserved, i;
+@@ -107,3 +111,46 @@ static inline void write_uamor(u64 value)
+ {
+ 	mtspr(SPRN_UAMOR, value);
  }
 +
-+static inline u64 read_amr(void)
++static inline void init_amr(int pkey, u8 init_bits)
 +{
-+	return mfspr(SPRN_AMR);
++	u64 new_amr_bits = (((u64)init_bits & 0x3UL) << pkeyshift(pkey));
++	u64 old_amr = read_amr() & ~((u64)(0x3ul) << pkeyshift(pkey));
++
++	write_amr(old_amr | new_amr_bits);
 +}
 +
-+static inline void write_amr(u64 value)
++static inline void init_iamr(int pkey, u8 init_bits)
 +{
-+	mtspr(SPRN_AMR, value);
++	u64 new_iamr_bits = (((u64)init_bits & 0x1UL) << pkeyshift(pkey));
++	u64 old_iamr = read_iamr() & ~((u64)(0x1ul) << pkeyshift(pkey));
++
++	write_iamr(old_iamr | new_iamr_bits);
 +}
 +
-+static inline u64 read_iamr(void)
++static void pkey_status_change(int pkey, bool enable)
 +{
-+	if (!likely(pkey_execute_disable_supported))
-+		return 0x0UL;
++	u64 old_uamor;
 +
-+	return mfspr(SPRN_IAMR);
++	/* Reset the AMR and IAMR bits for this key */
++	init_amr(pkey, 0x0);
++	init_iamr(pkey, 0x0);
++
++	/* Enable/disable key */
++	old_uamor = read_uamor();
++	if (enable)
++		old_uamor |= (0x3ul << pkeyshift(pkey));
++	else
++		old_uamor &= ~(0x3ul << pkeyshift(pkey));
++	write_uamor(old_uamor);
 +}
 +
-+static inline void write_iamr(u64 value)
++void __arch_activate_pkey(int pkey)
 +{
-+	if (!likely(pkey_execute_disable_supported))
-+		return;
-+
-+	mtspr(SPRN_IAMR, value);
++	pkey_status_change(pkey, true);
 +}
 +
-+static inline u64 read_uamor(void)
++void __arch_deactivate_pkey(int pkey)
 +{
-+	return mfspr(SPRN_UAMOR);
-+}
-+
-+static inline void write_uamor(u64 value)
-+{
-+	mtspr(SPRN_UAMOR, value);
++	pkey_status_change(pkey, false);
 +}
 -- 
 1.7.1
