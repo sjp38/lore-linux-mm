@@ -1,146 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CEB66B0038
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 08:32:30 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id g13so1241591wrh.19
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 05:32:30 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p6si7730338wrd.350.2018.01.19.05.32.28
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 314BB6B0038
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 08:33:54 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id v25so1815692pfg.14
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 05:33:54 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id e12si7969755pgq.581.2018.01.19.05.33.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Jan 2018 05:32:29 -0800 (PST)
-Date: Fri, 19 Jan 2018 14:32:27 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 1/2] mm/memcontrol.c: try harder to decrease
- [memory,memsw].limit_in_bytes
-Message-ID: <20180119133227.GC6584@dhcp22.suse.cz>
-References: <20171220102429.31601-1-aryabinin@virtuozzo.com>
- <20180119132544.19569-1-aryabinin@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 19 Jan 2018 05:33:52 -0800 (PST)
+Date: Fri, 19 Jan 2018 05:33:51 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [Bug 198497] New: handle_mm_fault / xen_pmd_val /
+ radix_tree_lookup_slot Null pointer
+Message-ID: <20180119133351.GC2897@bombadil.infradead.org>
+References: <bug-198497-27@https.bugzilla.kernel.org/>
+ <20180118135518.639141f0b0ea8bb047ab6306@linux-foundation.org>
+ <7ba7635e-249a-9071-75bb-7874506bd2b2@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180119132544.19569-1-aryabinin@virtuozzo.com>
+In-Reply-To: <7ba7635e-249a-9071-75bb-7874506bd2b2@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Shakeel Butt <shakeelb@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, peter@rimuhosting.com
 
-On Fri 19-01-18 16:25:43, Andrey Ryabinin wrote:
-> mem_cgroup_resize_[memsw]_limit() tries to free only 32 (SWAP_CLUSTER_MAX)
-> pages on each iteration.  This makes it practically impossible to decrease
-> limit of memory cgroup.  Tasks could easily allocate back 32 pages, so we
-> can't reduce memory usage, and once retry_count reaches zero we return
-> -EBUSY.
+On Thu, Jan 18, 2018 at 02:18:20PM -0800, Laura Abbott wrote:
+> Fedora has been seeing similar reports
+> https://bugzilla.redhat.com/show_bug.cgi?id=1531779
 > 
-> Easy to reproduce the problem by running the following commands:
-> 
->   mkdir /sys/fs/cgroup/memory/test
->   echo $$ >> /sys/fs/cgroup/memory/test/tasks
->   cat big_file > /dev/null &
->   sleep 1 && echo $((100*1024*1024)) > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
->   -bash: echo: write error: Device or resource busy
-> 
-> Instead of relying on retry_count, keep retrying the reclaim until the
-> desired limit is reached or fail if the reclaim doesn't make any progress
-> or a signal is pending.
+> Multiple reporters, one in XEN, another on actual hardware
 
-Thanks for splitting the original patch. I am OK with this part.
+Can you chuck this patch into Fedora?  Should make it easier to see if it's
+a "stuck bit" kind of a problem.
 
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Shakeel Butt <shakeelb@google.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+---
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+From: Matthew Wilcox <mawilcox@microsoft.com>
+Subject: Detect bad swap entries in lookup
 
-> ---
->  mm/memcontrol.c | 42 ++++++------------------------------------
->  1 file changed, 6 insertions(+), 36 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 13aeccf32c2e..9d987f3e79dc 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1176,20 +1176,6 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
->  }
->  
->  /*
-> - * This function returns the number of memcg under hierarchy tree. Returns
-> - * 1(self count) if no children.
-> - */
-> -static int mem_cgroup_count_children(struct mem_cgroup *memcg)
-> -{
-> -	int num = 0;
-> -	struct mem_cgroup *iter;
-> -
-> -	for_each_mem_cgroup_tree(iter, memcg)
-> -		num++;
-> -	return num;
-> -}
-> -
-> -/*
->   * Return the memory (and swap, if configured) limit for a memcg.
->   */
->  unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg)
-> @@ -2462,24 +2448,11 @@ static DEFINE_MUTEX(memcg_limit_mutex);
->  static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  				   unsigned long limit, bool memsw)
->  {
-> -	unsigned long curusage;
-> -	unsigned long oldusage;
->  	bool enlarge = false;
-> -	int retry_count;
->  	int ret;
->  	bool limits_invariant;
->  	struct page_counter *counter = memsw ? &memcg->memsw : &memcg->memory;
->  
-> -	/*
-> -	 * For keeping hierarchical_reclaim simple, how long we should retry
-> -	 * is depends on callers. We set our retry-count to be function
-> -	 * of # of children which we should visit in this loop.
-> -	 */
-> -	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
-> -		      mem_cgroup_count_children(memcg);
-> -
-> -	oldusage = page_counter_read(counter);
-> -
->  	do {
->  		if (signal_pending(current)) {
->  			ret = -EINTR;
-> @@ -2506,15 +2479,12 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  		if (!ret)
->  			break;
->  
-> -		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, !memsw);
-> -
-> -		curusage = page_counter_read(counter);
-> -		/* Usage is reduced ? */
-> -		if (curusage >= oldusage)
-> -			retry_count--;
-> -		else
-> -			oldusage = curusage;
-> -	} while (retry_count);
-> +		if (!try_to_free_mem_cgroup_pages(memcg, 1,
-> +					GFP_KERNEL, !memsw)) {
-> +			ret = -EBUSY;
-> +			break;
-> +		}
-> +	} while (true);
->  
->  	if (!ret && enlarge)
->  		memcg_oom_recover(memcg);
-> -- 
-> 2.13.6
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+If we have a stuck bit in a PTE, we can end up looking for an entry in
+a NULL mapping, which oopses fairly quickly.  Print a warning to help
+us debug, and return NULL which will help the machine survive a little
+longer.  Although if it has a permanently stuck bit in a PTE, there's only
+a 50% chance it'll surive the insertion of a real PTE into that entry.
 
--- 
-Michal Hocko
-SUSE Labs
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 39ae7cfad90f..5a928e0191a1 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -334,8 +334,12 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
+ 	struct page *page;
+ 	unsigned long ra_info;
+ 	int win, hits, readahead;
++	struct address_space *swapper_space = swap_address_space(entry);
++
++	if (WARN(!swapper_space, "Bad swp_entry: %lx\n", entry.val))
++		return NULL;
+ 
+-	page = find_get_page(swap_address_space(entry), swp_offset(entry));
++	page = find_get_page(swapper_space, swp_offset(entry));
+ 
+ 	INC_CACHE_INFO(find_total);
+ 	if (page) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
