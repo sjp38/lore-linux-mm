@@ -1,87 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 28ACD6B0253
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 11:48:29 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id l6so956196lfg.9
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 08:48:29 -0800 (PST)
-Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
-        by mx.google.com with ESMTP id r141si568176lfr.7.2018.01.19.08.48.26
-        for <linux-mm@kvack.org>;
-        Fri, 19 Jan 2018 08:48:27 -0800 (PST)
-Subject: Re: [RFC] Per file OOM badness
-References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
- <20180118170006.GG6584@dhcp22.suse.cz> <20180118171355.GH6584@dhcp22.suse.cz>
- <87k1wfgcmb.fsf@anholt.net> <20180119082046.GL6584@dhcp22.suse.cz>
- <0cfaf256-928c-4cb8-8220-b8992592071b@amd.com>
- <20180119104058.GU6584@dhcp22.suse.cz>
- <d4fe7e59-da2d-11a5-73e2-55f2f27cdfd8@amd.com>
-From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
-Message-ID: <d1e54376-6ed4-dceb-1dfa-1b95a11ab3c8@daenzer.net>
-Date: Fri, 19 Jan 2018 17:48:24 +0100
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A3AEC6B0253
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 11:51:16 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id o22so3297468qtb.17
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 08:51:16 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 50si1022537qts.167.2018.01.19.08.51.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Jan 2018 08:51:15 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0JGmbV7132856
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 11:51:14 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2fkk0jv7s8-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 11:51:14 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Fri, 19 Jan 2018 16:51:11 -0000
+Date: Fri, 19 Jan 2018 08:50:50 -0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v10 27/27] mm: display pkey in smaps if
+ arch_pkeys_enabled() is true
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1516326648-22775-1-git-send-email-linuxram@us.ibm.com>
+ <1516326648-22775-28-git-send-email-linuxram@us.ibm.com>
+ <87shb1de4a.fsf@xmission.com>
 MIME-Version: 1.0
-In-Reply-To: <d4fe7e59-da2d-11a5-73e2-55f2f27cdfd8@amd.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87shb1de4a.fsf@xmission.com>
+Message-Id: <20180119165050.GK5612@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com
 
-On 2018-01-19 12:37 PM, Christian KA?nig wrote:
-> Am 19.01.2018 um 11:40 schrieb Michal Hocko:
->> On Fri 19-01-18 09:39:03, Christian KA?nig wrote:
->>> Am 19.01.2018 um 09:20 schrieb Michal Hocko:
->> [...]
->>>> OK, in that case I would propose a different approach. We already
->>>> have rss_stat. So why do not we simply add a new counter there
->>>> MM_KERNELPAGES and consider those in oom_badness? The rule would be
->>>> that such a memory is bound to the process life time. I guess we will
->>>> find more users for this later.
->>> I already tried that and the problem with that approach is that some
->>> buffers
->>> are not created by the application which actually uses them.
->>>
->>> For example X/Wayland is creating and handing out render buffers to
->>> application which want to use OpenGL.
->>>
->>> So the result is when you always account the application who created the
->>> buffer the OOM killer will certainly reap X/Wayland first. And that is
->>> exactly what we want to avoid here.
->> Then you have to find the target allocation context at the time of the
->> allocation and account it.
+On Fri, Jan 19, 2018 at 10:09:41AM -0600, Eric W. Biederman wrote:
+> Ram Pai <linuxram@us.ibm.com> writes:
 > 
-> And exactly that's the root of the problem: The target allocation
-> context isn't known at the time of the allocation.
+> > Currently the  architecture  specific code is expected to
+> > display  the  protection  keys  in  smap  for a given vma.
+> > This can lead to redundant code and possibly to divergent
+> > formats in which the key gets displayed.
+> >
+> > This  patch  changes  the implementation. It displays the
+> > pkey only if the architecture support pkeys.
+> >
+> > x86 arch_show_smap() function is not needed anymore.
+> > Delete it.
+> >
+> > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> > ---
+> >  arch/x86/kernel/setup.c |    8 --------
+> >  fs/proc/task_mmu.c      |   11 ++++++-----
+> >  2 files changed, 6 insertions(+), 13 deletions(-)
+> >
+> > diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+> > index 8af2e8d..ddf945a 100644
+> > --- a/arch/x86/kernel/setup.c
+> > +++ b/arch/x86/kernel/setup.c
+> > @@ -1326,11 +1326,3 @@ static int __init register_kernel_offset_dumper(void)
+> >  	return 0;
+> >  }
+> >  __initcall(register_kernel_offset_dumper);
+> > -
+> > -void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
+> > -{
+> > -	if (!boot_cpu_has(X86_FEATURE_OSPKE))
+> > -		return;
+> > -
+> > -	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
+> > -}
+> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> > index 0edd4da..4b39a94 100644
+> > --- a/fs/proc/task_mmu.c
+> > +++ b/fs/proc/task_mmu.c
+> > @@ -18,6 +18,7 @@
+> >  #include <linux/page_idle.h>
+> >  #include <linux/shmem_fs.h>
+> >  #include <linux/uaccess.h>
+> > +#include <linux/pkeys.h>
+> >  
+> >  #include <asm/elf.h>
+> >  #include <asm/tlb.h>
+> > @@ -728,10 +729,6 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
+> >  }
+> >  #endif /* HUGETLB_PAGE */
+> >  
+> > -void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
+> > -{
+> > -}
+> > -
+> >  static int show_smap(struct seq_file *m, void *v, int is_pid)
+> >  {
+> >  	struct proc_maps_private *priv = m->private;
+> > @@ -851,9 +848,13 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+> >  			   (unsigned long)(mss->pss >> (10 + PSS_SHIFT)));
+> >  
+> >  	if (!rollup_mode) {
+> > -		arch_show_smap(m, vma);
+> > +#ifdef CONFIG_ARCH_HAS_PKEYS
+> > +		if (arch_pkeys_enabled())
+> > +			seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
+> > +#endif
 > 
-> We could add callbacks so that when the memory is passed from the
-> allocator to the actual user of the memory. In other words when the
-> memory is passed from the X server to the client the driver would need
-> to decrement the X servers accounting and increment the clients accounting.
-> 
-> But I think that would go deep into the file descriptor handling (we
-> would at least need to handle dup/dup2 and passing the fd using unix
-> domain sockets) and most likely would be rather error prone.
-> 
-> The per file descriptor badness is/was just the much easier approach to
-> solve the issue, because the drivers already knew which client is
-> currently using which buffer objects.
-> 
-> I of course agree that file descriptors can be shared between processes
-> and are by themselves not killable. But at least for our graphics driven
-> use case I don't see much of a problem killing all processes when a file
-> descriptor is used by more than one at the same time.
+> Would it be worth it making vma_pkey a noop on architectures that don't
+> support protection keys so that we don't need the #ifdef here?
 
-In that case, accounting a BO as suggested by Michal above, in every
-process that shares it, should work fine, shouldn't it?
-
-The OOM killer will first select the process which has more memory
-accounted for other things than the BOs shared with another process.
+You mean something like this?
+	#define vma_pkey(vma)  
+It will lead to compilation error.
 
 
--- 
-Earthling Michel DA?nzer               |               http://www.amd.com
-Libre software enthusiast             |             Mesa and X developer
+I can make it
+	#define vma_pkey(vma)  0
+
+and that will work and get rid of the #ifdef
+
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
