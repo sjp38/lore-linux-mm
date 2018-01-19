@@ -1,95 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 351406B0038
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:01:30 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id s22so831092pfh.21
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 22:01:30 -0800 (PST)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0051.outbound.protection.outlook.com. [104.47.38.51])
-        by mx.google.com with ESMTPS id q90si5574304pfa.91.2018.01.18.22.01.28
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 608936B0069
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:01:44 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id f5so828643pgp.18
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 22:01:44 -0800 (PST)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0072.outbound.protection.outlook.com. [104.47.41.72])
+        by mx.google.com with ESMTPS id m16si7688648pgc.628.2018.01.18.22.01.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 18 Jan 2018 22:01:28 -0800 (PST)
-From: "He, Roger" <Hongbo.He@amd.com>
-Subject: RE: [RFC] Per file OOM badness
-Date: Fri, 19 Jan 2018 06:01:26 +0000
-Message-ID: <DM5PR1201MB01216B72BEF121DD25AB7247FDEF0@DM5PR1201MB0121.namprd12.prod.outlook.com>
+        Thu, 18 Jan 2018 22:01:43 -0800 (PST)
+Subject: Re: [PATCH 3/4] drm/gem: adjust per file OOM badness on handling
+ buffers
 References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
- <20180118170006.GG6584@dhcp22.suse.cz> <20180118171355.GH6584@dhcp22.suse.cz>
-In-Reply-To: <20180118171355.GH6584@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+ <1516294072-17841-4-git-send-email-andrey.grodzovsky@amd.com>
+From: Chunming Zhou <zhoucm1@amd.com>
+Message-ID: <bc332280-b60d-308b-5a52-8131590c06b7@amd.com>
+Date: Fri, 19 Jan 2018 14:01:32 +0800
 MIME-Version: 1.0
+In-Reply-To: <1516294072-17841-4-git-send-email-andrey.grodzovsky@amd.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, "Grodzovsky, Andrey" <Andrey.Grodzovsky@amd.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "Koenig, Christian" <Christian.Koenig@amd.com>
+To: Andrey Grodzovsky <andrey.grodzovsky@amd.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
+Cc: Christian.Koenig@amd.com
 
-DQoNCi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQpGcm9tOiBhbWQtZ2Z4IFttYWlsdG86YW1k
-LWdmeC1ib3VuY2VzQGxpc3RzLmZyZWVkZXNrdG9wLm9yZ10gT24gQmVoYWxmIE9mIE1pY2hhbCBI
-b2Nrbw0KU2VudDogRnJpZGF5LCBKYW51YXJ5IDE5LCAyMDE4IDE6MTQgQU0NClRvOiBHcm9kem92
-c2t5LCBBbmRyZXkgPEFuZHJleS5Hcm9kem92c2t5QGFtZC5jb20+DQpDYzogbGludXgtbW1Aa3Zh
-Y2sub3JnOyBhbWQtZ2Z4QGxpc3RzLmZyZWVkZXNrdG9wLm9yZzsgbGludXgta2VybmVsQHZnZXIu
-a2VybmVsLm9yZzsgZHJpLWRldmVsQGxpc3RzLmZyZWVkZXNrdG9wLm9yZzsgS29lbmlnLCBDaHJp
-c3RpYW4gPENocmlzdGlhbi5Lb2VuaWdAYW1kLmNvbT4NClN1YmplY3Q6IFJlOiBbUkZDXSBQZXIg
-ZmlsZSBPT00gYmFkbmVzcw0KDQpPbiBUaHUgMTgtMDEtMTggMTg6MDA6MDYsIE1pY2hhbCBIb2Nr
-byB3cm90ZToNCj4gT24gVGh1IDE4LTAxLTE4IDExOjQ3OjQ4LCBBbmRyZXkgR3JvZHpvdnNreSB3
-cm90ZToNCj4gPiBIaSwgdGhpcyBzZXJpZXMgaXMgYSByZXZpc2VkIHZlcnNpb24gb2YgYW4gUkZD
-IHNlbnQgYnkgQ2hyaXN0aWFuIA0KPiA+IEvDtm5pZyBhIGZldyB5ZWFycyBhZ28uIFRoZSBvcmln
-aW5hbCBSRkMgY2FuIGJlIGZvdW5kIGF0IA0KPiA+IGh0dHBzOi8vbGlzdHMuZnJlZWRlc2t0b3Au
-b3JnL2FyY2hpdmVzL2RyaS1kZXZlbC8yMDE1LVNlcHRlbWJlci8wODk3DQo+ID4gNzguaHRtbA0K
-PiA+IA0KPiA+IFRoaXMgaXMgdGhlIHNhbWUgaWRlYSBhbmQgSSd2ZSBqdXN0IGFkcmVzc2VkIGhp
-cyBjb25jZXJuIGZyb20gdGhlIA0KPiA+IG9yaWdpbmFsIFJGQyBhbmQgc3dpdGNoZWQgdG8gYSBj
-YWxsYmFjayBpbnRvIGZpbGVfb3BzIGluc3RlYWQgb2YgYSBuZXcgbWVtYmVyIGluIHN0cnVjdCBm
-aWxlLg0KPiANCj4gUGxlYXNlIGFkZCB0aGUgZnVsbCBkZXNjcmlwdGlvbiB0byB0aGUgY292ZXIg
-bGV0dGVyIGFuZCBkbyBub3QgbWFrZSANCj4gcGVvcGxlIGh1bnQgbGlua3MuDQo+IA0KPiBIZXJl
-IGlzIHRoZSBvcmlnaW4gY292ZXIgbGV0dGVyIHRleHQNCj4gOiBJJ20gY3VycmVudGx5IHdvcmtp
-bmcgb24gdGhlIGlzc3VlIHRoYXQgd2hlbiBkZXZpY2UgZHJpdmVycyBhbGxvY2F0ZSANCj4gbWVt
-b3J5IG9uDQo+IDogYmVoYWxmIG9mIGFuIGFwcGxpY2F0aW9uIHRoZSBPT00ga2lsbGVyIHVzdWFs
-bHkgZG9lc24ndCBrbmV3IGFib3V0IA0KPiB0aGF0IHVubGVzcw0KPiA6IHRoZSBhcHBsaWNhdGlv
-biBhbHNvIGdldCB0aGlzIG1lbW9yeSBtYXBwZWQgaW50byB0aGVpciBhZGRyZXNzIHNwYWNlLg0K
-PiA6IA0KPiA6IFRoaXMgaXMgZXNwZWNpYWxseSBhbm5veWluZyBmb3IgZ3JhcGhpY3MgZHJpdmVy
-cyB3aGVyZSBhIGxvdCBvZiB0aGUgDQo+IFZSQU0NCj4gOiB1c3VhbGx5IGlzbid0IENQVSBhY2Nl
-c3NpYmxlIGFuZCBzbyBkb2Vzbid0IG1ha2Ugc2Vuc2UgdG8gbWFwIGludG8gDQo+IHRoZQ0KPiA6
-IGFkZHJlc3Mgc3BhY2Ugb2YgdGhlIHByb2Nlc3MgdXNpbmcgaXQuDQo+IDogDQo+IDogVGhlIHBy
-b2JsZW0gbm93IGlzIHRoYXQgd2hlbiBhbiBhcHBsaWNhdGlvbiBzdGFydHMgdG8gdXNlIGEgbG90
-IG9mIA0KPiBWUkFNIHRob3NlDQo+IDogYnVmZmVycyBvYmplY3RzIHNvb25lciBvciBsYXRlciBn
-ZXQgc3dhcHBlZCBvdXQgdG8gc3lzdGVtIG1lbW9yeSwgDQo+IGJ1dCB3aGVuIHdlDQo+IDogbm93
-IHJ1biBpbnRvIGFuIG91dCBvZiBtZW1vcnkgc2l0dWF0aW9uIHRoZSBPT00ga2lsbGVyIG9idmlv
-dXNseSANCj4gZG9lc24ndCBrbmV3DQo+IDogYW55dGhpbmcgYWJvdXQgdGhhdCBtZW1vcnkgYW5k
-IHNvIHVzdWFsbHkga2lsbHMgdGhlIHdyb25nIHByb2Nlc3MuDQoNCglPSywgYnV0IGhvdyBkbyB5
-b3UgYXR0cmlidXRlIHRoYXQgbWVtb3J5IHRvIGEgcGFydGljdWxhciBPT00ga2lsbGFibGUgZW50
-aXR5PyBBbmQgaG93IGRvIHlvdSBhY3R1YWxseSBlbmZvcmNlIHRoYXQgdGhvc2UgcmVzb3VyY2Vz
-IGdldCBmcmVlZCBvbiB0aGUgb29tIGtpbGxlciBhY3Rpb24/DQoNCkhlcmUgSSB0aGluayB3ZSBu
-ZWVkIG1vcmUgZmluZSBncmFudWxhcml0eSBmb3IgZGlzdGluZ3Vpc2hpbmcgdGhlIGJ1ZmZlciBp
-cyB0YWtpbmcgVlJBTSBvciBzeXN0ZW0gbWVtb3J5Lg0KDQo+IDogVGhlIGZvbGxvd2luZyBzZXQg
-b2YgcGF0Y2hlcyB0cmllcyB0byBhZGRyZXNzIHRoaXMgcHJvYmxlbSBieSANCj4gaW50cm9kdWNp
-bmcgYSBwZXINCj4gOiBmaWxlIE9PTSBiYWRuZXNzIHNjb3JlLCB3aGljaCBkZXZpY2UgZHJpdmVy
-cyBjYW4gdXNlIHRvIGdpdmUgdGhlIE9PTSANCj4ga2lsbGVyIGENCj4gOiBoaW50IGhvdyBtYW55
-IHJlc291cmNlcyBhcmUgYm91bmQgdG8gYSBmaWxlIGRlc2NyaXB0b3Igc28gdGhhdCBpdCANCj4g
-Y2FuIG1ha2UNCj4gOiBiZXR0ZXIgZGVjaXNpb25zIHdoaWNoIHByb2Nlc3MgdG8ga2lsbC4NCg0K
-QnV0IGZpbGVzIGFyZSBub3Qga2lsbGFibGUsIHRoZXkgY2FuIGJlIHNoYXJlZC4uLiBJbiBvdGhl
-ciB3b3JkcyB0aGlzIGRvZXNuJ3QgaGVscCB0aGUgb29tIGtpbGxlciB0byBtYWtlIGFuIGVkdWNh
-dGVkIGd1ZXNzIGF0IGFsbC4NCg0KPiA6IA0KPiA6IFNvIHF1ZXN0aW9uIGF0IGV2ZXJ5IG9uZTog
-V2hhdCBkbyB5b3UgdGhpbmsgYWJvdXQgdGhpcyBhcHByb2FjaD8NCg0KCUkgdGhpbmcgaXMganVz
-dCBqdXN0IHdyb25nIHNlbWFudGljYWxseS4gTm9uLXJlY2xhaW1hYmxlIG1lbW9yeSBpcyBhIHBh
-aW4sIGVzcGVjaWFsbHkgd2hlbiB0aGVyZSBpcyB3YXkgdG9vIG11Y2ggb2YgaXQuIElmIHlvdSBj
-YW4gZnJlZSB0aGF0IG1lbW9yeSBzb21laG93IHRoZW4geW91IGNhbiBob29rIGludG8gc2xhYiBz
-aHJpbmtlciBBUEkgYW5kIHJlYWN0IG9uIHRoZSBtZW1vcnkgcHJlc3N1cmUuIElmIHlvdSBjYW4g
-YWNjb3VudCBzdWNoIGEgCW1lbW9yeSB0byBhIHBhcnRpY3VsYXIgcHJvY2VzcyBhbmQgbWFrZSBz
-dXJlIHRoYXQgdGhlIGNvbnN1bXB0aW9uIGlzIGJvdW5kIGJ5IHRoZSBwcm9jZXNzIGxpZmUgdGlt
-ZSB0aGVuIHdlIGNhbiB0aGluayBvZiBhbiBhY2NvdW50aW5nIHRoYXQgb29tX2JhZG5lc3MgY2Fu
-IGNvbnNpZGVyIHdoZW4gc2VsZWN0aW5nIGEgdmljdGltLg0KDQpJIHRoaW5rIHlvdSBhcmUgbWlz
-dW5kZXJzdGFuZGluZyBoZXJlLg0KQWN0dWFsbHkgZm9yIG5vdywgdGhlIG1lbW9yeSBpbiBUVE0g
-UG9vbHMgYWxyZWFkeSBoYXMgbW1fc2hyaW5rIHdoaWNoIGlzIGltcGxlbWVudGVkIGluIHR0bV9w
-b29sX21tX3Nocmlua19pbml0Lg0KQW5kIGhlcmUgdGhlIG1lbW9yeSB3ZSB3YW50IHRvIG1ha2Ug
-aXQgY29udHJpYnV0ZSB0byBPT00gYmFkbmVzcyBpcyBub3QgaW4gVFRNIFBvb2xzLg0KQmVjYXVz
-ZSB3aGVuIFRUTSBidWZmZXIgYWxsb2NhdGlvbiBzdWNjZXNzLCB0aGUgbWVtb3J5IGFscmVhZHkg
-aXMgcmVtb3ZlZCBmcm9tIFRUTSBQb29scy4gIA0KDQpUaGFua3MNClJvZ2VyKEhvbmdiby5IZSkN
-Cg0KLS0NCk1pY2hhbCBIb2Nrbw0KU1VTRSBMYWJzDQpfX19fX19fX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fX19fX19fX19fXw0KYW1kLWdmeCBtYWlsaW5nIGxpc3QNCmFtZC1nZnhAbGlz
-dHMuZnJlZWRlc2t0b3Aub3JnDQpodHRwczovL2xpc3RzLmZyZWVkZXNrdG9wLm9yZy9tYWlsbWFu
-L2xpc3RpbmZvL2FtZC1nZngNCg==
+
+
+On 2018a1'01ae??19ae?JPY 00:47, Andrey Grodzovsky wrote:
+> Large amounts of VRAM are usually not CPU accessible, so they are not mapped
+> into the processes address space. But since the device drivers usually support
+> swapping buffers from VRAM to system memory we can still run into an out of
+> memory situation when userspace starts to allocate to much.
+>
+> This patch gives the OOM another hint which process is
+> holding how many resources.
+>
+> Signed-off-by: Andrey Grodzovsky <andrey.grodzovsky@amd.com>
+> ---
+>   drivers/gpu/drm/drm_file.c | 12 ++++++++++++
+>   drivers/gpu/drm/drm_gem.c  |  8 ++++++++
+>   include/drm/drm_file.h     |  4 ++++
+>   3 files changed, 24 insertions(+)
+>
+> diff --git a/drivers/gpu/drm/drm_file.c b/drivers/gpu/drm/drm_file.c
+> index b3c6e99..626cc76 100644
+> --- a/drivers/gpu/drm/drm_file.c
+> +++ b/drivers/gpu/drm/drm_file.c
+> @@ -747,3 +747,15 @@ void drm_send_event(struct drm_device *dev, struct drm_pending_event *e)
+>   	spin_unlock_irqrestore(&dev->event_lock, irqflags);
+>   }
+>   EXPORT_SYMBOL(drm_send_event);
+> +
+> +long drm_oom_badness(struct file *f)
+> +{
+> +
+> +	struct drm_file *file_priv = f->private_data;
+> +
+> +	if (file_priv)
+> +		return atomic_long_read(&file_priv->f_oom_badness);
+> +
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL(drm_oom_badness);
+> diff --git a/drivers/gpu/drm/drm_gem.c b/drivers/gpu/drm/drm_gem.c
+> index 01f8d94..ffbadc8 100644
+> --- a/drivers/gpu/drm/drm_gem.c
+> +++ b/drivers/gpu/drm/drm_gem.c
+> @@ -264,6 +264,9 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
+>   		drm_gem_remove_prime_handles(obj, file_priv);
+>   	drm_vma_node_revoke(&obj->vma_node, file_priv);
+>   
+> +	atomic_long_sub(obj->size >> PAGE_SHIFT,
+> +				&file_priv->f_oom_badness);
+> +
+>   	drm_gem_object_handle_put_unlocked(obj);
+>   
+>   	return 0;
+> @@ -299,6 +302,8 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
+>   	idr_remove(&filp->object_idr, handle);
+>   	spin_unlock(&filp->table_lock);
+>   
+> +	atomic_long_sub(obj->size >> PAGE_SHIFT, &filp->f_oom_badness);
+> +
+>   	return 0;
+>   }
+>   EXPORT_SYMBOL(drm_gem_handle_delete);
+> @@ -417,6 +422,9 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
+>   	}
+>   
+>   	*handlep = handle;
+> +
+> +	atomic_long_add(obj->size >> PAGE_SHIFT,
+> +				&file_priv->f_oom_badness);
+For VRAM case, it should be counted only when vram bo is evicted to 
+system memory.
+For example, vram total is 8GB, system memory total is 8GB, one 
+application allocates 7GB vram and 7GB system memory, which is allowed, 
+but if following your idea, then this application will be killed by OOM, 
+right?
+
+Regards,
+David Zhou
+>   	return 0;
+>   
+>   err_revoke:
+> diff --git a/include/drm/drm_file.h b/include/drm/drm_file.h
+> index 0e0c868..ac3aa75 100644
+> --- a/include/drm/drm_file.h
+> +++ b/include/drm/drm_file.h
+> @@ -317,6 +317,8 @@ struct drm_file {
+>   
+>   	/* private: */
+>   	unsigned long lock_count; /* DRI1 legacy lock count */
+> +
+> +	atomic_long_t		f_oom_badness;
+>   };
+>   
+>   /**
+> @@ -378,4 +380,6 @@ void drm_event_cancel_free(struct drm_device *dev,
+>   void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e);
+>   void drm_send_event(struct drm_device *dev, struct drm_pending_event *e);
+>   
+> +long drm_oom_badness(struct file *f);
+> +
+>   #endif /* _DRM_FILE_H_ */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
