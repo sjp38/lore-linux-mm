@@ -1,98 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 494CA6B0290
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 20:53:02 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id c20so316723qtn.22
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:53:02 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b86sor6048076qkj.24.2018.01.18.17.53.01
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AEAF6B0253
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 20:57:46 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id f133so340528itb.1
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:57:46 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id l189si6803953ioa.68.2018.01.18.17.57.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 18 Jan 2018 17:53:01 -0800 (PST)
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v10 27/27] mm: display pkey in smaps if arch_pkeys_enabled() is true
-Date: Thu, 18 Jan 2018 17:50:48 -0800
-Message-Id: <1516326648-22775-28-git-send-email-linuxram@us.ibm.com>
-In-Reply-To: <1516326648-22775-1-git-send-email-linuxram@us.ibm.com>
-References: <1516326648-22775-1-git-send-email-linuxram@us.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Jan 2018 17:57:44 -0800 (PST)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w0J1ph33140488
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:57:44 GMT
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp2120.oracle.com with ESMTP id 2fk4pg0eqm-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:57:44 +0000
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w0J1vgCT011758
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL)
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:57:43 GMT
+Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w0J1vgpc004014
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:57:42 GMT
+From: William Kucharski <william.kucharski@oracle.com>
+Content-Type: text/plain;
+	charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
+Subject: [PATCH] mm: Correct comments regarding do_fault_around()
+Message-Id: <054BC126-FA7A-46AC-8BF0-7AC98B41FA0A@oracle.com>
+Date: Thu, 18 Jan 2018 18:57:41 -0700
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com
+To: linux-mm@kvack.org
 
-Currently the  architecture  specific code is expected to
-display  the  protection  keys  in  smap  for a given vma.
-This can lead to redundant code and possibly to divergent
-formats in which the key gets displayed.
 
-This  patch  changes  the implementation. It displays the
-pkey only if the architecture support pkeys.
+There are multiple comments surrounding do_fault_around() that mention
+fault_around_pages() and fault_around_mask(), two routines that do not
+exist.  These comments should be reworded to reference =
+fault_around_bytes,
+the value which is used to determine how much do_fault_around() will
+attempt to read when processing a fault.
 
-x86 arch_show_smap() function is not needed anymore.
-Delete it.
-
-Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+Signed-off-by: William Kucharski <william.kucharski@oracle.com>
+Reviewed-by: Larry Bassel <larry.bassel@oracle.com>
 ---
- arch/x86/kernel/setup.c |    8 --------
- fs/proc/task_mmu.c      |   11 ++++++-----
- 2 files changed, 6 insertions(+), 13 deletions(-)
+ memory.c |   22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 8af2e8d..ddf945a 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1326,11 +1326,3 @@ static int __init register_kernel_offset_dumper(void)
- 	return 0;
+diff --git a/mm/memory.c b/mm/memory.c
+index ca5674cbaff2..3f2f158f1a43 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3479,9 +3479,8 @@ static int fault_around_bytes_get(void *data, u64 =
+*val)
  }
- __initcall(register_kernel_offset_dumper);
--
--void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
--{
--	if (!boot_cpu_has(X86_FEATURE_OSPKE))
--		return;
--
--	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
--}
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 0edd4da..4b39a94 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -18,6 +18,7 @@
- #include <linux/page_idle.h>
- #include <linux/shmem_fs.h>
- #include <linux/uaccess.h>
-+#include <linux/pkeys.h>
- 
- #include <asm/elf.h>
- #include <asm/tlb.h>
-@@ -728,10 +729,6 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
- }
- #endif /* HUGETLB_PAGE */
- 
--void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
--{
--}
--
- static int show_smap(struct seq_file *m, void *v, int is_pid)
+=20
+ /*
+- * fault_around_pages() and fault_around_mask() expects =
+fault_around_bytes
+- * rounded down to nearest page order. It's what do_fault_around() =
+expects to
+- * see.
++ * fault_around_bytes must be rounded down to the nearest page order as =
+it's
++ * what do_fault_around() expects to see.
+  */
+ static int fault_around_bytes_set(void *data, u64 val)
  {
- 	struct proc_maps_private *priv = m->private;
-@@ -851,9 +848,13 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 			   (unsigned long)(mss->pss >> (10 + PSS_SHIFT)));
- 
- 	if (!rollup_mode) {
--		arch_show_smap(m, vma);
-+#ifdef CONFIG_ARCH_HAS_PKEYS
-+		if (arch_pkeys_enabled())
-+			seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
-+#endif
- 		show_smap_vma_flags(m, vma);
- 	}
-+
- 	m_cache_vma(m, vma);
- 	return ret;
- }
--- 
-1.7.1
+@@ -3524,13 +3523,14 @@ late_initcall(fault_around_debugfs);
+  * This function doesn't cross the VMA boundaries, in order to call =
+map_pages()
+  * only once.
+  *
+- * fault_around_pages() defines how many pages we'll try to map.
+- * do_fault_around() expects it to return a power of two less than or =
+equal to
+- * PTRS_PER_PTE.
++ * fault_around_bytes defines how many bytes we'll try to map.
++ * do_fault_around() expects it to be set to a power of two less than =
+or equal
++ * to PTRS_PER_PTE.
+  *
+- * The virtual address of the area that we map is naturally aligned to =
+the
+- * fault_around_pages() value (and therefore to page order).  This way =
+it's
+- * easier to guarantee that we don't cross page table boundaries.
++ * The virtual address of the area that we map is naturally aligned to
++ * fault_around_bytes rounded down to the machine page size
++ * (and therefore to page order).  This way it's easier to guarantee
++ * that we don't cross page table boundaries.
+  */
+ static int do_fault_around(struct vm_fault *vmf)
+ {
+@@ -3547,8 +3547,8 @@ static int do_fault_around(struct vm_fault *vmf)
+ 	start_pgoff -=3D off;
+=20
+ 	/*
+-	 *  end_pgoff is either end of page table or end of vma
+-	 *  or fault_around_pages() from start_pgoff, depending what is =
+nearest.
++	 *  end_pgoff is either the end of the page table, the end of
++	 *  the vma or nr_pages from start_pgoff, depending what is =
+nearest.
+ 	 */
+ 	end_pgoff =3D start_pgoff -
+ 		((vmf->address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
