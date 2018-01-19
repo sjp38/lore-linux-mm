@@ -1,113 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AEAF6B0253
-	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 20:57:46 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id f133so340528itb.1
-        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 17:57:46 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id l189si6803953ioa.68.2018.01.18.17.57.44
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AD2B16B0292
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2018 21:02:20 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id e12so278140pgu.11
+        for <linux-mm@kvack.org>; Thu, 18 Jan 2018 18:02:20 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id b188si7317092pgc.452.2018.01.18.18.02.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Jan 2018 17:57:44 -0800 (PST)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w0J1ph33140488
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:57:44 GMT
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2120.oracle.com with ESMTP id 2fk4pg0eqm-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:57:44 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w0J1vgCT011758
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:57:43 GMT
-Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w0J1vgpc004014
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 01:57:42 GMT
-From: William Kucharski <william.kucharski@oracle.com>
-Content-Type: text/plain;
-	charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
-Subject: [PATCH] mm: Correct comments regarding do_fault_around()
-Message-Id: <054BC126-FA7A-46AC-8BF0-7AC98B41FA0A@oracle.com>
-Date: Thu, 18 Jan 2018 18:57:41 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 18 Jan 2018 18:02:19 -0800 (PST)
+Message-Id: <201801190201.w0J21YEM099982@www262.sakura.ne.jp>
+Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+MIME-Version: 1.0
+Date: Fri, 19 Jan 2018 11:01:34 +0900
+References: <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com> <20180118154026.jzdgdhkcxiliaulp@node.shutemov.name>
+In-Reply-To: <20180118154026.jzdgdhkcxiliaulp@node.shutemov.name>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, torvalds@linux-foundation.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, tony.luck@intel.com, vbabka@suse.cz, mhocko@kernel.org, aarcange@redhat.com, hillf.zj@alibaba-inc.com, hughd@google.com, oleg@redhat.com, peterz@infradead.org, riel@redhat.com, srikar@linux.vnet.ibm.com, vdavydov.dev@gmail.com, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 
+Kirill A. Shutemov wrote:
+> Something like this?
+> 
+> 
+> From 251e124630da82482e8b320c73162ce89af04d5d Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Thu, 18 Jan 2018 18:24:07 +0300
+> Subject: [PATCH] mm, page_vma_mapped: Fix pointer arithmetics in check_pte()
+> 
+> Tetsuo reported random crashes under memory pressure on 32-bit x86
+> system and tracked down to change that introduced
+> page_vma_mapped_walk().
+> 
+> The root cause of the issue is the faulty pointer math in check_pte().
+> As ->pte may point to an arbitrary page we have to check that they are
+> belong to the section before doing math. Otherwise it may lead to weird
+> results.
+> 
+> It wasn't noticed until now as mem_map[] is virtually contiguous on flatmem or
+> vmemmap sparsemem. Pointer arithmetic just works against all 'struct page'
+> pointers. But with classic sparsemem, it doesn't.
+> 
+> Let's restructure code a bit and add necessary check.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+> Fixes: ace71a19cec5 ("mm: introduce page_vma_mapped_walk()")
+> Cc: stable@vger.kernel.org
 
-There are multiple comments surrounding do_fault_around() that mention
-fault_around_pages() and fault_around_mask(), two routines that do not
-exist.  These comments should be reworded to reference =
-fault_around_bytes,
-the value which is used to determine how much do_fault_around() will
-attempt to read when processing a fault.
+This patch solves the problem. Thank you.
 
-Signed-off-by: William Kucharski <william.kucharski@oracle.com>
-Reviewed-by: Larry Bassel <larry.bassel@oracle.com>
----
- memory.c |   22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+Tested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-diff --git a/mm/memory.c b/mm/memory.c
-index ca5674cbaff2..3f2f158f1a43 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3479,9 +3479,8 @@ static int fault_around_bytes_get(void *data, u64 =
-*val)
- }
-=20
- /*
-- * fault_around_pages() and fault_around_mask() expects =
-fault_around_bytes
-- * rounded down to nearest page order. It's what do_fault_around() =
-expects to
-- * see.
-+ * fault_around_bytes must be rounded down to the nearest page order as =
-it's
-+ * what do_fault_around() expects to see.
-  */
- static int fault_around_bytes_set(void *data, u64 val)
- {
-@@ -3524,13 +3523,14 @@ late_initcall(fault_around_debugfs);
-  * This function doesn't cross the VMA boundaries, in order to call =
-map_pages()
-  * only once.
-  *
-- * fault_around_pages() defines how many pages we'll try to map.
-- * do_fault_around() expects it to return a power of two less than or =
-equal to
-- * PTRS_PER_PTE.
-+ * fault_around_bytes defines how many bytes we'll try to map.
-+ * do_fault_around() expects it to be set to a power of two less than =
-or equal
-+ * to PTRS_PER_PTE.
-  *
-- * The virtual address of the area that we map is naturally aligned to =
-the
-- * fault_around_pages() value (and therefore to page order).  This way =
-it's
-- * easier to guarantee that we don't cross page table boundaries.
-+ * The virtual address of the area that we map is naturally aligned to
-+ * fault_around_bytes rounded down to the machine page size
-+ * (and therefore to page order).  This way it's easier to guarantee
-+ * that we don't cross page table boundaries.
-  */
- static int do_fault_around(struct vm_fault *vmf)
- {
-@@ -3547,8 +3547,8 @@ static int do_fault_around(struct vm_fault *vmf)
- 	start_pgoff -=3D off;
-=20
- 	/*
--	 *  end_pgoff is either end of page table or end of vma
--	 *  or fault_around_pages() from start_pgoff, depending what is =
-nearest.
-+	 *  end_pgoff is either the end of the page table, the end of
-+	 *  the vma or nr_pages from start_pgoff, depending what is =
-nearest.
- 	 */
- 	end_pgoff =3D start_pgoff -
- 		((vmf->address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
+> ---
+>  mm/page_vma_mapped.c | 66 +++++++++++++++++++++++++++++++++++-----------------
+>  1 file changed, 45 insertions(+), 21 deletions(-)
+> 
+> diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
+> index d22b84310f6d..de195dcdfbd8 100644
+> --- a/mm/page_vma_mapped.c
+> +++ b/mm/page_vma_mapped.c
+> @@ -30,8 +30,28 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw)
+>  	return true;
+>  }
+>  
+> +/**
+> + * check_pte - check if @pvmw->page is mapped at the @pvmw->pte
+> + *
+> + * page_vma_mapped_walk() found a place where @pvmw->page is *potentially*
+> + * mapped. check_pte() has to validate this.
+> + *
+> + * @pvmw->pte may point to empty PTE, swap PTE or PTE pointing to arbitrary
+> + * page.
+> + *
+> + * If PVMW_MIGRATION flag is set, returns true if @pvmw->pte contains migration
+> + * entry that points to @pvmw->page or any subpage in case of THP.
+> + *
+> + * If PVMW_MIGRATION flag is not set, returns true if @pvmw->pte points to
+> + * @pvmw->page or any subpage in case of THP.
+> + *
+> + * Otherwise, return false.
+> + *
+> + */
+>  static bool check_pte(struct page_vma_mapped_walk *pvmw)
+>  {
+> +	struct page *page;
+> +
+>  	if (pvmw->flags & PVMW_MIGRATION) {
+>  #ifdef CONFIG_MIGRATION
+>  		swp_entry_t entry;
+> @@ -41,37 +61,41 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
+>  
+>  		if (!is_migration_entry(entry))
+>  			return false;
+> -		if (migration_entry_to_page(entry) - pvmw->page >=
+> -				hpage_nr_pages(pvmw->page)) {
+> -			return false;
+> -		}
+> -		if (migration_entry_to_page(entry) < pvmw->page)
+> -			return false;
+> +
+> +		page = migration_entry_to_page(entry);
+>  #else
+>  		WARN_ON_ONCE(1);
+>  #endif
+> -	} else {
+> -		if (is_swap_pte(*pvmw->pte)) {
+> -			swp_entry_t entry;
+> +	} else if (is_swap_pte(*pvmw->pte)) {
+> +		swp_entry_t entry;
+>  
+> -			entry = pte_to_swp_entry(*pvmw->pte);
+> -			if (is_device_private_entry(entry) &&
+> -			    device_private_entry_to_page(entry) == pvmw->page)
+> -				return true;
+> -		}
+> +		/* Handle un-addressable ZONE_DEVICE memory */
+> +		entry = pte_to_swp_entry(*pvmw->pte);
+> +		if (!is_device_private_entry(entry))
+> +			return false;
+>  
+> +		page = device_private_entry_to_page(entry);
+> +	} else {
+>  		if (!pte_present(*pvmw->pte))
+>  			return false;
+>  
+> -		/* THP can be referenced by any subpage */
+> -		if (pte_page(*pvmw->pte) - pvmw->page >=
+> -				hpage_nr_pages(pvmw->page)) {
+> -			return false;
+> -		}
+> -		if (pte_page(*pvmw->pte) < pvmw->page)
+> -			return false;
+> +		page = pte_page(*pvmw->pte);
+>  	}
+>  
+> +	/*
+> +	 * Make sure that pages are in the same section before doing pointer
+> +	 * arithmetics.
+> +	 */
+> +	if (page_to_section(pvmw->page) != page_to_section(page))
+> +		return false;
+> +
+> +	if (page < pvmw->page)
+> +		return false;
+> +
+> +	/* THP can be referenced by any subpage */
+> +	if (page - pvmw->page >= hpage_nr_pages(pvmw->page))
+> +		return false;
+> +
+>  	return true;
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
