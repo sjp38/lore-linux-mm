@@ -1,80 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D6266B0069
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 21:12:58 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id w17so3601920iow.23
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 18:12:58 -0800 (PST)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id g80si9399054ioe.172.2018.01.19.18.12.57
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E08166B0033
+	for <linux-mm@kvack.org>; Sat, 20 Jan 2018 00:25:30 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id f8so454221wmi.9
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 21:25:30 -0800 (PST)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id r66si1840258wmg.252.2018.01.19.21.25.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jan 2018 18:12:57 -0800 (PST)
-Date: Fri, 19 Jan 2018 20:12:55 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm: numa: Do not trap faults on shared data section
- pages.
-In-Reply-To: <2BEFC6DE-7A47-4CB9-AAE5-CEF70453B46F@oracle.com>
-Message-ID: <alpine.DEB.2.20.1801192002161.14056@nuc-kabylake>
-References: <1516130924-3545-1-git-send-email-henry.willard@oracle.com> <1516130924-3545-2-git-send-email-henry.willard@oracle.com> <20180116212614.gudglzw7kwzd3get@suse.de> <alpine.DEB.2.20.1801171219270.23209@nuc-kabylake>
- <2BEFC6DE-7A47-4CB9-AAE5-CEF70453B46F@oracle.com>
+        Fri, 19 Jan 2018 21:25:29 -0800 (PST)
+Date: Sat, 20 Jan 2018 05:24:32 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
+Message-ID: <20180120052432.GN13338@ZenIV.linux.org.uk>
+References: <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
+ <20180118145830.GA6406@redhat.com>
+ <20180118165629.kpdkezarsf4qymnw@node.shutemov.name>
+ <CA+55aFy43ypm0QvA5SqNR4O0ZJETbkR3NDR=dnSdvejc_nmSJQ@mail.gmail.com>
+ <20180118234955.nlo55rw2qsfnavfm@node.shutemov.name>
+ <20180119125503.GA2897@bombadil.infradead.org>
+ <CA+55aFwWCeFrhN+WJDD8u9nqBzmvknXk428Q0dVwwXAvwhg_-w@mail.gmail.com>
+ <20180119221243.GL13338@ZenIV.linux.org.uk>
+ <CA+55aFw4mw32Mu0_+cgKAzxCNvDW1VPcESv7CyajexfDfMju1A@mail.gmail.com>
+ <20180120020237.GM13338@ZenIV.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; BOUNDARY="8323329-1740495615-1516414375=:14056"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180120020237.GM13338@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Henry Willard <henry.willard@oracle.com>
-Cc: Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, kstewart@linuxfoundation.org, zi.yan@cs.rutgers.edu, pombredanne@nexb.com, aarcange@redhat.com, gregkh@linuxfoundation.org, aneesh.kumar@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, jglisse@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Tony Luck <tony.luck@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Sat, Jan 20, 2018 at 02:02:37AM +0000, Al Viro wrote:
 
---8323329-1740495615-1516414375=:14056
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8BIT
+> Note that those sizes are rather sensitive to lockdep, spinlock debugging, etc.
 
-On Thu, 18 Jan 2018, Henry Willard wrote:
-
-> If MPOL_MF_LAZY were allowed and specified things would not work
-> correctly. change_pte_range() is unaware of and cana??t honor the
-> difference between MPOL_MF_MOVE_ALL and MPOL_MF_MOVE.
-
-Not sure how that relates to what I said earlier... Sorry.
-
->
-> For the case of auto numa balancing, it may be undesirable for shared
-> pages to be migrated whether they are also copy-on-write or not. The
-> copy-on-write test was added to restrict the effect of the patch to the
-> specific situation we observed. Perhaps I should remove it, I dona??t
-> understand why it would be desirable to modify the behavior via sysfs.
-
-I think the most common case of shared pages occurs for pages that contain
-code. In that case a page may be mapped into hundreds if not thousands of
-processes. In particular that is often the case for basic system libraries
-like the c library which may actually be mapped into every binary that is
-running.
-
-It is very difficult and expensive to unmap these pages from all the
-processes in order to migrate them. So some sort of limit would be useful
-to avoid unnecessary migration attempts. One example would be to forbid
-migrating pages that are mapped in more than 5 processes. Some sysctl know
-would be useful here to set the boundary.
-
-Your patch addresses a special case here by forbidding migration of any
-page mapped by more than a single process (mapcount !=1).
-
-That would mean f.e. that the complete migration of a set of processes
-that rely on sharing data via a memory segment is impossible because those
-shared pages can never be moved.
-
-By setting the limit higher that migration would still be possible.
-
-Maybe we can set that limit by default at 5 and allow a higher setting
-if users have applications that require a higher mapcoun? F.e. a
-common construct is a shepherd task and N worker threads. If those
-tasks each have their own address space and only communicate via
-a shared data segment then one may want to set the limit higher than N
-in order to allow the migration of the group of processes.
-
---8323329-1740495615-1516414375=:14056--
+That they certainly are: on one of the testing .config I'm using it gave this:
+   1104 sizeof struct page = 56
+     81 sizeof struct cpufreq_frequency_table = 12
+     32 sizeof struct Indirect = 24
+      7 sizeof struct zone = 1400
+      7 sizeof struct hstate = 152
+      6 sizeof struct lock_class = 336
+      6 sizeof struct hpet_dev = 152
+      6 sizeof struct ext4_extent = 12
+      4 sizeof struct ext4_extent_idx = 12
+      3 sizeof struct mbox_chan = 456
+      2 sizeof struct strip_zone = 24
+      2 sizeof struct kobj_attribute = 48
+      2 sizeof struct kernel_param = 40
+      2 sizeof struct exception_table_entry = 12
+      1 sizeof struct vif_device = 104
+      1 sizeof struct unixware_slice = 12
+      1 sizeof struct svc_pool = 152
+      1 sizeof struct srcu_node = 152
+      1 sizeof struct r5worker_group = 56
+      1 sizeof struct pebs_record_core = 144
+      1 sizeof struct netdev_queue = 384
+      1 sizeof struct mirror = 40
+      1 sizeof struct mif_device = 56
+      1 sizeof struct e1000_tx_ring = 48
+      1 sizeof struct dx_frame = 24
+      1 sizeof struct bts_record = 24
+      1 sizeof struct ata_device = 2560
+      1 sizeof struct acpi_processor_cx = 52
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
