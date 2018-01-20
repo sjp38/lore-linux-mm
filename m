@@ -1,79 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E4416B0033
-	for <linux-mm@kvack.org>; Sat, 20 Jan 2018 09:24:13 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id f18so4898448iof.8
-        for <linux-mm@kvack.org>; Sat, 20 Jan 2018 06:24:13 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id g5si2876236itb.149.2018.01.20.06.24.10
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C83A36B0069
+	for <linux-mm@kvack.org>; Sat, 20 Jan 2018 09:51:37 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f3so4347511pga.9
+        for <linux-mm@kvack.org>; Sat, 20 Jan 2018 06:51:37 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id u79si7190193pfi.315.2018.01.20.06.51.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 20 Jan 2018 06:24:11 -0800 (PST)
-Subject: Re: [PATCH v22 2/3] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20180117180337-mutt-send-email-mst@kernel.org>
-	<2bb0e3d9-1679-9ad3-b402-f0781f6cf094@I-love.SAKURA.ne.jp>
-	<20180118210239-mutt-send-email-mst@kernel.org>
-	<201801190611.HGI18722.FVtOMQLSHFFOOJ@I-love.SAKURA.ne.jp>
-	<20180119003101-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180119003101-mutt-send-email-mst@kernel.org>
-Message-Id: <201801202323.JHH12456.VtOFHSLOMQFOFJ@I-love.SAKURA.ne.jp>
-Date: Sat, 20 Jan 2018 23:23:56 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 20 Jan 2018 06:51:36 -0800 (PST)
+Date: Sat, 20 Jan 2018 09:51:31 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180120095131.57601321@gandalf.local.home>
+In-Reply-To: <20180120121953.GA1096857@devbig577.frc2.facebook.com>
+References: <20180111103845.GB477@jagdpanzerIV>
+	<20180111112908.50de440a@vmware.local.home>
+	<20180111203057.5b1a8f8f@gandalf.local.home>
+	<20180111215547.2f66a23a@gandalf.local.home>
+	<20180116194456.GS3460072@devbig577.frc2.facebook.com>
+	<20180117091208.ezvuhumnsarz5thh@pathway.suse.cz>
+	<20180117151509.GT3460072@devbig577.frc2.facebook.com>
+	<20180117121251.7283a56e@gandalf.local.home>
+	<20180117134201.0a9cbbbf@gandalf.local.home>
+	<20180119132052.02b89626@gandalf.local.home>
+	<20180120121953.GA1096857@devbig577.frc2.facebook.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mst@redhat.com
-Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-Michael S. Tsirkin wrote:
-> > > > >> +	 * the page if the vq is full. We are adding one entry each time,
-> > > > >> +	 * which essentially results in no memory allocation, so the
-> > > > >> +	 * GFP_KERNEL flag below can be ignored.
-> > > > >> +	 */
-> > > > >> +	if (vq->num_free) {
-> > > > >> +		err = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
-> > > > > 
-> > > > > Should we kick here? At least when ring is close to
-> > > > > being full. Kick at half way full?
-> > > > > Otherwise it's unlikely ring will
-> > > > > ever be cleaned until we finish the scan.
-> > > > 
-> > > > Since this add_one_sg() is called between spin_lock_irqsave(&zone->lock, flags)
-> > > > and spin_unlock_irqrestore(&zone->lock, flags), it is not permitted to sleep.
-> > > 
-> > > kick takes a while sometimes but it doesn't sleep.
-> > 
-> > I don't know about virtio. But the purpose of kicking here is to wait for pending data
-> > to be flushed in order to increase vq->num_free, isn't it?
+On Sat, 20 Jan 2018 04:19:53 -0800
+Tejun Heo <tj@kernel.org> wrote:
+
+> I'm a bit worried tho because this essentially seems like "detect
+> recursion, ignore messages" approach.  netcons can have a very large
+> surface for bugs.  Suppressing those messages would make them
+> difficult to debug.  For example, all our machines have both serial
+> console (thus the slowness) and netconsole hooked up and netcons code
+> has had its fair share of issues.  This would likely make tracking
+> down those problems more challenging.
+
+Well, it's not totally ignoring them. There's a variable that tells
+printk how many to print before it starts ignoring them. I picked 3,
+but that could very well be 5 or 10. Probably 10 is the best, because
+then it would give us enough idea why printk is recursing on itself
+without overloading the buffer. And I made it a variable to easily make
+it a knob for userspace to tweak if need be.
+
 > 
-> It isn't. It's to wake up device out of sleep to make it start
-> processing the pending data. If device isn't asleep, it's a nop.
+> Can we discuss pros and cons of this approach against offloading
+> before committing to this?
 
-We need to wait until vq->num_free > 0 if vq->num_free == 0 if we want to allow
-virtqueue_add_inbuf() to succeed. When will vq->num_free++ be called?
+I'm open. I was just thinking about the scenario that you mentioned and
+how what the best way to solve it would be.
 
-You said virtqueue_kick() is a no-op if the device is not asleep.
-Then, there will be no guarantee that we can make vq->num_free > 0
-by calling virtqueue_kick(). Are you saying that
+We need to define the exact problem(s) we are dealing with before we
+offer a solution. The one thing I don't want is a solution looking for
+a problem. I want a full understanding of what the problem exactly is
+and then we can discuss various solutions, and how they solve the
+problem(s). Otherwise we are just doing (to quote Linus) code masturbation.
 
-	virtqueue_kick(vq);
-	while (!vq->num_free)
-		virtqueue_get_buf(vq, &unused);
-	err = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
-	BUG_ON(err);
-
-sequence from IRQ disabled atomic context is safe? If no, what is
-the point with calling virtqueue_kick() when ring is close to being
-(half way) full? We can't guarantee that all data is sent to QEMU after all.
-
-
-
-Also, why does the cmd id matter? If VIRTIO_BALLOON_F_FREE_PAGE_VQ does not
-guarantee the atomicity, I don't see the point of communicating the cmd id
-between the QEMU and the guest kernel. Just an EOF marker should be enough.
-I do want to see changes for the QEMU side in order to review changes for
-the guest kernel side.
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
