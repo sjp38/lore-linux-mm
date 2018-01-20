@@ -1,66 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C985E6B0033
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 20:12:44 -0500 (EST)
-Received: by mail-yb0-f197.google.com with SMTP id r17so2022456ybm.18
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 17:12:44 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i27sor1647007ybj.131.2018.01.19.17.12.43
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2060F6B0033
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 20:58:41 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id r196so3560121itc.4
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 17:58:41 -0800 (PST)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id c76si9287896iod.220.2018.01.19.17.58.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 19 Jan 2018 17:12:43 -0800 (PST)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (1.0)
-Subject: Re: [kernel-hardening] Re: [PATCH 0/3] exec: Pin stack limit during exec
-From: David Windsor <dave@nullcore.net>
-In-Reply-To: <CAGXu5jJjHd9D=20jYnx4PSJHBbRsUOP3bAOJ11yyUWutqVHr2A@mail.gmail.com>
-Date: Fri, 19 Jan 2018 20:12:40 -0500
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <8BCDD560-66F5-4CF7-97DD-E2E5BE1D13F4@nullcore.net>
-References: <1515529383-35695-1-git-send-email-keescook@chromium.org> <CAGXu5jJjHd9D=20jYnx4PSJHBbRsUOP3bAOJ11yyUWutqVHr2A@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Jan 2018 17:58:40 -0800 (PST)
+Date: Fri, 19 Jan 2018 19:58:38 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: kmem_cache_attr (was Re: [PATCH 04/36] usercopy: Prepare for
+ usercopy whitelisting)
+In-Reply-To: <20180117193114.GB25862@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.20.1801191957160.14056@nuc-kabylake>
+References: <alpine.DEB.2.20.1801101219390.7926@nuc-kabylake> <20180114230719.GB32027@bombadil.infradead.org> <alpine.DEB.2.20.1801160913260.3908@nuc-kabylake> <20180116160525.GF30073@bombadil.infradead.org> <alpine.DEB.2.20.1801161049320.5162@nuc-kabylake>
+ <20180116174315.GA10461@bombadil.infradead.org> <alpine.DEB.2.20.1801161205590.1771@nuc-kabylake> <alpine.DEB.2.20.1801161215500.2945@nuc-kabylake> <20180116210313.GA7791@bombadil.infradead.org> <alpine.DEB.2.20.1801171141430.23209@nuc-kabylake>
+ <20180117193114.GB25862@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Ben Hutchings <ben@decadent.org.uk>, Willy Tarreau <w@1wt.eu>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, "Jason A. Donenfeld" <Jason@zx2c4.com>, Rik van Riel <riel@redhat.com>, Laura Abbott <labbott@redhat.com>, Greg KH <greg@kroah.com>, Andy Lutomirski <luto@kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-hardening@lists.openwall.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, kernel-hardening@lists.openwall.com
 
-I have some spare cycles; is there any more relevant information outside of t=
-his thread?
 
-Thanks,
-David
 
-> On Jan 19, 2018, at 5:49 PM, Kees Cook <keescook@chromium.org> wrote:
->=20
->> On Tue, Jan 9, 2018 at 12:23 PM, Kees Cook <keescook@chromium.org> wrote:=
+On Wed, 17 Jan 2018, Matthew Wilcox wrote:
 
->> Attempts to solve problems with the stack limit changing during exec
->> continue to be frustrated[1][2]. In addition to the specific issues
->> around the Stack Clash family of flaws, Andy Lutomirski pointed out[3]
->> other places during exec where the stack limit is used and is assumed
->> to be unchanging. Given the many places it gets used and the fact that
->> it can be manipulated/raced via setrlimit() and prlimit(), I think the
->> only way to handle this is to move away from the "current" view of the
->> stack limit and instead attach it to the bprm, and plumb this down into
->> the functions that need to know the stack limits. This series implements
->> the approach. I'd be curious to hear feedback on alternatives.
->=20
-> Friendly ping -- looking for some people with spare cycles to look
-> this over. If people want, I can toss it into -next as part of my kspp
-> tree. It's been living happily in 0-day for  2 weeks...
->=20
-> Thanks!
->=20
-> -Kees
->=20
->> [1] 04e35f4495dd ("exec: avoid RLIMIT_STACK races with prlimit()")
->> [2] 779f4e1c6c7c ("Revert "exec: avoid RLIMIT_STACK races with prlimit()"=
-")
->> [3] to security@kernel.org, "Subject: existing rlimit races?"
->=20
-> --=20
-> Kees Cook
-> Pixel Security
+> We could put a char * in the kmem_cache which (if not NULL) overrides
+> the attr->name?  Probably want a helper to replace the endearingly short
+> 's->name'.  Something like:
+>
+> #define slab_name(s)	s->name ?: s->attr->name
+
+
+Well I was planning on replacing references to const objects in
+kmem_cache_attr throughout the allocators with s->a->xx where a is the
+pointer to the attributes in struct kmem_cache. That is also a security
+feature if the kmem_cache_attr structures can be placed in readonly
+segmenets.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
