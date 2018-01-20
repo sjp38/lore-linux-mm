@@ -1,109 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9882E6B0069
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 21:05:59 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id y13so2342094wrb.17
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 18:05:59 -0800 (PST)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id y1si8949628wrg.509.2018.01.19.18.05.58
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D6266B0069
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 21:12:58 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id w17so3601920iow.23
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 18:12:58 -0800 (PST)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id g80si9399054ioe.172.2018.01.19.18.12.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Jan 2018 18:05:58 -0800 (PST)
-Date: Sat, 20 Jan 2018 02:02:37 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [mm 4.15-rc8] Random oopses under memory pressure.
-Message-ID: <20180120020237.GM13338@ZenIV.linux.org.uk>
-References: <20180118122550.2lhsjx7hg5drcjo4@node.shutemov.name>
- <d8347087-18a6-1709-8aa8-3c6f2d16aa94@linux.intel.com>
- <20180118145830.GA6406@redhat.com>
- <20180118165629.kpdkezarsf4qymnw@node.shutemov.name>
- <CA+55aFy43ypm0QvA5SqNR4O0ZJETbkR3NDR=dnSdvejc_nmSJQ@mail.gmail.com>
- <20180118234955.nlo55rw2qsfnavfm@node.shutemov.name>
- <20180119125503.GA2897@bombadil.infradead.org>
- <CA+55aFwWCeFrhN+WJDD8u9nqBzmvknXk428Q0dVwwXAvwhg_-w@mail.gmail.com>
- <20180119221243.GL13338@ZenIV.linux.org.uk>
- <CA+55aFw4mw32Mu0_+cgKAzxCNvDW1VPcESv7CyajexfDfMju1A@mail.gmail.com>
+        Fri, 19 Jan 2018 18:12:57 -0800 (PST)
+Date: Fri, 19 Jan 2018 20:12:55 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm: numa: Do not trap faults on shared data section
+ pages.
+In-Reply-To: <2BEFC6DE-7A47-4CB9-AAE5-CEF70453B46F@oracle.com>
+Message-ID: <alpine.DEB.2.20.1801192002161.14056@nuc-kabylake>
+References: <1516130924-3545-1-git-send-email-henry.willard@oracle.com> <1516130924-3545-2-git-send-email-henry.willard@oracle.com> <20180116212614.gudglzw7kwzd3get@suse.de> <alpine.DEB.2.20.1801171219270.23209@nuc-kabylake>
+ <2BEFC6DE-7A47-4CB9-AAE5-CEF70453B46F@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFw4mw32Mu0_+cgKAzxCNvDW1VPcESv7CyajexfDfMju1A@mail.gmail.com>
+Content-Type: multipart/mixed; BOUNDARY="8323329-1740495615-1516414375=:14056"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Tony Luck <tony.luck@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, "hillf.zj" <hillf.zj@alibaba-inc.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
+To: Henry Willard <henry.willard@oracle.com>
+Cc: Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, kstewart@linuxfoundation.org, zi.yan@cs.rutgers.edu, pombredanne@nexb.com, aarcange@redhat.com, gregkh@linuxfoundation.org, aneesh.kumar@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, jglisse@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jan 19, 2018 at 02:53:25PM -0800, Linus Torvalds wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> It would probably be good to add the size too, just to explain why
-> it's potentially expensive.
-> 
-> That said, apparently we do have hundreds of them, with just
-> cpufreq_frequency_table having a ton. Maybe some are hidden in macros
-> and removing one removes a lot.
+--8323329-1740495615-1516414375=:14056
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8BIT
 
-cpufreq_table_find_index_...(), mostly.
+On Thu, 18 Jan 2018, Henry Willard wrote:
 
-> The real problem is that sometimes the subtraction is simply the right
-> thing to do, and there's no sane way to say "yeah, this is one of
-> those cases you shouldn't warn about".
+> If MPOL_MF_LAZY were allowed and specified things would not work
+> correctly. change_pte_range() is unaware of and cana??t honor the
+> difference between MPOL_MF_MOVE_ALL and MPOL_MF_MOVE.
 
-FWIW, the sizes of the most common ones are
-     91 sizeof struct cpufreq_frequency_table = 12
-Almost all of those come from
-	cpufreq_for_each_valid_entry(pos, table)
-		if (....)
-			return pos - table;
-and I wonder if we would be better off with something like
-#define cpufreq_for_each_valid_entry(pos, table, idx)                   		\
-        for (pos = table, idx = 0; pos->frequency != CPUFREQ_TABLE_END; pos++, idx++)   \
-                if (pos->frequency == CPUFREQ_ENTRY_INVALID)            \
-                        continue;                                       \
-                else
-so that those loops would become
-	cpufreq_for_each_valid_entry(pos, table, idx)
-		if (....)
-			return idx;
-     36 sizeof struct Indirect = 24
-     21 sizeof struct ips_scb = 216
-     18 sizeof struct runlist_element = 24
-     13 sizeof struct zone = 1728
-Some are from
-#define zone_idx(zone)          ((zone) - (zone)->zone_pgdat->node_zones)
-but there's
-static inline int zone_id(const struct zone *zone)
-{ 
-        struct pglist_data *pgdat = zone->zone_pgdat;
+Not sure how that relates to what I said earlier... Sorry.
 
-        return zone - pgdat->node_zones;
-}
-and a couple of places where we have
-        for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
-Those bloody well ought to be
-	for (zone = node_zones, end = node_zones + MAX_NR_ZONES; zone < end; zone++) {
-     13 sizeof struct vring = 40
-     11 sizeof struct usbhsh_device = 24
-     10 sizeof struct xpc_partition = 888
-      9 sizeof struct skge_element = 40
-      9 sizeof struct lock_class = 400
-      9 sizeof struct hstate = 29872
-That little horror comes from get_hstate_idx() and hstate_index().  Code generated
-for division is
-        movabsq $-5542915600080909725, %rax
-        sarq    $4, %rdi
-        imulq   %rdi, %rax
-      7 sizeof struct nvme_rdma_queue = 312
-      7 sizeof struct iso_context = 208
-      6 sizeof struct i915_power_well = 48
-      6 sizeof struct hpet_dev = 168
-      6 sizeof struct ext4_extent = 12
-      6 sizeof struct esas2r_target = 120
-      5 sizeof struct iio_chan_spec = 152
-      5 sizeof struct hwspinlock = 96
-      4 sizeof struct myri10ge_slice_state = 704
-      4 sizeof struct ext4_extent_idx = 12
-Another interesting-looking one is struct vhost_net_virtqueue (18080 bytes)
+>
+> For the case of auto numa balancing, it may be undesirable for shared
+> pages to be migrated whether they are also copy-on-write or not. The
+> copy-on-write test was added to restrict the effect of the patch to the
+> specific situation we observed. Perhaps I should remove it, I dona??t
+> understand why it would be desirable to modify the behavior via sysfs.
 
-Note that those sizes are rather sensitive to lockdep, spinlock debugging, etc.
+I think the most common case of shared pages occurs for pages that contain
+code. In that case a page may be mapped into hundreds if not thousands of
+processes. In particular that is often the case for basic system libraries
+like the c library which may actually be mapped into every binary that is
+running.
+
+It is very difficult and expensive to unmap these pages from all the
+processes in order to migrate them. So some sort of limit would be useful
+to avoid unnecessary migration attempts. One example would be to forbid
+migrating pages that are mapped in more than 5 processes. Some sysctl know
+would be useful here to set the boundary.
+
+Your patch addresses a special case here by forbidding migration of any
+page mapped by more than a single process (mapcount !=1).
+
+That would mean f.e. that the complete migration of a set of processes
+that rely on sharing data via a memory segment is impossible because those
+shared pages can never be moved.
+
+By setting the limit higher that migration would still be possible.
+
+Maybe we can set that limit by default at 5 and allow a higher setting
+if users have applications that require a higher mapcoun? F.e. a
+common construct is a shepherd task and N worker threads. If those
+tasks each have their own address space and only communicate via
+a shared data segment then one may want to set the limit higher than N
+in order to allow the migration of the group of processes.
+
+--8323329-1740495615-1516414375=:14056--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
