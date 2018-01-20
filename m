@@ -1,79 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B94226B0069
-	for <linux-mm@kvack.org>; Sat, 20 Jan 2018 07:33:01 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id k23so6940182qtc.14
-        for <linux-mm@kvack.org>; Sat, 20 Jan 2018 04:33:01 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r18sor7606676qkr.107.2018.01.20.04.33.00
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E4416B0033
+	for <linux-mm@kvack.org>; Sat, 20 Jan 2018 09:24:13 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id f18so4898448iof.8
+        for <linux-mm@kvack.org>; Sat, 20 Jan 2018 06:24:13 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id g5si2876236itb.149.2018.01.20.06.24.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 20 Jan 2018 04:33:00 -0800 (PST)
-Date: Sat, 20 Jan 2018 04:32:51 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [patch -mm 3/4] mm, memcg: replace memory.oom_group with policy
- tunable
-Message-ID: <20180120123251.GB1096857@devbig577.frc2.facebook.com>
-References: <alpine.DEB.2.10.1801161812550.28198@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1801161814130.28198@chino.kir.corp.google.com>
- <20180117154155.GU3460072@devbig577.frc2.facebook.com>
- <alpine.DEB.2.10.1801171348190.86895@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1801191251080.177541@chino.kir.corp.google.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 20 Jan 2018 06:24:11 -0800 (PST)
+Subject: Re: [PATCH v22 2/3] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20180117180337-mutt-send-email-mst@kernel.org>
+	<2bb0e3d9-1679-9ad3-b402-f0781f6cf094@I-love.SAKURA.ne.jp>
+	<20180118210239-mutt-send-email-mst@kernel.org>
+	<201801190611.HGI18722.FVtOMQLSHFFOOJ@I-love.SAKURA.ne.jp>
+	<20180119003101-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180119003101-mutt-send-email-mst@kernel.org>
+Message-Id: <201801202323.JHH12456.VtOFHSLOMQFOFJ@I-love.SAKURA.ne.jp>
+Date: Sat, 20 Jan 2018 23:23:56 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1801191251080.177541@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: mst@redhat.com
+Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-Hello, David.
+Michael S. Tsirkin wrote:
+> > > > >> +	 * the page if the vq is full. We are adding one entry each time,
+> > > > >> +	 * which essentially results in no memory allocation, so the
+> > > > >> +	 * GFP_KERNEL flag below can be ignored.
+> > > > >> +	 */
+> > > > >> +	if (vq->num_free) {
+> > > > >> +		err = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
+> > > > > 
+> > > > > Should we kick here? At least when ring is close to
+> > > > > being full. Kick at half way full?
+> > > > > Otherwise it's unlikely ring will
+> > > > > ever be cleaned until we finish the scan.
+> > > > 
+> > > > Since this add_one_sg() is called between spin_lock_irqsave(&zone->lock, flags)
+> > > > and spin_unlock_irqrestore(&zone->lock, flags), it is not permitted to sleep.
+> > > 
+> > > kick takes a while sometimes but it doesn't sleep.
+> > 
+> > I don't know about virtio. But the purpose of kicking here is to wait for pending data
+> > to be flushed in order to increase vq->num_free, isn't it?
+> 
+> It isn't. It's to wake up device out of sleep to make it start
+> processing the pending data. If device isn't asleep, it's a nop.
 
-On Fri, Jan 19, 2018 at 12:53:41PM -0800, David Rientjes wrote:
-> Hearing no response, I'll implement this as a separate tunable in a v2 
-> series assuming there are no better ideas proposed before next week.  One 
-> of the nice things about a separate tunable is that an admin can control 
-> the overall policy and they can delegate the mechanism (killall vs one 
-> process) to a user subtree.  I agree with your earlier point that killall 
-> vs one process is a property of the workload and is better defined 
-> separately.
+We need to wait until vq->num_free > 0 if vq->num_free == 0 if we want to allow
+virtqueue_add_inbuf() to succeed. When will vq->num_free++ be called?
 
-If I understood your arguments correctly, the reasons that you thought
-your selectdion policy changes must go together with Roman's victim
-action were two-fold.
+You said virtqueue_kick() is a no-op if the device is not asleep.
+Then, there will be no guarantee that we can make vq->num_free > 0
+by calling virtqueue_kick(). Are you saying that
 
-1. You didn't want a separate knob for group oom behavior and wanted
-   it to be combined with selection policy.  I'm glad that you now
-   recognize that this would be the wrong design choice.
+	virtqueue_kick(vq);
+	while (!vq->num_free)
+		virtqueue_get_buf(vq, &unused);
+	err = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
+	BUG_ON(err);
 
-2. The current selection policy may be exploited by delegatee and
-   strictly hierarchical seleciton should be available.  We can debate
-   the pros and cons of different heuristics; however, to me, the
-   followings are clear.
+sequence from IRQ disabled atomic context is safe? If no, what is
+the point with calling virtqueue_kick() when ring is close to being
+(half way) full? We can't guarantee that all data is sent to QEMU after all.
 
-   * Strictly hierarchical approach can't replace the current policy.
-     It doesn't work well for a lot of use cases.
 
-   * OOM victim selection policy has always been subject to changes
-     and improvements.
 
-I don't see any blocker here.  The issue you're raising can and should
-be handled separately.
-
-In terms of interface, what makes an interface bad is when the
-purposes aren't crystalized enough and different interface pieces fail
-to clearnly encapsulate what's actually necessary.
-
-Here, whether a workload can survive being killed piece-wise or not is
-an inherent property of the workload and a pretty binary one at that.
-I'm not necessarily against changing it to take string inputs but
-don't see rationales for doing so yet.
-
-Thanks.
-
--- 
-tejun
+Also, why does the cmd id matter? If VIRTIO_BALLOON_F_FREE_PAGE_VQ does not
+guarantee the atomicity, I don't see the point of communicating the cmd id
+between the QEMU and the guest kernel. Just an EOF marker should be enough.
+I do want to see changes for the QEMU side in order to review changes for
+the guest kernel side.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
