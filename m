@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 905AC6B0033
-	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 19:15:31 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id e198so1914670oig.23
-        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 16:15:31 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id E0AA46B0069
+	for <linux-mm@kvack.org>; Fri, 19 Jan 2018 19:15:54 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id r141so1949995oie.9
+        for <linux-mm@kvack.org>; Fri, 19 Jan 2018 16:15:54 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 63sor3919428oig.258.2018.01.19.16.15.30
+        by mx.google.com with SMTPS id u9sor4020538otd.106.2018.01.19.16.15.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 19 Jan 2018 16:15:30 -0800 (PST)
+        Fri, 19 Jan 2018 16:15:54 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180118000602.5527-1-jschoenh@amazon.de>
-References: <20180118000602.5527-1-jschoenh@amazon.de>
+In-Reply-To: <20180118000602.5527-2-jschoenh@amazon.de>
+References: <20180118000602.5527-1-jschoenh@amazon.de> <20180118000602.5527-2-jschoenh@amazon.de>
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 19 Jan 2018 16:15:29 -0800
-Message-ID: <CAPcyv4jxHuo5kJhZ7T5dseNmW0qKtnjc98k9KS=TKRxV_FXW4g@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: Fix memory size alignment in devm_memremap_pages_release()
+Date: Fri, 19 Jan 2018 16:15:53 -0800
+Message-ID: <CAPcyv4gDpaJZeM0UULLdXU4YPXQUhDfZAzs8xyrXp89AbE-tSg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: Fix devm_memremap_pages() collision handling
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
@@ -25,15 +25,16 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Li
 
 On Wed, Jan 17, 2018 at 4:06 PM, Jan H. Sch=C3=B6nherr <jschoenh@amazon.de>=
  wrote:
-> The functions devm_memremap_pages() and devm_memremap_pages_release() use
-> different ways to calculate the section-aligned amount of memory. The
-> latter function may use an incorrect size if the memory region is small
-> but straddles a section border.
+> If devm_memremap_pages() detects a collision while adding entries
+> to the radix-tree, we call pgmap_radix_release(). Unfortunately,
+> the function removes *all* entries for the range -- including the
+> entries that caused the collision in the first place.
 >
-> Use the same code for both.
+> Modify pgmap_radix_release() to take an additional argument to
+> indicate where to stop, so that only newly added entries are removed
+> from the tree.
 >
-> Fixes: 5f29a77cd957 ("mm: fix mixed zone detection in devm_memremap_pages=
-")
+> Fixes: 9476df7d80df ("mm: introduce find_dev_pagemap()")
 > Signed-off-by: Jan H. Sch=C3=B6nherr <jschoenh@amazon.de>
 
 Looks good to me, applied for 4.16.
