@@ -1,308 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 039096B0003
-	for <linux-mm@kvack.org>; Sun, 21 Jan 2018 16:04:57 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id u16so6986629pfh.7
-        for <linux-mm@kvack.org>; Sun, 21 Jan 2018 13:04:56 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 204si12682104pgf.94.2018.01.21.13.04.55
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2377F6B0003
+	for <linux-mm@kvack.org>; Sun, 21 Jan 2018 18:46:30 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id o16so7019505pgv.3
+        for <linux-mm@kvack.org>; Sun, 21 Jan 2018 15:46:30 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k6sor3108058pgp.230.2018.01.21.15.46.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 Jan 2018 13:04:55 -0800 (PST)
-Date: Sun, 21 Jan 2018 16:04:41 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180121160441.7ea4b6d9@gandalf.local.home>
-In-Reply-To: <20180121141521.GA429@tigerII.localdomain>
-References: <20180111203057.5b1a8f8f@gandalf.local.home>
-	<20180111215547.2f66a23a@gandalf.local.home>
-	<20180116194456.GS3460072@devbig577.frc2.facebook.com>
-	<20180117091208.ezvuhumnsarz5thh@pathway.suse.cz>
-	<20180117151509.GT3460072@devbig577.frc2.facebook.com>
-	<20180117121251.7283a56e@gandalf.local.home>
-	<20180117134201.0a9cbbbf@gandalf.local.home>
-	<20180119132052.02b89626@gandalf.local.home>
-	<20180120071402.GB8371@jagdpanzerIV>
-	<20180120104931.1942483e@gandalf.local.home>
-	<20180121141521.GA429@tigerII.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Sun, 21 Jan 2018 15:46:28 -0800 (PST)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: [RFC PATCH 00/16] PTI support for x86-32
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <886C924D-668F-4007-98CA-555DB6279E4F@gmail.com>
+Date: Sun, 21 Jan 2018 15:46:24 -0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <9CF1DD34-7C66-4F11-856D-B5E896988E16@gmail.com>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+ <5D89F55C-902A-4464-A64E-7157FF55FAD0@gmail.com>
+ <886C924D-668F-4007-98CA-555DB6279E4F@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, Petr Mladek <pmladek@suse.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
 
-On Sun, 21 Jan 2018 23:15:21 +0900
-Sergey Senozhatsky <sergey.senozhatsky@gmail.com> wrote:
+I wanted to see whether segments protection can be a replacement for PTI
+(yes, excluding SMEP emulation), or whether speculative execution =
+=E2=80=9Cignores=E2=80=9D
+limit checks, similarly to the way paging protection is skipped.
 
-> so.... fix the console drivers ;)
+It does seem that segmentation provides sufficient protection from =
+Meltdown.
+The =E2=80=9Creliability=E2=80=9D test of Gratz PoC fails if the segment =
+limit is set to
+prevent access to the kernel memory. [ It passes if the limit is not =
+set,
+even if the DS is reloaded. ] My test is enclosed below.
 
-Totally agree!
+So my question: wouldn=E2=80=99t it be much more efficient to use =
+segmentation
+protection for x86-32, and allow users to choose whether they want =
+SMEP-like
+protection if needed (and then enable PTI)?
 
-> 
-> 
-> 
-> 
-> just kidding. ok...
+[ There might be some corner cases in which setting a segment limit
+introduces a problem, for example when modify_ldt() is used to set =
+invalid
+limit, but I presume that these are relatively uncommon, can be detected =
+on
+runtime, and PTI can then be used as a fallback mechanism. ]
 
-Darn it! ;-)
+Thanks,
+Nadav
 
-> the problem is that we flush printk_safe right when console_unlock() printing
-> loop enables local IRQs via printk_safe_exit_irqrestore() [given that IRQs
-> were enabled in the first place when the CPU went to console_unlock()].
-> this forces that CPU to loop in console_unlock() as long as we have
-> printk-s coming from call_console_drivers(). but we probably can postpone
-> printk_safe flush. basically, we can declare a new rule - we don't flush
-> printk_safe buffer as long as console_sem is locked. because this is how
-> that printing CPU stuck in the console_unlock() printing loop. printk_safe
-> buffer is very important when it comes to storing a non-repetitive stuff, like
-> a lockdep splat, which is a single shot event. but the more repetitive the
-> message is, like millions of similar kmalloc() dump_stack()-s over and over
-> again, the less value in it. we should have printk_safe buffer big enough for
-> important info, like a lockdep splat, but millions of similar kmalloc()
-> messages are pretty invaluable - one is already enough, we can drop the rest.
-> and we should not flush new messages while there is a CPU looping in
-> console_unlock(), because it already has messages to print, which were
-> log_store()-ed the normal way.
+-- >8 --
+Subject: [PATCH] Test segmentation protection
 
-The above is really hard to read without any capitalization. Everything
-seems to be a run-on sentence and gives me a head ache. So you lost me
-there.
+---
+ libkdump/libkdump.c | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
 
-> 
-> this is where the "postpone thing" jumps in. so how do we postpone printk_safe
-> flush.
-> 
-> we can't console_trylock()/console_unlock() in printk_safe flush code.
-> but there is a `console_locked' flag and is_console_locked() function which
-> tell us if the console_sem is locked. as long as we are in console_unlock()
-> printing loop that flag is set, even if we enabled local IRQs and printk_safe
-> flush work arrived. so now printk_safe flush does extra check and does
-> not flush printk_safe buffer content as long as someone is currently
-> printing or soon will start printing. but we need to take extra step and
-> to re-queue flush on CPUs that did postpone it [console_unlock() can
-> reschedule]. so now we flush only when printing CPU printed all pending
-> logbuf messages, hit the "console_seq == log_next_seq" and up()
-> console_sem. this sets a boundary -- no matter how many times during the
-> current printing loop we called console drivers and how many times those
-> drivers caused printk recursion, we will flush only SAFE_LOG_BUF_LEN chars.
+diff --git a/libkdump/libkdump.c b/libkdump/libkdump.c
+index c590391..db5bac3 100644
+--- a/libkdump/libkdump.c
++++ b/libkdump/libkdump.c
+@@ -10,6 +10,9 @@
+ #include <stdarg.h>
+ #include <stdlib.h>
+ #include <unistd.h>
++#include <assert.h>
++#include <sys/types.h>
++#include <asm/ldt.h>
+=20
+ libkdump_config_t libkdump_auto_config =3D {0};
+=20
+@@ -500,6 +503,31 @@ int __attribute__((optimize("-Os"), noinline)) =
+libkdump_read_tsx() {
+   return 0;
+ }
+=20
++extern int modify_ldt(int, void*, unsigned long);
++
++void change_ds(void)
++{
++	int r;
++	struct user_desc desc =3D {
++		.entry_number =3D 1,
++		.base_addr =3D 0,
++#ifdef NO_SEGMENTS
++		.limit =3D 0xffffeu,
++#else
++		.limit =3D 0xbffffu,
++#endif
++		.seg_32bit =3D 1,
++		.contents =3D 0,
++		.read_exec_only =3D 0,
++		.limit_in_pages =3D 1,
++		.seg_not_present =3D 0,
++	};
++
++	r =3D modify_ldt(1 /* write */, &desc, sizeof(desc));
++	assert(r =3D=3D 0);
++	asm volatile ("mov %0, %%ds\n\t" : : "r"((1 << 3) | (1 << 2) | =
+3));
++}
++
+ // =
+--------------------------------------------------------------------------=
+-
+ int __attribute__((optimize("-Os"), noinline)) =
+libkdump_read_signal_handler() {
+   size_t retries =3D config.retries + 1;
+@@ -507,6 +535,9 @@ int __attribute__((optimize("-Os"), noinline)) =
+libkdump_read_signal_handler() {
+=20
+   while (retries--) {
+     if (!setjmp(buf)) {
++      /* longjmp reloads the original DS... */
++      change_ds();
++
+       MELTDOWN;
+     }
 
-Another big paragraph with no capitals (besides macros and CPU ;-)
+Nadav Amit <nadav.amit@gmail.com> wrote:
 
-I guess this is what it is like when people listen to me talk too fast.
+> Please ignore my previous email. I got it working=E2=80=A6 Sorry for =
+the spam.
+>=20
+>=20
+> Nadav Amit <nadav.amit@gmail.com> wrote:
+>=20
+>> I am looking on PTI on x86-32, but I did not mange to get the PoC to =
+work on
+>> this setup (kaslr disabled, similar setup works on 64-bit).
+>>=20
+>> Did you use any PoC to =E2=80=9Ctest=E2=80=9D the protection?
+>>=20
+>> Thanks,
+>> Nadav
+>>=20
+>>=20
+>> Joerg Roedel <joro@8bytes.org> wrote:
+>>=20
+>>> From: Joerg Roedel <jroedel@suse.de>
+>>>=20
+>>> Hi,
+>>>=20
+>>> here is my current WIP code to enable PTI on x86-32. It is
+>>> still in a pretty early state, but it successfully boots my
+>>> KVM guest with PAE and with legacy paging. The existing PTI
+>>> code for x86-64 already prepares a lot of the stuff needed
+>>> for 32 bit too, thanks for that to all the people involved
+>>> in its development :)
+>>>=20
+>>> The patches are split as follows:
+>>>=20
+>>> 	- 1-3 contain the entry-code changes to enter and
+>>> 	  exit the kernel via the sysenter trampoline stack.
+>>>=20
+>>> 	- 4-7 are fixes to get the code compile on 32 bit
+>>> 	  with CONFIG_PAGE_TABLE_ISOLATION=3Dy.
+>>>=20
+>>> 	- 8-14 adapt the existing PTI code to work properly
+>>> 	  on 32 bit and add the needed parts to 32 bit
+>>> 	  page-table code.
+>>>=20
+>>> 	- 15 switches PTI on by adding the CR3 switches to
+>>> 	  kernel entry/exit.
+>>>=20
+>>> 	- 16 enables the Kconfig for all of X86
+>>>=20
+>>> The code has not run on bare-metal yet, I'll test that in
+>>> the next days once I setup a 32 bit box again. I also havn't
+>>> tested Wine and DosEMU yet, so this might also be broken.
+>>>=20
+>>> With that post I'd like to ask for all kinds of constructive
+>>> feedback on the approaches I have taken and of course the
+>>> many things I broke with it :)
+>>>=20
+>>> One of the things that are surely broken is XEN_PV support.
+>>> I'd appreciate any help with testing and bugfixing on that
+>>> front.
+>>>=20
+>>> So please review and let me know your thoughts.
+>>>=20
+>>> Thanks,
+>>>=20
+>>> 	Joerg
+>>>=20
+>>> Joerg Roedel (16):
+>>> x86/entry/32: Rename TSS_sysenter_sp0 to TSS_sysenter_stack
+>>> x86/entry/32: Enter the kernel via trampoline stack
+>>> x86/entry/32: Leave the kernel via the trampoline stack
+>>> x86/pti: Define X86_CR3_PTI_PCID_USER_BIT on x86_32
+>>> x86/pgtable: Move pgdp kernel/user conversion functions to pgtable.h
+>>> x86/mm/ldt: Reserve high address-space range for the LDT
+>>> x86/mm: Move two more functions from pgtable_64.h to pgtable.h
+>>> x86/pgtable/32: Allocate 8k page-tables when PTI is enabled
+>>> x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on x86_32
+>>> x86/mm/pti: Populate valid user pud entries
+>>> x86/mm/pgtable: Move pti_set_user_pgd() to pgtable.h
+>>> x86/mm/pae: Populate the user page-table with user pgd's
+>>> x86/mm/pti: Add an overflow check to pti_clone_pmds()
+>>> x86/mm/legacy: Populate the user page-table with user pgd's
+>>> x86/entry/32: Switch between kernel and user cr3 on entry/exit
+>>> x86/pti: Allow CONFIG_PAGE_TABLE_ISOLATION for x86_32
+>>>=20
+>>> arch/x86/entry/entry_32.S               | 170 =
++++++++++++++++++++++++++++++---
+>>> arch/x86/include/asm/pgtable-2level.h   |   3 +
+>>> arch/x86/include/asm/pgtable-3level.h   |   3 +
+>>> arch/x86/include/asm/pgtable.h          |  88 +++++++++++++++++
+>>> arch/x86/include/asm/pgtable_32_types.h |   5 +-
+>>> arch/x86/include/asm/pgtable_64.h       |  85 ----------------
+>>> arch/x86/include/asm/processor-flags.h  |   8 +-
+>>> arch/x86/include/asm/switch_to.h        |   6 +-
+>>> arch/x86/kernel/asm-offsets_32.c        |   5 +-
+>>> arch/x86/kernel/cpu/common.c            |   5 +-
+>>> arch/x86/kernel/head_32.S               |  23 ++++-
+>>> arch/x86/kernel/process.c               |   2 -
+>>> arch/x86/kernel/process_32.c            |   6 ++
+>>> arch/x86/mm/pgtable.c                   |  11 ++-
+>>> arch/x86/mm/pti.c                       |  34 ++++++-
+>>> security/Kconfig                        |   2 +-
+>>> 16 files changed, 333 insertions(+), 123 deletions(-)
+>>>=20
+>>> --=20
+>>> 2.13.6
+>>>=20
+>>> --
+>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>> see: http://www.linux-mm.org/ .
+>>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
-
-> 
-> 
-> IOW, what we have now, looks like this:
-> 
-> a) printk_safe is for important stuff, we don't guarantee that a flood
->    of messages will be preserved.
-> 
-> b) we extend the previously existing "will flush messages later on from
->    a safer context" and now we also consider console_unlock() printing loop
->    as unsafe context. so the unsafe context it's not only the one that can
->    deadlock, but also the one that can lockup CPU in a printing loop because
->    of recursive printk messages.
-
-Sure.
-
-> 
-> 
-> so this
-> 
->  printk
->   console_unlock
->   {
->    for (;;) {
->      call_console_drivers
->       net_console
->        printk
->         printk_save -> irq_work queue
-> 
-> 	   IRQ work
-> 	     prink_safe_flush
-> 	       printk_deferred -> log_store()
->            iret
->     }
->     up();
->   }
-> 
-> 
->    // which can never break out, because we can always append new messages
->    // from prink_safe_flush.
-> 
-> becomes this
-> 
-> printk
->   console_unlock
->   {
->    for (;;) {
->      call_console_drivers
->       net_console
->        printk
->         printk_save -> irq_work queue
-> 
->     }
->     up();
-> 
->   IRQ work
->    prink_safe_flush
->     printk_deferred -> log_store()
->   iret
-> }
-
-But we do eventually send this data out to the consoles, and if the
-consoles cause more printks, wouldn't this still never end?
-
-> 
-> 
-> 
-> something completely untested, sketchy and ugly.
-> 
-> ---
-> 
->  kernel/printk/internal.h    |  2 ++
->  kernel/printk/printk.c      |  1 +
->  kernel/printk/printk_safe.c | 37 +++++++++++++++++++++++++++++++++++--
->  3 files changed, 38 insertions(+), 2 deletions(-)
-> 
-> diff --git a/kernel/printk/internal.h b/kernel/printk/internal.h
-> index 2a7d04049af4..e85517818a49 100644
-> --- a/kernel/printk/internal.h
-> +++ b/kernel/printk/internal.h
-> @@ -30,6 +30,8 @@ __printf(1, 0) int vprintk_func(const char *fmt, va_list args);
->  void __printk_safe_enter(void);
->  void __printk_safe_exit(void);
->  
-> +void printk_safe_requeue_flushing(void);
-> +
->  #define printk_safe_enter_irqsave(flags)	\
->  	do {					\
->  		local_irq_save(flags);		\
-> diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-> index 9cb943c90d98..7aca23e8d7b2 100644
-> --- a/kernel/printk/printk.c
-> +++ b/kernel/printk/printk.c
-> @@ -2428,6 +2428,7 @@ void console_unlock(void)
->  	raw_spin_lock(&logbuf_lock);
->  	retry = console_seq != log_next_seq;
->  	raw_spin_unlock(&logbuf_lock);
-> +	printk_safe_requeue_flushing();
->  	printk_safe_exit_irqrestore(flags);
->  
->  	if (retry && console_trylock())
-> diff --git a/kernel/printk/printk_safe.c b/kernel/printk/printk_safe.c
-> index 3e3c2004bb23..45d5b292d7e1 100644
-> --- a/kernel/printk/printk_safe.c
-> +++ b/kernel/printk/printk_safe.c
-> @@ -22,6 +22,7 @@
->  #include <linux/cpumask.h>
->  #include <linux/irq_work.h>
->  #include <linux/printk.h>
-> +#include <linux/console.h>
->  
->  #include "internal.h"
->  
-> @@ -51,6 +52,7 @@ struct printk_safe_seq_buf {
->  	atomic_t		message_lost;
->  	struct irq_work		work;	/* IRQ work that flushes the buffer */
->  	unsigned char		buffer[SAFE_LOG_BUF_LEN];
-> +	bool			need_requeue;
->  };
->  
->  static DEFINE_PER_CPU(struct printk_safe_seq_buf, safe_print_seq);
-> @@ -196,6 +198,7 @@ static void __printk_safe_flush(struct irq_work *work)
->  	size_t len;
->  	int i;
->  
-> +	s->need_requeue = false;
->  	/*
->  	 * The lock has two functions. First, one reader has to flush all
->  	 * available message to make the lockless synchronization with
-> @@ -243,6 +246,36 @@ static void __printk_safe_flush(struct irq_work *work)
->  	raw_spin_unlock_irqrestore(&read_lock, flags);
->  }
->  
-> +/* NMI buffers are always flushed */
-> +static void flush_nmi_buffer(struct irq_work *work)
-> +{
-> +	__printk_safe_flush(work);
-> +}
-> +
-> +/* printk_safe buffers flushing, on the contrary, can be postponed */
-> +static void flush_printk_safe_buffer(struct irq_work *work)
-> +{
-> +	struct printk_safe_seq_buf *s =
-> +		container_of(work, struct printk_safe_seq_buf, work);
-> +
-> +	if (is_console_locked()) {
-> +		s->need_requeue = true;
-> +		return;
-> +	}
-> +
-> +	__printk_safe_flush(work);
-> +}
-> +
-> +void printk_safe_requeue_flushing(void)
-> +{
-> +	int cpu;
-> +
-> +	for_each_possible_cpu(cpu) {
-> +		if (per_cpu(safe_print_seq, cpu).need_requeue)
-> +			queue_flush_work(&per_cpu(safe_print_seq, cpu));
-> +	}
-> +}
-> +
->  /**
->   * printk_safe_flush - flush all per-cpu nmi buffers.
->   *
-> @@ -387,11 +420,11 @@ void __init printk_safe_init(void)
->  		struct printk_safe_seq_buf *s;
->  
->  		s = &per_cpu(safe_print_seq, cpu);
-> -		init_irq_work(&s->work, __printk_safe_flush);
-> +		init_irq_work(&s->work, flush_printk_safe_buffer);
->  
->  #ifdef CONFIG_PRINTK_NMI
->  		s = &per_cpu(nmi_print_seq, cpu);
-> -		init_irq_work(&s->work, __printk_safe_flush);
-> +		init_irq_work(&s->work, flush_nmi_buffer);
->  #endif
->  	}
->  
-> ---
-> 
-> 
-> 
-> > > lose all of them now? then we can do a much simpler thing - steal one
-> > > bit from `printk_context' and use if for a new PRINTK_NOOP_CONTEXT, which
-> > > will be set around call_console_drivers(). vprintk_func() would redirect
-> > > printks to vprintk_noop(fmt, args), which will do nothing.  
-> > 
-> > Not sure what you mean here. Have some pseudo code to demonstrate with?  
-> 
-> sure, I meant that if we want to disable printk recursion from
-> call_console_drivers(), then we can add another printk_safe section, say
-> printk_noop_begin()/printk_noop_end(), which would set a PRINTK_NOOP
-> bit of `printk_context', so when we have printk() under PRINTK_NOOP
-> then vprintk_func() goes to a special vprintk_noop(fmt, args), which
-> simply drops the message [does not store any in the per-cpu printk
-> safe buffer, so we don't flush it and don't add new messages to the
-> logbuf]. and we annotate call_console_drivers() as a pintk_noop
-> function. but that a no-brainer and I'd prefer to have another solution.
-> 
-
-Another big paragraph without caps, but I figured it out.
-
-I say we try that solution and see if it fixes the current issues.
-Because right now, the bug I see Tejun presented was if something in
-printk causes printks, it will start a printk bomb and lock up the
-system. The only reasonable answer I see to that is to throttle printk
-in such a case.
-
--- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
