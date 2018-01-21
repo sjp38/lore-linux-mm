@@ -1,134 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4554F6B0038
-	for <linux-mm@kvack.org>; Sun, 21 Jan 2018 09:50:08 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id b111so4891052wrd.16
-        for <linux-mm@kvack.org>; Sun, 21 Jan 2018 06:50:08 -0800 (PST)
-Received: from smtp1.de.adit-jv.com (smtp1.de.adit-jv.com. [62.225.105.245])
-        by mx.google.com with ESMTPS id 62si11986436wrm.70.2018.01.21.06.50.06
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DC256B0033
+	for <linux-mm@kvack.org>; Sun, 21 Jan 2018 10:34:23 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id r23so10804044qte.13
+        for <linux-mm@kvack.org>; Sun, 21 Jan 2018 07:34:23 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id v92si530817qtd.339.2018.01.21.07.34.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 Jan 2018 06:50:06 -0800 (PST)
-From: Eugeniu Rosca <erosca@de.adit-jv.com>
-Subject: [PATCH v2 1/1] mm: page_alloc: skip over regions of invalid pfns on UMA
-Date: Sun, 21 Jan 2018 15:47:53 +0100
-Message-ID: <20180121144753.3109-2-erosca@de.adit-jv.com>
-In-Reply-To: <20180121144753.3109-1-erosca@de.adit-jv.com>
-References: <20180121144753.3109-1-erosca@de.adit-jv.com>
+        Sun, 21 Jan 2018 07:34:22 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0LFYJMU024999
+	for <linux-mm@kvack.org>; Sun, 21 Jan 2018 10:34:21 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2fmm96p21y-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 21 Jan 2018 10:34:20 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sun, 21 Jan 2018 15:34:15 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v10 01/27] mm, powerpc, x86: define VM_PKEY_BITx bits if CONFIG_ARCH_HAS_PKEYS is enabled
+In-Reply-To: <1516326648-22775-2-git-send-email-linuxram@us.ibm.com>
+References: <1516326648-22775-1-git-send-email-linuxram@us.ibm.com> <1516326648-22775-2-git-send-email-linuxram@us.ibm.com>
+Date: Sun, 21 Jan 2018 21:04:02 +0530
 MIME-Version: 1.0
 Content-Type: text/plain
+Message-Id: <87mv17rzth.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>
-Cc: Eugeniu Rosca <erosca@de.adit-jv.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ram Pai <linuxram@us.ibm.com>, mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com
 
-As a result of bisecting the v4.10..v4.11 commit range, it was
-determined that commits [1] and [2] are both responsible of a ~140ms
-early startup improvement on Rcar-H3-ES20 arm64 platform.
+Ram Pai <linuxram@us.ibm.com> writes:
 
-Since Rcar Gen3 family is not NUMA, we don't define CONFIG_NUMA in the
-rcar3 defconfig (which also reduces KNL binary image by ~64KB), but this
-is how the boot time improvement is lost.
+> VM_PKEY_BITx are defined only if CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+> is enabled. Powerpc also needs these bits. Hence lets define the
+> VM_PKEY_BITx bits for any architecture that enables
+> CONFIG_ARCH_HAS_PKEYS.
+>
 
-This patch makes optimization [2] available on UMA systems which
-provide support for CONFIG_HAVE_MEMBLOCK.
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Testing this change on Rcar H3-ULCB using v4.15-rc8 KNL, vanilla arm64
-defconfig + NUMA=n, a speed-up of ~140ms (from [3] to [4]) is observed
-in the execution of memmap_init_zone().
-
-No boot time improvement is sensed on Apollo Lake SoC.
-
-[1] commit 0f84832fb8f9 ("arm64: defconfig: Enable NUMA and NUMA_BALANCING")
-[2] commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns where possible")
-
-[3] 179ms spent in memmap_init_zone() on H3ULCB w/o this patch (NUMA=n)
-[    2.408716] On node 0 totalpages: 1015808
-[    2.408720]   DMA zone: 3584 pages used for memmap
-[    2.408723]   DMA zone: 0 pages reserved
-[    2.408726]   DMA zone: 229376 pages, LIFO batch:31
-[    2.408729] > memmap_init_zone
-[    2.429506] < memmap_init_zone
-[    2.429512]   Normal zone: 12288 pages used for memmap
-[    2.429514]   Normal zone: 786432 pages, LIFO batch:31
-[    2.429516] > memmap_init_zone
-[    2.587980] < memmap_init_zone
-[    2.588013] psci: probing for conduit method from DT.
-
-[4] 38ms spent in memmap_init_zone() on H3ULCB with this patch (NUMA=n)
-[    2.415661] On node 0 totalpages: 1015808
-[    2.415664]   DMA zone: 3584 pages used for memmap
-[    2.415667]   DMA zone: 0 pages reserved
-[    2.415670]   DMA zone: 229376 pages, LIFO batch:31
-[    2.415673] > memmap_init_zone
-[    2.424245] < memmap_init_zone
-[    2.424250]   Normal zone: 12288 pages used for memmap
-[    2.424253]   Normal zone: 786432 pages, LIFO batch:31
-[    2.424256] > memmap_init_zone
-[    2.453984] < memmap_init_zone
-[    2.454016] psci: probing for conduit method from DT.
-
-Signed-off-by: Eugeniu Rosca <erosca@de.adit-jv.com>
----
- include/linux/memblock.h | 3 ++-
- mm/memblock.c            | 2 ++
- mm/page_alloc.c          | 2 +-
- 3 files changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 7ed0f778..876c0a33 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -182,12 +182,13 @@ static inline bool memblock_is_nomap(struct memblock_region *m)
- 	return m->flags & MEMBLOCK_NOMAP;
- }
- 
-+unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
-+
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
- 			    unsigned long  *end_pfn);
- void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
- 			  unsigned long *out_end_pfn, int *out_nid);
--unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
- 
- /**
-  * for_each_mem_pfn_range - early memory pfn range iterator
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 46aacdfa..ad48cf20 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1100,6 +1100,7 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
- 	if (out_nid)
- 		*out_nid = r->nid;
- }
-+#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- 
- unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
- 						      unsigned long max_pfn)
-@@ -1129,6 +1130,7 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
- 		return min(PHYS_PFN(type->regions[right].base), max_pfn);
- }
- 
-+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- /**
-  * memblock_set_node - set node ID on memblock regions
-  * @base: base of area to set node ID for
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 76c9688b..9ad47f46 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5344,7 +5344,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			goto not_early;
- 
- 		if (!early_pfn_valid(pfn)) {
--#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-+#ifdef CONFIG_HAVE_MEMBLOCK
- 			/*
- 			 * Skip to the pfn preceding the next valid one (or
- 			 * end_pfn), such that we hit a valid pfn (or end_pfn)
--- 
-2.14.2
+> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> ---
+>  fs/proc/task_mmu.c |    4 ++--
+>  include/linux/mm.h |    9 +++++----
+>  2 files changed, 7 insertions(+), 6 deletions(-)
+>
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 339e4c1..b139617 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -674,13 +674,13 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+>  		[ilog2(VM_MERGEABLE)]	= "mg",
+>  		[ilog2(VM_UFFD_MISSING)]= "um",
+>  		[ilog2(VM_UFFD_WP)]	= "uw",
+> -#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+> +#ifdef CONFIG_ARCH_HAS_PKEYS
+>  		/* These come out via ProtectionKey: */
+>  		[ilog2(VM_PKEY_BIT0)]	= "",
+>  		[ilog2(VM_PKEY_BIT1)]	= "",
+>  		[ilog2(VM_PKEY_BIT2)]	= "",
+>  		[ilog2(VM_PKEY_BIT3)]	= "",
+> -#endif
+> +#endif /* CONFIG_ARCH_HAS_PKEYS */
+>  	};
+>  	size_t i;
+>  
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ea818ff..01381d3 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -228,15 +228,16 @@ extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
+>  #define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
+>  #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
+>  
+> -#if defined(CONFIG_X86)
+> -# define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
+> -#if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
+> +#ifdef CONFIG_ARCH_HAS_PKEYS
+>  # define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
+>  # define VM_PKEY_BIT0	VM_HIGH_ARCH_0	/* A protection key is a 4-bit value */
+>  # define VM_PKEY_BIT1	VM_HIGH_ARCH_1
+>  # define VM_PKEY_BIT2	VM_HIGH_ARCH_2
+>  # define VM_PKEY_BIT3	VM_HIGH_ARCH_3
+> -#endif
+> +#endif /* CONFIG_ARCH_HAS_PKEYS */
+> +
+> +#if defined(CONFIG_X86)
+> +# define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
+>  #elif defined(CONFIG_PPC)
+>  # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
+>  #elif defined(CONFIG_PARISC)
+> -- 
+> 1.7.1
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
