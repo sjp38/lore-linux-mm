@@ -1,77 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D58C0800D8
-	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 02:03:13 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id a2so7917861pgn.7
-        for <linux-mm@kvack.org>; Sun, 21 Jan 2018 23:03:13 -0800 (PST)
-Received: from relay1.mentorg.com (relay1.mentorg.com. [192.94.38.131])
-        by mx.google.com with ESMTPS id k27si15026113pfh.225.2018.01.21.23.03.12
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CE830800D8
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 03:25:25 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id c14so2017809wrd.6
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 00:25:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f5sor1600768wmc.3.2018.01.22.00.25.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 Jan 2018 23:03:12 -0800 (PST)
-Received: from nat-ies.mentorg.com ([192.94.31.2] helo=svr-ies-mbx-02.mgc.mentorg.com)
-	by relay1.mentorg.com with esmtps (TLSv1.2:ECDHE-RSA-AES256-SHA384:256)
-	id 1edW8O-0005tr-H8  
-	for linux-mm@kvack.org; Sun, 21 Jan 2018 23:03:12 -0800
-From: Balasubramani Vivekanandan <balasubramani_vivekanandan@mentor.com>
-Subject: [PATCH] mm/slub.c: Fix wrong address during slab padding restoration
-Date: Mon, 22 Jan 2018 12:32:58 +0530
-Message-ID: <1516604578-4577-1-git-send-email-balasubramani_vivekanandan@mentor.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (Google Transport Security);
+        Mon, 22 Jan 2018 00:25:24 -0800 (PST)
+From: Dmitry Vyukov <dvyukov@google.com>
+Subject: [PATCH] kcov: detect double association with a single task
+Date: Mon, 22 Jan 2018 09:25:20 +0100
+Message-Id: <20180122082520.15716-1-dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: balasubramani_vivekanandan@mentor.com
+To: akpm@linux-foundation.org
+Cc: sp3485@columbia.edu, andrew.aday@columbia.edu, Dmitry Vyukov <dvyukov@google.com>, syzkaller@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Balasubramani Vivekanandan <balasubramani_vivekanandan@mentor.com>
+Currently KCOV_ENABLE does not check if the current task is already
+associated with another kcov descriptor. As the result it is possible
+to associate a single task with more than one kcov descriptor, which
+later leads to a memory leak of the old descriptor. This relation is
+really meant to be one-to-one (task has only one back link).
 
-Start address calculated for slab padding restoration was wrong.
-Wrong address would point to some section before padding and
-could cause corruption
+Extend validation to detect such misuse.
 
-Signed-off-by: Balasubramani Vivekanandan <balasubramani_vivekanandan@mentor.com>
+Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+Reported-by: Shankara Pailoor <sp3485@columbia.edu>
+Fixes: 5c9a8750a640 ("kernel: add kcov code coverage")
+Cc: syzkaller@googlegroups.com
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 ---
- mm/slub.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ kernel/kcov.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index cfd56e5..733ba32 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -838,6 +838,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
- 	u8 *start;
- 	u8 *fault;
- 	u8 *end;
-+	u8 *pad;
- 	int length;
- 	int remainder;
- 
-@@ -851,8 +852,9 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
- 	if (!remainder)
- 		return 1;
- 
-+	pad = end - remainder;
- 	metadata_access_enable();
--	fault = memchr_inv(end - remainder, POISON_INUSE, remainder);
-+	fault = memchr_inv(pad, POISON_INUSE, remainder);
- 	metadata_access_disable();
- 	if (!fault)
- 		return 1;
-@@ -860,9 +862,9 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
- 		end--;
- 
- 	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
--	print_section(KERN_ERR, "Padding ", end - remainder, remainder);
-+	print_section(KERN_ERR, "Padding ", pad, remainder);
- 
--	restore_bytes(s, "slab padding", POISON_INUSE, end - remainder, end);
-+	restore_bytes(s, "slab padding", POISON_INUSE, fault, end);
- 	return 0;
- }
- 
+diff --git a/kernel/kcov.c b/kernel/kcov.c
+index 7594c033d98a..2c16f1ab5e10 100644
+--- a/kernel/kcov.c
++++ b/kernel/kcov.c
+@@ -358,7 +358,8 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
+ 		 */
+ 		if (kcov->mode != KCOV_MODE_INIT || !kcov->area)
+ 			return -EINVAL;
+-		if (kcov->t != NULL)
++		t = current;
++		if (kcov->t != NULL || t->kcov != NULL)
+ 			return -EBUSY;
+ 		if (arg == KCOV_TRACE_PC)
+ 			kcov->mode = KCOV_MODE_TRACE_PC;
+@@ -370,7 +371,6 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
+ #endif
+ 		else
+ 			return -EINVAL;
+-		t = current;
+ 		/* Cache in task struct for performance. */
+ 		t->kcov_size = kcov->size;
+ 		t->kcov_area = kcov->area;
 -- 
-2.7.4
+2.16.0.rc1.238.g530d649a79-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
