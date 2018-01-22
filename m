@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E65F800D8
-	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 13:53:23 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id d15so16147927qtg.2
-        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 10:53:23 -0800 (PST)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 34AA8800D8
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 13:53:27 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id c20so15854376qtn.22
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 10:53:27 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v47sor9642534qtj.5.2018.01.22.10.53.22
+        by mx.google.com with SMTPS id b125sor10670111qkf.94.2018.01.22.10.53.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 22 Jan 2018 10:53:22 -0800 (PST)
+        Mon, 22 Jan 2018 10:53:25 -0800 (PST)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v10 12/24] selftests/vm: generic cleanup
-Date: Mon, 22 Jan 2018 10:52:05 -0800
-Message-Id: <1516647137-11174-13-git-send-email-linuxram@us.ibm.com>
+Subject: [PATCH v10 13/24] selftests/vm: powerpc implementation for generic abstraction
+Date: Mon, 22 Jan 2018 10:52:06 -0800
+Message-Id: <1516647137-11174-14-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1516647137-11174-1-git-send-email-linuxram@us.ibm.com>
 References: <1516647137-11174-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,244 +20,306 @@ List-ID: <linux-mm.kvack.org>
 To: shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
 Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@redhat.com, akpm@linux-foundation.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, arnd@arndb.de
 
-cleanup the code to satisfy coding styles.
+Introduce powerpc implementation for the different
+abstactions.
 
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- tools/testing/selftests/vm/protection_keys.c |   81 ++++++++++++++------------
- 1 files changed, 43 insertions(+), 38 deletions(-)
+ tools/testing/selftests/vm/pkey-helpers.h    |  109 ++++++++++++++++++++++----
+ tools/testing/selftests/vm/protection_keys.c |   40 ++++++----
+ 2 files changed, 118 insertions(+), 31 deletions(-)
 
+diff --git a/tools/testing/selftests/vm/pkey-helpers.h b/tools/testing/selftests/vm/pkey-helpers.h
+index c8f5739..cfc1a18 100644
+--- a/tools/testing/selftests/vm/pkey-helpers.h
++++ b/tools/testing/selftests/vm/pkey-helpers.h
+@@ -18,27 +18,54 @@
+ #define u16 uint16_t
+ #define u32 uint32_t
+ #define u64 uint64_t
+-#define pkey_reg_t u32
+ 
+-#ifdef __i386__
++#if defined(__i386__) || defined(__x86_64__) /* arch */
++
++#ifdef __i386__ /* arch */
+ #define SYS_mprotect_key 380
+-#define SYS_pkey_alloc	 381
+-#define SYS_pkey_free	 382
++#define SYS_pkey_alloc   381
++#define SYS_pkey_free    382
+ #define REG_IP_IDX REG_EIP
+ #define si_pkey_offset 0x14
+-#else
++#elif __x86_64__
+ #define SYS_mprotect_key 329
+-#define SYS_pkey_alloc	 330
+-#define SYS_pkey_free	 331
++#define SYS_pkey_alloc   330
++#define SYS_pkey_free    331
+ #define REG_IP_IDX REG_RIP
+ #define si_pkey_offset 0x20
+-#endif
++#endif /* __x86_64__ */
++
++#define NR_PKEYS		16
++#define NR_RESERVED_PKEYS	1
++#define PKEY_BITS_PER_PKEY	2
++#define PKEY_DISABLE_ACCESS	0x1
++#define PKEY_DISABLE_WRITE	0x2
++#define HPAGE_SIZE		(1UL<<21)
++#define pkey_reg_t u32
+ 
+-#define NR_PKEYS 16
+-#define PKEY_BITS_PER_PKEY 2
+-#define PKEY_DISABLE_ACCESS    0x1
+-#define PKEY_DISABLE_WRITE     0x2
+-#define HPAGE_SIZE	(1UL<<21)
++#elif __powerpc64__ /* arch */
++
++#define SYS_mprotect_key 386
++#define SYS_pkey_alloc	 384
++#define SYS_pkey_free	 385
++#define si_pkey_offset	0x20
++#define REG_IP_IDX PT_NIP
++#define REG_TRAPNO PT_TRAP
++#define gregs gp_regs
++#define fpregs fp_regs
++
++#define NR_PKEYS		32
++#define NR_RESERVED_PKEYS_4K	26
++#define NR_RESERVED_PKEYS_64K	3
++#define PKEY_BITS_PER_PKEY	2
++#define PKEY_DISABLE_ACCESS	0x3  /* disable read and write */
++#define PKEY_DISABLE_WRITE	0x2
++#define HPAGE_SIZE		(1UL<<24)
++#define pkey_reg_t u64
++
++#else /* arch */
++	NOT SUPPORTED
++#endif /* arch */
+ 
+ #ifndef DEBUG_LEVEL
+ #define DEBUG_LEVEL 0
+@@ -47,7 +74,11 @@
+ 
+ static inline u32 pkey_to_shift(int pkey)
+ {
++#if defined(__i386__) || defined(__x86_64__) /* arch */
+ 	return pkey * PKEY_BITS_PER_PKEY;
++#elif __powerpc64__ /* arch */
++	return (NR_PKEYS - pkey - 1) * PKEY_BITS_PER_PKEY;
++#endif /* arch */
+ }
+ 
+ static inline pkey_reg_t reset_bits(int pkey, pkey_reg_t bits)
+@@ -111,6 +142,7 @@ static inline void sigsafe_printf(const char *format, ...)
+ extern pkey_reg_t shadow_pkey_reg;
+ static inline pkey_reg_t __rdpkey_reg(void)
+ {
++#if defined(__i386__) || defined(__x86_64__) /* arch */
+ 	unsigned int eax, edx;
+ 	unsigned int ecx = 0;
+ 	pkey_reg_t pkey_reg;
+@@ -118,7 +150,13 @@ static inline pkey_reg_t __rdpkey_reg(void)
+ 	asm volatile(".byte 0x0f,0x01,0xee\n\t"
+ 		     : "=a" (eax), "=d" (edx)
+ 		     : "c" (ecx));
+-	pkey_reg = eax;
++#elif __powerpc64__ /* arch */
++	pkey_reg_t eax;
++	pkey_reg_t pkey_reg;
++
++	asm volatile("mfspr %0, 0xd" : "=r" ((pkey_reg_t)(eax)));
++#endif /* arch */
++	pkey_reg = (pkey_reg_t)eax;
+ 	return pkey_reg;
+ }
+ 
+@@ -138,6 +176,7 @@ static inline pkey_reg_t _rdpkey_reg(int line)
+ static inline void __wrpkey_reg(pkey_reg_t pkey_reg)
+ {
+ 	pkey_reg_t eax = pkey_reg;
++#if defined(__i386__) || defined(__x86_64__) /* arch */
+ 	pkey_reg_t ecx = 0;
+ 	pkey_reg_t edx = 0;
+ 
+@@ -146,6 +185,14 @@ static inline void __wrpkey_reg(pkey_reg_t pkey_reg)
+ 	asm volatile(".byte 0x0f,0x01,0xef\n\t"
+ 		     : : "a" (eax), "c" (ecx), "d" (edx));
+ 	assert(pkey_reg == __rdpkey_reg());
++
++#elif __powerpc64__ /* arch */
++	dprintf4("%s() changing %llx to %llx\n",
++			 __func__, __rdpkey_reg(), pkey_reg);
++	asm volatile("mtspr 0xd, %0" : : "r" ((unsigned long)(eax)) : "memory");
++#endif /* arch */
++	dprintf4("%s() pkey register after changing %016lx to %016lx\n",
++			 __func__, __rdpkey_reg(), pkey_reg);
+ }
+ 
+ static inline void wrpkey_reg(pkey_reg_t pkey_reg)
+@@ -192,6 +239,8 @@ static inline void __pkey_write_allow(int pkey, int do_allow_write)
+ 	dprintf4("pkey_reg now: %08x\n", rdpkey_reg());
+ }
+ 
++#if defined(__i386__) || defined(__x86_64__) /* arch */
++
+ #define PAGE_SIZE 4096
+ #define MB	(1<<20)
+ 
+@@ -274,8 +323,18 @@ static inline void __page_o_noops(void)
+ 	/* 8-bytes of instruction * 512 bytes = 1 page */
+ 	asm(".rept 512 ; nopl 0x7eeeeeee(%eax) ; .endr");
+ }
++#elif __powerpc64__ /* arch */
+ 
+-#endif /* _PKEYS_HELPER_H */
++#define PAGE_SIZE (0x1UL << 16)
++static inline int cpu_has_pku(void)
++{
++	return 1;
++}
++
++/* 8-bytes of instruction * 16384bytes = 1 page */
++#define __page_o_noops() asm(".rept 16384 ; nop; .endr")
++
++#endif /* arch */
+ 
+ #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
+ #define ALIGN_UP(x, align_to)	(((x) + ((align_to)-1)) & ~((align_to)-1))
+@@ -307,11 +366,29 @@ static inline void __page_o_noops(void)
+ 
+ static inline int open_hugepage_file(int flag)
+ {
+-	return open("/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages",
++	int fd;
++
++#if defined(__i386__) || defined(__x86_64__) /* arch */
++	fd = open("/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages",
+ 		 O_RDONLY);
++#elif __powerpc64__ /* arch */
++	fd = open("/sys/kernel/mm/hugepages/hugepages-16384kB/nr_hugepages",
++		O_RDONLY);
++#else /* arch */
++	NOT SUPPORTED
++#endif /* arch */
++	return fd;
+ }
+ 
+ static inline int get_start_key(void)
+ {
++#if defined(__i386__) || defined(__x86_64__) /* arch */
+ 	return 1;
++#elif __powerpc64__ /* arch */
++	return 0;
++#else /* arch */
++	NOT SUPPORTED
++#endif /* arch */
+ }
++
++#endif /* _PKEYS_HELPER_H */
 diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
-index 6054093..6fdd8f5 100644
+index 6fdd8f5..55a25e1 100644
 --- a/tools/testing/selftests/vm/protection_keys.c
 +++ b/tools/testing/selftests/vm/protection_keys.c
-@@ -4,7 +4,7 @@
-  *
-  * There are examples in here of:
-  *  * how to set protection keys on memory
-- *  * how to set/clear bits in pkey registers (the rights register)
-+ *  * how to set/clear bits in Protection Key registers (the rights register)
-  *  * how to handle SEGV_PKUERR signals and extract pkey-relevant
-  *    information from the siginfo
-  *
-@@ -13,13 +13,18 @@
-  *	prefault pages in at malloc, or not
-  *	protect MPX bounds tables with protection keys?
-  *	make sure VMA splitting/merging is working correctly
-- *	OOMs can destroy mm->mmap (see exit_mmap()), so make sure it is immune to pkeys
-- *	look for pkey "leaks" where it is still set on a VMA but "freed" back to the kernel
-- *	do a plain mprotect() to a mprotect_pkey() area and make sure the pkey sticks
-+ *	OOMs can destroy mm->mmap (see exit_mmap()),
-+ *			so make sure it is immune to pkeys
-+ *	look for pkey "leaks" where it is still set on a VMA
-+ *			 but "freed" back to the kernel
-+ *	do a plain mprotect() to a mprotect_pkey() area and make
-+ *			 sure the pkey sticks
-  *
-  * Compile like this:
-- *	gcc      -o protection_keys    -O2 -g -std=gnu99 -pthread -Wall protection_keys.c -lrt -ldl -lm
-- *	gcc -m32 -o protection_keys_32 -O2 -g -std=gnu99 -pthread -Wall protection_keys.c -lrt -ldl -lm
-+ *	gcc      -o protection_keys    -O2 -g -std=gnu99
-+ *			 -pthread -Wall protection_keys.c -lrt -ldl -lm
-+ *	gcc -m32 -o protection_keys_32 -O2 -g -std=gnu99
-+ *			 -pthread -Wall protection_keys.c -lrt -ldl -lm
-  */
- #define _GNU_SOURCE
- #include <errno.h>
-@@ -251,26 +256,11 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+@@ -186,17 +186,18 @@ void dump_mem(void *dumpme, int len_bytes)
+ 
+ int pkey_faults;
+ int last_si_pkey = -1;
++void pkey_access_allow(int pkey);
+ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+ {
+ 	ucontext_t *uctxt = vucontext;
+ 	int trapno;
+ 	unsigned long ip;
+ 	char *fpregs;
++#if defined(__i386__) || defined(__x86_64__) /* arch */
+ 	pkey_reg_t *pkey_reg_ptr;
+-	u64 siginfo_pkey;
++#endif /* defined(__i386__) || defined(__x86_64__) */
++	u32 siginfo_pkey;
+ 	u32 *si_pkey_ptr;
+-	int pkey_reg_offset;
+-	fpregset_t fpregset;
+ 
+ 	dprint_in_signal = 1;
+ 	dprintf1(">>>>===============SIGSEGV============================\n");
+@@ -206,12 +207,14 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+ 
+ 	trapno = uctxt->uc_mcontext.gregs[REG_TRAPNO];
+ 	ip = uctxt->uc_mcontext.gregs[REG_IP_IDX];
+-	fpregset = uctxt->uc_mcontext.fpregs;
+-	fpregs = (void *)fpregset;
++	fpregs = (char *) uctxt->uc_mcontext.fpregs;
+ 
+ 	dprintf2("%s() trapno: %d ip: 0x%016lx info->si_code: %s/%d\n",
+ 			__func__, trapno, ip, si_code_str(si->si_code),
+ 			si->si_code);
++
++#if defined(__i386__) || defined(__x86_64__) /* arch */
++
+ #ifdef __i386__
+ 	/*
+ 	 * 32-bit has some extra padding so that userspace can tell whether
+@@ -219,20 +222,21 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+ 	 * state.  We just assume that it is here.
+ 	 */
+ 	fpregs += 0x70;
+-#endif
+-	pkey_reg_offset = pkey_reg_xstate_offset();
+-	pkey_reg_ptr = (void *)(&fpregs[pkey_reg_offset]);
++#endif /* __i386__ */
+ 
+-	dprintf1("siginfo: %p\n", si);
+-	dprintf1(" fpregs: %p\n", fpregs);
++	pkey_reg_ptr = (void *)(&fpregs[pkey_reg_xstate_offset()]);
+ 	/*
+-	 * If we got a PKEY fault, we *HAVE* to have at least one bit set in
++	 * If we got a key fault, we *HAVE* to have at least one bit set in
+ 	 * here.
+ 	 */
+ 	dprintf1("pkey_reg_xstate_offset: %d\n", pkey_reg_xstate_offset());
+ 	if (DEBUG_LEVEL > 4)
+ 		dump_mem(pkey_reg_ptr - 128, 256);
+ 	pkey_assert(*pkey_reg_ptr);
++#endif /* defined(__i386__) || defined(__x86_64__) */
++
++	dprintf1("siginfo: %p\n", si);
++	dprintf1(" fpregs: %p\n", fpregs);
+ 
+ 	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
+ 	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
+@@ -248,19 +252,25 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+ 		exit(4);
+ 	}
+ 
+-	dprintf1("signal pkey_reg from xsave: %016lx\n", *pkey_reg_ptr);
+ 	/*
+ 	 * need __rdpkey_reg() version so we do not do shadow_pkey_reg
+ 	 * checking
+ 	 */
  	dprintf1("signal pkey_reg from  pkey_reg: %016lx\n", __rdpkey_reg());
- 	dprintf1("pkey from siginfo: %jx\n", siginfo_pkey);
- 	*(u64 *)pkey_reg_ptr = 0x00000000;
--	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
-+	dprintf1("WARNING: set PKEY_REG=0 to allow faulting instruction "
-+			"to continue\n");
+-	dprintf1("pkey from siginfo: %jx\n", siginfo_pkey);
+-	*(u64 *)pkey_reg_ptr = 0x00000000;
++	dprintf1("pkey from siginfo: %lx\n", siginfo_pkey);
++#if defined(__i386__) || defined(__x86_64__) /* arch */
++	dprintf1("signal pkey_reg from xsave: %016lx\n", *pkey_reg_ptr);
++	*(u64 *)pkey_reg_ptr &= reset_bits(siginfo_pkey,
++			PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE);
++#elif __powerpc64__
++	pkey_access_allow(siginfo_pkey);
++#endif
++	shadow_pkey_reg &= reset_bits(siginfo_pkey,
++			PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE);
+ 	dprintf1("WARNING: set PKEY_REG=0 to allow faulting instruction "
+ 			"to continue\n");
  	pkey_faults++;
  	dprintf1("<<<<==================================================\n");
- 	return;
--	if (trapno == 14) {
--		fprintf(stderr,
--			"ERROR: In signal handler, page fault, trapno = %d, ip = %016lx\n",
--			trapno, ip);
--		fprintf(stderr, "si_addr %p\n", si->si_addr);
--		fprintf(stderr, "REG_ERR: %lx\n",
--				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
--		exit(1);
--	} else {
--		fprintf(stderr, "unexpected trap %d! at 0x%lx\n", trapno, ip);
--		fprintf(stderr, "si_addr %p\n", si->si_addr);
--		fprintf(stderr, "REG_ERR: %lx\n",
--				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
--		exit(2);
--	}
--	dprint_in_signal = 0;
+-	return;
  }
  
  int wait_all_children(void)
-@@ -415,7 +405,7 @@ void pkey_disable_set(int pkey, int flags)
- {
- 	unsigned long syscall_flags = 0;
- 	int ret;
--	int pkey_rights;
-+	u32 pkey_rights;
- 	pkey_reg_t orig_pkey_reg = rdpkey_reg();
- 
- 	dprintf1("START->%s(%d, 0x%x)\n", __func__,
-@@ -453,7 +443,7 @@ void pkey_disable_clear(int pkey, int flags)
- {
- 	unsigned long syscall_flags = 0;
- 	int ret;
--	int pkey_rights = pkey_get(pkey, syscall_flags);
-+	u32 pkey_rights = pkey_get(pkey, syscall_flags);
- 	pkey_reg_t orig_pkey_reg = rdpkey_reg();
- 
- 	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
-@@ -516,9 +506,10 @@ int sys_mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
- 	return sret;
- }
- 
--int sys_pkey_alloc(unsigned long flags, unsigned long init_val)
-+int sys_pkey_alloc(unsigned long flags, u64 init_val)
- {
- 	int ret = syscall(SYS_pkey_alloc, flags, init_val);
-+
- 	dprintf1("%s(flags=%lx, init_val=%lx) syscall ret: %d errno: %d\n",
- 			__func__, flags, init_val, ret, errno);
- 	return ret;
-@@ -542,7 +533,7 @@ void pkey_set_shadow(u32 key, u64 init_val)
- int alloc_pkey(void)
- {
- 	int ret;
--	unsigned long init_val = 0x0;
-+	u64 init_val = 0x0;
- 
- 	dprintf1("%s()::%d, pkey_reg: 0x%016lx shadow: %016lx\n", __func__,
- 			__LINE__, __rdpkey_reg(), shadow_pkey_reg);
-@@ -692,7 +683,9 @@ void record_pkey_malloc(void *ptr, long size)
- 		/* every record is full */
- 		size_t old_nr_records = nr_pkey_malloc_records;
- 		size_t new_nr_records = (nr_pkey_malloc_records * 2 + 1);
--		size_t new_size = new_nr_records * sizeof(struct pkey_malloc_record);
-+		size_t new_size = new_nr_records *
-+				sizeof(struct pkey_malloc_record);
-+
- 		dprintf2("new_nr_records: %zd\n", new_nr_records);
- 		dprintf2("new_size: %zd\n", new_size);
- 		pkey_malloc_records = realloc(pkey_malloc_records, new_size);
-@@ -716,9 +709,11 @@ void free_pkey_malloc(void *ptr)
- {
- 	long i;
- 	int ret;
-+
- 	dprintf3("%s(%p)\n", __func__, ptr);
- 	for (i = 0; i < nr_pkey_malloc_records; i++) {
- 		struct pkey_malloc_record *rec = &pkey_malloc_records[i];
-+
- 		dprintf4("looking for ptr %p at record[%ld/%p]: {%p, %ld}\n",
- 				ptr, i, rec, rec->ptr, rec->size);
- 		if ((ptr <  rec->ptr) ||
-@@ -799,11 +794,13 @@ void setup_hugetlbfs(void)
- 	char buf[] = "123";
- 
- 	if (geteuid() != 0) {
--		fprintf(stderr, "WARNING: not run as root, can not do hugetlb test\n");
-+		fprintf(stderr,
-+			"WARNING: not run as root, can not do hugetlb test\n");
- 		return;
- 	}
- 
--	cat_into_file(__stringify(GET_NR_HUGE_PAGES), "/proc/sys/vm/nr_hugepages");
-+	cat_into_file(__stringify(GET_NR_HUGE_PAGES),
-+				"/proc/sys/vm/nr_hugepages");
- 
- 	/*
- 	 * Now go make sure that we got the pages and that they
-@@ -824,7 +821,8 @@ void setup_hugetlbfs(void)
- 	}
- 
- 	if (atoi(buf) != GET_NR_HUGE_PAGES) {
--		fprintf(stderr, "could not confirm 2M pages, got: '%s' expected %d\n",
-+		fprintf(stderr, "could not confirm 2M pages, got:"
-+			       " '%s' expected %d\n",
- 			buf, GET_NR_HUGE_PAGES);
- 		return;
- 	}
-@@ -957,6 +955,7 @@ void __save_test_fd(int fd)
- int get_test_read_fd(void)
- {
- 	int test_fd = open("/etc/passwd", O_RDONLY);
-+
- 	__save_test_fd(test_fd);
- 	return test_fd;
- }
-@@ -998,7 +997,8 @@ void test_read_of_access_disabled_region(int *ptr, u16 pkey)
- {
- 	int ptr_contents;
- 
--	dprintf1("disabling access to PKEY[%02d], doing read @ %p\n", pkey, ptr);
-+	dprintf1("disabling access to PKEY[%02d], doing read @ %p\n",
-+			 pkey, ptr);
- 	rdpkey_reg();
- 	pkey_access_deny(pkey);
- 	ptr_contents = read_ptr(ptr);
-@@ -1120,13 +1120,14 @@ void test_pkey_syscalls_bad_args(int *ptr, u16 pkey)
- /* Assumes that all pkeys other than 'pkey' are unallocated */
- void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
- {
--	int err;
-+	int err = 0;
- 	int allocated_pkeys[NR_PKEYS] = {0};
- 	int nr_allocated_pkeys = 0;
- 	int i;
- 
- 	for (i = 0; i < NR_PKEYS*2; i++) {
- 		int new_pkey;
-+
- 		dprintf1("%s() alloc loop: %d\n", __func__, i);
- 		new_pkey = alloc_pkey();
- 		dprintf4("%s()::%d, err: %d pkey_reg: 0x%016lx "
-@@ -1134,9 +1135,11 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
- 			__func__, __LINE__, err, __rdpkey_reg(),
- 			shadow_pkey_reg);
- 		rdpkey_reg(); /* for shadow checking */
--		dprintf2("%s() errno: %d ENOSPC: %d\n", __func__, errno, ENOSPC);
-+		dprintf2("%s() errno: %d ENOSPC: %d\n",
-+				__func__, errno, ENOSPC);
- 		if ((new_pkey == -1) && (errno == ENOSPC)) {
--			dprintf2("%s() failed to allocate pkey after %d tries\n",
-+			dprintf2("%s() failed to allocate pkey "
-+					"after %d tries\n",
- 				__func__, nr_allocated_pkeys);
- 			break;
- 		}
-@@ -1338,7 +1341,8 @@ void run_tests_once(void)
- 		tracing_off();
- 		close_test_fds();
- 
--		printf("test %2d PASSED (iteration %d)\n", test_nr, iteration_nr);
-+		printf("test %2d PASSED (iteration %d)\n",
-+				test_nr, iteration_nr);
- 		dprintf1("======================\n\n");
- 	}
- 	iteration_nr++;
-@@ -1350,7 +1354,7 @@ int main(void)
- 
- 	setup_handlers();
- 
--	printf("has pku: %d\n", cpu_has_pku());
-+	printf("has pkey: %d\n", cpu_has_pku());
- 
- 	if (!cpu_has_pku()) {
- 		int size = PAGE_SIZE;
-@@ -1358,7 +1362,8 @@ int main(void)
- 
- 		printf("running PKEY tests for unsupported CPU/OS\n");
- 
--		ptr  = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-+		ptr  = mmap(NULL, size, PROT_NONE,
-+				MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
- 		assert(ptr != (void *)-1);
- 		test_mprotect_pkey_on_unsupported_cpu(ptr, 1);
- 		exit(0);
 -- 
 1.7.1
 
