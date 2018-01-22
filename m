@@ -1,49 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E476D800D8
-	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 11:06:49 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id a17so15140629qta.10
-        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 08:06:49 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id n29si7808111qtl.172.2018.01.22.08.06.48
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AC6E3800D8
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 12:46:47 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id e2so3307313ioa.22
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 09:46:47 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id h71si13132473ioe.267.2018.01.22.09.46.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jan 2018 08:06:49 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0MG6Hb6130860
-	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 11:06:48 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2fnhbkp29x-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 11:06:47 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 22 Jan 2018 16:06:44 -0000
-From: aneesh.kumar@linux.vnet.ibm.com (Aneesh Kumar K.V)
-Subject: [LSF/MM ATTEND] 2018: Requests to attend MM-summit
-Date: Mon, 22 Jan 2018 21:36:37 +0530
+        Mon, 22 Jan 2018 09:46:46 -0800 (PST)
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 2EA972178F
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 17:46:45 +0000 (UTC)
+Received: by mail-io0-f171.google.com with SMTP id f4so8508167ioh.8
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 09:46:45 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87bmhl27zm.fsf@linux.vnet.ibm.com>
+In-Reply-To: <20180122101118.GG28161@8bytes.org>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
+ <1516120619-1159-3-git-send-email-joro@8bytes.org> <CALCETrUqJ8Vga5pGWUuOox5cw6ER-4MhZXLb-4JPyh+Txsp4tg@mail.gmail.com>
+ <20180117091853.GI28161@8bytes.org> <CALCETrUPcWfNA6ETktcs2vmcrPgJs32xMpoATGn_BFk+1ueU7g@mail.gmail.com>
+ <20180119095523.GY28161@8bytes.org> <CALCETrWSUJY=Har-Fvcby4SY_BPSh=WL0X_MqsT2z+tfNshWDA@mail.gmail.com>
+ <20180122101118.GG28161@8bytes.org>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 22 Jan 2018 09:46:24 -0800
+Message-ID: <CALCETrXNZ8unv=gp5FqEm9mi3wUK03VKsfHsREk+WFXRViHwoQ@mail.gmail.com>
+Subject: Re: [PATCH 02/16] x86/entry/32: Enter the kernel via trampoline stack
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Joerg Roedel <jroedel@suse.de>
 
+On Mon, Jan 22, 2018 at 2:11 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> Hey Andy,
+>
+> On Fri, Jan 19, 2018 at 08:30:33AM -0800, Andy Lutomirski wrote:
+>> I meant that we could have sp0 have a genuinely constant value per
+>> cpu.  That means that the entry trampoline ends up with RIP, etc in a
+>> different place depending on whether VM was in use, but the entry
+>> trampoline code should be able to handle that.  sp1 would have a value
+>> that varies by task, but it could just point to the top of the stack
+>> instead of being changed depending on whether VM is in use.  Instead,
+>> the entry trampoline would offset the registers as needed to keep
+>> pt_regs in the right place.
+>>
+>> I think you already figured all of that out, though :)
+>
+> Yes, and after looking a while into it, it would make a nice cleanup for
+> the entry code. On the other side, it would change the layout for the
+> in-kernel 'struct pt_regs', so that the user-visible pt_regs ends up
+> with a different layout than the one we use in the the kernel.
 
-Hi,
+I don't think this is necessarily the case.  We end up with four more
+fields that are logically there at the end of pt_regs (which is
+already kind-of-sort-of the case), but we don't actually need to put
+them in struct pt_regs.  We just end up with (regs + 1) != "top of
+task stack", but even that has precedent -- it's already true for
+tasks in vm86 mode.
 
-I would like to attend LSF/MM this year (2018).  I'm interested in the discussion about
-THP page cache, userspace interface for future extension to large virtual address space
-and memory allocation failures due to CMA.
+>
+> This can certainly be all worked out, but it makes this nice entry-code
+> cleanup not so nice and clean anymore. At least the work required to
+> make it work without breaking user-space is not in the scope of this
+> patch-set.
 
-Other people who I want to meet include:
-
-1) Kirill A. Shutemov <kirill@shutemov.name>
-2) Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
--aneesh
+Agreed.  This should probably be saved for later.  Except that your
+patch set still needs to come up with some way to function correctly
+on vm86.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
