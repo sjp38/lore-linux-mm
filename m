@@ -1,71 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AE2D0800D8
-	for <linux-mm@kvack.org>; Sun, 21 Jan 2018 20:22:24 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id y200so8762472itc.7
-        for <linux-mm@kvack.org>; Sun, 21 Jan 2018 17:22:24 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g38si12676123ioj.81.2018.01.21.17.22.23
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D821800D8
+	for <linux-mm@kvack.org>; Sun, 21 Jan 2018 20:49:32 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id o66so8815707ita.3
+        for <linux-mm@kvack.org>; Sun, 21 Jan 2018 17:49:32 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m186sor3929033itd.0.2018.01.21.17.49.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 21 Jan 2018 17:22:23 -0800 (PST)
-Date: Sun, 21 Jan 2018 17:21:56 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 1/1] mm: page_alloc: skip over regions of invalid pfns
- on UMA
-Message-ID: <20180122012156.GA10428@bombadil.infradead.org>
-References: <20180121144753.3109-1-erosca@de.adit-jv.com>
- <20180121144753.3109-2-erosca@de.adit-jv.com>
+        (Google Transport Security);
+        Sun, 21 Jan 2018 17:49:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180121144753.3109-2-erosca@de.adit-jv.com>
+In-Reply-To: <201801212349.w0LNna1E022604@www262.sakura.ne.jp>
+References: <20180119124924.25642-1-kirill.shutemov@linux.intel.com>
+ <CA+55aFxobYQ5cqnCZuf8xVWr3hCUmg=rTxDPV3zHWqeQysVkxA@mail.gmail.com> <201801212349.w0LNna1E022604@www262.sakura.ne.jp>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sun, 21 Jan 2018 17:49:30 -0800
+Message-ID: <CA+55aFzSV_XPv8UBPVKnppeJ3cCeibQxzKvRDjFDJUBBJvXP=w@mail.gmail.com>
+Subject: Re: [PATCHv2] mm, page_vma_mapped: Drop faulty pointer arithmetics in check_pte()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eugeniu Rosca <erosca@de.adit-jv.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>
 
+On Sun, Jan 21, 2018 at 3:49 PM, Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+>
+> As far as I tested, using helper function made no difference. Unless I
+> explicitly insert barriers like cpu_relax() or smp_mb() between these,
+> the object side does not change.
 
-I like the patch.  I think it could be better.
+Ok, thanks for checking.
 
-> +++ b/mm/page_alloc.c
-> @@ -5344,7 +5344,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->  			goto not_early;
->  
->  		if (!early_pfn_valid(pfn)) {
-> -#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> +#ifdef CONFIG_HAVE_MEMBLOCK
->  			/*
->  			 * Skip to the pfn preceding the next valid one (or
->  			 * end_pfn), such that we hit a valid pfn (or end_pfn)
+> You can apply with
+>
+>   Acked-by: Michal Hocko <mhocko@suse.com>
+>   Tested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-This ifdef makes me sad.  Here's more of the context:
+Applied and pushed out. Thanks everybody.
 
-                if (!early_pfn_valid(pfn)) {
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-                        /*
-                         * Skip to the pfn preceding the next valid one (or
-                         * end_pfn), such that we hit a valid pfn (or end_pfn)
-                         * on our next iteration of the loop.
-                         */
-                        pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
-#endif
-                        continue;
-                }
-
-This is crying out for:
-
-#ifdef CONFIG_HAVE_MEMBLOCK
-unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
-#else
-static inline unsigned long memblock_next_valid_pfn(unsigned long pfn,
-		unsigned long max_pfn)
-{
-	return pfn + 1;
-}
-#endif
-
-in a header file somewhere.
+              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
