@@ -1,151 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 56A71800D8
-	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 15:31:22 -0500 (EST)
-Received: by mail-yb0-f200.google.com with SMTP id 188so6749062ybm.22
-        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 12:31:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v73sor6255143ywa.290.2018.01.22.12.31.21
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AC96800D8
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 15:51:33 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id 32so10774771ioj.11
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 12:51:33 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id y31si16478768ioe.346.2018.01.22.12.51.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 22 Jan 2018 12:31:21 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Jan 2018 12:51:32 -0800 (PST)
+Received: from mail-it0-f43.google.com (mail-it0-f43.google.com [209.85.214.43])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 704DA21787
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 20:51:31 +0000 (UTC)
+Received: by mail-it0-f43.google.com with SMTP id x42so11447438ita.4
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 12:51:31 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CALvZod6HJO73GUfLemuAXJfr4vZ8xMOmVQpFO3vJRog-s2T-OQ@mail.gmail.com>
-References: <1509128538-50162-1-git-send-email-yang.s@alibaba-inc.com>
- <20171030124358.GF23278@quack2.suse.cz> <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
- <20171031101238.GD8989@quack2.suse.cz> <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
- <10924085-6275-125f-d56b-547d734b6f4e@alibaba-inc.com> <20171114093909.dbhlm26qnrrb2ww4@dhcp22.suse.cz>
- <afa2dc80-16a3-d3d1-5090-9430eaafc841@alibaba-inc.com> <20171115093131.GA17359@quack2.suse.cz>
- <CALvZod6HJO73GUfLemuAXJfr4vZ8xMOmVQpFO3vJRog-s2T-OQ@mail.gmail.com>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Mon, 22 Jan 2018 22:31:20 +0200
-Message-ID: <CAOQ4uxg-mTgQfTv-qO6EVwfttyOy+oFyAHyFDKTQsDOkQPyyfA@mail.gmail.com>
-Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
+In-Reply-To: <a7dd5f4e-5a63-3129-4b42-924ae2166d36@yandex-team.ru>
+References: <150728974697.743944.5376694940133890044.stgit@buzz>
+ <20171008091654.GA29939@infradead.org> <a7dd5f4e-5a63-3129-4b42-924ae2166d36@yandex-team.ru>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 22 Jan 2018 12:51:10 -0800
+Message-ID: <CALCETrWcZCz18UQ_A-41HOOo-9Q7SdTA=bgpr98TJh3wbDG4wA@mail.gmail.com>
+Subject: Re: [PATCH] vmalloc: add __alloc_vm_area() for optimizing vmap stack
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Jan Kara <jack@suse.cz>, Yang Shi <yang.s@alibaba-inc.com>, Michal Hocko <mhocko@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Dave Hansen <dave.hansen@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>
 
-On Fri, Jan 19, 2018 at 5:02 PM, Shakeel Butt <shakeelb@google.com> wrote:
-> On Wed, Nov 15, 2017 at 1:31 AM, Jan Kara <jack@suse.cz> wrote:
->> On Wed 15-11-17 01:32:16, Yang Shi wrote:
->>>
->>>
->>> On 11/14/17 1:39 AM, Michal Hocko wrote:
->>> >On Tue 14-11-17 03:10:22, Yang Shi wrote:
->>> >>
->>> >>
->>> >>On 11/9/17 5:54 AM, Michal Hocko wrote:
->>> >>>[Sorry for the late reply]
->>> >>>
->>> >>>On Tue 31-10-17 11:12:38, Jan Kara wrote:
->>> >>>>On Tue 31-10-17 00:39:58, Yang Shi wrote:
->>> >>>[...]
->>> >>>>>I do agree it is not fair and not neat to account to producer rather than
->>> >>>>>misbehaving consumer, but current memcg design looks not support such use
->>> >>>>>case. And, the other question is do we know who is the listener if it
->>> >>>>>doesn't read the events?
->>> >>>>
->>> >>>>So you never know who will read from the notification file descriptor but
->>> >>>>you can simply account that to the process that created the notification
->>> >>>>group and that is IMO the right process to account to.
->>> >>>
->>> >>>Yes, if the creator is de-facto owner which defines the lifetime of
->>> >>>those objects then this should be a target of the charge.
->>> >>>
->>> >>>>I agree that current SLAB memcg accounting does not allow to account to a
->>> >>>>different memcg than the one of the running process. However I *think* it
->>> >>>>should be possible to add such interface. Michal?
->>> >>>
->>> >>>We do have memcg_kmem_charge_memcg but that would require some plumbing
->>> >>>to hook it into the specific allocation path. I suspect it uses kmalloc,
->>> >>>right?
->>> >>
->>> >>Yes.
->>> >>
->>> >>I took a look at the implementation and the callsites of
->>> >>memcg_kmem_charge_memcg(). It looks it is called by:
->>> >>
->>> >>* charge kmem to memcg, but it is charged to the allocator's memcg
->>> >>* allocate new slab page, charge to memcg_params.memcg
->>> >>
->>> >>I think this is the plumbing you mentioned, right?
->>> >
->>> >Maybe I have misunderstood, but you are using slab allocator. So you
->>> >would need to force it to use a different charging context than current.
->>>
->>> Yes.
->>>
->>> >I haven't checked deeply but this doesn't look trivial to me.
->>>
->>> I agree. This is also what I explained to Jan and Amir in earlier
->>> discussion.
+On Wed, Oct 11, 2017 at 6:32 AM, Konstantin Khlebnikov
+<khlebnikov@yandex-team.ru> wrote:
+> On 08.10.2017 12:16, Christoph Hellwig wrote:
 >>
->> And I also agree. But the fact that it is not trivial does not mean that it
->> should not be done...
+>> This looks fine in general, but a few comments:
 >>
+>>   - can you split adding the new function from switching over the fork
+>>     codeok
 >
-> I am currently working on directed or remote memcg charging for a
-> different usecase and I think that would be helpful here as well.
 >
-> I have two questions though:
+>>   - at least kasan and vmalloc_user/vmalloc_32_user use very similar
+>>     patterns, can you switch them over as well?
 >
-> 1) Is fsnotify_group the right structure to hold the reference to
-> target mem_cgroup for charging?
-
-I think it is. The process who set up the group and determined the unlimited
-events queue size and did not consume the events from the queue in a timely
-manner is the process to blame for the OOM situation.
-
-> 2) Remote charging can trigger an OOM in the target memcg. In this
-> usecase, I think, there should be security concerns if the events
-> producer can trigger OOM in the memcg of the monitor. We can either
-> change these allocations to use __GFP_NORETRY or some new gfp flag to
-> not trigger oom-killer. So, is this valid concern or am I
-> over-thinking?
 >
+> I don't see why VM_USERMAP cannot be set right at allocation.
+>
+> I'll add vm_flags argument to __vmalloc_node() and
+> pass here VM_USERMAP from vmalloc_user/vmalloc_32_user
+> in separate patch.
+>
+> KASAN is different: it allocates shadow area for area allocated for module.
+> Pointer to module area must be pushed from module_alloc().
+> This isn't worth optimization.
+>
+>>   - the new __alloc_vm_area looks very different from alloc_vm_area,
+>>     maybe it needs a better name?  vmalloc_range_area for example?
+>
+>
+> __vmalloc_area() is vacant - this most low-level, so I'll keep "__".
+>
+>>   - when you split an existing function please keep the more low-level
+>>     function on top of the higher level one that calls it.ok
 
-I think that is a very valid concern, but not sure about the solution.
-For an inotify listener and fanotify listener of class FAN_CLASS_NOTIF
-(group->priority == 0), I think it makes sense to let oom-killer kill
-the listener which is not keeping up with consuming events.
-
-For fanotify listener of class FAN_CLASS_{,PRE_}CONTENT
-(group->priority > 0) allowing an adversary to trigger oom-killer
-and kill the listener could bypass permission event checks.
-
-So we could use different allocation flags for permission events
-or for groups with high priority or for groups that have permission
-events in their mask, so an adversary could not use non-permission
-events to oom-kill a listener that is also monitoring permission events.
-
-Generally speaking, permission event monitors should not be
-setting  FAN_UNLIMITED_QUEUE and should not be causing oom
-(because permission events are not queued they are blocking), but
-there is nothing preventing a process to setup a FAN_CLASS_CONTENT
-group with FAN_UNLIMITED_QUEUE and also monitor non-permission
-events.
-
-There is also nothing preventing a process from setting up one
-FAN_CLASS_CONTENT listener for permission events and another
-FAN_CLASS_NOTIF listener for non-permission event.
-Maybe it is not wise, but we don't know that there are no such processes
-out there.
-
-I know I am throwing a lot of confusing information, but here is an argument
-that might be simple enough:
-
-If a process has setup a group with permission event mask,
-then the administrator has granted this process the permission to
-bring the system to a halt even if the process misbehaves
-(because better halt the system than let it be compromised).
-If that interpretation is acceptable then oom-killing a process
-which has setup a group with permission event mask is not
-acceptable.
-
-Thanks,
-Amir.
+Did this ever get re-sent?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
