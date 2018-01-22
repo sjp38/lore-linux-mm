@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 119F7828CD
-	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 13:53:59 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id e20so15922044qtg.8
-        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 10:53:59 -0800 (PST)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1492C828CD
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 13:54:02 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id q63so15933060qtd.12
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 10:54:02 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r38sor12193710qte.80.2018.01.22.10.53.57
+        by mx.google.com with SMTPS id y27sor12117921qtj.109.2018.01.22.10.54.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 22 Jan 2018 10:53:57 -0800 (PST)
+        Mon, 22 Jan 2018 10:54:00 -0800 (PST)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v10 23/24] selftests/powerpc: Add ptrace tests for Protection Key register
-Date: Mon, 22 Jan 2018 10:52:16 -0800
-Message-Id: <1516647137-11174-24-git-send-email-linuxram@us.ibm.com>
+Subject: [PATCH v10 24/24] selftests/powerpc: Add core file test for Protection Key register
+Date: Mon, 22 Jan 2018 10:52:17 -0800
+Message-Id: <1516647137-11174-25-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1516647137-11174-1-git-send-email-linuxram@us.ibm.com>
 References: <1516647137-11174-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,57 +22,35 @@ Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@k
 
 From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
 
-This test exercises read and write access to the AMR.
+This test verifies that the AMR is being written to a
+process' core file.
 
 Signed-off-by: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
 ---
- tools/testing/selftests/powerpc/include/reg.h      |    1 +
- tools/testing/selftests/powerpc/ptrace/Makefile    |    5 +-
- .../testing/selftests/powerpc/ptrace/ptrace-pkey.c |  443 ++++++++++++++++++++
- 3 files changed, 448 insertions(+), 1 deletions(-)
- create mode 100644 tools/testing/selftests/powerpc/ptrace/ptrace-pkey.c
+ tools/testing/selftests/powerpc/ptrace/Makefile    |    2 +-
+ tools/testing/selftests/powerpc/ptrace/core-pkey.c |  438 ++++++++++++++++++++
+ 2 files changed, 439 insertions(+), 1 deletions(-)
+ create mode 100644 tools/testing/selftests/powerpc/ptrace/core-pkey.c
 
-diff --git a/tools/testing/selftests/powerpc/include/reg.h b/tools/testing/selftests/powerpc/include/reg.h
-index 4afdebc..7f348c0 100644
---- a/tools/testing/selftests/powerpc/include/reg.h
-+++ b/tools/testing/selftests/powerpc/include/reg.h
-@@ -54,6 +54,7 @@
- #define SPRN_DSCR_PRIV 0x11	/* Privilege State DSCR */
- #define SPRN_DSCR      0x03	/* Data Stream Control Register */
- #define SPRN_PPR       896	/* Program Priority Register */
-+#define SPRN_AMR       13	/* Authority Mask Register - problem state */
- 
- /* TEXASR register bits */
- #define TEXASR_FC	0xFE00000000000000
 diff --git a/tools/testing/selftests/powerpc/ptrace/Makefile b/tools/testing/selftests/powerpc/ptrace/Makefile
-index 4803052..fd896b2 100644
+index fd896b2..ca25fda 100644
 --- a/tools/testing/selftests/powerpc/ptrace/Makefile
 +++ b/tools/testing/selftests/powerpc/ptrace/Makefile
 @@ -1,7 +1,7 @@
  # SPDX-License-Identifier: GPL-2.0
  TEST_PROGS := ptrace-gpr ptrace-tm-gpr ptrace-tm-spd-gpr \
                ptrace-tar ptrace-tm-tar ptrace-tm-spd-tar ptrace-vsx ptrace-tm-vsx \
--              ptrace-tm-spd-vsx ptrace-tm-spr
-+              ptrace-tm-spd-vsx ptrace-tm-spr ptrace-pkey
+-              ptrace-tm-spd-vsx ptrace-tm-spr ptrace-pkey
++              ptrace-tm-spd-vsx ptrace-tm-spr ptrace-pkey core-pkey
  
  include ../../lib.mk
  
-@@ -9,6 +9,9 @@ all: $(TEST_PROGS)
- 
- CFLAGS += -m64 -I../../../../../usr/include -I../tm -mhtm -fno-pie
- 
-+ptrace-pkey: ../harness.c ../utils.c ../lib/reg.S ptrace.h ptrace-pkey.c
-+	$(LINK.c) $^ $(LDLIBS) -pthread -o $@
-+
- $(TEST_PROGS): ../harness.c ../utils.c ../lib/reg.S ptrace.h
- 
- clean:
-diff --git a/tools/testing/selftests/powerpc/ptrace/ptrace-pkey.c b/tools/testing/selftests/powerpc/ptrace/ptrace-pkey.c
+diff --git a/tools/testing/selftests/powerpc/ptrace/core-pkey.c b/tools/testing/selftests/powerpc/ptrace/core-pkey.c
 new file mode 100644
-index 0000000..2e5b676
+index 0000000..2328f8c
 --- /dev/null
-+++ b/tools/testing/selftests/powerpc/ptrace/ptrace-pkey.c
-@@ -0,0 +1,443 @@
++++ b/tools/testing/selftests/powerpc/ptrace/core-pkey.c
+@@ -0,0 +1,438 @@
 +/*
 + * Ptrace test for Memory Protection Key registers
 + *
@@ -84,7 +62,16 @@ index 0000000..2e5b676
 + * as published by the Free Software Foundation; either version
 + * 2 of the License, or (at your option) any later version.
 + */
++#include <limits.h>
 +#include <semaphore.h>
++#include <linux/kernel.h>
++#include <sys/mman.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <sys/time.h>
++#include <sys/resource.h>
++#include <fcntl.h>
++#include <unistd.h>
 +#include "ptrace.h"
 +
 +#ifndef __NR_pkey_alloc
@@ -107,126 +94,27 @@ index 0000000..2e5b676
 +#define PKEY_REG_BITS (sizeof(u64) * 8)
 +#define pkeyshift(pkey) (PKEY_REG_BITS - ((pkey + 1) * AMR_BITS_PER_PKEY))
 +
-+static const char user_read[] = "[User Read (Running)]";
++#define CORE_FILE_LIMIT	(5 * 1024 * 1024)	/* 5 MB should be enough */
++
++static const char core_pattern_file[] = "/proc/sys/kernel/core_pattern";
++
 +static const char user_write[] = "[User Write (Running)]";
-+static const char ptrace_read_running[] = "[Ptrace Read (Running)]";
-+static const char ptrace_write_running[] = "[Ptrace Write (Running)]";
++static const char core_read_running[] = "[Core Read (Running)]";
 +
 +/* Information shared between the parent and the child. */
 +struct shared_info {
-+	/* AMR value the parent expects to read from the child. */
-+	unsigned long amr1;
-+
-+	/* AMR value the parent is expected to write to the child. */
-+	unsigned long amr2;
-+
-+	/* AMR value that ptrace should refuse to write to the child. */
-+	unsigned long amr3;
++	/* AMR value the parent expects to read in the core file. */
++	unsigned long amr;
 +
 +	/* IAMR value the parent expects to read from the child. */
-+	unsigned long expected_iamr;
++	unsigned long iamr;
 +
 +	/* UAMOR value the parent expects to read from the child. */
-+	unsigned long expected_uamor;
++	unsigned long uamor;
 +
-+	/*
-+	 * IAMR and UAMOR values that ptrace should refuse to write to the child
-+	 * (even though they're valid ones) because userspace doesn't have
-+	 * access to those registers.
-+	 */
-+	unsigned long new_iamr;
-+	unsigned long new_uamor;
-+
-+	/* The parent waits on this semaphore. */
-+	sem_t sem_parent;
-+
-+	/* If true, the child should give up as well. */
-+	bool parent_gave_up;
-+
-+	/* The child waits on this semaphore. */
-+	sem_t sem_child;
-+
-+	/* If true, the parent should give up as well. */
-+	bool child_gave_up;
++	/* When the child crashed. */
++	time_t core_time;
 +};
-+
-+#define CHILD_FAIL_IF(x, info)						\
-+	do {								\
-+		if ((x)) {						\
-+			fprintf(stderr,					\
-+				"[FAIL] Test FAILED on line %d\n", __LINE__); \
-+			(info)->child_gave_up = true;			\
-+			prod_parent(info);				\
-+			return 1;					\
-+		}							\
-+	} while (0)
-+
-+#define PARENT_FAIL_IF(x, info)						\
-+	do {								\
-+		if ((x)) {						\
-+			fprintf(stderr,					\
-+				"[FAIL] Test FAILED on line %d\n", __LINE__); \
-+			(info)->parent_gave_up = true;			\
-+			prod_child(info);				\
-+			return 1;					\
-+		}							\
-+	} while (0)
-+
-+static int wait_child(struct shared_info *info)
-+{
-+	int ret;
-+
-+	/* Wait until the child prods us. */
-+	ret = sem_wait(&info->sem_parent);
-+	if (ret) {
-+		perror("Error waiting for child");
-+		return TEST_FAIL;
-+	}
-+
-+	return info->child_gave_up ? TEST_FAIL : TEST_PASS;
-+}
-+
-+static int prod_child(struct shared_info *info)
-+{
-+	int ret;
-+
-+	/* Unblock the child now. */
-+	ret = sem_post(&info->sem_child);
-+	if (ret) {
-+		perror("Error prodding child");
-+		return TEST_FAIL;
-+	}
-+
-+	return TEST_PASS;
-+}
-+
-+static int wait_parent(struct shared_info *info)
-+{
-+	int ret;
-+
-+	/* Wait until the parent prods us. */
-+	ret = sem_wait(&info->sem_child);
-+	if (ret) {
-+		perror("Error waiting for parent");
-+		return TEST_FAIL;
-+	}
-+
-+	return info->parent_gave_up ? TEST_FAIL : TEST_PASS;
-+}
-+
-+static int prod_parent(struct shared_info *info)
-+{
-+	int ret;
-+
-+	/* Unblock the parent now. */
-+	ret = sem_post(&info->sem_parent);
-+	if (ret) {
-+		perror("Error prodding parent");
-+		return TEST_FAIL;
-+	}
-+
-+	return TEST_PASS;
-+}
 +
 +static int sys_pkey_alloc(unsigned long flags, unsigned long init_access_rights)
 +{
@@ -238,259 +126,341 @@ index 0000000..2e5b676
 +	return syscall(__NR_pkey_free, pkey);
 +}
 +
-+static int ptrace_read_regs(pid_t child, unsigned long regs[], int n)
++static int increase_core_file_limit(void)
 +{
-+	struct iovec iov;
-+	long ret;
++	struct rlimit rlim;
++	int ret;
 +
-+	FAIL_IF(start_trace(child));
++	ret = getrlimit(RLIMIT_CORE, &rlim);
++	FAIL_IF(ret);
 +
-+	iov.iov_base = regs;
-+	iov.iov_len = n * sizeof(unsigned long);
++	if (rlim.rlim_cur != RLIM_INFINITY && rlim.rlim_cur < CORE_FILE_LIMIT) {
++		rlim.rlim_cur = CORE_FILE_LIMIT;
 +
-+	ret = ptrace(PTRACE_GETREGSET, child, NT_PPC_PKEY, &iov);
-+	FAIL_IF(ret != 0);
++		if (rlim.rlim_max != RLIM_INFINITY &&
++		    rlim.rlim_max < CORE_FILE_LIMIT)
++			rlim.rlim_max = CORE_FILE_LIMIT;
 +
-+	FAIL_IF(stop_trace(child));
++		ret = setrlimit(RLIMIT_CORE, &rlim);
++		FAIL_IF(ret);
++	}
++
++	ret = getrlimit(RLIMIT_FSIZE, &rlim);
++	FAIL_IF(ret);
++
++	if (rlim.rlim_cur != RLIM_INFINITY && rlim.rlim_cur < CORE_FILE_LIMIT) {
++		rlim.rlim_cur = CORE_FILE_LIMIT;
++
++		if (rlim.rlim_max != RLIM_INFINITY &&
++		    rlim.rlim_max < CORE_FILE_LIMIT)
++			rlim.rlim_max = CORE_FILE_LIMIT;
++
++		ret = setrlimit(RLIMIT_FSIZE, &rlim);
++		FAIL_IF(ret);
++	}
 +
 +	return TEST_PASS;
 +}
 +
-+static long ptrace_write_regs(pid_t child, unsigned long regs[], int n)
-+{
-+	struct iovec iov;
-+	long ret;
-+
-+	FAIL_IF(start_trace(child));
-+
-+	iov.iov_base = regs;
-+	iov.iov_len = n * sizeof(unsigned long);
-+
-+	ret = ptrace(PTRACE_SETREGSET, child, NT_PPC_PKEY, &iov);
-+
-+	FAIL_IF(stop_trace(child));
-+
-+	return ret;
-+}
-+
 +static int child(struct shared_info *info)
 +{
-+	unsigned long reg;
 +	bool disable_execute = true;
 +	int pkey1, pkey2, pkey3;
-+	int ret;
++	int *ptr, ret;
++
++	ret = increase_core_file_limit();
++	FAIL_IF(ret);
 +
 +	/* Get some pkeys so that we can change their bits in the AMR. */
 +	pkey1 = sys_pkey_alloc(0, PKEY_DISABLE_EXECUTE);
 +	if (pkey1 < 0) {
 +		pkey1 = sys_pkey_alloc(0, 0);
-+		CHILD_FAIL_IF(pkey1 < 0, info);
++		FAIL_IF(pkey1 < 0);
 +
 +		disable_execute = false;
 +	}
 +
 +	pkey2 = sys_pkey_alloc(0, 0);
-+	CHILD_FAIL_IF(pkey2 < 0, info);
++	FAIL_IF(pkey2 < 0);
 +
 +	pkey3 = sys_pkey_alloc(0, 0);
-+	CHILD_FAIL_IF(pkey3 < 0, info);
++	FAIL_IF(pkey3 < 0);
 +
-+	info->amr1 = 3ul << pkeyshift(pkey1);
-+	info->amr2 = 3ul << pkeyshift(pkey2);
-+	info->amr3 = info->amr2 | 3ul << pkeyshift(pkey3);
++	info->amr = 3ul << pkeyshift(pkey1) | 2ul << pkeyshift(pkey2);
 +
 +	if (disable_execute)
-+		info->expected_iamr = 1ul << pkeyshift(pkey1);
++		info->iamr = 1ul << pkeyshift(pkey1);
 +	else
-+		info->expected_iamr = 0;
++		info->iamr = 0;
 +
-+	info->expected_uamor = 3ul << pkeyshift(pkey1) |
-+				3ul << pkeyshift(pkey2);
-+	info->new_iamr = 1ul << pkeyshift(pkey1) | 1ul << pkeyshift(pkey2);
-+	info->new_uamor = 3ul << pkeyshift(pkey1);
++	info->uamor = 3ul << pkeyshift(pkey1) | 3ul << pkeyshift(pkey2);
++
++	printf("%-30s AMR: %016lx pkey1: %d pkey2: %d pkey3: %d\n",
++	       user_write, info->amr, pkey1, pkey2, pkey3);
++
++	mtspr(SPRN_AMR, info->amr);
 +
 +	/*
-+	 * We won't use pkey3. We just want a plausible but invalid key to test
-+	 * whether ptrace will let us write to AMR bits we are not supposed to.
-+	 *
-+	 * This also tests whether the kernel restores the UAMOR permissions
-+	 * after a key is freed.
++	 * We won't use pkey3. This tests whether the kernel restores the UAMOR
++	 * permissions after a key is freed.
 +	 */
 +	sys_pkey_free(pkey3);
 +
-+	printf("%-30s AMR: %016lx pkey1: %d pkey2: %d pkey3: %d\n",
-+	       user_write, info->amr1, pkey1, pkey2, pkey3);
++	info->core_time = time(NULL);
 +
-+	mtspr(SPRN_AMR, info->amr1);
++	/* Crash. */
++	ptr = 0;
++	*ptr = 1;
 +
-+	/* Wait for parent to read our AMR value and write a new one. */
-+	ret = prod_parent(info);
-+	CHILD_FAIL_IF(ret, info);
++	/* Shouldn't get here. */
++	FAIL_IF(true);
 +
-+	ret = wait_parent(info);
-+	if (ret)
-+		return ret;
++	return TEST_FAIL;
++}
 +
-+	reg = mfspr(SPRN_AMR);
++/* Return file size if filename exists and pass sanity check, or zero if not. */
++static off_t try_core_file(const char *filename, struct shared_info *info,
++			   pid_t pid)
++{
++	struct stat buf;
++	int ret;
 +
-+	printf("%-30s AMR: %016lx\n", user_read, reg);
++	ret = stat(filename, &buf);
++	if (ret == -1)
++		return TEST_FAIL;
 +
-+	CHILD_FAIL_IF(reg != info->amr2, info);
++	/* Make sure we're not using a stale core file. */
++	return buf.st_mtime >= info->core_time ? buf.st_size : TEST_FAIL;
++}
++
++static Elf64_Nhdr *next_note(Elf64_Nhdr *nhdr)
++{
++	return (void *) nhdr + sizeof(*nhdr) +
++		__ALIGN_KERNEL(nhdr->n_namesz, 4) +
++		__ALIGN_KERNEL(nhdr->n_descsz, 4);
++}
++
++static int check_core_file(struct shared_info *info, Elf64_Ehdr *ehdr,
++			   off_t core_size)
++{
++	unsigned long *regs;
++	Elf64_Phdr *phdr;
++	Elf64_Nhdr *nhdr;
++	size_t phdr_size;
++	void *p = ehdr, *note;
++	int ret;
++
++	ret = memcmp(ehdr->e_ident, ELFMAG, SELFMAG);
++	FAIL_IF(ret);
++
++	FAIL_IF(ehdr->e_type != ET_CORE);
++	FAIL_IF(ehdr->e_machine != EM_PPC64);
++	FAIL_IF(ehdr->e_phoff == 0 || ehdr->e_phnum == 0);
 +
 +	/*
-+	 * Wait for parent to try to write an invalid AMR value.
++	 * e_phnum is at most 65535 so calculating the size of the
++	 * program header cannot overflow.
 +	 */
-+	ret = prod_parent(info);
-+	CHILD_FAIL_IF(ret, info);
++	phdr_size = sizeof(*phdr) * ehdr->e_phnum;
 +
-+	ret = wait_parent(info);
-+	if (ret)
-+		return ret;
++	/* Sanity check the program header table location. */
++	FAIL_IF(ehdr->e_phoff + phdr_size < ehdr->e_phoff);
++	FAIL_IF(ehdr->e_phoff + phdr_size > core_size);
 +
-+	reg = mfspr(SPRN_AMR);
++	/* Find the PT_NOTE segment. */
++	for (phdr = p + ehdr->e_phoff;
++	     (void *) phdr < p + ehdr->e_phoff + phdr_size;
++	     phdr += ehdr->e_phentsize)
++		if (phdr->p_type == PT_NOTE)
++			break;
 +
-+	printf("%-30s AMR: %016lx\n", user_read, reg);
++	FAIL_IF((void *) phdr >= p + ehdr->e_phoff + phdr_size);
 +
-+	CHILD_FAIL_IF(reg != info->amr2, info);
++	/* Find the NT_PPC_PKEY note. */
++	for (nhdr = p + phdr->p_offset;
++	     (void *) nhdr < p + phdr->p_offset + phdr->p_filesz;
++	     nhdr = next_note(nhdr))
++		if (nhdr->n_type == NT_PPC_PKEY)
++			break;
 +
-+	/*
-+	 * Wait for parent to try to write an IAMR and a UAMOR value. We can't
-+	 * verify them, but we can verify that the AMR didn't change.
-+	 */
-+	ret = prod_parent(info);
-+	CHILD_FAIL_IF(ret, info);
++	FAIL_IF((void *) nhdr >= p + phdr->p_offset + phdr->p_filesz);
++	FAIL_IF(nhdr->n_descsz == 0);
 +
-+	ret = wait_parent(info);
-+	if (ret)
-+		return ret;
++	p = nhdr;
++	note = p + sizeof(*nhdr) + __ALIGN_KERNEL(nhdr->n_namesz, 4);
 +
-+	reg = mfspr(SPRN_AMR);
++	regs = (unsigned long *) note;
 +
-+	printf("%-30s AMR: %016lx\n", user_read, reg);
++	printf("%-30s AMR: %016lx IAMR: %016lx UAMOR: %016lx\n",
++	       core_read_running, regs[0], regs[1], regs[2]);
 +
-+	CHILD_FAIL_IF(reg != info->amr2, info);
-+
-+	/* Now let parent now that we are finished. */
-+
-+	ret = prod_parent(info);
-+	CHILD_FAIL_IF(ret, info);
++	FAIL_IF(regs[0] != info->amr);
++	FAIL_IF(regs[1] != info->iamr);
++	FAIL_IF(regs[2] != info->uamor);
 +
 +	return TEST_PASS;
 +}
 +
 +static int parent(struct shared_info *info, pid_t pid)
 +{
-+	unsigned long regs[4];
-+	int ret, status;
-+
-+	ret = wait_child(info);
-+	if (ret)
-+		return ret;
-+
-+	/* Verify that we can read the pkey registers from the child. */
-+	ret = ptrace_read_regs(pid, regs, 3);
-+	PARENT_FAIL_IF(ret, info);
-+
-+	printf("%-30s AMR: %016lx IAMR: %016lx UAMOR: %016lx\n",
-+	       ptrace_read_running, regs[0], regs[1], regs[2]);
-+
-+	PARENT_FAIL_IF(regs[0] != info->amr1, info);
-+	PARENT_FAIL_IF(regs[1] != info->expected_iamr, info);
-+	PARENT_FAIL_IF(regs[2] != info->expected_uamor, info);
-+
-+	/* Write valid AMR value in child. */
-+	ret = ptrace_write_regs(pid, &info->amr2, 1);
-+	PARENT_FAIL_IF(ret, info);
-+
-+	printf("%-30s AMR: %016lx\n", ptrace_write_running, info->amr2);
-+
-+	/* Wake up child so that it can verify it changed. */
-+	ret = prod_child(info);
-+	PARENT_FAIL_IF(ret, info);
-+
-+	ret = wait_child(info);
-+	if (ret)
-+		return ret;
-+
-+	/* Write invalid AMR value in child. */
-+	ret = ptrace_write_regs(pid, &info->amr3, 1);
-+	PARENT_FAIL_IF(ret, info);
-+
-+	printf("%-30s AMR: %016lx\n", ptrace_write_running, info->amr3);
-+
-+	/* Wake up child so that it can verify it didn't change. */
-+	ret = prod_child(info);
-+	PARENT_FAIL_IF(ret, info);
-+
-+	ret = wait_child(info);
-+	if (ret)
-+		return ret;
-+
-+	/* Try to write to IAMR. */
-+	regs[0] = info->amr1;
-+	regs[1] = info->new_iamr;
-+	ret = ptrace_write_regs(pid, regs, 2);
-+	PARENT_FAIL_IF(!ret, info);
-+
-+	printf("%-30s AMR: %016lx IAMR: %016lx\n",
-+	       ptrace_write_running, regs[0], regs[1]);
-+
-+	/* Try to write to IAMR and UAMOR. */
-+	regs[2] = info->new_uamor;
-+	ret = ptrace_write_regs(pid, regs, 3);
-+	PARENT_FAIL_IF(!ret, info);
-+
-+	printf("%-30s AMR: %016lx IAMR: %016lx UAMOR: %016lx\n",
-+	       ptrace_write_running, regs[0], regs[1], regs[2]);
-+
-+	/* Verify that all registers still have their expected values. */
-+	ret = ptrace_read_regs(pid, regs, 3);
-+	PARENT_FAIL_IF(ret, info);
-+
-+	printf("%-30s AMR: %016lx IAMR: %016lx UAMOR: %016lx\n",
-+	       ptrace_read_running, regs[0], regs[1], regs[2]);
-+
-+	PARENT_FAIL_IF(regs[0] != info->amr2, info);
-+	PARENT_FAIL_IF(regs[1] != info->expected_iamr, info);
-+	PARENT_FAIL_IF(regs[2] != info->expected_uamor, info);
-+
-+	/* Wake up child so that it can verify AMR didn't change and wrap up. */
-+	ret = prod_child(info);
-+	PARENT_FAIL_IF(ret, info);
++	char *filenames, *filename[3];
++	int fd, i, ret, status;
++	off_t core_size;
++	void *core;
 +
 +	ret = wait(&status);
 +	if (ret != pid) {
 +		printf("Child's exit status not captured\n");
-+		ret = TEST_PASS;
-+	} else if (!WIFEXITED(status)) {
-+		printf("Child exited abnormally\n");
++		return TEST_FAIL;
++	} else if (!WIFSIGNALED(status) || !WCOREDUMP(status)) {
++		printf("Child didn't dump core\n");
++		return TEST_FAIL;
++	}
++
++	/* Construct array of core file names to try. */
++
++	filename[0] = filenames = malloc(PATH_MAX);
++	if (!filenames) {
++		perror("Error allocating memory");
++		return TEST_FAIL;
++	}
++
++	ret = snprintf(filename[0], PATH_MAX, "core-pkey.%d", pid);
++	if (ret < 0 || ret >= PATH_MAX) {
 +		ret = TEST_FAIL;
-+	} else
-+		ret = WEXITSTATUS(status) ? TEST_FAIL : TEST_PASS;
++		goto out;
++	}
++
++	filename[1] = filename[0] + ret + 1;
++	ret = snprintf(filename[1], PATH_MAX - ret - 1, "core.%d", pid);
++	if (ret < 0 || ret >= PATH_MAX - ret - 1) {
++		ret = TEST_FAIL;
++		goto out;
++	}
++	filename[2] = "core";
++
++	for (i = 0; i < 3; i++) {
++		core_size = try_core_file(filename[i], info, pid);
++		if (core_size != TEST_FAIL)
++			break;
++	}
++
++	if (i == 3) {
++		printf("Couldn't find core file\n");
++		ret = TEST_FAIL;
++		goto out;
++	}
++
++	fd = open(filename[i], O_RDONLY);
++	if (fd == -1) {
++		perror("Error opening core file");
++		ret = TEST_FAIL;
++		goto out;
++	}
++
++	core = mmap(NULL, core_size, PROT_READ, MAP_PRIVATE, fd, 0);
++	if (core == (void *) -1) {
++		perror("Error mmaping core file");
++		ret = TEST_FAIL;
++		goto out;
++	}
++
++	ret = check_core_file(info, core, core_size);
++
++	munmap(core, core_size);
++	close(fd);
++	unlink(filename[i]);
++
++ out:
++	free(filenames);
 +
 +	return ret;
 +}
 +
-+static int ptrace_pkey(void)
++static int write_core_pattern(const char *core_pattern)
 +{
++	size_t len = strlen(core_pattern), ret;
++	FILE *f;
++
++	f = fopen(core_pattern_file, "w");
++	if (!f) {
++		perror("Error writing to core_pattern file");
++		return TEST_FAIL;
++	}
++
++	ret = fwrite(core_pattern, 1, len, f);
++	fclose(f);
++	if (ret != len) {
++		perror("Error writing to core_pattern file");
++		return TEST_FAIL;
++	}
++
++	return TEST_PASS;
++}
++
++static int setup_core_pattern(char **core_pattern_, bool *changed_)
++{
++	FILE *f;
++	char *core_pattern;
++	int ret;
++
++	core_pattern = malloc(PATH_MAX);
++	if (!core_pattern) {
++		perror("Error allocating memory");
++		return TEST_FAIL;
++	}
++
++	f = fopen(core_pattern_file, "r");
++	if (!f) {
++		perror("Error opening core_pattern file");
++		ret = TEST_FAIL;
++		goto out;
++	}
++
++	ret = fread(core_pattern, 1, PATH_MAX, f);
++	fclose(f);
++	if (!ret) {
++		perror("Error reading core_pattern file");
++		ret = TEST_FAIL;
++		goto out;
++	}
++
++	/* Check whether we can predict the name of the core file. */
++	if (!strcmp(core_pattern, "core") || !strcmp(core_pattern, "core.%p"))
++		*changed_ = false;
++	else {
++		ret = write_core_pattern("core-pkey.%p");
++		if (ret)
++			goto out;
++
++		*changed_ = true;
++	}
++
++	*core_pattern_ = core_pattern;
++	ret = TEST_PASS;
++
++ out:
++	if (ret)
++		free(core_pattern);
++
++	return ret;
++}
++
++static int core_pkey(void)
++{
++	char *core_pattern;
++	bool changed_core_pattern;
 +	struct shared_info *info;
 +	int shm_id;
 +	int ret;
 +	pid_t pid;
 +
++	ret = setup_core_pattern(&core_pattern, &changed_core_pattern);
++	if (ret)
++		return ret;
++
 +	shm_id = shmget(IPC_PRIVATE, sizeof(*info), 0777 | IPC_CREAT);
 +	info = shmat(shm_id, NULL, 0);
-+
-+	ret = sem_init(&info->sem_parent, 1, 0);
-+	if (ret) {
-+		perror("Semaphore initialization failed");
-+		return TEST_FAIL;
-+	}
-+	ret = sem_init(&info->sem_child, 1, 0);
-+	if (ret) {
-+		perror("Semaphore initialization failed");
-+		return TEST_FAIL;
-+	}
 +
 +	pid = fork();
 +	if (pid < 0) {
@@ -504,17 +474,20 @@ index 0000000..2e5b676
 +	shmdt(info);
 +
 +	if (pid) {
-+		sem_destroy(&info->sem_parent);
-+		sem_destroy(&info->sem_child);
 +		shmctl(shm_id, IPC_RMID, NULL);
++
++		if (changed_core_pattern)
++			write_core_pattern(core_pattern);
 +	}
++
++	free(core_pattern);
 +
 +	return ret;
 +}
 +
 +int main(int argc, char *argv[])
 +{
-+	return test_harness(ptrace_pkey, "ptrace_pkey");
++	return test_harness(core_pkey, "core_pkey");
 +}
 -- 
 1.7.1
