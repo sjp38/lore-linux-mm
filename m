@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BE0D0800D8
-	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 13:53:08 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id o22so15834595qtb.17
-        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 10:53:08 -0800 (PST)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A7BD9800D8
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 13:53:11 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id y42so16029952qtc.19
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 10:53:11 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p6sor10769815qtk.98.2018.01.22.10.53.08
+        by mx.google.com with SMTPS id q19sor10802709qta.61.2018.01.22.10.53.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 22 Jan 2018 10:53:08 -0800 (PST)
+        Mon, 22 Jan 2018 10:53:10 -0800 (PST)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v10 07/24] selftests/vm: fixed bugs in pkey_disable_clear()
-Date: Mon, 22 Jan 2018 10:52:00 -0800
-Message-Id: <1516647137-11174-8-git-send-email-linuxram@us.ibm.com>
+Subject: [PATCH v10 08/24] selftests/vm: clear the bits in shadow reg when a pkey is freed.
+Date: Mon, 22 Jan 2018 10:52:01 -0800
+Message-Id: <1516647137-11174-9-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1516647137-11174-1-git-send-email-linuxram@us.ibm.com>
 References: <1516647137-11174-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,39 +20,30 @@ List-ID: <linux-mm.kvack.org>
 To: shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
 Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@redhat.com, akpm@linux-foundation.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, arnd@arndb.de
 
-instead of clearing the bits, pkey_disable_clear() was setting
-the bits. Fixed it.
-
-Also fixed a wrong assertion in that function. When bits are
-cleared, the resulting bit value will be less than the original.
+When a key is freed, the  key  is  no  more  effective.
+Clear the bits corresponding to the pkey in the shadow
+register. Otherwise  it  will carry some spurious bits
+which can trigger false-positive asserts.
 
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- tools/testing/selftests/vm/protection_keys.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ tools/testing/selftests/vm/protection_keys.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
 diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
-index 0109388..ca54a95 100644
+index ca54a95..aaf9f09 100644
 --- a/tools/testing/selftests/vm/protection_keys.c
 +++ b/tools/testing/selftests/vm/protection_keys.c
-@@ -461,7 +461,7 @@ void pkey_disable_clear(int pkey, int flags)
- 			pkey, pkey, pkey_rights);
- 	pkey_assert(pkey_rights >= 0);
- 
--	pkey_rights |= flags;
-+	pkey_rights &= ~flags;
- 
- 	ret = pkey_set(pkey, pkey_rights, 0);
- 	/* pkey_reg and flags have the same format */
-@@ -475,7 +475,7 @@ void pkey_disable_clear(int pkey, int flags)
- 	dprintf1("%s(%d) pkey_reg: 0x%016lx\n", __func__,
- 			pkey, rdpkey_reg());
- 	if (flags)
--		assert(rdpkey_reg() > orig_pkey_reg);
-+		assert(rdpkey_reg() < orig_pkey_reg);
+@@ -582,6 +582,9 @@ int alloc_pkey(void)
+ int sys_pkey_free(unsigned long pkey)
+ {
+ 	int ret = syscall(SYS_pkey_free, pkey);
++
++	if (!ret)
++		shadow_pkey_reg &= reset_bits(pkey, PKEY_DISABLE_ACCESS);
+ 	dprintf1("%s(pkey=%ld) syscall ret: %d\n", __func__, pkey, ret);
+ 	return ret;
  }
- 
- void pkey_write_allow(int pkey)
 -- 
 1.7.1
 
