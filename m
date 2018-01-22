@@ -1,88 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 70D01800D8
-	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 16:56:44 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id e4so7131340ote.7
-        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 13:56:44 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p44si6298861ota.261.2018.01.22.13.56.43
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B859800D8
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 17:34:43 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id f67so11660570itf.2
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 14:34:43 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b70sor9254794ioj.132.2018.01.22.14.34.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jan 2018 13:56:43 -0800 (PST)
-Date: Mon, 22 Jan 2018 16:56:40 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH] mm/hmm: fix uninitialized use of 'entry' in
- hmm_vma_walk_pmd()
-Message-ID: <20180122215640.GB5522@redhat.com>
-References: <20180122185759.26286-1-jglisse@redhat.com>
- <20180122125836.1aebb001d4c2c4e93029db35@linux-foundation.org>
+        (Google Transport Security);
+        Mon, 22 Jan 2018 14:34:42 -0800 (PST)
+Date: Mon, 22 Jan 2018 14:34:39 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 3/4] mm, memcg: replace memory.oom_group with policy
+ tunable
+In-Reply-To: <20180120123251.GB1096857@devbig577.frc2.facebook.com>
+Message-ID: <alpine.DEB.2.10.1801221420120.16871@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1801161812550.28198@chino.kir.corp.google.com> <alpine.DEB.2.10.1801161814130.28198@chino.kir.corp.google.com> <20180117154155.GU3460072@devbig577.frc2.facebook.com> <alpine.DEB.2.10.1801171348190.86895@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1801191251080.177541@chino.kir.corp.google.com> <20180120123251.GB1096857@devbig577.frc2.facebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180122125836.1aebb001d4c2c4e93029db35@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jan 22, 2018 at 12:58:36PM -0800, Andrew Morton wrote:
-> On Mon, 22 Jan 2018 13:57:59 -0500 jglisse@redhat.com wrote:
+On Sat, 20 Jan 2018, Tejun Heo wrote:
+
+> > Hearing no response, I'll implement this as a separate tunable in a v2 
+> > series assuming there are no better ideas proposed before next week.  One 
+> > of the nice things about a separate tunable is that an admin can control 
+> > the overall policy and they can delegate the mechanism (killall vs one 
+> > process) to a user subtree.  I agree with your earlier point that killall 
+> > vs one process is a property of the workload and is better defined 
+> > separately.
 > 
-> > From: Ralph Campbell <rcampbell@nvidia.com>
-> > 
-> > The variable 'entry' is used before being initialized in
-> > hmm_vma_walk_pmd()
-> > 
-> > ...
-> >
-> > --- a/mm/hmm.c
-> > +++ b/mm/hmm.c
-> > @@ -418,7 +418,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
-> >  		}
-> >  
-> >  		if (!pte_present(pte)) {
-> > -			swp_entry_t entry;
-> > +			swp_entry_t entry = pte_to_swp_entry(pte);
-> >  
-> >  			if (!non_swap_entry(entry)) {
-> >  				if (hmm_vma_walk->fault)
-> > @@ -426,8 +426,6 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
-> >  				continue;
-> >  			}
-> >  
-> > -			entry = pte_to_swp_entry(pte);
-> > -
-> >  			/*
-> >  			 * This is a special swap entry, ignore migration, use
-> >  			 * device and report anything else as error.
+> If I understood your arguments correctly, the reasons that you thought
+> your selectdion policy changes must go together with Roman's victim
+> action were two-fold.
 > 
-> Gee, how did that sneak through.  gcc not clever enough...
-> 
-> I'll add a cc:stable to this, even though the changelog didn't tell us what
-> the runtime effects of the bug are.  It should do so, so can you please
-> send us that description and I will add it, thanks.
+> 1. You didn't want a separate knob for group oom behavior and wanted
+>    it to be combined with selection policy.  I'm glad that you now
+>    recognize that this would be the wrong design choice.
 > 
 
-No bad effect (beside performance hit) so !non_swap_entry(0) evaluate to
-true which trigger a fault as if CPU was trying to access migrated memory
-and migrate memory back from device memory to regular memory.
+The memory.oom_action (or mechanism) file that I've proposed is different 
+than memory.oom_group: we want to provide a non-binary tunable to specify 
+what action that oom killer should effect.  That could be to kill all 
+processes in the subtree, similar to memory.oom_group, the local cgroup, 
+or a different mechanism.  I could propose the patchset backwards, if 
+necessary, because memory.oom_group is currently built upon a broken 
+selection heuristic.  In other words, I could propose a memory.oom_action 
+that can specify two different mechanisms that would be useful outside of 
+any different selection function.  However, since the mechanism is built 
+on top of the cgroup aware oom killer's policy, we can't merge it 
+currently without the broken logic.
 
-This function (hmm_vma_walk_pmd()) is call when device driver tries to
-populate its own page table. For migrated memory it should not happen as
-the device driver should already have populated its page table correctly
-during the migration.
+> 2. The current selection policy may be exploited by delegatee and
+>    strictly hierarchical seleciton should be available.  We can debate
+>    the pros and cons of different heuristics; however, to me, the
+>    followings are clear.
+> 
+>    * Strictly hierarchical approach can't replace the current policy.
+>      It doesn't work well for a lot of use cases.
+> 
 
-Only case i can think of is multi-GPU where a second GPU trigger migration
-back to regular memory. Again this would just result in a performance hit,
-nothing bad would happen.
+-ECONFUSED.  I haven't proposed any strict hierarchical approach here, 
+it's configurable by the user.
 
+>    * OOM victim selection policy has always been subject to changes
+>      and improvements.
+> 
 
-(I will try to keep in mind to always add a more in depth analysis even
-for small patch :))
+That's fine, but the selection policy introduced by any cgroup aware oom 
+killer is being specified now and is pretty clear cut: compare the usage 
+of cgroups equally based on certain criteria and choose the largest.  I 
+don't see how that could be changed or improved once the end user starts 
+using it, the heuristic has become a policy.  A single cgroup aware policy 
+doesn't work, if you don't have localized, per-cgroup control you have 
+Michal's /admins and /students example; if you don't have hierarchical, 
+subtree control you have my example of users intentionally/unintentionally 
+evading the selection logic based on using cgroups.  The policy needs to 
+be defined for subtrees.  There hasn't been any objection to that, so 
+introducing functionality that adds a completely unnecessary and broken 
+mount option and forces users to configure cgroups in a certain manner 
+that no longer exists with subtree control doesn't seem helpful.
 
-Cheers,
-Jerome
+> I don't see any blocker here.  The issue you're raising can and should
+> be handled separately.
+> 
+
+It can't, because the current patchset locks the system into a single 
+selection criteria that is unnecessary and the mount option would become a 
+no-op after the policy per subtree becomes configurable by the user as 
+part of the hierarchy itself.
+
+> Here, whether a workload can survive being killed piece-wise or not is
+> an inherent property of the workload and a pretty binary one at that.
+> I'm not necessarily against changing it to take string inputs but
+> don't see rationales for doing so yet.
+> 
+
+We don't need the unnecessary level in the cgroup hierarchy that enables 
+memory.oom_group, as proposed, and serves no other purpose.  It's 
+perfectly valid for subtrees to run user executors whereas a "killall" 
+mechanism is valid for some workloads and not others.  We do not need 
+ancestor cgroups locking that decision into place.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
