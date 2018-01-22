@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 54CE7800D8
-	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 05:29:04 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id x24so8381184pge.13
-        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 02:29:04 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p25sor1083832pfj.117.2018.01.22.02.29.02
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 19E0B800D8
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2018 05:36:18 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id b4so8388466pgs.5
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 02:36:18 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k14sor3007738pgt.294.2018.01.22.02.36.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 22 Jan 2018 02:29:03 -0800 (PST)
-Date: Mon, 22 Jan 2018 19:28:57 +0900
+        Mon, 22 Jan 2018 02:36:17 -0800 (PST)
+Date: Mon, 22 Jan 2018 19:36:11 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180122102857.GC403@jagdpanzerIV>
-References: <20180117091208.ezvuhumnsarz5thh@pathway.suse.cz>
- <20180117151509.GT3460072@devbig577.frc2.facebook.com>
+Message-ID: <20180122103611.GD403@jagdpanzerIV>
+References: <20180117151509.GT3460072@devbig577.frc2.facebook.com>
  <20180117121251.7283a56e@gandalf.local.home>
  <20180117134201.0a9cbbbf@gandalf.local.home>
  <20180119132052.02b89626@gandalf.local.home>
@@ -23,45 +22,26 @@ References: <20180117091208.ezvuhumnsarz5thh@pathway.suse.cz>
  <20180121141521.GA429@tigerII.localdomain>
  <20180121160441.7ea4b6d9@gandalf.local.home>
  <20180122085632.GA403@jagdpanzerIV>
+ <20180122102857.GC403@jagdpanzerIV>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180122085632.GA403@jagdpanzerIV>
+In-Reply-To: <20180122102857.GC403@jagdpanzerIV>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Cc: Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tejun Heo <tj@kernel.org>, Petr Mladek <pmladek@suse.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On (01/22/18 17:56), Sergey Senozhatsky wrote:
-[..]
-> Assume the following,
+On (01/22/18 19:28), Sergey Senozhatsky wrote:
+> On (01/22/18 17:56), Sergey Senozhatsky wrote:
+> [..]
+> > Assume the following,
+> 
+> But more importantly we are missing another huge thing - console_unlock().
 
-But more importantly we are missing another huge thing - console_unlock().
-
-Suppose:
-
-	console_lock();
-	<< preemption >>
-						printk
-						printk
-						..
-						printk
-	console_unlock()
-	 for (;;) {
-		call_console_drivers()
-		   dump_stack
-		   queue IRQ work
-
-		IRQ work >>
-		   flush_printk_safe
-		   printk_deferred()
-		   ...
-		   printk_deferred()
-		<< iret
-	 }
-
-This should explode: sleepable console_unlock() may reschedule,
-printk_safe flush bypasses recursion checks.
+IOW, not every console_unlock() is from vprintk_emit(). We can have
+console_trylock() -> console_unlock() being from non-preemptible context,
+etc. And then irq work to flush printk_safe -> printk_deferred all the time.
 
 	-ss
 
