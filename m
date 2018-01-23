@@ -1,78 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D2FB800D8
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 10:34:25 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id u194so404826oie.20
-        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 07:34:25 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p9sor250173otg.80.2018.01.23.07.34.24
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 557EA800D8
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 10:36:34 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id q2so482105wrg.5
+        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 07:36:34 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g65si440134wrd.332.2018.01.23.07.36.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Jan 2018 07:34:24 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 23 Jan 2018 07:36:33 -0800 (PST)
+Date: Tue, 23 Jan 2018 16:36:31 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC] Per file OOM badness
+Message-ID: <20180123153631.GR1526@dhcp22.suse.cz>
+References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
+ <20180118170006.GG6584@dhcp22.suse.cz>
+ <20180123152659.GA21817@castle.DHCP.thefacebook.com>
 MIME-Version: 1.0
-In-Reply-To: <b2faf615-b1cd-b3ec-502f-38fef11182a2@virtuozzo.com>
-References: <891fbd1fe77f46701fb1958e77bdd89651c12643.1516383788.git.andreyknvl@google.com>
- <b2faf615-b1cd-b3ec-502f-38fef11182a2@virtuozzo.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 23 Jan 2018 16:34:23 +0100
-Message-ID: <CAAeHK+xCHOm1=FKwxvzgYak+HsDkGSkN7ZGxHw-zSNa_R6RqZQ@mail.gmail.com>
-Subject: Re: [PATCH] kasan: add __asan_report_loadN/storeN_noabort callbacks
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180123152659.GA21817@castle.DHCP.thefacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrey Grodzovsky <andrey.grodzovsky@amd.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org, Christian.Koenig@amd.com
 
-On Tue, Jan 23, 2018 at 11:44 AM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
-> On 01/19/2018 08:44 PM, Andrey Konovalov wrote:
->> Instead of __asan_report_load_n_noabort and __asan_report_store_n_noabort
->> callbacks Clang emits differently named __asan_report_loadN_noabort and
->> __asan_report_storeN_noabort (similar to __asan_loadN/storeN_noabort, whose
->> names both GCC and Clang agree on).
->>
->> Add callback implementation for __asan_report_loadN/storeN_noabort.
->>
->
-> This made me wonder why this wasn't observed before. So I noticed that
-> inline instrumentation with -fsanitize=kernel-addresss is broken in clang,
-> and clang never calls __asan_report*() functions. I see that you guys fixed this
-> just yesterday https://reviews.llvm.org/D42384 .
+On Tue 23-01-18 15:27:00, Roman Gushchin wrote:
+> On Thu, Jan 18, 2018 at 06:00:06PM +0100, Michal Hocko wrote:
+> > On Thu 18-01-18 11:47:48, Andrey Grodzovsky wrote:
+> > > Hi, this series is a revised version of an RFC sent by Christian Konig
+> > > a few years ago. The original RFC can be found at 
+> > > https://urldefense.proofpoint.com/v2/url?u=https-3A__lists.freedesktop.org_archives_dri-2Ddevel_2015-2DSeptember_089778.html&d=DwIDAw&c=5VD0RTtNlTh3ycd41b3MUw&r=jJYgtDM7QT-W-Fz_d29HYQ&m=R-JIQjy8rqmH5qD581_VYL0Q7cpWSITKOnBCE-3LI8U&s=QZGqKpKuJ2BtioFGSy8_721owcWJ0J6c6d4jywOwN4w&
+> > Here is the origin cover letter text
+> > : I'm currently working on the issue that when device drivers allocate memory on
+> > : behalf of an application the OOM killer usually doesn't knew about that unless
+> > : the application also get this memory mapped into their address space.
+> > : 
+> > : This is especially annoying for graphics drivers where a lot of the VRAM
+> > : usually isn't CPU accessible and so doesn't make sense to map into the
+> > : address space of the process using it.
+> > : 
+> > : The problem now is that when an application starts to use a lot of VRAM those
+> > : buffers objects sooner or later get swapped out to system memory, but when we
+> > : now run into an out of memory situation the OOM killer obviously doesn't knew
+> > : anything about that memory and so usually kills the wrong process.
+> > : 
+> > : The following set of patches tries to address this problem by introducing a per
+> > : file OOM badness score, which device drivers can use to give the OOM killer a
+> > : hint how many resources are bound to a file descriptor so that it can make
+> > : better decisions which process to kill.
+> > : 
+> > : So question at every one: What do you think about this approach?
+> > : 
+> > : My biggest concern right now is the patches are messing with a core kernel
+> > : structure (adding a field to struct file). Any better idea? I'm considering
+> > : to put a callback into file_ops instead.
+> 
+> Hello!
+> 
+> I wonder if groupoom (aka cgroup-aware OOM killer) can work for you?
 
-Correct.
-
->
-> But it seems that you didn't fix the rest of "if (CompileKernel)" crap.
-> Clang generates "__asan_report_[load,store]N*" instead of "__asan_report_[load,store]_n*"
-> only because of this idiocy:
->
->         const std::string SuffixStr = CompileKernel ? "N" : "_n";
->
-> See https://github.com/llvm-mirror/llvm/blob/ca19eaabd75f55865efd321b7a6f1d4ba3db8bc8/lib/Transforms/Instrumentation/AddressSanitizer.cpp#L2250
->
-> Note that SuffixStr is used *only* for __asan_report_* callbacks, which makes no sense because
-> we never ever had __asan_report* callbacks with "N" suffix.
->
-> So I think that you should just fix the llvm here.
-
-I think you are right.
-
-I thought that GCC uses different and inconsistent callback names for
-the kernel and user space, but that doesn't seem to be the case.
-
-I submitted an LLVM change: https://reviews.llvm.org/D42423
-
-Please discard this patch.
-
->
-> And there is probably one more "if (CompileKernel)" crap in runOnModule()
-> which breaks globals instrumentation.
-
-Right, this will be fixed at some point.
-
->
->
->
+I do not think so. The problem is that the allocating context is not
+identical with the end consumer.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
