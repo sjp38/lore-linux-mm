@@ -1,74 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EE234800DD
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 17:22:11 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id p202so2159299iod.18
-        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 14:22:11 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v128sor10575623iof.265.2018.01.23.14.22.10
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 86E40800E4
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 17:50:41 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id b193so1119265wmd.7
+        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 14:50:41 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id b47si944566wra.526.2018.01.23.14.50.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Jan 2018 14:22:10 -0800 (PST)
-Date: Tue, 23 Jan 2018 14:22:07 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 3/4] mm, memcg: replace memory.oom_group with policy
- tunable
-In-Reply-To: <20180123155301.GS1526@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1801231416330.254281@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1801161812550.28198@chino.kir.corp.google.com> <alpine.DEB.2.10.1801161814130.28198@chino.kir.corp.google.com> <20180117154155.GU3460072@devbig577.frc2.facebook.com> <alpine.DEB.2.10.1801171348190.86895@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1801191251080.177541@chino.kir.corp.google.com> <20180120123251.GB1096857@devbig577.frc2.facebook.com> <alpine.DEB.2.10.1801221420120.16871@chino.kir.corp.google.com> <20180123155301.GS1526@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Jan 2018 14:50:40 -0800 (PST)
+Date: Tue, 23 Jan 2018 14:50:26 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/slub.c: Fix wrong address during slab padding
+ restoration
+Message-Id: <20180123145026.b7ca0a338cd0f2de2787b9c1@linux-foundation.org>
+In-Reply-To: <1516604578-4577-1-git-send-email-balasubramani_vivekanandan@mentor.com>
+References: <1516604578-4577-1-git-send-email-balasubramani_vivekanandan@mentor.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Balasubramani Vivekanandan <balasubramani_vivekanandan@mentor.com>
+Cc: linux-mm@kvack.org
 
-On Tue, 23 Jan 2018, Michal Hocko wrote:
+On Mon, 22 Jan 2018 12:32:58 +0530 Balasubramani Vivekanandan <balasubramani_vivekanandan@mentor.com> wrote:
 
-> > It can't, because the current patchset locks the system into a single 
-> > selection criteria that is unnecessary and the mount option would become a 
-> > no-op after the policy per subtree becomes configurable by the user as 
-> > part of the hierarchy itself.
+> From: Balasubramani Vivekanandan <balasubramani_vivekanandan@mentor.com>
 > 
-> This is simply not true! OOM victim selection has changed in the
-> past and will be always a subject to changes in future. Current
-> implementation doesn't provide any externally controlable selection
-> policy and therefore the default can be assumed. Whatever that default
-> means now or in future. The only contract added here is the kill full
-> memcg if selected and that can be implemented on _any_ selection policy.
+> Start address calculated for slab padding restoration was wrong.
+> Wrong address would point to some section before padding and
+> could cause corruption
 > 
+> ...
+>
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -838,6 +838,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
+>  	u8 *start;
+>  	u8 *fault;
+>  	u8 *end;
+> +	u8 *pad;
+>  	int length;
+>  	int remainder;
+>  
+> @@ -851,8 +852,9 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
+>  	if (!remainder)
+>  		return 1;
+>  
+> +	pad = end - remainder;
+>  	metadata_access_enable();
+> -	fault = memchr_inv(end - remainder, POISON_INUSE, remainder);
+> +	fault = memchr_inv(pad, POISON_INUSE, remainder);
+>  	metadata_access_disable();
+>  	if (!fault)
+>  		return 1;
+> @@ -860,9 +862,9 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
+>  		end--;
+>  
+>  	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
+> -	print_section(KERN_ERR, "Padding ", end - remainder, remainder);
+> +	print_section(KERN_ERR, "Padding ", pad, remainder);
+>  
+> -	restore_bytes(s, "slab padding", POISON_INUSE, end - remainder, end);
+> +	restore_bytes(s, "slab padding", POISON_INUSE, fault, end);
+>  	return 0;
+>  }
 
-The current implementation of memory.oom_group is based on top of a 
-selection implementation that is broken in three ways I have listed for 
-months:
+I don't see why it matters?  The current code will overwrite
+POISON_INUSE bytes with POISON_INUSE, won't it?
 
- - allows users to intentionally/unintentionally evade the oom killer,
-   requires not locking the selection implementation for the entire
-   system, requires subtree control to prevent, makes a mount option
-   obsolete, and breaks existing users who would use the implementation
-   based on 4.16 if this were merged,
-
- - unfairly compares the root mem cgroup vs leaf mem cgroup such that
-   users must structure their hierarchy only for 4.16 in such a way
-   that _all_ processes are under hierarchical control and have no
-   power to create sub cgroups because of the point above and
-   completely breaks any user of oom_score_adj in a completely
-   undocumented and unspecified way, such that fixing that breakage
-   would also break any existing users who would use the implementation
-   based on 4.16 if this were merged, and
-
- - does not allow userspace to protect important cgroups, which can be
-   built on top.
-
-I'm focused on fixing the breakage in the first two points since it 
-affects the API and we don't want to switch that out from the user.  I 
-have brought these points up repeatedly and everybody else has actively 
-disengaged from development, so I'm proposing incremental changes that 
-make the cgroup aware oom killer have a sustainable API and isn't useful 
-only for a highly specialized usecase where everything is containerized, 
-nobody can create subcgroups, and nobody uses oom_score_adj to break the 
-root mem cgroup accounting.
+That's a bit strange but not incorrect?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
