@@ -1,128 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ABCD800D8
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 01:37:26 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id z37so18547202qtz.16
-        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 22:37:26 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id y4si156443qtk.193.2018.01.22.22.37.25
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 68229800D8
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 01:40:30 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id i1so10184003pgv.22
+        for <linux-mm@kvack.org>; Mon, 22 Jan 2018 22:40:30 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e15-v6sor846850pli.49.2018.01.22.22.40.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jan 2018 22:37:25 -0800 (PST)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0N6alw1049085
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 01:37:24 -0500
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2fnyqxge18-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 01:37:24 -0500
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Tue, 23 Jan 2018 06:37:20 -0000
-Date: Mon, 22 Jan 2018 22:37:03 -0800
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH v10 01/27] mm, powerpc, x86: define VM_PKEY_BITx bits if
- CONFIG_ARCH_HAS_PKEYS is enabled
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1516326648-22775-1-git-send-email-linuxram@us.ibm.com>
- <1516326648-22775-2-git-send-email-linuxram@us.ibm.com>
+        (Google Transport Security);
+        Mon, 22 Jan 2018 22:40:28 -0800 (PST)
+Date: Tue, 23 Jan 2018 15:40:23 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180123064023.GA492@jagdpanzerIV>
+References: <20180111215547.2f66a23a@gandalf.local.home>
+ <20180116194456.GS3460072@devbig577.frc2.facebook.com>
+ <20180117091208.ezvuhumnsarz5thh@pathway.suse.cz>
+ <20180117151509.GT3460072@devbig577.frc2.facebook.com>
+ <20180117121251.7283a56e@gandalf.local.home>
+ <20180117134201.0a9cbbbf@gandalf.local.home>
+ <20180119132052.02b89626@gandalf.local.home>
+ <20180120071402.GB8371@jagdpanzerIV>
+ <20180120104931.1942483e@gandalf.local.home>
+ <20180121141521.GA429@tigerII.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1516326648-22775-2-git-send-email-linuxram@us.ibm.com>
-Message-Id: <20180123063703.GA5661@ram.oc3035372033.ibm.com>
+In-Reply-To: <20180121141521.GA429@tigerII.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, mpe@ellerman.id.au, mingo@redhat.com, corbet@lwn.net, arnd@arndb.de
+To: Petr Mladek <pmladek@suse.com>, Tejun Heo <tj@kernel.org>, Steven Rostedt <rostedt@goodmis.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Andrew,
+Hello,
 
-	Please apply the following two patches to your tree.
-
-[PATCH v10 01/27] mm, powerpc, x86: define VM_PKEY_BITx bits if CONFIG_ARCH_HAS_PKEYS is enabled
-[PATCH v10 02/27] mm, powerpc, x86: introduce an additional vma bit for powerpc pkey
-
-	I have not heard any complaints on these changes. 
-	Dave Hansen had comments/suggestions in the initial revisions, which have been incorporated.
-
-	Michael Ellermen has accepted the rest of the powerpc related patches in this series.
-
-Thanks,
-RP
-
-
-
-
-On Thu, Jan 18, 2018 at 05:50:22PM -0800, Ram Pai wrote:
-> VM_PKEY_BITx are defined only if CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-> is enabled. Powerpc also needs these bits. Hence lets define the
-> VM_PKEY_BITx bits for any architecture that enables
-> CONFIG_ARCH_HAS_PKEYS.
+On (01/21/18 23:15), Sergey Senozhatsky wrote:
+[..]
+> we have printk recursion from console drivers. it's redirected to
+> printk_safe and we queue an IRQ work to flush the buffer
 > 
-> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-> ---
->  fs/proc/task_mmu.c |    4 ++--
->  include/linux/mm.h |    9 +++++----
->  2 files changed, 7 insertions(+), 6 deletions(-)
+>  printk
+>   console_unlock
+>    call_console_drivers
+>     net_console
+>      printk
+>       printk_save -> irq_work queue
 > 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 339e4c1..b139617 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -674,13 +674,13 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
->  		[ilog2(VM_MERGEABLE)]	= "mg",
->  		[ilog2(VM_UFFD_MISSING)]= "um",
->  		[ilog2(VM_UFFD_WP)]	= "uw",
-> -#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-> +#ifdef CONFIG_ARCH_HAS_PKEYS
->  		/* These come out via ProtectionKey: */
->  		[ilog2(VM_PKEY_BIT0)]	= "",
->  		[ilog2(VM_PKEY_BIT1)]	= "",
->  		[ilog2(VM_PKEY_BIT2)]	= "",
->  		[ilog2(VM_PKEY_BIT3)]	= "",
-> -#endif
-> +#endif /* CONFIG_ARCH_HAS_PKEYS */
->  	};
->  	size_t i;
->  
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index ea818ff..01381d3 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -228,15 +228,16 @@ extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
->  #define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
->  #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
->  
-> -#if defined(CONFIG_X86)
-> -# define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
-> -#if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
-> +#ifdef CONFIG_ARCH_HAS_PKEYS
->  # define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
->  # define VM_PKEY_BIT0	VM_HIGH_ARCH_0	/* A protection key is a 4-bit value */
->  # define VM_PKEY_BIT1	VM_HIGH_ARCH_1
->  # define VM_PKEY_BIT2	VM_HIGH_ARCH_2
->  # define VM_PKEY_BIT3	VM_HIGH_ARCH_3
-> -#endif
-> +#endif /* CONFIG_ARCH_HAS_PKEYS */
-> +
-> +#if defined(CONFIG_X86)
-> +# define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
->  #elif defined(CONFIG_PPC)
->  # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
->  #elif defined(CONFIG_PARISC)
-> -- 
-> 1.7.1
+> now console_unlock() enables local IRQs, we have the printk_safe
+> flush. but printk_safe flush does not call into the console_unlock(),
+> it uses printk_deferred() version of printk
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: https://urldefense.proofpoint.com/v2/url?u=http-3A__www.linux-2Dmm.org_&d=DwIBAg&c=jf_iaSHvJObTbx-siA1ZOg&r=m-UrKChQVkZtnPpjbF6YY99NbT8FBByQ-E-ygV8luxw&m=PsCrC-HVeq8M98fNireZs4GUBJvMwNZme7wZ1YdjMqs&s=V90akzFmL1g-sNEcgmcUn_XJgJ8EaYmmsAS3AcVYScw&e= .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> IRQ work
+> 
+>  prink_safe_flush
+>   printk_deferred -> irq_work queue
+> 
+> 
+> so we schedule another IRQ work (deferred printk work), which eventually
+> tries to lock console_sem
+> 
+> IRQ work
+>  wake_up_klogd_work_func()
+>   if (console_trylock())
+>    console_unlock()
 
+Why do we even use irq_work for printk_safe?
+
+Okay... So, how about this. For printk_safe we use system_wq for flushing.
+IOW, we flush from a task running exactly on the same CPU which hit printk
+recursion, not from IRQ. From vprintk_safe() recursion, we queue work on
+*that* CPU. Which gives us the following thing: if CPU stuck in
+console_unlock() loop with preemption disabled, then system_wq does not
+schedule on that CPU and we, thus, don't flush printk_safe buffer from that
+CPU. But if CPU can reschedule, then we are kinda OK to flush printk_safe
+buffer, printing extra messages from that CPU will not lock it up, because
+it's in preemptible context.
+
+Thoughts?
+
+
+Something like this:
+
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [PATCH] printk/safe: use slowpath flush for printk_safe
+
+---
+ kernel/printk/printk_safe.c | 53 ++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 48 insertions(+), 5 deletions(-)
+
+diff --git a/kernel/printk/printk_safe.c b/kernel/printk/printk_safe.c
+index 3e3c2004bb23..c641853a5fa9 100644
+--- a/kernel/printk/printk_safe.c
++++ b/kernel/printk/printk_safe.c
+@@ -22,6 +22,8 @@
+ #include <linux/cpumask.h>
+ #include <linux/irq_work.h>
+ #include <linux/printk.h>
++#include <linux/console.h>
++#include <linux/workqueue.h>
+ 
+ #include "internal.h"
+ 
+@@ -50,6 +52,7 @@ struct printk_safe_seq_buf {
+ 	atomic_t		len;	/* length of written data */
+ 	atomic_t		message_lost;
+ 	struct irq_work		work;	/* IRQ work that flushes the buffer */
++	struct work_struct	slowpath_flush_work;
+ 	unsigned char		buffer[SAFE_LOG_BUF_LEN];
+ };
+ 
+@@ -61,12 +64,20 @@ static DEFINE_PER_CPU(struct printk_safe_seq_buf, nmi_print_seq);
+ #endif
+ 
+ /* Get flushed in a more safe context. */
+-static void queue_flush_work(struct printk_safe_seq_buf *s)
++static void queue_irq_flush_work(struct printk_safe_seq_buf *s)
+ {
+ 	if (printk_safe_irq_ready)
+ 		irq_work_queue(&s->work);
+ }
+ 
++static void queue_slowpath_flush_work(struct printk_safe_seq_buf *s)
++{
++	if (printk_safe_irq_ready)
++		queue_work_on(smp_processor_id(),
++				system_wq,
++				&s->slowpath_flush_work);
++}
++
+ /*
+  * Add a message to per-CPU context-dependent buffer. NMI and printk-safe
+  * have dedicated buffers, because otherwise printk-safe preempted by
+@@ -89,7 +100,7 @@ static __printf(2, 0) int printk_safe_log_store(struct printk_safe_seq_buf *s,
+ 	/* The trailing '\0' is not counted into len. */
+ 	if (len >= sizeof(s->buffer) - 1) {
+ 		atomic_inc(&s->message_lost);
+-		queue_flush_work(s);
++		queue_irq_flush_work(s);
+ 		return 0;
+ 	}
+ 
+@@ -112,7 +123,6 @@ static __printf(2, 0) int printk_safe_log_store(struct printk_safe_seq_buf *s,
+ 	if (atomic_cmpxchg(&s->len, len, len + add) != len)
+ 		goto again;
+ 
+-	queue_flush_work(s);
+ 	return add;
+ }
+ 
+@@ -243,6 +253,35 @@ static void __printk_safe_flush(struct irq_work *work)
+ 	raw_spin_unlock_irqrestore(&read_lock, flags);
+ }
+ 
++/* NMI buffers are always flushed */
++static void flush_nmi_buffer(struct irq_work *work)
++{
++	__printk_safe_flush(work);
++}
++
++/* printk_safe buffers flushing, on the contrary, can be postponed */
++static void flush_printk_safe_buffer(struct irq_work *work)
++{
++	struct printk_safe_seq_buf *s =
++		container_of(work, struct printk_safe_seq_buf, work);
++
++	if (is_console_locked()) {
++		queue_slowpath_flush_work(s);
++		return;
++	}
++
++	__printk_safe_flush(work);
++}
++
++static void slowpath_flush_work_fn(struct work_struct *work)
++{
++	struct printk_safe_seq_buf *s =
++		container_of(work, struct printk_safe_seq_buf,
++				slowpath_flush_work);
++
++	__printk_safe_flush(&s->work);
++}
++
+ /**
+  * printk_safe_flush - flush all per-cpu nmi buffers.
+  *
+@@ -300,6 +339,7 @@ static __printf(1, 0) int vprintk_nmi(const char *fmt, va_list args)
+ {
+ 	struct printk_safe_seq_buf *s = this_cpu_ptr(&nmi_print_seq);
+ 
++	queue_irq_flush_work(s);
+ 	return printk_safe_log_store(s, fmt, args);
+ }
+ 
+@@ -343,6 +383,7 @@ static __printf(1, 0) int vprintk_safe(const char *fmt, va_list args)
+ {
+ 	struct printk_safe_seq_buf *s = this_cpu_ptr(&safe_print_seq);
+ 
++	queue_slowpath_flush_work(s);
+ 	return printk_safe_log_store(s, fmt, args);
+ }
+ 
+@@ -387,11 +428,13 @@ void __init printk_safe_init(void)
+ 		struct printk_safe_seq_buf *s;
+ 
+ 		s = &per_cpu(safe_print_seq, cpu);
+-		init_irq_work(&s->work, __printk_safe_flush);
++		init_irq_work(&s->work, flush_printk_safe_buffer);
++		INIT_WORK(&s->slowpath_flush_work, slowpath_flush_work_fn);
+ 
+ #ifdef CONFIG_PRINTK_NMI
+ 		s = &per_cpu(nmi_print_seq, cpu);
+-		init_irq_work(&s->work, __printk_safe_flush);
++		init_irq_work(&s->work, flush_nmi_buffer);
++		/* we don't use slowpath flush for NMI */
+ #endif
+ 	}
+ 
 -- 
-Ram Pai
+2.16.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
