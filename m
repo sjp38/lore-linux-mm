@@ -1,89 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 745B6800E0
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 15:48:30 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id k76so1905532iod.12
-        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 12:48:30 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id c123si7527260itc.108.2018.01.23.12.48.28
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EE234800DD
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 17:22:11 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id p202so2159299iod.18
+        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 14:22:11 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v128sor10575623iof.265.2018.01.23.14.22.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Jan 2018 12:48:29 -0800 (PST)
-Date: Tue, 23 Jan 2018 12:48:27 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Matthew's minor MM topics
-Message-ID: <20180123204827.GB5565@bombadil.infradead.org>
-References: <20180116141354.GB30073@bombadil.infradead.org>
- <20180123122646.GJ1526@dhcp22.suse.cz>
+        (Google Transport Security);
+        Tue, 23 Jan 2018 14:22:10 -0800 (PST)
+Date: Tue, 23 Jan 2018 14:22:07 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 3/4] mm, memcg: replace memory.oom_group with policy
+ tunable
+In-Reply-To: <20180123155301.GS1526@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1801231416330.254281@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1801161812550.28198@chino.kir.corp.google.com> <alpine.DEB.2.10.1801161814130.28198@chino.kir.corp.google.com> <20180117154155.GU3460072@devbig577.frc2.facebook.com> <alpine.DEB.2.10.1801171348190.86895@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1801191251080.177541@chino.kir.corp.google.com> <20180120123251.GB1096857@devbig577.frc2.facebook.com> <alpine.DEB.2.10.1801221420120.16871@chino.kir.corp.google.com> <20180123155301.GS1526@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180123122646.GJ1526@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jan 23, 2018 at 01:26:46PM +0100, Michal Hocko wrote:
-> On Tue 16-01-18 06:13:54, Matthew Wilcox wrote:
-> > 1. GFP_DMA / GFP_HIGHMEM / GFP_DMA32
-> > 
-> > The documentation is clear that only one of these three bits is allowed
-> > to be set.  Indeed, we have code that checks that only one of these
-> > three bits is set.  So why do we have three bits?  Surely this encoding
-> > works better:
-> > 
-> > 00b (normal)
-> > 01b GFP_DMA
-> > 10b GFP_DMA32
-> > 11b GFP_HIGHMEM
-> > (or some other clever encoding that maps well to the zone_type index)
+On Tue, 23 Jan 2018, Michal Hocko wrote:
+
+> > It can't, because the current patchset locks the system into a single 
+> > selection criteria that is unnecessary and the mount option would become a 
+> > no-op after the policy per subtree becomes configurable by the user as 
+> > part of the hierarchy itself.
 > 
-> Didn't you forget about movable zone? Anyway, if you can simplify this
-> thing I would be more than happy. GFP_ZONE_TABLE makes my head spin
-> anytime I dare to look.
-
-I didn't *forget* about it, exactly.  I just didn't include it because
-(as I understand it), it's legitimate to ask for GFP_DMA | GFP_MOVABLE.
-To quote:
-
- * The zone fallback order is MOVABLE=>HIGHMEM=>NORMAL=>DMA32=>DMA.
- * But GFP_MOVABLE is not only a zone specifier but also an allocation
- * policy. Therefore __GFP_MOVABLE plus another zone selector is valid.
- * Only 1 bit of the lowest 3 bits (DMA,DMA32,HIGHMEM) can be set to "1".
-
-I don't understand this, personally.  I assumed it made sense to someone,
-but if we can collapse GFP_MOVABLE into this and just use the bottom three
-bits as the zone number, then that would be an even better cleanup.
-
-> > 2. kvzalloc_ab_c()
-> > 
-> > We also need to go through and convert dozens of callers that are
-> > doing kvzalloc(a * b) into kvzalloc_array(a, b).  Maybe we can ask for
-> > some coccinelle / smatch / checkpatch help here.
+> This is simply not true! OOM victim selection has changed in the
+> past and will be always a subject to changes in future. Current
+> implementation doesn't provide any externally controlable selection
+> policy and therefore the default can be assumed. Whatever that default
+> means now or in future. The only contract added here is the kill full
+> memcg if selected and that can be implemented on _any_ selection policy.
 > 
-> I do not see anything controversial here. Is there anything to be
-> discussed here? If there is a common pattern then a helper shouldn't be
-> a big deal, no?
 
-Good!  Let's try and dispose of this quickly.
+The current implementation of memory.oom_group is based on top of a 
+selection implementation that is broken in three ways I have listed for 
+months:
 
-> > 4. vmf_insert_(page|pfn|mixed|...)
-> > 
-> > vm_insert_foo are invariably called from fault handlers, usually as
-> > the last thing we do before returning a VM_FAULT code.  As such, why do
-> > they return an errno that has to be translated?  We would be better off
-> > returning VM_FAULT codes from these functions.
-> 
-> Which tree are you looking at? git grep vmf_insert_ doesn't show much.
-> vmf_insert_pfn_p[mu]d and those already return VM_FAULT error code from
-> a quick look.
+ - allows users to intentionally/unintentionally evade the oom killer,
+   requires not locking the selection implementation for the entire
+   system, requires subtree control to prevent, makes a mount option
+   obsolete, and breaks existing users who would use the implementation
+   based on 4.16 if this were merged,
 
-I didn't explain this well.  Today, vm_insert_page() returns -EFAULT,
--EINVAL, -ENOMEM or -EBUSY.  I'd like to see it replaced with a new
-function called vmf_insert_page() which returns a vm_fault_t rather
-than have every caller of vm_insert_page() convert that errno into
-a vm_fault_t.
+ - unfairly compares the root mem cgroup vs leaf mem cgroup such that
+   users must structure their hierarchy only for 4.16 in such a way
+   that _all_ processes are under hierarchical control and have no
+   power to create sub cgroups because of the point above and
+   completely breaks any user of oom_score_adj in a completely
+   undocumented and unspecified way, such that fixing that breakage
+   would also break any existing users who would use the implementation
+   based on 4.16 if this were merged, and
+
+ - does not allow userspace to protect important cgroups, which can be
+   built on top.
+
+I'm focused on fixing the breakage in the first two points since it 
+affects the API and we don't want to switch that out from the user.  I 
+have brought these points up repeatedly and everybody else has actively 
+disengaged from development, so I'm proposing incremental changes that 
+make the cgroup aware oom killer have a sustainable API and isn't useful 
+only for a highly specialized usecase where everything is containerized, 
+nobody can create subcgroups, and nobody uses oom_score_adj to break the 
+root mem cgroup accounting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
