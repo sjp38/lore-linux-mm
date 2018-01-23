@@ -1,85 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DD38800D8
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 11:39:24 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id p64so291242lfe.12
-        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 08:39:24 -0800 (PST)
-Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
-        by mx.google.com with ESMTP id l18si190067lfb.119.2018.01.23.08.39.21
-        for <linux-mm@kvack.org>;
-        Tue, 23 Jan 2018 08:39:22 -0800 (PST)
-Subject: Re: [RFC] Per file OOM badness
-References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
- <20180118170006.GG6584@dhcp22.suse.cz>
- <20180123152659.GA21817@castle.DHCP.thefacebook.com>
- <20180123153631.GR1526@dhcp22.suse.cz>
-From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
-Message-ID: <ccac4870-ced3-f169-17df-2ab5da468bf0@daenzer.net>
-Date: Tue, 23 Jan 2018 17:39:19 +0100
-MIME-Version: 1.0
-In-Reply-To: <20180123153631.GR1526@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
-Content-Transfer-Encoding: 8bit
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B305800D8
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 12:09:27 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id a3so1301361itg.7
+        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 09:09:27 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id x189si8577052itb.172.2018.01.23.09.09.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Jan 2018 09:09:26 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6, RESEND 2/4] x86/boot/compressed/64: Introduce paging_prepare()
+Date: Tue, 23 Jan 2018 20:09:11 +0300
+Message-Id: <20180123170913.41791-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180123170913.41791-1-kirill.shutemov@linux.intel.com>
+References: <20180123170913.41791-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>
-Cc: Andrey Grodzovsky <andrey.grodzovsky@amd.com>, linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, Christian.Koenig@amd.com
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 2018-01-23 04:36 PM, Michal Hocko wrote:
-> On Tue 23-01-18 15:27:00, Roman Gushchin wrote:
->> On Thu, Jan 18, 2018 at 06:00:06PM +0100, Michal Hocko wrote:
->>> On Thu 18-01-18 11:47:48, Andrey Grodzovsky wrote:
->>>> Hi, this series is a revised version of an RFC sent by Christian KA?nig
->>>> a few years ago. The original RFC can be found at 
->>>> https://urldefense.proofpoint.com/v2/url?u=https-3A__lists.freedesktop.org_archives_dri-2Ddevel_2015-2DSeptember_089778.html&d=DwIDAw&c=5VD0RTtNlTh3ycd41b3MUw&r=jJYgtDM7QT-W-Fz_d29HYQ&m=R-JIQjy8rqmH5qD581_VYL0Q7cpWSITKOnBCE-3LI8U&s=QZGqKpKuJ2BtioFGSy8_721owcWJ0J6c6d4jywOwN4w&
->>> Here is the origin cover letter text
->>> : I'm currently working on the issue that when device drivers allocate memory on
->>> : behalf of an application the OOM killer usually doesn't knew about that unless
->>> : the application also get this memory mapped into their address space.
->>> : 
->>> : This is especially annoying for graphics drivers where a lot of the VRAM
->>> : usually isn't CPU accessible and so doesn't make sense to map into the
->>> : address space of the process using it.
->>> : 
->>> : The problem now is that when an application starts to use a lot of VRAM those
->>> : buffers objects sooner or later get swapped out to system memory, but when we
->>> : now run into an out of memory situation the OOM killer obviously doesn't knew
->>> : anything about that memory and so usually kills the wrong process.
->>> : 
->>> : The following set of patches tries to address this problem by introducing a per
->>> : file OOM badness score, which device drivers can use to give the OOM killer a
->>> : hint how many resources are bound to a file descriptor so that it can make
->>> : better decisions which process to kill.
->>> : 
->>> : So question at every one: What do you think about this approach?
->>> : 
->>> : My biggest concern right now is the patches are messing with a core kernel
->>> : structure (adding a field to struct file). Any better idea? I'm considering
->>> : to put a callback into file_ops instead.
->>
->> Hello!
->>
->> I wonder if groupoom (aka cgroup-aware OOM killer) can work for you?
-> 
-> I do not think so. The problem is that the allocating context is not
-> identical with the end consumer.
+This patch renames l5_paging_required() into paging_prepare() and
+changes the interface of the function.
 
-That's actually not really true. Even in cases where a BO is shared with
-a different process, it is still used at least occasionally in the
-process which allocated it as well. Otherwise there would be no point in
-sharing it between processes.
+This is a preparation for the next patch, which would make the function
+also allocate memory for the 32-bit trampoline.
 
+The function now returns a 128-bit structure. RAX would return
+trampoline memory address (zero for now) and RDX would indicate if we
+need to enabled 5-level paging.
 
-There should be no problem if the memory of a shared BO is accounted for
-in each process sharing it. It might be nice to scale each process'
-"debt" by 1 / (number of processes sharing it) if possible, but in the
-worst case accounting it fully in each process should be fine.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/boot/compressed/head_64.S    | 41 ++++++++++++++++-------------------
+ arch/x86/boot/compressed/pgtable_64.c | 25 ++++++++++-----------
+ 2 files changed, 31 insertions(+), 35 deletions(-)
 
-
+diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+index fc313e29fe2c..10b4df46de84 100644
+--- a/arch/x86/boot/compressed/head_64.S
++++ b/arch/x86/boot/compressed/head_64.S
+@@ -304,20 +304,6 @@ ENTRY(startup_64)
+ 	/* Set up the stack */
+ 	leaq	boot_stack_end(%rbx), %rsp
+ 
+-#ifdef CONFIG_X86_5LEVEL
+-	/*
+-	 * Check if we need to enable 5-level paging.
+-	 * RSI holds real mode data and need to be preserved across
+-	 * a function call.
+-	 */
+-	pushq	%rsi
+-	call	l5_paging_required
+-	popq	%rsi
+-
+-	/* If l5_paging_required() returned zero, we're done here. */
+-	cmpq	$0, %rax
+-	je	lvl5
+-
+ 	/*
+ 	 * At this point we are in long mode with 4-level paging enabled,
+ 	 * but we want to enable 5-level paging.
+@@ -325,12 +311,28 @@ ENTRY(startup_64)
+ 	 * The problem is that we cannot do it directly. Setting LA57 in
+ 	 * long mode would trigger #GP. So we need to switch off long mode
+ 	 * first.
++	 */
++
++	/*
++	 * paging_prepare() would set up the trampoline and check if we need to
++	 * enable 5-level paging.
+ 	 *
+-	 * NOTE: This is not going to work if bootloader put us above 4G
+-	 * limit.
++	 * Address of the trampoline is returned in RAX.
++	 * Non zero RDX on return means we need to enable 5-level paging.
+ 	 *
+-	 * The first step is go into compatibility mode.
++	 * RSI holds real mode data and need to be preserved across
++	 * a function call.
+ 	 */
++	pushq	%rsi
++	call	paging_prepare
++	popq	%rsi
++
++	/* Save the trampoline address in RCX */
++	movq	%rax, %rcx
++
++	/* Check if we need to enable 5-level paging */
++	cmpq	$0, %rdx
++	jz	lvl5
+ 
+ 	/* Clear additional page table */
+ 	leaq	lvl5_pgtable(%rbx), %rdi
+@@ -352,7 +354,6 @@ ENTRY(startup_64)
+ 	pushq	%rax
+ 	lretq
+ lvl5:
+-#endif
+ 
+ 	/* Zero EFLAGS */
+ 	pushq	$0
+@@ -490,7 +491,6 @@ relocated:
+ 	jmp	*%rax
+ 
+ 	.code32
+-#ifdef CONFIG_X86_5LEVEL
+ compatible_mode:
+ 	/* Setup data and stack segments */
+ 	movl	$__KERNEL_DS, %eax
+@@ -526,7 +526,6 @@ compatible_mode:
+ 	movl	%eax, %cr0
+ 
+ 	lret
+-#endif
+ 
+ no_longmode:
+ 	/* This isn't an x86-64 CPU so hang */
+@@ -585,7 +584,5 @@ boot_stack_end:
+ 	.balign 4096
+ pgtable:
+ 	.fill BOOT_PGT_SIZE, 1, 0
+-#ifdef CONFIG_X86_5LEVEL
+ lvl5_pgtable:
+ 	.fill PAGE_SIZE, 1, 0
+-#endif
+diff --git a/arch/x86/boot/compressed/pgtable_64.c b/arch/x86/boot/compressed/pgtable_64.c
+index b4469a37e9a1..3f1697fcc7a8 100644
+--- a/arch/x86/boot/compressed/pgtable_64.c
++++ b/arch/x86/boot/compressed/pgtable_64.c
+@@ -9,20 +9,19 @@
+  */
+ unsigned long __force_order;
+ 
+-int l5_paging_required(void)
+-{
+-	/* Check if leaf 7 is supported. */
+-
+-	if (native_cpuid_eax(0) < 7)
+-		return 0;
++struct paging_config {
++	unsigned long trampoline_start;
++	unsigned long l5_required;
++};
+ 
+-	/* Check if la57 is supported. */
+-	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
+-		return 0;
++struct paging_config paging_prepare(void)
++{
++	struct paging_config paging_config = {};
+ 
+-	/* Check if 5-level paging has already been enabled. */
+-	if (native_read_cr4() & X86_CR4_LA57)
+-		return 0;
++	/* Check if LA57 is desired and supported */
++	if (IS_ENABLED(CONFIG_X86_5LEVEL) && native_cpuid_eax(0) >= 7 &&
++			(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
++		paging_config.l5_required = 1;
+ 
+-	return 1;
++	return paging_config;
+ }
 -- 
-Earthling Michel DA?nzer               |               http://www.amd.com
-Libre software enthusiast             |             Mesa and X developer
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
