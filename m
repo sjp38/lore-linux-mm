@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CA29800D8
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 05:55:33 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id j185so10551lfe.13
-        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 02:55:33 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 8F259800D8
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 05:55:36 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id q64so15502lfb.3
+        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 02:55:36 -0800 (PST)
 Received: from forwardcorp1g.cmail.yandex.net (forwardcorp1g.cmail.yandex.net. [87.250.241.190])
-        by mx.google.com with ESMTPS id n17si3680138lja.481.2018.01.23.02.55.31
+        by mx.google.com with ESMTPS id x129si20732lff.184.2018.01.23.02.55.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jan 2018 02:55:31 -0800 (PST)
-Subject: [PATCH 3/4] kernel/fork: switch vmapped stack callation to
- __vmalloc_area()
+        Tue, 23 Jan 2018 02:55:35 -0800 (PST)
+Subject: [PATCH 4/4] kernel/fork: add option to use virtually mapped stacks
+ as fallback
 From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Date: Tue, 23 Jan 2018 13:55:29 +0300
-Message-ID: <151670492913.658225.2758351129158778856.stgit@buzz>
+Date: Tue, 23 Jan 2018 13:55:32 +0300
+Message-ID: <151670493255.658225.2881484505285363395.stgit@buzz>
 In-Reply-To: <151670492223.658225.4605377710524021456.stgit@buzz>
 References: <151670492223.658225.4605377710524021456.stgit@buzz>
 MIME-Version: 1.0
@@ -23,75 +23,66 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-This gives as pointer vm_struct without calling find_vm_area().
+Virtually mapped stack have two bonuses: it eats order-0 pages and
+adds guard page at the end. But it slightly slower if system have
+plenty free high-order pages.
 
-And fix comment about that task holds cache of vm area: this cache used
-for retrieving actual stack pages, freeing is done by vfree_deferred().
+This patch adds option to use virtually bapped stack as fallback for
+atomic allocation of traditional high-order page.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 ---
- kernel/fork.c |   37 +++++++++++++++----------------------
- 1 file changed, 15 insertions(+), 22 deletions(-)
+ arch/Kconfig  |   14 ++++++++++++++
+ kernel/fork.c |   11 +++++++++++
+ 2 files changed, 25 insertions(+)
 
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 400b9e1b2f27..c181ab263e7f 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -904,6 +904,20 @@ config VMAP_STACK
+ 	  the stack to map directly to the KASAN shadow map using a formula
+ 	  that is incorrect if the stack is in vmalloc space.
+ 
++config VMAP_STACK_AS_FALLBACK
++	default n
++	bool "Use a virtually-mapped stack as fallback for directly-mapped"
++	depends on VMAP_STACK
++	help
++	  With this option kernel first tries to allocate directly-mapped stack
++	  without calling direct memory reclaim and fallback to vmap stack.
++
++	  Allocation of directly mapped stack faster than vmap if system a lot
++	  of free memory and much slower if all memory is used or fragmented.
++
++	  This option neutralize stack overflow protection but allows to
++	  achieve best performance for syscalls fork() and clone().
++
+ config ARCH_OPTIONAL_KERNEL_RWX
+ 	def_bool n
+ 
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 2295fc69717f..457c9151f3c8 100644
+index 457c9151f3c8..cc61a083954d 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -204,39 +204,32 @@ static int free_vm_stack_cache(unsigned int cpu)
- static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
- {
- #ifdef CONFIG_VMAP_STACK
--	void *stack;
-+	struct vm_struct *stack;
+@@ -207,6 +207,17 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
+ 	struct vm_struct *stack;
  	int i;
  
++#ifdef CONFIG_VMAP_STACK_AS_FALLBACK
++	struct page *page;
++
++	page = alloc_pages_node(node, THREADINFO_GFP & ~__GFP_DIRECT_RECLAIM,
++				THREAD_SIZE_ORDER);
++	if (page) {
++		tsk->stack_vm_area = NULL;
++		return page_address(page);
++	}
++#endif
++
  	for (i = 0; i < NR_CACHED_STACKS; i++) {
--		struct vm_struct *s;
--
--		s = this_cpu_xchg(cached_stacks[i], NULL);
--
--		if (!s)
-+		stack = this_cpu_xchg(cached_stacks[i], NULL);
-+		if (!stack)
- 			continue;
- 
- #ifdef CONFIG_DEBUG_KMEMLEAK
- 		/* Clear stale pointers from reused stack. */
--		memset(s->addr, 0, THREAD_SIZE);
-+		memset(stack->addr, 0, THREAD_SIZE);
- #endif
--		tsk->stack_vm_area = s;
--		return s->addr;
-+		tsk->stack_vm_area = stack;
-+		return stack->addr;
- 	}
- 
--	stack = __vmalloc_node_range(THREAD_SIZE, THREAD_ALIGN,
--				     VMALLOC_START, VMALLOC_END,
--				     THREADINFO_GFP,
--				     PAGE_KERNEL,
--				     0, node, __builtin_return_address(0));
-+	stack = __vmalloc_area(THREAD_SIZE, THREAD_ALIGN,
-+			       VMALLOC_START, VMALLOC_END,
-+			       THREADINFO_GFP, PAGE_KERNEL,
-+			       0, node, __builtin_return_address(0));
-+	if (unlikely(!stack))
-+		return NULL;
- 
--	/*
--	 * We can't call find_vm_area() in interrupt context, and
--	 * free_thread_stack() can be called in interrupt context,
--	 * so cache the vm_struct.
--	 */
--	if (stack)
--		tsk->stack_vm_area = find_vm_area(stack);
--	return stack;
-+	/* Cache the vm_struct for stack to page conversions. */
-+	tsk->stack_vm_area = stack;
-+	return stack->addr;
- #else
- 	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
- 					     THREAD_SIZE_ORDER);
+ 		stack = this_cpu_xchg(cached_stacks[i], NULL);
+ 		if (!stack)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
