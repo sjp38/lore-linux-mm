@@ -1,71 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 557EA800D8
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 10:36:34 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id q2so482105wrg.5
-        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 07:36:34 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g65si440134wrd.332.2018.01.23.07.36.32
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 774C2280244
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 10:38:44 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id v31so470965otb.1
+        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 07:38:44 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id g21si999989oic.271.2018.01.23.07.38.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 23 Jan 2018 07:36:33 -0800 (PST)
-Date: Tue, 23 Jan 2018 16:36:31 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] Per file OOM badness
-Message-ID: <20180123153631.GR1526@dhcp22.suse.cz>
-References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
- <20180118170006.GG6584@dhcp22.suse.cz>
- <20180123152659.GA21817@castle.DHCP.thefacebook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Jan 2018 07:38:43 -0800 (PST)
+Subject: Re: [PATCH v3] mm: make faultaround produce old ptes
+References: <1516599614-18546-1-git-send-email-vinmenon@codeaurora.org>
+ <20180123145506.GN1526@dhcp22.suse.cz>
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Message-ID: <d5a87398-a51f-69fb-222b-694328be7387@codeaurora.org>
+Date: Tue, 23 Jan 2018 21:08:36 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180123152659.GA21817@castle.DHCP.thefacebook.com>
+In-Reply-To: <20180123145506.GN1526@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrey Grodzovsky <andrey.grodzovsky@amd.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org, Christian.Koenig@amd.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, catalin.marinas@arm.com, will.deacon@arm.com, ying.huang@intel.com, riel@redhat.com, dave.hansen@linux.intel.com, mgorman@suse.de, torvalds@linux-foundation.org, jack@suse.cz
 
-On Tue 23-01-18 15:27:00, Roman Gushchin wrote:
-> On Thu, Jan 18, 2018 at 06:00:06PM +0100, Michal Hocko wrote:
-> > On Thu 18-01-18 11:47:48, Andrey Grodzovsky wrote:
-> > > Hi, this series is a revised version of an RFC sent by Christian Konig
-> > > a few years ago. The original RFC can be found at 
-> > > https://urldefense.proofpoint.com/v2/url?u=https-3A__lists.freedesktop.org_archives_dri-2Ddevel_2015-2DSeptember_089778.html&d=DwIDAw&c=5VD0RTtNlTh3ycd41b3MUw&r=jJYgtDM7QT-W-Fz_d29HYQ&m=R-JIQjy8rqmH5qD581_VYL0Q7cpWSITKOnBCE-3LI8U&s=QZGqKpKuJ2BtioFGSy8_721owcWJ0J6c6d4jywOwN4w&
-> > Here is the origin cover letter text
-> > : I'm currently working on the issue that when device drivers allocate memory on
-> > : behalf of an application the OOM killer usually doesn't knew about that unless
-> > : the application also get this memory mapped into their address space.
-> > : 
-> > : This is especially annoying for graphics drivers where a lot of the VRAM
-> > : usually isn't CPU accessible and so doesn't make sense to map into the
-> > : address space of the process using it.
-> > : 
-> > : The problem now is that when an application starts to use a lot of VRAM those
-> > : buffers objects sooner or later get swapped out to system memory, but when we
-> > : now run into an out of memory situation the OOM killer obviously doesn't knew
-> > : anything about that memory and so usually kills the wrong process.
-> > : 
-> > : The following set of patches tries to address this problem by introducing a per
-> > : file OOM badness score, which device drivers can use to give the OOM killer a
-> > : hint how many resources are bound to a file descriptor so that it can make
-> > : better decisions which process to kill.
-> > : 
-> > : So question at every one: What do you think about this approach?
-> > : 
-> > : My biggest concern right now is the patches are messing with a core kernel
-> > : structure (adding a field to struct file). Any better idea? I'm considering
-> > : to put a callback into file_ops instead.
-> 
-> Hello!
-> 
-> I wonder if groupoom (aka cgroup-aware OOM killer) can work for you?
 
-I do not think so. The problem is that the allocating context is not
-identical with the end consumer.
--- 
-Michal Hocko
-SUSE Labs
+
+On 1/23/2018 8:25 PM, Michal Hocko wrote:
+> [Please cc linux-api when proposing user interface]
+>
+> On Mon 22-01-18 11:10:14, Vinayak Menon wrote:
+>> Based on Kirill's patch [1].
+>>
+>> Currently, faultaround code produces young pte.  This can screw up
+>> vmscan behaviour[2], as it makes vmscan think that these pages are hot
+>> and not push them out on first round.
+>>
+>> During sparse file access faultaround gets more pages mapped and all of
+>> them are young. Under memory pressure, this makes vmscan swap out anon
+>> pages instead, or to drop other page cache pages which otherwise stay
+>> resident.
+>>
+>> Modify faultaround to produce old ptes if sysctl 'want_old_faultaround_pte'
+>> is set, so they can easily be reclaimed under memory pressure.
+>>
+>> This can to some extend defeat the purpose of faultaround on machines
+>> without hardware accessed bit as it will not help us with reducing the
+>> number of minor page faults.
+> So we just want to add a knob to cripple the feature? Isn't it better to
+> simply disable it than to have two distinct implementation which is
+> rather non-intuitive and I would bet that most users will be clueless
+> about how to set it or when to touch it at all. So we will end up with
+> random cargo cult hints all over internet giving you your performance
+> back...
+
+
+If you are talking about non-HW access bit systems, then yes it would be better to disable faultaround
+when want_old_faultaround_pte is set to 1, like MInchan did here https://patchwork.kernel.org/patch/9115901/
+I can submit a patch for that.
+
+> I really dislike this new interface. If the fault around doesn't work
+> for you then disable it.
+
+
+Faultaround works well for me on systems with HW access bit. But the benefit is reduced because of making the
+faultaround ptes young [2]. Ideally they should be old as they are speculatively mapped and not really
+accessed. But because of issues on certain architectures they need to be made young[3][4]. This patch is trying to
+help the other architectures which can tolerate old ptes, by fixing the vmscan behaviour. And this is not a
+theoretical problem that I am trying to fix. We have really seen the benefit of faultaround on arm mobile targets,
+but the problem is the vmscan behaviour due to the young pte workaround. And this patch helps in fixing that.
+Do you think something more needs to be added in the documentation to make things more clear on the flag usage ?
+
+>
+>> Making the faultaround ptes old results in a unixbench regression for some
+>> architectures [3][4]. But on some architectures like arm64 it is not found
+>> to cause any regression.
+>>
+>> unixbench shell8 scores on arm64 v8.2 hardware with CONFIG_ARM64_HW_AFDBM
+>> enabled  (5 runs min, max, avg):
+>> Base: (741,748,744)
+>> With this patch: (739,748,743)
+>>
+>> So by default produce young ptes and provide a sysctl option to make the
+>> ptes old.
+>>
+>> [1] http://lkml.kernel.org/r/1463488366-47723-1-git-send-email-kirill.shutemov@linux.intel.com
+>> [2] https://lkml.kernel.org/r/1460992636-711-1-git-send-email-vinmenon@codeaurora.org
+>> [3] https://marc.info/?l=linux-kernel&m=146582237922378&w=2
+>> [4] https://marc.info/?l=linux-mm&m=146589376909424&w=2
+>>
+>> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
