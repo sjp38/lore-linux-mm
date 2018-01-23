@@ -1,106 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DC72280245
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 12:19:35 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id 78so677342otj.15
-        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 09:19:35 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id k185si12583189ioe.281.2018.01.23.09.19.34
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D525D800D8
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 12:21:57 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id a21so1576495qtd.6
+        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 09:21:57 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p73sor13238398qki.75.2018.01.23.09.21.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jan 2018 09:19:34 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 3/3] x86/mm/encrypt: Rewrite sme_pgtable_calc()
-Date: Tue, 23 Jan 2018 20:19:10 +0300
-Message-Id: <20180123171910.55841-4-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20180123171910.55841-1-kirill.shutemov@linux.intel.com>
-References: <20180123171910.55841-1-kirill.shutemov@linux.intel.com>
+        (Google Transport Security);
+        Tue, 23 Jan 2018 09:21:56 -0800 (PST)
+Date: Tue, 23 Jan 2018 09:21:53 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180123172153.GF1771050@devbig577.frc2.facebook.com>
+References: <20180119132052.02b89626@gandalf.local.home>
+ <20180120071402.GB8371@jagdpanzerIV>
+ <20180120104931.1942483e@gandalf.local.home>
+ <20180121141521.GA429@tigerII.localdomain>
+ <20180123064023.GA492@jagdpanzerIV>
+ <20180123095652.5e14da85@gandalf.local.home>
+ <20180123152130.GB429@tigerII.localdomain>
+ <20180123104121.2ef96d81@gandalf.local.home>
+ <20180123154347.GE1771050@devbig577.frc2.facebook.com>
+ <20180123111330.4356ec8d@gandalf.local.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180123111330.4356ec8d@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-sme_pgtable_calc() is unnecessary complex. It can be re-written in a
-more stream-lined way.
+Hey,
 
-As a side effect, we would get the code ready to boot-time switching
-between paging modes.
+On Tue, Jan 23, 2018 at 11:13:30AM -0500, Steven Rostedt wrote:
+> From what I understand is that there's an issue with one of the printk
+> consoles, due to memory pressure or whatnot. Then a printk happens
+> within a printk recursively. It gets put into the safe buffer and an
+> irq is sent to printk this printk.
+> 
+> The issue you are saying is that when the printk enables interrupts,
+> the irq work triggers and loads the log buffer with the safe buffer, and
+> then the printk sees the new data added and continues to print, and
+> hence never leaves this printk.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/mm/mem_encrypt.c | 42 ++++++++++++------------------------------
- 1 file changed, 12 insertions(+), 30 deletions(-)
+I'm not sure it's irq or the same calling context, but yeah whatever
+it may be, it keeps adding new data.
 
-diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
-index 740b8a54f616..88e9d4b1a233 100644
---- a/arch/x86/mm/mem_encrypt.c
-+++ b/arch/x86/mm/mem_encrypt.c
-@@ -556,8 +556,7 @@ static void __init sme_map_range_decrypted_wp(struct sme_populate_pgd_data *ppd)
- 
- static unsigned long __init sme_pgtable_calc(unsigned long len)
- {
--	unsigned long p4d_size, pud_size, pmd_size, pte_size;
--	unsigned long total;
-+	unsigned long entries = 0, tables = 0;
- 
- 	/*
- 	 * Perform a relatively simplistic calculation of the pagetable
-@@ -571,42 +570,25 @@ static unsigned long __init sme_pgtable_calc(unsigned long len)
- 	 * Incrementing the count for each covers the case where the addresses
- 	 * cross entries.
- 	 */
--	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
--		p4d_size = (ALIGN(len, PGDIR_SIZE) / PGDIR_SIZE) + 1;
--		p4d_size *= sizeof(p4d_t) * PTRS_PER_P4D;
--		pud_size = (ALIGN(len, P4D_SIZE) / P4D_SIZE) + 1;
--		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
--	} else {
--		p4d_size = 0;
--		pud_size = (ALIGN(len, PGDIR_SIZE) / PGDIR_SIZE) + 1;
--		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
--	}
--	pmd_size = (ALIGN(len, PUD_SIZE) / PUD_SIZE) + 1;
--	pmd_size *= sizeof(pmd_t) * PTRS_PER_PMD;
--	pte_size = 2 * sizeof(pte_t) * PTRS_PER_PTE;
- 
--	total = p4d_size + pud_size + pmd_size + pte_size;
-+	/* PGDIR_SIZE is equal to P4D_SIZE on 4-level machine. */
-+	if (PTRS_PER_P4D > 1)
-+		entries += (DIV_ROUND_UP(len, PGDIR_SIZE) + 1) * sizeof(p4d_t) * PTRS_PER_P4D;
-+	entries += (DIV_ROUND_UP(len, P4D_SIZE) + 1) * sizeof(pud_t) * PTRS_PER_PUD;
-+	entries += (DIV_ROUND_UP(len, PUD_SIZE) + 1) * sizeof(pmd_t) * PTRS_PER_PMD;
-+	entries += 2 * sizeof(pte_t) * PTRS_PER_PTE;
- 
- 	/*
- 	 * Now calculate the added pagetable structures needed to populate
- 	 * the new pagetables.
- 	 */
--	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
--		p4d_size = ALIGN(total, PGDIR_SIZE) / PGDIR_SIZE;
--		p4d_size *= sizeof(p4d_t) * PTRS_PER_P4D;
--		pud_size = ALIGN(total, P4D_SIZE) / P4D_SIZE;
--		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
--	} else {
--		p4d_size = 0;
--		pud_size = ALIGN(total, PGDIR_SIZE) / PGDIR_SIZE;
--		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
--	}
--	pmd_size = ALIGN(total, PUD_SIZE) / PUD_SIZE;
--	pmd_size *= sizeof(pmd_t) * PTRS_PER_PMD;
- 
--	total += p4d_size + pud_size + pmd_size;
-+	if (PTRS_PER_P4D > 1)
-+		tables += DIV_ROUND_UP(entries, PGDIR_SIZE) * sizeof(p4d_t) * PTRS_PER_P4D;
-+	tables += DIV_ROUND_UP(entries, P4D_SIZE) * sizeof(pud_t) * PTRS_PER_PUD;
-+	tables += DIV_ROUND_UP(entries, PUD_SIZE) * sizeof(pmd_t) * PTRS_PER_PMD;
- 
--	return total;
-+	return entries + tables;
- }
- 
- void __init __nostackprotector sme_encrypt_kernel(struct boot_params *bp)
+> Your solution is to delay the flushing of the safe buffer to another
+> thread (work queue), which I also have issues with, because you break
+> the "get printks out ASAP mantra". Then the work queue comes in and
+> flushes the printks. And since the printks cause printks, we continue
+> to spam the machine, but hey, we are making forward progress.
+
+I'm not sure "get printks out ASAP mantra" is the overriding concern
+after spending 20s flushing in an unknown context.  I'm honestly
+curious.  Would that still matter that much at that point?  I went
+through the recent common crashes in the fleet earlier today and a
+good number of them are printk taking too long unnecessarily
+escalating the situation (most commonly triggering NMI watchdog).  I'm
+not saying that this should override other concerns but it seems clear
+to me that we're pretty badly exposed on this front.
+
+> Again, this is treating the symptom and not solving the problem.
+
+Or adding a safety net when things go south, but this isn't what I was
+trying to argue.  I mostly thought your understanding of what I
+reported wasn't accurate and wanted to clear that up.
+
+> I really hate delaying printks to another thread, unless we can
+> guarantee that that thread is ready to go immediately (basically
+> spinning on a run queue waiting to print). Because if the system is
+> having issues (which is the main reason for printks to happen), there's
+> no guarantee that a work queue or another thread will ever schedule,
+> and the safe printk buffer never gets out to the consoles.
+>
+> I much rather have throttling when recursive printks are detected.
+> Make it a 100 lines to print if you want, but then throttle. Because
+> once you have 100 lines or so, you will know that printks are causing
+> printks, and you don't give a crap about the repeated process. Allow
+> one flushing of the printk safe buffers, and then if it happens again,
+> throttle it.
+> 
+> Both methods can lose important data. I believe the throttling of
+> recursive printks, after 100 prints or whatever, will be the least
+> likely to lose important data, because printks caused by printks will
+> just keep repeating the same data, and we don't care about repeats. But
+> delaying the flushing could very well lose important data that caused
+> a lockup.
+
+Hmmm... what you're suggesting still seems more fragile - ie. when
+does that 100 count get reset?  OOM prints quite a few lines and if
+we're resetting on each line, that two order explosion of messages can
+still be really really bad.  And issues like that seem to suggest that
+the root problem to handle here is avoiding locking up a context in
+flushing for too long.  Your approach is trying to avoid causing that
+but it's a symptom which can be reached in many different ways.
+
+Thanks.
+
 -- 
-2.15.1
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
