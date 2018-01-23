@@ -1,47 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 80887800D8
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 14:00:52 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id k126so893197wmd.5
-        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 11:00:52 -0800 (PST)
-Received: from smtp1.de.adit-jv.com (smtp1.de.adit-jv.com. [62.225.105.245])
-        by mx.google.com with ESMTPS id f2si675821wrg.343.2018.01.23.11.00.50
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 247E8800DD
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 15:05:47 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 17so905920wrm.10
+        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 12:05:47 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id f13si2790832edj.256.2018.01.23.12.05.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jan 2018 11:00:51 -0800 (PST)
-Date: Tue, 23 Jan 2018 20:00:36 +0100
-From: Eugeniu Rosca <erosca@de.adit-jv.com>
-Subject: Re: [PATCH v2 1/1] mm: page_alloc: skip over regions of invalid pfns
- on UMA
-Message-ID: <20180123190036.GA16904@vmlxhi-102.adit-jv.com>
-References: <20180121144753.3109-1-erosca@de.adit-jv.com>
- <20180121144753.3109-2-erosca@de.adit-jv.com>
- <20180122012156.GA10428@bombadil.infradead.org>
- <20180122202530.GA24724@vmlxhi-102.adit-jv.com>
- <20180123004551.GA7817@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 23 Jan 2018 12:05:45 -0800 (PST)
+Date: Tue, 23 Jan 2018 15:05:39 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [UNTESTED RFC PATCH 0/8] compaction scanners rework
+Message-ID: <20180123200539.GA27770@cmpxchg.org>
+References: <20171213085915.9278-1-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180123004551.GA7817@bombadil.infradead.org>
+In-Reply-To: <20171213085915.9278-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eugeniu Rosca <erosca@de.adit-jv.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>
 
-Hi Matthew,
+Hi Vlastimil,
 
-On Mon, Jan 22, 2018 at 04:45:51PM -0800, Matthew Wilcox wrote:
-> On Mon, Jan 22, 2018 at 09:25:30PM +0100, Eugeniu Rosca wrote:
-> > Here is what I came up with, based on your proposal:
+On Wed, Dec 13, 2017 at 09:59:07AM +0100, Vlastimil Babka wrote:
+> Hi,
 > 
-> Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+> I have been working on this in the past weeks, but probably won't have time to
+> finish and test properly this year. So here's an UNTESTED RFC for those brave
+> enough to test, and also for review comments. I've been focusing on 1-7, and
+> patch 8 is unchanged since the last posting,  so Mel's suggestions (wrt
+> fallbacks and scanning pageblock where we get the free page from) from are not
+> included yet.
+>
+> For context, please see the recent threads [1] [2]. The main goal is to
+> eliminate the reported huge free scanner activity by replacing the scanner with
+> allocation from free lists. This has some dangers of excessive migrations as
+> described in Patch 8 commit log, so the earlier patches try to eliminate most
+> of them by making the migration scanner decide to actually migrate pages only
+> if it looks like it can succeed. This should be benefical even in the current
+> scheme.
 
-Apologies for not knowing the process. Should I include the
-`Reviewed-by` in the description of the next patch or will it be
-done by the maintainer who will hopefully pick up the patch?
+I'm interested in helping to push this along, since we suffer from the
+current compaction free scanner.
 
-Regards,
-Eugeniu.
+On paper the patches make sense to me and the code looks reasonable as
+well. However, testing them with our workload would probably not add
+much to this series, since the new patches 1-7 are supposed to address
+issues we didn't observe in practice.
+
+Since Mel isn't comfortable with replacing the scanner with freelist
+allocations - and I have to admit I also find the freelist allocations
+harder to reason about - I wonder if a different approach to this is
+workable.
+
+The crux here is that this problem gets worse as memory sizes get
+bigger. We don't have an issue on 16G machines. But the page orders we
+want to allocate do not scale up the same way: THPs are still the same
+size, MAX_ORDER is still the same. So why, on a 256G machine, do we
+have to find matching used/free page candidates across the entire 256G
+memory range? We allocate THPs on 8G machines all the time - cheaper.
+
+Yes, we always have to compact all of memory. But we don't have to aim
+for perfect defragmentation, with all used pages to the left and all
+free pages to the right. Currently, on a 256G machine, we essentially
+try to - although never getting there - compact a single order-25 free
+page. That seems like an insane goal.
+
+So I wonder if instead we could split large memory ranges into smaller
+compaction chunks, each with their own pairs of migration and free
+scanners. We could then cheaply skip over entire chunks for which
+reclaim didn't produce any free pages. And we could compact all these
+sub chunks in parallel.
+
+Splitting the "matchmaking pool" like this would of course cause us to
+miss compaction opportunities between sources and targets in disjunct
+subranges. But we only need compaction to produce the largest common
+allocation requests; there has to be a maximum pool size on which a
+migrate & free scanner pair operates beyond which the rising scan cost
+yields diminishing returns, and beyond which divide and conquer would
+scale much better for the potentially increased allocation frequencies
+on larger machines.
+
+Does this make sense? Am I missing something in the way the allocator
+works that would make this impractical?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
