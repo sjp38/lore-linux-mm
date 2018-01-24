@@ -1,88 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BBE1800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 08:28:23 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id e4so2486943ote.7
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 05:28:23 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id j10si1664102oia.106.2018.01.24.05.28.20
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C3177800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 08:57:21 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id m65so1375498pfm.14
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 05:57:21 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id bg11-v6si250633plb.272.2018.01.24.05.57.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Jan 2018 05:28:21 -0800 (PST)
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1516628782-3524-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20180123083806.GF1526@dhcp22.suse.cz>
-	<201801232107.HJB48975.OHJFFOOLFQMVSt@I-love.SAKURA.ne.jp>
-	<20180123124245.GK1526@dhcp22.suse.cz>
-In-Reply-To: <20180123124245.GK1526@dhcp22.suse.cz>
-Message-Id: <201801242228.FAD52671.SFFLQMOVOFHOtJ@I-love.SAKURA.ne.jp>
-Date: Wed, 24 Jan 2018 22:28:04 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Jan 2018 05:57:20 -0800 (PST)
+Date: Wed, 24 Jan 2018 14:57:11 +0100
+From: Petr Tesarik <ptesarik@suse.com>
+Subject: Re: [PATCH] Fix explanation of lower bits in the SPARSEMEM mem_map
+ pointer
+Message-ID: <20180124145711.4f3f219d@ezekiel.suse.cz>
+In-Reply-To: <20180124124353.GE28465@dhcp22.suse.cz>
+References: <20180119080908.3a662e6f@ezekiel.suse.cz>
+	<20180119123956.GZ6584@dhcp22.suse.cz>
+	<20180119142133.379d5145@ezekiel.suse.cz>
+	<20180124124353.GE28465@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>
 
-Michal Hocko wrote:
-> On Tue 23-01-18 21:07:03, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > To be completely host, I am not in love with this
-> > > schedule_timeout_uninterruptible(1). It is an ugly hack. It used to be
-> > > much more important in the past when the oom victim test was too
-> > > fragile. I strongly suspect that it is not needed this days so rather
-> > > than moving the sleep around I would try to remove it altogether.
+On Wed, 24 Jan 2018 13:43:53 +0100
+Michal Hocko <mhocko@kernel.org> wrote:
+
+> On Fri 19-01-18 14:21:33, Petr Tesarik wrote:
+> > On Fri, 19 Jan 2018 13:39:56 +0100
+> > Michal Hocko <mhocko@kernel.org> wrote:
+> >   
+> > > On Fri 19-01-18 08:09:08, Petr Tesarik wrote:
+> > > [...]  
+> > > > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > > > index 67f2e3c38939..7522a6987595 100644
+> > > > --- a/include/linux/mmzone.h
+> > > > +++ b/include/linux/mmzone.h
+> > > > @@ -1166,8 +1166,16 @@ extern unsigned long usemap_size(void);
+> > > >  
+> > > >  /*
+> > > >   * We use the lower bits of the mem_map pointer to store
+> > > > - * a little bit of information.  There should be at least
+> > > > - * 3 bits here due to 32-bit alignment.
+> > > > + * a little bit of information.  The pointer is calculated
+> > > > + * as mem_map - section_nr_to_pfn(pnum).  The result is
+> > > > + * aligned to the minimum alignment of the two values:
+> > > > + *   1. All mem_map arrays are page-aligned.
+> > > > + *   2. section_nr_to_pfn() always clears PFN_SECTION_SHIFT
+> > > > + *      lowest bits.  PFN_SECTION_SHIFT is arch-specific
+> > > > + *      (equal SECTION_SIZE_BITS - PAGE_SHIFT), and the
+> > > > + *      worst combination is powerpc with 256k pages,
+> > > > + *      which results in PFN_SECTION_SHIFT equal 6.
+> > > > + * To sum it up, at least 6 bits are available.
+> > > >   */    
+> > > 
+> > > This is _much_ better indeed. Do you think we can go one step further
+> > > and add BUG_ON into the sparse code to guarantee that every mmemap
+> > > is indeed aligned properly so that SECTION_MAP_LAST_BIT-1 bits are never
+> > > used?  
 > > 
-> > But this schedule_timeout_uninterruptible(1) serves as a guaranteed
-> > sleep for PF_WQ_WORKER threads
-> > ( http://lkml.kernel.org/r/20170830064019.mfihbeu3mm5ygcrb@dhcp22.suse.cz ).
+> > This is easy for the section_nr_to_pfn() part. I'd just add:
 > > 
-> >     > If we are under memory pressure, __zone_watermark_ok() can return false.
-> >     > If __zone_watermark_ok() == false, when is schedule_timeout_*() called explicitly?
+> >   BUILD_BUG_ON(PFN_SECTION_SHIFT < SECTION_MAP_LAST_BIT);
 > > 
-> >     If all zones fail with the watermark check then we should hit the oom
-> >     path and sleep there. We do not do so for all cases though.
+> > But for the mem_map arrays... Do you mean adding a run-time BUG_ON into
+> > all allocation paths?
 > > 
-> > Thus, you cannot simply remove it.
+> > Note that mem_map arrays can be allocated by:
+> > 
+> >   a) __earlyonly_bootmem_alloc
+> >   b) memblock_virt_alloc_try_nid
+> >   c) memblock_virt_alloc_try_nid_raw
+> >   d) alloc_remap (only arch/tile still has it)
+> > 
+> > Some allocation paths are in mm/sparse.c, others are
+> > mm/sparse-vmemmap.c, so it becomes a bit messy, but since it's
+> > a single line in each, it may work.  
 > 
-> Then I would rather make should_reclaim_retry more robust.
+> Yeah, it is a mess. So I will leave it up to you. I do not want to block
+> your comment update which is a nice improvement. So with or without the
+> runtime check feel free to add
 
-I'm OK with that if we can remove schedule_timeout_*() with oom_lock held.
+Hell, since I have already taken the time to review all the allocation
+paths, I can just also add those BUG_ONs. I was just curious if you had
+a better idea than spraying them all around the place, but it seems you
+don't. ;-)
 
-> 
-> > > Also, your changelog silently skips over some important details. The
-> > > system must be really overloaded when a short sleep can take minutes.
-> > 
-> > Yes, the system was really overloaded, for I was testing below reproducer
-> > on a x86_32 kernel.
-> [...]
-> > > I would trongly suspect that such an overloaded system doesn't need
-> > > a short sleep to hold the oom lock for too long. All you need is to be
-> > > preempted. So this patch doesn't really solve any _real_ problem.
-> > 
-> > Preemption makes the OOM situation much worse. The only way to avoid all OOM
-> > lockups caused by lack of CPU resource is to replace mutex_trylock(&oom_lock)
-> > in __alloc_pages_may_oom() with mutex_lock(&oom_lock) (or similar) in order to
-> > guarantee that all threads waiting for the OOM killer/reaper to make forward
-> > progress shall give enough CPU resource.
-> 
-> And how exactly does that help when the page allocator gets preempted by
-> somebody not doing any allocation?
+In short, stay tuned for v2, which is now WIP.
 
-The page allocator is not responsible for wasting CPU resource for something
-other than memory allocation request. Wasting CPU resource due to unable to
-allow the OOM killer/reaper to make forward progress is the page allocator's
-bug.
-
-There are currently ways to artificially choke the OOM killer/reaper (e.g. let
-a SCHED_IDLE priority thread which is allowed to run on only one specific CPU
-invoke the OOM killer). To mitigate it, offloading the OOM killer to a dedicated
-kernel thread (like the OOM reaper) which has reasonable scheduling priority and
-is allowed to run on any idle CPU will help. But such enhancement is out of scope
-for this patch. This patch is intended for avoid sleeping for minutes at
-schedule_timeout_killable(1) with oom_lock held which can be reproduced without
-using SCHED_IDLE priority and/or runnable CPU restrictions.
+Petr T
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
