@@ -1,79 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AC701800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 07:21:39 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id 33so2320480wrs.3
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 04:21:39 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C713B800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 07:43:56 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id q2so2339482wrg.5
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 04:43:56 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s4si2050586wre.318.2018.01.24.04.21.38
+        by mx.google.com with ESMTPS id a11si109118wmh.277.2018.01.24.04.43.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Jan 2018 04:21:38 -0800 (PST)
-Date: Wed, 24 Jan 2018 13:21:36 +0100
+        Wed, 24 Jan 2018 04:43:55 -0800 (PST)
+Date: Wed, 24 Jan 2018 13:43:53 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm: make faultaround produce old ptes
-Message-ID: <20180124122136.GD28465@dhcp22.suse.cz>
-References: <1516599614-18546-1-git-send-email-vinmenon@codeaurora.org>
- <20180123145506.GN1526@dhcp22.suse.cz>
- <d5a87398-a51f-69fb-222b-694328be7387@codeaurora.org>
- <20180123160509.GT1526@dhcp22.suse.cz>
- <218a11e6-766c-d8f6-a266-cbd0852de1c8@codeaurora.org>
- <20180124093839.GJ1526@dhcp22.suse.cz>
- <acd4279f-0e2b-20b7-8f3e-10d2f50ade0e@codeaurora.org>
- <20180124111130.GB28465@dhcp22.suse.cz>
- <7e50564b-960d-5a07-47ec-6b1d86a3c32d@codeaurora.org>
+Subject: Re: [PATCH] Fix explanation of lower bits in the SPARSEMEM mem_map
+ pointer
+Message-ID: <20180124124353.GE28465@dhcp22.suse.cz>
+References: <20180119080908.3a662e6f@ezekiel.suse.cz>
+ <20180119123956.GZ6584@dhcp22.suse.cz>
+ <20180119142133.379d5145@ezekiel.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7e50564b-960d-5a07-47ec-6b1d86a3c32d@codeaurora.org>
+In-Reply-To: <20180119142133.379d5145@ezekiel.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, catalin.marinas@arm.com, will.deacon@arm.com, ying.huang@intel.com, riel@redhat.com, dave.hansen@linux.intel.com, mgorman@suse.de, torvalds@linux-foundation.org, jack@suse.cz
+To: Petr Tesarik <ptesarik@suse.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>
 
-On Wed 24-01-18 17:39:44, Vinayak Menon wrote:
-> On 1/24/2018 4:41 PM, Michal Hocko wrote:
-> > On Wed 24-01-18 16:13:06, Vinayak Menon wrote:
-> >> On 1/24/2018 3:08 PM, Michal Hocko wrote:
-> > [...]
-> >>> Try to be more realistic. We have way too many sysctls. Some of them are
-> >>> really implementation specific and then it is not really trivial to get
-> >>> rid of them because people tend to (think they) depend on them. This is
-> >>> a user interface like any others and we do not add them without a due
-> >>> scrutiny. Moreover we do have an interface to suppress the effect of the
-> >>> faultaround. Instead you are trying to add another tunable for something
-> >>> that we can live without altogether. See my point?
-> >> I agree on the sysctl part. But why should we disable faultaround and
-> >> not find a way to make it useful ?
-> > I didn't say that. Please read what I've written. I really hate your new
-> > sysctl, because that is not a solution. If you can find a different one
-> > than disabling it then go ahead. But do not try to put burden to users
-> > because they know what to set. Because they won't.
+On Fri 19-01-18 14:21:33, Petr Tesarik wrote:
+> On Fri, 19 Jan 2018 13:39:56 +0100
+> Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> What about an expert level config option which is by default disabled ?
+> > On Fri 19-01-18 08:09:08, Petr Tesarik wrote:
+> > [...]
+> > > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > > index 67f2e3c38939..7522a6987595 100644
+> > > --- a/include/linux/mmzone.h
+> > > +++ b/include/linux/mmzone.h
+> > > @@ -1166,8 +1166,16 @@ extern unsigned long usemap_size(void);
+> > >  
+> > >  /*
+> > >   * We use the lower bits of the mem_map pointer to store
+> > > - * a little bit of information.  There should be at least
+> > > - * 3 bits here due to 32-bit alignment.
+> > > + * a little bit of information.  The pointer is calculated
+> > > + * as mem_map - section_nr_to_pfn(pnum).  The result is
+> > > + * aligned to the minimum alignment of the two values:
+> > > + *   1. All mem_map arrays are page-aligned.
+> > > + *   2. section_nr_to_pfn() always clears PFN_SECTION_SHIFT
+> > > + *      lowest bits.  PFN_SECTION_SHIFT is arch-specific
+> > > + *      (equal SECTION_SIZE_BITS - PAGE_SHIFT), and the
+> > > + *      worst combination is powerpc with 256k pages,
+> > > + *      which results in PFN_SECTION_SHIFT equal 6.
+> > > + * To sum it up, at least 6 bits are available.
+> > >   */  
+> > 
+> > This is _much_ better indeed. Do you think we can go one step further
+> > and add BUG_ON into the sparse code to guarantee that every mmemap
+> > is indeed aligned properly so that SECTION_MAP_LAST_BIT-1 bits are never
+> > used?
+> 
+> This is easy for the section_nr_to_pfn() part. I'd just add:
+> 
+>   BUILD_BUG_ON(PFN_SECTION_SHIFT < SECTION_MAP_LAST_BIT);
+> 
+> But for the mem_map arrays... Do you mean adding a run-time BUG_ON into
+> all allocation paths?
+> 
+> Note that mem_map arrays can be allocated by:
+> 
+>   a) __earlyonly_bootmem_alloc
+>   b) memblock_virt_alloc_try_nid
+>   c) memblock_virt_alloc_try_nid_raw
+>   d) alloc_remap (only arch/tile still has it)
+> 
+> Some allocation paths are in mm/sparse.c, others are
+> mm/sparse-vmemmap.c, so it becomes a bit messy, but since it's
+> a single line in each, it may work.
 
-so we have way too many sysctls and it is hard for users to decide what
-to do and now you are suggesting a config option instead? How come this
-makes any sense?
-
-> Whether to consider faultaround ptes as old or young is dependent on
-> architectural details that can't be gathered at runtime by reading
-> some system registers. This needs to be figured out by experiments,
-> just like how a value for watermark_scale_factor is arrived at. So the
-> user, in this case an engineer expert in this area decides whether the
-> option can be enabled or not in the build.
-> I agree that it need not be a sysctl, but what is the problem that
-> you see in making it a expert level config ? How is it a burden to a
-> non-expert user ?
-
-Our config space is immense. Adding more on top will not put a relief.
-Just imagine that you get a bug report about a strange reclaim behavior.
-Now you have a one more aspect to consider.
-
-Seriously, if a heuristic fails on somebody then just make it more
-conservative. Maybe it is time to sit down and rethink how the fault
-around should be implemented. No shortcuts and fancy tunables to paper
-over those problems.
+Yeah, it is a mess. So I will leave it up to you. I do not want to block
+your comment update which is a nice improvement. So with or without the
+runtime check feel free to add
+Acked-by: Michal Hocko <mhocko@suse.com>
 -- 
 Michal Hocko
 SUSE Labs
