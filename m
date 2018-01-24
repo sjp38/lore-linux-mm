@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 023AA800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 16:36:05 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id n187so4069160pfn.10
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 13:36:04 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id a17si606759pgv.479.2018.01.24.13.36.03
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BBB3F800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 16:44:05 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id 102so5391940ior.2
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 13:44:05 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u135sor695136itb.142.2018.01.24.13.44.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 24 Jan 2018 13:36:03 -0800 (PST)
-Message-ID: <1516829760.3073.43.camel@HansenPartnership.com>
-Subject: Re: [LSF/MM TOPIC] Patch Submission process and Handling Internal
- Conflict
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Wed, 24 Jan 2018 13:36:00 -0800
-In-Reply-To: <c4598a9a-6995-d67a-dd1c-8e946470eeb4@oracle.com>
-References: <1516820744.3073.30.camel@HansenPartnership.com>
-	 <c4598a9a-6995-d67a-dd1c-8e946470eeb4@oracle.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (Google Transport Security);
+        Wed, 24 Jan 2018 13:44:04 -0800 (PST)
+Date: Wed, 24 Jan 2018 13:44:02 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 3/4] mm, memcg: replace memory.oom_group with policy
+ tunable
+In-Reply-To: <20180124082041.GD1526@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1801241340310.24330@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1801161812550.28198@chino.kir.corp.google.com> <alpine.DEB.2.10.1801161814130.28198@chino.kir.corp.google.com> <20180117154155.GU3460072@devbig577.frc2.facebook.com> <alpine.DEB.2.10.1801171348190.86895@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1801191251080.177541@chino.kir.corp.google.com> <20180120123251.GB1096857@devbig577.frc2.facebook.com> <alpine.DEB.2.10.1801221420120.16871@chino.kir.corp.google.com> <20180123155301.GS1526@dhcp22.suse.cz> <alpine.DEB.2.10.1801231416330.254281@chino.kir.corp.google.com>
+ <20180124082041.GD1526@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 2018-01-24 at 11:20 -0800, Mike Kravetz wrote:
-> On 01/24/2018 11:05 AM, James Bottomley wrote:
-> > 
-> > I've got two community style topics, which should probably be
-> > discussed
-> > in the plenary
-> > 
-> > 1. Patch Submission Process
-> > 
-> > Today we don't have a uniform patch submission process across
-> > Storage, Filesystems and MM.A A The question is should we (or at
-> > least should we adhere to some minimal standards).A A The standard
-> > we've been trying to hold to in SCSI is one review per accepted
-> > non-trivial patch.A A For us, it's useful because it encourages
-> > driver writers to review each other's patches rather than just
-> > posting and then complaining their patch hasn't gone in.A A I can
-> > certainly think of a couple of bugs I've had to chase in mm where
-> > the underlying patches would have benefited from review, so I'd
-> > like to discuss making the one review per non-trival patch our base
-> > minimum standard across the whole of LSF/MM; it would certainly
-> > serve to improve our Reviewed-by statistics.
+On Wed, 24 Jan 2018, Michal Hocko wrote:
+
+> > The current implementation of memory.oom_group is based on top of a 
+> > selection implementation that is broken in three ways I have listed for 
+> > months:
 > 
-> Well, the mm track at least has some discussion of this last year:
-> https://lwn.net/Articles/718212/
+> This doesn't lead to anywhere. You are not presenting any new arguments
+> and you are ignoring feedback you have received so far. We have tried
+> really hard. Considering different _independent_ people presented more or
+> less consistent view on these points I think you should deeply
+> reconsider how you take that feedback.
+> 
 
-The pushback in your session was mandating reviews would mean slowing
-patch acceptance or possibly causing the dropping of patches that
-couldn't get reviewed. A Michal did say that XFS didn't have the
-problem, however there not being XFS people in the room, discussion
-stopped there. A Having this as a plenary would allow people outside mm
-to describe their experiences and for us to look at process based
-solutions using our shared experience.
+I've responded to each email providing useful feedback on this patchset.  
+I agreed with Tejun about not embedding the oom mechanism into 
+memory.oom_policy.  I was trying to avoid having two files in the mem 
+cgroup v2 filesystem for oom policy and mechanism.  I agreed that 
+delegating the mechanism to the workload would be useful in some cases.  
+I've solicited feedback on any other opinions on how that can be done 
+better, but it appears another tunable is the most convenient way of 
+allowing this behavior to be specified.
 
-James
+As a result, this would remove patch 3/4 from the series.  Do you have any 
+other feedback regarding the remainder of this patch series before I 
+rebase it?
+
+I will address the unfair root mem cgroup vs leaf mem cgroup comparison in 
+a separate patchset to fix an issue where any user of oom_score_adj on a 
+system that is not fully containerized gets very unusual, unexpected, and 
+undocumented results.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
