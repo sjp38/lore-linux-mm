@@ -1,147 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A6F3B800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 04:38:44 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id r82so1865817wme.0
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 01:38:44 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5si629740wmf.69.2018.01.24.01.38.43
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Jan 2018 01:38:43 -0800 (PST)
-Date: Wed, 24 Jan 2018 10:38:39 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm: make faultaround produce old ptes
-Message-ID: <20180124093839.GJ1526@dhcp22.suse.cz>
-References: <1516599614-18546-1-git-send-email-vinmenon@codeaurora.org>
- <20180123145506.GN1526@dhcp22.suse.cz>
- <d5a87398-a51f-69fb-222b-694328be7387@codeaurora.org>
- <20180123160509.GT1526@dhcp22.suse.cz>
- <218a11e6-766c-d8f6-a266-cbd0852de1c8@codeaurora.org>
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 77403800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 05:27:20 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id o79so1044640lff.0
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 02:27:20 -0800 (PST)
+Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
+        by mx.google.com with ESMTP id 26si787484lfp.43.2018.01.24.02.27.17
+        for <linux-mm@kvack.org>;
+        Wed, 24 Jan 2018 02:27:18 -0800 (PST)
+Subject: Re: [RFC] Per file OOM badness
+References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
+ <20180118170006.GG6584@dhcp22.suse.cz>
+ <20180123152659.GA21817@castle.DHCP.thefacebook.com>
+ <20180123153631.GR1526@dhcp22.suse.cz>
+ <ccac4870-ced3-f169-17df-2ab5da468bf0@daenzer.net>
+ <20180124092847.GI1526@dhcp22.suse.cz>
+From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
+Message-ID: <583f328e-ff46-c6a4-8548-064259995766@daenzer.net>
+Date: Wed, 24 Jan 2018 11:27:15 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <218a11e6-766c-d8f6-a266-cbd0852de1c8@codeaurora.org>
+In-Reply-To: <20180124092847.GI1526@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, catalin.marinas@arm.com, will.deacon@arm.com, ying.huang@intel.com, riel@redhat.com, dave.hansen@linux.intel.com, mgorman@suse.de, torvalds@linux-foundation.org, jack@suse.cz
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, Christian.Koenig@amd.com, linux-mm@kvack.org, amd-gfx@lists.freedesktop.org, Roman Gushchin <guro@fb.com>
 
-On Wed 24-01-18 14:35:54, Vinayak Menon wrote:
+On 2018-01-24 10:28 AM, Michal Hocko wrote:
+> On Tue 23-01-18 17:39:19, Michel DA?nzer wrote:
+>> On 2018-01-23 04:36 PM, Michal Hocko wrote:
+>>> On Tue 23-01-18 15:27:00, Roman Gushchin wrote:
+>>>> On Thu, Jan 18, 2018 at 06:00:06PM +0100, Michal Hocko wrote:
+>>>>> On Thu 18-01-18 11:47:48, Andrey Grodzovsky wrote:
+>>>>>> Hi, this series is a revised version of an RFC sent by Christian KA?nig
+>>>>>> a few years ago. The original RFC can be found at 
+>>>>>> https://urldefense.proofpoint.com/v2/url?u=https-3A__lists.freedesktop.org_archives_dri-2Ddevel_2015-2DSeptember_089778.html&d=DwIDAw&c=5VD0RTtNlTh3ycd41b3MUw&r=jJYgtDM7QT-W-Fz_d29HYQ&m=R-JIQjy8rqmH5qD581_VYL0Q7cpWSITKOnBCE-3LI8U&s=QZGqKpKuJ2BtioFGSy8_721owcWJ0J6c6d4jywOwN4w&
+>>>>> Here is the origin cover letter text
+>>>>> : I'm currently working on the issue that when device drivers allocate memory on
+>>>>> : behalf of an application the OOM killer usually doesn't knew about that unless
+>>>>> : the application also get this memory mapped into their address space.
+>>>>> : 
+>>>>> : This is especially annoying for graphics drivers where a lot of the VRAM
+>>>>> : usually isn't CPU accessible and so doesn't make sense to map into the
+>>>>> : address space of the process using it.
+>>>>> : 
+>>>>> : The problem now is that when an application starts to use a lot of VRAM those
+>>>>> : buffers objects sooner or later get swapped out to system memory, but when we
+>>>>> : now run into an out of memory situation the OOM killer obviously doesn't knew
+>>>>> : anything about that memory and so usually kills the wrong process.
+>>>>> : 
+>>>>> : The following set of patches tries to address this problem by introducing a per
+>>>>> : file OOM badness score, which device drivers can use to give the OOM killer a
+>>>>> : hint how many resources are bound to a file descriptor so that it can make
+>>>>> : better decisions which process to kill.
+>>>>> : 
+>>>>> : So question at every one: What do you think about this approach?
+>>>>> : 
+>>>>> : My biggest concern right now is the patches are messing with a core kernel
+>>>>> : structure (adding a field to struct file). Any better idea? I'm considering
+>>>>> : to put a callback into file_ops instead.
+>>>>
+>>>> Hello!
+>>>>
+>>>> I wonder if groupoom (aka cgroup-aware OOM killer) can work for you?
+>>>
+>>> I do not think so. The problem is that the allocating context is not
+>>> identical with the end consumer.
+>>
+>> That's actually not really true. Even in cases where a BO is shared with
+>> a different process, it is still used at least occasionally in the
+>> process which allocated it as well. Otherwise there would be no point in
+>> sharing it between processes.
 > 
-> On 1/23/2018 9:35 PM, Michal Hocko wrote:
-> > On Tue 23-01-18 21:08:36, Vinayak Menon wrote:
-> >>
-> >> On 1/23/2018 8:25 PM, Michal Hocko wrote:
-> >>> [Please cc linux-api when proposing user interface]
-> >>>
-> >>> On Mon 22-01-18 11:10:14, Vinayak Menon wrote:
-> >>>> Based on Kirill's patch [1].
-> >>>>
-> >>>> Currently, faultaround code produces young pte.  This can screw up
-> >>>> vmscan behaviour[2], as it makes vmscan think that these pages are hot
-> >>>> and not push them out on first round.
-> >>>>
-> >>>> During sparse file access faultaround gets more pages mapped and all of
-> >>>> them are young. Under memory pressure, this makes vmscan swap out anon
-> >>>> pages instead, or to drop other page cache pages which otherwise stay
-> >>>> resident.
-> >>>>
-> >>>> Modify faultaround to produce old ptes if sysctl 'want_old_faultaround_pte'
-> >>>> is set, so they can easily be reclaimed under memory pressure.
-> >>>>
-> >>>> This can to some extend defeat the purpose of faultaround on machines
-> >>>> without hardware accessed bit as it will not help us with reducing the
-> >>>> number of minor page faults.
-> >>> So we just want to add a knob to cripple the feature? Isn't it better to
-> >>> simply disable it than to have two distinct implementation which is
-> >>> rather non-intuitive and I would bet that most users will be clueless
-> >>> about how to set it or when to touch it at all. So we will end up with
-> >>> random cargo cult hints all over internet giving you your performance
-> >>> back...
-> >>
-> >> If you are talking about non-HW access bit systems, then yes it would be better to disable faultaround
-> >> when want_old_faultaround_pte is set to 1, like MInchan did here https://patchwork.kernel.org/patch/9115901/
-> >> I can submit a patch for that.
-> >>
-> >>> I really dislike this new interface. If the fault around doesn't work
-> >>> for you then disable it.
-> >>
-> >> Faultaround works well for me on systems with HW access bit. But
-> >> the benefit is reduced because of making the faultaround ptes young
-> >> [2]. Ideally they should be old as they are speculatively mapped and
-> >> not really accessed. But because of issues on certain architectures
-> >> they need to be made young[3][4]. This patch is trying to help the
-> >> other architectures which can tolerate old ptes, by fixing the vmscan
-> >> behaviour. And this is not a theoretical problem that I am trying to
-> >> fix. We have really seen the benefit of faultaround on arm mobile
-> >> targets, but the problem is the vmscan behaviour due to the young
-> >> pte workaround. And this patch helps in fixing that.  Do you think
-> >> something more needs to be added in the documentation to make things
-> >> more clear on the flag usage ?
-> > No, I would either prefer auto-tuning or document that fault around
-> > can lead to this behavior and recommend to disable it rather than add a
-> > new knob.
+> OK, but somebody has to be made responsible. Otherwise you are just
+> killing a process which doesn't really release any memory.
+>  
+>> There should be no problem if the memory of a shared BO is accounted for
+>> in each process sharing it. It might be nice to scale each process'
+>> "debt" by 1 / (number of processes sharing it) if possible, but in the
+>> worst case accounting it fully in each process should be fine.
 > 
-> 
-> One of the objectives of making it a sysctl was to let user space
-> tune it based on vmpressure [5]. But I am not sure how effective it
-> would be. The vmpressure increase itself can be because of making
-> faultaround ptes young [6] and it could be difficult to find a
-> heuristic to enable/disable faultaround. And with the way vmpressure
-> works, it can happen that vmpressure values don't indicate exact
-> vmscan behavior always. Same is the case with auto-tuning based
-> on vmpressure. Any other suggestions on how auto tuning can be
-> implemented ?
+> So how exactly then helps to kill one of those processes? The memory
+> stays pinned behind or do I still misunderstand?
 
-I would start simple. Just disable it on platforms which are known to
-suffer from this heuristic. Do not try to invent a sysctl nobody will
-know hot to setup.
+Fundamentally, the memory is only released once all references to the
+BOs are dropped. That's true no matter how the memory is accounted for
+between the processes referencing the BO.
 
-> Could you elaborate a bit on why you think sysctl is not a good option
-> ? Is it because of the difficulty for the user to figure out how and
-> when to use the interface ?
 
-Absolutely. Not only that but the mere fact to realize that the fault
-around is the culprit is not something most users will be able/willing
-to do. So instead we will end up in yet another "disable THP because
-that solves all the problems in universe" cargo cult.
+In practice, this should be fine:
 
-> If the document clearly explains what the knob is, wouldn't be easy
-> for the user to just try the knob and see if his workload benefits
-> or not. It's not just non-x86 devices that can benefit. There may be
-> x86 workloads where the vmscan behavior masks the benefit of avoiding
-> micro faults.
+1. The amount of memory used for shared BOs is normally small compared
+to the amount of memory used for non-shared BOs (and other things). So
+regardless of how shared BOs are accounted for, the OOM killer should
+first target the process which is responsible for more memory overall.
 
-Try to be more realistic. We have way too many sysctls. Some of them are
-really implementation specific and then it is not really trivial to get
-rid of them because people tend to (think they) depend on them. This is
-a user interface like any others and we do not add them without a due
-scrutiny. Moreover we do have an interface to suppress the effect of the
-faultaround. Instead you are trying to add another tunable for something
-that we can live without altogether. See my point?
+2. If the OOM killer kills a process which is sharing BOs with another
+process, this should result in the other process dropping its references
+to the BOs as well, at which point the memory is released.
 
-> Or if you think sysctl is not the right place for such knobs, do you
-> think it should be an expert level config option or a kernel command
-> line param ?
 
-No it doesn't make much difference. It is still a user interface. Maybe
-one that is slightly easier to deprecate but just think about it. Do you
-really need a faultaround so much you really want to fiddle with such
-lowlevel stuff like old-vs-you pte bits?
-
-> Since there are lots of mobile and embedded devices that can get the
-> full benefits of faultaround with such an option, I really don't
-> think it is a good option to just document the problem and disable
-> faultaround on those devices.
-
-Could you point me to some numbers that prove that? Your unixbench
-doesn't sound overly convincing. And if this is really about some arches
-then change them to use old ptes in an arch specific code. Do not make
-it tunable.
 -- 
-Michal Hocko
-SUSE Labs
+Earthling Michel DA?nzer               |               http://www.amd.com
+Libre software enthusiast             |             Mesa and X developer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
