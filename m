@@ -1,90 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C11F1800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 12:52:15 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id o11so2855142pgp.14
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 09:52:15 -0800 (PST)
-Received: from relay1.mentorg.com (relay1.mentorg.com. [192.94.38.131])
-        by mx.google.com with ESMTPS id j21si408699pgn.142.2018.01.24.09.52.14
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E8DE800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 12:56:54 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id b193so2508786wmd.7
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 09:56:54 -0800 (PST)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id n52si2439646wrf.528.2018.01.24.09.56.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 09:52:14 -0800 (PST)
-Date: Wed, 24 Jan 2018 23:22:07 +0530
-From: Balasubramani Vivekanandan <balasubramani_vivekanandan@mentor.com>
-Subject: Re: [PATCH] mm/slub.c: Fix wrong address during slab padding
- restoration
-Message-ID: <20180124175207.GA7562@bala-ubuntu>
-References: <1516604578-4577-1-git-send-email-balasubramani_vivekanandan@mentor.com>
- <20180123145026.b7ca0a338cd0f2de2787b9c1@linux-foundation.org>
+        Wed, 24 Jan 2018 09:56:53 -0800 (PST)
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Subject: [RFC PATCH v11 0/6] mm: security: ro protection for dynamic data
+Date: Wed, 24 Jan 2018 19:56:25 +0200
+Message-ID: <20180124175631.22925-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180123145026.b7ca0a338cd0f2de2787b9c1@linux-foundation.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, willy@infradead.org
+Cc: cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-On Tue, Jan 23, 2018 at 02:50:26PM -0800, Andrew Morton wrote:
-> On Mon, 22 Jan 2018 12:32:58 +0530 Balasubramani Vivekanandan <balasubramani_vivekanandan@mentor.com> wrote:
-> 
-> > From: Balasubramani Vivekanandan <balasubramani_vivekanandan@mentor.com>
-> > 
-> > Start address calculated for slab padding restoration was wrong.
-> > Wrong address would point to some section before padding and
-> > could cause corruption
-> > 
-> > ...
-> >
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -838,6 +838,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
-> >  	u8 *start;
-> >  	u8 *fault;
-> >  	u8 *end;
-> > +	u8 *pad;
-> >  	int length;
-> >  	int remainder;
-> >  
-> > @@ -851,8 +852,9 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
-> >  	if (!remainder)
-> >  		return 1;
-> >  
-> > +	pad = end - remainder;
-> >  	metadata_access_enable();
-> > -	fault = memchr_inv(end - remainder, POISON_INUSE, remainder);
-> > +	fault = memchr_inv(pad, POISON_INUSE, remainder);
-> >  	metadata_access_disable();
-> >  	if (!fault)
-> >  		return 1;
-> > @@ -860,9 +862,9 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
-> >  		end--;
-> >  
-> >  	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
-> > -	print_section(KERN_ERR, "Padding ", end - remainder, remainder);
-> > +	print_section(KERN_ERR, "Padding ", pad, remainder);
-> >  
-> > -	restore_bytes(s, "slab padding", POISON_INUSE, end - remainder, end);
-> > +	restore_bytes(s, "slab padding", POISON_INUSE, fault, end);
-> >  	return 0;
-> >  }
-> 
-> I don't see why it matters?  The current code will overwrite
-> POISON_INUSE bytes with POISON_INUSE, won't it?
-> 
-> That's a bit strange but not incorrect?
-Not really. The bug will overwrite into the object area with
-POISON_INUSE.
-The end pointer initially points to end of the padding area. Then
-in the loop, end is decremented till it points to the end of the fault
-area.
+This patch-set introduces the possibility of protecting memory that has
+been allocated dynamically.
 
-while (end > fault && end[-1] == POISON_INUSE)
-	end--;
+The memory is managed in pools: when a memory pool is turned into R/O,
+all the memory that is part of it, will become R/O.
 
-Now using end - remainder, will not point to the begining of the padding
-area but will sneak into the object area. So restore_bytes will
-overwrite the object area
+A R/O pool can be destroyed, to recover its memory, but it cannot be
+turned back into R/W mode.
+
+This is intentional. This feature is meant for data that doesn't need
+further modifications after initialization.
+
+However the data might need to be released, for example as part of module
+unloading.
+To do this, the memory must first be freed, then the pool can be destroyed.
+
+An example is provided, in the form of self-testing.
+
+Changes since the v10 version:
+
+Initially I tried to provide support for hardening the LSM hooks, but the
+LSM code was too much in a flux to have some chance to be merged.
+
+Several drop-in replacement for kmalloc based functions, for example
+kzalloc.
+
+>From this perspective I have also modified genalloc, to make its free
+functionality follow more closely the kfree, which doesn't need to be told
+the size of the allocation being released. This was sent out for review
+twice, but it has not received any feedback, so far.
+
+Also genalloc now comes with self-testing.
+
+The latest can be found also here:
+
+https://www.spinics.net/lists/kernel/msg2696152.html
+
+The need to integrate with hardened user copy has driven an optimization
+in the management of vmap_areas, where each struct page in a vmalloc area
+has a reference to it, saving the search through the various areas.
+
+I was planning - and can still do it - to provide hardening for some IMA
+data, but in the meanwhile it seems that the XFS developers might be
+interested in htis functionality:
+
+http://www.openwall.com/lists/kernel-hardening/2018/01/24/1
+
+So I'm sending it out as preview.
+
+
+Igor Stoppa (6):
+  genalloc: track beginning of allocations
+  genalloc: selftest
+  struct page: add field for vm_struct
+  Protectable Memory
+  Documentation for Pmalloc
+  Pmalloc: self-test
+
+ Documentation/core-api/pmalloc.txt | 104 ++++++++
+ include/linux/genalloc-selftest.h  |  30 +++
+ include/linux/genalloc.h           |   6 +-
+ include/linux/mm_types.h           |   1 +
+ include/linux/pmalloc.h            | 215 ++++++++++++++++
+ include/linux/vmalloc.h            |   1 +
+ init/main.c                        |   2 +
+ lib/Kconfig                        |  15 ++
+ lib/Makefile                       |   1 +
+ lib/genalloc-selftest.c            | 402 +++++++++++++++++++++++++++++
+ lib/genalloc.c                     | 444 +++++++++++++++++++++----------
+ mm/Kconfig                         |   7 +
+ mm/Makefile                        |   2 +
+ mm/pmalloc-selftest.c              |  65 +++++
+ mm/pmalloc-selftest.h              |  30 +++
+ mm/pmalloc.c                       | 516 +++++++++++++++++++++++++++++++++++++
+ mm/usercopy.c                      |  25 +-
+ mm/vmalloc.c                       |  18 +-
+ 18 files changed, 1744 insertions(+), 140 deletions(-)
+ create mode 100644 Documentation/core-api/pmalloc.txt
+ create mode 100644 include/linux/genalloc-selftest.h
+ create mode 100644 include/linux/pmalloc.h
+ create mode 100644 lib/genalloc-selftest.c
+ create mode 100644 mm/pmalloc-selftest.c
+ create mode 100644 mm/pmalloc-selftest.h
+ create mode 100644 mm/pmalloc.c
+
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
