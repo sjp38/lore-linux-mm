@@ -1,98 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C3177800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 08:57:21 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id m65so1375498pfm.14
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 05:57:21 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id bg11-v6si250633plb.272.2018.01.24.05.57.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 05:57:20 -0800 (PST)
-Date: Wed, 24 Jan 2018 14:57:11 +0100
-From: Petr Tesarik <ptesarik@suse.com>
-Subject: Re: [PATCH] Fix explanation of lower bits in the SPARSEMEM mem_map
- pointer
-Message-ID: <20180124145711.4f3f219d@ezekiel.suse.cz>
-In-Reply-To: <20180124124353.GE28465@dhcp22.suse.cz>
-References: <20180119080908.3a662e6f@ezekiel.suse.cz>
-	<20180119123956.GZ6584@dhcp22.suse.cz>
-	<20180119142133.379d5145@ezekiel.suse.cz>
-	<20180124124353.GE28465@dhcp22.suse.cz>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 80D3F800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 09:31:33 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id m79so1204183lfm.17
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 06:31:33 -0800 (PST)
+Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
+        by mx.google.com with ESMTP id d17si956573lfe.365.2018.01.24.06.31.30
+        for <linux-mm@kvack.org>;
+        Wed, 24 Jan 2018 06:31:31 -0800 (PST)
+Subject: Re: [RFC] Per file OOM badness
+References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
+ <20180118170006.GG6584@dhcp22.suse.cz>
+ <20180123152659.GA21817@castle.DHCP.thefacebook.com>
+ <20180123153631.GR1526@dhcp22.suse.cz>
+ <ccac4870-ced3-f169-17df-2ab5da468bf0@daenzer.net>
+ <20180124092847.GI1526@dhcp22.suse.cz>
+ <583f328e-ff46-c6a4-8548-064259995766@daenzer.net>
+ <20180124110141.GA28465@dhcp22.suse.cz>
+ <36b49523-792d-45f9-8617-32b6d9d77418@daenzer.net>
+ <20180124115059.GC28465@dhcp22.suse.cz>
+From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
+Message-ID: <0a320079-c08c-0762-6967-9e85f24c8e9d@daenzer.net>
+Date: Wed, 24 Jan 2018 15:31:28 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180124115059.GC28465@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>
+Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, Christian.Koenig@amd.com, linux-mm@kvack.org, amd-gfx@lists.freedesktop.org, Roman Gushchin <guro@fb.com>
 
-On Wed, 24 Jan 2018 13:43:53 +0100
-Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Fri 19-01-18 14:21:33, Petr Tesarik wrote:
-> > On Fri, 19 Jan 2018 13:39:56 +0100
-> > Michal Hocko <mhocko@kernel.org> wrote:
-> >   
-> > > On Fri 19-01-18 08:09:08, Petr Tesarik wrote:
-> > > [...]  
-> > > > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > > > index 67f2e3c38939..7522a6987595 100644
-> > > > --- a/include/linux/mmzone.h
-> > > > +++ b/include/linux/mmzone.h
-> > > > @@ -1166,8 +1166,16 @@ extern unsigned long usemap_size(void);
-> > > >  
-> > > >  /*
-> > > >   * We use the lower bits of the mem_map pointer to store
-> > > > - * a little bit of information.  There should be at least
-> > > > - * 3 bits here due to 32-bit alignment.
-> > > > + * a little bit of information.  The pointer is calculated
-> > > > + * as mem_map - section_nr_to_pfn(pnum).  The result is
-> > > > + * aligned to the minimum alignment of the two values:
-> > > > + *   1. All mem_map arrays are page-aligned.
-> > > > + *   2. section_nr_to_pfn() always clears PFN_SECTION_SHIFT
-> > > > + *      lowest bits.  PFN_SECTION_SHIFT is arch-specific
-> > > > + *      (equal SECTION_SIZE_BITS - PAGE_SHIFT), and the
-> > > > + *      worst combination is powerpc with 256k pages,
-> > > > + *      which results in PFN_SECTION_SHIFT equal 6.
-> > > > + * To sum it up, at least 6 bits are available.
-> > > >   */    
-> > > 
-> > > This is _much_ better indeed. Do you think we can go one step further
-> > > and add BUG_ON into the sparse code to guarantee that every mmemap
-> > > is indeed aligned properly so that SECTION_MAP_LAST_BIT-1 bits are never
-> > > used?  
-> > 
-> > This is easy for the section_nr_to_pfn() part. I'd just add:
-> > 
-> >   BUILD_BUG_ON(PFN_SECTION_SHIFT < SECTION_MAP_LAST_BIT);
-> > 
-> > But for the mem_map arrays... Do you mean adding a run-time BUG_ON into
-> > all allocation paths?
-> > 
-> > Note that mem_map arrays can be allocated by:
-> > 
-> >   a) __earlyonly_bootmem_alloc
-> >   b) memblock_virt_alloc_try_nid
-> >   c) memblock_virt_alloc_try_nid_raw
-> >   d) alloc_remap (only arch/tile still has it)
-> > 
-> > Some allocation paths are in mm/sparse.c, others are
-> > mm/sparse-vmemmap.c, so it becomes a bit messy, but since it's
-> > a single line in each, it may work.  
+On 2018-01-24 12:50 PM, Michal Hocko wrote:
+> On Wed 24-01-18 12:23:10, Michel DA?nzer wrote:
+>> On 2018-01-24 12:01 PM, Michal Hocko wrote:
+>>> On Wed 24-01-18 11:27:15, Michel DA?nzer wrote:
+> [...]
+>>>> 2. If the OOM killer kills a process which is sharing BOs with another
+>>>> process, this should result in the other process dropping its references
+>>>> to the BOs as well, at which point the memory is released.
+>>>
+>>> OK. How exactly are those BOs mapped to the userspace?
+>>
+>> I'm not sure what you're asking. Userspace mostly uses a GEM handle to
+>> refer to a BO. There can also be userspace CPU mappings of the BO's
+>> memory, but userspace doesn't need CPU mappings for all BOs and only
+>> creates them as needed.
 > 
-> Yeah, it is a mess. So I will leave it up to you. I do not want to block
-> your comment update which is a nice improvement. So with or without the
-> runtime check feel free to add
+> OK, I guess you have to bear with me some more. This whole stack is a
+> complete uknonwn. I am mostly after finding a boundary where you can
+> charge the allocated memory to the process so that the oom killer can
+> consider it. Is there anything like that?
 
-Hell, since I have already taken the time to review all the allocation
-paths, I can just also add those BUG_ONs. I was just curious if you had
-a better idea than spraying them all around the place, but it seems you
-don't. ;-)
+I think something like charging the memory of a BO to the process when a
+userspace handle is created for it, and "uncharging" when a handle is
+destroyed, could be a good start.
 
-In short, stay tuned for v2, which is now WIP.
 
-Petr T
+-- 
+Earthling Michel DA?nzer               |               http://www.amd.com
+Libre software enthusiast             |             Mesa and X developer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
