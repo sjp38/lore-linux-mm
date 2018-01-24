@@ -1,87 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D0FF800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 10:55:44 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id s22so3315504pfh.21
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 07:55:44 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id u8-v6si393405plm.229.2018.01.24.07.55.43
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 33450800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:22:31 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y62so2731006pgy.0
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 08:22:31 -0800 (PST)
+Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com. [68.232.143.124])
+        by mx.google.com with ESMTPS id l185si328052pge.147.2018.01.24.08.22.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 07:55:43 -0800 (PST)
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Subject: [RFC] kswapd aggressiveness with watermark_scale_factor
-Message-ID: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
-Date: Wed, 24 Jan 2018 21:25:37 +0530
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+        Wed, 24 Jan 2018 08:22:29 -0800 (PST)
+From: Adam Manzanares <Adam.Manzanares@wdc.com>
+Subject: [LSF/MM TOPIC] User Directed Tiered Memory Management
+Date: Wed, 24 Jan 2018 16:22:26 +0000
+Message-ID: <cae10844-35cd-991c-c69d-545e774d5a50@wdc.com>
 Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <C1E6702F07CAD44298D57B75B3E11E3F@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: hannes@cmpxchg.org, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "vbabka@suse.cz" <vbabka@suse.cz>
+To: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>
 
-Hi,
-
-It is observed that watermark_scale_factor when used to reduce thundering herds
-in direct reclaim, reduces the direct reclaims, but results in unnecessary reclaim
-due to kswapd running for long after being woken up. The tests are done with 4 GB
-of RAM and the tests done are multibuild and another which opens a set of apps
-sequentially on Android and repeating the sequence N times. The tests are done on
-4.9 kernel.
-
-The issue seems to be because of watermark_scale_factor creating larger gap between
-low and high watermarks. The following results are with watermark_scale_factor of 120
-and the other with watermark_scale_factor 120 with a reduced gap between low and
-high watermarks. The patch used to reduce the gap is given below. The min-low gap is
-untouched. It can be seen that with the reduced low-high gap, the direct reclaims are
-almost same as base, but with 45% less pgpgin. Reduced low-high gap improves the
-latency by around 11% in the sequential app test due to lesser IO and kswapd activity.
-
-A A A A A A A A A A A A A A A A A A A A A A  wsf-120-defaultA A A A A  wsf-120-reduced-low-high-gap
-workingset_activateA A A  15120206A A A A A A A A A A A A  8319182
-pgpginA A A A A A A A A A A A A A A A  269795482A A A A A A A A A A A  147928581
-allocstallA A A A A A A A A A A A  1406A A A A A A A A A A A A A A A A  1498
-pgsteal_kswapdA A A A A A A A  68676960A A A A A A A A A A A A  38105142
-slabs_scannedA A A A A A A A A  94181738A A A A A A A A A A A A  49085755
-
-This is the diff of wsf-120-reduced-low-high-gap for comments. The patch considers
-low-high gap as a fraction of min-low gap, and the fraction a function of managed pages,
-increasing non-linearly. The multiplier 4 is was chosen as a reasonable value which does
-not alter the low-high gap much from the base for large machines.
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3a11a50..749d1eb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6898,7 +6898,11 @@ static void __setup_per_zone_wmarks(void)
-A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  watermark_scale_factor, 10000));
-
-A A A A A A A A A A A A A A A  zone->watermark[WMARK_LOW]A  = min_wmark_pages(zone) + tmp;
--A A A A A A A A A A A A A A  zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
-+
-+A A A A A A A A A A A A A A  tmp = clamp_t(u64, mult_frac(tmp, int_sqrt(4 * zone->managed_pages),
-+A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  10000), min_wmark_pages(zone) >> 2 , tmp);
-+
-+A A A A A A A A A A A A A A  zone->watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
-
-A A A A A A A A A A A A A A A  spin_unlock_irqrestore(&zone->lock, flags);
-A A A A A A A  }
-
-With the patch,
-With watermark_scale_factor as default 10, the low-high gap:
-unchanged for 140G at 143M,
-for 65G, reduces from 65M to 53M
-for 4GB, reduces from 4M to 1M
-
-With watermark_scale_factor 120, the low-high gap:
-unchanged for 140G
-for 65G, reduces from 786M to 644M
-for 4GB, reduces from 49M to 10M
-
-Thanks,
-Vinayak
+V2l0aCB0aGUgaW50cm9kdWN0aW9uIG9mIGJ5dGUgYWRkcmVzc2FibGUgc3RvcmFnZSBkZXZpY2Vz
+IHRoYXQgaGF2ZSBsb3cgDQpsYXRlbmNpZXMsIGl0IGJlY29tZXMgZGlmZmljdWx0IHRvIGRlY2lk
+ZSBob3cgdG8gZXhwb3NlIHRoZXNlIGRldmljZXMgdG8gDQp1c2VyIHNwYWNlIGFwcGxpY2F0aW9u
+cy4gRG8gd2UgdHJlYXQgdGhlbSBhcyB0cmFkaXRpb25hbCBibG9jayBkZXZpY2VzIA0Kb3IgZXhw
+b3NlIHRoZW0gYXMgYSBEQVggY2FwYWJsZSBkZXZpY2U/IEEgdHJhZGl0aW9uYWwgYmxvY2sgZGV2
+aWNlIA0KYWxsb3dzIHVzIHRvIHVzZSB0aGUgcGFnZSBjYWNoZSB0byB0YWtlIGFkdmFudGFnZSBv
+ZiBsb2NhbGl0eSBpbiBhY2Nlc3MgDQpwYXR0ZXJucywgYnV0IGNvbWVzIGF0IHRoZSBleHBlbnNl
+IG9mIGV4dHJhIG1lbW9yeSBjb3BpZXMgdGhhdCBhcmUgDQpleHRyZW1lbHkgY29zdGx5IGZvciBy
+YW5kb20gd29ya2xvYWRzLiBBIERBWCBjYXBhYmxlIGRldmljZSBzZWVtcyBncmVhdCANCmZvciB0
+aGUgYWZvcmVtZW50aW9uZWQgcmFuZG9tIGFjY2VzcyB3b3JrbG9hZCwgYnV0IHN1ZmZlcnMgb25j
+ZSB0aGVyZSBpcyANCnNvbWUgbG9jYWxpdHkgaW4gdGhlIGFjY2VzcyBwYXR0ZXJuLg0KDQpXaGVu
+IERBWC1jYXBhYmxlIGRldmljZXMgYXJlIHVzZWQgYXMgc2xvd2VyL2NoZWFwZXIgdm9sYXRpbGUg
+bWVtb3J5LCANCnRyZWF0aW5nIHRoZW0gYXMgYSBzbG93ZXIgTlVNQSBub2RlIHdpdGggYW4gYXNz
+b2NpYXRlZCBOVU1BIG1pZ3JhdGlvbiANCnBvbGljeSB3b3VsZCBhbGxvdyBmb3IgdGFraW5nIGFk
+dmFudGFnZSBvZiBhY2Nlc3MgcGF0dGVybiBsb2NhbGl0eS4gDQpIb3dldmVyIHRoaXMgYXBwcm9h
+Y2ggc3VmZmVycyBmcm9tIGEgZmV3IGRyYXdiYWNrcy4gRmlyc3QsIHdoZW4gdGhvc2UgDQpkZXZp
+Y2VzIGFyZSBhbHNvIHBlcnNpc3RlbnQsIHRoZSB0aWVyaW5nIGFwcHJvYWNoIHVzZWQgaW4gTlVN
+QSBtaWdyYXRpb24gDQptYXkgbm90IGd1YXJhbnRlZSBwZXJzaXN0ZW5jZS4gU2Vjb25kbHksIGZv
+ciBkZXZpY2VzIHdpdGggc2lnbmlmaWNhbnRseSANCmhpZ2hlciBsYXRlbmNpZXMgdGhhbiBEUkFN
+LCB0aGUgY29zdCBvZiBtb3ZpbmcgY2xlYW4gcGFnZXMgbWF5IGJlIA0Kc2lnbmlmaWNhbnQuIEZp
+bmFsbHksIHBhZ2VzIGhhbmRsZWQgdmlhIE5VTUEgbWlncmF0aW9uIGFyZSBhIGNvbW1vbiANCnJl
+c291cmNlIHN1YmplY3QgdG8gdGhyYXNoaW5nIGluIGNhc2Ugb2YgbWVtb3J5IHByZXNzdXJlLg0K
+DQpJIHdvdWxkIGxpa2UgdG8gZGlzY3VzcyBhbiBhbHRlcm5hdGl2ZSBhcHByb2FjaCB3aGVyZSBt
+ZW1vcnkgaW50ZW5zaXZlIA0KYXBwbGljYXRpb25zIG1tYXAgdGhlc2Ugc3RvcmFnZSBkZXZpY2Vz
+IGludG8gdGhlaXIgYWRkcmVzcyBzcGFjZS4gVGhlIA0KYXBwbGljYXRpb24gY2FuIHNwZWNpZnkg
+aG93IG11Y2ggRFJBTSBjb3VsZCBiZSB1c2VkIGFzIGEgY2FjaGUgYW5kIGhhdmUgDQpzb21lIGlu
+Zmx1ZW5jZSBvbiBwcmVmZXRjaGluZyBhbmQgZXZpY3Rpb24gcG9saWNpZXMuIFRoZSBnb2FsIG9m
+IHN1Y2ggYW4gDQphcHByb2FjaCB3b3VsZCBiZSB0byBtaW5pbWl6ZSB0aGUgaW1wYWN0IG9mIHRo
+ZSBzbGlnaHRseSBzbG93ZXIgbWVtb3J5IA0KY291bGQgcG90ZW50aWFsbHkgaGF2ZSBvbiBhIHN5
+c3RlbSB3aGVuIGl0IGlzIHRyZWF0ZWQgYXMga2VybmVsIG1hbmFnZWQgDQpnbG9iYWwgcmVzb3Vy
+Y2UsIGFzIHdlbGwgYXMgZW5hYmxlIHVzZSBvZiB0aG9zZSBkZXZpY2VzIGFzIHBlcnNpc3RlbnQg
+DQptZW1vcnkuIEJUVyB3ZSBjcmltaW5hbGx5IDspIHVzZWQgdGhlIHZtX2luc2VydF9wYWdlIGZ1
+bmN0aW9uIGluIGEgDQpwcm90b3R5cGUgYW5kIGhhdmUgZm91bmQgdGhhdCBpdCBpcyBmYXN0ZXIg
+dG8gdXNlIHZzIHBhZ2UgY2FjaGUgYW5kIA0Kc3dhcHBpbmcgbWVjaGFuaXNtcyBsaW1pdGVkIHRv
+IHVzZSBhIHNtYWxsIGFtb3VudCBvZiBEUkFNLg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
