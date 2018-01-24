@@ -1,49 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 904CE800D8
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 21:52:39 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id u65so1813454pfd.7
-        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 18:52:39 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y28si9864308pgc.742.2018.01.23.18.52.38
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A1B0800D8
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 22:09:32 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id i1so1455545pgv.22
+        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 19:09:32 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id v31-v6si3777388plg.804.2018.01.23.19.09.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jan 2018 18:52:38 -0800 (PST)
-Date: Tue, 23 Jan 2018 21:52:34 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180123215234.709c845a@vmware.local.home>
-In-Reply-To: <20180124021034.GA651@jagdpanzerIV>
-References: <20180119132052.02b89626@gandalf.local.home>
-	<20180120071402.GB8371@jagdpanzerIV>
-	<20180120104931.1942483e@gandalf.local.home>
-	<20180121141521.GA429@tigerII.localdomain>
-	<20180123064023.GA492@jagdpanzerIV>
-	<20180123095652.5e14da85@gandalf.local.home>
-	<20180123152130.GB429@tigerII.localdomain>
-	<20180123104121.2ef96d81@gandalf.local.home>
-	<20180123160153.GC429@tigerII.localdomain>
-	<20180123112436.0c94bc2e@gandalf.local.home>
-	<20180124021034.GA651@jagdpanzerIV>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 23 Jan 2018 19:09:30 -0800 (PST)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v23 0/2] Virtio-balloon: support free page reporting
+Date: Wed, 24 Jan 2018 10:50:25 +0800
+Message-Id: <1516762227-36346-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Petr Mladek <pmladek@suse.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Wed, 24 Jan 2018 11:11:33 +0900
-Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> wrote:
+This patch series is separated from the previous "Virtio-balloon
+Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_VQ,  
+implemented by this series enables the virtio-balloon driver to report
+hints of guest free pages to the host. It can be used to accelerate live
+migration of VMs. Here is an introduction of this usage:
 
-> Please take a look.
+Live migration needs to transfer the VM's memory from the source machine
+to the destination round by round. For the 1st round, all the VM's memory
+is transferred. From the 2nd round, only the pieces of memory that were
+written by the guest (after the 1st round) are transferred. One method
+that is popularly used by the hypervisor to track which part of memory is
+written is to write-protect all the guest memory.
 
-Was there something specific to look at?
+The second feature enables the optimization of the 1st round memory
+transfer - the hypervisor can skip the transfer of guest free pages in the
+1st round. It is not concerned that the memory pages are used after they
+are given to the hypervisor as a hint of the free pages, because they will
+be tracked by the hypervisor and transferred in the next round if they are
+used and written.
 
-I'm doing a hundred different things at once, and my memory cache keeps
-getting flushed.
+ChangeLog:
+v22->v23:
+    - change to kick the device when the vq is half-way full;
+    - open-code batch_free_page_sg into add_one_sg;
+    - change cmd_id from "uint32_t" to "__virtio32";
+    - reserver one entry in the vq for teh driver to send cmd_id, instead
+      of busywaiting for an available entry;
+    - add "stop_update" check before queue_work for prudence purpose for
+      now, will have a separate patch to discuss this flag check later;
+    - init_vqs: change to put some variables on stack to have simpler
+      implementation;
+    - add destroy_workqueue(vb->balloon_wq);
 
--- Steve
+v21->v22:
+    - add_one_sg: some code and comment re-arrangement
+    - send_cmd_id: handle a cornercase
+
+For previous ChangeLog, please reference
+https://lwn.net/Articles/743660/
+
+Wei Wang (2):
+  mm: support reporting free page blocks
+  virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+
+ drivers/virtio/virtio_balloon.c     | 228 ++++++++++++++++++++++++++++++------
+ include/linux/mm.h                  |   6 +
+ include/uapi/linux/virtio_balloon.h |   6 +
+ mm/page_alloc.c                     |  91 ++++++++++++++
+ 4 files changed, 298 insertions(+), 33 deletions(-)
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
