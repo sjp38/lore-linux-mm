@@ -1,55 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E12D800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 06:11:35 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id q2so2192537wrg.5
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 03:11:35 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 186si17266wmr.17.2018.01.24.03.11.34
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B655C800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 06:12:15 -0500 (EST)
+Received: by mail-yw0-f200.google.com with SMTP id l74so1777329ywc.22
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 03:12:15 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v184sor5155275ybc.119.2018.01.24.03.12.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Jan 2018 03:11:34 -0800 (PST)
-Date: Wed, 24 Jan 2018 12:11:30 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm: make faultaround produce old ptes
-Message-ID: <20180124111130.GB28465@dhcp22.suse.cz>
-References: <1516599614-18546-1-git-send-email-vinmenon@codeaurora.org>
- <20180123145506.GN1526@dhcp22.suse.cz>
- <d5a87398-a51f-69fb-222b-694328be7387@codeaurora.org>
- <20180123160509.GT1526@dhcp22.suse.cz>
- <218a11e6-766c-d8f6-a266-cbd0852de1c8@codeaurora.org>
- <20180124093839.GJ1526@dhcp22.suse.cz>
- <acd4279f-0e2b-20b7-8f3e-10d2f50ade0e@codeaurora.org>
+        (Google Transport Security);
+        Wed, 24 Jan 2018 03:12:14 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <acd4279f-0e2b-20b7-8f3e-10d2f50ade0e@codeaurora.org>
+In-Reply-To: <20180124103454.ibuqt3njaqbjnrfr@quack2.suse.cz>
+References: <20171030124358.GF23278@quack2.suse.cz> <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
+ <20171031101238.GD8989@quack2.suse.cz> <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
+ <10924085-6275-125f-d56b-547d734b6f4e@alibaba-inc.com> <20171114093909.dbhlm26qnrrb2ww4@dhcp22.suse.cz>
+ <afa2dc80-16a3-d3d1-5090-9430eaafc841@alibaba-inc.com> <20171115093131.GA17359@quack2.suse.cz>
+ <CALvZod6HJO73GUfLemuAXJfr4vZ8xMOmVQpFO3vJRog-s2T-OQ@mail.gmail.com>
+ <CAOQ4uxg-mTgQfTv-qO6EVwfttyOy+oFyAHyFDKTQsDOkQPyyfA@mail.gmail.com> <20180124103454.ibuqt3njaqbjnrfr@quack2.suse.cz>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Wed, 24 Jan 2018 13:12:13 +0200
+Message-ID: <CAOQ4uxhDpBBUrr0JWRBaNQTTaUeJ4=gnM0iij2KivaGgp1ggtg@mail.gmail.com>
+Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, minchan@kernel.org, catalin.marinas@arm.com, will.deacon@arm.com, ying.huang@intel.com, riel@redhat.com, dave.hansen@linux.intel.com, mgorman@suse.de, torvalds@linux-foundation.org, jack@suse.cz
+To: Jan Kara <jack@suse.cz>
+Cc: Shakeel Butt <shakeelb@google.com>, Yang Shi <yang.s@alibaba-inc.com>, Michal Hocko <mhocko@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 24-01-18 16:13:06, Vinayak Menon wrote:
-> On 1/24/2018 3:08 PM, Michal Hocko wrote:
-[...]
-> > Try to be more realistic. We have way too many sysctls. Some of them are
-> > really implementation specific and then it is not really trivial to get
-> > rid of them because people tend to (think they) depend on them. This is
-> > a user interface like any others and we do not add them without a due
-> > scrutiny. Moreover we do have an interface to suppress the effect of the
-> > faultaround. Instead you are trying to add another tunable for something
-> > that we can live without altogether. See my point?
-> 
-> I agree on the sysctl part. But why should we disable faultaround and
-> not find a way to make it useful ?
+On Wed, Jan 24, 2018 at 12:34 PM, Jan Kara <jack@suse.cz> wrote:
+> On Mon 22-01-18 22:31:20, Amir Goldstein wrote:
+>> On Fri, Jan 19, 2018 at 5:02 PM, Shakeel Butt <shakeelb@google.com> wrote:
+>> > On Wed, Nov 15, 2017 at 1:31 AM, Jan Kara <jack@suse.cz> wrote:
+>> >> On Wed 15-11-17 01:32:16, Yang Shi wrote:
+>> >>> On 11/14/17 1:39 AM, Michal Hocko wrote:
+>> >>> >On Tue 14-11-17 03:10:22, Yang Shi wrote:
+>> >>> >>
+>> >>> >>
+>> >>> >>On 11/9/17 5:54 AM, Michal Hocko wrote:
+>> >>> >>>[Sorry for the late reply]
+>> >>> >>>
+>> >>> >>>On Tue 31-10-17 11:12:38, Jan Kara wrote:
+>> >>> >>>>On Tue 31-10-17 00:39:58, Yang Shi wrote:
+>> >>> >>>[...]
+>> >>> >>>>>I do agree it is not fair and not neat to account to producer rather than
+>> >>> >>>>>misbehaving consumer, but current memcg design looks not support such use
+>> >>> >>>>>case. And, the other question is do we know who is the listener if it
+>> >>> >>>>>doesn't read the events?
+>> >>> >>>>
+>> >>> >>>>So you never know who will read from the notification file descriptor but
+>> >>> >>>>you can simply account that to the process that created the notification
+>> >>> >>>>group and that is IMO the right process to account to.
+>> >>> >>>
+>> >>> >>>Yes, if the creator is de-facto owner which defines the lifetime of
+>> >>> >>>those objects then this should be a target of the charge.
+>> >>> >>>
+>> >>> >>>>I agree that current SLAB memcg accounting does not allow to account to a
+>> >>> >>>>different memcg than the one of the running process. However I *think* it
+>> >>> >>>>should be possible to add such interface. Michal?
+>> >>> >>>
+>> >>> >>>We do have memcg_kmem_charge_memcg but that would require some plumbing
+>> >>> >>>to hook it into the specific allocation path. I suspect it uses kmalloc,
+>> >>> >>>right?
+>> >>> >>
+>> >>> >>Yes.
+>> >>> >>
+>> >>> >>I took a look at the implementation and the callsites of
+>> >>> >>memcg_kmem_charge_memcg(). It looks it is called by:
+>> >>> >>
+>> >>> >>* charge kmem to memcg, but it is charged to the allocator's memcg
+>> >>> >>* allocate new slab page, charge to memcg_params.memcg
+>> >>> >>
+>> >>> >>I think this is the plumbing you mentioned, right?
+>> >>> >
+>> >>> >Maybe I have misunderstood, but you are using slab allocator. So you
+>> >>> >would need to force it to use a different charging context than current.
+>> >>>
+>> >>> Yes.
+>> >>>
+>> >>> >I haven't checked deeply but this doesn't look trivial to me.
+>> >>>
+>> >>> I agree. This is also what I explained to Jan and Amir in earlier
+>> >>> discussion.
+>> >>
+>> >> And I also agree. But the fact that it is not trivial does not mean that it
+>> >> should not be done...
+>> >>
+>> >
+>> > I am currently working on directed or remote memcg charging for a
+>> > different usecase and I think that would be helpful here as well.
+>> >
+>> > I have two questions though:
+>> >
+>> > 1) Is fsnotify_group the right structure to hold the reference to
+>> > target mem_cgroup for charging?
+>>
+>> I think it is. The process who set up the group and determined the unlimited
+>> events queue size and did not consume the events from the queue in a timely
+>> manner is the process to blame for the OOM situation.
+>
+> Agreed here.
+>
+>> > 2) Remote charging can trigger an OOM in the target memcg. In this
+>> > usecase, I think, there should be security concerns if the events
+>> > producer can trigger OOM in the memcg of the monitor. We can either
+>> > change these allocations to use __GFP_NORETRY or some new gfp flag to
+>> > not trigger oom-killer. So, is this valid concern or am I
+>> > over-thinking?
+>> >
+>>
+>> I think that is a very valid concern, but not sure about the solution.
+>> For an inotify listener and fanotify listener of class FAN_CLASS_NOTIF
+>> (group->priority == 0), I think it makes sense to let oom-killer kill
+>> the listener which is not keeping up with consuming events.
+>
+> Agreed.
+>
+>> For fanotify listener of class FAN_CLASS_{,PRE_}CONTENT
+>> (group->priority > 0) allowing an adversary to trigger oom-killer
+>> and kill the listener could bypass permission event checks.
+>>
+>> So we could use different allocation flags for permission events
+>> or for groups with high priority or for groups that have permission
+>> events in their mask, so an adversary could not use non-permission
+>> events to oom-kill a listener that is also monitoring permission events.
+>>
+>> Generally speaking, permission event monitors should not be
+>> setting  FAN_UNLIMITED_QUEUE and should not be causing oom
+>> (because permission events are not queued they are blocking), but
+>> there is nothing preventing a process to setup a FAN_CLASS_CONTENT
+>> group with FAN_UNLIMITED_QUEUE and also monitor non-permission
+>> events.
+>>
+>> There is also nothing preventing a process from setting up one
+>> FAN_CLASS_CONTENT listener for permission events and another
+>> FAN_CLASS_NOTIF listener for non-permission event.
+>> Maybe it is not wise, but we don't know that there are no such processes
+>> out there.
+>
+> So IMHO there are different ways to setup memcgs and processes in them and
+> you cannot just guess what desired outcome is. The facts are:
+>
+> 1) Process has setup queue with unlimited length.
+> 2) Admin has put the process into memcg with limited memory.
+> 3) The process cannot keep up with event producer.
+>
+> These three facts are creating conflicting demands and it depends on the
+> eye of the beholder what is correct. E.g. you may not want to take the
+> whole hosting machine down because something bad happened in one container.
+> OTOH you might what that to happen if that particular container is
+> responsible for maintaining security - but then IMHO it is not a clever
+> setup to constrain memory of the security sensitive application.
+>
+> So my stance on this is that we should define easy to understand semantics
+> and let the admins deal with it. IMO that semantics should follow how we
+> currently behave on system-wide OOM - i.e., simply trigger OOM killer when
+> cgroup is going over limits.
+>
+> If we wanted to create safer API for fanotify from this standpoint, we
+> could allow new type of fanotify groups where queue would be limited in
+> length but tasks adding events to queue would get throttled as the queue
+> fills up. Something like dirty page cache throttling. But I'd go for this
+> complexity only once we have clear indications from practice that current
+> scheme is not enough.
+>
 
-I didn't say that. Please read what I've written. I really hate your new
-sysctl, because that is not a solution. If you can find a different one
-than disabling it then go ahead. But do not try to put burden to users
-because they know what to set. Because they won't.
--- 
-Michal Hocko
-SUSE Labs
+What you are saying makes sense for a good design, but IIUC, what follows
+is that you think we should change behavior and start accounting event
+allocation to listener without any opt-in from admin?
+
+That could make existing systems break and become vulnerable to killing
+the AV daemon by unlimited queue overflow attack.
+My claim was that we cannot change behavior to charge a misconfigured
+permission event fanotify listener with allocations, because of that risk.
+Perhaps I did not read your response correctly to understand how you intend
+we mitigate this potential breakage.
+
+Thanks,
+Amir.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
