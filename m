@@ -1,67 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D409800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 13:19:23 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id e195so2614910wmd.9
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 10:19:23 -0800 (PST)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id 93si521200edh.107.2018.01.24.10.19.21
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CDC1800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 13:23:38 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y63so3657741pff.5
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 10:23:38 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id x81si3264835pfe.361.2018.01.24.10.23.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 10:19:22 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id ADE2C1C393A
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 18:19:21 +0000 (GMT)
-Date: Wed, 24 Jan 2018 18:19:21 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 2/2] free_pcppages_bulk: prefetch buddy while not holding
- lock
-Message-ID: <20180124181921.vnivr32q72ey7p5i@techsingularity.net>
-References: <20180124023050.20097-1-aaron.lu@intel.com>
- <20180124023050.20097-2-aaron.lu@intel.com>
- <20180124164344.lca63gjn7mefuiac@techsingularity.net>
- <148a42d8-8306-2f2f-7f7c-86bc118f8ccd@intel.com>
+        Wed, 24 Jan 2018 10:23:36 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC] few MM topics
+References: <20180124092649.GC21134@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <bee1d564-b4b8-ed0c-edfa-f6df6a24fe21@oracle.com>
+Date: Wed, 24 Jan 2018 10:23:20 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <148a42d8-8306-2f2f-7f7c-86bc118f8ccd@intel.com>
+In-Reply-To: <20180124092649.GC21134@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-nvme@lists.infradead.org, linux-fsdevel@vger.kernel.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>
 
-On Wed, Jan 24, 2018 at 08:57:43AM -0800, Dave Hansen wrote:
-> On 01/24/2018 08:43 AM, Mel Gorman wrote:
-> > I'm less convinced by this for a microbenchmark. Prefetch has not been a
-> > universal win in the past and we cannot be sure that it's a good idea on
-> > all architectures or doesn't have other side-effects such as consuming
-> > memory bandwidth for data we don't need or evicting cache hot data for
-> > buddy information that is not used.
-> 
-> I had the same reaction.
-> 
-> But, I think this case is special.  We *always* do buddy merging (well,
-> before the next patch in the series is applied) and check an order-0
-> page's buddy to try to merge it when it goes into the main allocator.
-> So, the cacheline will always come in.
-> 
-> IOW, I don't think this has the same downsides normally associated with
-> prefetch() since the data is always used.
+On 01/24/2018 01:26 AM, Michal Hocko wrote:
+> Hi,
+> I would like to propose the following few topics for further discussion
+> at LSF/MM this year. MM track would be the most appropriate one but
+> there is some overlap with FS and NVDIM
+> - memcg OOM behavior has changed around 3.12 as a result of OOM
+>   deadlocks when the memcg OOM killer was triggered from the charge
+>   path. We simply fail the charge and unroll to a safe place to
+>   trigger the OOM killer. This is only done from the #PF path and any
+>   g-u-p or kmem accounted allocation can just fail in that case leading
+>   to unexpected ENOMEM to userspace. I believe we can return to the
+>   original OOM handling now that we have the oom reaper and guranteed
+>   forward progress of the OOM path.
+>   Discussion http://lkml.kernel.org/r/20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz
+> - It seems there is some demand for large (> MAX_ORDER) allocations.
+>   We have that alloc_contig_range which was originally used for CMA and
+>   later (ab)used for Giga hugetlb pages. The API is less than optimal
+>   and we should probably think about how to make it more generic.
 
-That doesn't side-step the calculations are done twice in the
-free_pcppages_bulk path and there is no guarantee that one prefetch
-in the list of pages being freed will not evict a previous prefetch
-due to collisions. At least on the machine I'm writing this from, the
-prefetches necessary for a standard drain are 1/16th of the L1D cache so
-some collisions/evictions are possible. We're doing definite work in one
-path on the chance it'll still be cache-resident when it's recalculated.
-I suspect that only a microbenchmark that is doing very large amounts of
-frees (or a large munmap or exit) will notice and the costs of a large
-munmap/exit are so high that the prefetch will be negligible savings.
+This is also of interest to me.  I actually started some efforts in this
+area.  The idea (as you mention above) would be to provide a more usable
+API for allocation of contiguous pages/ranges.  And, gigantic huge pages
+would be the first consumer.
+
+alloc_contig_range currently has some issues with being used in a 'more
+generic' way.  A comment describing the routine says "it's the caller's
+responsibility to guarantee that we are the only thread that changes
+migrate type of pageblocks the pages fall in.".  This is true, and I think
+it also applies to users of the underlying routines such as
+start_isolate_page_range.  The CMA code has a mechanism that prevents two
+threads from operating on the same range concurrently.  The other users
+(gigantic page allocation and memory offline) happen infrequently enough
+that we are unlikely to have a conflict.  But, opening this up to more
+generic use will require at least a more generic synchronization mechanism.
+
+> - we have grown a new get_user_pages_longterm. It is an ugly API and
+>   I think we really need to have a decent page pinning one with the
+>   accounting and limiting.
+> - memory hotplug has seen quite some surgery last year and it seems that
+>   DAX/nvdim and HMM have some interest in using it as well. I am mostly
+>   interested in struct page self hosting which is already done for NVDIM
+>   AFAIU. It would be great if we can unify that for the regular mem
+>   hotplug as well.
+> - I would be very interested to talk about memory softofflining
+>   (HWPoison) with somebody familiar with this area because I find the
+>   development in that area as more or less random without any design in
+>   mind. The resulting code is chaotic and stuffed to "random" places.
+
+Me too.  I have looked at some code in this area for huge pages.  At least
+for huge pages there is more work to do as indicated by this comment:
+/*
+ * Huge pages. Needs work.
+ * Issues:
+ * - Error on hugepage is contained in hugepage unit (not in raw page unit.)
+ *   To narrow down kill region to one page, we need to break up pmd.
+ */
 
 -- 
-Mel Gorman
-SUSE Labs
+Mike Kravetz
+
+> - I would also love to talk to some FS people and convince them to move
+>   away from GFP_NOFS in favor of the new scope API. I know this just
+>   means to send patches but the existing code is quite complex and it
+>   really requires somebody familiar with the specific FS to do that
+>   work.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
