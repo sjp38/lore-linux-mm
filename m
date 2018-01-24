@@ -1,71 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 56B11800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 14:05:48 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 205so3739734pfw.4
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:05:48 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id f19-v6si591335plj.502.2018.01.24.11.05.46
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DD46800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 14:11:16 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id f62so3149430otf.3
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:11:16 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c21sor1548151otj.140.2018.01.24.11.11.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 24 Jan 2018 11:05:46 -0800 (PST)
-Message-ID: <1516820744.3073.30.camel@HansenPartnership.com>
-Subject: [LSF/MM TOPIC] Patch Submission process and Handling Internal
- Conflict
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Wed, 24 Jan 2018 11:05:44 -0800
+        (Google Transport Security);
+        Wed, 24 Jan 2018 11:11:14 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20180124175631.22925-5-igor.stoppa@huawei.com>
+References: <20180124175631.22925-1-igor.stoppa@huawei.com> <20180124175631.22925-5-igor.stoppa@huawei.com>
+From: Jann Horn <jannh@google.com>
+Date: Wed, 24 Jan 2018 20:10:53 +0100
+Message-ID: <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
+Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
 Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: jglisse@redhat.com, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <willy@infradead.org>, Christoph Lameter <cl@linux.com>, linux-security-module@vger.kernel.org, linux-mm@kvack.org, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-I've got two community style topics, which should probably be discussed
-in the plenary
+On Wed, Jan 24, 2018 at 6:56 PM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
+> The MMU available in many systems running Linux can often provide R/O
+> protection to the memory pages it handles.
+>
+> However, the MMU-based protection works efficiently only when said pages
+> contain exclusively data that will not need further modifications.
+>
+> Statically allocated variables can be segregated into a dedicated
+> section, but this does not sit very well with dynamically allocated
+> ones.
+>
+> Dynamic allocation does not provide, currently, any means for grouping
+> variables in memory pages that would contain exclusively data suitable
+> for conversion to read only access mode.
+>
+> The allocator here provided (pmalloc - protectable memory allocator)
+> introduces the concept of pools of protectable memory.
+>
+> A module can request a pool and then refer any allocation request to the
+> pool handler it has received.
+>
+> Once all the chunks of memory associated to a specific pool are
+> initialized, the pool can be protected.
 
-1. Patch Submission Process
+I'm not entirely convinced by the approach of marking small parts of
+kernel memory as readonly for hardening.
+Comments on some details are inline.
 
-Today we don't have a uniform patch submission process across Storage,
-Filesystems and MM. A The question is should we (or at least should we
-adhere to some minimal standards). A The standard we've been trying to
-hold to in SCSI is one review per accepted non-trivial patch. A For us,
-it's useful because it encourages driver writers to review each other's
-patches rather than just posting and then complaining their patch
-hasn't gone in. A I can certainly think of a couple of bugs I've had to
-chase in mm where the underlying patches would have benefited from
-review, so I'd like to discuss making the one review per non-trival
-patch our base minimum standard across the whole of LSF/MM; it would
-certainly serve to improve our Reviewed-by statistics.
+> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> index 1e5d8c3..116d280 100644
+> --- a/include/linux/vmalloc.h
+> +++ b/include/linux/vmalloc.h
+> @@ -20,6 +20,7 @@ struct notifier_block;                /* in notifier.h */
+>  #define VM_UNINITIALIZED       0x00000020      /* vm_struct is not fully initialized */
+>  #define VM_NO_GUARD            0x00000040      /* don't add guard page */
+>  #define VM_KASAN               0x00000080      /* has allocated kasan shadow memory */
+> +#define VM_PMALLOC             0x00000100      /* pmalloc area - see docs */
 
-2. Handling Internal Conflict
+Is "see docs" specific enough to actually guide the reader to the
+right documentation?
 
-My observation here is that actually most conflict is generated by the
-review process (I know, if we increase reviews as I propose in 1. we'll
-increase conflict on the lists on the basis of this observation), so
-I've been thinking about ways to de-escalate it. A The principle issue
-is that a review which doesn't just say the patch is fine (or fine
-except for nitpicks) can be taken as criticism and criticism is often
-processed personally. A The way you phrase criticism can have a great
-bearing on the amount of personal insult taken by the other party.
-A Corny as it sounds, the 0day bot response "Hi Z,A I love your patch!
-Perhaps something to improve:" is specifically targetted at this
-problem and seems actually to work. A I think we could all benefit from
-discussing how to give and receive criticism in the form of patch
-reviews responsibly, especially as not everyone's native language in
-English and certain common linguistic phrasings in other languages can
-come off as rude when directly translated to English (Russian springs
-immediately to mind for some reason here). A Also Note, I think fixing
-the review problem would solve most of the issues, so I'm not proposing
-anything more formal like the code of conflict stuff in the main
-kernel.
 
-We could lump both of these under a single "Community Discussion" topic
-if the organizers prefer ... especially if anyone has any other
-community type issues they'd like to bring up.
+> +#define pmalloc_attr_init(data, attr_name) \
+> +do { \
+> +       sysfs_attr_init(&data->attr_##attr_name.attr); \
+> +       data->attr_##attr_name.attr.name = #attr_name; \
+> +       data->attr_##attr_name.attr.mode = VERIFY_OCTAL_PERMISSIONS(0444); \
+> +       data->attr_##attr_name.show = pmalloc_pool_show_##attr_name; \
+> +} while (0)
 
-James
+Is there a good reason for making all these files mode 0444 (as
+opposed to setting them to 0400 and then allowing userspace to make
+them accessible if desired)? /proc/slabinfo contains vaguely similar
+data and is mode 0400 (or mode 0600, depending on the kernel config)
+AFAICS.
+
+
+> +void *pmalloc(struct gen_pool *pool, size_t size, gfp_t gfp)
+> +{
+[...]
+> +       /* Expand pool */
+> +       chunk_size = roundup(size, PAGE_SIZE);
+> +       chunk = vmalloc(chunk_size);
+
+You're allocating with vmalloc(), which, as far as I know, establishes
+a second mapping in the vmalloc area for pages that are already mapped
+as RW through the physmap. AFAICS, later, when you're trying to make
+pages readonly, you're only changing the protections on the second
+mapping in the vmalloc area, therefore leaving the memory writable
+through the physmap. Is that correct? If so, please either document
+the reasoning why this is okay or change it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
