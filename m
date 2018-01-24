@@ -1,62 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DC8D3800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 03:45:30 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id p7so1892247wre.18
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 00:45:30 -0800 (PST)
-Received: from lb3-smtp-cloud9.xs4all.net (lb3-smtp-cloud9.xs4all.net. [194.109.24.30])
-        by mx.google.com with ESMTPS id 92si1388889ede.216.2018.01.24.00.45.29
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 31AF5800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 03:56:45 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 79so2038885pge.16
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 00:56:45 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e3si15804233pgt.217.2018.01.24.00.56.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 00:45:29 -0800 (PST)
-Message-ID: <1516783522.2230.6.camel@tiscali.nl>
-Subject: Re: [PATCH v6 05/99] xarray: Add definition of struct xarray
-From: Paul Bolle <pebolle@tiscali.nl>
-Date: Wed, 24 Jan 2018 09:45:22 +0100
-In-Reply-To: <20180117202203.19756-6-willy@infradead.org>
-References: <20180117202203.19756-1-willy@infradead.org>
-	 <20180117202203.19756-6-willy@infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 24 Jan 2018 00:56:43 -0800 (PST)
+Date: Wed, 24 Jan 2018 09:56:40 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Matthew's minor MM topics
+Message-ID: <20180124085640.GG1526@dhcp22.suse.cz>
+References: <20180116141354.GB30073@bombadil.infradead.org>
+ <20180123122646.GJ1526@dhcp22.suse.cz>
+ <20180123204827.GB5565@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180123204827.GB5565@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, Bjorn Andersson <bjorn.andersson@linaro.org>, Stefano Stabellini <sstabellini@kernel.org>, iommu@lists.linux-foundation.org, linux-remoteproc@vger.kernel.org, linux-s390@vger.kernel.org, intel-gfx@lists.freedesktop.org, cgroups@vger.kernel.org, linux-sh@vger.kernel.org, David Howells <dhowells@redhat.com>, linux-kernel@vger.kernel.org
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
 
-Mathhew,
-
-Just a minor question.
-
-On Wed, 2018-01-17 at 12:20 -0800, Matthew Wilcox wrote:
-> This is a direct replacement for struct radix_tree_root.  Some of the
-> struct members have changed name; convert those, and use a #define so
-> that radix_tree users continue to work without change.
+On Tue 23-01-18 12:48:27, Matthew Wilcox wrote:
+> On Tue, Jan 23, 2018 at 01:26:46PM +0100, Michal Hocko wrote:
+> > On Tue 16-01-18 06:13:54, Matthew Wilcox wrote:
+> > > 1. GFP_DMA / GFP_HIGHMEM / GFP_DMA32
+> > > 
+> > > The documentation is clear that only one of these three bits is allowed
+> > > to be set.  Indeed, we have code that checks that only one of these
+> > > three bits is set.  So why do we have three bits?  Surely this encoding
+> > > works better:
+> > > 
+> > > 00b (normal)
+> > > 01b GFP_DMA
+> > > 10b GFP_DMA32
+> > > 11b GFP_HIGHMEM
+> > > (or some other clever encoding that maps well to the zone_type index)
+> > 
+> > Didn't you forget about movable zone? Anyway, if you can simplify this
+> > thing I would be more than happy. GFP_ZONE_TABLE makes my head spin
+> > anytime I dare to look.
 > 
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> I didn't *forget* about it, exactly.  I just didn't include it because
+> (as I understand it), it's legitimate to ask for GFP_DMA | GFP_MOVABLE.
+> To quote:
+> 
+>  * The zone fallback order is MOVABLE=>HIGHMEM=>NORMAL=>DMA32=>DMA.
+>  * But GFP_MOVABLE is not only a zone specifier but also an allocation
+>  * policy. Therefore __GFP_MOVABLE plus another zone selector is valid.
+>  * Only 1 bit of the lowest 3 bits (DMA,DMA32,HIGHMEM) can be set to "1".
+> 
+> I don't understand this, personally.  I assumed it made sense to someone,
+> but if we can collapse GFP_MOVABLE into this and just use the bottom three
+> bits as the zone number, then that would be an even better cleanup.
 
-> --- a/include/linux/xarray.h
-> +++ b/include/linux/xarray.h
-> @@ -10,6 +10,8 @@
->   */
->  
->  #include <linux/bug.h>
-> +#include <linux/compiler.h>
-> +#include <linux/kconfig.h>
+Well, I always forget details because MOVABLE zone and its gfp flag are
+just very special... If you can make it simple I am all for it. I am
+just worried that this will be hard to discuss because most people just
+do not have that code cached. So if you have some code to show and
+discuss then why not I suspect discussing it on the mailing list might
+result to be much more productive .
 
-The top Makefile includes linux/kconfig.h globally. (See the odd USERINCLUDE
-variable, which is actually part of the LINUXINCLUDE variable, but split off
-to make things confusing.)
+[...]
+> > > 4. vmf_insert_(page|pfn|mixed|...)
+> > > 
+> > > vm_insert_foo are invariably called from fault handlers, usually as
+> > > the last thing we do before returning a VM_FAULT code.  As such, why do
+> > > they return an errno that has to be translated?  We would be better off
+> > > returning VM_FAULT codes from these functions.
+> > 
+> > Which tree are you looking at? git grep vmf_insert_ doesn't show much.
+> > vmf_insert_pfn_p[mu]d and those already return VM_FAULT error code from
+> > a quick look.
+> 
+> I didn't explain this well.  Today, vm_insert_page() returns -EFAULT,
+> -EINVAL, -ENOMEM or -EBUSY.  I'd like to see it replaced with a new
+> function called vmf_insert_page() which returns a vm_fault_t rather
+> than have every caller of vm_insert_page() convert that errno into
+> a vm_fault_t.
 
-Why do you need to include linux/kconfig.h here?
+makes sense to me
 
->  #include <linux/spinlock.h>
->  #include <linux/types.h>
-
-Thanks,
-
-
-Paul Bolle
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
