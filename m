@@ -1,75 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1506A800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 06:23:16 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id m79so1060790lfm.17
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 03:23:16 -0800 (PST)
-Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
-        by mx.google.com with ESMTP id n6si4860ljb.72.2018.01.24.03.23.13
-        for <linux-mm@kvack.org>;
-        Wed, 24 Jan 2018 03:23:14 -0800 (PST)
-Subject: Re: [RFC] Per file OOM badness
-References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
- <20180118170006.GG6584@dhcp22.suse.cz>
- <20180123152659.GA21817@castle.DHCP.thefacebook.com>
- <20180123153631.GR1526@dhcp22.suse.cz>
- <ccac4870-ced3-f169-17df-2ab5da468bf0@daenzer.net>
- <20180124092847.GI1526@dhcp22.suse.cz>
- <583f328e-ff46-c6a4-8548-064259995766@daenzer.net>
- <20180124110141.GA28465@dhcp22.suse.cz>
-From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
-Message-ID: <36b49523-792d-45f9-8617-32b6d9d77418@daenzer.net>
-Date: Wed, 24 Jan 2018 12:23:10 +0100
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9868E800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 06:26:17 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id x16so2841529pfe.20
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 03:26:17 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id n24si24143pgd.735.2018.01.24.03.26.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Jan 2018 03:26:16 -0800 (PST)
+Message-ID: <5A686DEE.4050008@intel.com>
+Date: Wed, 24 Jan 2018 19:28:46 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180124110141.GA28465@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
-Content-Transfer-Encoding: 8bit
+Subject: Re: [virtio-dev] Re: [PATCH v22 2/3] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+References: <1516165812-3995-1-git-send-email-wei.w.wang@intel.com> <1516165812-3995-3-git-send-email-wei.w.wang@intel.com> <20180117180337-mutt-send-email-mst@kernel.org> <5A616995.4050702@intel.com> <20180119143517-mutt-send-email-mst@kernel.org> <5A65CA39.2070906@intel.com> <20180124062723-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180124062723-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org, Christian.Koenig@amd.com, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, Roman Gushchin <guro@fb.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On 2018-01-24 12:01 PM, Michal Hocko wrote:
-> On Wed 24-01-18 11:27:15, Michel DA?nzer wrote:
->> On 2018-01-24 10:28 AM, Michal Hocko wrote:
-> [...]
->>> So how exactly then helps to kill one of those processes? The memory
->>> stays pinned behind or do I still misunderstand?
+On 01/24/2018 12:29 PM, Michael S. Tsirkin wrote:
+> On Mon, Jan 22, 2018 at 07:25:45PM +0800, Wei Wang wrote:
+>> On 01/19/2018 08:39 PM, Michael S. Tsirkin wrote:
+>>> On Fri, Jan 19, 2018 at 11:44:21AM +0800, Wei Wang wrote:
+>>>> On 01/18/2018 12:44 AM, Michael S. Tsirkin wrote:
+>>>>> On Wed, Jan 17, 2018 at 01:10:11PM +0800, Wei Wang wrote:
+>>>>>
+>>>>>> +		vb->start_cmd_id = cmd_id;
+>>>>>> +		queue_work(vb->balloon_wq, &vb->report_free_page_work);
+>>>>> It seems that if a command was already queued (with a different id),
+>>>>> this will result in new command id being sent to host twice, which will
+>>>>> likely confuse the host.
+>>>> I think that case won't happen, because
+>>>> - the host sends a cmd id to the guest via the config, while the guest acks
+>>>> back the received cmd id via the virtqueue;
+>>>> - the guest ack back a cmd id only when a new cmd id is received from the
+>>>> host, that is the above check:
+>>>>
+>>>>       if (cmd_id != vb->start_cmd_id) { --> the driver only queues the
+>>>> reporting work only when a new cmd id is received
+>>>>                           /*
+>>>>                            * Host requests to start the reporting by sending a
+>>>>                            * new cmd id.
+>>>>                            */
+>>>>                           WRITE_ONCE(vb->report_free_page, true);
+>>>>                           vb->start_cmd_id = cmd_id;
+>>>>                           queue_work(vb->balloon_wq,
+>>>> &vb->report_free_page_work);
+>>>>       }
+>>>>
+>>>> So the same cmd id wouldn't queue the reporting work twice.
+>>>>
+>>> Like this:
+>>>
+>>> 		vb->start_cmd_id = cmd_id;
+>>> 		queue_work(vb->balloon_wq, &vb->report_free_page_work);
+>>>
+>>> command id changes
+>>>
+>>> 		vb->start_cmd_id = cmd_id;
+>>>
+>>> work executes
+>>>
+>>> 		queue_work(vb->balloon_wq, &vb->report_free_page_work);
+>>>
+>>> work executes again
+>>>
+>> If we think about the whole working flow, I think this case couldn't happen:
 >>
->> Fundamentally, the memory is only released once all references to the
->> BOs are dropped. That's true no matter how the memory is accounted for
->> between the processes referencing the BO.
+>> 1) device send cmd_id=1 to driver;
+>> 2) driver receives cmd_id=1 in the config and acks cmd_id=1 to the device
+>> via the vq;
+>> 3) device revives cmd_id=1;
+>> 4) device wants to stop the reporting by sending cmd_id=STOP;
+>> 5) driver receives cmd_id=STOP from the config, and acks cmd_id=STOP to the
+>> device via the vq;
+>> 6) device sends cmd_id=2 to driver;
+>> ...
+>>
+>> cmd_id=2 won't come after cmd_id=1, there will be a STOP cmd in between them
+>> (STOP won't queue the work).
+>>
+>> How about defining the correct device behavior in the spec:
+>> The device Should NOT send a second cmd id to the driver until a STOP cmd
+>> ack for the previous cmd id has been received from the guest.
 >>
 >>
->> In practice, this should be fine:
->>
->> 1. The amount of memory used for shared BOs is normally small compared
->> to the amount of memory used for non-shared BOs (and other things). So
->> regardless of how shared BOs are accounted for, the OOM killer should
->> first target the process which is responsible for more memory overall.
-> 
-> OK. So this is essentially the same as with the normal shared memory
-> which is a part of the RSS in general.
+>> Best,
+>> Wei
+> I think we should just fix races in the driver rather than introduce
+> random restrictions in the device.
+>
+> If device wants to start a new sequence, it should be able to
+> do just that without a complicated back and forth with several
+> roundtrips through the driver.
+>
 
-Right.
+OK, I've fixed it in the new version, v24. Please have a check there. 
+Thanks.
+(Other changes based on the comments on v23 have also been included)
 
-
->> 2. If the OOM killer kills a process which is sharing BOs with another
->> process, this should result in the other process dropping its references
->> to the BOs as well, at which point the memory is released.
-> 
-> OK. How exactly are those BOs mapped to the userspace?
-
-I'm not sure what you're asking. Userspace mostly uses a GEM handle to
-refer to a BO. There can also be userspace CPU mappings of the BO's
-memory, but userspace doesn't need CPU mappings for all BOs and only
-creates them as needed.
+Best,
+Wei
 
 
--- 
-Earthling Michel DA?nzer               |               http://www.amd.com
-Libre software enthusiast             |             Mesa and X developer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
