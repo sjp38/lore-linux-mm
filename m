@@ -1,95 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CDC1800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 13:23:38 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id y63so3657741pff.5
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 10:23:38 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id x81si3264835pfe.361.2018.01.24.10.23.36
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 16532800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 13:40:33 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 205so3678542pfw.4
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 10:40:33 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a33-v6sor297148plc.12.2018.01.24.10.40.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 10:23:36 -0800 (PST)
-Subject: Re: [LSF/MM TOPIC] few MM topics
-References: <20180124092649.GC21134@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <bee1d564-b4b8-ed0c-edfa-f6df6a24fe21@oracle.com>
-Date: Wed, 24 Jan 2018 10:23:20 -0800
+        (Google Transport Security);
+        Wed, 24 Jan 2018 10:40:32 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180124092649.GC21134@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180124174723.25289-1-joelaf@google.com>
+References: <001a1144d6e854b3c90562668d74@google.com> <20180124174723.25289-1-joelaf@google.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 24 Jan 2018 19:40:10 +0100
+Message-ID: <CACT4Y+apdswWOB1XW6HsG+AUowVhozhO1ZeHDeCRBCkY8gkYfg@mail.gmail.com>
+Subject: Re: possible deadlock in shmem_file_llseek
+Content-Type: multipart/mixed; boundary="00000000000076eeab056389ff3e"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-nvme@lists.infradead.org, linux-fsdevel@vger.kernel.org
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>
+To: Joel Fernandes <joelaf@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, syzbot <syzbot+8ec30bb7bf1a981a2012@syzkaller.appspotmail.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs@googlegroups.com
 
-On 01/24/2018 01:26 AM, Michal Hocko wrote:
-> Hi,
-> I would like to propose the following few topics for further discussion
-> at LSF/MM this year. MM track would be the most appropriate one but
-> there is some overlap with FS and NVDIM
-> - memcg OOM behavior has changed around 3.12 as a result of OOM
->   deadlocks when the memcg OOM killer was triggered from the charge
->   path. We simply fail the charge and unroll to a safe place to
->   trigger the OOM killer. This is only done from the #PF path and any
->   g-u-p or kmem accounted allocation can just fail in that case leading
->   to unexpected ENOMEM to userspace. I believe we can return to the
->   original OOM handling now that we have the oom reaper and guranteed
->   forward progress of the OOM path.
->   Discussion http://lkml.kernel.org/r/20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz
-> - It seems there is some demand for large (> MAX_ORDER) allocations.
->   We have that alloc_contig_range which was originally used for CMA and
->   later (ab)used for Giga hugetlb pages. The API is less than optimal
->   and we should probably think about how to make it more generic.
+--00000000000076eeab056389ff3e
+Content-Type: text/plain; charset="UTF-8"
 
-This is also of interest to me.  I actually started some efforts in this
-area.  The idea (as you mention above) would be to provide a more usable
-API for allocation of contiguous pages/ranges.  And, gigantic huge pages
-would be the first consumer.
+On Wed, Jan 24, 2018 at 6:47 PM, Joel Fernandes <joelaf@google.com> wrote:
+>
+> #syz test: https://github.com/joelagnel/linux.git test-ashmem
 
-alloc_contig_range currently has some issues with being used in a 'more
-generic' way.  A comment describing the routine says "it's the caller's
-responsibility to guarantee that we are the only thread that changes
-migrate type of pageblocks the pages fall in.".  This is true, and I think
-it also applies to users of the underlying routines such as
-start_isolate_page_range.  The CMA code has a mechanism that prevents two
-threads from operating on the same range concurrently.  The other users
-(gigantic page allocation and memory offline) happen infrequently enough
-that we are unlikely to have a conflict.  But, opening this up to more
-generic use will require at least a more generic synchronization mechanism.
 
-> - we have grown a new get_user_pages_longterm. It is an ugly API and
->   I think we really need to have a decent page pinning one with the
->   accounting and limiting.
-> - memory hotplug has seen quite some surgery last year and it seems that
->   DAX/nvdim and HMM have some interest in using it as well. I am mostly
->   interested in struct page self hosting which is already done for NVDIM
->   AFAIU. It would be great if we can unify that for the regular mem
->   hotplug as well.
-> - I would be very interested to talk about memory softofflining
->   (HWPoison) with somebody familiar with this area because I find the
->   development in that area as more or less random without any design in
->   mind. The resulting code is chaotic and stuffed to "random" places.
+Oops, this email somehow ended up without Content-Type header, which
+was unexpected on syzbot side. Now should be fixed with:
+https://github.com/google/syzkaller/commit/866f1102f786c19a67e3857f891eaf5107550663
 
-Me too.  I have looked at some code in this area for huge pages.  At least
-for huge pages there is more work to do as indicated by this comment:
-/*
- * Huge pages. Needs work.
- * Issues:
- * - Error on hugepage is contained in hugepage unit (not in raw page unit.)
- *   To narrow down kill region to one page, we need to break up pmd.
- */
+Let's try again:
 
--- 
-Mike Kravetz
+#syz test: https://github.com/joelagnel/linux.git test-ashmem
 
-> - I would also love to talk to some FS people and convince them to move
->   away from GFP_NOFS in favor of the new scope API. I know this just
->   means to send patches but the existing code is quite complex and it
->   really requires somebody familiar with the specific FS to do that
->   work.
-> 
+--00000000000076eeab056389ff3e
+Content-Type: application/octet-stream; name=patch
+Content-Disposition: attachment; filename=patch
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_jctez7qu0
+
+ZGlmZiAtLWdpdCBhL2RyaXZlcnMvc3RhZ2luZy9hbmRyb2lkL2FzaG1lbS5jIGIvZHJpdmVycy9z
+dGFnaW5nL2FuZHJvaWQvYXNobWVtLmMKaW5kZXggMGY2OTVkZjE0YzlkLi4yNDg5ODNjZjJkYjEg
+MTAwNjQ0Ci0tLSBhL2RyaXZlcnMvc3RhZ2luZy9hbmRyb2lkL2FzaG1lbS5jCisrKyBiL2RyaXZl
+cnMvc3RhZ2luZy9hbmRyb2lkL2FzaG1lbS5jCkBAIC0zNDMsNyArMzQzLDkgQEAgc3RhdGljIGxv
+ZmZfdCBhc2htZW1fbGxzZWVrKHN0cnVjdCBmaWxlICpmaWxlLCBsb2ZmX3Qgb2Zmc2V0LCBpbnQg
+b3JpZ2luKQogCQlnb3RvIG91dDsKIAl9CiAKKwltdXRleF91bmxvY2soJmFzaG1lbV9tdXRleCk7
+CiAJcmV0ID0gdmZzX2xsc2Vlayhhc21hLT5maWxlLCBvZmZzZXQsIG9yaWdpbik7CisJbXV0ZXhf
+bG9jaygmYXNobWVtX211dGV4KTsKIAlpZiAocmV0IDwgMCkKIAkJZ290byBvdXQ7CiAK
+--00000000000076eeab056389ff3e--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
