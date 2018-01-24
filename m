@@ -1,154 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CD34A800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 09:36:53 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id g13so2530245wrh.19
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 06:36:53 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A0F89800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 09:51:15 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id v14so2356811wmd.3
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 06:51:15 -0800 (PST)
 Received: from smtp1.de.adit-jv.com (smtp1.de.adit-jv.com. [62.225.105.245])
-        by mx.google.com with ESMTPS id j11si247895wmi.182.2018.01.24.06.36.52
+        by mx.google.com with ESMTPS id s3si298123wme.24.2018.01.24.06.51.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 06:36:52 -0800 (PST)
+        Wed, 24 Jan 2018 06:51:14 -0800 (PST)
+Date: Wed, 24 Jan 2018 15:51:03 +0100
 From: Eugeniu Rosca <erosca@de.adit-jv.com>
-Subject: [PATCH v3 1/1] mm: page_alloc: skip over regions of invalid pfns on UMA
-Date: Wed, 24 Jan 2018 15:35:45 +0100
-Message-ID: <20180124143545.31963-2-erosca@de.adit-jv.com>
-In-Reply-To: <20180124143545.31963-1-erosca@de.adit-jv.com>
-References: <20180124143545.31963-1-erosca@de.adit-jv.com>
+Subject: Re: [PATCH v2 1/1] mm: page_alloc: skip over regions of invalid pfns
+ on UMA
+Message-ID: <20180124145103.GA32426@vmlxhi-102.adit-jv.com>
+References: <20180121144753.3109-1-erosca@de.adit-jv.com>
+ <20180121144753.3109-2-erosca@de.adit-jv.com>
+ <20180122012156.GA10428@bombadil.infradead.org>
+ <20180122202530.GA24724@vmlxhi-102.adit-jv.com>
+ <20180123004551.GA7817@bombadil.infradead.org>
+ <20180123190036.GA16904@vmlxhi-102.adit-jv.com>
+ <20180123202700.GA5565@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180123202700.GA5565@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>
-Cc: Eugeniu Rosca <erosca@de.adit-jv.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-As a result of bisecting the v4.10..v4.11 commit range, it was
-determined that commits [1] and [2] are both responsible of a ~140ms
-early startup improvement on Rcar-H3-ES20 arm64 platform.
+On Tue, Jan 23, 2018 at 12:27:00PM -0800, Matthew Wilcox wrote:
+> On Tue, Jan 23, 2018 at 08:00:36PM +0100, Eugeniu Rosca wrote:
+> > Hi Matthew,
+> > 
+> > On Mon, Jan 22, 2018 at 04:45:51PM -0800, Matthew Wilcox wrote:
+> > > On Mon, Jan 22, 2018 at 09:25:30PM +0100, Eugeniu Rosca wrote:
+> > > > Here is what I came up with, based on your proposal:
+> > > 
+> > > Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+> > 
+> > Apologies for not knowing the process. Should I include the
+> > `Reviewed-by` in the description of the next patch or will it be
+> > done by the maintainer who will hopefully pick up the patch?
+> 
+> It's OK to not know the process ;-)
+> 
+> The next step is for you to integrate the changes you made here into a
+> fresh patch against mainline, and then add my Reviewed-by: tag underneath
+> your Signed-off-by: line.
 
-Since Rcar Gen3 family is not NUMA, we don't define CONFIG_NUMA in the
-rcar3 defconfig (which also reduces KNL binary image by ~64KB), but this
-is how the boot time improvement is lost.
+[PATCH v3] pushed to https://marc.info/?l=linux-mm&m=151680461529468&w=2
+Thanks for your support!
 
-This patch makes optimization [2] available on UMA systems which
-provide support for CONFIG_HAVE_MEMBLOCK.
-
-Testing this change on Rcar H3-ES20-ULCB using v4.15-rc9 KNL and
-vanilla arm64 defconfig + NUMA=n, a speed-up of ~139ms (from ~174ms [3]
-to ~35ms [4]) is observed in the execution of memmap_init_zone().
-
-No boot time improvement is sensed on Apollo Lake SoC.
-
-[1] commit 0f84832fb8f9 ("arm64: defconfig: Enable NUMA and NUMA_BALANCING")
-[2] commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns where possible")
-
-[3] 174ms spent in memmap_init_zone() on H3ULCB w/o this patch (NUMA=n)
-[    2.643685] On node 0 totalpages: 1015808
-[    2.643688]   DMA zone: 3584 pages used for memmap
-[    2.643691]   DMA zone: 0 pages reserved
-[    2.643693]   DMA zone: 229376 pages, LIFO batch:31
-[    2.643696] > memmap_init_zone
-[    2.663628] < memmap_init_zone (19.932 ms)
-[    2.663632]   Normal zone: 12288 pages used for memmap
-[    2.663635]   Normal zone: 786432 pages, LIFO batch:31
-[    2.663637] > memmap_init_zone
-[    2.818012] < memmap_init_zone (154.375 ms)
-[    2.818041] psci: probing for conduit method from DT.
-
-[4] 35ms spent in memmap_init_zone() on H3ULCB with this patch (NUMA=n)
-[    2.677202] On node 0 totalpages: 1015808
-[    2.677205]   DMA zone: 3584 pages used for memmap
-[    2.677208]   DMA zone: 0 pages reserved
-[    2.677211]   DMA zone: 229376 pages, LIFO batch:31
-[    2.677213] > memmap_init_zone
-[    2.684378] < memmap_init_zone (7.165 ms)
-[    2.684382]   Normal zone: 12288 pages used for memmap
-[    2.684385]   Normal zone: 786432 pages, LIFO batch:31
-[    2.684387] > memmap_init_zone
-[    2.712556] < memmap_init_zone (28.169 ms)
-[    2.712584] psci: probing for conduit method from DT.
-
-Signed-off-by: Eugeniu Rosca <erosca@de.adit-jv.com>
-Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- include/linux/memblock.h | 1 -
- include/linux/mm.h       | 6 ++++++
- mm/memblock.c            | 2 ++
- mm/page_alloc.c          | 2 --
- 4 files changed, 8 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 7ed0f7782d16..9efd592c5da4 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -187,7 +187,6 @@ int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
- 			    unsigned long  *end_pfn);
- void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
- 			  unsigned long *out_end_pfn, int *out_nid);
--unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
- 
- /**
-  * for_each_mem_pfn_range - early memory pfn range iterator
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ea818ff739cd..b82b30522585 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2064,8 +2064,14 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
- 
- #ifdef CONFIG_HAVE_MEMBLOCK
- void zero_resv_unavail(void);
-+unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
- #else
- static inline void zero_resv_unavail(void) {}
-+static inline unsigned long memblock_next_valid_pfn(unsigned long pfn,
-+						    unsigned long max_pfn)
-+{
-+	return pfn + 1;
-+}
- #endif
- 
- extern void set_dma_reserve(unsigned long new_dma_reserve);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 46aacdfa4f4d..ad48cf200e3b 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1100,6 +1100,7 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
- 	if (out_nid)
- 		*out_nid = r->nid;
- }
-+#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- 
- unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
- 						      unsigned long max_pfn)
-@@ -1129,6 +1130,7 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
- 		return min(PHYS_PFN(type->regions[right].base), max_pfn);
- }
- 
-+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- /**
-  * memblock_set_node - set node ID on memblock regions
-  * @base: base of area to set node ID for
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 76c9688b6a0a..4a3d5936a9a0 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5344,14 +5344,12 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			goto not_early;
- 
- 		if (!early_pfn_valid(pfn)) {
--#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 			/*
- 			 * Skip to the pfn preceding the next valid one (or
- 			 * end_pfn), such that we hit a valid pfn (or end_pfn)
- 			 * on our next iteration of the loop.
- 			 */
- 			pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
--#endif
- 			continue;
- 		}
- 		if (!early_pfn_in_nid(pfn, nid))
--- 
-2.15.1
+Best regards,
+Eugeniu.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
