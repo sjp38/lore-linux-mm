@@ -1,81 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A17B7800D8
-	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 21:30:34 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id q8so1737090pfh.12
-        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 18:30:34 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id r10si1416393pgd.329.2018.01.23.18.30.33
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 904CE800D8
+	for <linux-mm@kvack.org>; Tue, 23 Jan 2018 21:52:39 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id u65so1813454pfd.7
+        for <linux-mm@kvack.org>; Tue, 23 Jan 2018 18:52:39 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id y28si9864308pgc.742.2018.01.23.18.52.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jan 2018 18:30:33 -0800 (PST)
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [PATCH 2/2] free_pcppages_bulk: prefetch buddy while not holding lock
-Date: Wed, 24 Jan 2018 10:30:50 +0800
-Message-Id: <20180124023050.20097-2-aaron.lu@intel.com>
-In-Reply-To: <20180124023050.20097-1-aaron.lu@intel.com>
-References: <20180124023050.20097-1-aaron.lu@intel.com>
+        Tue, 23 Jan 2018 18:52:38 -0800 (PST)
+Date: Tue, 23 Jan 2018 21:52:34 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180123215234.709c845a@vmware.local.home>
+In-Reply-To: <20180124021034.GA651@jagdpanzerIV>
+References: <20180119132052.02b89626@gandalf.local.home>
+	<20180120071402.GB8371@jagdpanzerIV>
+	<20180120104931.1942483e@gandalf.local.home>
+	<20180121141521.GA429@tigerII.localdomain>
+	<20180123064023.GA492@jagdpanzerIV>
+	<20180123095652.5e14da85@gandalf.local.home>
+	<20180123152130.GB429@tigerII.localdomain>
+	<20180123104121.2ef96d81@gandalf.local.home>
+	<20180123160153.GC429@tigerII.localdomain>
+	<20180123112436.0c94bc2e@gandalf.local.home>
+	<20180124021034.GA651@jagdpanzerIV>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Petr Mladek <pmladek@suse.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-When a page is freed back to the global pool, its buddy will be checked
-to see if it's possible to do a merge. This requires accessing buddy's
-page structure and that access could take a long time if it's cache cold.
+On Wed, 24 Jan 2018 11:11:33 +0900
+Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> wrote:
 
-This patch adds a prefetch to the to-be-freed page's buddy outside of
-zone->lock in hope of accessing buddy's page structure later under
-zone->lock will be faster.
+> Please take a look.
 
-Test with will-it-scale/page_fault1 full load:
+Was there something specific to look at?
 
-kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
-v4.15-rc4   9037332        8000124       13642741       15728686
-patch1/2    9608786 +6.3%  8368915 +4.6% 14042169 +2.9% 17433559 +10.8%
-this patch 10462292 +8.9%  8602889 +2.8% 14802073 +5.4% 17624575 +1.1%
+I'm doing a hundred different things at once, and my memory cache keeps
+getting flushed.
 
-Note: this patch's performance improvement percent is against patch1/2.
-
-Suggested-by: Ying Huang <ying.huang@intel.com>
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
- mm/page_alloc.c | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a076f754dac1..9ef084d41708 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1140,6 +1140,9 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 			batch_free = count;
- 
- 		do {
-+			unsigned long pfn, buddy_pfn;
-+			struct page *buddy;
-+
- 			page = list_last_entry(list, struct page, lru);
- 			/* must delete as __free_one_page list manipulates */
- 			list_del(&page->lru);
-@@ -1148,6 +1151,16 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 				continue;
- 
- 			list_add_tail(&page->lru, &head);
-+
-+			/*
-+			 * We are going to put the page back to
-+			 * the global pool, prefetch its buddy to
-+			 * speed up later access under zone->lock.
-+			 */
-+			pfn = page_to_pfn(page);
-+			buddy_pfn = __find_buddy_pfn(pfn, 0);
-+			buddy = page + (buddy_pfn - pfn);
-+			prefetch(buddy);
- 		} while (--count && --batch_free && !list_empty(list));
- 	}
- 
--- 
-2.14.3
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
