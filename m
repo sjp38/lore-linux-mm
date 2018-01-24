@@ -1,197 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E399A800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 12:59:46 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id w102so2861441wrb.21
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 09:59:46 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id k25si518948edf.44.2018.01.24.09.59.45
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D409800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 13:19:23 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id e195so2614910wmd.9
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 10:19:23 -0800 (PST)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id 93si521200edh.107.2018.01.24.10.19.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 09:59:45 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 6/6] Pmalloc: self-test
-Date: Wed, 24 Jan 2018 19:56:31 +0200
-Message-ID: <20180124175631.22925-7-igor.stoppa@huawei.com>
-In-Reply-To: <20180124175631.22925-1-igor.stoppa@huawei.com>
-References: <20180124175631.22925-1-igor.stoppa@huawei.com>
+        Wed, 24 Jan 2018 10:19:22 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id ADE2C1C393A
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 18:19:21 +0000 (GMT)
+Date: Wed, 24 Jan 2018 18:19:21 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 2/2] free_pcppages_bulk: prefetch buddy while not holding
+ lock
+Message-ID: <20180124181921.vnivr32q72ey7p5i@techsingularity.net>
+References: <20180124023050.20097-1-aaron.lu@intel.com>
+ <20180124023050.20097-2-aaron.lu@intel.com>
+ <20180124164344.lca63gjn7mefuiac@techsingularity.net>
+ <148a42d8-8306-2f2f-7f7c-86bc118f8ccd@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <148a42d8-8306-2f2f-7f7c-86bc118f8ccd@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, willy@infradead.org
-Cc: cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Add basic self-test functionality for pmalloc.
+On Wed, Jan 24, 2018 at 08:57:43AM -0800, Dave Hansen wrote:
+> On 01/24/2018 08:43 AM, Mel Gorman wrote:
+> > I'm less convinced by this for a microbenchmark. Prefetch has not been a
+> > universal win in the past and we cannot be sure that it's a good idea on
+> > all architectures or doesn't have other side-effects such as consuming
+> > memory bandwidth for data we don't need or evicting cache hot data for
+> > buddy information that is not used.
+> 
+> I had the same reaction.
+> 
+> But, I think this case is special.  We *always* do buddy merging (well,
+> before the next patch in the series is applied) and check an order-0
+> page's buddy to try to merge it when it goes into the main allocator.
+> So, the cacheline will always come in.
+> 
+> IOW, I don't think this has the same downsides normally associated with
+> prefetch() since the data is always used.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
----
- mm/Kconfig            |  7 ++++++
- mm/Makefile           |  1 +
- mm/pmalloc-selftest.c | 65 +++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/pmalloc-selftest.h | 30 ++++++++++++++++++++++++
- mm/pmalloc.c          |  3 +++
- 5 files changed, 106 insertions(+)
- create mode 100644 mm/pmalloc-selftest.c
- create mode 100644 mm/pmalloc-selftest.h
+That doesn't side-step the calculations are done twice in the
+free_pcppages_bulk path and there is no guarantee that one prefetch
+in the list of pages being freed will not evict a previous prefetch
+due to collisions. At least on the machine I'm writing this from, the
+prefetches necessary for a standard drain are 1/16th of the L1D cache so
+some collisions/evictions are possible. We're doing definite work in one
+path on the chance it'll still be cache-resident when it's recalculated.
+I suspect that only a microbenchmark that is doing very large amounts of
+frees (or a large munmap or exit) will notice and the costs of a large
+munmap/exit are so high that the prefetch will be negligible savings.
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index c782e8f..1de6ea6 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -760,3 +760,10 @@ config GUP_BENCHMARK
- 	  performance of get_user_pages_fast().
- 
- 	  See tools/testing/selftests/vm/gup_benchmark.c
-+
-+config PROTECTABLE_MEMORY_SELFTEST
-+	bool "Run self test for pmalloc memory allocator"
-+	default n
-+	help
-+	  Tries to verify that pmalloc works correctly and that the memory
-+	  is effectively protected.
-diff --git a/mm/Makefile b/mm/Makefile
-index a6a47e1..1e76a9b 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -66,6 +66,7 @@ obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
- obj-$(CONFIG_SLOB) += slob.o
- obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
- obj-$(CONFIG_ARCH_HAS_SET_MEMORY) += pmalloc.o
-+obj-$(CONFIG_PROTECTABLE_MEMORY_SELFTEST) += pmalloc-selftest.o
- obj-$(CONFIG_KSM) += ksm.o
- obj-$(CONFIG_PAGE_POISONING) += page_poison.o
- obj-$(CONFIG_SLAB) += slab.o
-diff --git a/mm/pmalloc-selftest.c b/mm/pmalloc-selftest.c
-new file mode 100644
-index 0000000..1c025f3
---- /dev/null
-+++ b/mm/pmalloc-selftest.c
-@@ -0,0 +1,65 @@
-+/*
-+ * pmalloc-selftest.c
-+ *
-+ * (C) Copyright 2018 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
-+ */
-+
-+#include <linux/pmalloc.h>
-+#include <linux/mm.h>
-+
-+
-+#define SIZE_1 (PAGE_SIZE * 3)
-+#define SIZE_2 1000
-+
-+#define validate_alloc(expected, variable, size)	\
-+	pr_notice("must be " expected ": %s",		\
-+		  is_pmalloc_object(variable, size) > 0 ? "ok" : "no")
-+
-+#define is_alloc_ok(variable, size)	\
-+	validate_alloc("ok", variable, size)
-+
-+#define is_alloc_no(variable, size)	\
-+	validate_alloc("no", variable, size)
-+
-+void pmalloc_selftest(void)
-+{
-+	struct gen_pool *pool_unprot;
-+	struct gen_pool *pool_prot;
-+	void *var_prot, *var_unprot, *var_vmall;
-+
-+	pr_notice("pmalloc self-test");
-+	pool_unprot = pmalloc_create_pool("unprotected", 0);
-+	pool_prot = pmalloc_create_pool("protected", 0);
-+	BUG_ON(!(pool_unprot && pool_prot));
-+
-+	var_unprot = pmalloc(pool_unprot,  SIZE_1 - 1, GFP_KERNEL);
-+	var_prot = pmalloc(pool_prot,  SIZE_1, GFP_KERNEL);
-+	var_vmall = vmalloc(SIZE_2);
-+	is_alloc_ok(var_unprot, 10);
-+	is_alloc_ok(var_unprot, SIZE_1);
-+	is_alloc_ok(var_unprot, PAGE_SIZE);
-+	is_alloc_no(var_unprot, SIZE_1 + 1);
-+	is_alloc_no(var_vmall, 10);
-+
-+
-+	pfree(pool_unprot, var_unprot);
-+	vfree(var_vmall);
-+
-+	pmalloc_protect_pool(pool_prot);
-+
-+	/* This will intentionally trigger a WARN because the pool being
-+	 * destroyed is not protected, which is unusual and should happen
-+	 * on error paths only, where probably other warnings are already
-+	 * displayed.
-+	 */
-+	pmalloc_destroy_pool(pool_unprot);
-+
-+	/* This must not cause WARNings */
-+	pmalloc_destroy_pool(pool_prot);
-+}
-diff --git a/mm/pmalloc-selftest.h b/mm/pmalloc-selftest.h
-new file mode 100644
-index 0000000..3673d23
---- /dev/null
-+++ b/mm/pmalloc-selftest.h
-@@ -0,0 +1,30 @@
-+/*
-+ * pmalloc-selftest.h
-+ *
-+ * (C) Copyright 2018 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
-+ */
-+
-+
-+#ifndef __PMALLOC_SELFTEST_H__
-+#define __PMALLOC_SELFTEST_H__
-+
-+
-+#ifdef CONFIG_PROTECTABLE_MEMORY_SELFTEST
-+
-+#include <linux/pmalloc.h>
-+
-+void pmalloc_selftest(void);
-+
-+#else
-+
-+static inline void pmalloc_selftest(void){};
-+
-+#endif
-+
-+#endif
-diff --git a/mm/pmalloc.c b/mm/pmalloc.c
-index a64ac49..a722d7b 100644
---- a/mm/pmalloc.c
-+++ b/mm/pmalloc.c
-@@ -25,6 +25,8 @@
- #include <asm/cacheflush.h>
- #include <asm/page.h>
- 
-+#include "pmalloc-selftest.h"
-+
- /**
-  * pmalloc_data contains the data specific to a pmalloc pool,
-  * in a format compatible with the design of gen_alloc.
-@@ -508,6 +510,7 @@ static int __init pmalloc_late_init(void)
- 		}
- 	}
- 	mutex_unlock(&pmalloc_mutex);
-+	pmalloc_selftest();
- 	return 0;
- }
- late_initcall(pmalloc_late_init);
 -- 
-2.9.3
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
