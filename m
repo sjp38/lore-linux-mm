@@ -1,53 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 10A71280245
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 14:24:02 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id b11so5254838itj.0
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:24:02 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id 8si687819ior.161.2018.01.24.11.24.00
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 012D9800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 14:26:37 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id r6so3790333pfk.9
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:26:36 -0800 (PST)
+Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com. [216.71.154.42])
+        by mx.google.com with ESMTPS id x10si3308876pff.290.2018.01.24.11.26.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 11:24:01 -0800 (PST)
+        Wed, 24 Jan 2018 11:26:35 -0800 (PST)
+From: Bart Van Assche <Bart.VanAssche@wdc.com>
 Subject: Re: [LSF/MM TOPIC] Patch Submission process and Handling Internal
  Conflict
+Date: Wed, 24 Jan 2018 19:26:20 +0000
+Message-ID: <1516821978.3987.8.camel@wdc.com>
 References: <1516820744.3073.30.camel@HansenPartnership.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <c4598a9a-6995-d67a-dd1c-8e946470eeb4@oracle.com>
-Date: Wed, 24 Jan 2018 11:20:13 -0800
-MIME-Version: 1.0
 In-Reply-To: <1516820744.3073.30.camel@HansenPartnership.com>
-Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <1993780F844C1448B784847B6C3B1795@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org
+To: "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "James.Bottomley@HansenPartnership.com" <James.Bottomley@HansenPartnership.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
 
-On 01/24/2018 11:05 AM, James Bottomley wrote:
-> I've got two community style topics, which should probably be discussed
-> in the plenary
-> 
-> 1. Patch Submission Process
-> 
-> Today we don't have a uniform patch submission process across Storage,
-> Filesystems and MM.  The question is should we (or at least should we
-> adhere to some minimal standards).  The standard we've been trying to
-> hold to in SCSI is one review per accepted non-trivial patch.  For us,
-> it's useful because it encourages driver writers to review each other's
-> patches rather than just posting and then complaining their patch
-> hasn't gone in.  I can certainly think of a couple of bugs I've had to
-> chase in mm where the underlying patches would have benefited from
-> review, so I'd like to discuss making the one review per non-trival
-> patch our base minimum standard across the whole of LSF/MM; it would
-> certainly serve to improve our Reviewed-by statistics.
-
-Well, the mm track at least has some discussion of this last year:
-https://lwn.net/Articles/718212/
-
--- 
-Mike Kravetz
+T24gV2VkLCAyMDE4LTAxLTI0IGF0IDExOjA1IC0wODAwLCBKYW1lcyBCb3R0b21sZXkgd3JvdGU6
+DQo+IDIuIEhhbmRsaW5nIEludGVybmFsIENvbmZsaWN0DQo+IA0KPiBNeSBvYnNlcnZhdGlvbiBo
+ZXJlIGlzIHRoYXQgYWN0dWFsbHkgbW9zdCBjb25mbGljdCBpcyBnZW5lcmF0ZWQgYnkgdGhlDQo+
+IHJldmlldyBwcm9jZXNzIChJIGtub3csIGlmIHdlIGluY3JlYXNlIHJldmlld3MgYXMgSSBwcm9w
+b3NlIGluIDEuIHdlJ2xsDQo+IGluY3JlYXNlIGNvbmZsaWN0IG9uIHRoZSBsaXN0cyBvbiB0aGUg
+YmFzaXMgb2YgdGhpcyBvYnNlcnZhdGlvbiksIHNvDQo+IEkndmUgYmVlbiB0aGlua2luZyBhYm91
+dCB3YXlzIHRvIGRlLWVzY2FsYXRlIGl0LiAgVGhlIHByaW5jaXBsZSBpc3N1ZQ0KPiBpcyB0aGF0
+IGEgcmV2aWV3IHdoaWNoIGRvZXNuJ3QganVzdCBzYXkgdGhlIHBhdGNoIGlzIGZpbmUgKG9yIGZp
+bmUNCj4gZXhjZXB0IGZvciBuaXRwaWNrcykgY2FuIGJlIHRha2VuIGFzIGNyaXRpY2lzbSBhbmQg
+Y3JpdGljaXNtIGlzIG9mdGVuDQo+IHByb2Nlc3NlZCBwZXJzb25hbGx5LiAgVGhlIHdheSB5b3Ug
+cGhyYXNlIGNyaXRpY2lzbSBjYW4gaGF2ZSBhIGdyZWF0DQo+IGJlYXJpbmcgb24gdGhlIGFtb3Vu
+dCBvZiBwZXJzb25hbCBpbnN1bHQgdGFrZW4gYnkgdGhlIG90aGVyIHBhcnR5Lg0KPiAgQ29ybnkg
+YXMgaXQgc291bmRzLCB0aGUgMGRheSBib3QgcmVzcG9uc2UgIkhpIFosIEkgbG92ZSB5b3VyIHBh
+dGNoIQ0KPiBQZXJoYXBzIHNvbWV0aGluZyB0byBpbXByb3ZlOiIgaXMgc3BlY2lmaWNhbGx5IHRh
+cmdldHRlZCBhdCB0aGlzDQo+IHByb2JsZW0gYW5kIHNlZW1zIGFjdHVhbGx5IHRvIHdvcmsuICBJ
+IHRoaW5rIHdlIGNvdWxkIGFsbCBiZW5lZml0IGZyb20NCj4gZGlzY3Vzc2luZyBob3cgdG8gZ2l2
+ZSBhbmQgcmVjZWl2ZSBjcml0aWNpc20gaW4gdGhlIGZvcm0gb2YgcGF0Y2gNCj4gcmV2aWV3cyBy
+ZXNwb25zaWJseSwgZXNwZWNpYWxseSBhcyBub3QgZXZlcnlvbmUncyBuYXRpdmUgbGFuZ3VhZ2Ug
+aW4NCj4gRW5nbGlzaCBhbmQgY2VydGFpbiBjb21tb24gbGluZ3Vpc3RpYyBwaHJhc2luZ3MgaW4g
+b3RoZXIgbGFuZ3VhZ2VzIGNhbg0KPiBjb21lIG9mZiBhcyBydWRlIHdoZW4gZGlyZWN0bHkgdHJh
+bnNsYXRlZCB0byBFbmdsaXNoIChSdXNzaWFuIHNwcmluZ3MNCj4gaW1tZWRpYXRlbHkgdG8gbWlu
+ZCBmb3Igc29tZSByZWFzb24gaGVyZSkuICBBbHNvIE5vdGUsIEkgdGhpbmsgZml4aW5nDQo+IHRo
+ZSByZXZpZXcgcHJvYmxlbSB3b3VsZCBzb2x2ZSBtb3N0IG9mIHRoZSBpc3N1ZXMsIHNvIEknbSBu
+b3QgcHJvcG9zaW5nDQo+IGFueXRoaW5nIG1vcmUgZm9ybWFsIGxpa2UgdGhlIGNvZGUgb2YgY29u
+ZmxpY3Qgc3R1ZmYgaW4gdGhlIG1haW4NCj4ga2VybmVsLg0KPiANCj4gV2UgY291bGQgbHVtcCBi
+b3RoIG9mIHRoZXNlIHVuZGVyIGEgc2luZ2xlICJDb21tdW5pdHkgRGlzY3Vzc2lvbiIgdG9waWMN
+Cj4gaWYgdGhlIG9yZ2FuaXplcnMgcHJlZmVyIC4uLiBlc3BlY2lhbGx5IGlmIGFueW9uZSBoYXMg
+YW55IG90aGVyDQo+IGNvbW11bml0eSB0eXBlIGlzc3VlcyB0aGV5J2QgbGlrZSB0byBicmluZyB1
+cC4NCg0KSGVsbG8gSmFtZXMsDQoNCkhvdyBhYm91dCBkaXNjdXNzaW5nIHRoZSBmb2xsb3dpbmcg
+dHdvIGFkZGl0aW9uYWwgdG9waWNzIGR1cmluZyB0aGUgc2FtZSBvcg0KYW5vdGhlciBzZXNzaW9u
+Og0KKiBXZSBhbGwgd2FudCBhIGNvbmNlbnN1cyBhYm91dCB0aGUgY29kZSBhbmQgdGhlIGFsZ29y
+aXRobXMgaW4gdGhlIExpbnV4DQogIGtlcm5lbC4gSG93ZXZlciwgc29tZSBjb250cmlidXRvcnMg
+YXJlIG5vdCBpbnRlcmVzdGVkIGluIHRyeWluZyB0byBzdHJpdmUNCiAgdG93YXJkcyBhIGNvbmNl
+bnN1cy4gSWYgc29tZSBjb250cmlidXRvcnMgZS5nLiByZWNlaXZlIGEgcmVxdWVzdCB0byByZXdv
+cmsNCiAgdGhlaXIgcGF0Y2hlcywgaWYgdGhleSBkb24ndCBsaWtlIHRoYXQgcmVxdWVzdCBhbmQg
+aWYgdGhlIHJldmlld2VyIGlzDQogIHdvcmtpbmcgZm9yIHRoZSBzYW1lIGVtcGxveWVyIHNvbWV0
+aW1lcyB0aGV5IHRyeSB0byB1c2UgdGhlIGNvcnBvcmF0ZQ0KICBoaWVyYXJjaHkgdG8gbWFrZSB0
+aGUgcmV2aWV3ZXIgc2h1dCB1cC4gSSB0aGluayB0aGlzIGlzIGJlaGF2aW9yIHRoYXQgd29ya3MN
+CiAgYWdhaW5zdCB0aGUgbG9uZy10ZXJtIGludGVyZXN0cyBvZiB0aGUgTGludXgga2VybmVsLg0K
+KiBTb21lIG90aGVyIGNvbnRyaWJ1dG9ycyBhcmUgbm90IGludGVyZXN0ZWQgaW4gYWNoaWV2aW5n
+IGEgY29uc2Vuc3VzIGFuZCBkbw0KICBub3QgYXR0ZW1wdCB0byBhZGRyZXNzIHJldmlld2VyIGZl
+ZWRiYWNrIGJ1dCBpbnN0ZWFkIGtlZXAgYXJndWluZyBvciBkbyB3aGF0DQogIHRoZXkgY2FuIHRv
+IGluc3VsdCB0aGUgcmV2aWV3ZXIuDQoNClRoYW5rcywNCg0KQmFydC4=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
