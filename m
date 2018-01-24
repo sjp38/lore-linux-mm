@@ -1,124 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CD5A8800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 15:32:42 -0500 (EST)
-Received: by mail-vk0-f71.google.com with SMTP id s75so2804680vke.23
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 12:32:42 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id b128si3179367vkh.53.2018.01.24.12.32.41
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EB401800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 16:11:40 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id r196so5358441itc.4
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 13:11:40 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s68sor610793ioi.98.2018.01.24.13.11.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 12:32:41 -0800 (PST)
-Subject: Re: [PATCH v2] mm: Reduce memory bloat with THP
-References: <1516318444-30868-1-git-send-email-nitingupta910@gmail.com>
- <20180119124957.GA6584@dhcp22.suse.cz>
-From: Nitin Gupta <nitin.m.gupta@oracle.com>
-Message-ID: <ce7c1498-9f28-2eb0-67b7-ade9b04b8e2b@oracle.com>
-Date: Fri, 19 Jan 2018 12:59:17 -0800
+        (Google Transport Security);
+        Wed, 24 Jan 2018 13:11:39 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180119124957.GA6584@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CACT4Y+apdswWOB1XW6HsG+AUowVhozhO1ZeHDeCRBCkY8gkYfg@mail.gmail.com>
+References: <001a1144d6e854b3c90562668d74@google.com> <20180124174723.25289-1-joelaf@google.com>
+ <CACT4Y+apdswWOB1XW6HsG+AUowVhozhO1ZeHDeCRBCkY8gkYfg@mail.gmail.com>
+From: Joel Fernandes <joelaf@google.com>
+Date: Wed, 24 Jan 2018 13:11:38 -0800
+Message-ID: <CAJWu+oo1g3oAuDQAbmB+vyX4tX+7y24Wj5LqXGnt9eFFRsFdUw@mail.gmail.com>
+Subject: Re: possible deadlock in shmem_file_llseek
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Nitin Gupta <nitingupta910@gmail.com>
-Cc: steven.sistare@oracle.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Nadav Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Vegard Nossum <vegard.nossum@oracle.com>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Shaohua Li <shli@fb.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Tobin C Harding <me@tobin.cc>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, syzbot <syzbot+8ec30bb7bf1a981a2012@syzkaller.appspotmail.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs@googlegroups.com
 
-On 1/19/18 4:49 AM, Michal Hocko wrote:
-> On Thu 18-01-18 15:33:16, Nitin Gupta wrote:
->> From: Nitin Gupta <nitin.m.gupta@oracle.com>
+On Wed, Jan 24, 2018 at 10:40 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Wed, Jan 24, 2018 at 6:47 PM, Joel Fernandes <joelaf@google.com> wrote:
 >>
->> Currently, if the THP enabled policy is "always", or the mode
->> is "madvise" and a region is marked as MADV_HUGEPAGE, a hugepage
->> is allocated on a page fault if the pud or pmd is empty.  This
->> yields the best VA translation performance, but increases memory
->> consumption if some small page ranges within the huge page are
->> never accessed.
-> 
-> Yes, this is true but hardly unexpected for MADV_HUGEPAGE or THP always
-> users.
->  
-
-Yes, allocating hugepage on first touch is the current behavior for
-above two cases. However, I see issues with this current behavior.
-Firstly, THP=always mode is often too aggressive/wasteful to be useful
-for any realistic workloads. For THP=madvise, users may want to back
-active parts of memory region with hugepages while avoiding aggressive
-hugepage allocation on first touch. Or, they may really want the current
-behavior.
-
-With this patch, users would have the option to pick what behavior they
-want by passing hints to the kernel in the form of MADV_HUGEPAGE and
-MADV_DONTNEED madvise calls.
-
-
->> An alternate behavior for such page faults is to install a
->> hugepage only when a region is actually found to be (almost)
->> fully mapped and active.  This is a compromise between
->> translation performance and memory consumption.  Currently there
->> is no way for an application to choose this compromise for the
->> page fault conditions above.
-> 
-> Is that really true? We have /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none
-> This is not reflected during the PF of course but you can control the
-> behavior there as well. Either by the global setting or a per proces
-> prctl.
-> 
-
-I think this part of patch description needs some rewording. This patch
-is to change *only* the page fault behavior.
-
-Once pages are installed, khugepaged does its job as usual, using
-max_ptes_none and other config values. I'm not trying to change any
-khugepaged behavior here.
-
-
->> With this change, whenever an application issues MADV_DONTNEED on a
->> memory region, the region is marked as "space-efficient". For such
->> regions, a hugepage is not immediately allocated on first write.
-> 
-> Kirill didn't like it in the previous version and I do not like this
-> either. You are adding a very subtle side effect which might completely
-> unexpected. Consider userspace memory allocator which uses MADV_DONTNEED
-> to free up unused memory. Now you have put it out of THP usage
-> basically.
+>> #syz test: https://github.com/joelagnel/linux.git test-ashmem
 >
+>
+> Oops, this email somehow ended up without Content-Type header, which
+> was unexpected on syzbot side. Now should be fixed with:
+> https://github.com/google/syzkaller/commit/866f1102f786c19a67e3857f891eaf5107550663
+>
+> Let's try again:
+>
+> #syz test: https://github.com/joelagnel/linux.git test-ashmem
 
-Userpsace may want a region to be considered by khugepaged while opting
-out of hugepage allocation on first touch. Asking userspace memory
-allocators to have to track and reclaim unused parts of a THP allocated
-hugepage does not seems right, as the kernel can use simple userspace
-hints to avoid allocating extra memory in the first place.
+Hehe glad I could trigger the syzcaller side bug ;D I actually edited
+the email in plain text to be more git send-email friendly... sorry
+I'm old fashioned but in this case it worked out for the better ;)
 
-I agree that this patch is adding a subtle side-effect which may take
-some applications by surprise. However, I often see the opposite too:
-for many workloads, disabling THP is the first advise as this aggressive
-allocation of hugepages on first touch is unexpected and is too
-wasteful. For e.g.:
-
-1) Disabling THP for TokuDB (Storage engine for MySQL, MariaDB)
-http://www.chriscalender.com/disabling-transparent-hugepages-for-tokudb/
-
-2) Disable THP on MongoDB
-https://docs.mongodb.com/manual/tutorial/transparent-huge-pages/
-
-3) Disable THP for Couchbase Server
-https://blog.couchbase.com/often-overlooked-linux-os-tweaks/
-
-4) Redis
-http://antirez.com/news/84
-
-
-> If the memory is used really scarce then we have MADV_NOHUGEPAGE.
-> 
-
-It's not really about memory scarcity but a more efficient use of it.
-Applications may want hugepage benefits without requiring any changes to
-app code which is what THP is supposed to provide, while still avoiding
-memory bloat.
-
--Nitin
+- Joel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
