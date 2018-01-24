@@ -1,58 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1763D800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 14:23:53 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id p20so3769746pfh.17
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:23:53 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id c41-v6si612717plj.682.2018.01.24.11.23.51
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 10A71280245
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 14:24:02 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id b11so5254838itj.0
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:24:02 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id 8si687819ior.161.2018.01.24.11.24.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 11:23:52 -0800 (PST)
-Subject: Re: [PATCH 2/2] free_pcppages_bulk: prefetch buddy while not holding
- lock
-References: <20180124023050.20097-1-aaron.lu@intel.com>
- <20180124023050.20097-2-aaron.lu@intel.com>
- <20180124164344.lca63gjn7mefuiac@techsingularity.net>
- <148a42d8-8306-2f2f-7f7c-86bc118f8ccd@intel.com>
- <20180124181921.vnivr32q72ey7p5i@techsingularity.net>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <525a20be-dea9-ed54-ca8e-8c4bc5e8a04f@intel.com>
-Date: Wed, 24 Jan 2018 11:23:49 -0800
+        Wed, 24 Jan 2018 11:24:01 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC] Patch Submission process and Handling Internal
+ Conflict
+References: <1516820744.3073.30.camel@HansenPartnership.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <c4598a9a-6995-d67a-dd1c-8e946470eeb4@oracle.com>
+Date: Wed, 24 Jan 2018 11:20:13 -0800
 MIME-Version: 1.0
-In-Reply-To: <20180124181921.vnivr32q72ey7p5i@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
+In-Reply-To: <1516820744.3073.30.camel@HansenPartnership.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>
+Cc: lsf-pc@lists.linux-foundation.org
 
-On 01/24/2018 10:19 AM, Mel Gorman wrote:
->> IOW, I don't think this has the same downsides normally associated with
->> prefetch() since the data is always used.
-> That doesn't side-step the calculations are done twice in the
-> free_pcppages_bulk path and there is no guarantee that one prefetch
-> in the list of pages being freed will not evict a previous prefetch
-> due to collisions.
+On 01/24/2018 11:05 AM, James Bottomley wrote:
+> I've got two community style topics, which should probably be discussed
+> in the plenary
+> 
+> 1. Patch Submission Process
+> 
+> Today we don't have a uniform patch submission process across Storage,
+> Filesystems and MM.  The question is should we (or at least should we
+> adhere to some minimal standards).  The standard we've been trying to
+> hold to in SCSI is one review per accepted non-trivial patch.  For us,
+> it's useful because it encourages driver writers to review each other's
+> patches rather than just posting and then complaining their patch
+> hasn't gone in.  I can certainly think of a couple of bugs I've had to
+> chase in mm where the underlying patches would have benefited from
+> review, so I'd like to discuss making the one review per non-trival
+> patch our base minimum standard across the whole of LSF/MM; it would
+> certainly serve to improve our Reviewed-by statistics.
 
-Fair enough.  The description here could probably use some touchups to
-explicitly spell out the downsides.
+Well, the mm track at least has some discussion of this last year:
+https://lwn.net/Articles/718212/
 
-I do agree with you that there is no guarantee that this will be
-resident in the cache before use.  In fact, it might be entertaining to
-see if we can show the extra conflicts in the L1 given from this change
-given a large enough PCP batch size.
-
-But, this isn't just about the L1.  If the results of the prefetch()
-stay in *ANY* cache, then the memory bandwidth impact of this change is
-still zero.  You'll have a lot harder time arguing that we're likely to
-see L2/L3 evictions in this path for our typical PCP batch sizes.
-
-Do you want to see some analysis for less-frequent PCP frees?  We could
-pretty easily instrument the latency doing normal-ish things to see if
-we can measure a benefit from this rather than a tight-loop micro.
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
