@@ -1,182 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C124800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:27:54 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id r196so4599877itc.4
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 08:27:54 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id m97si516317ioo.132.2018.01.24.08.27.52
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E22E1800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 11:36:37 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id b4so2753113pgs.5
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 08:36:37 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id k69si322515pgd.749.2018.01.24.08.36.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 08:27:52 -0800 (PST)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w0OGQwAh087239
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 16:27:52 GMT
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by userp2120.oracle.com with ESMTP id 2fpvwygcen-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 16:27:51 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w0OGRnP5022343
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 16:27:49 GMT
-Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w0OGRmnD027870
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 16:27:49 GMT
-Received: by mail-ot0-f171.google.com with SMTP id d7so4084903oti.0
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 08:27:48 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20180124143545.31963-2-erosca@de.adit-jv.com>
-References: <20180124143545.31963-1-erosca@de.adit-jv.com> <20180124143545.31963-2-erosca@de.adit-jv.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Wed, 24 Jan 2018 11:27:47 -0500
-Message-ID: <CAOAebxvwO12EFUH6PZLcP19WcEM70xEGwkEgF4DL62CFOFsqcw@mail.gmail.com>
-Subject: Re: [PATCH v3 1/1] mm: page_alloc: skip over regions of invalid pfns
- on UMA
-Content-Type: text/plain; charset="UTF-8"
+        Wed, 24 Jan 2018 08:36:36 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 0/3] x86/mm/encrypt: Cleanup and switching between paging modes
+Date: Wed, 24 Jan 2018 19:36:20 +0300
+Message-Id: <20180124163623.61765-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eugeniu Rosca <erosca@de.adit-jv.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Looks good.
+This patcheset is a preparation set for boot-time switching between
+paging modes. Please review and consider applying.
 
-Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Code around sme_populate_pgd() is unnecessary complex and hard to modify.
 
-On Wed, Jan 24, 2018 at 9:35 AM, Eugeniu Rosca <erosca@de.adit-jv.com> wrote:
-> As a result of bisecting the v4.10..v4.11 commit range, it was
-> determined that commits [1] and [2] are both responsible of a ~140ms
-> early startup improvement on Rcar-H3-ES20 arm64 platform.
->
-> Since Rcar Gen3 family is not NUMA, we don't define CONFIG_NUMA in the
-> rcar3 defconfig (which also reduces KNL binary image by ~64KB), but this
-> is how the boot time improvement is lost.
->
-> This patch makes optimization [2] available on UMA systems which
-> provide support for CONFIG_HAVE_MEMBLOCK.
->
-> Testing this change on Rcar H3-ES20-ULCB using v4.15-rc9 KNL and
-> vanilla arm64 defconfig + NUMA=n, a speed-up of ~139ms (from ~174ms [3]
-> to ~35ms [4]) is observed in the execution of memmap_init_zone().
->
-> No boot time improvement is sensed on Apollo Lake SoC.
->
-> [1] commit 0f84832fb8f9 ("arm64: defconfig: Enable NUMA and NUMA_BALANCING")
-> [2] commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns where possible")
->
-> [3] 174ms spent in memmap_init_zone() on H3ULCB w/o this patch (NUMA=n)
-> [    2.643685] On node 0 totalpages: 1015808
-> [    2.643688]   DMA zone: 3584 pages used for memmap
-> [    2.643691]   DMA zone: 0 pages reserved
-> [    2.643693]   DMA zone: 229376 pages, LIFO batch:31
-> [    2.643696] > memmap_init_zone
-> [    2.663628] < memmap_init_zone (19.932 ms)
-> [    2.663632]   Normal zone: 12288 pages used for memmap
-> [    2.663635]   Normal zone: 786432 pages, LIFO batch:31
-> [    2.663637] > memmap_init_zone
-> [    2.818012] < memmap_init_zone (154.375 ms)
-> [    2.818041] psci: probing for conduit method from DT.
->
-> [4] 35ms spent in memmap_init_zone() on H3ULCB with this patch (NUMA=n)
-> [    2.677202] On node 0 totalpages: 1015808
-> [    2.677205]   DMA zone: 3584 pages used for memmap
-> [    2.677208]   DMA zone: 0 pages reserved
-> [    2.677211]   DMA zone: 229376 pages, LIFO batch:31
-> [    2.677213] > memmap_init_zone
-> [    2.684378] < memmap_init_zone (7.165 ms)
-> [    2.684382]   Normal zone: 12288 pages used for memmap
-> [    2.684385]   Normal zone: 786432 pages, LIFO batch:31
-> [    2.684387] > memmap_init_zone
-> [    2.712556] < memmap_init_zone (28.169 ms)
-> [    2.712584] psci: probing for conduit method from DT.
->
-> Signed-off-by: Eugeniu Rosca <erosca@de.adit-jv.com>
-> Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
-> ---
->  include/linux/memblock.h | 1 -
->  include/linux/mm.h       | 6 ++++++
->  mm/memblock.c            | 2 ++
->  mm/page_alloc.c          | 2 --
->  4 files changed, 8 insertions(+), 3 deletions(-)
->
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 7ed0f7782d16..9efd592c5da4 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -187,7 +187,6 @@ int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
->                             unsigned long  *end_pfn);
->  void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
->                           unsigned long *out_end_pfn, int *out_nid);
-> -unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
->
->  /**
->   * for_each_mem_pfn_range - early memory pfn range iterator
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index ea818ff739cd..b82b30522585 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2064,8 +2064,14 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
->
->  #ifdef CONFIG_HAVE_MEMBLOCK
->  void zero_resv_unavail(void);
-> +unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
->  #else
->  static inline void zero_resv_unavail(void) {}
-> +static inline unsigned long memblock_next_valid_pfn(unsigned long pfn,
-> +                                                   unsigned long max_pfn)
-> +{
-> +       return pfn + 1;
-> +}
->  #endif
->
->  extern void set_dma_reserve(unsigned long new_dma_reserve);
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 46aacdfa4f4d..ad48cf200e3b 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1100,6 +1100,7 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
->         if (out_nid)
->                 *out_nid = r->nid;
->  }
-> +#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->
->  unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
->                                                       unsigned long max_pfn)
-> @@ -1129,6 +1130,7 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
->                 return min(PHYS_PFN(type->regions[right].base), max_pfn);
->  }
->
-> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->  /**
->   * memblock_set_node - set node ID on memblock regions
->   * @base: base of area to set node ID for
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 76c9688b6a0a..4a3d5936a9a0 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5344,14 +5344,12 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->                         goto not_early;
->
->                 if (!early_pfn_valid(pfn)) {
-> -#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->                         /*
->                          * Skip to the pfn preceding the next valid one (or
->                          * end_pfn), such that we hit a valid pfn (or end_pfn)
->                          * on our next iteration of the loop.
->                          */
->                         pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
-> -#endif
->                         continue;
->                 }
->                 if (!early_pfn_in_nid(pfn, nid))
-> --
-> 2.15.1
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This patchset rewrites it in more stream-lined way to add support of
+boot-time switching between paging modes.
+
+I haven't tested the patchset on hardware capable of memory encryption.
+
+v3:
+ - Move all page table related functions into mem_encrypt_identity.c
+v2:
+ - Rebased to up-to-date tip
+
+Kirill A. Shutemov (3):
+  x86/mm/encrypt: Move page table helpers into separate translation unit
+  x86/mm/encrypt: Rewrite sme_populate_pgd() and
+    sme_populate_pgd_large()
+  x86/mm/encrypt: Rewrite sme_pgtable_calc()
+
+ arch/x86/mm/Makefile               |  14 +-
+ arch/x86/mm/mem_encrypt.c          | 578 +------------------------------------
+ arch/x86/mm/mem_encrypt_identity.c | 563 ++++++++++++++++++++++++++++++++++++
+ arch/x86/mm/mm_internal.h          |   1 +
+ 4 files changed, 574 insertions(+), 582 deletions(-)
+ create mode 100644 arch/x86/mm/mem_encrypt_identity.c
+
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
