@@ -1,65 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 287F2800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 13:46:11 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id h13so7354788qtj.1
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 10:46:11 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b190sor675635qka.152.2018.01.24.10.46.10
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Jan 2018 10:46:10 -0800 (PST)
-Date: Wed, 24 Jan 2018 10:46:06 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180124184606.GA17457@devbig577.frc2.facebook.com>
-References: <20180110132418.7080-1-pmladek@suse.com>
- <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
- <20180110162900.GA21753@linux.suse>
- <20180110170223.GF3668920@devbig577.frc2.facebook.com>
- <20180124093607.GK2269@hirez.programming.kicks-ass.net>
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CD163800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 13:58:02 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id r13so1406258lff.22
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 10:58:02 -0800 (PST)
+Received: from shrek.podlesie.net (shrek-3s.podlesie.net. [2a00:13a0:3010::1])
+        by mx.google.com with ESMTP id h8si1122112lfk.359.2018.01.24.10.58.00
+        for <linux-mm@kvack.org>;
+        Wed, 24 Jan 2018 10:58:00 -0800 (PST)
+Date: Wed, 24 Jan 2018 19:58:00 +0100
+From: Krzysztof Mazur <krzysiek@podlesie.net>
+Subject: Re: [RFC PATCH 00/16] PTI support for x86-32
+Message-ID: <20180124185800.GA11515@shrek.podlesie.net>
+References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180124093607.GK2269@hirez.programming.kicks-ass.net>
+In-Reply-To: <1516120619-1159-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Petr Mladek <pmladek@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, akpm@linux-foundation.org, Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>
 
-Hello, Peter.
-
-On Wed, Jan 24, 2018 at 10:36:07AM +0100, Peter Zijlstra wrote:
-> On Wed, Jan 10, 2018 at 09:02:23AM -0800, Tejun Heo wrote:
-> > 1. Console is IPMI emulated serial console.  Super slow.  Also
-> >    netconsole is in use.
+On Tue, Jan 16, 2018 at 05:36:43PM +0100, Joerg Roedel wrote:
+> From: Joerg Roedel <jroedel@suse.de>
 > 
-> So my IPMI SoE typically run at 115200 Baud (or higher) and I've not had
-> trouble like that (granted I don't typically trigger OOM storms, but
-> they do occasionally happen).
+> Hi,
 > 
-> Is your IPMI much slower and not fixable to be faster?
+> here is my current WIP code to enable PTI on x86-32. It is
+> still in a pretty early state, but it successfully boots my
+> KVM guest with PAE and with legacy paging. The existing PTI
+> code for x86-64 already prepares a lot of the stuff needed
+> for 32 bit too, thanks for that to all the people involved
+> in its development :)
 
-It looks like the latest machines have the baud rate at 57600 and I'm
-pretty sure we have a lot of slower ones.  57600 isn't 9600 but is
-still slow enough to get into trouble often enough.  There are a huge
-number of machines running all sorts of things under heavy load and
-trying to rapidly deploy new kernels / features contributes to
-encountering bugs and weird corner cases.
+Hi,
 
-UART can run a lot faster and I have no idea why IPMI consoles behave
-as if they were connected over mile-long DB9 cables.  Maybe we can
-convince hardware people to improve it but, even if that happened
-today, we'd still be looking at years of dealing with slower ones, and
-IPMI situation here is likely better than what many others are facing.
+I've waited for this patches for a long time, until I've tried to
+exploit meltdown on some old 32-bit CPUs and failed. Pentium M
+seems to speculatively execute the second load with eax
+always equal to 0:
 
-idk, it's not a particularly difficult problem to solve from kernel
-side.  Just need to figure out a better / more robust trade-off.
+	movzx (%[addr]), %%eax
+	shl $12, %%eax
+	movzx (%[target], %%eax), %%eax
 
-Thanks.
+And on Pentium 4-based Xeon the second load seems to be never executed,
+even without shift (shifts are slow on some or all Pentium 4's). Maybe
+not all P6 and Netbursts CPUs are affected, but I'm not sure. Maybe the
+kernel, at least on 32-bit, should try to exploit meltdown to test if
+the CPU is really affected.
 
--- 
-tejun
+
+The series boots on Pentium M (and crashes when I've used perf,
+but it is an already known issue). However, I don't like
+the performance regression with CONFIG_PAGE_TABLE_ISOLATION=n
+(about 7.2%), trivial "benchmark":
+
+--- cut here ---
+#include <unistd.h>
+#include <fcntl.h>
+
+int main(void)
+{
+	unsigned long i;
+	int fd;
+
+	fd = open("/dev/null", O_WRONLY);
+	for (i = 0; i < 10000000; i++) {
+		char x = 0;
+		write(fd, &x, 1);
+	}
+	return 0;
+}
+--- cut here ---
+
+Time (on Pentium M 1.73 GHz):
+
+baseline (4.15.0-rc8-gdda3e152):		2.415 s (+/- 0.64%)
+patched, without CONFIG_PAGE_TABLE_ISOLATION=n	2.588 s (+/- 0.01%)
+patched, nopti					2.597 s (+/- 0.31%)
+patched, pti					18.272 s
+(some older kernel, pre 4.15)			2.378 s
+
+Thanks,
+Krzysiek
+--
+perf results:
+
+baseline:
+
+ Performance counter stats for './bench' (5 runs):
+
+       2401.539139 task-clock:HG             #    0.995 CPUs utilized            ( +-  0.23% )
+                23 context-switches:HG       #    0.009 K/sec                    ( +-  4.02% )
+                 0 cpu-migrations:HG         #    0.000 K/sec                  
+                30 page-faults:HG            #    0.013 K/sec                    ( +-  1.24% )
+        4142375834 cycles:HG                 #    1.725 GHz                      ( +-  0.23% ) [39.99%]
+         385110908 stalled-cycles-frontend:HG #    9.30% frontend cycles idle     ( +-  0.06% ) [40.01%]
+   <not supported> stalled-cycles-backend:HG
+        4142489274 instructions:HG           #    1.00  insns per cycle        
+                                             #    0.09  stalled cycles per insn  ( +-  0.00% ) [40.00%]
+         802270380 branches:HG               #  334.065 M/sec                    ( +-  0.00% ) [40.00%]
+             34278 branch-misses:HG          #    0.00% of all branches          ( +-  1.94% ) [40.00%]
+
+       2.414741497 seconds time elapsed                                          ( +-  0.64% )
+
+patched, without CONFIG_PAGE_TABLE_ISOLATION=n
+
+ Performance counter stats for './bench' (5 runs):
+
+       2587.026405 task-clock:HG             #    1.000 CPUs utilized            ( +-  0.01% )
+                28 context-switches:HG       #    0.011 K/sec                    ( +-  5.95% )
+                 0 cpu-migrations:HG         #    0.000 K/sec                  
+                31 page-faults:HG            #    0.012 K/sec                    ( +-  1.21% )
+        4462401079 cycles:HG                 #    1.725 GHz                      ( +-  0.01% ) [39.98%]
+         388646121 stalled-cycles-frontend:HG #    8.71% frontend cycles idle     ( +-  0.05% ) [40.01%]
+   <not supported> stalled-cycles-backend:HG
+        4283638646 instructions:HG           #    0.96  insns per cycle        
+                                             #    0.09  stalled cycles per insn  ( +-  0.00% ) [40.03%]
+         822484311 branches:HG               #  317.927 M/sec                    ( +-  0.00% ) [40.01%]
+             39372 branch-misses:HG          #    0.00% of all branches          ( +-  2.33% ) [39.98%]
+
+       2.587818354 seconds time elapsed                                          ( +-  0.01% )
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
