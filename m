@@ -1,75 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D4A8E800D8
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 06:29:05 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id r196so7239335itc.4
-        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 03:29:05 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id z29si1882029ioi.91.2018.01.25.03.29.03
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 19291800D8
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 06:41:07 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id 31so4376815wru.0
+        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 03:41:07 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y71si725452wmd.200.2018.01.25.03.41.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Jan 2018 03:29:04 -0800 (PST)
-Subject: Re: [PATCH v24 2/2] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-References: <1516790562-37889-1-git-send-email-wei.w.wang@intel.com>
- <1516790562-37889-3-git-send-email-wei.w.wang@intel.com>
- <20180124183349-mutt-send-email-mst@kernel.org> <5A694FB5.5090803@intel.com>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <17068749-d2c7-61bb-4637-a1aee5a0d0fb@I-love.SAKURA.ne.jp>
-Date: Thu, 25 Jan 2018 20:28:52 +0900
+        Thu, 25 Jan 2018 03:41:05 -0800 (PST)
+Date: Thu, 25 Jan 2018 12:41:04 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
+Message-ID: <20180125114104.GP28465@dhcp22.suse.cz>
+References: <20171115140020.GA6771@cmpxchg.org>
+ <20171115141113.2nw4c4nejermhckb@dhcp22.suse.cz>
+ <201801250204.w0P24NKZ033992@www262.sakura.ne.jp>
+ <20180125083604.GM28465@dhcp22.suse.cz>
+ <201801251956.FAH73425.VFJLFFtSHOOMQO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <5A694FB5.5090803@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201801251956.FAH73425.VFJLFFtSHOOMQO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: hannes@cmpxchg.org, linux-mm@lists.ewheeler.net, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, akpm@linux-foundation.org, shakeelb@google.com, gthelen@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2018/01/25 12:32, Wei Wang wrote:
-> On 01/25/2018 01:15 AM, Michael S. Tsirkin wrote:
->> On Wed, Jan 24, 2018 at 06:42:42PM +0800, Wei Wang wrote:
->> +
->> +static void report_free_page_func(struct work_struct *work)
->> +{
->> +    struct virtio_balloon *vb;
->> +    unsigned long flags;
->> +
->> +    vb = container_of(work, struct virtio_balloon, report_free_page_work);
->> +
->> +    /* Start by sending the obtained cmd id to the host with an outbuf */
->> +    send_cmd_id(vb, &vb->start_cmd_id);
->> +
->> +    /*
->> +     * Set start_cmd_id to VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID to
->> +     * indicate a new request can be queued.
->> +     */
->> +    spin_lock_irqsave(&vb->stop_update_lock, flags);
->> +    vb->start_cmd_id = cpu_to_virtio32(vb->vdev,
->> +                VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
->> +    spin_unlock_irqrestore(&vb->stop_update_lock, flags);
->> +
->> +    walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
->> Can you teach walk_free_mem_block to return the && of all
->> return calls, so caller knows whether it completed?
+On Thu 25-01-18 19:56:59, Tetsuo Handa wrote:
+[...]
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 1afb2af..9858449 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -410,6 +410,9 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>  	return freed;
+>  }
+>  
+> +struct lockdep_map __shrink_slab_map =
+> +	STATIC_LOCKDEP_MAP_INIT("shrink_slab", &__shrink_slab_map);
+> +
+>  /**
+>   * shrink_slab - shrink slab caches
+>   * @gfp_mask: allocation context
+> @@ -453,6 +456,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>  		goto out;
+>  	}
+>  
+> +	lock_map_acquire(&__shrink_slab_map);
+> +
+>  	list_for_each_entry(shrinker, &shrinker_list, list) {
+>  		struct shrink_control sc = {
+>  			.gfp_mask = gfp_mask,
+> @@ -491,6 +496,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>  		}
+>  	}
+>  
+> +	lock_map_release(&__shrink_slab_map);
+> +
+>  	up_read(&shrinker_rwsem);
+>  out:
+>  	cond_resched();
+
+I am not an expert on lockdep annotations. But is this something that
+makes sense? Don't you need lock_acquire_shared otherwise it will simply
+consider this a lockup if we succeed on trylock twice? But in any case
+the trylock already notes any dependency as the lockdep is involved when
+the lock is taken and we do not take any action otherwise. So what is
+the point?
+
+I am not familiar with XFS to read the lockdep trace properly.
+
+[...]
+ 
+> Normally shrinker_rwsem acts like a shared lock. But when
+> register_shrinker()/unregister_shrinker() called down_write(),
+> shrinker_rwsem suddenly starts acting like an exclusive lock.
+
+How come? We only do trylock and that means that we won't take it
+_after_ the write claims the lock.
+
+> What is unfortunate is that down_write() is called independent of
+> memory allocation requests. That is, shrinker_rwsem is essentially
+> a mutex (and hence the debug patch shown above).
 > 
-> There will be two cases that can cause walk_free_mem_block to return without completing:
-> 1) host requests to stop in advance
-> 2) vq->broken
+> ----------------------------------------
+> [<ffffffffac7538d3>] call_rwsem_down_write_failed+0x13/0x20
+> [<ffffffffac1cb985>] register_shrinker+0x45/0xa0
+> [<ffffffffac250f68>] sget_userns+0x468/0x4a0
+> [<ffffffffac25106a>] mount_nodev+0x2a/0xa0
+> [<ffffffffac251be4>] mount_fs+0x34/0x150
+> [<ffffffffac2701f2>] vfs_kern_mount+0x62/0x120
+> [<ffffffffac272a0e>] do_mount+0x1ee/0xc50
+> [<ffffffffac27377e>] SyS_mount+0x7e/0xd0
+> [<ffffffffac003831>] do_syscall_64+0x61/0x1a0
+> [<ffffffffac80012c>] entry_SYSCALL64_slow_path+0x25/0x25
+> [<ffffffffffffffff>] 0xffffffffffffffff
+> ----------------------------------------
 > 
-> How about letting walk_free_mem_block simply return the value returned by its callback (i.e. virtio_balloon_send_free_pages)?
-> 
-> For host requests to stop, it returns "1", and the above only bails out when walk_free_mem_block return a "< 0" value.
+> Therefore, I think that when do_shrink_slab() for GFP_KERNEL is in progress
+> and down_read_trylock() starts failing because somebody else started waiting at
+> down_write(), do_shrink_slab() for GFP_NOFS or GFP_NOIO cannot be called.
+> Doesn't such race cause unexpected results?
 
-I feel that virtio_balloon_send_free_pages is doing too heavy things.
-
-It can be called for many times with IRQ disabled. Number of times
-it is called depends on amount of free pages (and fragmentation state).
-Generally, more free pages, more calls.
-
-Then, why don't you allocate some pages for holding all pfn values
-and then call walk_free_mem_block() only for storing pfn values
-and then send pfn values without disabling IRQ?
+This is really hard to tell. I would expect that a skipped shrinkers
+would lead to an OOM killer sooner or later. As soon as the shrinker
+managed memory is the only one left for reclaim then we should OOM.
+And I do not see anything obvious that would prevent that.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
