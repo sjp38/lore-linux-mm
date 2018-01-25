@@ -1,67 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A9836800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 22:29:37 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id u65so4825459pfd.7
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 19:29:37 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id d9-v6si569809pli.825.2018.01.24.19.29.35
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B7A80800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 22:56:04 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id v8so3899725oth.0
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 19:56:04 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o64sor190004oik.109.2018.01.24.19.56.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 19:29:36 -0800 (PST)
-Message-ID: <5A694FB5.5090803@intel.com>
-Date: Thu, 25 Jan 2018 11:32:05 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (Google Transport Security);
+        Wed, 24 Jan 2018 19:56:03 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v24 2/2] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-References: <1516790562-37889-1-git-send-email-wei.w.wang@intel.com> <1516790562-37889-3-git-send-email-wei.w.wang@intel.com> <20180124183349-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180124183349-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 24 Jan 2018 19:56:02 -0800
+Message-ID: <CAPcyv4gQNM9RbTbRWKnG6Vby_CW9CJ9EZTARsVNi=9cas7ZR2A@mail.gmail.com>
+Subject: [LSF/MM TOPIC] Filesystem-DAX, page-pinning, and RDMA
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: lsf-pc@lists.linux-foundation.org
+Cc: Christoph Hellwig <hch@infradead.org>, Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>, linux-rdma <linux-rdma@vger.kernel.org>, linux-nvdimm@lists.01.org, jgg@mellanox.com
 
-On 01/25/2018 01:15 AM, Michael S. Tsirkin wrote:
-> On Wed, Jan 24, 2018 at 06:42:42PM +0800, Wei Wang wrote:
-> +
-> +static void report_free_page_func(struct work_struct *work)
-> +{
-> +	struct virtio_balloon *vb;
-> +	unsigned long flags;
-> +
-> +	vb = container_of(work, struct virtio_balloon, report_free_page_work);
-> +
-> +	/* Start by sending the obtained cmd id to the host with an outbuf */
-> +	send_cmd_id(vb, &vb->start_cmd_id);
-> +
-> +	/*
-> +	 * Set start_cmd_id to VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID to
-> +	 * indicate a new request can be queued.
-> +	 */
-> +	spin_lock_irqsave(&vb->stop_update_lock, flags);
-> +	vb->start_cmd_id = cpu_to_virtio32(vb->vdev,
-> +				VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
-> +	spin_unlock_irqrestore(&vb->stop_update_lock, flags);
-> +
-> +	walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
-> Can you teach walk_free_mem_block to return the && of all
-> return calls, so caller knows whether it completed?
+The get_user_pages_longterm() api was recently added as a stop-gap
+measure to prevent applications from growing dependencies on the
+ability to to pin DAX-mapped filesystem blocks for RDMA indefinitely
+with no ongoing coordination with the filesystem. This 'longterm'
+pinning is also problematic for the non-DAX VMA case where the core-mm
+needs a time bounded way to revoke a pin and manipulate the physical
+pages. While existing RDMA applications have already grown the
+assumption that they can pin page-cache pages indefinitely, the fact
+that we are breaking this assumption for filesystem-dax presents an
+opportunity to deprecate the 'indefinite pin' mechanisms and move to a
+general interface that supports pin revocation.
 
-There will be two cases that can cause walk_free_mem_block to return 
-without completing:
-1) host requests to stop in advance
-2) vq->broken
+While RDMA may grow an explicit Infiniband-verb for this 'memory
+registration with lease' semantic, it seems that this problem is
+bigger than just RDMA. At LSF/MM it would be useful to have a
+discussion between fs, mm, dax, and RDMA folks about addressing this
+problem at the core level.
 
-How about letting walk_free_mem_block simply return the value returned 
-by its callback (i.e. virtio_balloon_send_free_pages)?
-
-For host requests to stop, it returns "1", and the above only bails out 
-when walk_free_mem_block return a "< 0" value.
-
-Best,
-Wei
+Particular people that would be useful to have in attendance are
+Michal Hocko, Christoph Hellwig, and Jason Gunthorpe (cc'd).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
