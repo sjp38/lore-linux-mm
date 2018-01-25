@@ -1,97 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 50124800D8
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 04:58:35 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id e195so3647346wmd.9
-        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 01:58:35 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5si617891wmf.69.2018.01.25.01.58.33
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 32CDD800D8
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 05:00:30 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id s22so5596617pfh.21
+        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 02:00:30 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id e8si1380638pgr.63.2018.01.25.02.00.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Jan 2018 01:58:33 -0800 (PST)
-Date: Thu, 25 Jan 2018 10:58:32 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: Reduce memory bloat with THP
-Message-ID: <20180125095832.GN28465@dhcp22.suse.cz>
-References: <1516318444-30868-1-git-send-email-nitingupta910@gmail.com>
- <20180119124957.GA6584@dhcp22.suse.cz>
- <ce7c1498-9f28-2eb0-67b7-ade9b04b8e2b@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jan 2018 02:00:28 -0800 (PST)
+Message-ID: <5A69AB52.6020900@intel.com>
+Date: Thu, 25 Jan 2018 18:02:58 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ce7c1498-9f28-2eb0-67b7-ade9b04b8e2b@oracle.com>
+Subject: Re: [virtio-dev] [PATCH v25 1/2 RESEND] mm: support reporting free
+ page blocks
+References: <1516873107-34950-1-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1516873107-34950-1-git-send-email-wei.w.wang@intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <nitin.m.gupta@oracle.com>
-Cc: Nitin Gupta <nitingupta910@gmail.com>, steven.sistare@oracle.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Nadav Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Vegard Nossum <vegard.nossum@oracle.com>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Shaohua Li <shli@fb.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Tobin C Harding <me@tobin.cc>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Fri 19-01-18 12:59:17, Nitin Gupta wrote:
-> On 1/19/18 4:49 AM, Michal Hocko wrote:
-> > On Thu 18-01-18 15:33:16, Nitin Gupta wrote:
-> >> From: Nitin Gupta <nitin.m.gupta@oracle.com>
-> >>
-> >> Currently, if the THP enabled policy is "always", or the mode
-> >> is "madvise" and a region is marked as MADV_HUGEPAGE, a hugepage
-> >> is allocated on a page fault if the pud or pmd is empty.  This
-> >> yields the best VA translation performance, but increases memory
-> >> consumption if some small page ranges within the huge page are
-> >> never accessed.
-> > 
-> > Yes, this is true but hardly unexpected for MADV_HUGEPAGE or THP always
-> > users.
-> >  
-> 
-> Yes, allocating hugepage on first touch is the current behavior for
-> above two cases. However, I see issues with this current behavior.
-> Firstly, THP=always mode is often too aggressive/wasteful to be useful
-> for any realistic workloads. For THP=madvise, users may want to back
-> active parts of memory region with hugepages while avoiding aggressive
-> hugepage allocation on first touch. Or, they may really want the current
-> behavior.
+Hi Michal,
 
-Then they should use THP=never and rely on the khugepaged to compact
-madvise regions. This will avoid first touch problem and you can also
-control how large portion of the THP has to be mapped already.
+On 01/25/2018 05:38 PM, Wei Wang wrote:
+> This patch adds support to walk through the free page blocks in the
+> system and report them via a callback function. Some page blocks may
+> leave the free list after zone->lock is released, so it is the caller's
+> responsibility to either detect or prevent the use of such pages.
+>
+> One use example of this patch is to accelerate live migration by skipping
+> the transfer of free pages reported from the guest. A popular method used
+> by the hypervisor to track which part of memory is written during live
+> migration is to write-protect all the guest memory. So, those pages that
+> are reported as free pages but are written after the report function
+> returns will be captured by the hypervisor, and they will be added to the
+> next round of memory transfer.
+>
+> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> Signed-off-by: Liang Li <liang.z.li@intel.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Michael S. Tsirkin <mst@redhat.com>
+> Acked-by: Michal Hocko <mhocko@kernel.org>
+> ---
+>   include/linux/mm.h |  6 ++++
+>   mm/page_alloc.c    | 96 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>   2 files changed, 102 insertions(+)
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ea818ff..e65ae2e 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1938,6 +1938,12 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
+>   		unsigned long zone_start_pfn, unsigned long *zholes_size);
+>   extern void free_initmem(void);
+>   
+> +extern int walk_free_mem_block(void *opaque,
+> +			       int min_order,
+> +			       int (*report_pfn_range)(void *opaque,
+> +						       unsigned long pfn,
+> +						       unsigned long num));
+> +
+>   /*
+>    * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+>    * into the buddy system. The freed pages will be poisoned with pattern
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 76c9688..eda587f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4899,6 +4899,102 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>   	show_swap_cache_info();
+>   }
+>   
+> +/*
+> + * Walk through a free page list and report the found pfn range via the
+> + * callback.
+> + *
+> + * Return 0 if it completes the reporting. Otherwise, return the Non-zero
+> + * value returned from the callback.
+> + */
+> +static int walk_free_page_list(void *opaque,
+> +			       struct zone *zone,
+> +			       int order,
+> +			       enum migratetype mt,
+> +			       int (*report_pfn_range)(void *,
+> +						       unsigned long,
+> +						       unsigned long))
+> +{
+> +	struct page *page;
+> +	struct list_head *list;
+> +	unsigned long pfn, flags;
+> +	int ret = 0;
+> +
+> +	spin_lock_irqsave(&zone->lock, flags);
+> +	list = &zone->free_area[order].free_list[mt];
+> +	list_for_each_entry(page, list, lru) {
+> +		pfn = page_to_pfn(page);
+> +		ret = report_pfn_range(opaque, pfn, 1 << order);
+> +		if (ret)
+> +			break;
+> +	}
+> +	spin_unlock_irqrestore(&zone->lock, flags);
+> +
+> +	return ret;
+> +}
+> +
+> +/**
+> + * walk_free_mem_block - Walk through the free page blocks in the system
+> + * @opaque: the context passed from the caller
+> + * @min_order: the minimum order of free lists to check
+> + * @report_pfn_range: the callback to report the pfn range of the free pages
+> + *
+> + * If the callback returns a non-zero value, stop iterating the list of free
+> + * page blocks. Otherwise, continue to report.
+> + *
+> + * Please note that there are no locking guarantees for the callback and
+> + * that the reported pfn range might be freed or disappear after the
+> + * callback returns so the caller has to be very careful how it is used.
+> + *
+> + * The callback itself must not sleep or perform any operations which would
+> + * require any memory allocations directly (not even GFP_NOWAIT/GFP_ATOMIC)
+> + * or via any lock dependency. It is generally advisable to implement
+> + * the callback as simple as possible and defer any heavy lifting to a
+> + * different context.
+> + *
+> + * There is no guarantee that each free range will be reported only once
+> + * during one walk_free_mem_block invocation.
+> + *
+> + * pfn_to_page on the given range is strongly discouraged and if there is
+> + * an absolute need for that make sure to contact MM people to discuss
+> + * potential problems.
+> + *
+> + * The function itself might sleep so it cannot be called from atomic
+> + * contexts.
+> + *
+> + * In general low orders tend to be very volatile and so it makes more
+> + * sense to query larger ones first for various optimizations which like
+> + * ballooning etc... This will reduce the overhead as well.
+> + *
+> + * Return 0 if it completes the reporting. Otherwise, return the non-zero
+> + * value returned from the callback.
+> + */
+> +int walk_free_mem_block(void *opaque,
+> +			int min_order,
+> +			int (*report_pfn_range)(void *opaque,
+> +			unsigned long pfn,
+> +			unsigned long num))
+> +{
+> +	struct zone *zone;
+> +	int order;
+> +	enum migratetype mt;
+> +	int ret;
+> +
+> +	for_each_populated_zone(zone) {
+> +		for (order = MAX_ORDER - 1; order >= min_order; order--) {
+> +			for (mt = 0; mt < MIGRATE_TYPES; mt++) {
+> +				ret = walk_free_page_list(opaque, zone,
+> +							  order, mt,
+> +							  report_pfn_range);
+> +				if (ret)
+> +					return ret;
+> +			}
+> +		}
+> +	}
+> +
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL_GPL(walk_free_mem_block);
+> +
+>   static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+>   {
+>   	zoneref->zone = zone;
 
-> With this patch, users would have the option to pick what behavior they
-> want by passing hints to the kernel in the form of MADV_HUGEPAGE and
-> MADV_DONTNEED madvise calls.
+Thanks for reviewing this mm patch. Just a reminder that this version 
+changes this function to return "zero/non-zero", instead of 
+"true/false". If you have a different thought, please let us know. Thanks.
 
-more on this below
- 
-[...]
-> >> With this change, whenever an application issues MADV_DONTNEED on a
-> >> memory region, the region is marked as "space-efficient". For such
-> >> regions, a hugepage is not immediately allocated on first write.
-> > 
-> > Kirill didn't like it in the previous version and I do not like this
-> > either. You are adding a very subtle side effect which might completely
-> > unexpected. Consider userspace memory allocator which uses MADV_DONTNEED
-> > to free up unused memory. Now you have put it out of THP usage
-> > basically.
-> >
-> 
-> Userpsace may want a region to be considered by khugepaged while opting
-> out of hugepage allocation on first touch. Asking userspace memory
-> allocators to have to track and reclaim unused parts of a THP allocated
-> hugepage does not seems right, as the kernel can use simple userspace
-> hints to avoid allocating extra memory in the first place.
-
-Yes. This is in sync with what I wrote. Allocators shouldn't care and
-that is why MADV_DONTNEED with side effect is simply wrong.
-
-> I agree that this patch is adding a subtle side-effect which may take
-> some applications by surprise. However, I often see the opposite too:
-> for many workloads, disabling THP is the first advise as this aggressive
-> allocation of hugepages on first touch is unexpected and is too
-> wasteful. For e.g.:
-
-Ohh, absolutely. And that is why we have changed the default in upstream
-444eb2a449ef ("mm: thp: set THP defrag by default to madvise and add a
-stall-free defrag option")
--- 
-Michal Hocko
-SUSE Labs
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
