@@ -1,58 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 51A91800D8
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 05:02:21 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id w102so4173159wrb.21
-        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 02:02:21 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E1839800D8
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 05:28:32 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id f6so4247862wre.4
+        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 02:28:32 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e15si3565803wra.96.2018.01.25.02.02.20
+        by mx.google.com with ESMTPS id s1si3720022wra.386.2018.01.25.02.28.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Jan 2018 02:02:20 -0800 (PST)
-Date: Thu, 25 Jan 2018 11:02:19 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] few MM topics
-Message-ID: <20180125100219.GO28465@dhcp22.suse.cz>
-References: <20180124092649.GC21134@dhcp22.suse.cz>
- <bee1d564-b4b8-ed0c-edfa-f6df6a24fe21@oracle.com>
+        Thu, 25 Jan 2018 02:28:31 -0800 (PST)
+Date: Thu, 25 Jan 2018 11:28:29 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [LSF/MM TOPIC] Patch Submission process and Handling Internal
+ Conflict
+Message-ID: <20180125102829.wr4xsps5gudpreac@quack2.suse.cz>
+References: <1516820744.3073.30.camel@HansenPartnership.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <bee1d564-b4b8-ed0c-edfa-f6df6a24fe21@oracle.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1516820744.3073.30.camel@HansenPartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-nvme@lists.infradead.org, linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-scsi <linux-scsi@vger.kernel.org>, lsf-pc@lists.linux-foundation.org
 
-On Wed 24-01-18 10:23:20, Mike Kravetz wrote:
-> On 01/24/2018 01:26 AM, Michal Hocko wrote:
-[...]
-> > - It seems there is some demand for large (> MAX_ORDER) allocations.
-> >   We have that alloc_contig_range which was originally used for CMA and
-> >   later (ab)used for Giga hugetlb pages. The API is less than optimal
-> >   and we should probably think about how to make it more generic.
+On Wed 24-01-18 11:05:44, James Bottomley wrote:
+> I've got two community style topics, which should probably be discussed
+> in the plenary
 > 
-> This is also of interest to me.  I actually started some efforts in this
-> area.  The idea (as you mention above) would be to provide a more usable
-> API for allocation of contiguous pages/ranges.  And, gigantic huge pages
-> would be the first consumer.
+> 1. Patch Submission Process
 > 
-> alloc_contig_range currently has some issues with being used in a 'more
-> generic' way.  A comment describing the routine says "it's the caller's
-> responsibility to guarantee that we are the only thread that changes
-> migrate type of pageblocks the pages fall in.".  This is true, and I think
-> it also applies to users of the underlying routines such as
-> start_isolate_page_range.  The CMA code has a mechanism that prevents two
-> threads from operating on the same range concurrently.  The other users
-> (gigantic page allocation and memory offline) happen infrequently enough
-> that we are unlikely to have a conflict.  But, opening this up to more
-> generic use will require at least a more generic synchronization mechanism.
+> Today we don't have a uniform patch submission process across Storage,
+> Filesystems and MM.  The question is should we (or at least should we
+> adhere to some minimal standards).  The standard we've been trying to
+> hold to in SCSI is one review per accepted non-trivial patch.  For us,
+> it's useful because it encourages driver writers to review each other's
+> patches rather than just posting and then complaining their patch
+> hasn't gone in.  I can certainly think of a couple of bugs I've had to
+> chase in mm where the underlying patches would have benefited from
+> review, so I'd like to discuss making the one review per non-trival
+> patch our base minimum standard across the whole of LSF/MM; it would
+> certainly serve to improve our Reviewed-by statistics.
 
-Yes, that is exactly my concern and the current state of art that has to
-change. I am not yet sure how. So any discussion seems interesting.
+Well, stuff like fs/reiserfs, fs/udf, fs/isofs, or fs/quota are also parts
+of filesystem space but good luck with finding reviewers for those. 99% of
+patches I sent in last 10 years were just met with silence (usually there's
+0-1 developer interested in that code) so I just push them to have the bug
+fixed... I don't feel that as a big problem since the code is reasonably
+simple, can be tested, change rate is very low. I just wanted to give that
+as an example that above rule does not work for everybody.
+
+For larger filesystems I agree 'at least one reviewer' is a good rule. XFS
+is known for this, I believe btrfs pretty much enforces it as well, Ted is
+not enforcing this rule for ext4 AFAIK and often it is up to him to review
+patches but larger / more complex stuff generally does get reviewed. So
+IMO ext4 could use some improvement but I'll leave up to Ted to decide
+what's better for ext4.
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
