@@ -1,53 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B7B76800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 21:15:34 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id v10so3461099wrv.22
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 18:15:34 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 90sor2039746wrp.23.2018.01.24.18.15.33
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A9836800D8
+	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 22:29:37 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id u65so4825459pfd.7
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 19:29:37 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id d9-v6si569809pli.825.2018.01.24.19.29.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Jan 2018 18:15:33 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Jan 2018 19:29:36 -0800 (PST)
+Message-ID: <5A694FB5.5090803@intel.com>
+Date: Thu, 25 Jan 2018 11:32:05 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180125015441.GS13338@ZenIV.linux.org.uk>
-References: <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
- <10924085-6275-125f-d56b-547d734b6f4e@alibaba-inc.com> <20171114093909.dbhlm26qnrrb2ww4@dhcp22.suse.cz>
- <afa2dc80-16a3-d3d1-5090-9430eaafc841@alibaba-inc.com> <20171115093131.GA17359@quack2.suse.cz>
- <CALvZod6HJO73GUfLemuAXJfr4vZ8xMOmVQpFO3vJRog-s2T-OQ@mail.gmail.com>
- <CAOQ4uxg-mTgQfTv-qO6EVwfttyOy+oFyAHyFDKTQsDOkQPyyfA@mail.gmail.com>
- <20180124103454.ibuqt3njaqbjnrfr@quack2.suse.cz> <CAOQ4uxhDpBBUrr0JWRBaNQTTaUeJ4=gnM0iij2KivaGgp1ggtg@mail.gmail.com>
- <CALvZod4PyqfaqgEswegF5uOjNwVwbY1C4ptJB0Ouvgchv2aVFg@mail.gmail.com> <20180125015441.GS13338@ZenIV.linux.org.uk>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 24 Jan 2018 18:15:31 -0800
-Message-ID: <CALvZod4r4hC2A47WP1AwwDCkcPSeoV1GBJL2Dr8SC0H9fm8BHA@mail.gmail.com>
-Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
-Content-Type: text/plain; charset="UTF-8"
+Subject: Re: [PATCH v24 2/2] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+References: <1516790562-37889-1-git-send-email-wei.w.wang@intel.com> <1516790562-37889-3-git-send-email-wei.w.wang@intel.com> <20180124183349-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180124183349-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Amir Goldstein <amir73il@gmail.com>, Jan Kara <jack@suse.cz>, Yang Shi <yang.s@alibaba-inc.com>, Michal Hocko <mhocko@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Wed, Jan 24, 2018 at 5:54 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
-> On Wed, Jan 24, 2018 at 05:08:27PM -0800, Shakeel Butt wrote:
->> First, let me apologize, I think I might have led the discussion in
->> wrong direction by giving one wrong information. The current upstream
->> kernel, from the syscall context, does not invoke oom-killer when a
->> memcg hits its limit and fails to reclaim memory, instead ENOMEM is
->> returned. The memcg oom-killer is only invoked on page faults. However
->> in a separate effort I do plan to converge the behavior, long
->> discussion at <https://patchwork.kernel.org/patch/9988063/>.
->
-> Correct me if I'm misinterpreting you, but your rationale in there
-> appears to be along the lines of "userland applications might not
-> be ready to handle -ENOMEM gracefully, so let's hit them with
-> kill -9 instead - that will be handled properly, 'cuz M4G1C!!1!!!!"
->
+On 01/25/2018 01:15 AM, Michael S. Tsirkin wrote:
+> On Wed, Jan 24, 2018 at 06:42:42PM +0800, Wei Wang wrote:
+> +
+> +static void report_free_page_func(struct work_struct *work)
+> +{
+> +	struct virtio_balloon *vb;
+> +	unsigned long flags;
+> +
+> +	vb = container_of(work, struct virtio_balloon, report_free_page_work);
+> +
+> +	/* Start by sending the obtained cmd id to the host with an outbuf */
+> +	send_cmd_id(vb, &vb->start_cmd_id);
+> +
+> +	/*
+> +	 * Set start_cmd_id to VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID to
+> +	 * indicate a new request can be queued.
+> +	 */
+> +	spin_lock_irqsave(&vb->stop_update_lock, flags);
+> +	vb->start_cmd_id = cpu_to_virtio32(vb->vdev,
+> +				VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
+> +	spin_unlock_irqrestore(&vb->stop_update_lock, flags);
+> +
+> +	walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
+> Can you teach walk_free_mem_block to return the && of all
+> return calls, so caller knows whether it completed?
 
-Nah, the motivation is something like: In the memory overcommitted
-system (or memcg) where jobs of different priorities are running, it
-is preferable to kill a low priority job than to return an ENOMEM to
-high priority job.
+There will be two cases that can cause walk_free_mem_block to return 
+without completing:
+1) host requests to stop in advance
+2) vq->broken
+
+How about letting walk_free_mem_block simply return the value returned 
+by its callback (i.e. virtio_balloon_send_free_pages)?
+
+For host requests to stop, it returns "1", and the above only bails out 
+when walk_free_mem_block return a "< 0" value.
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
