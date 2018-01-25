@@ -1,62 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B6FA2800D8
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 04:42:50 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id y63so5616833pff.5
-        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 01:42:50 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id c21-v6si1743850plo.46.2018.01.25.01.42.49
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 978CB800D8
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 04:57:25 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id e185so5555235pfg.23
+        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 01:57:25 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id s71si1358070pgc.699.2018.01.25.01.57.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jan 2018 01:42:49 -0800 (PST)
-Message-ID: <5A69A72F.4000104@intel.com>
-Date: Thu, 25 Jan 2018 17:45:19 +0800
+        Thu, 25 Jan 2018 01:57:24 -0800 (PST)
 From: Wei Wang <wei.w.wang@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v24 2/2] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-References: <1516790562-37889-1-git-send-email-wei.w.wang@intel.com> <1516790562-37889-3-git-send-email-wei.w.wang@intel.com> <20180124183349-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180124183349-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH v25 1/2 RESEND] mm: support reporting free page blocks
+Date: Thu, 25 Jan 2018 17:38:27 +0800
+Message-Id: <1516873107-34950-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On 01/25/2018 01:15 AM, Michael S. Tsirkin wrote:
-> On Wed, Jan 24, 2018 at 06:42:42PM +0800, Wei Wang wrote:
->>   
->>
->> What is this doing? Basically handling the case where vq is broken?
->> It's kind of ugly to tweak feature bits, most code assumes they never
->> change.  Please just return an error to caller instead and handle it
->> there.
->>
->> You can then avoid sprinking the check for the feature bit
->> all over the code.
->>
->
-> One thing I don't like about this one is that the previous request
-> will still try to run to completion.
->
-> And it all seems pretty complex.
->
-> How about:
-> - pass cmd id to a queued work
-> - queued work gets that cmd id, stores a copy and uses that,
->    re-checking periodically - stop if cmd id changes:
->    will replace  report_free_page too since that's set to
->    stop.
->
-> This means you do not reuse the queued cmd id also
-> for the buffer - which is probably for the best.
+This patch adds support to walk through the free page blocks in the
+system and report them via a callback function. Some page blocks may
+leave the free list after zone->lock is released, so it is the caller's
+responsibility to either detect or prevent the use of such pages.
 
-Thanks for the suggestion. Please have a check how it's implemented in v25.
-Just a little reminder that work queue has internally ensured that there 
-is no re-entrant of the same queued function.
+One use example of this patch is to accelerate live migration by skipping
+the transfer of free pages reported from the guest. A popular method used
+by the hypervisor to track which part of memory is written during live
+migration is to write-protect all the guest memory. So, those pages that
+are reported as free pages but are written after the report function
+returns will be captured by the hypervisor, and they will be added to the
+next round of memory transfer.
 
-Best,
-Wei
+Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+Signed-off-by: Liang Li <liang.z.li@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Acked-by: Michal Hocko <mhocko@kernel.org>
+---
+ include/linux/mm.h |  6 ++++
+ mm/page_alloc.c    | 96 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ea818ff..e65ae2e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1938,6 +1938,12 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
+ 		unsigned long zone_start_pfn, unsigned long *zholes_size);
+ extern void free_initmem(void);
+ 
++extern int walk_free_mem_block(void *opaque,
++			       int min_order,
++			       int (*report_pfn_range)(void *opaque,
++						       unsigned long pfn,
++						       unsigned long num));
++
+ /*
+  * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+  * into the buddy system. The freed pages will be poisoned with pattern
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 76c9688..eda587f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4899,6 +4899,102 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+ 	show_swap_cache_info();
+ }
+ 
++/*
++ * Walk through a free page list and report the found pfn range via the
++ * callback.
++ *
++ * Return 0 if it completes the reporting. Otherwise, return the Non-zero
++ * value returned from the callback.
++ */
++static int walk_free_page_list(void *opaque,
++			       struct zone *zone,
++			       int order,
++			       enum migratetype mt,
++			       int (*report_pfn_range)(void *,
++						       unsigned long,
++						       unsigned long))
++{
++	struct page *page;
++	struct list_head *list;
++	unsigned long pfn, flags;
++	int ret = 0;
++
++	spin_lock_irqsave(&zone->lock, flags);
++	list = &zone->free_area[order].free_list[mt];
++	list_for_each_entry(page, list, lru) {
++		pfn = page_to_pfn(page);
++		ret = report_pfn_range(opaque, pfn, 1 << order);
++		if (ret)
++			break;
++	}
++	spin_unlock_irqrestore(&zone->lock, flags);
++
++	return ret;
++}
++
++/**
++ * walk_free_mem_block - Walk through the free page blocks in the system
++ * @opaque: the context passed from the caller
++ * @min_order: the minimum order of free lists to check
++ * @report_pfn_range: the callback to report the pfn range of the free pages
++ *
++ * If the callback returns a non-zero value, stop iterating the list of free
++ * page blocks. Otherwise, continue to report.
++ *
++ * Please note that there are no locking guarantees for the callback and
++ * that the reported pfn range might be freed or disappear after the
++ * callback returns so the caller has to be very careful how it is used.
++ *
++ * The callback itself must not sleep or perform any operations which would
++ * require any memory allocations directly (not even GFP_NOWAIT/GFP_ATOMIC)
++ * or via any lock dependency. It is generally advisable to implement
++ * the callback as simple as possible and defer any heavy lifting to a
++ * different context.
++ *
++ * There is no guarantee that each free range will be reported only once
++ * during one walk_free_mem_block invocation.
++ *
++ * pfn_to_page on the given range is strongly discouraged and if there is
++ * an absolute need for that make sure to contact MM people to discuss
++ * potential problems.
++ *
++ * The function itself might sleep so it cannot be called from atomic
++ * contexts.
++ *
++ * In general low orders tend to be very volatile and so it makes more
++ * sense to query larger ones first for various optimizations which like
++ * ballooning etc... This will reduce the overhead as well.
++ *
++ * Return 0 if it completes the reporting. Otherwise, return the non-zero
++ * value returned from the callback.
++ */
++int walk_free_mem_block(void *opaque,
++			int min_order,
++			int (*report_pfn_range)(void *opaque,
++			unsigned long pfn,
++			unsigned long num))
++{
++	struct zone *zone;
++	int order;
++	enum migratetype mt;
++	int ret;
++
++	for_each_populated_zone(zone) {
++		for (order = MAX_ORDER - 1; order >= min_order; order--) {
++			for (mt = 0; mt < MIGRATE_TYPES; mt++) {
++				ret = walk_free_page_list(opaque, zone,
++							  order, mt,
++							  report_pfn_range);
++				if (ret)
++					return ret;
++			}
++		}
++	}
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(walk_free_mem_block);
++
+ static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+ {
+ 	zoneref->zone = zone;
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
