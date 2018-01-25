@@ -1,64 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B1E76B0005
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 10:38:45 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id e9so4207799oib.10
-        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 07:38:45 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f77si357953oih.402.2018.01.25.07.38.44
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 925BB6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 10:50:48 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id c14so4056094wrd.2
+        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 07:50:48 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n15sor1680149edl.54.2018.01.25.07.50.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jan 2018 07:38:44 -0800 (PST)
-Date: Thu, 25 Jan 2018 10:38:39 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
-Message-ID: <20180125153839.GA3542@redhat.com>
-References: <20180124175631.22925-1-igor.stoppa@huawei.com>
- <20180124175631.22925-5-igor.stoppa@huawei.com>
- <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
- <6c6a3f47-fc5b-0365-4663-6908ad1fc4a7@huawei.com>
- <CAFUG7CfP_UyEH=1dmX=wsBz73+fQ0syDAy8ArKT0d4nMyf9n-g@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 25 Jan 2018 07:50:47 -0800 (PST)
+Date: Thu, 25 Jan 2018 18:50:44 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
+ runtime for CONFIG_SPARSEMEM_EXTREME=y
+Message-ID: <20180125155043.nj5b26yxutds7f37@node.shutemov.name>
+References: <20171222084623.668990192@linuxfoundation.org>
+ <20171222084625.007160464@linuxfoundation.org>
+ <1515302062.6507.18.camel@gmx.de>
+ <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
+ <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
+ <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
+ <20180117052454.GA2321@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAFUG7CfP_UyEH=1dmX=wsBz73+fQ0syDAy8ArKT0d4nMyf9n-g@mail.gmail.com>
+In-Reply-To: <20180117052454.GA2321@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Lukashev <blukashev@sempervictus.com>
-Cc: Igor Stoppa <igor.stoppa@huawei.com>, Jann Horn <jannh@google.com>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <willy@infradead.org>, Christoph Lameter <cl@linux.com>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Baoquan He <bhe@redhat.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Young <dyoung@redhat.com>, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Jan 25, 2018 at 10:14:28AM -0500, Boris Lukashev wrote:
-> On Thu, Jan 25, 2018 at 6:59 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
+On Wed, Jan 17, 2018 at 01:24:54PM +0800, Baoquan He wrote:
+> Hi Kirill,
+> 
+> I setup qemu 2.9.0 to test 5-level on kexec/kdump support. While both
+> kexec and kdump reset to BIOS immediately after triggering. I saw your
+> patch adding 5-level paging support for kexec. Wonder if your test
+> succeeded to jump into kexec/kdump kernel, and what else I need to
+> make it. By the way, I just tested the latest upstream kernel.
+> 
+> commit 7f6890418 x86/kexec: Add 5-level paging support
+> 
+> [ ~]$ qemu-system-x86_64 --version
+> QEMU emulator version 2.9.0(qemu-2.9.0-1.fc26.1)
+> Copyright (c) 2003-2017 Fabrice Bellard and the QEMU Project developers
 
-[...]
+Sorry for delay.
 
-> DMA/physmap access coupled with a knowledge of which virtual mappings
-> are in the physical space should be enough for an attacker to bypass
-> the gating mechanism this work imposes. Not trivial, but not
-> impossible. Since there's no way to prevent that sort of access in
-> current hardware (especially something like a NIC or GPU working
-> independently of the CPU altogether)
+I didn't tested it in 5-level paging mode :-/
 
-I am not saying this is impossible but this is unlikely they are several
-mecanisms. First you have IOMMU it has been defaulted to on by OEM for
-last few years (it use to be enabled only on server for virtualization).
+The patch below helps in my case. Could you test it?
 
-Which means that a given device only can access memory that is mapped to
-it through the IOMMU page table (usualy each device get their own distinct
-IOMMU page table).
+diff --git a/arch/x86/kernel/relocate_kernel_64.S b/arch/x86/kernel/relocate_kernel_64.S
+index 307d3bac5f04..65a98cf2307d 100644
+--- a/arch/x86/kernel/relocate_kernel_64.S
++++ b/arch/x86/kernel/relocate_kernel_64.S
+@@ -126,8 +126,12 @@ identity_mapped:
+        /*
+         * Set cr4 to a known state:
+         *  - physical address extension enabled
++        *  - 5-level paging, if enabled
+         */
+        movl    $X86_CR4_PAE, %eax
++#ifdef CONFIG_X86_5LEVEL
++       orl     $X86_CR4_LA57, %eax
++#endif
+        movq    %rax, %cr4
 
-Then on device like GPU you have an MMU (no GPU without an MMU for the
-last 10 years or more). The MMU is under the control of the kernel driver
-of the GPU and for the open source driver we try hard to make sure it can
-not be abuse and circumvent by userspace ie we restrict userspace process
-to only access memory they own.
-
-I am not saying that this can not happen but that we are trying our best
-to avoid it.
-
-Cheers,
-Jerome
+        jmp 1f
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
