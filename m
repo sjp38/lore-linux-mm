@@ -1,92 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 27F49800D8
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 07:53:10 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id e26so5914322pfi.15
-        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 04:53:10 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id r90si4631926pfa.51.2018.01.25.04.53.07
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A88BD800D8
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 08:41:25 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id q4so4570138oti.6
+        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 05:41:25 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x64si554350oia.496.2018.01.25.05.41.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jan 2018 04:53:08 -0800 (PST)
-Message-ID: <5A69D3C9.9080201@intel.com>
-Date: Thu, 25 Jan 2018 20:55:37 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        Thu, 25 Jan 2018 05:41:24 -0800 (PST)
+Date: Thu, 25 Jan 2018 15:41:15 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v24 1/2] mm: support reporting free page blocks
+Message-ID: <20180125152933-mutt-send-email-mst@kernel.org>
+References: <1516790562-37889-1-git-send-email-wei.w.wang@intel.com>
+ <1516790562-37889-2-git-send-email-wei.w.wang@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v24 2/2] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-References: <1516790562-37889-1-git-send-email-wei.w.wang@intel.com> <1516790562-37889-3-git-send-email-wei.w.wang@intel.com> <20180124183349-mutt-send-email-mst@kernel.org> <5A694FB5.5090803@intel.com> <17068749-d2c7-61bb-4637-a1aee5a0d0fb@I-love.SAKURA.ne.jp>
-In-Reply-To: <17068749-d2c7-61bb-4637-a1aee5a0d0fb@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1516790562-37889-2-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, "Michael S. Tsirkin" <mst@redhat.com>
+To: Wei Wang <wei.w.wang@intel.com>
 Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On 01/25/2018 07:28 PM, Tetsuo Handa wrote:
-> On 2018/01/25 12:32, Wei Wang wrote:
->> On 01/25/2018 01:15 AM, Michael S. Tsirkin wrote:
->>> On Wed, Jan 24, 2018 at 06:42:42PM +0800, Wei Wang wrote:
->>> +
->>> +static void report_free_page_func(struct work_struct *work)
->>> +{
->>> +    struct virtio_balloon *vb;
->>> +    unsigned long flags;
->>> +
->>> +    vb = container_of(work, struct virtio_balloon, report_free_page_work);
->>> +
->>> +    /* Start by sending the obtained cmd id to the host with an outbuf */
->>> +    send_cmd_id(vb, &vb->start_cmd_id);
->>> +
->>> +    /*
->>> +     * Set start_cmd_id to VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID to
->>> +     * indicate a new request can be queued.
->>> +     */
->>> +    spin_lock_irqsave(&vb->stop_update_lock, flags);
->>> +    vb->start_cmd_id = cpu_to_virtio32(vb->vdev,
->>> +                VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
->>> +    spin_unlock_irqrestore(&vb->stop_update_lock, flags);
->>> +
->>> +    walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
->>> Can you teach walk_free_mem_block to return the && of all
->>> return calls, so caller knows whether it completed?
->> There will be two cases that can cause walk_free_mem_block to return without completing:
->> 1) host requests to stop in advance
->> 2) vq->broken
->>
->> How about letting walk_free_mem_block simply return the value returned by its callback (i.e. virtio_balloon_send_free_pages)?
->>
->> For host requests to stop, it returns "1", and the above only bails out when walk_free_mem_block return a "< 0" value.
-> I feel that virtio_balloon_send_free_pages is doing too heavy things.
->
-> It can be called for many times with IRQ disabled. Number of times
-> it is called depends on amount of free pages (and fragmentation state).
-> Generally, more free pages, more calls.
->
-> Then, why don't you allocate some pages for holding all pfn values
-> and then call walk_free_mem_block() only for storing pfn values
-> and then send pfn values without disabling IRQ?
+On Wed, Jan 24, 2018 at 06:42:41PM +0800, Wei Wang wrote:
+> This patch adds support to walk through the free page blocks in the
+> system and report them via a callback function. Some page blocks may
+> leave the free list after zone->lock is released, so it is the caller's
+> responsibility to either detect or prevent the use of such pages.
+> 
+> One use example of this patch is to accelerate live migration by skipping
+> the transfer of free pages reported from the guest. A popular method used
+> by the hypervisor to track which part of memory is written during live
+> migration is to write-protect all the guest memory. So, those pages that
+> are reported as free pages but are written after the report function
+> returns will be captured by the hypervisor, and they will be added to the
+> next round of memory transfer.
+> 
+> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> Signed-off-by: Liang Li <liang.z.li@intel.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Michael S. Tsirkin <mst@redhat.com>
+> Acked-by: Michal Hocko <mhocko@kernel.org>
+> ---
+>  include/linux/mm.h |  6 ++++
+>  mm/page_alloc.c    | 91 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 97 insertions(+)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ea818ff..b3077dd 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1938,6 +1938,12 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
+>  		unsigned long zone_start_pfn, unsigned long *zholes_size);
+>  extern void free_initmem(void);
+>  
+> +extern void walk_free_mem_block(void *opaque,
+> +				int min_order,
+> +				bool (*report_pfn_range)(void *opaque,
+> +							 unsigned long pfn,
+> +							 unsigned long num));
+> +
+>  /*
+>   * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+>   * into the buddy system. The freed pages will be poisoned with pattern
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 76c9688..705de22 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4899,6 +4899,97 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>  	show_swap_cache_info();
+>  }
+>  
+> +/*
+> + * Walk through a free page list and report the found pfn range via the
+> + * callback.
+> + *
+> + * Return false if the callback requests to stop reporting. Otherwise,
+> + * return true.
+> + */
+> +static bool walk_free_page_list(void *opaque,
+> +				struct zone *zone,
+> +				int order,
+> +				enum migratetype mt,
+> +				bool (*report_pfn_range)(void *,
+> +							 unsigned long,
+> +							 unsigned long))
+> +{
+> +	struct page *page;
+> +	struct list_head *list;
+> +	unsigned long pfn, flags;
+> +	bool ret;
+> +
+> +	spin_lock_irqsave(&zone->lock, flags);
+> +	list = &zone->free_area[order].free_list[mt];
+> +	list_for_each_entry(page, list, lru) {
+> +		pfn = page_to_pfn(page);
+> +		ret = report_pfn_range(opaque, pfn, 1 << order);
+> +		if (!ret)
+> +			break;
+> +	}
+> +	spin_unlock_irqrestore(&zone->lock, flags);
+> +
+> +	return ret;
+> +}
 
-We have actually tried many methods for this feature before, and what 
-you suggested is one of them, and you could also find the related 
-discussion in earlier versions. In addition to the complexity of that 
-method (if thinking deeper along that line), I can share the performance 
-(the live migration time) comparison of that method with this one in 
-this patch: ~405ms vs. ~260 ms.
+There are two issues with this API. One is that it is not
+restarteable: if you return false, you start from the
+beginning. So no way to drop lock, do something slow
+and then proceed.
 
-The things that you worried about have also been discussed actually. The 
-strategy is that we start with something fundamental and increase 
-incrementally (if you check earlier versions, we also have a method 
-which makes the lock finer granularity, but we decided to leave this to 
-the future improvement for prudence purpose). If possible, please let 
-Michael review this patch, he already knows all those things. We will 
-finish this feature as soon as possible, and then discuss with you about 
-another one if you want. Thanks.
+Another is that you are using it to report free page hints. Presumably
+the point is to drop these pages - keeping them near head of the list
+and reusing the reported ones will just make everything slower
+invalidating the hint.
 
-Best,
-Wei
+How about rotating these pages towards the end of the list?
+Probably not on each call, callect reported pages and then
+move them to tail when we exit.
+
+Of course it's possible not all reporters want this.
+So maybe change the callback to return int:
+ 0 - page reported, move page to end of free list
+ > 0 - page skipped, proceed
+ < 0 - stop processing
 
 
+> +
+> +/**
+> + * walk_free_mem_block - Walk through the free page blocks in the system
+> + * @opaque: the context passed from the caller
+> + * @min_order: the minimum order of free lists to check
+> + * @report_pfn_range: the callback to report the pfn range of the free pages
+> + *
+> + * If the callback returns false, stop iterating the list of free page blocks.
+> + * Otherwise, continue to report.
+> + *
+> + * Please note that there are no locking guarantees for the callback and
+> + * that the reported pfn range might be freed or disappear after the
+> + * callback returns so the caller has to be very careful how it is used.
+> + *
+> + * The callback itself must not sleep or perform any operations which would
+> + * require any memory allocations directly (not even GFP_NOWAIT/GFP_ATOMIC)
+> + * or via any lock dependency. It is generally advisable to implement
+> + * the callback as simple as possible and defer any heavy lifting to a
+> + * different context.
+> + *
+> + * There is no guarantee that each free range will be reported only once
+> + * during one walk_free_mem_block invocation.
+> + *
+> + * pfn_to_page on the given range is strongly discouraged and if there is
+> + * an absolute need for that make sure to contact MM people to discuss
+> + * potential problems.
+> + *
+> + * The function itself might sleep so it cannot be called from atomic
+> + * contexts.
+> + *
+> + * In general low orders tend to be very volatile and so it makes more
+> + * sense to query larger ones first for various optimizations which like
+> + * ballooning etc... This will reduce the overhead as well.
+> + */
+> +void walk_free_mem_block(void *opaque,
+> +			 int min_order,
+> +			 bool (*report_pfn_range)(void *opaque,
+> +						  unsigned long pfn,
+> +						  unsigned long num))
+> +{
+> +	struct zone *zone;
+> +	int order;
+> +	enum migratetype mt;
+> +	bool ret;
+> +
+> +	for_each_populated_zone(zone) {
+> +		for (order = MAX_ORDER - 1; order >= min_order; order--) {
+> +			for (mt = 0; mt < MIGRATE_TYPES; mt++) {
+> +				ret = walk_free_page_list(opaque, zone,
+> +							  order, mt,
+> +							  report_pfn_range);
+> +				if (!ret)
+> +					return;
+> +			}
+> +		}
+> +	}
+> +}
+> +EXPORT_SYMBOL_GPL(walk_free_mem_block);
+> +
+
+I think callers need a way to
+1. distinguish between completion and exit on error
+2. restart from where we stopped
+
+So I would both accept and return the current zone
+and a special value to mean "complete"
+
+>  static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+>  {
+>  	zoneref->zone = zone;
+> -- 
+> 2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
