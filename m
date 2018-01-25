@@ -1,44 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 79DF7280245
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 04:37:27 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 62so4059399wrf.8
-        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 01:37:27 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n26si584575wmh.135.2018.01.25.01.37.26
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B6FA2800D8
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 04:42:50 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id y63so5616833pff.5
+        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 01:42:50 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id c21-v6si1743850plo.46.2018.01.25.01.42.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Jan 2018 01:37:26 -0800 (PST)
-Date: Thu, 25 Jan 2018 10:37:24 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [LSF/MM TOPIC] few MM topics
-Message-ID: <20180125093724.h3j6m3d4msblyhgy@quack2.suse.cz>
-References: <20180124092649.GC21134@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jan 2018 01:42:49 -0800 (PST)
+Message-ID: <5A69A72F.4000104@intel.com>
+Date: Thu, 25 Jan 2018 17:45:19 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180124092649.GC21134@dhcp22.suse.cz>
+Subject: Re: [PATCH v24 2/2] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+References: <1516790562-37889-1-git-send-email-wei.w.wang@intel.com> <1516790562-37889-3-git-send-email-wei.w.wang@intel.com> <20180124183349-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180124183349-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-nvme@lists.infradead.org, linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-Hi,
+On 01/25/2018 01:15 AM, Michael S. Tsirkin wrote:
+> On Wed, Jan 24, 2018 at 06:42:42PM +0800, Wei Wang wrote:
+>>   
+>>
+>> What is this doing? Basically handling the case where vq is broken?
+>> It's kind of ugly to tweak feature bits, most code assumes they never
+>> change.  Please just return an error to caller instead and handle it
+>> there.
+>>
+>> You can then avoid sprinking the check for the feature bit
+>> all over the code.
+>>
+>
+> One thing I don't like about this one is that the previous request
+> will still try to run to completion.
+>
+> And it all seems pretty complex.
+>
+> How about:
+> - pass cmd id to a queued work
+> - queued work gets that cmd id, stores a copy and uses that,
+>    re-checking periodically - stop if cmd id changes:
+>    will replace  report_free_page too since that's set to
+>    stop.
+>
+> This means you do not reuse the queued cmd id also
+> for the buffer - which is probably for the best.
 
-On Wed 24-01-18 10:26:49, Michal Hocko wrote:
-> - we have grown a new get_user_pages_longterm. It is an ugly API and
->   I think we really need to have a decent page pinning one with the
->   accounting and limiting.
+Thanks for the suggestion. Please have a check how it's implemented in v25.
+Just a little reminder that work queue has internally ensured that there 
+is no re-entrant of the same queued function.
 
-I'm interested in this topic from NVDIMM/DAX POV as well as due to other
-issues filesystems currently have with GUP (more on that in a topic
-proposal I'll send in a moment).
-
-								Honza
-
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
