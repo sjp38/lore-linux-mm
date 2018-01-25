@@ -1,100 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6468C800D8
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 04:05:35 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id 31so4118841wri.9
-        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 01:05:35 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id t16si3479077wrb.163.2018.01.25.01.05.32
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AF7F3800D8
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 04:33:05 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id p82so5601621pfd.1
+        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 01:33:05 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id n6-v6si1690088pla.387.2018.01.25.01.33.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jan 2018 01:05:33 -0800 (PST)
-Date: Thu, 25 Jan 2018 10:05:16 +0100
-From: Petr Tesarik <ptesarik@suse.com>
-Subject: [PATCH v2] Fix explanation of lower bits in the SPARSEMEM mem_map
- pointer
-Message-ID: <20180125100516.589ea6af@ezekiel.suse.cz>
-In-Reply-To: <20180124145711.4f3f219d@ezekiel.suse.cz>
-References: <20180119080908.3a662e6f@ezekiel.suse.cz>
-	<20180119123956.GZ6584@dhcp22.suse.cz>
-	<20180119142133.379d5145@ezekiel.suse.cz>
-	<20180124124353.GE28465@dhcp22.suse.cz>
-	<20180124145711.4f3f219d@ezekiel.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 25 Jan 2018 01:33:04 -0800 (PST)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v25 0/2] Virtio-balloon: support free page reporting
+Date: Thu, 25 Jan 2018 17:14:04 +0800
+Message-Id: <1516871646-22741-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-The comment is confusing. On the one hand, it refers to 32-bit
-alignment (struct page alignment on 32-bit platforms), but this
-would only guarantee that the 2 lowest bits must be zero. On the
-other hand, it claims that at least 3 bits are available, and 3 bits
-are actually used.
+This patch series is separated from the previous "Virtio-balloon
+Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,  
+implemented by this series enables the virtio-balloon driver to report
+hints of guest free pages to the host. It can be used to accelerate live
+migration of VMs. Here is an introduction of this usage:
 
-This is not broken, because there is a stronger alignment guarantee,
-just less obvious. Let's fix the comment to make it clear how many
-bits are available and why.
+Live migration needs to transfer the VM's memory from the source machine
+to the destination round by round. For the 1st round, all the VM's memory
+is transferred. From the 2nd round, only the pieces of memory that were
+written by the guest (after the 1st round) are transferred. One method
+that is popularly used by the hypervisor to track which part of memory is
+written is to write-protect all the guest memory.
 
-Although memmap arrays are allocated in various places, the
-resulting pointer is encoded eventually, so I am adding a BUG_ON()
-here to enforce at runtime that all expected bits are indeed
-available.
+The second feature enables the optimization of the 1st round memory
+transfer - the hypervisor can skip the transfer of guest free pages in the
+1st round. It is not concerned that the memory pages are used after they
+are given to the hypervisor as a hint of the free pages, because they will
+be tracked by the hypervisor and transferred in the next round if they are
+used and written.
 
-I have also added a BUILD_BUG_ON to check that PFN_SECTION_SHIFT is
-sufficient, because this part of the calculation can be easily
-checked at build time.
+ChangeLog:
+v24->v25:
+    - mm: change walk_free_mem_block to return 0 (instead of true) on
+          completing the report, and return a non-zero value from the
+          callabck, which stops the reporting.
+    - virtio-balloon:
+        - use enum instead of define for VIRTIO_BALLOON_VQ_INFLATE etc.
+        - avoid __virtio_clear_bit when bailing out;
+        - a new method to avoid reporting the some cmd id to host twice
+        - destroy_workqueue can cancel free page work when the feature is
+          negotiated;
+        - fail probe when the free page vq size is less than 2.
+v23->v24:
+    - change feature name VIRTIO_BALLOON_F_FREE_PAGE_VQ to
+      VIRTIO_BALLOON_F_FREE_PAGE_HINT
+    - kick when vq->num_free < half full, instead of "= half full"
+    - replace BUG_ON with bailing out
+    - check vb->balloon_wq in probe(), if null, bail out
+    - add a new feature bit for page poisoning
+    - solve the corner case that one cmd id being sent to host twice
+v22->v23:
+    - change to kick the device when the vq is half-way full;
+    - open-code batch_free_page_sg into add_one_sg;
+    - change cmd_id from "uint32_t" to "__virtio32";
+    - reserver one entry in the vq for teh driver to send cmd_id, instead
+      of busywaiting for an available entry;
+    - add "stop_update" check before queue_work for prudence purpose for
+      now, will have a separate patch to discuss this flag check later;
+    - init_vqs: change to put some variables on stack to have simpler
+      implementation;
+    - add destroy_workqueue(vb->balloon_wq);
 
-Signed-off-by: Petr Tesarik <ptesarik@suse.com>
----
- include/linux/mmzone.h | 12 ++++++++++--
- mm/sparse.c            |  6 +++++-
- 2 files changed, 15 insertions(+), 3 deletions(-)
+v21->v22:
+    - add_one_sg: some code and comment re-arrangement
+    - send_cmd_id: handle a cornercase
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 67f2e3c38939..7522a6987595 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1166,8 +1166,16 @@ extern unsigned long usemap_size(void);
- 
- /*
-  * We use the lower bits of the mem_map pointer to store
-- * a little bit of information.  There should be at least
-- * 3 bits here due to 32-bit alignment.
-+ * a little bit of information.  The pointer is calculated
-+ * as mem_map - section_nr_to_pfn(pnum).  The result is
-+ * aligned to the minimum alignment of the two values:
-+ *   1. All mem_map arrays are page-aligned.
-+ *   2. section_nr_to_pfn() always clears PFN_SECTION_SHIFT
-+ *      lowest bits.  PFN_SECTION_SHIFT is arch-specific
-+ *      (equal SECTION_SIZE_BITS - PAGE_SHIFT), and the
-+ *      worst combination is powerpc with 256k pages,
-+ *      which results in PFN_SECTION_SHIFT equal 6.
-+ * To sum it up, at least 6 bits are available.
-  */
- #define	SECTION_MARKED_PRESENT	(1UL<<0)
- #define SECTION_HAS_MEM_MAP	(1UL<<1)
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 2609aba121e8..6b8b5e91ceef 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -264,7 +264,11 @@ unsigned long __init node_memmap_size_bytes(int nid, unsigned long start_pfn,
-  */
- static unsigned long sparse_encode_mem_map(struct page *mem_map, unsigned long pnum)
- {
--	return (unsigned long)(mem_map - (section_nr_to_pfn(pnum)));
-+	unsigned long coded_mem_map =
-+		(unsigned long)(mem_map - (section_nr_to_pfn(pnum)));
-+	BUILD_BUG_ON(SECTION_MAP_LAST_BIT > (1UL<<PFN_SECTION_SHIFT));
-+	BUG_ON(coded_mem_map & ~SECTION_MAP_MASK);
-+	return coded_mem_map;
- }
- 
- /*
+For previous ChangeLog, please reference
+https://lwn.net/Articles/743660/
+
+Wei Wang (2):
+  mm: support reporting free page blocks
+  virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+
+ drivers/virtio/virtio_balloon.c     | 251 ++++++++++++++++++++++++++++++------
+ include/linux/mm.h                  |   6 +
+ include/uapi/linux/virtio_balloon.h |   7 +
+ mm/page_alloc.c                     |  96 ++++++++++++++
+ 4 files changed, 324 insertions(+), 36 deletions(-)
+
 -- 
-2.13.6
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
