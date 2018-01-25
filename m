@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 72891800D8
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2018 23:01:48 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id h5so3897195pgv.21
-        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 20:01:48 -0800 (PST)
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com. [216.71.154.42])
-        by mx.google.com with ESMTPS id a30si1003149pgn.599.2018.01.24.20.01.47
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 06DB0800D8
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 02:02:19 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id x4so4076652otx.23
+        for <linux-mm@kvack.org>; Wed, 24 Jan 2018 23:02:19 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x7sor1798221otd.87.2018.01.24.23.02.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jan 2018 20:01:47 -0800 (PST)
-From: Bart Van Assche <Bart.VanAssche@wdc.com>
-Subject: Re: [LSF/MM TOPIC] Filesystem-DAX, page-pinning, and RDMA
-Date: Thu, 25 Jan 2018 04:01:43 +0000
-Message-ID: <1516852902.3724.4.camel@wdc.com>
-References: <CAPcyv4gQNM9RbTbRWKnG6Vby_CW9CJ9EZTARsVNi=9cas7ZR2A@mail.gmail.com>
-In-Reply-To: <CAPcyv4gQNM9RbTbRWKnG6Vby_CW9CJ9EZTARsVNi=9cas7ZR2A@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <421B4EAE84F4C14BB9A74F1146530B6F@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Wed, 24 Jan 2018 23:02:17 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <1516852902.3724.4.camel@wdc.com>
+References: <CAPcyv4gQNM9RbTbRWKnG6Vby_CW9CJ9EZTARsVNi=9cas7ZR2A@mail.gmail.com>
+ <1516852902.3724.4.camel@wdc.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 24 Jan 2018 23:02:16 -0800
+Message-ID: <CAPcyv4iERedTChineSd-9fYR-xOc6E4L-okj7OnCMmoUkMf0tA@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] Filesystem-DAX, page-pinning, and RDMA
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
-Cc: "jgg@mellanox.com" <jgg@mellanox.com>, "hch@infradead.org" <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Bart Van Assche <Bart.VanAssche@wdc.com>
+Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "jgg@mellanox.com" <jgg@mellanox.com>, "hch@infradead.org" <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-T24gV2VkLCAyMDE4LTAxLTI0IGF0IDE5OjU2IC0wODAwLCBEYW4gV2lsbGlhbXMgd3JvdGU6DQo+
-IFRoZSBnZXRfdXNlcl9wYWdlc19sb25ndGVybSgpIGFwaSB3YXMgcmVjZW50bHkgYWRkZWQgYXMg
-YSBzdG9wLWdhcA0KPiBtZWFzdXJlIHRvIHByZXZlbnQgYXBwbGljYXRpb25zIGZyb20gZ3Jvd2lu
-ZyBkZXBlbmRlbmNpZXMgb24gdGhlDQo+IGFiaWxpdHkgdG8gdG8gcGluIERBWC1tYXBwZWQgZmls
-ZXN5c3RlbSBibG9ja3MgZm9yIFJETUEgaW5kZWZpbml0ZWx5DQo+IHdpdGggbm8gb25nb2luZyBj
-b29yZGluYXRpb24gd2l0aCB0aGUgZmlsZXN5c3RlbS4gVGhpcyAnbG9uZ3Rlcm0nDQo+IHBpbm5p
-bmcgaXMgYWxzbyBwcm9ibGVtYXRpYyBmb3IgdGhlIG5vbi1EQVggVk1BIGNhc2Ugd2hlcmUgdGhl
-IGNvcmUtbW0NCj4gbmVlZHMgYSB0aW1lIGJvdW5kZWQgd2F5IHRvIHJldm9rZSBhIHBpbiBhbmQg
-bWFuaXB1bGF0ZSB0aGUgcGh5c2ljYWwNCj4gcGFnZXMuIFdoaWxlIGV4aXN0aW5nIFJETUEgYXBw
-bGljYXRpb25zIGhhdmUgYWxyZWFkeSBncm93biB0aGUNCj4gYXNzdW1wdGlvbiB0aGF0IHRoZXkg
-Y2FuIHBpbiBwYWdlLWNhY2hlIHBhZ2VzIGluZGVmaW5pdGVseSwgdGhlIGZhY3QNCj4gdGhhdCB3
-ZSBhcmUgYnJlYWtpbmcgdGhpcyBhc3N1bXB0aW9uIGZvciBmaWxlc3lzdGVtLWRheCBwcmVzZW50
-cyBhbg0KPiBvcHBvcnR1bml0eSB0byBkZXByZWNhdGUgdGhlICdpbmRlZmluaXRlIHBpbicgbWVj
-aGFuaXNtcyBhbmQgbW92ZSB0byBhDQo+IGdlbmVyYWwgaW50ZXJmYWNlIHRoYXQgc3VwcG9ydHMg
-cGluIHJldm9jYXRpb24uDQo+IA0KPiBXaGlsZSBSRE1BIG1heSBncm93IGFuIGV4cGxpY2l0IElu
-ZmluaWJhbmQtdmVyYiBmb3IgdGhpcyAnbWVtb3J5DQo+IHJlZ2lzdHJhdGlvbiB3aXRoIGxlYXNl
-JyBzZW1hbnRpYywgaXQgc2VlbXMgdGhhdCB0aGlzIHByb2JsZW0gaXMNCj4gYmlnZ2VyIHRoYW4g
-anVzdCBSRE1BLiBBdCBMU0YvTU0gaXQgd291bGQgYmUgdXNlZnVsIHRvIGhhdmUgYQ0KPiBkaXNj
-dXNzaW9uIGJldHdlZW4gZnMsIG1tLCBkYXgsIGFuZCBSRE1BIGZvbGtzIGFib3V0IGFkZHJlc3Np
-bmcgdGhpcw0KPiBwcm9ibGVtIGF0IHRoZSBjb3JlIGxldmVsLg0KPiANCj4gUGFydGljdWxhciBw
-ZW9wbGUgdGhhdCB3b3VsZCBiZSB1c2VmdWwgdG8gaGF2ZSBpbiBhdHRlbmRhbmNlIGFyZQ0KPiBN
-aWNoYWwgSG9ja28sIENocmlzdG9waCBIZWxsd2lnLCBhbmQgSmFzb24gR3VudGhvcnBlIChjYydk
-KS4NCg0KSXMgb24gZGVtYW5kIHBhZ2luZyBzdWZmaWNpZW50IGFzIGEgc29sdXRpb24gZm9yIHlv
-dXIgdXNlIGNhc2Ugb3IgZG8NCnlvdSBwZXJoYXBzIG5lZWQgc29tZXRoaW5nIGRpZmZlcmVudD8g
-U2VlIGFsc28NCmh0dHBzOi8vd3d3Lm9wZW5mYWJyaWNzLm9yZy9pbWFnZXMvZXZlbnRwcmVzb3Mv
-d29ya3Nob3BzMjAxMy8yMDEzX1dvcmtzaG9wX1R1ZXNfMDkzMF9saXNzX29kcC5wZGYNCg0KVGhh
-bmtzLA0KDQpCYXJ0Lg==
+On Wed, Jan 24, 2018 at 8:01 PM, Bart Van Assche <Bart.VanAssche@wdc.com> wrote:
+> On Wed, 2018-01-24 at 19:56 -0800, Dan Williams wrote:
+>> The get_user_pages_longterm() api was recently added as a stop-gap
+>> measure to prevent applications from growing dependencies on the
+>> ability to to pin DAX-mapped filesystem blocks for RDMA indefinitely
+>> with no ongoing coordination with the filesystem. This 'longterm'
+>> pinning is also problematic for the non-DAX VMA case where the core-mm
+>> needs a time bounded way to revoke a pin and manipulate the physical
+>> pages. While existing RDMA applications have already grown the
+>> assumption that they can pin page-cache pages indefinitely, the fact
+>> that we are breaking this assumption for filesystem-dax presents an
+>> opportunity to deprecate the 'indefinite pin' mechanisms and move to a
+>> general interface that supports pin revocation.
+>>
+>> While RDMA may grow an explicit Infiniband-verb for this 'memory
+>> registration with lease' semantic, it seems that this problem is
+>> bigger than just RDMA. At LSF/MM it would be useful to have a
+>> discussion between fs, mm, dax, and RDMA folks about addressing this
+>> problem at the core level.
+>>
+>> Particular people that would be useful to have in attendance are
+>> Michal Hocko, Christoph Hellwig, and Jason Gunthorpe (cc'd).
+>
+> Is on demand paging sufficient as a solution for your use case...
+
+No, in 3 dimensions since there is a need to support non-ODP RDMA
+hardware, hypervisors want to coordinate DMA for guests, and non-RDMA
+hardware also pins memory indefinitely like V4L2. So it's bigger than
+RDMA, but that will likely be the first consumer of this 'longterm
+pin' mechanism.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
