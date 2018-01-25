@@ -1,231 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 795B2800DD
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 09:56:08 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id 78so4725806otj.15
-        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 06:56:08 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n8si2345141oif.394.2018.01.25.06.56.06
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 33BF26B0003
+	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 10:14:32 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id u188so3663458pfb.19
+        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 07:14:32 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x4-v6sor1033449plm.66.2018.01.25.07.14.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jan 2018 06:56:07 -0800 (PST)
-Date: Thu, 25 Jan 2018 09:56:01 -0500 (EST)
-From: Pankaj Gupta <pagupta@redhat.com>
-Message-ID: <1582107341.3995759.1516892161298.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20180125152933-mutt-send-email-mst@kernel.org>
-References: <1516790562-37889-1-git-send-email-wei.w.wang@intel.com> <1516790562-37889-2-git-send-email-wei.w.wang@intel.com> <20180125152933-mutt-send-email-mst@kernel.org>
-Subject: Re: [PATCH v24 1/2] mm: support reporting free page blocks
+        (Google Transport Security);
+        Thu, 25 Jan 2018 07:14:30 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <6c6a3f47-fc5b-0365-4663-6908ad1fc4a7@huawei.com>
+References: <20180124175631.22925-1-igor.stoppa@huawei.com>
+ <20180124175631.22925-5-igor.stoppa@huawei.com> <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
+ <6c6a3f47-fc5b-0365-4663-6908ad1fc4a7@huawei.com>
+From: Boris Lukashev <blukashev@sempervictus.com>
+Date: Thu, 25 Jan 2018 10:14:28 -0500
+Message-ID: <CAFUG7CfP_UyEH=1dmX=wsBz73+fQ0syDAy8ArKT0d4nMyf9n-g@mail.gmail.com>
+Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang opensource <liliang.opensource@gmail.com>, yang zhang wz <yang.zhang.wz@gmail.com>, quan xu0 <quan.xu0@gmail.com>, nilal@redhat.com, Rik van Riel <riel@surriel.com>, niteshnarayanlal@hotmail.com
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: Jann Horn <jannh@google.com>, jglisse@redhat.com, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <willy@infradead.org>, Christoph Lameter <cl@linux.com>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-
-> 
-> On Wed, Jan 24, 2018 at 06:42:41PM +0800, Wei Wang wrote:
-> > This patch adds support to walk through the free page blocks in the
-> > system and report them via a callback function. Some page blocks may
-> > leave the free list after zone->lock is released, so it is the caller's
-> > responsibility to either detect or prevent the use of such pages.
-> > 
-> > One use example of this patch is to accelerate live migration by skipping
-> > the transfer of free pages reported from the guest. A popular method used
-> > by the hypervisor to track which part of memory is written during live
-> > migration is to write-protect all the guest memory. So, those pages that
-> > are reported as free pages but are written after the report function
-> > returns will be captured by the hypervisor, and they will be added to the
-> > next round of memory transfer.
-> > 
-> > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> > Signed-off-by: Liang Li <liang.z.li@intel.com>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Michael S. Tsirkin <mst@redhat.com>
-> > Acked-by: Michal Hocko <mhocko@kernel.org>
-> > ---
-> >  include/linux/mm.h |  6 ++++
-> >  mm/page_alloc.c    | 91
-> >  ++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> >  2 files changed, 97 insertions(+)
-> > 
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index ea818ff..b3077dd 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -1938,6 +1938,12 @@ extern void free_area_init_node(int nid, unsigned
-> > long * zones_size,
-> >  		unsigned long zone_start_pfn, unsigned long *zholes_size);
-> >  extern void free_initmem(void);
-> >  
-> > +extern void walk_free_mem_block(void *opaque,
-> > +				int min_order,
-> > +				bool (*report_pfn_range)(void *opaque,
-> > +							 unsigned long pfn,
-> > +							 unsigned long num));
-> > +
-> >  /*
-> >   * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
-> >   * into the buddy system. The freed pages will be poisoned with pattern
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 76c9688..705de22 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -4899,6 +4899,97 @@ void show_free_areas(unsigned int filter, nodemask_t
-> > *nodemask)
-> >  	show_swap_cache_info();
-> >  }
-> >  
-> > +/*
-> > + * Walk through a free page list and report the found pfn range via the
-> > + * callback.
-> > + *
-> > + * Return false if the callback requests to stop reporting. Otherwise,
-> > + * return true.
-> > + */
-> > +static bool walk_free_page_list(void *opaque,
-> > +				struct zone *zone,
-> > +				int order,
-> > +				enum migratetype mt,
-> > +				bool (*report_pfn_range)(void *,
-> > +							 unsigned long,
-> > +							 unsigned long))
-> > +{
-> > +	struct page *page;
-> > +	struct list_head *list;
-> > +	unsigned long pfn, flags;
-> > +	bool ret;
-> > +
-> > +	spin_lock_irqsave(&zone->lock, flags);
-> > +	list = &zone->free_area[order].free_list[mt];
-> > +	list_for_each_entry(page, list, lru) {
-> > +		pfn = page_to_pfn(page);
-> > +		ret = report_pfn_range(opaque, pfn, 1 << order);
-> > +		if (!ret)
-> > +			break;
-> > +	}
-> > +	spin_unlock_irqrestore(&zone->lock, flags);
-> > +
-> > +	return ret;
-> > +}
-> 
-> There are two issues with this API. One is that it is not
-> restarteable: if you return false, you start from the
-> beginning. So no way to drop lock, do something slow
-> and then proceed.
-> 
-> Another is that you are using it to report free page hints. Presumably
-> the point is to drop these pages - keeping them near head of the list
-> and reusing the reported ones will just make everything slower
-> invalidating the hint.
-
-I think that's where patches[1] by 'Nitesh' will help: This patch-set
-will send free page hints transparently to host and host decides to delete such 
-pages.
-
-If I compare with patchset by 'Wei', host gets/asks free page hints and ignore 
-such pages during live migration. But as already discussed, if free pages are 
-still in guest memory there is no point of traversing & getting all such pages
-again.
-
-[1] https://www.spinics.net/lists/kvm/msg159790.html
-
-> 
-> How about rotating these pages towards the end of the list?
-> Probably not on each call, callect reported pages and then
-> move them to tail when we exit.
-> 
-> Of course it's possible not all reporters want this.
-> So maybe change the callback to return int:
->  0 - page reported, move page to end of free list
->  > 0 - page skipped, proceed
->  < 0 - stop processing
-> 
-> 
-> > +
-> > +/**
-> > + * walk_free_mem_block - Walk through the free page blocks in the system
-> > + * @opaque: the context passed from the caller
-> > + * @min_order: the minimum order of free lists to check
-> > + * @report_pfn_range: the callback to report the pfn range of the free
-> > pages
-> > + *
-> > + * If the callback returns false, stop iterating the list of free page
-> > blocks.
-> > + * Otherwise, continue to report.
-> > + *
-> > + * Please note that there are no locking guarantees for the callback and
-> > + * that the reported pfn range might be freed or disappear after the
-> > + * callback returns so the caller has to be very careful how it is used.
-> > + *
-> > + * The callback itself must not sleep or perform any operations which
-> > would
-> > + * require any memory allocations directly (not even
-> > GFP_NOWAIT/GFP_ATOMIC)
-> > + * or via any lock dependency. It is generally advisable to implement
-> > + * the callback as simple as possible and defer any heavy lifting to a
-> > + * different context.
-> > + *
-> > + * There is no guarantee that each free range will be reported only once
-> > + * during one walk_free_mem_block invocation.
-> > + *
-> > + * pfn_to_page on the given range is strongly discouraged and if there is
-> > + * an absolute need for that make sure to contact MM people to discuss
-> > + * potential problems.
-> > + *
-> > + * The function itself might sleep so it cannot be called from atomic
-> > + * contexts.
-> > + *
-> > + * In general low orders tend to be very volatile and so it makes more
-> > + * sense to query larger ones first for various optimizations which like
-> > + * ballooning etc... This will reduce the overhead as well.
-> > + */
-> > +void walk_free_mem_block(void *opaque,
-> > +			 int min_order,
-> > +			 bool (*report_pfn_range)(void *opaque,
-> > +						  unsigned long pfn,
-> > +						  unsigned long num))
-> > +{
-> > +	struct zone *zone;
-> > +	int order;
-> > +	enum migratetype mt;
-> > +	bool ret;
-> > +
-> > +	for_each_populated_zone(zone) {
-> > +		for (order = MAX_ORDER - 1; order >= min_order; order--) {
-> > +			for (mt = 0; mt < MIGRATE_TYPES; mt++) {
-> > +				ret = walk_free_page_list(opaque, zone,
-> > +							  order, mt,
-> > +							  report_pfn_range);
-> > +				if (!ret)
-> > +					return;
-> > +			}
-> > +		}
-> > +	}
-> > +}
-> > +EXPORT_SYMBOL_GPL(walk_free_mem_block);
-> > +
-> 
-> I think callers need a way to
-> 1. distinguish between completion and exit on error
-> 2. restart from where we stopped
-> 
-> So I would both accept and return the current zone
-> and a special value to mean "complete"
-> 
-> >  static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
-> >  {
-> >  	zoneref->zone = zone;
-> > --
-> > 2.7.4
-> 
+On Thu, Jan 25, 2018 at 6:59 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
+>
+> Hi,
+>
+> thanks for the review. My reply below.
+>
+> On 24/01/18 21:10, Jann Horn wrote:
+>
+> > I'm not entirely convinced by the approach of marking small parts of
+> > kernel memory as readonly for hardening.
+>
+> Because of the physmap you mention later?
+>
+> Regarding small parts vs big parts (what is big enough?) I did propose
+> the use of a custom zone at the very beginning, however I met 2 objections:
+>
+> 1. It's not a special case and there was no will to reserve another zone
+>    This might be mitigated by aliasing with a zone that is already
+>    defined, but not in use. For example DMA or DMA32.
+>    But it looks like a good way to replicate the confusion that is page
+>    struct. Anyway, I found the next objection more convincing.
+>
+> 2. What would be the size of this zone? It would become something that
+>    is really application specific. At the very least it should become a
+>    command line parameter. A distro would have to allocate a lot of
+>    memory for it, because it cannot really know upfront what its users
+>    will do. But, most likely, the vast majority of users would never
+>    need that much.
+>
+> If you have some idea of how to address these objections without using
+> vmalloc, or at least without using the same page provider that vmalloc
+> is using now, I'd be interested to hear it.
+>
+> Besides the double mapping problem, the major benefit I can see from
+> having a contiguous area is that it simplifies the hardened user copy
+> verification, because there is a fixed range to test for overlap.
+>
+> > Comments on some details are inline.
+>
+> thank you
+>
+> >> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> >> index 1e5d8c3..116d280 100644
+> >> --- a/include/linux/vmalloc.h
+> >> +++ b/include/linux/vmalloc.h
+> >> @@ -20,6 +20,7 @@ struct notifier_block;                /* in notifier.h */
+> >>  #define VM_UNINITIALIZED       0x00000020      /* vm_struct is not fully initialized */
+> >>  #define VM_NO_GUARD            0x00000040      /* don't add guard page */
+> >>  #define VM_KASAN               0x00000080      /* has allocated kasan shadow memory */
+> >> +#define VM_PMALLOC             0x00000100      /* pmalloc area - see docs */
+> >
+> > Is "see docs" specific enough to actually guide the reader to the
+> > right documentation?
+>
+> The doc file is named pmalloc.txt, but I can be more explicit.
+>
+> >> +#define pmalloc_attr_init(data, attr_name) \
+> >> +do { \
+> >> +       sysfs_attr_init(&data->attr_##attr_name.attr); \
+> >> +       data->attr_##attr_name.attr.name = #attr_name; \
+> >> +       data->attr_##attr_name.attr.mode = VERIFY_OCTAL_PERMISSIONS(0444); \
+> >> +       data->attr_##attr_name.show = pmalloc_pool_show_##attr_name; \
+> >> +} while (0)
+> >
+> > Is there a good reason for making all these files mode 0444 (as
+> > opposed to setting them to 0400 and then allowing userspace to make
+> > them accessible if desired)? /proc/slabinfo contains vaguely similar
+> > data and is mode 0400 (or mode 0600, depending on the kernel config)
+> > AFAICS.
+>
+> ok, you do have a point, so far I have been mostly focusing on the
+>
+> "drop-in replacement for kmalloc" aspect.
+>
+> >> +void *pmalloc(struct gen_pool *pool, size_t size, gfp_t gfp)
+> >> +{
+> > [...]
+> >> +       /* Expand pool */
+> >> +       chunk_size = roundup(size, PAGE_SIZE);
+> >> +       chunk = vmalloc(chunk_size);
+> >
+> > You're allocating with vmalloc(), which, as far as I know, establishes
+> > a second mapping in the vmalloc area for pages that are already mapped
+> > as RW through the physmap. AFAICS, later, when you're trying to make
+> > pages readonly, you're only changing the protections on the second
+> > mapping in the vmalloc area, therefore leaving the memory writable
+> > through the physmap. Is that correct? If so, please either document
+> > the reasoning why this is okay or change it.
+>
+> About why vmalloc as backend for pmalloc, please refer to this:
+>
+> http://www.openwall.com/lists/kernel-hardening/2018/01/24/11
+>
+> I tried to give a short summary of what took me toward vmalloc.
+> vmalloc is also a convenient way of obtaining arbitrarily (within
+> reason) large amounts of virtually contiguous memory.
+>
+> Your objection is toward the unprotected access, through the alternate
+> mapping, rather than to the idea of having pools that can be protected
+> individually, right?
+>
+> In the mail I linked, I explained that I could not use kmalloc because
+> of the problem of splitting huge pages on ARM.
+>
+> kmalloc does require the physmap, for performance reason.
+>
+> However, vmalloc is already doing mapping of individual pages, because
+> it must ensure that they are virtually contiguous, so would it be
+> possible to have vmalloc _always_ outside of the physmap?
+>
+> If I have understood correctly, the actual extension of physmap is
+> highly architecture and platform dependant, so it might be (but I have
+> not checked) that in some cases (like some 32bit systems) vmalloc is
+> typically outside of physmap, but probably that is not the case on 64bit?
+>
+> Also, I need to understand how physmap works against vmalloc vs how it
+> works against kernel text and const/__ro_after_init sections.
+>
+> Can they also be accessed (and written?) through the physmap?
+>
+> But, to take a different angle: if an attacker knows where kernel
+> symbols are and has gained capability to write at arbitrary location(s)
+> in kernel data, what prevents a modification of mappings and permissions?
+>
+> What is considered robust enough?
+>
+> I have the impression that, without support from HW, to have some
+> one-way mechanism that protects some page permanently, it's always
+> possible to undo the various protections we are talking about, only harder.
+>
+> From the perspective of protecting against accidental overwrites,
+> instead, the current implementation should be ok, since it's less likely
+> that some stray pointer happens to assume a value that goes through the
+> physmap.
+>
+> But I'm interested to hear, if you have some suggestion about how to
+> prevent the side access through the physmap.
+>
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> thanks, igor
+
+
+DMA/physmap access coupled with a knowledge of which virtual mappings
+are in the physical space should be enough for an attacker to bypass
+the gating mechanism this work imposes. Not trivial, but not
+impossible. Since there's no way to prevent that sort of access in
+current hardware (especially something like a NIC or GPU working
+independently of the CPU altogether), we have the option of checking
+contents of a sealed page against a checksum/hash of the page prior to
+returning its contents to the caller (since it needs to be read to be
+verified), or some other mechanism within the read path to ensure that
+no event since the last read affected the page/allocation. If the
+structure containing the list of verifiers is separate from the page,
+the attacker needs to resolve and change the contents of those
+signatures for the pages they're affecting via DMA before the kernel
+checks one against the other in the read path. I cant speak to
+overhead, but it should complicate the logic of a successful attack
+chain.
+Off the cuff, if the allocator sums the contents when sealing a page,
+stores it in a lookup table, and forces verification on every
+read/lookup, it should prevent _use_ of memory which was modified
+unless our attacker is clever enough to fix that up prior to the next
+access. Since its write-once memory, race conditions on subsequent
+access shouldn't be a problem.
+
+-- 
+Boris Lukashev
+Systems Architect
+Semper Victus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
