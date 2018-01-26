@@ -1,48 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E2B26B0003
-	for <linux-mm@kvack.org>; Sat, 27 Jan 2018 17:43:31 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id r196so4355163itc.4
-        for <linux-mm@kvack.org>; Sat, 27 Jan 2018 14:43:31 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e13sor3143129ite.51.2018.01.27.14.43.30
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E4DE6B0003
+	for <linux-mm@kvack.org>; Sat, 27 Jan 2018 19:08:42 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id l37so2624563wrl.1
+        for <linux-mm@kvack.org>; Sat, 27 Jan 2018 16:08:42 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k136si5038959wmd.93.2018.01.27.16.08.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 27 Jan 2018 14:43:30 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 27 Jan 2018 16:08:40 -0800 (PST)
+Date: Fri, 26 Jan 2018 17:05:22 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [LSF/MM TOPIC] MM maintenance process
+Message-ID: <20180126160522.GG5027@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180127222433.GA24097@codemonkey.org.uk>
-References: <20180124013651.GA1718@codemonkey.org.uk> <20180127222433.GA24097@codemonkey.org.uk>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 27 Jan 2018 14:43:29 -0800
-Message-ID: <CA+55aFx6w9+C-WM9=xqsmnrMwKzDHeCwVNR5Lbnc9By00b6dzw@mail.gmail.com>
-Subject: Re: [4.15-rc9] fs_reclaim lockdep trace
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@codemonkey.org.uk>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Network Development <netdev@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
+To: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sat, Jan 27, 2018 at 2:24 PM, Dave Jones <davej@codemonkey.org.uk> wrote:
-> On Tue, Jan 23, 2018 at 08:36:51PM -0500, Dave Jones wrote:
->  > Just triggered this on a server I was rsync'ing to.
->
-> Actually, I can trigger this really easily, even with an rsync from one
-> disk to another.  Though that also smells a little like networking in
-> the traces. Maybe netdev has ideas.
+Hi,
+I have started this topic last year already but I think we should get
+back to it.
 
-Is this new to 4.15? Or is it just that you're testing something new?
+Basically I would like to talk about the future of the MM subsystem
+maintenance process. I feel we should be following other
+subsystems by having multi-maintainers hierarchical model. The amount
+of changes is not decreasing, quite contrary, and that puts a lot of
+pressure on Andrew.
 
-If it's new and easy to repro, can you just bisect it? And if it isn't
-new, can you perhaps check whether it's new to 4.14 (ie 4.13 being
-ok)?
+Last year I have presented that around half of MM changes are not
+reviewed properly and that is simply not acceptable for the core
+subsystem IMHO. Numbers haven't changed much since then I am afraid.
+We have roughly 200 commits each major release which is a lot!
+$ git rev-list v4.11..v4.15-rc9 -- mm/ | wc -l
+808
+$ git rev-list v4.11..v4.15-rc9 -- mm/ | xargs git-grep-changelog.sh "Acked-by:\|Reviewed-by:" | wc -l
+439
+so only ~55% gets an active review. Please note that these are only
+rough numbers because not all of those are s-o-b Andrew. This also only
+considers mm/ directory, while there are other MM parts outside (arch
+code etc.). By no means I do not want to blame Andrew here.
 
-Because that fs_reclaim_acquire/release() debugging isn't new to 4.15,
-but it was rewritten for 4.14.. I'm wondering if that remodeling ended
-up triggering something.
+Where do I see problems?
+* most people are busy to do review. I _think_ that having more explicit
+  maintainers for MM parts would help with the "responsibility for the
+  code".  People do care more when they are officially responsible for
+  the code. It wouldn't be all on Andrew's shoulders.
+* It is quite hard for non-regular developers to get how the MM subsystem
+  works because it is so much different from other subystems. There
+  is no standard git tree to develop agains (except for linux-next
+  which is not ideal for long term developing).  I've been maintaining
+  non-rebased mmotm git tree and Johannes does reconstruct each mmomt
+  into git from scratch but not all people know about that and this is
+  more of a workaround than a real solution
+* mmotm process with early merging strategy and many fixups is not really
+  ideal IMHO. Andrew is good in tracking those changes but my experience
+  is that it encourages half baked work to be posted and then fixed
+  up later. It is also quite hard to keep mental model of the series
+  after multiple fixups.
+* MM is a core kernel subsystem and relying on the single maintainer
+  is hardly sustainable long term. 200 patches/release is a lot!
+  We should share the responsibility.
+* linux-next is quite a pain to work with due to constant rebases and
+  non-stable sha1. I cannot count how many times I had to note that
+  Fixes: $sha1 is not valid for mmotm patches.
 
-Adding PeterZ to the participants list in case he has ideas. I'm not
-seeing what would be the problem in that call chain from hell.
+What I would like to see and propose?
+* tip like multi-maintainer git model, where Andrew doesn't have to
+  care about each and every patch and rather rely on sub-maintainers.
+  Andrew said he highly relies on people anyway. Doing the above would
+  save him from a lot of paper work and email traffic.
+* we _really_ need much more high level review. I think Andrew is really
+  good at that. Giving him more time by reducing the email/patch flow at
+  him sounds like a reasonable step to get there.
 
-               Linus
+I suspect all this is for longer discussion so I would propose to give
+it 40min - 60min slot.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
