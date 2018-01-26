@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D8D76B0007
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2018 22:28:50 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id k6so6022743pgt.15
-        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 19:28:50 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e4si2433207pgn.428.2018.01.25.19.28.49
+	by kanga.kvack.org (Postfix) with ESMTP id 024B36B0005
+	for <linux-mm@kvack.org>; Fri, 26 Jan 2018 00:35:56 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id r28so6206410pgu.1
+        for <linux-mm@kvack.org>; Thu, 25 Jan 2018 21:35:55 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id i78si5808873pfi.150.2018.01.25.21.35.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jan 2018 19:28:49 -0800 (PST)
-Message-ID: <5A6AA107.3000607@intel.com>
-Date: Fri, 26 Jan 2018 11:31:19 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 25 Jan 2018 21:35:54 -0800 (PST)
+Date: Thu, 25 Jan 2018 21:35:42 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
+Message-ID: <20180126053542.GA30189@bombadil.infradead.org>
+References: <20180124175631.22925-1-igor.stoppa@huawei.com>
+ <20180124175631.22925-5-igor.stoppa@huawei.com>
+ <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [virtio-dev] Re: [PATCH v25 2/2] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-References: <1516871646-22741-1-git-send-email-wei.w.wang@intel.com> <1516871646-22741-3-git-send-email-wei.w.wang@intel.com> <20180125154708-mutt-send-email-mst@kernel.org> <5A6A871C.6040408@intel.com> <20180126042649-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180126042649-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Jann Horn <jannh@google.com>
+Cc: Igor Stoppa <igor.stoppa@huawei.com>, jglisse@redhat.com, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, linux-security-module@vger.kernel.org, linux-mm@kvack.org, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-On 01/26/2018 10:42 AM, Michael S. Tsirkin wrote:
-> On Fri, Jan 26, 2018 at 09:40:44AM +0800, Wei Wang wrote:
->> On 01/25/2018 09:49 PM, Michael S. Tsirkin wrote:
->>> On Thu, Jan 25, 2018 at 05:14:06PM +0800, Wei Wang wrote:
->>>
+On Wed, Jan 24, 2018 at 08:10:53PM +0100, Jann Horn wrote:
+> I'm not entirely convinced by the approach of marking small parts of
+> kernel memory as readonly for hardening.
 
->> The controversy is that the free list is not static
->> once the lock is dropped, so everything is dynamically changing, including
->> the state that was recorded. The method we are using is more prudent, IMHO.
->> How about taking the fundamental solution, and seek to improve incrementally
->> in the future?
->>
->>
->> Best,
->> Wei
-> I'd like to see kicks happen outside the spinlock. kick with a spinlock
-> taken looks like a scalability issue that won't be easy to
-> reproduce but hurt workloads at random unexpected times.
->
+It depends how significant the data stored in there are.  For example,
+storing function pointers in read-only memory provides significant
+hardening.
 
-Is that "kick inside the spinlock" the only concern you have? I think we 
-can remove the kick actually. If we check how the host side works, it is 
-worthwhile to let the host poll the virtqueue after it receives the cmd 
-id from the guest (kick for cmd id isn't within the lock).
+> You're allocating with vmalloc(), which, as far as I know, establishes
+> a second mapping in the vmalloc area for pages that are already mapped
+> as RW through the physmap. AFAICS, later, when you're trying to make
+> pages readonly, you're only changing the protections on the second
+> mapping in the vmalloc area, therefore leaving the memory writable
+> through the physmap. Is that correct? If so, please either document
+> the reasoning why this is okay or change it.
 
+Yes, this is still vulnerable to attacks through the physmap.  That's also
+true for marking structs as const.  We should probably fix that at some
+point, but at least they're not vulnerable to heap overruns by small
+amounts ... you have to be able to overrun some other array by terabytes.
 
-Best,
-Wei
+It's worth having a discussion about whether we want the pmalloc API
+or whether we want a slab-based API.  We can have a separate discussion
+about an API to remove pages from the physmap.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
