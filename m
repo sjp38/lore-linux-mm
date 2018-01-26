@@ -1,76 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3085C6B000D
-	for <linux-mm@kvack.org>; Fri, 26 Jan 2018 11:36:33 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id v17so503638pgb.18
-        for <linux-mm@kvack.org>; Fri, 26 Jan 2018 08:36:33 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y12-v6sor1769335plt.89.2018.01.26.08.36.31
+	by kanga.kvack.org (Postfix) with ESMTP id C29916B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jan 2018 13:47:04 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 64so754772pgc.17
+        for <linux-mm@kvack.org>; Fri, 26 Jan 2018 10:47:04 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id m82si6703866pfi.343.2018.01.26.10.47.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Jan 2018 08:36:31 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Jan 2018 10:47:03 -0800 (PST)
+Date: Fri, 26 Jan 2018 11:47:01 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [LSF/MM TOPIC] CAPI/CCIX cache coherent device memory (NUMA too
+ ?)
+Message-ID: <20180126184701.GA14734@linux.intel.com>
+References: <20180116210321.GB8801@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <8eb12a75-4957-d5eb-9a14-387788728b8a@huawei.com>
-References: <20180124175631.22925-1-igor.stoppa@huawei.com>
- <20180124175631.22925-5-igor.stoppa@huawei.com> <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
- <6c6a3f47-fc5b-0365-4663-6908ad1fc4a7@huawei.com> <CAFUG7CfP_UyEH=1dmX=wsBz73+fQ0syDAy8ArKT0d4nMyf9n-g@mail.gmail.com>
- <20180125153839.GA3542@redhat.com> <8eb12a75-4957-d5eb-9a14-387788728b8a@huawei.com>
-From: Boris Lukashev <blukashev@sempervictus.com>
-Date: Fri, 26 Jan 2018 11:36:30 -0500
-Message-ID: <CAFUG7CeAfymvCC5jpBSM88X=8nSu-ktE0h81Ws1dAO0KrZk=9w@mail.gmail.com>
-Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180116210321.GB8801@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, Jann Horn <jannh@google.com>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <willy@infradead.org>, Christoph Lameter <cl@linux.com>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Jonathan Masters <jcm@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Fri, Jan 26, 2018 at 7:28 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
-> On 25/01/18 17:38, Jerome Glisse wrote:
->> On Thu, Jan 25, 2018 at 10:14:28AM -0500, Boris Lukashev wrote:
->>> On Thu, Jan 25, 2018 at 6:59 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
->>
->> [...]
->>
->>> DMA/physmap access coupled with a knowledge of which virtual mappings
->>> are in the physical space should be enough for an attacker to bypass
->>> the gating mechanism this work imposes. Not trivial, but not
->>> impossible. Since there's no way to prevent that sort of access in
->>> current hardware (especially something like a NIC or GPU working
->>> independently of the CPU altogether)
->
-> [...]
->
->> I am not saying that this can not happen but that we are trying our best
->> to avoid it.
->
-> How about an opt-in verification, similar to what proposed by Boris
-> Lukashev?
->
-> When reading back the data, one could access the pointer directly and
-> bypass the verification, or could use a function that explicitly checks
-> the integrity of the data.
->
-> Starting from an unprotected kmalloc allocation, even just turning the
-> data into R/O is an improvement, but if one can afford the overhead of
-> performing the verification, why not?
->
+On Tue, Jan 16, 2018 at 04:03:21PM -0500, Jerome Glisse wrote:
+> CAPI (on IBM Power8 and 9) and CCIX are two new standard that
+> build on top of existing interconnect (like PCIE) and add the
+> possibility for cache coherent access both way (from CPU to
+> device memory and from device to main memory). This extend
+> what we are use to with PCIE (where only device to main memory
+> can be cache coherent but not CPU to device memory).
+> 
+> How is this memory gonna be expose to the kernel and how the
+> kernel gonna expose this to user space is the topic i want to
+> discuss. I believe this is highly device specific for instance
+> for GPU you want the device memory allocation and usage to be
+> under the control of the GPU device driver. Maybe other type
+> of device want different strategy.
+> 
+> The HMAT patchset is partialy related to all this as it is about
+> exposing different type of memory available in a system for CPU
+> (HBM, main memory, ...) and some of their properties (bandwidth,
+> latency, ...).
+> 
+> 
+> We can start by looking at how CAPI and CCIX plan to expose this
+> to the kernel and try to list some of the type of devices we
+> expect to see. Discussion can then happen on how to represent this
+> internaly to the kernel and how to expose this to userspace.
+> 
+> Note this might also trigger discussion on a NUMA like model or
+> on extending/replacing it by something more generic.
+> 
+> 
+> Peoples (alphabetical order on first name) sorry if i missed
+> anyone:
+>     "Anshuman Khandual" <khandual@linux.vnet.ibm.com>
+>     "Balbir Singh" <bsingharora@gmail.com>
+>     "Dan Williams" <dan.j.williams@intel.com>
+>     "John Hubbard" <jhubbard@nvidia.com>
+>     "Jonathan Masters" <jcm@redhat.com>
+>     "Ross Zwisler" <ross.zwisler@linux.intel.com>
 
-I like the idea of making the verification call optional for consumers
-allowing for fast/slow+hard paths depending on their needs.
-Cant see any additional vectors for abuse (other than the original
-ones effecting out-of-band modification) introduced by having
-verify/normal callers, but i've not had enough coffee yet. Any access
-races or things like that come to mind for anyone? Shouldn't happen
-with a write-once allocation, but again, lacking coffee.
-
-> It would still be better if the service was provided by the library,
-> instead than implemented by individual users, I think.
->
-> --
-> igor
-
--Boris
+I'd love to be part of this discussion, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
