@@ -1,53 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DC4C6B000E
-	for <linux-mm@kvack.org>; Fri, 26 Jan 2018 05:08:18 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id z83so46358wmc.5
-        for <linux-mm@kvack.org>; Fri, 26 Jan 2018 02:08:18 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 93sor3563307wrh.35.2018.01.26.02.08.16
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2211C6B0011
+	for <linux-mm@kvack.org>; Fri, 26 Jan 2018 05:08:35 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id x24so6611796pge.13
+        for <linux-mm@kvack.org>; Fri, 26 Jan 2018 02:08:35 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 70-v6si3507291pla.635.2018.01.26.02.08.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Jan 2018 02:08:16 -0800 (PST)
-From: Laura Abbott <labbott@redhat.com>
-Subject: [LSF/MM TOPIC] CMA and larger page sizes
-Message-ID: <3a3d724e-4d74-9bd8-60f3-f6896cffac7a@redhat.com>
-Date: Fri, 26 Jan 2018 02:08:14 -0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 26 Jan 2018 02:08:34 -0800 (PST)
+Date: Fri, 26 Jan 2018 11:08:30 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
+Message-ID: <20180126100830.GB5027@dhcp22.suse.cz>
+References: <201801251956.FAH73425.VFJLFFtSHOOMQO@I-love.SAKURA.ne.jp>
+ <alpine.LRH.2.11.1801252209010.6864@mail.ewheeler.net>
+ <201801260312.w0Q3C0tr067684@www262.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201801260312.w0Q3C0tr067684@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Eric Wheeler <linux-mm@lists.ewheeler.net>, hannes@cmpxchg.org, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, akpm@linux-foundation.org, shakeelb@google.com, gthelen@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-CMA as it's currently designed requires alignment to the pageblock size c.f.
+On Fri 26-01-18 12:12:00, Tetsuo Handa wrote:
+> Would you answer to Michal's questions
+> 
+>   Is this a permanent state or does the holder eventually releases the lock?
+> 
+>   Do you remember the last good kernel?
+> 
+> and my guess
+> 
+>   Since commit 0bcac06f27d75285 was not backported to 4.14-stable kernel,
+>   this is unlikely the bug introduced by 0bcac06f27d75285 unless Eric
+>   explicitly backported 0bcac06f27d75285.
 
-         /*
-          * Sanitise input arguments.
-          * Pages both ends in CMA area could be merged into adjacent unmovable
-          * migratetype page by page allocator's buddy algorithm. In the case,
-          * you couldn't get a contiguous memory, which is not what we want.
-          */
-         alignment = max(alignment,  (phys_addr_t)PAGE_SIZE <<
-                           max_t(unsigned long, MAX_ORDER - 1, pageblock_order));
+Can we do that in the original email thread please. Conflating these two
+things while we have no idea about the culprit is just mess.
 
-
-On arm64 with 64K page size and transparent huge page, this gives an alignment
-of 512MB. This is quite restrictive and can eat up significant portions of
-memory on smaller memory targets. Adjusting the configuration options really
-isn't ideal for distributions that aim to have a single image which runs on
-all targets.
-
-Approaches I've thought about:
-- Making CMA alignment less restrictive (and dealing with the fallout from
-the comment above)
-- Command line option to force a reasonable alignment
-
-There's been some interest in other CMA topics so this might go along well.
-
-Thanks,
-Laura
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
