@@ -1,60 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C284F6B0029
-	for <linux-mm@kvack.org>; Fri, 26 Jan 2018 07:36:23 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id j13so250592wmh.3
-        for <linux-mm@kvack.org>; Fri, 26 Jan 2018 04:36:23 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id 5si1357509edb.158.2018.01.26.04.36.18
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 91CD86B000A
+	for <linux-mm@kvack.org>; Fri, 26 Jan 2018 08:35:30 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id 14so2079838itm.6
+        for <linux-mm@kvack.org>; Fri, 26 Jan 2018 05:35:30 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id i82si825941ioo.25.2018.01.26.05.35.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jan 2018 04:36:18 -0800 (PST)
-Date: Fri, 26 Jan 2018 13:36:16 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [RFC PATCH 00/16] PTI support for x86-32
-Message-ID: <20180126123616.GK28161@8bytes.org>
-References: <1516120619-1159-1-git-send-email-joro@8bytes.org>
- <5D89F55C-902A-4464-A64E-7157FF55FAD0@gmail.com>
- <886C924D-668F-4007-98CA-555DB6279E4F@gmail.com>
- <9CF1DD34-7C66-4F11-856D-B5E896988E16@gmail.com>
- <20180122085625.GE28161@8bytes.org>
- <20180125170925.1d72d587@alans-desktop>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 26 Jan 2018 05:35:29 -0800 (PST)
+Subject: Re: [virtio-dev] Re: [PATCH v25 2/2] virtio-balloon:
+ VIRTIO_BALLOON_F_FREE_PAGE_HINT
+References: <1516871646-22741-1-git-send-email-wei.w.wang@intel.com>
+ <1516871646-22741-3-git-send-email-wei.w.wang@intel.com>
+ <20180125154708-mutt-send-email-mst@kernel.org> <5A6A871C.6040408@intel.com>
+ <20180126042649-mutt-send-email-mst@kernel.org> <5A6AA107.3000607@intel.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <3c2c00e7-07c3-d291-4446-f77a9a9e421b@I-love.SAKURA.ne.jp>
+Date: Fri, 26 Jan 2018 22:35:04 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180125170925.1d72d587@alans-desktop>
+In-Reply-To: <5A6AA107.3000607@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alan Cox <gnomes@lxorguk.ukuu.org.uk>
-Cc: Nadav Amit <nadav.amit@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, jroedel@suse.de
+To: Wei Wang <wei.w.wang@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-Hi Alan,
-
-On Thu, Jan 25, 2018 at 05:09:25PM +0000, Alan Cox wrote:
-> On Mon, 22 Jan 2018 09:56:25 +0100
-> Joerg Roedel <joro@8bytes.org> wrote:
+On 2018/01/26 12:31, Wei Wang wrote:
+> On 01/26/2018 10:42 AM, Michael S. Tsirkin wrote:
+>> On Fri, Jan 26, 2018 at 09:40:44AM +0800, Wei Wang wrote:
+>>> On 01/25/2018 09:49 PM, Michael S. Tsirkin wrote:
+>>>> On Thu, Jan 25, 2018 at 05:14:06PM +0800, Wei Wang wrote:
+>>>>
 > 
-> > Hey Nadav,
-> > 
-> > On Sun, Jan 21, 2018 at 03:46:24PM -0800, Nadav Amit wrote:
-> > > It does seem that segmentation provides sufficient protection from Meltdown.  
-> > 
-> > Thanks for testing this, if this turns out to be true for all affected
-> > uarchs it would be a great and better way of protection than enabling
-> > PTI.
-> > 
-> > But I'd like an official statement from Intel on that one, as their
-> > recommended fix is still to use PTI.
+>>> The controversy is that the free list is not static
+>>> once the lock is dropped, so everything is dynamically changing, including
+>>> the state that was recorded. The method we are using is more prudent, IMHO.
+>>> How about taking the fundamental solution, and seek to improve incrementally
+>>> in the future?
+>>>
+>>>
+>>> Best,
+>>> Wei
+>> I'd like to see kicks happen outside the spinlock. kick with a spinlock
+>> taken looks like a scalability issue that won't be easy to
+>> reproduce but hurt workloads at random unexpected times.
+>>
 > 
-> It is: we don't think segmentation works on all processors as a defence.
+> Is that "kick inside the spinlock" the only concern you have? I think we can remove the kick actually. If we check how the host side works, it is worthwhile to let the host poll the virtqueue after it receives the cmd id from the guest (kick for cmd id isn't within the lock).
 
-Thanks for checking and the official statement. So the official
-mitigation recommendation is still to use PTI.
+We should start from the worst case.
 
++ * The callback itself must not sleep or perform any operations which would
++ * require any memory allocations directly (not even GFP_NOWAIT/GFP_ATOMIC)
++ * or via any lock dependency. It is generally advisable to implement
++ * the callback as simple as possible and defer any heavy lifting to a
++ * different context.
 
-Regards,
-
-	Joerg
+Making decision based on performance numbers of idle guests is dangerous.
+There might be busy CPUs waiting for zone->lock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
