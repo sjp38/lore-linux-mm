@@ -1,113 +1,737 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 09CEF6B0005
-	for <linux-mm@kvack.org>; Sat, 27 Jan 2018 17:02:56 -0500 (EST)
-Received: by mail-yw0-f199.google.com with SMTP id y197so2953950ywg.15
-        for <linux-mm@kvack.org>; Sat, 27 Jan 2018 14:02:56 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g9sor6828931ybi.21.2018.01.27.14.02.54
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 61E496B0003
+	for <linux-mm@kvack.org>; Sat, 27 Jan 2018 17:24:36 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id y84so1090820qkb.16
+        for <linux-mm@kvack.org>; Sat, 27 Jan 2018 14:24:36 -0800 (PST)
+Received: from scorn.kernelslacker.org (scorn.kernelslacker.org. [2600:3c03::f03c:91ff:fe59:ec69])
+        by mx.google.com with ESMTPS id d14si5385292qte.154.2018.01.27.14.24.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 27 Jan 2018 14:02:54 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 27 Jan 2018 14:24:34 -0800 (PST)
+Date: Sat, 27 Jan 2018 17:24:33 -0500
+From: Dave Jones <davej@codemonkey.org.uk>
+Subject: Re: [4.15-rc9] fs_reclaim lockdep trace
+Message-ID: <20180127222433.GA24097@codemonkey.org.uk>
+References: <20180124013651.GA1718@codemonkey.org.uk>
 MIME-Version: 1.0
-In-Reply-To: <CAOQ4uxgnzRummiQm0DNP52QxGoJ8XN+EtEkYBWxyTD5YUWf+nQ@mail.gmail.com>
-References: <1510555438-28996-1-git-send-email-amir73il@gmail.com> <CAOQ4uxgnzRummiQm0DNP52QxGoJ8XN+EtEkYBWxyTD5YUWf+nQ@mail.gmail.com>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Sun, 28 Jan 2018 00:02:53 +0200
-Message-ID: <CAOQ4uxi9VBjN-xiGddepS3B_O=iteaV=dwew8_xdZ6R9seQqSA@mail.gmail.com>
-Subject: Re: [PATCH v2] tmpfs: allow decoding a file handle of an unlinked file
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180124013651.GA1718@codemonkey.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>
-Cc: Jeff Layton <jlayton@poochiereds.net>, "J . Bruce Fields" <bfields@fieldses.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, overlayfs <linux-unionfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Miklos Szeredi <miklos@szeredi.hu>, Linux MM <linux-mm@kvack.org>
+To: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: netdev@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri, Jan 5, 2018 at 5:40 PM, Amir Goldstein <amir73il@gmail.com> wrote:
-> On Mon, Nov 13, 2017 at 8:43 AM, Amir Goldstein <amir73il@gmail.com> wrote:
->> tmpfs uses the helper d_find_alias() to find a dentry from a decoded
->> inode, but d_find_alias() skips unhashed dentries, so unlinked files
->> cannot be decoded from a file handle.
->>
->> This can be reproduced using xfstests test program open_by_handle:
->> $ open_by handle -c /tmp/testdir
->> $ open_by_handle -dk /tmp/testdir
->> open_by_handle(/tmp/testdir/file000000) returned 116 incorrectly on an
->> unlinked open file!
->>
->> To fix this, if d_find_alias() can't find a hashed alias, call
->> d_find_any_alias() to return an unhashed one.
->>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Al Viro <viro@zeniv.linux.org.uk>
->> Signed-off-by: Amir Goldstein <amir73il@gmail.com>
->> ---
->>
->> Al, Miklos,
->>
->> Can either of you take this patch through your tree?
->>
->> Thanks,
->> Amir.
->>
->> Changes since v1:
->> - Prefer a hashed alias (James)
->> - Use existing d_find_any_alias() helper
->>
->>  mm/shmem.c | 11 ++++++++++-
->>  1 file changed, 10 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/shmem.c b/mm/shmem.c
->> index 07a1d22807be..5d3fa4099f54 100644
->> --- a/mm/shmem.c
->> +++ b/mm/shmem.c
->> @@ -3404,6 +3404,15 @@ static int shmem_match(struct inode *ino, void *vfh)
->>         return ino->i_ino == inum && fh[0] == ino->i_generation;
->>  }
->>
->> +/* Find any alias of inode, but prefer a hashed alias */
->> +static struct dentry *shmem_find_alias(struct inode *inode)
->> +{
->> +       struct dentry *alias = d_find_alias(inode);
->> +
->> +       return alias ?: d_find_any_alias(inode);
->> +}
->> +
->> +
->>  static struct dentry *shmem_fh_to_dentry(struct super_block *sb,
->>                 struct fid *fid, int fh_len, int fh_type)
->>  {
->> @@ -3420,7 +3429,7 @@ static struct dentry *shmem_fh_to_dentry(struct super_block *sb,
->>         inode = ilookup5(sb, (unsigned long)(inum + fid->raw[0]),
->>                         shmem_match, fid->raw);
->>         if (inode) {
->> -               dentry = d_find_alias(inode);
->> +               dentry = shmem_find_alias(inode);
->>                 iput(inode);
->>         }
->>
->> --
->
-> Hugh,
->
-> Did you get a chance to look at this patch?
->
-> The test for decoding a file handle of an unlinked file has already been
-> merged to xfstest generic/467 and the test is failing on tmpfs without this
-> change.
->
-> Can you please take or ACK this patch?
->
+On Tue, Jan 23, 2018 at 08:36:51PM -0500, Dave Jones wrote:
+ > Just triggered this on a server I was rsync'ing to.
 
-Ping.
+Actually, I can trigger this really easily, even with an rsync from one
+disk to another.  Though that also smells a little like networking in
+the traces. Maybe netdev has ideas.
 
-Real problem.
+ 
+The first instance:
 
-Trivial fix.
+ > ============================================
+ > WARNING: possible recursive locking detected
+ > 4.15.0-rc9-backup-debug+ #1 Not tainted
+ > --------------------------------------------
+ > sshd/24800 is trying to acquire lock:
+ >  (fs_reclaim){+.+.}, at: [<0000000084f438c2>] fs_reclaim_acquire.part.102+0x5/0x30
+ > 
+ > but task is already holding lock:
+ >  (fs_reclaim){+.+.}, at: [<0000000084f438c2>] fs_reclaim_acquire.part.102+0x5/0x30
+ > 
+ > other info that might help us debug this:
+ >  Possible unsafe locking scenario:
+ > 
+ >        CPU0
+ >        ----
+ >   lock(fs_reclaim);
+ >   lock(fs_reclaim);
+ > 
+ >  *** DEADLOCK ***
+ > 
+ >  May be due to missing lock nesting notation
+ > 
+ > 2 locks held by sshd/24800:
+ >  #0:  (sk_lock-AF_INET6){+.+.}, at: [<000000001a069652>] tcp_sendmsg+0x19/0x40
+ >  #1:  (fs_reclaim){+.+.}, at: [<0000000084f438c2>] fs_reclaim_acquire.part.102+0x5/0x30
+ > 
+ > stack backtrace:
+ > CPU: 3 PID: 24800 Comm: sshd Not tainted 4.15.0-rc9-backup-debug+ #1
+ > Call Trace:
+ >  dump_stack+0xbc/0x13f
+ >  ? _atomic_dec_and_lock+0x101/0x101
+ >  ? fs_reclaim_acquire.part.102+0x5/0x30
+ >  ? print_lock+0x54/0x68
+ >  __lock_acquire+0xa09/0x2040
+ >  ? debug_show_all_locks+0x2f0/0x2f0
+ >  ? mutex_destroy+0x120/0x120
+ >  ? hlock_class+0xa0/0xa0
+ >  ? kernel_text_address+0x5c/0x90
+ >  ? __kernel_text_address+0xe/0x30
+ >  ? unwind_get_return_address+0x2f/0x50
+ >  ? __save_stack_trace+0x92/0x100
+ >  ? graph_lock+0x8d/0x100
+ >  ? check_noncircular+0x20/0x20
+ >  ? __lock_acquire+0x616/0x2040
+ >  ? debug_show_all_locks+0x2f0/0x2f0
+ >  ? __lock_acquire+0x616/0x2040
+ >  ? debug_show_all_locks+0x2f0/0x2f0
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? active_load_balance_cpu_stop+0x7b0/0x7b0
+ >  ? debug_show_all_locks+0x2f0/0x2f0
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? lock_acquire+0x12e/0x350
+ >  lock_acquire+0x12e/0x350
+ >  ? fs_reclaim_acquire.part.102+0x5/0x30
+ >  ? lockdep_rcu_suspicious+0x100/0x100
+ >  ? set_next_entity+0x20e/0x10d0
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? match_held_lock+0x8d/0x440
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? save_trace+0x1e0/0x1e0
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? alloc_extent_state+0xa7/0x410
+ >  fs_reclaim_acquire.part.102+0x29/0x30
+ >  ? fs_reclaim_acquire.part.102+0x5/0x30
+ >  kmem_cache_alloc+0x3d/0x2c0
+ >  ? rb_erase+0xe63/0x1240
+ >  alloc_extent_state+0xa7/0x410
+ >  ? lock_extent_buffer_for_io+0x3f0/0x3f0
+ >  ? find_held_lock+0x6d/0xd0
+ >  ? test_range_bit+0x197/0x210
+ >  ? lock_acquire+0x350/0x350
+ >  ? do_raw_spin_unlock+0x147/0x220
+ >  ? do_raw_spin_trylock+0x100/0x100
+ >  ? iotree_fs_info+0x30/0x30
+ >  __clear_extent_bit+0x3ea/0x570
+ >  ? clear_state_bit+0x270/0x270
+ >  ? count_range_bits+0x2f0/0x2f0
+ >  ? lock_acquire+0x350/0x350
+ >  ? rb_prev+0x21/0x90
+ >  try_release_extent_mapping+0x21a/0x260
+ >  __btrfs_releasepage+0xb0/0x1c0
+ >  ? btrfs_submit_direct+0xca0/0xca0
+ >  ? check_new_page_bad+0x1f0/0x1f0
+ >  ? match_held_lock+0xa5/0x440
+ >  ? debug_show_all_locks+0x2f0/0x2f0
+ >  btrfs_releasepage+0x161/0x170
+ >  ? __btrfs_releasepage+0x1c0/0x1c0
+ >  ? page_rmapping+0xd0/0xd0
+ >  ? rmap_walk+0x100/0x100
+ >  try_to_release_page+0x162/0x1c0
+ >  ? generic_file_write_iter+0x3c0/0x3c0
+ >  ? page_evictable+0xcc/0x110
+ >  ? lookup_address_in_pgd+0x107/0x190
+ >  shrink_page_list+0x1d5a/0x2fb0
+ >  ? putback_lru_page+0x3f0/0x3f0
+ >  ? save_trace+0x1e0/0x1e0
+ >  ? _lookup_address_cpa.isra.13+0x40/0x60
+ >  ? debug_show_all_locks+0x2f0/0x2f0
+ >  ? kmem_cache_free+0x8c/0x280
+ >  ? free_extent_state+0x1c8/0x3b0
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? page_rmapping+0xd0/0xd0
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? shrink_node_memcg.constprop.88+0x4c9/0x5e0
+ >  ? shrink_node+0x12d/0x260
+ >  ? try_to_free_pages+0x418/0xaf0
+ >  ? __alloc_pages_slowpath+0x976/0x1790
+ >  ? __alloc_pages_nodemask+0x52c/0x5c0
+ >  ? delete_node+0x28d/0x5c0
+ >  ? find_held_lock+0x6d/0xd0
+ >  ? free_pcppages_bulk+0x381/0x570
+ >  ? lock_acquire+0x350/0x350
+ >  ? do_raw_spin_unlock+0x147/0x220
+ >  ? do_raw_spin_trylock+0x100/0x100
+ >  ? __lock_is_held+0x51/0xc0
+ >  ? _raw_spin_unlock+0x24/0x30
+ >  ? free_pcppages_bulk+0x381/0x570
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? free_compound_page+0x30/0x30
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? __kernel_map_pages+0x2c9/0x310
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? __delete_from_page_cache+0x2e7/0x4e0
+ >  ? save_trace+0x1e0/0x1e0
+ >  ? __add_to_page_cache_locked+0x680/0x680
+ >  ? find_held_lock+0x6d/0xd0
+ >  ? __list_add_valid+0x29/0xa0
+ >  ? free_unref_page_commit+0x198/0x270
+ >  ? drain_local_pages_wq+0x20/0x20
+ >  ? stop_critical_timings+0x210/0x210
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? __lock_acquire+0x616/0x2040
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? __phys_addr_symbol+0x23/0x40
+ >  ? __change_page_attr_set_clr+0xe86/0x1640
+ >  ? __btrfs_releasepage+0x1c0/0x1c0
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? __lock_acquire+0x616/0x2040
+ >  ? __lock_acquire+0x616/0x2040
+ >  ? debug_show_all_locks+0x2f0/0x2f0
+ >  ? swiotlb_free_coherent+0x60/0x60
+ >  ? __phys_addr+0x32/0x80
+ >  ? igb_xmit_frame_ring+0xad7/0x1890
+ >  ? stack_access_ok+0x35/0x80
+ >  ? deref_stack_reg+0xa1/0xe0
+ >  ? __read_once_size_nocheck.constprop.6+0x10/0x10
+ >  ? __orc_find+0x6b/0xc0
+ >  ? unwind_next_frame+0x407/0xa20
+ >  ? __save_stack_trace+0x5e/0x100
+ >  ? stack_access_ok+0x35/0x80
+ >  ? deref_stack_reg+0xa1/0xe0
+ >  ? __read_once_size_nocheck.constprop.6+0x10/0x10
+ >  ? __lock_acquire+0x616/0x2040
+ >  ? debug_lockdep_rcu_enabled.part.37+0x16/0x30
+ >  ? is_ftrace_trampoline+0x112/0x190
+ >  ? ftrace_profile_pages_init+0x130/0x130
+ >  ? unwind_next_frame+0x407/0xa20
+ >  ? rcu_is_watching+0x88/0xd0
+ >  ? unwind_get_return_address_ptr+0x50/0x50
+ >  ? kernel_text_address+0x5c/0x90
+ >  ? __kernel_text_address+0xe/0x30
+ >  ? unwind_get_return_address+0x2f/0x50
+ >  ? __save_stack_trace+0x92/0x100
+ >  ? __list_add_valid+0x29/0xa0
+ >  ? add_lock_to_list.isra.26+0x1d0/0x21f
+ >  ? print_lockdep_cache.isra.29+0xd8/0xd8
+ >  ? save_trace+0x106/0x1e0
+ >  ? __isolate_lru_page+0x2dc/0x3c0
+ >  ? remove_mapping+0x1b0/0x1b0
+ >  ? match_held_lock+0xa5/0x440
+ >  ? __lock_acquire+0x616/0x2040
+ >  ? __mod_zone_page_state+0x1a/0x70
+ >  ? isolate_lru_pages.isra.83+0x888/0xae0
+ >  ? __isolate_lru_page+0x3c0/0x3c0
+ >  ? check_usage+0x174/0x790
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? check_usage_forwards+0x2b0/0x2b0
+ >  ? class_equal+0x11/0x20
+ >  ? __bfs+0xed/0x430
+ >  ? __phys_addr_symbol+0x23/0x40
+ >  ? mutex_destroy+0x120/0x120
+ >  ? match_held_lock+0x8d/0x440
+ >  ? hlock_class+0xa0/0xa0
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? save_trace+0x1e0/0x1e0
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? lock_acquire+0x350/0x350
+ >  ? __zone_watermark_ok+0xd8/0x280
+ >  ? graph_lock+0x8d/0x100
+ >  ? check_noncircular+0x20/0x20
+ >  ? find_held_lock+0x6d/0xd0
+ >  ? shrink_inactive_list+0x3b4/0x940
+ >  ? lock_acquire+0x350/0x350
+ >  ? do_raw_spin_unlock+0x147/0x220
+ >  ? do_raw_spin_trylock+0x100/0x100
+ >  ? stop_critical_timings+0x210/0x210
+ >  ? mark_held_locks+0x6e/0x90
+ >  ? _raw_spin_unlock_irq+0x29/0x40
+ >  shrink_inactive_list+0x451/0x940
+ >  ? save_trace+0x180/0x1e0
+ >  ? putback_inactive_pages+0x9f0/0x9f0
+ >  ? dev_queue_xmit_nit+0x548/0x660
+ >  ? __kernel_map_pages+0x2c9/0x310
+ >  ? set_pages_rw+0xe0/0xe0
+ >  ? get_page_from_freelist+0x1ea5/0x2ca0
+ >  ? match_held_lock+0x8d/0x440
+ >  ? blk_start_plug+0x17d/0x1e0
+ >  ? kblockd_schedule_delayed_work_on+0x20/0x20
+ >  ? print_irqtrace_events+0x110/0x110
+ >  ? cpumask_next+0x1d/0x20
+ >  ? zone_reclaimable_pages+0x25b/0x470
+ >  ? mark_held_locks+0x6e/0x90
+ >  ? __remove_mapping+0x4e0/0x4e0
+ >  shrink_node_memcg.constprop.88+0x4c9/0x5e0
+ >  ? __delayacct_freepages_start+0x28/0x40
+ >  ? lock_acquire+0x311/0x350
+ >  ? shrink_active_list+0x9c0/0x9c0
+ >  ? stop_critical_timings+0x210/0x210
+ >  ? allow_direct_reclaim.part.82+0xea/0x220
+ >  ? mark_held_locks+0x6e/0x90
+ >  ? ktime_get+0x1f0/0x3e0
+ >  ? shrink_node+0x12d/0x260
+ >  shrink_node+0x12d/0x260
+ >  ? shrink_node_memcg.constprop.88+0x5e0/0x5e0
+ >  ? __lock_is_held+0x51/0xc0
+ >  try_to_free_pages+0x418/0xaf0
+ >  ? shrink_node+0x260/0x260
+ >  ? lock_acquire+0x12e/0x350
+ >  ? lock_acquire+0x12e/0x350
+ >  ? fs_reclaim_acquire.part.102+0x5/0x30
+ >  ? lockdep_rcu_suspicious+0x100/0x100
+ >  ? rcu_note_context_switch+0x520/0x520
+ >  ? wake_all_kswapds+0x10a/0x150
+ >  __alloc_pages_slowpath+0x976/0x1790
+ >  ? __zone_watermark_ok+0x280/0x280
+ >  ? warn_alloc+0x250/0x250
+ >  ? __lock_acquire+0x616/0x2040
+ >  ? match_held_lock+0x8d/0x440
+ >  ? save_trace+0x1e0/0x1e0
+ >  ? debug_show_all_locks+0x2f0/0x2f0
+ >  ? match_held_lock+0xa5/0x440
+ >  ? stack_access_ok+0x35/0x80
+ >  ? save_trace+0x1e0/0x1e0
+ >  ? __read_once_size_nocheck.constprop.6+0x10/0x10
+ >  ? __lock_acquire+0x616/0x2040
+ >  ? match_held_lock+0xa5/0x440
+ >  ? find_held_lock+0x6d/0xd0
+ >  ? __lock_is_held+0x51/0xc0
+ >  ? rcu_note_context_switch+0x520/0x520
+ >  ? perf_trace_sched_switch+0x560/0x560
+ >  ? __might_sleep+0x58/0xe0
+ >  __alloc_pages_nodemask+0x52c/0x5c0
+ >  ? gfp_pfmemalloc_allowed+0xc0/0xc0
+ >  ? kernel_text_address+0x5c/0x90
+ >  ? __kernel_text_address+0xe/0x30
+ >  ? unwind_get_return_address+0x2f/0x50
+ >  ? memcmp+0x45/0x70
+ >  ? match_held_lock+0x8d/0x440
+ >  ? depot_save_stack+0x12e/0x480
+ >  ? match_held_lock+0xa5/0x440
+ >  ? stop_critical_timings+0x210/0x210
+ >  ? sk_stream_alloc_skb+0xb8/0x340
+ >  ? mark_held_locks+0x6e/0x90
+ >  ? new_slab+0x2f3/0x3f0
+ >  new_slab+0x374/0x3f0
+ >  ___slab_alloc.constprop.81+0x47e/0x5a0
+ >  ? __alloc_skb+0xee/0x390
+ >  ? __alloc_skb+0xee/0x390
+ >  ? __alloc_skb+0xee/0x390
+ >  ? __slab_alloc.constprop.80+0x32/0x60
+ >  __slab_alloc.constprop.80+0x32/0x60
+ >  ? __alloc_skb+0xee/0x390
+ >  __kmalloc_track_caller+0x267/0x310
+ >  __kmalloc_reserve.isra.40+0x29/0x80
+ >  __alloc_skb+0xee/0x390
+ >  ? __skb_splice_bits+0x3e0/0x3e0
+ >  ? ip6_mtu+0x1d9/0x290
+ >  ? ip6_link_failure+0x3c0/0x3c0
+ >  ? tcp_current_mss+0x1d8/0x2f0
+ >  ? tcp_sync_mss+0x520/0x520
+ >  sk_stream_alloc_skb+0xb8/0x340
+ >  ? tcp_ioctl+0x280/0x280
+ >  tcp_sendmsg_locked+0x8e6/0x1d30
+ >  ? match_held_lock+0x8d/0x440
+ >  ? mark_lock+0x1b1/0xa00
+ >  ? tcp_set_state+0x450/0x450
+ >  ? debug_show_all_locks+0x2f0/0x2f0
+ >  ? match_held_lock+0x8d/0x440
+ >  ? save_trace+0x1e0/0x1e0
+ >  ? find_held_lock+0x6d/0xd0
+ >  ? lock_acquire+0x12e/0x350
+ >  ? lock_acquire+0x12e/0x350
+ >  ? tcp_sendmsg+0x19/0x40
+ >  ? lockdep_rcu_suspicious+0x100/0x100
+ >  ? do_raw_spin_trylock+0x100/0x100
+ >  ? stop_critical_timings+0x210/0x210
+ >  ? mark_held_locks+0x6e/0x90
+ >  ? __local_bh_enable_ip+0x94/0x100
+ >  ? lock_sock_nested+0x51/0xb0
+ >  tcp_sendmsg+0x27/0x40
+ >  inet_sendmsg+0xd0/0x310
+ >  ? inet_recvmsg+0x360/0x360
+ >  ? match_held_lock+0x8d/0x440
+ >  ? inet_recvmsg+0x360/0x360
+ >  sock_write_iter+0x17a/0x240
+ >  ? sock_ioctl+0x290/0x290
+ >  ? find_held_lock+0x6d/0xd0
+ >  __vfs_write+0x2ab/0x380
+ >  ? kernel_read+0xa0/0xa0
+ >  ? __context_tracking_exit.part.4+0xe7/0x290
+ >  ? lock_acquire+0x350/0x350
+ >  ? __fdget_pos+0x7f/0x110
+ >  ? __fdget_raw+0x10/0x10
+ >  vfs_write+0xfb/0x260
+ >  SyS_write+0xb6/0x140
+ >  ? SyS_read+0x140/0x140
+ >  ? SyS_clock_settime+0x120/0x120
+ >  ? mark_held_locks+0x1c/0x90
+ >  ? do_syscall_64+0x110/0xc05
+ >  ? SyS_read+0x140/0x140
+ >  do_syscall_64+0x1e5/0xc05
+ >  ? syscall_return_slowpath+0x5b0/0x5b0
+ >  ? lock_acquire+0x350/0x350
+ >  ? lockdep_rcu_suspicious+0x100/0x100
+ >  ? get_vtime_delta+0x15/0xf0
+ >  ? get_vtime_delta+0x8b/0xf0
+ >  ? vtime_user_enter+0x7f/0x90
+ >  ? __context_tracking_enter+0x13c/0x2b0
+ >  ? __context_tracking_enter+0x13c/0x2b0
+ >  ? context_tracking_exit.part.5+0x40/0x40
+ >  ? rcu_is_watching+0x88/0xd0
+ >  ? time_hardirqs_on+0x220/0x220
+ >  ? prepare_exit_to_usermode+0x1d0/0x2a0
+ >  ? enter_from_user_mode+0x30/0x30
+ >  ? entry_SYSCALL_64_after_hwframe+0x18/0x2e
+ >  ? trace_hardirqs_off_caller+0xc2/0x110
+ >  ? trace_hardirqs_off_thunk+0x1a/0x1c
+ >  entry_SYSCALL64_slow_path+0x25/0x25
+ 
 
-Al, Can you take this patch?
+ And now I can hit..
 
-Thanks,
-Amir.
+
+
+============================================
+WARNING: possible recursive locking detected
+4.15.0-rc9-backup-debug+ #7 Not tainted
+--------------------------------------------
+snmpd/892 is trying to acquire lock:
+ (fs_reclaim){+.+.}, at: [<0000000002e4c185>] fs_reclaim_acquire.part.101+0x5/0x30
+
+but task is already holding lock:
+ (fs_reclaim){+.+.}, at: [<0000000002e4c185>] fs_reclaim_acquire.part.101+0x5/0x30
+
+other info that might help us debug this:
+ Possible unsafe locking scenario:
+
+       CPU0
+       ----
+  lock(fs_reclaim);
+  lock(fs_reclaim);
+
+ *** DEADLOCK ***
+
+ May be due to missing lock nesting notation
+
+2 locks held by snmpd/892:
+ #0:  (rtnl_mutex){+.+.}, at: [<00000000dcd3ba2f>] netlink_dump+0x89/0x520
+ #1:  (fs_reclaim){+.+.}, at: [<0000000002e4c185>] fs_reclaim_acquire.part.101+0x5/0x30
+
+stack backtrace:
+CPU: 5 PID: 892 Comm: snmpd Not tainted 4.15.0-rc9-backup-debug+ #7
+Call Trace:
+ dump_stack+0xbc/0x13f
+ ? _atomic_dec_and_lock+0x101/0x101
+ ? fs_reclaim_acquire.part.101+0x5/0x30
+ ? print_lock+0x54/0x68
+ __lock_acquire+0xa09/0x2040
+ ? debug_show_all_locks+0x2f0/0x2f0
+ ? __save_stack_trace+0x92/0x100
+ ? __list_add_valid+0x29/0xa0
+ ? add_lock_to_list.isra.26+0x1d0/0x21f
+ ? print_lockdep_cache.isra.29+0xd8/0xd8
+ ? save_trace+0x106/0x1e0
+ ? graph_lock+0x100/0x100
+ ? graph_lock+0x8d/0x100
+ ? check_noncircular+0x20/0x20
+ ? __lock_acquire+0x616/0x2040
+ ? debug_show_all_locks+0x2f0/0x2f0
+ ? lock_acquire+0x12e/0x350
+ lock_acquire+0x12e/0x350
+ ? fs_reclaim_acquire.part.101+0x5/0x30
+ ? lockdep_rcu_suspicious+0x100/0x100
+ ? match_held_lock+0x8d/0x440
+ ? save_trace+0x1e0/0x1e0
+ ? alloc_extent_state+0xa7/0x410
+ fs_reclaim_acquire.part.101+0x29/0x30
+ ? fs_reclaim_acquire.part.101+0x5/0x30
+ kmem_cache_alloc+0x3d/0x2c0
+ alloc_extent_state+0xa7/0x410
+ ? lock_extent_buffer_for_io+0x3f0/0x3f0
+ ? find_held_lock+0x6d/0xd0
+ ? test_range_bit+0x197/0x210
+ ? lock_acquire+0x350/0x350
+ ? do_raw_spin_unlock+0x147/0x220
+ ? do_raw_spin_trylock+0x100/0x100
+ ? iotree_fs_info+0x30/0x30
+ __clear_extent_bit+0x3ea/0x570
+ ? clear_state_bit+0x270/0x270
+ ? count_range_bits+0x2f0/0x2f0
+ try_release_extent_mapping+0x21a/0x260
+ __btrfs_releasepage+0xb0/0x1c0
+ ? btrfs_submit_direct+0xca0/0xca0
+ ? check_usage+0x257/0x790
+ ? match_held_lock+0xa5/0x440
+ ? print_irqtrace_events+0x110/0x110
+ btrfs_releasepage+0x161/0x170
+ ? __btrfs_releasepage+0x1c0/0x1c0
+ ? page_rmapping+0xd0/0xd0
+ ? rmap_walk+0x100/0x100
+ try_to_release_page+0x162/0x1c0
+ ? generic_file_write_iter+0x3c0/0x3c0
+ ? page_evictable+0xcc/0x110
+ ? debug_show_all_locks+0x2f0/0x2f0
+ shrink_page_list+0x1d5a/0x2fb0
+ ? putback_lru_page+0x3f0/0x3f0
+ ? match_held_lock+0x8d/0x440
+ ? save_trace+0x1e0/0x1e0
+ ? update_curr+0xd0/0x670
+ ? __lock_is_held+0x71/0xc0
+ ? update_cfs_group+0x86/0x290
+ ? __list_add_valid+0x29/0xa0
+ ? account_entity_dequeue+0x230/0x230
+ ? nohz_balance_exit_idle.part.92+0x60/0x60
+ ? __update_load_avg_se.isra.28+0x352/0x360
+ ? __update_load_avg_se.isra.28+0x1f4/0x360
+ ? __accumulate_pelt_segments+0x47/0xd0
+ ? __enqueue_entity+0x93/0xc0
+ ? match_held_lock+0x8d/0x440
+ ? mark_lock+0x1b1/0xa00
+ ? save_trace+0x1e0/0x1e0
+ ? print_irqtrace_events+0x110/0x110
+ ? check_preempt_wakeup+0x410/0x410
+ ? mark_lock+0x1b1/0xa00
+ ? __kernel_map_pages+0x2c9/0x310
+ ? set_pages_rw+0xe0/0xe0
+ ? lock_acquire+0x350/0x350
+ ? lockdep_rcu_suspicious+0x100/0x100
+ ? mark_held_locks+0x6e/0x90
+ ? trace_hardirqs_on_caller+0x187/0x260
+ ? mark_lock+0x1b1/0xa00
+ ? print_irqtrace_events+0x110/0x110
+ ? mark_held_locks+0x6e/0x90
+ ? mark_lock+0x1b1/0xa00
+ ? kasan_unpoison_shadow+0x30/0x40
+ ? print_irqtrace_events+0x110/0x110
+ ? mutex_destroy+0x120/0x120
+ ? hlock_class+0xa0/0xa0
+ ? __kernel_map_pages+0x2c9/0x310
+ ? __lock_acquire+0x616/0x2040
+ ? __lock_acquire+0x616/0x2040
+ ? debug_show_all_locks+0x2f0/0x2f0
+ ? mark_lock+0x1b1/0xa00
+ ? print_irqtrace_events+0x110/0x110
+ ? debug_show_all_locks+0x2f0/0x2f0
+ ? debug_show_all_locks+0x2f0/0x2f0
+ ? mark_held_locks+0x6e/0x90
+ ? mark_lock+0x1b1/0xa00
+ ? print_irqtrace_events+0x110/0x110
+ ? check_usage+0x174/0x790
+ ? mark_lock+0x1b1/0xa00
+ ? print_irqtrace_events+0x110/0x110
+ ? mark_lock+0x1b1/0xa00
+ ? usage_match+0x1e/0x30
+ ? print_irqtrace_events+0x110/0x110
+ ? __bfs+0x2a2/0x430
+ ? noop_count+0x20/0x20
+ ? __lock_acquire+0x616/0x2040
+ ? stack_access_ok+0x35/0x80
+ ? deref_stack_reg+0xa1/0xe0
+ ? __read_once_size_nocheck.constprop.6+0x10/0x10
+ ? __orc_find+0x6b/0xc0
+ ? unwind_next_frame+0x39c/0x9d0
+ ? __save_stack_trace+0x5e/0x100
+ ? save_trace+0xbd/0x1e0
+ ? stack_access_ok+0x35/0x80
+ ? deref_stack_reg+0xa1/0xe0
+ ? __read_once_size_nocheck.constprop.6+0x10/0x10
+ ? debug_lockdep_rcu_enabled.part.37+0x16/0x30
+ ? ftrace_ops_trampoline+0x111/0x190
+ ? ftrace_profile_pages_init+0x130/0x130
+ ? unwind_next_frame+0x39c/0x9d0
+ ? rcu_is_watching+0x88/0xd0
+ ? rcu_nmi_exit+0x130/0x130
+ ? is_ftrace_trampoline+0x5/0x10
+ ? kernel_text_address+0x5c/0x90
+ ? __kernel_text_address+0xe/0x30
+ ? unwind_get_return_address+0x2f/0x50
+ ? __save_stack_trace+0x92/0x100
+ ? __list_add_valid+0x29/0xa0
+ ? add_lock_to_list.isra.26+0x1d0/0x21f
+ ? print_lockdep_cache.isra.29+0xd8/0xd8
+ ? save_trace+0x106/0x1e0
+ ? __isolate_lru_page+0x2dc/0x3c0
+ ? remove_mapping+0x1b0/0x1b0
+ ? match_held_lock+0xa5/0x440
+ ? __lock_acquire+0x616/0x2040
+ ? __mod_zone_page_state+0x1a/0x70
+ ? isolate_lru_pages.isra.79+0x888/0xae0
+ ? __isolate_lru_page+0x3c0/0x3c0
+ ? noop_count+0x20/0x20
+ ? hlock_class+0xa0/0xa0
+ ? print_irqtrace_events+0x110/0x110
+ ? check_usage+0x174/0x790
+ ? mark_lock+0x1b1/0xa00
+ ? rb_next+0x90/0x90
+ ? match_held_lock+0x8d/0x440
+ ? mark_lock+0x1b1/0xa00
+ ? save_trace+0x1e0/0x1e0
+ ? print_irqtrace_events+0x110/0x110
+ ? class_equal+0x11/0x20
+ ? __bfs+0xed/0x430
+ ? __kernel_map_pages+0x2c9/0x310
+ ? mutex_destroy+0x120/0x120
+ ? find_held_lock+0x6d/0xd0
+ ? shrink_inactive_list+0x3b4/0x940
+ ? lock_acquire+0x350/0x350
+ ? do_raw_spin_unlock+0x147/0x220
+ ? do_raw_spin_trylock+0x100/0x100
+ ? stop_critical_timings+0x210/0x210
+ ? mark_held_locks+0x6e/0x90
+ ? _raw_spin_unlock_irq+0x29/0x40
+ shrink_inactive_list+0x451/0x940
+ ? putback_inactive_pages+0x9f0/0x9f0
+ ? isolate_migratepages_range+0x120/0x120
+ ? mark_lock+0x1b1/0xa00
+ ? update_curr+0x2d9/0x670
+ ? compact_zone+0x1d3/0x14c0
+ ? blk_start_plug+0x17d/0x1e0
+ ? kblockd_schedule_delayed_work_on+0x20/0x20
+ ? save_trace+0x1e0/0x1e0
+ ? update_curr+0x15c/0x670
+ ? active_load_balance_cpu_stop+0x7b0/0x7b0
+ ? compaction_suitable+0x350/0x350
+ ? update_cfs_group+0x23a/0x290
+ ? match_held_lock+0x8d/0x440
+ shrink_node_memcg.constprop.84+0x4c9/0x5e0
+ ? shrink_active_list+0x9c0/0x9c0
+ ? __delayacct_freepages_start+0x28/0x40
+ ? lockdep_rcu_suspicious+0x100/0x100
+ ? shrink_node+0x1c2/0x510
+ shrink_node+0x1c2/0x510
+ ? trace_hardirqs_on_caller+0x187/0x260
+ ? shrink_node_memcg.constprop.84+0x5e0/0x5e0
+ ? getnstimeofday64+0x20/0x20
+ ? allow_direct_reclaim.part.78+0x220/0x220
+ ? mark_lock+0x1b1/0xa00
+ ? mark_lock+0x1b1/0xa00
+ ? __lock_is_held+0x51/0xc0
+ try_to_free_pages+0x425/0xb90
+ ? shrink_node+0x510/0x510
+ ? try_to_compact_pages+0x1f4/0x6b0
+ ? compaction_zonelist_suitable+0x2f0/0x2f0
+ ? lock_acquire+0x12e/0x350
+ ? lock_acquire+0x12e/0x350
+ ? fs_reclaim_acquire.part.101+0x5/0x30
+ ? lockdep_rcu_suspicious+0x100/0x100
+ ? rcu_note_context_switch+0x520/0x520
+ ? wake_all_kswapds+0x10a/0x150
+ __alloc_pages_slowpath+0x955/0x1a00
+ ? __lock_acquire+0x616/0x2040
+ ? warn_alloc+0x250/0x250
+ ? __lock_acquire+0x616/0x2040
+ ? match_held_lock+0x8d/0x440
+ ? save_trace+0x1e0/0x1e0
+ ? debug_show_all_locks+0x2f0/0x2f0
+ ? match_held_lock+0xa5/0x440
+ ? save_trace+0x1e0/0x1e0
+ ? __read_once_size_nocheck.constprop.6+0x10/0x10
+ ? __orc_find+0x6b/0xc0
+ ? match_held_lock+0xa5/0x440
+ ? find_held_lock+0x6d/0xd0
+ ? __lock_is_held+0x51/0xc0
+ ? rcu_note_context_switch+0x520/0x520
+ ? perf_trace_sched_switch+0x560/0x560
+ ? __might_sleep+0x58/0xe0
+ __alloc_pages_nodemask+0x52c/0x5c0
+ ? gfp_pfmemalloc_allowed+0xc0/0xc0
+ ? __kernel_text_address+0xe/0x30
+ ? unwind_get_return_address+0x2f/0x50
+ ? __save_stack_trace+0x92/0x100
+ ? match_held_lock+0x8d/0x440
+ ? depot_save_stack+0x12e/0x480
+ ? match_held_lock+0xa5/0x440
+ ? stop_critical_timings+0x210/0x210
+ ? __netlink_dump_start+0x201/0x280
+ ? mark_held_locks+0x6e/0x90
+ ? new_slab+0x2f3/0x3f0
+ new_slab+0x374/0x3f0
+ ___slab_alloc.constprop.81+0x47e/0x5a0
+ ? __lock_is_held+0x51/0xc0
+ ? __alloc_skb+0xee/0x390
+ ? __alloc_skb+0xee/0x390
+ ? __alloc_skb+0xee/0x390
+ ? __slab_alloc.constprop.80+0x32/0x60
+ __slab_alloc.constprop.80+0x32/0x60
+ ? __alloc_skb+0xee/0x390
+ __kmalloc_track_caller+0x267/0x310
+ __kmalloc_reserve.isra.40+0x29/0x80
+ __alloc_skb+0xee/0x390
+ ? __skb_splice_bits+0x3e0/0x3e0
+ ? netlink_connect+0x1d0/0x1d0
+ ? __netlink_dump_start+0x1f9/0x280
+ ? __mutex_unlock_slowpath+0x121/0x460
+ ? wait_for_completion_killable_timeout+0x450/0x450
+ ? find_held_lock+0x6d/0xd0
+ netlink_dump+0x2e1/0x520
+ ? refcount_inc_not_zero+0x74/0x110
+ ? __nlmsg_put+0xb0/0xb0
+ ? rcu_is_watching+0x88/0xd0
+ __netlink_dump_start+0x201/0x280
+ ? inet6_dump_ifmcaddr+0x10/0x10
+ rtnetlink_rcv_msg+0x6d6/0xa90
+ ? validate_linkmsg+0x540/0x540
+ ? inet6_dump_ifmcaddr+0x10/0x10
+ ? find_held_lock+0x6d/0xd0
+ ? netlink_lookup.isra.42+0x428/0x730
+ ? lock_acquire+0x350/0x350
+ ? find_held_lock+0x6d/0xd0
+ ? inet6_dump_ifmcaddr+0x10/0x10
+ ? netlink_deliver_tap+0x124/0x5c0
+ ? lock_acquire+0x350/0x350
+ ? lockdep_rcu_suspicious+0x100/0x100
+ ? netlink_lookup.isra.42+0x447/0x730
+ ? rcu_is_watching+0x88/0xd0
+ ? netlink_connect+0x1d0/0x1d0
+ ? netlink_deliver_tap+0x143/0x5c0
+ ? __might_fault+0x7d/0xe0
+ ? iov_iter_advance+0x176/0x7d0
+ ? netlink_getname+0x150/0x150
+ netlink_rcv_skb+0xb6/0x1d0
+ ? validate_linkmsg+0x540/0x540
+ ? netlink_ack+0x4a0/0x4a0
+ ? netlink_trim+0xda/0x1b0
+ netlink_unicast+0x298/0x320
+ ? netlink_detachskb+0x30/0x30
+ ? __fget+0x410/0x410
+ netlink_sendmsg+0x57e/0x630
+ ? netlink_broadcast_filtered+0x8f0/0x8f0
+ ? netlink_broadcast_filtered+0x8f0/0x8f0
+ SYSC_sendto+0x296/0x320
+ ? SYSC_connect+0x200/0x200
+ ? __context_tracking_exit.part.4+0xe7/0x290
+ ? cyc2ns_read_end+0x10/0x10
+ ? lockdep_rcu_suspicious+0x100/0x100
+ ? rcu_read_lock_sched_held+0x90/0xa0
+ ? __context_tracking_exit.part.4+0x223/0x290
+ ? stop_critical_timings+0x210/0x210
+ ? SyS_socket+0xd6/0x120
+ ? sock_create_kern+0x10/0x10
+ ? mark_held_locks+0x1c/0x90
+ ? do_syscall_64+0x110/0xc05
+ ? SyS_getpeername+0x10/0x10
+ do_syscall_64+0x1e5/0xc05
+ ? syscall_return_slowpath+0x5b0/0x5b0
+ ? lock_acquire+0x350/0x350
+ ? lockdep_rcu_suspicious+0x100/0x100
+ ? get_vtime_delta+0x15/0xf0
+ ? get_vtime_delta+0x8b/0xf0
+ ? vtime_user_enter+0x7f/0x90
+ ? __context_tracking_enter+0x13c/0x2b0
+ ? __context_tracking_enter+0x13c/0x2b0
+ ? context_tracking_exit.part.5+0x40/0x40
+ ? do_page_fault+0xb0/0x4d0
+ ? rcu_is_watching+0x88/0xd0
+ ? vmalloc_sync_all+0x20/0x20
+ ? time_hardirqs_on+0x220/0x220
+ ? prepare_exit_to_usermode+0x1d0/0x2a0
+ ? enter_from_user_mode+0x30/0x30
+ ? entry_SYSCALL_64_after_hwframe+0x18/0x2e
+ ? trace_hardirqs_off_caller+0xc2/0x110
+ ? trace_hardirqs_off_thunk+0x1a/0x1c
+ entry_SYSCALL64_slow_path+0x25/0x25
+RIP: 0033:0x7f204299f54d
+RSP: 002b:00007ffc49024fd8 EFLAGS: 00000246 ORIG_RAX: 000000000000002c
+RAX: ffffffffffffffda RBX: 000000000000000a RCX: 00007f204299f54d
+RDX: 0000000000000018 RSI: 00007ffc49025010 RDI: 0000000000000012
+RBP: 0000000000000001 R08: 0000000000000000 R09: 0000000000000000
+R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000012
+R13: 00007ffc49029550 R14: 000055e31307a250 R15: 00007ffc49029530
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
