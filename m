@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 76C396B0007
-	for <linux-mm@kvack.org>; Sun, 28 Jan 2018 17:29:12 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id m3so2901990pgd.20
-        for <linux-mm@kvack.org>; Sun, 28 Jan 2018 14:29:12 -0800 (PST)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0135.outbound.protection.outlook.com. [104.47.42.135])
-        by mx.google.com with ESMTPS id e39-v6si242156plg.522.2018.01.28.14.29.11
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 797386B0009
+	for <linux-mm@kvack.org>; Sun, 28 Jan 2018 17:30:29 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id m65so4516025pfm.14
+        for <linux-mm@kvack.org>; Sun, 28 Jan 2018 14:30:29 -0800 (PST)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0125.outbound.protection.outlook.com. [104.47.42.125])
+        by mx.google.com with ESMTPS id y24si1811589pfa.194.2018.01.28.14.30.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 28 Jan 2018 14:29:11 -0800 (PST)
+        Sun, 28 Jan 2018 14:30:28 -0800 (PST)
 From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL for 4.9 45/49] mm/early_ioremap: Fix boot hang with
+Subject: [PATCH AUTOSEL for 4.4 33/36] mm/early_ioremap: Fix boot hang with
  earlyprintk=efi,keep
-Date: Sun, 28 Jan 2018 22:28:06 +0000
-Message-ID: <20180128222727.22404-45-alexander.levin@microsoft.com>
-References: <20180128222727.22404-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180128222727.22404-1-alexander.levin@microsoft.com>
+Date: Sun, 28 Jan 2018 22:28:48 +0000
+Message-ID: <20180128222815.29479-33-alexander.levin@microsoft.com>
+References: <20180128222815.29479-1-alexander.levin@microsoft.com>
+In-Reply-To: <20180128222815.29479-1-alexander.levin@microsoft.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
