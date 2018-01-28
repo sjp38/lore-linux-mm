@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 797386B0009
-	for <linux-mm@kvack.org>; Sun, 28 Jan 2018 17:30:29 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id m65so4516025pfm.14
-        for <linux-mm@kvack.org>; Sun, 28 Jan 2018 14:30:29 -0800 (PST)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0125.outbound.protection.outlook.com. [104.47.42.125])
-        by mx.google.com with ESMTPS id y24si1811589pfa.194.2018.01.28.14.30.28
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 93C866B000C
+	for <linux-mm@kvack.org>; Sun, 28 Jan 2018 17:30:40 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id a9so4532521pff.0
+        for <linux-mm@kvack.org>; Sun, 28 Jan 2018 14:30:40 -0800 (PST)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0092.outbound.protection.outlook.com. [104.47.37.92])
+        by mx.google.com with ESMTPS id 4-v6si7815462plc.812.2018.01.28.14.30.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 28 Jan 2018 14:30:28 -0800 (PST)
+        Sun, 28 Jan 2018 14:30:39 -0800 (PST)
 From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL for 4.4 33/36] mm/early_ioremap: Fix boot hang with
+Subject: [PATCH AUTOSEL for 3.18 22/25] mm/early_ioremap: Fix boot hang with
  earlyprintk=efi,keep
-Date: Sun, 28 Jan 2018 22:28:48 +0000
-Message-ID: <20180128222815.29479-33-alexander.levin@microsoft.com>
-References: <20180128222815.29479-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180128222815.29479-1-alexander.levin@microsoft.com>
+Date: Sun, 28 Jan 2018 22:29:59 +0000
+Message-ID: <20180128222931.7781-22-alexander.levin@microsoft.com>
+References: <20180128222931.7781-1-alexander.levin@microsoft.com>
+In-Reply-To: <20180128222931.7781-1-alexander.levin@microsoft.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
@@ -58,10 +58,10 @@ Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-index 6d5717bd7197..57540de2b44c 100644
+index e10ccd299d66..5edcf1b37fa6 100644
 --- a/mm/early_ioremap.c
 +++ b/mm/early_ioremap.c
-@@ -103,7 +103,7 @@ __early_ioremap(resource_size_t phys_addr, unsigned lon=
+@@ -102,7 +102,7 @@ __early_ioremap(resource_size_t phys_addr, unsigned lon=
 g size, pgprot_t prot)
  	enum fixed_addresses idx;
  	int i, slot;
