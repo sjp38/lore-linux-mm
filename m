@@ -1,88 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BE1A6B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 06:19:07 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id s136so4789219oie.0
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 03:19:07 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u84si3330636oia.536.2018.01.29.03.19.06
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C91BF6B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 06:21:34 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f3so4535362pga.9
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 03:21:34 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id k187si7260644pgc.178.2018.01.29.03.21.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jan 2018 03:19:06 -0800 (PST)
-Date: Mon, 29 Jan 2018 19:19:01 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCH] x86/kexec: Make kexec work in 5-level paging mode
-Message-ID: <20180129111901.GA7344@localhost.localdomain>
-References: <20180129110845.26633-1-kirill.shutemov@linux.intel.com>
+        Mon, 29 Jan 2018 03:21:33 -0800 (PST)
+Subject: Re: [RFC] kswapd aggressiveness with watermark_scale_factor
+From: Vinayak Menon <vinmenon@codeaurora.org>
+References: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
+Message-ID: <8ac1f2d4-7fed-3192-2522-8fc6043e8fbc@codeaurora.org>
+Date: Mon, 29 Jan 2018 16:51:27 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180129110845.26633-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: hannes@cmpxchg.org, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "vbabka@suse.cz" <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>
 
-On 01/29/18 at 02:08pm, Kirill A. Shutemov wrote:
-> I've missed that we need to change relocate_kernel() to set CR4.LA57
-> flag if the kernel has 5-level paging enabled.
-> 
-> I avoided to use ifdef CONFIG_X86_5LEVEL here and inferred if we need to
-> enabled 5-level paging from previous CR4 value. This way the code is
-> ready for boot-time switching between paging modes.
-> 
-> Fixes: 77ef56e4f0fb ("x86: Enable 5-level paging support via CONFIG_X86_5LEVEL=y")
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Baoquan He <bhe@redhat.com>
-
-Thanks, Kirill.
-
-Tested on qemu with la57 support, kexec works well. Kdump kernel can
-boot into kernel, while there's a memory allocation failure during
-boot which I am trying to fix. The reason is kdump kernel need reserve
-as small memory as possible. Will post soon.
-
-For this patch, feel free to add my Tested-by.
-
-Tested-by: Baoquan He <bhe@redhat.com>
-
-Thanks
-Baoquan
-> ---
->  arch/x86/kernel/relocate_kernel_64.S | 8 ++++++++
->  1 file changed, 8 insertions(+)
-> 
-> diff --git a/arch/x86/kernel/relocate_kernel_64.S b/arch/x86/kernel/relocate_kernel_64.S
-> index 307d3bac5f04..11eda21eb697 100644
-> --- a/arch/x86/kernel/relocate_kernel_64.S
-> +++ b/arch/x86/kernel/relocate_kernel_64.S
-> @@ -68,6 +68,9 @@ relocate_kernel:
->  	movq	%cr4, %rax
->  	movq	%rax, CR4(%r11)
->  
-> +	/* Save CR4. Required to enable the right paging mode later. */
-> +	movq	%rax, %r13
+On 1/24/2018 9:25 PM, Vinayak Menon wrote:
+> Hi,
+>
+> It is observed that watermark_scale_factor when used to reduce thundering herds
+> in direct reclaim, reduces the direct reclaims, but results in unnecessary reclaim
+> due to kswapd running for long after being woken up. The tests are done with 4 GB
+> of RAM and the tests done are multibuild and another which opens a set of apps
+> sequentially on Android and repeating the sequence N times. The tests are done on
+> 4.9 kernel.
+>
+> The issue seems to be because of watermark_scale_factor creating larger gap between
+> low and high watermarks. The following results are with watermark_scale_factor of 120
+> and the other with watermark_scale_factor 120 with a reduced gap between low and
+> high watermarks. The patch used to reduce the gap is given below. The min-low gap is
+> untouched. It can be seen that with the reduced low-high gap, the direct reclaims are
+> almost same as base, but with 45% less pgpgin. Reduced low-high gap improves the
+> latency by around 11% in the sequential app test due to lesser IO and kswapd activity.
+>
+> A A A A A A A A A A A A A A A A A A A A A A  wsf-120-defaultA A A A A  wsf-120-reduced-low-high-gap
+> workingset_activateA A A  15120206A A A A A A A A A A A A  8319182
+> pgpginA A A A A A A A A A A A A A A A  269795482A A A A A A A A A A A  147928581
+> allocstallA A A A A A A A A A A A  1406A A A A A A A A A A A A A A A A  1498
+> pgsteal_kswapdA A A A A A A A  68676960A A A A A A A A A A A A  38105142
+> slabs_scannedA A A A A A A A A  94181738A A A A A A A A A A A A  49085755
+>
+> This is the diff of wsf-120-reduced-low-high-gap for comments. The patch considers
+> low-high gap as a fraction of min-low gap, and the fraction a function of managed pages,
+> increasing non-linearly. The multiplier 4 is was chosen as a reasonable value which does
+> not alter the low-high gap much from the base for large machines.
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3a11a50..749d1eb 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6898,7 +6898,11 @@ static void __setup_per_zone_wmarks(void)
+> A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  watermark_scale_factor, 10000));
+>
+> A A A A A A A A A A A A A A A  zone->watermark[WMARK_LOW]A  = min_wmark_pages(zone) + tmp;
+> -A A A A A A A A A A A A A A  zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
 > +
->  	/* zero out flags, and disable interrupts */
->  	pushq $0
->  	popfq
-> @@ -126,8 +129,13 @@ identity_mapped:
->  	/*
->  	 * Set cr4 to a known state:
->  	 *  - physical address extension enabled
-> +	 *  - 5-level paging, if it was enabled before
->  	 */
->  	movl	$X86_CR4_PAE, %eax
-> +	testq	$X86_CR4_LA57, %r13
-> +	jz	1f
-> +	orl	$X86_CR4_LA57, %eax
-> +1:
->  	movq	%rax, %cr4
->  
->  	jmp 1f
-> -- 
-> 2.15.1
-> 
+> +A A A A A A A A A A A A A A  tmp = clamp_t(u64, mult_frac(tmp, int_sqrt(4 * zone->managed_pages),
+> +A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  10000), min_wmark_pages(zone) >> 2 , tmp);
+> +
+> +A A A A A A A A A A A A A A  zone->watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
+>
+> A A A A A A A A A A A A A A A  spin_unlock_irqrestore(&zone->lock, flags);
+> A A A A A A A  }
+>
+> With the patch,
+> With watermark_scale_factor as default 10, the low-high gap:
+> unchanged for 140G at 143M,
+> for 65G, reduces from 65M to 53M
+> for 4GB, reduces from 4M to 1M
+>
+> With watermark_scale_factor 120, the low-high gap:
+> unchanged for 140G
+> for 65G, reduces from 786M to 644M
+> for 4GB, reduces from 49M to 10M
+>
+> Thanks,
+> Vinayak
+
+Ping for comments, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
