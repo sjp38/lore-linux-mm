@@ -1,50 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A6826B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:47:00 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id g13so5390768wrh.19
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 02:47:00 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l10si9906457wrb.90.2018.01.29.02.46.58
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DE346B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 06:09:01 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id f74so6547276pfa.13
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 03:09:01 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id 77si3070034pfs.2.2018.01.29.03.08.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 Jan 2018 02:46:59 -0800 (PST)
-Date: Mon, 29 Jan 2018 11:46:57 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch -mm v2 2/3] mm, memcg: replace cgroup aware oom killer
- mount option with tunable
-Message-ID: <20180129104657.GC21609@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1801161812550.28198@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1801251552320.161808@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1801251553030.161808@chino.kir.corp.google.com>
- <20180125160016.30e019e546125bb13b5b6b4f@linux-foundation.org>
- <alpine.DEB.2.10.1801261415090.15318@chino.kir.corp.google.com>
- <20180126143950.719912507bd993d92188877f@linux-foundation.org>
- <alpine.DEB.2.10.1801261441340.20954@chino.kir.corp.google.com>
- <20180126161735.b999356fbe96c0acd33aaa66@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180126161735.b999356fbe96c0acd33aaa66@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jan 2018 03:08:59 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] x86/kexec: Make kexec work in 5-level paging mode
+Date: Mon, 29 Jan 2018 14:08:45 +0300
+Message-Id: <20180129110845.26633-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri 26-01-18 16:17:35, Andrew Morton wrote:
-> On Fri, 26 Jan 2018 14:52:59 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
-[...]
-> > Those use cases are also undocumented such that the user doesn't know the 
-> > behavior they are opting into.  Nowhere in the patchset does it mention 
-> > anything about oom_score_adj other than being oom disabled.  It doesn't 
-> > mention that a per-process tunable now depends strictly on whether it is 
-> > attached to root or not.  It specifies a fair comparison between the root 
-> > mem cgroup and leaf mem cgroups, which is obviously incorrect by the 
-> > implementation itself.  So I'm not sure the user would know which use 
-> > cases it is valid for, which is why I've been trying to make it generally 
-> > purposeful and documented.
-> 
-> Documentation patches are nice.  We can cc:stable them too, so no huge
-> hurry.
+I've missed that we need to change relocate_kernel() to set CR4.LA57
+flag if the kernel has 5-level paging enabled.
 
-What about this?
+I avoided to use ifdef CONFIG_X86_5LEVEL here and inferred if we need to
+enabled 5-level paging from previous CR4 value. This way the code is
+ready for boot-time switching between paging modes.
+
+Fixes: 77ef56e4f0fb ("x86: Enable 5-level paging support via CONFIG_X86_5LEVEL=y")
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Baoquan He <bhe@redhat.com>
+---
+ arch/x86/kernel/relocate_kernel_64.S | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/x86/kernel/relocate_kernel_64.S b/arch/x86/kernel/relocate_kernel_64.S
+index 307d3bac5f04..11eda21eb697 100644
+--- a/arch/x86/kernel/relocate_kernel_64.S
++++ b/arch/x86/kernel/relocate_kernel_64.S
+@@ -68,6 +68,9 @@ relocate_kernel:
+ 	movq	%cr4, %rax
+ 	movq	%rax, CR4(%r11)
+ 
++	/* Save CR4. Required to enable the right paging mode later. */
++	movq	%rax, %r13
++
+ 	/* zero out flags, and disable interrupts */
+ 	pushq $0
+ 	popfq
+@@ -126,8 +129,13 @@ identity_mapped:
+ 	/*
+ 	 * Set cr4 to a known state:
+ 	 *  - physical address extension enabled
++	 *  - 5-level paging, if it was enabled before
+ 	 */
+ 	movl	$X86_CR4_PAE, %eax
++	testq	$X86_CR4_LA57, %r13
++	jz	1f
++	orl	$X86_CR4_LA57, %eax
++1:
+ 	movq	%rax, %cr4
+ 
+ 	jmp 1f
+-- 
+2.15.1
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
