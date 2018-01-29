@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A9CEE6B0003
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 13:25:25 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id i12so844009wra.22
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 10:25:25 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z71si7999538wmz.2.2018.01.29.10.25.24
+	by kanga.kvack.org (Postfix) with ESMTP id 0C9526B0007
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 13:28:15 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id a63so6342472wrc.15
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 10:28:15 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y8sor6142936edb.5.2018.01.29.10.28.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 Jan 2018 10:25:24 -0800 (PST)
-Date: Mon, 29 Jan 2018 19:25:21 +0100
-From: Michal Hocko <mhocko@kernel.org>
+        (Google Transport Security);
+        Mon, 29 Jan 2018 10:28:13 -0800 (PST)
+Date: Mon, 29 Jan 2018 21:28:11 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [netfilter-core] kernel panic: Out of memory and no killable
  processes... (2)
-Message-ID: <20180129182521.GI21609@dhcp22.suse.cz>
+Message-ID: <20180129182811.fze4vrb5zd5cojmr@node.shutemov.name>
 References: <001a1144b0caee2e8c0563d9de0a@google.com>
  <201801290020.w0T0KK8V015938@www262.sakura.ne.jp>
  <20180129072357.GD5906@breakpoint.cc>
@@ -26,9 +26,9 @@ In-Reply-To: <20180129165722.GF5906@breakpoint.cc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Florian Westphal <fw@strlen.de>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, davem@davemloft.net, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, aarcange@redhat.com, yang.s@alibaba-inc.com, syzkaller-bugs@googlegroups.com, linux-kernel@vger.kernel.org, mingo@kernel.org, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, guro@fb.com, kirill.shutemov@linux.intel.com
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, davem@davemloft.net, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, aarcange@redhat.com, yang.s@alibaba-inc.com, mhocko@suse.com, syzkaller-bugs@googlegroups.com, linux-kernel@vger.kernel.org, mingo@kernel.org, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, guro@fb.com, kirill.shutemov@linux.intel.com
 
-On Mon 29-01-18 17:57:22, Florian Westphal wrote:
+On Mon, Jan 29, 2018 at 05:57:22PM +0100, Florian Westphal wrote:
 > Kirill A. Shutemov <kirill@shutemov.name> wrote:
 > > On Mon, Jan 29, 2018 at 08:23:57AM +0100, Florian Westphal wrote:
 > > > > vmalloc() once became killable by commit 5d17a73a2ebeb8d1 ("vmalloc: back
@@ -48,11 +48,23 @@ On Mon 29-01-18 17:57:22, Florian Westphal wrote:
 > I think we should try to allocate whatever amount of memory is needed
 > for the given xtables ruleset, given that is what admin requested us to do.
 
-If this is a root only thing then __GFP_NORETRY sounds like the most
-straightforward way to go.
+Is it correct that "admin" in this case is root in random container?
+I mean, can we get access to it with CLONE_NEWUSER|CLONE_NEWNET?
+
+This can be fun.
+
+> I also would not know what limit is sane -- I've seen setups with as much
+> as 100k iptables rules, and that was 5 years ago.
+> 
+> And even if we add a "Xk rules" limit, it might be too much for
+> low-memory systems, or not enough for whatever other use case there
+> might be.
+
+I hate what I'm saying, but I guess we need some tunable here.
+Not sure what exactly.
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
