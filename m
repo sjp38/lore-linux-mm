@@ -1,88 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 214046B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 08:14:33 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id d63so4850153wma.4
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:14:33 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D85446B0007
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 08:22:38 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id k38so2894704wre.23
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:22:38 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z73si6399366wrc.64.2018.01.29.05.14.31
+        by mx.google.com with ESMTPS id i3si9848322wre.279.2018.01.29.05.22.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 Jan 2018 05:14:31 -0800 (PST)
-Date: Mon, 29 Jan 2018 14:14:28 +0100
+        Mon, 29 Jan 2018 05:22:37 -0800 (PST)
+Date: Mon, 29 Jan 2018 14:22:35 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM ATTEND] Requests to attend MM Summit 2018
-Message-ID: <20180129131428.GA21853@dhcp22.suse.cz>
-References: <3cf31aa1-6886-a01c-57ff-143c165a74e3@linux.vnet.ibm.com>
+Subject: Re: ppc elf_map breakage with MAP_FIXED_NOREPLACE
+Message-ID: <20180129132235.GE21609@dhcp22.suse.cz>
+References: <082aa008-c56a-681d-0949-107245603a97@linux.vnet.ibm.com>
+ <20180123124545.GL1526@dhcp22.suse.cz>
+ <ef63c070-dcd7-3f26-f6ec-d95404007ae2@linux.vnet.ibm.com>
+ <20180123160653.GU1526@dhcp22.suse.cz>
+ <2a05eaf2-20fd-57a8-d4bd-5a1fbf57686c@linux.vnet.ibm.com>
+ <20180124090539.GH1526@dhcp22.suse.cz>
+ <5acba3c2-754d-e449-24ff-a72a0ad0d895@linux.vnet.ibm.com>
+ <20180126140415.GD5027@dhcp22.suse.cz>
+ <15da8c87-e6db-13aa-01c8-a913656bfdb6@linux.vnet.ibm.com>
+ <6db9b33d-fd46-c529-b357-3397926f0733@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3cf31aa1-6886-a01c-57ff-143c165a74e3@linux.vnet.ibm.com>
+In-Reply-To: <6db9b33d-fd46-c529-b357-3397926f0733@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Laura Abbott <labbott@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, John Hubbard <jhubbard@nvidia.com>, Jerome Glisse <jglisse@redhat.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
 
-On Sun 28-01-18 18:22:01, Anshuman Khandual wrote:
-[...]
-> 1. Supporting hotplug memory as a CMA region
+On Mon 29-01-18 11:02:09, Anshuman Khandual wrote:
+> On 01/29/2018 08:17 AM, Anshuman Khandual wrote:
+> > On 01/26/2018 07:34 PM, Michal Hocko wrote:
+> >> On Fri 26-01-18 18:04:27, Anshuman Khandual wrote:
+> >> [...]
+> >>> I tried to instrument mmap_region() for a single instance of 'sed'
+> >>> binary and traced all it's VMA creation. But there is no trace when
+> >>> that 'anon' VMA got created which suddenly shows up during subsequent
+> >>> elf_map() call eventually failing it. Please note that the following
+> >>> VMA was never created through call into map_region() in the process
+> >>> which is strange.
+> >>
+> >> Could you share your debugging patch?
+> > 
+> > Please find the debug patch at the end.
+> > 
+> >>
+> >>> =================================================================
+> >>> [    9.076867] Details for VMA[3] c000001fce42b7c0
+> >>> [    9.076925] vma c000001fce42b7c0 start 0000000010030000 end 0000000010040000
+> >>> next c000001fce42b580 prev c000001fce42b880 mm c000001fce40fa00
+> >>> prot 8000000000000104 anon_vma           (null) vm_ops           (null)
+> >>> pgoff 1003 file           (null) private_data           (null)
+> >>> flags: 0x100073(read|write|mayread|maywrite|mayexec|account)
+> >>> =================================================================
+> >>
+> >> Isn't this vdso or some other special mapping? It is not really an
+> >> anonymous vma. Please hook into __install_special_mapping
+> > 
+> > Yeah, will do. Its not an anon mapping as it does not have a anon_vma
+> > structure ?
 > 
-> There are situations where a platform identified specific PFN range
-> can only be used for some low level debug/tracing purpose. The same
-> PFN range must be shared between multiple guests on a need basis,
-> hence its logical to expect the range to be hot add/removable in
-> each guest. But once available and online in the guest, it would
-> require a sort of guarantee of a large order allocation (almost the
-> entire range) into the memory to use it for aforesaid purpose.
-> Plugging the memory as ZONE_MOVABLE with MIGRATE_CMA makes sense in
-> this scenario but its not supported at the moment.
-
-Isn't Joonsoo's[1] work doing exactly this?
-
-[1] http://lkml.kernel.org/r/1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com
-
-Anyway, declaring CMA regions to the hotplugable memory sounds like a
-misconfiguration. Unless I've missed anything CMA memory is not
-migratable and it is far from trivial to change that.
-
-> This basically extends the idea of relaxing CMA reservation and
-> declaration restrictions as pointed by Mike Kravetz.
+> Okay, this colliding VMA seems to be getting loaded from load_elf_binary()
+> function as well.
 > 
-> 2. Adding NUMA
+> [    9.422410] vma c000001fceedbc40 start 0000000010030000 end 0000000010040000
+> next c000001fceedbe80 prev c000001fceedb700 mm c000001fceea8200
+> prot 8000000000000104 anon_vma           (null) vm_ops           (null)
+> pgoff 1003 file           (null) private_data           (null)
+> flags: 0x100073(read|write|mayread|maywrite|mayexec|account)
+> [    9.422576] CPU: 46 PID: 7457 Comm: sed Not tainted 4.14.0-dirty #158
+> [    9.422610] Call Trace:
+> [    9.422623] [c000001fdc4f79b0] [c000000000b17ac0] dump_stack+0xb0/0xf0 (unreliable)
+> [    9.422670] [c000001fdc4f79f0] [c0000000002dafb8] do_brk_flags+0x2d8/0x440
+> [    9.422708] [c000001fdc4f7ac0] [c0000000002db3d0] vm_brk_flags+0x80/0x130
+> [    9.422747] [c000001fdc4f7b20] [c0000000003d23a4] set_brk+0x80/0xdc
+> [    9.422785] [c000001fdc4f7b60] [c0000000003d1f24] load_elf_binary+0x1304/0x158c
+> [    9.422830] [c000001fdc4f7c80] [c00000000035d3e0] search_binary_handler+0xd0/0x270
+> [    9.422881] [c000001fdc4f7d10] [c00000000035f338] do_execveat_common.isra.31+0x658/0x890
+> [    9.422926] [c000001fdc4f7df0] [c00000000035f980] SyS_execve+0x40/0x50
+> [    9.423588] [c000001fdc4f7e30] [c00000000000b220] system_call+0x58/0x6c
 > 
-> Adding NUMA tracking information to individual CMA areas and use it
-> for alloc_cma() interface. In POWER8 KVM implementation, guest HPT
-> (Hash Page Table) is allocated from a predefined CMA region. NUMA
-> aligned allocation for HPT for any given guest VM can help improve
-> performance.
+> which is getting hit after adding some more debug.
 
-With CMA using ZONE_MOVABLE this should be rather straightforward. We
-just need a way to distribute CMA regions over nodes and make the core
-CMA allocator to fallback between nodes in a the nodlist order.
- 
-> 3. Reducing CMA allocation failures
-> 
-> CMA allocation failures are primarily because of not being unable to
-> isolate or migrate the given PFN range (Inside alloc_contig_range).
-> Is there a way to reduce the failure chances ?
-> 
-> D. MAP_CONTIG (Mike Kravetz, Laura Abbott, Michal Hocko)
-> 
-> I understand that a recent RFC from Mike Kravetz got debated but without
-> any conclusion about the viability to add MAP_CONTIG option for the user
-> space to request large contiguous physical memory.
+Voila! So your binary simply overrides brk by elf segments. That sounds
+like the exactly the thing that the patch is supposed to protect from.
+Why this is the case I dunno. It is just clear that either brk or
+elf base are not put to the proper place. Something to get fixed. You
+are probably just lucky that brk allocations do not spil over to elf
+mappings.
 
-The conclusion was pretty clear AFAIR. Our allocator simply cannot
-handle arbitrary sized large allocations so MAP_CONTIG is really hard to
-provide to the userspace. If there are drivers (RDMA I suspect) which
-would benefit from large allocations then they should use a custom mmap
-implementation which preallocates the memory.
-
-> I will be really
-> interested to discuss any future plans on how kernel can help user space
-> with large physical contiguous memory if need arises.
+> @@ -2949,6 +2997,13 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
+>         if (flags & VM_LOCKED)
+>                 mm->locked_vm += (len >> PAGE_SHIFT);
+>         vma->vm_flags |= VM_SOFTDIRTY;
+> +
+> +       if (!strcmp(current->comm, "sed")) {
+> +               if (just_init && (mm_ptr == vma->vm_mm)) {
+> +                       dump_vma(vma);
+> +                       dump_stack();
+> +               }
+> +       }
+>         return 0;
+>  }
 > 
-> (MAP_CONTIG RFC https://lkml.org/lkml/2017/10/3/992)
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
 Michal Hocko
 SUSE Labs
