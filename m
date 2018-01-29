@@ -1,70 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C9526B0007
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 13:28:15 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id a63so6342472wrc.15
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 10:28:15 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y8sor6142936edb.5.2018.01.29.10.28.13
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DE43D6B0003
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 13:47:55 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id m3so5391012pgd.20
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 10:47:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b1-v6si9859321pld.281.2018.01.29.10.47.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 29 Jan 2018 10:28:13 -0800 (PST)
-Date: Mon, 29 Jan 2018 21:28:11 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [netfilter-core] kernel panic: Out of memory and no killable
- processes... (2)
-Message-ID: <20180129182811.fze4vrb5zd5cojmr@node.shutemov.name>
-References: <001a1144b0caee2e8c0563d9de0a@google.com>
- <201801290020.w0T0KK8V015938@www262.sakura.ne.jp>
- <20180129072357.GD5906@breakpoint.cc>
- <20180129082649.sysf57wlp7i7ltb2@node.shutemov.name>
- <20180129165722.GF5906@breakpoint.cc>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 29 Jan 2018 10:47:54 -0800 (PST)
+Date: Mon, 29 Jan 2018 19:47:46 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 1/1] mm: page_alloc: skip over regions of invalid pfns
+ on UMA
+Message-ID: <20180129184746.GK21609@dhcp22.suse.cz>
+References: <20180124143545.31963-1-erosca@de.adit-jv.com>
+ <20180124143545.31963-2-erosca@de.adit-jv.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180129165722.GF5906@breakpoint.cc>
+In-Reply-To: <20180124143545.31963-2-erosca@de.adit-jv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Westphal <fw@strlen.de>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, davem@davemloft.net, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, aarcange@redhat.com, yang.s@alibaba-inc.com, mhocko@suse.com, syzkaller-bugs@googlegroups.com, linux-kernel@vger.kernel.org, mingo@kernel.org, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, guro@fb.com, kirill.shutemov@linux.intel.com
+To: Eugeniu Rosca <erosca@de.adit-jv.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jan 29, 2018 at 05:57:22PM +0100, Florian Westphal wrote:
-> Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > On Mon, Jan 29, 2018 at 08:23:57AM +0100, Florian Westphal wrote:
-> > > > vmalloc() once became killable by commit 5d17a73a2ebeb8d1 ("vmalloc: back
-> > > > off when the current task is killed") but then became unkillable by commit
-> > > > b8c8a338f75e052d ("Revert "vmalloc: back off when the current task is
-> > > > killed""). Therefore, we can't handle this problem from MM side.
-> > > > Please consider adding some limit from networking side.
-> > > 
-> > > I don't know what "some limit" would be.  I would prefer if there was
-> > > a way to supress OOM Killer in first place so we can just -ENOMEM user.
-> > 
-> > Just supressing OOM kill is a bad idea. We still leave a way to allocate
-> > arbitrary large buffer in kernel.
+On Wed 24-01-18 15:35:45, Eugeniu Rosca wrote:
+[...]
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 76c9688b6a0a..4a3d5936a9a0 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5344,14 +5344,12 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>  			goto not_early;
+>  
+>  		if (!early_pfn_valid(pfn)) {
+> -#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>  			/*
+>  			 * Skip to the pfn preceding the next valid one (or
+>  			 * end_pfn), such that we hit a valid pfn (or end_pfn)
+>  			 * on our next iteration of the loop.
+>  			 */
+>  			pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
+> -#endif
+>  			continue;
+
+Wouldn't it be just simpler to have ifdef CONFIG_HAVE_MEMBLOCK rather
+than define memblock_next_valid_pfn for !HAVE_MEMBLOCK and then do the
+(pfn + 1 ) - 1 games. I am usually against ifdefs in the code but that
+would require a larger surgery to memmap_init_zone.
+
+To be completely honest, I would like to see HAVE_MEMBLOCK_NODE_MAP
+gone.
+
+Other than that, the patch looks sane to me.
+
+>  		}
+>  		if (!early_pfn_in_nid(pfn, nid))
+> -- 
+> 2.15.1
 > 
-> Isn't that what we do everywhere in network stack?
-> 
-> I think we should try to allocate whatever amount of memory is needed
-> for the given xtables ruleset, given that is what admin requested us to do.
-
-Is it correct that "admin" in this case is root in random container?
-I mean, can we get access to it with CLONE_NEWUSER|CLONE_NEWNET?
-
-This can be fun.
-
-> I also would not know what limit is sane -- I've seen setups with as much
-> as 100k iptables rules, and that was 5 years ago.
-> 
-> And even if we add a "Xk rules" limit, it might be too much for
-> low-memory systems, or not enough for whatever other use case there
-> might be.
-
-I hate what I'm saying, but I guess we need some tunable here.
-Not sure what exactly.
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
