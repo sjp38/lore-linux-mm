@@ -1,95 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 69C3A6B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 08:01:04 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id w72so5281551ota.18
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:01:04 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t21si1921568oie.402.2018.01.29.05.01.03
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 214046B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 08:14:33 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id d63so4850153wma.4
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:14:33 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z73si6399366wrc.64.2018.01.29.05.14.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jan 2018 05:01:03 -0800 (PST)
-Date: Mon, 29 Jan 2018 21:00:09 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCH] x86/kexec: Make kexec work in 5-level paging mode
-Message-ID: <20180129130009.GB7344@localhost.localdomain>
-References: <20180129110845.26633-1-kirill.shutemov@linux.intel.com>
- <20180129111901.GA7344@localhost.localdomain>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 29 Jan 2018 05:14:31 -0800 (PST)
+Date: Mon, 29 Jan 2018 14:14:28 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [LSF/MM ATTEND] Requests to attend MM Summit 2018
+Message-ID: <20180129131428.GA21853@dhcp22.suse.cz>
+References: <3cf31aa1-6886-a01c-57ff-143c165a74e3@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180129111901.GA7344@localhost.localdomain>
+In-Reply-To: <3cf31aa1-6886-a01c-57ff-143c165a74e3@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Laura Abbott <labbott@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, John Hubbard <jhubbard@nvidia.com>, Jerome Glisse <jglisse@redhat.com>
 
-On 01/29/18 at 07:19pm, Baoquan He wrote:
-> On 01/29/18 at 02:08pm, Kirill A. Shutemov wrote:
-> > I've missed that we need to change relocate_kernel() to set CR4.LA57
-> > flag if the kernel has 5-level paging enabled.
-> > 
-> > I avoided to use ifdef CONFIG_X86_5LEVEL here and inferred if we need to
-> > enabled 5-level paging from previous CR4 value. This way the code is
-> > ready for boot-time switching between paging modes.
-> > 
-> > Fixes: 77ef56e4f0fb ("x86: Enable 5-level paging support via CONFIG_X86_5LEVEL=y")
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Reported-by: Baoquan He <bhe@redhat.com>
+On Sun 28-01-18 18:22:01, Anshuman Khandual wrote:
+[...]
+> 1. Supporting hotplug memory as a CMA region
 > 
-> Thanks, Kirill.
-> 
-> Tested on qemu with la57 support, kexec works well. Kdump kernel can
-> boot into kernel, while there's a memory allocation failure during
-> boot which I am trying to fix. The reason is kdump kernel need reserve
-> as small memory as possible. Will post soon.
+> There are situations where a platform identified specific PFN range
+> can only be used for some low level debug/tracing purpose. The same
+> PFN range must be shared between multiple guests on a need basis,
+> hence its logical to expect the range to be hot add/removable in
+> each guest. But once available and online in the guest, it would
+> require a sort of guarantee of a large order allocation (almost the
+> entire range) into the memory to use it for aforesaid purpose.
+> Plugging the memory as ZONE_MOVABLE with MIGRATE_CMA makes sense in
+> this scenario but its not supported at the moment.
 
-By the way, the kdump failure can be worked around by increasing
-crashkernel memory, then kdump kernel can still work well. So this patch
-is necessary fix for kexec/kdump.
+Isn't Joonsoo's[1] work doing exactly this?
 
+[1] http://lkml.kernel.org/r/1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com
+
+Anyway, declaring CMA regions to the hotplugable memory sounds like a
+misconfiguration. Unless I've missed anything CMA memory is not
+migratable and it is far from trivial to change that.
+
+> This basically extends the idea of relaxing CMA reservation and
+> declaration restrictions as pointed by Mike Kravetz.
 > 
-> For this patch, feel free to add my Tested-by.
+> 2. Adding NUMA
 > 
-> Tested-by: Baoquan He <bhe@redhat.com>
+> Adding NUMA tracking information to individual CMA areas and use it
+> for alloc_cma() interface. In POWER8 KVM implementation, guest HPT
+> (Hash Page Table) is allocated from a predefined CMA region. NUMA
+> aligned allocation for HPT for any given guest VM can help improve
+> performance.
+
+With CMA using ZONE_MOVABLE this should be rather straightforward. We
+just need a way to distribute CMA regions over nodes and make the core
+CMA allocator to fallback between nodes in a the nodlist order.
+ 
+> 3. Reducing CMA allocation failures
 > 
-> Thanks
-> Baoquan
-> > ---
-> >  arch/x86/kernel/relocate_kernel_64.S | 8 ++++++++
-> >  1 file changed, 8 insertions(+)
-> > 
-> > diff --git a/arch/x86/kernel/relocate_kernel_64.S b/arch/x86/kernel/relocate_kernel_64.S
-> > index 307d3bac5f04..11eda21eb697 100644
-> > --- a/arch/x86/kernel/relocate_kernel_64.S
-> > +++ b/arch/x86/kernel/relocate_kernel_64.S
-> > @@ -68,6 +68,9 @@ relocate_kernel:
-> >  	movq	%cr4, %rax
-> >  	movq	%rax, CR4(%r11)
-> >  
-> > +	/* Save CR4. Required to enable the right paging mode later. */
-> > +	movq	%rax, %r13
-> > +
-> >  	/* zero out flags, and disable interrupts */
-> >  	pushq $0
-> >  	popfq
-> > @@ -126,8 +129,13 @@ identity_mapped:
-> >  	/*
-> >  	 * Set cr4 to a known state:
-> >  	 *  - physical address extension enabled
-> > +	 *  - 5-level paging, if it was enabled before
-> >  	 */
-> >  	movl	$X86_CR4_PAE, %eax
-> > +	testq	$X86_CR4_LA57, %r13
-> > +	jz	1f
-> > +	orl	$X86_CR4_LA57, %eax
-> > +1:
-> >  	movq	%rax, %cr4
-> >  
-> >  	jmp 1f
-> > -- 
-> > 2.15.1
-> > 
+> CMA allocation failures are primarily because of not being unable to
+> isolate or migrate the given PFN range (Inside alloc_contig_range).
+> Is there a way to reduce the failure chances ?
+> 
+> D. MAP_CONTIG (Mike Kravetz, Laura Abbott, Michal Hocko)
+> 
+> I understand that a recent RFC from Mike Kravetz got debated but without
+> any conclusion about the viability to add MAP_CONTIG option for the user
+> space to request large contiguous physical memory.
+
+The conclusion was pretty clear AFAIR. Our allocator simply cannot
+handle arbitrary sized large allocations so MAP_CONTIG is really hard to
+provide to the userspace. If there are drivers (RDMA I suspect) which
+would benefit from large allocations then they should use a custom mmap
+implementation which preallocates the memory.
+
+> I will be really
+> interested to discuss any future plans on how kernel can help user space
+> with large physical contiguous memory if need arises.
+> 
+> (MAP_CONTIG RFC https://lkml.org/lkml/2017/10/3/992)
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
