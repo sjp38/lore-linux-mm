@@ -1,181 +1,432 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 686766B0003
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 12:06:59 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id f6so6150720wre.4
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 09:06:59 -0800 (PST)
-Received: from smtp1.de.adit-jv.com (smtp1.de.adit-jv.com. [62.225.105.245])
-        by mx.google.com with ESMTPS id d4si7866963wma.203.2018.01.29.09.06.57
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EE6CB6B0007
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 12:30:29 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r9so10897283wme.8
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 09:30:29 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v192sor2968409wme.83.2018.01.29.09.30.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jan 2018 09:06:57 -0800 (PST)
-Date: Mon, 29 Jan 2018 18:06:42 +0100
-From: Eugeniu Rosca <erosca@de.adit-jv.com>
-Subject: Re: [PATCH v3 1/1] mm: page_alloc: skip over regions of invalid pfns
- on UMA
-Message-ID: <20180129170500.GA17669@vmlxhi-102.adit-jv.com>
-References: <20180124143545.31963-1-erosca@de.adit-jv.com>
- <20180124143545.31963-2-erosca@de.adit-jv.com>
- <CAOAebxvwO12EFUH6PZLcP19WcEM70xEGwkEgF4DL62CFOFsqcw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <CAOAebxvwO12EFUH6PZLcP19WcEM70xEGwkEgF4DL62CFOFsqcw@mail.gmail.com>
+        (Google Transport Security);
+        Mon, 29 Jan 2018 09:30:28 -0800 (PST)
+From: Dmitry Vyukov <dvyukov@google.com>
+Subject: [PATCH v6 3/4] asm-generic: add KASAN instrumentation to atomic operations
+Date: Mon, 29 Jan 2018 18:26:06 +0100
+Message-Id: <2fa6e7f0210fd20fe404e5b67e6e9213af2b69a1.1517246437.git.dvyukov@google.com>
+In-Reply-To: <cover.1517246437.git.dvyukov@google.com>
+References: <cover.1517246437.git.dvyukov@google.com>
+In-Reply-To: <cover.1517246437.git.dvyukov@google.com>
+References: <cover.1517246437.git.dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>, Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: mark.rutland@arm.com, peterz@infradead.org, mingo@redhat.com, will.deacon@arm.com, hpa@zytor.com, aryabinin@virtuozzo.com, kasan-dev@googlegroups.com, x86@kernel.org, linux-kernel@vger.kernel.org, tglx@linutronix.de
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Hello Matthew, Pavel and MM people,
+KASAN uses compiler instrumentation to intercept all memory accesses. But it does
+not see memory accesses done in assembly code. One notable user of assembly code
+is atomic operations. Frequently, for example, an atomic reference decrement is
+the last access to an object and a good candidate for a racy use-after-free.
 
-I am probably too impatient, but what would be the next step after
-reaching [PATCH v3] and collecting two Reviewed-by signatures?
+Add manual KASAN checks to atomic operations.
 
-Is there a chance that this patch goes into v4.16-rc1 to be less of a
-risk for the whole cycle?
+Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Will Deacon <will.deacon@arm.com>,
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+Cc: Ingo Molnar <mingo@redhat.com>,
+Cc: kasan-dev@googlegroups.com
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+Cc: x86@kernel.org
+---
+ include/asm-generic/atomic-instrumented.h | 62 +++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)
 
-Thanks,
-Eugeniu.
-
-On Wed, Jan 24, 2018 at 11:27:47AM -0500, Pavel Tatashin wrote:
-> Looks good.
-> 
-> Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> 
-> On Wed, Jan 24, 2018 at 9:35 AM, Eugeniu Rosca <erosca@de.adit-jv.com> wrote:
-> > As a result of bisecting the v4.10..v4.11 commit range, it was
-> > determined that commits [1] and [2] are both responsible of a ~140ms
-> > early startup improvement on Rcar-H3-ES20 arm64 platform.
-> >
-> > Since Rcar Gen3 family is not NUMA, we don't define CONFIG_NUMA in the
-> > rcar3 defconfig (which also reduces KNL binary image by ~64KB), but this
-> > is how the boot time improvement is lost.
-> >
-> > This patch makes optimization [2] available on UMA systems which
-> > provide support for CONFIG_HAVE_MEMBLOCK.
-> >
-> > Testing this change on Rcar H3-ES20-ULCB using v4.15-rc9 KNL and
-> > vanilla arm64 defconfig + NUMA=n, a speed-up of ~139ms (from ~174ms [3]
-> > to ~35ms [4]) is observed in the execution of memmap_init_zone().
-> >
-> > No boot time improvement is sensed on Apollo Lake SoC.
-> >
-> > [1] commit 0f84832fb8f9 ("arm64: defconfig: Enable NUMA and NUMA_BALANCING")
-> > [2] commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns where possible")
-> >
-> > [3] 174ms spent in memmap_init_zone() on H3ULCB w/o this patch (NUMA=n)
-> > [    2.643685] On node 0 totalpages: 1015808
-> > [    2.643688]   DMA zone: 3584 pages used for memmap
-> > [    2.643691]   DMA zone: 0 pages reserved
-> > [    2.643693]   DMA zone: 229376 pages, LIFO batch:31
-> > [    2.643696] > memmap_init_zone
-> > [    2.663628] < memmap_init_zone (19.932 ms)
-> > [    2.663632]   Normal zone: 12288 pages used for memmap
-> > [    2.663635]   Normal zone: 786432 pages, LIFO batch:31
-> > [    2.663637] > memmap_init_zone
-> > [    2.818012] < memmap_init_zone (154.375 ms)
-> > [    2.818041] psci: probing for conduit method from DT.
-> >
-> > [4] 35ms spent in memmap_init_zone() on H3ULCB with this patch (NUMA=n)
-> > [    2.677202] On node 0 totalpages: 1015808
-> > [    2.677205]   DMA zone: 3584 pages used for memmap
-> > [    2.677208]   DMA zone: 0 pages reserved
-> > [    2.677211]   DMA zone: 229376 pages, LIFO batch:31
-> > [    2.677213] > memmap_init_zone
-> > [    2.684378] < memmap_init_zone (7.165 ms)
-> > [    2.684382]   Normal zone: 12288 pages used for memmap
-> > [    2.684385]   Normal zone: 786432 pages, LIFO batch:31
-> > [    2.684387] > memmap_init_zone
-> > [    2.712556] < memmap_init_zone (28.169 ms)
-> > [    2.712584] psci: probing for conduit method from DT.
-> >
-> > Signed-off-by: Eugeniu Rosca <erosca@de.adit-jv.com>
-> > Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
-> > ---
-> >  include/linux/memblock.h | 1 -
-> >  include/linux/mm.h       | 6 ++++++
-> >  mm/memblock.c            | 2 ++
-> >  mm/page_alloc.c          | 2 --
-> >  4 files changed, 8 insertions(+), 3 deletions(-)
-> >
-> > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> > index 7ed0f7782d16..9efd592c5da4 100644
-> > --- a/include/linux/memblock.h
-> > +++ b/include/linux/memblock.h
-> > @@ -187,7 +187,6 @@ int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
-> >                             unsigned long  *end_pfn);
-> >  void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
-> >                           unsigned long *out_end_pfn, int *out_nid);
-> > -unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
-> >
-> >  /**
-> >   * for_each_mem_pfn_range - early memory pfn range iterator
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index ea818ff739cd..b82b30522585 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -2064,8 +2064,14 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
-> >
-> >  #ifdef CONFIG_HAVE_MEMBLOCK
-> >  void zero_resv_unavail(void);
-> > +unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
-> >  #else
-> >  static inline void zero_resv_unavail(void) {}
-> > +static inline unsigned long memblock_next_valid_pfn(unsigned long pfn,
-> > +                                                   unsigned long max_pfn)
-> > +{
-> > +       return pfn + 1;
-> > +}
-> >  #endif
-> >
-> >  extern void set_dma_reserve(unsigned long new_dma_reserve);
-> > diff --git a/mm/memblock.c b/mm/memblock.c
-> > index 46aacdfa4f4d..ad48cf200e3b 100644
-> > --- a/mm/memblock.c
-> > +++ b/mm/memblock.c
-> > @@ -1100,6 +1100,7 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
-> >         if (out_nid)
-> >                 *out_nid = r->nid;
-> >  }
-> > +#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-> >
-> >  unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
-> >                                                       unsigned long max_pfn)
-> > @@ -1129,6 +1130,7 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
-> >                 return min(PHYS_PFN(type->regions[right].base), max_pfn);
-> >  }
-> >
-> > +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> >  /**
-> >   * memblock_set_node - set node ID on memblock regions
-> >   * @base: base of area to set node ID for
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 76c9688b6a0a..4a3d5936a9a0 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -5344,14 +5344,12 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-> >                         goto not_early;
-> >
-> >                 if (!early_pfn_valid(pfn)) {
-> > -#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> >                         /*
-> >                          * Skip to the pfn preceding the next valid one (or
-> >                          * end_pfn), such that we hit a valid pfn (or end_pfn)
-> >                          * on our next iteration of the loop.
-> >                          */
-> >                         pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
-> > -#endif
-> >                         continue;
-> >                 }
-> >                 if (!early_pfn_in_nid(pfn, nid))
-> > --
-> > 2.15.1
-> >
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/include/asm-generic/atomic-instrumented.h b/include/asm-generic/atomic-instrumented.h
+index b966194d120a..82e080505982 100644
+--- a/include/asm-generic/atomic-instrumented.h
++++ b/include/asm-generic/atomic-instrumented.h
+@@ -2,44 +2,53 @@
+ #define _LINUX_ATOMIC_INSTRUMENTED_H
+ 
+ #include <linux/build_bug.h>
++#include <linux/kasan-checks.h>
+ 
+ static __always_inline int atomic_read(const atomic_t *v)
+ {
++	kasan_check_read(v, sizeof(*v));
+ 	return arch_atomic_read(v);
+ }
+ 
+ static __always_inline s64 atomic64_read(const atomic64_t *v)
+ {
++	kasan_check_read(v, sizeof(*v));
+ 	return arch_atomic64_read(v);
+ }
+ 
+ static __always_inline void atomic_set(atomic_t *v, int i)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic_set(v, i);
+ }
+ 
+ static __always_inline void atomic64_set(atomic64_t *v, s64 i)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic64_set(v, i);
+ }
+ 
+ static __always_inline int atomic_xchg(atomic_t *v, int i)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_xchg(v, i);
+ }
+ 
+ static __always_inline s64 atomic64_xchg(atomic64_t *v, s64 i)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_xchg(v, i);
+ }
+ 
+ static __always_inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_cmpxchg(v, old, new);
+ }
+ 
+ static __always_inline s64 atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_cmpxchg(v, old, new);
+ }
+ 
+@@ -47,6 +56,8 @@ static __always_inline s64 atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
+ #define atomic_try_cmpxchg atomic_try_cmpxchg
+ static __always_inline bool atomic_try_cmpxchg(atomic_t *v, int *old, int new)
+ {
++	kasan_check_write(v, sizeof(*v));
++	kasan_check_read(old, sizeof(*old));
+ 	return arch_atomic_try_cmpxchg(v, old, new);
+ }
+ #endif
+@@ -55,234 +66,281 @@ static __always_inline bool atomic_try_cmpxchg(atomic_t *v, int *old, int new)
+ #define atomic64_try_cmpxchg atomic64_try_cmpxchg
+ static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new)
+ {
++	kasan_check_write(v, sizeof(*v));
++	kasan_check_read(old, sizeof(*old));
+ 	return arch_atomic64_try_cmpxchg(v, old, new);
+ }
+ #endif
+ 
+ static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return __arch_atomic_add_unless(v, a, u);
+ }
+ 
+ 
+ static __always_inline bool atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_add_unless(v, a, u);
+ }
+ 
+ static __always_inline void atomic_inc(atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic_inc(v);
+ }
+ 
+ static __always_inline void atomic64_inc(atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic64_inc(v);
+ }
+ 
+ static __always_inline void atomic_dec(atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic_dec(v);
+ }
+ 
+ static __always_inline void atomic64_dec(atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic64_dec(v);
+ }
+ 
+ static __always_inline void atomic_add(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic_add(i, v);
+ }
+ 
+ static __always_inline void atomic64_add(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic64_add(i, v);
+ }
+ 
+ static __always_inline void atomic_sub(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic_sub(i, v);
+ }
+ 
+ static __always_inline void atomic64_sub(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic64_sub(i, v);
+ }
+ 
+ static __always_inline void atomic_and(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic_and(i, v);
+ }
+ 
+ static __always_inline void atomic64_and(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic64_and(i, v);
+ }
+ 
+ static __always_inline void atomic_or(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic_or(i, v);
+ }
+ 
+ static __always_inline void atomic64_or(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic64_or(i, v);
+ }
+ 
+ static __always_inline void atomic_xor(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic_xor(i, v);
+ }
+ 
+ static __always_inline void atomic64_xor(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	arch_atomic64_xor(i, v);
+ }
+ 
+ static __always_inline int atomic_inc_return(atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_inc_return(v);
+ }
+ 
+ static __always_inline s64 atomic64_inc_return(atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_inc_return(v);
+ }
+ 
+ static __always_inline int atomic_dec_return(atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_dec_return(v);
+ }
+ 
+ static __always_inline s64 atomic64_dec_return(atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_dec_return(v);
+ }
+ 
+ static __always_inline s64 atomic64_inc_not_zero(atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_inc_not_zero(v);
+ }
+ 
+ static __always_inline s64 atomic64_dec_if_positive(atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_dec_if_positive(v);
+ }
+ 
+ static __always_inline bool atomic_dec_and_test(atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_dec_and_test(v);
+ }
+ 
+ static __always_inline bool atomic64_dec_and_test(atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_dec_and_test(v);
+ }
+ 
+ static __always_inline bool atomic_inc_and_test(atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_inc_and_test(v);
+ }
+ 
+ static __always_inline bool atomic64_inc_and_test(atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_inc_and_test(v);
+ }
+ 
+ static __always_inline int atomic_add_return(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_add_return(i, v);
+ }
+ 
+ static __always_inline s64 atomic64_add_return(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_add_return(i, v);
+ }
+ 
+ static __always_inline int atomic_sub_return(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_sub_return(i, v);
+ }
+ 
+ static __always_inline s64 atomic64_sub_return(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_sub_return(i, v);
+ }
+ 
+ static __always_inline int atomic_fetch_add(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_fetch_add(i, v);
+ }
+ 
+ static __always_inline s64 atomic64_fetch_add(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_fetch_add(i, v);
+ }
+ 
+ static __always_inline int atomic_fetch_sub(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_fetch_sub(i, v);
+ }
+ 
+ static __always_inline s64 atomic64_fetch_sub(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_fetch_sub(i, v);
+ }
+ 
+ static __always_inline int atomic_fetch_and(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_fetch_and(i, v);
+ }
+ 
+ static __always_inline s64 atomic64_fetch_and(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_fetch_and(i, v);
+ }
+ 
+ static __always_inline int atomic_fetch_or(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_fetch_or(i, v);
+ }
+ 
+ static __always_inline s64 atomic64_fetch_or(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_fetch_or(i, v);
+ }
+ 
+ static __always_inline int atomic_fetch_xor(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_fetch_xor(i, v);
+ }
+ 
+ static __always_inline s64 atomic64_fetch_xor(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_fetch_xor(i, v);
+ }
+ 
+ static __always_inline bool atomic_sub_and_test(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_sub_and_test(i, v);
+ }
+ 
+ static __always_inline bool atomic64_sub_and_test(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_sub_and_test(i, v);
+ }
+ 
+ static __always_inline bool atomic_add_negative(int i, atomic_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic_add_negative(i, v);
+ }
+ 
+ static __always_inline bool atomic64_add_negative(s64 i, atomic64_t *v)
+ {
++	kasan_check_write(v, sizeof(*v));
+ 	return arch_atomic64_add_negative(i, v);
+ }
+ 
+ static __always_inline unsigned long
+ cmpxchg_size(volatile void *ptr, unsigned long old, unsigned long new, int size)
+ {
++	kasan_check_write(ptr, size);
+ 	switch (size) {
+ 	case 1:
+ 		return arch_cmpxchg((u8 *)ptr, (u8)old, (u8)new);
+@@ -308,6 +366,7 @@ static __always_inline unsigned long
+ sync_cmpxchg_size(volatile void *ptr, unsigned long old, unsigned long new,
+ 		  int size)
+ {
++	kasan_check_write(ptr, size);
+ 	switch (size) {
+ 	case 1:
+ 		return arch_sync_cmpxchg((u8 *)ptr, (u8)old, (u8)new);
+@@ -334,6 +393,7 @@ static __always_inline unsigned long
+ cmpxchg_local_size(volatile void *ptr, unsigned long old, unsigned long new,
+ 		   int size)
+ {
++	kasan_check_write(ptr, size);
+ 	switch (size) {
+ 	case 1:
+ 		return arch_cmpxchg_local((u8 *)ptr, (u8)old, (u8)new);
+@@ -359,6 +419,7 @@ cmpxchg_local_size(volatile void *ptr, unsigned long old, unsigned long new,
+ static __always_inline u64
+ cmpxchg64_size(volatile u64 *ptr, u64 old, u64 new)
+ {
++	kasan_check_write(ptr, sizeof(*ptr));
+ 	return arch_cmpxchg64(ptr, old, new);
+ }
+ 
+@@ -371,6 +432,7 @@ cmpxchg64_size(volatile u64 *ptr, u64 old, u64 new)
+ static __always_inline u64
+ cmpxchg64_local_size(volatile u64 *ptr, u64 old, u64 new)
+ {
++	kasan_check_write(ptr, sizeof(*ptr));
+ 	return arch_cmpxchg64_local(ptr, old, new);
+ }
+ 
+-- 
+2.16.0.rc1.238.g530d649a79-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
