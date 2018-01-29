@@ -1,85 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A3866B0008
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 03:29:52 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id m3so4115313pgd.20
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 00:29:52 -0800 (PST)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0047.outbound.protection.outlook.com. [104.47.40.47])
-        by mx.google.com with ESMTPS id q27si11443829pfl.135.2018.01.29.00.29.50
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 443826B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 04:05:37 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id b8so7921067qtj.21
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 01:05:37 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i185si823557qkf.277.2018.01.29.01.05.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 29 Jan 2018 00:29:50 -0800 (PST)
-From: Roger He <Hongbo.He@amd.com>
-Subject: [PATCH] mm/swap: add function get_total_swap_pages to expose total_swap_pages
-Date: Mon, 29 Jan 2018 16:29:42 +0800
-Message-ID: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jan 2018 01:05:36 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0T95S2C002615
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 04:05:35 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2fsuhpate9-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 04:05:33 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <chandan@linux.vnet.ibm.com>;
+	Mon, 29 Jan 2018 09:04:55 -0000
+From: Chandan Rajendra <chandan@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 06/10] writeback: introduce super_operations->write_metadata
+Date: Mon, 29 Jan 2018 14:36:15 +0530
+In-Reply-To: <20180103162922.rxs2jpvmpxa62usa@destiny>
+References: <20171212180534.c5f7luqz5oyfe7c3@destiny> <20180103162603.GO4911@quack2.suse.cz> <20180103162922.rxs2jpvmpxa62usa@destiny>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Message-Id: <2857272.fAFXmvyrml@dhcp-9-109-247-21>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dri-devel@lists.freedesktop.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christian.Koenig@amd.com, Roger He <Hongbo.He@amd.com>
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
-ttm module needs it to determine its internal parameter setting.
+On Wednesday, January 3, 2018 9:59:24 PM IST Josef Bacik wrote:
+> On Wed, Jan 03, 2018 at 05:26:03PM +0100, Jan Kara wrote:
 
-Signed-off-by: Roger He <Hongbo.He@amd.com>
----
- include/linux/swap.h |  6 ++++++
- mm/swapfile.c        | 15 +++++++++++++++
- 2 files changed, 21 insertions(+)
+> 
+> Oh ok well if that's the case then I'll fix this up to be a ratio, test
+> everything, and send it along probably early next week.  Thanks,
+> 
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index c2b8128..708d66f 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -484,6 +484,7 @@ extern int try_to_free_swap(struct page *);
- struct backing_dev_info;
- extern int init_swap_address_space(unsigned int type, unsigned long nr_pages);
- extern void exit_swap_address_space(unsigned int type);
-+extern long get_total_swap_pages(void);
- 
- #else /* CONFIG_SWAP */
- 
-@@ -516,6 +517,11 @@ static inline void show_swap_cache_info(void)
- {
- }
- 
-+long get_total_swap_pages(void)
-+{
-+	return 0;
-+}
-+
- #define free_swap_and_cache(e) ({(is_migration_entry(e) || is_device_private_entry(e));})
- #define swapcache_prepare(e) ({(is_migration_entry(e) || is_device_private_entry(e));})
- 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 3074b02..a0062eb 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -98,6 +98,21 @@ static atomic_t proc_poll_event = ATOMIC_INIT(0);
- 
- atomic_t nr_rotate_swap = ATOMIC_INIT(0);
- 
-+/*
-+ * expose this value for others use
-+ */
-+long get_total_swap_pages(void)
-+{
-+	long ret;
-+
-+	spin_lock(&swap_lock);
-+	ret = total_swap_pages;
-+	spin_unlock(&swap_lock);
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(get_total_swap_pages);
-+
- static inline unsigned char swap_count(unsigned char ent)
- {
- 	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
+Hi Josef,
+
+Did you get a chance to work on the next version of this patchset?
+
+
 -- 
-2.7.4
+chandan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
