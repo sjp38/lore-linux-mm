@@ -1,59 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C9D6C6B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 08:48:03 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id y18so5596259wrh.12
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:48:03 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x38sor5208194eda.41.2018.01.29.05.48.02
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F99A6B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 08:55:57 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id r6so6977970pfk.9
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:55:57 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id v8si634370pgs.639.2018.01.29.05.55.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 29 Jan 2018 05:48:02 -0800 (PST)
-Date: Mon, 29 Jan 2018 16:48:00 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] x86/kexec: Make kexec work in 5-level paging mode
-Message-ID: <20180129134800.a3sbcqzdy6vd5jjy@node.shutemov.name>
-References: <20180129110845.26633-1-kirill.shutemov@linux.intel.com>
- <20180129115927.GB18247@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 29 Jan 2018 05:55:55 -0800 (PST)
+Date: Mon, 29 Jan 2018 14:55:47 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [4.15-rc9] fs_reclaim lockdep trace
+Message-ID: <20180129135547.GR2269@hirez.programming.kicks-ass.net>
+References: <CA+55aFx6w9+C-WM9=xqsmnrMwKzDHeCwVNR5Lbnc9By00b6dzw@mail.gmail.com>
+ <d726458d-3d3b-5580-ddfc-2914cbf756ba@I-love.SAKURA.ne.jp>
+ <7771dd55-2655-d3a9-80ee-24c9ada7dbbe@I-love.SAKURA.ne.jp>
+ <8f1c776d-b791-e0b9-1e5c-62b03dcd1d74@I-love.SAKURA.ne.jp>
+ <20180129102746.GQ2269@hirez.programming.kicks-ass.net>
+ <201801292047.EHC05241.OHSQOJOVtFMFLF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180129115927.GB18247@bombadil.infradead.org>
+In-Reply-To: <201801292047.EHC05241.OHSQOJOVtFMFLF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: torvalds@linux-foundation.org, davej@codemonkey.org.uk, npiggin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, mhocko@kernel.org
 
-On Mon, Jan 29, 2018 at 03:59:27AM -0800, Matthew Wilcox wrote:
-> On Mon, Jan 29, 2018 at 02:08:45PM +0300, Kirill A. Shutemov wrote:
-> > I've missed that we need to change relocate_kernel() to set CR4.LA57
-> > flag if the kernel has 5-level paging enabled.
+On Mon, Jan 29, 2018 at 08:47:20PM +0900, Tetsuo Handa wrote:
+> Peter Zijlstra wrote:
+> > On Sun, Jan 28, 2018 at 02:55:28PM +0900, Tetsuo Handa wrote:
+> > > This warning seems to be caused by commit d92a8cfcb37ecd13
+> > > ("locking/lockdep: Rework FS_RECLAIM annotation") which moved the
+> > > location of
+> > > 
+> > >   /* this guy won't enter reclaim */
+> > >   if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
+> > >           return false;
+> > > 
+> > > check added by commit cf40bd16fdad42c0 ("lockdep: annotate reclaim context
+> > > (__GFP_NOFS)").
 > > 
-> > I avoided to use ifdef CONFIG_X86_5LEVEL here and inferred if we need to
-> > enabled 5-level paging from previous CR4 value. This way the code is
-> > ready for boot-time switching between paging modes.
+> > I'm not entirly sure I get what you mean here. How did I move it? It was
+> > part of lockdep_trace_alloc(), if __GFP_NOMEMALLOC was set, it would not
+> > mark the lock as held.
 > 
-> Forgive me if I'm missing something ... can you kexec a 5-level kernel
-> from a 4-level kernel or vice versa?
+> d92a8cfcb37ecd13 replaced lockdep_set_current_reclaim_state() with
+> fs_reclaim_acquire(), and removed current->lockdep_recursion handling.
+> 
+> ----------
+> # git show d92a8cfcb37ecd13 | grep recursion
+> -# define INIT_LOCKDEP                          .lockdep_recursion = 0, .lockdep_reclaim_gfp = 0,
+> +# define INIT_LOCKDEP                          .lockdep_recursion = 0,
+>         unsigned int                    lockdep_recursion;
+> -       if (unlikely(current->lockdep_recursion))
+> -       current->lockdep_recursion = 1;
+> -       current->lockdep_recursion = 0;
+> -        * context checking code. This tests GFP_FS recursion (a lock taken
+> ----------
 
-With this patch you can kexec from 4-to-5 and from 5-to-5 in addition to
-current 4-to-4. 4-to-5 basically takes the same path as UEFI boot in new
-kernel.
+That should not matter at all. The only case that would matter for is if
+lockdep itself would ever call into lockdep again. Not something that
+happens here.
 
-I think I will be able to make 5-to-4 work too, when boot-time switching
-code will be upstream, assuming both kernels are build from the tree with
-boot-time switching support and the new kernel is loaded below 128TiB.
+> > The new code has it in fs_reclaim_acquire/release to the same effect, if
+> > __GFP_NOMEMALLOC, we'll not acquire/release the lock.
+> 
+> Excuse me, but I can't catch.
+> We currently acquire/release __fs_reclaim_map if __GFP_NOMEMALLOC.
 
-For 5-to-4, kernel decompression code of the new kernel starts on 5-level
-paging identity mapping constructed by caller. Decompression code then
-would switch over to 4-level paging via 32-bit trampoline (we cannot
-switch between 4- and 5-level paging directly) and proceed as in normal
-boot.
+Right, got the case inverted, same difference though. Before we'd do
+mark_held_lock(), now we do acquire/release under the same conditions.
 
-Let me check.
+> > > Since __kmalloc_reserve() from __alloc_skb() adds
+> > > __GFP_NOMEMALLOC | __GFP_NOWARN to gfp_mask, __need_fs_reclaim() is
+> > > failing to return false despite PF_MEMALLOC context (and resulted in
+> > > lockdep warning).
+> > 
+> > But that's correct right, __GFP_NOMEMALLOC should negate PF_MEMALLOC.
+> > That's what the name says.
+> 
+> __GFP_NOMEMALLOC negates PF_MEMALLOC regarding what watermark that allocation
+> request should use.
 
--- 
- Kirill A. Shutemov
+Right.
+
+> But at the same time, PF_MEMALLOC negates __GFP_DIRECT_RECLAIM.
+
+Ah indeed.
+
+> Then, how can fs_reclaim contribute to deadlock?
+
+Not sure it can. But if we're going to allow this, it needs to come with
+a clear description on why. Not a few clues to a puzzle.
+
+Now, even if its not strictly a deadlock, there is something to be said
+for flagging GFP_FS allocs that lead to nested GFP_FS allocs, do we ever
+want to allow that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
