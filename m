@@ -1,103 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F99A6B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 08:55:57 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id r6so6977970pfk.9
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:55:57 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id v8si634370pgs.639.2018.01.29.05.55.55
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BD686B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 08:57:49 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id 17so5716522wrm.10
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:57:49 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p106si974106wrb.277.2018.01.29.05.57.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 29 Jan 2018 05:55:55 -0800 (PST)
-Date: Mon, 29 Jan 2018 14:55:47 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [4.15-rc9] fs_reclaim lockdep trace
-Message-ID: <20180129135547.GR2269@hirez.programming.kicks-ass.net>
-References: <CA+55aFx6w9+C-WM9=xqsmnrMwKzDHeCwVNR5Lbnc9By00b6dzw@mail.gmail.com>
- <d726458d-3d3b-5580-ddfc-2914cbf756ba@I-love.SAKURA.ne.jp>
- <7771dd55-2655-d3a9-80ee-24c9ada7dbbe@I-love.SAKURA.ne.jp>
- <8f1c776d-b791-e0b9-1e5c-62b03dcd1d74@I-love.SAKURA.ne.jp>
- <20180129102746.GQ2269@hirez.programming.kicks-ass.net>
- <201801292047.EHC05241.OHSQOJOVtFMFLF@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 29 Jan 2018 05:57:48 -0800 (PST)
+Date: Mon, 29 Jan 2018 14:57:47 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: migrate_pages() of process with same UID in 4.15-rcX
+Message-ID: <20180129135747.GG21609@dhcp22.suse.cz>
+References: <1394749328.5225281.1515598510696.JavaMail.zimbra@redhat.com>
+ <87d12hbs6s.fsf@xmission.com>
+ <20180129133151.GF21609@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201801292047.EHC05241.OHSQOJOVtFMFLF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20180129133151.GF21609@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: torvalds@linux-foundation.org, davej@codemonkey.org.uk, npiggin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, mhocko@kernel.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Jan Stancek <jstancek@redhat.com>, otto ebeling <otto.ebeling@iki.fi>, mtk manpages <mtk.manpages@gmail.com>, linux-mm@kvack.org, w@1wt.eu, keescook@chromium.org, ltp@lists.linux.it, Linus Torvalds <torvalds@linux-foundation.org>, Cristopher Lameter <cl@linux.com>
 
-On Mon, Jan 29, 2018 at 08:47:20PM +0900, Tetsuo Handa wrote:
-> Peter Zijlstra wrote:
-> > On Sun, Jan 28, 2018 at 02:55:28PM +0900, Tetsuo Handa wrote:
-> > > This warning seems to be caused by commit d92a8cfcb37ecd13
-> > > ("locking/lockdep: Rework FS_RECLAIM annotation") which moved the
-> > > location of
-> > > 
-> > >   /* this guy won't enter reclaim */
-> > >   if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
-> > >           return false;
-> > > 
-> > > check added by commit cf40bd16fdad42c0 ("lockdep: annotate reclaim context
-> > > (__GFP_NOFS)").
-> > 
-> > I'm not entirly sure I get what you mean here. How did I move it? It was
-> > part of lockdep_trace_alloc(), if __GFP_NOMEMALLOC was set, it would not
-> > mark the lock as held.
+[Fixup Christoph email - the thread starts here
+ http://lkml.kernel.org/r/1394749328.5225281.1515598510696.JavaMail.zimbra@redhat.com]
+
+On Mon 29-01-18 14:31:51, Michal Hocko wrote:
+> [Sorry for a very late reply]
 > 
-> d92a8cfcb37ecd13 replaced lockdep_set_current_reclaim_state() with
-> fs_reclaim_acquire(), and removed current->lockdep_recursion handling.
+> On Wed 10-01-18 10:21:31, Eric W. Biederman wrote:
+> [...]
+> > All of that said.  I am wondering if we should have used
+> > PTRACE_MODE_READ_FSCREDS on these permission checks.
 > 
-> ----------
-> # git show d92a8cfcb37ecd13 | grep recursion
-> -# define INIT_LOCKDEP                          .lockdep_recursion = 0, .lockdep_reclaim_gfp = 0,
-> +# define INIT_LOCKDEP                          .lockdep_recursion = 0,
->         unsigned int                    lockdep_recursion;
-> -       if (unlikely(current->lockdep_recursion))
-> -       current->lockdep_recursion = 1;
-> -       current->lockdep_recursion = 0;
-> -        * context checking code. This tests GFP_FS recursion (a lock taken
-> ----------
+> If this is really about preventing the layout discovery then we should
+> be in sync with proc_mem_open and that uses PTRACE_MODE_FSCREDS|PTRACE_MODE_READ
+> Should we do the same thing here?
+> -- 
+> Michal Hocko
+> SUSE Labs
 
-That should not matter at all. The only case that would matter for is if
-lockdep itself would ever call into lockdep again. Not something that
-happens here.
-
-> > The new code has it in fs_reclaim_acquire/release to the same effect, if
-> > __GFP_NOMEMALLOC, we'll not acquire/release the lock.
-> 
-> Excuse me, but I can't catch.
-> We currently acquire/release __fs_reclaim_map if __GFP_NOMEMALLOC.
-
-Right, got the case inverted, same difference though. Before we'd do
-mark_held_lock(), now we do acquire/release under the same conditions.
-
-> > > Since __kmalloc_reserve() from __alloc_skb() adds
-> > > __GFP_NOMEMALLOC | __GFP_NOWARN to gfp_mask, __need_fs_reclaim() is
-> > > failing to return false despite PF_MEMALLOC context (and resulted in
-> > > lockdep warning).
-> > 
-> > But that's correct right, __GFP_NOMEMALLOC should negate PF_MEMALLOC.
-> > That's what the name says.
-> 
-> __GFP_NOMEMALLOC negates PF_MEMALLOC regarding what watermark that allocation
-> request should use.
-
-Right.
-
-> But at the same time, PF_MEMALLOC negates __GFP_DIRECT_RECLAIM.
-
-Ah indeed.
-
-> Then, how can fs_reclaim contribute to deadlock?
-
-Not sure it can. But if we're going to allow this, it needs to come with
-a clear description on why. Not a few clues to a puzzle.
-
-Now, even if its not strictly a deadlock, there is something to be said
-for flagging GFP_FS allocs that lead to nested GFP_FS allocs, do we ever
-want to allow that?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
