@@ -1,57 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 502FE6B0003
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 12:00:34 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id g16so5222821wmg.6
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 09:00:34 -0800 (PST)
-Received: from Chamillionaire.breakpoint.cc (Chamillionaire.breakpoint.cc. [2a01:7a0:2:106d:670::1])
-        by mx.google.com with ESMTPS id 199si7891767wmj.52.2018.01.29.09.00.32
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 686766B0003
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 12:06:59 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id f6so6150720wre.4
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 09:06:59 -0800 (PST)
+Received: from smtp1.de.adit-jv.com (smtp1.de.adit-jv.com. [62.225.105.245])
+        by mx.google.com with ESMTPS id d4si7866963wma.203.2018.01.29.09.06.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jan 2018 09:00:33 -0800 (PST)
-Date: Mon, 29 Jan 2018 17:57:22 +0100
-From: Florian Westphal <fw@strlen.de>
-Subject: Re: [netfilter-core] kernel panic: Out of memory and no killable
- processes... (2)
-Message-ID: <20180129165722.GF5906@breakpoint.cc>
-References: <001a1144b0caee2e8c0563d9de0a@google.com>
- <201801290020.w0T0KK8V015938@www262.sakura.ne.jp>
- <20180129072357.GD5906@breakpoint.cc>
- <20180129082649.sysf57wlp7i7ltb2@node.shutemov.name>
+        Mon, 29 Jan 2018 09:06:57 -0800 (PST)
+Date: Mon, 29 Jan 2018 18:06:42 +0100
+From: Eugeniu Rosca <erosca@de.adit-jv.com>
+Subject: Re: [PATCH v3 1/1] mm: page_alloc: skip over regions of invalid pfns
+ on UMA
+Message-ID: <20180129170500.GA17669@vmlxhi-102.adit-jv.com>
+References: <20180124143545.31963-1-erosca@de.adit-jv.com>
+ <20180124143545.31963-2-erosca@de.adit-jv.com>
+ <CAOAebxvwO12EFUH6PZLcP19WcEM70xEGwkEgF4DL62CFOFsqcw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20180129082649.sysf57wlp7i7ltb2@node.shutemov.name>
+In-Reply-To: <CAOAebxvwO12EFUH6PZLcP19WcEM70xEGwkEgF4DL62CFOFsqcw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Florian Westphal <fw@strlen.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, davem@davemloft.net, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, aarcange@redhat.com, yang.s@alibaba-inc.com, mhocko@suse.com, syzkaller-bugs@googlegroups.com, linux-kernel@vger.kernel.org, mingo@kernel.org, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, guro@fb.com, kirill.shutemov@linux.intel.com
+To: Pavel Tatashin <pasha.tatashin@oracle.com>, Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> On Mon, Jan 29, 2018 at 08:23:57AM +0100, Florian Westphal wrote:
-> > > vmalloc() once became killable by commit 5d17a73a2ebeb8d1 ("vmalloc: back
-> > > off when the current task is killed") but then became unkillable by commit
-> > > b8c8a338f75e052d ("Revert "vmalloc: back off when the current task is
-> > > killed""). Therefore, we can't handle this problem from MM side.
-> > > Please consider adding some limit from networking side.
-> > 
-> > I don't know what "some limit" would be.  I would prefer if there was
-> > a way to supress OOM Killer in first place so we can just -ENOMEM user.
+Hello Matthew, Pavel and MM people,
+
+I am probably too impatient, but what would be the next step after
+reaching [PATCH v3] and collecting two Reviewed-by signatures?
+
+Is there a chance that this patch goes into v4.16-rc1 to be less of a
+risk for the whole cycle?
+
+Thanks,
+Eugeniu.
+
+On Wed, Jan 24, 2018 at 11:27:47AM -0500, Pavel Tatashin wrote:
+> Looks good.
 > 
-> Just supressing OOM kill is a bad idea. We still leave a way to allocate
-> arbitrary large buffer in kernel.
-
-Isn't that what we do everywhere in network stack?
-
-I think we should try to allocate whatever amount of memory is needed
-for the given xtables ruleset, given that is what admin requested us to do.
-
-I also would not know what limit is sane -- I've seen setups with as much
-as 100k iptables rules, and that was 5 years ago.
-
-And even if we add a "Xk rules" limit, it might be too much for
-low-memory systems, or not enough for whatever other use case there
-might be.
+> Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> 
+> On Wed, Jan 24, 2018 at 9:35 AM, Eugeniu Rosca <erosca@de.adit-jv.com> wrote:
+> > As a result of bisecting the v4.10..v4.11 commit range, it was
+> > determined that commits [1] and [2] are both responsible of a ~140ms
+> > early startup improvement on Rcar-H3-ES20 arm64 platform.
+> >
+> > Since Rcar Gen3 family is not NUMA, we don't define CONFIG_NUMA in the
+> > rcar3 defconfig (which also reduces KNL binary image by ~64KB), but this
+> > is how the boot time improvement is lost.
+> >
+> > This patch makes optimization [2] available on UMA systems which
+> > provide support for CONFIG_HAVE_MEMBLOCK.
+> >
+> > Testing this change on Rcar H3-ES20-ULCB using v4.15-rc9 KNL and
+> > vanilla arm64 defconfig + NUMA=n, a speed-up of ~139ms (from ~174ms [3]
+> > to ~35ms [4]) is observed in the execution of memmap_init_zone().
+> >
+> > No boot time improvement is sensed on Apollo Lake SoC.
+> >
+> > [1] commit 0f84832fb8f9 ("arm64: defconfig: Enable NUMA and NUMA_BALANCING")
+> > [2] commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns where possible")
+> >
+> > [3] 174ms spent in memmap_init_zone() on H3ULCB w/o this patch (NUMA=n)
+> > [    2.643685] On node 0 totalpages: 1015808
+> > [    2.643688]   DMA zone: 3584 pages used for memmap
+> > [    2.643691]   DMA zone: 0 pages reserved
+> > [    2.643693]   DMA zone: 229376 pages, LIFO batch:31
+> > [    2.643696] > memmap_init_zone
+> > [    2.663628] < memmap_init_zone (19.932 ms)
+> > [    2.663632]   Normal zone: 12288 pages used for memmap
+> > [    2.663635]   Normal zone: 786432 pages, LIFO batch:31
+> > [    2.663637] > memmap_init_zone
+> > [    2.818012] < memmap_init_zone (154.375 ms)
+> > [    2.818041] psci: probing for conduit method from DT.
+> >
+> > [4] 35ms spent in memmap_init_zone() on H3ULCB with this patch (NUMA=n)
+> > [    2.677202] On node 0 totalpages: 1015808
+> > [    2.677205]   DMA zone: 3584 pages used for memmap
+> > [    2.677208]   DMA zone: 0 pages reserved
+> > [    2.677211]   DMA zone: 229376 pages, LIFO batch:31
+> > [    2.677213] > memmap_init_zone
+> > [    2.684378] < memmap_init_zone (7.165 ms)
+> > [    2.684382]   Normal zone: 12288 pages used for memmap
+> > [    2.684385]   Normal zone: 786432 pages, LIFO batch:31
+> > [    2.684387] > memmap_init_zone
+> > [    2.712556] < memmap_init_zone (28.169 ms)
+> > [    2.712584] psci: probing for conduit method from DT.
+> >
+> > Signed-off-by: Eugeniu Rosca <erosca@de.adit-jv.com>
+> > Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+> > ---
+> >  include/linux/memblock.h | 1 -
+> >  include/linux/mm.h       | 6 ++++++
+> >  mm/memblock.c            | 2 ++
+> >  mm/page_alloc.c          | 2 --
+> >  4 files changed, 8 insertions(+), 3 deletions(-)
+> >
+> > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> > index 7ed0f7782d16..9efd592c5da4 100644
+> > --- a/include/linux/memblock.h
+> > +++ b/include/linux/memblock.h
+> > @@ -187,7 +187,6 @@ int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
+> >                             unsigned long  *end_pfn);
+> >  void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+> >                           unsigned long *out_end_pfn, int *out_nid);
+> > -unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
+> >
+> >  /**
+> >   * for_each_mem_pfn_range - early memory pfn range iterator
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index ea818ff739cd..b82b30522585 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -2064,8 +2064,14 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
+> >
+> >  #ifdef CONFIG_HAVE_MEMBLOCK
+> >  void zero_resv_unavail(void);
+> > +unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
+> >  #else
+> >  static inline void zero_resv_unavail(void) {}
+> > +static inline unsigned long memblock_next_valid_pfn(unsigned long pfn,
+> > +                                                   unsigned long max_pfn)
+> > +{
+> > +       return pfn + 1;
+> > +}
+> >  #endif
+> >
+> >  extern void set_dma_reserve(unsigned long new_dma_reserve);
+> > diff --git a/mm/memblock.c b/mm/memblock.c
+> > index 46aacdfa4f4d..ad48cf200e3b 100644
+> > --- a/mm/memblock.c
+> > +++ b/mm/memblock.c
+> > @@ -1100,6 +1100,7 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
+> >         if (out_nid)
+> >                 *out_nid = r->nid;
+> >  }
+> > +#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+> >
+> >  unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
+> >                                                       unsigned long max_pfn)
+> > @@ -1129,6 +1130,7 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
+> >                 return min(PHYS_PFN(type->regions[right].base), max_pfn);
+> >  }
+> >
+> > +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> >  /**
+> >   * memblock_set_node - set node ID on memblock regions
+> >   * @base: base of area to set node ID for
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 76c9688b6a0a..4a3d5936a9a0 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -5344,14 +5344,12 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+> >                         goto not_early;
+> >
+> >                 if (!early_pfn_valid(pfn)) {
+> > -#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> >                         /*
+> >                          * Skip to the pfn preceding the next valid one (or
+> >                          * end_pfn), such that we hit a valid pfn (or end_pfn)
+> >                          * on our next iteration of the loop.
+> >                          */
+> >                         pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
+> > -#endif
+> >                         continue;
+> >                 }
+> >                 if (!early_pfn_in_nid(pfn, nid))
+> > --
+> > 2.15.1
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
