@@ -1,92 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C91BF6B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 06:21:34 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id f3so4535362pga.9
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 03:21:34 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id k187si7260644pgc.178.2018.01.29.03.21.33
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 986CA6B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 06:47:57 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id j68so2494582oih.14
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 03:47:57 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id s4si5050097ots.303.2018.01.29.03.47.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jan 2018 03:21:33 -0800 (PST)
-Subject: Re: [RFC] kswapd aggressiveness with watermark_scale_factor
-From: Vinayak Menon <vinmenon@codeaurora.org>
-References: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
-Message-ID: <8ac1f2d4-7fed-3192-2522-8fc6043e8fbc@codeaurora.org>
-Date: Mon, 29 Jan 2018 16:51:27 +0530
-MIME-Version: 1.0
-In-Reply-To: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 29 Jan 2018 03:47:56 -0800 (PST)
+Subject: Re: [4.15-rc9] fs_reclaim lockdep trace
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <CA+55aFx6w9+C-WM9=xqsmnrMwKzDHeCwVNR5Lbnc9By00b6dzw@mail.gmail.com>
+	<d726458d-3d3b-5580-ddfc-2914cbf756ba@I-love.SAKURA.ne.jp>
+	<7771dd55-2655-d3a9-80ee-24c9ada7dbbe@I-love.SAKURA.ne.jp>
+	<8f1c776d-b791-e0b9-1e5c-62b03dcd1d74@I-love.SAKURA.ne.jp>
+	<20180129102746.GQ2269@hirez.programming.kicks-ass.net>
+In-Reply-To: <20180129102746.GQ2269@hirez.programming.kicks-ass.net>
+Message-Id: <201801292047.EHC05241.OHSQOJOVtFMFLF@I-love.SAKURA.ne.jp>
+Date: Mon, 29 Jan 2018 20:47:20 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: hannes@cmpxchg.org, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "vbabka@suse.cz" <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>
+To: peterz@infradead.org
+Cc: torvalds@linux-foundation.org, davej@codemonkey.org.uk, npiggin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, mhocko@kernel.org
 
-On 1/24/2018 9:25 PM, Vinayak Menon wrote:
-> Hi,
->
-> It is observed that watermark_scale_factor when used to reduce thundering herds
-> in direct reclaim, reduces the direct reclaims, but results in unnecessary reclaim
-> due to kswapd running for long after being woken up. The tests are done with 4 GB
-> of RAM and the tests done are multibuild and another which opens a set of apps
-> sequentially on Android and repeating the sequence N times. The tests are done on
-> 4.9 kernel.
->
-> The issue seems to be because of watermark_scale_factor creating larger gap between
-> low and high watermarks. The following results are with watermark_scale_factor of 120
-> and the other with watermark_scale_factor 120 with a reduced gap between low and
-> high watermarks. The patch used to reduce the gap is given below. The min-low gap is
-> untouched. It can be seen that with the reduced low-high gap, the direct reclaims are
-> almost same as base, but with 45% less pgpgin. Reduced low-high gap improves the
-> latency by around 11% in the sequential app test due to lesser IO and kswapd activity.
->
-> A A A A A A A A A A A A A A A A A A A A A A  wsf-120-defaultA A A A A  wsf-120-reduced-low-high-gap
-> workingset_activateA A A  15120206A A A A A A A A A A A A  8319182
-> pgpginA A A A A A A A A A A A A A A A  269795482A A A A A A A A A A A  147928581
-> allocstallA A A A A A A A A A A A  1406A A A A A A A A A A A A A A A A  1498
-> pgsteal_kswapdA A A A A A A A  68676960A A A A A A A A A A A A  38105142
-> slabs_scannedA A A A A A A A A  94181738A A A A A A A A A A A A  49085755
->
-> This is the diff of wsf-120-reduced-low-high-gap for comments. The patch considers
-> low-high gap as a fraction of min-low gap, and the fraction a function of managed pages,
-> increasing non-linearly. The multiplier 4 is was chosen as a reasonable value which does
-> not alter the low-high gap much from the base for large machines.
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3a11a50..749d1eb 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6898,7 +6898,11 @@ static void __setup_per_zone_wmarks(void)
-> A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  watermark_scale_factor, 10000));
->
-> A A A A A A A A A A A A A A A  zone->watermark[WMARK_LOW]A  = min_wmark_pages(zone) + tmp;
-> -A A A A A A A A A A A A A A  zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
-> +
-> +A A A A A A A A A A A A A A  tmp = clamp_t(u64, mult_frac(tmp, int_sqrt(4 * zone->managed_pages),
-> +A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  10000), min_wmark_pages(zone) >> 2 , tmp);
-> +
-> +A A A A A A A A A A A A A A  zone->watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
->
-> A A A A A A A A A A A A A A A  spin_unlock_irqrestore(&zone->lock, flags);
-> A A A A A A A  }
->
-> With the patch,
-> With watermark_scale_factor as default 10, the low-high gap:
-> unchanged for 140G at 143M,
-> for 65G, reduces from 65M to 53M
-> for 4GB, reduces from 4M to 1M
->
-> With watermark_scale_factor 120, the low-high gap:
-> unchanged for 140G
-> for 65G, reduces from 786M to 644M
-> for 4GB, reduces from 49M to 10M
->
-> Thanks,
-> Vinayak
+Peter Zijlstra wrote:
+> On Sun, Jan 28, 2018 at 02:55:28PM +0900, Tetsuo Handa wrote:
+> > This warning seems to be caused by commit d92a8cfcb37ecd13
+> > ("locking/lockdep: Rework FS_RECLAIM annotation") which moved the
+> > location of
+> > 
+> >   /* this guy won't enter reclaim */
+> >   if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
+> >           return false;
+> > 
+> > check added by commit cf40bd16fdad42c0 ("lockdep: annotate reclaim context
+> > (__GFP_NOFS)").
+> 
+> I'm not entirly sure I get what you mean here. How did I move it? It was
+> part of lockdep_trace_alloc(), if __GFP_NOMEMALLOC was set, it would not
+> mark the lock as held.
 
-Ping for comments, thanks.
+d92a8cfcb37ecd13 replaced lockdep_set_current_reclaim_state() with
+fs_reclaim_acquire(), and removed current->lockdep_recursion handling.
+
+----------
+# git show d92a8cfcb37ecd13 | grep recursion
+-# define INIT_LOCKDEP                          .lockdep_recursion = 0, .lockdep_reclaim_gfp = 0,
++# define INIT_LOCKDEP                          .lockdep_recursion = 0,
+        unsigned int                    lockdep_recursion;
+-       if (unlikely(current->lockdep_recursion))
+-       current->lockdep_recursion = 1;
+-       current->lockdep_recursion = 0;
+-        * context checking code. This tests GFP_FS recursion (a lock taken
+----------
+
+> 
+> The new code has it in fs_reclaim_acquire/release to the same effect, if
+> __GFP_NOMEMALLOC, we'll not acquire/release the lock.
+
+Excuse me, but I can't catch.
+We currently acquire/release __fs_reclaim_map if __GFP_NOMEMALLOC.
+
+----------
++static bool __need_fs_reclaim(gfp_t gfp_mask)
++{
+(...snipped...)
++       /* this guy won't enter reclaim */
++       if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
++               return false;
+(...snipped...)
++}
+----------
+
+> 
+> 
+> > Since __kmalloc_reserve() from __alloc_skb() adds
+> > __GFP_NOMEMALLOC | __GFP_NOWARN to gfp_mask, __need_fs_reclaim() is
+> > failing to return false despite PF_MEMALLOC context (and resulted in
+> > lockdep warning).
+> 
+> But that's correct right, __GFP_NOMEMALLOC should negate PF_MEMALLOC.
+> That's what the name says.
+
+__GFP_NOMEMALLOC negates PF_MEMALLOC regarding what watermark that allocation
+request should use.
+
+----------
+static inline int __gfp_pfmemalloc_flags(gfp_t gfp_mask)
+{
+        if (unlikely(gfp_mask & __GFP_NOMEMALLOC))
+                return 0;
+        if (gfp_mask & __GFP_MEMALLOC)
+                return ALLOC_NO_WATERMARKS;
+        if (in_serving_softirq() && (current->flags & PF_MEMALLOC))
+                return ALLOC_NO_WATERMARKS;
+        if (!in_interrupt()) {
+                if (current->flags & PF_MEMALLOC)
+                        return ALLOC_NO_WATERMARKS;
+                else if (oom_reserves_allowed(current))
+                        return ALLOC_OOM;
+        }
+
+        return 0;
+}
+----------
+
+But at the same time, PF_MEMALLOC negates __GFP_DIRECT_RECLAIM.
+
+----------
+        /* Attempt with potentially adjusted zonelist and alloc_flags */
+        page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
+        if (page)
+                goto got_pg;
+
+        /* Caller is not willing to reclaim, we can't balance anything */
+        if (!can_direct_reclaim)
+                goto nopage;
+
+        /* Avoid recursion of direct reclaim */
+        if (current->flags & PF_MEMALLOC)
+                goto nopage;
+
+        /* Try direct reclaim and then allocating */
+        page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
+                                                        &did_some_progress);
+        if (page)
+                goto got_pg;
+
+        /* Try direct compaction and then allocating */
+        page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags, ac,
+                                        compact_priority, &compact_result);
+        if (page)
+                goto got_pg;
+
+        /* Do not loop if specifically requested */
+        if (gfp_mask & __GFP_NORETRY)
+                goto nopage;
+----------
+
+Then, how can fs_reclaim contribute to deadlock?
+
+> 
+> > Since there was no PF_MEMALLOC safeguard as of cf40bd16fdad42c0, checking
+> > __GFP_NOMEMALLOC might make sense. But since this safeguard was added by
+> > commit 341ce06f69abfafa ("page allocator: calculate the alloc_flags for
+> > allocation only once"), checking __GFP_NOMEMALLOC no longer makes sense.
+> > Thus, let's remove __GFP_NOMEMALLOC check and allow __need_fs_reclaim() to
+> > return false.
+> 
+> This does not in fact explain what's going on, it just points to
+> 'random' patches.
+> 
+> Are you talking about this:
+> 
+> +       /* Avoid recursion of direct reclaim */
+> +       if (p->flags & PF_MEMALLOC)
+> +               goto nopage;
+> 
+> bit?
+
+Yes.
+
+> 
+> > Reported-by: Dave Jones <davej@codemonkey.org.uk>
+> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Cc: Peter Zijlstra <peterz@infradead.org>
+> > Cc: Nick Piggin <npiggin@gmail.com>
+> > ---
+> >  mm/page_alloc.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 76c9688..7804b0e 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -3583,7 +3583,7 @@ static bool __need_fs_reclaim(gfp_t gfp_mask)
+> >  		return false;
+> >  
+> >  	/* this guy won't enter reclaim */
+> > -	if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
+> > +	if (current->flags & PF_MEMALLOC)
+> >  		return false;
+> 
+> I'm _really_ uncomfortable doing that. Esp. without a solid explanation
+> of how this raelly can't possibly lead to trouble. Which the above semi
+> incoherent rambling is not.
+> 
+> Your backtrace shows the btrfs shrinker doing an allocation, that's the
+> exact kind of thing we need to be extremely careful with.
+> 
+
+If btrfs is already holding some lock (and thus __GFP_FS is not safe),
+that lock must be printed at
+
+  2 locks held by sshd/24800:
+   #0:  (sk_lock-AF_INET6){+.+.}, at: [<000000001a069652>] tcp_sendmsg+0x19/0x40
+   #1:  (fs_reclaim){+.+.}, at: [<0000000084f438c2>] fs_reclaim_acquire.part.102+0x5/0x30
+
+doesn't it? But sk_lock-AF_INET6 is not a FS lock, and fs_reclaim does not
+actually lock something.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
