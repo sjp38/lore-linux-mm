@@ -1,79 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E50C6B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 09:29:50 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id j41so4350976qkh.3
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 06:29:50 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id y48si4004322qty.366.2018.01.29.06.29.49
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AFFC16B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 10:08:13 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id p82so7184798pfd.1
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 07:08:13 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 201si12079024pfu.37.2018.01.29.07.08.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jan 2018 06:29:49 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0TEO2Vh120136
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 09:29:49 -0500
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ft56h8p1r-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 09:29:48 -0500
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Mon, 29 Jan 2018 14:29:46 -0000
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [LSF/MM TOPIC] Addressing mmap_sem contention
-Date: Mon, 29 Jan 2018 15:29:41 +0100
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <4c20d397-1268-ca0f-4986-af59bb31022c@linux.vnet.ibm.com>
+        Mon, 29 Jan 2018 07:08:11 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 5/4] x86/boot/compressed/64: Support switching from 5- to 4-level paging
+Date: Mon, 29 Jan 2018 18:07:58 +0300
+Message-Id: <20180129150758.81016-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180129115351.85224-1-kirill.shutemov@linux.intel.com>
+References: <20180129115351.85224-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: Linux MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Davidlohr Bueso <dave@stgolabs.net>, Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi,
+If a bootloader enabled 5-level paging before handing off control to
+kernel, we may want to switch it to 4-level paging when kernel is
+compiled with CONFIG_X86_5LEVEL=n.
 
-I would like to talk about the way to remove the mmap_sem contention we
-could see on large threaded systems.
+Let's modify decompression code to handle the situation.
 
-I already resurrected the Speculative Page Fault patchset from Peter
-Zijlstra [1]. This series allows concurrency between page fault handler and
-the other thread's activity. Running a massively threaded benchmark like
-ebizzy [2] on top of this kernel shows that there is an opportunity to
-scale far better on large systems (x2). But the SPF series is addressing
-only one part of the issue, and there is a need to address the other part
-of picture.
+This will fail if the kernel image is loaded above 64TiB since 4-level
+paging would not be able to access the image.
 
-There have been some discussions last year about the range locking but this
-has been put in hold, especially because this implies huge change in the
-kernel as the mmap_sem is used to protect so many resources (should we need
-to protect the process command line with the mmap_sem ?), and sometimes the
-assumption is made that the mmap_sem is protecting code against concurrency
-while it is not dealing clearly with the mmap_sem.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/boot/compressed/head_64.S | 17 +++++++++++++++--
+ arch/x86/boot/compressed/pgtable.h |  2 +-
+ 2 files changed, 16 insertions(+), 3 deletions(-)
 
-This will be a massive change and rebasing such a series will be hard, so
-it may be far better to first agreed on best options to improve mmap_sem's
-performance and scalability. There are several additional options on the
-table, including range locking,    multiple fine-grained locks, etc...
-In addition, I would like to discuss the options and the best way to make
-the move smooth in breaking or replacing the mmap_sem.
-
-Peoples (sorry if I missed someone) :
-    Andrea Arcangeli
-    Davidlohr Bueso
-    Michal Hocko
-    Anshuman Khandual
-    Andi Kleen
-    Andrew Morton
-    Matthew Wilcox
-    Peter Zijlstra
-
-Thanks,
-Laurent
-[1] https://lkml.org/lkml/2018/1/12/515
-[2] http://ebizzy.sourceforge.net/
+diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+index f5ac9a6515ef..5942b7d9d6a2 100644
+--- a/arch/x86/boot/compressed/head_64.S
++++ b/arch/x86/boot/compressed/head_64.S
+@@ -520,19 +520,32 @@ ENTRY(trampoline_32bit_src)
+ 	btrl	$X86_CR0_PG_BIT, %eax
+ 	movl	%eax, %cr0
+ 
+-	/* For 5-level paging, point CR3 to the trampoline's new top level page table */
++	/* Check what paging mode we want to be in after the trampoline */
+ 	cmpl	$0, %edx
+ 	jz	1f
+ 
+ 	/* Don't touch CR3 if it already points to 5-level page tables */
+ 	movl	%cr4, %eax
+ 	testl	$X86_CR4_LA57, %eax
+-	jnz	1f
++	jnz	2f
+ 
++	/* For 5-level paging, point CR3 to the trampoline's new top level page table */
+ 	leal	TRAMPOLINE_32BIT_PGTABLE_OFFSET(%ecx), %eax
+ 	movl	%eax, %cr3
+ 1:
++	/* Don't touch CR3 if it already points to 4-level page tables */
++	movl	%cr4, %eax
++	testl	$X86_CR4_LA57, %eax
++	jz	2f
+ 
++	/*
++	 * We are in 5-level paging mode, but we want to switch to 4-level.
++	 * Let's take the first entry in the top-level page table as our new CR3.
++	 */
++	movl	%cr3, %eax
++	movl	(%eax), %eax
++	movl	%eax, %cr3
++2:
+ 	/* Enable PAE and LA57 (if required) paging modes */
+ 	movl	%cr4, %eax
+ 	orl	$X86_CR4_PAE, %eax
+diff --git a/arch/x86/boot/compressed/pgtable.h b/arch/x86/boot/compressed/pgtable.h
+index 6e0db2260147..cd62c546afd5 100644
+--- a/arch/x86/boot/compressed/pgtable.h
++++ b/arch/x86/boot/compressed/pgtable.h
+@@ -6,7 +6,7 @@
+ #define TRAMPOLINE_32BIT_PGTABLE_OFFSET	0
+ 
+ #define TRAMPOLINE_32BIT_CODE_OFFSET	PAGE_SIZE
+-#define TRAMPOLINE_32BIT_CODE_SIZE	0x60
++#define TRAMPOLINE_32BIT_CODE_SIZE	0x70
+ 
+ #define TRAMPOLINE_32BIT_STACK_END	TRAMPOLINE_32BIT_SIZE
+ 
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
