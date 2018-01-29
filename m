@@ -1,116 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 627096B0008
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 00:32:21 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id 19so3482152qkk.20
-        for <linux-mm@kvack.org>; Sun, 28 Jan 2018 21:32:21 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o12si367925qki.458.2018.01.28.21.32.20
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C279C6B0007
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 01:31:26 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id b187so4375091oih.22
+        for <linux-mm@kvack.org>; Sun, 28 Jan 2018 22:31:26 -0800 (PST)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id e82si2440610oia.252.2018.01.28.22.31.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Jan 2018 21:32:20 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0T5T6vf142900
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 00:32:19 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2fsuhp3ksn-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 00:32:18 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 29 Jan 2018 05:32:16 -0000
-Subject: Re: ppc elf_map breakage with MAP_FIXED_NOREPLACE
-References: <20180109161355.GL1732@dhcp22.suse.cz>
- <a495f210-0015-efb2-a6a7-868f30ac4ace@linux.vnet.ibm.com>
- <20180117080731.GA2900@dhcp22.suse.cz>
- <082aa008-c56a-681d-0949-107245603a97@linux.vnet.ibm.com>
- <20180123124545.GL1526@dhcp22.suse.cz>
- <ef63c070-dcd7-3f26-f6ec-d95404007ae2@linux.vnet.ibm.com>
- <20180123160653.GU1526@dhcp22.suse.cz>
- <2a05eaf2-20fd-57a8-d4bd-5a1fbf57686c@linux.vnet.ibm.com>
- <20180124090539.GH1526@dhcp22.suse.cz>
- <5acba3c2-754d-e449-24ff-a72a0ad0d895@linux.vnet.ibm.com>
- <20180126140415.GD5027@dhcp22.suse.cz>
- <15da8c87-e6db-13aa-01c8-a913656bfdb6@linux.vnet.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Mon, 29 Jan 2018 11:02:09 +0530
+        Sun, 28 Jan 2018 22:31:25 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v1] mm: hwpoison: disable memory error handling on 1GB
+ hugepage
+Date: Mon, 29 Jan 2018 06:30:55 +0000
+Message-ID: <20180129063054.GA5205@hori1.linux.bs1.fc.nec.co.jp>
+References: <1517207283-15769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1517207283-15769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <B954D16354476E45AC8A17F7B807C767@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <15da8c87-e6db-13aa-01c8-a913656bfdb6@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <6db9b33d-fd46-c529-b357-3397926f0733@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On 01/29/2018 08:17 AM, Anshuman Khandual wrote:
-> On 01/26/2018 07:34 PM, Michal Hocko wrote:
->> On Fri 26-01-18 18:04:27, Anshuman Khandual wrote:
->> [...]
->>> I tried to instrument mmap_region() for a single instance of 'sed'
->>> binary and traced all it's VMA creation. But there is no trace when
->>> that 'anon' VMA got created which suddenly shows up during subsequent
->>> elf_map() call eventually failing it. Please note that the following
->>> VMA was never created through call into map_region() in the process
->>> which is strange.
->>
->> Could you share your debugging patch?
-> 
-> Please find the debug patch at the end.
-> 
->>
->>> =================================================================
->>> [    9.076867] Details for VMA[3] c000001fce42b7c0
->>> [    9.076925] vma c000001fce42b7c0 start 0000000010030000 end 0000000010040000
->>> next c000001fce42b580 prev c000001fce42b880 mm c000001fce40fa00
->>> prot 8000000000000104 anon_vma           (null) vm_ops           (null)
->>> pgoff 1003 file           (null) private_data           (null)
->>> flags: 0x100073(read|write|mayread|maywrite|mayexec|account)
->>> =================================================================
->>
->> Isn't this vdso or some other special mapping? It is not really an
->> anonymous vma. Please hook into __install_special_mapping
-> 
-> Yeah, will do. Its not an anon mapping as it does not have a anon_vma
-> structure ?
+My apology, I forgot to CC to the mailing lists.
 
-Okay, this colliding VMA seems to be getting loaded from load_elf_binary()
-function as well.
-
-[    9.422410] vma c000001fceedbc40 start 0000000010030000 end 0000000010040000
-next c000001fceedbe80 prev c000001fceedb700 mm c000001fceea8200
-prot 8000000000000104 anon_vma           (null) vm_ops           (null)
-pgoff 1003 file           (null) private_data           (null)
-flags: 0x100073(read|write|mayread|maywrite|mayexec|account)
-[    9.422576] CPU: 46 PID: 7457 Comm: sed Not tainted 4.14.0-dirty #158
-[    9.422610] Call Trace:
-[    9.422623] [c000001fdc4f79b0] [c000000000b17ac0] dump_stack+0xb0/0xf0 (unreliable)
-[    9.422670] [c000001fdc4f79f0] [c0000000002dafb8] do_brk_flags+0x2d8/0x440
-[    9.422708] [c000001fdc4f7ac0] [c0000000002db3d0] vm_brk_flags+0x80/0x130
-[    9.422747] [c000001fdc4f7b20] [c0000000003d23a4] set_brk+0x80/0xdc
-[    9.422785] [c000001fdc4f7b60] [c0000000003d1f24] load_elf_binary+0x1304/0x158c
-[    9.422830] [c000001fdc4f7c80] [c00000000035d3e0] search_binary_handler+0xd0/0x270
-[    9.422881] [c000001fdc4f7d10] [c00000000035f338] do_execveat_common.isra.31+0x658/0x890
-[    9.422926] [c000001fdc4f7df0] [c00000000035f980] SyS_execve+0x40/0x50
-[    9.423588] [c000001fdc4f7e30] [c00000000000b220] system_call+0x58/0x6c
-
-which is getting hit after adding some more debug.
-
-@@ -2949,6 +2997,13 @@ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long
-        if (flags & VM_LOCKED)
-                mm->locked_vm += (len >> PAGE_SHIFT);
-        vma->vm_flags |= VM_SOFTDIRTY;
-+
-+       if (!strcmp(current->comm, "sed")) {
-+               if (just_init && (mm_ptr == vma->vm_mm)) {
-+                       dump_vma(vma);
-+                       dump_stack();
-+               }
-+       }
-        return 0;
- }
+On Mon, Jan 29, 2018 at 03:28:03PM +0900, Naoya Horiguchi wrote:
+> Recently the following BUG was reported:
+>=20
+>     Injecting memory failure for pfn 0x3c0000 at process virtual address =
+0x7fe300000000
+>     Memory failure: 0x3c0000: recovery action for huge page: Recovered
+>     BUG: unable to handle kernel paging request at ffff8dfcc0003000
+>     IP: gup_pgd_range+0x1f0/0xc20
+>     PGD 17ae72067 P4D 17ae72067 PUD 0
+>     Oops: 0000 [#1] SMP PTI
+>     ...
+>     CPU: 3 PID: 5467 Comm: hugetlb_1gb Not tainted 4.15.0-rc8-mm1-abc+ #3
+>     Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.3-1.f=
+c25 04/01/2014
+>=20
+> You can easily reproduce this by calling madvise(MADV_HWPOISON) twice on
+> a 1GB hugepage. This happens because get_user_pages_fast() is not aware
+> of a migration entry on pud that was created in the 1st madvise() event.
+>=20
+> I think that conversion to pud-aligned migration entry is working,
+> but other MM code walking over page table isn't prepared for it.
+> We need some time and effort to make all this work properly, so
+> this patch avoids the reported bug by just disabling error handling
+> for 1GB hugepage.
+>=20
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  include/linux/mm.h  | 1 +
+>  mm/memory-failure.c | 7 +++++++
+>  2 files changed, 8 insertions(+)
+>=20
+> diff --git v4.15-rc8-mmotm-2018-01-18-16-31/include/linux/mm.h v4.15-rc8-=
+mmotm-2018-01-18-16-31_patched/include/linux/mm.h
+> index 63f7ba1..166864e 100644
+> --- v4.15-rc8-mmotm-2018-01-18-16-31/include/linux/mm.h
+> +++ v4.15-rc8-mmotm-2018-01-18-16-31_patched/include/linux/mm.h
+> @@ -2607,6 +2607,7 @@ enum mf_action_page_type {
+>  	MF_MSG_POISONED_HUGE,
+>  	MF_MSG_HUGE,
+>  	MF_MSG_FREE_HUGE,
+> +	MF_MSG_GIGANTIC,
+>  	MF_MSG_UNMAP_FAILED,
+>  	MF_MSG_DIRTY_SWAPCACHE,
+>  	MF_MSG_CLEAN_SWAPCACHE,
+> diff --git v4.15-rc8-mmotm-2018-01-18-16-31/mm/memory-failure.c v4.15-rc8=
+-mmotm-2018-01-18-16-31_patched/mm/memory-failure.c
+> index d530ac1..c497588 100644
+> --- v4.15-rc8-mmotm-2018-01-18-16-31/mm/memory-failure.c
+> +++ v4.15-rc8-mmotm-2018-01-18-16-31_patched/mm/memory-failure.c
+> @@ -508,6 +508,7 @@ static const char * const action_page_types[] =3D {
+>  	[MF_MSG_POISONED_HUGE]		=3D "huge page already hardware poisoned",
+>  	[MF_MSG_HUGE]			=3D "huge page",
+>  	[MF_MSG_FREE_HUGE]		=3D "free huge page",
+> +	[MF_MSG_GIGANTIC]		=3D "gigantic page",
+>  	[MF_MSG_UNMAP_FAILED]		=3D "unmapping failed page",
+>  	[MF_MSG_DIRTY_SWAPCACHE]	=3D "dirty swapcache page",
+>  	[MF_MSG_CLEAN_SWAPCACHE]	=3D "clean swapcache page",
+> @@ -1090,6 +1091,12 @@ static int memory_failure_hugetlb(unsigned long pf=
+n, int trapno, int flags)
+>  		return 0;
+>  	}
+> =20
+> +	if (hstate_is_gigantic(page_hstate(head))) {
+> +		action_result(pfn, MF_MSG_GIGANTIC, MF_IGNORED);
+> +		res =3D -EBUSY;
+> +		goto out;
+> +	}
+> +
+>  	if (!hwpoison_user_mappings(p, pfn, trapno, flags, &head)) {
+>  		action_result(pfn, MF_MSG_UNMAP_FAILED, MF_IGNORED);
+>  		res =3D -EBUSY;
+> --=20
+> 2.7.0
+>=20
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
