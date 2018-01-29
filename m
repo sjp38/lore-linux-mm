@@ -1,124 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 89F826B0006
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:23:15 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id f8so4577633wmi.9
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 02:23:15 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 93si10148049wri.328.2018.01.29.02.23.13
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AEA16B0007
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 05:28:01 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id b9so1007321wra.1
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 02:28:01 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id r9si7193655wme.262.2018.01.29.02.28.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 Jan 2018 02:23:14 -0800 (PST)
-Date: Mon, 29 Jan 2018 10:54:25 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1] mm: hwpoison: disable memory error handling on 1GB
- hugepage
-Message-ID: <20180129095425.GA21609@dhcp22.suse.cz>
-References: <1517207283-15769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20180129063054.GA5205@hori1.linux.bs1.fc.nec.co.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 29 Jan 2018 02:28:00 -0800 (PST)
+Date: Mon, 29 Jan 2018 11:27:46 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [4.15-rc9] fs_reclaim lockdep trace
+Message-ID: <20180129102746.GQ2269@hirez.programming.kicks-ass.net>
+References: <20180124013651.GA1718@codemonkey.org.uk>
+ <20180127222433.GA24097@codemonkey.org.uk>
+ <CA+55aFx6w9+C-WM9=xqsmnrMwKzDHeCwVNR5Lbnc9By00b6dzw@mail.gmail.com>
+ <d726458d-3d3b-5580-ddfc-2914cbf756ba@I-love.SAKURA.ne.jp>
+ <7771dd55-2655-d3a9-80ee-24c9ada7dbbe@I-love.SAKURA.ne.jp>
+ <8f1c776d-b791-e0b9-1e5c-62b03dcd1d74@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180129063054.GA5205@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <8f1c776d-b791-e0b9-1e5c-62b03dcd1d74@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@codemonkey.org.uk>, Nick Piggin <npiggin@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Network Development <netdev@vger.kernel.org>, mhocko@kernel.org
 
-On Mon 29-01-18 06:30:55, Naoya Horiguchi wrote:
-> My apology, I forgot to CC to the mailing lists.
+On Sun, Jan 28, 2018 at 02:55:28PM +0900, Tetsuo Handa wrote:
+> This warning seems to be caused by commit d92a8cfcb37ecd13
+> ("locking/lockdep: Rework FS_RECLAIM annotation") which moved the
+> location of
 > 
-> On Mon, Jan 29, 2018 at 03:28:03PM +0900, Naoya Horiguchi wrote:
-> > Recently the following BUG was reported:
-> > 
-> >     Injecting memory failure for pfn 0x3c0000 at process virtual address 0x7fe300000000
-> >     Memory failure: 0x3c0000: recovery action for huge page: Recovered
-> >     BUG: unable to handle kernel paging request at ffff8dfcc0003000
-> >     IP: gup_pgd_range+0x1f0/0xc20
-> >     PGD 17ae72067 P4D 17ae72067 PUD 0
-> >     Oops: 0000 [#1] SMP PTI
-> >     ...
-> >     CPU: 3 PID: 5467 Comm: hugetlb_1gb Not tainted 4.15.0-rc8-mm1-abc+ #3
-> >     Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.3-1.fc25 04/01/2014
-> > 
-> > You can easily reproduce this by calling madvise(MADV_HWPOISON) twice on
-> > a 1GB hugepage. This happens because get_user_pages_fast() is not aware
-> > of a migration entry on pud that was created in the 1st madvise() event.
+>   /* this guy won't enter reclaim */
+>   if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
+>           return false;
+> 
+> check added by commit cf40bd16fdad42c0 ("lockdep: annotate reclaim context
+> (__GFP_NOFS)").
 
-Do pgd size pages work properly?
+I'm not entirly sure I get what you mean here. How did I move it? It was
+part of lockdep_trace_alloc(), if __GFP_NOMEMALLOC was set, it would not
+mark the lock as held.
 
-> > I think that conversion to pud-aligned migration entry is working,
-> > but other MM code walking over page table isn't prepared for it.
-> > We need some time and effort to make all this work properly, so
-> > this patch avoids the reported bug by just disabling error handling
-> > for 1GB hugepage.
+The new code has it in fs_reclaim_acquire/release to the same effect, if
+__GFP_NOMEMALLOC, we'll not acquire/release the lock.
 
-Can we also get some documentation which would describe all requirements
-for HWPoison pages to work properly please?
 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Since __kmalloc_reserve() from __alloc_skb() adds
+> __GFP_NOMEMALLOC | __GFP_NOWARN to gfp_mask, __need_fs_reclaim() is
+> failing to return false despite PF_MEMALLOC context (and resulted in
+> lockdep warning).
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+But that's correct right, __GFP_NOMEMALLOC should negate PF_MEMALLOC.
+That's what the name says.
 
-We probably want a backport to stable as well. Although regular process
-cannot get giga pages easily without admin help it is still not nice to
-oops like this.
+> Since there was no PF_MEMALLOC safeguard as of cf40bd16fdad42c0, checking
+> __GFP_NOMEMALLOC might make sense. But since this safeguard was added by
+> commit 341ce06f69abfafa ("page allocator: calculate the alloc_flags for
+> allocation only once"), checking __GFP_NOMEMALLOC no longer makes sense.
+> Thus, let's remove __GFP_NOMEMALLOC check and allow __need_fs_reclaim() to
+> return false.
 
-> > ---
-> >  include/linux/mm.h  | 1 +
-> >  mm/memory-failure.c | 7 +++++++
-> >  2 files changed, 8 insertions(+)
-> > 
-> > diff --git v4.15-rc8-mmotm-2018-01-18-16-31/include/linux/mm.h v4.15-rc8-mmotm-2018-01-18-16-31_patched/include/linux/mm.h
-> > index 63f7ba1..166864e 100644
-> > --- v4.15-rc8-mmotm-2018-01-18-16-31/include/linux/mm.h
-> > +++ v4.15-rc8-mmotm-2018-01-18-16-31_patched/include/linux/mm.h
-> > @@ -2607,6 +2607,7 @@ enum mf_action_page_type {
-> >  	MF_MSG_POISONED_HUGE,
-> >  	MF_MSG_HUGE,
-> >  	MF_MSG_FREE_HUGE,
-> > +	MF_MSG_GIGANTIC,
-> >  	MF_MSG_UNMAP_FAILED,
-> >  	MF_MSG_DIRTY_SWAPCACHE,
-> >  	MF_MSG_CLEAN_SWAPCACHE,
-> > diff --git v4.15-rc8-mmotm-2018-01-18-16-31/mm/memory-failure.c v4.15-rc8-mmotm-2018-01-18-16-31_patched/mm/memory-failure.c
-> > index d530ac1..c497588 100644
-> > --- v4.15-rc8-mmotm-2018-01-18-16-31/mm/memory-failure.c
-> > +++ v4.15-rc8-mmotm-2018-01-18-16-31_patched/mm/memory-failure.c
-> > @@ -508,6 +508,7 @@ static const char * const action_page_types[] = {
-> >  	[MF_MSG_POISONED_HUGE]		= "huge page already hardware poisoned",
-> >  	[MF_MSG_HUGE]			= "huge page",
-> >  	[MF_MSG_FREE_HUGE]		= "free huge page",
-> > +	[MF_MSG_GIGANTIC]		= "gigantic page",
-> >  	[MF_MSG_UNMAP_FAILED]		= "unmapping failed page",
-> >  	[MF_MSG_DIRTY_SWAPCACHE]	= "dirty swapcache page",
-> >  	[MF_MSG_CLEAN_SWAPCACHE]	= "clean swapcache page",
-> > @@ -1090,6 +1091,12 @@ static int memory_failure_hugetlb(unsigned long pfn, int trapno, int flags)
-> >  		return 0;
-> >  	}
-> >  
-> > +	if (hstate_is_gigantic(page_hstate(head))) {
-> > +		action_result(pfn, MF_MSG_GIGANTIC, MF_IGNORED);
-> > +		res = -EBUSY;
-> > +		goto out;
-> > +	}
-> > +
-> >  	if (!hwpoison_user_mappings(p, pfn, trapno, flags, &head)) {
-> >  		action_result(pfn, MF_MSG_UNMAP_FAILED, MF_IGNORED);
-> >  		res = -EBUSY;
-> > -- 
-> > 2.7.0
-> > 
-> > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This does not in fact explain what's going on, it just points to
+'random' patches.
 
--- 
-Michal Hocko
-SUSE Labs
+Are you talking about this:
+
++       /* Avoid recursion of direct reclaim */
++       if (p->flags & PF_MEMALLOC)
++               goto nopage;
+
+bit?
+
+> Reported-by: Dave Jones <davej@codemonkey.org.uk>
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Nick Piggin <npiggin@gmail.com>
+> ---
+>  mm/page_alloc.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 76c9688..7804b0e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3583,7 +3583,7 @@ static bool __need_fs_reclaim(gfp_t gfp_mask)
+>  		return false;
+>  
+>  	/* this guy won't enter reclaim */
+> -	if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
+> +	if (current->flags & PF_MEMALLOC)
+>  		return false;
+
+I'm _really_ uncomfortable doing that. Esp. without a solid explanation
+of how this raelly can't possibly lead to trouble. Which the above semi
+incoherent rambling is not.
+
+Your backtrace shows the btrfs shrinker doing an allocation, that's the
+exact kind of thing we need to be extremely careful with.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
