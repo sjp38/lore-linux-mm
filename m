@@ -1,106 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BC346B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 16:36:12 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id t192so12453486iof.6
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 13:36:12 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i132sor8440652iof.138.2018.01.30.13.36.10
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 65BA66B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 17:26:12 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id x16so12212395pfe.20
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 14:26:12 -0800 (PST)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0088.outbound.protection.outlook.com. [104.47.32.88])
+        by mx.google.com with ESMTPS id z1-v6si6251531pln.408.2018.01.30.14.26.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Jan 2018 13:36:11 -0800 (PST)
-Date: Tue, 30 Jan 2018 13:36:07 -0800
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: WARNING in usercopy_warn
-Message-ID: <20180130213607.i4oybskvoxpzxqxd@gmail.com>
-References: <94eb2c05551289ffff0563224e41@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 Jan 2018 14:26:10 -0800 (PST)
+Subject: Re: [PATCHv3 1/3] x86/mm/encrypt: Move page table helpers into
+ separate translation unit
+References: <20180124163623.61765-1-kirill.shutemov@linux.intel.com>
+ <20180124163623.61765-2-kirill.shutemov@linux.intel.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <f1005ed5-c245-b64f-fe4b-64fff5790172@amd.com>
+Date: Tue, 30 Jan 2018 16:26:03 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <94eb2c05551289ffff0563224e41@google.com>
+In-Reply-To: <20180124163623.61765-2-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: keescook@chromium.org
-Cc: james.morse@arm.com, keun-o.park@darkmatter.ae, syzbot <syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com>, labbott@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, syzkaller-bugs@googlegroups.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jan 19, 2018 at 06:58:01AM -0800, syzbot wrote:
-> Hello,
+On 1/24/2018 10:36 AM, Kirill A. Shutemov wrote:
+> There are bunch of functions in mem_encrypt.c that operate on the
+> identity mapping, which means they want virtual addresses to be equal to
+> physical one, without PAGE_OFFSET shift.
 > 
-> syzbot hit the following crash on linux-next commit
-> b625c1ff82272e26c76570d3c7123419ec345b20
+> We also need to avoid paravirtualizaion call there.
 > 
-> So far this crash happened 5 times on linux-next, mmots.
-> C reproducer is attached.
-> syzkaller reproducer is attached.
-> Raw console output is attached.
-> compiler: gcc (GCC) 7.1.1 20170620
-> .config is attached.
+> Getting this done is tricky. We cannot use usual page table helpers.
+> It forces us to open-code a lot of things. It makes code ugly and hard
+> to modify.
 > 
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com
-> It will help syzbot understand when the bug is fixed. See footer for
-> details.
-> If you forward the report, please keep this part and the footer.
+> We can get it work with the page table helpers, but it requires few
+> preprocessor tricks. These tricks may have side effects for the rest of
+> the file.
 > 
-> device syz0 entered promiscuous mode
-> ------------[ cut here ]------------
-> Bad or missing usercopy whitelist? Kernel memory exposure attempt detected
-> from SLAB object 'skbuff_head_cache' (offset 64, size 16)!
-> WARNING: CPU: 0 PID: 3663 at mm/usercopy.c:81 usercopy_warn+0xdb/0x100
-> mm/usercopy.c:76
-> Kernel panic - not syncing: panic_on_warn set ...
+> Let's isolate such functions into own translation unit.
 > 
-> CPU: 0 PID: 3663 Comm: syzkaller694156 Not tainted 4.15.0-rc7-next-20180115+
-> #97
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> Call Trace:
->  __dump_stack lib/dump_stack.c:17 [inline]
->  dump_stack+0x194/0x257 lib/dump_stack.c:53
->  panic+0x1e4/0x41c kernel/panic.c:183
->  __warn+0x1dc/0x200 kernel/panic.c:547
->  report_bug+0x211/0x2d0 lib/bug.c:184
->  fixup_bug.part.11+0x37/0x80 arch/x86/kernel/traps.c:178
->  fixup_bug arch/x86/kernel/traps.c:247 [inline]
->  do_error_trap+0x2d7/0x3e0 arch/x86/kernel/traps.c:296
->  do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:315
->  invalid_op+0x22/0x40 arch/x86/entry/entry_64.S:1085
-> RIP: 0010:usercopy_warn+0xdb/0x100 mm/usercopy.c:76
-> RSP: 0018:ffff8801d99df548 EFLAGS: 00010282
-> RAX: dffffc0000000008 RBX: ffffffff865cf19f RCX: ffffffff815aba6e
-> RDX: 0000000000000000 RSI: 1ffff1003b33be2e RDI: 1ffff1003b33be64
-> RBP: ffff8801d99df5a0 R08: 0000000000000000 R09: 0000000000000000
-> R10: 00000000000003e6 R11: 0000000000000000 R12: ffffffff86200d00
-> R13: ffffffff85d2cfc0 R14: 0000000000000040 R15: 0000000000000010
->  __check_heap_object+0x89/0xc0 mm/slab.c:4426
->  check_heap_object mm/usercopy.c:236 [inline]
->  __check_object_size+0x272/0x530 mm/usercopy.c:259
->  check_object_size include/linux/thread_info.h:112 [inline]
->  check_copy_size include/linux/thread_info.h:143 [inline]
->  copy_to_user include/linux/uaccess.h:154 [inline]
->  put_cmsg+0x233/0x3f0 net/core/scm.c:242
->  sock_recv_errqueue+0x200/0x3e0 net/core/sock.c:2913
->  packet_recvmsg+0xb2e/0x17a0 net/packet/af_packet.c:3296
->  sock_recvmsg_nosec net/socket.c:803 [inline]
->  sock_recvmsg+0xc9/0x110 net/socket.c:810
->  ___sys_recvmsg+0x2a4/0x640 net/socket.c:2179
->  __sys_recvmmsg+0x2a9/0xaf0 net/socket.c:2287
->  SYSC_recvmmsg net/socket.c:2368 [inline]
->  SyS_recvmmsg+0xc4/0x160 net/socket.c:2352
->  entry_SYSCALL_64_fastpath+0x29/0xa0
-> RIP: 0033:0x444339
-> RSP: 002b:00007ffdb359d7d8 EFLAGS: 00000203 ORIG_RAX: 000000000000012b
-> RAX: ffffffffffffffda RBX: 00000000004002e0 RCX: 0000000000444339
-> RDX: 0000000000000001 RSI: 0000000020ef7fc4 RDI: 0000000000000005
-> RBP: 00000000006ce018 R08: 0000000020000000 R09: 0000000000000001
-> R10: 0000000000002000 R11: 0000000000000203 R12: 0000000000402020
-> R13: 00000000004020b0 R14: 0000000000000000 R15: 0000000000000000
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Kernel Offset: disabled
-> Rebooting in 86400 seconds..
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Kees, has this been fixed yet?
+Just one minor comment at the end.  With that change:
+
+Reviewed-by: Tom Lendacky <thomas.lendacky@amd.com>
+
+> ---
+>  arch/x86/mm/Makefile               |  14 +-
+>  arch/x86/mm/mem_encrypt.c          | 578 +----------------------------------
+>  arch/x86/mm/mem_encrypt_identity.c | 596 +++++++++++++++++++++++++++++++++++++
+>  arch/x86/mm/mm_internal.h          |   1 +
+>  4 files changed, 607 insertions(+), 582 deletions(-)
+>  create mode 100644 arch/x86/mm/mem_encrypt_identity.c
+> 
+
+...
+
+> diff --git a/arch/x86/mm/mm_internal.h b/arch/x86/mm/mm_internal.h
+> index 4e1f6e1b8159..7b4fc4386d90 100644
+> --- a/arch/x86/mm/mm_internal.h
+> +++ b/arch/x86/mm/mm_internal.h
+> @@ -19,4 +19,5 @@ extern int after_bootmem;
+>  
+>  void update_cache_mode_entry(unsigned entry, enum page_cache_mode cache);
+>  
+> +extern bool sev_enabled __section(.data);
+
+Lets move this into arch/x86/include/asm/mem_encrypt.h and then add
+#include <linux/mem_encrypt.h> to mem_encrypt_identity.c.
+
+Thanks,
+Tom
+
+>  #endif	/* __X86_MM_INTERNAL_H */
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
