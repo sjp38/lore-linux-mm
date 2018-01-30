@@ -1,170 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A8B576B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 12:08:56 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id x24so8295862pge.13
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 09:08:56 -0800 (PST)
-Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
-        by mx.google.com with ESMTPS id r80si41452pfa.358.2018.01.30.09.08.54
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 43A2F6B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 12:29:54 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id f3so666522wmc.8
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 09:29:54 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id h3si801646edd.454.2018.01.30.09.29.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jan 2018 09:08:54 -0800 (PST)
-Date: Tue, 30 Jan 2018 10:08:52 -0700
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH 5/6] Documentation for Pmalloc
-Message-ID: <20180130100852.2213b94d@lwn.net>
-In-Reply-To: <20180130151446.24698-6-igor.stoppa@huawei.com>
-References: <20180130151446.24698-1-igor.stoppa@huawei.com>
-	<20180130151446.24698-6-igor.stoppa@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 30 Jan 2018 09:29:53 -0800 (PST)
+Date: Tue, 30 Jan 2018 12:30:17 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch -mm v2 2/3] mm, memcg: replace cgroup aware oom killer
+ mount option with tunable
+Message-ID: <20180130173017.GA24827@cmpxchg.org>
+References: <20180126143950.719912507bd993d92188877f@linux-foundation.org>
+ <alpine.DEB.2.10.1801261441340.20954@chino.kir.corp.google.com>
+ <20180126161735.b999356fbe96c0acd33aaa66@linux-foundation.org>
+ <20180129104657.GC21609@dhcp22.suse.cz>
+ <20180129191139.GA1121507@devbig577.frc2.facebook.com>
+ <20180130085445.GQ21609@dhcp22.suse.cz>
+ <20180130115846.GA4720@castle.DHCP.thefacebook.com>
+ <20180130120852.GA21609@dhcp22.suse.cz>
+ <20180130121315.GA5888@castle.DHCP.thefacebook.com>
+ <20180130122011.GB21609@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180130122011.GB21609@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, willy@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 30 Jan 2018 17:14:45 +0200
-Igor Stoppa <igor.stoppa@huawei.com> wrote:
-
-> Detailed documentation about the protectable memory allocator.
+On Tue, Jan 30, 2018 at 01:20:11PM +0100, Michal Hocko wrote:
+> From 361275a05ad7026b8f721f8aa756a4975a2c42b1 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Tue, 30 Jan 2018 09:54:15 +0100
+> Subject: [PATCH] oom, memcg: clarify root memcg oom accounting
 > 
-> Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-> ---
->  Documentation/core-api/pmalloc.txt | 104 +++++++++++++++++++++++++++++++++++++
->  1 file changed, 104 insertions(+)
->  create mode 100644 Documentation/core-api/pmalloc.txt
+> David Rientjes has pointed out that the current way how the root memcg
+> is accounted for the cgroup aware OOM killer is undocumented. Unlike
+> regular cgroups there is no accounting going on in the root memcg
+> (mostly for performance reasons). Therefore we are suming up oom_badness
+> of its tasks. This might result in an over accounting because of the
+> oom_score_adj setting. Document this for now.
+> 
+> Acked-by: Roman Gushchin <guro@fb.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Please don't put plain-text files into core-api - that's a directory full
-of RST documents.  Your document is 99.9% RST already, better to just
-finish the job and tie it into the rest of the kernel docs.
-
-> diff --git a/Documentation/core-api/pmalloc.txt b/Documentation/core-api/pmalloc.txt
-> new file mode 100644
-> index 0000000..934d356
-> --- /dev/null
-> +++ b/Documentation/core-api/pmalloc.txt
-> @@ -0,0 +1,104 @@
-
-We might as well put the SPDX tag here, it's a new file.
-
-> +============================
-> +Protectable memory allocator
-> +============================
-> +
-> +Introduction
-> +------------
-> +
-> +When trying to perform an attack toward a system, the attacker typically
-> +wants to alter the execution flow, in a way that allows actions which
-> +would otherwise be forbidden.
-> +
-> +In recent years there has been lots of effort in preventing the execution
-> +of arbitrary code, so the attacker is progressively pushed to look for
-> +alternatives.
-> +
-> +If code changes are either detected or even prevented, what is left is to
-> +alter kernel data.
-> +
-> +As countermeasure, constant data is collected in a section which is then
-> +marked as readonly.
-> +To expand on this, also statically allocated variables which are tagged
-> +as __ro_after_init will receive a similar treatment.
-> +The difference from constant data is that such variables can be still
-> +altered freely during the kernel init phase.
-> +
-> +However, such solution does not address those variables which could be
-> +treated essentially as read-only, but whose size is not known at compile
-> +time or cannot be fully initialized during the init phase.
-
-This is all good information, but I'd suggest it belongs more in the 0/n
-patch posting than here.  The introduction of *this* document should say
-what it actually covers.
-
-> +
-> +Design
-> +------
-> +
-> +pmalloc builds on top of genalloc, using the same concept of memory pools
-> +A pool is a handle to a group of chunks of memory of various sizes.
-> +When created, a pool is empty. It will be populated by allocating chunks
-> +of memory, either when the first memory allocation request is received, or
-> +when a pre-allocation is performed.
-> +
-> +Either way, one or more memory pages will be obtained from vmalloc and
-> +registered in the pool as chunk. Subsequent requests will be satisfied by
-> +either using any available free space from the current chunks, or by
-> +allocating more vmalloc pages, should the current free space not suffice.
-> +
-> +This is the key point of pmalloc: it groups data that must be protected
-> +into a set of pages. The protection is performed through the mmu, which
-> +is a prerequisite and has a minimum granularity of one page.
-> +
-> +If the relevant variables were not grouped, there would be a problem of
-> +allowing writes to other variables that might happen to share the same
-> +page, but require further alterations over time.
-> +
-> +A pool is a group of pages that are write protected at the same time.
-> +Ideally, they have some high level correlation (ex: they belong to the
-> +same module), which justifies write protecting them all together.
-> +
-> +To keep it to a minimum, locking is left to the user of the API, in
-> +those cases where it's not strictly needed.
-
-This seems like a relevant and important aspect of the API that shouldn't
-be buried in the middle of a section talking about random things.
-
-> +Ideally, no further locking is required, since each module can have own
-> +pool (or pools), which should, for example, avoid the need for cross
-> +module or cross thread synchronization about write protecting a pool.
-> +
-> +The overhead of creating an additional pool is minimal: a handful of bytes
-> +from kmalloc space for the metadata and then what is left unused from the
-> +page(s) registered as chunks.
-> +
-> +Compared to plain use of vmalloc, genalloc has the advantage of tightly
-> +packing the allocations, reducing the number of pages used and therefore
-> +the pressure on the TLB. The slight overhead in execution time of the
-> +allocation should be mostly irrelevant, because pmalloc memory is not
-> +meant to be allocated/freed in tight loops. Rather it ought to be taken
-> +in use, initialized and write protected. Possibly destroyed.
-> +
-> +Considering that not much data is supposed to be dynamically allocated
-> +and then marked as read-only, it shouldn't be an issue that the address
-> +range for pmalloc is limited, on 32-bit systems.
-> +
-> +Regarding SMP systems, the allocations are expected to happen mostly
-> +during an initial transient, after which there should be no more need to
-> +perform cross-processor synchronizations of page tables.
-> +
-> +
-> +Use
-> +---
-> +
-> +The typical sequence, when using pmalloc, is:
-> +
-> +1. create a pool
-> +2. [optional] pre-allocate some memory in the pool
-> +3. issue one or more allocation requests to the pool
-> +4. initialize the memory obtained
-> +   - iterate over points 3 & 4 as needed -
-> +5. write protect the pool
-> +6. use in read-only mode the handlers obtained through the allocations
-> +7. [optional] destroy the pool
-
-So one gets this far, but has no actual idea of how to do these things.
-Which leads me to wonder: what is this document for?  Who are you expecting
-to read it?
-
-You could improve things a lot by (once again) going to RST and using
-directives to bring in the kerneldoc comments from the source (which, I
-note, do exist).  But I'd suggest rethinking this document and its
-audience.  Most of the people reading it are likely wanting to learn how to
-*use* this API; I think it would be best to not leave them frustrated.
-
-Thanks,
-
-jon
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
