@@ -1,143 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 515FB6B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 18:36:57 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id v17so8986014pgb.18
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 15:36:57 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id o8si203685pgv.113.2018.01.30.15.36.55
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 03A766B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 18:44:27 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id u6so8093512oiv.21
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 15:44:26 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r83si586297oie.203.2018.01.30.15.44.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jan 2018 15:36:55 -0800 (PST)
-Date: Wed, 31 Jan 2018 07:49:04 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH 3/3] mm: memfd: remove memfd code from shmem files and
- use new memfd files
-Message-ID: <201801310705.HNIeJce6%fengguang.wu@intel.com>
-References: <20180130000101.7329-4-mike.kravetz@oracle.com>
+        Tue, 30 Jan 2018 15:44:25 -0800 (PST)
+Date: Wed, 31 Jan 2018 01:44:14 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [virtio-dev] Re: [PATCH v25 2/2] virtio-balloon:
+ VIRTIO_BALLOON_F_FREE_PAGE_HINT
+Message-ID: <20180131011423-mutt-send-email-mst@kernel.org>
+References: <1516871646-22741-1-git-send-email-wei.w.wang@intel.com>
+ <1516871646-22741-3-git-send-email-wei.w.wang@intel.com>
+ <20180125154708-mutt-send-email-mst@kernel.org>
+ <5A6A871C.6040408@intel.com>
+ <20180126042649-mutt-send-email-mst@kernel.org>
+ <5A6AA107.3000607@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180130000101.7329-4-mike.kravetz@oracle.com>
+In-Reply-To: <5A6AA107.3000607@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@gmail.com>, David Herrmann <dh.herrmann@gmail.com>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-Hi Mike,
+On Fri, Jan 26, 2018 at 11:31:19AM +0800, Wei Wang wrote:
+> On 01/26/2018 10:42 AM, Michael S. Tsirkin wrote:
+> > On Fri, Jan 26, 2018 at 09:40:44AM +0800, Wei Wang wrote:
+> > > On 01/25/2018 09:49 PM, Michael S. Tsirkin wrote:
+> > > > On Thu, Jan 25, 2018 at 05:14:06PM +0800, Wei Wang wrote:
+> > > > 
+> 
+> > > The controversy is that the free list is not static
+> > > once the lock is dropped, so everything is dynamically changing, including
+> > > the state that was recorded. The method we are using is more prudent, IMHO.
+> > > How about taking the fundamental solution, and seek to improve incrementally
+> > > in the future?
+> > > 
+> > > 
+> > > Best,
+> > > Wei
+> > I'd like to see kicks happen outside the spinlock. kick with a spinlock
+> > taken looks like a scalability issue that won't be easy to
+> > reproduce but hurt workloads at random unexpected times.
+> > 
+> 
+> Is that "kick inside the spinlock" the only concern you have? I think we can
+> remove the kick actually. If we check how the host side works, it is
+> worthwhile to let the host poll the virtqueue after it receives the cmd id
+> from the guest (kick for cmd id isn't within the lock).
+> 
+> 
+> Best,
+> Wei
 
-Thank you for the patch! Perhaps something to improve:
+So really there are different ways to put free page hints to use.
 
-[auto build test WARNING on mmotm/master]
-[also build test WARNING on next-20180126]
-[cannot apply to linus/master v4.15]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+The current interface requires host to do dirty tracking
+for all memory, and it's more or less useless for
+things like freeing host memory.
 
-url:    https://github.com/0day-ci/linux/commits/Mike-Kravetz/restructure-memfd-code/20180131-023405
-base:   git://git.cmpxchg.org/linux-mmotm.git master
-reproduce:
-        # apt-get install sparse
-        make ARCH=x86_64 allmodconfig
-        make C=1 CF=-D__CHECK_ENDIAN__
+So while your project's needs seem to be addressed, I'm
+still a bit disappointed that so little collaboration
+happened with e.g. Nitesh's project, to the point where
+you don't even CC him on patches.
 
+So I'm kind of trying to bridge this a bit - I would
+like the interfaces that we build to at least superficially
+look like they might be reusable for other uses of hinting.
 
-sparse warnings: (new ones prefixed by >>)
+Imagine that you don't have dirty tracking on the host.
+What would it take to still use hinting information,
+e.g. to call MADV_FREE on the pages guest gives us?
 
->> mm/memfd.c:40:9: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
-   mm/memfd.c:40:9: expected void
-   mm/memfd.c:40:9: got void
->> mm/memfd.c:40:9: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
-   mm/memfd.c:40:9: expected void
-   mm/memfd.c:40:9: got void
->> mm/memfd.c:41:46: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
-   mm/memfd.c:41:46: expected void
-   mm/memfd.c:41:46: got void
-   mm/memfd.c:44:38: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
-   mm/memfd.c:44:38: expected void
-   mm/memfd.c:44:38: got void
-   mm/memfd.c:55:55: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
-   mm/memfd.c:55:55: expected void
-   mm/memfd.c:55:55: got void
-   mm/memfd.c:55:30: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
-   mm/memfd.c:55:30: expected void
-   mm/memfd.c:55:30: got void
-   mm/memfd.c:40:9: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
-   mm/memfd.c:40:9: expected void
-   mm/memfd.c:40:9: got void
->> mm/memfd.c:40:9: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
-   mm/memfd.c:40:9: expected void
-   mm/memfd.c:40:9: got void
-   mm/memfd.c:93:17: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
-   mm/memfd.c:93:17: expected void
-   mm/memfd.c:93:17: got void
-   mm/memfd.c:93:17: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
-   mm/memfd.c:93:17: expected void
-   mm/memfd.c:93:17: got void
-   mm/memfd.c:96:54: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
-   mm/memfd.c:96:54: expected void
-   mm/memfd.c:96:54: got void
-   mm/memfd.c:99:46: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
-   mm/memfd.c:99:46: expected void
-   mm/memfd.c:99:46: got void
-   mm/memfd.c:125:63: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
-   mm/memfd.c:125:63: expected void
-   mm/memfd.c:125:63: got void
-   mm/memfd.c:125:38: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
-   mm/memfd.c:125:38: expected void
-   mm/memfd.c:125:38: got void
-   mm/memfd.c:93:17: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
-   mm/memfd.c:93:17: expected void
-   mm/memfd.c:93:17: got void
-   mm/memfd.c:93:17: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
-   mm/memfd.c:93:17: expected void
-   mm/memfd.c:93:17: got void
+I think you need to kick and you need to wait for
+host to consume the hint before page is reused.
+And we know madvise takes a lot of time sometimes,
+so locking out the free list does not sound like a
+good idea.
 
-vim +40 mm/memfd.c
+That's why I was talking about kick out of lock,
+so that eventually we can reuse that for hinting
+and actually wait for an interrupt.
 
-6df4ed2a41 Mike Kravetz 2018-01-29  28  
-6df4ed2a41 Mike Kravetz 2018-01-29  29  static void shmem_tag_pins(struct address_space *mapping)
-6df4ed2a41 Mike Kravetz 2018-01-29  30  {
-6df4ed2a41 Mike Kravetz 2018-01-29  31  	struct radix_tree_iter iter;
-6df4ed2a41 Mike Kravetz 2018-01-29  32  	void **slot;
-6df4ed2a41 Mike Kravetz 2018-01-29  33  	pgoff_t start;
-6df4ed2a41 Mike Kravetz 2018-01-29  34  	struct page *page;
-6df4ed2a41 Mike Kravetz 2018-01-29  35  
-6df4ed2a41 Mike Kravetz 2018-01-29  36  	lru_add_drain();
-6df4ed2a41 Mike Kravetz 2018-01-29  37  	start = 0;
-6df4ed2a41 Mike Kravetz 2018-01-29  38  	rcu_read_lock();
-6df4ed2a41 Mike Kravetz 2018-01-29  39  
-6df4ed2a41 Mike Kravetz 2018-01-29 @40  	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
-6df4ed2a41 Mike Kravetz 2018-01-29 @41  		page = radix_tree_deref_slot(slot);
-6df4ed2a41 Mike Kravetz 2018-01-29  42  		if (!page || radix_tree_exception(page)) {
-6df4ed2a41 Mike Kravetz 2018-01-29  43  			if (radix_tree_deref_retry(page)) {
-6df4ed2a41 Mike Kravetz 2018-01-29  44  				slot = radix_tree_iter_retry(&iter);
-6df4ed2a41 Mike Kravetz 2018-01-29  45  				continue;
-6df4ed2a41 Mike Kravetz 2018-01-29  46  			}
-6df4ed2a41 Mike Kravetz 2018-01-29  47  		} else if (page_count(page) - page_mapcount(page) > 1) {
-6df4ed2a41 Mike Kravetz 2018-01-29  48  			spin_lock_irq(&mapping->tree_lock);
-6df4ed2a41 Mike Kravetz 2018-01-29  49  			radix_tree_tag_set(&mapping->page_tree, iter.index,
-6df4ed2a41 Mike Kravetz 2018-01-29  50  					   SHMEM_TAG_PINNED);
-6df4ed2a41 Mike Kravetz 2018-01-29  51  			spin_unlock_irq(&mapping->tree_lock);
-6df4ed2a41 Mike Kravetz 2018-01-29  52  		}
-6df4ed2a41 Mike Kravetz 2018-01-29  53  
-6df4ed2a41 Mike Kravetz 2018-01-29  54  		if (need_resched()) {
-6df4ed2a41 Mike Kravetz 2018-01-29  55  			slot = radix_tree_iter_resume(slot, &iter);
-6df4ed2a41 Mike Kravetz 2018-01-29  56  			cond_resched_rcu();
-6df4ed2a41 Mike Kravetz 2018-01-29  57  		}
-6df4ed2a41 Mike Kravetz 2018-01-29  58  	}
-6df4ed2a41 Mike Kravetz 2018-01-29  59  	rcu_read_unlock();
-6df4ed2a41 Mike Kravetz 2018-01-29  60  }
-6df4ed2a41 Mike Kravetz 2018-01-29  61  
+So how about we take a bunch of pages out of the free list, move them to
+the balloon, kick (and optionally wait for host to consume), them move
+them back? Preferably to end of the list? This will also make things
+like sorting them much easier as you can just put them in a binary tree
+or something.
 
-:::::: The code at line 40 was first introduced by commit
-:::::: 6df4ed2a410bc04f1ec04dce16ccd236707f7f32 mm: memfd: split out memfd for use by multiple filesystems
+For when we need to be careful to make sure we don't
+create an OOM situation with this out of thin air,
+and for when you can't give everything to host in one go,
+you might want some kind of notifier that tells you
+that you need to return pages to the free list ASAP.
 
-:::::: TO: Mike Kravetz <mike.kravetz@oracle.com>
-:::::: CC: 0day robot <fengguang.wu@intel.com>
+How'd this sound?
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
