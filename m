@@ -1,58 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 442326B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 07:42:51 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id h5so7666847pgv.21
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:42:51 -0800 (PST)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0052.outbound.protection.outlook.com. [104.47.36.52])
-        by mx.google.com with ESMTPS id p5si1362013pgn.197.2018.01.30.04.42.49
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 27F046B0007
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 07:52:34 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f3so7747634pga.9
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:52:34 -0800 (PST)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0058.outbound.protection.outlook.com. [104.47.41.58])
+        by mx.google.com with ESMTPS id b9si2804726pgf.430.2018.01.30.04.52.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 30 Jan 2018 04:42:49 -0800 (PST)
-Subject: Re: [PATCH 4/4] drm/amdgpu: Use drm_oom_badness for amdgpu.
-References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
- <1516294072-17841-5-git-send-email-andrey.grodzovsky@amd.com>
- <20180130092413.GD25930@phenom.ffwll.local>
-From: Andrey Grodzovsky <Andrey.Grodzovsky@amd.com>
-Message-ID: <1670268a-863f-2a95-fd1d-f59e5ebdfcb3@amd.com>
-Date: Tue, 30 Jan 2018 07:42:46 -0500
+        Tue, 30 Jan 2018 04:52:33 -0800 (PST)
+Subject: Re: [PATCH] mm/swap: add function get_total_swap_pages to expose
+ total_swap_pages
+References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
+ <20180129163114.GH21609@dhcp22.suse.cz>
+ <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
+ <20180130075553.GM21609@dhcp22.suse.cz>
+ <9060281e-62dd-8775-2903-339ff836b436@amd.com>
+ <20180130101823.GX21609@dhcp22.suse.cz>
+ <7d5ce7ab-d16d-36bc-7953-e1da2db350bf@amd.com>
+ <20180130122853.GC21609@dhcp22.suse.cz>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+Message-ID: <5ac13913-783d-26aa-ea5f-ab375f450f4c@amd.com>
+Date: Tue, 30 Jan 2018 13:52:16 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180130092413.GD25930@phenom.ffwll.local>
+In-Reply-To: <20180130122853.GC21609@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org, Christian.Koenig@amd.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "He, Roger" <Hongbo.He@amd.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
 
-That definitely what I planned, just didn't want to clutter the RFC with 
-multiple repeated changes.
+Am 30.01.2018 um 13:28 schrieb Michal Hocko:
+> I do think you should completely ignore the size of the swap space. IMHO
+> you should forbid further allocations when your current buffer storage
+> cannot be reclaimed. So you need some form of feedback mechanism that
+> would tell you: "Your buffers have grown too much".
 
-Thanks,
+Yeah well, that is exactly what we are trying to do here.
 
-Andrey
+> If you cannot do
+> that then simply assume that you cannot swap at all rather than rely on
+> having some portion of it for yourself. There are many other users of
+> memory outside of your subsystem. Any scaling based on the 50% of resource
+> belonging to me is simply broken.
 
+Our intention is not reserve 50% of resources to TTM, but rather allow 
+TTM to abort when more than 50% of all resources are used up.
 
+Rogers initial implementation didn't looked like that, but that is just 
+a minor mistake we can fix.
 
-On 01/30/2018 04:24 AM, Daniel Vetter wrote:
-> On Thu, Jan 18, 2018 at 11:47:52AM -0500, Andrey Grodzovsky wrote:
->> Signed-off-by: Andrey Grodzovsky <andrey.grodzovsky@amd.com>
->> ---
->>   drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c | 1 +
->>   1 file changed, 1 insertion(+)
->>
->> diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
->> index 46a0c93..6a733cdc8 100644
->> --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
->> +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
->> @@ -828,6 +828,7 @@ static const struct file_operations amdgpu_driver_kms_fops = {
->>   #ifdef CONFIG_COMPAT
->>   	.compat_ioctl = amdgpu_kms_compat_ioctl,
->>   #endif
->> +	.oom_file_badness = drm_oom_badness,
-> Would be neat if we could roll this out for all gem drivers (once it's no
-> longer an RFC ofc).
-> -Daniel
+Regards,
+Christian.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
