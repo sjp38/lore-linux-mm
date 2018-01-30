@@ -1,113 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D5D96B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 00:13:36 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id e185so9259563pfg.23
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 21:13:36 -0800 (PST)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0074.outbound.protection.outlook.com. [104.47.34.74])
-        by mx.google.com with ESMTPS id s133si667565pgc.86.2018.01.29.21.13.34
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C3B86B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 00:16:43 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id y42so10217075qtc.19
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 21:16:43 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id p90si1426900qtd.50.2018.01.29.21.16.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 29 Jan 2018 21:13:35 -0800 (PST)
-From: "He, Roger" <Hongbo.He@amd.com>
-Subject: RE: [PATCH] mm/swap: add function get_total_swap_pages to expose
- total_swap_pages
-Date: Tue, 30 Jan 2018 05:13:32 +0000
-Message-ID: <MWHPR1201MB0127401481BC5F7424B41B6BFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
-References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
- <20180129163114.GH21609@dhcp22.suse.cz>
- <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
-In-Reply-To: <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jan 2018 21:16:42 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0U5FJPA025176
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 00:16:41 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2fte240kuj-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 00:16:41 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 30 Jan 2018 05:16:39 -0000
+Subject: Re: [RFC] mm/migrate: Add new migration reason MR_HUGETLB
+References: <20180130030714.6790-1-khandual@linux.vnet.ibm.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 30 Jan 2018 10:46:32 +0530
 MIME-Version: 1.0
+In-Reply-To: <20180130030714.6790-1-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <7c99fbcd-bb9f-38ed-fbf1-e5481c59968c@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "He, Roger" <Hongbo.He@amd.com>, Michal Hocko <mhocko@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "Koenig, Christian" <Christian.Koenig@amd.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, mhocko@suse.com
 
-CWdldF9ucl9zd2FwX3BhZ2VzIGlzIHRoZSBvbmx5IEFQSSB3ZSBjYW4gYWNjZXNzZWQgZnJvbSBv
-dGhlciBtb2R1bGUgbm93Lg0KCUl0IGNhbid0IGNvdmVyIHRoZSBjYXNlIG9mIHRoZSBkeW5hbWlj
-IHN3YXAgc2l6ZSBpbmNyZW1lbnQuDQoJSSBtZWFuOiB1c2VyIGNhbiB1c2UgInN3YXBvbiIgdG8g
-ZW5hYmxlIG5ldyBzd2FwIGZpbGUgb3Igc3dhcCBkaXNrIGR5bmFtaWNhbGx5IG9yICJzd2Fwb2Zm
-IiB0byBkaXNhYmxlIHN3YXAgc3BhY2UuDQoNCkFib3ZlIGlzIHdoeSB3ZSBhbHdheXMgdG8gZ2V0
-IHN3YXAgY2FjaGUgc2l6ZSByYXRoZXIgdGhhbiBnZXR0aW5nIGl0IG9uY2UgYXQgbW9kdWxlIGlu
-aXRpYWxpemF0aW9uIHRpbWUuDQpUaGF0IGlzIGludGVybmFsIGluIFRUTS4gUGxlYXNlIGlnbm9y
-ZSB0aGF0Lg0KDQpBbmQgd2h5IFRUTSBuZWVkcyBnZXRfdG90YWxfc3dhcF9wYWdlcyBpbnN0ZWFk
-IG9mIHVzaW5nIGdldF9ucl9zd2FwX3BhZ2VzIGRpcmVjdGx5LiBUaGF0IGJlY2F1c2UNCmV2ZW4g
-dGhvdWdoIHRoZSBUVE0gYnVmZmVyIGhhcyBiZWVuIHN3YXBwZWQgb3V0LCBhdCB0aGUgc3RhcnQg
-dGhleSBhbHNvIHN0YXkgaW4gc3lzdGVtIG1lbW9yeSBieSBzaG1lbS4gTGF0ZXIgYXQgc29tZSBw
-b2ludCB3aGVuDQpVbmRlciBoaWdoIG1lbW9yeSBwcmVzc3VyZSwgVGhvc2UgYnVmZmVycyBhbGwg
-YXJlIGZsdXNoZWQgaW50byBzd2FwIGRpc2sgYW5kIHVzZWQgbW9yZSBzd2FwIGRpc2sgc2l6ZSBv
-ciBldmVuIHVzZSB1cCBhbGwgc3dhcCBzaXplLiBUaGF0IGlzIG5vdCB3aGF0IHdlIHdhbnQgYW5k
-IHN0aWxsIGhhcyByYW5kb20gT09NLiBTbyB3ZSBuZWVkIGEgQVBJIHRvIGdldCB0b3RhbCBzd2Fw
-IHNpemUgYW5kIGNvbnRyb2wgdGhlIHN3YXAgc2l6ZSB1c2VkIGJ5IFRUTSB2ZXJ5IGFjY3VyYXRl
-bHkuDQoNClRoYW5rcw0KUm9nZXIoSG9uZ2JvLkhlKQ0KLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0t
-LS0NCkZyb206IGRyaS1kZXZlbCBbbWFpbHRvOmRyaS1kZXZlbC1ib3VuY2VzQGxpc3RzLmZyZWVk
-ZXNrdG9wLm9yZ10gT24gQmVoYWxmIE9mIEhlLCBSb2dlcg0KU2VudDogVHVlc2RheSwgSmFudWFy
-eSAzMCwgMjAxOCAxMDo1NyBBTQ0KVG86IE1pY2hhbCBIb2NrbyA8bWhvY2tvQGtlcm5lbC5vcmc+
-DQpDYzogbGludXgtbW1Aa3ZhY2sub3JnOyBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBk
-cmktZGV2ZWxAbGlzdHMuZnJlZWRlc2t0b3Aub3JnOyBLb2VuaWcsIENocmlzdGlhbiA8Q2hyaXN0
-aWFuLktvZW5pZ0BhbWQuY29tPg0KU3ViamVjdDogUkU6IFtQQVRDSF0gbW0vc3dhcDogYWRkIGZ1
-bmN0aW9uIGdldF90b3RhbF9zd2FwX3BhZ2VzIHRvIGV4cG9zZSB0b3RhbF9zd2FwX3BhZ2VzDQoN
-CkhpIE1pY2hhbDoNCg0KV2UgbmVlZCBhIEFQSSB0byB0ZWxsIFRUTSBtb2R1bGUgdGhlIHN5c3Rl
-bSB0b3RhbGx5IGhhcyBob3cgbWFueSBzd2FwIGNhY2hlLg0KVGhlbiBUVE0gbW9kdWxlIGNhbiB1
-c2UgaXQgdG8gcmVzdHJpY3QgaG93IG1hbnkgdGhlIHN3YXAgY2FjaGUgaXQgY2FuIHVzZSB0byBw
-cmV2ZW50IHRyaWdnZXJpbmcgT09NLg0KRm9yIE5vdyB3ZSBzZXQgdGhlIHRocmVzaG9sZCBvZiBz
-d2FwIHNpemUgVFRNIHVzZWQgYXMgMS8yICogdG90YWwgc2l6ZSBhbmQgbGVhdmUgdGhlIHJlc3Qg
-Zm9yIG90aGVycyB1c2UuDQoNCg0KZ2V0X25yX3N3YXBfcGFnZXMgaXMgdGhlIG9ubHkgQVBJIHdl
-IGNhbiBhY2Nlc3NlZCBmcm9tIG90aGVyIG1vZHVsZSBub3cuDQoJSXQgY2FuJ3QgY292ZXIgdGhl
-IGNhc2Ugb2YgdGhlIGR5bmFtaWMgc3dhcCBzaXplIGluY3JlbWVudC4NCglJIG1lYW46IHVzZXIg
-Y2FuIHVzZSAic3dhcG9uIiB0byBlbmFibGUgbmV3IHN3YXAgZmlsZSBvciBzd2FwIGRpc2sgZHlu
-YW1pY2FsbHkgb3IgInN3YXBvZmYiIHRvIGRpc2FibGUgc3dhcCBzcGFjZS4NCg0KVGhhbmtzDQpS
-b2dlcihIb25nYm8uSGUpDQoNCi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQpGcm9tOiBkcmkt
-ZGV2ZWwgW21haWx0bzpkcmktZGV2ZWwtYm91bmNlc0BsaXN0cy5mcmVlZGVza3RvcC5vcmddIE9u
-IEJlaGFsZiBPZiBNaWNoYWwgSG9ja28NClNlbnQ6IFR1ZXNkYXksIEphbnVhcnkgMzAsIDIwMTgg
-MTI6MzEgQU0NClRvOiBIZSwgUm9nZXIgPEhvbmdiby5IZUBhbWQuY29tPg0KQ2M6IGxpbnV4LW1t
-QGt2YWNrLm9yZzsgbGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZzsgZHJpLWRldmVsQGxpc3Rz
-LmZyZWVkZXNrdG9wLm9yZzsgS29lbmlnLCBDaHJpc3RpYW4gPENocmlzdGlhbi5Lb2VuaWdAYW1k
-LmNvbT4NClN1YmplY3Q6IFJlOiBbUEFUQ0hdIG1tL3N3YXA6IGFkZCBmdW5jdGlvbiBnZXRfdG90
-YWxfc3dhcF9wYWdlcyB0byBleHBvc2UgdG90YWxfc3dhcF9wYWdlcw0KDQpPbiBNb24gMjktMDEt
-MTggMTY6Mjk6NDIsIFJvZ2VyIEhlIHdyb3RlOg0KPiB0dG0gbW9kdWxlIG5lZWRzIGl0IHRvIGRl
-dGVybWluZSBpdHMgaW50ZXJuYWwgcGFyYW1ldGVyIHNldHRpbmcuDQoNCkNvdWxkIHlvdSBiZSBt
-b3JlIHNwZWNpZmljIHdoeT8NCg0KPiBTaWduZWQtb2ZmLWJ5OiBSb2dlciBIZSA8SG9uZ2JvLkhl
-QGFtZC5jb20+DQo+IC0tLQ0KPiAgaW5jbHVkZS9saW51eC9zd2FwLmggfCAgNiArKysrKysNCj4g
-IG1tL3N3YXBmaWxlLmMgICAgICAgIHwgMTUgKysrKysrKysrKysrKysrDQo+ICAyIGZpbGVzIGNo
-YW5nZWQsIDIxIGluc2VydGlvbnMoKykNCj4gDQo+IGRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4
-L3N3YXAuaCBiL2luY2x1ZGUvbGludXgvc3dhcC5oIGluZGV4IA0KPiBjMmI4MTI4Li43MDhkNjZm
-IDEwMDY0NA0KPiAtLS0gYS9pbmNsdWRlL2xpbnV4L3N3YXAuaA0KPiArKysgYi9pbmNsdWRlL2xp
-bnV4L3N3YXAuaA0KPiBAQCAtNDg0LDYgKzQ4NCw3IEBAIGV4dGVybiBpbnQgdHJ5X3RvX2ZyZWVf
-c3dhcChzdHJ1Y3QgcGFnZSAqKTsgc3RydWN0IA0KPiBiYWNraW5nX2Rldl9pbmZvOyAgZXh0ZXJu
-IGludCBpbml0X3N3YXBfYWRkcmVzc19zcGFjZSh1bnNpZ25lZCBpbnQgDQo+IHR5cGUsIHVuc2ln
-bmVkIGxvbmcgbnJfcGFnZXMpOyAgZXh0ZXJuIHZvaWQgDQo+IGV4aXRfc3dhcF9hZGRyZXNzX3Nw
-YWNlKHVuc2lnbmVkIGludCB0eXBlKTsNCj4gK2V4dGVybiBsb25nIGdldF90b3RhbF9zd2FwX3Bh
-Z2VzKHZvaWQpOw0KPiAgDQo+ICAjZWxzZSAvKiBDT05GSUdfU1dBUCAqLw0KPiAgDQo+IEBAIC01
-MTYsNiArNTE3LDExIEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBzaG93X3N3YXBfY2FjaGVfaW5mbyh2
-b2lkKSAgeyANCj4gfQ0KPiAgDQo+ICtsb25nIGdldF90b3RhbF9zd2FwX3BhZ2VzKHZvaWQpDQo+
-ICt7DQo+ICsJcmV0dXJuIDA7DQo+ICt9DQo+ICsNCj4gICNkZWZpbmUgZnJlZV9zd2FwX2FuZF9j
-YWNoZShlKSAoeyhpc19taWdyYXRpb25fZW50cnkoZSkgfHwNCj4gaXNfZGV2aWNlX3ByaXZhdGVf
-ZW50cnkoZSkpO30pICAjZGVmaW5lIHN3YXBjYWNoZV9wcmVwYXJlKGUpDQo+ICh7KGlzX21pZ3Jh
-dGlvbl9lbnRyeShlKSB8fCBpc19kZXZpY2VfcHJpdmF0ZV9lbnRyeShlKSk7fSkNCj4gIA0KPiBk
-aWZmIC0tZ2l0IGEvbW0vc3dhcGZpbGUuYyBiL21tL3N3YXBmaWxlLmMgaW5kZXggMzA3NGIwMi4u
-YTAwNjJlYg0KPiAxMDA2NDQNCj4gLS0tIGEvbW0vc3dhcGZpbGUuYw0KPiArKysgYi9tbS9zd2Fw
-ZmlsZS5jDQo+IEBAIC05OCw2ICs5OCwyMSBAQCBzdGF0aWMgYXRvbWljX3QgcHJvY19wb2xsX2V2
-ZW50ID0gQVRPTUlDX0lOSVQoMCk7DQo+ICANCj4gIGF0b21pY190IG5yX3JvdGF0ZV9zd2FwID0g
-QVRPTUlDX0lOSVQoMCk7DQo+ICANCj4gKy8qDQo+ICsgKiBleHBvc2UgdGhpcyB2YWx1ZSBmb3Ig
-b3RoZXJzIHVzZQ0KPiArICovDQo+ICtsb25nIGdldF90b3RhbF9zd2FwX3BhZ2VzKHZvaWQpDQo+
-ICt7DQo+ICsJbG9uZyByZXQ7DQo+ICsNCj4gKwlzcGluX2xvY2soJnN3YXBfbG9jayk7DQo+ICsJ
-cmV0ID0gdG90YWxfc3dhcF9wYWdlczsNCj4gKwlzcGluX3VubG9jaygmc3dhcF9sb2NrKTsNCj4g
-Kw0KPiArCXJldHVybiByZXQ7DQo+ICt9DQo+ICtFWFBPUlRfU1lNQk9MX0dQTChnZXRfdG90YWxf
-c3dhcF9wYWdlcyk7DQo+ICsNCj4gIHN0YXRpYyBpbmxpbmUgdW5zaWduZWQgY2hhciBzd2FwX2Nv
-dW50KHVuc2lnbmVkIGNoYXIgZW50KSAgew0KPiAgCXJldHVybiBlbnQgJiB+U1dBUF9IQVNfQ0FD
-SEU7CS8qIG1heSBpbmNsdWRlIFNXQVBfSEFTX0NPTlQgZmxhZyAqLw0KPiAtLQ0KPiAyLjcuNA0K
-DQotLQ0KTWljaGFsIEhvY2tvDQpTVVNFIExhYnMNCl9fX19fX19fX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fX19fX19fX19fDQpkcmktZGV2ZWwgbWFpbGluZyBsaXN0DQpkcmktZGV2ZWxA
-bGlzdHMuZnJlZWRlc2t0b3Aub3JnDQpodHRwczovL2xpc3RzLmZyZWVkZXNrdG9wLm9yZy9tYWls
-bWFuL2xpc3RpbmZvL2RyaS1kZXZlbA0KX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fX18NCmRyaS1kZXZlbCBtYWlsaW5nIGxpc3QNCmRyaS1kZXZlbEBsaXN0cy5m
-cmVlZGVza3RvcC5vcmcNCmh0dHBzOi8vbGlzdHMuZnJlZWRlc2t0b3Aub3JnL21haWxtYW4vbGlz
-dGluZm8vZHJpLWRldmVsDQo=
+On 01/30/2018 08:37 AM, Anshuman Khandual wrote:
+> @@ -7621,8 +7622,13 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+>  							&cc->migratepages);
+>  		cc->nr_migratepages -= nr_reclaimed;
+>  
+> +		if (migratetype == MIGRATE_CMA)
+> +			migrate_reason = MR_CMA;
+> +		else
+> +			migrate_reason = MR_HUGETLB;
+> +
+>  		ret = migrate_pages(&cc->migratepages, new_page_alloc_contig,
+
+Oops, this is on top of the changes from the other RFC regarding migration
+helper functions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
