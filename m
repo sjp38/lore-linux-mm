@@ -1,93 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D5F5D6B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 18:54:55 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id g187so11434254wmg.2
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 15:54:55 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id d1si2783403wrb.217.2018.01.29.15.54.51
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1031D6B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 19:01:35 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id a1so5562611qkb.17
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 16:01:35 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id d93si921935qkh.251.2018.01.29.16.01.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 29 Jan 2018 15:54:51 -0800 (PST)
-Subject: Re: [PATCH] mm/swap.c: fix kernel-doc functions and parameters
-References: <bac38b63-5b67-b2b7-8fe9-ff9c36f59ded@infradead.org>
- <20180129051532.GA18247@bombadil.infradead.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <9e3a965a-eceb-a9c2-9277-68231077c146@infradead.org>
-Date: Mon, 29 Jan 2018 15:54:39 -0800
-MIME-Version: 1.0
-In-Reply-To: <20180129051532.GA18247@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jan 2018 16:01:34 -0800 (PST)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH 0/3] restructure memfd code
+Date: Mon, 29 Jan 2018 16:00:58 -0800
+Message-Id: <20180130000101.7329-1-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@gmail.com>, David Herrmann <dh.herrmann@gmail.com>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On 01/28/2018 09:15 PM, Matthew Wilcox wrote:
-> On Sun, Jan 28, 2018 at 08:01:08PM -0800, Randy Dunlap wrote:
->> @@ -400,6 +400,10 @@ void mark_page_accessed(struct page *pag
->>  }
->>  EXPORT_SYMBOL(mark_page_accessed);
->>  
->> +/**
->> + * __lru_cache_add: add a page to the page lists
->> + * @page: the page to add
->> + */
->>  static void __lru_cache_add(struct page *page)
->>  {
->>  	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
->> @@ -410,10 +414,6 @@ static void __lru_cache_add(struct page
->>  	put_cpu_var(lru_add_pvec);
->>  }
->>  
->> -/**
->> - * lru_cache_add: add a page to the page lists
->> - * @page: the page to add
->> - */
->>  void lru_cache_add_anon(struct page *page)
->>  {
->>  	if (PageActive(page))
-> 
-> I don't see the point in adding kernel-doc for a static function while
-> deleting it for a non-static function?  I'd change the name of the
-> function in the second hunk and drop the first hunk.
+I've had these patches sitting around for a few months.  They are not
+critical, but might be desirable in some unusual configurations.  They
+depend on code in mmotm and linux-next that is not yet upstream, and
+apply to those repos.
 
-Agree.
+With the addition of memfd hugetlbfs support, we now have the situation
+where memfd depends on TMPFS -or- HUGETLBFS.  Previously, memfd was only
+supported on tmpfs, so it made sense that the code resides in shmem.c.
 
-> Also, the comment doesn't actually fit the kernel-doc format (colon
-> versus hyphen; missing capitalisation and full-stop).
+This patch series moves the memfd code to separate files (memfd.c and
+memfd.h).  It creates a new config option MEMFD_CREATE that is defined
+if either TMPFS or HUGETLBFS is defined.
 
-I certainly missed the colon vs. hyphen.  But I am not aware of any kernel-doc
-format about capitalization or ending with a period -- and don't like them either.
-Those descriptions usually are not complete sentences unless they are longer
-descriptions.
+In the current code, memfd is only functional if TMPFS is defined.  If
+HUGETLFS is defined and TMPFS is not defined, then memfd functionality
+will not be available for hugetlbfs.  This does not cause BUGs, just a
+potential lack of desired functionality.
 
->> @@ -913,11 +913,11 @@ EXPORT_SYMBOL(__pagevec_lru_add);
->>   * @pvec:	Where the resulting entries are placed
->>   * @mapping:	The address_space to search
->>   * @start:	The starting entry index
->> - * @nr_entries:	The maximum number of entries
->> + * @nr_pages:	The maximum number of entries
->>   * @indices:	The cache indices corresponding to the entries in @pvec
->>   *
->>   * pagevec_lookup_entries() will search for and return a group of up
->> - * to @nr_entries pages and shadow entries in the mapping.  All
->> + * to @nr_pages pages and shadow entries in the mapping.  All
->>   * entries are placed in @pvec.  pagevec_lookup_entries() takes a
->>   * reference against actual pages in @pvec.
->>   *
-> 
-> I think the documentation has the right name here; it is the number of
-> entries and not the number of pages which is returned.  We should change
-> the code to match the documentation here ;-)
+When this was sent as a RFC, one comment suggested combining patches 2
+and 3 so that we would not have 'new unused' files between patches.  If
+this is desired, I can make the change.  For me, it is easier to read
+as separate patches.
 
-OK, will change that and send v2.
+Mike Kravetz (3):
+  mm: hugetlbfs: move HUGETLBFS_I outside #ifdef CONFIG_HUGETLBFS
+  mm: memfd: split out memfd for use by multiple filesystems
+  mm: memfd: remove memfd code from shmem files and use new memfd files
 
-Thanks for the comments.
+ fs/Kconfig               |   3 +
+ fs/fcntl.c               |   2 +-
+ include/linux/hugetlb.h  |  27 ++--
+ include/linux/memfd.h    |  16 +++
+ include/linux/shmem_fs.h |  13 --
+ mm/Makefile              |   1 +
+ mm/memfd.c               | 341 +++++++++++++++++++++++++++++++++++++++++++++++
+ mm/shmem.c               | 323 --------------------------------------------
+ 8 files changed, 378 insertions(+), 348 deletions(-)
+ create mode 100644 include/linux/memfd.h
+ create mode 100644 mm/memfd.c
+
 -- 
-~Randy
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
