@@ -1,153 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 031016B0008
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 14:45:11 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id d15so11842108qtg.2
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 11:45:10 -0800 (PST)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 32FBB6B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 15:55:24 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id t13so12502213ioa.19
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 12:55:24 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u126sor466215qkc.73.2018.01.30.11.45.09
+        by mx.google.com with SMTPS id r81sor6512108ioe.12.2018.01.30.12.55.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 30 Jan 2018 11:45:09 -0800 (PST)
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v11 3/3] mm, x86: display pkey in smaps only if arch supports pkeys
-Date: Tue, 30 Jan 2018 11:44:12 -0800
-Message-Id: <1517341452-11924-4-git-send-email-linuxram@us.ibm.com>
-In-Reply-To: <1517341452-11924-1-git-send-email-linuxram@us.ibm.com>
-References: <1517341452-11924-1-git-send-email-linuxram@us.ibm.com>
+        Tue, 30 Jan 2018 12:55:22 -0800 (PST)
+Date: Tue, 30 Jan 2018 12:55:19 -0800
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Re: general protection fault in __list_del_entry_valid (2)
+Message-ID: <20180130205519.ia7qzft5wtkelv4a@gmail.com>
+References: <001a113f996099503a055e793dd3@google.com>
+ <001a1140f57806ebef05608b25a5@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <001a1140f57806ebef05608b25a5@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com
+To: syzbot <bot+065a25551da6c9ab4283b7ae889c707a37ab2de3@syzkaller.appspotmail.com>
+Cc: akpm@linux-foundation.org, david@fromorbit.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, mhocko@kernel.org, mhocko@suse.com, minchan@kernel.org, penguin-kernel@I-love.SAKURA.ne.jp, shakeelb@google.com, shli@fb.com, syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, ying.huang@intel.com
 
-Currently the  architecture  specific code is expected to
-display  the  protection  keys  in  smap  for a given vma.
-This can lead to redundant code and possibly to divergent
-formats in which the key gets displayed.
+On Sun, Dec 17, 2017 at 07:47:01AM -0800, syzbot wrote:
+> syzkaller has found reproducer for the following crash on
+> 82bcf1def3b5f1251177ad47c44f7e17af039b4b
+> git://git.cmpxchg.org/linux-mmots.git/master
+> compiler: gcc (GCC) 7.1.1 20170620
+> .config is attached
+> Raw console output is attached.
+> C reproducer is attached
+> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
+> for information about syzkaller reproducers
+> 
+> 
+> R13: 0000000000403940 R14: 0000000000000000 R15: 0000000000000000
+> kasan: CONFIG_KASAN_INLINE enabled
+> kasan: GPF could be caused by NULL-ptr deref or user memory access
+> general protection fault: 0000 [#1] SMP KASAN
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Modules linked in:
+> CPU: 1 PID: 3146 Comm: syzkaller259864 Not tainted 4.15.0-rc2-mm1+ #39
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:__list_del_entry_valid+0x7e/0x150 lib/list_debug.c:51
+> RSP: 0018:ffff8801c4d97b48 EFLAGS: 00010246
+> RAX: dffffc0000000000 RBX: 0000000000000000 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: ffff8801c4ac75d8 RDI: ffff8801c4ac75e0
+> RBP: ffff8801c4d97b60 R08: ffff8801c4d975c0 R09: ffff8801c5bd2180
+> R10: 000000000000000b R11: ffffed00389b2eba R12: 0000000000000000
+> R13: dffffc0000000000 R14: 1ffff100389b2f8d R15: ffff8801c4ac75d8
+> FS:  0000000001689940(0000) GS:ffff8801db300000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00000000207caf71 CR3: 00000001c5f99002 CR4: 00000000001606e0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  __list_del_entry include/linux/list.h:117 [inline]
+>  list_del include/linux/list.h:125 [inline]
+>  unregister_shrinker+0x79/0x300 mm/vmscan.c:285
+>  deactivate_locked_super+0x64/0xd0 fs/super.c:311
+>  deactivate_super+0x141/0x1b0 fs/super.c:343
+>  cleanup_mnt+0xb2/0x150 fs/namespace.c:1173
+>  __cleanup_mnt+0x16/0x20 fs/namespace.c:1180
+>  task_work_run+0x199/0x270 kernel/task_work.c:113
+>  tracehook_notify_resume include/linux/tracehook.h:191 [inline]
+>  exit_to_usermode_loop+0x275/0x2f0 arch/x86/entry/common.c:165
+>  prepare_exit_to_usermode arch/x86/entry/common.c:195 [inline]
+>  syscall_return_slowpath+0x490/0x550 arch/x86/entry/common.c:264
+>  entry_SYSCALL_64_fastpath+0x94/0x96
+> RIP: 0033:0x446679
+> RSP: 002b:00007ffccb258058 EFLAGS: 00000246 ORIG_RAX: 00000000000000a5
+> RAX: ffffffffffffffec RBX: 00007ffccb258000 RCX: 0000000000446679
+> RDX: 0000000020f9effa RSI: 00000000202b9000 RDI: 0000000020b85ff8
+> RBP: 0000000000000003 R08: 00000000207caf71 R09: 0000000000003531
+> R10: 0000000000000000 R11: 0000000000000246 R12: ffffffffffffffff
+> R13: 0000000000000006 R14: 0000000000000000 R15: 0000000000000000
+> Code: 00 00 00 00 ad de 49 39 c4 74 66 48 b8 00 02 00 00 00 00 ad de 48 89
+> da 48 39 c3 74 65 48 c1 ea 03 48 b8 00 00 00 00 00 fc ff df <80> 3c 02 00 75
+> 7b 48 8b 13 48 39 f2 75 57 49 8d 7c 24 08 48 b8
+> RIP: __list_del_entry_valid+0x7e/0x150 lib/list_debug.c:51 RSP:
+> ffff8801c4d97b48
+> ---[ end trace 422dd7d3477fece7 ]---
+> Kernel panic - not syncing: Fatal exception
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Kernel Offset: disabled
+> Rebooting in 86400 seconds..
 
-This  patch  changes  the implementation. It displays the
-pkey only if the architecture support pkeys, i.e
-arch_pkeys_enabled() returns true.  This patch
-provides x86 implementation for arch_pkeys_enabled().
+Closing this bug since it seems to have been fixed by:
 
-x86 arch_show_smap() function is not needed anymore.
-Deleting it.
-
-Signed-off-by: Ram Pai <linuxram@us.ibm.com>
----
- arch/x86/include/asm/pkeys.h |    1 +
- arch/x86/kernel/fpu/xstate.c |    5 +++++
- arch/x86/kernel/setup.c      |    8 --------
- fs/proc/task_mmu.c           |    9 ++++-----
- include/linux/pkeys.h        |    6 ++++++
- 5 files changed, 16 insertions(+), 13 deletions(-)
-
-diff --git a/arch/x86/include/asm/pkeys.h b/arch/x86/include/asm/pkeys.h
-index a0ba1ff..f6c287b 100644
---- a/arch/x86/include/asm/pkeys.h
-+++ b/arch/x86/include/asm/pkeys.h
-@@ -6,6 +6,7 @@
- 
- extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 		unsigned long init_val);
-+extern bool arch_pkeys_enabled(void);
- 
- /*
-  * Try to dedicate one of the protection keys to be used as an
-diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
-index 87a57b7..4f566e9 100644
---- a/arch/x86/kernel/fpu/xstate.c
-+++ b/arch/x86/kernel/fpu/xstate.c
-@@ -945,6 +945,11 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 
- 	return 0;
- }
-+
-+bool arch_pkeys_enabled(void)
-+{
-+	return boot_cpu_has(X86_FEATURE_OSPKE);
-+}
- #endif /* ! CONFIG_ARCH_HAS_PKEYS */
- 
- /*
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 8af2e8d..ddf945a 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1326,11 +1326,3 @@ static int __init register_kernel_offset_dumper(void)
- 	return 0;
- }
- __initcall(register_kernel_offset_dumper);
--
--void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
--{
--	if (!boot_cpu_has(X86_FEATURE_OSPKE))
--		return;
--
--	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
--}
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 0edd4da..6f9fbde 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -18,6 +18,7 @@
- #include <linux/page_idle.h>
- #include <linux/shmem_fs.h>
- #include <linux/uaccess.h>
-+#include <linux/pkeys.h>
- 
- #include <asm/elf.h>
- #include <asm/tlb.h>
-@@ -728,10 +729,6 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
- }
- #endif /* HUGETLB_PAGE */
- 
--void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
--{
--}
--
- static int show_smap(struct seq_file *m, void *v, int is_pid)
- {
- 	struct proc_maps_private *priv = m->private;
-@@ -851,9 +848,11 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 			   (unsigned long)(mss->pss >> (10 + PSS_SHIFT)));
- 
- 	if (!rollup_mode) {
--		arch_show_smap(m, vma);
-+		if (arch_pkeys_enabled())
-+			seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
- 		show_smap_vma_flags(m, vma);
- 	}
-+
- 	m_cache_vma(m, vma);
- 	return ret;
- }
-diff --git a/include/linux/pkeys.h b/include/linux/pkeys.h
-index 0794ca7..dfdc609 100644
---- a/include/linux/pkeys.h
-+++ b/include/linux/pkeys.h
-@@ -13,6 +13,7 @@
- #define arch_override_mprotect_pkey(vma, prot, pkey) (0)
- #define PKEY_DEDICATED_EXECUTE_ONLY 0
- #define ARCH_VM_PKEY_FLAGS 0
-+#define vma_pkey(vma) 0
- 
- static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
- {
-@@ -35,6 +36,11 @@ static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 	return 0;
- }
- 
-+static inline bool arch_pkeys_enabled(void)
-+{
-+	return false;
-+}
-+
- static inline void copy_init_pkru_to_fpregs(void)
- {
- }
--- 
-1.7.1
+#syz fix: sget(): handle failures of register_shrinker()
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
