@@ -1,85 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 27F106B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 21:56:56 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 205so8958404pfw.4
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 18:56:56 -0800 (PST)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0084.outbound.protection.outlook.com. [104.47.42.84])
-        by mx.google.com with ESMTPS id l2si2389361pgl.823.2018.01.29.18.56.54
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 818616B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 22:00:14 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id k188so5980435qkc.18
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 19:00:14 -0800 (PST)
+Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
+        by mx.google.com with ESMTPS id b3si3832836qtb.395.2018.01.29.19.00.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 29 Jan 2018 18:56:54 -0800 (PST)
-From: "He, Roger" <Hongbo.He@amd.com>
-Subject: RE: [PATCH] mm/swap: add function get_total_swap_pages to expose
- total_swap_pages
-Date: Tue, 30 Jan 2018 02:56:51 +0000
-Message-ID: <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
-References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
- <20180129163114.GH21609@dhcp22.suse.cz>
-In-Reply-To: <20180129163114.GH21609@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jan 2018 19:00:13 -0800 (PST)
+From: Zi Yan <zi.yan@sent.com>
+Subject: [PATCH] Lock mmap_sem when calling migrate_pages() in do_move_pages_to_node()
+Date: Mon, 29 Jan 2018 22:00:11 -0500
+Message-Id: <20180130030011.4310-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "Koenig, Christian" <Christian.Koenig@amd.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>
 
-SGkgTWljaGFsOg0KDQpXZSBuZWVkIGEgQVBJIHRvIHRlbGwgVFRNIG1vZHVsZSB0aGUgc3lzdGVt
-IHRvdGFsbHkgaGFzIGhvdyBtYW55IHN3YXAgY2FjaGUuDQpUaGVuIFRUTSBtb2R1bGUgY2FuIHVz
-ZSBpdCB0byByZXN0cmljdCBob3cgbWFueSB0aGUgc3dhcCBjYWNoZSBpdCBjYW4gdXNlIHRvIHBy
-ZXZlbnQgdHJpZ2dlcmluZyBPT00uDQpGb3IgTm93IHdlIHNldCB0aGUgdGhyZXNob2xkIG9mIHN3
-YXAgc2l6ZSBUVE0gdXNlZCBhcyAxLzIgKiB0b3RhbCBzaXplIGFuZCBsZWF2ZSB0aGUgcmVzdCBm
-b3Igb3RoZXJzIHVzZS4NCg0KQnV0IGdldF9ucl9zd2FwX3BhZ2VzIGlzIHRoZSBvbmx5IEFQSSB3
-ZSBjYW4gYWNjZXNzZWQgZnJvbSBvdGhlciBtb2R1bGUgbm93Lg0KSXQgY2FuJ3QgY292ZXIgdGhl
-IGNhc2Ugb2YgdGhlIGR5bmFtaWMgc3dhcCBzaXplIGluY3JlbWVudC4NCkkgbWVhbjogdXNlciBj
-YW4gdXNlICJzd2Fwb24iIHRvIGVuYWJsZSBuZXcgc3dhcCBmaWxlIG9yIHN3YXAgZGlzayBkeW5h
-bWljYWxseSBvciAic3dhcG9mZiIgdG8gZGlzYWJsZSBzd2FwIHNwYWNlLg0KDQpUaGFua3MNClJv
-Z2VyKEhvbmdiby5IZSkNCg0KLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZyb206IGRyaS1k
-ZXZlbCBbbWFpbHRvOmRyaS1kZXZlbC1ib3VuY2VzQGxpc3RzLmZyZWVkZXNrdG9wLm9yZ10gT24g
-QmVoYWxmIE9mIE1pY2hhbCBIb2Nrbw0KU2VudDogVHVlc2RheSwgSmFudWFyeSAzMCwgMjAxOCAx
-MjozMSBBTQ0KVG86IEhlLCBSb2dlciA8SG9uZ2JvLkhlQGFtZC5jb20+DQpDYzogbGludXgtbW1A
-a3ZhY2sub3JnOyBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBkcmktZGV2ZWxAbGlzdHMu
-ZnJlZWRlc2t0b3Aub3JnOyBLb2VuaWcsIENocmlzdGlhbiA8Q2hyaXN0aWFuLktvZW5pZ0BhbWQu
-Y29tPg0KU3ViamVjdDogUmU6IFtQQVRDSF0gbW0vc3dhcDogYWRkIGZ1bmN0aW9uIGdldF90b3Rh
-bF9zd2FwX3BhZ2VzIHRvIGV4cG9zZSB0b3RhbF9zd2FwX3BhZ2VzDQoNCk9uIE1vbiAyOS0wMS0x
-OCAxNjoyOTo0MiwgUm9nZXIgSGUgd3JvdGU6DQo+IHR0bSBtb2R1bGUgbmVlZHMgaXQgdG8gZGV0
-ZXJtaW5lIGl0cyBpbnRlcm5hbCBwYXJhbWV0ZXIgc2V0dGluZy4NCg0KQ291bGQgeW91IGJlIG1v
-cmUgc3BlY2lmaWMgd2h5Pw0KDQo+IFNpZ25lZC1vZmYtYnk6IFJvZ2VyIEhlIDxIb25nYm8uSGVA
-YW1kLmNvbT4NCj4gLS0tDQo+ICBpbmNsdWRlL2xpbnV4L3N3YXAuaCB8ICA2ICsrKysrKw0KPiAg
-bW0vc3dhcGZpbGUuYyAgICAgICAgfCAxNSArKysrKysrKysrKysrKysNCj4gIDIgZmlsZXMgY2hh
-bmdlZCwgMjEgaW5zZXJ0aW9ucygrKQ0KPiANCj4gZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgv
-c3dhcC5oIGIvaW5jbHVkZS9saW51eC9zd2FwLmggaW5kZXggDQo+IGMyYjgxMjguLjcwOGQ2NmYg
-MTAwNjQ0DQo+IC0tLSBhL2luY2x1ZGUvbGludXgvc3dhcC5oDQo+ICsrKyBiL2luY2x1ZGUvbGlu
-dXgvc3dhcC5oDQo+IEBAIC00ODQsNiArNDg0LDcgQEAgZXh0ZXJuIGludCB0cnlfdG9fZnJlZV9z
-d2FwKHN0cnVjdCBwYWdlICopOyAgDQo+IHN0cnVjdCBiYWNraW5nX2Rldl9pbmZvOyAgZXh0ZXJu
-IGludCBpbml0X3N3YXBfYWRkcmVzc19zcGFjZSh1bnNpZ25lZCANCj4gaW50IHR5cGUsIHVuc2ln
-bmVkIGxvbmcgbnJfcGFnZXMpOyAgZXh0ZXJuIHZvaWQgDQo+IGV4aXRfc3dhcF9hZGRyZXNzX3Nw
-YWNlKHVuc2lnbmVkIGludCB0eXBlKTsNCj4gK2V4dGVybiBsb25nIGdldF90b3RhbF9zd2FwX3Bh
-Z2VzKHZvaWQpOw0KPiAgDQo+ICAjZWxzZSAvKiBDT05GSUdfU1dBUCAqLw0KPiAgDQo+IEBAIC01
-MTYsNiArNTE3LDExIEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBzaG93X3N3YXBfY2FjaGVfaW5mbyh2
-b2lkKSAgeyAgDQo+IH0NCj4gIA0KPiArbG9uZyBnZXRfdG90YWxfc3dhcF9wYWdlcyh2b2lkKQ0K
-PiArew0KPiArCXJldHVybiAwOw0KPiArfQ0KPiArDQo+ICAjZGVmaW5lIGZyZWVfc3dhcF9hbmRf
-Y2FjaGUoZSkgKHsoaXNfbWlncmF0aW9uX2VudHJ5KGUpIHx8IA0KPiBpc19kZXZpY2VfcHJpdmF0
-ZV9lbnRyeShlKSk7fSkgICNkZWZpbmUgc3dhcGNhY2hlX3ByZXBhcmUoZSkgDQo+ICh7KGlzX21p
-Z3JhdGlvbl9lbnRyeShlKSB8fCBpc19kZXZpY2VfcHJpdmF0ZV9lbnRyeShlKSk7fSkNCj4gIA0K
-PiBkaWZmIC0tZ2l0IGEvbW0vc3dhcGZpbGUuYyBiL21tL3N3YXBmaWxlLmMgaW5kZXggMzA3NGIw
-Mi4uYTAwNjJlYiANCj4gMTAwNjQ0DQo+IC0tLSBhL21tL3N3YXBmaWxlLmMNCj4gKysrIGIvbW0v
-c3dhcGZpbGUuYw0KPiBAQCAtOTgsNiArOTgsMjEgQEAgc3RhdGljIGF0b21pY190IHByb2NfcG9s
-bF9ldmVudCA9IEFUT01JQ19JTklUKDApOw0KPiAgDQo+ICBhdG9taWNfdCBucl9yb3RhdGVfc3dh
-cCA9IEFUT01JQ19JTklUKDApOw0KPiAgDQo+ICsvKg0KPiArICogZXhwb3NlIHRoaXMgdmFsdWUg
-Zm9yIG90aGVycyB1c2UNCj4gKyAqLw0KPiArbG9uZyBnZXRfdG90YWxfc3dhcF9wYWdlcyh2b2lk
-KQ0KPiArew0KPiArCWxvbmcgcmV0Ow0KPiArDQo+ICsJc3Bpbl9sb2NrKCZzd2FwX2xvY2spOw0K
-PiArCXJldCA9IHRvdGFsX3N3YXBfcGFnZXM7DQo+ICsJc3Bpbl91bmxvY2soJnN3YXBfbG9jayk7
-DQo+ICsNCj4gKwlyZXR1cm4gcmV0Ow0KPiArfQ0KPiArRVhQT1JUX1NZTUJPTF9HUEwoZ2V0X3Rv
-dGFsX3N3YXBfcGFnZXMpOw0KPiArDQo+ICBzdGF0aWMgaW5saW5lIHVuc2lnbmVkIGNoYXIgc3dh
-cF9jb3VudCh1bnNpZ25lZCBjaGFyIGVudCkgIHsNCj4gIAlyZXR1cm4gZW50ICYgflNXQVBfSEFT
-X0NBQ0hFOwkvKiBtYXkgaW5jbHVkZSBTV0FQX0hBU19DT05UIGZsYWcgKi8NCj4gLS0NCj4gMi43
-LjQNCg0KLS0NCk1pY2hhbCBIb2Nrbw0KU1VTRSBMYWJzDQpfX19fX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fX19fX19fX19fX19fXw0KZHJpLWRldmVsIG1haWxpbmcgbGlzdA0KZHJpLWRl
-dmVsQGxpc3RzLmZyZWVkZXNrdG9wLm9yZw0KaHR0cHM6Ly9saXN0cy5mcmVlZGVza3RvcC5vcmcv
-bWFpbG1hbi9saXN0aW5mby9kcmktZGV2ZWwNCg==
+From: Zi Yan <zi.yan@cs.rutgers.edu>
+
+migrate_pages() requires at least down_read(mmap_sem) to protect
+related page tables and VMAs from changing. Let's do it in
+do_page_moves() for both do_move_pages_to_node() and
+add_page_for_migration().
+
+Also add this lock requirement in the comment of migrate_pages().
+
+Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+---
+ mm/migrate.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 5d0dc7b85f90..52d029953c32 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1354,6 +1354,9 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+  * or free list only if ret != 0.
+  *
+  * Returns the number of pages that were not migrated, or an error code.
++ *
++ * The caller must hold at least down_read(mmap_sem) for to-be-migrated pages
++ * to protect related page tables and VMAs from changing.
+  */
+ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 		free_page_t put_new_page, unsigned long private,
+@@ -1457,6 +1460,12 @@ static int store_status(int __user *status, int start, int value, int nr)
+ 	return 0;
+ }
+ 
++/*
++ * Migrates the pages from pagelist and put back those not migrated.
++ *
++ * The caller must at least hold down_read(mmap_sem), which is required
++ * for migrate_pages()
++ */
+ static int do_move_pages_to_node(struct mm_struct *mm,
+ 		struct list_head *pagelist, int node)
+ {
+@@ -1487,7 +1496,6 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
+ 	unsigned int follflags;
+ 	int err;
+ 
+-	down_read(&mm->mmap_sem);
+ 	err = -EFAULT;
+ 	vma = find_vma(mm, addr);
+ 	if (!vma || addr < vma->vm_start || !vma_migratable(vma))
+@@ -1540,7 +1548,6 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
+ 	 */
+ 	put_page(page);
+ out:
+-	up_read(&mm->mmap_sem);
+ 	return err;
+ }
+ 
+@@ -1561,6 +1568,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+ 
+ 	migrate_prep();
+ 
++	down_read(&mm->mmap_sem);
+ 	for (i = start = 0; i < nr_pages; i++) {
+ 		const void __user *p;
+ 		unsigned long addr;
+@@ -1628,6 +1636,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+ 	if (!err)
+ 		err = err1;
+ out:
++	up_read(&mm->mmap_sem);
+ 	return err;
+ }
+ 
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
