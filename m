@@ -1,118 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F32656B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 02:59:52 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id b193so6373602wmd.7
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 23:59:52 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F40C6B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 03:14:27 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id t21so7636910wrb.14
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 00:14:27 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i13si8124814wrf.104.2018.01.29.23.59.51
+        by mx.google.com with ESMTPS id c18si8804497wmd.153.2018.01.30.00.14.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 Jan 2018 23:59:51 -0800 (PST)
-Date: Tue, 30 Jan 2018 08:59:49 +0100
+        Tue, 30 Jan 2018 00:14:26 -0800 (PST)
+Date: Tue, 30 Jan 2018 09:14:15 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] mm/migrate: Add new migration reason MR_HUGETLB
-Message-ID: <20180130075949.GN21609@dhcp22.suse.cz>
-References: <20180130030714.6790-1-khandual@linux.vnet.ibm.com>
+Subject: Re: [PATCH] Lock mmap_sem when calling migrate_pages() in
+ do_move_pages_to_node()
+Message-ID: <20180130081415.GO21609@dhcp22.suse.cz>
+References: <20180130030011.4310-1-zi.yan@sent.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180130030714.6790-1-khandual@linux.vnet.ibm.com>
+In-Reply-To: <20180130030011.4310-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Zi Yan <zi.yan@sent.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Tue 30-01-18 08:37:14, Anshuman Khandual wrote:
-> alloc_contig_range() initiates compaction and eventual migration for
-> the purpose of either CMA or HugeTLB allocation. At present, reason
-> code remains the same MR_CMA for either of those cases. Lets add a
-> new reason code which will differentiate the purpose of migration
-> as HugeTLB allocation instead.
-
-Why do we need it?
-
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-> ---
->  include/linux/migrate.h        |  1 +
->  include/trace/events/migrate.h |  3 ++-
->  mm/page_alloc.c                | 14 ++++++++++----
->  3 files changed, 13 insertions(+), 5 deletions(-)
+On Mon 29-01-18 22:00:11, Zi Yan wrote:
+> From: Zi Yan <zi.yan@cs.rutgers.edu>
 > 
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index a732598fcf83..44381c33a2bd 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -26,6 +26,7 @@ enum migrate_reason {
->  	MR_MEMPOLICY_MBIND,
->  	MR_NUMA_MISPLACED,
->  	MR_CMA,
-> +	MR_HUGETLB,
->  	MR_TYPES
->  };
+> migrate_pages() requires at least down_read(mmap_sem) to protect
+> related page tables and VMAs from changing. Let's do it in
+> do_page_moves() for both do_move_pages_to_node() and
+> add_page_for_migration().
+> 
+> Also add this lock requirement in the comment of migrate_pages().
+
+This doesn't make much sense to me, to be honest. We are holding
+mmap_sem for _read_ so we allow parallel updates like page faults
+or unmaps. Therefore we are isolating pages prior to the migration.
+
+The sole purpose of the mmap_sem in add_page_for_migration is to protect
+from vma going away _while_ need it to get the proper page.
+
+Moving the lock up is just wrong because it allows caller to hold the
+lock for way too long if a lot of pages is migrated. Not only that,
+it is even incorrect because we are doing get_user() (aka page fault)
+and while read lock recursion is OK, we might block and deadlock when
+there is a writer pending. I haven't checked the current implementation
+of semaphores but I believe we do not allow recursive locking.
+
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> ---
+>  mm/migrate.c | 13 +++++++++++--
+>  1 file changed, 11 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 5d0dc7b85f90..52d029953c32 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1354,6 +1354,9 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+>   * or free list only if ret != 0.
+>   *
+>   * Returns the number of pages that were not migrated, or an error code.
+> + *
+> + * The caller must hold at least down_read(mmap_sem) for to-be-migrated pages
+> + * to protect related page tables and VMAs from changing.
+>   */
+>  int migrate_pages(struct list_head *from, new_page_t get_new_page,
+>  		free_page_t put_new_page, unsigned long private,
+> @@ -1457,6 +1460,12 @@ static int store_status(int __user *status, int start, int value, int nr)
+>  	return 0;
+>  }
 >  
-> diff --git a/include/trace/events/migrate.h b/include/trace/events/migrate.h
-> index bcf4daccd6be..61474c93f8f3 100644
-> --- a/include/trace/events/migrate.h
-> +++ b/include/trace/events/migrate.h
-> @@ -20,7 +20,8 @@
->  	EM( MR_SYSCALL,		"syscall_or_cpuset")		\
->  	EM( MR_MEMPOLICY_MBIND,	"mempolicy_mbind")		\
->  	EM( MR_NUMA_MISPLACED,	"numa_misplaced")		\
-> -	EMe(MR_CMA,		"cma")
-> +	EM( MR_CMA,		"cma")				\
-> +	EMe(MR_HUGETLB,		"hugetlb")
->  
->  /*
->   * First define the enums in the above macros to be exported to userspace
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 242565855d05..ce8a2f2d4994 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7588,13 +7588,14 @@ static unsigned long pfn_max_align_up(unsigned long pfn)
->  
->  /* [start, end) must belong to a single zone. */
->  static int __alloc_contig_migrate_range(struct compact_control *cc,
-> -					unsigned long start, unsigned long end)
-> +					unsigned long start, unsigned long end,
-> +					unsigned migratetype)
+> +/*
+> + * Migrates the pages from pagelist and put back those not migrated.
+> + *
+> + * The caller must at least hold down_read(mmap_sem), which is required
+> + * for migrate_pages()
+> + */
+>  static int do_move_pages_to_node(struct mm_struct *mm,
+>  		struct list_head *pagelist, int node)
 >  {
->  	/* This function is based on compact_zone() from compaction.c. */
->  	unsigned long nr_reclaimed;
->  	unsigned long pfn = start;
->  	unsigned int tries = 0;
-> -	int ret = 0;
-> +	int ret = 0, migrate_reason = 0;
+> @@ -1487,7 +1496,6 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
+>  	unsigned int follflags;
+>  	int err;
+>  
+> -	down_read(&mm->mmap_sem);
+>  	err = -EFAULT;
+>  	vma = find_vma(mm, addr);
+>  	if (!vma || addr < vma->vm_start || !vma_migratable(vma))
+> @@ -1540,7 +1548,6 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
+>  	 */
+>  	put_page(page);
+>  out:
+> -	up_read(&mm->mmap_sem);
+>  	return err;
+>  }
+>  
+> @@ -1561,6 +1568,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 >  
 >  	migrate_prep();
 >  
-> @@ -7621,8 +7622,13 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
->  							&cc->migratepages);
->  		cc->nr_migratepages -= nr_reclaimed;
+> +	down_read(&mm->mmap_sem);
+>  	for (i = start = 0; i < nr_pages; i++) {
+>  		const void __user *p;
+>  		unsigned long addr;
+> @@ -1628,6 +1636,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+>  	if (!err)
+>  		err = err1;
+>  out:
+> +	up_read(&mm->mmap_sem);
+>  	return err;
+>  }
 >  
-> +		if (migratetype == MIGRATE_CMA)
-> +			migrate_reason = MR_CMA;
-> +		else
-> +			migrate_reason = MR_HUGETLB;
-> +
->  		ret = migrate_pages(&cc->migratepages, new_page_alloc_contig,
-> -				    NULL, 0, cc->mode, MR_CMA);
-> +				    NULL, 0, cc->mode, migrate_reason);
->  	}
->  	if (ret < 0) {
->  		putback_movable_pages(&cc->migratepages);
-> @@ -7710,7 +7716,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
->  	 * allocated.  So, if we fall through be sure to clear ret so that
->  	 * -EBUSY is not accidentally used or returned to caller.
->  	 */
-> -	ret = __alloc_contig_migrate_range(&cc, start, end);
-> +	ret = __alloc_contig_migrate_range(&cc, start, end, migratetype);
->  	if (ret && ret != -EBUSY)
->  		goto done;
->  	ret =0;
 > -- 
-> 2.11.0
-> 
+> 2.15.1
 
 -- 
 Michal Hocko
