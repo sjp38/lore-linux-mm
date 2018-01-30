@@ -1,85 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A85466B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 22:35:18 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 205so9061624pfw.4
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 19:35:18 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id 5-v6si10769259plt.284.2018.01.29.19.35.16
+	by kanga.kvack.org (Postfix) with ESMTP id E628D6B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 22:54:15 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 199so9044514pfy.18
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 19:54:15 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z3-v6sor128109pln.117.2018.01.29.19.54.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 29 Jan 2018 19:35:16 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: ppc elf_map breakage with MAP_FIXED_NOREPLACE
-In-Reply-To: <20180129132235.GE21609@dhcp22.suse.cz>
-References: <082aa008-c56a-681d-0949-107245603a97@linux.vnet.ibm.com> <20180123124545.GL1526@dhcp22.suse.cz> <ef63c070-dcd7-3f26-f6ec-d95404007ae2@linux.vnet.ibm.com> <20180123160653.GU1526@dhcp22.suse.cz> <2a05eaf2-20fd-57a8-d4bd-5a1fbf57686c@linux.vnet.ibm.com> <20180124090539.GH1526@dhcp22.suse.cz> <5acba3c2-754d-e449-24ff-a72a0ad0d895@linux.vnet.ibm.com> <20180126140415.GD5027@dhcp22.suse.cz> <15da8c87-e6db-13aa-01c8-a913656bfdb6@linux.vnet.ibm.com> <6db9b33d-fd46-c529-b357-3397926f0733@linux.vnet.ibm.com> <20180129132235.GE21609@dhcp22.suse.cz>
-Date: Tue, 30 Jan 2018 14:35:12 +1100
-Message-ID: <87k1w081e7.fsf@concordia.ellerman.id.au>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (Google Transport Security);
+        Mon, 29 Jan 2018 19:54:14 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB hugepage
+Date: Tue, 30 Jan 2018 12:54:04 +0900
+Message-Id: <1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
+References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.orgakpm@linux-foundation.org
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
-Michal Hocko <mhocko@kernel.org> writes:
+Recently the following BUG was reported:
 
-> On Mon 29-01-18 11:02:09, Anshuman Khandual wrote:
->> On 01/29/2018 08:17 AM, Anshuman Khandual wrote:
->> > On 01/26/2018 07:34 PM, Michal Hocko wrote:
->> >> On Fri 26-01-18 18:04:27, Anshuman Khandual wrote:
->> >> [...]
->> >>> I tried to instrument mmap_region() for a single instance of 'sed'
->> >>> binary and traced all it's VMA creation. But there is no trace when
->> >>> that 'anon' VMA got created which suddenly shows up during subsequent
->> >>> elf_map() call eventually failing it. Please note that the following
->> >>> VMA was never created through call into map_region() in the process
->> >>> which is strange.
-...
->> 
->> Okay, this colliding VMA seems to be getting loaded from load_elf_binary()
->> function as well.
->> 
->> [    9.422410] vma c000001fceedbc40 start 0000000010030000 end 0000000010040000
->> next c000001fceedbe80 prev c000001fceedb700 mm c000001fceea8200
->> prot 8000000000000104 anon_vma           (null) vm_ops           (null)
->> pgoff 1003 file           (null) private_data           (null)
->> flags: 0x100073(read|write|mayread|maywrite|mayexec|account)
->> [    9.422576] CPU: 46 PID: 7457 Comm: sed Not tainted 4.14.0-dirty #158
->> [    9.422610] Call Trace:
->> [    9.422623] [c000001fdc4f79b0] [c000000000b17ac0] dump_stack+0xb0/0xf0 (unreliable)
->> [    9.422670] [c000001fdc4f79f0] [c0000000002dafb8] do_brk_flags+0x2d8/0x440
->> [    9.422708] [c000001fdc4f7ac0] [c0000000002db3d0] vm_brk_flags+0x80/0x130
->> [    9.422747] [c000001fdc4f7b20] [c0000000003d23a4] set_brk+0x80/0xdc
->> [    9.422785] [c000001fdc4f7b60] [c0000000003d1f24] load_elf_binary+0x1304/0x158c
->> [    9.422830] [c000001fdc4f7c80] [c00000000035d3e0] search_binary_handler+0xd0/0x270
->> [    9.422881] [c000001fdc4f7d10] [c00000000035f338] do_execveat_common.isra.31+0x658/0x890
->> [    9.422926] [c000001fdc4f7df0] [c00000000035f980] SyS_execve+0x40/0x50
->> [    9.423588] [c000001fdc4f7e30] [c00000000000b220] system_call+0x58/0x6c
->> 
->> which is getting hit after adding some more debug.
->
-> Voila! So your binary simply overrides brk by elf segments. That sounds
-> like the exactly the thing that the patch is supposed to protect from.
-> Why this is the case I dunno. It is just clear that either brk or
-> elf base are not put to the proper place. Something to get fixed. You
-> are probably just lucky that brk allocations do not spil over to elf
-> mappings.
+    Injecting memory failure for pfn 0x3c0000 at process virtual address 0x7fe300000000
+    Memory failure: 0x3c0000: recovery action for huge page: Recovered
+    BUG: unable to handle kernel paging request at ffff8dfcc0003000
+    IP: gup_pgd_range+0x1f0/0xc20
+    PGD 17ae72067 P4D 17ae72067 PUD 0
+    Oops: 0000 [#1] SMP PTI
+    ...
+    CPU: 3 PID: 5467 Comm: hugetlb_1gb Not tainted 4.15.0-rc8-mm1-abc+ #3
+    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.3-1.fc25 04/01/2014
 
-It is something to get fixed, but we can't retrospectively fix the
-existing binaries sitting on peoples' systems.
+You can easily reproduce this by calling madvise(MADV_HWPOISON) twice on
+a 1GB hugepage. This happens because get_user_pages_fast() is not aware
+of a migration entry on pud that was created in the 1st madvise() event.
 
-Possibly powerpc arch code is doing something with the mmap layout or
-something else that is confusing the ELF loader, in which case we should
-fix that.
+I think that conversion to pud-aligned migration entry is working,
+but other MM code walking over page table isn't prepared for it.
+We need some time and effort to make all this work properly, so
+this patch avoids the reported bug by just disabling error handling
+for 1GB hugepage.
 
-But if not then the only solution is for the ELF loader to be more
-tolerant of this situation.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Michal Hocko <mhocko@suse.com> // for v1
+Cc: <stable@vger.kernel.org>
+---
+ChangeLog v1 -> v2:
+- add comment about what we need to support hwpoision for pud-sized hugetlb
+- use "page size > PMD_SIZE" condition instead of hstate_is_gigantic()
+---
+ include/linux/mm.h  |  1 +
+ mm/memory-failure.c | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)
 
-So for 4.16 this patch either needs to be dropped, or reworked such that
-powerpc can opt out of it.
-
-cheers
+diff --git v4.15-rc8-mmotm-2018-01-18-16-31/include/linux/mm.h v4.15-rc8-mmotm-2018-01-18-16-31_patched/include/linux/mm.h
+index 63f7ba1..6b3df81 100644
+--- v4.15-rc8-mmotm-2018-01-18-16-31/include/linux/mm.h
++++ v4.15-rc8-mmotm-2018-01-18-16-31_patched/include/linux/mm.h
+@@ -2607,6 +2607,7 @@ enum mf_action_page_type {
+ 	MF_MSG_POISONED_HUGE,
+ 	MF_MSG_HUGE,
+ 	MF_MSG_FREE_HUGE,
++	MF_MSG_NON_PMD_HUGE,
+ 	MF_MSG_UNMAP_FAILED,
+ 	MF_MSG_DIRTY_SWAPCACHE,
+ 	MF_MSG_CLEAN_SWAPCACHE,
+diff --git v4.15-rc8-mmotm-2018-01-18-16-31/mm/memory-failure.c v4.15-rc8-mmotm-2018-01-18-16-31_patched/mm/memory-failure.c
+index d530ac1..264e020 100644
+--- v4.15-rc8-mmotm-2018-01-18-16-31/mm/memory-failure.c
++++ v4.15-rc8-mmotm-2018-01-18-16-31_patched/mm/memory-failure.c
+@@ -508,6 +508,7 @@ static const char * const action_page_types[] = {
+ 	[MF_MSG_POISONED_HUGE]		= "huge page already hardware poisoned",
+ 	[MF_MSG_HUGE]			= "huge page",
+ 	[MF_MSG_FREE_HUGE]		= "free huge page",
++	[MF_MSG_NON_PMD_HUGE]		= "non-pmd-sized huge page",
+ 	[MF_MSG_UNMAP_FAILED]		= "unmapping failed page",
+ 	[MF_MSG_DIRTY_SWAPCACHE]	= "dirty swapcache page",
+ 	[MF_MSG_CLEAN_SWAPCACHE]	= "clean swapcache page",
+@@ -1090,6 +1091,21 @@ static int memory_failure_hugetlb(unsigned long pfn, int trapno, int flags)
+ 		return 0;
+ 	}
+ 
++	/*
++	 * TODO: hwpoison for pud-sized hugetlb doesn't work right now, so
++	 * simply disable it. In order to make it work properly, we need
++	 * make sure that:
++	 *  - conversion of a pud that maps an error hugetlb into hwpoison
++	 *    entry properly works, and
++	 *  - other mm code walking over page table is aware of pud-aligned
++	 *    hwpoison entries.
++	 */
++	if (huge_page_size(page_hstate(head)) > PMD_SIZE) {
++		action_result(pfn, MF_MSG_NON_PMD_HUGE, MF_IGNORED);
++		res = -EBUSY;
++		goto out;
++	}
++
+ 	if (!hwpoison_user_mappings(p, pfn, trapno, flags, &head)) {
+ 		action_result(pfn, MF_MSG_UNMAP_FAILED, MF_IGNORED);
+ 		res = -EBUSY;
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
