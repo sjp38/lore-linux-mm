@@ -1,120 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B96056B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 22:07:22 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id u133so5949690qka.12
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 19:07:22 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id e9si1820485qth.244.2018.01.29.19.07.21
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A85466B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 22:35:18 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 205so9061624pfw.4
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 19:35:18 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id 5-v6si10769259plt.284.2018.01.29.19.35.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jan 2018 19:07:21 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0U34AgW021908
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 22:07:21 -0500
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ftdhp5rr5-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 22:07:20 -0500
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 30 Jan 2018 03:07:19 -0000
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [RFC] mm/migrate: Add new migration reason MR_HUGETLB
-Date: Tue, 30 Jan 2018 08:37:14 +0530
-Message-Id: <20180130030714.6790-1-khandual@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 29 Jan 2018 19:35:16 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: ppc elf_map breakage with MAP_FIXED_NOREPLACE
+In-Reply-To: <20180129132235.GE21609@dhcp22.suse.cz>
+References: <082aa008-c56a-681d-0949-107245603a97@linux.vnet.ibm.com> <20180123124545.GL1526@dhcp22.suse.cz> <ef63c070-dcd7-3f26-f6ec-d95404007ae2@linux.vnet.ibm.com> <20180123160653.GU1526@dhcp22.suse.cz> <2a05eaf2-20fd-57a8-d4bd-5a1fbf57686c@linux.vnet.ibm.com> <20180124090539.GH1526@dhcp22.suse.cz> <5acba3c2-754d-e449-24ff-a72a0ad0d895@linux.vnet.ibm.com> <20180126140415.GD5027@dhcp22.suse.cz> <15da8c87-e6db-13aa-01c8-a913656bfdb6@linux.vnet.ibm.com> <6db9b33d-fd46-c529-b357-3397926f0733@linux.vnet.ibm.com> <20180129132235.GE21609@dhcp22.suse.cz>
+Date: Tue, 30 Jan 2018 14:35:12 +1100
+Message-ID: <87k1w081e7.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, mhocko@suse.com
+To: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.orgakpm@linux-foundation.org
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
 
-alloc_contig_range() initiates compaction and eventual migration for
-the purpose of either CMA or HugeTLB allocation. At present, reason
-code remains the same MR_CMA for either of those cases. Lets add a
-new reason code which will differentiate the purpose of migration
-as HugeTLB allocation instead.
+Michal Hocko <mhocko@kernel.org> writes:
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
- include/linux/migrate.h        |  1 +
- include/trace/events/migrate.h |  3 ++-
- mm/page_alloc.c                | 14 ++++++++++----
- 3 files changed, 13 insertions(+), 5 deletions(-)
+> On Mon 29-01-18 11:02:09, Anshuman Khandual wrote:
+>> On 01/29/2018 08:17 AM, Anshuman Khandual wrote:
+>> > On 01/26/2018 07:34 PM, Michal Hocko wrote:
+>> >> On Fri 26-01-18 18:04:27, Anshuman Khandual wrote:
+>> >> [...]
+>> >>> I tried to instrument mmap_region() for a single instance of 'sed'
+>> >>> binary and traced all it's VMA creation. But there is no trace when
+>> >>> that 'anon' VMA got created which suddenly shows up during subsequent
+>> >>> elf_map() call eventually failing it. Please note that the following
+>> >>> VMA was never created through call into map_region() in the process
+>> >>> which is strange.
+...
+>> 
+>> Okay, this colliding VMA seems to be getting loaded from load_elf_binary()
+>> function as well.
+>> 
+>> [    9.422410] vma c000001fceedbc40 start 0000000010030000 end 0000000010040000
+>> next c000001fceedbe80 prev c000001fceedb700 mm c000001fceea8200
+>> prot 8000000000000104 anon_vma           (null) vm_ops           (null)
+>> pgoff 1003 file           (null) private_data           (null)
+>> flags: 0x100073(read|write|mayread|maywrite|mayexec|account)
+>> [    9.422576] CPU: 46 PID: 7457 Comm: sed Not tainted 4.14.0-dirty #158
+>> [    9.422610] Call Trace:
+>> [    9.422623] [c000001fdc4f79b0] [c000000000b17ac0] dump_stack+0xb0/0xf0 (unreliable)
+>> [    9.422670] [c000001fdc4f79f0] [c0000000002dafb8] do_brk_flags+0x2d8/0x440
+>> [    9.422708] [c000001fdc4f7ac0] [c0000000002db3d0] vm_brk_flags+0x80/0x130
+>> [    9.422747] [c000001fdc4f7b20] [c0000000003d23a4] set_brk+0x80/0xdc
+>> [    9.422785] [c000001fdc4f7b60] [c0000000003d1f24] load_elf_binary+0x1304/0x158c
+>> [    9.422830] [c000001fdc4f7c80] [c00000000035d3e0] search_binary_handler+0xd0/0x270
+>> [    9.422881] [c000001fdc4f7d10] [c00000000035f338] do_execveat_common.isra.31+0x658/0x890
+>> [    9.422926] [c000001fdc4f7df0] [c00000000035f980] SyS_execve+0x40/0x50
+>> [    9.423588] [c000001fdc4f7e30] [c00000000000b220] system_call+0x58/0x6c
+>> 
+>> which is getting hit after adding some more debug.
+>
+> Voila! So your binary simply overrides brk by elf segments. That sounds
+> like the exactly the thing that the patch is supposed to protect from.
+> Why this is the case I dunno. It is just clear that either brk or
+> elf base are not put to the proper place. Something to get fixed. You
+> are probably just lucky that brk allocations do not spil over to elf
+> mappings.
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index a732598fcf83..44381c33a2bd 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -26,6 +26,7 @@ enum migrate_reason {
- 	MR_MEMPOLICY_MBIND,
- 	MR_NUMA_MISPLACED,
- 	MR_CMA,
-+	MR_HUGETLB,
- 	MR_TYPES
- };
- 
-diff --git a/include/trace/events/migrate.h b/include/trace/events/migrate.h
-index bcf4daccd6be..61474c93f8f3 100644
---- a/include/trace/events/migrate.h
-+++ b/include/trace/events/migrate.h
-@@ -20,7 +20,8 @@
- 	EM( MR_SYSCALL,		"syscall_or_cpuset")		\
- 	EM( MR_MEMPOLICY_MBIND,	"mempolicy_mbind")		\
- 	EM( MR_NUMA_MISPLACED,	"numa_misplaced")		\
--	EMe(MR_CMA,		"cma")
-+	EM( MR_CMA,		"cma")				\
-+	EMe(MR_HUGETLB,		"hugetlb")
- 
- /*
-  * First define the enums in the above macros to be exported to userspace
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 242565855d05..ce8a2f2d4994 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7588,13 +7588,14 @@ static unsigned long pfn_max_align_up(unsigned long pfn)
- 
- /* [start, end) must belong to a single zone. */
- static int __alloc_contig_migrate_range(struct compact_control *cc,
--					unsigned long start, unsigned long end)
-+					unsigned long start, unsigned long end,
-+					unsigned migratetype)
- {
- 	/* This function is based on compact_zone() from compaction.c. */
- 	unsigned long nr_reclaimed;
- 	unsigned long pfn = start;
- 	unsigned int tries = 0;
--	int ret = 0;
-+	int ret = 0, migrate_reason = 0;
- 
- 	migrate_prep();
- 
-@@ -7621,8 +7622,13 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
- 							&cc->migratepages);
- 		cc->nr_migratepages -= nr_reclaimed;
- 
-+		if (migratetype == MIGRATE_CMA)
-+			migrate_reason = MR_CMA;
-+		else
-+			migrate_reason = MR_HUGETLB;
-+
- 		ret = migrate_pages(&cc->migratepages, new_page_alloc_contig,
--				    NULL, 0, cc->mode, MR_CMA);
-+				    NULL, 0, cc->mode, migrate_reason);
- 	}
- 	if (ret < 0) {
- 		putback_movable_pages(&cc->migratepages);
-@@ -7710,7 +7716,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 	 * allocated.  So, if we fall through be sure to clear ret so that
- 	 * -EBUSY is not accidentally used or returned to caller.
- 	 */
--	ret = __alloc_contig_migrate_range(&cc, start, end);
-+	ret = __alloc_contig_migrate_range(&cc, start, end, migratetype);
- 	if (ret && ret != -EBUSY)
- 		goto done;
- 	ret =0;
--- 
-2.11.0
+It is something to get fixed, but we can't retrospectively fix the
+existing binaries sitting on peoples' systems.
+
+Possibly powerpc arch code is doing something with the mmap layout or
+something else that is confusing the ELF loader, in which case we should
+fix that.
+
+But if not then the only solution is for the ELF loader to be more
+tolerant of this situation.
+
+So for 4.16 this patch either needs to be dropped, or reworked such that
+powerpc can opt out of it.
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
