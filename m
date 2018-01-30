@@ -1,67 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 45C256B0006
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 05:54:59 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id k188so6734787qkc.18
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 02:54:59 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q2si1900797qkq.13.2018.01.30.02.54.58
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jan 2018 02:54:58 -0800 (PST)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0UAsTiu011630
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 05:54:57 -0500
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ftnn4d0u3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 05:54:57 -0500
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 30 Jan 2018 10:54:55 -0000
-Date: Tue, 30 Jan 2018 12:54:50 +0200
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [LSF/MM TOPIC] mm documentation
-References: <20180130105237.GB7201@rapoport-lnx>
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E54226B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 06:02:29 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id m200so4101193lfg.2
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 03:02:29 -0800 (PST)
+Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
+        by mx.google.com with ESMTP id b75si6525965lfe.138.2018.01.30.03.02.28
+        for <linux-mm@kvack.org>;
+        Tue, 30 Jan 2018 03:02:28 -0800 (PST)
+Subject: Re: [RFC] Per file OOM badness
+References: <20180118170006.GG6584@dhcp22.suse.cz>
+ <20180123152659.GA21817@castle.DHCP.thefacebook.com>
+ <20180123153631.GR1526@dhcp22.suse.cz>
+ <ccac4870-ced3-f169-17df-2ab5da468bf0@daenzer.net>
+ <20180124092847.GI1526@dhcp22.suse.cz>
+ <583f328e-ff46-c6a4-8548-064259995766@daenzer.net>
+ <20180124110141.GA28465@dhcp22.suse.cz>
+ <36b49523-792d-45f9-8617-32b6d9d77418@daenzer.net>
+ <20180124115059.GC28465@dhcp22.suse.cz>
+ <381a868c-78fd-d0d1-029e-a2cf4ab06d37@gmail.com>
+ <20180130093145.GE25930@phenom.ffwll.local>
+ <3db43c1a-59b8-af86-2b87-c783c629f512@daenzer.net>
+ <3026d8c5-9313-cb8b-91ef-09c02baf27db@amd.com>
+From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
+Message-ID: <445628d3-677c-a9f8-171f-7d74a603c61d@daenzer.net>
+Date: Tue, 30 Jan 2018 12:02:26 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180130105237.GB7201@rapoport-lnx>
-Message-Id: <20180130105450.GC7201@rapoport-lnx>
+In-Reply-To: <3026d8c5-9313-cb8b-91ef-09c02baf27db@amd.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org
+To: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>
+Cc: dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org
 
-(forgot to CC linux-mm)
+On 2018-01-30 11:40 AM, Christian KA?nig wrote:
+> Am 30.01.2018 um 10:43 schrieb Michel DA?nzer:
+>> [SNIP]
+>>> Would it be ok to hang onto potentially arbitrary mmget references
+>>> essentially forever? If that's ok I think we can do your process based
+>>> account (minus a few minor inaccuracies for shared stuff perhaps, but no
+>>> one cares about that).
+>> Honestly, I think you and Christian are overthinking this. Let's try
+>> charging the memory to every process which shares a buffer, and go from
+>> there.
+> 
+> My problem is that this needs to be bullet prove.
+> 
+> For example imagine an application which allocates a lot of BOs, then
+> calls fork() and let the parent process die. The file descriptor lives
+> on in the child process, but the memory is not accounted against the child.
 
-On Tue, Jan 30, 2018 at 12:52:37PM +0200, Mike Rapoport wrote:
-> Hello,
-> 
-> The mm kernel-doc documentation is not in a great shape. 
-> 
-> Some of the existing kernel-doc annotations were not reformatted during
-> transition from dockbook to sphix. Sometimes the parameter descriptions
-> do not match actual code. But aside these rather mechanical issues there
-> are several points it'd like to discuss:
-> 
-> * Currently, only 14 files are linked to kernel-api.rst under "Memory
-> Management in Linux" section. We have more than hundred files only in mm.
-> Even the existing documentation is not generated when running "make
-> htmldocs"
-> * Do we want to keep "Memory Management in Linux" under kernel-api.rst or
-> maybe it's worth adding, say, mm.rst?
-> * What is the desired layout of the documentation, what sections we'd like
-> to have, how the documentation should be ordered?
-> 
-> -- 
-> Sincerely yours,
-> Mike.
+What exactly are you referring to by "the file descriptor" here?
+
+
+What happens to BO handles in general in this case? If both parent and
+child process keep the same handle for the same BO, one of them
+destroying the handle will result in the other one not being able to use
+it anymore either, won't it?
+
 
 -- 
-Sincerely yours,
-Mike.
+Earthling Michel DA?nzer               |               http://www.amd.com
+Libre software enthusiast             |             Mesa and X developer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
