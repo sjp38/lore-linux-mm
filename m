@@ -1,107 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E628D6B0005
-	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 22:54:15 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 199so9044514pfy.18
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 19:54:15 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E1DE6B0005
+	for <linux-mm@kvack.org>; Mon, 29 Jan 2018 23:10:55 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id b4so6542530pgs.5
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 20:10:55 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z3-v6sor128109pln.117.2018.01.29.19.54.14
+        by mx.google.com with SMTPS id t62sor82155pgd.392.2018.01.29.20.10.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 29 Jan 2018 19:54:14 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB hugepage
-Date: Tue, 30 Jan 2018 12:54:04 +0900
-Message-Id: <1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
-References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
+        Mon, 29 Jan 2018 20:10:54 -0800 (PST)
+Date: Mon, 29 Jan 2018 20:10:45 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] Lock mmap_sem when calling migrate_pages() in
+ do_move_pages_to_node()
+In-Reply-To: <20180130030011.4310-1-zi.yan@sent.com>
+Message-ID: <alpine.LSU.2.11.1801291943330.2657@eggly.anvils>
+References: <20180130030011.4310-1-zi.yan@sent.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
+To: Zi Yan <zi.yan@sent.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>
 
-Recently the following BUG was reported:
+On Mon, 29 Jan 2018, Zi Yan wrote:
+> From: Zi Yan <zi.yan@cs.rutgers.edu>
+> 
+> migrate_pages() requires at least down_read(mmap_sem) to protect
+> related page tables and VMAs from changing. Let's do it in
 
-    Injecting memory failure for pfn 0x3c0000 at process virtual address 0x7fe300000000
-    Memory failure: 0x3c0000: recovery action for huge page: Recovered
-    BUG: unable to handle kernel paging request at ffff8dfcc0003000
-    IP: gup_pgd_range+0x1f0/0xc20
-    PGD 17ae72067 P4D 17ae72067 PUD 0
-    Oops: 0000 [#1] SMP PTI
-    ...
-    CPU: 3 PID: 5467 Comm: hugetlb_1gb Not tainted 4.15.0-rc8-mm1-abc+ #3
-    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.3-1.fc25 04/01/2014
+Page tables are protected by their locks.  VMAs may change while
+migration is active on them, but does that need locking against?
 
-You can easily reproduce this by calling madvise(MADV_HWPOISON) twice on
-a 1GB hugepage. This happens because get_user_pages_fast() is not aware
-of a migration entry on pud that was created in the 1st madvise() event.
+> do_page_moves() for both do_move_pages_to_node() and
+> add_page_for_migration().
+> 
+> Also add this lock requirement in the comment of migrate_pages().
+> 
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> ---
+>  mm/migrate.c | 13 +++++++++++--
+>  1 file changed, 11 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 5d0dc7b85f90..52d029953c32 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1354,6 +1354,9 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+>   * or free list only if ret != 0.
+>   *
+>   * Returns the number of pages that were not migrated, or an error code.
+> + *
+> + * The caller must hold at least down_read(mmap_sem) for to-be-migrated pages
+> + * to protect related page tables and VMAs from changing.
 
-I think that conversion to pud-aligned migration entry is working,
-but other MM code walking over page table isn't prepared for it.
-We need some time and effort to make all this work properly, so
-this patch avoids the reported bug by just disabling error handling
-for 1GB hugepage.
+I have not been keeping up with Michal's recent migration changes,
+but migrate_pages() never used to need mmap_sem held (despite being
+called with an mmap_sem held from some of its callsites), and it
+would be a backward step to require that now.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Michal Hocko <mhocko@suse.com> // for v1
-Cc: <stable@vger.kernel.org>
----
-ChangeLog v1 -> v2:
-- add comment about what we need to support hwpoision for pud-sized hugetlb
-- use "page size > PMD_SIZE" condition instead of hstate_is_gigantic()
----
- include/linux/mm.h  |  1 +
- mm/memory-failure.c | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+)
+There is not even an mm argument to migrate_pages(), so which
+mm->mmap_sem do you think would be required for it?  There may be
+particular cases in which it is required (when the new_page function
+involves the old_page's vma - is that so below?), but in general not.
 
-diff --git v4.15-rc8-mmotm-2018-01-18-16-31/include/linux/mm.h v4.15-rc8-mmotm-2018-01-18-16-31_patched/include/linux/mm.h
-index 63f7ba1..6b3df81 100644
---- v4.15-rc8-mmotm-2018-01-18-16-31/include/linux/mm.h
-+++ v4.15-rc8-mmotm-2018-01-18-16-31_patched/include/linux/mm.h
-@@ -2607,6 +2607,7 @@ enum mf_action_page_type {
- 	MF_MSG_POISONED_HUGE,
- 	MF_MSG_HUGE,
- 	MF_MSG_FREE_HUGE,
-+	MF_MSG_NON_PMD_HUGE,
- 	MF_MSG_UNMAP_FAILED,
- 	MF_MSG_DIRTY_SWAPCACHE,
- 	MF_MSG_CLEAN_SWAPCACHE,
-diff --git v4.15-rc8-mmotm-2018-01-18-16-31/mm/memory-failure.c v4.15-rc8-mmotm-2018-01-18-16-31_patched/mm/memory-failure.c
-index d530ac1..264e020 100644
---- v4.15-rc8-mmotm-2018-01-18-16-31/mm/memory-failure.c
-+++ v4.15-rc8-mmotm-2018-01-18-16-31_patched/mm/memory-failure.c
-@@ -508,6 +508,7 @@ static const char * const action_page_types[] = {
- 	[MF_MSG_POISONED_HUGE]		= "huge page already hardware poisoned",
- 	[MF_MSG_HUGE]			= "huge page",
- 	[MF_MSG_FREE_HUGE]		= "free huge page",
-+	[MF_MSG_NON_PMD_HUGE]		= "non-pmd-sized huge page",
- 	[MF_MSG_UNMAP_FAILED]		= "unmapping failed page",
- 	[MF_MSG_DIRTY_SWAPCACHE]	= "dirty swapcache page",
- 	[MF_MSG_CLEAN_SWAPCACHE]	= "clean swapcache page",
-@@ -1090,6 +1091,21 @@ static int memory_failure_hugetlb(unsigned long pfn, int trapno, int flags)
- 		return 0;
- 	}
- 
-+	/*
-+	 * TODO: hwpoison for pud-sized hugetlb doesn't work right now, so
-+	 * simply disable it. In order to make it work properly, we need
-+	 * make sure that:
-+	 *  - conversion of a pud that maps an error hugetlb into hwpoison
-+	 *    entry properly works, and
-+	 *  - other mm code walking over page table is aware of pud-aligned
-+	 *    hwpoison entries.
-+	 */
-+	if (huge_page_size(page_hstate(head)) > PMD_SIZE) {
-+		action_result(pfn, MF_MSG_NON_PMD_HUGE, MF_IGNORED);
-+		res = -EBUSY;
-+		goto out;
-+	}
-+
- 	if (!hwpoison_user_mappings(p, pfn, trapno, flags, &head)) {
- 		action_result(pfn, MF_MSG_UNMAP_FAILED, MF_IGNORED);
- 		res = -EBUSY;
--- 
-2.7.0
+Hugh
+
+>   */
+>  int migrate_pages(struct list_head *from, new_page_t get_new_page,
+>  		free_page_t put_new_page, unsigned long private,
+> @@ -1457,6 +1460,12 @@ static int store_status(int __user *status, int start, int value, int nr)
+>  	return 0;
+>  }
+>  
+> +/*
+> + * Migrates the pages from pagelist and put back those not migrated.
+> + *
+> + * The caller must at least hold down_read(mmap_sem), which is required
+> + * for migrate_pages()
+> + */
+>  static int do_move_pages_to_node(struct mm_struct *mm,
+>  		struct list_head *pagelist, int node)
+>  {
+> @@ -1487,7 +1496,6 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
+>  	unsigned int follflags;
+>  	int err;
+>  
+> -	down_read(&mm->mmap_sem);
+>  	err = -EFAULT;
+>  	vma = find_vma(mm, addr);
+>  	if (!vma || addr < vma->vm_start || !vma_migratable(vma))
+> @@ -1540,7 +1548,6 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
+>  	 */
+>  	put_page(page);
+>  out:
+> -	up_read(&mm->mmap_sem);
+>  	return err;
+>  }
+>  
+> @@ -1561,6 +1568,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+>  
+>  	migrate_prep();
+>  
+> +	down_read(&mm->mmap_sem);
+>  	for (i = start = 0; i < nr_pages; i++) {
+>  		const void __user *p;
+>  		unsigned long addr;
+> @@ -1628,6 +1636,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+>  	if (!err)
+>  		err = err1;
+>  out:
+> +	up_read(&mm->mmap_sem);
+>  	return err;
+>  }
+>  
+> -- 
+> 2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
