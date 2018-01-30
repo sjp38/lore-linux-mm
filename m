@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F1586B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 07:34:03 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id b9so3755225wra.1
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:34:03 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v106si6896470wrc.184.2018.01.30.04.34.01
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 442326B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 07:42:51 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id h5so7666847pgv.21
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:42:51 -0800 (PST)
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0052.outbound.protection.outlook.com. [104.47.36.52])
+        by mx.google.com with ESMTPS id p5si1362013pgn.197.2018.01.30.04.42.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 Jan 2018 04:34:02 -0800 (PST)
-Date: Tue, 30 Jan 2018 13:34:00 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm/swap.c: make functions and their kernel-doc agree
-Message-ID: <20180130123400.GD26445@dhcp22.suse.cz>
-References: <3b42ee3e-04a9-a6ca-6be4-f00752a114fe@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 Jan 2018 04:42:49 -0800 (PST)
+Subject: Re: [PATCH 4/4] drm/amdgpu: Use drm_oom_badness for amdgpu.
+References: <1516294072-17841-1-git-send-email-andrey.grodzovsky@amd.com>
+ <1516294072-17841-5-git-send-email-andrey.grodzovsky@amd.com>
+ <20180130092413.GD25930@phenom.ffwll.local>
+From: Andrey Grodzovsky <Andrey.Grodzovsky@amd.com>
+Message-ID: <1670268a-863f-2a95-fd1d-f59e5ebdfcb3@amd.com>
+Date: Tue, 30 Jan 2018 07:42:46 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3b42ee3e-04a9-a6ca-6be4-f00752a114fe@infradead.org>
+In-Reply-To: <20180130092413.GD25930@phenom.ffwll.local>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org, Christian.Koenig@amd.com
 
-On Mon 29-01-18 16:43:55, Randy Dunlap wrote:
-> From: Randy Dunlap <rdunlap@infradead.org>
-> 
-> Fix some basic kernel-doc notation in mm/swap.c:
-> - for function lru_cache_add_anon(), make its kernel-doc function name
->   match its function name and change colon to hyphen following the
->   function name
+That definitely what I planned, just didn't want to clutter the RFC with 
+multiple repeated changes.
 
-This is pretty much an internal function to the MM. It shouldn't have
-any external callers. Why do we need a kernel doc at all?
+Thanks,
 
-> - for function pagevec_lookup_entries(), change the function parameter
->   name from nr_pages to nr_entries since that is more descriptive of
->   what the parameter actually is and then it matches the kernel-doc
->   comments also
+Andrey
 
-I know what is nr_pages because I do expect pages to be returned. What
-are entries? Can it be something different from pages?
--- 
-Michal Hocko
-SUSE Labs
+
+
+On 01/30/2018 04:24 AM, Daniel Vetter wrote:
+> On Thu, Jan 18, 2018 at 11:47:52AM -0500, Andrey Grodzovsky wrote:
+>> Signed-off-by: Andrey Grodzovsky <andrey.grodzovsky@amd.com>
+>> ---
+>>   drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c | 1 +
+>>   1 file changed, 1 insertion(+)
+>>
+>> diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+>> index 46a0c93..6a733cdc8 100644
+>> --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+>> +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+>> @@ -828,6 +828,7 @@ static const struct file_operations amdgpu_driver_kms_fops = {
+>>   #ifdef CONFIG_COMPAT
+>>   	.compat_ioctl = amdgpu_kms_compat_ioctl,
+>>   #endif
+>> +	.oom_file_badness = drm_oom_badness,
+> Would be neat if we could roll this out for all gem drivers (once it's no
+> longer an RFC ofc).
+> -Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
