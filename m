@@ -1,95 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 036EF6B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 05:33:06 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id p82so10313211pfd.1
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 02:33:05 -0800 (PST)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0084.outbound.protection.outlook.com. [104.47.42.84])
-        by mx.google.com with ESMTPS id k27si1775901pgn.757.2018.01.30.02.33.04
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DA236B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 05:40:23 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id e186so10976104iof.9
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 02:40:23 -0800 (PST)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0070.outbound.protection.outlook.com. [104.47.38.70])
+        by mx.google.com with ESMTPS id 21si1780762itu.74.2018.01.30.02.40.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 30 Jan 2018 02:33:04 -0800 (PST)
-Subject: Re: [PATCH] mm/swap: add function get_total_swap_pages to expose
- total_swap_pages
-References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
- <20180129163114.GH21609@dhcp22.suse.cz>
- <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
- <20180130075553.GM21609@dhcp22.suse.cz>
- <9060281e-62dd-8775-2903-339ff836b436@amd.com>
- <20180130101823.GX21609@dhcp22.suse.cz>
+        Tue, 30 Jan 2018 02:40:22 -0800 (PST)
+Subject: Re: [RFC] Per file OOM badness
+References: <20180118170006.GG6584@dhcp22.suse.cz>
+ <20180123152659.GA21817@castle.DHCP.thefacebook.com>
+ <20180123153631.GR1526@dhcp22.suse.cz>
+ <ccac4870-ced3-f169-17df-2ab5da468bf0@daenzer.net>
+ <20180124092847.GI1526@dhcp22.suse.cz>
+ <583f328e-ff46-c6a4-8548-064259995766@daenzer.net>
+ <20180124110141.GA28465@dhcp22.suse.cz>
+ <36b49523-792d-45f9-8617-32b6d9d77418@daenzer.net>
+ <20180124115059.GC28465@dhcp22.suse.cz>
+ <381a868c-78fd-d0d1-029e-a2cf4ab06d37@gmail.com>
+ <20180130093145.GE25930@phenom.ffwll.local>
+ <3db43c1a-59b8-af86-2b87-c783c629f512@daenzer.net>
 From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
-Message-ID: <7d5ce7ab-d16d-36bc-7953-e1da2db350bf@amd.com>
-Date: Tue, 30 Jan 2018 11:32:49 +0100
+Message-ID: <3026d8c5-9313-cb8b-91ef-09c02baf27db@amd.com>
+Date: Tue, 30 Jan 2018 11:40:06 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180130101823.GX21609@dhcp22.suse.cz>
+In-Reply-To: <3db43c1a-59b8-af86-2b87-c783c629f512@daenzer.net>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "He, Roger" <Hongbo.He@amd.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
+To: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>, Michal Hocko <mhocko@kernel.org>, dri-devel@lists.freedesktop.org, Roman Gushchin <guro@fb.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, amd-gfx@lists.freedesktop.org
 
-Am 30.01.2018 um 11:18 schrieb Michal Hocko:
-> On Tue 30-01-18 10:00:07, Christian KA?nig wrote:
->> Am 30.01.2018 um 08:55 schrieb Michal Hocko:
->>> On Tue 30-01-18 02:56:51, He, Roger wrote:
->>>> Hi Michal:
->>>>
->>>> We need a API to tell TTM module the system totally has how many swap
->>>> cache.  Then TTM module can use it to restrict how many the swap cache
->>>> it can use to prevent triggering OOM.  For Now we set the threshold of
->>>> swap size TTM used as 1/2 * total size and leave the rest for others
->>>> use.
->>> Why do you so much memory? Are you going to use TB of memory on large
->>> systems? What about memory hotplug when the memory is added/released?
->> For graphics and compute applications on GPUs it isn't unusual to use large
->> amounts of system memory.
->>
->> Our standard policy in TTM is to allow 50% of system memory to be pinned for
->> use with GPUs (the hardware can't do page faults).
->>
->> When that limit is exceeded (or the shrinker callbacks tell us to make room)
->> we wait for any GPU work to finish and copy buffer content into a shmem
->> file.
->>
->> This copy into a shmem file can easily trigger the OOM killer if there isn't
->> any swap space left and that is something we want to avoid.
->>
->> So what we want to do is to apply this 50% rule to swap space as well and
->> deny allocation of buffer objects when it is exceeded.
-> How does that help when the rest of the system might eat swap?
+Am 30.01.2018 um 10:43 schrieb Michel DA?nzer:
+> [SNIP]
+>> Would it be ok to hang onto potentially arbitrary mmget references
+>> essentially forever? If that's ok I think we can do your process based
+>> account (minus a few minor inaccuracies for shared stuff perhaps, but no
+>> one cares about that).
+> Honestly, I think you and Christian are overthinking this. Let's try
+> charging the memory to every process which shares a buffer, and go from
+> there.
 
-Well it doesn't, but that is not the problem here.
+My problem is that this needs to be bullet prove.
 
-When an application keeps calling malloc() it sooner or later is 
-confronted with an OOM killer.
+For example imagine an application which allocates a lot of BOs, then 
+calls fork() and let the parent process die. The file descriptor lives 
+on in the child process, but the memory is not accounted against the child.
 
-But when it keeps for example allocating OpenGL textures the expectation 
-is that this sooner or later starts to fail because we run out of memory 
-and not trigger the OOM killer.
+Otherwise we would allow easy construction of deny of service problems.
 
-So what we do is to allow the application to use all of video memory + a 
-certain amount of system memory + swap space as last resort fallback 
-(e.g. when you Alt+Tab from your full screen game back to your browser).
-
-The problem we try to solve is that we haven't limited the use of swap 
-space somehow.
-
->>>> But get_nr_swap_pages is the only API we can accessed from other
->>>> module now.  It can't cover the case of the dynamic swap size
->>>> increment.  I mean: user can use "swapon" to enable new swap file or
->>>> swap disk dynamically or "swapoff" to disable swap space.
->>> Exactly. Your scaling configuration based on get_nr_swap_pages or the
->>> available memory simply sounds wrong.
->> Why? That is pretty much exactly what we are doing with buffer objects and
->> system memory for years.
-> Could you be more specific? What kind of buffer objects you have in
-> mind?
-
-Those are GEM buffer objects which user space uses for things like 
-OpenGL textures, OpenCL matrix, Vulkan surfaces, video codec surfaces 
-etc etc...
+To avoid that I think we need to add something like new file_operations 
+callbacks which informs a file descriptor that it is going to be used in 
+a new process or stopped to be used in a process.
 
 Regards,
 Christian.
