@@ -1,97 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D497B6B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 07:20:13 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id i12so2601386wra.22
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:20:13 -0800 (PST)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 95A6A6B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 07:28:57 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id o128so10588137pfg.6
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:28:57 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v81si9232246wrb.322.2018.01.30.04.20.12
+        by mx.google.com with ESMTPS id 70-v6si3094036ple.246.2018.01.30.04.28.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 Jan 2018 04:20:12 -0800 (PST)
-Date: Tue, 30 Jan 2018 13:20:11 +0100
+        Tue, 30 Jan 2018 04:28:56 -0800 (PST)
+Date: Tue, 30 Jan 2018 13:28:53 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch -mm v2 2/3] mm, memcg: replace cgroup aware oom killer
- mount option with tunable
-Message-ID: <20180130122011.GB21609@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1801261415090.15318@chino.kir.corp.google.com>
- <20180126143950.719912507bd993d92188877f@linux-foundation.org>
- <alpine.DEB.2.10.1801261441340.20954@chino.kir.corp.google.com>
- <20180126161735.b999356fbe96c0acd33aaa66@linux-foundation.org>
- <20180129104657.GC21609@dhcp22.suse.cz>
- <20180129191139.GA1121507@devbig577.frc2.facebook.com>
- <20180130085445.GQ21609@dhcp22.suse.cz>
- <20180130115846.GA4720@castle.DHCP.thefacebook.com>
- <20180130120852.GA21609@dhcp22.suse.cz>
- <20180130121315.GA5888@castle.DHCP.thefacebook.com>
+Subject: Re: [PATCH] mm/swap: add function get_total_swap_pages to expose
+ total_swap_pages
+Message-ID: <20180130122853.GC21609@dhcp22.suse.cz>
+References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
+ <20180129163114.GH21609@dhcp22.suse.cz>
+ <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
+ <20180130075553.GM21609@dhcp22.suse.cz>
+ <9060281e-62dd-8775-2903-339ff836b436@amd.com>
+ <20180130101823.GX21609@dhcp22.suse.cz>
+ <7d5ce7ab-d16d-36bc-7953-e1da2db350bf@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20180130121315.GA5888@castle.DHCP.thefacebook.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <7d5ce7ab-d16d-36bc-7953-e1da2db350bf@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
+Cc: "He, Roger" <Hongbo.He@amd.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
 
-On Tue 30-01-18 12:13:22, Roman Gushchin wrote:
-> On Tue, Jan 30, 2018 at 01:08:52PM +0100, Michal Hocko wrote:
-> > On Tue 30-01-18 11:58:51, Roman Gushchin wrote:
-> > > On Tue, Jan 30, 2018 at 09:54:45AM +0100, Michal Hocko wrote:
-> > > > On Mon 29-01-18 11:11:39, Tejun Heo wrote:
+On Tue 30-01-18 11:32:49, Christian Konig wrote:
+> Am 30.01.2018 um 11:18 schrieb Michal Hocko:
+> > On Tue 30-01-18 10:00:07, Christian Konig wrote:
+> > > Am 30.01.2018 um 08:55 schrieb Michal Hocko:
+> > > > On Tue 30-01-18 02:56:51, He, Roger wrote:
+> > > > > Hi Michal:
+> > > > > 
+> > > > > We need a API to tell TTM module the system totally has how many swap
+> > > > > cache.  Then TTM module can use it to restrict how many the swap cache
+> > > > > it can use to prevent triggering OOM.  For Now we set the threshold of
+> > > > > swap size TTM used as 1/2 * total size and leave the rest for others
+> > > > > use.
+> > > > Why do you so much memory? Are you going to use TB of memory on large
+> > > > systems? What about memory hotplug when the memory is added/released?
+> > > For graphics and compute applications on GPUs it isn't unusual to use large
+> > > amounts of system memory.
 > > > 
-> > > Hello, Michal!
+> > > Our standard policy in TTM is to allow 50% of system memory to be pinned for
+> > > use with GPUs (the hardware can't do page faults).
 > > > 
-> > > > diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
-> > > > index 2eaed1e2243d..67bdf19f8e5b 100644
-> > > > --- a/Documentation/cgroup-v2.txt
-> > > > +++ b/Documentation/cgroup-v2.txt
-> > > > @@ -1291,8 +1291,14 @@ This affects both system- and cgroup-wide OOMs. For a cgroup-wide OOM
-> > > >  the memory controller considers only cgroups belonging to the sub-tree
-> > > >  of the OOM'ing cgroup.
-> > > >  
-> > > > -The root cgroup is treated as a leaf memory cgroup, so it's compared
-> > > > -with other leaf memory cgroups and cgroups with oom_group option set.
-> > >                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> > > IMO, this statement is important. Isn't it?
+> > > When that limit is exceeded (or the shrinker callbacks tell us to make room)
+> > > we wait for any GPU work to finish and copy buffer content into a shmem
+> > > file.
 > > > 
-> > > > +Leaf cgroups are compared based on their cumulative memory usage. The
-> > > > +root cgroup is treated as a leaf memory cgroup as well, so it's
-> > > > +compared with other leaf memory cgroups. Due to internal implementation
-> > > > +restrictions the size of the root cgroup is a cumulative sum of
-> > > > +oom_badness of all its tasks (in other words oom_score_adj of each task
-> > > > +is obeyed). Relying on oom_score_adj (appart from OOM_SCORE_ADJ_MIN)
-> > > > +can lead to overestimating of the root cgroup consumption and it is
+> > > This copy into a shmem file can easily trigger the OOM killer if there isn't
+> > > any swap space left and that is something we want to avoid.
 > > > 
-> > > Hm, and underestimating too. Also OOM_SCORE_ADJ_MIN isn't any different
-> > > in this case. Say, all tasks except a small one have OOM_SCORE_ADJ set to
-> > > -999, this means the root croup has extremely low chances to be elected.
-> > > 
-> > > > +therefore discouraged. This might change in the future, though.
-> > > 
-> > > Other than that looks very good to me.
-> > 
-> > This?
-> > 
-> > diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
-> > index 2eaed1e2243d..34ad80ee90f2 100644
-> > --- a/Documentation/cgroup-v2.txt
-> > +++ b/Documentation/cgroup-v2.txt
-> > @@ -1291,8 +1291,15 @@ This affects both system- and cgroup-wide OOMs. For a cgroup-wide OOM
-> >  the memory controller considers only cgroups belonging to the sub-tree
-> >  of the OOM'ing cgroup.
-> >  
-> > -The root cgroup is treated as a leaf memory cgroup, so it's compared
-> > -with other leaf memory cgroups and cgroups with oom_group option set.
-> > +Leaf cgroups and cgroups with oom_group option set are compared based
-> > +on their cumulative memory usage. The root cgroup is treated as a
-> > +leaf memory cgroup as well, so it's compared with other leaf memory
-> > +cgroups. Due to internal implementation restrictions the size of
-> > +the root cgroup is a cumulative sum of oom_badness of all its tasks
-> > +(in other words oom_score_adj of each task is obeyed). Relying on
-> > +oom_score_adj (appart from OOM_SCORE_ADJ_MIN) can lead to over or
-> > +underestimating of the root cgroup consumption and it is therefore
-> > +discouraged. This might change in the future, though.
+> > > So what we want to do is to apply this 50% rule to swap space as well and
+> > > deny allocation of buffer objects when it is exceeded.
+> > How does that help when the rest of the system might eat swap?
 > 
-> Acked-by: Roman Gushchin <guro@fb.com>
+> Well it doesn't, but that is not the problem here.
+> 
+> When an application keeps calling malloc() it sooner or later is confronted
+> with an OOM killer.
+> 
+> But when it keeps for example allocating OpenGL textures the expectation is
+> that this sooner or later starts to fail because we run out of memory and
+> not trigger the OOM killer.
 
-Andrew?
+There is nothing like running out of memory and not triggering the OOM
+killer. You can make a _particular_ allocation to bail out without the
+oom killer. Just use __GFP_NORETRY. But that doesn't make much
+difference when you have already depleted your memory and live with the
+bare remainings. Any desperate soul trying to get its memory will simply
+trigger the OOM.
+
+> So what we do is to allow the application to use all of video memory + a
+> certain amount of system memory + swap space as last resort fallback (e.g.
+> when you Alt+Tab from your full screen game back to your browser).
+> 
+> The problem we try to solve is that we haven't limited the use of swap space
+> somehow.
+
+I do think you should completely ignore the size of the swap space. IMHO
+you should forbid further allocations when your current buffer storage
+cannot be reclaimed. So you need some form of feedback mechanism that
+would tell you: "Your buffers have grown too much". If you cannot do
+that then simply assume that you cannot swap at all rather than rely on
+having some portion of it for yourself. There are many other users of
+memory outside of your subsystem. Any scaling based on the 50% of resource
+belonging to me is simply broken.
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
