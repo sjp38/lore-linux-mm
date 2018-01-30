@@ -1,68 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 62EB96B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:51:38 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id b75so10130236pfk.22
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 01:51:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v8-v6si3141088plk.393.2018.01.30.01.51.36
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EE95B6B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:53:54 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id a1so6634686qkb.17
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 01:53:54 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h20si807596qta.418.2018.01.30.01.53.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 Jan 2018 01:51:37 -0800 (PST)
-Date: Tue, 30 Jan 2018 10:51:34 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [netfilter-core] kernel panic: Out of memory and no killable
- processes... (2)
-Message-ID: <20180130095134.GU21609@dhcp22.suse.cz>
-References: <001a1144b0caee2e8c0563d9de0a@google.com>
- <201801290020.w0T0KK8V015938@www262.sakura.ne.jp>
- <20180129072357.GD5906@breakpoint.cc>
- <20180129082649.sysf57wlp7i7ltb2@node.shutemov.name>
- <20180129165722.GF5906@breakpoint.cc>
- <20180129182811.fze4vrb5zd5cojmr@node.shutemov.name>
- <20180129223522.GG5906@breakpoint.cc>
- <20180130075226.GL21609@dhcp22.suse.cz>
- <20180130081127.GH5906@breakpoint.cc>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jan 2018 01:53:54 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0U9nxtv097116
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:53:53 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2ftkb6gc9d-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:53:53 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bharata@linux.vnet.ibm.com>;
+	Tue, 30 Jan 2018 09:53:51 -0000
+Date: Tue, 30 Jan 2018 15:23:45 +0530
+From: Bharata B Rao <bharata@linux.vnet.ibm.com>
+Subject: Re: Memory hotplug not increasing the total RAM
+Reply-To: bharata@linux.vnet.ibm.com
+References: <20180130083006.GB1245@in.ibm.com>
+ <20180130091600.GA26445@dhcp22.suse.cz>
+ <20180130092815.GR21609@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180130081127.GH5906@breakpoint.cc>
+In-Reply-To: <20180130092815.GR21609@dhcp22.suse.cz>
+Message-Id: <20180130095345.GC1245@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Westphal <fw@strlen.de>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, davem@davemloft.net, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, aarcange@redhat.com, yang.s@alibaba-inc.com, syzkaller-bugs@googlegroups.com, linux-kernel@vger.kernel.org, mingo@kernel.org, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, guro@fb.com, kirill.shutemov@linux.intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, pasha.tatashin@oracle.com
 
-On Tue 30-01-18 09:11:27, Florian Westphal wrote:
-> Michal Hocko <mhocko@kernel.org> wrote:
-> > On Mon 29-01-18 23:35:22, Florian Westphal wrote:
-> > > Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > [...]
-> > > > I hate what I'm saying, but I guess we need some tunable here.
-> > > > Not sure what exactly.
+On Tue, Jan 30, 2018 at 10:28:15AM +0100, Michal Hocko wrote:
+> On Tue 30-01-18 10:16:00, Michal Hocko wrote:
+> > On Tue 30-01-18 14:00:06, Bharata B Rao wrote:
+> > > Hi,
 > > > 
-> > > Would memcg help?
+> > > With the latest upstream, I see that memory hotplug is not working
+> > > as expected. The hotplugged memory isn't seen to increase the total
+> > > RAM pages. This has been observed with both x86 and Power guests.
+> > > 
+> > > 1. Memory hotplug code intially marks pages as PageReserved via
+> > > __add_section().
+> > > 2. Later the struct page gets cleared in __init_single_page().
+> > > 3. Next online_pages_range() increments totalram_pages only when
+> > >    PageReserved is set.
 > > 
-> > That really depends. I would have to check whether vmalloc path obeys
-> > __GFP_ACCOUNT (I suspect it does except for page tables allocations but
-> > that shouldn't be a big deal). But then the other potential problem is
-> > the life time of the xt_table_info (or other potentially large) data
-> > structures. Are they bound to any process life time.
+> > You are right. I have completely forgot about this late struct page
+> > initialization during onlining. memory hotplug really doesn't want
+> > zeroying. Let me think about a fix.
 > 
-> No.
-> 
-> > Because if they are
-> > not then the OOM killer will not help. The OOM panic earlier in this
-> > thread suggests it doesn't because the test case managed to eat all the
-> > available memory and killed all the eligible tasks which didn't help.
-> 
-> Yes, which is why we do not want any OOM killer invocation in first
-> place...
+> Could you test with the following please? Not an act of beauty but
+> we are initializing memmap in sparse_add_one_section for memory
+> hotplug. I hate how this is different from the initialization case
+> but there is quite a long route to unify those two... So a quick
+> fix should be as follows.
 
-The problem is that as soon as you eat that memory and ask for more
-until you fail with ENOMEM then the OOM is simply unavoidable.
--- 
-Michal Hocko
-SUSE Labs
+Tested on Power guest, fixes the issue. I can now see the total memory
+size increasing after hotplug.
+
+Regards,
+Bharata.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
