@@ -1,62 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E9D966B0006
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 17:52:21 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id u26so12299853pfi.3
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 14:52:21 -0800 (PST)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0055.outbound.protection.outlook.com. [104.47.42.55])
-        by mx.google.com with ESMTPS id j10si10075701pgs.467.2018.01.30.14.52.20
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 00CD46B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 18:01:05 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id k76so12595303iod.12
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 15:01:04 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o141sor7025065itb.89.2018.01.30.15.01.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 30 Jan 2018 14:52:20 -0800 (PST)
-Subject: Re: [PATCHv3 0/3] x86/mm/encrypt: Cleanup and switching between
- paging modes
-References: <20180124163623.61765-1-kirill.shutemov@linux.intel.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <830ed299-53a7-f357-9301-5b6577d55f30@amd.com>
-Date: Tue, 30 Jan 2018 16:52:13 -0600
+        (Google Transport Security);
+        Tue, 30 Jan 2018 15:01:03 -0800 (PST)
+Date: Tue, 30 Jan 2018 15:01:01 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] tools, vm: new option to specify kpageflags file
+Message-ID: <alpine.DEB.2.10.1801301458180.153857@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20180124163623.61765-1-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 1/24/2018 10:36 AM, Kirill A. Shutemov wrote:
-> This patcheset is a preparation set for boot-time switching between
-> paging modes. Please review and consider applying.
-> 
-> Code around sme_populate_pgd() is unnecessary complex and hard to modify.
-> 
-> This patchset rewrites it in more stream-lined way to add support of
-> boot-time switching between paging modes.
-> 
-> I haven't tested the patchset on hardware capable of memory encryption.
+page-types currently hardcodes /proc/kpageflags as the file to parse.  
+This works when using the tool to examine the state of pageflags on the 
+same system, but does not allow storing a snapshot of pageflags at a given 
+time to debug issues nor on a different system.
 
-Tested-by: Tom Lendacky <thomas.lendacky@amd.com>
+This allows the user to specify a saved version of kpageflags with a new 
+page-types -F option.
 
-> 
-> v3:
->  - Move all page table related functions into mem_encrypt_identity.c
-> v2:
->  - Rebased to up-to-date tip
-> 
-> Kirill A. Shutemov (3):
->   x86/mm/encrypt: Move page table helpers into separate translation unit
->   x86/mm/encrypt: Rewrite sme_populate_pgd() and
->     sme_populate_pgd_large()
->   x86/mm/encrypt: Rewrite sme_pgtable_calc()
-> 
->  arch/x86/mm/Makefile               |  14 +-
->  arch/x86/mm/mem_encrypt.c          | 578 +------------------------------------
->  arch/x86/mm/mem_encrypt_identity.c | 563 ++++++++++++++++++++++++++++++++++++
->  arch/x86/mm/mm_internal.h          |   1 +
->  4 files changed, 574 insertions(+), 582 deletions(-)
->  create mode 100644 arch/x86/mm/mem_encrypt_identity.c
-> 
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ tools/vm/page-types.c | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
+--- a/tools/vm/page-types.c
++++ b/tools/vm/page-types.c
+@@ -172,6 +172,7 @@ static pid_t		opt_pid;	/* process to walk */
+ const char *		opt_file;	/* file or directory path */
+ static uint64_t		opt_cgroup;	/* cgroup inode */
+ static int		opt_list_cgroup;/* list page cgroup */
++static const char *	opt_kpageflags;	/* kpageflags file to parse */
+ 
+ #define MAX_ADDR_RANGES	1024
+ static int		nr_addr_ranges;
+@@ -258,7 +259,7 @@ static int checked_open(const char *pathname, int flags)
+  * pagemap/kpageflags routines
+  */
+ 
+-static unsigned long do_u64_read(int fd, char *name,
++static unsigned long do_u64_read(int fd, const char *name,
+ 				 uint64_t *buf,
+ 				 unsigned long index,
+ 				 unsigned long count)
+@@ -283,7 +284,7 @@ static unsigned long kpageflags_read(uint64_t *buf,
+ 				     unsigned long index,
+ 				     unsigned long pages)
+ {
+-	return do_u64_read(kpageflags_fd, PROC_KPAGEFLAGS, buf, index, pages);
++	return do_u64_read(kpageflags_fd, opt_kpageflags, buf, index, pages);
+ }
+ 
+ static unsigned long kpagecgroup_read(uint64_t *buf,
+@@ -293,7 +294,7 @@ static unsigned long kpagecgroup_read(uint64_t *buf,
+ 	if (kpagecgroup_fd < 0)
+ 		return pages;
+ 
+-	return do_u64_read(kpagecgroup_fd, PROC_KPAGEFLAGS, buf, index, pages);
++	return do_u64_read(kpagecgroup_fd, opt_kpageflags, buf, index, pages);
+ }
+ 
+ static unsigned long pagemap_read(uint64_t *buf,
+@@ -743,7 +744,7 @@ static void walk_addr_ranges(void)
+ {
+ 	int i;
+ 
+-	kpageflags_fd = checked_open(PROC_KPAGEFLAGS, O_RDONLY);
++	kpageflags_fd = checked_open(opt_kpageflags, O_RDONLY);
+ 
+ 	if (!nr_addr_ranges)
+ 		add_addr_range(0, ULONG_MAX);
+@@ -790,6 +791,7 @@ static void usage(void)
+ "            -N|--no-summary            Don't show summary info\n"
+ "            -X|--hwpoison              hwpoison pages\n"
+ "            -x|--unpoison              unpoison pages\n"
++"            -F|--kpageflags            kpageflags file to parse\n"
+ "            -h|--help                  Show this usage message\n"
+ "flags:\n"
+ "            0x10                       bitfield format, e.g.\n"
+@@ -1013,7 +1015,7 @@ static void walk_page_cache(void)
+ {
+ 	struct stat st;
+ 
+-	kpageflags_fd = checked_open(PROC_KPAGEFLAGS, O_RDONLY);
++	kpageflags_fd = checked_open(opt_kpageflags, O_RDONLY);
+ 	pagemap_fd = checked_open("/proc/self/pagemap", O_RDONLY);
+ 	sigaction(SIGBUS, &sigbus_action, NULL);
+ 
+@@ -1164,6 +1166,11 @@ static void parse_bits_mask(const char *optarg)
+ 	add_bits_filter(mask, bits);
+ }
+ 
++static void parse_kpageflags(const char *name)
++{
++	opt_kpageflags = name;
++}
++
+ static void describe_flags(const char *optarg)
+ {
+ 	uint64_t flags = parse_flag_names(optarg, 0);
+@@ -1188,6 +1195,7 @@ static const struct option opts[] = {
+ 	{ "no-summary", 0, NULL, 'N' },
+ 	{ "hwpoison"  , 0, NULL, 'X' },
+ 	{ "unpoison"  , 0, NULL, 'x' },
++	{ "kpageflags", 0, NULL, 'F' },
+ 	{ "help"      , 0, NULL, 'h' },
+ 	{ NULL        , 0, NULL, 0 }
+ };
+@@ -1199,7 +1207,7 @@ int main(int argc, char *argv[])
+ 	page_size = getpagesize();
+ 
+ 	while ((c = getopt_long(argc, argv,
+-				"rp:f:a:b:d:c:ClLNXxh", opts, NULL)) != -1) {
++				"rp:f:a:b:d:c:ClLNXxF:h", opts, NULL)) != -1) {
+ 		switch (c) {
+ 		case 'r':
+ 			opt_raw = 1;
+@@ -1242,6 +1250,9 @@ int main(int argc, char *argv[])
+ 			opt_unpoison = 1;
+ 			prepare_hwpoison_fd();
+ 			break;
++		case 'F':
++			parse_kpageflags(optarg);
++			break;
+ 		case 'h':
+ 			usage();
+ 			exit(0);
+@@ -1251,6 +1262,9 @@ int main(int argc, char *argv[])
+ 		}
+ 	}
+ 
++	if (!opt_kpageflags)
++		opt_kpageflags = PROC_KPAGEFLAGS;
++
+ 	if (opt_cgroup || opt_list_cgroup)
+ 		kpagecgroup_fd = checked_open(PROC_KPAGECGROUP, O_RDONLY);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
