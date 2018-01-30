@@ -1,81 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F1096B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 18:14:23 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id r28so9034122pgu.1
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 15:14:23 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id a100-v6si140657pli.768.2018.01.30.15.14.21
+	by kanga.kvack.org (Postfix) with ESMTP id 515FB6B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 18:36:57 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id v17so8986014pgb.18
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 15:36:57 -0800 (PST)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id o8si203685pgv.113.2018.01.30.15.36.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 30 Jan 2018 15:14:22 -0800 (PST)
-From: Randy Dunlap <rdunlap@infradead.org>
-Subject: [PATCH] mm/swap_slots: use conditional compilation for swap_slots.c
-Message-ID: <c2a47015-0b5a-d0d9-8bc7-9984c049df20@infradead.org>
-Date: Tue, 30 Jan 2018 15:14:17 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jan 2018 15:36:55 -0800 (PST)
+Date: Wed, 31 Jan 2018 07:49:04 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH 3/3] mm: memfd: remove memfd code from shmem files and
+ use new memfd files
+Message-ID: <201801310705.HNIeJce6%fengguang.wu@intel.com>
+References: <20180130000101.7329-4-mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180130000101.7329-4-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@gmail.com>, David Herrmann <dh.herrmann@gmail.com>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
 
-From: Randy Dunlap <rdunlap@infradead.org>
+Hi Mike,
 
-For mm/swap_slots.c, use the traditional Linux method of conditional
-compilation and linking instead of always compiling it by using
-#ifdef CONFIG_SWAP and #endif for the entire source file (excluding
-header files).
+Thank you for the patch! Perhaps something to improve:
 
-Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>
+[auto build test WARNING on mmotm/master]
+[also build test WARNING on next-20180126]
+[cannot apply to linus/master v4.15]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Mike-Kravetz/restructure-memfd-code/20180131-023405
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+reproduce:
+        # apt-get install sparse
+        make ARCH=x86_64 allmodconfig
+        make C=1 CF=-D__CHECK_ENDIAN__
+
+
+sparse warnings: (new ones prefixed by >>)
+
+>> mm/memfd.c:40:9: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
+   mm/memfd.c:40:9: expected void
+   mm/memfd.c:40:9: got void
+>> mm/memfd.c:40:9: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
+   mm/memfd.c:40:9: expected void
+   mm/memfd.c:40:9: got void
+>> mm/memfd.c:41:46: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
+   mm/memfd.c:41:46: expected void
+   mm/memfd.c:41:46: got void
+   mm/memfd.c:44:38: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
+   mm/memfd.c:44:38: expected void
+   mm/memfd.c:44:38: got void
+   mm/memfd.c:55:55: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
+   mm/memfd.c:55:55: expected void
+   mm/memfd.c:55:55: got void
+   mm/memfd.c:55:30: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
+   mm/memfd.c:55:30: expected void
+   mm/memfd.c:55:30: got void
+   mm/memfd.c:40:9: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
+   mm/memfd.c:40:9: expected void
+   mm/memfd.c:40:9: got void
+>> mm/memfd.c:40:9: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
+   mm/memfd.c:40:9: expected void
+   mm/memfd.c:40:9: got void
+   mm/memfd.c:93:17: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
+   mm/memfd.c:93:17: expected void
+   mm/memfd.c:93:17: got void
+   mm/memfd.c:93:17: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
+   mm/memfd.c:93:17: expected void
+   mm/memfd.c:93:17: got void
+   mm/memfd.c:96:54: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
+   mm/memfd.c:96:54: expected void
+   mm/memfd.c:96:54: got void
+   mm/memfd.c:99:46: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
+   mm/memfd.c:99:46: expected void
+   mm/memfd.c:99:46: got void
+   mm/memfd.c:125:63: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
+   mm/memfd.c:125:63: expected void
+   mm/memfd.c:125:63: got void
+   mm/memfd.c:125:38: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
+   mm/memfd.c:125:38: expected void
+   mm/memfd.c:125:38: got void
+   mm/memfd.c:93:17: sparse: incorrect type in argument 1 (different address spaces) @@ expected void @@ got @@
+   mm/memfd.c:93:17: expected void
+   mm/memfd.c:93:17: got void
+   mm/memfd.c:93:17: sparse: incorrect type in assignment (different address spaces) @@ expected void @@ got void <avoid @@
+   mm/memfd.c:93:17: expected void
+   mm/memfd.c:93:17: got void
+
+vim +40 mm/memfd.c
+
+6df4ed2a41 Mike Kravetz 2018-01-29  28  
+6df4ed2a41 Mike Kravetz 2018-01-29  29  static void shmem_tag_pins(struct address_space *mapping)
+6df4ed2a41 Mike Kravetz 2018-01-29  30  {
+6df4ed2a41 Mike Kravetz 2018-01-29  31  	struct radix_tree_iter iter;
+6df4ed2a41 Mike Kravetz 2018-01-29  32  	void **slot;
+6df4ed2a41 Mike Kravetz 2018-01-29  33  	pgoff_t start;
+6df4ed2a41 Mike Kravetz 2018-01-29  34  	struct page *page;
+6df4ed2a41 Mike Kravetz 2018-01-29  35  
+6df4ed2a41 Mike Kravetz 2018-01-29  36  	lru_add_drain();
+6df4ed2a41 Mike Kravetz 2018-01-29  37  	start = 0;
+6df4ed2a41 Mike Kravetz 2018-01-29  38  	rcu_read_lock();
+6df4ed2a41 Mike Kravetz 2018-01-29  39  
+6df4ed2a41 Mike Kravetz 2018-01-29 @40  	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+6df4ed2a41 Mike Kravetz 2018-01-29 @41  		page = radix_tree_deref_slot(slot);
+6df4ed2a41 Mike Kravetz 2018-01-29  42  		if (!page || radix_tree_exception(page)) {
+6df4ed2a41 Mike Kravetz 2018-01-29  43  			if (radix_tree_deref_retry(page)) {
+6df4ed2a41 Mike Kravetz 2018-01-29  44  				slot = radix_tree_iter_retry(&iter);
+6df4ed2a41 Mike Kravetz 2018-01-29  45  				continue;
+6df4ed2a41 Mike Kravetz 2018-01-29  46  			}
+6df4ed2a41 Mike Kravetz 2018-01-29  47  		} else if (page_count(page) - page_mapcount(page) > 1) {
+6df4ed2a41 Mike Kravetz 2018-01-29  48  			spin_lock_irq(&mapping->tree_lock);
+6df4ed2a41 Mike Kravetz 2018-01-29  49  			radix_tree_tag_set(&mapping->page_tree, iter.index,
+6df4ed2a41 Mike Kravetz 2018-01-29  50  					   SHMEM_TAG_PINNED);
+6df4ed2a41 Mike Kravetz 2018-01-29  51  			spin_unlock_irq(&mapping->tree_lock);
+6df4ed2a41 Mike Kravetz 2018-01-29  52  		}
+6df4ed2a41 Mike Kravetz 2018-01-29  53  
+6df4ed2a41 Mike Kravetz 2018-01-29  54  		if (need_resched()) {
+6df4ed2a41 Mike Kravetz 2018-01-29  55  			slot = radix_tree_iter_resume(slot, &iter);
+6df4ed2a41 Mike Kravetz 2018-01-29  56  			cond_resched_rcu();
+6df4ed2a41 Mike Kravetz 2018-01-29  57  		}
+6df4ed2a41 Mike Kravetz 2018-01-29  58  	}
+6df4ed2a41 Mike Kravetz 2018-01-29  59  	rcu_read_unlock();
+6df4ed2a41 Mike Kravetz 2018-01-29  60  }
+6df4ed2a41 Mike Kravetz 2018-01-29  61  
+
+:::::: The code at line 40 was first introduced by commit
+:::::: 6df4ed2a410bc04f1ec04dce16ccd236707f7f32 mm: memfd: split out memfd for use by multiple filesystems
+
+:::::: TO: Mike Kravetz <mike.kravetz@oracle.com>
+:::::: CC: 0day robot <fengguang.wu@intel.com>
+
 ---
- mm/Makefile     |    4 ++--
- mm/swap_slots.c |    4 ----
- 2 files changed, 2 insertions(+), 6 deletions(-)
-
-Tim, is there some reason that this is done as it currently is?
-
---- lnx-415.orig/mm/Makefile
-+++ lnx-415/mm/Makefile
-@@ -37,7 +37,7 @@ obj-y			:= filemap.o mempool.o oom_kill.
- 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
- 			   util.o mmzone.o vmstat.o backing-dev.o \
- 			   mm_init.o mmu_context.o percpu.o slab_common.o \
--			   compaction.o vmacache.o swap_slots.o \
-+			   compaction.o vmacache.o \
- 			   interval_tree.o list_lru.o workingset.o \
- 			   debug.o $(mmu-y)
- 
-@@ -55,7 +55,7 @@ ifdef CONFIG_MMU
- endif
- obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
- 
--obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
-+obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o swap_slots.o
- obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
- obj-$(CONFIG_ZSWAP)	+= zswap.o
- obj-$(CONFIG_HAS_DMA)	+= dmapool.o
---- lnx-415.orig/mm/swap_slots.c
-+++ lnx-415/mm/swap_slots.c
-@@ -34,8 +34,6 @@
- #include <linux/mutex.h>
- #include <linux/mm.h>
- 
--#ifdef CONFIG_SWAP
--
- static DEFINE_PER_CPU(struct swap_slots_cache, swp_slots);
- static bool	swap_slot_cache_active;
- bool	swap_slot_cache_enabled;
-@@ -356,5 +354,3 @@ repeat:
- 
- 	return entry;
- }
--
--#endif /* CONFIG_SWAP */
-
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
