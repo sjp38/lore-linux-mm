@@ -1,59 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 27F046B0007
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 07:52:34 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f3so7747634pga.9
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:52:34 -0800 (PST)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0058.outbound.protection.outlook.com. [104.47.41.58])
-        by mx.google.com with ESMTPS id b9si2804726pgf.430.2018.01.30.04.52.32
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D36686B0008
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 07:55:05 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id k11so10875001qth.23
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 04:55:05 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id t126si3893288qkb.474.2018.01.30.04.55.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 30 Jan 2018 04:52:33 -0800 (PST)
-Subject: Re: [PATCH] mm/swap: add function get_total_swap_pages to expose
- total_swap_pages
-References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
- <20180129163114.GH21609@dhcp22.suse.cz>
- <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
- <20180130075553.GM21609@dhcp22.suse.cz>
- <9060281e-62dd-8775-2903-339ff836b436@amd.com>
- <20180130101823.GX21609@dhcp22.suse.cz>
- <7d5ce7ab-d16d-36bc-7953-e1da2db350bf@amd.com>
- <20180130122853.GC21609@dhcp22.suse.cz>
-From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
-Message-ID: <5ac13913-783d-26aa-ea5f-ab375f450f4c@amd.com>
-Date: Tue, 30 Jan 2018 13:52:16 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jan 2018 04:55:05 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0UCsjo3133710
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 07:55:04 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ftqv4uh7f-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 07:55:02 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 30 Jan 2018 12:54:50 -0000
+Date: Tue, 30 Jan 2018 14:54:44 +0200
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [LSF/MM TOPIC] mm documentation
+References: <20180130105237.GB7201@rapoport-lnx>
+ <20180130105450.GC7201@rapoport-lnx>
+ <20180130115055.GZ21609@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180130122853.GC21609@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180130115055.GZ21609@dhcp22.suse.cz>
+Message-Id: <20180130125443.GA21333@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: "He, Roger" <Hongbo.He@amd.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
 
-Am 30.01.2018 um 13:28 schrieb Michal Hocko:
-> I do think you should completely ignore the size of the swap space. IMHO
-> you should forbid further allocations when your current buffer storage
-> cannot be reclaimed. So you need some form of feedback mechanism that
-> would tell you: "Your buffers have grown too much".
+On Tue, Jan 30, 2018 at 12:50:55PM +0100, Michal Hocko wrote:
+> On Tue 30-01-18 12:54:50, Mike Rapoport wrote:
+> > (forgot to CC linux-mm)
+> > 
+> > On Tue, Jan 30, 2018 at 12:52:37PM +0200, Mike Rapoport wrote:
+> > > Hello,
+> > > 
+> > > The mm kernel-doc documentation is not in a great shape. 
+> > > 
+> > > Some of the existing kernel-doc annotations were not reformatted during
+> > > transition from dockbook to sphix. Sometimes the parameter descriptions
+> > > do not match actual code. But aside these rather mechanical issues there
+> > > are several points it'd like to discuss:
+> > > 
+> > > * Currently, only 14 files are linked to kernel-api.rst under "Memory
+> > > Management in Linux" section. We have more than hundred files only in mm.
+> > > Even the existing documentation is not generated when running "make
+> > > htmldocs"
+> 
+> Is this documentation anywhere close to be actually useful?
 
-Yeah well, that is exactly what we are trying to do here.
+Some parts are documented better, some worse. For instance, bootmem and
+z3fold are covered not bad at all, but, say, huge_memory has no structured
+comments at all. Roughly half of the files in mm/ have some documentation,
+but I didn't yet read that all to say how much of it is actually useful.
 
-> If you cannot do
-> that then simply assume that you cannot swap at all rather than rely on
-> having some portion of it for yourself. There are many other users of
-> memory outside of your subsystem. Any scaling based on the 50% of resource
-> belonging to me is simply broken.
+And maybe having some skeleton for MM API in htmldocs with at least some
+documentation will encourage people to look at the documentation.
 
-Our intention is not reserve 50% of resources to TTM, but rather allow 
-TTM to abort when more than 50% of all resources are used up.
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
-Rogers initial implementation didn't looked like that, but that is just 
-a minor mistake we can fix.
-
-Regards,
-Christian.
+-- 
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
