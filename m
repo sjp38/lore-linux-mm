@@ -1,105 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B49386B0007
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 12:35:36 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 66so8341926pgh.2
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 09:35:36 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id a1-v6si4355477plt.588.2018.01.30.09.35.35
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C25A86B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 12:52:16 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id r28so8377050pgu.1
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 09:52:16 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id m6si2404304pff.273.2018.01.30.09.52.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 30 Jan 2018 09:35:35 -0800 (PST)
-Message-ID: <1517333732.3118.49.camel@HansenPartnership.com>
-Subject: Re: [LSF/MM TOPIC] mm documentation
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Tue, 30 Jan 2018 09:35:32 -0800
-In-Reply-To: <20180130142849.GD21333@rapoport-lnx>
-References: <20180130105237.GB7201@rapoport-lnx>
-	 <20180130105450.GC7201@rapoport-lnx>
-	 <20180130115055.GZ21609@dhcp22.suse.cz>
-	 <20180130125443.GA21333@rapoport-lnx>
-	 <20180130134141.GD21609@dhcp22.suse.cz>
-	 <20180130142849.GD21333@rapoport-lnx>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Tue, 30 Jan 2018 09:52:15 -0800 (PST)
+Subject: Re: [PATCH v2] mm/swap.c: make functions and their kernel-doc agree
+References: <3b42ee3e-04a9-a6ca-6be4-f00752a114fe@infradead.org>
+ <20180130123400.GD26445@dhcp22.suse.cz>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <958aa51a-e497-795f-1482-2e6b18143209@infradead.org>
+Date: Tue, 30 Jan 2018 09:52:10 -0800
+MIME-Version: 1.0
+In-Reply-To: <20180130123400.GD26445@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>
 
-On Tue, 2018-01-30 at 16:28 +0200, Mike Rapoport wrote:
-> On Tue, Jan 30, 2018 at 02:41:41PM +0100, Michal Hocko wrote:
-> > 
-> > On Tue 30-01-18 14:54:44, Mike Rapoport wrote:
-> > > 
-> > > On Tue, Jan 30, 2018 at 12:50:55PM +0100, Michal Hocko wrote:
-> > > > 
-> > > > On Tue 30-01-18 12:54:50, Mike Rapoport wrote:
-> > > > > 
-> > > > > (forgot to CC linux-mm)
-> > > > > 
-> > > > > On Tue, Jan 30, 2018 at 12:52:37PM +0200, Mike Rapoport
-> > > > > wrote:
-> > > > > > 
-> > > > > > Hello,
-> > > > > > 
-> > > > > > The mm kernel-doc documentation is not in a great shape.A 
-> > > > > > 
-> > > > > > Some of the existing kernel-doc annotations were not
-> > > > > > reformatted during transition from dockbook to sphix.
-> > > > > > Sometimes the parameter descriptions do not match actual
-> > > > > > code. But aside these rather mechanical issues there
-> > > > > > are several points it'd like to discuss:
-> > > > > > 
-> > > > > > * Currently, only 14 files are linked to kernel-api.rst
-> > > > > > under "Memory Management in Linux" section. We have more
-> > > > > > than hundred files only in mm. Even the existing
-> > > > > > documentation is not generated when running "make
-> > > > > > htmldocs"
-> > > > 
-> > > > Is this documentation anywhere close to be actually useful?
-> > > 
-> > > Some parts are documented better, some worse. For instance,
-> > > bootmem and z3fold are covered not bad at all, but, say,
-> > > huge_memory has no structured comments at all. Roughly half of
-> > > the files in mm/ have some documentation, but I didn't yet read
-> > > that all to say how much of it is actually useful.
-> > 
-> > It is good to hear that at least something has a documentation
-> > coverage. I was asking mostly because I _think_ that the API
-> > documentation is far from the top priority.A 
+On 01/30/2018 04:34 AM, Michal Hocko wrote:
+> On Mon 29-01-18 16:43:55, Randy Dunlap wrote:
+>> From: Randy Dunlap <rdunlap@infradead.org>
+>>
+>> Fix some basic kernel-doc notation in mm/swap.c:
+>> - for function lru_cache_add_anon(), make its kernel-doc function name
+>>   match its function name and change colon to hyphen following the
+>>   function name
 > 
-> API documentations is important for kernel developers who are not
-> deeply involved with mm. When one develops a device driver, knowing
-> how to allocate and free memory is essential. And, while *malloc are
-> included in kernel-api.rst, CMA and HMM documentation is not visible.
-
-Documentation is also one way new people get into the project.A A Not
-being top priority is fine, but "far from" top priority implies not
-worth doing, which gives the wrong impression.
-
-> > We are seriously lacking any highlevel one which describes the
-> > design and subsytems interaction.
+> This is pretty much an internal function to the MM. It shouldn't have
+> any external callers. Why do we need a kernel doc at all?
 > 
-> I should have describe it better, but by "creating a new structure
-> for mm documentation" I've also meant adding high level description.
+>> - for function pagevec_lookup_entries(), change the function parameter
+>>   name from nr_pages to nr_entries since that is more descriptive of
+>>   what the parameter actually is and then it matches the kernel-doc
+>>   comments also
 > 
-> > 
-> > Well, we have missed that train years ago. It will be really hard
-> > to catch up.
-> 
-> At least we can try.
+> I know what is nr_pages because I do expect pages to be returned. What
+> are entries? Can it be something different from pages?
 
-How about simply insisting on adequately documenting new stuff and
-asking submitters to add documentation when they change something.A A The
-latter, at least, is fairly essential: there's nothing worse than
-documentation that's actively wrong. A The former is useful to
-reviewers. A I'm not saying this alone will ever get you to 100%, but at
-least it's an incremental change which isn't too burdensome and which
-moves the needle in the right direction.
+OK, never mind.  I'll revisit this some other day.
 
-James
+later,
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
