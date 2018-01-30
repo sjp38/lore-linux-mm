@@ -1,60 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 37C0E6B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 03:28:22 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id q63so7602229wrb.16
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 00:28:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r46sor6299749eda.57.2018.01.30.00.28.20
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A3966B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 03:30:16 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id n28so10478350qtk.7
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 00:30:16 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 8si3952818qku.255.2018.01.30.00.30.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Jan 2018 00:28:20 -0800 (PST)
-Date: Tue, 30 Jan 2018 11:28:17 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [netfilter-core] kernel panic: Out of memory and no killable
- processes... (2)
-Message-ID: <20180130082817.cbax5qj4mxancx4b@node.shutemov.name>
-References: <001a1144b0caee2e8c0563d9de0a@google.com>
- <201801290020.w0T0KK8V015938@www262.sakura.ne.jp>
- <20180129072357.GD5906@breakpoint.cc>
- <20180129082649.sysf57wlp7i7ltb2@node.shutemov.name>
- <20180129165722.GF5906@breakpoint.cc>
- <20180129182811.fze4vrb5zd5cojmr@node.shutemov.name>
- <20180129223522.GG5906@breakpoint.cc>
- <20180130075226.GL21609@dhcp22.suse.cz>
- <20180130081127.GH5906@breakpoint.cc>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jan 2018 00:30:15 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0U8TaHp132875
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 03:30:14 -0500
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2ftmqbhdy7-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 03:30:14 -0500
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bharata@linux.vnet.ibm.com>;
+	Tue, 30 Jan 2018 08:30:12 -0000
+Date: Tue, 30 Jan 2018 14:00:06 +0530
+From: Bharata B Rao <bharata@linux.vnet.ibm.com>
+Subject: Memory hotplug not increasing the total RAM
+Reply-To: bharata@linux.vnet.ibm.com
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180130081127.GH5906@breakpoint.cc>
+Message-Id: <20180130083006.GB1245@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Westphal <fw@strlen.de>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, davem@davemloft.net, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, aarcange@redhat.com, yang.s@alibaba-inc.com, syzkaller-bugs@googlegroups.com, linux-kernel@vger.kernel.org, mingo@kernel.org, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, guro@fb.com, kirill.shutemov@linux.intel.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: pasha.tatashin@oracle.com
 
-On Tue, Jan 30, 2018 at 09:11:27AM +0100, Florian Westphal wrote:
-> Michal Hocko <mhocko@kernel.org> wrote:
-> > On Mon 29-01-18 23:35:22, Florian Westphal wrote:
-> > > Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > [...]
-> > > > I hate what I'm saying, but I guess we need some tunable here.
-> > > > Not sure what exactly.
-> > > 
-> > > Would memcg help?
-> > 
-> > That really depends. I would have to check whether vmalloc path obeys
-> > __GFP_ACCOUNT (I suspect it does except for page tables allocations but
-> > that shouldn't be a big deal). But then the other potential problem is
-> > the life time of the xt_table_info (or other potentially large) data
-> > structures. Are they bound to any process life time.
-> 
-> No.
+Hi,
 
-Well, IIUC they bound to net namespace life time, so killing all
-proccesses in the namespace would help to get memory back. :)
+With the latest upstream, I see that memory hotplug is not working
+as expected. The hotplugged memory isn't seen to increase the total
+RAM pages. This has been observed with both x86 and Power guests.
 
--- 
- Kirill A. Shutemov
+1. Memory hotplug code intially marks pages as PageReserved via
+__add_section().
+2. Later the struct page gets cleared in __init_single_page().
+3. Next online_pages_range() increments totalram_pages only when
+   PageReserved is set.
+
+The step 2 has been introduced recently by the following commit:
+
+commit f7f99100d8d95dbcf09e0216a143211e79418b9f
+Author: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date:   Wed Nov 15 17:36:44 2017 -0800
+
+    mm: stop zeroing memory during allocation in vmemmap
+    
+Reverting this commit restores the correct behaviour of memory hotplug.
+
+Regards,
+Bharata.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
