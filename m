@@ -1,57 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D7D56B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 02:52:31 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id y18so7384566wrh.12
-        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 23:52:31 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F3EC36B0005
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 02:55:56 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id z83so6376165wmc.5
+        for <linux-mm@kvack.org>; Mon, 29 Jan 2018 23:55:56 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c6si8795013wme.13.2018.01.29.23.52.29
+        by mx.google.com with ESMTPS id c6si8637995wma.275.2018.01.29.23.55.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 Jan 2018 23:52:30 -0800 (PST)
-Date: Tue, 30 Jan 2018 08:52:26 +0100
+        Mon, 29 Jan 2018 23:55:55 -0800 (PST)
+Date: Tue, 30 Jan 2018 08:55:53 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [netfilter-core] kernel panic: Out of memory and no killable
- processes... (2)
-Message-ID: <20180130075226.GL21609@dhcp22.suse.cz>
-References: <001a1144b0caee2e8c0563d9de0a@google.com>
- <201801290020.w0T0KK8V015938@www262.sakura.ne.jp>
- <20180129072357.GD5906@breakpoint.cc>
- <20180129082649.sysf57wlp7i7ltb2@node.shutemov.name>
- <20180129165722.GF5906@breakpoint.cc>
- <20180129182811.fze4vrb5zd5cojmr@node.shutemov.name>
- <20180129223522.GG5906@breakpoint.cc>
+Subject: Re: [PATCH] mm/swap: add function get_total_swap_pages to expose
+ total_swap_pages
+Message-ID: <20180130075553.GM21609@dhcp22.suse.cz>
+References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
+ <20180129163114.GH21609@dhcp22.suse.cz>
+ <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180129223522.GG5906@breakpoint.cc>
+In-Reply-To: <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Westphal <fw@strlen.de>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, davem@davemloft.net, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev@vger.kernel.org, aarcange@redhat.com, yang.s@alibaba-inc.com, syzkaller-bugs@googlegroups.com, linux-kernel@vger.kernel.org, mingo@kernel.org, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, guro@fb.com, kirill.shutemov@linux.intel.com
+To: "He, Roger" <Hongbo.He@amd.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "Koenig, Christian" <Christian.Koenig@amd.com>
 
-On Mon 29-01-18 23:35:22, Florian Westphal wrote:
-> Kirill A. Shutemov <kirill@shutemov.name> wrote:
-[...]
-> > I hate what I'm saying, but I guess we need some tunable here.
-> > Not sure what exactly.
+On Tue 30-01-18 02:56:51, He, Roger wrote:
+> Hi Michal:
 > 
-> Would memcg help?
+> We need a API to tell TTM module the system totally has how many swap
+> cache.  Then TTM module can use it to restrict how many the swap cache
+> it can use to prevent triggering OOM.  For Now we set the threshold of
+> swap size TTM used as 1/2 * total size and leave the rest for others
+> use.
 
-That really depends. I would have to check whether vmalloc path obeys
-__GFP_ACCOUNT (I suspect it does except for page tables allocations but
-that shouldn't be a big deal). But then the other potential problem is
-the life time of the xt_table_info (or other potentially large) data
-structures. Are they bound to any process life time. Because if they are
-not then the OOM killer will not help. The OOM panic earlier in this
-thread suggests it doesn't because the test case managed to eat all the
-available memory and killed all the eligible tasks which didn't help.
+Why do you so much memory? Are you going to use TB of memory on large
+systems? What about memory hotplug when the memory is added/released?
+ 
+> But get_nr_swap_pages is the only API we can accessed from other
+> module now.  It can't cover the case of the dynamic swap size
+> increment.  I mean: user can use "swapon" to enable new swap file or
+> swap disk dynamically or "swapoff" to disable swap space.
 
-So in some sense the memcg would help to stop the excessive allocation,
-but it wouldn't resolve it other than kill all tasks in the affected
-memcg/container. Whether this is sufficient or not, I dunno. It sounds
-quite suboptimal to me. But it is true this would be less tricky then
-adding a global knob...
+Exactly. Your scaling configuration based on get_nr_swap_pages or the
+available memory simply sounds wrong.
 -- 
 Michal Hocko
 SUSE Labs
