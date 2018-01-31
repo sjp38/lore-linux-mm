@@ -1,120 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D01646B0005
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 09:59:55 -0500 (EST)
-Received: by mail-yw0-f197.google.com with SMTP id t63so13433151ywa.11
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 06:59:55 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id c25si2531863qtc.109.2018.01.31.06.59.54
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F9C36B0006
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 10:25:46 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id d84so6004922oia.4
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 07:25:46 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n3si1060743otj.334.2018.01.31.07.25.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jan 2018 06:59:54 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0VExm2p121461
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 09:59:54 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2fud3ysa9f-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 09:59:53 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 31 Jan 2018 14:59:50 -0000
-Date: Wed, 31 Jan 2018 16:59:46 +0200
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [LSF/MM TOPIC] mm documentation
-References: <20180130105237.GB7201@rapoport-lnx>
- <20180130105450.GC7201@rapoport-lnx>
- <20180130115055.GZ21609@dhcp22.suse.cz>
- <20180130125443.GA21333@rapoport-lnx>
- <20180130134141.GD21609@dhcp22.suse.cz>
- <20180130142849.GD21333@rapoport-lnx>
- <20180131023838.GA28275@bombadil.infradead.org>
- <20180131090037.GQ21609@dhcp22.suse.cz>
+        Wed, 31 Jan 2018 07:25:45 -0800 (PST)
+Date: Wed, 31 Jan 2018 17:25:37 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH] virtio_balloon: use non-blocking allocation
+Message-ID: <20180131161429-mutt-send-email-mst@kernel.org>
+References: <1514904621-39186-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180131015912-mutt-send-email-mst@kernel.org>
+ <201801312013.FGI90108.OQFMtFLHFOOJSV@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180131090037.GQ21609@dhcp22.suse.cz>
-Message-Id: <20180131145945.GB20535@rapoport-lnx>
+In-Reply-To: <201801312013.FGI90108.OQFMtFLHFOOJSV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, mhocko@suse.com, wei.w.wang@intel.com
 
-On Wed, Jan 31, 2018 at 10:00:37AM +0100, Michal Hocko wrote:
-> On Tue 30-01-18 18:38:38, Matthew Wilcox wrote:
-> > On Tue, Jan 30, 2018 at 04:28:50PM +0200, Mike Rapoport wrote:
-> > > On Tue, Jan 30, 2018 at 02:41:41PM +0100, Michal Hocko wrote:
-> > > > It is good to hear that at least something has a documentation coverage.
-> > > > I was asking mostly because I _think_ that the API documentation is far
-> > > > from the top priority. 
+On Wed, Jan 31, 2018 at 08:13:26PM +0900, Tetsuo Handa wrote:
+> Michael S. Tsirkin wrote:
+> > On Tue, Jan 02, 2018 at 11:50:21PM +0900, Tetsuo Handa wrote:
+> > > Commit c7cdff0e864713a0 ("virtio_balloon: fix deadlock on OOM") tried to
+> > > avoid OOM lockup by moving memory allocations to outside of balloon_lock.
 > > > 
-> > > API documentations is important for kernel developers who are not deeply
-> > > involved with mm. When one develops a device driver, knowing how to
-> > > allocate and free memory is essential. And, while *malloc are included in
-> > > kernel-api.rst, CMA and HMM documentation is not visible.
+> > > Now, Wei is trying to allocate far more pages outside of balloon_lock and
+> > > some more memory inside of balloon_lock in order to perform efficient
+> > > communication between host and guest using scatter-gather API.
 > > > 
-> > > > We are seriously lacking any highlevel one which describes the design and
-> > > > subsytems interaction.
+> > > Since pages allocated outside of balloon_lock are not visible to the OOM
+> > > notifier path until fill_balloon() holds balloon_lock (and enqueues the
+> > > pending pages), allocating more pages than now may lead to unacceptably
+> > > premature OOM killer invocation.
 > > > 
-> > > I should have describe it better, but by "creating a new structure for mm
-> > > documentation" I've also meant adding high level description.
+> > > It would be possible to make the pending pages visible to the OOM notifier
+> > > path. But there is no need to try to allocate memory so hard from the
+> > > beginning. As of commit 18468d93e53b037e ("mm: introduce a common
+> > > interface for balloon pages mobility"), it made sense to try allocation
+> > > as hard as possible. But after commit 5a10b7dbf904bfe0 ("virtio_balloon:
+> > > free some memory from balloon on OOM"),
 > > 
-> > We should be really clear what kind of documentation we're trying to create.
+> > However, please not that this behavious is optional.
+> > Can you keep the current behaviour when deflate on OOM is disabled?
+> 
+> I can, for passing a flag to balloon_page_alloc() will do it.
+> 
+> But do we really prefer behavior up to comment 27 of
+> https://bugzilla.redhat.com/show_bug.cgi?id=1525356 ?
+
+
+You show a config where so much memory is taken that guest crashes, but
+hopefully in other situations it's just an application hogging memory.
+
+So I'm sure current behaviour is not optimal for your config but the
+problem with deflate on OOM is it does not restart inflating when OOM
+condition goes away.  So if host *really* needs that memory it can't
+enable deflate on OOM.
+
+Crashing the kernel is of course not really useful, I wish
+there was a way to avoid that while still reliably
+giving as much as we can to the host.
+
+Ideally balloon flow looks like this:
+1. host needs some memory e.g. to start a new guest
+2. guest gets request from host to give it back some memory
+3. while request not satisfied:
+	a. try to get hold of free memory
+	b. free up some by flushing caches
+	c. free up some by killing memory hogs
+
+All this without crashing the guest.
+
+What we have implemented is a rough approximation.
+
+Deflate on OOM reduces the chance of a crash or hang but it makes the
+inflate unreliable: host can no longer use the memory for another guest,
+this one might request it back at any time.
+
+What is deflate on oom good for then?  I suspect that people use deflate
+on oom as poor man's page hinting.
+
+
 > > 
-> > There are four distinct types of documentation which would be useful:
 > > 
-> >  - How, when and why to use the various function calls and their
-> >    parameters from the perspective of a user outside the mm/ hierarchy.
-> >    Device driver authors, filesystem authors and others of their ilk.
-> >  - The overall philosophy and structure of the mm directory, what it does,
-> >    why it does it, perhaps even outlines of abandoned approaches.
-> >  - What functionality the mm subsystem requires from others.  For example,
-> >    what does the mm rely on from the CPU architectures (and maybe it would
-> >    make sense to also include services the mm layer provides to arches in
-> >    this section, like setting up sparsemem).
+> > > it no longer makes sense to try
+> > > allocation as hard as possible, for fill_balloon() will after all have to
+> > > release just allocated memory if some allocation request hits the OOM
+> > > notifier path. Therefore, this patch disables __GFP_DIRECT_RECLAIM when
+> > > allocating memory for inflating the balloon. Then, memory for inflating
+> > > the balloon can be allocated inside balloon_lock, and we can release just
+> > > allocated memory as needed.
+> > > 
+> > > Also, this patch adds __GFP_NOWARN, for possibility of hitting memory
+> > > allocation failure is increased by removing __GFP_DIRECT_RECLAIM, which
+> > > might spam the kernel log buffer. At the same time, this patch moves
+> > > "puff" messages to outside of balloon_lock, for it is not a good thing to
+> > > block the OOM notifier path for 1/5 of a second. (Moreover, it is better
+> > > to release the workqueue and allow processing other pending items. But
+> > > that change is out of this patch's scope.)
+> > > 
+> > > __GFP_NOMEMALLOC is currently not required because workqueue context
+> > > which calls balloon_page_alloc() won't cause __gfp_pfmemalloc_flags()
+> > > to return ALLOC_OOM. But since some process context might start calling
+> > > balloon_page_alloc() in future, this patch does not remove
+> > > __GFP_NOMEMALLOC.
+> > > 
+> > > (Only compile tested. Please do runtime tests before committing.)
+> > 
+> > You will have to find someone to test it.
 > 
-> yes
-> 
-> >  - How to tweak the various knobs that the mm subsystem provides.
-> >    Maybe this is all adequately documented elsewhere already.
-> 
-> This would be Documentation/sysctl/vm.txt which is one that is at least
-> close to be complete.
-> 
-> > Perhaps others can think of other types of documentation which would
-> > be useful.
-> 
-> - design documentation of various parts of the MM - reclaim, memory
->   hotplug, memcg, page allocator, memory models, THP, rmap code (you
->   name it)
-> 
-> > That shouldn't detract from my main point, which is that
-> > saying "Now we have mm documentation" is laudable, but not enough.
-> 
-> Absolutely agreed.
-
-I don't think anybody is saying "we have mm documentation", at least in the
-sense "mm is well documented".
-
-One of my points was that bringing some order to the existing bits of the
-documentation is an important step forward and it does not contradict
-necessity to add documentation you and Matthew described here.
-
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
--- 
-Sincerely yours,
-Mike.
+> I don't have machines with much memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
