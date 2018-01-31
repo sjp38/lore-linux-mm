@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D5636B0023
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:04:38 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id 1so11158118uas.23
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 15:04:38 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id k39si515808uae.128.2018.01.31.15.04.37
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BC8116B0026
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:04:40 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id l6so15260552qtj.0
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 15:04:40 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id x22si2749728qka.31.2018.01.31.15.04.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jan 2018 15:04:37 -0800 (PST)
+        Wed, 31 Jan 2018 15:04:39 -0800 (PST)
 From: daniel.m.jordan@oracle.com
-Subject: [RFC PATCH v1 11/13] mm: use lru_batch locking in release_pages
-Date: Wed, 31 Jan 2018 18:04:11 -0500
-Message-Id: <20180131230413.27653-12-daniel.m.jordan@oracle.com>
+Subject: [RFC PATCH v1 12/13] mm: split up release_pages into non-sentinel and sentinel passes
+Date: Wed, 31 Jan 2018 18:04:12 -0500
+Message-Id: <20180131230413.27653-13-daniel.m.jordan@oracle.com>
 In-Reply-To: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
 References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,104 +20,82 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, ldufour@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com
 
-Introduce LRU batch locking in release_pages.  This is the code path
-where I see lru_lock contention most often, so this is the one I used in
-this prototype.
+A common case in release_pages is for the 'pages' list to be in roughly
+the same order as they are in their LRU.  With LRU batch locking, when a
+sentinel page is removed, an adjacent non-sentinel page must be promoted
+to a sentinel page to follow the locking scheme.  So we can get behavior
+where nearly every page in the 'pages' array is treated as a sentinel
+page, hurting the scalability of this approach.
+
+To address this, split up release_pages into non-sentinel and sentinel
+passes so that the non-sentinel pages can be locked with an LRU batch
+lock before the sentinel pages are removed.
+
+For the prototype, just use a bitmap and a temporary outer loop to
+implement this.
+
+Performance numbers from a single microbenchmark at this point in the
+series are included in the next patch.
 
 Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- mm/swap.c | 45 +++++++++++++++++----------------------------
- 1 file changed, 17 insertions(+), 28 deletions(-)
+ mm/swap.c | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
 
 diff --git a/mm/swap.c b/mm/swap.c
-index 2bb28fcb7cc0..fae766e035a4 100644
+index fae766e035a4..a302224293ad 100644
 --- a/mm/swap.c
 +++ b/mm/swap.c
-@@ -745,31 +745,21 @@ void release_pages(struct page **pages, int nr)
- 	int i;
+@@ -731,6 +731,7 @@ void lru_add_drain_all(void)
+ 	put_online_cpus();
+ }
+ 
++#define LRU_BITMAP_SIZE	512
+ /**
+  * release_pages - batched put_page()
+  * @pages: array of pages to release
+@@ -742,16 +743,32 @@ void lru_add_drain_all(void)
+  */
+ void release_pages(struct page **pages, int nr)
+ {
+-	int i;
++	int h, i;
  	LIST_HEAD(pages_to_free);
  	struct pglist_data *locked_pgdat = NULL;
-+	spinlock_t *locked_lru_batch = NULL;
+ 	spinlock_t *locked_lru_batch = NULL;
  	struct lruvec *lruvec;
  	unsigned long uninitialized_var(flags);
--	unsigned int uninitialized_var(lock_batch);
++	DECLARE_BITMAP(lru_bitmap, LRU_BITMAP_SIZE);
++
++	VM_BUG_ON(nr > LRU_BITMAP_SIZE);
  
++	bitmap_zero(lru_bitmap, nr);
++
++	for (h = 0; h < 2; h++) {
  	for (i = 0; i < nr; i++) {
  		struct page *page = pages[i];
  
--		/*
--		 * Make sure the IRQ-safe lock-holding time does not get
--		 * excessive with a continuous string of pages from the
--		 * same pgdat. The lock is held only if pgdat != NULL.
--		 */
--		if (locked_pgdat && ++lock_batch == SWAP_CLUSTER_MAX) {
--			lru_unlock_all(locked_pgdat, &flags);
--			locked_pgdat = NULL;
--		}
--
++		if (h == 0) {
++			if (PageLRU(page) && page->lru_sentinel) {
++				bitmap_set(lru_bitmap, i, 1);
++				continue;
++			}
++		} else {
++			if (!test_bit(i, lru_bitmap))
++				continue;
++		}
++
  		if (is_huge_zero_page(page))
  			continue;
  
- 		/* Device public page can not be huge page */
- 		if (is_device_public_page(page)) {
--			if (locked_pgdat) {
--				lru_unlock_all(locked_pgdat, &flags);
--				locked_pgdat = NULL;
-+			if (locked_lru_batch) {
-+				lru_batch_unlock(NULL, &locked_lru_batch,
-+						 &locked_pgdat, &flags);
- 			}
- 			put_zone_device_private_or_public_page(page);
- 			continue;
-@@ -780,26 +770,23 @@ void release_pages(struct page **pages, int nr)
- 			continue;
- 
- 		if (PageCompound(page)) {
--			if (locked_pgdat) {
--				lru_unlock_all(locked_pgdat, &flags);
--				locked_pgdat = NULL;
-+			if (locked_lru_batch) {
-+				lru_batch_unlock(NULL, &locked_lru_batch,
-+						 &locked_pgdat, &flags);
- 			}
- 			__put_compound_page(page);
- 			continue;
- 		}
- 
- 		if (PageLRU(page)) {
--			struct pglist_data *pgdat = page_pgdat(page);
--
--			if (pgdat != locked_pgdat) {
--				if (locked_pgdat)
--					lru_unlock_all(locked_pgdat, &flags);
--				lock_batch = 0;
--				locked_pgdat = pgdat;
--				lru_lock_all(locked_pgdat, &flags);
-+			if (locked_lru_batch) {
-+				lru_batch_unlock(page, &locked_lru_batch,
-+						 &locked_pgdat, &flags);
- 			}
-+			lru_batch_lock(page, &locked_lru_batch, &locked_pgdat,
-+				       &flags);
- 
--			lruvec = mem_cgroup_page_lruvec(page, locked_pgdat);
-+			lruvec = mem_cgroup_page_lruvec(page, page_pgdat(page));
- 			VM_BUG_ON_PAGE(!PageLRU(page), page);
- 			__ClearPageLRU(page);
- 			del_page_from_lru_list(page, lruvec, page_off_lru(page));
-@@ -811,8 +798,10 @@ void release_pages(struct page **pages, int nr)
+@@ -798,6 +815,7 @@ void release_pages(struct page **pages, int nr)
  
  		list_add(&page->lru, &pages_to_free);
  	}
--	if (locked_pgdat)
--		lru_unlock_all(locked_pgdat, &flags);
-+	if (locked_lru_batch) {
-+		lru_batch_unlock(NULL, &locked_lru_batch, &locked_pgdat,
-+				 &flags);
 +	}
- 
- 	mem_cgroup_uncharge_list(&pages_to_free);
- 	free_unref_page_list(&pages_to_free);
+ 	if (locked_lru_batch) {
+ 		lru_batch_unlock(NULL, &locked_lru_batch, &locked_pgdat,
+ 				 &flags);
 -- 
 2.16.1
 
