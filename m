@@ -1,115 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B9466B0005
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 05:16:03 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id o42so9871933uao.12
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 02:16:03 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e6sor512126vkf.289.2018.01.31.02.16.02
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 67F946B0005
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 05:54:59 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id q2so3053187pgf.22
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 02:54:59 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id n19si1644593pgd.648.2018.01.31.02.54.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 31 Jan 2018 02:16:02 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 31 Jan 2018 02:54:58 -0800 (PST)
+Date: Wed, 31 Jan 2018 02:54:56 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [Bug 198497] New: handle_mm_fault / xen_pmd_val /
+ radix_tree_lookup_slot Null pointer
+Message-ID: <20180131105456.GC28275@bombadil.infradead.org>
+References: <bug-198497-27@https.bugzilla.kernel.org/>
+ <20180118135518.639141f0b0ea8bb047ab6306@linux-foundation.org>
+ <7ba7635e-249a-9071-75bb-7874506bd2b2@redhat.com>
+ <20180119030447.GA26245@bombadil.infradead.org>
+ <d38ff996-8294-81a6-075f-d7b2a60aa2f4@rimuhosting.com>
+ <20180119132145.GB2897@bombadil.infradead.org>
+ <9d2ddba4-3fb3-0fb4-a058-f2cfd1b05538@redhat.com>
+ <32ab6fd6-e3c6-9489-8163-aa73861aa71a@rimuhosting.com>
+ <20180126194058.GA31600@bombadil.infradead.org>
+ <9ff38687-edde-6b4e-4532-9c150f8ea647@rimuhosting.com>
 MIME-Version: 1.0
-In-Reply-To: <20180130213607.i4oybskvoxpzxqxd@gmail.com>
-References: <94eb2c05551289ffff0563224e41@google.com> <20180130213607.i4oybskvoxpzxqxd@gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 31 Jan 2018 21:16:00 +1100
-Message-ID: <CAGXu5j+2Yv8DaBfcxpL57pB_m=GrZt8V5w1wqmhjpR=ZiAm6QQ@mail.gmail.com>
-Subject: Re: WARNING in usercopy_warn
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <9ff38687-edde-6b4e-4532-9c150f8ea647@rimuhosting.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: James Morse <james.morse@arm.com>, keun-o.park@darkmatter.ae, syzbot <syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com>, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com
+To: xen@randonwebstuff.com
+Cc: Laura Abbott <labbott@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Wed, Jan 31, 2018 at 8:36 AM, Eric Biggers <ebiggers3@gmail.com> wrote:
-> On Fri, Jan 19, 2018 at 06:58:01AM -0800, syzbot wrote:
->> Hello,
->>
->> syzbot hit the following crash on linux-next commit
->> b625c1ff82272e26c76570d3c7123419ec345b20
->>
->> So far this crash happened 5 times on linux-next, mmots.
->> C reproducer is attached.
->> syzkaller reproducer is attached.
->> Raw console output is attached.
->> compiler: gcc (GCC) 7.1.1 20170620
->> .config is attached.
->>
->> IMPORTANT: if you fix the bug, please add the following tag to the commit:
->> Reported-by: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com
->> It will help syzbot understand when the bug is fixed. See footer for
->> details.
->> If you forward the report, please keep this part and the footer.
->>
->> device syz0 entered promiscuous mode
->> ------------[ cut here ]------------
->> Bad or missing usercopy whitelist? Kernel memory exposure attempt detected
->> from SLAB object 'skbuff_head_cache' (offset 64, size 16)!
->> WARNING: CPU: 0 PID: 3663 at mm/usercopy.c:81 usercopy_warn+0xdb/0x100
->> mm/usercopy.c:76
->> Kernel panic - not syncing: panic_on_warn set ...
->>
->> CPU: 0 PID: 3663 Comm: syzkaller694156 Not tainted 4.15.0-rc7-next-20180115+
->> #97
->> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
->> Google 01/01/2011
->> Call Trace:
->>  __dump_stack lib/dump_stack.c:17 [inline]
->>  dump_stack+0x194/0x257 lib/dump_stack.c:53
->>  panic+0x1e4/0x41c kernel/panic.c:183
->>  __warn+0x1dc/0x200 kernel/panic.c:547
->>  report_bug+0x211/0x2d0 lib/bug.c:184
->>  fixup_bug.part.11+0x37/0x80 arch/x86/kernel/traps.c:178
->>  fixup_bug arch/x86/kernel/traps.c:247 [inline]
->>  do_error_trap+0x2d7/0x3e0 arch/x86/kernel/traps.c:296
->>  do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:315
->>  invalid_op+0x22/0x40 arch/x86/entry/entry_64.S:1085
->> RIP: 0010:usercopy_warn+0xdb/0x100 mm/usercopy.c:76
->> RSP: 0018:ffff8801d99df548 EFLAGS: 00010282
->> RAX: dffffc0000000008 RBX: ffffffff865cf19f RCX: ffffffff815aba6e
->> RDX: 0000000000000000 RSI: 1ffff1003b33be2e RDI: 1ffff1003b33be64
->> RBP: ffff8801d99df5a0 R08: 0000000000000000 R09: 0000000000000000
->> R10: 00000000000003e6 R11: 0000000000000000 R12: ffffffff86200d00
->> R13: ffffffff85d2cfc0 R14: 0000000000000040 R15: 0000000000000010
->>  __check_heap_object+0x89/0xc0 mm/slab.c:4426
->>  check_heap_object mm/usercopy.c:236 [inline]
->>  __check_object_size+0x272/0x530 mm/usercopy.c:259
->>  check_object_size include/linux/thread_info.h:112 [inline]
->>  check_copy_size include/linux/thread_info.h:143 [inline]
->>  copy_to_user include/linux/uaccess.h:154 [inline]
->>  put_cmsg+0x233/0x3f0 net/core/scm.c:242
->>  sock_recv_errqueue+0x200/0x3e0 net/core/sock.c:2913
->>  packet_recvmsg+0xb2e/0x17a0 net/packet/af_packet.c:3296
->>  sock_recvmsg_nosec net/socket.c:803 [inline]
->>  sock_recvmsg+0xc9/0x110 net/socket.c:810
->>  ___sys_recvmsg+0x2a4/0x640 net/socket.c:2179
->>  __sys_recvmmsg+0x2a9/0xaf0 net/socket.c:2287
->>  SYSC_recvmmsg net/socket.c:2368 [inline]
->>  SyS_recvmmsg+0xc4/0x160 net/socket.c:2352
->>  entry_SYSCALL_64_fastpath+0x29/0xa0
->> RIP: 0033:0x444339
->> RSP: 002b:00007ffdb359d7d8 EFLAGS: 00000203 ORIG_RAX: 000000000000012b
->> RAX: ffffffffffffffda RBX: 00000000004002e0 RCX: 0000000000444339
->> RDX: 0000000000000001 RSI: 0000000020ef7fc4 RDI: 0000000000000005
->> RBP: 00000000006ce018 R08: 0000000020000000 R09: 0000000000000001
->> R10: 0000000000002000 R11: 0000000000000203 R12: 0000000000402020
->> R13: 00000000004020b0 R14: 0000000000000000 R15: 0000000000000000
->> Dumping ftrace buffer:
->>    (ftrace buffer empty)
->> Kernel Offset: disabled
->> Rebooting in 86400 seconds..
->
-> Kees, has this been fixed yet?
+On Tue, Jan 30, 2018 at 11:26:42AM +1300, xen@randonwebstuff.com wrote:
+> After, received this stack.
+> 
+> Have not tried memtest86.  These are production hosts.  This has occurred on
+> multiple hosts.  I can only recall this occurring on 32 bit kernels.  I
+> cannot recall issues with other VMs not running that kernel on the same
+> hosts.
+> 
+> [  125.329163] Bad swp_entry: e000000
 
-Hi! Thanks for the ping. I missed this in my backlog of email across
-LCA. I'm looking at it now...
+Mixed news here then ... 'e' is 8 | 4 | 2, so it's not a single bitflip.
+So no point in running memtest86.
 
--Kees
+I should have made the printk produce leading zeroes, because that's
+0x0e00'0000.  ptes use the top 5 bits to encode the swapfile, so
+this swap entry is decoded as swapfile 1, page number 0x0600'0000.
+That's clearly ludicrous because you don't have a swapfile 1, and if
+you did, it wouldn't be so large as a terabyte.
 
--- 
-Kees Cook
-Pixel Security
+I think the next step in debugging this is printing the PTE which gave
+us this swp_entry.  If you can drop the patch I asked you to try, and
+apply this patch instead, we'll have more idea about what's going on.
+
+Thanks!
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 403934297a3d..8caaddb07747 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2892,6 +2892,10 @@ int do_swap_page(struct vm_fault *vmf)
+ 	if (!page)
+ 		page = lookup_swap_cache(entry, vma_readahead ? vma : NULL,
+ 					 vmf->address);
++	if (IS_ERR(page)) {
++		pte_ERROR(vmf->orig_pte);
++		page = NULL;
++	}
+ 	if (!page) {
+ 		struct swap_info_struct *si = swp_swap_info(entry);
+ 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 7fbe67be86fa..905fa34e022a 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1651,6 +1651,10 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 	if (swap.val) {
+ 		/* Look it up and read it in.. */
+ 		page = lookup_swap_cache(swap, NULL, 0);
++		if (IS_ERR(page)) {
++			pte_ERROR(vmf->orig_pte);
++			page = NULL;
++		}
+ 		if (!page) {
+ 			/* Or update major stats only when swapin succeeds?? */
+ 			if (fault_type) {
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 39ae7cfad90f..7ee594c8eadd 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -334,8 +334,14 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
+ 	struct page *page;
+ 	unsigned long ra_info;
+ 	int win, hits, readahead;
++	struct address_space *swapper_space = swap_address_space(entry);
++
++	if (!swapper_space) {
++		pr_err("Bad swp_entry: %lx\n", entry.val);
++		return ERR_PTR(-EFAULT);
++	}
+ 
+-	page = find_get_page(swap_address_space(entry), swp_offset(entry));
++	page = find_get_page(swapper_space, swp_offset(entry));
+ 
+ 	INC_CACHE_INFO(find_total);
+ 	if (page) {
+@@ -676,6 +682,10 @@ struct page *swap_readahead_detect(struct vm_fault *vmf,
+ 	if ((unlikely(non_swap_entry(entry))))
+ 		return NULL;
+ 	page = lookup_swap_cache(entry, vma, faddr);
++	if (IS_ERR(page)) {
++		pte_ERROR(vmf->orig_pte);
++		page = NULL;
++	}
+ 	if (page)
+ 		return page;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
