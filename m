@@ -1,47 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 014AA6B0005
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 03:01:17 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id 17so3541421wma.1
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 00:01:16 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y8si10610656wmc.74.2018.01.31.00.01.15
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A0AAE6B0005
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 03:08:18 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id e186so13768202iof.9
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 00:08:18 -0800 (PST)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0066.outbound.protection.outlook.com. [104.47.38.66])
+        by mx.google.com with ESMTPS id q42si4615174ioi.17.2018.01.31.00.08.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 Jan 2018 00:01:15 -0800 (PST)
-Date: Wed, 31 Jan 2018 09:01:14 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Lock mmap_sem when calling migrate_pages() in
- do_move_pages_to_node()
-Message-ID: <20180131080114.GM21609@dhcp22.suse.cz>
-References: <20180130030011.4310-1-zi.yan@sent.com>
- <20180130081415.GO21609@dhcp22.suse.cz>
- <5A7094DA.4000804@cs.rutgers.edu>
- <20180130161025.GH21609@dhcp22.suse.cz>
- <F3D5C6AC-78B6-4443-9BE1-575831F238E2@cs.rutgers.edu>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 31 Jan 2018 00:08:17 -0800 (PST)
+From: "He, Roger" <Hongbo.He@amd.com>
+Subject: RE: [PATCH] mm/swap: add function get_total_swap_pages to expose
+ total_swap_pages
+Date: Wed, 31 Jan 2018 08:08:15 +0000
+Message-ID: <MWHPR1201MB0127760D359772D5565BA3EBFDFB0@MWHPR1201MB0127.namprd12.prod.outlook.com>
+References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
+ <9ecba5f4-3d4c-0179-bf03-f89c436cff6b@amd.com>
+In-Reply-To: <9ecba5f4-3d4c-0179-bf03-f89c436cff6b@amd.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <F3D5C6AC-78B6-4443-9BE1-575831F238E2@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
+To: "Zhou, David(ChunMing)" <David1.Zhou@amd.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Koenig, Christian" <Christian.Koenig@amd.com>
 
-On Tue 30-01-18 14:12:28, Zi Yan wrote:
-> On 30 Jan 2018, at 11:10, Michal Hocko wrote:
-[...]
-> I think the question is whether we need to hold mmap_sem for
-> migrate_pages(). Hugh also agrees it is not necessary on a separate
-> email. But it is held in the original code.
-
-I would be really surprised if we really needed the lock. If we do,
-however, then we really need a very good explanation why. The code used
-to do so is not a valid reason.
-
--- 
-Michal Hocko
-SUSE Labs
+CUkgdGhpbmsgdGhpcyBwYXRjaCBpc24ndCBuZWVkIGF0IGFsbC4gWW91IGNhbiBkaXJlY3RseSBy
+ZWFkIHRvdGFsX3N3YXBfcGFnZXMgdmFyaWFibGUgaW4gVFRNLg0KDQpCZWNhdXNlIHRoZSB2YXJp
+YWJsZSBpcyBub3QgZXhwb3J0ZWQgYnkgRVhQT1JUX1NZTUJPTF9HUEwuIFNvIGRpcmVjdCB1c2lu
+ZyB3aWxsIHJlc3VsdCBpbjoNCiJXQVJOSU5HOiAidG90YWxfc3dhcF9wYWdlcyIgW2RyaXZlcnMv
+Z3B1L2RybS90dG0vdHRtLmtvXSB1bmRlZmluZWQhIi4NCg0KVGhhbmtzDQpSb2dlcihIb25nYm8u
+SGUpDQotLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KRnJvbTogZHJpLWRldmVsIFttYWlsdG86
+ZHJpLWRldmVsLWJvdW5jZXNAbGlzdHMuZnJlZWRlc2t0b3Aub3JnXSBPbiBCZWhhbGYgT2YgQ2h1
+bm1pbmcgWmhvdQ0KU2VudDogV2VkbmVzZGF5LCBKYW51YXJ5IDMxLCAyMDE4IDM6MTUgUE0NClRv
+OiBIZSwgUm9nZXIgPEhvbmdiby5IZUBhbWQuY29tPjsgZHJpLWRldmVsQGxpc3RzLmZyZWVkZXNr
+dG9wLm9yZw0KQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZzsgbGludXgta2VybmVsQHZnZXIua2VybmVs
+Lm9yZzsgS29lbmlnLCBDaHJpc3RpYW4gPENocmlzdGlhbi5Lb2VuaWdAYW1kLmNvbT4NClN1Ympl
+Y3Q6IFJlOiBbUEFUQ0hdIG1tL3N3YXA6IGFkZCBmdW5jdGlvbiBnZXRfdG90YWxfc3dhcF9wYWdl
+cyB0byBleHBvc2UgdG90YWxfc3dhcF9wYWdlcw0KDQpIaSBSb2dlciwNCg0KSSB0aGluayB0aGlz
+IHBhdGNoIGlzbid0IG5lZWQgYXQgYWxsLiBZb3UgY2FuIGRpcmVjdGx5IHJlYWQgdG90YWxfc3dh
+cF9wYWdlcyB2YXJpYWJsZSBpbiBUVE0uIFNlZSB0aGUgY29tbWVudDoNCg0KLyogcHJvdGVjdGVk
+IHdpdGggc3dhcF9sb2NrLiByZWFkaW5nIGluIHZtX3N3YXBfZnVsbCgpIGRvZXNuJ3QgbmVlZCBs
+b2NrICovIGxvbmcgdG90YWxfc3dhcF9wYWdlczsNCg0KdGhlcmUgYXJlIG1hbnkgcGxhY2VzIHVz
+aW5nIGl0IGRpcmVjdGx5LCB5b3UganVzdCBjb3VsZG4ndCBjaGFuZ2UgaXRzIHZhbHVlLiBSZWFk
+aW5nIGl0IGRvZXNuJ3QgbmVlZCBsb2NrLg0KDQoNClJlZ2FyZHMsDQoNCkRhdmlkIFpob3UNCg0K
+DQpPbiAyMDE45bm0MDHmnIgyOeaXpSAxNjoyOSwgUm9nZXIgSGUgd3JvdGU6DQo+IHR0bSBtb2R1
+bGUgbmVlZHMgaXQgdG8gZGV0ZXJtaW5lIGl0cyBpbnRlcm5hbCBwYXJhbWV0ZXIgc2V0dGluZy4N
+Cj4NCj4gU2lnbmVkLW9mZi1ieTogUm9nZXIgSGUgPEhvbmdiby5IZUBhbWQuY29tPg0KPiAtLS0N
+Cj4gICBpbmNsdWRlL2xpbnV4L3N3YXAuaCB8ICA2ICsrKysrKw0KPiAgIG1tL3N3YXBmaWxlLmMg
+ICAgICAgIHwgMTUgKysrKysrKysrKysrKysrDQo+ICAgMiBmaWxlcyBjaGFuZ2VkLCAyMSBpbnNl
+cnRpb25zKCspDQo+DQo+IGRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L3N3YXAuaCBiL2luY2x1
+ZGUvbGludXgvc3dhcC5oDQo+IGluZGV4IGMyYjgxMjguLjcwOGQ2NmYgMTAwNjQ0DQo+IC0tLSBh
+L2luY2x1ZGUvbGludXgvc3dhcC5oDQo+ICsrKyBiL2luY2x1ZGUvbGludXgvc3dhcC5oDQo+IEBA
+IC00ODQsNiArNDg0LDcgQEAgZXh0ZXJuIGludCB0cnlfdG9fZnJlZV9zd2FwKHN0cnVjdCBwYWdl
+ICopOw0KPiAgIHN0cnVjdCBiYWNraW5nX2Rldl9pbmZvOw0KPiAgIGV4dGVybiBpbnQgaW5pdF9z
+d2FwX2FkZHJlc3Nfc3BhY2UodW5zaWduZWQgaW50IHR5cGUsIHVuc2lnbmVkIGxvbmcgbnJfcGFn
+ZXMpOw0KPiAgIGV4dGVybiB2b2lkIGV4aXRfc3dhcF9hZGRyZXNzX3NwYWNlKHVuc2lnbmVkIGlu
+dCB0eXBlKTsNCj4gK2V4dGVybiBsb25nIGdldF90b3RhbF9zd2FwX3BhZ2VzKHZvaWQpOw0KPiAg
+IA0KPiAgICNlbHNlIC8qIENPTkZJR19TV0FQICovDQo+ICAgDQo+IEBAIC01MTYsNiArNTE3LDEx
+IEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBzaG93X3N3YXBfY2FjaGVfaW5mbyh2b2lkKQ0KPiAgIHsN
+Cj4gICB9DQo+ICAgDQo+ICtsb25nIGdldF90b3RhbF9zd2FwX3BhZ2VzKHZvaWQpDQo+ICt7DQo+
+ICsJcmV0dXJuIDA7DQo+ICt9DQo+ICsNCj4gICAjZGVmaW5lIGZyZWVfc3dhcF9hbmRfY2FjaGUo
+ZSkgKHsoaXNfbWlncmF0aW9uX2VudHJ5KGUpIHx8IGlzX2RldmljZV9wcml2YXRlX2VudHJ5KGUp
+KTt9KQ0KPiAgICNkZWZpbmUgc3dhcGNhY2hlX3ByZXBhcmUoZSkgKHsoaXNfbWlncmF0aW9uX2Vu
+dHJ5KGUpIHx8IGlzX2RldmljZV9wcml2YXRlX2VudHJ5KGUpKTt9KQ0KPiAgIA0KPiBkaWZmIC0t
+Z2l0IGEvbW0vc3dhcGZpbGUuYyBiL21tL3N3YXBmaWxlLmMNCj4gaW5kZXggMzA3NGIwMi4uYTAw
+NjJlYiAxMDA2NDQNCj4gLS0tIGEvbW0vc3dhcGZpbGUuYw0KPiArKysgYi9tbS9zd2FwZmlsZS5j
+DQo+IEBAIC05OCw2ICs5OCwyMSBAQCBzdGF0aWMgYXRvbWljX3QgcHJvY19wb2xsX2V2ZW50ID0g
+QVRPTUlDX0lOSVQoMCk7DQo+ICAgDQo+ICAgYXRvbWljX3QgbnJfcm90YXRlX3N3YXAgPSBBVE9N
+SUNfSU5JVCgwKTsNCj4gICANCj4gKy8qDQo+ICsgKiBleHBvc2UgdGhpcyB2YWx1ZSBmb3Igb3Ro
+ZXJzIHVzZQ0KPiArICovDQo+ICtsb25nIGdldF90b3RhbF9zd2FwX3BhZ2VzKHZvaWQpDQo+ICt7
+DQo+ICsJbG9uZyByZXQ7DQo+ICsNCj4gKwlzcGluX2xvY2soJnN3YXBfbG9jayk7DQo+ICsJcmV0
+ID0gdG90YWxfc3dhcF9wYWdlczsNCj4gKwlzcGluX3VubG9jaygmc3dhcF9sb2NrKTsNCj4gKw0K
+PiArCXJldHVybiByZXQ7DQo+ICt9DQo+ICtFWFBPUlRfU1lNQk9MX0dQTChnZXRfdG90YWxfc3dh
+cF9wYWdlcyk7DQo+ICsNCj4gICBzdGF0aWMgaW5saW5lIHVuc2lnbmVkIGNoYXIgc3dhcF9jb3Vu
+dCh1bnNpZ25lZCBjaGFyIGVudCkNCj4gICB7DQo+ICAgCXJldHVybiBlbnQgJiB+U1dBUF9IQVNf
+Q0FDSEU7CS8qIG1heSBpbmNsdWRlIFNXQVBfSEFTX0NPTlQgZmxhZyAqLw0KDQpfX19fX19fX19f
+X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fXw0KZHJpLWRldmVsIG1haWxpbmcg
+bGlzdA0KZHJpLWRldmVsQGxpc3RzLmZyZWVkZXNrdG9wLm9yZw0KaHR0cHM6Ly9saXN0cy5mcmVl
+ZGVza3RvcC5vcmcvbWFpbG1hbi9saXN0aW5mby9kcmktZGV2ZWwNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
