@@ -1,350 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D9AD6B0005
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 00:42:54 -0500 (EST)
-Received: by mail-vk0-f71.google.com with SMTP id n186so8414536vkc.3
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 21:42:54 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id q64si411277vkg.69.2018.01.30.21.42.52
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B0666B0005
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 00:52:31 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id c22so13471590pfj.2
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 21:52:31 -0800 (PST)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0062.outbound.protection.outlook.com. [104.47.32.62])
+        by mx.google.com with ESMTPS id q14si1349975pfh.17.2018.01.30.21.52.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jan 2018 21:42:53 -0800 (PST)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v1] mm: optimize memory hotplug
-Date: Wed, 31 Jan 2018 00:42:43 -0500
-Message-Id: <20180131054243.28141-1-pasha.tatashin@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 Jan 2018 21:52:30 -0800 (PST)
+From: "He, Roger" <Hongbo.He@amd.com>
+Subject: RE: [PATCH] mm/swap: add function get_total_swap_pages to expose
+ total_swap_pages
+Date: Wed, 31 Jan 2018 05:52:26 +0000
+Message-ID: <MWHPR1201MB0127ECADF14022B0A383081EFDFB0@MWHPR1201MB0127.namprd12.prod.outlook.com>
+References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
+ <20180129163114.GH21609@dhcp22.suse.cz>
+ <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
+ <20180130075553.GM21609@dhcp22.suse.cz>
+ <9060281e-62dd-8775-2903-339ff836b436@amd.com>
+ <20180130101823.GX21609@dhcp22.suse.cz>
+ <7d5ce7ab-d16d-36bc-7953-e1da2db350bf@amd.com>
+ <20180130122853.GC21609@dhcp22.suse.cz>
+In-Reply-To: <20180130122853.GC21609@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com
+To: Michal Hocko <mhocko@kernel.org>, "Koenig, Christian" <Christian.Koenig@amd.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
 
-This patch was inspired by the discussion of this problem:
-http://lkml.kernel.org/r/20180130083006.GB1245@in.ibm.com
+	I do think you should completely ignore the size of the swap space. IMHO y=
+ou should forbid further allocations when your current 	buffer storage cann=
+ot be reclaimed. So you need some form of feedback mechanism that would tel=
+l you: "Your buffers have 	grown too much". If you cannot do that then simp=
+ly assume that you cannot swap at all rather than rely on having some porti=
+on 	of it for yourself.=20
 
-Currently, during memory hotplugging we traverse struct pages several
-times:
+If we assume the swap cache size is zero always, that is overkill for GTT s=
+ize actually user can get. And not make sense as well I think.
 
-1. memset(0) in sparse_add_one_section()
-2. loop in __add_section() to set do: set_page_node(page, nid); and
-   SetPageReserved(page);
-3. loop in pages_correctly_reserved() to check that SetPageReserved is set.
-4. loop in memmap_init_zone() to call __init_single_pfn()
+	There are many other users of memory outside of your subsystem. Any scalin=
+g based on the 50% of resource belonging to me is 	simply broken.
 
-This patch removes loops 1, 2, and 3 and only leaves the loop 4, where all
-struct page fields are initialized in one go, the same as it is now done
-during boot.
+And that is only a threshold to avoid  overuse  rather than really reserved=
+ to TTM at the start. In addition, for most cases TTM only uses a little or=
+ not use swap disk at all. Only special test case use more or probably that=
+ is intentional.
 
-The benefits:
-- We improve the memory hotplug performance because we are not evicting
-  cache several times and also reduce loop branching overheads.
 
-- Remove condition from hotpath in __init_single_pfn(), that was added in
-  order to fix the problem that was reported by Bharata in the above email
-  thread, thus also improve the performance during normal boot.
+Thanks
+Roger(Hongbo.He)
 
-- Make memory hotplug more similar to boot memory initialization path
-  because we zero and initialize struct pages only in one function.
+-----Original Message-----
+From: Michal Hocko [mailto:mhocko@kernel.org]=20
+Sent: Tuesday, January 30, 2018 8:29 PM
+To: Koenig, Christian <Christian.Koenig@amd.com>
+Cc: He, Roger <Hongbo.He@amd.com>; linux-mm@kvack.org; linux-kernel@vger.ke=
+rnel.org; dri-devel@lists.freedesktop.org
+Subject: Re: [PATCH] mm/swap: add function get_total_swap_pages to expose t=
+otal_swap_pages
 
-- Simplifies memory hotplug strut page initialization code, and thus
-  enables future improvements, such as multi-threading the initialization
-  of struct pages in order to improve the hotplug performance even further
-  on larger machines.
+On Tue 30-01-18 11:32:49, Christian K=F6nig wrote:
+> Am 30.01.2018 um 11:18 schrieb Michal Hocko:
+> > On Tue 30-01-18 10:00:07, Christian K=F6nig wrote:
+> > > Am 30.01.2018 um 08:55 schrieb Michal Hocko:
+> > > > On Tue 30-01-18 02:56:51, He, Roger wrote:
+> > > > > Hi Michal:
+> > > > >=20
+> > > > > We need a API to tell TTM module the system totally has how=20
+> > > > > many swap cache.  Then TTM module can use it to restrict how=20
+> > > > > many the swap cache it can use to prevent triggering OOM.  For=20
+> > > > > Now we set the threshold of swap size TTM used as 1/2 * total=20
+> > > > > size and leave the rest for others use.
+> > > > Why do you so much memory? Are you going to use TB of memory on=20
+> > > > large systems? What about memory hotplug when the memory is added/r=
+eleased?
+> > > For graphics and compute applications on GPUs it isn't unusual to=20
+> > > use large amounts of system memory.
+> > >=20
+> > > Our standard policy in TTM is to allow 50% of system memory to be=20
+> > > pinned for use with GPUs (the hardware can't do page faults).
+> > >=20
+> > > When that limit is exceeded (or the shrinker callbacks tell us to=20
+> > > make room) we wait for any GPU work to finish and copy buffer=20
+> > > content into a shmem file.
+> > >=20
+> > > This copy into a shmem file can easily trigger the OOM killer if=20
+> > > there isn't any swap space left and that is something we want to avoi=
+d.
+> > >=20
+> > > So what we want to do is to apply this 50% rule to swap space as=20
+> > > well and deny allocation of buffer objects when it is exceeded.
+> > How does that help when the rest of the system might eat swap?
+>=20
+> Well it doesn't, but that is not the problem here.
+>=20
+> When an application keeps calling malloc() it sooner or later is=20
+> confronted with an OOM killer.
+>=20
+> But when it keeps for example allocating OpenGL textures the=20
+> expectation is that this sooner or later starts to fail because we run=20
+> out of memory and not trigger the OOM killer.
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
----
- drivers/base/memory.c          | 36 ++++++++++++++++++++----------------
- include/linux/memory_hotplug.h |  2 ++
- mm/memory_hotplug.c            | 21 ++-------------------
- mm/page_alloc.c                | 28 ++++++++++------------------
- mm/sparse.c                    | 28 +++++++++++++++++++++++++---
- 5 files changed, 59 insertions(+), 56 deletions(-)
+There is nothing like running out of memory and not triggering the OOM kill=
+er. You can make a _particular_ allocation to bail out without the oom kill=
+er. Just use __GFP_NORETRY. But that doesn't make much difference when you =
+have already depleted your memory and live with the bare remainings. Any de=
+sperate soul trying to get its memory will simply trigger the OOM.
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index fe4b24f05f6a..deb3f029b451 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -187,13 +187,14 @@ int memory_isolate_notify(unsigned long val, void *v)
- }
- 
- /*
-- * The probe routines leave the pages reserved, just as the bootmem code does.
-- * Make sure they're still that way.
-+ * The probe routines leave the pages uninitialized, just as the bootmem code
-+ * does. Make sure we do not access them, but instead use only information from
-+ * within sections.
-  */
--static bool pages_correctly_reserved(unsigned long start_pfn)
-+static bool pages_correctly_probed(unsigned long start_pfn)
- {
--	int i, j;
--	struct page *page;
-+	unsigned long section_nr = pfn_to_section_nr(start_pfn);
-+	unsigned long section_nr_end = section_nr + sections_per_block;
- 	unsigned long pfn = start_pfn;
- 
- 	/*
-@@ -201,21 +202,24 @@ static bool pages_correctly_reserved(unsigned long start_pfn)
- 	 * SPARSEMEM_VMEMMAP. We lookup the page once per section
- 	 * and assume memmap is contiguous within each section
- 	 */
--	for (i = 0; i < sections_per_block; i++, pfn += PAGES_PER_SECTION) {
-+	for (; section_nr < section_nr_end; section_nr++) {
- 		if (WARN_ON_ONCE(!pfn_valid(pfn)))
- 			return false;
--		page = pfn_to_page(pfn);
--
--		for (j = 0; j < PAGES_PER_SECTION; j++) {
--			if (PageReserved(page + j))
--				continue;
--
--			printk(KERN_WARNING "section number %ld page number %d "
--				"not reserved, was it already online?\n",
--				pfn_to_section_nr(pfn), j);
- 
-+		if (!present_section_nr(section_nr)) {
-+			pr_warn("section %ld pfn[%lx, %lx) not present",
-+				section_nr, pfn, pfn + PAGES_PER_SECTION);
-+			return false;
-+		} else if (!valid_section_nr(section_nr)) {
-+			pr_warn("section %ld pfn[%lx, %lx) no valid memmap",
-+				section_nr, pfn, pfn + PAGES_PER_SECTION);
-+			return false;
-+		} else if (online_section_nr(section_nr)) {
-+			pr_warn("section %ld pfn[%lx, %lx) is already online",
-+				section_nr, pfn, pfn + PAGES_PER_SECTION);
- 			return false;
- 		}
-+		pfn += PAGES_PER_SECTION;
- 	}
- 
- 	return true;
-@@ -237,7 +241,7 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
- 
- 	switch (action) {
- 	case MEM_ONLINE:
--		if (!pages_correctly_reserved(start_pfn))
-+		if (!pages_correctly_probed(start_pfn))
- 			return -EBUSY;
- 
- 		ret = online_pages(start_pfn, nr_pages, online_type);
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 787411bdeadb..13acf181fb4b 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -234,6 +234,8 @@ void put_online_mems(void);
- void mem_hotplug_begin(void);
- void mem_hotplug_done(void);
- 
-+int get_section_nid(unsigned long section_nr);
-+
- #else /* ! CONFIG_MEMORY_HOTPLUG */
- #define pfn_to_online_page(pfn)			\
- ({						\
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6a9bee33ffa7..e7d11a14b1d1 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -250,7 +250,6 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
- 		struct vmem_altmap *altmap, bool want_memblock)
- {
- 	int ret;
--	int i;
- 
- 	if (pfn_valid(phys_start_pfn))
- 		return -EEXIST;
-@@ -259,23 +258,6 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
- 	if (ret < 0)
- 		return ret;
- 
--	/*
--	 * Make all the pages reserved so that nobody will stumble over half
--	 * initialized state.
--	 * FIXME: We also have to associate it with a node because page_to_nid
--	 * relies on having page with the proper node.
--	 */
--	for (i = 0; i < PAGES_PER_SECTION; i++) {
--		unsigned long pfn = phys_start_pfn + i;
--		struct page *page;
--		if (!pfn_valid(pfn))
--			continue;
--
--		page = pfn_to_page(pfn);
--		set_page_node(page, nid);
--		SetPageReserved(page);
--	}
--
- 	if (!want_memblock)
- 		return 0;
- 
-@@ -913,7 +895,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	int ret;
- 	struct memory_notify arg;
- 
--	nid = pfn_to_nid(pfn);
-+	nid = get_section_nid(pfn_to_section_nr(pfn));
-+
- 	/* associate pfn range with the zone */
- 	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e2b42f603b1a..b26991867393 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1178,10 +1178,9 @@ static void free_one_page(struct zone *zone,
- }
- 
- static void __meminit __init_single_page(struct page *page, unsigned long pfn,
--				unsigned long zone, int nid, bool zero)
-+				unsigned long zone, int nid)
- {
--	if (zero)
--		mm_zero_struct_page(page);
-+	mm_zero_struct_page(page);
- 	set_page_links(page, zone, nid, pfn);
- 	init_page_count(page);
- 	page_mapcount_reset(page);
-@@ -1195,12 +1194,6 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
- #endif
- }
- 
--static void __meminit __init_single_pfn(unsigned long pfn, unsigned long zone,
--					int nid, bool zero)
--{
--	return __init_single_page(pfn_to_page(pfn), pfn, zone, nid, zero);
--}
--
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
- static void __meminit init_reserved_page(unsigned long pfn)
- {
-@@ -1219,7 +1212,7 @@ static void __meminit init_reserved_page(unsigned long pfn)
- 		if (pfn >= zone->zone_start_pfn && pfn < zone_end_pfn(zone))
- 			break;
- 	}
--	__init_single_pfn(pfn, zid, nid, true);
-+	__init_single_page(pfn_to_page(pfn), pfn, zone, nid);
- }
- #else
- static inline void init_reserved_page(unsigned long pfn)
-@@ -1536,7 +1529,7 @@ static unsigned long  __init deferred_init_pages(int nid, int zid,
- 		} else {
- 			page++;
- 		}
--		__init_single_page(page, pfn, zid, nid, true);
-+		__init_single_page(page, pfn, zid, nid);
- 		nr_pages++;
- 	}
- 	return (nr_pages);
-@@ -5329,6 +5322,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 	pg_data_t *pgdat = NODE_DATA(nid);
- 	unsigned long pfn;
- 	unsigned long nr_initialised = 0;
-+	struct page *page;
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	struct memblock_region *r = NULL, *tmp;
- #endif
-@@ -5390,6 +5384,11 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- #endif
- 
- not_early:
-+		page = pfn_to_page(pfn);
-+		__init_single_page(page, pfn, zone, nid);
-+		if (context == MEMMAP_HOTPLUG)
-+			SetPageReserved(page);
-+
- 		/*
- 		 * Mark the block movable so that blocks are reserved for
- 		 * movable at startup. This will force kernel allocations
-@@ -5406,15 +5405,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		 * because this is done early in sparse_add_one_section
- 		 */
- 		if (!(pfn & (pageblock_nr_pages - 1))) {
--			struct page *page = pfn_to_page(pfn);
--
--			__init_single_page(page, pfn, zone, nid,
--					context != MEMMAP_HOTPLUG);
- 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
- 			cond_resched();
--		} else {
--			__init_single_pfn(pfn, zone, nid,
--					context != MEMMAP_HOTPLUG);
- 		}
- 	}
- }
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 7af5e7a92528..11ed21fb52b0 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -30,11 +30,14 @@ struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
- #endif
- EXPORT_SYMBOL(mem_section);
- 
--#ifdef NODE_NOT_IN_PAGE_FLAGS
-+#if defined(NODE_NOT_IN_PAGE_FLAGS) || defined(CONFIG_MEMORY_HOTPLUG)
- /*
-  * If we did not store the node number in the page then we have to
-  * do a lookup in the section_to_node_table in order to find which
-  * node the page belongs to.
-+ *
-+ * We also use this data in case memory hotplugging is enabled to be
-+ * able to determine nid while struct pages are not yet initialized.
-  */
- #if MAX_NUMNODES <= 256
- static u8 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
-@@ -42,17 +45,28 @@ static u8 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
- static u16 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
- #endif
- 
-+#ifdef NODE_NOT_IN_PAGE_FLAGS
- int page_to_nid(const struct page *page)
- {
- 	return section_to_node_table[page_to_section(page)];
- }
- EXPORT_SYMBOL(page_to_nid);
-+#endif /* NODE_NOT_IN_PAGE_FLAGS */
- 
- static void set_section_nid(unsigned long section_nr, int nid)
- {
- 	section_to_node_table[section_nr] = nid;
- }
--#else /* !NODE_NOT_IN_PAGE_FLAGS */
-+
-+/* Return NID for given section number */
-+int get_section_nid(unsigned long section_nr)
-+{
-+	if (WARN_ON(section_nr >= NR_MEM_SECTIONS))
-+		return 0;
-+	return section_to_node_table[section_nr];
-+}
-+EXPORT_SYMBOL(get_section_nid);
-+#else /* ! (NODE_NOT_IN_PAGE_FLAGS || CONFIG_MEMORY_HOTPLUG) */
- static inline void set_section_nid(unsigned long section_nr, int nid)
- {
- }
-@@ -816,7 +830,13 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
- 		goto out;
- 	}
- 
--	memset(memmap, 0, sizeof(struct page) * PAGES_PER_SECTION);
-+#ifdef CONFIG_DEBUG_VM_PGFLAGS
-+	/*
-+	 * poison uninitialized struct pages in order to catch invalid flags
-+	 * combinations.
-+	 */
-+	memset(memmap, -1, sizeof(struct page) * PAGES_PER_SECTION);
-+#endif
- 
- 	section_mark_present(ms);
- 
-@@ -827,6 +847,8 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
- 	if (ret <= 0) {
- 		kfree(usemap);
- 		__kfree_section_memmap(memmap, altmap);
-+	} else {
-+		set_section_nid(section_nr, pgdat->node_id);
- 	}
- 	return ret;
- }
--- 
-2.16.1
+> So what we do is to allow the application to use all of video memory +=20
+> a certain amount of system memory + swap space as last resort fallback (e=
+.g.
+> when you Alt+Tab from your full screen game back to your browser).
+>=20
+> The problem we try to solve is that we haven't limited the use of swap=20
+> space somehow.
+
+I do think you should completely ignore the size of the swap space. IMHO yo=
+u should forbid further allocations when your current buffer storage cannot=
+ be reclaimed. So you need some form of feedback mechanism that would tell =
+you: "Your buffers have grown too much". If you cannot do that then simply =
+assume that you cannot swap at all rather than rely on having some portion =
+of it for yourself. There are many other users of memory outside of your su=
+bsystem. Any scaling based on the 50% of resource belonging to me is simply=
+ broken.
+--
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
