@@ -1,179 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FF9D6B0005
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 21:07:46 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 199so12763454pfy.18
-        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 18:07:46 -0800 (PST)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id s12si579892pgc.746.2018.01.30.18.07.44
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jan 2018 18:07:44 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [patch] tools, vm: new option to specify kpageflags file
-Date: Wed, 31 Jan 2018 02:01:30 +0000
-Message-ID: <dc1df2b9-9136-4b8d-799b-c22baff20478@ah.jp.nec.com>
-References: <alpine.DEB.2.10.1801301458180.153857@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1801301458180.153857@chino.kir.corp.google.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <A8AB6FC77E3EEC47B5A3719FF8D5D6C5@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B49696B0007
+	for <linux-mm@kvack.org>; Tue, 30 Jan 2018 21:21:17 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id x24so9462030pge.13
+        for <linux-mm@kvack.org>; Tue, 30 Jan 2018 18:21:17 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id n10-v6si920215plp.698.2018.01.30.18.21.15
+        for <linux-mm@kvack.org>;
+        Tue, 30 Jan 2018 18:21:16 -0800 (PST)
+Date: Wed, 31 Jan 2018 13:22:09 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: freezing system for several second on high I/O [kernel 4.15]
+Message-ID: <20180131022209.lmhespbauhqtqrxg@destitution>
+References: <1517337604.9211.13.camel@gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1517337604.9211.13.camel@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: mikhail <mikhail.v.gavrilov@gmail.com>
+Cc: "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 01/31/2018 08:01 AM, David Rientjes wrote:
-> page-types currently hardcodes /proc/kpageflags as the file to parse. =20
-> This works when using the tool to examine the state of pageflags on the=20
-> same system, but does not allow storing a snapshot of pageflags at a give=
-n=20
-> time to debug issues nor on a different system.
->=20
-> This allows the user to specify a saved version of kpageflags with a new=
-=20
-> page-types -F option.
->=20
-> Signed-off-by: David Rientjes <rientjes@google.com>
+On Tue, Jan 30, 2018 at 11:40:04PM +0500, mikhail wrote:
+> Hi.
+> 
+> I  launched several application which highly use I/O on start and it
+> caused freezing system for several second.
+> 
+> All traces lead to xfs.
+> 
+> Whether there is a useful info in trace or just it means that disk is slow?
 
-Thanks for the work, looks good to me.
+Could be a disk that is slow, or could be many other
+things. More information required:
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+http://xfs.org/index.php/XFS_FAQ#Q:_What_information_should_I_include_when_reporting_a_problem.3F
 
-one nitpicking below ...=20
+....
+> [  369.301111] disk_cache:0    D12928  5241   5081 0x00000000
 
-> ---
->  tools/vm/page-types.c | 26 ++++++++++++++++++++------
->  1 file changed, 20 insertions(+), 6 deletions(-)
->=20
-> diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-> --- a/tools/vm/page-types.c
-> +++ b/tools/vm/page-types.c
-> @@ -172,6 +172,7 @@ static pid_t		opt_pid;	/* process to walk */
->  const char *		opt_file;	/* file or directory path */
->  static uint64_t		opt_cgroup;	/* cgroup inode */
->  static int		opt_list_cgroup;/* list page cgroup */
-> +static const char *	opt_kpageflags;	/* kpageflags file to parse */
+Your "disk_cache" process is walking the inobt during inode
+allocation:
 
-checkpatch.pl emits a warning.
+> [  369.301118] Call Trace:
+> [  369.301124]  __schedule+0x2dc/0xba0
+> [  369.301133]  ? wait_for_completion+0x10e/0x1a0
+> [  369.301137]  schedule+0x33/0x90
+> [  369.301140]  schedule_timeout+0x25a/0x5b0
+> [  369.301146]  ? mark_held_locks+0x5f/0x90
+> [  369.301150]  ? _raw_spin_unlock_irq+0x2c/0x40
+> [  369.301153]  ? wait_for_completion+0x10e/0x1a0
+> [  369.301157]  ? trace_hardirqs_on_caller+0xf4/0x190
+> [  369.301162]  ? wait_for_completion+0x10e/0x1a0
+> [  369.301166]  wait_for_completion+0x136/0x1a0
+> [  369.301172]  ? wake_up_q+0x80/0x80
+> [  369.301203]  ? _xfs_buf_read+0x23/0x30 [xfs]
+> [  369.301232]  xfs_buf_submit_wait+0xb2/0x530 [xfs]
+> [  369.301262]  _xfs_buf_read+0x23/0x30 [xfs]
+> [  369.301290]  xfs_buf_read_map+0x14b/0x300 [xfs]
+> [  369.301324]  ? xfs_trans_read_buf_map+0xc4/0x5d0 [xfs]
+> [  369.301360]  xfs_trans_read_buf_map+0xc4/0x5d0 [xfs]
+> [  369.301390]  xfs_btree_read_buf_block.constprop.36+0x72/0xc0 [xfs]
+> [  369.301423]  xfs_btree_lookup_get_block+0x88/0x180 [xfs]
+> [  369.301454]  xfs_btree_lookup+0xcd/0x410 [xfs]
+> [  369.301462]  ? rcu_read_lock_sched_held+0x79/0x80
+> [  369.301495]  ? kmem_zone_alloc+0x6c/0xf0 [xfs]
+> [  369.301530]  xfs_dialloc_ag_update_inobt+0x49/0x120 [xfs]
+> [  369.301557]  ? xfs_inobt_init_cursor+0x3e/0xe0 [xfs]
+> [  369.301588]  xfs_dialloc_ag+0x17c/0x260 [xfs]
+> [  369.301616]  ? xfs_dialloc+0x236/0x270 [xfs]
+> [  369.301652]  xfs_dialloc+0x59/0x270 [xfs]
+> [  369.301718]  xfs_ialloc+0x6a/0x520 [xfs]
+> [  369.301724]  ? find_held_lock+0x3c/0xb0
+> [  369.301757]  xfs_dir_ialloc+0x67/0x210 [xfs]
+> [  369.301792]  xfs_create+0x514/0x840 [xfs]
+> [  369.301833]  xfs_generic_create+0x1fa/0x2d0 [xfs]
+> [  369.301865]  xfs_vn_mknod+0x14/0x20 [xfs]
+> [  369.301889]  xfs_vn_mkdir+0x16/0x20 [xfs]
+> [  369.301893]  vfs_mkdir+0x10c/0x1d0
+> [  369.301900]  SyS_mkdir+0x7e/0xf0
+> [  369.301909]  entry_SYSCALL_64_fastpath+0x1f/0x96
 
-ERROR: "foo *	bar" should be "foo *bar"
-#101: FILE: tools/vm/page-types.c:175:
-+static const char *	opt_kpageflags;	/* kpageflags file to parse */
+And everything else is backed up behind it trying to allocate
+inodes. There could be many, many reasons for that, and that's why
+we need more information to begin to isolate the cause.
 
+Cheers,
 
-Thanks,
-Naoya Horiguchi
-
-> =20
->  #define MAX_ADDR_RANGES	1024
->  static int		nr_addr_ranges;
-> @@ -258,7 +259,7 @@ static int checked_open(const char *pathname, int fla=
-gs)
->   * pagemap/kpageflags routines
->   */
-> =20
-> -static unsigned long do_u64_read(int fd, char *name,
-> +static unsigned long do_u64_read(int fd, const char *name,
->  				 uint64_t *buf,
->  				 unsigned long index,
->  				 unsigned long count)
-> @@ -283,7 +284,7 @@ static unsigned long kpageflags_read(uint64_t *buf,
->  				     unsigned long index,
->  				     unsigned long pages)
->  {
-> -	return do_u64_read(kpageflags_fd, PROC_KPAGEFLAGS, buf, index, pages);
-> +	return do_u64_read(kpageflags_fd, opt_kpageflags, buf, index, pages);
->  }
-> =20
->  static unsigned long kpagecgroup_read(uint64_t *buf,
-> @@ -293,7 +294,7 @@ static unsigned long kpagecgroup_read(uint64_t *buf,
->  	if (kpagecgroup_fd < 0)
->  		return pages;
-> =20
-> -	return do_u64_read(kpagecgroup_fd, PROC_KPAGEFLAGS, buf, index, pages);
-> +	return do_u64_read(kpagecgroup_fd, opt_kpageflags, buf, index, pages);
->  }
-> =20
->  static unsigned long pagemap_read(uint64_t *buf,
-> @@ -743,7 +744,7 @@ static void walk_addr_ranges(void)
->  {
->  	int i;
-> =20
-> -	kpageflags_fd =3D checked_open(PROC_KPAGEFLAGS, O_RDONLY);
-> +	kpageflags_fd =3D checked_open(opt_kpageflags, O_RDONLY);
-> =20
->  	if (!nr_addr_ranges)
->  		add_addr_range(0, ULONG_MAX);
-> @@ -790,6 +791,7 @@ static void usage(void)
->  "            -N|--no-summary            Don't show summary info\n"
->  "            -X|--hwpoison              hwpoison pages\n"
->  "            -x|--unpoison              unpoison pages\n"
-> +"            -F|--kpageflags            kpageflags file to parse\n"
->  "            -h|--help                  Show this usage message\n"
->  "flags:\n"
->  "            0x10                       bitfield format, e.g.\n"
-> @@ -1013,7 +1015,7 @@ static void walk_page_cache(void)
->  {
->  	struct stat st;
-> =20
-> -	kpageflags_fd =3D checked_open(PROC_KPAGEFLAGS, O_RDONLY);
-> +	kpageflags_fd =3D checked_open(opt_kpageflags, O_RDONLY);
->  	pagemap_fd =3D checked_open("/proc/self/pagemap", O_RDONLY);
->  	sigaction(SIGBUS, &sigbus_action, NULL);
-> =20
-> @@ -1164,6 +1166,11 @@ static void parse_bits_mask(const char *optarg)
->  	add_bits_filter(mask, bits);
->  }
-> =20
-> +static void parse_kpageflags(const char *name)
-> +{
-> +	opt_kpageflags =3D name;
-> +}
-> +
->  static void describe_flags(const char *optarg)
->  {
->  	uint64_t flags =3D parse_flag_names(optarg, 0);
-> @@ -1188,6 +1195,7 @@ static const struct option opts[] =3D {
->  	{ "no-summary", 0, NULL, 'N' },
->  	{ "hwpoison"  , 0, NULL, 'X' },
->  	{ "unpoison"  , 0, NULL, 'x' },
-> +	{ "kpageflags", 0, NULL, 'F' },
->  	{ "help"      , 0, NULL, 'h' },
->  	{ NULL        , 0, NULL, 0 }
->  };
-> @@ -1199,7 +1207,7 @@ int main(int argc, char *argv[])
->  	page_size =3D getpagesize();
-> =20
->  	while ((c =3D getopt_long(argc, argv,
-> -				"rp:f:a:b:d:c:ClLNXxh", opts, NULL)) !=3D -1) {
-> +				"rp:f:a:b:d:c:ClLNXxF:h", opts, NULL)) !=3D -1) {
->  		switch (c) {
->  		case 'r':
->  			opt_raw =3D 1;
-> @@ -1242,6 +1250,9 @@ int main(int argc, char *argv[])
->  			opt_unpoison =3D 1;
->  			prepare_hwpoison_fd();
->  			break;
-> +		case 'F':
-> +			parse_kpageflags(optarg);
-> +			break;
->  		case 'h':
->  			usage();
->  			exit(0);
-> @@ -1251,6 +1262,9 @@ int main(int argc, char *argv[])
->  		}
->  	}
-> =20
-> +	if (!opt_kpageflags)
-> +		opt_kpageflags =3D PROC_KPAGEFLAGS;
-> +
->  	if (opt_cgroup || opt_list_cgroup)
->  		kpagecgroup_fd =3D checked_open(PROC_KPAGECGROUP, O_RDONLY);
-> =20
-> =
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
