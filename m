@@ -1,168 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 40CF86B0007
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 08:34:24 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c142so2296395wmh.4
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 05:34:24 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b203si11057582wmh.154.2018.01.31.05.34.22
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 Jan 2018 05:34:22 -0800 (PST)
-Date: Wed, 31 Jan 2018 14:34:15 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v11 3/3] mm, x86: display pkey in smaps only if arch
- supports pkeys
-Message-ID: <20180131133415.GV21609@dhcp22.suse.cz>
-References: <1517341452-11924-1-git-send-email-linuxram@us.ibm.com>
- <1517341452-11924-4-git-send-email-linuxram@us.ibm.com>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CE006B0008
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 08:34:44 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id k76so14284698iod.12
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 05:34:44 -0800 (PST)
+Received: from h3cmg01-ex.h3c.com (smtp.h3c.com. [60.191.123.56])
+        by mx.google.com with ESMTP id q42si5182517ioi.17.2018.01.31.05.34.40
+        for <linux-mm@kvack.org>;
+        Wed, 31 Jan 2018 05:34:42 -0800 (PST)
+From: Changwei Ge <ge.changwei@h3c.com>
+Subject: Re: [linux-next:master 10644/11012] fs/ocfs2/alloc.c:6761
+ ocfs2_reuse_blk_from_dealloc() warn: potentially one past the end of array
+ 'new_eb_bh[i]'
+Date: Wed, 31 Jan 2018 13:22:45 +0000
+Message-ID: <63ADC13FD55D6546B7DECE290D39E373F29196AE@H3CMLB12-EX.srv.huawei-3com.com>
+References: <20180131105004.xdig2mzgrmiagf5l@mwanda>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1517341452-11924-4-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com
+To: Dan Carpenter <dan.carpenter@oracle.com>, "kbuild@01.org" <kbuild@01.org>
+Cc: "kbuild-all@01.org" <kbuild-all@01.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue 30-01-18 11:44:12, Ram Pai wrote:
-> Currently the  architecture  specific code is expected to
-> display  the  protection  keys  in  smap  for a given vma.
-> This can lead to redundant code and possibly to divergent
-> formats in which the key gets displayed.
-> 
-> This  patch  changes  the implementation. It displays the
-> pkey only if the architecture support pkeys, i.e
-> arch_pkeys_enabled() returns true.  This patch
-> provides x86 implementation for arch_pkeys_enabled().
-> 
-> x86 arch_show_smap() function is not needed anymore.
-> Deleting it.
-
-Thanks for reworking this patch. Looks good to me.
-
-> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  arch/x86/include/asm/pkeys.h |    1 +
->  arch/x86/kernel/fpu/xstate.c |    5 +++++
->  arch/x86/kernel/setup.c      |    8 --------
->  fs/proc/task_mmu.c           |    9 ++++-----
->  include/linux/pkeys.h        |    6 ++++++
->  5 files changed, 16 insertions(+), 13 deletions(-)
-> 
-> diff --git a/arch/x86/include/asm/pkeys.h b/arch/x86/include/asm/pkeys.h
-> index a0ba1ff..f6c287b 100644
-> --- a/arch/x86/include/asm/pkeys.h
-> +++ b/arch/x86/include/asm/pkeys.h
-> @@ -6,6 +6,7 @@
->  
->  extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
->  		unsigned long init_val);
-> +extern bool arch_pkeys_enabled(void);
->  
->  /*
->   * Try to dedicate one of the protection keys to be used as an
-> diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
-> index 87a57b7..4f566e9 100644
-> --- a/arch/x86/kernel/fpu/xstate.c
-> +++ b/arch/x86/kernel/fpu/xstate.c
-> @@ -945,6 +945,11 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
->  
->  	return 0;
->  }
-> +
-> +bool arch_pkeys_enabled(void)
-> +{
-> +	return boot_cpu_has(X86_FEATURE_OSPKE);
-> +}
->  #endif /* ! CONFIG_ARCH_HAS_PKEYS */
->  
->  /*
-> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-> index 8af2e8d..ddf945a 100644
-> --- a/arch/x86/kernel/setup.c
-> +++ b/arch/x86/kernel/setup.c
-> @@ -1326,11 +1326,3 @@ static int __init register_kernel_offset_dumper(void)
->  	return 0;
->  }
->  __initcall(register_kernel_offset_dumper);
-> -
-> -void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
-> -{
-> -	if (!boot_cpu_has(X86_FEATURE_OSPKE))
-> -		return;
-> -
-> -	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
-> -}
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 0edd4da..6f9fbde 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -18,6 +18,7 @@
->  #include <linux/page_idle.h>
->  #include <linux/shmem_fs.h>
->  #include <linux/uaccess.h>
-> +#include <linux/pkeys.h>
->  
->  #include <asm/elf.h>
->  #include <asm/tlb.h>
-> @@ -728,10 +729,6 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
->  }
->  #endif /* HUGETLB_PAGE */
->  
-> -void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
-> -{
-> -}
-> -
->  static int show_smap(struct seq_file *m, void *v, int is_pid)
->  {
->  	struct proc_maps_private *priv = m->private;
-> @@ -851,9 +848,11 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
->  			   (unsigned long)(mss->pss >> (10 + PSS_SHIFT)));
->  
->  	if (!rollup_mode) {
-> -		arch_show_smap(m, vma);
-> +		if (arch_pkeys_enabled())
-> +			seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
->  		show_smap_vma_flags(m, vma);
->  	}
-> +
->  	m_cache_vma(m, vma);
->  	return ret;
->  }
-> diff --git a/include/linux/pkeys.h b/include/linux/pkeys.h
-> index 0794ca7..dfdc609 100644
-> --- a/include/linux/pkeys.h
-> +++ b/include/linux/pkeys.h
-> @@ -13,6 +13,7 @@
->  #define arch_override_mprotect_pkey(vma, prot, pkey) (0)
->  #define PKEY_DEDICATED_EXECUTE_ONLY 0
->  #define ARCH_VM_PKEY_FLAGS 0
-> +#define vma_pkey(vma) 0
->  
->  static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
->  {
-> @@ -35,6 +36,11 @@ static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
->  	return 0;
->  }
->  
-> +static inline bool arch_pkeys_enabled(void)
-> +{
-> +	return false;
-> +}
-> +
->  static inline void copy_init_pkru_to_fpregs(void)
->  {
->  }
-> -- 
-> 1.7.1
-
--- 
-Michal Hocko
-SUSE Labs
+Hi Dan,=0A=
+=0A=
+In order to make static checker happy, I wanna give a fix to silence those =
+warning.=0A=
+Could you please help to trigger the checker again to see if they are gone.=
+=0A=
+=0A=
+If any further warning shows up, please feel free to let me know.=0A=
+=0A=
+Subject: [PATCH] ocfs2: fix static checker warnning=0A=
+=0A=
+Signed-off-by: Changwei Ge <ge.changwei@h3c.com>=0A=
+---=0A=
+  fs/ocfs2/alloc.c | 4 ++--=0A=
+  1 file changed, 2 insertions(+), 2 deletions(-)=0A=
+=0A=
+diff --git a/fs/ocfs2/alloc.c b/fs/ocfs2/alloc.c=0A=
+index ec1ebbf..084b8b9 100644=0A=
+--- a/fs/ocfs2/alloc.c=0A=
++++ b/fs/ocfs2/alloc.c=0A=
+@@ -6765,8 +6765,8 @@ static int ocfs2_reuse_blk_from_dealloc(handle_t *han=
+dle,=0A=
+  	*blk_given =3D i;=0A=
+  =0A=
+  bail:=0A=
+-	if (unlikely(status)) {=0A=
+-		for (; i >=3D 0; i--) {=0A=
++	if (unlikely(status < 0)) {=0A=
++		for (i =3D 0; i < blk_wanted; i++) {=0A=
+  			if (new_eb_bh[i])=0A=
+  				brelse(new_eb_bh[i]);=0A=
+  		}=0A=
+-- =0A=
+2.7.4=0A=
+=0A=
+=0A=
+On 2018/1/31 18:55, Dan Carpenter wrote:=0A=
+> =0A=
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.g=
+it master=0A=
+> head:   761914dd2975bc443024f0ec10a66a26b7186ec2=0A=
+> commit: 0d3e622b2ac768ac5a94f8d9ede80a051154ea9e [10644/11012] ocfs2: try=
+ to reuse extent block in dealloc without meta_alloc=0A=
+> =0A=
+> New smatch warnings:=0A=
+> fs/ocfs2/alloc.c:6761 ocfs2_reuse_blk_from_dealloc() warn: potentially on=
+e past the end of array 'new_eb_bh[i]'=0A=
+> fs/ocfs2/alloc.c:6761 ocfs2_reuse_blk_from_dealloc() warn: potentially on=
+e past the end of array 'new_eb_bh[i]'=0A=
+> =0A=
+> Old smatch warnings:=0A=
+> fs/ocfs2/alloc.c:6762 ocfs2_reuse_blk_from_dealloc() warn: potentially on=
+e past the end of array 'new_eb_bh[i]'=0A=
+> fs/ocfs2/alloc.c:6762 ocfs2_reuse_blk_from_dealloc() warn: potentially on=
+e past the end of array 'new_eb_bh[i]'=0A=
+> fs/ocfs2/alloc.c:6887 ocfs2_zero_cluster_pages() warn: should '(page->ind=
+ex + 1) << 12' be a 64 bit type?=0A=
+> =0A=
+> # https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/com=
+mit/?id=3D0d3e622b2ac768ac5a94f8d9ede80a051154ea9e=0A=
+> git remote add linux-next https://git.kernel.org/pub/scm/linux/kernel/git=
+/next/linux-next.git=0A=
+> git remote update linux-next=0A=
+> git checkout 0d3e622b2ac768ac5a94f8d9ede80a051154ea9e=0A=
+> vim +6761 fs/ocfs2/alloc.c=0A=
+> =0A=
+> 0d3e622b Changwei Ge 2018-01-19  6662=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6663  /* If extent was deleted from tree=
+ due to extent rotation and merging, and=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6664   * no metadata is reserved ahead o=
+f time. Try to reuse some extents=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6665   * just deleted. This is only used=
+ to reuse extent blocks.=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6666   * It is supposed to find enough e=
+xtent blocks in dealloc if our estimation=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6667   * on metadata is accurate.=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6668   */=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6669  static int ocfs2_reuse_blk_from_de=
+alloc(handle_t *handle,=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6670  					struct ocfs2_extent_tree *et,=
+=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6671  					struct buffer_head **new_eb_b=
+h,=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6672  					int blk_wanted, int *blk_give=
+n)=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6673  {=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6674  	int i, status =3D 0, real_slot;=
+=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6675  	struct ocfs2_cached_dealloc_ctxt =
+*dealloc;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6676  	struct ocfs2_per_slot_free_list *=
+fl;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6677  	struct ocfs2_cached_block_free *b=
+f;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6678  	struct ocfs2_extent_block *eb;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6679  	struct ocfs2_super *osb =3D=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6680  		OCFS2_SB(ocfs2_metadata_cache_ge=
+t_super(et->et_ci));=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6681=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6682  	*blk_given =3D 0;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6683=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6684  	/* If extent tree doesn't have a =
+dealloc, this is not faulty. Just=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6685  	 * tell upper caller dealloc can'=
+t provide any block and it should=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6686  	 * ask for alloc to claim more sp=
+ace.=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6687  	 */=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6688  	dealloc =3D et->et_dealloc;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6689  	if (!dealloc)=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6690  		goto bail;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6691=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6692  	for (i =3D 0; i < blk_wanted; i++=
+) {=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6693  		/* Prefer to use local slot */=
+=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6694  		fl =3D ocfs2_find_preferred_free=
+_list(EXTENT_ALLOC_SYSTEM_INODE,=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6695  						    osb->slot_num, &real_slo=
+t,=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6696  						    dealloc);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6697  		/* If no more block can be reuse=
+d, we should claim more=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6698  		 * from alloc. Just return here =
+normally.=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6699  		 */=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6700  		if (!fl) {=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6701  			status =3D 0;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6702  			break;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6703  		}=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6704=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6705  		bf =3D fl->f_first;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6706  		fl->f_first =3D bf->free_next;=
+=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6707=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6708  		new_eb_bh[i] =3D sb_getblk(osb->=
+sb, bf->free_blk);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6709  		if (new_eb_bh[i] =3D=3D NULL) {=
+=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6710  			status =3D -ENOMEM;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6711  			mlog_errno(status);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6712  			goto bail;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6713  		}=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6714=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6715  		mlog(0, "Reusing block(%llu) fro=
+m "=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6716  		     "dealloc(local slot:%d, rea=
+l slot:%d)\n",=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6717  		     bf->free_blk, osb->slot_num=
+, real_slot);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6718=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6719  		ocfs2_set_new_buffer_uptodate(et=
+->et_ci, new_eb_bh[i]);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6720=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6721  		status =3D ocfs2_journal_access_=
+eb(handle, et->et_ci,=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6722  						 new_eb_bh[i],=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6723  						 OCFS2_JOURNAL_ACCESS_CREATE=
+);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6724  		if (status < 0) {=0A=
+>                                                      ^^^^^^^^^^=0A=
+> The warning is a false positive.  It's caused because the check here is=
+=0A=
+> for less than zero and the check at the end is for non-zero.  The static=
+=0A=
+> checker is thinking that status can be > 0 here.=0A=
+> =0A=
+> If both checks were written the same way, that would silence the=0A=
+> warning.=0A=
+> =0A=
+> Also if you rebuild your cross function DB a bunch of time that silences=
+=0A=
+> the warning because then Smatch know that ocfs2_journal_access_eb()=0A=
+> returns (-30),(-22),(-5), or 0.  I rebuild my DB every morning on the=0A=
+> latest linux-next so I don't see this warning on my system.=0A=
+> =0A=
+> 0d3e622b Changwei Ge 2018-01-19  6725  			mlog_errno(status);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6726  			goto bail;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6727  		}=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6728=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6729  		memset(new_eb_bh[i]->b_data, 0, =
+osb->sb->s_blocksize);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6730  		eb =3D (struct ocfs2_extent_bloc=
+k *) new_eb_bh[i]->b_data;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6731=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6732  		/* We can't guarantee that buffe=
+r head is still cached, so=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6733  		 * polutlate the extent block ag=
+ain.=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6734  		 */=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6735  		strcpy(eb->h_signature, OCFS2_EX=
+TENT_BLOCK_SIGNATURE);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6736  		eb->h_blkno =3D cpu_to_le64(bf->=
+free_blk);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6737  		eb->h_fs_generation =3D cpu_to_l=
+e32(osb->fs_generation);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6738  		eb->h_suballoc_slot =3D cpu_to_l=
+e16(real_slot);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6739  		eb->h_suballoc_loc =3D cpu_to_le=
+64(bf->free_bg);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6740  		eb->h_suballoc_bit =3D cpu_to_le=
+16(bf->free_bit);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6741  		eb->h_list.l_count =3D=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6742  			cpu_to_le16(ocfs2_extent_recs_p=
+er_eb(osb->sb));=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6743=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6744  		/* We'll also be dirtied by the =
+caller, so=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6745  		 * this isn't absolutely necessa=
+ry.=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6746  		 */=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6747  		ocfs2_journal_dirty(handle, new_=
+eb_bh[i]);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6748=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6749  		if (!fl->f_first) {=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6750  			dealloc->c_first_suballocator =
+=3D fl->f_next_suballocator;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6751  			kfree(fl);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6752  		}=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6753  		kfree(bf);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6754  	}=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6755=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6756  	*blk_given =3D i;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6757=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6758  bail:=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6759  	if (unlikely(status)) {=0A=
+>                                                       ^^^^^^=0A=
+> =0A=
+> 0d3e622b Changwei Ge 2018-01-19  6760  		for (; i >=3D 0; i--) {=0A=
+> 0d3e622b Changwei Ge 2018-01-19 @6761  			if (new_eb_bh[i])=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6762  				brelse(new_eb_bh[i]);=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6763  		}=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6764  	}=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6765=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6766  	return status;=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6767  }=0A=
+> 0d3e622b Changwei Ge 2018-01-19  6768=0A=
+> =0A=
+> ---=0A=
+> 0-DAY kernel test infrastructure                Open Source Technology Ce=
+nter=0A=
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corpora=
+tion=0A=
+> =0A=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
