@@ -1,71 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C99466B0003
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:40:34 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id m3so12197858pgd.20
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 15:40:34 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id p129si320197pga.134.2018.01.31.15.40.32
-        for <linux-mm@kvack.org>;
-        Wed, 31 Jan 2018 15:40:33 -0800 (PST)
-Date: Thu, 1 Feb 2018 10:41:26 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [LSF/MM TOPIC] few MM topics
-Message-ID: <20180131234126.oobqdp6ibcayduu3@destitution>
-References: <20180124092649.GC21134@dhcp22.suse.cz>
- <20180131192104.GD4841@magnolia>
- <20180131202438.GA21609@dhcp22.suse.cz>
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B05C96B0006
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:42:42 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id s9so16026379ioa.20
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 15:42:42 -0800 (PST)
+Received: from resqmta-po-11v.sys.comcast.net (resqmta-po-11v.sys.comcast.net. [2001:558:fe16:19:96:114:154:170])
+        by mx.google.com with ESMTPS id d5si603363ioj.147.2018.01.31.15.42.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Jan 2018 15:42:41 -0800 (PST)
+Date: Wed, 31 Jan 2018 17:42:40 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: [LSF/MM ATTEND] Large memory issues, new fragmentation avoidance
+ scheme
+Message-ID: <alpine.DEB.2.20.1801311730400.21179@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180131202438.GA21609@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-nvme@lists.infradead.org, linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On Wed, Jan 31, 2018 at 09:24:38PM +0100, Michal Hocko wrote:
-> On Wed 31-01-18 11:21:04, Darrick J. Wong wrote:
-> > On Wed, Jan 24, 2018 at 10:26:49AM +0100, Michal Hocko wrote:
-> [...]
-> > > - I would also love to talk to some FS people and convince them to move
-> > >   away from GFP_NOFS in favor of the new scope API. I know this just
-> > >   means to send patches but the existing code is quite complex and it
-> > >   really requires somebody familiar with the specific FS to do that
-> > >   work.
-> > 
-> > Hm, are you talking about setting PF_MEMALLOC_NOFS instead of passing
-> > *_NOFS to allocation functions and whatnot?
-> 
-> yes memalloc_nofs_{save,restore}
-> 
-> > Right now XFS will set it
-> > on any thread which has a transaction open, but that doesn't help for
-> > fs operations that don't have transactions (e.g. reading metadata,
-> > opening files).  I suppose we could just set the flag any time someone
-> > stumbles into the fs code from userspace, though you're right that seems
-> > daunting.
-> 
-> I would really love to see the code to take the nofs scope
-> (memalloc_nofs_save) at the point where the FS "critical" section starts
-> (from the reclaim recursion POV).
+Would like to attend the upcoming summit and would be interested in
+participating in the large memory discussions (including NVRAM, DAX) as
+well as improvements in huge page support (pagecache, easy
+configurability, consistency over multiple sizes of huge pages etc  etc)
 
-We already do that - the transaction context in XFS is the critical
-context, and we set PF_MEMALLOC_NOFS when we allocate a transaction
-handle and remove it when we commit the transaction.
+Also an important subject matter would be to investigate ways to improve
+I/O throughput from memory for large scale datasets (1TB or higher). Maybe
+this straddles a bit into the FS part too.
 
-> This would both document the context
-> and also limit NOFS allocations to bare minumum.
+Recently stumbled over another way to avoid fragmentation by reserving
+certain numbers of sizes of each page order. This seems to be deployed at
+a large ISP for years now and working out ok. Maybe another stab at the
+problem of availability of higher. Would like to discuss if this approach
+could be upstreamed.
 
-Yup, most of XFS already uses implicit GFP_NOFS allocation calls via
-the transaction context process flag manipulation.
+Then I'd like to continue explore ways to avoid fragmentation like movable
+objects in slab caches (see the xarray implementation for example).
+Coming up with an inode/dentry targeted reclaim/move approach would also
+be interesting in particular since these already have _isolate_ functions
+and are akin to the early steps in page migration where the focused on
+targeted reclaim (and then reloading the page from swap) to simplify the
+approach rather than making page actually movable.
 
-Cheers,
+There are numerous other issues with large memory and throughput of
+extreme HPC loads that my coworkers are currently running into. Would be
+good to share experiences and figure out ways to address these.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
