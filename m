@@ -1,138 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F73A6B0007
+	by kanga.kvack.org (Postfix) with ESMTP id 9A5356B0008
 	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:04:28 -0500 (EST)
-Received: by mail-ua0-f200.google.com with SMTP id 34so11194911uaq.11
+Received: by mail-ua0-f200.google.com with SMTP id v32so11452947uaf.13
         for <linux-mm@kvack.org>; Wed, 31 Jan 2018 15:04:28 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id i6si1060116vkb.368.2018.01.31.15.04.27
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id h30si543359uac.224.2018.01.31.15.04.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 31 Jan 2018 15:04:27 -0800 (PST)
 From: daniel.m.jordan@oracle.com
-Subject: [RFC PATCH v1 01/13] mm: add a percpu_pagelist_batch sysctl interface
-Date: Wed, 31 Jan 2018 18:04:01 -0500
-Message-Id: <20180131230413.27653-2-daniel.m.jordan@oracle.com>
-In-Reply-To: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
-References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
+Subject: [RFC PATCH v1 00/13] lru_lock scalability
+Date: Wed, 31 Jan 2018 18:04:00 -0500
+Message-Id: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, ldufour@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com
 
-From: Aaron Lu <aaron.lu@intel.com>
+lru_lock, a per-node* spinlock that protects an LRU list, is one of the
+hottest locks in the kernel.  On some workloads on large machines, it
+shows up at the top of lock_stat.
 
----
- include/linux/mmzone.h |  2 ++
- kernel/sysctl.c        |  9 +++++++++
- mm/page_alloc.c        | 40 +++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 50 insertions(+), 1 deletion(-)
+One way to improve lru_lock scalability is to introduce an array of locks,
+with each lock protecting certain batches of LRU pages.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 67f2e3c38939..c05529473b80 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -891,6 +891,8 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
- 					void __user *, size_t *, loff_t *);
- int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int,
- 					void __user *, size_t *, loff_t *);
-+int percpu_pagelist_batch_sysctl_handler(struct ctl_table *, int,
-+					void __user *, size_t *, loff_t *);
- int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *, int,
- 			void __user *, size_t *, loff_t *);
- int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 557d46728577..1602bc14bf0d 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -108,6 +108,7 @@ extern unsigned int core_pipe_limit;
- extern int pid_max;
- extern int pid_max_min, pid_max_max;
- extern int percpu_pagelist_fraction;
-+extern int percpu_pagelist_batch;
- extern int latencytop_enabled;
- extern unsigned int sysctl_nr_open_min, sysctl_nr_open_max;
- #ifndef CONFIG_MMU
-@@ -1458,6 +1459,14 @@ static struct ctl_table vm_table[] = {
- 		.proc_handler	= percpu_pagelist_fraction_sysctl_handler,
- 		.extra1		= &zero,
- 	},
-+	{
-+		.procname	= "percpu_pagelist_batch",
-+		.data		= &percpu_pagelist_batch,
-+		.maxlen		= sizeof(percpu_pagelist_batch),
-+		.mode		= 0644,
-+		.proc_handler	= percpu_pagelist_batch_sysctl_handler,
-+		.extra1		= &zero,
-+	},
- #ifdef CONFIG_MMU
- 	{
- 		.procname	= "max_map_count",
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 76c9688b6a0a..d7078ed68b01 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -130,6 +130,7 @@ unsigned long totalreserve_pages __read_mostly;
- unsigned long totalcma_pages __read_mostly;
- 
- int percpu_pagelist_fraction;
-+int percpu_pagelist_batch;
- gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
- 
- /*
-@@ -5544,7 +5545,8 @@ static void pageset_set_high_and_batch(struct zone *zone,
- 			(zone->managed_pages /
- 				percpu_pagelist_fraction));
- 	else
--		pageset_set_batch(pcp, zone_batchsize(zone));
-+		pageset_set_batch(pcp, percpu_pagelist_batch ?
-+				percpu_pagelist_batch : zone_batchsize(zone));
- }
- 
- static void __meminit zone_pageset_init(struct zone *zone, int cpu)
-@@ -7266,6 +7268,42 @@ int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *table, int write,
- 	return ret;
- }
- 
-+int percpu_pagelist_batch_sysctl_handler(struct ctl_table *table, int write,
-+	void __user *buffer, size_t *length, loff_t *ppos)
-+{
-+	struct zone *zone;
-+	int old_percpu_pagelist_batch;
-+	int ret;
-+
-+	mutex_lock(&pcp_batch_high_lock);
-+	old_percpu_pagelist_batch = percpu_pagelist_batch;
-+
-+	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
-+	if (!write || ret < 0)
-+		goto out;
-+
-+	/* Sanity checking to avoid pcp imbalance */
-+	if (percpu_pagelist_batch <= 0) {
-+		ret = -EINVAL;
-+		goto out;
-+	}
-+
-+	/* No change? */
-+	if (percpu_pagelist_batch == old_percpu_pagelist_batch)
-+		goto out;
-+
-+	for_each_populated_zone(zone) {
-+		unsigned int cpu;
-+
-+		for_each_possible_cpu(cpu)
-+			pageset_set_high_and_batch(zone,
-+					per_cpu_ptr(zone->pageset, cpu));
-+	}
-+out:
-+	mutex_unlock(&pcp_batch_high_lock);
-+	return ret;
-+}
-+
- #ifdef CONFIG_NUMA
- int hashdist = HASHDIST_DEFAULT;
- 
+        *ooooooooooo**ooooooooooo**ooooooooooo**oooo ...
+        |           ||           ||           ||
+         \ batch 1 /  \ batch 2 /  \ batch 3 /  
+
+In this ASCII depiction of an LRU, a page is represented with either '*'
+or 'o'.  An asterisk indicates a sentinel page, which is a page at the
+edge of a batch.  An 'o' indicates a non-sentinel page.
+
+To remove a non-sentinel LRU page, only one lock from the array is
+required.  This allows multiple threads to remove pages from different
+batches simultaneously.  A sentinel page requires lru_lock in addition to
+a lock from the array.
+
+Full performance numbers appear in the last patch in this series, but this
+prototype allows a microbenchmark to do up to 28% more page faults per
+second with 16 or more concurrent processes.
+
+This work was developed in collaboration with Steve Sistare.
+
+Note: This is an early prototype.  I'm submitting it now to support my
+request to attend LSF/MM, as well as get early feedback on the idea.  Any
+comments appreciated.
+
+
+* lru_lock is actually per-memcg, but without memcg's in the picture it
+  becomes per-node.
+
+
+Aaron Lu (1):
+  mm: add a percpu_pagelist_batch sysctl interface
+
+Daniel Jordan (12):
+  mm: allow compaction to be disabled
+  mm: add lock array to pgdat and batch fields to struct page
+  mm: introduce struct lru_list_head in lruvec to hold per-LRU batch
+    info
+  mm: add batching logic to add/delete/move API's
+  mm: add lru_[un]lock_all APIs
+  mm: convert to-be-refactored lru_lock callsites to lock-all API
+  mm: temporarily convert lru_lock callsites to lock-all API
+  mm: introduce add-only version of pagevec_lru_move_fn
+  mm: add LRU batch lock API's
+  mm: use lru_batch locking in release_pages
+  mm: split up release_pages into non-sentinel and sentinel passes
+  mm: splice local lists onto the front of the LRU
+
+ include/linux/mm_inline.h | 209 +++++++++++++++++++++++++++++++++++++++++++++-
+ include/linux/mm_types.h  |   5 ++
+ include/linux/mmzone.h    |  25 +++++-
+ kernel/sysctl.c           |   9 ++
+ mm/Kconfig                |   1 -
+ mm/huge_memory.c          |   6 +-
+ mm/memcontrol.c           |   5 +-
+ mm/mlock.c                |  11 +--
+ mm/mmzone.c               |   7 +-
+ mm/page_alloc.c           |  43 +++++++++-
+ mm/page_idle.c            |   4 +-
+ mm/swap.c                 | 208 ++++++++++++++++++++++++++++++++++++---------
+ mm/vmscan.c               |  49 +++++------
+ 13 files changed, 500 insertions(+), 82 deletions(-)
+
 -- 
 2.16.1
 
