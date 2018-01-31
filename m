@@ -1,139 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C34526B0005
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 03:13:13 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id x24so10239984pge.13
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 00:13:13 -0800 (PST)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0076.outbound.protection.outlook.com. [104.47.34.76])
-        by mx.google.com with ESMTPS id y18-v6si5623054pll.503.2018.01.31.00.13.12
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AEA86B0005
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 03:19:19 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id v14so1817838wmd.3
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 00:19:19 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y13si5423317wrc.2.2018.01.31.00.19.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 31 Jan 2018 00:13:12 -0800 (PST)
-Subject: Re: [PATCH] mm/swap: add function get_total_swap_pages to expose
- total_swap_pages
-References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
- <9ecba5f4-3d4c-0179-bf03-f89c436cff6b@amd.com>
- <MWHPR1201MB0127760D359772D5565BA3EBFDFB0@MWHPR1201MB0127.namprd12.prod.outlook.com>
-From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
-Message-ID: <b7dca756-b703-ff51-196c-832e5a43c63a@amd.com>
-Date: Wed, 31 Jan 2018 09:12:56 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 31 Jan 2018 00:19:18 -0800 (PST)
+Date: Wed, 31 Jan 2018 09:19:16 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [netfilter-core] kernel panic: Out of memory and no killable
+ processes... (2)
+Message-ID: <20180131081916.GO21609@dhcp22.suse.cz>
+References: <20180129165722.GF5906@breakpoint.cc>
+ <20180129182811.fze4vrb5zd5cojmr@node.shutemov.name>
+ <20180129223522.GG5906@breakpoint.cc>
+ <20180130075226.GL21609@dhcp22.suse.cz>
+ <20180130081127.GH5906@breakpoint.cc>
+ <20180130082817.cbax5qj4mxancx4b@node.shutemov.name>
+ <CACT4Y+bFKwoxopr1dwnc7OHUoHy28ksVguqtMY6tD=aRh-7LyQ@mail.gmail.com>
+ <20180130095739.GV21609@dhcp22.suse.cz>
+ <20180130140104.GE21609@dhcp22.suse.cz>
+ <20180130112745.934883e37e696ab7f875a385@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <MWHPR1201MB0127760D359772D5565BA3EBFDFB0@MWHPR1201MB0127.namprd12.prod.outlook.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180130112745.934883e37e696ab7f875a385@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "He, Roger" <Hongbo.He@amd.com>, "Zhou, David(ChunMing)" <David1.Zhou@amd.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Florian Westphal <fw@strlen.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Miller <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev <netdev@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Yang Shi <yang.s@alibaba-inc.com>, syzkaller-bugs@googlegroups.com, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, guro@fb.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Yeah, indeed. But what we could do is to rely on a fixed limit like the 
-Intel driver does and I suggested before.
+On Tue 30-01-18 11:27:45, Andrew Morton wrote:
+> On Tue, 30 Jan 2018 15:01:04 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > > Well, this is not about syzkaller, it merely pointed out a potential
+> > > DoS... And that has to be addressed somehow.
+> > 
+> > So how about this?
+> > ---
+> 
+> argh ;)
 
-E.g. don't copy anything into a shmemfile when there is only x MB of 
-swap space left.
+doh, those hardwired moves...
 
-Roger can you test that approach once more with your fix for the OOM 
-issues in the page fault handler?
+> > >From d48e950f1b04f234b57b9e34c363bdcfec10aeee Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Tue, 30 Jan 2018 14:51:07 +0100
+> > Subject: [PATCH] net/netfilter/x_tables.c: make allocation less aggressive
+> > 
+> > syzbot has noticed that xt_alloc_table_info can allocate a lot of
+> > memory. This is an admin only interface but an admin in a namespace
+> > is sufficient as well. eacd86ca3b03 ("net/netfilter/x_tables.c: use
+> > kvmalloc() in xt_alloc_table_info()") has changed the opencoded
+> > kmalloc->vmalloc fallback into kvmalloc. It has dropped __GFP_NORETRY on
+> > the way because vmalloc has simply never fully supported __GFP_NORETRY
+> > semantic. This is still the case because e.g. page tables backing the
+> > vmalloc area are hardcoded GFP_KERNEL.
+> > 
+> > Revert back to __GFP_NORETRY as a poors man defence against excessively
+> > large allocation request here. We will not rule out the OOM killer
+> > completely but __GFP_NORETRY should at least stop the large request
+> > in most cases.
+> > 
+> > Fixes: eacd86ca3b03 ("net/netfilter/x_tables.c: use kvmalloc() in xt_alloc_table_info()")
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> >  net/netfilter/x_tables.c | 8 +++++++-
+> >  1 file changed, 7 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
+> > index d8571f414208..a5f5c29bcbdc 100644
+> > --- a/net/netfilter/x_tables.c
+> > +++ b/net/netfilter/x_tables.c
+> > @@ -1003,7 +1003,13 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
+> >  	if ((SMP_ALIGN(size) >> PAGE_SHIFT) + 2 > totalram_pages)
+> >  		return NULL;
+> 
+> offtopic: preceding comment here is "prevent them from hitting BUG() in
+> vmalloc.c".  I suspect this is ancient code and vmalloc sure as heck
+> shouldn't go BUG with this input.  And it should be using `sz' ;)
 
-Thanks,
-Christian.
-
-Am 31.01.2018 um 09:08 schrieb He, Roger:
-> 	I think this patch isn't need at all. You can directly read total_swap_pages variable in TTM.
->
-> Because the variable is not exported by EXPORT_SYMBOL_GPL. So direct using will result in:
-> "WARNING: "total_swap_pages" [drivers/gpu/drm/ttm/ttm.ko] undefined!".
->
-> Thanks
-> Roger(Hongbo.He)
-> -----Original Message-----
-> From: dri-devel [mailto:dri-devel-bounces@lists.freedesktop.org] On Behalf Of Chunming Zhou
-> Sent: Wednesday, January 31, 2018 3:15 PM
-> To: He, Roger <Hongbo.He@amd.com>; dri-devel@lists.freedesktop.org
-> Cc: linux-mm@kvack.org; linux-kernel@vger.kernel.org; Koenig, Christian <Christian.Koenig@amd.com>
-> Subject: Re: [PATCH] mm/swap: add function get_total_swap_pages to expose total_swap_pages
->
-> Hi Roger,
->
-> I think this patch isn't need at all. You can directly read total_swap_pages variable in TTM. See the comment:
->
-> /* protected with swap_lock. reading in vm_swap_full() doesn't need lock */ long total_swap_pages;
->
-> there are many places using it directly, you just couldn't change its value. Reading it doesn't need lock.
->
->
-> Regards,
->
-> David Zhou
->
->
-> On 2018a1'01ae??29ae?JPY 16:29, Roger He wrote:
->> ttm module needs it to determine its internal parameter setting.
->>
->> Signed-off-by: Roger He <Hongbo.He@amd.com>
->> ---
->>    include/linux/swap.h |  6 ++++++
->>    mm/swapfile.c        | 15 +++++++++++++++
->>    2 files changed, 21 insertions(+)
->>
->> diff --git a/include/linux/swap.h b/include/linux/swap.h
->> index c2b8128..708d66f 100644
->> --- a/include/linux/swap.h
->> +++ b/include/linux/swap.h
->> @@ -484,6 +484,7 @@ extern int try_to_free_swap(struct page *);
->>    struct backing_dev_info;
->>    extern int init_swap_address_space(unsigned int type, unsigned long nr_pages);
->>    extern void exit_swap_address_space(unsigned int type);
->> +extern long get_total_swap_pages(void);
->>    
->>    #else /* CONFIG_SWAP */
->>    
->> @@ -516,6 +517,11 @@ static inline void show_swap_cache_info(void)
->>    {
->>    }
->>    
->> +long get_total_swap_pages(void)
->> +{
->> +	return 0;
->> +}
->> +
->>    #define free_swap_and_cache(e) ({(is_migration_entry(e) || is_device_private_entry(e));})
->>    #define swapcache_prepare(e) ({(is_migration_entry(e) || is_device_private_entry(e));})
->>    
->> diff --git a/mm/swapfile.c b/mm/swapfile.c
->> index 3074b02..a0062eb 100644
->> --- a/mm/swapfile.c
->> +++ b/mm/swapfile.c
->> @@ -98,6 +98,21 @@ static atomic_t proc_poll_event = ATOMIC_INIT(0);
->>    
->>    atomic_t nr_rotate_swap = ATOMIC_INIT(0);
->>    
->> +/*
->> + * expose this value for others use
->> + */
->> +long get_total_swap_pages(void)
->> +{
->> +	long ret;
->> +
->> +	spin_lock(&swap_lock);
->> +	ret = total_swap_pages;
->> +	spin_unlock(&swap_lock);
->> +
->> +	return ret;
->> +}
->> +EXPORT_SYMBOL_GPL(get_total_swap_pages);
->> +
->>    static inline unsigned char swap_count(unsigned char ent)
->>    {
->>    	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
-> _______________________________________________
-> dri-devel mailing list
-> dri-devel@lists.freedesktop.org
-> https://lists.freedesktop.org/mailman/listinfo/dri-devel
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yeah, we do not BUG but rather fail instead. See __vmalloc_node_range.
+My excavation tools pointed me to "VM: Rework vmalloc code to support mapping of arbitray pages"
+by Christoph back in 2002. So yes, we can safely remove it finally. Se
+below.
