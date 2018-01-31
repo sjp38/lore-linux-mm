@@ -1,55 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 661AA6B0003
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 15:24:42 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id x188so444036wmg.2
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 12:24:42 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 37F986B0003
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 15:32:47 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id x188so453994wmg.2
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 12:32:47 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 65si2018430wrg.439.2018.01.31.12.24.41
+        by mx.google.com with ESMTPS id p9si15324602wra.111.2018.01.31.12.32.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 Jan 2018 12:24:41 -0800 (PST)
-Date: Wed, 31 Jan 2018 21:24:38 +0100
+        Wed, 31 Jan 2018 12:32:45 -0800 (PST)
+Date: Wed, 31 Jan 2018 21:32:42 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] few MM topics
-Message-ID: <20180131202438.GA21609@dhcp22.suse.cz>
-References: <20180124092649.GC21134@dhcp22.suse.cz>
- <20180131192104.GD4841@magnolia>
+Subject: Re: [RFC] mm/migrate: Add new migration reason MR_HUGETLB
+Message-ID: <20180131203242.GB21609@dhcp22.suse.cz>
+References: <20180130030714.6790-1-khandual@linux.vnet.ibm.com>
+ <20180130075949.GN21609@dhcp22.suse.cz>
+ <b4bd6cda-a3b7-96dd-b634-d9b3670c1ecf@linux.vnet.ibm.com>
+ <20180131075852.GL21609@dhcp22.suse.cz>
+ <20180131121217.4c80263d68a4ad4da7b170f0@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180131192104.GD4841@magnolia>
+In-Reply-To: <20180131121217.4c80263d68a4ad4da7b170f0@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-nvme@lists.infradead.org, linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 31-01-18 11:21:04, Darrick J. Wong wrote:
-> On Wed, Jan 24, 2018 at 10:26:49AM +0100, Michal Hocko wrote:
-[...]
-> > - I would also love to talk to some FS people and convince them to move
-> >   away from GFP_NOFS in favor of the new scope API. I know this just
-> >   means to send patches but the existing code is quite complex and it
-> >   really requires somebody familiar with the specific FS to do that
-> >   work.
+On Wed 31-01-18 12:12:17, Andrew Morton wrote:
+> On Wed, 31 Jan 2018 08:58:52 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Hm, are you talking about setting PF_MEMALLOC_NOFS instead of passing
-> *_NOFS to allocation functions and whatnot?
+> > On Wed 31-01-18 07:55:05, Anshuman Khandual wrote:
+> > > On 01/30/2018 01:29 PM, Michal Hocko wrote:
+> > > > On Tue 30-01-18 08:37:14, Anshuman Khandual wrote:
+> > > >> alloc_contig_range() initiates compaction and eventual migration for
+> > > >> the purpose of either CMA or HugeTLB allocation. At present, reason
+> > > >> code remains the same MR_CMA for either of those cases. Lets add a
+> > > >> new reason code which will differentiate the purpose of migration
+> > > >> as HugeTLB allocation instead.
+> > > > Why do we need it?
+> > > 
+> > > The same reason why we have MR_CMA (maybe some other ones as well) at
+> > > present, for reporting purpose through traces at the least. It just
+> > > seemed like same reason code is being used for two different purpose
+> > > of migration.
+> > 
+> > But do we have any real user asking for this kind of information?
+> 
+> It seems a reasonable cleanup: reusing MR_CMA for hugetlb just because
+> it happens to do the right thing is a bit hacky - the two things aren't
+> particularly related and a reader could be excused for feeling
+> confusion.
 
-yes memalloc_nofs_{save,restore}
+My bad! I thought this is a tracepoint thingy. But it seems to be only
+used as a migration reason for page_owner. Now it makes more sense.
+ 
+> But the change seems incomplete:
+> 
+> > +		if (migratetype == MIGRATE_CMA)
+> > +			migrate_reason = MR_CMA;
+> > +		else
+> > +			migrate_reason = MR_HUGETLB;
+> 
+> If we're going to do this cleanup then shouldn't we go all the way and
+> add MIGRATE_HUGETLB?
 
-> Right now XFS will set it
-> on any thread which has a transaction open, but that doesn't help for
-> fs operations that don't have transactions (e.g. reading metadata,
-> opening files).  I suppose we could just set the flag any time someone
-> stumbles into the fs code from userspace, though you're right that seems
-> daunting.
-
-I would really love to see the code to take the nofs scope
-(memalloc_nofs_save) at the point where the FS "critical" section starts
-(from the reclaim recursion POV). This would both document the context
-and also limit NOFS allocations to bare minumum.
-
+Yes. We can expect more users of alloc_contig_range in future. Maybe we
+want to use MR_CONTIG_RANGE instead.
 -- 
 Michal Hocko
 SUSE Labs
