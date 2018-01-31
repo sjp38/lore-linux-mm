@@ -1,122 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F9C36B0006
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 10:25:46 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id d84so6004922oia.4
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 07:25:46 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n3si1060743otj.334.2018.01.31.07.25.45
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 022776B0005
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 10:31:13 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id c14so11118929wrd.2
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 07:31:12 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x21sor8180704edi.24.2018.01.31.07.31.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jan 2018 07:25:45 -0800 (PST)
-Date: Wed, 31 Jan 2018 17:25:37 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH] virtio_balloon: use non-blocking allocation
-Message-ID: <20180131161429-mutt-send-email-mst@kernel.org>
-References: <1514904621-39186-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180131015912-mutt-send-email-mst@kernel.org>
- <201801312013.FGI90108.OQFMtFLHFOOJSV@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Wed, 31 Jan 2018 07:31:11 -0800 (PST)
+Date: Wed, 31 Jan 2018 18:31:09 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [LSF/MM ATTEND] Memory encryption, Large VA, pte helpers, THP
+Message-ID: <20180131153109.sktnpifatf7awdkf@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201801312013.FGI90108.OQFMtFLHFOOJSV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, mhocko@suse.com, wei.w.wang@intel.com
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, Tom Lendacky <thomas.lendacky@amd.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Wed, Jan 31, 2018 at 08:13:26PM +0900, Tetsuo Handa wrote:
-> Michael S. Tsirkin wrote:
-> > On Tue, Jan 02, 2018 at 11:50:21PM +0900, Tetsuo Handa wrote:
-> > > Commit c7cdff0e864713a0 ("virtio_balloon: fix deadlock on OOM") tried to
-> > > avoid OOM lockup by moving memory allocations to outside of balloon_lock.
-> > > 
-> > > Now, Wei is trying to allocate far more pages outside of balloon_lock and
-> > > some more memory inside of balloon_lock in order to perform efficient
-> > > communication between host and guest using scatter-gather API.
-> > > 
-> > > Since pages allocated outside of balloon_lock are not visible to the OOM
-> > > notifier path until fill_balloon() holds balloon_lock (and enqueues the
-> > > pending pages), allocating more pages than now may lead to unacceptably
-> > > premature OOM killer invocation.
-> > > 
-> > > It would be possible to make the pending pages visible to the OOM notifier
-> > > path. But there is no need to try to allocate memory so hard from the
-> > > beginning. As of commit 18468d93e53b037e ("mm: introduce a common
-> > > interface for balloon pages mobility"), it made sense to try allocation
-> > > as hard as possible. But after commit 5a10b7dbf904bfe0 ("virtio_balloon:
-> > > free some memory from balloon on OOM"),
-> > 
-> > However, please not that this behavious is optional.
-> > Can you keep the current behaviour when deflate on OOM is disabled?
-> 
-> I can, for passing a flag to balloon_page_alloc() will do it.
-> 
-> But do we really prefer behavior up to comment 27 of
-> https://bugzilla.redhat.com/show_bug.cgi?id=1525356 ?
+Hi,
 
+I would like to attend upcoming summit.
 
-You show a config where so much memory is taken that guest crashes, but
-hopefully in other situations it's just an application hogging memory.
+There are few topics I would like to discuss:
 
-So I'm sure current behaviour is not optimal for your config but the
-problem with deflate on OOM is it does not restart inflating when OOM
-condition goes away.  So if host *really* needs that memory it can't
-enable deflate on OOM.
+- Memory encryption
 
-Crashing the kernel is of course not really useful, I wish
-there was a way to avoid that while still reliably
-giving as much as we can to the host.
+Future Intel CPUs would have support of hardware memory encryption[1] --
+Multi-Key Total Memory Encryption (MKTME below).
 
-Ideally balloon flow looks like this:
-1. host needs some memory e.g. to start a new guest
-2. guest gets request from host to give it back some memory
-3. while request not satisfied:
-	a. try to get hold of free memory
-	b. free up some by flushing caches
-	c. free up some by killing memory hogs
+The feature allows to have several encryption domain. Each domain may have
+own key (provided by user or generated by CPU). Few bits of PFN in PTE is
+claimed to specify KeyID of the page.
 
-All this without crashing the guest.
+I would like to make encrypted memory a first-class citizen in the kernel
+memory management.
 
-What we have implemented is a rough approximation.
+There are a number of challenges coming with the enabling:
 
-Deflate on OOM reduces the chance of a crash or hang but it makes the
-inflate unreliable: host can no longer use the memory for another guest,
-this one might request it back at any time.
+  - API has to be generic enough to cover different HW implementations and
+    flexible enough to cover functionality provided by HW.
 
-What is deflate on oom good for then?  I suspect that people use deflate
-on oom as poor man's page hinting.
+    We need two interfaces: to setup keys and to setup encrypted memory
+    mappings.
 
+  - Page allocator has to be modified to flush CPU cache when changing
+    encryption KeyID for the page. With MKTME, the same page with mapped
+    with different KeyID may allias in cache.
 
-> > 
-> > 
-> > > it no longer makes sense to try
-> > > allocation as hard as possible, for fill_balloon() will after all have to
-> > > release just allocated memory if some allocation request hits the OOM
-> > > notifier path. Therefore, this patch disables __GFP_DIRECT_RECLAIM when
-> > > allocating memory for inflating the balloon. Then, memory for inflating
-> > > the balloon can be allocated inside balloon_lock, and we can release just
-> > > allocated memory as needed.
-> > > 
-> > > Also, this patch adds __GFP_NOWARN, for possibility of hitting memory
-> > > allocation failure is increased by removing __GFP_DIRECT_RECLAIM, which
-> > > might spam the kernel log buffer. At the same time, this patch moves
-> > > "puff" messages to outside of balloon_lock, for it is not a good thing to
-> > > block the OOM notifier path for 1/5 of a second. (Moreover, it is better
-> > > to release the workqueue and allow processing other pending items. But
-> > > that change is out of this patch's scope.)
-> > > 
-> > > __GFP_NOMEMALLOC is currently not required because workqueue context
-> > > which calls balloon_page_alloc() won't cause __gfp_pfmemalloc_flags()
-> > > to return ALLOC_OOM. But since some process context might start calling
-> > > balloon_page_alloc() in future, this patch does not remove
-> > > __GFP_NOMEMALLOC.
-> > > 
-> > > (Only compile tested. Please do runtime tests before committing.)
-> > 
-> > You will have to find someone to test it.
-> 
-> I don't have machines with much memory.
+  - Kernel cannot access encrypted memory via direct map. It's not
+    feasible to modify direct map to always have correct KeyID for the
+    page. We would need to find other way to access encrypted pages.
+
+    I think of re-using kmap() interface (yay! hihgmem is back!) for this,
+    but without highmem zone.
+
+  - For kmap() to work we would need a way to map a page to a KeyID.
+
+    There's no way we would be able to find enough space struct page for
+    this.
+
+    At the moment my idea is to stash KeyID into anon_vma.
+
+- Future extension to large virtual address space
+
+Aneesh wanted to discuss the topic. I'm interested in the topic, but don't
+have anything specific to bring right now.
+
+- Page table manipulation primitives
+
+The API we have for page table manipulation is outdated. It wasn't
+designed to handle situation that are common nowadays: huge page, variable
+number of page table levels (run-time or compile-time swichable). Just
+adding new page table level is painful.
+
+The cumbersome API also leads to stupid mistakes. During 5-level paging
+enabling I had few very bug that can be attributed to poor API.
+Manipulation of top-level page table is especially painful. See
+sync_global_pgds() on x86-64 for instance.
+
+We need to come up with something better before we would need 6-level
+paging :)
+
+I'll try to come up with a toy prototype for a new data types and API
+before the summit.
+
+- THP
+
+Unfortunately, I had no time to do anything substantial in the area this
+year, but I would like to attend any discussion on the topic.
+
+[1] https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
