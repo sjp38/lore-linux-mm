@@ -1,76 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FB076B0006
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:07:40 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id b193so621786wmd.7
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 15:07:40 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j7si15341925wrg.161.2018.01.31.15.07.38
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jan 2018 15:07:39 -0800 (PST)
-Date: Wed, 31 Jan 2018 15:07:36 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: don't expose page to fast gup before it's ready
-Message-Id: <20180131150736.9703ab0826121f2e9e23cb8e@linux-foundation.org>
-In-Reply-To: <20180109101050.GA83229@google.com>
-References: <20180108225632.16332-1-yuzhao@google.com>
-	<20180109084622.GF1732@dhcp22.suse.cz>
-	<20180109101050.GA83229@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C99466B0003
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:40:34 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id m3so12197858pgd.20
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 15:40:34 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id p129si320197pga.134.2018.01.31.15.40.32
+        for <linux-mm@kvack.org>;
+        Wed, 31 Jan 2018 15:40:33 -0800 (PST)
+Date: Thu, 1 Feb 2018 10:41:26 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [LSF/MM TOPIC] few MM topics
+Message-ID: <20180131234126.oobqdp6ibcayduu3@destitution>
+References: <20180124092649.GC21134@dhcp22.suse.cz>
+ <20180131192104.GD4841@magnolia>
+ <20180131202438.GA21609@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180131202438.GA21609@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-nvme@lists.infradead.org, linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>
 
-On Tue, 9 Jan 2018 02:10:50 -0800 Yu Zhao <yuzhao@google.com> wrote:
-
-> On Tue, Jan 09, 2018 at 09:46:22AM +0100, Michal Hocko wrote:
-> > On Mon 08-01-18 14:56:32, Yu Zhao wrote:
-> > > We don't want to expose page before it's properly setup. During
-> > > page setup, we may call page_add_new_anon_rmap() which uses non-
-> > > atomic bit op. If page is exposed before it's done, we could
-> > > overwrite page flags that are set by get_user_pages_fast() or
-> > > it's callers. Here is a non-fatal scenario (there might be other
-> > > fatal problems that I didn't look into):
-> > > 
-> > > 	CPU 1				CPU1
-> > > set_pte_at()			get_user_pages_fast()
-> > > page_add_new_anon_rmap()		gup_pte_range()
-> > > 	__SetPageSwapBacked()			SetPageReferenced()
-> > > 
-> > > Fix the problem by delaying set_pte_at() until page is ready.
+On Wed, Jan 31, 2018 at 09:24:38PM +0100, Michal Hocko wrote:
+> On Wed 31-01-18 11:21:04, Darrick J. Wong wrote:
+> > On Wed, Jan 24, 2018 at 10:26:49AM +0100, Michal Hocko wrote:
+> [...]
+> > > - I would also love to talk to some FS people and convince them to move
+> > >   away from GFP_NOFS in favor of the new scope API. I know this just
+> > >   means to send patches but the existing code is quite complex and it
+> > >   really requires somebody familiar with the specific FS to do that
+> > >   work.
 > > 
-> > Have you seen this race happening in real workloads or this is a code
-> > review based fix or a theoretical issue? I am primarily asking because
-> > the code is like that at least throughout git era and I do not remember
-> > any issue like this. If you can really trigger this tiny race window
-> > then we should mark the fix for stable.
+> > Hm, are you talking about setting PF_MEMALLOC_NOFS instead of passing
+> > *_NOFS to allocation functions and whatnot?
 > 
-> I didn't observe the race directly. But I did get few crashes when
-> trying to access mem_cgroup of pages returned by get_user_pages_fast().
-> Those page were charged and they showed valid mem_cgroup in kdumps.
-> So this led me to think the problem came from premature set_pte_at().
+> yes memalloc_nofs_{save,restore}
 > 
-> I think the fact that nobody complained about this problem is because
-> the race only happens when using ksm+swap, and it might not cause
-> any fatal problem even so. Nevertheless, it's nice to have set_pte_at()
-> done consistently after rmap is added and page is charged.
+> > Right now XFS will set it
+> > on any thread which has a transaction open, but that doesn't help for
+> > fs operations that don't have transactions (e.g. reading metadata,
+> > opening files).  I suppose we could just set the flag any time someone
+> > stumbles into the fs code from userspace, though you're right that seems
+> > daunting.
 > 
-> > Also what prevents reordering here? There do not seem to be any barriers
-> > to prevent __SetPageSwapBacked leak after set_pte_at with your patch.
-> 
-> I assumed mem_cgroup_commit_charge() acted as full barrier. Since you
-> explicitly asked the question, I realized my assumption doesn't hold
-> when memcg is disabled. So we do need something to prevent reordering
-> in my patch. And it brings up the question whether we want to add more
-> barrier to other places that call page_add_new_anon_rmap() and
-> set_pte_at().
+> I would really love to see the code to take the nofs scope
+> (memalloc_nofs_save) at the point where the FS "critical" section starts
+> (from the reclaim recursion POV).
 
-No progress here?  I have the patch marked "to be updated", hence it is
-stuck.  Please let's get it finished off for 4.17-rc1.
+We already do that - the transaction context in XFS is the critical
+context, and we set PF_MEMALLOC_NOFS when we allocate a transaction
+handle and remove it when we commit the transaction.
+
+> This would both document the context
+> and also limit NOFS allocations to bare minumum.
+
+Yup, most of XFS already uses implicit GFP_NOFS allocation calls via
+the transaction context process flag manipulation.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
