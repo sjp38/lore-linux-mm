@@ -1,82 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FC5D6B0003
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 13:38:29 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id q18so15397685ioh.4
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 10:38:29 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id c4si264502itf.116.2018.01.31.10.38.27
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 37B246B0003
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 14:21:16 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id k76so15228080iod.12
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 11:21:16 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id r136si363064itb.37.2018.01.31.11.21.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jan 2018 10:38:28 -0800 (PST)
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w0VIbBIi110165
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:38:27 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2130.oracle.com with ESMTP id 2fuc8kjdvm-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:38:27 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w0VIcQ9S009434
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:38:26 GMT
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w0VIcPus003089
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:38:26 GMT
-Received: by mail-ot0-f170.google.com with SMTP id a7so11470179otk.9
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 10:38:25 -0800 (PST)
+        Wed, 31 Jan 2018 11:21:14 -0800 (PST)
+Date: Wed, 31 Jan 2018 11:21:04 -0800
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [LSF/MM TOPIC] few MM topics
+Message-ID: <20180131192104.GD4841@magnolia>
+References: <20180124092649.GC21134@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180131084313.GP21609@dhcp22.suse.cz>
-References: <20180131054243.28141-1-pasha.tatashin@oracle.com> <20180131084313.GP21609@dhcp22.suse.cz>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Wed, 31 Jan 2018 13:38:24 -0500
-Message-ID: <CAOAebxu1T4U_D2QqJ5jzosppEz7nmUf30x_fm5Hxn_+Yq5H7QA@mail.gmail.com>
-Subject: Re: [PATCH v1] mm: optimize memory hotplug
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180124092649.GC21134@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Bharata B Rao <bharata@linux.vnet.ibm.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-nvme@lists.infradead.org, linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>
 
-Hi Michal,
+On Wed, Jan 24, 2018 at 10:26:49AM +0100, Michal Hocko wrote:
+> Hi,
+> I would like to propose the following few topics for further discussion
+> at LSF/MM this year. MM track would be the most appropriate one but
+> there is some overlap with FS and NVDIM
+> - memcg OOM behavior has changed around 3.12 as a result of OOM
+>   deadlocks when the memcg OOM killer was triggered from the charge
+>   path. We simply fail the charge and unroll to a safe place to
+>   trigger the OOM killer. This is only done from the #PF path and any
+>   g-u-p or kmem accounted allocation can just fail in that case leading
+>   to unexpected ENOMEM to userspace. I believe we can return to the
+>   original OOM handling now that we have the oom reaper and guranteed
+>   forward progress of the OOM path.
+>   Discussion http://lkml.kernel.org/r/20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz
+> - It seems there is some demand for large (> MAX_ORDER) allocations.
+>   We have that alloc_contig_range which was originally used for CMA and
+>   later (ab)used for Giga hugetlb pages. The API is less than optimal
+>   and we should probably think about how to make it more generic.
+> - we have grown a new get_user_pages_longterm. It is an ugly API and
+>   I think we really need to have a decent page pinning one with the
+>   accounting and limiting.
+> - memory hotplug has seen quite some surgery last year and it seems that
+>   DAX/nvdim and HMM have some interest in using it as well. I am mostly
+>   interested in struct page self hosting which is already done for NVDIM
+>   AFAIU. It would be great if we can unify that for the regular mem
+>   hotplug as well.
+> - I would be very interested to talk about memory softofflining
+>   (HWPoison) with somebody familiar with this area because I find the
+>   development in that area as more or less random without any design in
+>   mind. The resulting code is chaotic and stuffed to "random" places.
+> - I would also love to talk to some FS people and convince them to move
+>   away from GFP_NOFS in favor of the new scope API. I know this just
+>   means to send patches but the existing code is quite complex and it
+>   really requires somebody familiar with the specific FS to do that
+>   work.
 
-> So how do we check that there is no page_to_nid() user before we online
-> the page?
+Hm, are you talking about setting PF_MEMALLOC_NOFS instead of passing
+*_NOFS to allocation functions and whatnot?  Right now XFS will set it
+on any thread which has a transaction open, but that doesn't help for
+fs operations that don't have transactions (e.g. reading metadata,
+opening files).  I suppose we could just set the flag any time someone
+stumbles into the fs code from userspace, though you're right that seems
+daunting.
 
-The poisoning helps to catch these now, and will in the future.
-Because we are setting "struct page" to all 1s, we get nid that is
-bigger than supported, and thus panic due to NULL pointer dereference,
-or some other reason.
+--D
 
-For example, if in online_pages() I replace get_section_nid() back to
-pfn_to_nid(), I am getting panic like this:
-
-[   45.473228] BUG: KASAN: null-ptr-deref in zone_for_pfn_range+0xce/0x240
-[   45.475273] Read of size 8 at addr 0000000000000068 by task bash/144
-[   45.477240]
-[   45.477744] CPU: 0 PID: 144 Comm: bash Not tainted
-4.15.0-next-20180130_pt_memset #11
-[   45.479947] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996),
-BIOS 1.11.0-20171110_100015-anatol 04/01/2014
-[   45.482053] Call Trace:
-[   45.482589]  dump_stack+0xa6/0x109
-[   45.483304]  ? _atomic_dec_and_lock+0x137/0x137
-[   45.484248]  ? zone_for_pfn_range+0xce/0x240
-[   45.485140]  kasan_report+0x208/0x350
-[   45.485916]  zone_for_pfn_range+0xce/0x240
-[   45.486787]  online_pages+0xf0/0x4a0
-
- I remember I was fighting strange bugs when reworking this
-> code. I have forgot all the details of course, I just remember some
-> nasty and subtle code paths. Maybe we have got rid of those in the past
-> year but this should be done really carefully. We might have similar
-> dependences on PageReserved.
-
-I am adding a new PG_POISON_CHECK() to help with both Page* macros,
-and page_to_nid(). A new patch is coming.
-
-Thank you,
-Pavel
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
