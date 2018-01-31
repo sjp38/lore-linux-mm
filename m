@@ -1,107 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D13706B0009
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 05:56:17 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id c12so13798448qtj.3
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 02:56:17 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 1si4188606qkk.220.2018.01.31.02.56.16
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 832E26B0009
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 06:13:36 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id p20so14300132pfh.17
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 03:13:36 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id k195si10729313pga.68.2018.01.31.03.13.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jan 2018 02:56:17 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0VAsO3r107559
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 05:56:16 -0500
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2fuccm085n-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 05:56:12 -0500
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 31 Jan 2018 10:56:09 -0000
-Date: Wed, 31 Jan 2018 12:56:04 +0200
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [LSF/MM TOPIC] mm documentation
-References: <20180130105237.GB7201@rapoport-lnx>
- <20180130105450.GC7201@rapoport-lnx>
- <20180130115055.GZ21609@dhcp22.suse.cz>
- <20180130125443.GA21333@rapoport-lnx>
- <20180130134141.GD21609@dhcp22.suse.cz>
- <20180130142849.GD21333@rapoport-lnx>
- <8e8353c2-f985-2da0-d880-25992097cbf6@infradead.org>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 31 Jan 2018 03:13:34 -0800 (PST)
+Subject: Re: [PATCH] virtio_balloon: use non-blocking allocation
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1514904621-39186-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20180131015912-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180131015912-mutt-send-email-mst@kernel.org>
+Message-Id: <201801312013.FGI90108.OQFMtFLHFOOJSV@I-love.SAKURA.ne.jp>
+Date: Wed, 31 Jan 2018 20:13:26 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8e8353c2-f985-2da0-d880-25992097cbf6@infradead.org>
-Message-Id: <20180131105604.GA20535@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: mst@redhat.com
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, mhocko@suse.com, wei.w.wang@intel.com
 
-On Tue, Jan 30, 2018 at 09:32:04AM -0800, Randy Dunlap wrote:
-> On 01/30/2018 06:28 AM, Mike Rapoport wrote:
-> > On Tue, Jan 30, 2018 at 02:41:41PM +0100, Michal Hocko wrote:
-> >> On Tue 30-01-18 14:54:44, Mike Rapoport wrote:
-> >>> On Tue, Jan 30, 2018 at 12:50:55PM +0100, Michal Hocko wrote:
-> >>>> On Tue 30-01-18 12:54:50, Mike Rapoport wrote:
-> >>>>> (forgot to CC linux-mm)
-> >>>>>
-> >>>>> On Tue, Jan 30, 2018 at 12:52:37PM +0200, Mike Rapoport wrote:
-> >>>>>> Hello,
-> >>>>>>
-> >>>>>> The mm kernel-doc documentation is not in a great shape. 
-> >>>>>>
-> >>>>>> Some of the existing kernel-doc annotations were not reformatted during
-> >>>>>> transition from dockbook to sphix. Sometimes the parameter descriptions
-> >>>>>> do not match actual code. But aside these rather mechanical issues there
-> >>>>>> are several points it'd like to discuss:
-> >>>>>>
-> >>>>>> * Currently, only 14 files are linked to kernel-api.rst under "Memory
-> >>>>>> Management in Linux" section. We have more than hundred files only in mm.
-> >>>>>> Even the existing documentation is not generated when running "make
-> >>>>>> htmldocs"
-> >>>>
-> >>>> Is this documentation anywhere close to be actually useful?
-> >>>
-> >>> Some parts are documented better, some worse. For instance, bootmem and
-> >>> z3fold are covered not bad at all, but, say, huge_memory has no structured
-> >>> comments at all. Roughly half of the files in mm/ have some documentation,
-> >>> but I didn't yet read that all to say how much of it is actually useful.
-> >>
-> >> It is good to hear that at least something has a documentation coverage.
-> >> I was asking mostly because I _think_ that the API documentation is far
-> >> from the top priority. 
+Michael S. Tsirkin wrote:
+> On Tue, Jan 02, 2018 at 11:50:21PM +0900, Tetsuo Handa wrote:
+> > Commit c7cdff0e864713a0 ("virtio_balloon: fix deadlock on OOM") tried to
+> > avoid OOM lockup by moving memory allocations to outside of balloon_lock.
 > > 
-> > API documentations is important for kernel developers who are not deeply
-> > involved with mm. When one develops a device driver, knowing how to
-> > allocate and free memory is essential. And, while *malloc are included in
-> > kernel-api.rst, CMA and HMM documentation is not visible.
+> > Now, Wei is trying to allocate far more pages outside of balloon_lock and
+> > some more memory inside of balloon_lock in order to perform efficient
+> > communication between host and guest using scatter-gather API.
 > > 
-> >> We are seriously lacking any highlevel one which describes the design and
-> >> subsytems interaction.
+> > Since pages allocated outside of balloon_lock are not visible to the OOM
+> > notifier path until fill_balloon() holds balloon_lock (and enqueues the
+> > pending pages), allocating more pages than now may lead to unacceptably
+> > premature OOM killer invocation.
 > > 
-> > I should have describe it better, but by "creating a new structure for mm
-> > documentation" I've also meant adding high level description.
-> > 
-> >> Well, we have missed that train years ago. It will be really hard to catch up.
-> > 
-> > At least we can try.
+> > It would be possible to make the pending pages visible to the OOM notifier
+> > path. But there is no need to try to allocate memory so hard from the
+> > beginning. As of commit 18468d93e53b037e ("mm: introduce a common
+> > interface for balloon pages mobility"), it made sense to try allocation
+> > as hard as possible. But after commit 5a10b7dbf904bfe0 ("virtio_balloon:
+> > free some memory from balloon on OOM"),
 > 
-> Hi,
-> I would move it all to a new mm.rst file.  That would be easier to maintain
-> and also allow parallel building.
+> However, please not that this behavious is optional.
+> Can you keep the current behaviour when deflate on OOM is disabled?
 
-Agree. Could also be Documentation/vm/index.rst.
- 
-> -- 
-> ~Randy
+I can, for passing a flag to balloon_page_alloc() will do it.
+
+But do we really prefer behavior up to comment 27 of
+https://bugzilla.redhat.com/show_bug.cgi?id=1525356 ?
+
 > 
+> 
+> > it no longer makes sense to try
+> > allocation as hard as possible, for fill_balloon() will after all have to
+> > release just allocated memory if some allocation request hits the OOM
+> > notifier path. Therefore, this patch disables __GFP_DIRECT_RECLAIM when
+> > allocating memory for inflating the balloon. Then, memory for inflating
+> > the balloon can be allocated inside balloon_lock, and we can release just
+> > allocated memory as needed.
+> > 
+> > Also, this patch adds __GFP_NOWARN, for possibility of hitting memory
+> > allocation failure is increased by removing __GFP_DIRECT_RECLAIM, which
+> > might spam the kernel log buffer. At the same time, this patch moves
+> > "puff" messages to outside of balloon_lock, for it is not a good thing to
+> > block the OOM notifier path for 1/5 of a second. (Moreover, it is better
+> > to release the workqueue and allow processing other pending items. But
+> > that change is out of this patch's scope.)
+> > 
+> > __GFP_NOMEMALLOC is currently not required because workqueue context
+> > which calls balloon_page_alloc() won't cause __gfp_pfmemalloc_flags()
+> > to return ALLOC_OOM. But since some process context might start calling
+> > balloon_page_alloc() in future, this patch does not remove
+> > __GFP_NOMEMALLOC.
+> > 
+> > (Only compile tested. Please do runtime tests before committing.)
+> 
+> You will have to find someone to test it.
 
--- 
-Sincerely yours,
-Mike.
+I don't have machines with much memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
