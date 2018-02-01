@@ -1,143 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E1E756B0003
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 03:03:03 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id m39so2938640plg.6
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 00:03:03 -0800 (PST)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0069.outbound.protection.outlook.com. [104.47.32.69])
-        by mx.google.com with ESMTPS id 3-v6si3484297plt.307.2018.02.01.00.03.02
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 85B5B6B0003
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 03:15:24 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id f15so1403379wmd.1
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 00:15:24 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x1si4478449wrg.466.2018.02.01.00.15.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 01 Feb 2018 00:03:02 -0800 (PST)
-From: "He, Roger" <Hongbo.He@amd.com>
-Subject: RE: [PATCH] mm/swap: add function get_total_swap_pages to expose
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 01 Feb 2018 00:15:22 -0800 (PST)
+Date: Thu, 1 Feb 2018 09:15:20 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/swap: add function get_total_swap_pages to expose
  total_swap_pages
-Date: Thu, 1 Feb 2018 08:03:00 +0000
-Message-ID: <MWHPR1201MB01272D20143636DCA7A59C3DFDFA0@MWHPR1201MB0127.namprd12.prod.outlook.com>
+Message-ID: <20180201081520.GF21609@dhcp22.suse.cz>
 References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
- <9ecba5f4-3d4c-0179-bf03-f89c436cff6b@amd.com>
- <MWHPR1201MB0127760D359772D5565BA3EBFDFB0@MWHPR1201MB0127.namprd12.prod.outlook.com>
- <b7dca756-b703-ff51-196c-832e5a43c63a@amd.com>
- <MWHPR1201MB0127A0AE58A331BDBF9DD34BFDFA0@MWHPR1201MB0127.namprd12.prod.outlook.com>
-In-Reply-To: <MWHPR1201MB0127A0AE58A331BDBF9DD34BFDFA0@MWHPR1201MB0127.namprd12.prod.outlook.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+ <20180129163114.GH21609@dhcp22.suse.cz>
+ <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
+ <20180130075553.GM21609@dhcp22.suse.cz>
+ <9060281e-62dd-8775-2903-339ff836b436@amd.com>
+ <20180130101823.GX21609@dhcp22.suse.cz>
+ <7d5ce7ab-d16d-36bc-7953-e1da2db350bf@amd.com>
+ <20180130122853.GC21609@dhcp22.suse.cz>
+ <MWHPR1201MB0127CEE71F679F43BF0D25B6FDFA0@MWHPR1201MB0127.namprd12.prod.outlook.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <MWHPR1201MB0127CEE71F679F43BF0D25B6FDFA0@MWHPR1201MB0127.namprd12.prod.outlook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Koenig, Christian" <Christian.Koenig@amd.com>, "Zhou, David(ChunMing)" <David1.Zhou@amd.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "He, Roger" <Hongbo.He@amd.com>
+To: "He, Roger" <Hongbo.He@amd.com>
+Cc: "Koenig, Christian" <Christian.Koenig@amd.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
 
-SnVzdCBub3csIEkgdHJpZWQgd2l0aCBmaXhlZCBsaW1pdC4gIEJ1dCBub3Qgd29yayBhbHdheXMu
-DQpGb3IgZXhhbXBsZTogc2V0IHRoZSBsaW1pdCBhcyA0R0Igb24gbXkgcGxhdGZvcm0gd2l0aCA4
-R0Igc3lzdGVtIG1lbW9yeSwgaXQgY2FuIHBhc3MuDQpCdXQgd2hlbiBydW4gd2l0aCBwbGF0Zm9y
-bSB3aXRoIDE2R0Igc3lzdGVtIG1lbW9yeSwgaXQgZmFpbGVkIHNpbmNlIE9PTS4NCg0KQW5kIEkg
-Z3Vlc3MgaXQgYWxzbyBkZXBlbmRzIG9uIGFwcCdzIGJlaGF2aW9yLg0KSSBtZWFuIHNvbWUgYXBw
-cyAgbWFrZSBPUyB0byB1c2UgbW9yZSBzd2FwIHNwYWNlIGFzIHdlbGwuDQoNClRoYW5rcw0KUm9n
-ZXIoSG9uZ2JvLkhlKQ0KLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZyb206IGRyaS1kZXZl
-bCBbbWFpbHRvOmRyaS1kZXZlbC1ib3VuY2VzQGxpc3RzLmZyZWVkZXNrdG9wLm9yZ10gT24gQmVo
-YWxmIE9mIEhlLCBSb2dlcg0KU2VudDogVGh1cnNkYXksIEZlYnJ1YXJ5IDAxLCAyMDE4IDE6NDgg
-UE0NClRvOiBLb2VuaWcsIENocmlzdGlhbiA8Q2hyaXN0aWFuLktvZW5pZ0BhbWQuY29tPjsgWmhv
-dSwgRGF2aWQoQ2h1bk1pbmcpIDxEYXZpZDEuWmhvdUBhbWQuY29tPjsgZHJpLWRldmVsQGxpc3Rz
-LmZyZWVkZXNrdG9wLm9yZw0KQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZzsgbGludXgta2VybmVsQHZn
-ZXIua2VybmVsLm9yZw0KU3ViamVjdDogUkU6IFtQQVRDSF0gbW0vc3dhcDogYWRkIGZ1bmN0aW9u
-IGdldF90b3RhbF9zd2FwX3BhZ2VzIHRvIGV4cG9zZSB0b3RhbF9zd2FwX3BhZ2VzDQoNCglCdXQg
-d2hhdCB3ZSBjb3VsZCBkbyBpcyB0byByZWx5IG9uIGEgZml4ZWQgbGltaXQgbGlrZSB0aGUgSW50
-ZWwgZHJpdmVyIGRvZXMgYW5kIEkgc3VnZ2VzdGVkIGJlZm9yZS4NCglFLmcuIGRvbid0IGNvcHkg
-YW55dGhpbmcgaW50byBhIHNobWVtZmlsZSB3aGVuIHRoZXJlIGlzIG9ubHkgeCBNQiBvZiBzd2Fw
-IHNwYWNlIGxlZnQuDQoNCkhlcmUgSSB0aGluayB3ZSBjYW4gZG8gaXQgZnVydGhlciwgbGV0IHRo
-ZSBsaW1pdCB2YWx1ZSBzY2FsaW5nIHdpdGggdG90YWwgc3lzdGVtIG1lbW9yeS4NCkZvciBleGFt
-cGxlOiB0b3RhbCBzeXN0ZW0gbWVtb3J5ICogMS8yLiANCklmIHRoYXQgaXQgd2lsbCBtYXRjaCB0
-aGUgcGxhdGZvcm0gY29uZmlndXJhdGlvbiBiZXR0ZXIuIA0KDQoJUm9nZXIgY2FuIHlvdSB0ZXN0
-IHRoYXQgYXBwcm9hY2ggb25jZSBtb3JlIHdpdGggeW91ciBmaXggZm9yIHRoZSBPT00gaXNzdWVz
-IGluIHRoZSBwYWdlIGZhdWx0IGhhbmRsZXI/DQoNClN1cmUuIFVzZSB0aGUgbGltaXQgYXMgdG90
-YWwgcmFtKjEvMiBzZWVtcyB3b3JrIHZlcnkgd2VsbC4gDQpObyBPT00gYWx0aG91Z2ggc3dhcCBk
-aXNrIHJlYWNoZXMgZnVsbCBhdCBwZWFrIGZvciBwaWdsaXQgdGVzdC4NCkkgc3BlY3VsYXRlIHRo
-aXMgY2FzZSBoYXBwZW5zIGJ1dCBubyBPT00gYmVjYXVzZToNCg0KYS4gcnVuIGEgd2hpbGUsIHN3
-YXAgZGlzayBiZSB1c2VkIGNsb3NlIHRvIDEvMiogdG90YWwgc2l6ZSBhbmQgYnV0IG5vdCBvdmVy
-IDEvMiAqIHRvdGFsLg0KYi4gYWxsIHN1YnNlcXVlbnQgc3dhcHBlZCBwYWdlcyBzdGF5IGluIHN5
-c3RlbSBtZW1vcnkgdW50aWwgbm8gc3BhY2UgdGhlcmUuDQogICAgIFRoZW4gdGhlIHN3YXBwZWQg
-cGFnZXMgaW4gc2htZW0gYmUgZmx1c2hlZCBpbnRvIHN3YXAgZGlzay4gQW5kIHByb2JhYmx5IE9T
-IGFsc28gbmVlZCBzb21lIHN3YXAgc3BhY2UuDQogICAgIEZvciB0aGlzIGNhc2UsIGl0IGlzIGVh
-c3kgdG8gZ2V0IGZ1bGwgZm9yIHN3YXAgZGlzay4NCmMuIGJ1dCBiZWNhdXNlIG5vdyBmcmVlIHN3
-YXAgc2l6ZSA8IDEvMiAqIHRvdGFsLCBzbyBubyBzd2FwIG91dCBoYXBwZW4gIGFmdGVyIHRoYXQu
-IA0KICAgIEFuZCBhdCBsZWFzdCAxLzQqIHN5c3RlbSBtZW1vcnkgd2lsbCBsZWZ0IGJlY2F1c2Ug
-YmVsb3cgY2hlY2sgaW4gdHRtX21lbV9nbG9iYWxfcmVzZXJ2ZSB3aWxsIGVuc3VyZSB0aGF0Lg0K
-CWlmICh6b25lLT51c2VkX21lbSA+IGxpbWl0KQ0KCQkJZ290byBvdXRfdW5sb2NrOw0KICAgIA0K
-VGhhbmtzDQpSb2dlcihIb25nYm8uSGUpDQotLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KRnJv
-bTogS29lbmlnLCBDaHJpc3RpYW4NClNlbnQ6IFdlZG5lc2RheSwgSmFudWFyeSAzMSwgMjAxOCA0
-OjEzIFBNDQpUbzogSGUsIFJvZ2VyIDxIb25nYm8uSGVAYW1kLmNvbT47IFpob3UsIERhdmlkKENo
-dW5NaW5nKSA8RGF2aWQxLlpob3VAYW1kLmNvbT47IGRyaS1kZXZlbEBsaXN0cy5mcmVlZGVza3Rv
-cC5vcmcNCkNjOiBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5v
-cmcNClN1YmplY3Q6IFJlOiBbUEFUQ0hdIG1tL3N3YXA6IGFkZCBmdW5jdGlvbiBnZXRfdG90YWxf
-c3dhcF9wYWdlcyB0byBleHBvc2UgdG90YWxfc3dhcF9wYWdlcw0KDQpZZWFoLCBpbmRlZWQuIEJ1
-dCB3aGF0IHdlIGNvdWxkIGRvIGlzIHRvIHJlbHkgb24gYSBmaXhlZCBsaW1pdCBsaWtlIHRoZSBJ
-bnRlbCBkcml2ZXIgZG9lcyBhbmQgSSBzdWdnZXN0ZWQgYmVmb3JlLg0KDQpFLmcuIGRvbid0IGNv
-cHkgYW55dGhpbmcgaW50byBhIHNobWVtZmlsZSB3aGVuIHRoZXJlIGlzIG9ubHkgeCBNQiBvZiBz
-d2FwIHNwYWNlIGxlZnQuDQoNClJvZ2VyIGNhbiB5b3UgdGVzdCB0aGF0IGFwcHJvYWNoIG9uY2Ug
-bW9yZSB3aXRoIHlvdXIgZml4IGZvciB0aGUgT09NIGlzc3VlcyBpbiB0aGUgcGFnZSBmYXVsdCBo
-YW5kbGVyPw0KDQpUaGFua3MsDQpDaHJpc3RpYW4uDQoNCkFtIDMxLjAxLjIwMTggdW0gMDk6MDgg
-c2NocmllYiBIZSwgUm9nZXI6DQo+IAlJIHRoaW5rIHRoaXMgcGF0Y2ggaXNuJ3QgbmVlZCBhdCBh
-bGwuIFlvdSBjYW4gZGlyZWN0bHkgcmVhZCB0b3RhbF9zd2FwX3BhZ2VzIHZhcmlhYmxlIGluIFRU
-TS4NCj4NCj4gQmVjYXVzZSB0aGUgdmFyaWFibGUgaXMgbm90IGV4cG9ydGVkIGJ5IEVYUE9SVF9T
-WU1CT0xfR1BMLiBTbyBkaXJlY3QgdXNpbmcgd2lsbCByZXN1bHQgaW46DQo+ICJXQVJOSU5HOiAi
-dG90YWxfc3dhcF9wYWdlcyIgW2RyaXZlcnMvZ3B1L2RybS90dG0vdHRtLmtvXSB1bmRlZmluZWQh
-Ii4NCj4NCj4gVGhhbmtzDQo+IFJvZ2VyKEhvbmdiby5IZSkNCj4gLS0tLS1PcmlnaW5hbCBNZXNz
-YWdlLS0tLS0NCj4gRnJvbTogZHJpLWRldmVsIFttYWlsdG86ZHJpLWRldmVsLWJvdW5jZXNAbGlz
-dHMuZnJlZWRlc2t0b3Aub3JnXSBPbiANCj4gQmVoYWxmIE9mIENodW5taW5nIFpob3UNCj4gU2Vu
-dDogV2VkbmVzZGF5LCBKYW51YXJ5IDMxLCAyMDE4IDM6MTUgUE0NCj4gVG86IEhlLCBSb2dlciA8
-SG9uZ2JvLkhlQGFtZC5jb20+OyBkcmktZGV2ZWxAbGlzdHMuZnJlZWRlc2t0b3Aub3JnDQo+IENj
-OiBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IEtvZW5p
-ZywgDQo+IENocmlzdGlhbiA8Q2hyaXN0aWFuLktvZW5pZ0BhbWQuY29tPg0KPiBTdWJqZWN0OiBS
-ZTogW1BBVENIXSBtbS9zd2FwOiBhZGQgZnVuY3Rpb24gZ2V0X3RvdGFsX3N3YXBfcGFnZXMgdG8g
-DQo+IGV4cG9zZSB0b3RhbF9zd2FwX3BhZ2VzDQo+DQo+IEhpIFJvZ2VyLA0KPg0KPiBJIHRoaW5r
-IHRoaXMgcGF0Y2ggaXNuJ3QgbmVlZCBhdCBhbGwuIFlvdSBjYW4gZGlyZWN0bHkgcmVhZCB0b3Rh
-bF9zd2FwX3BhZ2VzIHZhcmlhYmxlIGluIFRUTS4gU2VlIHRoZSBjb21tZW50Og0KPg0KPiAvKiBw
-cm90ZWN0ZWQgd2l0aCBzd2FwX2xvY2suIHJlYWRpbmcgaW4gdm1fc3dhcF9mdWxsKCkgZG9lc24n
-dCBuZWVkIA0KPiBsb2NrICovIGxvbmcgdG90YWxfc3dhcF9wYWdlczsNCj4NCj4gdGhlcmUgYXJl
-IG1hbnkgcGxhY2VzIHVzaW5nIGl0IGRpcmVjdGx5LCB5b3UganVzdCBjb3VsZG4ndCBjaGFuZ2Ug
-aXRzIHZhbHVlLiBSZWFkaW5nIGl0IGRvZXNuJ3QgbmVlZCBsb2NrLg0KPg0KPg0KPiBSZWdhcmRz
-LA0KPg0KPiBEYXZpZCBaaG91DQo+DQo+DQo+IE9uIDIwMTjlubQwMeaciDI55pelIDE2OjI5LCBS
-b2dlciBIZSB3cm90ZToNCj4+IHR0bSBtb2R1bGUgbmVlZHMgaXQgdG8gZGV0ZXJtaW5lIGl0cyBp
-bnRlcm5hbCBwYXJhbWV0ZXIgc2V0dGluZy4NCj4+DQo+PiBTaWduZWQtb2ZmLWJ5OiBSb2dlciBI
-ZSA8SG9uZ2JvLkhlQGFtZC5jb20+DQo+PiAtLS0NCj4+ICAgIGluY2x1ZGUvbGludXgvc3dhcC5o
-IHwgIDYgKysrKysrDQo+PiAgICBtbS9zd2FwZmlsZS5jICAgICAgICB8IDE1ICsrKysrKysrKysr
-KysrKw0KPj4gICAgMiBmaWxlcyBjaGFuZ2VkLCAyMSBpbnNlcnRpb25zKCspDQo+Pg0KPj4gZGlm
-ZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvc3dhcC5oIGIvaW5jbHVkZS9saW51eC9zd2FwLmggaW5k
-ZXggDQo+PiBjMmI4MTI4Li43MDhkNjZmIDEwMDY0NA0KPj4gLS0tIGEvaW5jbHVkZS9saW51eC9z
-d2FwLmgNCj4+ICsrKyBiL2luY2x1ZGUvbGludXgvc3dhcC5oDQo+PiBAQCAtNDg0LDYgKzQ4NCw3
-IEBAIGV4dGVybiBpbnQgdHJ5X3RvX2ZyZWVfc3dhcChzdHJ1Y3QgcGFnZSAqKTsNCj4+ICAgIHN0
-cnVjdCBiYWNraW5nX2Rldl9pbmZvOw0KPj4gICAgZXh0ZXJuIGludCBpbml0X3N3YXBfYWRkcmVz
-c19zcGFjZSh1bnNpZ25lZCBpbnQgdHlwZSwgdW5zaWduZWQgbG9uZyBucl9wYWdlcyk7DQo+PiAg
-ICBleHRlcm4gdm9pZCBleGl0X3N3YXBfYWRkcmVzc19zcGFjZSh1bnNpZ25lZCBpbnQgdHlwZSk7
-DQo+PiArZXh0ZXJuIGxvbmcgZ2V0X3RvdGFsX3N3YXBfcGFnZXModm9pZCk7DQo+PiAgICANCj4+
-ICAgICNlbHNlIC8qIENPTkZJR19TV0FQICovDQo+PiAgICANCj4+IEBAIC01MTYsNiArNTE3LDEx
-IEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBzaG93X3N3YXBfY2FjaGVfaW5mbyh2b2lkKQ0KPj4gICAg
-ew0KPj4gICAgfQ0KPj4gICAgDQo+PiArbG9uZyBnZXRfdG90YWxfc3dhcF9wYWdlcyh2b2lkKQ0K
-Pj4gK3sNCj4+ICsJcmV0dXJuIDA7DQo+PiArfQ0KPj4gKw0KPj4gICAgI2RlZmluZSBmcmVlX3N3
-YXBfYW5kX2NhY2hlKGUpICh7KGlzX21pZ3JhdGlvbl9lbnRyeShlKSB8fCBpc19kZXZpY2VfcHJp
-dmF0ZV9lbnRyeShlKSk7fSkNCj4+ICAgICNkZWZpbmUgc3dhcGNhY2hlX3ByZXBhcmUoZSkgKHso
-aXNfbWlncmF0aW9uX2VudHJ5KGUpIHx8DQo+PiBpc19kZXZpY2VfcHJpdmF0ZV9lbnRyeShlKSk7
-fSkNCj4+ICAgIA0KPj4gZGlmZiAtLWdpdCBhL21tL3N3YXBmaWxlLmMgYi9tbS9zd2FwZmlsZS5j
-IGluZGV4IDMwNzRiMDIuLmEwMDYyZWINCj4+IDEwMDY0NA0KPj4gLS0tIGEvbW0vc3dhcGZpbGUu
-Yw0KPj4gKysrIGIvbW0vc3dhcGZpbGUuYw0KPj4gQEAgLTk4LDYgKzk4LDIxIEBAIHN0YXRpYyBh
-dG9taWNfdCBwcm9jX3BvbGxfZXZlbnQgPSBBVE9NSUNfSU5JVCgwKTsNCj4+ICAgIA0KPj4gICAg
-YXRvbWljX3QgbnJfcm90YXRlX3N3YXAgPSBBVE9NSUNfSU5JVCgwKTsNCj4+ICAgIA0KPj4gKy8q
-DQo+PiArICogZXhwb3NlIHRoaXMgdmFsdWUgZm9yIG90aGVycyB1c2UNCj4+ICsgKi8NCj4+ICts
-b25nIGdldF90b3RhbF9zd2FwX3BhZ2VzKHZvaWQpDQo+PiArew0KPj4gKwlsb25nIHJldDsNCj4+
-ICsNCj4+ICsJc3Bpbl9sb2NrKCZzd2FwX2xvY2spOw0KPj4gKwlyZXQgPSB0b3RhbF9zd2FwX3Bh
-Z2VzOw0KPj4gKwlzcGluX3VubG9jaygmc3dhcF9sb2NrKTsNCj4+ICsNCj4+ICsJcmV0dXJuIHJl
-dDsNCj4+ICt9DQo+PiArRVhQT1JUX1NZTUJPTF9HUEwoZ2V0X3RvdGFsX3N3YXBfcGFnZXMpOw0K
-Pj4gKw0KPj4gICAgc3RhdGljIGlubGluZSB1bnNpZ25lZCBjaGFyIHN3YXBfY291bnQodW5zaWdu
-ZWQgY2hhciBlbnQpDQo+PiAgICB7DQo+PiAgICAJcmV0dXJuIGVudCAmIH5TV0FQX0hBU19DQUNI
-RTsJLyogbWF5IGluY2x1ZGUgU1dBUF9IQVNfQ09OVCBmbGFnICovDQo+IF9fX19fX19fX19fX19f
-X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fDQo+IGRyaS1kZXZlbCBtYWlsaW5nIGxp
-c3QNCj4gZHJpLWRldmVsQGxpc3RzLmZyZWVkZXNrdG9wLm9yZw0KPiBodHRwczovL2xpc3RzLmZy
-ZWVkZXNrdG9wLm9yZy9tYWlsbWFuL2xpc3RpbmZvL2RyaS1kZXZlbA0KDQpfX19fX19fX19fX19f
-X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fXw0KZHJpLWRldmVsIG1haWxpbmcgbGlz
-dA0KZHJpLWRldmVsQGxpc3RzLmZyZWVkZXNrdG9wLm9yZw0KaHR0cHM6Ly9saXN0cy5mcmVlZGVz
-a3RvcC5vcmcvbWFpbG1hbi9saXN0aW5mby9kcmktZGV2ZWwNCg==
+On Thu 01-02-18 06:13:20, He, Roger wrote:
+> Hi Michal:
+> 
+> How about only  
+> EXPORT_SYMBOL_GPL(total_swap_pages) ?
+
+I've already expressed that messing up with the amount of swap pages is
+a wrong approach. You should scale your additional buffers according the
+the current memory pressure. There are other users of memory on the
+system other than your subsystem.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
