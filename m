@@ -1,68 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BCBB56B0006
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 11:33:46 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id w135so5328806oie.11
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 08:33:46 -0800 (PST)
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A9816B0003
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 12:12:11 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id h12so12643873oti.16
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 09:12:11 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m69si2442550otc.268.2018.02.01.08.33.45
+        by mx.google.com with ESMTPS id s35si18077otc.46.2018.02.01.09.12.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Feb 2018 08:33:46 -0800 (PST)
-Date: Thu, 1 Feb 2018 11:33:42 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Killing reliance on struct page->mapping
-Message-ID: <20180201163341.GB3085@redhat.com>
-References: <20180130004347.GD4526@redhat.com>
- <20180131165646.GI29051@ZenIV.linux.org.uk>
- <20180131174245.GE2912@redhat.com>
- <20180131175558.GA30522@ZenIV.linux.org.uk>
- <20180131181356.GG2912@redhat.com>
- <35c2908e-b6ba-fc29-0a3c-15cb8cf00256@kernel.dk>
- <20180201155748.GA3085@redhat.com>
- <0badeb21-c08b-80bf-6631-a18c67696f74@kernel.dk>
+        Thu, 01 Feb 2018 09:12:10 -0800 (PST)
+Subject: Re: [PATCH] KVM/x86: remove WARN_ON() for when vm_munmap() fails
+References: <001a1141c71c13f559055d1b28eb@google.com>
+ <20180201013021.151884-1-ebiggers3@gmail.com> <20180201153310.GD31080@flask>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <584ef475-21cc-9ef5-8ac9-d6b00e93134e@redhat.com>
+Date: Thu, 1 Feb 2018 12:12:00 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+In-Reply-To: <20180201153310.GD31080@flask>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <0badeb21-c08b-80bf-6631-a18c67696f74@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-block@vger.kernel.org
+To: =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Eric Biggers <ebiggers3@gmail.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, syzkaller-bugs@googlegroups.com, Eric Biggers <ebiggers@google.com>
 
-On Thu, Feb 01, 2018 at 09:00:13AM -0700, Jens Axboe wrote:
-> On 2/1/18 8:57 AM, Jerome Glisse wrote:
-> > On Thu, Feb 01, 2018 at 08:34:58AM -0700, Jens Axboe wrote:
-> >> On 1/31/18 11:13 AM, Jerome Glisse wrote:
-> >>> That's one solution, another one is to have struct bio_vec store
-> >>> buffer_head pointer and not page pointer, from buffer_head you can
-> >>> find struct page and using buffer_head and struct page pointer you
-> >>> can walk the KSM rmap_item chain to find back the mapping. This
-> >>> would be needed on I/O error for pending writeback of a newly write
-> >>> protected page, so one can argue that the overhead of the chain lookup
-> >>> to find back the mapping against which to report IO error, is an
-> >>> acceptable cost.
-> >>
-> >> Ehm nope. bio_vec is a generic container for pages, requiring
-> >> buffer_heads to be able to do IO would be insanity.
-> > 
-> > The extra pointer dereference would be killing performance ?
+On 01/02/2018 10:33, Radim KrA?mA!A? wrote:
+> 2018-01-31 17:30-0800, Eric Biggers:
+>> From: Eric Biggers <ebiggers@google.com>
+>>
+>> On x86, special KVM memslots such as the TSS region have anonymous
+>> memory mappings created on behalf of userspace, and these mappings are
+>> removed when the VM is destroyed.
+>>
+>> It is however possible for removing these mappings via vm_munmap() to
+>> fail.  This can most easily happen if the thread receives SIGKILL while
+>> it's waiting to acquire ->mmap_sem.   This triggers the 'WARN_ON(r < 0)'
+>> in __x86_set_memory_region().  syzkaller was able to hit this, using
+>> 'exit()' to send the SIGKILL.  Note that while the vm_munmap() failure
+>> results in the mapping not being removed immediately, it is not leaked
+>> forever but rather will be freed when the process exits.
+>>
+>> It's not really possible to handle this failure properly, so almost
 > 
-> No, I'm saying that requiring a buffer_head to be able to do IO
-> is insanity. That's how things used to be in the pre-2001 days.
+> We could check "r < 0 && r != -EINTR" to get rid of the easily
+> triggerable warning.
 
-Oh ok i didn't thought it would be a problem, iirc it seemed to me that
-nobh fs were allocating a buffer_head just do I/O but my memory is probably
-confuse. Well i can use the one bit flag idea then allmost same semantic
-patch but if flag is (ie page is write protected)set then to get the real
-page address you have to do an extra memory dereference. So it would add
-an extra test for common existing case and an extra derefence for the write
-protect case. No need for buffer_head.
+Considering that vm_munmap uses down_write_killable, that would be
+preferrable I think.
 
-Thanks for pointing out this buffer_head thing :)
+Paolo
 
-Jerome
+>> every other caller of vm_munmap() doesn't check the return value.  It's
+>> a limitation of having the kernel manage these mappings rather than
+>> userspace.
+>>
+>> So just remove the WARN_ON() so that users can't spam the kernel log
+>> with this warning.
+>>
+>> Fixes: f0d648bdf0a5 ("KVM: x86: map/unmap private slots in __x86_set_memory_region")
+>> Reported-by: syzbot <syzkaller@googlegroups.com>
+>> Signed-off-by: Eric Biggers <ebiggers@google.com>
+>> ---
+> 
+> Removing it altogether doesn't sound that bad, though ...
+> Queued, thanks.
+> 
+>>  arch/x86/kvm/x86.c | 6 ++----
+>>  1 file changed, 2 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+>> index c53298dfbf50..53b57f18baec 100644
+>> --- a/arch/x86/kvm/x86.c
+>> +++ b/arch/x86/kvm/x86.c
+>> @@ -8272,10 +8272,8 @@ int __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa, u32 size)
+>>  			return r;
+>>  	}
+>>  
+>> -	if (!size) {
+>> -		r = vm_munmap(old.userspace_addr, old.npages * PAGE_SIZE);
+>> -		WARN_ON(r < 0);
+>> -	}
+>> +	if (!size)
+>> +		vm_munmap(old.userspace_addr, old.npages * PAGE_SIZE);
+>>  
+>>  	return 0;
+>>  }
+>> -- 
+>> 2.16.0.rc1.238.g530d649a79-goog
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
