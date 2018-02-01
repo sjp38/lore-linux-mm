@@ -1,73 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F337B6B0003
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 20:31:53 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id y200so1525551itc.7
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 17:31:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c23sor623653itb.108.2018.01.31.17.31.52
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 69A206B0003
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 20:48:21 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id w17so16053161iow.23
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 17:48:21 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id d65si1042140iod.233.2018.01.31.17.48.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 31 Jan 2018 17:31:52 -0800 (PST)
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: [PATCH] KVM/x86: remove WARN_ON() for when vm_munmap() fails
-Date: Wed, 31 Jan 2018 17:30:21 -0800
-Message-Id: <20180201013021.151884-1-ebiggers3@gmail.com>
-In-Reply-To: <001a1141c71c13f559055d1b28eb@google.com>
-References: <001a1141c71c13f559055d1b28eb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Jan 2018 17:48:20 -0800 (PST)
+Date: Wed, 31 Jan 2018 17:47:49 -0800
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [LSF/MM TOPIC] Native NVMM file systems
+Message-ID: <20180201014749.GF4841@magnolia>
+References: <CAOvWMLZVkQ1D=Jn-_O9owewr7U699bN=dmwuBoDnQVLEkkXJ8A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAOvWMLZVkQ1D=Jn-_O9owewr7U699bN=dmwuBoDnQVLEkkXJ8A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kvm@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, syzkaller-bugs@googlegroups.com, Eric Biggers <ebiggers@google.com>
+To: Andiry Xu <andiry@gmail.com>
+Cc: lsf-pc@lists.linux-foundation.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, dan.j.williams@intel.com, david@fromorbit.com, willy@infradead.org, swanson@cs.ucsd.edu, jix024@cs.ucsd.edu
 
-From: Eric Biggers <ebiggers@google.com>
+On Wed, Jan 31, 2018 at 04:45:36PM -0800, Andiry Xu wrote:
+> PMEM/DAX should allow for significant improvements in file system
+> performance and enable new programming models that allow direct,
+> efficient access to PMEM from userspace.  Achieving these gains in
+> existing file systems built for block devices (e.g., XFS and EXT4a?|)
+> presents a range of challenges (e.g.,
+> https://lkml.org/lkml/2016/9/11/159) and has been the subject of a lot
+> of recent work on ext4 and xfs.
+> 
+> An alternative is to build a NVMM-aware file system from scratch that
+> takes full advantage of the performance that PMEM offers and avoids
+> the complexity that block-based file systems include to maximize
+> performance on slow storage (e.g., relaxing atomicity constraints on
+> many operations).  Of course, it also brings with it the complexity of
+> another file system.
+>
+> We recently sent out a patch set for one-such a??clean slatea?? NVMM-aware
+> file system called NOVA.  NOVA is log-structured DAX file system with
+> several nice features:
 
-On x86, special KVM memslots such as the TSS region have anonymous
-memory mappings created on behalf of userspace, and these mappings are
-removed when the VM is destroyed.
+That's the series that was sent out last August, correct?
 
-It is however possible for removing these mappings via vm_munmap() to
-fail.  This can most easily happen if the thread receives SIGKILL while
-it's waiting to acquire ->mmap_sem.   This triggers the 'WARN_ON(r < 0)'
-in __x86_set_memory_region().  syzkaller was able to hit this, using
-'exit()' to send the SIGKILL.  Note that while the vm_munmap() failure
-results in the mapping not being removed immediately, it is not leaked
-forever but rather will be freed when the process exits.
+> * High performance, especially in metadata operations due to efficient
+> fine-grained logging
+> * High scalability with per-CPU memory pool and per-inode logging
+> * Strong metadata and data atomicity guarantees for all operations
+> * Full filesystem snapshot support with DAX-mmap
+> * Metadata replication/checksums and RAID-4 style data protection
+> 
+> At the summit, we would like to discuss the trade-offs between
+> adapting NVMM features to existing file systems vs. creating/adopting
+> a purpose-built file system for NVMM.  NOVA serves as useful starting
+> point for that discussion by demonstrating whata??s possible.  It may
+> also suggest some features that could be adapted to other file systems
+> to improve NVMM performance.
+> 
+> We welcome people that are interested in file systems and NVM/DAX.
+> Particular people that would be useful to have in attendance are Dan
+> Williams, Dave Chinner, and Matthew Wilcox.
 
-It's not really possible to handle this failure properly, so almost
-every other caller of vm_munmap() doesn't check the return value.  It's
-a limitation of having the kernel manage these mappings rather than
-userspace.
+I wouldn't mind being there too. :)
 
-So just remove the WARN_ON() so that users can't spam the kernel log
-with this warning.
+--D
 
-Fixes: f0d648bdf0a5 ("KVM: x86: map/unmap private slots in __x86_set_memory_region")
-Reported-by: syzbot <syzkaller@googlegroups.com>
-Signed-off-by: Eric Biggers <ebiggers@google.com>
----
- arch/x86/kvm/x86.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
-
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index c53298dfbf50..53b57f18baec 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -8272,10 +8272,8 @@ int __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa, u32 size)
- 			return r;
- 	}
- 
--	if (!size) {
--		r = vm_munmap(old.userspace_addr, old.npages * PAGE_SIZE);
--		WARN_ON(r < 0);
--	}
-+	if (!size)
-+		vm_munmap(old.userspace_addr, old.npages * PAGE_SIZE);
- 
- 	return 0;
- }
--- 
-2.16.0.rc1.238.g530d649a79-goog
+> 
+> Thanks,
+> Andiry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
