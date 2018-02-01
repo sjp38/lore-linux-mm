@@ -1,109 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FB736B0006
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 10:54:44 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id k19so12488599otj.6
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 07:54:44 -0800 (PST)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5543D6B0007
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 10:57:53 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id x4so12473031otx.23
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 07:57:53 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v25si1131867oti.494.2018.02.01.07.54.43
+        by mx.google.com with ESMTPS id w42si2516072ota.86.2018.02.01.07.57.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Feb 2018 07:54:43 -0800 (PST)
-Subject: Re: [RFC PATCH v1 00/13] lru_lock scalability
-References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
-From: Steven Whitehouse <swhiteho@redhat.com>
-Message-ID: <6bd1c8a5-c682-a3ce-1f9f-f1f53b4117a9@redhat.com>
-Date: Thu, 1 Feb 2018 15:54:38 +0000
+        Thu, 01 Feb 2018 07:57:52 -0800 (PST)
+Date: Thu, 1 Feb 2018 10:57:49 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Killing reliance on struct page->mapping
+Message-ID: <20180201155748.GA3085@redhat.com>
+References: <20180130004347.GD4526@redhat.com>
+ <20180131165646.GI29051@ZenIV.linux.org.uk>
+ <20180131174245.GE2912@redhat.com>
+ <20180131175558.GA30522@ZenIV.linux.org.uk>
+ <20180131181356.GG2912@redhat.com>
+ <35c2908e-b6ba-fc29-0a3c-15cb8cf00256@kernel.dk>
 MIME-Version: 1.0
-In-Reply-To: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <35c2908e-b6ba-fc29-0a3c-15cb8cf00256@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: daniel.m.jordan@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, ldufour@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-block@vger.kernel.org
 
-Hi,
+On Thu, Feb 01, 2018 at 08:34:58AM -0700, Jens Axboe wrote:
+> On 1/31/18 11:13 AM, Jerome Glisse wrote:
+> > That's one solution, another one is to have struct bio_vec store
+> > buffer_head pointer and not page pointer, from buffer_head you can
+> > find struct page and using buffer_head and struct page pointer you
+> > can walk the KSM rmap_item chain to find back the mapping. This
+> > would be needed on I/O error for pending writeback of a newly write
+> > protected page, so one can argue that the overhead of the chain lookup
+> > to find back the mapping against which to report IO error, is an
+> > acceptable cost.
+> 
+> Ehm nope. bio_vec is a generic container for pages, requiring
+> buffer_heads to be able to do IO would be insanity.
 
+The extra pointer dereference would be killing performance ? Note that
+i am not saying have one vec entry per buffer_head but keep thing as
+they are and run the following semantic patch:
 
-On 31/01/18 23:04, daniel.m.jordan@oracle.com wrote:
-> lru_lock, a per-node* spinlock that protects an LRU list, is one of the
-> hottest locks in the kernel.  On some workloads on large machines, it
-> shows up at the top of lock_stat.
->
-> One way to improve lru_lock scalability is to introduce an array of locks,
-> with each lock protecting certain batches of LRU pages.
->
->          *ooooooooooo**ooooooooooo**ooooooooooo**oooo ...
->          |           ||           ||           ||
->           \ batch 1 /  \ batch 2 /  \ batch 3 /
->
-> In this ASCII depiction of an LRU, a page is represented with either '*'
-> or 'o'.  An asterisk indicates a sentinel page, which is a page at the
-> edge of a batch.  An 'o' indicates a non-sentinel page.
->
-> To remove a non-sentinel LRU page, only one lock from the array is
-> required.  This allows multiple threads to remove pages from different
-> batches simultaneously.  A sentinel page requires lru_lock in addition to
-> a lock from the array.
->
-> Full performance numbers appear in the last patch in this series, but this
-> prototype allows a microbenchmark to do up to 28% more page faults per
-> second with 16 or more concurrent processes.
->
-> This work was developed in collaboration with Steve Sistare.
->
-> Note: This is an early prototype.  I'm submitting it now to support my
-> request to attend LSF/MM, as well as get early feedback on the idea.  Any
-> comments appreciated.
->
->
-> * lru_lock is actually per-memcg, but without memcg's in the picture it
->    becomes per-node.
-GFS2 has an lru list for glocks, which can be contended under certain 
-workloads. Work is still ongoing to figure out exactly why, but this 
-looks like it might be a good approach to that issue too. The main 
-purpose of GFS2's lru list is to allow shrinking of the glocks under 
-memory pressure via the gfs2_scan_glock_lru() function, and it looks 
-like this type of approach could be used there to improve the scalability,
+@@
+struct bio_vec *bvec;
+expression E;
+@@
+-bvec->bv_page = E;
++bvec_set_page(bvec, E);
 
-Steve.
+@@
+struct bio_vec *bvec;
+@@
+-bvec->bv_page
++bvec_get_page(bvec);
 
->
-> Aaron Lu (1):
->    mm: add a percpu_pagelist_batch sysctl interface
->
-> Daniel Jordan (12):
->    mm: allow compaction to be disabled
->    mm: add lock array to pgdat and batch fields to struct page
->    mm: introduce struct lru_list_head in lruvec to hold per-LRU batch
->      info
->    mm: add batching logic to add/delete/move API's
->    mm: add lru_[un]lock_all APIs
->    mm: convert to-be-refactored lru_lock callsites to lock-all API
->    mm: temporarily convert lru_lock callsites to lock-all API
->    mm: introduce add-only version of pagevec_lru_move_fn
->    mm: add LRU batch lock API's
->    mm: use lru_batch locking in release_pages
->    mm: split up release_pages into non-sentinel and sentinel passes
->    mm: splice local lists onto the front of the LRU
->
->   include/linux/mm_inline.h | 209 +++++++++++++++++++++++++++++++++++++++++++++-
->   include/linux/mm_types.h  |   5 ++
->   include/linux/mmzone.h    |  25 +++++-
->   kernel/sysctl.c           |   9 ++
->   mm/Kconfig                |   1 -
->   mm/huge_memory.c          |   6 +-
->   mm/memcontrol.c           |   5 +-
->   mm/mlock.c                |  11 +--
->   mm/mmzone.c               |   7 +-
->   mm/page_alloc.c           |  43 +++++++++-
->   mm/page_idle.c            |   4 +-
->   mm/swap.c                 | 208 ++++++++++++++++++++++++++++++++++++---------
->   mm/vmscan.c               |  49 +++++------
->   13 files changed, 500 insertions(+), 82 deletions(-)
->
+Then inside struct bio_vec:
+s/struct page *bv_head;/struct buffer_head *bv_bh;/
+
+Finally add:
+struct page *bvec_get_page(const struct bio_vec *bvec)
+{
+    return bvec->bv_bh->page;
+}
+
+void bvec_set_page(struct bio_vec *bvec, struct page *page)
+{
+    bvec->bv_bh = first_buffer_head(page);
+}
+
+Well you get the idea. Point is that it just add one more pointer
+dereference so one more memory lookup. But if it is an issue they
+are other way to achieve what i want. For instance i can have a
+flags in the address store (1 bit) and make the extra dereference
+only needed for write protected page. Or the other solution in
+previous email, or something i haven't thought of yet :)
+
+Like i said i don't think i will change the block subsystem, for
+block i would only need to change if i ever want to allow write
+protection to happen before pending writeback completion. Which
+as of now feels to me like a micro-optimization that i might never
+need.
+
+In any case i am happy to discuss my ideas and try to find one
+that people likes :)
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
