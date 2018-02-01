@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B05C96B0006
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:42:42 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id s9so16026379ioa.20
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 15:42:42 -0800 (PST)
-Received: from resqmta-po-11v.sys.comcast.net (resqmta-po-11v.sys.comcast.net. [2001:558:fe16:19:96:114:154:170])
-        by mx.google.com with ESMTPS id d5si603363ioj.147.2018.01.31.15.42.41
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DE5986B0006
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 19:00:39 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id k19so1321829ita.8
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 16:00:39 -0800 (PST)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id s13si388223ioa.193.2018.01.31.16.00.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jan 2018 15:42:41 -0800 (PST)
-Date: Wed, 31 Jan 2018 17:42:40 -0600 (CST)
+        Wed, 31 Jan 2018 16:00:39 -0800 (PST)
+Date: Wed, 31 Jan 2018 18:00:36 -0600 (CST)
 From: Christopher Lameter <cl@linux.com>
-Subject: [LSF/MM ATTEND] Large memory issues, new fragmentation avoidance
- scheme
-Message-ID: <alpine.DEB.2.20.1801311730400.21179@nuc-kabylake>
+Subject: Re: [PATCH 3/6] struct page: add field for vm_struct
+In-Reply-To: <20180130151446.24698-4-igor.stoppa@huawei.com>
+Message-ID: <alpine.DEB.2.20.1801311758340.21272@nuc-kabylake>
+References: <20180130151446.24698-1-igor.stoppa@huawei.com> <20180130151446.24698-4-igor.stoppa@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, willy@infradead.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-Would like to attend the upcoming summit and would be interested in
-participating in the large memory discussions (including NVRAM, DAX) as
-well as improvements in huge page support (pagecache, easy
-configurability, consistency over multiple sizes of huge pages etc  etc)
+On Tue, 30 Jan 2018, Igor Stoppa wrote:
 
-Also an important subject matter would be to investigate ways to improve
-I/O throughput from memory for large scale datasets (1TB or higher). Maybe
-this straddles a bit into the FS part too.
+> @@ -1769,6 +1774,9 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+>
+>  	kmemleak_vmalloc(area, size, gfp_mask);
+>
+> +	for (page_counter = 0; page_counter < area->nr_pages; page_counter++)
+> +		area->pages[page_counter]->area = area;
+> +
+>  	return addr;
 
-Recently stumbled over another way to avoid fragmentation by reserving
-certain numbers of sizes of each page order. This seems to be deployed at
-a large ISP for years now and working out ok. Maybe another stab at the
-problem of availability of higher. Would like to discuss if this approach
-could be upstreamed.
+Well this introduces significant overhead for large sized allocation. Does
+this not matter because the areas are small?
 
-Then I'd like to continue explore ways to avoid fragmentation like movable
-objects in slab caches (see the xarray implementation for example).
-Coming up with an inode/dentry targeted reclaim/move approach would also
-be interesting in particular since these already have _isolate_ functions
-and are akin to the early steps in page migration where the focused on
-targeted reclaim (and then reloading the page from swap) to simplify the
-approach rather than making page actually movable.
-
-There are numerous other issues with large memory and throughput of
-extreme HPC loads that my coworkers are currently running into. Would be
-good to share experiences and figure out ways to address these.
-
+Would it not be better to use compound page allocations here?
+page_head(whatever) gets you the head page where you can store all sorts
+of information about the chunk of memory.
 
 
 --
