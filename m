@@ -1,50 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 85B5B6B0003
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 03:15:24 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id f15so1403379wmd.1
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 00:15:24 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x1si4478449wrg.466.2018.02.01.00.15.22
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C7036B0003
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 03:28:59 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id a17so16057642qta.10
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 00:28:59 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d15si3857712qkj.82.2018.02.01.00.28.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Feb 2018 00:15:22 -0800 (PST)
-Date: Thu, 1 Feb 2018 09:15:20 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/swap: add function get_total_swap_pages to expose
- total_swap_pages
-Message-ID: <20180201081520.GF21609@dhcp22.suse.cz>
-References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
- <20180129163114.GH21609@dhcp22.suse.cz>
- <MWHPR1201MB01278542F6EE848ABD187BDBFDE40@MWHPR1201MB0127.namprd12.prod.outlook.com>
- <20180130075553.GM21609@dhcp22.suse.cz>
- <9060281e-62dd-8775-2903-339ff836b436@amd.com>
- <20180130101823.GX21609@dhcp22.suse.cz>
- <7d5ce7ab-d16d-36bc-7953-e1da2db350bf@amd.com>
- <20180130122853.GC21609@dhcp22.suse.cz>
- <MWHPR1201MB0127CEE71F679F43BF0D25B6FDFA0@MWHPR1201MB0127.namprd12.prod.outlook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Feb 2018 00:28:58 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w118SsQ4061075
+	for <linux-mm@kvack.org>; Thu, 1 Feb 2018 03:28:58 -0500
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2fuxkf280f-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 01 Feb 2018 03:28:56 -0500
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 1 Feb 2018 08:28:42 -0000
+Subject: Re: [RFC] mm/migrate: Add new migration reason MR_HUGETLB
+References: <20180130030714.6790-1-khandual@linux.vnet.ibm.com>
+ <20180130075949.GN21609@dhcp22.suse.cz>
+ <b4bd6cda-a3b7-96dd-b634-d9b3670c1ecf@linux.vnet.ibm.com>
+ <20180131075852.GL21609@dhcp22.suse.cz>
+ <20180131121217.4c80263d68a4ad4da7b170f0@linux-foundation.org>
+ <20180131203242.GB21609@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 1 Feb 2018 13:58:36 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <MWHPR1201MB0127CEE71F679F43BF0D25B6FDFA0@MWHPR1201MB0127.namprd12.prod.outlook.com>
+In-Reply-To: <20180131203242.GB21609@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <29b6db3a-f853-b81b-0632-c1841298ab87@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "He, Roger" <Hongbo.He@amd.com>
-Cc: "Koenig, Christian" <Christian.Koenig@amd.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 01-02-18 06:13:20, He, Roger wrote:
-> Hi Michal:
+On 02/01/2018 02:02 AM, Michal Hocko wrote:
+> On Wed 31-01-18 12:12:17, Andrew Morton wrote:
+>> On Wed, 31 Jan 2018 08:58:52 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+>>
+>>> On Wed 31-01-18 07:55:05, Anshuman Khandual wrote:
+>>>> On 01/30/2018 01:29 PM, Michal Hocko wrote:
+>>>>> On Tue 30-01-18 08:37:14, Anshuman Khandual wrote:
+>>>>>> alloc_contig_range() initiates compaction and eventual migration for
+>>>>>> the purpose of either CMA or HugeTLB allocation. At present, reason
+>>>>>> code remains the same MR_CMA for either of those cases. Lets add a
+>>>>>> new reason code which will differentiate the purpose of migration
+>>>>>> as HugeTLB allocation instead.
+>>>>> Why do we need it?
+>>>>
+>>>> The same reason why we have MR_CMA (maybe some other ones as well) at
+>>>> present, for reporting purpose through traces at the least. It just
+>>>> seemed like same reason code is being used for two different purpose
+>>>> of migration.
+>>>
+>>> But do we have any real user asking for this kind of information?
+>>
+>> It seems a reasonable cleanup: reusing MR_CMA for hugetlb just because
+>> it happens to do the right thing is a bit hacky - the two things aren't
+>> particularly related and a reader could be excused for feeling
+>> confusion.
 > 
-> How about only  
-> EXPORT_SYMBOL_GPL(total_swap_pages) ?
+> My bad! I thought this is a tracepoint thingy. But it seems to be only
+> used as a migration reason for page_owner. Now it makes more sense.
+>  
+>> But the change seems incomplete:
+>>
+>>> +		if (migratetype == MIGRATE_CMA)
+>>> +			migrate_reason = MR_CMA;
+>>> +		else
+>>> +			migrate_reason = MR_HUGETLB;
+>>
+>> If we're going to do this cleanup then shouldn't we go all the way and
+>> add MIGRATE_HUGETLB?
+> 
+> Yes. We can expect more users of alloc_contig_range in future. Maybe we
+> want to use MR_CONTIG_RANGE instead.
 
-I've already expressed that messing up with the amount of swap pages is
-a wrong approach. You should scale your additional buffers according the
-the current memory pressure. There are other users of memory on the
-system other than your subsystem.
--- 
-Michal Hocko
-SUSE Labs
+MR_CONTIG_RANGE can be a replacement for both MR_CMA and MR_HUGETLB.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
