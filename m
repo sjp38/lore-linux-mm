@@ -1,37 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 072E66B0003
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 02:20:09 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id e23so10341975oii.9
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 23:20:09 -0800 (PST)
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CB4D6B0006
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 02:20:11 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id z8so11636150otb.11
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 23:20:11 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g81si266149oic.373.2018.01.31.23.20.06
+        by mx.google.com with ESMTPS id y49si2308653otd.147.2018.01.31.23.20.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jan 2018 23:20:06 -0800 (PST)
+        Wed, 31 Jan 2018 23:20:10 -0800 (PST)
 From: Baoquan He <bhe@redhat.com>
-Subject: [PATCH 0/2] Optimize the code of mem_map allocation in
-Date: Thu,  1 Feb 2018 15:19:54 +0800
-Message-Id: <20180201071956.14365-1-bhe@redhat.com>
+Subject: [PATCH 1/2] mm/sparsemem: Defer the ms->section_mem_map clearing a little later
+Date: Thu,  1 Feb 2018 15:19:55 +0800
+Message-Id: <20180201071956.14365-2-bhe@redhat.com>
+In-Reply-To: <20180201071956.14365-1-bhe@redhat.com>
+References: <20180201071956.14365-1-bhe@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, tglx@linutronix.de, douly.fnst@cn.fujitsu.com, Baoquan He <bhe@redhat.com>
 
-In 5-level paging mode, allocating memory with the size of NR_MEM_SECTIONS
-is a bad idea. So in this patchset, trying to optimize to save memory.
-Othersise kdump kernel can't boot up with normal crashkernel reservation
-setting. And for normal kernel, the 512M consumption is not also not
-wise, though it's a temporary allocation. 
+This will make sure number of sections marked as present won't be changed
+in sparse_init(), so that for_each_present_section_nr() can iterate
+each of them. This is preparation for later fix.
 
-Baoquan He (2):
-  mm/sparsemem: Defer the ms->section_mem_map clearing a little later
-  mm/sparse.c: Add nr_present_sections to change the mem_map allocation
+Signed-off-by: Baoquan He <bhe@redhat.com>
+---
+ mm/sparse-vmemmap.c |  1 -
+ mm/sparse.c         | 15 ++++++++++++---
+ 2 files changed, 12 insertions(+), 4 deletions(-)
 
- mm/sparse-vmemmap.c |  9 +++++----
- mm/sparse.c         | 54 ++++++++++++++++++++++++++++++++++++-----------------
- 2 files changed, 42 insertions(+), 21 deletions(-)
-
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index 17acf01791fa..315bea91e276 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -324,7 +324,6 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 		ms = __nr_to_section(pnum);
+ 		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+ 		       __func__);
+-		ms->section_mem_map = 0;
+ 	}
+ 
+ 	if (vmemmap_buf_start) {
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 2609aba121e8..54eba92b72a1 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -478,7 +478,6 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 		ms = __nr_to_section(pnum);
+ 		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+ 		       __func__);
+-		ms->section_mem_map = 0;
+ 	}
+ }
+ #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
+@@ -610,17 +609,27 @@ void __init sparse_init(void)
+ #endif
+ 
+ 	for_each_present_section_nr(0, pnum) {
++		struct mem_section *ms;
++		ms = __nr_to_section(pnum);
+ 		usemap = usemap_map[pnum];
+-		if (!usemap)
++		if (!usemap) {
++#ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
++			ms->section_mem_map = 0;
++#endif
+ 			continue;
++		}
+ 
+ #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+ 		map = map_map[pnum];
+ #else
+ 		map = sparse_early_mem_map_alloc(pnum);
+ #endif
+-		if (!map)
++		if (!map) {
++#ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
++			ms->section_mem_map = 0;
++#endif
+ 			continue;
++		}
+ 
+ 		sparse_init_one_section(__nr_to_section(pnum), pnum, map,
+ 								usemap);
 -- 
 2.13.6
 
