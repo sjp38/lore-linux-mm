@@ -1,64 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 911E96B0007
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 15:55:16 -0500 (EST)
-Received: by mail-vk0-f71.google.com with SMTP id o202so7044260vkd.23
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 12:55:16 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x64sor230520vkf.107.2018.02.01.12.55.15
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DE966B0003
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 16:06:27 -0500 (EST)
+Received: by mail-vk0-f69.google.com with SMTP id l205so11705917vke.13
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 13:06:27 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f73sor245770vke.104.2018.02.01.13.06.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Feb 2018 12:55:15 -0800 (PST)
+        Thu, 01 Feb 2018 13:06:26 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180201134026.GK21609@dhcp22.suse.cz>
-References: <20180126140415.GD5027@dhcp22.suse.cz> <15da8c87-e6db-13aa-01c8-a913656bfdb6@linux.vnet.ibm.com>
+In-Reply-To: <20180201134829.GL21609@dhcp22.suse.cz>
+References: <5acba3c2-754d-e449-24ff-a72a0ad0d895@linux.vnet.ibm.com>
+ <20180126140415.GD5027@dhcp22.suse.cz> <15da8c87-e6db-13aa-01c8-a913656bfdb6@linux.vnet.ibm.com>
  <6db9b33d-fd46-c529-b357-3397926f0733@linux.vnet.ibm.com> <20180129132235.GE21609@dhcp22.suse.cz>
  <87k1w081e7.fsf@concordia.ellerman.id.au> <20180130094205.GS21609@dhcp22.suse.cz>
  <5eccdc1b-6a10-b48a-c63f-295f69473d97@linux.vnet.ibm.com> <20180131131937.GA6740@dhcp22.suse.cz>
- <bfecda5e-ae8b-df91-0add-df6322b42a70@linux.vnet.ibm.com> <20180201131007.GJ21609@dhcp22.suse.cz>
- <20180201134026.GK21609@dhcp22.suse.cz>
-From: Kees Cook <keescook@chromium.org>
-Date: Fri, 2 Feb 2018 07:55:14 +1100
-Message-ID: <CAGXu5j+fo0Z_ax2O10A-3D3puLhnX+o5M4Lp3TBsnE=NtFCjpw@mail.gmail.com>
+ <bfecda5e-ae8b-df91-0add-df6322b42a70@linux.vnet.ibm.com> <20180201134829.GL21609@dhcp22.suse.cz>
+From: Kees Cook <keescook@google.com>
+Date: Fri, 2 Feb 2018 08:06:25 +1100
+Message-ID: <CAGXu5jJMQ0HK2NeRw9VmZmOkuaw2g8tAf2yZ-OxfwZBTXxuZMw@mail.gmail.com>
 Subject: Re: ppc elf_map breakage with MAP_FIXED_NOREPLACE
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-Next <linux-next@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Mark Brown <broonie@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-Next <linux-next@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Mark Brown <broonie@kernel.org>
 
-On Fri, Feb 2, 2018 at 12:40 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Thu 01-02-18 14:10:07, Michal Hocko wrote:
-> Thanks a lot to Michael Matz for his background. He has pointed me to
-> the following two segments from your binary[1]
->   LOAD           0x0000000000000000 0x0000000010000000 0x0000000010000000
->                  0x0000000000013a8c 0x0000000000013a8c  R E    10000
->   LOAD           0x000000000001fd40 0x000000001002fd40 0x000000001002fd40
->                  0x00000000000002c0 0x00000000000005e8  RW     10000
->   LOAD           0x0000000000020328 0x0000000010030328 0x0000000010030328
->                  0x0000000000000384 0x00000000000094a0  RW     10000
+On Fri, Feb 2, 2018 at 12:48 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Thu 01-02-18 08:43:34, Anshuman Khandual wrote:
+> [...]
+>> $dmesg | grep elf_brk
+>> [    9.571192] elf_brk 10030328 elf_bss 10030000
+>>
+>> static int load_elf_binary(struct linux_binprm *bprm)
+>> ---------------------
+>>
+>>       if (unlikely (elf_brk > elf_bss)) {
+>>                       unsigned long nbyte;
+>>
+>>                       /* There was a PT_LOAD segment with p_memsz > p_filesz
+>>                          before this one. Map anonymous pages, if needed,
+>>                          and clear the area.  */
+>>                       retval = set_brk(elf_bss + load_bias,
+>>                                        elf_brk + load_bias,
+>>                                        bss_prot);
+>>
+>>
+>> ---------------------
 >
-> That binary has two RW LOAD segments, the first crosses a page border
-> into the second
-> 0x1002fd40 (LOAD2-vaddr) + 0x5e8 (LOAD2-memlen) == 0x10030328 (LOAD3-vaddr)
+> Just a blind shot... Does the following make any difference?
+> ---
+> diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+> index 021fe78998ea..04b24d00c911 100644
+> --- a/fs/binfmt_elf.c
+> +++ b/fs/binfmt_elf.c
+> @@ -895,7 +895,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>            the correct location in memory. */
+>         for(i = 0, elf_ppnt = elf_phdata;
+>             i < loc->elf_ex.e_phnum; i++, elf_ppnt++) {
+> -               int elf_prot = 0, elf_flags;
+> +               int elf_prot = 0, elf_flags, elf_fixed = MAP_FIXED_NOREPLACE;
+>                 unsigned long k, vaddr;
+>                 unsigned long total_size = 0;
 >
-> He says
-> : This is actually an artifact of RELRO machinism.  The first RW mapping
-> : will be remapped as RO after relocations are applied (to increase
-> : security).
-> : Well, to be honest, normal relro binaries also don't have more than
-> : two LOAD segments, so whatever RHEL did to their compilation options,
-> : it's something in addition to just relro (which can be detected by
-> : having a GNU_RELRO program header)
-> : But it definitely has something to do with relro, it's just not the
-> : whole story yet.
+> @@ -927,6 +927,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>                                          */
+>                                 }
+>                         }
+> +                       elf_fixed = MAP_FIXED;
+>                 }
 >
-> I am still trying to wrap my head around all this, but it smells rather
-> dubious to map different segments over the same page. Is this something
-> that might happen widely and therefore MAP_FIXED_NOREPLACE is a no-go
-> when loading ELF segments? Or is this a special case we can detect?
+>                 if (elf_ppnt->p_flags & PF_R)
+> @@ -944,7 +945,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>                  * the ET_DYN load_addr calculations, proceed normally.
+>                  */
+>                 if (loc->elf_ex.e_type == ET_EXEC || load_addr_set) {
+> -                       elf_flags |= MAP_FIXED_NOREPLACE;
+> +                       elf_flags |= elf_fixed;
+>                 } else if (loc->elf_ex.e_type == ET_DYN) {
+>                         /*
+>                          * This logic is run once for the first LOAD Program
+> @@ -980,7 +981,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>                                 load_bias = ELF_ET_DYN_BASE;
+>                                 if (current->flags & PF_RANDOMIZE)
+>                                         load_bias += arch_mmap_rnd();
+> -                               elf_flags |= MAP_FIXED_NOREPLACE;
+> +                               elf_flags |= elf_fixed;
+>                         } else
+>                                 load_bias = 0;
 
-Eww. FWIW, I would expect that to be rare and detectable.
+If I'm reading this patch correctly, the intention is to allow LOADs
+after brk-expansion to collide with the prior LOAD? (This patch will
+need more comments for our future sanity.) I think this makes sense,
+though it might be nice to be sure we're overlapping only with the
+prior LOAD (and nothing else), but it's not clear to me the best way
+to accomplish that here. Even without that extra check, I think this
+is a net benefit (i.e. gain MAP_FIXED_NOREPLACE without breaking
+page-crossing LOADs).
+
+Actually, maybe the second LOAD could be page-aligned first, so it
+doesn't collide with the prior LOAD, and it could keep
+MAP_FIXED_NOREPLACE? I'll have more time to study this on Monday...
 
 -Kees
 
