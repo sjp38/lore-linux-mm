@@ -1,175 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C3A246B0009
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 05:11:12 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id g69so2707168ita.9
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 02:11:12 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 693DA6B0009
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 05:16:45 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 33so13090060wrs.3
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 02:16:45 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s126sor1068705itd.132.2018.02.01.02.11.11
+        by mx.google.com with SMTPS id k19sor9148805ede.13.2018.02.01.02.16.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Feb 2018 02:11:11 -0800 (PST)
-Date: Thu, 1 Feb 2018 02:11:08 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm v2 1/3] mm, memcg: introduce per-memcg oom policy
- tunable
-In-Reply-To: <20180131094717.GR21609@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1802010159570.175600@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1801161812550.28198@chino.kir.corp.google.com> <alpine.DEB.2.10.1801251552320.161808@chino.kir.corp.google.com> <alpine.DEB.2.10.1801251552490.161808@chino.kir.corp.google.com> <20180126171548.GB16763@dhcp22.suse.cz>
- <alpine.DEB.2.10.1801291418150.29670@chino.kir.corp.google.com> <20180130085013.GP21609@dhcp22.suse.cz> <alpine.DEB.2.10.1801301413080.148885@chino.kir.corp.google.com> <20180131094717.GR21609@dhcp22.suse.cz>
+        Thu, 01 Feb 2018 02:16:43 -0800 (PST)
+Date: Thu, 1 Feb 2018 13:16:41 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 2/2] mm/sparse.c: Add nr_present_sections to change the
+ mem_map allocation
+Message-ID: <20180201101641.icoxv2sp6ckrjfxd@node.shutemov.name>
+References: <20180201071956.14365-1-bhe@redhat.com>
+ <20180201071956.14365-3-bhe@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180201071956.14365-3-bhe@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Baoquan He <bhe@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, tglx@linutronix.de, douly.fnst@cn.fujitsu.com
 
-On Wed, 31 Jan 2018, Michal Hocko wrote:
-
-> > > > >           root
-> > > > >          / |  \
-> > > > >         A  B   C
-> > > > >        / \    / \
-> > > > >       D   E  F   G
-> > > > > 
-> > > > > Assume A: cgroup, B: oom_group=1, C: tree, G: oom_group=1
-> > > > > 
-> > > > 
-> > > > At each level of the hierarchy, memory.oom_policy compares immediate 
-> > > > children, it's the only way that an admin can lock in a specific oom 
-> > > > policy like "tree" and then delegate the subtree to the user.  If you've 
-> > > > configured it as above, comparing A and C should be the same based on the 
-> > > > cumulative usage of their child mem cgroups.
-> > > 
-> It seems I am still not clear with my question. What kind of difference
-> does policy=cgroup vs. none on A? Also what kind of different does it
-> make when a leaf node has cgroup policy?
+On Thu, Feb 01, 2018 at 03:19:56PM +0800, Baoquan He wrote:
+> In sparse_init(), we allocate usemap_map and map_map which are pointer
+> array with the size of NR_MEM_SECTIONS. The memory consumption can be
+> ignorable in 4-level paging mode. While in 5-level paging, this costs
+> much memory, 512M. Kdump kernel even can't boot up with a normal
+> 'crashkernel=' setting.
 > 
-
-If A has an oom policy of "cgroup" it will be comparing the local usage of 
-D vs E, "tree" would be the same since neither descendants have child 
-cgroups.  If A has an oom policy of "none" it would compare processes 
-attached to D and E and respect /proc/pid/oom_score_adj.  It allows for 
-opting in and opting out of cgroup aware selection not only for the whole 
-system but also per subtree.
-
-> > Hmm, I'm not sure why we would limit memory.oom_group to any policy.  Even 
-> > if we are selecting a process, even without selecting cgroups as victims, 
-> > killing a process may still render an entire cgroup useless and it makes 
-> > sense to kill all processes in that cgroup.  If an unlucky process is 
-> > selected with today's heursitic of oom_badness() or with a "none" policy 
-> > with my patchset, I don't see why we can't enable the user to kill all 
-> > other processes in the cgroup.  It may not make sense for some trees, but 
-> > but I think it could be useful for others.
+> Here add a new variable to record the number of present sections. Let's
+> allocate the usemap_map and map_map with the size of nr_present_sections.
+> We only need to make sure that for the ith present section, usemap_map[i]
+> and map_map[i] store its usemap and mem_map separately.
 > 
-> My intuition screams here. I will think about this some more but I would
-> be really curious about any sensible usecase when you want sacrifice the
-> whole gang just because of one process compared to other processes or
-> cgroups is too large. Do you see how you are mixing entities here?
+> This change can save much memory on most of systems. Anytime, we should
+> avoid to define array or allocate memory with the size of NR_MEM_SECTIONS.
+
+That's very desirable outcome. But I don't know much about sparsemem.
+
+Dave, could you take a look?
+
 > 
-
-It's a property of the workload that has nothing to do with selection.  
-Regardless of how a victim is selected, we need a victim.  That victim may 
-be able to tolerate the loss of the process, and not even need to be the 
-largest memory hogging process based on /proc/pid/oom_score_adj (periodic 
-cleanups, logging, stat collection are what I'm most familiar with).  It 
-may also be vital to the workload and it's better off to kill the entire 
-job, it's highly dependent on what the job is.  There's a general usecase 
-for memory.oom_group behavior without any selection changes, we've had a 
-killall tunable for years and is used by many customers for the same 
-reason.  There's no reason for it to be coupled, it can exist independent 
-of any cgroup aware selection.
-
-> I do not understand. Get back to our example. Are you saying that G
-> with none will enforce the none policy to C and root? If yes then this
-> doesn't make any sense because you are not really able to delegate the
-> oom policy down the tree at all. It would effectively make tree policy
-> pointless.
+> Signed-off-by: Baoquan He <bhe@redhat.com>
+> ---
+>  mm/sparse-vmemmap.c |  8 +++++---
+>  mm/sparse.c         | 39 +++++++++++++++++++++++++--------------
+>  2 files changed, 30 insertions(+), 17 deletions(-)
 > 
-
-The oom policy of G is pointless, it has no children cgroups.  It can be 
-"none", "cgroup", or "tree", it's not the root of a subtree.  (The oom 
-policy of the root mem cgroup is also irrelevant if there are no other 
-cgroups, same thing.)  If G is oom, it kills the largest process or 
-everything if memory.oom_group is set, which in your example it is.
-
-> I am skipping the rest of the following text because it is picking
-> on details and the whole design is not clear to me. So could you start
-> over documenting semantic and requirements. Ideally by describing:
-> - how does the policy on the root of the OOM hierarchy controls the
->   selection policy
-
-If "none", there's no difference than Linus's tree right now.  If 
-"cgroup", it enables cgroup aware selection: it compares all cgroups on 
-the system wrt local usage unless that cgroup has "tree" set in which case 
-its usage is hierarchical.
-
-> - how does the per-memcg policy act during the tree walk - for both
->   intermediate nodes and leafs
-
-The oom policy is determined by the mem cgroup under oom, that is the root 
-of the subtree under oom and its policy dictates how to select a victim 
-mem cgroup.
-
-> - how does the oom killer act based on the selected memcg
-
-That's the point about memory.oom_group: once it has selected a cgroup (if 
-cgroup aware behavior is enabled for the oom subtree [could be root]), a 
-memory hogging process attached to that subtree is killed or everything is 
-killed if memory.oom_group is enabled.
-
-> - how do you compare tasks with memcgs
+> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+> index 315bea91e276..5bb7b63276b3 100644
+> --- a/mm/sparse-vmemmap.c
+> +++ b/mm/sparse-vmemmap.c
+> @@ -302,6 +302,7 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  	unsigned long pnum;
+>  	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
+>  	void *vmemmap_buf_start;
+> +	int i = 0;
+>  
+>  	size = ALIGN(size, PMD_SIZE);
+>  	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size * map_count,
+> @@ -312,14 +313,15 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  		vmemmap_buf_end = vmemmap_buf_start + size * map_count;
+>  	}
+>  
+> -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> +	for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
+>  		struct mem_section *ms;
+>  
+>  		if (!present_section_nr(pnum))
+>  			continue;
+>  
+> -		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid);
+> -		if (map_map[pnum])
+> +		i++;
+> +		map_map[i-1] = sparse_mem_map_populate(pnum, nodeid);
+> +		if (map_map[i-1])
+>  			continue;
+>  		ms = __nr_to_section(pnum);
+>  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 54eba92b72a1..18273261be6d 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -202,6 +202,7 @@ static inline int next_present_section_nr(int section_nr)
+>  	      (section_nr <= __highest_present_section_nr));	\
+>  	     section_nr = next_present_section_nr(section_nr))
+>  
+> +static int nr_present_sections;
+>  /* Record a memory area against a node. */
+>  void __init memory_present(int nid, unsigned long start, unsigned long end)
+>  {
+> @@ -231,6 +232,7 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
+>  			ms->section_mem_map = sparse_encode_early_nid(nid) |
+>  							SECTION_IS_ONLINE;
+>  			section_mark_present(ms);
+> +			nr_present_sections++;
+>  		}
+>  	}
+>  }
+> @@ -399,6 +401,7 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
+>  	unsigned long pnum;
+>  	unsigned long **usemap_map = (unsigned long **)data;
+>  	int size = usemap_size();
+> +	int i = 0;
+>  
+>  	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
+>  							  size * usemap_count);
+> @@ -407,12 +410,13 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
+>  		return;
+>  	}
+>  
+> -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> +	for (pnum = pnum_begin; pnum < pnum_end && i < usemap_count; pnum++) {
+>  		if (!present_section_nr(pnum))
+>  			continue;
+> -		usemap_map[pnum] = usemap;
+> +		usemap_map[i] = usemap;
+>  		usemap += size;
+> -		check_usemap_section_nr(nodeid, usemap_map[pnum]);
+> +		check_usemap_section_nr(nodeid, usemap_map[i]);
+> +		i++;
+>  	}
+>  }
+>  
+> @@ -440,13 +444,15 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  	void *map;
+>  	unsigned long pnum;
+>  	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
+> +	int i;
+>  
+>  	map = alloc_remap(nodeid, size * map_count);
+>  	if (map) {
+> -		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> +		i = 0;
+> +		for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
+>  			if (!present_section_nr(pnum))
+>  				continue;
+> -			map_map[pnum] = map;
+> +			map_map[i] = map;
+>  			map += size;
+>  		}
+>  		return;
+> @@ -457,23 +463,26 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
+>  					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
+>  	if (map) {
+> -		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> +		i = 0;
+> +		for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
+>  			if (!present_section_nr(pnum))
+>  				continue;
+> -			map_map[pnum] = map;
+> +			map_map[i] = map;
+>  			map += size;
+>  		}
+>  		return;
+>  	}
+>  
+>  	/* fallback */
+> -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> +	i = 0;
+> +	for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
+>  		struct mem_section *ms;
+>  
+>  		if (!present_section_nr(pnum))
+>  			continue;
+> -		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid);
+> -		if (map_map[pnum])
+> +		i++;
+> +		map_map[i-1] = sparse_mem_map_populate(pnum, nodeid);
+> +		if (map_map[i-1])
+>  			continue;
+>  		ms = __nr_to_section(pnum);
+>  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+> @@ -552,6 +561,7 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
+>  		/* new start, update count etc*/
+>  		nodeid_begin = nodeid;
+>  		pnum_begin = pnum;
+> +		data += map_count;
+>  		map_count = 1;
+>  	}
+>  	/* ok, last chunk */
+> @@ -570,6 +580,7 @@ void __init sparse_init(void)
+>  	unsigned long *usemap;
+>  	unsigned long **usemap_map;
+>  	int size;
+> +	int i = 0;
+>  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+>  	int size2;
+>  	struct page **map_map;
+> @@ -592,7 +603,7 @@ void __init sparse_init(void)
+>  	 * powerpc need to call sparse_init_one_section right after each
+>  	 * sparse_early_mem_map_alloc, so allocate usemap_map at first.
+>  	 */
+> -	size = sizeof(unsigned long *) * NR_MEM_SECTIONS;
+> +	size = sizeof(unsigned long *) * nr_present_sections;
+>  	usemap_map = memblock_virt_alloc(size, 0);
+>  	if (!usemap_map)
+>  		panic("can not allocate usemap_map\n");
+> @@ -600,7 +611,7 @@ void __init sparse_init(void)
+>  							(void *)usemap_map);
+>  
+>  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+> -	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
+> +	size2 = sizeof(struct page *) * nr_present_sections;
+>  	map_map = memblock_virt_alloc(size2, 0);
+>  	if (!map_map)
+>  		panic("can not allocate map_map\n");
+> @@ -611,7 +622,7 @@ void __init sparse_init(void)
+>  	for_each_present_section_nr(0, pnum) {
+>  		struct mem_section *ms;
+>  		ms = __nr_to_section(pnum);
+> -		usemap = usemap_map[pnum];
+> +		usemap = usemap_map[i];
+>  		if (!usemap) {
+>  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+>  			ms->section_mem_map = 0;
+> @@ -620,7 +631,7 @@ void __init sparse_init(void)
+>  		}
+>  
+>  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+> -		map = map_map[pnum];
+> +		map = map_map[i];
+>  #else
+>  		map = sparse_early_mem_map_alloc(pnum);
+>  #endif
+> -- 
+> 2.13.6
 > 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-You don't, I think the misunderstanding is what happens if the root of a 
-subtree is "cgroup", for example, and a descendant has "none" enabled.  
-The root is under oom, it is comparing cgroups :)  "None" is only 
-effective if that subtree root is oom where process usage is considered.
-
-The point is that all the functionality available in -mm is still 
-available, just dictate "cgroup" everywhere and make it a decision that 
-can change per subtree, if necessary, without any mount option that would 
-become obsoleted.  Then, make memory.oom_group possible without any 
-specific selection policy since its useful on its own.
-
-Let me give you a concrete example based on your earlier /admins, 
-/teachers, /students example.  We oversubscribe the /students subtree in 
-the case where /admins and /teachers aren't using the memory.  We say 100 
-students can use 1GB each, but the limit of /students is actually 200GB.  
-100 students using 1GB each won't cause a system oom, we control that by 
-the limit of /admins and /teachers.  But we allow using memory that isn't 
-in use by /admins and /teachers if it's there, opening up overconsumers to 
-the possibility of oom kill.  (This is a real world example with batch job 
-scheduling, it's anything but hypothetical.)
-
-/students/michal logs in, and he has complete control over his subtree.  
-He's going to start several jobs, all in their own cgroups, with usage 
-well over 1GB, but if he's oom killed he wants the right thing oom killed.  
-
-Obviously this completely breaks down if the -mm functionality is used if 
-you have 10 jobs using 512MB each, because another student using more than 
-1GB who isn't using cgroups is going to be oom killed instead, although 
-you are using 5GB.  We've discussed that ad nauseam, and is why I 
-introduced "tree".
-
-But now look at the API.  /students/michal is using child cgroups but 
-which selection policy is in effect?  Will it kill the most memory hogging 
-process in his subtree or the most memory hogging process from the most 
-memory hogging cgroup?  It's an important distinction because it's 
-directly based on how he constructs his hierarchy: if locked into one 
-selection logic, the least important job *must* be in the highest 
-consuming cgroup; otherwise, his /proc/pid/oom_score_adj is respected.  He 
-*must* query the mount option.
-
-But now let's say that memory.oom_policy is merged to give this control to 
-him to do per process, per cgroup, or per subtree oom killing based on how 
-he defines it.  The mount option doesn't mean anything anymore, in fact, 
-it can mean the complete opposite of what actually happens.  That's the 
-direct objection to the mount option.  Since I have systems with thousands 
-of cgroups in hundreds of cgroups and over 100 workgroups that define, 
-sometimes very creatively, how to select oom victims, I'm an advocate for 
-an extensible interface that is useful for general purpose, doesn't remove 
-any functionality, and doesn't have contradicting specifications.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
