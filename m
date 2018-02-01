@@ -1,90 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C7036B0003
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 03:28:59 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id a17so16057642qta.10
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 00:28:59 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d15si3857712qkj.82.2018.02.01.00.28.58
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DF596B0003
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 04:06:21 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id 137so965456wml.0
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 01:06:21 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id m79si1252451wmc.37.2018.02.01.01.06.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Feb 2018 00:28:58 -0800 (PST)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w118SsQ4061075
-	for <linux-mm@kvack.org>; Thu, 1 Feb 2018 03:28:58 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2fuxkf280f-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 01 Feb 2018 03:28:56 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 1 Feb 2018 08:28:42 -0000
-Subject: Re: [RFC] mm/migrate: Add new migration reason MR_HUGETLB
-References: <20180130030714.6790-1-khandual@linux.vnet.ibm.com>
- <20180130075949.GN21609@dhcp22.suse.cz>
- <b4bd6cda-a3b7-96dd-b634-d9b3670c1ecf@linux.vnet.ibm.com>
- <20180131075852.GL21609@dhcp22.suse.cz>
- <20180131121217.4c80263d68a4ad4da7b170f0@linux-foundation.org>
- <20180131203242.GB21609@dhcp22.suse.cz>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 1 Feb 2018 13:58:36 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 01 Feb 2018 01:06:19 -0800 (PST)
+Date: Thu, 1 Feb 2018 10:05:53 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] x86/mm: Rename flush_tlb_single() and flush_tlb_one()
+Message-ID: <20180201090553.GV2269@hirez.programming.kicks-ass.net>
+References: <3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20180131203242.GB21609@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <29b6db3a-f853-b81b-0632-c1841298ab87@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>
 
-On 02/01/2018 02:02 AM, Michal Hocko wrote:
-> On Wed 31-01-18 12:12:17, Andrew Morton wrote:
->> On Wed, 31 Jan 2018 08:58:52 +0100 Michal Hocko <mhocko@kernel.org> wrote:
->>
->>> On Wed 31-01-18 07:55:05, Anshuman Khandual wrote:
->>>> On 01/30/2018 01:29 PM, Michal Hocko wrote:
->>>>> On Tue 30-01-18 08:37:14, Anshuman Khandual wrote:
->>>>>> alloc_contig_range() initiates compaction and eventual migration for
->>>>>> the purpose of either CMA or HugeTLB allocation. At present, reason
->>>>>> code remains the same MR_CMA for either of those cases. Lets add a
->>>>>> new reason code which will differentiate the purpose of migration
->>>>>> as HugeTLB allocation instead.
->>>>> Why do we need it?
->>>>
->>>> The same reason why we have MR_CMA (maybe some other ones as well) at
->>>> present, for reporting purpose through traces at the least. It just
->>>> seemed like same reason code is being used for two different purpose
->>>> of migration.
->>>
->>> But do we have any real user asking for this kind of information?
->>
->> It seems a reasonable cleanup: reusing MR_CMA for hugetlb just because
->> it happens to do the right thing is a bit hacky - the two things aren't
->> particularly related and a reader could be excused for feeling
->> confusion.
+On Wed, Jan 31, 2018 at 08:03:10AM -0800, Andy Lutomirski wrote:
+> flush_tlb_single() and flush_tlb_one() sound almost identical, but
+> they really mean "flush one user translation" and "flush one kernel
+> translation".  Rename them to flush_tlb_one_user() and
+> flush_tlb_one_kernel() to make the semantics more obvious.
 > 
-> My bad! I thought this is a tracepoint thingy. But it seems to be only
-> used as a migration reason for page_owner. Now it makes more sense.
->  
->> But the change seems incomplete:
->>
->>> +		if (migratetype == MIGRATE_CMA)
->>> +			migrate_reason = MR_CMA;
->>> +		else
->>> +			migrate_reason = MR_HUGETLB;
->>
->> If we're going to do this cleanup then shouldn't we go all the way and
->> add MIGRATE_HUGETLB?
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Borislav Petkov <bpetkov@suse.de>
+> Cc: Kees Cook <keescook@google.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Brian Gerst <brgerst@gmail.com>
+> Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+> Cc: Juergen Gross <jgross@suse.com>
+> Cc: Eduardo Valentin <eduval@amazon.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Linux-MM <linux-mm@kvack.org>
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+> ---
 > 
-> Yes. We can expect more users of alloc_contig_range in future. Maybe we
-> want to use MR_CONTIG_RANGE instead.
+> I was looking at some PTI-related code, and the flush-one-address code
+> is unnecessarily hard to understand because the names of the helpers are
+> uninformative.  This came up during PTI review, but no one got around to
+> doing it.
 
-MR_CONTIG_RANGE can be a replacement for both MR_CMA and MR_HUGETLB.
+Right, got as far as making it consistent and putting a comment on :-)
 
-
-
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
