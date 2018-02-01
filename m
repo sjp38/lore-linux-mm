@@ -1,48 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 25D996B0003
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 16:11:18 -0500 (EST)
-Received: by mail-vk0-f69.google.com with SMTP id e71so11666500vkd.4
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 13:11:18 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h38sor206003uah.88.2018.02.01.13.11.17
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 01 Feb 2018 13:11:17 -0800 (PST)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C85936B0003
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 17:46:47 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id b6so2123116plx.3
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 14:46:47 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id h15-v6si314851pli.212.2018.02.01.14.46.45
+        for <linux-mm@kvack.org>;
+        Thu, 01 Feb 2018 14:46:46 -0800 (PST)
+Date: Fri, 2 Feb 2018 09:47:38 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] few MM topics
+Message-ID: <20180201224738.y3vsrh7ekdugm5ae@destitution>
+References: <20180124092649.GC21134@dhcp22.suse.cz>
+ <20180131192104.GD4841@magnolia>
+ <20180131202438.GA21609@dhcp22.suse.cz>
+ <20180131234126.oobqdp6ibcayduu3@destitution>
+ <20180201154655.GN21609@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <48fde114-d063-cfbf-e1b6-262411fcd963@huawei.com>
-References: <20180130151446.24698-1-igor.stoppa@huawei.com>
- <20180130151446.24698-4-igor.stoppa@huawei.com> <alpine.DEB.2.20.1801311758340.21272@nuc-kabylake>
- <48fde114-d063-cfbf-e1b6-262411fcd963@huawei.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Fri, 2 Feb 2018 08:11:15 +1100
-Message-ID: <CAGXu5jKKeJL13dcaY=fDJ8AiOXDP5MhQTqDYDOt3a374CFA1HQ@mail.gmail.com>
-Subject: Re: [PATCH 3/6] struct page: add field for vm_struct
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180201154655.GN21609@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: Christopher Lameter <cl@linux.com>, jglisse@redhat.com, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <willy@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kernel-hardening@lists.openwall.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Rik van Riel <riel@surriel.com>, linux-nvme@lists.infradead.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org
 
-On Thu, Feb 1, 2018 at 11:42 PM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
-> On 01/02/18 02:00, Christopher Lameter wrote:
->> Would it not be better to use compound page allocations here?
->> page_head(whatever) gets you the head page where you can store all sorts
->> of information about the chunk of memory.
->
-> Can you please point me to this function/macro? I don't seem to be able
-> to find it, at least not in 4.15
+On Thu, Feb 01, 2018 at 04:46:55PM +0100, Michal Hocko wrote:
+> On Thu 01-02-18 10:41:26, Dave Chinner wrote:
+> > On Wed, Jan 31, 2018 at 09:24:38PM +0100, Michal Hocko wrote:
+> [...]
+> > > This would both document the context
+> > > and also limit NOFS allocations to bare minumum.
+> > 
+> > Yup, most of XFS already uses implicit GFP_NOFS allocation calls via
+> > the transaction context process flag manipulation.
+> 
+> Yeah, xfs is in quite a good shape. There are still around 40+ KM_NOFS
+> users. Are there any major obstacles to remove those? Or is this just
+> "send patches" thing.
 
-IIUC, he means PageHead(), which is also hard to grep for, since it is
-a constructed name, via Page##uname in include/linux/page-flags.h:
+They need to be looked at on a case by case basis - many of
+them are the "shut up lockdep false positives" workarounds because
+the code is called from multiple memory reclaim contexts. In other
+cases they might actually be needed. If you send patches, it'll
+kinda force us to look at them and say yay/nay :P
 
-__PAGEFLAG(Head, head, PF_ANY) CLEARPAGEFLAG(Head, head, PF_ANY)
+> Compare that to
+> $ git grep GFP_NOFS -- fs/btrfs/ | wc -l
+> 272
 
--Kees
+Fair point. :P
 
+Cheers,
+
+Dave.
 -- 
-Kees Cook
-Pixel Security
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
