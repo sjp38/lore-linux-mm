@@ -1,90 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 06DF36B0003
-	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 21:12:22 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id i124so505779ita.0
-        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:12:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a125sor1446952ioa.24.2018.01.31.18.12.20
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B1276B0003
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2018 21:55:35 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id f1so2417704plb.7
+        for <linux-mm@kvack.org>; Wed, 31 Jan 2018 18:55:35 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id i9-v6si837506plt.544.2018.01.31.18.55.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 31 Jan 2018 18:12:20 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 31 Jan 2018 18:55:25 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH v11 0/3] mm, x86, powerpc: Enhancements to Memory Protection Keys.
+In-Reply-To: <20180131070711.pad45qmnougnh4vf@gmail.com>
+References: <1517341452-11924-1-git-send-email-linuxram@us.ibm.com> <20180131070711.pad45qmnougnh4vf@gmail.com>
+Date: Thu, 01 Feb 2018 13:55:21 +1100
+Message-ID: <87lggde7vq.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-In-Reply-To: <20180201014749.GF4841@magnolia>
-References: <CAOvWMLZVkQ1D=Jn-_O9owewr7U699bN=dmwuBoDnQVLEkkXJ8A@mail.gmail.com>
- <20180201014749.GF4841@magnolia>
-From: Andiry Xu <jix024@eng.ucsd.edu>
-Date: Wed, 31 Jan 2018 18:12:19 -0800
-Message-ID: <CAD4Szjt8ayQYjCPzkuOnRXkRtLg4CNmBT1R29VAJXBkFh+vymw@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Native NVMM file systems
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Andiry Xu <andiry@gmail.com>, lsf-pc@lists.linux-foundation.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, willy@infradead.org, Steven Swanson <swanson@cs.ucsd.edu>, Andiry Xu <jix024@cs.ucsd.edu>
+To: Ingo Molnar <mingo@kernel.org>, Ram Pai <linuxram@us.ibm.com>
+Cc: mingo@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com
 
-On Wed, Jan 31, 2018 at 5:47 PM, Darrick J. Wong
-<darrick.wong@oracle.com> wrote:
-> On Wed, Jan 31, 2018 at 04:45:36PM -0800, Andiry Xu wrote:
->> PMEM/DAX should allow for significant improvements in file system
->> performance and enable new programming models that allow direct,
->> efficient access to PMEM from userspace.  Achieving these gains in
->> existing file systems built for block devices (e.g., XFS and EXT4=E2=80=
-=A6)
->> presents a range of challenges (e.g.,
->> https://lkml.org/lkml/2016/9/11/159) and has been the subject of a lot
->> of recent work on ext4 and xfs.
->>
->> An alternative is to build a NVMM-aware file system from scratch that
->> takes full advantage of the performance that PMEM offers and avoids
->> the complexity that block-based file systems include to maximize
->> performance on slow storage (e.g., relaxing atomicity constraints on
->> many operations).  Of course, it also brings with it the complexity of
->> another file system.
->>
->> We recently sent out a patch set for one-such =E2=80=9Cclean slate=E2=80=
-=9D NVMM-aware
->> file system called NOVA.  NOVA is log-structured DAX file system with
->> several nice features:
+Ingo Molnar <mingo@kernel.org> writes:
+
+> * Ram Pai <linuxram@us.ibm.com> wrote:
 >
-> That's the series that was sent out last August, correct?
+>> This patch series provides arch-neutral enhancements to
+>> enable memory-keys on new architecutes, and the corresponding
+>> changes in x86 and powerpc specific code to support that.
+>> 
+>> a) Provides ability to support upto 32 keys.  PowerPC
+>> 	can handle 32 keys and hence needs this.
+>> 
+>> b) Arch-neutral code; and not the arch-specific code,
+>>    determines the format of the string, that displays the key
+>>    for each vma in smaps.
+>> 
+>> PowerPC implementation of memory-keys is now in powerpc/next tree.
+>> https://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git/commit/?h=next&id=92e3da3cf193fd27996909956c12a23c0333da44
 >
-
-Yes. We are preparing another round of submission.
-
->> * High performance, especially in metadata operations due to efficient
->> fine-grained logging
->> * High scalability with per-CPU memory pool and per-inode logging
->> * Strong metadata and data atomicity guarantees for all operations
->> * Full filesystem snapshot support with DAX-mmap
->> * Metadata replication/checksums and RAID-4 style data protection
->>
->> At the summit, we would like to discuss the trade-offs between
->> adapting NVMM features to existing file systems vs. creating/adopting
->> a purpose-built file system for NVMM.  NOVA serves as useful starting
->> point for that discussion by demonstrating what=E2=80=99s possible.  It =
-may
->> also suggest some features that could be adapted to other file systems
->> to improve NVMM performance.
->>
->> We welcome people that are interested in file systems and NVM/DAX.
->> Particular people that would be useful to have in attendance are Dan
->> Williams, Dave Chinner, and Matthew Wilcox.
+> All three patches look sane to me. If you would like to carry these generic bits 
+> in the PowerPC tree as well then:
 >
-> I wouldn't mind being there too. :)
->
+>   Reviewed-by: Ingo Molnar <mingo@kernel.org>
 
-Welcome:)
+Thanks.
 
-Thanks,
-Andiry
+I'll put them in powerpc next and probably send to Linus next week in a
+2nd pull request for 4.16.
 
-> --D
->
->>
->> Thanks,
->> Andiry
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
