@@ -1,63 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C85936B0003
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 17:46:47 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id b6so2123116plx.3
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 14:46:47 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id h15-v6si314851pli.212.2018.02.01.14.46.45
-        for <linux-mm@kvack.org>;
-        Thu, 01 Feb 2018 14:46:46 -0800 (PST)
-Date: Fri, 2 Feb 2018 09:47:38 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] few MM topics
-Message-ID: <20180201224738.y3vsrh7ekdugm5ae@destitution>
-References: <20180124092649.GC21134@dhcp22.suse.cz>
- <20180131192104.GD4841@magnolia>
- <20180131202438.GA21609@dhcp22.suse.cz>
- <20180131234126.oobqdp6ibcayduu3@destitution>
- <20180201154655.GN21609@dhcp22.suse.cz>
+	by kanga.kvack.org (Postfix) with ESMTP id 53C956B0006
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 17:50:22 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id d21so2115693pll.12
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 14:50:22 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id w13si397320pgq.199.2018.02.01.14.50.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Feb 2018 14:50:21 -0800 (PST)
+Subject: Re: [RFC PATCH v1 03/13] mm: add lock array to pgdat and batch fields
+ to struct page
+References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
+ <20180131230413.27653-4-daniel.m.jordan@oracle.com>
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Message-ID: <64330116-13ef-af3c-a445-f0c1b5bc1728@linux.intel.com>
+Date: Thu, 1 Feb 2018 14:50:19 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180201154655.GN21609@dhcp22.suse.cz>
+In-Reply-To: <20180131230413.27653-4-daniel.m.jordan@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Rik van Riel <riel@surriel.com>, linux-nvme@lists.infradead.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org
+To: daniel.m.jordan@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, ldufour@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com
 
-On Thu, Feb 01, 2018 at 04:46:55PM +0100, Michal Hocko wrote:
-> On Thu 01-02-18 10:41:26, Dave Chinner wrote:
-> > On Wed, Jan 31, 2018 at 09:24:38PM +0100, Michal Hocko wrote:
-> [...]
-> > > This would both document the context
-> > > and also limit NOFS allocations to bare minumum.
-> > 
-> > Yup, most of XFS already uses implicit GFP_NOFS allocation calls via
-> > the transaction context process flag manipulation.
+On 01/31/2018 03:04 PM, daniel.m.jordan@oracle.com wrote:
+> This patch simply adds the array of locks and struct page fields.
+> Ignore for now where the struct page fields are: we need to find a place
+> to put them that doesn't enlarge the struct.
 > 
-> Yeah, xfs is in quite a good shape. There are still around 40+ KM_NOFS
-> users. Are there any major obstacles to remove those? Or is this just
-> "send patches" thing.
+> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> ---
+>  include/linux/mm_types.h | 5 +++++
+>  include/linux/mmzone.h   | 7 +++++++
+>  mm/page_alloc.c          | 3 +++
+>  3 files changed, 15 insertions(+)
+> 
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index cfd0ac4e5e0e..6e9d26f0cecf 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -190,6 +190,11 @@ struct page {
+>  		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
+>  	};
+>  
+> +	struct {
+> +		unsigned lru_batch;
+> +		bool lru_sentinel;
 
-They need to be looked at on a case by case basis - many of
-them are the "shut up lockdep false positives" workarounds because
-the code is called from multiple memory reclaim contexts. In other
-cases they might actually be needed. If you send patches, it'll
-kinda force us to look at them and say yay/nay :P
+The above declaration adds at least 5 bytes to struct page.
+It adds a lot of extra memory overhead when multiplied
+by the number of pages in the system.
 
-> Compare that to
-> $ git grep GFP_NOFS -- fs/btrfs/ | wc -l
-> 272
+We can move sentinel bool to page flag, at least for 64 bit system.
+And 8 bit is probably enough for lru_batch id to give a max 
+lru_batch number of 256 to break the locks into 256 smaller ones.  
+The max used in the patchset is 32 and that is already giving
+pretty good spread of the locking.
+It will be better if we can find some unused space in struct page
+to squeeze it in.
 
-Fair point. :P
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
