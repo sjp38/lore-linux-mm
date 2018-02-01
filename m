@@ -1,91 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EBFE26B0003
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 14:14:40 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id e69so18551428iod.17
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 11:14:40 -0800 (PST)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3246F6B0003
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 14:15:55 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id 128-v6so832301iti.1
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 11:15:55 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e84si170927iof.173.2018.02.01.11.14.39
+        by mx.google.com with ESMTPS id r16si167790ior.271.2018.02.01.11.15.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Feb 2018 11:14:39 -0800 (PST)
-Date: Thu, 1 Feb 2018 21:14:25 +0200
+        Thu, 01 Feb 2018 11:15:53 -0800 (PST)
+Date: Thu, 1 Feb 2018 21:15:45 +0200
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v24 2/2] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-Message-ID: <20180201211114-mutt-send-email-mst@kernel.org>
-References: <1516790562-37889-1-git-send-email-wei.w.wang@intel.com>
- <1516790562-37889-3-git-send-email-wei.w.wang@intel.com>
- <20180124183349-mutt-send-email-mst@kernel.org>
- <5A694FB5.5090803@intel.com>
- <17068749-d2c7-61bb-4637-a1aee5a0d0fb@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH v25 0/2] Virtio-balloon: support free page reporting
+Message-ID: <20180201211525-mutt-send-email-mst@kernel.org>
+References: <1516871646-22741-1-git-send-email-wei.w.wang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <17068749-d2c7-61bb-4637-a1aee5a0d0fb@I-love.SAKURA.ne.jp>
+In-Reply-To: <1516871646-22741-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Thu, Jan 25, 2018 at 08:28:52PM +0900, Tetsuo Handa wrote:
-> On 2018/01/25 12:32, Wei Wang wrote:
-> > On 01/25/2018 01:15 AM, Michael S. Tsirkin wrote:
-> >> On Wed, Jan 24, 2018 at 06:42:42PM +0800, Wei Wang wrote:
-> >> +
-> >> +static void report_free_page_func(struct work_struct *work)
-> >> +{
-> >> +    struct virtio_balloon *vb;
-> >> +    unsigned long flags;
-> >> +
-> >> +    vb = container_of(work, struct virtio_balloon, report_free_page_work);
-> >> +
-> >> +    /* Start by sending the obtained cmd id to the host with an outbuf */
-> >> +    send_cmd_id(vb, &vb->start_cmd_id);
-> >> +
-> >> +    /*
-> >> +     * Set start_cmd_id to VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID to
-> >> +     * indicate a new request can be queued.
-> >> +     */
-> >> +    spin_lock_irqsave(&vb->stop_update_lock, flags);
-> >> +    vb->start_cmd_id = cpu_to_virtio32(vb->vdev,
-> >> +                VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
-> >> +    spin_unlock_irqrestore(&vb->stop_update_lock, flags);
-> >> +
-> >> +    walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
-> >> Can you teach walk_free_mem_block to return the && of all
-> >> return calls, so caller knows whether it completed?
-> > 
-> > There will be two cases that can cause walk_free_mem_block to return without completing:
-> > 1) host requests to stop in advance
-> > 2) vq->broken
-> > 
-> > How about letting walk_free_mem_block simply return the value returned by its callback (i.e. virtio_balloon_send_free_pages)?
-> > 
-> > For host requests to stop, it returns "1", and the above only bails out when walk_free_mem_block return a "< 0" value.
+On Thu, Jan 25, 2018 at 05:14:04PM +0800, Wei Wang wrote:
+> This patch series is separated from the previous "Virtio-balloon
+> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,  
+> implemented by this series enables the virtio-balloon driver to report
+> hints of guest free pages to the host. It can be used to accelerate live
+> migration of VMs. Here is an introduction of this usage:
 > 
-> I feel that virtio_balloon_send_free_pages is doing too heavy things.
+> Live migration needs to transfer the VM's memory from the source machine
+> to the destination round by round. For the 1st round, all the VM's memory
+> is transferred. From the 2nd round, only the pieces of memory that were
+> written by the guest (after the 1st round) are transferred. One method
+> that is popularly used by the hypervisor to track which part of memory is
+> written is to write-protect all the guest memory.
 > 
-> It can be called for many times with IRQ disabled. Number of times
-> it is called depends on amount of free pages (and fragmentation state).
-> Generally, more free pages, more calls.
+> The second feature enables the optimization of the 1st round memory
+> transfer - the hypervisor can skip the transfer of guest free pages in the
+> 1st round. It is not concerned that the memory pages are used after they
+> are given to the hypervisor as a hint of the free pages, because they will
+> be tracked by the hypervisor and transferred in the next round if they are
+> used and written.
+
+Could you post performance numbers please?
+
+> ChangeLog:
+> v24->v25:
+>     - mm: change walk_free_mem_block to return 0 (instead of true) on
+>           completing the report, and return a non-zero value from the
+>           callabck, which stops the reporting.
+>     - virtio-balloon:
+>         - use enum instead of define for VIRTIO_BALLOON_VQ_INFLATE etc.
+>         - avoid __virtio_clear_bit when bailing out;
+>         - a new method to avoid reporting the some cmd id to host twice
+>         - destroy_workqueue can cancel free page work when the feature is
+>           negotiated;
+>         - fail probe when the free page vq size is less than 2.
+> v23->v24:
+>     - change feature name VIRTIO_BALLOON_F_FREE_PAGE_VQ to
+>       VIRTIO_BALLOON_F_FREE_PAGE_HINT
+>     - kick when vq->num_free < half full, instead of "= half full"
+>     - replace BUG_ON with bailing out
+>     - check vb->balloon_wq in probe(), if null, bail out
+>     - add a new feature bit for page poisoning
+>     - solve the corner case that one cmd id being sent to host twice
+> v22->v23:
+>     - change to kick the device when the vq is half-way full;
+>     - open-code batch_free_page_sg into add_one_sg;
+>     - change cmd_id from "uint32_t" to "__virtio32";
+>     - reserver one entry in the vq for teh driver to send cmd_id, instead
+>       of busywaiting for an available entry;
+>     - add "stop_update" check before queue_work for prudence purpose for
+>       now, will have a separate patch to discuss this flag check later;
+>     - init_vqs: change to put some variables on stack to have simpler
+>       implementation;
+>     - add destroy_workqueue(vb->balloon_wq);
 > 
-> Then, why don't you allocate some pages for holding all pfn values
-> and then call walk_free_mem_block() only for storing pfn values
-> and then send pfn values without disabling IRQ?
-
-So going over it, at some level we are talking about optimizations here.
-
-I'll go over it one last time but at some level we might
-be able to make progress faster if we start by enabling
-the functionality in question.
-If there are no other issues, I'm inclined to merge.
-
-If nothing else, this
-will make it possible for people to experiment and
-report sources of overhead.
-
--- 
-MST
+> v21->v22:
+>     - add_one_sg: some code and comment re-arrangement
+>     - send_cmd_id: handle a cornercase
+> 
+> For previous ChangeLog, please reference
+> https://lwn.net/Articles/743660/
+> 
+> Wei Wang (2):
+>   mm: support reporting free page blocks
+>   virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+> 
+>  drivers/virtio/virtio_balloon.c     | 251 ++++++++++++++++++++++++++++++------
+>  include/linux/mm.h                  |   6 +
+>  include/uapi/linux/virtio_balloon.h |   7 +
+>  mm/page_alloc.c                     |  96 ++++++++++++++
+>  4 files changed, 324 insertions(+), 36 deletions(-)
+> 
+> -- 
+> 2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
