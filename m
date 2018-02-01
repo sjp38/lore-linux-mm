@@ -1,242 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 693DA6B0009
-	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 05:16:45 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 33so13090060wrs.3
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 02:16:45 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k19sor9148805ede.13.2018.02.01.02.16.43
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1016B6B0009
+	for <linux-mm@kvack.org>; Thu,  1 Feb 2018 05:27:34 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id d63so1454710wma.4
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 02:27:34 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 6sor6963686edl.54.2018.02.01.02.27.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Feb 2018 02:16:43 -0800 (PST)
-Date: Thu, 1 Feb 2018 13:16:41 +0300
+        Thu, 01 Feb 2018 02:27:32 -0800 (PST)
+Date: Thu, 1 Feb 2018 13:27:30 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 2/2] mm/sparse.c: Add nr_present_sections to change the
- mem_map allocation
-Message-ID: <20180201101641.icoxv2sp6ckrjfxd@node.shutemov.name>
-References: <20180201071956.14365-1-bhe@redhat.com>
- <20180201071956.14365-3-bhe@redhat.com>
+Subject: Re: [PATCH v2] mm: Reduce memory bloat with THP
+Message-ID: <20180201102730.al4jl2raldfgoy7f@node.shutemov.name>
+References: <1516318444-30868-1-git-send-email-nitingupta910@gmail.com>
+ <20180119124957.GA6584@dhcp22.suse.cz>
+ <ce7c1498-9f28-2eb0-67b7-ade9b04b8e2b@oracle.com>
+ <59F98618-C49F-48A8-BCA1-A8F717888BAA@cs.rutgers.edu>
+ <4d7ce874-9771-ad5f-c064-52a46fc37689@oracle.com>
+ <20180125211303.rbfeg7ultwr6hpd3@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180201071956.14365-3-bhe@redhat.com>
+In-Reply-To: <20180125211303.rbfeg7ultwr6hpd3@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, tglx@linutronix.de, douly.fnst@cn.fujitsu.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Nitin Gupta <nitin.m.gupta@oracle.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, Nitin Gupta <nitingupta910@gmail.com>, steven.sistare@oracle.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Nadav Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Vegard Nossum <vegard.nossum@oracle.com>, "Levin, Alexander" <alexander.levin@verizon.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Shaohua Li <shli@fb.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, J?r?me Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Tobin C Harding <me@tobin.cc>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Feb 01, 2018 at 03:19:56PM +0800, Baoquan He wrote:
-> In sparse_init(), we allocate usemap_map and map_map which are pointer
-> array with the size of NR_MEM_SECTIONS. The memory consumption can be
-> ignorable in 4-level paging mode. While in 5-level paging, this costs
-> much memory, 512M. Kdump kernel even can't boot up with a normal
-> 'crashkernel=' setting.
+On Thu, Jan 25, 2018 at 09:13:03PM +0000, Mel Gorman wrote:
+> On Thu, Jan 25, 2018 at 11:41:03AM -0800, Nitin Gupta wrote:
+> > >> It's not really about memory scarcity but a more efficient use of it.
+> > >> Applications may want hugepage benefits without requiring any changes to
+> > >> app code which is what THP is supposed to provide, while still avoiding
+> > >> memory bloat.
+> > >>
+> > > I read these links and find that there are mainly two complains:
+> > > 1. THP causes latency spikes, because direction compaction slows down THP allocation,
+> > > 2. THP bloats memory footprint when jemalloc uses MADV_DONTNEED to return memory ranges smaller than
+> > >    THP size and fails because of THP.
+> > >
+> > > The first complain is not related to this patch.
+> > 
+> > I'm trying to address many different THP issues and memory bloat is
+> > first among them.
 > 
-> Here add a new variable to record the number of present sections. Let's
-> allocate the usemap_map and map_map with the size of nr_present_sections.
-> We only need to make sure that for the ith present section, usemap_map[i]
-> and map_map[i] store its usemap and mem_map separately.
+> Expecting userspace to get this right is probably going to go sideways.
+> It'll be screwed up and be sub-optimal or have odd semantics for existing
+> madvise flags. The fact is that an application may not even know if it's
+> going to be sparsely using memory in advance if it's a computation load
+> modelling from unknown input data.
 > 
-> This change can save much memory on most of systems. Anytime, we should
-> avoid to define array or allocate memory with the size of NR_MEM_SECTIONS.
+> I suggest you read the old Talluri paper "Superpassing the TLB Performance
+> of Superpages with Less Operating System Support" and pay attention to
+> Section 4. There it discusses a page reservation scheme whereby on fault
+> a naturally aligned set of base pages are reserved and only one correctly
+> placed base page is inserted into the faulting address. It was tied into
+> a hypothetical piece of hardware that doesn't exist to give best-effort
+> support for superpages so it does not directly help you but the initial
+> idea is sound. There are holes in the paper from todays perspective but
+> it was written in the 90's.
+> 
+> From there, read "Transparent operating system support for superpages"
+> by Navarro, particularly chapter 4 paying attention to the parts where
+> it talks about opportunism and promotion threshold.
+> 
+> Superficially, it goes like this
+> 
+> 1. On fault, reserve a THP in the allocator and use one base page that
+>    is correctly-aligned for the faulting addresses. By correctly-aligned,
+>    I mean that you use base page whose offset would be naturally contiguous
+>    if it ever was part of a huge page.
+> 2. On subsequent faults, attempt to use a base page that is naturally
+>    aligned to be a THP
+> 3. When a "threshold" of base pages are inserted, allocate the remaining
+>    pages and promote it to a THP
+> 4. If there is memory pressure, spill "reserved" pages into the main
+>    allocation pool and lose the opportunity to promote (which will need
+>    khugepaged to recover)
+> 
+> By definition, a promotion threshold of 1 would be the existing scheme
+> of allocation a THP on the first fault and some users will want that. It
+> also should be the default to avoid unexpected overhead.  For workloads
+> where memory is being sparsely addressed and the increased overhead of
+> THP is unwelcome then the threshold should be tuned higher with a maximum
+> possible value of HPAGE_PMD_NR.
+> 
+> It's non-trivial to do this because at minimum a page fault has to check
+> if there is a potential promotion candidate by checking the PTEs around
+> the faulting address searching for a correctly-aligned base page that is
+> already inserted. If there is, then check if the correctly aligned base
+> page for the current faulting address is free and if so use it. It'll
+> also then need to check the remaining PTEs to see if both the promotion
+> threshold has been reached and if so, promote it to a THP (or else teach
+> khugepaged to do an in-place promotion if possible). In other words,
+> implementing the promotion threshold is both hard and it's not free.
 
-That's very desirable outcome. But I don't know much about sparsemem.
+"not free" is understatement.
 
-Dave, could you take a look?
+Converting PTE page table to PMD would require down_write(mmap_sem).
+Doing it from within page fault path would also mean that we need to drop
+down_read(mmap) we hold, re-aquaire it with down_write(), find the vma again
+and re-validate that nothing changed in meanwhile...
 
-> 
-> Signed-off-by: Baoquan He <bhe@redhat.com>
-> ---
->  mm/sparse-vmemmap.c |  8 +++++---
->  mm/sparse.c         | 39 +++++++++++++++++++++++++--------------
->  2 files changed, 30 insertions(+), 17 deletions(-)
-> 
-> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-> index 315bea91e276..5bb7b63276b3 100644
-> --- a/mm/sparse-vmemmap.c
-> +++ b/mm/sparse-vmemmap.c
-> @@ -302,6 +302,7 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->  	unsigned long pnum;
->  	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
->  	void *vmemmap_buf_start;
-> +	int i = 0;
->  
->  	size = ALIGN(size, PMD_SIZE);
->  	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size * map_count,
-> @@ -312,14 +313,15 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->  		vmemmap_buf_end = vmemmap_buf_start + size * map_count;
->  	}
->  
-> -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> +	for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
->  		struct mem_section *ms;
->  
->  		if (!present_section_nr(pnum))
->  			continue;
->  
-> -		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid);
-> -		if (map_map[pnum])
-> +		i++;
-> +		map_map[i-1] = sparse_mem_map_populate(pnum, nodeid);
-> +		if (map_map[i-1])
->  			continue;
->  		ms = __nr_to_section(pnum);
->  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 54eba92b72a1..18273261be6d 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -202,6 +202,7 @@ static inline int next_present_section_nr(int section_nr)
->  	      (section_nr <= __highest_present_section_nr));	\
->  	     section_nr = next_present_section_nr(section_nr))
->  
-> +static int nr_present_sections;
->  /* Record a memory area against a node. */
->  void __init memory_present(int nid, unsigned long start, unsigned long end)
->  {
-> @@ -231,6 +232,7 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
->  			ms->section_mem_map = sparse_encode_early_nid(nid) |
->  							SECTION_IS_ONLINE;
->  			section_mark_present(ms);
-> +			nr_present_sections++;
->  		}
->  	}
->  }
-> @@ -399,6 +401,7 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
->  	unsigned long pnum;
->  	unsigned long **usemap_map = (unsigned long **)data;
->  	int size = usemap_size();
-> +	int i = 0;
->  
->  	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
->  							  size * usemap_count);
-> @@ -407,12 +410,13 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
->  		return;
->  	}
->  
-> -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> +	for (pnum = pnum_begin; pnum < pnum_end && i < usemap_count; pnum++) {
->  		if (!present_section_nr(pnum))
->  			continue;
-> -		usemap_map[pnum] = usemap;
-> +		usemap_map[i] = usemap;
->  		usemap += size;
-> -		check_usemap_section_nr(nodeid, usemap_map[pnum]);
-> +		check_usemap_section_nr(nodeid, usemap_map[i]);
-> +		i++;
->  	}
->  }
->  
-> @@ -440,13 +444,15 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->  	void *map;
->  	unsigned long pnum;
->  	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
-> +	int i;
->  
->  	map = alloc_remap(nodeid, size * map_count);
->  	if (map) {
-> -		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> +		i = 0;
-> +		for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
->  			if (!present_section_nr(pnum))
->  				continue;
-> -			map_map[pnum] = map;
-> +			map_map[i] = map;
->  			map += size;
->  		}
->  		return;
-> @@ -457,23 +463,26 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->  					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
->  					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
->  	if (map) {
-> -		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> +		i = 0;
-> +		for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
->  			if (!present_section_nr(pnum))
->  				continue;
-> -			map_map[pnum] = map;
-> +			map_map[i] = map;
->  			map += size;
->  		}
->  		return;
->  	}
->  
->  	/* fallback */
-> -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> +	i = 0;
-> +	for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
->  		struct mem_section *ms;
->  
->  		if (!present_section_nr(pnum))
->  			continue;
-> -		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid);
-> -		if (map_map[pnum])
-> +		i++;
-> +		map_map[i-1] = sparse_mem_map_populate(pnum, nodeid);
-> +		if (map_map[i-1])
->  			continue;
->  		ms = __nr_to_section(pnum);
->  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
-> @@ -552,6 +561,7 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
->  		/* new start, update count etc*/
->  		nodeid_begin = nodeid;
->  		pnum_begin = pnum;
-> +		data += map_count;
->  		map_count = 1;
->  	}
->  	/* ok, last chunk */
-> @@ -570,6 +580,7 @@ void __init sparse_init(void)
->  	unsigned long *usemap;
->  	unsigned long **usemap_map;
->  	int size;
-> +	int i = 0;
->  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
->  	int size2;
->  	struct page **map_map;
-> @@ -592,7 +603,7 @@ void __init sparse_init(void)
->  	 * powerpc need to call sparse_init_one_section right after each
->  	 * sparse_early_mem_map_alloc, so allocate usemap_map at first.
->  	 */
-> -	size = sizeof(unsigned long *) * NR_MEM_SECTIONS;
-> +	size = sizeof(unsigned long *) * nr_present_sections;
->  	usemap_map = memblock_virt_alloc(size, 0);
->  	if (!usemap_map)
->  		panic("can not allocate usemap_map\n");
-> @@ -600,7 +611,7 @@ void __init sparse_init(void)
->  							(void *)usemap_map);
->  
->  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-> -	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
-> +	size2 = sizeof(struct page *) * nr_present_sections;
->  	map_map = memblock_virt_alloc(size2, 0);
->  	if (!map_map)
->  		panic("can not allocate map_map\n");
-> @@ -611,7 +622,7 @@ void __init sparse_init(void)
->  	for_each_present_section_nr(0, pnum) {
->  		struct mem_section *ms;
->  		ms = __nr_to_section(pnum);
-> -		usemap = usemap_map[pnum];
-> +		usemap = usemap_map[i];
->  		if (!usemap) {
->  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
->  			ms->section_mem_map = 0;
-> @@ -620,7 +631,7 @@ void __init sparse_init(void)
->  		}
->  
->  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-> -		map = map_map[pnum];
-> +		map = map_map[i];
->  #else
->  		map = sparse_early_mem_map_alloc(pnum);
->  #endif
-> -- 
-> 2.13.6
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+That's an interesting exercise, but I'm skeptical it would result in anything
+practical.
 
 -- 
  Kirill A. Shutemov
