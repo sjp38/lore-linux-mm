@@ -1,95 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B1DBB6B0007
-	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 09:16:53 -0500 (EST)
-Received: by mail-yw0-f200.google.com with SMTP id r133so22435526ywe.17
-        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 06:16:53 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id s2si445097ybj.380.2018.02.02.06.16.52
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D79F56B0009
+	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 09:40:21 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id j23so4670484qta.7
+        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 06:40:21 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id k7si2244922qkd.37.2018.02.02.06.40.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Feb 2018 06:16:52 -0800 (PST)
-From: Robert Harris <robert.m.harris@oracle.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-Subject: [Resend] Possible bug in __fragmentation_index()
-Date: Fri, 2 Feb 2018 14:16:39 +0000
-Message-Id: <83AECC32-77A4-427D-9043-DE6FC48AD3FC@oracle.com>
-Mime-Version: 1.0 (Apple Message framework v1085)
+        Fri, 02 Feb 2018 06:40:20 -0800 (PST)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w12Ee5Fj094842
+	for <linux-mm@kvack.org>; Fri, 2 Feb 2018 09:40:19 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2fvsncgxjs-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 02 Feb 2018 09:40:18 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Fri, 2 Feb 2018 14:40:15 -0000
+Subject: Re: [RFC PATCH v1 12/13] mm: split up release_pages into non-sentinel
+ and sentinel passes
+References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
+ <20180131230413.27653-13-daniel.m.jordan@oracle.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Fri, 2 Feb 2018 15:40:09 +0100
+MIME-Version: 1.0
+In-Reply-To: <20180131230413.27653-13-daniel.m.jordan@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <3287f5ca-ab17-6437-c0fd-b867d90f8c1f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Kemi Wang <kemi.wang@intel.com>, ying.huang@intel.com, David Rientjes <rientjes@google.com>, Vinayak Menon <vinmenon@codeaurora.org>, Mel Gorman <mgorman@suse.de>
+To: daniel.m.jordan@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com
 
-I was planning to annotate the opaque calculation in
-__fragmentation_index() but on closer inspection I think there may be a
-bug.  I could use some feedback.
 
-Firstly, for the case of fragmentation and ignoring the scaling,
-__fragmentation_index() purports to return a value in the range 0 to 1.
-Generally, however, the lower bound is actually 0.5.  Here's an
-illustration using a zone that I fragmented with selective calls to
-__alloc_pages() and __free_pages --- the fragmentation for order-1 could
-not be minimised further yet is reported as 0.5:
 
-# head -1 /proc/buddyinfo
-Node 0, zone      DMA   1983      0      0      0      0      0      0   =
-   0      0      0      0=20
-# head -1 /sys/kernel/debug/extfrag/extfrag_index=20
-Node 0, zone      DMA -1.000 0.500 0.750 0.875 0.937 0.969 0.984 0.992 =
-0.996 0.998 0.999=20
-#
+On 01/02/2018 00:04, daniel.m.jordan@oracle.com wrote:
+> A common case in release_pages is for the 'pages' list to be in roughly
+> the same order as they are in their LRU.  With LRU batch locking, when a
+> sentinel page is removed, an adjacent non-sentinel page must be promoted
+> to a sentinel page to follow the locking scheme.  So we can get behavior
+> where nearly every page in the 'pages' array is treated as a sentinel
+> page, hurting the scalability of this approach.
+> 
+> To address this, split up release_pages into non-sentinel and sentinel
+> passes so that the non-sentinel pages can be locked with an LRU batch
+> lock before the sentinel pages are removed.
+> 
+> For the prototype, just use a bitmap and a temporary outer loop to
+> implement this.
+> 
+> Performance numbers from a single microbenchmark at this point in the
+> series are included in the next patch.
+> 
+> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> ---
+>  mm/swap.c | 20 +++++++++++++++++++-
+>  1 file changed, 19 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/swap.c b/mm/swap.c
+> index fae766e035a4..a302224293ad 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -731,6 +731,7 @@ void lru_add_drain_all(void)
+>  	put_online_cpus();
+>  }
+> 
+> +#define LRU_BITMAP_SIZE	512
+>  /**
+>   * release_pages - batched put_page()
+>   * @pages: array of pages to release
+> @@ -742,16 +743,32 @@ void lru_add_drain_all(void)
+>   */
+>  void release_pages(struct page **pages, int nr)
+>  {
+> -	int i;
+> +	int h, i;
+>  	LIST_HEAD(pages_to_free);
+>  	struct pglist_data *locked_pgdat = NULL;
+>  	spinlock_t *locked_lru_batch = NULL;
+>  	struct lruvec *lruvec;
+>  	unsigned long uninitialized_var(flags);
+> +	DECLARE_BITMAP(lru_bitmap, LRU_BITMAP_SIZE);
+> +
+> +	VM_BUG_ON(nr > LRU_BITMAP_SIZE);
 
-This is significant because 0.5 is the default value of
-sysctl_extfrag_threshold, meaning that compaction will not be suppressed
-for larger blocks when memory is scarce rather than fragmented.  Of
-course, sysctl_extfrag_threshold is a tuneable so the first question is:
-does this even matter?
+While running your series rebased on v4.15-mmotm-2018-01-31-16-51, I'm
+hitting this VM_BUG sometimes on a ppc64 system where page size is set to 64K.
+In my case, nr=537 while LRU_BITMAP_SIZE is 512. Here is the stack trace
+displayed :
 
-The calculation in __fragmentation_index() isn't documented but the
-apparent error in the lower bound may be explained by showing that the
-index is approximated by
+kernel BUG at /local/laurent/work/glinux/mm/swap.c:728!
+Oops: Exception in kernel mode, sig: 5 [#1]
+LE SMP NR_CPUS=2048 NUMA pSeries
+Modules linked in: pseries_rng rng_core vmx_crypto virtio_balloon ip_tables
+x_tables autofs4 virtio_net virtio_blk virtio_pci virtio_ring virtio
+CPU: 41 PID: 3485 Comm: cc1 Not tainted 4.15.0-mm1-lru+ #2
+NIP:  c0000000002b0784 LR: c0000000002b0780 CTR: c0000000007bab20
+REGS: c0000005e126b740 TRAP: 0700   Not tainted  (4.15.0-mm1-lru+)
+MSR:  8000000000029033 <SF,EE,ME,IR,DR,RI,LE>  CR: 28002422  XER: 20000000
+CFAR: c000000000192ae4 SOFTE: 0
+GPR00: c0000000002b0780 c0000005e126b9c0 c00000000103c100 000000000000001c
+GPR04: c0000005ffc4ce38 c0000005ffc63d00 0000000000000000 0000000000000001
+GPR08: 0000000000000007 c000000000ec3a4c 00000005fed90000 0000000000000000
+GPR12: 0000000000002200 c00000000fd8cd00 0000000000000000 0000000000000000
+GPR16: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+GPR20: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+GPR24: c0000005e11ab980 0000000000000000 0000000000000000 c0000005e126ba60
+GPR28: 0000000000000219 c0000005e126bc40 0000000000000000 c0000005ec5f0000
+NIP [c0000000002b0784] release_pages+0x864/0x880
+LR [c0000000002b0780] release_pages+0x860/0x880
+Call Trace:
+[c0000005e126b9c0] [c0000000002b0780] release_pages+0x860/0x880 (unreliable)
+[c0000005e126bb30] [c00000000031da3c] free_pages_and_swap_cache+0x11c/0x150
+[c0000005e126bb80] [c0000000002ef5f8] tlb_flush_mmu_free+0x68/0xa0
+[c0000005e126bbc0] [c0000000002f1568] arch_tlb_finish_mmu+0x58/0xf0
+[c0000005e126bbf0] [c0000000002f19d4] tlb_finish_mmu+0x34/0x60
+[c0000005e126bc20] [c0000000003031e8] exit_mmap+0xd8/0x1d0
+[c0000005e126bce0] [c0000000000f3188] mmput+0x78/0x160
+[c0000005e126bd10] [c0000000000ff568] do_exit+0x348/0xd00
+[c0000005e126bdd0] [c0000000000fffd8] do_group_exit+0x58/0xd0
+[c0000005e126be10] [c00000000010006c] SyS_exit_group+0x1c/0x20
+[c0000005e126be30] [c00000000000ba60] system_call+0x58/0x6c
+Instruction dump:
+3949ffff 4bfffdc8 3c62ffce 38a00200 f9c100e0 f9e100e8 386345e8 fa0100f0
+fa2100f8 fa410100 4bee2329 60000000 <0fe00000> 3b400001 4bfff868 7d5d5378
+---[ end trace 55b1651f9d92f14f ]---
 
-F ~ 1 - 1/N
-
-where N is (conceptually) the number of free blocks into which each
-potential requested-size block has been split.  I.e. if all free space
-were compacted then there would be B free blocks of the requested size
-where
-
-B =3D info->free_pages/requested
-
-and thus
-
-N =3D info->free_blocks_total/B
-
-The case of least fragmentation must be when all of the requested-size
-blocks have been split just once to form twice as many blocks in the
-next lowest free list.  Thus the lowest value of N is 2 and the lowest
-vale of F is 0.5.  I readied a patch that, in essence, defined
-F =3D 1 - 2/N and thereby set the bounds of __fragmentation_index() as
-0 <=3D F < 1.  Before sending it, I realised that, during testing, I =
-*had* seen
-the occasional instance of F < 0.5, e.g. F =3D 0.499.  Revisting the
-calculation, I see that the actual implementation is
-
-F =3D 1 - [1/N + 1/info->free_blocks_total]
-
-meaning that a very severe shortage of free memory *could* tip the
-balance in favour of "low fragmentation".  Although this seems highly
-unlikely to occur outside testing, it does reflect the directive in the
-comment above the function, i.e. favour page reclaim when fragmentation
-is low.  My second question: is the current implementation of F is
-intentional and, if not, what is the actual intent?
-
-The comments in compaction_suitable() suggest that the compaction/page
-reclaim decision is one of cost but, as compaction is linear, this isn't
-what __fragmentation_index() is calculating.  A more reasonable argument
-is that there's generally some lower limit on the fragmentation
-achievable through compaction, given the inevitable presence of
-non-migratable pages.  Is there anything else going on?
-
-Robert Harris
+> 
+> +	bitmap_zero(lru_bitmap, nr);
+> +
+> +	for (h = 0; h < 2; h++) {
+>  	for (i = 0; i < nr; i++) {
+>  		struct page *page = pages[i];
+> 
+> +		if (h == 0) {
+> +			if (PageLRU(page) && page->lru_sentinel) {
+> +				bitmap_set(lru_bitmap, i, 1);
+> +				continue;
+> +			}
+> +		} else {
+> +			if (!test_bit(i, lru_bitmap))
+> +				continue;
+> +		}
+> +
+>  		if (is_huge_zero_page(page))
+>  			continue;
+> 
+> @@ -798,6 +815,7 @@ void release_pages(struct page **pages, int nr)
+> 
+>  		list_add(&page->lru, &pages_to_free);
+>  	}
+> +	}
+>  	if (locked_lru_batch) {
+>  		lru_batch_unlock(NULL, &locked_lru_batch, &locked_pgdat,
+>  				 &flags);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
