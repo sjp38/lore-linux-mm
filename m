@@ -1,169 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B8E276B0003
-	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 05:27:54 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id e28so15105626pgn.23
-        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 02:27:54 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k63sor321111pge.293.2018.02.02.02.27.52
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 459866B0003
+	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 05:47:37 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id a21so19085953qtd.6
+        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 02:47:37 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id w19si1869531qtb.132.2018.02.02.02.47.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 02 Feb 2018 02:27:53 -0800 (PST)
-Date: Fri, 2 Feb 2018 02:27:49 -0800
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v2] socket: Provide put_cmsg_whitelist() for constant size
- copies
-Message-ID: <20180202102749.GA34019@beast>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Feb 2018 02:47:36 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w12Ahwrm122291
+	for <linux-mm@kvack.org>; Fri, 2 Feb 2018 05:47:35 -0500
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2fvm79x814-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 02 Feb 2018 05:47:35 -0500
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 2 Feb 2018 10:47:33 -0000
+Subject: Re: [LSF/MM ATTEND] Requests to attend MM Summit 2018
+References: <3cf31aa1-6886-a01c-57ff-143c165a74e3@linux.vnet.ibm.com>
+ <20180129131428.GA21853@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 2 Feb 2018 16:17:26 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20180129131428.GA21853@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <47abe3f0-fdc1-1ad9-b0e5-76b8c6ca9ce8@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com
-Cc: linux-kernel@vger.kernel.org, netdev@vger.kernel.org, Eric Biggers <ebiggers3@gmail.com>, james.morse@arm.com, keun-o.park@darkmatter.ae, labbott@redhat.com, linux-mm@kvack.org, mingo@kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Laura Abbott <labbott@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, John Hubbard <jhubbard@nvidia.com>, Jerome Glisse <jglisse@redhat.com>
 
-Most callers of put_cmsg() use a "sizeof(foo)" for the length argument.
-But within put_cmsg(), the copy_to_user() call is made with a dynamic
-length, as a result of the cmsg header calculations. This means that
-hardened usercopy will examine the copy, even though it was technically
-a fixed size and should be implicitly whitelisted.
+On 01/29/2018 06:44 PM, Michal Hocko wrote:
+> On Sun 28-01-18 18:22:01, Anshuman Khandual wrote:
+> [...]
+>> 1. Supporting hotplug memory as a CMA region
+>>
+>> There are situations where a platform identified specific PFN range
+>> can only be used for some low level debug/tracing purpose. The same
+>> PFN range must be shared between multiple guests on a need basis,
+>> hence its logical to expect the range to be hot add/removable in
+>> each guest. But once available and online in the guest, it would
+>> require a sort of guarantee of a large order allocation (almost the
+>> entire range) into the memory to use it for aforesaid purpose.
+>> Plugging the memory as ZONE_MOVABLE with MIGRATE_CMA makes sense in
+>> this scenario but its not supported at the moment.
+> 
+> Isn't Joonsoo's[1] work doing exactly this?
+> 
+> [1] http://lkml.kernel.org/r/1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com
+> 
+> Anyway, declaring CMA regions to the hotplugable memory sounds like a
+> misconfiguration. Unless I've missed anything CMA memory is not
+> migratable and it is far from trivial to change that.
 
-Most callers of put_cmsg() are copying out of stack or kmalloc, so these
-cases aren't a problem for hardened usercopy. However, some try to copy
-out of the skbuff_head_cache slab, including the "cb" region. Since
-whitelisting the slab area would leave other protocol definition of the
-"cb" region exposed to usercopy bugs, this creates put_cmsg_whitelist(),
-which internally uses sizeof() to provide a constant-sized length and
-a stack bounce buffer, in order to explicitly whitelist an otherwise
-disallowed slab region.
+Right, its far from trivial but I think worth considering given
+the benefit of being able to allocate large contig range on it.
+ 
+> 
+>> This basically extends the idea of relaxing CMA reservation and
+>> declaration restrictions as pointed by Mike Kravetz.
+>>
+>> 2. Adding NUMA
+>>
+>> Adding NUMA tracking information to individual CMA areas and use it
+>> for alloc_cma() interface. In POWER8 KVM implementation, guest HPT
+>> (Hash Page Table) is allocated from a predefined CMA region. NUMA
+>> aligned allocation for HPT for any given guest VM can help improve
+>> performance.
+> 
+> With CMA using ZONE_MOVABLE this should be rather straightforward. We
+> just need a way to distribute CMA regions over nodes and make the core
+> CMA allocator to fallback between nodes in a the nodlist order.
 
-Original report was:
+Right, something like that.
 
-Bad or missing usercopy whitelist? Kernel memory exposure attempt detected from SLAB object 'skbuff_head_cache' (offset 64, size 16)!
-WARNING: CPU: 0 PID: 3663 at mm/usercopy.c:81 usercopy_warn+0xdb/0x100 mm/usercopy.c:76
-...
- __check_heap_object+0x89/0xc0 mm/slab.c:4426
- check_heap_object mm/usercopy.c:236 [inline]
- __check_object_size+0x272/0x530 mm/usercopy.c:259
- check_object_size include/linux/thread_info.h:112 [inline]
- check_copy_size include/linux/thread_info.h:143 [inline]
- copy_to_user include/linux/uaccess.h:154 [inline]
- put_cmsg+0x233/0x3f0 net/core/scm.c:242
- sock_recv_errqueue+0x200/0x3e0 net/core/sock.c:2913
- packet_recvmsg+0xb2e/0x17a0 net/packet/af_packet.c:3296
- sock_recvmsg_nosec net/socket.c:803 [inline]
- sock_recvmsg+0xc9/0x110 net/socket.c:810
- ___sys_recvmsg+0x2a4/0x640 net/socket.c:2179
- __sys_recvmmsg+0x2a9/0xaf0 net/socket.c:2287
- SYSC_recvmmsg net/socket.c:2368 [inline]
- SyS_recvmmsg+0xc4/0x160 net/socket.c:2352
- entry_SYSCALL_64_fastpath+0x29/0xa0
+>  
+>> 3. Reducing CMA allocation failures
+>>
+>> CMA allocation failures are primarily because of not being unable to
+>> isolate or migrate the given PFN range (Inside alloc_contig_range).
+>> Is there a way to reduce the failure chances ?
+>>
+>> D. MAP_CONTIG (Mike Kravetz, Laura Abbott, Michal Hocko)
+>>
+>> I understand that a recent RFC from Mike Kravetz got debated but without
+>> any conclusion about the viability to add MAP_CONTIG option for the user
+>> space to request large contiguous physical memory.
+> 
+> The conclusion was pretty clear AFAIR. Our allocator simply cannot
+> handle arbitrary sized large allocations so MAP_CONTIG is really hard to
+> provide to the userspace. If there are drivers (RDMA I suspect) which
+> would benefit from large allocations then they should use a custom mmap
+> implementation which preallocates the memory.
 
-Reported-by: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com
-Fixes: 6d07d1cd300f ("usercopy: Restrict non-usercopy caches to size 0")
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
- include/linux/socket.h   | 8 ++++++++
- net/core/sock.c          | 4 +---
- net/iucv/af_iucv.c       | 5 ++---
- net/netlink/af_netlink.c | 4 ++--
- net/socket.c             | 4 ++--
- 5 files changed, 15 insertions(+), 10 deletions(-)
-
-diff --git a/include/linux/socket.h b/include/linux/socket.h
-index 9286a5a8c60c..1f52e998068b 100644
---- a/include/linux/socket.h
-+++ b/include/linux/socket.h
-@@ -343,6 +343,14 @@ struct ucred {
- 
- extern int move_addr_to_kernel(void __user *uaddr, int ulen, struct sockaddr_storage *kaddr);
- extern int put_cmsg(struct msghdr*, int level, int type, int len, void *data);
-+/*
-+ * Provide a bounce buffer for copying cmsg data to userspace when the
-+ * target memory isn't already whitelisted for hardened usercopy.
-+ */
-+#define put_cmsg_whitelist(_msg, _level, _type, _ptr) ({		\
-+		typeof(*(_ptr)) _val = *(_ptr);				\
-+		put_cmsg(_msg, _level, _type, sizeof(_val), &_val);	\
-+	})
- 
- struct timespec;
- 
-diff --git a/net/core/sock.c b/net/core/sock.c
-index f39206b41b32..d8a3228acfd0 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -2879,7 +2879,6 @@ void sock_enable_timestamp(struct sock *sk, int flag)
- int sock_recv_errqueue(struct sock *sk, struct msghdr *msg, int len,
- 		       int level, int type)
- {
--	struct sock_exterr_skb *serr;
- 	struct sk_buff *skb;
- 	int copied, err;
- 
-@@ -2899,8 +2898,7 @@ int sock_recv_errqueue(struct sock *sk, struct msghdr *msg, int len,
- 
- 	sock_recv_timestamp(msg, sk, skb);
- 
--	serr = SKB_EXT_ERR(skb);
--	put_cmsg(msg, level, type, sizeof(serr->ee), &serr->ee);
-+	put_cmsg_whitelist(msg, level, type, &SKB_EXT_ERR(skb)->ee);
- 
- 	msg->msg_flags |= MSG_ERRQUEUE;
- 	err = copied;
-diff --git a/net/iucv/af_iucv.c b/net/iucv/af_iucv.c
-index 148533169b1d..676c019ba357 100644
---- a/net/iucv/af_iucv.c
-+++ b/net/iucv/af_iucv.c
-@@ -1407,9 +1407,8 @@ static int iucv_sock_recvmsg(struct socket *sock, struct msghdr *msg,
- 	/* create control message to store iucv msg target class:
- 	 * get the trgcls from the control buffer of the skb due to
- 	 * fragmentation of original iucv message. */
--	err = put_cmsg(msg, SOL_IUCV, SCM_IUCV_TRGCLS,
--		       sizeof(IUCV_SKB_CB(skb)->class),
--		       (void *)&IUCV_SKB_CB(skb)->class);
-+	err = put_cmsg_whitelist(msg, SOL_IUCV, SCM_IUCV_TRGCLS,
-+				 &IUCV_SKB_CB(skb)->class);
- 	if (err) {
- 		if (!(flags & MSG_PEEK))
- 			skb_queue_head(&sk->sk_receive_queue, skb);
-diff --git a/net/netlink/af_netlink.c b/net/netlink/af_netlink.c
-index b9e0ee4e22f5..4420dba35a44 100644
---- a/net/netlink/af_netlink.c
-+++ b/net/netlink/af_netlink.c
-@@ -1781,8 +1781,8 @@ static void netlink_cmsg_listen_all_nsid(struct sock *sk, struct msghdr *msg,
- 	if (!NETLINK_CB(skb).nsid_is_set)
- 		return;
- 
--	put_cmsg(msg, SOL_NETLINK, NETLINK_LISTEN_ALL_NSID, sizeof(int),
--		 &NETLINK_CB(skb).nsid);
-+	put_cmsg_whitelist(msg, SOL_NETLINK, NETLINK_LISTEN_ALL_NSID,
-+			   &NETLINK_CB(skb).nsid);
- }
- 
- static int netlink_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
-diff --git a/net/socket.c b/net/socket.c
-index 42d8e9c9ccd5..cb03ae055eb1 100644
---- a/net/socket.c
-+++ b/net/socket.c
-@@ -787,8 +787,8 @@ static inline void sock_recv_drops(struct msghdr *msg, struct sock *sk,
- 				   struct sk_buff *skb)
- {
- 	if (sock_flag(sk, SOCK_RXQ_OVFL) && skb && SOCK_SKB_CB(skb)->dropcount)
--		put_cmsg(msg, SOL_SOCKET, SO_RXQ_OVFL,
--			sizeof(__u32), &SOCK_SKB_CB(skb)->dropcount);
-+		put_cmsg_whitelist(msg, SOL_SOCKET, SO_RXQ_OVFL,
-+				   &SOCK_SKB_CB(skb)->dropcount);
- }
- 
- void __sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
--- 
-2.7.4
-
-
--- 
-Kees Cook
-Pixel Security
+Looking at the previous discussions (https://lkml.org/lkml/2017/10/3/992)
+seems like though we have some concerns about this kind of feature which
+makes future compaction hence kernel ability to alloc higher order pages
+difficult, as pointed out by other folks, I would still believe that this
+is something worth considering in long term (obviously after addressing
+some of the concerns raised).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
