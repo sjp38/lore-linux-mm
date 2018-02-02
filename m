@@ -1,328 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C1BD6B0005
-	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 10:22:46 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id 19so16210480qkk.20
-        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 07:22:46 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c34si2118268qtd.161.2018.02.02.07.22.45
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 72FB26B0005
+	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 10:56:38 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id g16so3861845wmg.6
+        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 07:56:38 -0800 (PST)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id v8si1824109wrd.114.2018.02.02.07.56.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Feb 2018 07:22:45 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w12FKp0I094479
-	for <linux-mm@kvack.org>; Fri, 2 Feb 2018 10:22:44 -0500
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2fvsskadn8-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 02 Feb 2018 10:22:43 -0500
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Fri, 2 Feb 2018 15:22:40 -0000
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH v1 13/13] mm: splice local lists onto the front of the
- LRU
-References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
- <20180131230413.27653-14-daniel.m.jordan@oracle.com>
-Date: Fri, 2 Feb 2018 16:22:34 +0100
+        Fri, 02 Feb 2018 07:56:36 -0800 (PST)
+Subject: Re: [PATCH 5/6] Documentation for Pmalloc
+References: <20180130151446.24698-1-igor.stoppa@huawei.com>
+ <20180130151446.24698-6-igor.stoppa@huawei.com>
+ <20180130100852.2213b94d@lwn.net>
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Message-ID: <56eb3e0d-d74d-737a-9f85-fead2c40c17c@huawei.com>
+Date: Fri, 2 Feb 2018 17:56:29 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180131230413.27653-14-daniel.m.jordan@oracle.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20180130100852.2213b94d@lwn.net>
+Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <765238a2-8970-e05d-4fe3-cdcb796aa399@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: daniel.m.jordan@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, willy@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On 01/02/2018 00:04, daniel.m.jordan@oracle.com wrote:
-> Now that release_pages is scaling better with concurrent removals from
-> the LRU, the performance results (included below) showed increased
-> contention on lru_lock in the add-to-LRU path.
-> 
-> To alleviate some of this contention, do more work outside the LRU lock.
-> Prepare a local list of pages to be spliced onto the front of the LRU,
-> including setting PageLRU in each page, before taking lru_lock.  Since
-> other threads use this page flag in certain checks outside lru_lock,
-> ensure each page's LRU links have been properly initialized before
-> setting the flag, and use memory barriers accordingly.
-> 
-> Performance Results
-> 
-> This is a will-it-scale run of page_fault1 using 4 different kernels.
-> 
->             kernel     kern #
-> 
->           4.15-rc2          1
->   large-zone-batch          2
->      lru-lock-base          3
->    lru-lock-splice          4
-> 
-> Each kernel builds on the last.  The first is a baseline, the second
-> makes zone->lock more scalable by increasing an order-0 per-cpu
-> pagelist's 'batch' and 'high' values to 310 and 1860 respectively
-> (courtesy of Aaron Lu's patch), the third scales lru_lock without
-> splicing pages (the previous patch in this series), and the fourth adds
-> page splicing (this patch).
-> 
-> N tasks mmap, fault, and munmap anonymous pages in a loop until the test
-> time has elapsed.
-> 
-> The process case generally does better than the thread case most likely
-> because of mmap_sem acting as a bottleneck.  There's ongoing work
-> upstream[*] to scale this lock, however, and once it goes in, my
-> hypothesis is the thread numbers here will improve.
-> 
-> kern #  ntask     proc      thr        proc    stdev         thr    stdev
->                speedup  speedup       pgf/s                pgf/s
->      1      1                       705,533    1,644     705,227    1,122
->      2      1     2.5%     2.8%     722,912      453     724,807      728
->      3      1     2.6%     2.6%     724,215      653     723,213      941
->      4      1     2.3%     2.8%     721,746      272     724,944      728
-> 
-> kern #  ntask     proc      thr        proc    stdev         thr    stdev
->                speedup  speedup       pgf/s                pgf/s
->      1      4                     2,525,487    7,428   1,973,616   12,568
->      2      4     2.6%     7.6%   2,590,699    6,968   2,123,570   10,350
->      3      4     2.3%     4.4%   2,584,668   12,833   2,059,822   10,748
->      4      4     4.7%     5.2%   2,643,251   13,297   2,076,808    9,506
-> 
-> kern #  ntask     proc      thr        proc    stdev         thr    stdev
->                speedup  speedup       pgf/s                pgf/s
->      1     16                     6,444,656   20,528   3,226,356   32,874
->      2     16     1.9%    10.4%   6,566,846   20,803   3,560,437   64,019
->      3     16    18.3%     6.8%   7,624,749   58,497   3,447,109   67,734
->      4     16    28.2%     2.5%   8,264,125   31,677   3,306,679   69,443
-> 
-> kern #  ntask     proc      thr        proc    stdev         thr    stdev
->                speedup  speedup       pgf/s                pgf/s
->      1     32                    11,564,988   32,211   2,456,507   38,898
->      2     32     1.8%     1.5%  11,777,119   45,418   2,494,064   27,964
->      3     32    16.1%    -2.7%  13,426,746   94,057   2,389,934   40,186
->      4     32    26.2%     1.2%  14,593,745   28,121   2,486,059   42,004
-> 
-> kern #  ntask     proc      thr        proc    stdev         thr    stdev
->                speedup  speedup       pgf/s                pgf/s
->      1     64                    12,080,629   33,676   2,443,043   61,973
->      2     64     3.9%     9.9%  12,551,136  206,202   2,684,632   69,483
->      3     64    15.0%    -3.8%  13,892,933  351,657   2,351,232   67,875
->      4     64    21.9%     1.8%  14,728,765   64,945   2,485,940   66,839
-> 
-> [*] https://lwn.net/Articles/724502/  Range reader/writer locks
->     https://lwn.net/Articles/744188/  Speculative page faults
-> 
-> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-> ---
->  mm/memcontrol.c |   1 +
->  mm/mlock.c      |   1 +
->  mm/swap.c       | 113 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
->  mm/vmscan.c     |   1 +
->  4 files changed, 112 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 99a54df760e3..6911626f29b2 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2077,6 +2077,7 @@ static void lock_page_lru(struct page *page, int *isolated)
-> 
->  		lruvec = mem_cgroup_page_lruvec(page, zone->zone_pgdat);
->  		ClearPageLRU(page);
-> +		smp_rmb(); /* Pairs with smp_wmb in __pagevec_lru_add */
+Thanks for the review and apologies for the delay.
+Replies inlined below.
 
-Why not include the call to smp_rmb() in del_page_from_lru_list() instead
-of spreading smp_rmb() before calls to del_page_from_lru_list() ?
+On 30/01/18 19:08, Jonathan Corbet wrote:
+> On Tue, 30 Jan 2018 17:14:45 +0200
+> Igor Stoppa <igor.stoppa@huawei.com> wrote:
 
->  		del_page_from_lru_list(page, lruvec, page_lru(page));
->  		*isolated = 1;
->  	} else
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> index 6ba6a5887aeb..da294c5bbc2c 100644
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -109,6 +109,7 @@ static bool __munlock_isolate_lru_page(struct page *page, bool getpage)
->  		if (getpage)
->  			get_page(page);
->  		ClearPageLRU(page);
-> +		smp_rmb(); /* Pairs with smp_wmb in __pagevec_lru_add */
->  		del_page_from_lru_list(page, lruvec, page_lru(page));
->  		return true;
->  	}
-> diff --git a/mm/swap.c b/mm/swap.c
-> index a302224293ad..46a98dc8e9ad 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -220,6 +220,7 @@ static void pagevec_move_tail_fn(struct page *page, struct lruvec *lruvec,
->  	int *pgmoved = arg;
+[...]
+
+> Please don't put plain-text files into core-api - that's a directory full
+
+ok
+
+>> diff --git a/Documentation/core-api/pmalloc.txt b/Documentation/core-api/pmalloc.txt
+>> new file mode 100644
+>> index 0000000..934d356
+>> --- /dev/null
+>> +++ b/Documentation/core-api/pmalloc.txt
+>> @@ -0,0 +1,104 @@
 > 
->  	if (PageLRU(page) && !PageUnevictable(page)) {
-> +		smp_rmb();	/* Pairs with smp_wmb in __pagevec_lru_add */
->  		del_page_from_lru_list(page, lruvec, page_lru(page));
->  		ClearPageActive(page);
->  		add_page_to_lru_list_tail(page, lruvec, page_lru(page));
-> @@ -277,6 +278,7 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
->  		int file = page_is_file_cache(page);
->  		int lru = page_lru_base_type(page);
+> We might as well put the SPDX tag here, it's a new file.
+
+ok, this is all new stuff to me ... I suppose I should do it also for
+all the other new files I create
+
+But what is the license for the documentation? It's not code, so GPL
+seems wrong. Creative commons?
+
+I just noticed a patch for checkpatch.pl about SPDX and asked the same
+question there.
+
+https://lkml.org/lkml/2018/2/2/365
+
+>> +============================
+>> +Protectable memory allocator
+>> +============================
+>> +
+>> +Introduction
+>> +------------
+
+[...]
+
+> This is all good information, but I'd suggest it belongs more in the 0/n
+> patch posting than here.  The introduction of *this* document should say
+> what it actually covers.
+
+ok
+
 > 
-> +		smp_rmb();	/* Pairs with smp_wmb in __pagevec_lru_add */
->  		del_page_from_lru_list(page, lruvec, lru);
->  		SetPageActive(page);
->  		lru += LRU_ACTIVE;
-> @@ -544,6 +546,7 @@ static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec,
->  	file = page_is_file_cache(page);
->  	lru = page_lru_base_type(page);
+>> +
+>> +Design
+>> +------
+
+[...]
+
+>> +To keep it to a minimum, locking is left to the user of the API, in
+>> +those cases where it's not strictly needed.
 > 
-> +	smp_rmb();	/* Pairs with smp_wmb in __pagevec_lru_add */
->  	del_page_from_lru_list(page, lruvec, lru + active);
->  	ClearPageActive(page);
->  	ClearPageReferenced(page);
-> @@ -578,6 +581,7 @@ static void lru_lazyfree_fn(struct page *page, struct lruvec *lruvec,
->  	    !PageSwapCache(page) && !PageUnevictable(page)) {
->  		bool active = PageActive(page);
+> This seems like a relevant and important aspect of the API that shouldn't
+> be buried in the middle of a section talking about random things.
+
+I'll move it to the Use section.
+
+[...]
+
+>> +Use
+>> +---
+>> +
+>> +The typical sequence, when using pmalloc, is:
+>> +
+>> +1. create a pool
+>> +2. [optional] pre-allocate some memory in the pool
+>> +3. issue one or more allocation requests to the pool
+>> +4. initialize the memory obtained
+>> +   - iterate over points 3 & 4 as needed -
+>> +5. write protect the pool
+>> +6. use in read-only mode the handlers obtained through the allocations
+>> +7. [optional] destroy the pool
 > 
-> +		smp_rmb();	/* Pairs with smp_wmb in __pagevec_lru_add */
->  		del_page_from_lru_list(page, lruvec,
->  				       LRU_INACTIVE_ANON + active);
->  		ClearPageActive(page);
-> @@ -903,6 +907,60 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
->  	trace_mm_lru_insertion(page, lru);
->  }
-> 
-> +#define	MAX_LRU_SPLICES 4
-> +
-> +struct lru_splice {
-> +	struct list_head list;
-> +	struct lruvec *lruvec;
-> +	enum lru_list lru;
-> +	int nid;
-> +	int zid;
-> +	size_t nr_pages;
-> +};
-> +
-> +/*
-> + * Adds a page to a local list for splicing, or else to the singletons
-> + * list for individual processing.
-> + *
-> + * Returns the new number of splices in the splices list.
-> + */
-> +size_t add_page_to_lru_splice(struct lru_splice *splices, size_t nr_splices,
-> +			      struct list_head *singletons, struct page *page)
-> +{
-> +	int i;
-> +	enum lru_list lru = page_lru(page);
-> +	enum zone_type zid = page_zonenum(page);
-> +	int nid = page_to_nid(page);
-> +	struct lruvec *lruvec;
-> +
-> +	VM_BUG_ON_PAGE(PageLRU(page), page);
-> +
-> +	lruvec = mem_cgroup_page_lruvec(page, NODE_DATA(nid));
-> +
-> +	for (i = 0; i < nr_splices; ++i) {
-> +		if (splices[i].lruvec == lruvec && splices[i].zid == zid) {
-> +			list_add(&page->lru, &splices[i].list);
-> +			splices[nr_splices].nr_pages += hpage_nr_pages(page);
-> +			return nr_splices;
-> +		}
-> +	}
-> +
-> +	if (nr_splices < MAX_LRU_SPLICES) {
-> +		INIT_LIST_HEAD(&splices[nr_splices].list);
-> +		splices[nr_splices].lruvec = lruvec;
-> +		splices[nr_splices].lru = lru;
-> +		splices[nr_splices].nid = nid;
-> +		splices[nr_splices].zid = zid;
-> +		splices[nr_splices].nr_pages = hpage_nr_pages(page);
-> +		list_add(&page->lru, &splices[nr_splices].list);
-> +		++nr_splices;
-> +	} else {
-> +		list_add(&page->lru, singletons);
-> +	}
-> +
-> +	return nr_splices;
-> +}
-> +
->  /*
->   * Add the passed pages to the LRU, then drop the caller's refcount
->   * on them.  Reinitialises the caller's pagevec.
-> @@ -911,12 +969,59 @@ void __pagevec_lru_add(struct pagevec *pvec)
->  {
->  	int i;
->  	struct pglist_data *pgdat = NULL;
-> -	struct lruvec *lruvec;
->  	unsigned long flags = 0;
-> +	struct lru_splice splices[MAX_LRU_SPLICES];
-> +	size_t nr_splices = 0;
-> +	LIST_HEAD(singletons);
-> +	struct page *page, *next;
-> 
-> -	for (i = 0; i < pagevec_count(pvec); i++) {
-> -		struct page *page = pvec->pages[i];
-> -		struct pglist_data *pagepgdat = page_pgdat(page);
-> +	/*
-> +	 * Sort the pages into local lists to splice onto the LRU once we
-> +	 * hold lru_lock.  In the common case there should be few of these
-> +	 * local lists.
-> +	 */
-> +	for (i = 0; i < pagevec_count(pvec); ++i) {
-> +		page = pvec->pages[i];
-> +		nr_splices = add_page_to_lru_splice(splices, nr_splices,
-> +						    &singletons, page);
-> +	}
-> +
-> +	/*
-> +	 * Paired with read barriers where we check PageLRU and modify
-> +	 * page->lru, for example pagevec_move_tail_fn.
-> +	 */
-> +	smp_wmb();
-> +
-> +	for (i = 0; i < pagevec_count(pvec); i++)
-> +		SetPageLRU(pvec->pages[i]);
-> +
-> +	for (i = 0; i < nr_splices; ++i) {
-> +		struct lru_splice *s = &splices[i];
-> +		struct pglist_data *splice_pgdat = NODE_DATA(s->nid);
-> +
-> +		if (splice_pgdat != pgdat) {
-> +			if (pgdat)
-> +				spin_unlock_irqrestore(&pgdat->lru_lock, flags);
-> +			pgdat = splice_pgdat;
-> +			spin_lock_irqsave(&pgdat->lru_lock, flags);
-> +		}
-> +
-> +		update_lru_size(s->lruvec, s->lru, s->zid, s->nr_pages);
-> +		list_splice(&s->list, lru_head(&s->lruvec->lists[s->lru]));
-> +		update_page_reclaim_stat(s->lruvec, is_file_lru(s->lru),
-> +					 is_active_lru(s->lru));
-> +		/* XXX add splice tracepoint */
-> +	}
-> +
-> +       while (!list_empty(&singletons)) {
-> +		struct pglist_data *pagepgdat;
-> +		struct lruvec *lruvec;
-> +		struct list_head *list;
-> +
-> +		list = singletons.next;
-> +		page = list_entry(list, struct page, lru);
-> +		list_del(list);
-> +		pagepgdat = page_pgdat(page);
-> 
->  		if (pagepgdat != pgdat) {
->  			if (pgdat)
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 7f5ff0bb133f..338850ad03a6 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1629,6 +1629,7 @@ int isolate_lru_page(struct page *page)
->  			int lru = page_lru(page);
->  			get_page(page);
->  			ClearPageLRU(page);
-> +			smp_rmb(); /* Pairs with smp_wmb in __pagevec_lru_add */
->  			del_page_from_lru_list(page, lruvec, lru);
->  			ret = 0;
->  		}
-> 
+> So one gets this far, but has no actual idea of how to do these things.
+> Which leads me to wonder: what is this document for?  Who are you expecting
+> to read it?
+
+I will add a reference to the selftest file.
+In practice it can also work as example.
+
+> You could improve things a lot by (once again) going to RST and using
+> directives to bring in the kerneldoc comments from the source (which, I
+> note, do exist).  But I'd suggest rethinking this document and its
+> audience.  Most of the people reading it are likely wanting to learn how to
+> *use* this API; I think it would be best to not leave them frustrated.
+
+ok, the example route should be more explicative.
+
+--
+thanks again for the review, igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
