@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 82A5B6B0003
-	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 06:41:24 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id v14so3768577wmd.3
-        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 03:41:24 -0800 (PST)
-Received: from mail.us.es (mail.us.es. [193.147.175.20])
-        by mx.google.com with ESMTPS id y101si1070083wmh.38.2018.02.02.03.41.23
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 254356B0003
+	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 07:46:05 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 205so20250414pfw.4
+        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 04:46:05 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id d123si1398228pfg.188.2018.02.02.04.46.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Feb 2018 03:41:23 -0800 (PST)
-Received: from antivirus1-rhel7.int (unknown [192.168.2.11])
-	by mail.us.es (Postfix) with ESMTP id A8D702519B8
-	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 12:41:22 +0100 (CET)
-Received: from antivirus1-rhel7.int (localhost [127.0.0.1])
-	by antivirus1-rhel7.int (Postfix) with ESMTP id 864C5C8832
-	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 12:41:22 +0100 (CET)
-Date: Fri, 2 Feb 2018 12:41:18 +0100
-From: Pablo Neira Ayuso <pablo@netfilter.org>
-Subject: Re: [netfilter-core] kernel panic: Out of memory and no killable
- processes... (2)
-Message-ID: <20180202114118.6iktfm26wadxflfe@salvia>
-References: <20180129182811.fze4vrb5zd5cojmr@node.shutemov.name>
- <20180129223522.GG5906@breakpoint.cc>
- <20180130075226.GL21609@dhcp22.suse.cz>
- <20180130081127.GH5906@breakpoint.cc>
- <20180130082817.cbax5qj4mxancx4b@node.shutemov.name>
- <CACT4Y+bFKwoxopr1dwnc7OHUoHy28ksVguqtMY6tD=aRh-7LyQ@mail.gmail.com>
- <20180130095739.GV21609@dhcp22.suse.cz>
- <20180130140104.GE21609@dhcp22.suse.cz>
- <20180130140111.GM5906@breakpoint.cc>
- <20180130143958.GG21609@dhcp22.suse.cz>
+        Fri, 02 Feb 2018 04:46:03 -0800 (PST)
+Message-ID: <5A745E27.7070002@intel.com>
+Date: Fri, 02 Feb 2018 20:48:39 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180130143958.GG21609@dhcp22.suse.cz>
+Subject: Re: [PATCH v25 0/2] Virtio-balloon: support free page reporting
+References: <1516871646-22741-1-git-send-email-wei.w.wang@intel.com> <20180201211525-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180201211525-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Florian Westphal <fw@strlen.de>, Dmitry Vyukov <dvyukov@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Miller <davem@davemloft.net>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, netdev <netdev@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Yang Shi <yang.s@alibaba-inc.com>, syzkaller-bugs@googlegroups.com, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, guro@fb.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Tue, Jan 30, 2018 at 03:39:58PM +0100, Michal Hocko wrote:
-> On Tue 30-01-18 15:01:11, Florian Westphal wrote:
-> > > From d48e950f1b04f234b57b9e34c363bdcfec10aeee Mon Sep 17 00:00:00 2001
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > Date: Tue, 30 Jan 2018 14:51:07 +0100
-> > > Subject: [PATCH] net/netfilter/x_tables.c: make allocation less aggressive
-> > 
-> > Acked-by: Florian Westphal <fw@strlen.de>
-> 
-> Thanks! How should we route this change? Andrew, David?
+On 02/02/2018 03:15 AM, Michael S. Tsirkin wrote:
+> On Thu, Jan 25, 2018 at 05:14:04PM +0800, Wei Wang wrote:
+>> This patch series is separated from the previous "Virtio-balloon
+>> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+>> implemented by this series enables the virtio-balloon driver to report
+>> hints of guest free pages to the host. It can be used to accelerate live
+>> migration of VMs. Here is an introduction of this usage:
+>>
+>> Live migration needs to transfer the VM's memory from the source machine
+>> to the destination round by round. For the 1st round, all the VM's memory
+>> is transferred. From the 2nd round, only the pieces of memory that were
+>> written by the guest (after the 1st round) are transferred. One method
+>> that is popularly used by the hypervisor to track which part of memory is
+>> written is to write-protect all the guest memory.
+>>
+>> The second feature enables the optimization of the 1st round memory
+>> transfer - the hypervisor can skip the transfer of guest free pages in the
+>> 1st round. It is not concerned that the memory pages are used after they
+>> are given to the hypervisor as a hint of the free pages, because they will
+>> be tracked by the hypervisor and transferred in the next round if they are
+>> used and written.
+> Could you post performance numbers please?
 
-I'll place this in the nf.git tree if everyone is happy with it.
+Yes, it was posted here https://lkml.org/lkml/2018/1/25/698
+
+I just changed the host side to poll the vq so that we don't need kick 
+in the driver, it works pretty well. I'll test a little bit more and 
+post out a new version with new performance numbers attached in the 
+cover letter.
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
