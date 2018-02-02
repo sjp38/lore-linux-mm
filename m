@@ -1,182 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7861B6B0003
-	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 02:54:33 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id u65so19741964pfd.7
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 23:54:33 -0800 (PST)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0072.outbound.protection.outlook.com. [104.47.33.72])
-        by mx.google.com with ESMTPS id d10-v6si1402525plm.539.2018.02.01.23.54.31
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D21446B0003
+	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 03:57:49 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id h77so365417pfj.11
+        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 00:57:49 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q127sor292420pga.280.2018.02.02.00.57.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 01 Feb 2018 23:54:32 -0800 (PST)
-From: "He, Roger" <Hongbo.He@amd.com>
-Subject: RE: [PATCH] mm/swap: add function get_total_swap_pages to expose
- total_swap_pages
-Date: Fri, 2 Feb 2018 07:54:28 +0000
-Message-ID: <MWHPR1201MB0127DC2146094EC5FA2138A5FDF90@MWHPR1201MB0127.namprd12.prod.outlook.com>
-References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
- <9ecba5f4-3d4c-0179-bf03-f89c436cff6b@amd.com>
- <MWHPR1201MB0127760D359772D5565BA3EBFDFB0@MWHPR1201MB0127.namprd12.prod.outlook.com>
- <b7dca756-b703-ff51-196c-832e5a43c63a@amd.com>
- <MWHPR1201MB0127A0AE58A331BDBF9DD34BFDFA0@MWHPR1201MB0127.namprd12.prod.outlook.com>
- <MWHPR1201MB01273A4737F27450D7E1A4C3FDF90@MWHPR1201MB0127.namprd12.prod.outlook.com>
- <540b5f5b-5670-5653-70de-4ff42e898550@amd.com>
-In-Reply-To: <540b5f5b-5670-5653-70de-4ff42e898550@amd.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Fri, 02 Feb 2018 00:57:48 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <20180202062037.GH30522@ZenIV.linux.org.uk>
+References: <001a113f6344393d89056430347d@google.com> <20180202045020.GF30522@ZenIV.linux.org.uk>
+ <20180202053502.GB949@zzz.localdomain> <20180202054626.GG30522@ZenIV.linux.org.uk>
+ <20180202062037.GH30522@ZenIV.linux.org.uk>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 2 Feb 2018 09:57:27 +0100
+Message-ID: <CACT4Y+bDU00aQpJOUK8eB+Kv4HycNwKA=kShUe9kSd0FUqO+FQ@mail.gmail.com>
+Subject: Re: possible deadlock in get_user_pages_unlocked
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Koenig, Christian" <Christian.Koenig@amd.com>, "Zhou, David(ChunMing)" <David1.Zhou@amd.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Eric Biggers <ebiggers3@gmail.com>, syzbot <syzbot+bacbe5d8791f30c9cee5@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, James Morse <james.morse@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com
 
-CUNhbiB5b3UgdHJ5IHRvIHVzZSBhIGZpeGVkIGxpbWl0IGxpa2UgSSBzdWdnZXN0ZWQgb25jZSBt
-b3JlPw0KCUUuZy4ganVzdCBzdG9wIHN3YXBwaW5nIGlmIGdldF9ucl9zd2FwX3BhZ2VzKCkgPCAy
-NTZNQi4NCg0KTWF5YmUgeW91IG1pc3NlZCBwcmV2aW91cyBtYWlsLiBJIGV4cGxhaW4gYWdhaW4g
-aGVyZS4NClNldCB0aGUgdmFsdWUgYXMgMjU2TUIgbm90IHdvcmsgb24gbXkgcGxhdGZvcm0uICBN
-eSBtYWNoaW5lIGhhcyA4R0Igc3lzdGVtIG1lbW9yeSwgYW5kIDhHQiBzd2FwIGRpc2suDQpPbiBt
-eSBtYWNoaW5lLCBzZXQgaXQgYXMgNEcgY2FuIHdvcmsuDQpCdXQgNEcgYWxzbyBub3Qgd29yayBv
-biB0ZXN0IG1hY2hpbmUgd2l0aCAxNkdCIHN5c3RlbSBtZW1vcnkgJiA4R0Igc3dhcCBkaXNrLg0K
-DQoNClRoYW5rcw0KUm9nZXIoSG9uZ2JvLkhlKQ0KDQotLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0t
-LQ0KRnJvbTogS29lbmlnLCBDaHJpc3RpYW4gDQpTZW50OiBGcmlkYXksIEZlYnJ1YXJ5IDAyLCAy
-MDE4IDM6NDYgUE0NClRvOiBIZSwgUm9nZXIgPEhvbmdiby5IZUBhbWQuY29tPjsgWmhvdSwgRGF2
-aWQoQ2h1bk1pbmcpIDxEYXZpZDEuWmhvdUBhbWQuY29tPjsgZHJpLWRldmVsQGxpc3RzLmZyZWVk
-ZXNrdG9wLm9yZw0KQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZzsgbGludXgta2VybmVsQHZnZXIua2Vy
-bmVsLm9yZw0KU3ViamVjdDogUmU6IFtQQVRDSF0gbW0vc3dhcDogYWRkIGZ1bmN0aW9uIGdldF90
-b3RhbF9zd2FwX3BhZ2VzIHRvIGV4cG9zZSB0b3RhbF9zd2FwX3BhZ2VzDQoNCkNhbiB5b3UgdHJ5
-IHRvIHVzZSBhIGZpeGVkIGxpbWl0IGxpa2UgSSBzdWdnZXN0ZWQgb25jZSBtb3JlPw0KDQpFLmcu
-IGp1c3Qgc3RvcCBzd2FwcGluZyBpZiBnZXRfbnJfc3dhcF9wYWdlcygpIDwgMjU2TUIuDQoNClJl
-Z2FyZHMsDQpDaHJpc3RpYW4uDQoNCkFtIDAyLjAyLjIwMTggdW0gMDc6NTcgc2NocmllYiBIZSwg
-Um9nZXI6DQo+IAlVc2UgdGhlIGxpbWl0IGFzIHRvdGFsIHJhbSoxLzIgc2VlbXMgd29yayB2ZXJ5
-IHdlbGwuDQo+IAlObyBPT00gYWx0aG91Z2ggc3dhcCBkaXNrIHJlYWNoZXMgZnVsbCBhdCBwZWFr
-IGZvciBwaWdsaXQgdGVzdC4NCj4NCj4gQnV0IGZvciB0aGlzIGFwcHJvYWNoLCBEYXZpZCBub3Rp
-Y2VkIHRoYXQgaGFzIGFuIG9idmlvdXMgZGVmZWN0Lg0KPiBGb3IgZXhhbXBsZSwgIGlmIHRoZSBw
-bGF0Zm9ybSBoYXMgMzJHIHN5c3RlbSBtZW1vcnksIDhHIHN3YXAgZGlzay4NCj4gMS8yICogcmFt
-ID0gMTZHIHdoaWNoIGlzIGJpZ2dlciB0aGFuIHN3YXAgZGlzaywgc28gbm8gc3dhcCBmb3IgVFRN
-IGlzIGFsbG93ZWQgYXQgYWxsLg0KPiBGb3Igbm93IHdlIHdvcmsgb3V0IGFuIGltcHJvdmVkIHZl
-cnNpb24gYmFzZWQgb24gZ2V0X25yX3N3YXBfcGFnZXMoKS4NCj4gR29pbmcgdG8gc2VuZCBvdXQg
-bGF0ZXIuDQo+DQo+IFRoYW5rcw0KPiBSb2dlcihIb25nYm8uSGUpDQo+IC0tLS0tT3JpZ2luYWwg
-TWVzc2FnZS0tLS0tDQo+IEZyb206IEhlLCBSb2dlcg0KPiBTZW50OiBUaHVyc2RheSwgRmVicnVh
-cnkgMDEsIDIwMTggNDowMyBQTQ0KPiBUbzogS29lbmlnLCBDaHJpc3RpYW4gPENocmlzdGlhbi5L
-b2VuaWdAYW1kLmNvbT47IFpob3UsIA0KPiBEYXZpZChDaHVuTWluZykgPERhdmlkMS5aaG91QGFt
-ZC5jb20+OyBkcmktZGV2ZWxAbGlzdHMuZnJlZWRlc2t0b3Aub3JnDQo+IENjOiBsaW51eC1tbUBr
-dmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7ICdIZSwgUm9nZXInIA0KPiA8
-SG9uZ2JvLkhlQGFtZC5jb20+DQo+IFN1YmplY3Q6IFJFOiBbUEFUQ0hdIG1tL3N3YXA6IGFkZCBm
-dW5jdGlvbiBnZXRfdG90YWxfc3dhcF9wYWdlcyB0byANCj4gZXhwb3NlIHRvdGFsX3N3YXBfcGFn
-ZXMNCj4NCj4gSnVzdCBub3csIEkgdHJpZWQgd2l0aCBmaXhlZCBsaW1pdC4gIEJ1dCBub3Qgd29y
-ayBhbHdheXMuDQo+IEZvciBleGFtcGxlOiBzZXQgdGhlIGxpbWl0IGFzIDRHQiBvbiBteSBwbGF0
-Zm9ybSB3aXRoIDhHQiBzeXN0ZW0gbWVtb3J5LCBpdCBjYW4gcGFzcy4NCj4gQnV0IHdoZW4gcnVu
-IHdpdGggcGxhdGZvcm0gd2l0aCAxNkdCIHN5c3RlbSBtZW1vcnksIGl0IGZhaWxlZCBzaW5jZSBP
-T00uDQo+DQo+IEFuZCBJIGd1ZXNzIGl0IGFsc28gZGVwZW5kcyBvbiBhcHAncyBiZWhhdmlvci4N
-Cj4gSSBtZWFuIHNvbWUgYXBwcyAgbWFrZSBPUyB0byB1c2UgbW9yZSBzd2FwIHNwYWNlIGFzIHdl
-bGwuDQo+DQo+IFRoYW5rcw0KPiBSb2dlcihIb25nYm8uSGUpDQo+IC0tLS0tT3JpZ2luYWwgTWVz
-c2FnZS0tLS0tDQo+IEZyb206IGRyaS1kZXZlbCBbbWFpbHRvOmRyaS1kZXZlbC1ib3VuY2VzQGxp
-c3RzLmZyZWVkZXNrdG9wLm9yZ10gT24gDQo+IEJlaGFsZiBPZiBIZSwgUm9nZXINCj4gU2VudDog
-VGh1cnNkYXksIEZlYnJ1YXJ5IDAxLCAyMDE4IDE6NDggUE0NCj4gVG86IEtvZW5pZywgQ2hyaXN0
-aWFuIDxDaHJpc3RpYW4uS29lbmlnQGFtZC5jb20+OyBaaG91LCANCj4gRGF2aWQoQ2h1bk1pbmcp
-IDxEYXZpZDEuWmhvdUBhbWQuY29tPjsgZHJpLWRldmVsQGxpc3RzLmZyZWVkZXNrdG9wLm9yZw0K
-PiBDYzogbGludXgtbW1Aa3ZhY2sub3JnOyBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnDQo+
-IFN1YmplY3Q6IFJFOiBbUEFUQ0hdIG1tL3N3YXA6IGFkZCBmdW5jdGlvbiBnZXRfdG90YWxfc3dh
-cF9wYWdlcyB0byANCj4gZXhwb3NlIHRvdGFsX3N3YXBfcGFnZXMNCj4NCj4gCUJ1dCB3aGF0IHdl
-IGNvdWxkIGRvIGlzIHRvIHJlbHkgb24gYSBmaXhlZCBsaW1pdCBsaWtlIHRoZSBJbnRlbCBkcml2
-ZXIgZG9lcyBhbmQgSSBzdWdnZXN0ZWQgYmVmb3JlLg0KPiAJRS5nLiBkb24ndCBjb3B5IGFueXRo
-aW5nIGludG8gYSBzaG1lbWZpbGUgd2hlbiB0aGVyZSBpcyBvbmx5IHggTUIgb2Ygc3dhcCBzcGFj
-ZSBsZWZ0Lg0KPg0KPiBIZXJlIEkgdGhpbmsgd2UgY2FuIGRvIGl0IGZ1cnRoZXIsIGxldCB0aGUg
-bGltaXQgdmFsdWUgc2NhbGluZyB3aXRoIHRvdGFsIHN5c3RlbSBtZW1vcnkuDQo+IEZvciBleGFt
-cGxlOiB0b3RhbCBzeXN0ZW0gbWVtb3J5ICogMS8yLg0KPiBJZiB0aGF0IGl0IHdpbGwgbWF0Y2gg
-dGhlIHBsYXRmb3JtIGNvbmZpZ3VyYXRpb24gYmV0dGVyLg0KPg0KPiAJUm9nZXIgY2FuIHlvdSB0
-ZXN0IHRoYXQgYXBwcm9hY2ggb25jZSBtb3JlIHdpdGggeW91ciBmaXggZm9yIHRoZSBPT00gaXNz
-dWVzIGluIHRoZSBwYWdlIGZhdWx0IGhhbmRsZXI/DQo+DQo+IFN1cmUuIFVzZSB0aGUgbGltaXQg
-YXMgdG90YWwgcmFtKjEvMiBzZWVtcyB3b3JrIHZlcnkgd2VsbC4NCj4gTm8gT09NIGFsdGhvdWdo
-IHN3YXAgZGlzayByZWFjaGVzIGZ1bGwgYXQgcGVhayBmb3IgcGlnbGl0IHRlc3QuDQo+IEkgc3Bl
-Y3VsYXRlIHRoaXMgY2FzZSBoYXBwZW5zIGJ1dCBubyBPT00gYmVjYXVzZToNCj4NCj4gYS4gcnVu
-IGEgd2hpbGUsIHN3YXAgZGlzayBiZSB1c2VkIGNsb3NlIHRvIDEvMiogdG90YWwgc2l6ZSBhbmQg
-YnV0IG5vdCBvdmVyIDEvMiAqIHRvdGFsLg0KPiBiLiBhbGwgc3Vic2VxdWVudCBzd2FwcGVkIHBh
-Z2VzIHN0YXkgaW4gc3lzdGVtIG1lbW9yeSB1bnRpbCBubyBzcGFjZSB0aGVyZS4NCj4gICAgICAg
-VGhlbiB0aGUgc3dhcHBlZCBwYWdlcyBpbiBzaG1lbSBiZSBmbHVzaGVkIGludG8gc3dhcCBkaXNr
-LiBBbmQgcHJvYmFibHkgT1MgYWxzbyBuZWVkIHNvbWUgc3dhcCBzcGFjZS4NCj4gICAgICAgRm9y
-IHRoaXMgY2FzZSwgaXQgaXMgZWFzeSB0byBnZXQgZnVsbCBmb3Igc3dhcCBkaXNrLg0KPiBjLiBi
-dXQgYmVjYXVzZSBub3cgZnJlZSBzd2FwIHNpemUgPCAxLzIgKiB0b3RhbCwgc28gbm8gc3dhcCBv
-dXQgaGFwcGVuICBhZnRlciB0aGF0Lg0KPiAgICAgIEFuZCBhdCBsZWFzdCAxLzQqIHN5c3RlbSBt
-ZW1vcnkgd2lsbCBsZWZ0IGJlY2F1c2UgYmVsb3cgY2hlY2sgaW4gdHRtX21lbV9nbG9iYWxfcmVz
-ZXJ2ZSB3aWxsIGVuc3VyZSB0aGF0Lg0KPiAJaWYgKHpvbmUtPnVzZWRfbWVtID4gbGltaXQpDQo+
-IAkJCWdvdG8gb3V0X3VubG9jazsNCj4gICAgICANCj4gVGhhbmtzDQo+IFJvZ2VyKEhvbmdiby5I
-ZSkNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogS29lbmlnLCBDaHJpc3Rp
-YW4NCj4gU2VudDogV2VkbmVzZGF5LCBKYW51YXJ5IDMxLCAyMDE4IDQ6MTMgUE0NCj4gVG86IEhl
-LCBSb2dlciA8SG9uZ2JvLkhlQGFtZC5jb20+OyBaaG91LCBEYXZpZChDaHVuTWluZykgDQo+IDxE
-YXZpZDEuWmhvdUBhbWQuY29tPjsgZHJpLWRldmVsQGxpc3RzLmZyZWVkZXNrdG9wLm9yZw0KPiBD
-YzogbGludXgtbW1Aa3ZhY2sub3JnOyBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnDQo+IFN1
-YmplY3Q6IFJlOiBbUEFUQ0hdIG1tL3N3YXA6IGFkZCBmdW5jdGlvbiBnZXRfdG90YWxfc3dhcF9w
-YWdlcyB0byANCj4gZXhwb3NlIHRvdGFsX3N3YXBfcGFnZXMNCj4NCj4gWWVhaCwgaW5kZWVkLiBC
-dXQgd2hhdCB3ZSBjb3VsZCBkbyBpcyB0byByZWx5IG9uIGEgZml4ZWQgbGltaXQgbGlrZSB0aGUg
-SW50ZWwgZHJpdmVyIGRvZXMgYW5kIEkgc3VnZ2VzdGVkIGJlZm9yZS4NCj4NCj4gRS5nLiBkb24n
-dCBjb3B5IGFueXRoaW5nIGludG8gYSBzaG1lbWZpbGUgd2hlbiB0aGVyZSBpcyBvbmx5IHggTUIg
-b2Ygc3dhcCBzcGFjZSBsZWZ0Lg0KPg0KPiBSb2dlciBjYW4geW91IHRlc3QgdGhhdCBhcHByb2Fj
-aCBvbmNlIG1vcmUgd2l0aCB5b3VyIGZpeCBmb3IgdGhlIE9PTSBpc3N1ZXMgaW4gdGhlIHBhZ2Ug
-ZmF1bHQgaGFuZGxlcj8NCj4NCj4gVGhhbmtzLA0KPiBDaHJpc3RpYW4uDQo+DQo+IEFtIDMxLjAx
-LjIwMTggdW0gMDk6MDggc2NocmllYiBIZSwgUm9nZXI6DQo+PiAJSSB0aGluayB0aGlzIHBhdGNo
-IGlzbid0IG5lZWQgYXQgYWxsLiBZb3UgY2FuIGRpcmVjdGx5IHJlYWQgdG90YWxfc3dhcF9wYWdl
-cyB2YXJpYWJsZSBpbiBUVE0uDQo+Pg0KPj4gQmVjYXVzZSB0aGUgdmFyaWFibGUgaXMgbm90IGV4
-cG9ydGVkIGJ5IEVYUE9SVF9TWU1CT0xfR1BMLiBTbyBkaXJlY3QgdXNpbmcgd2lsbCByZXN1bHQg
-aW46DQo+PiAiV0FSTklORzogInRvdGFsX3N3YXBfcGFnZXMiIFtkcml2ZXJzL2dwdS9kcm0vdHRt
-L3R0bS5rb10gdW5kZWZpbmVkISIuDQo+Pg0KPj4gVGhhbmtzDQo+PiBSb2dlcihIb25nYm8uSGUp
-DQo+PiAtLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPj4gRnJvbTogZHJpLWRldmVsIFttYWls
-dG86ZHJpLWRldmVsLWJvdW5jZXNAbGlzdHMuZnJlZWRlc2t0b3Aub3JnXSBPbiANCj4+IEJlaGFs
-ZiBPZiBDaHVubWluZyBaaG91DQo+PiBTZW50OiBXZWRuZXNkYXksIEphbnVhcnkgMzEsIDIwMTgg
-MzoxNSBQTQ0KPj4gVG86IEhlLCBSb2dlciA8SG9uZ2JvLkhlQGFtZC5jb20+OyBkcmktZGV2ZWxA
-bGlzdHMuZnJlZWRlc2t0b3Aub3JnDQo+PiBDYzogbGludXgtbW1Aa3ZhY2sub3JnOyBsaW51eC1r
-ZXJuZWxAdmdlci5rZXJuZWwub3JnOyBLb2VuaWcsIA0KPj4gQ2hyaXN0aWFuIDxDaHJpc3RpYW4u
-S29lbmlnQGFtZC5jb20+DQo+PiBTdWJqZWN0OiBSZTogW1BBVENIXSBtbS9zd2FwOiBhZGQgZnVu
-Y3Rpb24gZ2V0X3RvdGFsX3N3YXBfcGFnZXMgdG8gDQo+PiBleHBvc2UgdG90YWxfc3dhcF9wYWdl
-cw0KPj4NCj4+IEhpIFJvZ2VyLA0KPj4NCj4+IEkgdGhpbmsgdGhpcyBwYXRjaCBpc24ndCBuZWVk
-IGF0IGFsbC4gWW91IGNhbiBkaXJlY3RseSByZWFkIHRvdGFsX3N3YXBfcGFnZXMgdmFyaWFibGUg
-aW4gVFRNLiBTZWUgdGhlIGNvbW1lbnQ6DQo+Pg0KPj4gLyogcHJvdGVjdGVkIHdpdGggc3dhcF9s
-b2NrLiByZWFkaW5nIGluIHZtX3N3YXBfZnVsbCgpIGRvZXNuJ3QgbmVlZCANCj4+IGxvY2sgKi8g
-bG9uZyB0b3RhbF9zd2FwX3BhZ2VzOw0KPj4NCj4+IHRoZXJlIGFyZSBtYW55IHBsYWNlcyB1c2lu
-ZyBpdCBkaXJlY3RseSwgeW91IGp1c3QgY291bGRuJ3QgY2hhbmdlIGl0cyB2YWx1ZS4gUmVhZGlu
-ZyBpdCBkb2Vzbid0IG5lZWQgbG9jay4NCj4+DQo+Pg0KPj4gUmVnYXJkcywNCj4+DQo+PiBEYXZp
-ZCBaaG91DQo+Pg0KPj4NCj4+IE9uIDIwMTjlubQwMeaciDI55pelIDE2OjI5LCBSb2dlciBIZSB3
-cm90ZToNCj4+PiB0dG0gbW9kdWxlIG5lZWRzIGl0IHRvIGRldGVybWluZSBpdHMgaW50ZXJuYWwg
-cGFyYW1ldGVyIHNldHRpbmcuDQo+Pj4NCj4+PiBTaWduZWQtb2ZmLWJ5OiBSb2dlciBIZSA8SG9u
-Z2JvLkhlQGFtZC5jb20+DQo+Pj4gLS0tDQo+Pj4gICAgIGluY2x1ZGUvbGludXgvc3dhcC5oIHwg
-IDYgKysrKysrDQo+Pj4gICAgIG1tL3N3YXBmaWxlLmMgICAgICAgIHwgMTUgKysrKysrKysrKysr
-KysrDQo+Pj4gICAgIDIgZmlsZXMgY2hhbmdlZCwgMjEgaW5zZXJ0aW9ucygrKQ0KPj4+DQo+Pj4g
-ZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvc3dhcC5oIGIvaW5jbHVkZS9saW51eC9zd2FwLmgg
-aW5kZXggDQo+Pj4gYzJiODEyOC4uNzA4ZDY2ZiAxMDA2NDQNCj4+PiAtLS0gYS9pbmNsdWRlL2xp
-bnV4L3N3YXAuaA0KPj4+ICsrKyBiL2luY2x1ZGUvbGludXgvc3dhcC5oDQo+Pj4gQEAgLTQ4NCw2
-ICs0ODQsNyBAQCBleHRlcm4gaW50IHRyeV90b19mcmVlX3N3YXAoc3RydWN0IHBhZ2UgKik7DQo+
-Pj4gICAgIHN0cnVjdCBiYWNraW5nX2Rldl9pbmZvOw0KPj4+ICAgICBleHRlcm4gaW50IGluaXRf
-c3dhcF9hZGRyZXNzX3NwYWNlKHVuc2lnbmVkIGludCB0eXBlLCB1bnNpZ25lZCBsb25nIG5yX3Bh
-Z2VzKTsNCj4+PiAgICAgZXh0ZXJuIHZvaWQgZXhpdF9zd2FwX2FkZHJlc3Nfc3BhY2UodW5zaWdu
-ZWQgaW50IHR5cGUpOw0KPj4+ICtleHRlcm4gbG9uZyBnZXRfdG90YWxfc3dhcF9wYWdlcyh2b2lk
-KTsNCj4+PiAgICAgDQo+Pj4gICAgICNlbHNlIC8qIENPTkZJR19TV0FQICovDQo+Pj4gICAgIA0K
-Pj4+IEBAIC01MTYsNiArNTE3LDExIEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBzaG93X3N3YXBfY2Fj
-aGVfaW5mbyh2b2lkKQ0KPj4+ICAgICB7DQo+Pj4gICAgIH0NCj4+PiAgICAgDQo+Pj4gK2xvbmcg
-Z2V0X3RvdGFsX3N3YXBfcGFnZXModm9pZCkNCj4+PiArew0KPj4+ICsJcmV0dXJuIDA7DQo+Pj4g
-K30NCj4+PiArDQo+Pj4gICAgICNkZWZpbmUgZnJlZV9zd2FwX2FuZF9jYWNoZShlKSAoeyhpc19t
-aWdyYXRpb25fZW50cnkoZSkgfHwgaXNfZGV2aWNlX3ByaXZhdGVfZW50cnkoZSkpO30pDQo+Pj4g
-ICAgICNkZWZpbmUgc3dhcGNhY2hlX3ByZXBhcmUoZSkgKHsoaXNfbWlncmF0aW9uX2VudHJ5KGUp
-IHx8DQo+Pj4gaXNfZGV2aWNlX3ByaXZhdGVfZW50cnkoZSkpO30pDQo+Pj4gICAgIA0KPj4+IGRp
-ZmYgLS1naXQgYS9tbS9zd2FwZmlsZS5jIGIvbW0vc3dhcGZpbGUuYyBpbmRleCAzMDc0YjAyLi5h
-MDA2MmViDQo+Pj4gMTAwNjQ0DQo+Pj4gLS0tIGEvbW0vc3dhcGZpbGUuYw0KPj4+ICsrKyBiL21t
-L3N3YXBmaWxlLmMNCj4+PiBAQCAtOTgsNiArOTgsMjEgQEAgc3RhdGljIGF0b21pY190IHByb2Nf
-cG9sbF9ldmVudCA9IEFUT01JQ19JTklUKDApOw0KPj4+ICAgICANCj4+PiAgICAgYXRvbWljX3Qg
-bnJfcm90YXRlX3N3YXAgPSBBVE9NSUNfSU5JVCgwKTsNCj4+PiAgICAgDQo+Pj4gKy8qDQo+Pj4g
-KyAqIGV4cG9zZSB0aGlzIHZhbHVlIGZvciBvdGhlcnMgdXNlICAqLyBsb25nIA0KPj4+ICtnZXRf
-dG90YWxfc3dhcF9wYWdlcyh2b2lkKSB7DQo+Pj4gKwlsb25nIHJldDsNCj4+PiArDQo+Pj4gKwlz
-cGluX2xvY2soJnN3YXBfbG9jayk7DQo+Pj4gKwlyZXQgPSB0b3RhbF9zd2FwX3BhZ2VzOw0KPj4+
-ICsJc3Bpbl91bmxvY2soJnN3YXBfbG9jayk7DQo+Pj4gKw0KPj4+ICsJcmV0dXJuIHJldDsNCj4+
-PiArfQ0KPj4+ICtFWFBPUlRfU1lNQk9MX0dQTChnZXRfdG90YWxfc3dhcF9wYWdlcyk7DQo+Pj4g
-Kw0KPj4+ICAgICBzdGF0aWMgaW5saW5lIHVuc2lnbmVkIGNoYXIgc3dhcF9jb3VudCh1bnNpZ25l
-ZCBjaGFyIGVudCkNCj4+PiAgICAgew0KPj4+ICAgICAJcmV0dXJuIGVudCAmIH5TV0FQX0hBU19D
-QUNIRTsJLyogbWF5IGluY2x1ZGUgU1dBUF9IQVNfQ09OVCBmbGFnICovDQo+PiBfX19fX19fX19f
-X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fXw0KPj4gZHJpLWRldmVsIG1haWxp
-bmcgbGlzdA0KPj4gZHJpLWRldmVsQGxpc3RzLmZyZWVkZXNrdG9wLm9yZw0KPj4gaHR0cHM6Ly9s
-aXN0cy5mcmVlZGVza3RvcC5vcmcvbWFpbG1hbi9saXN0aW5mby9kcmktZGV2ZWwNCj4gX19fX19f
-X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX18NCj4gZHJpLWRldmVsIG1h
-aWxpbmcgbGlzdA0KPiBkcmktZGV2ZWxAbGlzdHMuZnJlZWRlc2t0b3Aub3JnDQo+IGh0dHBzOi8v
-bGlzdHMuZnJlZWRlc2t0b3Aub3JnL21haWxtYW4vbGlzdGluZm8vZHJpLWRldmVsDQoNCg==
+On Fri, Feb 2, 2018 at 7:20 AM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+> On Fri, Feb 02, 2018 at 05:46:26AM +0000, Al Viro wrote:
+>> On Thu, Feb 01, 2018 at 09:35:02PM -0800, Eric Biggers wrote:
+>>
+>> > Try starting up multiple instances of the program; that sometimes helps with
+>> > these races that are hard to hit (since you may e.g. have a different number of
+>> > CPUs than syzbot used).  If I start up 4 instances I see the lockdep splat after
+>> > around 2-5 seconds.
+>>
+>> 5 instances in parallel, 10 minutes into the run...
+>>
+>> >  This is on latest Linus tree (4bf772b1467).  Also note the
+>> > reproducer uses KVM, so if you're running it in a VM it will only work if you've
+>> > enabled nested virtualization on the host (kvm_intel.nested=1).
+>>
+>> cat /sys/module/kvm_amd/parameters/nested
+>> 1
+>>
+>> on host
+>>
+>> > Also it appears to go away if I revert ce53053ce378c21 ("kvm: switch
+>> > get_user_page_nowait() to get_user_pages_unlocked()").
+>>
+>> That simply prevents this reproducer hitting get_user_pages_unlocked()
+>> instead of grab mmap_sem/get_user_pages/drop mmap_sem.  I.e. does not
+>> allow __get_user_pages_locked() to drop/regain ->mmap_sem.
+>>
+>> The bug may be in the way we call get_user_pages_unlocked() in that
+>> commit, but it might easily be a bug in __get_user_pages_locked()
+>> exposed by that reproducer somehow.
+>
+> I think I understand what's going on.  FOLL_NOWAIT handling is a serious
+> mess ;-/  I'll probably have something to test tomorrow - I still can't
+> reproduce it here, unfortunately.
+
+Hi Al,
+
+syzbot tests for up to 5 minutes. However, if there is a race involved
+then you may need more time because the crash is probabilistic.
+But from what I see most of the time, if one can't reproduce it
+easily, it's usually due to some differences in setup that just don't
+allow the crash to happen at all.
+FWIW syzbot re-runs each reproducer on a freshly booted dedicated VM
+and what it provided is the kernel output it got during run of the
+provided program. So we have reasonably high assurance that this
+reproducer worked in at least one setup.
+
+Even if you can't reproduce it locally, you can use syzbot testing
+service, see "syz test" here:
+https://github.com/google/syzkaller/blob/master/docs/syzbot.md#communication-with-syzbot
+
+We also try to collect known causes of non-working reproducers, so if
+you get any hints as to why it does not reproduce for you, we can add
+it here:
+https://github.com/google/syzkaller/blob/master/docs/syzbot.md#crash-does-not-reproduce
+Since kvm/ept are present in the stacks, I suspect that it may be due
+to a different host CPU unfortunately.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
