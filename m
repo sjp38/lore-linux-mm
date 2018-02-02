@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 254356B0003
-	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 07:46:05 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 205so20250414pfw.4
-        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 04:46:05 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id d123si1398228pfg.188.2018.02.02.04.46.03
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 33F746B0003
+	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 09:14:29 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id c33so6747593itf.8
+        for <linux-mm@kvack.org>; Fri, 02 Feb 2018 06:14:29 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id u1si1777127iou.310.2018.02.02.06.14.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Feb 2018 04:46:03 -0800 (PST)
-Message-ID: <5A745E27.7070002@intel.com>
-Date: Fri, 02 Feb 2018 20:48:39 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        Fri, 02 Feb 2018 06:14:27 -0800 (PST)
+Subject: Re: [PATCH v11 00/10] Application Data Integrity feature introduced
+ by SPARC M7
+References: <cover.1517497017.git.khalid.aziz@oracle.com>
+ <87wozwi0p1.fsf@xmission.com>
+From: Steven Sistare <steven.sistare@oracle.com>
+Message-ID: <59fb3a0c-0163-0ec2-9757-cc5969601fa7@oracle.com>
+Date: Fri, 2 Feb 2018 09:13:08 -0500
 MIME-Version: 1.0
-Subject: Re: [PATCH v25 0/2] Virtio-balloon: support free page reporting
-References: <1516871646-22741-1-git-send-email-wei.w.wang@intel.com> <20180201211525-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180201211525-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <87wozwi0p1.fsf@xmission.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: "Eric W. Biederman" <ebiederm@xmission.com>, Khalid Aziz <khalid.aziz@oracle.com>
+Cc: davem@davemloft.net, dave.hansen@linux.intel.com, aarcange@redhat.com, akpm@linux-foundation.org, allen.pais@oracle.com, anthony.yznaga@oracle.com, arnd@arndb.de, babu.moger@oracle.com, benh@kernel.crashing.org, bob.picco@oracle.com, bsingharora@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, dave.jiang@intel.com, david.j.aldridge@oracle.com, elena.reshetova@intel.com, glx@linutronix.de, gregkh@linuxfoundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, hpa@zytor.com, hughd@google.com, imbrenda@linux.vnet.ibm.com, jack@suse.cz, jag.raman@oracle.com, jane.chu@oracle.com, jglisse@redhat.com, jroedel@suse.de, khalid@gonehiking.org, khandual@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, kstewart@linuxfoundation.org, ktkhai@virtuozzo.com, liam.merwick@oracle.com, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux@roeck-us.net, me@tobin.cc, mgorman@suse.de, mgorman@techsingularity.net, mhocko@suse.com, mike.kravetz@oracle.com, minchan@kernel.org, mingo@kernel.org, mingo@redhat.com, mpe@ellerman.id.au, nadav.amit@gmail.com, nagarathnam.muthusamy@oracle.com, nborisov@suse.com, n-horiguchi@ah.jp.nec.com, nick.alcock@oracle.com, nitin.m.gupta@oracle.com, ombredanne@nexb.com, pasha.tatashin@oracle.com, paulus@samba.org, pombredanne@nexb.com, punit.agrawal@arm.com, rob.gardner@oracle.com, ross.zwisler@linux.intel.com, shannon.nelson@oracle.com, shli@fb.com, sparclinux@vger.kernel.org, tglx@linutronix.de, thomas.tai@oracle.com, tklauser@distanz.ch, tom.hromatka@oracle.com, vegard.nossum@oracle.com, vijay.ac.kumar@oracle.com, willy@infradead.org, x86@kernel.org, zi.yan@cs.rutgers.edu
 
-On 02/02/2018 03:15 AM, Michael S. Tsirkin wrote:
-> On Thu, Jan 25, 2018 at 05:14:04PM +0800, Wei Wang wrote:
->> This patch series is separated from the previous "Virtio-balloon
->> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,
->> implemented by this series enables the virtio-balloon driver to report
->> hints of guest free pages to the host. It can be used to accelerate live
->> migration of VMs. Here is an introduction of this usage:
->>
->> Live migration needs to transfer the VM's memory from the source machine
->> to the destination round by round. For the 1st round, all the VM's memory
->> is transferred. From the 2nd round, only the pieces of memory that were
->> written by the guest (after the 1st round) are transferred. One method
->> that is popularly used by the hypervisor to track which part of memory is
->> written is to write-protect all the guest memory.
->>
->> The second feature enables the optimization of the 1st round memory
->> transfer - the hypervisor can skip the transfer of guest free pages in the
->> 1st round. It is not concerned that the memory pages are used after they
->> are given to the hypervisor as a hint of the free pages, because they will
->> be tracked by the hypervisor and transferred in the next round if they are
->> used and written.
-> Could you post performance numbers please?
+On 2/1/2018 9:29 PM, ebiederm@xmission.com wrote:
+> Khalid Aziz <khalid.aziz@oracle.com> writes:
+> 
+>> V11 changes:
+>> This series is same as v10 and was simply rebased on 4.15 kernel. Can
+>> mm maintainers please review patches 2, 7, 8 and 9 which are arch
+>> independent, and include/linux/mm.h and mm/ksm.c changes in patch 10
+>> and ack these if everything looks good?
+> 
+> I am a bit puzzled how this differs from the pkey's that other
+> architectures are implementing to achieve a similar result.
+> 
+> I am a bit mystified why you don't store the tag in a vma
+> instead of inventing a new way to store data on page out.
+> 
+> Can you please use force_sig_fault to send these signals instead
+> of force_sig_info.  Emperically I have found that it is very
+> error prone to generate siginfo's by hand, especially on code
+> paths where several different si_codes may apply.  So it helps
+> to go through a helper function to ensure the fiddly bits are
+> all correct.  AKA the unused bits all need to be set to zero before
+> struct siginfo is copied to userspace.
+> 
+> Eric
 
-Yes, it was posted here https://lkml.org/lkml/2018/1/25/698
+The ADI tag can be set at a cacheline (64B) granularity, as opposed
+to the per-page granularity of pkeys.  This allows an object allocator
+to color each object differently within a page (rounding to 64B boundaries),
+such that a pointer overrun bug from one object to the next will cause a
+fault.  When pages are paged out, the tags must be saved, hence the
+new scheme for storing them.  One tag per vma is too coarse.
 
-I just changed the host side to poll the vq so that we don't need kick 
-in the driver, it works pretty well. I'll test a little bit more and 
-post out a new version with new performance numbers attached in the 
-cover letter.
+The combination of fine granularity and pageability makes for a powerful
+memory-reference error-detection framework.
 
-Best,
-Wei
+This was discussed in more detail when earlier patches were submitted,
+but it's been a while, and the distribution was probably narrower.
+
+Khalid can respond to the sig_fault comment.
+
+- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
