@@ -1,157 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D46636B0003
-	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 01:57:41 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id e185so19572575pfg.23
-        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 22:57:41 -0800 (PST)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0081.outbound.protection.outlook.com. [104.47.33.81])
-        by mx.google.com with ESMTPS id x5-v6si1243973plm.701.2018.02.01.22.57.40
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 992326B0003
+	for <linux-mm@kvack.org>; Fri,  2 Feb 2018 02:21:58 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id b185so15144996qkc.7
+        for <linux-mm@kvack.org>; Thu, 01 Feb 2018 23:21:58 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n6si1549195qtk.199.2018.02.01.23.21.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 01 Feb 2018 22:57:40 -0800 (PST)
-From: "He, Roger" <Hongbo.He@amd.com>
-Subject: RE: [PATCH] mm/swap: add function get_total_swap_pages to expose
- total_swap_pages
-Date: Fri, 2 Feb 2018 06:57:37 +0000
-Message-ID: <MWHPR1201MB01273A4737F27450D7E1A4C3FDF90@MWHPR1201MB0127.namprd12.prod.outlook.com>
-References: <1517214582-30880-1-git-send-email-Hongbo.He@amd.com>
- <9ecba5f4-3d4c-0179-bf03-f89c436cff6b@amd.com>
- <MWHPR1201MB0127760D359772D5565BA3EBFDFB0@MWHPR1201MB0127.namprd12.prod.outlook.com>
- <b7dca756-b703-ff51-196c-832e5a43c63a@amd.com>
- <MWHPR1201MB0127A0AE58A331BDBF9DD34BFDFA0@MWHPR1201MB0127.namprd12.prod.outlook.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Feb 2018 23:21:57 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w127IcdL034696
+	for <linux-mm@kvack.org>; Fri, 2 Feb 2018 02:21:56 -0500
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2fvhbhcvn6-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 02 Feb 2018 02:21:55 -0500
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Fri, 2 Feb 2018 07:21:53 -0000
+Date: Thu, 1 Feb 2018 23:21:39 -0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v11 3/3] mm, x86: display pkey in smaps only if arch
+ supports pkeys
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1517341452-11924-4-git-send-email-linuxram@us.ibm.com>
+ <201802021225.JPjLbdCs%fengguang.wu@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201802021225.JPjLbdCs%fengguang.wu@intel.com>
+Message-Id: <20180202072139.GD5411@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Koenig, Christian" <Christian.Koenig@amd.com>, "Zhou, David(ChunMing)" <David1.Zhou@amd.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com
 
-CVVzZSB0aGUgbGltaXQgYXMgdG90YWwgcmFtKjEvMiBzZWVtcyB3b3JrIHZlcnkgd2VsbC4gDQoJ
-Tm8gT09NIGFsdGhvdWdoIHN3YXAgZGlzayByZWFjaGVzIGZ1bGwgYXQgcGVhayBmb3IgcGlnbGl0
-IHRlc3QuDQoNCkJ1dCBmb3IgdGhpcyBhcHByb2FjaCwgRGF2aWQgbm90aWNlZCB0aGF0IGhhcyBh
-biBvYnZpb3VzIGRlZmVjdC4gDQpGb3IgZXhhbXBsZSwgIGlmIHRoZSBwbGF0Zm9ybSBoYXMgMzJH
-IHN5c3RlbSBtZW1vcnksIDhHIHN3YXAgZGlzay4NCjEvMiAqIHJhbSA9IDE2RyB3aGljaCBpcyBi
-aWdnZXIgdGhhbiBzd2FwIGRpc2ssIHNvIG5vIHN3YXAgZm9yIFRUTSBpcyBhbGxvd2VkIGF0IGFs
-bC4NCkZvciBub3cgd2Ugd29yayBvdXQgYW4gaW1wcm92ZWQgdmVyc2lvbiBiYXNlZCBvbiBnZXRf
-bnJfc3dhcF9wYWdlcygpLg0KR29pbmcgdG8gc2VuZCBvdXQgbGF0ZXIuDQoNClRoYW5rcw0KUm9n
-ZXIoSG9uZ2JvLkhlKQ0KLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZyb206IEhlLCBSb2dl
-ciANClNlbnQ6IFRodXJzZGF5LCBGZWJydWFyeSAwMSwgMjAxOCA0OjAzIFBNDQpUbzogS29lbmln
-LCBDaHJpc3RpYW4gPENocmlzdGlhbi5Lb2VuaWdAYW1kLmNvbT47IFpob3UsIERhdmlkKENodW5N
-aW5nKSA8RGF2aWQxLlpob3VAYW1kLmNvbT47IGRyaS1kZXZlbEBsaXN0cy5mcmVlZGVza3RvcC5v
-cmcNCkNjOiBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7
-ICdIZSwgUm9nZXInIDxIb25nYm8uSGVAYW1kLmNvbT4NClN1YmplY3Q6IFJFOiBbUEFUQ0hdIG1t
-L3N3YXA6IGFkZCBmdW5jdGlvbiBnZXRfdG90YWxfc3dhcF9wYWdlcyB0byBleHBvc2UgdG90YWxf
-c3dhcF9wYWdlcw0KDQpKdXN0IG5vdywgSSB0cmllZCB3aXRoIGZpeGVkIGxpbWl0LiAgQnV0IG5v
-dCB3b3JrIGFsd2F5cy4NCkZvciBleGFtcGxlOiBzZXQgdGhlIGxpbWl0IGFzIDRHQiBvbiBteSBw
-bGF0Zm9ybSB3aXRoIDhHQiBzeXN0ZW0gbWVtb3J5LCBpdCBjYW4gcGFzcy4NCkJ1dCB3aGVuIHJ1
-biB3aXRoIHBsYXRmb3JtIHdpdGggMTZHQiBzeXN0ZW0gbWVtb3J5LCBpdCBmYWlsZWQgc2luY2Ug
-T09NLg0KDQpBbmQgSSBndWVzcyBpdCBhbHNvIGRlcGVuZHMgb24gYXBwJ3MgYmVoYXZpb3IuDQpJ
-IG1lYW4gc29tZSBhcHBzICBtYWtlIE9TIHRvIHVzZSBtb3JlIHN3YXAgc3BhY2UgYXMgd2VsbC4N
-Cg0KVGhhbmtzDQpSb2dlcihIb25nYm8uSGUpDQotLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0K
-RnJvbTogZHJpLWRldmVsIFttYWlsdG86ZHJpLWRldmVsLWJvdW5jZXNAbGlzdHMuZnJlZWRlc2t0
-b3Aub3JnXSBPbiBCZWhhbGYgT2YgSGUsIFJvZ2VyDQpTZW50OiBUaHVyc2RheSwgRmVicnVhcnkg
-MDEsIDIwMTggMTo0OCBQTQ0KVG86IEtvZW5pZywgQ2hyaXN0aWFuIDxDaHJpc3RpYW4uS29lbmln
-QGFtZC5jb20+OyBaaG91LCBEYXZpZChDaHVuTWluZykgPERhdmlkMS5aaG91QGFtZC5jb20+OyBk
-cmktZGV2ZWxAbGlzdHMuZnJlZWRlc2t0b3Aub3JnDQpDYzogbGludXgtbW1Aa3ZhY2sub3JnOyBs
-aW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnDQpTdWJqZWN0OiBSRTogW1BBVENIXSBtbS9zd2Fw
-OiBhZGQgZnVuY3Rpb24gZ2V0X3RvdGFsX3N3YXBfcGFnZXMgdG8gZXhwb3NlIHRvdGFsX3N3YXBf
-cGFnZXMNCg0KCUJ1dCB3aGF0IHdlIGNvdWxkIGRvIGlzIHRvIHJlbHkgb24gYSBmaXhlZCBsaW1p
-dCBsaWtlIHRoZSBJbnRlbCBkcml2ZXIgZG9lcyBhbmQgSSBzdWdnZXN0ZWQgYmVmb3JlLg0KCUUu
-Zy4gZG9uJ3QgY29weSBhbnl0aGluZyBpbnRvIGEgc2htZW1maWxlIHdoZW4gdGhlcmUgaXMgb25s
-eSB4IE1CIG9mIHN3YXAgc3BhY2UgbGVmdC4NCg0KSGVyZSBJIHRoaW5rIHdlIGNhbiBkbyBpdCBm
-dXJ0aGVyLCBsZXQgdGhlIGxpbWl0IHZhbHVlIHNjYWxpbmcgd2l0aCB0b3RhbCBzeXN0ZW0gbWVt
-b3J5Lg0KRm9yIGV4YW1wbGU6IHRvdGFsIHN5c3RlbSBtZW1vcnkgKiAxLzIuIA0KSWYgdGhhdCBp
-dCB3aWxsIG1hdGNoIHRoZSBwbGF0Zm9ybSBjb25maWd1cmF0aW9uIGJldHRlci4gDQoNCglSb2dl
-ciBjYW4geW91IHRlc3QgdGhhdCBhcHByb2FjaCBvbmNlIG1vcmUgd2l0aCB5b3VyIGZpeCBmb3Ig
-dGhlIE9PTSBpc3N1ZXMgaW4gdGhlIHBhZ2UgZmF1bHQgaGFuZGxlcj8NCg0KU3VyZS4gVXNlIHRo
-ZSBsaW1pdCBhcyB0b3RhbCByYW0qMS8yIHNlZW1zIHdvcmsgdmVyeSB3ZWxsLiANCk5vIE9PTSBh
-bHRob3VnaCBzd2FwIGRpc2sgcmVhY2hlcyBmdWxsIGF0IHBlYWsgZm9yIHBpZ2xpdCB0ZXN0Lg0K
-SSBzcGVjdWxhdGUgdGhpcyBjYXNlIGhhcHBlbnMgYnV0IG5vIE9PTSBiZWNhdXNlOg0KDQphLiBy
-dW4gYSB3aGlsZSwgc3dhcCBkaXNrIGJlIHVzZWQgY2xvc2UgdG8gMS8yKiB0b3RhbCBzaXplIGFu
-ZCBidXQgbm90IG92ZXIgMS8yICogdG90YWwuDQpiLiBhbGwgc3Vic2VxdWVudCBzd2FwcGVkIHBh
-Z2VzIHN0YXkgaW4gc3lzdGVtIG1lbW9yeSB1bnRpbCBubyBzcGFjZSB0aGVyZS4NCiAgICAgVGhl
-biB0aGUgc3dhcHBlZCBwYWdlcyBpbiBzaG1lbSBiZSBmbHVzaGVkIGludG8gc3dhcCBkaXNrLiBB
-bmQgcHJvYmFibHkgT1MgYWxzbyBuZWVkIHNvbWUgc3dhcCBzcGFjZS4NCiAgICAgRm9yIHRoaXMg
-Y2FzZSwgaXQgaXMgZWFzeSB0byBnZXQgZnVsbCBmb3Igc3dhcCBkaXNrLg0KYy4gYnV0IGJlY2F1
-c2Ugbm93IGZyZWUgc3dhcCBzaXplIDwgMS8yICogdG90YWwsIHNvIG5vIHN3YXAgb3V0IGhhcHBl
-biAgYWZ0ZXIgdGhhdC4gDQogICAgQW5kIGF0IGxlYXN0IDEvNCogc3lzdGVtIG1lbW9yeSB3aWxs
-IGxlZnQgYmVjYXVzZSBiZWxvdyBjaGVjayBpbiB0dG1fbWVtX2dsb2JhbF9yZXNlcnZlIHdpbGwg
-ZW5zdXJlIHRoYXQuDQoJaWYgKHpvbmUtPnVzZWRfbWVtID4gbGltaXQpDQoJCQlnb3RvIG91dF91
-bmxvY2s7DQogICAgDQpUaGFua3MNClJvZ2VyKEhvbmdiby5IZSkNCi0tLS0tT3JpZ2luYWwgTWVz
-c2FnZS0tLS0tDQpGcm9tOiBLb2VuaWcsIENocmlzdGlhbg0KU2VudDogV2VkbmVzZGF5LCBKYW51
-YXJ5IDMxLCAyMDE4IDQ6MTMgUE0NClRvOiBIZSwgUm9nZXIgPEhvbmdiby5IZUBhbWQuY29tPjsg
-WmhvdSwgRGF2aWQoQ2h1bk1pbmcpIDxEYXZpZDEuWmhvdUBhbWQuY29tPjsgZHJpLWRldmVsQGxp
-c3RzLmZyZWVkZXNrdG9wLm9yZw0KQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZzsgbGludXgta2VybmVs
-QHZnZXIua2VybmVsLm9yZw0KU3ViamVjdDogUmU6IFtQQVRDSF0gbW0vc3dhcDogYWRkIGZ1bmN0
-aW9uIGdldF90b3RhbF9zd2FwX3BhZ2VzIHRvIGV4cG9zZSB0b3RhbF9zd2FwX3BhZ2VzDQoNClll
-YWgsIGluZGVlZC4gQnV0IHdoYXQgd2UgY291bGQgZG8gaXMgdG8gcmVseSBvbiBhIGZpeGVkIGxp
-bWl0IGxpa2UgdGhlIEludGVsIGRyaXZlciBkb2VzIGFuZCBJIHN1Z2dlc3RlZCBiZWZvcmUuDQoN
-CkUuZy4gZG9uJ3QgY29weSBhbnl0aGluZyBpbnRvIGEgc2htZW1maWxlIHdoZW4gdGhlcmUgaXMg
-b25seSB4IE1CIG9mIHN3YXAgc3BhY2UgbGVmdC4NCg0KUm9nZXIgY2FuIHlvdSB0ZXN0IHRoYXQg
-YXBwcm9hY2ggb25jZSBtb3JlIHdpdGggeW91ciBmaXggZm9yIHRoZSBPT00gaXNzdWVzIGluIHRo
-ZSBwYWdlIGZhdWx0IGhhbmRsZXI/DQoNClRoYW5rcywNCkNocmlzdGlhbi4NCg0KQW0gMzEuMDEu
-MjAxOCB1bSAwOTowOCBzY2hyaWViIEhlLCBSb2dlcjoNCj4gCUkgdGhpbmsgdGhpcyBwYXRjaCBp
-c24ndCBuZWVkIGF0IGFsbC4gWW91IGNhbiBkaXJlY3RseSByZWFkIHRvdGFsX3N3YXBfcGFnZXMg
-dmFyaWFibGUgaW4gVFRNLg0KPg0KPiBCZWNhdXNlIHRoZSB2YXJpYWJsZSBpcyBub3QgZXhwb3J0
-ZWQgYnkgRVhQT1JUX1NZTUJPTF9HUEwuIFNvIGRpcmVjdCB1c2luZyB3aWxsIHJlc3VsdCBpbjoN
-Cj4gIldBUk5JTkc6ICJ0b3RhbF9zd2FwX3BhZ2VzIiBbZHJpdmVycy9ncHUvZHJtL3R0bS90dG0u
-a29dIHVuZGVmaW5lZCEiLg0KPg0KPiBUaGFua3MNCj4gUm9nZXIoSG9uZ2JvLkhlKQ0KPiAtLS0t
-LU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPiBGcm9tOiBkcmktZGV2ZWwgW21haWx0bzpkcmktZGV2
-ZWwtYm91bmNlc0BsaXN0cy5mcmVlZGVza3RvcC5vcmddIE9uIA0KPiBCZWhhbGYgT2YgQ2h1bm1p
-bmcgWmhvdQ0KPiBTZW50OiBXZWRuZXNkYXksIEphbnVhcnkgMzEsIDIwMTggMzoxNSBQTQ0KPiBU
-bzogSGUsIFJvZ2VyIDxIb25nYm8uSGVAYW1kLmNvbT47IGRyaS1kZXZlbEBsaXN0cy5mcmVlZGVz
-a3RvcC5vcmcNCj4gQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZzsgbGludXgta2VybmVsQHZnZXIua2Vy
-bmVsLm9yZzsgS29lbmlnLCANCj4gQ2hyaXN0aWFuIDxDaHJpc3RpYW4uS29lbmlnQGFtZC5jb20+
-DQo+IFN1YmplY3Q6IFJlOiBbUEFUQ0hdIG1tL3N3YXA6IGFkZCBmdW5jdGlvbiBnZXRfdG90YWxf
-c3dhcF9wYWdlcyB0byANCj4gZXhwb3NlIHRvdGFsX3N3YXBfcGFnZXMNCj4NCj4gSGkgUm9nZXIs
-DQo+DQo+IEkgdGhpbmsgdGhpcyBwYXRjaCBpc24ndCBuZWVkIGF0IGFsbC4gWW91IGNhbiBkaXJl
-Y3RseSByZWFkIHRvdGFsX3N3YXBfcGFnZXMgdmFyaWFibGUgaW4gVFRNLiBTZWUgdGhlIGNvbW1l
-bnQ6DQo+DQo+IC8qIHByb3RlY3RlZCB3aXRoIHN3YXBfbG9jay4gcmVhZGluZyBpbiB2bV9zd2Fw
-X2Z1bGwoKSBkb2Vzbid0IG5lZWQgDQo+IGxvY2sgKi8gbG9uZyB0b3RhbF9zd2FwX3BhZ2VzOw0K
-Pg0KPiB0aGVyZSBhcmUgbWFueSBwbGFjZXMgdXNpbmcgaXQgZGlyZWN0bHksIHlvdSBqdXN0IGNv
-dWxkbid0IGNoYW5nZSBpdHMgdmFsdWUuIFJlYWRpbmcgaXQgZG9lc24ndCBuZWVkIGxvY2suDQo+
-DQo+DQo+IFJlZ2FyZHMsDQo+DQo+IERhdmlkIFpob3UNCj4NCj4NCj4gT24gMjAxOOW5tDAx5pyI
-Mjnml6UgMTY6MjksIFJvZ2VyIEhlIHdyb3RlOg0KPj4gdHRtIG1vZHVsZSBuZWVkcyBpdCB0byBk
-ZXRlcm1pbmUgaXRzIGludGVybmFsIHBhcmFtZXRlciBzZXR0aW5nLg0KPj4NCj4+IFNpZ25lZC1v
-ZmYtYnk6IFJvZ2VyIEhlIDxIb25nYm8uSGVAYW1kLmNvbT4NCj4+IC0tLQ0KPj4gICAgaW5jbHVk
-ZS9saW51eC9zd2FwLmggfCAgNiArKysrKysNCj4+ICAgIG1tL3N3YXBmaWxlLmMgICAgICAgIHwg
-MTUgKysrKysrKysrKysrKysrDQo+PiAgICAyIGZpbGVzIGNoYW5nZWQsIDIxIGluc2VydGlvbnMo
-KykNCj4+DQo+PiBkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9zd2FwLmggYi9pbmNsdWRlL2xp
-bnV4L3N3YXAuaCBpbmRleCANCj4+IGMyYjgxMjguLjcwOGQ2NmYgMTAwNjQ0DQo+PiAtLS0gYS9p
-bmNsdWRlL2xpbnV4L3N3YXAuaA0KPj4gKysrIGIvaW5jbHVkZS9saW51eC9zd2FwLmgNCj4+IEBA
-IC00ODQsNiArNDg0LDcgQEAgZXh0ZXJuIGludCB0cnlfdG9fZnJlZV9zd2FwKHN0cnVjdCBwYWdl
-ICopOw0KPj4gICAgc3RydWN0IGJhY2tpbmdfZGV2X2luZm87DQo+PiAgICBleHRlcm4gaW50IGlu
-aXRfc3dhcF9hZGRyZXNzX3NwYWNlKHVuc2lnbmVkIGludCB0eXBlLCB1bnNpZ25lZCBsb25nIG5y
-X3BhZ2VzKTsNCj4+ICAgIGV4dGVybiB2b2lkIGV4aXRfc3dhcF9hZGRyZXNzX3NwYWNlKHVuc2ln
-bmVkIGludCB0eXBlKTsNCj4+ICtleHRlcm4gbG9uZyBnZXRfdG90YWxfc3dhcF9wYWdlcyh2b2lk
-KTsNCj4+ICAgIA0KPj4gICAgI2Vsc2UgLyogQ09ORklHX1NXQVAgKi8NCj4+ICAgIA0KPj4gQEAg
-LTUxNiw2ICs1MTcsMTEgQEAgc3RhdGljIGlubGluZSB2b2lkIHNob3dfc3dhcF9jYWNoZV9pbmZv
-KHZvaWQpDQo+PiAgICB7DQo+PiAgICB9DQo+PiAgICANCj4+ICtsb25nIGdldF90b3RhbF9zd2Fw
-X3BhZ2VzKHZvaWQpDQo+PiArew0KPj4gKwlyZXR1cm4gMDsNCj4+ICt9DQo+PiArDQo+PiAgICAj
-ZGVmaW5lIGZyZWVfc3dhcF9hbmRfY2FjaGUoZSkgKHsoaXNfbWlncmF0aW9uX2VudHJ5KGUpIHx8
-IGlzX2RldmljZV9wcml2YXRlX2VudHJ5KGUpKTt9KQ0KPj4gICAgI2RlZmluZSBzd2FwY2FjaGVf
-cHJlcGFyZShlKSAoeyhpc19taWdyYXRpb25fZW50cnkoZSkgfHwNCj4+IGlzX2RldmljZV9wcml2
-YXRlX2VudHJ5KGUpKTt9KQ0KPj4gICAgDQo+PiBkaWZmIC0tZ2l0IGEvbW0vc3dhcGZpbGUuYyBi
-L21tL3N3YXBmaWxlLmMgaW5kZXggMzA3NGIwMi4uYTAwNjJlYg0KPj4gMTAwNjQ0DQo+PiAtLS0g
-YS9tbS9zd2FwZmlsZS5jDQo+PiArKysgYi9tbS9zd2FwZmlsZS5jDQo+PiBAQCAtOTgsNiArOTgs
-MjEgQEAgc3RhdGljIGF0b21pY190IHByb2NfcG9sbF9ldmVudCA9IEFUT01JQ19JTklUKDApOw0K
-Pj4gICAgDQo+PiAgICBhdG9taWNfdCBucl9yb3RhdGVfc3dhcCA9IEFUT01JQ19JTklUKDApOw0K
-Pj4gICAgDQo+PiArLyoNCj4+ICsgKiBleHBvc2UgdGhpcyB2YWx1ZSBmb3Igb3RoZXJzIHVzZQ0K
-Pj4gKyAqLw0KPj4gK2xvbmcgZ2V0X3RvdGFsX3N3YXBfcGFnZXModm9pZCkNCj4+ICt7DQo+PiAr
-CWxvbmcgcmV0Ow0KPj4gKw0KPj4gKwlzcGluX2xvY2soJnN3YXBfbG9jayk7DQo+PiArCXJldCA9
-IHRvdGFsX3N3YXBfcGFnZXM7DQo+PiArCXNwaW5fdW5sb2NrKCZzd2FwX2xvY2spOw0KPj4gKw0K
-Pj4gKwlyZXR1cm4gcmV0Ow0KPj4gK30NCj4+ICtFWFBPUlRfU1lNQk9MX0dQTChnZXRfdG90YWxf
-c3dhcF9wYWdlcyk7DQo+PiArDQo+PiAgICBzdGF0aWMgaW5saW5lIHVuc2lnbmVkIGNoYXIgc3dh
-cF9jb3VudCh1bnNpZ25lZCBjaGFyIGVudCkNCj4+ICAgIHsNCj4+ICAgIAlyZXR1cm4gZW50ICYg
-flNXQVBfSEFTX0NBQ0hFOwkvKiBtYXkgaW5jbHVkZSBTV0FQX0hBU19DT05UIGZsYWcgKi8NCj4g
-X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX18NCj4gZHJpLWRl
-dmVsIG1haWxpbmcgbGlzdA0KPiBkcmktZGV2ZWxAbGlzdHMuZnJlZWRlc2t0b3Aub3JnDQo+IGh0
-dHBzOi8vbGlzdHMuZnJlZWRlc2t0b3Aub3JnL21haWxtYW4vbGlzdGluZm8vZHJpLWRldmVsDQoN
-Cl9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fDQpkcmktZGV2
-ZWwgbWFpbGluZyBsaXN0DQpkcmktZGV2ZWxAbGlzdHMuZnJlZWRlc2t0b3Aub3JnDQpodHRwczov
-L2xpc3RzLmZyZWVkZXNrdG9wLm9yZy9tYWlsbWFuL2xpc3RpbmZvL2RyaS1kZXZlbA0K
+On Fri, Feb 02, 2018 at 12:27:27PM +0800, kbuild test robot wrote:
+> Hi Ram,
+> 
+> Thank you for the patch! Yet something to improve:
+> 
+> [auto build test ERROR on linus/master]
+> [also build test ERROR on v4.15 next-20180201]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> 
+> url:    https://urldefense.proofpoint.com/v2/url?u=https-3A__github.com_0day-2Dci_linux_commits_Ram-2DPai_mm-2Dx86-2Dpowerpc-2DEnhancements-2Dto-2DMemory-2DProtection-2DKeys_20180202-2D120004&d=DwIBAg&c=jf_iaSHvJObTbx-siA1ZOg&r=m-UrKChQVkZtnPpjbF6YY99NbT8FBByQ-E-ygV8luxw&m=Fv3tEHet1bTUrDjOnzEhXvGM_4tGlkYhJHPBnWNWgVA&s=Z1W6CV2tfPmLYU8lVv1oDRl2cAyQA76KE2P064A2CQY&e=
+> config: x86_64-randconfig-x005-201804 (attached as .config)
+> compiler: gcc-7 (Debian 7.2.0-12) 7.2.1 20171025
+> reproduce:
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
+> 
+> All error/warnings (new ones prefixed by >>):
+> 
+>    In file included from arch/x86/include/asm/mmu_context.h:8:0,
+>                     from arch/x86/events/core.c:36:
+> >> include/linux/pkeys.h:16:23: error: expected identifier or '(' before numeric constant
+>     #define vma_pkey(vma) 0
+>                           ^
+> >> arch/x86/include/asm/mmu_context.h:298:19: note: in expansion of macro 'vma_pkey'
+>     static inline int vma_pkey(struct vm_area_struct *vma)
+>                       ^~~~~~~~
+> 
+> vim +16 include/linux/pkeys.h
+> 
+>      7	
+>      8	#ifdef CONFIG_ARCH_HAS_PKEYS
+>      9	#include <asm/pkeys.h>
+>     10	#else /* ! CONFIG_ARCH_HAS_PKEYS */
+>     11	#define arch_max_pkey() (1)
+>     12	#define execute_only_pkey(mm) (0)
+>     13	#define arch_override_mprotect_pkey(vma, prot, pkey) (0)
+>     14	#define PKEY_DEDICATED_EXECUTE_ONLY 0
+>     15	#define ARCH_VM_PKEY_FLAGS 0
+>   > 16	#define vma_pkey(vma) 0
+
+Oops. Thanks for catching the issue. The following fix will resolve the error.
+
+diff --git a/arch/x86/include/asm/mmu_context.h
+b/arch/x86/include/asm/mmu_context.h
+index 6d16d15..c1aeb19 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -238,11 +238,6 @@ static inline int vma_pkey(struct vm_area_struct
+		*vma)
+ 
+        return (vma->vm_flags & vma_pkey_mask) >> VM_PKEY_SHIFT;
+}
+-#else
+-static inline int vma_pkey(struct vm_area_struct *vma)
+-{
+-       return 0;
+-}
+ #endif
+
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
