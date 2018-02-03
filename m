@@ -1,64 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 636D06B0006
-	for <linux-mm@kvack.org>; Sat,  3 Feb 2018 13:23:15 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id a188so4685616qkg.4
-        for <linux-mm@kvack.org>; Sat, 03 Feb 2018 10:23:15 -0800 (PST)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id x35si293380qte.252.2018.02.03.10.23.13
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C72F06B0005
+	for <linux-mm@kvack.org>; Sat,  3 Feb 2018 14:43:29 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id h17so5958674wmc.6
+        for <linux-mm@kvack.org>; Sat, 03 Feb 2018 11:43:29 -0800 (PST)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id g90si4025630wrd.39.2018.02.03.11.43.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Feb 2018 10:23:13 -0800 (PST)
-Message-ID: <1517682188.31954.57.camel@surriel.com>
-Subject: Re: [PATCH] mm: memcontrol: fix NR_WRITEBACK leak in memcg and
- system stats
-From: Rik van Riel <riel@surriel.com>
-Date: Sat, 03 Feb 2018 13:23:08 -0500
-In-Reply-To: <20180203082353.17284-1-hannes@cmpxchg.org>
-References: <20180203082353.17284-1-hannes@cmpxchg.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-uD5WZE9zfQrUF8OJBowJ"
-Mime-Version: 1.0
+        Sat, 03 Feb 2018 11:43:28 -0800 (PST)
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Subject: [RFC PATCH v13 0/6] mm: security: ro protection for dynamic data
+Date: Sat, 3 Feb 2018 21:42:52 +0200
+Message-ID: <20180203194258.28454-1-igor.stoppa@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, willy@infradead.org
+Cc: cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
 
+This patch-set introduces the possibility of protecting memory that has
+been allocated dynamically.
 
---=-uD5WZE9zfQrUF8OJBowJ
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+The memory is managed in pools: when a memory pool is turned into R/O,
+all the memory that is part of it, will become R/O.
 
-On Sat, 2018-02-03 at 03:23 -0500, Johannes Weiner wrote:
->=20
-> This patch makes the joint stat and event API irq safe.
->=20
-> Fixes: a983b5ebee57 ("mm: memcontrol: fix excessive complexity in
-> memory.stat reporting")
-> Debugged-by: Tejun Heo <tj@kernel.org>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
->=20
-Reviewed-by: Rik van Riel <riel@surriel.com>
---=20
-All Rights Reversed.
---=-uD5WZE9zfQrUF8OJBowJ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
+A R/O pool can be destroyed, to recover its memory, but it cannot be
+turned back into R/W mode.
 
------BEGIN PGP SIGNATURE-----
+This is intentional. This feature is meant for data that doesn't need
+further modifications after initialization.
 
-iQEyBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlp1/gwACgkQznnekoTE
-3oNBXQf3XPmSj1hhxNPGUqxVvwfXEaAbX5U2msBACnXF6xBia9BgwXPh2Zti1L1x
-7O1Qc/pJSKSrkMkHOv1aLuTKPwVZtQR2ulOrPBSpLzdL7JrToPI64HsR2TsMvP8y
-J8W334x0fbItbZUx8At1+t6fXRNs6QkiDEy1yYv8RjqUlSybA2rqeoKEqwsFwnDS
-JP1GHoWZTF+TfcvkEEk7baDDaO90liqpufIUyZXTcR4f0rlmPaXdz8lQNacypbQZ
-x7DAW1mr9LqsQUnecD1V3TAMncwb39Vsuy2RRDE+pyKYsIUORcnsG9nc9KJ/KNDG
-14NZ273Erz5+stw/E2bCerB7wseu
-=z9Fg
------END PGP SIGNATURE-----
+However the data might need to be released, for example as part of module
+unloading.
+To do this, the memory must first be freed, then the pool can be destroyed.
 
---=-uD5WZE9zfQrUF8OJBowJ--
+An example is provided, in the form of self-testing.
+
+Changes since v12
+[https://lkml.org/lkml/2018/1/30/397]
+
+- fixed Kconfig dependency for pmalloc-test
+- fixed warning for size_t treated as %ul on i386
+- moved to SPDX license reference
+- rewrote pmalloc docs
+
+Igor Stoppa (6):
+  genalloc: track beginning of allocations
+  genalloc: selftest
+  struct page: add field for vm_struct
+  Protectable Memory
+  Pmalloc: self-test
+  Documentation for Pmalloc
+
+ Documentation/core-api/pmalloc.rst | 114 ++++++++
+ include/linux/genalloc-selftest.h  |  30 +++
+ include/linux/genalloc.h           |   7 +-
+ include/linux/mm_types.h           |   1 +
+ include/linux/pmalloc.h            | 211 +++++++++++++++
+ include/linux/vmalloc.h            |   1 +
+ init/main.c                        |   2 +
+ lib/Kconfig                        |  15 ++
+ lib/Makefile                       |   1 +
+ lib/genalloc-selftest.c            | 402 +++++++++++++++++++++++++++++
+ lib/genalloc.c                     | 444 ++++++++++++++++++++++----------
+ mm/Kconfig                         |   9 +
+ mm/Makefile                        |   2 +
+ mm/pmalloc-selftest.c              |  61 +++++
+ mm/pmalloc-selftest.h              |  26 ++
+ mm/pmalloc.c                       | 514 +++++++++++++++++++++++++++++++++++++
+ mm/usercopy.c                      |  25 +-
+ mm/vmalloc.c                       |  18 +-
+ 18 files changed, 1742 insertions(+), 141 deletions(-)
+ create mode 100644 Documentation/core-api/pmalloc.rst
+ create mode 100644 include/linux/genalloc-selftest.h
+ create mode 100644 include/linux/pmalloc.h
+ create mode 100644 lib/genalloc-selftest.c
+ create mode 100644 mm/pmalloc-selftest.c
+ create mode 100644 mm/pmalloc-selftest.h
+ create mode 100644 mm/pmalloc.c
+
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
