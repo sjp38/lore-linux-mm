@@ -1,45 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D577B6B0007
-	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 17:58:05 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id m3so18357470pgd.20
-        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 14:58:05 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id y15si1049608pgq.554.2018.02.04.14.58.04
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E9F36B0007
+	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 18:03:53 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id b6so7490752plx.3
+        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 15:03:53 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id v11si2771917pgo.107.2018.02.04.15.03.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Feb 2018 14:58:04 -0800 (PST)
-From: Alexey Skidanov <alexey.skidanov@intel.com>
-Subject: Possible reasons of CMA allocation failure
-Message-ID: <10f52913-ad8b-4fd2-5e55-47aa46c48c0d@intel.com>
-Date: Mon, 5 Feb 2018 00:58:28 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 04 Feb 2018 15:03:52 -0800 (PST)
+Date: Sun, 4 Feb 2018 15:03:46 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 2/6] genalloc: selftest
+Message-ID: <20180204230346.GA12502@bombadil.infradead.org>
+References: <20180204164732.28241-1-igor.stoppa@huawei.com>
+ <20180204164732.28241-3-igor.stoppa@huawei.com>
+ <e05598c1-3c7c-15c6-7278-ed52ceff0acf@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e05598c1-3c7c-15c6-7278-ed52ceff0acf@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, labbott@redhat.com
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Igor Stoppa <igor.stoppa@huawei.com>, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-Hello,
+On Sun, Feb 04, 2018 at 02:19:22PM -0800, Randy Dunlap wrote:
+> > +#ifndef __GENALLOC_SELFTEST_H__
+> > +#define __GENALLOC_SELFTEST_H__
+> 
+> Please use _LINUX_GENALLOC_SELFTEST_H_
 
-On x86 machine with 16GB RAM installed, I reserved 1 GB area for CMA:
-[    0.000000] cma: Reserved 1024 MiB at 0x00000003fcc00000
+willy@bobo:~/kernel/linux$ git grep define.*_H__$ include/linux/*.h |wc -l
+98
+willy@bobo:~/kernel/linux$ git grep define.*_H_$ include/linux/*.h |wc -l
+110
+willy@bobo:~/kernel/linux$ git grep define.*_H$ include/linux/*.h |wc -l
+885
 
-Some time after the boot, CMa failed to allocate chunk of memory while
-there are enough contiguous pages:
-
-[  392.132392] cma: cma_alloc: alloc failed, req-size: 200000 pages,
-ret: -16
-[  392.132393] cma: number of available pages:
-6@8314+9@8343+9@8375+253648@8496=> 253672 free of 262144 total pages
-[  392.132398] cma: cma_alloc(): returned (null)
-
-What are the possible reasons for such failure (besides the pinned user
-allocated pages) ?
-
-Thanks,
-Alexey
+No trailing underscore is 8x as common as one trailing underscore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
