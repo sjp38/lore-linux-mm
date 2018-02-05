@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EE7536B0007
-	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 00:30:59 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id q5so8314337pll.17
-        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 21:30:59 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id 31-v6si1885332pli.68.2018.02.04.21.30.58
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 885056B0005
+	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 00:31:45 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id 36so10511776plb.18
+        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 21:31:45 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id d12si3387082pgu.218.2018.02.04.21.31.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Feb 2018 21:30:58 -0800 (PST)
-Date: Mon, 5 Feb 2018 13:31:39 +0800
+        Sun, 04 Feb 2018 21:31:43 -0800 (PST)
+Date: Mon, 5 Feb 2018 13:32:25 +0800
 From: Aaron Lu <aaron.lu@intel.com>
-Subject: [RFC PATCH 1/2] __free_one_page: skip merge for order-0 page unless
- compaction is in progress
-Message-ID: <20180205053139.GC16980@intel.com>
+Subject: [RFC PATCH 2/2] rmqueue_bulk: avoid touching page structures under
+ zone->lock
+Message-ID: <20180205053225.GD16980@intel.com>
 References: <20180124023050.20097-1-aaron.lu@intel.com>
  <20180205053013.GB16980@intel.com>
 MIME-Version: 1.0
@@ -25,279 +25,368 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-Running will-it-scale/page_fault1 process mode workload on a 2 sockets
-Intel Skylake server showed severe lock contention of zone->lock, as
-high as about 80%(43% on allocation path and 38% on free path) CPU
-cycles are burnt spinning. With perf, the most time consuming part inside
-that lock on free path is cache missing on page structures, mostly on
-the to-be-freed page's buddy due to merging.
+Profile on Intel Skylake server shows the most time consuming part
+under zone->lock on allocation path is accessing those to-be-returned
+page's struct page in rmqueue_bulk() and its child functions.
 
-One way to avoid this overhead is not do any merging at all for order-0
-pages and leave the need for high order pages to compaction. With this
-approach, the lock contention for zone->lock on free path dropped to 4%
-but allocation side still has as high as 43% lock contention. In the
-meantime, the dropped lock contention on free side doesn't translate to
-performance increase, instead, it's consumed by increased lock contention
-of the per node lru_lock(rose from 2% to 33%).
+We do not really need to touch all those to-be-returned pages under
+zone->lock, just need to move them out of the order 0's free_list and
+adjust area->nr_free under zone->lock, other operations on page structure
+like rmv_page_order(page) etc. could be done outside zone->lock.
 
-One concern of this approach is, how much impact does it have on high order
-page allocation, like for order-9 pages? I have run the stress-highalloc
-workload on a Haswell Desktop(8 CPU/4G memory) sometime ago and it showed
-similar success rate for vanilla kernel and the patched kernel, both at 74%.
-Note that it indeed took longer to finish the test: 244s vs 218s.
+So if it's possible to know the 1st and the last page structure of the
+pcp->batch number pages in the free_list, we can achieve the above
+without needing to touch all those page structures in between. The
+problem is, the free page is linked in a doubly list so we only know
+where the head and tail is, but not the Nth element in the list.
 
-1 vanilla
-  Attempted allocations:          1917
-  Failed allocs:                   494
-  Success allocs:                 1423
-  % Success:                        74
-  Duration alloctest pass:        218s
+Assume order0 mt=Movable free_list has 7 pages available:
+    head <-> p7 <-> p6 <-> p5 <-> p4 <-> p3 <-> p2 <-> p1
 
-2 no_merge_in_buddy
-  Attempted allocations:         1917
-  Failed allocs:                  497
-  Success allocs:                1420
-  % Success:                       74
-  Duration alloctest pass:       244s
+One experiment I have done here is to add a new list for it: say
+cluster list, where it will link pages of every pcp->batch(th) element
+in the free_list.
 
-The above test was done with the default --ms-delay=100, which means there
-is a delay of 100ms between page allocations. If I set the delay to 1ms,
-the success rate of this patch will drop to 36% while vanilla could maintain
-at about 70%. Though 1ms delay may not be practical, it indeed shows the
-possible impact of this patch on high order page allocation.
+Take pcp->batch=3 as an example, we have:
 
-The next patch deals with allocation path zone->lock contention.
+free_list:     head <-> p7 <-> p6 <-> p5 <-> p4 <-> p3 <-> p2 <-> p1
+cluster_list:  head <--------> p6 <---------------> p3
 
-Suggested-by: Dave Hansen <dave.hansen@intel.com>
+Let's call p6-p4 a cluster, similarly, p3-p1 is another cluster.
+
+Then every time rmqueue_bulk() is called to get 3 pages, we will iterate
+the cluster_list first. If cluster list is not empty, we can quickly locate
+the first and last page, p6 and p4 in this case(p4 is retrieved by checking
+p6's next on cluster_list and then check p3's prev on free_list). This way,
+we can reduce the need to touch all those page structures in between under
+zone->lock.
+
+Note: a common pcp->batch should be 31 since it is the default PCP batch number.
+
+With this change, on 2 sockets Skylake server, with will-it-scale/page_fault1
+full load test, zone lock has gone, lru_lock contention rose to 70% and
+performance increased by 16.7% compared to vanilla.
+
+There are some fundemental problems with this patch though:
+1 When compaction occurs, the number of pages in a cluster could be less than
+  predefined; this will make "1 cluster can satify the request" not true any more.
+  Due to this reason, the patch currently requires no compaction to happen;
+2 When new pages are freed to order 0 free_list, it could merge with its buddy
+  and that would also cause fewer pages left in a cluster. Thus, no merge
+  for order-0 is required for this patch to work;
+3 Similarly, when fallback allocation happens, the same problem could happen again.
+
+Considering the above listed problems, this patch can only serve as a POC that
+cache miss is the most time consuming operation in big server. Your comments
+on a possible way to overcome them are greatly appreciated.
+
+Suggested-by: Ying Huang <ying.huang@intel.com>
 Signed-off-by: Aaron Lu <aaron.lu@intel.com>
 ---
- mm/compaction.c |  28 ++++++++++++++
- mm/internal.h   |  15 +++++++-
- mm/page_alloc.c | 116 ++++++++++++++++++++++++++++++++++++--------------------
- 3 files changed, 117 insertions(+), 42 deletions(-)
+ include/linux/mm_types.h |  43 ++++++++++--------
+ include/linux/mmzone.h   |   7 +++
+ mm/page_alloc.c          | 114 ++++++++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 141 insertions(+), 23 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 10cd757f1006..b53c4d420533 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -669,6 +669,28 @@ static bool too_many_isolated(struct zone *zone)
- 	return isolated > (inactive + active) / 2;
- }
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index cfd0ac4e5e0e..e7aee48a224a 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -43,26 +43,33 @@ struct page {
+ 	/* First double word block */
+ 	unsigned long flags;		/* Atomic flags, some possibly
+ 					 * updated asynchronously */
+-	union {
+-		struct address_space *mapping;	/* If low bit clear, points to
+-						 * inode address_space, or NULL.
+-						 * If page mapped as anonymous
+-						 * memory, low bit is set, and
+-						 * it points to anon_vma object
+-						 * or KSM private structure. See
+-						 * PAGE_MAPPING_ANON and
+-						 * PAGE_MAPPING_KSM.
+-						 */
+-		void *s_mem;			/* slab first object */
+-		atomic_t compound_mapcount;	/* first tail page */
+-		/* page_deferred_list().next	 -- second tail page */
+-	};
  
-+static int merge_page(struct zone *zone, struct page *page, unsigned long pfn)
-+{
-+	int order = 0;
-+	unsigned long buddy_pfn = __find_buddy_pfn(pfn, order);
-+	struct page *buddy = page + (buddy_pfn - pfn);
+-	/* Second double word */
+ 	union {
+-		pgoff_t index;		/* Our offset within mapping. */
+-		void *freelist;		/* sl[aou]b first free object */
+-		/* page_deferred_list().prev	-- second tail page */
++		struct {
++			union {
++				struct address_space *mapping;	/* If low bit clear, points to
++								 * inode address_space, or NULL.
++								 * If page mapped as anonymous
++								 * memory, low bit is set, and
++								 * it points to anon_vma object
++								 * or KSM private structure. See
++								 * PAGE_MAPPING_ANON and
++								 * PAGE_MAPPING_KSM.
++								 */
++				void *s_mem;			/* slab first object */
++				atomic_t compound_mapcount;	/* first tail page */
++				/* page_deferred_list().next	 -- second tail page */
++			};
 +
-+	/* Only do merging if the merge skipped page's buddy is also free */
-+	if (PageBuddy(buddy)) {
-+		int mt = get_pageblock_migratetype(page);
-+		unsigned long flags;
++			/* Second double word */
++			union {
++				pgoff_t index;		/* Our offset within mapping. */
++				void *freelist;		/* sl[aou]b first free object */
++				/* page_deferred_list().prev	-- second tail page */
++			};
++		};
 +
-+		spin_lock_irqsave(&zone->lock, flags);
-+		if (likely(page_merge_skipped(page))) {
-+			do_merge(zone, page, mt);
-+			order = page_order(page);
-+		}
-+		spin_unlock_irqrestore(&zone->lock, flags);
-+	}
-+
-+	return order;
-+}
-+
- /**
-  * isolate_migratepages_block() - isolate all migrate-able pages within
-  *				  a single pageblock
-@@ -777,6 +799,12 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		 */
- 		if (PageBuddy(page)) {
- 			unsigned long freepage_order = page_order_unsafe(page);
-+			/*
-+			 * If the page didn't do merging on free time, now do
-+			 * it since we are doing compaction.
-+			 */
-+			if (page_merge_skipped(page))
-+				freepage_order = merge_page(zone, page, low_pfn);
++		struct list_head cluster;
+ 	};
  
- 			/*
- 			 * Without lock, we cannot be sure that what we got is
-diff --git a/mm/internal.h b/mm/internal.h
-index e6bd35182dae..d2b0ac02d459 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -228,9 +228,22 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
- static inline unsigned int page_order(struct page *page)
- {
- 	/* PageBuddy() must be checked by the caller */
--	return page_private(page);
-+	return page_private(page) & ~(1 << 16);
- }
+ 	union {
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 67f2e3c38939..3f1451213184 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -355,6 +355,12 @@ enum zone_type {
  
-+/*
-+ * This function returns if the page is in buddy but didn't do any merging
-+ * for performance reason. This function only makes sense if PageBuddy(page)
-+ * is also true. The caller should hold zone->lock for this function to return
-+ * correct value, or it can handle invalid values gracefully.
-+ */
-+static inline bool page_merge_skipped(struct page *page)
-+{
-+	return PageBuddy(page) && (page->private & (1 << 16));
-+}
+ #ifndef __GENERATING_BOUNDS_H
+ 
++struct order0_cluster {
++	struct list_head list[MIGRATE_PCPTYPES];
++	unsigned long offset[MIGRATE_PCPTYPES];
++	int batch;
++};
 +
-+void do_merge(struct zone *zone, struct page *page, int migratetype);
-+
- /*
-  * Like page_order(), but for callers who cannot afford to hold the zone lock.
-  * PageBuddy() should be checked first by the caller to minimize race window,
+ struct zone {
+ 	/* Read-mostly fields */
+ 
+@@ -459,6 +465,7 @@ struct zone {
+ 
+ 	/* free areas of different sizes */
+ 	struct free_area	free_area[MAX_ORDER];
++	struct order0_cluster   order0_cluster;
+ 
+ 	/* zone flags, see below */
+ 	unsigned long		flags;
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2ac7fa97dd55..9497c8c5f808 100644
+index 9497c8c5f808..3eaafe597a66 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -781,49 +781,14 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
- 	return 0;
+@@ -736,6 +736,7 @@ static inline void rmv_page_order(struct page *page)
+ {
+ 	__ClearPageBuddy(page);
+ 	set_page_private(page, 0);
++	BUG_ON(page->cluster.next);
  }
  
--/*
-- * Freeing function for a buddy system allocator.
-- *
-- * The concept of a buddy system is to maintain direct-mapped table
-- * (containing bit values) for memory blocks of various "orders".
-- * The bottom level table contains the map for the smallest allocatable
-- * units of memory (here, pages), and each level above it describes
-- * pairs of units from the levels below, hence, "buddies".
-- * At a high level, all that happens here is marking the table entry
-- * at the bottom level available, and propagating the changes upward
-- * as necessary, plus some accounting needed to play nicely with other
-- * parts of the VM system.
-- * At each level, we keep a list of pages, which are heads of continuous
-- * free pages of length of (1 << order) and marked with _mapcount
-- * PAGE_BUDDY_MAPCOUNT_VALUE. Page's order is recorded in page_private(page)
-- * field.
-- * So when we are allocating or freeing one, we can derive the state of the
-- * other.  That is, if we allocate a small block, and both were
-- * free, the remainder of the region must be split into blocks.
-- * If a block is freed, and its buddy is also free, then this
-- * triggers coalescing into a block of larger size.
-- *
-- * -- nyc
-- */
--
--static inline void __free_one_page(struct page *page,
--		unsigned long pfn,
--		struct zone *zone, unsigned int order,
--		int migratetype)
-+static void inline __do_merge(struct page *page, unsigned int order,
-+				struct zone *zone, int migratetype)
- {
-+	unsigned int max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
-+	unsigned long pfn = page_to_pfn(page);
- 	unsigned long combined_pfn;
- 	unsigned long uninitialized_var(buddy_pfn);
- 	struct page *buddy;
--	unsigned int max_order;
--
--	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
--
--	VM_BUG_ON(!zone_is_initialized(zone));
--	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
--
--	VM_BUG_ON(migratetype == -1);
--	if (likely(!is_migrate_isolate(migratetype)))
--		__mod_zone_freepage_state(zone, 1 << order, migratetype);
- 
+ /*
+@@ -793,6 +794,9 @@ static void inline __do_merge(struct page *page, unsigned int order,
  	VM_BUG_ON_PAGE(pfn & ((1 << order) - 1), page);
  	VM_BUG_ON_PAGE(bad_range(zone, page), page);
-@@ -879,8 +844,6 @@ static inline void __free_one_page(struct page *page,
- 	}
  
- done_merging:
--	set_page_order(page, order);
--
- 	/*
- 	 * If this is not the largest possible page, check if the buddy
- 	 * of the next-highest order is free. If it is, it's possible
-@@ -905,9 +868,80 @@ static inline void __free_one_page(struct page *page,
- 
- 	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
- out:
-+	set_page_order(page, order);
- 	zone->free_area[order].nr_free++;
++	/* order0 merge doesn't work yet */
++	BUG_ON(!order);
++
+ continue_merging:
+ 	while (order < max_order - 1) {
+ 		buddy_pfn = __find_buddy_pfn(pfn, order);
+@@ -883,6 +887,19 @@ void do_merge(struct zone *zone, struct page *page, int migratetype)
+ 	__do_merge(page, 0, zone, migratetype);
  }
  
-+void do_merge(struct zone *zone, struct page *page, int migratetype)
++static inline void add_to_order0_free_list(struct page *page, struct zone *zone, int mt)
 +{
-+	VM_BUG_ON(page_order(page) != 0);
++	struct order0_cluster *cluster = &zone->order0_cluster;
 +
-+	list_del(&page->lru);
-+	zone->free_area[0].nr_free--;
-+	rmv_page_order(page);
++	list_add(&page->lru, &zone->free_area[0].free_list[mt]);
 +
-+	__do_merge(page, 0, zone, migratetype);
++	/* If this is the pcp->batch(th) page, link it to the cluster list */
++	if (mt < MIGRATE_PCPTYPES && !(++cluster->offset[mt] % cluster->batch)) {
++		list_add(&page->cluster, &cluster->list[mt]);
++		cluster->offset[mt] = 0;
++	}
 +}
 +
-+static inline bool should_skip_merge(struct zone *zone, unsigned int order)
+ static inline bool should_skip_merge(struct zone *zone, unsigned int order)
+ {
+ #ifdef CONFIG_COMPACTION
+@@ -929,7 +946,7 @@ static inline void __free_one_page(struct page *page,
+ 		__mod_zone_freepage_state(zone, 1 << order, migratetype);
+ 
+ 	if (should_skip_merge(zone, order)) {
+-		list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
++		add_to_order0_free_list(page, zone, migratetype);
+ 		/*
+ 		 * 1 << 16 set on page->private to indicate this order0
+ 		 * page skipped merging during free time
+@@ -1732,7 +1749,10 @@ static inline void expand(struct zone *zone, struct page *page,
+ 		if (set_page_guard(zone, &page[size], high, migratetype))
+ 			continue;
+ 
+-		list_add(&page[size].lru, &area->free_list[migratetype]);
++		if (high)
++			list_add(&page[size].lru, &area->free_list[migratetype]);
++		else
++			add_to_order0_free_list(&page[size], zone, migratetype);
+ 		area->nr_free++;
+ 		set_page_order(&page[size], high);
+ 	}
+@@ -1881,6 +1901,11 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+ 		list_del(&page->lru);
+ 		rmv_page_order(page);
+ 		area->nr_free--;
++		if (!current_order && migratetype < MIGRATE_PCPTYPES) {
++			BUG_ON(!zone->order0_cluster.offset[migratetype]);
++			BUG_ON(page->cluster.next);
++			zone->order0_cluster.offset[migratetype]--;
++		}
+ 		expand(zone, page, order, current_order, area, migratetype);
+ 		set_pcppage_migratetype(page, migratetype);
+ 		return page;
+@@ -1968,8 +1993,13 @@ static int move_freepages(struct zone *zone,
+ 		}
+ 
+ 		order = page_order(page);
+-		list_move(&page->lru,
++		if (order) {
++			list_move(&page->lru,
+ 			  &zone->free_area[order].free_list[migratetype]);
++		} else {
++			__list_del_entry(&page->lru);
++			add_to_order0_free_list(page, zone, migratetype);
++		}
+ 		page += 1 << order;
+ 		pages_moved += 1 << order;
+ 	}
+@@ -2118,7 +2148,12 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+ 
+ single_page:
+ 	area = &zone->free_area[current_order];
+-	list_move(&page->lru, &area->free_list[start_type]);
++	if (current_order)
++		list_move(&page->lru, &area->free_list[start_type]);
++	else {
++		__list_del_entry(&page->lru);
++		add_to_order0_free_list(page, zone, start_type);
++	}
+ }
+ 
+ /*
+@@ -2379,6 +2414,45 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype)
+ 	return page;
+ }
+ 
++static noinline int rmqueue_bulk_cluster(struct zone *zone, unsigned int order,
++			unsigned long count, struct list_head *list,
++			int migratetype)
 +{
-+#ifdef CONFIG_COMPACTION
-+	return !zone->compact_considered && !order;
-+#else
-+	return false;
-+#endif
-+}
++	struct list_head *cluster_head;
++	struct page *head, *tail;
 +
-+/*
-+ * Freeing function for a buddy system allocator.
-+ *
-+ * The concept of a buddy system is to maintain direct-mapped table
-+ * (containing bit values) for memory blocks of various "orders".
-+ * The bottom level table contains the map for the smallest allocatable
-+ * units of memory (here, pages), and each level above it describes
-+ * pairs of units from the levels below, hence, "buddies".
-+ * At a high level, all that happens here is marking the table entry
-+ * at the bottom level available, and propagating the changes upward
-+ * as necessary, plus some accounting needed to play nicely with other
-+ * parts of the VM system.
-+ * At each level, we keep a list of pages, which are heads of continuous
-+ * free pages of length of (1 << order) and marked with _mapcount
-+ * PAGE_BUDDY_MAPCOUNT_VALUE. Page's order is recorded in page_private(page)
-+ * field.
-+ * So when we are allocating or freeing one, we can derive the state of the
-+ * other.  That is, if we allocate a small block, and both were
-+ * free, the remainder of the region must be split into blocks.
-+ * If a block is freed, and its buddy is also free, then this
-+ * triggers coalescing into a block of larger size.
-+ *
-+ * -- nyc
-+ */
-+static inline void __free_one_page(struct page *page,
-+		unsigned long pfn,
-+		struct zone *zone, unsigned int order,
-+		int migratetype)
-+{
-+	VM_BUG_ON(!zone_is_initialized(zone));
-+	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
++	cluster_head = &zone->order0_cluster.list[migratetype];
++	head = list_first_entry_or_null(cluster_head, struct page, cluster);
++	if (!head)
++		return 0;
 +
-+	VM_BUG_ON(migratetype == -1);
-+	if (likely(!is_migrate_isolate(migratetype)))
-+		__mod_zone_freepage_state(zone, 1 << order, migratetype);
-+
-+	if (should_skip_merge(zone, order)) {
-+		list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
-+		/*
-+		 * 1 << 16 set on page->private to indicate this order0
-+		 * page skipped merging during free time
-+		 */
-+		set_page_order(page, order | (1 << 16));
-+		zone->free_area[order].nr_free++;
-+		return;
++	if (head->cluster.next == cluster_head)
++		tail = list_last_entry(&zone->free_area[0].free_list[migratetype], struct page, lru);
++	else {
++		struct page *tmp = list_entry(head->cluster.next, struct page, cluster);
++		tail = list_entry(tmp->lru.prev, struct page, lru);
 +	}
 +
-+	__do_merge(page, order, zone, migratetype);
++	zone->free_area[0].nr_free -= count;
++
++	/* Remove the page from the cluster list */
++	list_del(&head->cluster);
++	/* Restore the two page fields */
++	head->cluster.next = head->cluster.prev = NULL;
++
++	/* Take the pcp->batch pages off free_area list */
++	tail->lru.next->prev = head->lru.prev;
++	head->lru.prev->next = tail->lru.next;
++
++	/* Attach them to list */
++	head->lru.prev = list;
++	list->next = &head->lru;
++	tail->lru.next = list;
++	list->prev = &tail->lru;
++
++	return 1;
 +}
 +
  /*
-  * A bad page could be due to a number of fields. Instead of multiple branches,
-  * try and check multiple fields with one check. The caller must do a detailed
+  * Obtain a specified number of elements from the buddy allocator, all under
+  * a single hold of the lock, for efficiency.  Add them to the supplied list.
+@@ -2391,6 +2465,28 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 	int i, alloced = 0;
+ 
+ 	spin_lock(&zone->lock);
++	if (count == zone->order0_cluster.batch &&
++	    rmqueue_bulk_cluster(zone, order, count, list, migratetype)) {
++		struct page *page, *tmp;
++		spin_unlock(&zone->lock);
++
++		i = alloced = count;
++		list_for_each_entry_safe(page, tmp, list, lru) {
++			rmv_page_order(page);
++			set_pcppage_migratetype(page, migratetype);
++
++			if (unlikely(check_pcp_refill(page))) {
++				list_del(&page->lru);
++				alloced--;
++				continue;
++			}
++			if (is_migrate_cma(get_pcppage_migratetype(page)))
++				__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
++						-(1 << order));
++		}
++		goto done_alloc;
++	}
++
+ 	for (i = 0; i < count; ++i) {
+ 		struct page *page = __rmqueue(zone, order, migratetype);
+ 		if (unlikely(page == NULL))
+@@ -2415,7 +2511,9 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
+ 					      -(1 << order));
+ 	}
++	spin_unlock(&zone->lock);
+ 
++done_alloc:
+ 	/*
+ 	 * i pages were removed from the buddy list even if some leak due
+ 	 * to check_pcp_refill failing so adjust NR_FREE_PAGES based
+@@ -2423,7 +2521,6 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 	 * pages added to the pcp list.
+ 	 */
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+-	spin_unlock(&zone->lock);
+ 	return alloced;
+ }
+ 
+@@ -5451,6 +5548,10 @@ static void __meminit zone_init_free_lists(struct zone *zone)
+ 	for_each_migratetype_order(order, t) {
+ 		INIT_LIST_HEAD(&zone->free_area[order].free_list[t]);
+ 		zone->free_area[order].nr_free = 0;
++		if (!order && t < MIGRATE_PCPTYPES) {
++			INIT_LIST_HEAD(&zone->order0_cluster.list[t]);
++			zone->order0_cluster.offset[t] = 0;
++		}
+ 	}
+ }
+ 
+@@ -5488,6 +5589,9 @@ static int zone_batchsize(struct zone *zone)
+ 	 * and the other with pages of the other colors.
+ 	 */
+ 	batch = rounddown_pow_of_two(batch + batch/2) - 1;
++	if (batch < 1)
++		batch = 1;
++	zone->order0_cluster.batch = batch;
+ 
+ 	return batch;
+ 
 -- 
 2.14.3
 
