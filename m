@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BBD86B002C
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 13D5B6B002B
 	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:28:07 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id f4so10029553plr.14
+Received: by mail-pl0-f70.google.com with SMTP id 3so7801139pla.1
         for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:28:07 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 3-v6si3864545plx.15.2018.02.04.17.28.05
+        by mx.google.com with ESMTPS id n11-v6si6052913plp.449.2018.02.04.17.28.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Sun, 04 Feb 2018 17:28:05 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 39/64] arch/m68k: use mm locking wrappers
-Date: Mon,  5 Feb 2018 02:27:29 +0100
-Message-Id: <20180205012754.23615-40-dbueso@wotan.suse.de>
+Subject: [PATCH 31/64] arch/sparc: use mm locking wrappers
+Date: Mon,  5 Feb 2018 02:27:21 +0100
+Message-Id: <20180205012754.23615-32-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -26,129 +26,170 @@ This becomes quite straightforward with the mmrange in place.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- arch/m68k/kernel/sys_m68k.c | 18 +++++++++++-------
- arch/m68k/mm/fault.c        |  8 ++++----
- 2 files changed, 15 insertions(+), 11 deletions(-)
+ arch/sparc/mm/fault_32.c | 18 +++++++++---------
+ arch/sparc/mm/fault_64.c | 12 ++++++------
+ arch/sparc/vdso/vma.c    |  5 +++--
+ 3 files changed, 18 insertions(+), 17 deletions(-)
 
-diff --git a/arch/m68k/kernel/sys_m68k.c b/arch/m68k/kernel/sys_m68k.c
-index 27e10af5153a..d151bd19385c 100644
---- a/arch/m68k/kernel/sys_m68k.c
-+++ b/arch/m68k/kernel/sys_m68k.c
-@@ -378,6 +378,7 @@ asmlinkage int
- sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
- {
- 	int ret = -EINVAL;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
+diff --git a/arch/sparc/mm/fault_32.c b/arch/sparc/mm/fault_32.c
+index ebb2406dbe7c..1f63a37b6f81 100644
+--- a/arch/sparc/mm/fault_32.c
++++ b/arch/sparc/mm/fault_32.c
+@@ -204,7 +204,7 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
+ 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
  
- 	if (scope < FLUSH_SCOPE_LINE || scope > FLUSH_SCOPE_ALL ||
- 	    cache & ~FLUSH_CACHE_BOTH)
-@@ -399,7 +400,7 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
- 		 * Verify that the specified address region actually belongs
- 		 * to this process.
- 		 */
--		down_read(&current->mm->mmap_sem);
-+		mm_read_lock(current->mm, &mmrange);
- 		vma = find_vma(current->mm, addr);
- 		if (!vma || addr < vma->vm_start || addr + len > vma->vm_end)
- 			goto out_unlock;
-@@ -450,7 +451,7 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
- 	    }
- 	}
- out_unlock:
--	up_read(&current->mm->mmap_sem);
-+	mm_read_unlock(current->mm, &mmrange);
- out:
- 	return ret;
- }
-@@ -461,6 +462,8 @@ asmlinkage int
- sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
- 		      unsigned long __user * mem)
- {
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
-+
- 	/* This was borrowed from ARM's implementation.  */
- 	for (;;) {
- 		struct mm_struct *mm = current->mm;
-@@ -470,7 +473,7 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
- 		spinlock_t *ptl;
- 		unsigned long mem_value;
- 
--		down_read(&mm->mmap_sem);
-+		mm_read_lock(mm, &mmrange);
- 		pgd = pgd_offset(mm, (unsigned long)mem);
- 		if (!pgd_present(*pgd))
- 			goto bad_access;
-@@ -493,11 +496,11 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
- 			__put_user(newval, mem);
- 
- 		pte_unmap_unlock(pte, ptl);
--		up_read(&mm->mmap_sem);
-+		mm_read_unlock(mm, &mmrange);
- 		return mem_value;
- 
- 	      bad_access:
--		up_read(&mm->mmap_sem);
-+		mm_read_unlock(mm, &mmrange);
- 		/* This is not necessarily a bad access, we can get here if
- 		   a memory we're trying to write to should be copied-on-write.
- 		   Make the kernel do the necessary page stuff, then re-iterate.
-@@ -536,14 +539,15 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
- {
- 	struct mm_struct *mm = current->mm;
- 	unsigned long mem_value;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
--	down_read(&mm->mmap_sem);
-+	mm_read_lock(mm, &mmrange);
- 
- 	mem_value = *mem;
- 	if (mem_value == oldval)
- 		*mem = newval;
- 
--	up_read(&mm->mmap_sem);
-+	mm_read_unlock(mm, &mmrange);
- 	return mem_value;
- }
- 
-diff --git a/arch/m68k/mm/fault.c b/arch/m68k/mm/fault.c
-index ec32a193726f..426d22924852 100644
---- a/arch/m68k/mm/fault.c
-+++ b/arch/m68k/mm/fault.c
-@@ -90,7 +90,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
- 	if (user_mode(regs))
- 		flags |= FAULT_FLAG_USER;
  retry:
 -	down_read(&mm->mmap_sem);
 +	mm_read_lock(mm, &mmrange);
  
- 	vma = find_vma(mm, address);
- 	if (!vma)
-@@ -181,7 +181,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
+ 	if (!from_user && address >= PAGE_OFFSET)
+ 		goto bad_area;
+@@ -281,7 +281,7 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
  		}
  	}
  
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
- 	return 0;
+ 	return;
  
- /*
-@@ -189,7 +189,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
+ 	/*
+@@ -289,7 +289,7 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
+ 	 * Fix it, but check if it's kernel or user first..
+ 	 */
+ bad_area:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 
+ bad_area_nosemaphore:
+ 	/* User mode accesses just cause a SIGSEGV */
+@@ -338,7 +338,7 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
   * us unable to handle the page fault gracefully.
   */
  out_of_memory:
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
- 	if (!user_mode(regs))
- 		goto no_context;
- 	pagefault_out_of_memory();
-@@ -218,6 +218,6 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
- 	current->thread.faddr = address;
+ 	if (from_user) {
+ 		pagefault_out_of_memory();
+ 		return;
+@@ -346,7 +346,7 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
+ 	goto no_context;
  
- send_sig:
+ do_sigbus:
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
- 	return send_fault_sig(regs);
+ 	do_fault_siginfo(BUS_ADRERR, SIGBUS, regs, text_fault);
+ 	if (!from_user)
+ 		goto no_context;
+@@ -394,7 +394,7 @@ static void force_user_fault(unsigned long address, int write)
+ 
+ 	code = SEGV_MAPERR;
+ 
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 	vma = find_vma(mm, address);
+ 	if (!vma)
+ 		goto bad_area;
+@@ -419,15 +419,15 @@ static void force_user_fault(unsigned long address, int write)
+ 	case VM_FAULT_OOM:
+ 		goto do_sigbus;
+ 	}
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	return;
+ bad_area:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	__do_fault_siginfo(code, SIGSEGV, tsk->thread.kregs, address);
+ 	return;
+ 
+ do_sigbus:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	__do_fault_siginfo(BUS_ADRERR, SIGBUS, tsk->thread.kregs, address);
  }
+ 
+diff --git a/arch/sparc/mm/fault_64.c b/arch/sparc/mm/fault_64.c
+index e0a3c36b0fa1..d674c2d6b51a 100644
+--- a/arch/sparc/mm/fault_64.c
++++ b/arch/sparc/mm/fault_64.c
+@@ -335,7 +335,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
+ 
+ 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
+ 
+-	if (!down_read_trylock(&mm->mmap_sem)) {
++	if (!mm_read_trylock(mm, &mmrange)) {
+ 		if ((regs->tstate & TSTATE_PRIV) &&
+ 		    !search_exception_tables(regs->tpc)) {
+ 			insn = get_fault_insn(regs, insn);
+@@ -343,7 +343,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
+ 		}
+ 
+ retry:
+-		down_read(&mm->mmap_sem);
++		mm_read_lock(mm, &mmrange);
+ 	}
+ 
+ 	if (fault_code & FAULT_CODE_BAD_RA)
+@@ -476,7 +476,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
+ 			goto retry;
+ 		}
+ 	}
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 
+ 	mm_rss = get_mm_rss(mm);
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE)
+@@ -507,7 +507,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
+ 	 */
+ bad_area:
+ 	insn = get_fault_insn(regs, insn);
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 
+ handle_kernel_fault:
+ 	do_kernel_fault(regs, si_code, fault_code, insn, address);
+@@ -519,7 +519,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
+  */
+ out_of_memory:
+ 	insn = get_fault_insn(regs, insn);
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	if (!(regs->tstate & TSTATE_PRIV)) {
+ 		pagefault_out_of_memory();
+ 		goto exit_exception;
+@@ -532,7 +532,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
+ 
+ do_sigbus:
+ 	insn = get_fault_insn(regs, insn);
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 
+ 	/*
+ 	 * Send a sigbus, regardless of whether we were in kernel
+diff --git a/arch/sparc/vdso/vma.c b/arch/sparc/vdso/vma.c
+index f51595f861b8..35b888bc2f54 100644
+--- a/arch/sparc/vdso/vma.c
++++ b/arch/sparc/vdso/vma.c
+@@ -178,8 +178,9 @@ static int map_vdso(const struct vdso_image *image,
+ 	struct vm_area_struct *vma;
+ 	unsigned long text_start, addr = 0;
+ 	int ret = 0;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 
+-	down_write(&mm->mmap_sem);
++	mm_write_lock(mm, &mmrange);
+ 
+ 	/*
+ 	 * First, get an unmapped region: then randomize it, and make sure that
+@@ -235,7 +236,7 @@ static int map_vdso(const struct vdso_image *image,
+ 	if (ret)
+ 		current->mm->context.vdso = NULL;
+ 
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ 	return ret;
+ }
+ 
 -- 
 2.13.6
 
