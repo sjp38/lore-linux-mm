@@ -1,185 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5ECF16B0005
-	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 09:14:39 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id e28so7585532qkj.11
-        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 06:14:39 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 81sor1544717qkz.75.2018.02.05.06.14.38
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 247F76B0006
+	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 09:19:36 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id s18so11256984wrg.5
+        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 06:19:36 -0800 (PST)
+Received: from twosheds.infradead.org (twosheds.infradead.org. [2001:8b0:10b:1:21d:7dff:fe04:dbe2])
+        by mx.google.com with ESMTPS id v203si5404051wmg.198.2018.02.05.06.19.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Feb 2018 06:14:38 -0800 (PST)
-Subject: Re: [PATCH] mm, meminit: Serially initialise deferred memory if
- trace_buf_size is specified
-References: <20171115141329.ieoqvyoavmv6gnea@techsingularity.net>
- <20171115142816.zxdgkad3ch2bih6d@dhcp22.suse.cz>
- <20171115144314.xwdi2sbcn6m6lqdo@techsingularity.net>
- <20171115145716.w34jaez5ljb3fssn@dhcp22.suse.cz>
- <06a33f82-7f83-7721-50ec-87bf1370c3d4@gmail.com>
- <20171116085433.qmz4w3y3ra42j2ih@dhcp22.suse.cz>
- <20171116100633.moui6zu33ctzpjsf@techsingularity.net>
- <CAOAebxt8ZjfCXND=1=UJQETbjVUGPJVcqKFuwGsrwyM2Mq1dhQ@mail.gmail.com>
- <20171117213206.eekbiiexygig7466@techsingularity.net>
- <CAOAebxtK=pc+-hpAOtu0GG446F5+t_5xsa_j+p7KAL6HtMc9Qg@mail.gmail.com>
- <20171206105000.4aefxr3uzvutulvb@techsingularity.net>
- <9ED437F7446DF74B826BE56C7BB1B89E95C1459F@G05USEXSUYA02.g05.fujitsu.local>
- <CAOAebxuHPieDWLyRmPauvuF7dkW=0GeigG=EfWQEb_cgrGgm0Q@mail.gmail.com>
-From: Masayoshi Mizuma <msys.mizuma@gmail.com>
-Message-ID: <2e02170f-038c-04e6-8dc4-2f68551cf3a1@gmail.com>
-Date: Mon, 5 Feb 2018 09:14:36 -0500
-MIME-Version: 1.0
-In-Reply-To: <CAOAebxuHPieDWLyRmPauvuF7dkW=0GeigG=EfWQEb_cgrGgm0Q@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 05 Feb 2018 06:19:34 -0800 (PST)
+Message-ID: <1517840309.31953.153.camel@infradead.org>
+Subject: Re: [tip:x86/pti] x86/speculation: Use Indirect Branch Prediction
+ Barrier in context switch
+From: David Woodhouse <dwmw2@infradead.org>
+In-Reply-To: <tip-18bf3c3ea8ece8f03b6fc58508f2dfd23c7711c7@git.kernel.org>
+References: <1517263487-3708-1-git-send-email-dwmw@amazon.co.uk>
+	 <tip-18bf3c3ea8ece8f03b6fc58508f2dfd23c7711c7@git.kernel.org>
+Content-Type: multipart/signed; micalg="sha-256"; protocol="application/x-pkcs7-signature"; boundary="=-cOwTiFdsZGvl+8FSjYsf"
+Date: Mon, 05 Feb 2018 14:18:29 +0000
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: pasha.tatashin@oracle.com, Koki.Sanagi@us.fujitsu.com
-Cc: mgorman@techsingularity.net, mhocko@kernel.org, yasu.isimatu@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, steven.sistare@oracle.com
+To: mingo@kernel.org, hpa@zytor.com, tim.c.chen@linux.intel.com, linux-kernel@vger.kernel.org, tglx@linutronix.de, luto@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>
 
-Hello Pavel,
 
-> Yes, the patch is here:
-> https://lkml.org/lkml/2018/1/12/600
+--=-cOwTiFdsZGvl+8FSjYsf
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-I tested your patch in my box and it worked well.
-Please feel free to add the following.
+On Tue, 2018-01-30 at 14:39 -0800, tip-bot for Tim Chen wrote:
+> Thanks to the reviewers and Andy Lutomirski for the suggestion of
+> using ctx_id which got rid of the problem of mm pointer recycling.
 
-Tested-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+That one doesn't backport well to 4.9. Suggestions welcome.
+--=-cOwTiFdsZGvl+8FSjYsf
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Disposition: attachment; filename="smime.p7s"
+Content-Transfer-Encoding: base64
 
-You may repost the patch after adding your reply for
-Andrew's comment as [PATCH 0/1]...
+MIAGCSqGSIb3DQEHAqCAMIACAQExDzANBglghkgBZQMEAgEFADCABgkqhkiG9w0BBwEAAKCCEFQw
+ggUxMIIEGaADAgECAhBNRhEyk/HZ7naOeTHWrzuAMA0GCSqGSIb3DQEBCwUAMIGXMQswCQYDVQQG
+EwJHQjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHEwdTYWxmb3JkMRowGAYD
+VQQKExFDT01PRE8gQ0EgTGltaXRlZDE9MDsGA1UEAxM0Q09NT0RPIFJTQSBDbGllbnQgQXV0aGVu
+dGljYXRpb24gYW5kIFNlY3VyZSBFbWFpbCBDQTAeFw0xNzEyMjEwMDAwMDBaFw0xODEyMjEyMzU5
+NTlaMCQxIjAgBgkqhkiG9w0BCQEWE2R3bXcyQGluZnJhZGVhZC5vcmcwggEiMA0GCSqGSIb3DQEB
+AQUAA4IBDwAwggEKAoIBAQDgzLNWa18DNpGUj/ZeH0Sgz53ESIbzdPw3OJeuNP6jZhxZojbyfxbM
+hETscxI/Hj6UZ4a7sHm5BkVjlsB1Af2Za/PXUt8MmLAcPMHkMPGunvkUibEvblDvpqMkQZlaZM+t
+5PqFmWkbehLaEvbpNY7dmEAAeKh4klTzJzrr5AAzaCQ32cA2e3+DEIv5O5l9ViMIjy/JM+xMQrfX
+3PZ0chY1PaVWjg59d4Uno+5LRDbgCnPkKJX4ysBGadibjBGQGJEZCjh94iiEebn2KsRLvtrJ72Ph
+3W2HDEdngW3YP0wujFQVs81U7L8XN3kdPRsa9zNqGtYQP/+1KMMJQ57hnfi9AgMBAAGjggHpMIIB
+5TAfBgNVHSMEGDAWgBSCr2yM+MX+lmF86B89K3FIXsSLwDAdBgNVHQ4EFgQUpL+/5lli9jmj2KHj
+ryyhnB2xRt0wDgYDVR0PAQH/BAQDAgWgMAwGA1UdEwEB/wQCMAAwIAYDVR0lBBkwFwYIKwYBBQUH
+AwQGCysGAQQBsjEBAwUCMBEGCWCGSAGG+EIBAQQEAwIFIDBGBgNVHSAEPzA9MDsGDCsGAQQBsjEB
+AgEBATArMCkGCCsGAQUFBwIBFh1odHRwczovL3NlY3VyZS5jb21vZG8ubmV0L0NQUzBaBgNVHR8E
+UzBRME+gTaBLhklodHRwOi8vY3JsLmNvbW9kb2NhLmNvbS9DT01PRE9SU0FDbGllbnRBdXRoZW50
+aWNhdGlvbmFuZFNlY3VyZUVtYWlsQ0EuY3JsMIGLBggrBgEFBQcBAQR/MH0wVQYIKwYBBQUHMAKG
+SWh0dHA6Ly9jcnQuY29tb2RvY2EuY29tL0NPTU9ET1JTQUNsaWVudEF1dGhlbnRpY2F0aW9uYW5k
+U2VjdXJlRW1haWxDQS5jcnQwJAYIKwYBBQUHMAGGGGh0dHA6Ly9vY3NwLmNvbW9kb2NhLmNvbTAe
+BgNVHREEFzAVgRNkd213MkBpbmZyYWRlYWQub3JnMA0GCSqGSIb3DQEBCwUAA4IBAQCK28BdbVJ9
+QKQqTDfXwogAYiRBEGptfE1Bjy4F5vC6eWJqOJ15vunxjLwdbZYb4L0qrJlh+ZHHHlbIK8uEZu7N
+XHUntmWMbGbZiu7JgrbSXJK1ct9gxrN/sdWYJ+JDjVHg7GfDTvTTPa26JMRqJsO1TjjyDX7A3K39
+TjV8C0hqXvwF9BsNf+qBeWO6GVzJ5572awY221hc1umibmZaKV4fg+7fS7qscx5TSuIc6uvMBQhm
+7NQiCq6euMMWBDUDlotQCDW0ilm0OuLW3IVLuZCm6Msc+6hT9+dCT4JUvxTHZnnO7uLCxV+Ujad+
+PH3itRm38i96p2zvwgLr8vwWA0ckMIIFMTCCBBmgAwIBAgIQTUYRMpPx2e52jnkx1q87gDANBgkq
+hkiG9w0BAQsFADCBlzELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQ
+MA4GA1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQxPTA7BgNVBAMTNENP
+TU9ETyBSU0EgQ2xpZW50IEF1dGhlbnRpY2F0aW9uIGFuZCBTZWN1cmUgRW1haWwgQ0EwHhcNMTcx
+MjIxMDAwMDAwWhcNMTgxMjIxMjM1OTU5WjAkMSIwIAYJKoZIhvcNAQkBFhNkd213MkBpbmZyYWRl
+YWQub3JnMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4MyzVmtfAzaRlI/2Xh9EoM+d
+xEiG83T8NziXrjT+o2YcWaI28n8WzIRE7HMSPx4+lGeGu7B5uQZFY5bAdQH9mWvz11LfDJiwHDzB
+5DDxrp75FImxL25Q76ajJEGZWmTPreT6hZlpG3oS2hL26TWO3ZhAAHioeJJU8yc66+QAM2gkN9nA
+Nnt/gxCL+TuZfVYjCI8vyTPsTEK319z2dHIWNT2lVo4OfXeFJ6PuS0Q24Apz5CiV+MrARmnYm4wR
+kBiRGQo4feIohHm59irES77aye9j4d1thwxHZ4Ft2D9MLoxUFbPNVOy/Fzd5HT0bGvczahrWED//
+tSjDCUOe4Z34vQIDAQABo4IB6TCCAeUwHwYDVR0jBBgwFoAUgq9sjPjF/pZhfOgfPStxSF7Ei8Aw
+HQYDVR0OBBYEFKS/v+ZZYvY5o9ih468soZwdsUbdMA4GA1UdDwEB/wQEAwIFoDAMBgNVHRMBAf8E
+AjAAMCAGA1UdJQQZMBcGCCsGAQUFBwMEBgsrBgEEAbIxAQMFAjARBglghkgBhvhCAQEEBAMCBSAw
+RgYDVR0gBD8wPTA7BgwrBgEEAbIxAQIBAQEwKzApBggrBgEFBQcCARYdaHR0cHM6Ly9zZWN1cmUu
+Y29tb2RvLm5ldC9DUFMwWgYDVR0fBFMwUTBPoE2gS4ZJaHR0cDovL2NybC5jb21vZG9jYS5jb20v
+Q09NT0RPUlNBQ2xpZW50QXV0aGVudGljYXRpb25hbmRTZWN1cmVFbWFpbENBLmNybDCBiwYIKwYB
+BQUHAQEEfzB9MFUGCCsGAQUFBzAChklodHRwOi8vY3J0LmNvbW9kb2NhLmNvbS9DT01PRE9SU0FD
+bGllbnRBdXRoZW50aWNhdGlvbmFuZFNlY3VyZUVtYWlsQ0EuY3J0MCQGCCsGAQUFBzABhhhodHRw
+Oi8vb2NzcC5jb21vZG9jYS5jb20wHgYDVR0RBBcwFYETZHdtdzJAaW5mcmFkZWFkLm9yZzANBgkq
+hkiG9w0BAQsFAAOCAQEAitvAXW1SfUCkKkw318KIAGIkQRBqbXxNQY8uBebwunliajideb7p8Yy8
+HW2WG+C9KqyZYfmRxx5WyCvLhGbuzVx1J7ZljGxm2YruyYK20lyStXLfYMazf7HVmCfiQ41R4Oxn
+w0700z2tuiTEaibDtU448g1+wNyt/U41fAtIal78BfQbDX/qgXljuhlcyeee9msGNttYXNbpom5m
+WileH4Pu30u6rHMeU0riHOrrzAUIZuzUIgqunrjDFgQ1A5aLUAg1tIpZtDri1tyFS7mQpujLHPuo
+U/fnQk+CVL8Ux2Z5zu7iwsVflI2nfjx94rUZt/Iveqds78IC6/L8FgNHJDCCBeYwggPOoAMCAQIC
+EGqb4Tg7/ytrnwHV2binUlYwDQYJKoZIhvcNAQEMBQAwgYUxCzAJBgNVBAYTAkdCMRswGQYDVQQI
+ExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9ETyBD
+QSBMaW1pdGVkMSswKQYDVQQDEyJDT01PRE8gUlNBIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MB4X
+DTEzMDExMDAwMDAwMFoXDTI4MDEwOTIzNTk1OVowgZcxCzAJBgNVBAYTAkdCMRswGQYDVQQIExJH
+cmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9ETyBDQSBM
+aW1pdGVkMT0wOwYDVQQDEzRDT01PRE8gUlNBIENsaWVudCBBdXRoZW50aWNhdGlvbiBhbmQgU2Vj
+dXJlIEVtYWlsIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvrOeV6wodnVAFsc4
+A5jTxhh2IVDzJXkLTLWg0X06WD6cpzEup/Y0dtmEatrQPTRI5Or1u6zf+bGBSyD9aH95dDSmeny1
+nxdlYCeXIoymMv6pQHJGNcIDpFDIMypVpVSRsivlJTRENf+RKwrB6vcfWlP8dSsE3Rfywq09N0Zf
+xcBa39V0wsGtkGWC+eQKiz4pBZYKjrc5NOpG9qrxpZxyb4o4yNNwTqzaaPpGRqXB7IMjtf7tTmU2
+jqPMLxFNe1VXj9XB1rHvbRikw8lBoNoSWY66nJN/VCJv5ym6Q0mdCbDKCMPybTjoNCQuelc0IAaO
+4nLUXk0BOSxSxt8kCvsUtQIDAQABo4IBPDCCATgwHwYDVR0jBBgwFoAUu69+Aj36pvE8hI6t7jiY
+7NkyMtQwHQYDVR0OBBYEFIKvbIz4xf6WYXzoHz0rcUhexIvAMA4GA1UdDwEB/wQEAwIBhjASBgNV
+HRMBAf8ECDAGAQH/AgEAMBEGA1UdIAQKMAgwBgYEVR0gADBMBgNVHR8ERTBDMEGgP6A9hjtodHRw
+Oi8vY3JsLmNvbW9kb2NhLmNvbS9DT01PRE9SU0FDZXJ0aWZpY2F0aW9uQXV0aG9yaXR5LmNybDBx
+BggrBgEFBQcBAQRlMGMwOwYIKwYBBQUHMAKGL2h0dHA6Ly9jcnQuY29tb2RvY2EuY29tL0NPTU9E
+T1JTQUFkZFRydXN0Q0EuY3J0MCQGCCsGAQUFBzABhhhodHRwOi8vb2NzcC5jb21vZG9jYS5jb20w
+DQYJKoZIhvcNAQEMBQADggIBAHhcsoEoNE887l9Wzp+XVuyPomsX9vP2SQgG1NgvNc3fQP7TcePo
+7EIMERoh42awGGsma65u/ITse2hKZHzT0CBxhuhb6txM1n/y78e/4ZOs0j8CGpfb+SJA3GaBQ+39
+4k+z3ZByWPQedXLL1OdK8aRINTsjk/H5Ns77zwbjOKkDamxlpZ4TKSDMKVmU/PUWNMKSTvtlenlx
+Bhh7ETrN543j/Q6qqgCWgWuMAXijnRglp9fyadqGOncjZjaaSOGTTFB+E2pvOUtY+hPebuPtTbq7
+vODqzCM6ryEhNhzf+enm0zlpXK7q332nXttNtjv7VFNYG+I31gnMrwfHM5tdhYF/8v5UY5g2xANP
+ECTQdu9vWPoqNSGDt87b3gXb1AiGGaI06vzgkejL580ul+9hz9D0S0U4jkhJiA7EuTecP/CFtR72
+uYRBcunwwH3fciPjviDDAI9SnC/2aPY8ydehzuZutLbZdRJ5PDEJM/1tyZR2niOYihZ+FCbtf3D9
+mB12D4ln9icgc7CwaxpNSCPt8i/GqK2HsOgkL3VYnwtx7cJUmpvVdZ4ognzgXtgtdk3ShrtOS1iA
+N2ZBXFiRmjVzmehoMof06r1xub+85hFQzVxZx5/bRaTKTlL8YXLI8nAbR9HWdFqzcOoB/hxfEyIQ
+px9/s81rgzdEZOofSlZHynoSMYIDxzCCA8MCAQEwgawwgZcxCzAJBgNVBAYTAkdCMRswGQYDVQQI
+ExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9ETyBD
+QSBMaW1pdGVkMT0wOwYDVQQDEzRDT01PRE8gUlNBIENsaWVudCBBdXRoZW50aWNhdGlvbiBhbmQg
+U2VjdXJlIEVtYWlsIENBAhBNRhEyk/HZ7naOeTHWrzuAMA0GCWCGSAFlAwQCAQUAoIIB6zAYBgkq
+hkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0xODAyMDUxNDE4MjlaMC8GCSqG
+SIb3DQEJBDEiBCDDi+J6jCp0moBQwzuzmNG+t2MuiLgZvbp8N4mC5hrVRTCBvQYJKwYBBAGCNxAE
+MYGvMIGsMIGXMQswCQYDVQQGEwJHQjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYD
+VQQHEwdTYWxmb3JkMRowGAYDVQQKExFDT01PRE8gQ0EgTGltaXRlZDE9MDsGA1UEAxM0Q09NT0RP
+IFJTQSBDbGllbnQgQXV0aGVudGljYXRpb24gYW5kIFNlY3VyZSBFbWFpbCBDQQIQTUYRMpPx2e52
+jnkx1q87gDCBvwYLKoZIhvcNAQkQAgsxga+ggawwgZcxCzAJBgNVBAYTAkdCMRswGQYDVQQIExJH
+cmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9ETyBDQSBM
+aW1pdGVkMT0wOwYDVQQDEzRDT01PRE8gUlNBIENsaWVudCBBdXRoZW50aWNhdGlvbiBhbmQgU2Vj
+dXJlIEVtYWlsIENBAhBNRhEyk/HZ7naOeTHWrzuAMA0GCSqGSIb3DQEBAQUABIIBAJ8+brGJD4uQ
+kgl4JGaj19ydIsiv3NkVyoe+RUTXz8aK6BAN/wlltKp4TT1lvGAWSJYtUgIlgweSGY7ntulC5VY8
+MQGYB7TmyjBxsq1Pb8vgDgCy6sslNtXe+Ng95LHBS95+iAUQ/ertdsK3nh1NsjyTY6gZDnAj4m6v
+fpzYcP3dXvf2o+06qXu3SDSuoppORr7YZlBbKEaBTG5mSQm4tKxk2nwXfKCMGrBzQVTY7RRWZBEP
+o2jfCdyCnI/Q6Fzv8Yg7thCOJlzv5Xu7TylU3yEtiTnJU9CFiraZeIVlUgHAMJ2RMSl2ZU/KK7PR
+yaNwpOvQeHte/Ch+pJLPRXXAK9UAAAAAAAA=
 
-- Masayoshi
 
-Wed, 31 Jan 2018 13:24:55 -0500 Pavel Tatashin wrote:
-> Hi Koki,
-> 
-> Yes, the patch is here:
-> https://lkml.org/lkml/2018/1/12/600
-> 
-> It has not been reviewed yet.
-> 
-> Pavel
-> 
-> On Wed, Jan 31, 2018 at 12:28 PM, Koki.Sanagi@us.fujitsu.com
-> <Koki.Sanagi@us.fujitsu.com> wrote:
->> Pavel,
->>
->> I assume you are working on the fix.
->> Do you have any progress ?
->>
->> Koki
->>
->>>> -----Original Message-----
->>>> From: Mel Gorman [mailto:mgorman@techsingularity.net]
->>>> Sent: Wednesday, December 06, 2017 5:50 AM
->>>> To: Pavel Tatashin <pasha.tatashin@oracle.com>
->>>> Cc: Michal Hocko <mhocko@kernel.org>; YASUAKI ISHIMATSU
->>>> <yasu.isimatu@gmail.com>; Andrew Morton <akpm@linux-foundation.org>;
->>>> Linux Memory Management List <linux-mm@kvack.org>; linux-
->>>> kernel@vger.kernel.org; Sanagi, Koki <Koki.Sanagi@us.fujitsu.com>; Steve
->>>> Sistare <steven.sistare@oracle.com>
->>>> Subject: Re: [PATCH] mm, meminit: Serially initialise deferred memory if
->>>> trace_buf_size is specified
->>>>
->>>> On Wed, Nov 29, 2017 at 10:41:59PM -0500, Pavel Tatashin wrote:
->>>>> Hi Mel,
->>>>>
->>>>> Thank you very much for your feedback, my replies below:
->>>>>
->>>>>> A lack of involvement from admins is indeed desirable. For example,
->>>>>> while I might concede on using a disable-everything-switch, I would
->>>>>> not be happy to introduce a switch that specified how much memory
->>>>>> per node to initialise.
->>>>>>
->>>>>> For the forth approach, I really would be only thinking of a blunt
->>>>>> "initialise everything instead of going OOM". I was wary of making
->>>>>> things too complicated and I worried about some side-effects I'll cover later.
->>>>>
->>>>> I see, I misunderstood your suggestion. Switching to serial
->>>>> initialization when OOM works, however, boot time becomes
->>>>> unpredictable, with some configurations boot is fast with others it is
->>>>> slow. All of that depends on whether predictions in
->>>>> reset_deferred_meminit() were good or not which is not easy to debug
->>>>> for users. Also, overtime predictions in reset_deferred_meminit() can
->>>>> become very off, and I do not think that we want to continuously
->>>>> adjust this function.
->>>>>
->>>>
->>>> You could increase the probabilty of a report by doing a WARN_ON_ONCE if the
->>>> serialised meminit is used.
->>>>
->>>>>>> With this approach we could always init a very small amount of
->>>>>>> struct pages, and allow the rest to be initialized on demand as
->>>>>>> boot requires until deferred struct pages are initialized. Since,
->>>>>>> having deferred pages feature assumes that the machine is large,
->>>>>>> there is no drawback of having some extra byte of dead code,
->>>>>>> especially that all the checks can be permanently switched of via
->>>>>>> static branches once deferred init is complete.
->>>>>>>
->>>>>>
->>>>>> This is where I fear there may be dragons. If we minimse the number
->>>>>> of struct pages and initialise serially as necessary, there is a
->>>>>> danger that we'll allocate remote memory in cases where local memory
->>>>>> would have done because a remote node had enough memory.
->>>>>
->>>>> True, but is not what we have now has the same issue as well? If one
->>>>> node is gets out of memory we start using memory from another node,
->>>>> before deferred pages are initialized?
->>>>>
->>>>
->>>> It's possible but I'm not aware of it happening currently.
->>>>
->>>>>  To offset that risk, it would be
->>>>>> necessary at boot-time to force allocations from local node where
->>>>>> possible and initialise more memory as necessary. That starts
->>>>>> getting complicated because we'd need to adjust gfp-flags in the
->>>>>> fast path with init-and-retry logic in the slow path and that could
->>>>>> be a constant penalty. We could offset that in the fast path by
->>>>>> using static branches
->>>>>
->>>>> I will try to implement this, and see how complicated the patch will
->>>>> be, if it gets too complicated for the problem I am trying to solve we
->>>>> can return to one of your suggestions.
->>>>>
->>>>> I was thinking to do something like this:
->>>>>
->>>>> Start with every small amount of initialized pages in every node.
->>>>> If allocation fails, initialize enough struct pages to cover this
->>>>> particular allocation with struct pages rounded up to section size but
->>>>> in every single node.
->>>>>
->>>>
->>>> Ok, just make sure it's all in the slow paths of the allocator when the alternative
->>>> is to fail the allocation.
->>>>
->>>>>> but it's getting more and
->>>>>> more complex for what is a minor optimisation -- shorter boot times
->>>>>> on large machines where userspace itself could take a *long* time to
->>>>>> get up and running (think database reading in 1TB of data from disk as it
->>>> warms up).
->>>>>
->>>>> On M6-32 with 32T [1] of memory it saves over 4 minutes of boot time,
->>>>> and this is on SPARC with 8K pages, on x86 it would be around of 8
->>>>> minutes because of twice as many pages. This feature improves
->>>>> availability for larger machines quite a bit. Overtime, systems are
->>>>> growing, so I expect this feature to become a default configuration in
->>>>> the next several years on server configs.
->>>>>
->>>>
->>>> Ok, when developing the series originally, I had no machine even close to 32T of
->>>> memory.
->>>>
->>>> --
->>>> Mel Gorman
->>>> SUSE Labs
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
+--=-cOwTiFdsZGvl+8FSjYsf--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
