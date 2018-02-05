@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DC536B0005
-	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 03:48:17 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id b7so5003733pga.12
-        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 00:48:17 -0800 (PST)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50111.outbound.protection.outlook.com. [40.107.5.111])
-        by mx.google.com with ESMTPS id h20si1456524pgn.422.2018.02.05.00.48.14
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D70C66B0005
+	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 07:01:02 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id 36so11293394plb.18
+        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 04:01:02 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id a29si4856776pgd.225.2018.02.05.04.01.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 05 Feb 2018 00:48:15 -0800 (PST)
-Subject: Re: [PATCH] mm/kasan: Don't vfree() nonexistent vm_area.
-References: <12c9e499-9c11-d248-6a3f-14ec8c4e07f1@molgen.mpg.de>
- <20180201163349.8700-1-aryabinin@virtuozzo.com>
- <20180201195757.GC20742@bombadil.infradead.org>
- <e1cf8e8e-4cc4-ff4f-92e1-f6fcf373c67f@virtuozzo.com>
- <20180202172027.GB16840@bombadil.infradead.org>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <5ea1af5e-213d-5881-652a-c3f2c535254a@virtuozzo.com>
-Date: Mon, 5 Feb 2018 11:48:33 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Feb 2018 04:01:00 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: bisected bd4c82c22c367e is the first bad commit (was [Bug 198617] New: zswap causing random applications to crash)
+References: <20180130114841.aa2d3bd99526c03c6a5b5810@linux-foundation.org>
+	<20180203013455.GA739@jagdpanzerIV>
+	<CAC=cRTPyh-JTY=uOQf2dgmyPDyY-4+ryxkedp-iZMcFQZtnaqw@mail.gmail.com>
+	<20180205013758.GA648@jagdpanzerIV>
+Date: Mon, 05 Feb 2018 20:00:57 +0800
+In-Reply-To: <20180205013758.GA648@jagdpanzerIV> (Sergey Senozhatsky's message
+	of "Mon, 5 Feb 2018 10:37:58 +0900")
+Message-ID: <87d11j4pdy.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180202172027.GB16840@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Menzel <pmenzel+linux-kasan-dev@molgen.mpg.de>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: huang ying <huang.ying.caritas@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
+Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> writes:
 
+> Hi,
+>
+> On (02/04/18 22:21), huang ying wrote:
+> [..]
+>> >> After disabling zswap no crashes at all.
+>> >>
+>> >> /etc/systemd/swap.conf
+>> >> zswap_enabled=1
+>> >> zswap_compressor=lz4      # lzo lz4
+>> >> zswap_max_pool_percent=25 # 1-99
+>> >> zswap_zpool=zbud          # zbud z3fold
+>> >
+> [..]
+>> Can you give me some detailed steps to reproduce this?  Like the
+>> kernel configuration file, swap configuration, etc.  Any kernel
+>> WARNING during testing?  Can you reproduce this with a real swap
+>> device instead of zswap?
+>
+> No warnings (at least no warnings with my .config). Tested it only with
+> zram based swap (I'm running swap-less x86 systems, so zram is the easiest
+> way). It seems it's THP + frontswap that makes things unstable, rather
+> than THP + swap.
+>
+> Kernel zswap boot params:
+> zswap.enabled=1 zswap.compressor=lz4 zswap.max_pool_percent=10 zswap.zpool=zbud
+>
+> Then I add a 4G zram swap and run a silly memory hogger. I don't think
+> you'll have any problems reproducing it, but just in case I attached my
+> .config
 
-On 02/02/2018 08:20 PM, Matthew Wilcox wrote:
-> On Thu, Feb 01, 2018 at 11:22:55PM +0300, Andrey Ryabinin wrote:
->>>> +		vm = find_vm_area((void *)shadow_start);
->>>> +		if (vm)
->>>> +			vfree((void *)shadow_start);
->>>> +	}
->>>
->>> This looks like a complicated way to spell 'is_vmalloc_addr' ...
->>>
->>
->> It's not. shadow_start is never vmalloc address.
-> 
-> I'm confused.  How can you call vfree() on something that isn't a vmalloc
-> address?
-> 
+I have successfully reproduced the issue and find the problem.  The
+following patch fix the issue for me, can you try it?
 
-a??vfree() is able to free any address returned by __vmalloc_node_range().
-And __vmalloc_node_range() gives you any address you ask.
-It doesn't have to be an address in [VMALLOC_START, VMALLOC_END] range.
+Best Regards,
+Huang, Ying
 
-That's also how the module_alloc()/module_memfree() works on architectures that
-have designated area for modules.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---------------------------------8<-------------------------------
