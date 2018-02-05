@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AE3D6B0012
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A08C36B0024
 	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:28:06 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id w16so10033166plp.20
+Received: by mail-pl0-f71.google.com with SMTP id t18so10028677plo.9
         for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:28:06 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 3-v6si6253178plq.540.2018.02.04.17.28.04
+        by mx.google.com with ESMTPS id p8si4819991pgf.480.2018.02.04.17.28.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Sun, 04 Feb 2018 17:28:05 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 20/64] mm/madvise: use mm locking wrappers
-Date: Mon,  5 Feb 2018 02:27:10 +0100
-Message-Id: <20180205012754.23615-21-dbueso@wotan.suse.de>
+Subject: [PATCH 14/64] fs/coredump: teach about range locking
+Date: Mon,  5 Feb 2018 02:27:04 +0100
+Message-Id: <20180205012754.23615-15-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,95 +22,126 @@ Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kerne
 
 From: Davidlohr Bueso <dave@stgolabs.net>
 
-mmap_sem users are already aware of mmrange, thus a
-straightforward conversion. No changes in semantics.
+coredump_wait() needs mmap_sem such that zap_threads()
+is stable. The conversion is trivial as the mmap_sem
+is only used in the same function context. No change
+in semantics.
+
+In addition, we need an mmrange in exec_mmap() as mmap_sem
+is needed for de_thread() or coredump (for core_state and
+changing tsk->mm) scenarios. No change in semantics.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- mm/madvise.c | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+ fs/coredump.c |  5 +++--
+ fs/exec.c     | 18 ++++++++++--------
+ 2 files changed, 13 insertions(+), 10 deletions(-)
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index eaec6bfc2b08..de8fb035955c 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -532,7 +532,7 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
- 	if (!userfaultfd_remove(vma, start, end)) {
- 		*prev = NULL; /* mmap_sem has been dropped, prev is stale */
+diff --git a/fs/coredump.c b/fs/coredump.c
+index 1e2c87acac9b..ad91712498fc 100644
+--- a/fs/coredump.c
++++ b/fs/coredump.c
+@@ -412,17 +412,18 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
+ 	struct task_struct *tsk = current;
+ 	struct mm_struct *mm = tsk->mm;
+ 	int core_waiters = -EBUSY;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
  
--		down_read(&current->mm->mmap_sem);
-+		mm_read_lock(current->mm, mmrange);
- 		vma = find_vma(current->mm, start);
- 		if (!vma)
- 			return -ENOMEM;
-@@ -582,7 +582,8 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
-  */
- static long madvise_remove(struct vm_area_struct *vma,
- 				struct vm_area_struct **prev,
--				unsigned long start, unsigned long end)
-+				unsigned long start, unsigned long end,
-+				struct range_lock *mmrange)
- {
- 	loff_t offset;
- 	int error;
-@@ -614,13 +615,13 @@ static long madvise_remove(struct vm_area_struct *vma,
- 	get_file(f);
- 	if (userfaultfd_remove(vma, start, end)) {
- 		/* mmap_sem was not released by userfaultfd_remove() */
--		up_read(&current->mm->mmap_sem);
-+		mm_read_unlock(current->mm, mmrange);
+ 	init_completion(&core_state->startup);
+ 	core_state->dumper.task = tsk;
+ 	core_state->dumper.next = NULL;
+ 
+-	if (down_write_killable(&mm->mmap_sem))
++	if (mm_write_lock_killable(mm, &mmrange))
+ 		return -EINTR;
+ 
+ 	if (!mm->core_state)
+ 		core_waiters = zap_threads(tsk, mm, core_state, exit_code);
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ 
+ 	if (core_waiters > 0) {
+ 		struct core_thread *ptr;
+diff --git a/fs/exec.c b/fs/exec.c
+index e46752874b47..a61ac9e81169 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -294,12 +294,13 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+ 	int err;
+ 	struct vm_area_struct *vma = NULL;
+ 	struct mm_struct *mm = bprm->mm;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 
+ 	bprm->vma = vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+ 	if (!vma)
+ 		return -ENOMEM;
+ 
+-	if (down_write_killable(&mm->mmap_sem)) {
++	if (mm_write_lock_killable(mm, &mmrange)) {
+ 		err = -EINTR;
+ 		goto err_free;
  	}
- 	error = vfs_fallocate(f,
- 				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
- 				offset, end - start);
- 	fput(f);
--	down_read(&current->mm->mmap_sem);
-+	mm_read_lock(current->mm, mmrange);
- 	return error;
+@@ -324,11 +325,11 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+ 
+ 	mm->stack_vm = mm->total_vm = 1;
+ 	arch_bprm_mm_init(mm, vma);
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ 	bprm->p = vma->vm_end - sizeof(void *);
+ 	return 0;
+ err:
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ err_free:
+ 	bprm->vma = NULL;
+ 	kmem_cache_free(vm_area_cachep, vma);
+@@ -739,7 +740,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
+ 		bprm->loader -= stack_shift;
+ 	bprm->exec -= stack_shift;
+ 
+-	if (down_write_killable(&mm->mmap_sem))
++	if (mm_write_lock_killable(mm, &mmrange))
+ 		return -EINTR;
+ 
+ 	vm_flags = VM_STACK_FLAGS;
+@@ -796,7 +797,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
+ 		ret = -EFAULT;
+ 
+ out_unlock:
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ 	return ret;
  }
- 
-@@ -690,7 +691,7 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+ EXPORT_SYMBOL(setup_arg_pages);
+@@ -1011,6 +1012,7 @@ static int exec_mmap(struct mm_struct *mm)
  {
- 	switch (behavior) {
- 	case MADV_REMOVE:
--		return madvise_remove(vma, prev, start, end);
-+		return madvise_remove(vma, prev, start, end, mmrange);
- 	case MADV_WILLNEED:
- 		return madvise_willneed(vma, prev, start, end, mmrange);
- 	case MADV_FREE:
-@@ -809,6 +810,7 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- 	int write;
- 	size_t len;
- 	struct blk_plug plug;
-+
- 	DEFINE_RANGE_LOCK_FULL(mmrange);
- 	if (!madvise_behavior_valid(behavior))
- 		return error;
-@@ -836,10 +838,10 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 	struct task_struct *tsk;
+ 	struct mm_struct *old_mm, *active_mm;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
  
- 	write = madvise_need_mmap_write(behavior);
- 	if (write) {
--		if (down_write_killable(&current->mm->mmap_sem))
-+		if (mm_write_lock_killable(current->mm, &mmrange))
+ 	/* Notify parent that we're no longer interested in the old VM */
+ 	tsk = current;
+@@ -1025,9 +1027,9 @@ static int exec_mmap(struct mm_struct *mm)
+ 		 * through with the exec.  We must hold mmap_sem around
+ 		 * checking core_state and changing tsk->mm.
+ 		 */
+-		down_read(&old_mm->mmap_sem);
++		mm_read_lock(old_mm, &mmrange);
+ 		if (unlikely(old_mm->core_state)) {
+-			up_read(&old_mm->mmap_sem);
++			mm_read_unlock(old_mm, &mmrange);
  			return -EINTR;
- 	} else {
--		down_read(&current->mm->mmap_sem);
-+		mm_read_lock(current->mm, &mmrange);
+ 		}
  	}
- 
- 	/*
-@@ -889,9 +891,9 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- out:
- 	blk_finish_plug(&plug);
- 	if (write)
--		up_write(&current->mm->mmap_sem);
-+		mm_write_unlock(current->mm, &mmrange);
- 	else
--		up_read(&current->mm->mmap_sem);
-+		mm_read_unlock(current->mm, &mmrange);
- 
- 	return error;
- }
+@@ -1040,7 +1042,7 @@ static int exec_mmap(struct mm_struct *mm)
+ 	vmacache_flush(tsk);
+ 	task_unlock(tsk);
+ 	if (old_mm) {
+-		up_read(&old_mm->mmap_sem);
++		mm_read_unlock(old_mm, &mmrange);
+ 		BUG_ON(active_mm != old_mm);
+ 		setmax_mm_hiwater_rss(&tsk->signal->maxrss, old_mm);
+ 		mm_update_next_owner(old_mm);
 -- 
 2.13.6
 
