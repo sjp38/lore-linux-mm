@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CA086B000A
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 845776B0011
 	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:28:05 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id b3so8961660plr.23
+Received: by mail-pg0-f69.google.com with SMTP id 64so18569563pgc.17
         for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:28:05 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m37-v6si6153375pla.667.2018.02.04.17.28.03
+        by mx.google.com with ESMTPS id bi10-v6si6075450plb.113.2018.02.04.17.28.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Sun, 04 Feb 2018 17:28:04 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 12/64] fs/userfaultfd: teach userfaultfd_must_wait() about range locking
-Date: Mon,  5 Feb 2018 02:27:02 +0100
-Message-Id: <20180205012754.23615-13-dbueso@wotan.suse.de>
+Subject: [PATCH 11/64] prctl: teach about range locking
+Date: Mon,  5 Feb 2018 02:27:01 +0100
+Message-Id: <20180205012754.23615-12-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,88 +22,129 @@ Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kerne
 
 From: Davidlohr Bueso <dave@stgolabs.net>
 
-And make use of mm_is_locked() which is why we pass down the
-vmf->lockrange.
+And pass along pointers where needed. No changes in
+semantics by using mm locking helpers.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- fs/userfaultfd.c | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ kernel/sys.c | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index e3089865fd52..883fbffb284e 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -217,13 +217,14 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
- 					 struct vm_area_struct *vma,
- 					 unsigned long address,
- 					 unsigned long flags,
--					 unsigned long reason)
-+					 unsigned long reason,
-+					 struct range_lock *mmrange)
- {
- 	struct mm_struct *mm = ctx->mm;
- 	pte_t *pte;
- 	bool ret = true;
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 31a2866b7abd..a9c659c42bd6 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1769,6 +1769,7 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
+ 	struct file *old_exe, *exe_file;
+ 	struct inode *inode;
+ 	int err;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
  
--	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
-+	VM_BUG_ON(!mm_is_locked(mm, mmrange));
+ 	exe = fdget(fd);
+ 	if (!exe.file)
+@@ -1797,7 +1798,7 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
+ 	if (exe_file) {
+ 		struct vm_area_struct *vma;
  
- 	pte = huge_pte_offset(mm, address, vma_mmu_pagesize(vma));
- 	if (!pte)
-@@ -247,7 +248,8 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
- 					 struct vm_area_struct *vma,
- 					 unsigned long address,
- 					 unsigned long flags,
--					 unsigned long reason)
-+					 unsigned long reason,
-+					 struct range_lock *mmrange)
- {
- 	return false;	/* should never get here */
+-		down_read(&mm->mmap_sem);
++	        mm_read_lock(mm, &mmrange);
+ 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 			if (!vma->vm_file)
+ 				continue;
+@@ -1806,7 +1807,7 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
+ 				goto exit_err;
+ 		}
+ 
+-		up_read(&mm->mmap_sem);
++		mm_read_unlock(mm, &mmrange);
+ 		fput(exe_file);
+ 	}
+ 
+@@ -1820,7 +1821,7 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
+ 	fdput(exe);
+ 	return err;
+ exit_err:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	fput(exe_file);
+ 	goto exit;
  }
-@@ -263,7 +265,8 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
- static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
- 					 unsigned long address,
- 					 unsigned long flags,
--					 unsigned long reason)
-+					 unsigned long reason,
-+					 struct range_lock *mmrange)
- {
- 	struct mm_struct *mm = ctx->mm;
- 	pgd_t *pgd;
-@@ -273,7 +276,7 @@ static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
- 	pte_t *pte;
- 	bool ret = true;
+@@ -1923,6 +1924,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+ 	unsigned long user_auxv[AT_VECTOR_SIZE];
+ 	struct mm_struct *mm = current->mm;
+ 	int error;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
  
--	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
-+	VM_BUG_ON(!mm_is_locked(mm, mmrange));
+ 	BUILD_BUG_ON(sizeof(user_auxv) != sizeof(mm->saved_auxv));
+ 	BUILD_BUG_ON(sizeof(struct prctl_mm_map) > 256);
+@@ -1959,7 +1961,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+ 			return error;
+ 	}
  
- 	pgd = pgd_offset(mm, address);
- 	if (!pgd_present(*pgd))
-@@ -365,7 +368,7 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
- 	 * Coredumping runs without mmap_sem so we can only check that
- 	 * the mmap_sem is held, if PF_DUMPCORE was not set.
- 	 */
--	WARN_ON_ONCE(!rwsem_is_locked(&mm->mmap_sem));
-+	WARN_ON_ONCE(!mm_is_locked(mm, vmf->lockrange));
+-	down_write(&mm->mmap_sem);
++	mm_write_lock(mm, &mmrange);
  
- 	ctx = vmf->vma->vm_userfaultfd_ctx.ctx;
- 	if (!ctx)
-@@ -473,11 +476,12 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
+ 	/*
+ 	 * We don't validate if these members are pointing to
+@@ -1996,7 +1998,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+ 	if (prctl_map.auxv_size)
+ 		memcpy(mm->saved_auxv, user_auxv, sizeof(user_auxv));
  
- 	if (!is_vm_hugetlb_page(vmf->vma))
- 		must_wait = userfaultfd_must_wait(ctx, vmf->address, vmf->flags,
--						  reason);
-+						  reason, vmf->lockrange);
- 	else
- 		must_wait = userfaultfd_huge_must_wait(ctx, vmf->vma,
- 						       vmf->address,
--						       vmf->flags, reason);
-+						       vmf->flags, reason,
-+						       vmf->lockrange);
- 	up_read(&mm->mmap_sem);
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ 	return 0;
+ }
+ #endif /* CONFIG_CHECKPOINT_RESTORE */
+@@ -2038,6 +2040,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 	struct prctl_mm_map prctl_map;
+ 	struct vm_area_struct *vma;
+ 	int error;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
  
- 	if (likely(must_wait && !READ_ONCE(ctx->released) &&
+ 	if (arg5 || (arg4 && (opt != PR_SET_MM_AUXV &&
+ 			      opt != PR_SET_MM_MAP &&
+@@ -2063,7 +2066,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 
+ 	error = -EINVAL;
+ 
+-	down_write(&mm->mmap_sem);
++	mm_write_lock(mm, &mmrange);
+ 	vma = find_vma(mm, addr);
+ 
+ 	prctl_map.start_code	= mm->start_code;
+@@ -2156,7 +2159,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 
+ 	error = 0;
+ out:
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ 	return error;
+ }
+ 
+@@ -2196,6 +2199,7 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+ 	struct task_struct *me = current;
+ 	unsigned char comm[sizeof(me->comm)];
+ 	long error;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 
+ 	error = security_task_prctl(option, arg2, arg3, arg4, arg5);
+ 	if (error != -ENOSYS)
+@@ -2379,13 +2383,13 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+ 	case PR_SET_THP_DISABLE:
+ 		if (arg3 || arg4 || arg5)
+ 			return -EINVAL;
+-		if (down_write_killable(&me->mm->mmap_sem))
++		if (mm_write_lock_killable(me->mm, &mmrange))
+ 			return -EINTR;
+ 		if (arg2)
+ 			set_bit(MMF_DISABLE_THP, &me->mm->flags);
+ 		else
+ 			clear_bit(MMF_DISABLE_THP, &me->mm->flags);
+-		up_write(&me->mm->mmap_sem);
++		mm_write_unlock(me->mm, &mmrange);
+ 		break;
+ 	case PR_MPX_ENABLE_MANAGEMENT:
+ 		if (arg2 || arg3 || arg4 || arg5)
 -- 
 2.13.6
 
