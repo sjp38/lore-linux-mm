@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 40EF86B0006
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EA7C6B0008
 	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:28:03 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id t18so10028538plo.9
+Received: by mail-pg0-f70.google.com with SMTP id w19so6564123pgv.4
         for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:28:03 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s16-v6si1410805plp.326.2018.02.04.17.28.01
+        by mx.google.com with ESMTPS id r3si3175999pfg.58.2018.02.04.17.28.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Feb 2018 17:28:01 -0800 (PST)
+        Sun, 04 Feb 2018 17:28:02 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 09/64] mm/mmu_notifier: teach oom reaper about range locking
-Date: Mon,  5 Feb 2018 02:26:59 +0100
-Message-Id: <20180205012754.23615-10-dbueso@wotan.suse.de>
+Subject: [PATCH 01/64] interval-tree: build unconditionally
+Date: Mon,  5 Feb 2018 02:26:51 +0100
+Message-Id: <20180205012754.23615-2-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,83 +22,109 @@ Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kerne
 
 From: Davidlohr Bueso <dave@stgolabs.net>
 
-Also begin using mm_is_locked() wrappers (which is sometimes
-the only reason why mm_has_blockable_invalidate_notifiers()
-needs to be aware of the range passed back in oom_reap_task_mm().
+In preparation for range locking, this patch gets rid of
+CONFIG_INTERVAL_TREE option as we will unconditionally
+build it.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- include/linux/mmu_notifier.h | 6 ++++--
- mm/mmu_notifier.c            | 5 +++--
- mm/oom_kill.c                | 3 ++-
- 3 files changed, 9 insertions(+), 5 deletions(-)
+ drivers/gpu/drm/Kconfig      |  2 --
+ drivers/gpu/drm/i915/Kconfig |  1 -
+ lib/Kconfig                  | 14 --------------
+ lib/Kconfig.debug            |  1 -
+ lib/Makefile                 |  3 +--
+ 5 files changed, 1 insertion(+), 20 deletions(-)
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 2d07a1ed5a31..9172cb0bc15d 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -236,7 +236,8 @@ extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 				  bool only_end);
- extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
--extern bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm);
-+extern bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm,
-+						  struct range_lock *mmrange);
+diff --git a/drivers/gpu/drm/Kconfig b/drivers/gpu/drm/Kconfig
+index deeefa7a1773..eac89dc17199 100644
+--- a/drivers/gpu/drm/Kconfig
++++ b/drivers/gpu/drm/Kconfig
+@@ -168,7 +168,6 @@ config DRM_RADEON
+ 	select HWMON
+ 	select BACKLIGHT_CLASS_DEVICE
+ 	select BACKLIGHT_LCD_SUPPORT
+-	select INTERVAL_TREE
+ 	help
+ 	  Choose this option if you have an ATI Radeon graphics card.  There
+ 	  are both PCI and AGP versions.  You don't need to choose this to
+@@ -189,7 +188,6 @@ config DRM_AMDGPU
+ 	select HWMON
+ 	select BACKLIGHT_CLASS_DEVICE
+ 	select BACKLIGHT_LCD_SUPPORT
+-	select INTERVAL_TREE
+ 	select CHASH
+ 	help
+ 	  Choose this option if you have a recent AMD Radeon graphics card.
+diff --git a/drivers/gpu/drm/i915/Kconfig b/drivers/gpu/drm/i915/Kconfig
+index dfd95889f4b7..520a613ec69f 100644
+--- a/drivers/gpu/drm/i915/Kconfig
++++ b/drivers/gpu/drm/i915/Kconfig
+@@ -3,7 +3,6 @@ config DRM_I915
+ 	depends on DRM
+ 	depends on X86 && PCI
+ 	select INTEL_GTT
+-	select INTERVAL_TREE
+ 	# we need shmfs for the swappable backing store, and in particular
+ 	# the shmem_readpage() which depends upon tmpfs
+ 	select SHMEM
+diff --git a/lib/Kconfig b/lib/Kconfig
+index e96089499371..18b56ed167c4 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -362,20 +362,6 @@ config TEXTSEARCH_FSM
+ config BTREE
+ 	bool
  
- static inline void mmu_notifier_release(struct mm_struct *mm)
- {
-@@ -476,7 +477,8 @@ static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
- {
- }
+-config INTERVAL_TREE
+-	bool
+-	help
+-	  Simple, embeddable, interval-tree. Can find the start of an
+-	  overlapping range in log(n) time and then iterate over all
+-	  overlapping nodes. The algorithm is implemented as an
+-	  augmented rbtree.
+-
+-	  See:
+-
+-		Documentation/rbtree.txt
+-
+-	  for more information.
+-
+ config RADIX_TREE_MULTIORDER
+ 	bool
  
--static inline bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
-+static inline bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm,
-+							 struct range_lock *mmrange)
- {
- 	return false;
- }
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index eff6b88a993f..3e8a1a10607e 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -240,13 +240,14 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range);
-  * Must be called while holding mm->mmap_sem for either read or write.
-  * The result is guaranteed to be valid until mm->mmap_sem is dropped.
-  */
--bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
-+bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm,
-+					   struct range_lock *mmrange)
- {
- 	struct mmu_notifier *mn;
- 	int id;
- 	bool ret = false;
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 6088408ef26c..c888f03569e7 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1716,7 +1716,6 @@ config RBTREE_TEST
+ config INTERVAL_TREE_TEST
+ 	tristate "Interval tree test"
+ 	depends on DEBUG_KERNEL
+-	select INTERVAL_TREE
+ 	help
+ 	  A benchmark measuring the performance of the interval tree library
  
--	WARN_ON_ONCE(!rwsem_is_locked(&mm->mmap_sem));
-+	WARN_ON_ONCE(!mm_is_locked(mm, mmrange));
+diff --git a/lib/Makefile b/lib/Makefile
+index a90d4fcd748f..1c1f8e3ccaa8 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -39,7 +39,7 @@ obj-y += bcd.o div64.o sort.o parser.o debug_locks.o random32.o \
+ 	 gcd.o lcm.o list_sort.o uuid.o flex_array.o iov_iter.o clz_ctz.o \
+ 	 bsearch.o find_bit.o llist.o memweight.o kfifo.o \
+ 	 percpu-refcount.o percpu_ida.o rhashtable.o reciprocal_div.o \
+-	 once.o refcount.o usercopy.o errseq.o bucket_locks.o
++	 once.o refcount.o usercopy.o errseq.o bucket_locks.o interval_tree.o
+ obj-$(CONFIG_STRING_SELFTEST) += test_string.o
+ obj-y += string_helpers.o
+ obj-$(CONFIG_TEST_STRING_HELPERS) += test-string_helpers.o
+@@ -84,7 +84,6 @@ obj-$(CONFIG_DEBUG_LOCKING_API_SELFTESTS) += locking-selftest.o
+ obj-$(CONFIG_GENERIC_HWEIGHT) += hweight.o
  
- 	if (!mm_has_notifiers(mm))
- 		return ret;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 8219001708e0..2288e1cb1bc9 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -490,6 +490,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	struct mmu_gather tlb;
- 	struct vm_area_struct *vma;
- 	bool ret = true;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
- 	/*
- 	 * We have to make sure to not race with the victim exit path
-@@ -519,7 +520,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	 * TODO: we really want to get rid of this ugly hack and make sure that
- 	 * notifiers cannot block for unbounded amount of time
- 	 */
--	if (mm_has_blockable_invalidate_notifiers(mm)) {
-+	if (mm_has_blockable_invalidate_notifiers(mm, &mmrange)) {
- 		up_read(&mm->mmap_sem);
- 		schedule_timeout_idle(HZ);
- 		goto unlock_oom;
+ obj-$(CONFIG_BTREE) += btree.o
+-obj-$(CONFIG_INTERVAL_TREE) += interval_tree.o
+ obj-$(CONFIG_ASSOCIATIVE_ARRAY) += assoc_array.o
+ obj-$(CONFIG_DEBUG_PREEMPT) += smp_processor_id.o
+ obj-$(CONFIG_DEBUG_LIST) += list_debug.o
 -- 
 2.13.6
 
