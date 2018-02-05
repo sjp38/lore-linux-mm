@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 874796B027E
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D1BD56B0281
 	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:26 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id v7so18549420pgo.8
+Received: by mail-pg0-f72.google.com with SMTP id o16so18656157pgv.3
         for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:26 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b69si6079814pfl.359.2018.02.04.17.28.06
+        by mx.google.com with ESMTPS id v63si12632pfd.399.2018.02.04.17.28.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Feb 2018 17:28:06 -0800 (PST)
+        Sun, 04 Feb 2018 17:28:07 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 49/64] arch/xtensa: use mm locking wrappers
-Date: Mon,  5 Feb 2018 02:27:39 +0100
-Message-Id: <20180205012754.23615-50-dbueso@wotan.suse.de>
+Subject: [PATCH 37/64] arch/arc: use mm locking wrappers
+Date: Mon,  5 Feb 2018 02:27:27 +0100
+Message-Id: <20180205012754.23615-38-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -26,58 +26,95 @@ This becomes quite straightforward with the mmrange in place.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- arch/xtensa/mm/fault.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ arch/arc/kernel/troubleshoot.c |  5 +++--
+ arch/arc/mm/fault.c            | 12 ++++++------
+ 2 files changed, 9 insertions(+), 8 deletions(-)
 
-diff --git a/arch/xtensa/mm/fault.c b/arch/xtensa/mm/fault.c
-index 6f8e3e7cccb5..5e783e5583b6 100644
---- a/arch/xtensa/mm/fault.c
-+++ b/arch/xtensa/mm/fault.c
-@@ -75,7 +75,7 @@ void do_page_fault(struct pt_regs *regs)
+diff --git a/arch/arc/kernel/troubleshoot.c b/arch/arc/kernel/troubleshoot.c
+index 6e9a0a9a6a04..7212ba466c56 100644
+--- a/arch/arc/kernel/troubleshoot.c
++++ b/arch/arc/kernel/troubleshoot.c
+@@ -89,11 +89,12 @@ static void show_faulting_vma(unsigned long address, char *buf)
+ 	dev_t dev = 0;
+ 	char *nm = buf;
+ 	struct mm_struct *active_mm = current->active_mm;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 
+ 	/* can't use print_vma_addr() yet as it doesn't check for
+ 	 * non-inclusive vma
+ 	 */
+-	down_read(&active_mm->mmap_sem);
++	mm_read_lock(active_mm, &mmrange);
+ 	vma = find_vma(active_mm, address);
+ 
+ 	/* check against the find_vma( ) behaviour which returns the next VMA
+@@ -115,7 +116,7 @@ static void show_faulting_vma(unsigned long address, char *buf)
+ 	} else
+ 		pr_info("    @No matching VMA found\n");
+ 
+-	up_read(&active_mm->mmap_sem);
++	mm_read_unlock(active_mm, &mmrange);
+ }
+ 
+ static void show_ecr_verbose(struct pt_regs *regs)
+diff --git a/arch/arc/mm/fault.c b/arch/arc/mm/fault.c
+index e423f764f159..235e89a3ed8e 100644
+--- a/arch/arc/mm/fault.c
++++ b/arch/arc/mm/fault.c
+@@ -100,7 +100,7 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
  	if (user_mode(regs))
  		flags |= FAULT_FLAG_USER;
  retry:
 -	down_read(&mm->mmap_sem);
 +	mm_read_lock(mm, &mmrange);
  	vma = find_vma(mm, address);
- 
  	if (!vma)
-@@ -141,7 +141,7 @@ void do_page_fault(struct pt_regs *regs)
+ 		goto bad_area;
+@@ -143,7 +143,7 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
+ 	/* If Pagefault was interrupted by SIGKILL, exit page fault "early" */
+ 	if (unlikely(fatal_signal_pending(current))) {
+ 		if ((fault & VM_FAULT_ERROR) && !(fault & VM_FAULT_RETRY))
+-			up_read(&mm->mmap_sem);
++			mm_read_unlock(mm, &mmrange);
+ 		if (user_mode(regs))
+ 			return;
+ 	}
+@@ -171,7 +171,7 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
  		}
+ 
+ 		/* Fault Handled Gracefully */
+-		up_read(&mm->mmap_sem);
++		mm_read_unlock(mm, &mmrange);
+ 		return;
  	}
  
--	up_read(&mm->mmap_sem);
-+	mm_read_unlock(mm, &mmrange);
- 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
- 	if (flags & VM_FAULT_MAJOR)
- 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, regs, address);
-@@ -154,7 +154,7 @@ void do_page_fault(struct pt_regs *regs)
+@@ -190,7 +190,7 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
  	 * Fix it, but check if it's kernel or user first..
  	 */
  bad_area:
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
- 	if (user_mode(regs)) {
- 		current->thread.bad_vaddr = address;
- 		current->thread.error_code = is_write;
-@@ -173,7 +173,7 @@ void do_page_fault(struct pt_regs *regs)
- 	 * us unable to handle the page fault gracefully.
- 	 */
+ 
+ bad_area_nosemaphore:
+ 	/* User mode accesses just cause a SIGSEGV */
+@@ -219,7 +219,7 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
+ 	die("Oops", regs, address);
+ 
  out_of_memory:
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
- 	if (!user_mode(regs))
- 		bad_page_fault(regs, address, SIGKILL);
- 	else
-@@ -181,7 +181,7 @@ void do_page_fault(struct pt_regs *regs)
- 	return;
+ 
+ 	if (user_mode(regs)) {
+ 		pagefault_out_of_memory();
+@@ -229,7 +229,7 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
+ 	goto no_context;
  
  do_sigbus:
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
  
- 	/* Send a sigbus, regardless of whether we were in kernel
- 	 * or user mode.
+ 	if (!user_mode(regs))
+ 		goto no_context;
 -- 
 2.13.6
 
