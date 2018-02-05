@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AE1C36B029B
-	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:38 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id v17so18514725pgb.18
-        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:38 -0800 (PST)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EE056B029E
+	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:39 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id j3so10038371pld.0
+        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:39 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l8si4884195pgn.184.2018.02.04.17.28.04
+        by mx.google.com with ESMTPS id 1-v6si2015301plk.504.2018.02.04.17.28.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Feb 2018 17:28:05 -0800 (PST)
+        Sun, 04 Feb 2018 17:28:08 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 19/64] mm/mlock: use mm locking wrappers
-Date: Mon,  5 Feb 2018 02:27:09 +0100
-Message-Id: <20180205012754.23615-20-dbueso@wotan.suse.de>
+Subject: [PATCH 59/64] drivers/iommu: use mm locking helpers
+Date: Mon,  5 Feb 2018 02:27:49 +0100
+Message-Id: <20180205012754.23615-60-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,79 +22,58 @@ Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kerne
 
 From: Davidlohr Bueso <dave@stgolabs.net>
 
-Conversion is straightforward, mmap_sem is used within the
-same function context. No changes in semantics.
+This becomes quite straightforward with the mmrange in place.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- mm/mlock.c | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ drivers/iommu/amd_iommu_v2.c | 4 ++--
+ drivers/iommu/intel-svm.c    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 3f6bd953e8b0..dfd175b2cf20 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -686,7 +686,7 @@ static __must_check int do_mlock(unsigned long start, size_t len,
- 	lock_limit >>= PAGE_SHIFT;
- 	locked = len >> PAGE_SHIFT;
+diff --git a/drivers/iommu/amd_iommu_v2.c b/drivers/iommu/amd_iommu_v2.c
+index 15a7103fd84c..d3aee158d251 100644
+--- a/drivers/iommu/amd_iommu_v2.c
++++ b/drivers/iommu/amd_iommu_v2.c
+@@ -523,7 +523,7 @@ static void do_fault(struct work_struct *work)
+ 		flags |= FAULT_FLAG_WRITE;
+ 	flags |= FAULT_FLAG_REMOTE;
  
--	if (down_write_killable(&current->mm->mmap_sem))
-+	if (mm_write_lock_killable(current->mm, &mmrange))
- 		return -EINTR;
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 	vma = find_extend_vma(mm, address, &mmrange);
+ 	if (!vma || address < vma->vm_start)
+ 		/* failed to get a vma in the right range */
+@@ -535,7 +535,7 @@ static void do_fault(struct work_struct *work)
  
- 	locked += current->mm->locked_vm;
-@@ -705,7 +705,7 @@ static __must_check int do_mlock(unsigned long start, size_t len,
- 	if ((locked <= lock_limit) || capable(CAP_IPC_LOCK))
- 		error = apply_vma_lock_flags(start, len, flags, &mmrange);
+ 	ret = handle_mm_fault(vma, address, flags, &mmrange);
+ out:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
  
--	up_write(&current->mm->mmap_sem);
-+	mm_write_unlock(current->mm, &mmrange);
- 	if (error)
- 		return error;
+ 	if (ret & VM_FAULT_ERROR)
+ 		/* failed to service fault */
+diff --git a/drivers/iommu/intel-svm.c b/drivers/iommu/intel-svm.c
+index 6a74386ee83f..c4d0d2398052 100644
+--- a/drivers/iommu/intel-svm.c
++++ b/drivers/iommu/intel-svm.c
+@@ -643,7 +643,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
+ 		if (!is_canonical_address(address))
+ 			goto bad_req;
  
-@@ -741,10 +741,10 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
- 	len = PAGE_ALIGN(len + (offset_in_page(start)));
- 	start &= PAGE_MASK;
+-		down_read(&svm->mm->mmap_sem);
++		mm_read_lock(svm->mm, &mmrange);
+ 		vma = find_extend_vma(svm->mm, address, &mmrange);
+ 		if (!vma || address < vma->vm_start)
+ 			goto invalid;
+@@ -658,7 +658,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
  
--	if (down_write_killable(&current->mm->mmap_sem))
-+	if (mm_write_lock_killable(current->mm, &mmrange))
- 		return -EINTR;
- 	ret = apply_vma_lock_flags(start, len, 0, &mmrange);
--	up_write(&current->mm->mmap_sem);
-+	mm_write_unlock(current->mm, &mmrange);
- 
- 	return ret;
- }
-@@ -811,14 +811,14 @@ SYSCALL_DEFINE1(mlockall, int, flags)
- 	lock_limit = rlimit(RLIMIT_MEMLOCK);
- 	lock_limit >>= PAGE_SHIFT;
- 
--	if (down_write_killable(&current->mm->mmap_sem))
-+	if (mm_write_lock_killable(current->mm, &mmrange))
- 		return -EINTR;
- 
- 	ret = -ENOMEM;
- 	if (!(flags & MCL_CURRENT) || (current->mm->total_vm <= lock_limit) ||
- 	    capable(CAP_IPC_LOCK))
- 		ret = apply_mlockall_flags(flags, &mmrange);
--	up_write(&current->mm->mmap_sem);
-+	mm_write_unlock(current->mm, &mmrange);
- 	if (!ret && (flags & MCL_CURRENT))
- 		mm_populate(0, TASK_SIZE);
- 
-@@ -830,10 +830,10 @@ SYSCALL_DEFINE0(munlockall)
- 	int ret;
- 	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
--	if (down_write_killable(&current->mm->mmap_sem))
-+	if (mm_write_lock_killable(current->mm, &mmrange))
- 		return -EINTR;
- 	ret = apply_mlockall_flags(0, &mmrange);
--	up_write(&current->mm->mmap_sem);
-+	mm_write_unlock(current->mm, &mmrange);
- 	return ret;
- }
- 
+ 		result = QI_RESP_SUCCESS;
+ 	invalid:
+-		up_read(&svm->mm->mmap_sem);
++		mm_read_unlock(svm->mm, &mmrange);
+ 		mmput(svm->mm);
+ 	bad_req:
+ 		/* Accounting for major/minor faults? */
 -- 
 2.13.6
 
