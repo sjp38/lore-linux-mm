@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 915886B0009
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BB87B6B000A
 	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:28:04 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id a61so10003010pla.22
+Received: by mail-pg0-f70.google.com with SMTP id e12so18591899pgu.11
         for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:28:04 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 126si3238897pfe.390.2018.02.04.17.28.03
+        by mx.google.com with ESMTPS id g129si2015867pfc.338.2018.02.04.17.28.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Sun, 04 Feb 2018 17:28:03 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 08/64] mm: teach lock_page_or_retry() about range locking
-Date: Mon,  5 Feb 2018 02:26:58 +0100
-Message-Id: <20180205012754.23615-9-dbueso@wotan.suse.de>
+Subject: [PATCH 05/64] mm,khugepaged: prepare passing of rangelock field to vm_fault
+Date: Mon,  5 Feb 2018 02:26:55 +0100
+Message-Id: <20180205012754.23615-6-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,82 +22,100 @@ Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kerne
 
 From: Davidlohr Bueso <dave@stgolabs.net>
 
-The mmap_sem locking rules for lock_page_or_retry() depends on
-the page being locked upon return, and can get funky. As such
-we need to teach the function about mmrange, which is passed
-on via vm_fault.
+When collapsing huge pages from swapin, a vm_fault structure is built
+and passed to do_swap_page(). The new range field of the vm_fault
+structure must be set correctly when dealing with range_lock.
+
+We teach the main workhorse, khugepaged_scan_mm_slot(), to pass on
+a full range lock.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- include/linux/pagemap.h | 7 ++++---
- mm/filemap.c            | 5 +++--
- mm/memory.c             | 3 ++-
- 3 files changed, 9 insertions(+), 6 deletions(-)
+ mm/khugepaged.c | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 34ce3ebf97d5..e41a734efbe0 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -464,7 +464,7 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
- extern void __lock_page(struct page *page);
- extern int __lock_page_killable(struct page *page);
- extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
--				unsigned int flags);
-+				unsigned int flags, struct range_lock *mmrange);
- extern void unlock_page(struct page *page);
- 
- static inline int trylock_page(struct page *page)
-@@ -504,10 +504,11 @@ static inline int lock_page_killable(struct page *page)
-  * __lock_page_or_retry().
-  */
- static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
--				     unsigned int flags)
-+				     unsigned int flags,
-+				     struct range_lock *mmrange)
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index b7e2268dfc9a..0b91ce730160 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -873,7 +873,8 @@ static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
+ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
+ 					struct vm_area_struct *vma,
+ 					unsigned long address, pmd_t *pmd,
+-					int referenced)
++					int referenced,
++					struct range_lock *mmrange)
  {
- 	might_sleep();
--	return trylock_page(page) || __lock_page_or_retry(page, mm, flags);
-+	return trylock_page(page) || __lock_page_or_retry(page, mm, flags, mmrange);
+ 	int swapped_in = 0, ret = 0;
+ 	struct vm_fault vmf = {
+@@ -882,6 +883,7 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
+ 		.flags = FAULT_FLAG_ALLOW_RETRY,
+ 		.pmd = pmd,
+ 		.pgoff = linear_page_index(vma, address),
++		.lockrange = mmrange,
+ 	};
+ 
+ 	/* we only decide to swapin, if there is enough young ptes */
+@@ -926,9 +928,10 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
  }
  
- /*
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 693f62212a59..6124ede79a4d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1293,7 +1293,7 @@ EXPORT_SYMBOL_GPL(__lock_page_killable);
-  * with the page locked and the mmap_sem unperturbed.
-  */
- int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
--			 unsigned int flags)
-+			 unsigned int flags, struct range_lock *mmrange)
+ static void collapse_huge_page(struct mm_struct *mm,
+-				   unsigned long address,
+-				   struct page **hpage,
+-				   int node, int referenced)
++			       unsigned long address,
++			       struct page **hpage,
++			       int node, int referenced,
++			       struct range_lock *mmrange)
  {
- 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
- 		/*
-@@ -2529,7 +2529,8 @@ int filemap_fault(struct vm_fault *vmf)
- 			goto no_cached_page;
+ 	pmd_t *pmd, _pmd;
+ 	pte_t *pte;
+@@ -986,7 +989,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	 * If it fails, we release mmap_sem and jump out_nolock.
+ 	 * Continuing to collapse causes inconsistency.
+ 	 */
+-	if (!__collapse_huge_page_swapin(mm, vma, address, pmd, referenced)) {
++	if (!__collapse_huge_page_swapin(mm, vma, address, pmd, referenced, mmrange)) {
+ 		mem_cgroup_cancel_charge(new_page, memcg, true);
+ 		up_read(&mm->mmap_sem);
+ 		goto out_nolock;
+@@ -1093,7 +1096,8 @@ static void collapse_huge_page(struct mm_struct *mm,
+ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 			       struct vm_area_struct *vma,
+ 			       unsigned long address,
+-			       struct page **hpage)
++			       struct page **hpage,
++			       struct range_lock *mmrange)
+ {
+ 	pmd_t *pmd;
+ 	pte_t *pte, *_pte;
+@@ -1207,7 +1211,8 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 	if (ret) {
+ 		node = khugepaged_find_target_node();
+ 		/* collapse_huge_page will return with the mmap_sem released */
+-		collapse_huge_page(mm, address, hpage, node, referenced);
++		collapse_huge_page(mm, address, hpage, node, referenced,
++				   mmrange);
  	}
+ out:
+ 	trace_mm_khugepaged_scan_pmd(mm, page, writable, referenced,
+@@ -1658,6 +1663,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+ 	struct mm_struct *mm;
+ 	struct vm_area_struct *vma;
+ 	int progress = 0;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
  
--	if (!lock_page_or_retry(page, vmf->vma->vm_mm, vmf->flags)) {
-+	if (!lock_page_or_retry(page, vmf->vma->vm_mm, vmf->flags,
-+				vmf->lockrange)) {
- 		put_page(page);
- 		return ret | VM_FAULT_RETRY;
- 	}
-diff --git a/mm/memory.c b/mm/memory.c
-index 2d087b0e174d..5adcdc7dee80 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2986,7 +2986,8 @@ int do_swap_page(struct vm_fault *vmf)
- 		goto out_release;
- 	}
- 
--	locked = lock_page_or_retry(page, vma->vm_mm, vmf->flags);
-+	locked = lock_page_or_retry(page, vma->vm_mm, vmf->flags,
-+				    vmf->lockrange);
- 
- 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
- 	if (!locked) {
+ 	VM_BUG_ON(!pages);
+ 	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&khugepaged_mm_lock));
+@@ -1731,7 +1737,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+ 			} else {
+ 				ret = khugepaged_scan_pmd(mm, vma,
+ 						khugepaged_scan.address,
+-						hpage);
++						hpage, &mmrange);
+ 			}
+ 			/* move to next address */
+ 			khugepaged_scan.address += HPAGE_PMD_SIZE;
 -- 
 2.13.6
 
