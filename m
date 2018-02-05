@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 853156B0292
-	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:35 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id b6so7812545plx.3
-        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:35 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id EC1996B0294
+	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:36 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id 36so9980774plb.18
+        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:36 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t2-v6si3672793plo.811.2018.02.04.17.28.05
+        by mx.google.com with ESMTPS id 206si417365pgb.647.2018.02.04.17.28.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Feb 2018 17:28:05 -0800 (PST)
+        Sun, 04 Feb 2018 17:28:06 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 34/64] arch/parisc: use mm locking wrappers
-Date: Mon,  5 Feb 2018 02:27:24 +0100
-Message-Id: <20180205012754.23615-35-dbueso@wotan.suse.de>
+Subject: [PATCH 44/64] arch/score: use mm locking wrappers
+Date: Mon,  5 Feb 2018 02:27:34 +0100
+Message-Id: <20180205012754.23615-45-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -26,78 +26,57 @@ This becomes quite straightforward with the mmrange in place.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- arch/parisc/kernel/traps.c | 7 ++++---
- arch/parisc/mm/fault.c     | 8 ++++----
- 2 files changed, 8 insertions(+), 7 deletions(-)
+ arch/score/mm/fault.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/arch/parisc/kernel/traps.c b/arch/parisc/kernel/traps.c
-index c919e6c0a687..ac73697c7952 100644
---- a/arch/parisc/kernel/traps.c
-+++ b/arch/parisc/kernel/traps.c
-@@ -718,8 +718,9 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
+diff --git a/arch/score/mm/fault.c b/arch/score/mm/fault.c
+index 07a8637ad142..535df3b377a5 100644
+--- a/arch/score/mm/fault.c
++++ b/arch/score/mm/fault.c
+@@ -81,7 +81,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
+ 	if (user_mode(regs))
+ 		flags |= FAULT_FLAG_USER;
  
- 		if (user_mode(regs)) {
- 			struct vm_area_struct *vma;
-+			DEFINE_RANGE_LOCK_FULL(mmrange);
- 
--			down_read(&current->mm->mmap_sem);
-+			mm_read_lock(current->mm, &mmrange);
- 			vma = find_vma(current->mm,regs->iaoq[0]);
- 			if (vma && (regs->iaoq[0] >= vma->vm_start)
- 				&& (vma->vm_flags & VM_EXEC)) {
-@@ -727,10 +728,10 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
- 				fault_address = regs->iaoq[0];
- 				fault_space = regs->iasq[0];
- 
--				up_read(&current->mm->mmap_sem);
-+				mm_read_unlock(current->mm, &mmrange);
- 				break; /* call do_page_fault() */
- 			}
--			up_read(&current->mm->mmap_sem);
-+			mm_read_unlock(current->mm, &mmrange);
- 		}
- 		/* Fall Through */
- 	case 27: 
-diff --git a/arch/parisc/mm/fault.c b/arch/parisc/mm/fault.c
-index 79db33a0cb0c..f4877e321c28 100644
---- a/arch/parisc/mm/fault.c
-+++ b/arch/parisc/mm/fault.c
-@@ -282,7 +282,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
- 	if (acc_type & VM_WRITE)
- 		flags |= FAULT_FLAG_WRITE;
- retry:
 -	down_read(&mm->mmap_sem);
 +	mm_read_lock(mm, &mmrange);
- 	vma = find_vma_prev(mm, address, &prev_vma);
- 	if (!vma || address < vma->vm_start)
- 		goto check_expansion;
-@@ -339,7 +339,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
- 			goto retry;
- 		}
- 	}
+ 	vma = find_vma(mm, address);
+ 	if (!vma)
+ 		goto bad_area;
+@@ -127,7 +127,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
+ 	else
+ 		tsk->min_flt++;
+ 
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
  	return;
  
- check_expansion:
-@@ -351,7 +351,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
-  * Something tried to access memory that isn't in our memory map..
-  */
+ 	/*
+@@ -135,7 +135,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
+ 	* Fix it, but check if it's kernel or user first..
+ 	 */
  bad_area:
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
  
- 	if (user_mode(regs)) {
- 		struct siginfo si;
-@@ -427,7 +427,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
- 	parisc_terminate("Bad Address (null pointer deref?)", regs, code, address);
- 
-   out_of_memory:
+ bad_area_nosemaphore:
+ 	/* User mode accesses just cause a SIGSEGV */
+@@ -174,14 +174,14 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
+ 	* us unable to handle the page fault gracefully.
+ 	*/
+ out_of_memory:
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
  	if (!user_mode(regs))
  		goto no_context;
  	pagefault_out_of_memory();
+ 	return;
+ 
+ do_sigbus:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	/* Kernel mode? Handle exceptions or die */
+ 	if (!user_mode(regs))
+ 		goto no_context;
 -- 
 2.13.6
 
