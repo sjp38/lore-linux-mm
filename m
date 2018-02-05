@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ED506B0003
-	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 17:03:37 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id e4so27022354qtb.14
-        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 14:03:37 -0800 (PST)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id k34sor797728qtk.6.2018.02.05.14.03.36
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 360466B0007
+	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 17:17:21 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id h5so20803584pgv.21
+        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 14:17:21 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id e3si3744928pga.1.2018.02.05.14.17.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Feb 2018 14:03:36 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Feb 2018 14:17:20 -0800 (PST)
+Subject: Re: [RFC PATCH 1/2] __free_one_page: skip merge for order-0 page
+ unless compaction is in progress
+References: <20180124023050.20097-1-aaron.lu@intel.com>
+ <20180205053013.GB16980@intel.com> <20180205053139.GC16980@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <57fd532f-8fb7-33c4-914a-fb816db47ea9@intel.com>
+Date: Mon, 5 Feb 2018 14:17:18 -0800
 MIME-Version: 1.0
-Date: Mon,  5 Feb 2018 14:03:25 -0800
-Message-Id: <20180205220325.197241-1-dancol@google.com>
-Subject: [PATCH] Synchronize task mm counters on context switch
-From: Daniel Colascione <dancol@google.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180205053139.GC16980@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Daniel Colascione <dancol@google.com>
+To: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-When SPLIT_RSS_COUNTING is in use (which it is on SMP systems,
-generally speaking), we buffer certain changes to mm-wide counters
-through counters local to the current struct task, flushing them to
-the mm after seeing 64 page faults, as well as on task exit and
-exec. This scheme can leave a large amount of memory unaccounted-for
-in process memory counters, especially for processes with many threads
-(each of which gets 64 "free" faults), and it produces an
-inconsistency with the same memory counters scanned VMA-by-VMA using
-smaps. This inconsistency can persist for an arbitrarily long time,
-since there is no way to force a task to flush its counters to its mm.
+On 02/04/2018 09:31 PM, Aaron Lu wrote:
+> Running will-it-scale/page_fault1 process mode workload on a 2 sockets
+> Intel Skylake server showed severe lock contention of zone->lock, as
+> high as about 80%(43% on allocation path and 38% on free path) CPU
+> cycles are burnt spinning. With perf, the most time consuming part inside
+> that lock on free path is cache missing on page structures, mostly on
+> the to-be-freed page's buddy due to merging.
+> 
+> One way to avoid this overhead is not do any merging at all for order-0
+> pages and leave the need for high order pages to compaction.
 
-This patch flushes counters on context switch. This way, we bound the
-amount of unaccounted memory without forcing tasks to flush to the
-mm-wide counters on each minor page fault. The flush operation should
-be cheap: we only have a few counters, adjacent in struct task, and we
-don't atomically write to the mm counters unless we've changed
-something since the last flush.
+I think the RFC here is: we *know* this hurts high-order allocations and
+Aaron demonstrated that it does make the latency worse.  But,
+unexpectedly, it didn't totally crater them.
 
-Signed-off-by: Daniel Colascione <dancol@google.com>
----
- kernel/sched/core.c | 3 +++
- 1 file changed, 3 insertions(+)
+So, is the harm to large allocations worth the performance benefit
+afforded to smaller ones by this patch?  How would we make a decision on
+something like that?
 
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index a7bf32aabfda..7f197a7698ee 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -3429,6 +3429,9 @@ asmlinkage __visible void __sched schedule(void)
- 	struct task_struct *tsk = current;
- 
- 	sched_submit_work(tsk);
-+	if (tsk->mm)
-+		sync_mm_rss(tsk->mm);
-+
- 	do {
- 		preempt_disable();
- 		__schedule(false);
--- 
-2.16.0.rc1.238.g530d649a79-goog
+If nothing else, this would make a nice companion topic to Daniel
+Jordan's "lru_lock scalability" proposal for LSF/MM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
