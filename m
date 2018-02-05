@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A08C36B0024
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 87F826B0010
 	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:28:06 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id t18so10028677plo.9
+Received: by mail-pg0-f70.google.com with SMTP id m3so18620881pgd.20
         for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:28:06 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p8si4819991pgf.480.2018.02.04.17.28.05
+        by mx.google.com with ESMTPS id w23-v6si6078230plk.537.2018.02.04.17.28.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Sun, 04 Feb 2018 17:28:05 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 14/64] fs/coredump: teach about range locking
-Date: Mon,  5 Feb 2018 02:27:04 +0100
-Message-Id: <20180205012754.23615-15-dbueso@wotan.suse.de>
+Subject: [PATCH 26/64] fs: use mm locking wrappers
+Date: Mon,  5 Feb 2018 02:27:16 +0100
+Message-Id: <20180205012754.23615-27-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,126 +22,196 @@ Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kerne
 
 From: Davidlohr Bueso <dave@stgolabs.net>
 
-coredump_wait() needs mmap_sem such that zap_threads()
-is stable. The conversion is trivial as the mmap_sem
-is only used in the same function context. No change
-in semantics.
-
-In addition, we need an mmrange in exec_mmap() as mmap_sem
-is needed for de_thread() or coredump (for core_state and
-changing tsk->mm) scenarios. No change in semantics.
+Also fixup some previous userfaultfd changes.
+No change in semantics.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- fs/coredump.c |  5 +++--
- fs/exec.c     | 18 ++++++++++--------
- 2 files changed, 13 insertions(+), 10 deletions(-)
+ fs/aio.c                      |  4 ++--
+ fs/userfaultfd.c              | 26 ++++++++++++++------------
+ include/linux/userfaultfd_k.h |  5 +++--
+ mm/madvise.c                  |  4 ++--
+ 4 files changed, 21 insertions(+), 18 deletions(-)
 
-diff --git a/fs/coredump.c b/fs/coredump.c
-index 1e2c87acac9b..ad91712498fc 100644
---- a/fs/coredump.c
-+++ b/fs/coredump.c
-@@ -412,17 +412,18 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
- 	struct task_struct *tsk = current;
- 	struct mm_struct *mm = tsk->mm;
- 	int core_waiters = -EBUSY;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
- 	init_completion(&core_state->startup);
- 	core_state->dumper.task = tsk;
- 	core_state->dumper.next = NULL;
- 
--	if (down_write_killable(&mm->mmap_sem))
-+	if (mm_write_lock_killable(mm, &mmrange))
- 		return -EINTR;
- 
- 	if (!mm->core_state)
- 		core_waiters = zap_threads(tsk, mm, core_state, exit_code);
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
- 
- 	if (core_waiters > 0) {
- 		struct core_thread *ptr;
-diff --git a/fs/exec.c b/fs/exec.c
-index e46752874b47..a61ac9e81169 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -294,12 +294,13 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
- 	int err;
- 	struct vm_area_struct *vma = NULL;
- 	struct mm_struct *mm = bprm->mm;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
- 	bprm->vma = vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
- 	if (!vma)
- 		return -ENOMEM;
+diff --git a/fs/aio.c b/fs/aio.c
+index 31774b75c372..98affcf36b97 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -512,7 +512,7 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
+ 	ctx->mmap_size = nr_pages * PAGE_SIZE;
+ 	pr_debug("attempting mmap of %lu bytes\n", ctx->mmap_size);
  
 -	if (down_write_killable(&mm->mmap_sem)) {
 +	if (mm_write_lock_killable(mm, &mmrange)) {
- 		err = -EINTR;
- 		goto err_free;
- 	}
-@@ -324,11 +325,11 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
- 
- 	mm->stack_vm = mm->total_vm = 1;
- 	arch_bprm_mm_init(mm, vma);
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
- 	bprm->p = vma->vm_end - sizeof(void *);
- 	return 0;
- err:
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
- err_free:
- 	bprm->vma = NULL;
- 	kmem_cache_free(vm_area_cachep, vma);
-@@ -739,7 +740,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
- 		bprm->loader -= stack_shift;
- 	bprm->exec -= stack_shift;
- 
--	if (down_write_killable(&mm->mmap_sem))
-+	if (mm_write_lock_killable(mm, &mmrange))
+ 		ctx->mmap_size = 0;
+ 		aio_free_ring(ctx);
  		return -EINTR;
+@@ -521,7 +521,7 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
+ 	ctx->mmap_base = do_mmap_pgoff(ctx->aio_ring_file, 0, ctx->mmap_size,
+ 				       PROT_READ | PROT_WRITE,
+ 				       MAP_SHARED, 0, &unused, NULL, &mmrange);
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ 	if (IS_ERR((void *)ctx->mmap_base)) {
+ 		ctx->mmap_size = 0;
+ 		aio_free_ring(ctx);
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 883fbffb284e..805bdc7ecf2d 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -482,7 +482,7 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
+ 						       vmf->address,
+ 						       vmf->flags, reason,
+ 						       vmf->lockrange);
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, vmf->lockrange);
  
- 	vm_flags = VM_STACK_FLAGS;
-@@ -796,7 +797,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
- 		ret = -EFAULT;
+ 	if (likely(must_wait && !READ_ONCE(ctx->released) &&
+ 		   (return_to_userland ? !signal_pending(current) :
+@@ -536,7 +536,7 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
+ 			 * and there's no need to retake the mmap_sem
+ 			 * in such case.
+ 			 */
+-			down_read(&mm->mmap_sem);
++			mm_read_lock(mm, vmf->lockrange);
+ 			ret = VM_FAULT_NOPAGE;
+ 		}
+ 	}
+@@ -629,13 +629,14 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
+ 	if (release_new_ctx) {
+ 		struct vm_area_struct *vma;
+ 		struct mm_struct *mm = release_new_ctx->mm;
++		DEFINE_RANGE_LOCK_FULL(mmrange);
  
+ 		/* the various vma->vm_userfaultfd_ctx still points to it */
+-		down_write(&mm->mmap_sem);
++		mm_write_lock(mm, &mmrange);
+ 		for (vma = mm->mmap; vma; vma = vma->vm_next)
+ 			if (vma->vm_userfaultfd_ctx.ctx == release_new_ctx)
+ 				vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+-		up_write(&mm->mmap_sem);
++		mm_write_unlock(mm, &mmrange);
+ 
+ 		userfaultfd_ctx_put(release_new_ctx);
+ 	}
+@@ -765,7 +766,8 @@ void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *vm_ctx,
+ }
+ 
+ bool userfaultfd_remove(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end)
++			unsigned long start, unsigned long end,
++			struct range_lock *mmrange)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	struct userfaultfd_ctx *ctx;
+@@ -776,7 +778,7 @@ bool userfaultfd_remove(struct vm_area_struct *vma,
+ 		return true;
+ 
+ 	userfaultfd_ctx_get(ctx);
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, mmrange);
+ 
+ 	msg_init(&ewq.msg);
+ 
+@@ -870,7 +872,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+ 	 * it's critical that released is set to true (above), before
+ 	 * taking the mmap_sem for writing.
+ 	 */
+-	down_write(&mm->mmap_sem);
++	mm_write_lock(mm, &mmrange);
+ 	prev = NULL;
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 		cond_resched();
+@@ -893,7 +895,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+ 		vma->vm_flags = new_flags;
+ 		vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+ 	}
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ 	mmput(mm);
+ wakeup:
+ 	/*
+@@ -1321,7 +1323,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 	if (!mmget_not_zero(mm))
+ 		goto out;
+ 
+-	down_write(&mm->mmap_sem);
++	mm_write_lock(mm, &mmrange);
+ 	vma = find_vma_prev(mm, start, &prev);
+ 	if (!vma)
+ 		goto out_unlock;
+@@ -1450,7 +1452,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 		vma = vma->vm_next;
+ 	} while (vma && vma->vm_start < end);
  out_unlock:
 -	up_write(&mm->mmap_sem);
 +	mm_write_unlock(mm, &mmrange);
- 	return ret;
- }
- EXPORT_SYMBOL(setup_arg_pages);
-@@ -1011,6 +1012,7 @@ static int exec_mmap(struct mm_struct *mm)
- {
- 	struct task_struct *tsk;
- 	struct mm_struct *old_mm, *active_mm;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 	mmput(mm);
+ 	if (!ret) {
+ 		/*
+@@ -1496,7 +1498,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+ 	if (!mmget_not_zero(mm))
+ 		goto out;
  
- 	/* Notify parent that we're no longer interested in the old VM */
- 	tsk = current;
-@@ -1025,9 +1027,9 @@ static int exec_mmap(struct mm_struct *mm)
- 		 * through with the exec.  We must hold mmap_sem around
- 		 * checking core_state and changing tsk->mm.
- 		 */
--		down_read(&old_mm->mmap_sem);
-+		mm_read_lock(old_mm, &mmrange);
- 		if (unlikely(old_mm->core_state)) {
--			up_read(&old_mm->mmap_sem);
-+			mm_read_unlock(old_mm, &mmrange);
- 			return -EINTR;
- 		}
+-	down_write(&mm->mmap_sem);
++	mm_write_lock(mm, &mmrange);
+ 	vma = find_vma_prev(mm, start, &prev);
+ 	if (!vma)
+ 		goto out_unlock;
+@@ -1609,7 +1611,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+ 		vma = vma->vm_next;
+ 	} while (vma && vma->vm_start < end);
+ out_unlock:
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ 	mmput(mm);
+ out:
+ 	return ret;
+diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+index f2f3b68ba910..35164358245f 100644
+--- a/include/linux/userfaultfd_k.h
++++ b/include/linux/userfaultfd_k.h
+@@ -64,7 +64,7 @@ extern void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *,
+ 
+ extern bool userfaultfd_remove(struct vm_area_struct *vma,
+ 			       unsigned long start,
+-			       unsigned long end);
++			       unsigned long end, struct range_lock *mmrange);
+ 
+ extern int userfaultfd_unmap_prep(struct vm_area_struct *vma,
+ 				  unsigned long start, unsigned long end,
+@@ -120,7 +120,8 @@ static inline void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *ctx,
+ 
+ static inline bool userfaultfd_remove(struct vm_area_struct *vma,
+ 				      unsigned long start,
+-				      unsigned long end)
++				      unsigned long end,
++				      struct range_lock *mmrange)
+ {
+ 	return true;
+ }
+diff --git a/mm/madvise.c b/mm/madvise.c
+index de8fb035955c..9ba23187445b 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -529,7 +529,7 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
+ 	if (!can_madv_dontneed_vma(vma))
+ 		return -EINVAL;
+ 
+-	if (!userfaultfd_remove(vma, start, end)) {
++	if (!userfaultfd_remove(vma, start, end, mmrange)) {
+ 		*prev = NULL; /* mmap_sem has been dropped, prev is stale */
+ 
+ 		mm_read_lock(current->mm, mmrange);
+@@ -613,7 +613,7 @@ static long madvise_remove(struct vm_area_struct *vma,
+ 	 * mmap_sem.
+ 	 */
+ 	get_file(f);
+-	if (userfaultfd_remove(vma, start, end)) {
++	if (userfaultfd_remove(vma, start, end, mmrange)) {
+ 		/* mmap_sem was not released by userfaultfd_remove() */
+ 		mm_read_unlock(current->mm, mmrange);
  	}
-@@ -1040,7 +1042,7 @@ static int exec_mmap(struct mm_struct *mm)
- 	vmacache_flush(tsk);
- 	task_unlock(tsk);
- 	if (old_mm) {
--		up_read(&old_mm->mmap_sem);
-+		mm_read_unlock(old_mm, &mmrange);
- 		BUG_ON(active_mm != old_mm);
- 		setmax_mm_hiwater_rss(&tsk->signal->maxrss, old_mm);
- 		mm_update_next_owner(old_mm);
 -- 
 2.13.6
 
