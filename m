@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DB52F6B02AA
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F08BF6B02AC
 	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:45 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id w19so6567469pgv.4
+Received: by mail-pl0-f70.google.com with SMTP id 36so9981143plb.18
         for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:45 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v1si4097415pfg.288.2018.02.04.17.28.07
+        by mx.google.com with ESMTPS id b2si4856594pgr.434.2018.02.04.17.28.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Feb 2018 17:28:07 -0800 (PST)
+        Sun, 04 Feb 2018 17:28:06 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 60/64] drivers/xen: use mm locking wrappers
-Date: Mon,  5 Feb 2018 02:27:50 +0100
-Message-Id: <20180205012754.23615-61-dbueso@wotan.suse.de>
+Subject: [PATCH 46/64] arch/metag: use mm locking wrappers
+Date: Mon,  5 Feb 2018 02:27:36 +0100
+Message-Id: <20180205012754.23615-47-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,108 +22,62 @@ Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kerne
 
 From: Davidlohr Bueso <dave@stgolabs.net>
 
-All callers use mmap_sem within the same function
-context. No change in semantics.
+This becomes quite straightforward with the mmrange in place.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- drivers/xen/gntdev.c  |  5 +++--
- drivers/xen/privcmd.c | 12 +++++++-----
- 2 files changed, 10 insertions(+), 7 deletions(-)
+ arch/metag/mm/fault.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-index bd56653b9bbc..9181eee4e160 100644
---- a/drivers/xen/gntdev.c
-+++ b/drivers/xen/gntdev.c
-@@ -648,12 +648,13 @@ static long gntdev_ioctl_get_offset_for_vaddr(struct gntdev_priv *priv,
- 	struct vm_area_struct *vma;
- 	struct grant_map *map;
- 	int rv = -EINVAL;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
+diff --git a/arch/metag/mm/fault.c b/arch/metag/mm/fault.c
+index e16ba0ea7ea1..47ab10069fde 100644
+--- a/arch/metag/mm/fault.c
++++ b/arch/metag/mm/fault.c
+@@ -114,7 +114,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
+ 	if (user_mode(regs))
+ 		flags |= FAULT_FLAG_USER;
+ retry:
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
  
- 	if (copy_from_user(&op, u, sizeof(op)) != 0)
- 		return -EFAULT;
- 	pr_debug("priv %p, offset for vaddr %lx\n", priv, (unsigned long)op.vaddr);
+ 	vma = find_vma_prev(mm, address, &prev_vma);
  
--	down_read(&current->mm->mmap_sem);
-+	mm_read_lock(current->mm, &mmrange);
- 	vma = find_vma(current->mm, op.vaddr);
- 	if (!vma || vma->vm_ops != &gntdev_vmops)
- 		goto out_unlock;
-@@ -667,7 +668,7 @@ static long gntdev_ioctl_get_offset_for_vaddr(struct gntdev_priv *priv,
- 	rv = 0;
- 
-  out_unlock:
--	up_read(&current->mm->mmap_sem);
-+	mm_read_unlock(current->mm, &mmrange);
- 
- 	if (rv == 0 && copy_to_user(u, &op, sizeof(op)) != 0)
- 		return -EFAULT;
-diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
-index 1c909183c42a..3736752556c5 100644
---- a/drivers/xen/privcmd.c
-+++ b/drivers/xen/privcmd.c
-@@ -257,6 +257,7 @@ static long privcmd_ioctl_mmap(struct file *file, void __user *udata)
- 	int rc;
- 	LIST_HEAD(pagelist);
- 	struct mmap_gfn_state state;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
- 	/* We only support privcmd_ioctl_mmap_batch for auto translated. */
- 	if (xen_feature(XENFEAT_auto_translated_physmap))
-@@ -276,7 +277,7 @@ static long privcmd_ioctl_mmap(struct file *file, void __user *udata)
- 	if (rc || list_empty(&pagelist))
- 		goto out;
- 
--	down_write(&mm->mmap_sem);
-+	mm_write_lock(mm, &mmrange);
- 
- 	{
- 		struct page *page = list_first_entry(&pagelist,
-@@ -301,7 +302,7 @@ static long privcmd_ioctl_mmap(struct file *file, void __user *udata)
- 
- 
- out_up:
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
- 
- out:
- 	free_page_list(&pagelist);
-@@ -451,6 +452,7 @@ static long privcmd_ioctl_mmap_batch(
- 	unsigned long nr_pages;
- 	LIST_HEAD(pagelist);
- 	struct mmap_batch_state state;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
- 	switch (version) {
- 	case 1:
-@@ -497,7 +499,7 @@ static long privcmd_ioctl_mmap_batch(
+@@ -169,7 +169,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
  		}
  	}
  
--	down_write(&mm->mmap_sem);
-+	mm_write_lock(mm, &mmrange);
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	return 0;
  
- 	vma = find_vma(mm, m.addr);
- 	if (!vma ||
-@@ -553,7 +555,7 @@ static long privcmd_ioctl_mmap_batch(
- 	BUG_ON(traverse_pages_block(m.num, sizeof(xen_pfn_t),
- 				    &pagelist, mmap_batch_fn, &state));
+ check_expansion:
+@@ -178,7 +178,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
+ 		goto good_area;
  
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
+ bad_area:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
  
- 	if (state.global_error) {
- 		/* Write back errors in second pass. */
-@@ -574,7 +576,7 @@ static long privcmd_ioctl_mmap_batch(
- 	return ret;
+ bad_area_nosemaphore:
+ 	if (user_mode(regs)) {
+@@ -206,7 +206,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
+ 	goto no_context;
  
- out_unlock:
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
- 	goto out;
- }
+ do_sigbus:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
  
+ 	/*
+ 	 * Send a sigbus, regardless of whether we were in kernel
+@@ -230,7 +230,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
+ 	 * us unable to handle the page fault gracefully.
+ 	 */
+ out_of_memory:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	if (user_mode(regs)) {
+ 		pagefault_out_of_memory();
+ 		return 1;
 -- 
 2.13.6
 
