@@ -1,57 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A2F7A6B0005
-	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 08:45:46 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id h5so19930241pgv.21
-        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 05:45:46 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id y12si723623pff.230.2018.02.05.05.45.45
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5ECF16B0005
+	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 09:14:39 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id e28so7585532qkj.11
+        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 06:14:39 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 81sor1544717qkz.75.2018.02.05.06.14.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Feb 2018 05:45:45 -0800 (PST)
-Subject: Re: Possible reasons of CMA allocation failure
-From: Alexey Skidanov <alexey.skidanov@intel.com>
-References: <10f52913-ad8b-4fd2-5e55-47aa46c48c0d@intel.com>
-Message-ID: <d566a6df-b0d7-8ab6-69dc-ae6077cee75b@intel.com>
-Date: Mon, 5 Feb 2018 15:46:13 +0200
+        (Google Transport Security);
+        Mon, 05 Feb 2018 06:14:38 -0800 (PST)
+Subject: Re: [PATCH] mm, meminit: Serially initialise deferred memory if
+ trace_buf_size is specified
+References: <20171115141329.ieoqvyoavmv6gnea@techsingularity.net>
+ <20171115142816.zxdgkad3ch2bih6d@dhcp22.suse.cz>
+ <20171115144314.xwdi2sbcn6m6lqdo@techsingularity.net>
+ <20171115145716.w34jaez5ljb3fssn@dhcp22.suse.cz>
+ <06a33f82-7f83-7721-50ec-87bf1370c3d4@gmail.com>
+ <20171116085433.qmz4w3y3ra42j2ih@dhcp22.suse.cz>
+ <20171116100633.moui6zu33ctzpjsf@techsingularity.net>
+ <CAOAebxt8ZjfCXND=1=UJQETbjVUGPJVcqKFuwGsrwyM2Mq1dhQ@mail.gmail.com>
+ <20171117213206.eekbiiexygig7466@techsingularity.net>
+ <CAOAebxtK=pc+-hpAOtu0GG446F5+t_5xsa_j+p7KAL6HtMc9Qg@mail.gmail.com>
+ <20171206105000.4aefxr3uzvutulvb@techsingularity.net>
+ <9ED437F7446DF74B826BE56C7BB1B89E95C1459F@G05USEXSUYA02.g05.fujitsu.local>
+ <CAOAebxuHPieDWLyRmPauvuF7dkW=0GeigG=EfWQEb_cgrGgm0Q@mail.gmail.com>
+From: Masayoshi Mizuma <msys.mizuma@gmail.com>
+Message-ID: <2e02170f-038c-04e6-8dc4-2f68551cf3a1@gmail.com>
+Date: Mon, 5 Feb 2018 09:14:36 -0500
 MIME-Version: 1.0
-In-Reply-To: <10f52913-ad8b-4fd2-5e55-47aa46c48c0d@intel.com>
+In-Reply-To: <CAOAebxuHPieDWLyRmPauvuF7dkW=0GeigG=EfWQEb_cgrGgm0Q@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, labbott@redhat.com
+To: pasha.tatashin@oracle.com, Koki.Sanagi@us.fujitsu.com
+Cc: mgorman@techsingularity.net, mhocko@kernel.org, yasu.isimatu@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, steven.sistare@oracle.com
 
+Hello Pavel,
 
+> Yes, the patch is here:
+> https://lkml.org/lkml/2018/1/12/600
 
-On 02/05/2018 12:58 AM, Alexey Skidanov wrote:
-> Hello,
-> 
-> On x86 machine with 16GB RAM installed, I reserved 1 GB area for CMA:
-> [    0.000000] cma: Reserved 1024 MiB at 0x00000003fcc00000
-> 
-> Some time after the boot, CMa failed to allocate chunk of memory while
-> there are enough contiguous pages:
-> 
-> [  392.132392] cma: cma_alloc: alloc failed, req-size: 200000 pages,
-> ret: -16
-> [  392.132393] cma: number of available pages:
-> 6@8314+9@8343+9@8375+253648@8496=> 253672 free of 262144 total pages
-> [  392.132398] cma: cma_alloc(): returned (null)
-> 
-> What are the possible reasons for such failure (besides the pinned user
-> allocated pages) ?
-> 
-> Thanks,
-> Alexey
-> 
+I tested your patch in my box and it worked well.
+Please feel free to add the following.
 
-After some debugging - the page migration failed because of there is the
-page with _refcount 2, _mapcount -1. Seems like it's pinned?
+Tested-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
 
-Thanks,
-Alexey
+You may repost the patch after adding your reply for
+Andrew's comment as [PATCH 0/1]...
+
+- Masayoshi
+
+Wed, 31 Jan 2018 13:24:55 -0500 Pavel Tatashin wrote:
+> Hi Koki,
+> 
+> Yes, the patch is here:
+> https://lkml.org/lkml/2018/1/12/600
+> 
+> It has not been reviewed yet.
+> 
+> Pavel
+> 
+> On Wed, Jan 31, 2018 at 12:28 PM, Koki.Sanagi@us.fujitsu.com
+> <Koki.Sanagi@us.fujitsu.com> wrote:
+>> Pavel,
+>>
+>> I assume you are working on the fix.
+>> Do you have any progress ?
+>>
+>> Koki
+>>
+>>>> -----Original Message-----
+>>>> From: Mel Gorman [mailto:mgorman@techsingularity.net]
+>>>> Sent: Wednesday, December 06, 2017 5:50 AM
+>>>> To: Pavel Tatashin <pasha.tatashin@oracle.com>
+>>>> Cc: Michal Hocko <mhocko@kernel.org>; YASUAKI ISHIMATSU
+>>>> <yasu.isimatu@gmail.com>; Andrew Morton <akpm@linux-foundation.org>;
+>>>> Linux Memory Management List <linux-mm@kvack.org>; linux-
+>>>> kernel@vger.kernel.org; Sanagi, Koki <Koki.Sanagi@us.fujitsu.com>; Steve
+>>>> Sistare <steven.sistare@oracle.com>
+>>>> Subject: Re: [PATCH] mm, meminit: Serially initialise deferred memory if
+>>>> trace_buf_size is specified
+>>>>
+>>>> On Wed, Nov 29, 2017 at 10:41:59PM -0500, Pavel Tatashin wrote:
+>>>>> Hi Mel,
+>>>>>
+>>>>> Thank you very much for your feedback, my replies below:
+>>>>>
+>>>>>> A lack of involvement from admins is indeed desirable. For example,
+>>>>>> while I might concede on using a disable-everything-switch, I would
+>>>>>> not be happy to introduce a switch that specified how much memory
+>>>>>> per node to initialise.
+>>>>>>
+>>>>>> For the forth approach, I really would be only thinking of a blunt
+>>>>>> "initialise everything instead of going OOM". I was wary of making
+>>>>>> things too complicated and I worried about some side-effects I'll cover later.
+>>>>>
+>>>>> I see, I misunderstood your suggestion. Switching to serial
+>>>>> initialization when OOM works, however, boot time becomes
+>>>>> unpredictable, with some configurations boot is fast with others it is
+>>>>> slow. All of that depends on whether predictions in
+>>>>> reset_deferred_meminit() were good or not which is not easy to debug
+>>>>> for users. Also, overtime predictions in reset_deferred_meminit() can
+>>>>> become very off, and I do not think that we want to continuously
+>>>>> adjust this function.
+>>>>>
+>>>>
+>>>> You could increase the probabilty of a report by doing a WARN_ON_ONCE if the
+>>>> serialised meminit is used.
+>>>>
+>>>>>>> With this approach we could always init a very small amount of
+>>>>>>> struct pages, and allow the rest to be initialized on demand as
+>>>>>>> boot requires until deferred struct pages are initialized. Since,
+>>>>>>> having deferred pages feature assumes that the machine is large,
+>>>>>>> there is no drawback of having some extra byte of dead code,
+>>>>>>> especially that all the checks can be permanently switched of via
+>>>>>>> static branches once deferred init is complete.
+>>>>>>>
+>>>>>>
+>>>>>> This is where I fear there may be dragons. If we minimse the number
+>>>>>> of struct pages and initialise serially as necessary, there is a
+>>>>>> danger that we'll allocate remote memory in cases where local memory
+>>>>>> would have done because a remote node had enough memory.
+>>>>>
+>>>>> True, but is not what we have now has the same issue as well? If one
+>>>>> node is gets out of memory we start using memory from another node,
+>>>>> before deferred pages are initialized?
+>>>>>
+>>>>
+>>>> It's possible but I'm not aware of it happening currently.
+>>>>
+>>>>>  To offset that risk, it would be
+>>>>>> necessary at boot-time to force allocations from local node where
+>>>>>> possible and initialise more memory as necessary. That starts
+>>>>>> getting complicated because we'd need to adjust gfp-flags in the
+>>>>>> fast path with init-and-retry logic in the slow path and that could
+>>>>>> be a constant penalty. We could offset that in the fast path by
+>>>>>> using static branches
+>>>>>
+>>>>> I will try to implement this, and see how complicated the patch will
+>>>>> be, if it gets too complicated for the problem I am trying to solve we
+>>>>> can return to one of your suggestions.
+>>>>>
+>>>>> I was thinking to do something like this:
+>>>>>
+>>>>> Start with every small amount of initialized pages in every node.
+>>>>> If allocation fails, initialize enough struct pages to cover this
+>>>>> particular allocation with struct pages rounded up to section size but
+>>>>> in every single node.
+>>>>>
+>>>>
+>>>> Ok, just make sure it's all in the slow paths of the allocator when the alternative
+>>>> is to fail the allocation.
+>>>>
+>>>>>> but it's getting more and
+>>>>>> more complex for what is a minor optimisation -- shorter boot times
+>>>>>> on large machines where userspace itself could take a *long* time to
+>>>>>> get up and running (think database reading in 1TB of data from disk as it
+>>>> warms up).
+>>>>>
+>>>>> On M6-32 with 32T [1] of memory it saves over 4 minutes of boot time,
+>>>>> and this is on SPARC with 8K pages, on x86 it would be around of 8
+>>>>> minutes because of twice as many pages. This feature improves
+>>>>> availability for larger machines quite a bit. Overtime, systems are
+>>>>> growing, so I expect this feature to become a default configuration in
+>>>>> the next several years on server configs.
+>>>>>
+>>>>
+>>>> Ok, when developing the series originally, I had no machine even close to 32T of
+>>>> memory.
+>>>>
+>>>> --
+>>>> Mel Gorman
+>>>> SUSE Labs
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
