@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CDEEF6B0288
-	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:30 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id n11so10040217plp.13
-        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:30 -0800 (PST)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 29DD06B0288
+	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:31 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id q5so7783361pll.17
+        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:31 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v68si6041290pfb.292.2018.02.04.17.28.07
+        by mx.google.com with ESMTPS id p12si4874128pgn.253.2018.02.04.17.28.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Feb 2018 17:28:07 -0800 (PST)
+        Sun, 04 Feb 2018 17:28:05 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 48/64] arch/tile: use mm locking wrappers
-Date: Mon,  5 Feb 2018 02:27:38 +0100
-Message-Id: <20180205012754.23615-49-dbueso@wotan.suse.de>
+Subject: [PATCH 18/64] mm/ksm: teach about range locking
+Date: Mon,  5 Feb 2018 02:27:08 +0100
+Message-Id: <20180205012754.23615-19-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,96 +22,167 @@ Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kerne
 
 From: Davidlohr Bueso <dave@stgolabs.net>
 
-* THIS IS A HACK *
-
-Breaks arch/um/. See comment in fix_range_common().
+Conversion is straightforward as most calls use mmap_sem
+within the same function context. No changes in semantics.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- arch/um/include/asm/mmu_context.h |  5 +++--
- arch/um/kernel/tlb.c              | 12 +++++++++++-
- arch/um/kernel/trap.c             |  6 +++---
- 3 files changed, 17 insertions(+), 6 deletions(-)
+ mm/ksm.c | 40 +++++++++++++++++++++++-----------------
+ 1 file changed, 23 insertions(+), 17 deletions(-)
 
-diff --git a/arch/um/include/asm/mmu_context.h b/arch/um/include/asm/mmu_context.h
-index 98cc3e36385a..7dc202c611db 100644
---- a/arch/um/include/asm/mmu_context.h
-+++ b/arch/um/include/asm/mmu_context.h
-@@ -49,14 +49,15 @@ extern void force_flush_all(void);
- 
- static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
- {
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 	/*
- 	 * This is called by fs/exec.c and sys_unshare()
- 	 * when the new ->mm is used for the first time.
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 66c350cd9799..c7d62c367ffc 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -526,11 +526,11 @@ static void break_cow(struct rmap_item *rmap_item)
  	 */
- 	__switch_mm(&new->context.id);
--	down_write(&new->mmap_sem);
-+        mm_write_lock(new, &mmrange);
- 	uml_setup_stubs(new);
--	up_write(&new->mmap_sem);
-+	mm_write_unlock(new, &mmrange);
- }
+ 	put_anon_vma(rmap_item->anon_vma);
  
- static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
-diff --git a/arch/um/kernel/tlb.c b/arch/um/kernel/tlb.c
-index 37508b190106..eeeeb048b6f4 100644
---- a/arch/um/kernel/tlb.c
-+++ b/arch/um/kernel/tlb.c
-@@ -297,10 +297,20 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
- 
- 	/* This is not an else because ret is modified above */
- 	if (ret) {
-+		/*
-+		 * FIXME: this is _wrong_ and will break arch/um.
-+		 *
-+		 *  The right thing to do is modify the flush_tlb_range()
-+		 *  api, but that in turn would require file_operations
-+		 *  knowing about mmrange... Compiles cleanly, but sucks
-+		 *  otherwise.
-+		 */
-+		DEFINE_RANGE_LOCK_FULL(mmrange);
-+
- 		printk(KERN_ERR "fix_range_common: failed, killing current "
- 		       "process: %d\n", task_tgid_vnr(current));
- 		/* We are under mmap_sem, release it such that current can terminate */
--		up_write(&current->mm->mmap_sem);
-+		mm_write_unlock(current->mm, &mmrange);
- 		force_sig(SIGKILL, current);
- 		do_signal(&current->thread.regs);
- 	}
-diff --git a/arch/um/kernel/trap.c b/arch/um/kernel/trap.c
-index e632a14e896e..14dcb83d00a9 100644
---- a/arch/um/kernel/trap.c
-+++ b/arch/um/kernel/trap.c
-@@ -47,7 +47,7 @@ int handle_page_fault(unsigned long address, unsigned long ip,
- 	if (is_user)
- 		flags |= FAULT_FLAG_USER;
- retry:
 -	down_read(&mm->mmap_sem);
 +	mm_read_lock(mm, &mmrange);
- 	vma = find_vma(mm, address);
+ 	vma = find_mergeable_vma(mm, addr);
+ 	if (vma)
+ 		break_ksm(vma, addr, &mmrange);
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ }
+ 
+ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+@@ -539,8 +539,9 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+ 	unsigned long addr = rmap_item->address;
+ 	struct vm_area_struct *vma;
+ 	struct page *page;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 	vma = find_mergeable_vma(mm, addr);
  	if (!vma)
  		goto out;
-@@ -123,7 +123,7 @@ int handle_page_fault(unsigned long address, unsigned long ip,
- #endif
- 	flush_tlb_page(vma, address);
+@@ -556,7 +557,7 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+ out:
+ 		page = NULL;
+ 	}
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	return page;
+ }
+ 
+@@ -936,7 +937,7 @@ static int unmerge_and_remove_all_rmap_items(void)
+ 	for (mm_slot = ksm_scan.mm_slot;
+ 			mm_slot != &ksm_mm_head; mm_slot = ksm_scan.mm_slot) {
+ 		mm = mm_slot->mm;
+-		down_read(&mm->mmap_sem);
++		mm_read_lock(mm, &mmrange);
+ 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 			if (ksm_test_exit(mm))
+ 				break;
+@@ -949,7 +950,7 @@ static int unmerge_and_remove_all_rmap_items(void)
+ 		}
+ 
+ 		remove_trailing_rmap_items(mm_slot, &mm_slot->rmap_list);
+-		up_read(&mm->mmap_sem);
++		mm_read_unlock(mm, &mmrange);
+ 
+ 		spin_lock(&ksm_mmlist_lock);
+ 		ksm_scan.mm_slot = list_entry(mm_slot->mm_list.next,
+@@ -972,7 +973,7 @@ static int unmerge_and_remove_all_rmap_items(void)
+ 	return 0;
+ 
+ error:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	spin_lock(&ksm_mmlist_lock);
+ 	ksm_scan.mm_slot = &ksm_mm_head;
+ 	spin_unlock(&ksm_mmlist_lock);
+@@ -1251,8 +1252,9 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
+ 	struct mm_struct *mm = rmap_item->mm;
+ 	struct vm_area_struct *vma;
+ 	int err = -EFAULT;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 	vma = find_mergeable_vma(mm, rmap_item->address);
+ 	if (!vma)
+ 		goto out;
+@@ -1268,7 +1270,7 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
+ 	rmap_item->anon_vma = vma->anon_vma;
+ 	get_anon_vma(vma->anon_vma);
  out:
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
- out_nosemaphore:
  	return err;
+ }
  
-@@ -132,7 +132,7 @@ int handle_page_fault(unsigned long address, unsigned long ip,
- 	 * We ran out of memory, call the OOM killer, and return the userspace
- 	 * (which will retry the fault, or kill us if we got oom-killed).
+@@ -2071,12 +2073,13 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
  	 */
--	up_read(&mm->mmap_sem);
-+	mm_read_unlock(mm, &mmrange);
- 	if (!is_user)
- 		goto out_nosemaphore;
- 	pagefault_out_of_memory();
+ 	if (ksm_use_zero_pages && (checksum == zero_checksum)) {
+ 		struct vm_area_struct *vma;
++		DEFINE_RANGE_LOCK_FULL(mmrange);
+ 
+-		down_read(&mm->mmap_sem);
++		mm_read_lock(mm, &mmrange);
+ 		vma = find_mergeable_vma(mm, rmap_item->address);
+ 		err = try_to_merge_one_page(vma, page,
+ 					    ZERO_PAGE(rmap_item->address));
+-		up_read(&mm->mmap_sem);
++		mm_read_unlock(mm, &mmrange);
+ 		/*
+ 		 * In case of failure, the page was not really empty, so we
+ 		 * need to continue. Otherwise we're done.
+@@ -2154,6 +2157,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+ 	struct vm_area_struct *vma;
+ 	struct rmap_item *rmap_item;
+ 	int nid;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 
+ 	if (list_empty(&ksm_mm_head.mm_list))
+ 		return NULL;
+@@ -2210,7 +2214,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+ 	}
+ 
+ 	mm = slot->mm;
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 	if (ksm_test_exit(mm))
+ 		vma = NULL;
+ 	else
+@@ -2244,7 +2248,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+ 					ksm_scan.address += PAGE_SIZE;
+ 				} else
+ 					put_page(*page);
+-				up_read(&mm->mmap_sem);
++				mm_read_unlock(mm, &mmrange);
+ 				return rmap_item;
+ 			}
+ 			put_page(*page);
+@@ -2282,10 +2286,10 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+ 
+ 		free_mm_slot(slot);
+ 		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+-		up_read(&mm->mmap_sem);
++		mm_read_unlock(mm, &mmrange);
+ 		mmdrop(mm);
+ 	} else {
+-		up_read(&mm->mmap_sem);
++		mm_read_unlock(mm, &mmrange);
+ 		/*
+ 		 * up_read(&mm->mmap_sem) first because after
+ 		 * spin_unlock(&ksm_mmlist_lock) run, the "mm" may
+@@ -2474,8 +2478,10 @@ void __ksm_exit(struct mm_struct *mm)
+ 		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+ 		mmdrop(mm);
+ 	} else if (mm_slot) {
+-		down_write(&mm->mmap_sem);
+-		up_write(&mm->mmap_sem);
++		DEFINE_RANGE_LOCK_FULL(mmrange);
++
++		mm_write_lock(mm, &mmrange);
++		mm_write_unlock(mm, &mmrange);
+ 	}
+ }
+ 
 -- 
 2.13.6
 
