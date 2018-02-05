@@ -1,53 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 583C36B0005
-	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 19:14:28 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id g187so7410333wmg.2
-        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 16:14:28 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 14si4794620wmf.11.2018.02.04.16.14.22
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1376C6B0005
+	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:28:03 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id q5so7779408pll.17
+        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:28:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h1-v6si2071263pld.637.2018.02.04.17.28.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 04 Feb 2018 16:14:22 -0800 (PST)
-Subject: Re: [PATCH 2/6] genalloc: selftest
-References: <20180204164732.28241-1-igor.stoppa@huawei.com>
- <20180204164732.28241-3-igor.stoppa@huawei.com>
- <e05598c1-3c7c-15c6-7278-ed52ceff0acf@infradead.org>
- <20180204230346.GA12502@bombadil.infradead.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <02f42250-949b-83af-f030-159fc46f6f81@infradead.org>
-Date: Sun, 4 Feb 2018 16:14:01 -0800
-MIME-Version: 1.0
-In-Reply-To: <20180204230346.GA12502@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 04 Feb 2018 17:28:01 -0800 (PST)
+From: Davidlohr Bueso <dbueso@suse.de>
+Subject: [PATCH 04/64] mm: add a range parameter to the vm_fault structure
+Date: Mon,  5 Feb 2018 02:26:54 +0100
+Message-Id: <20180205012754.23615-5-dbueso@wotan.suse.de>
+In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
+References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Igor Stoppa <igor.stoppa@huawei.com>, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: akpm@linux-foundation.org, mingo@kernel.org
+Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kernel.org, kirill.shutemov@linux.intel.com, mawilcox@microsoft.com, mgorman@techsingularity.net, dave@stgolabs.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
 
-On 02/04/2018 03:03 PM, Matthew Wilcox wrote:
-> On Sun, Feb 04, 2018 at 02:19:22PM -0800, Randy Dunlap wrote:
->>> +#ifndef __GENALLOC_SELFTEST_H__
->>> +#define __GENALLOC_SELFTEST_H__
->>
->> Please use _LINUX_GENALLOC_SELFTEST_H_
-> 
-> willy@bobo:~/kernel/linux$ git grep define.*_H__$ include/linux/*.h |wc -l
-> 98
-> willy@bobo:~/kernel/linux$ git grep define.*_H_$ include/linux/*.h |wc -l
-> 110
-> willy@bobo:~/kernel/linux$ git grep define.*_H$ include/linux/*.h |wc -l
-> 885
-> 
-> No trailing underscore is 8x as common as one trailing underscore.
+From: Davidlohr Bueso <dave@stgolabs.net>
 
-OK, ack.
+When handling a page fault, it happens that the mmap_sem is released
+during the processing. As moving to range lock requires to pass the
+range parameter to the lock/unlock operation, this patch add a pointer
+to the range structure used when locking the mmap_sem to vm_fault
+structure.
 
-thanks,
+It is currently unused, but will be in the next patches.
+
+Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+---
+ include/linux/mm.h | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 9d2ed23aa894..bcf2509d448d 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -361,6 +361,10 @@ struct vm_fault {
+ 					 * page table to avoid allocation from
+ 					 * atomic context.
+ 					 */
++	struct range_lock *lockrange;	/* Range lock interval in use for when
++					 * the mm lock is manipulated throughout
++					 * its lifespan.
++					 */
+ };
+ 
+ /* page entry size for vm->huge_fault() */
 -- 
-~Randy
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
