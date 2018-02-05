@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 28FF46B0006
-	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:23 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id x2so10027179plv.16
-        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:23 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 669396B027A
+	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:24 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id l7so4866000pga.6
+        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:24 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k23-v6si6325729pli.490.2018.02.04.17.28.05
+        by mx.google.com with ESMTPS id b1-v6si6146916pls.421.2018.02.04.17.28.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Feb 2018 17:28:05 -0800 (PST)
+        Sun, 04 Feb 2018 17:28:07 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 21/64] mm: teach drop/take_all_locks() about range locking
-Date: Mon,  5 Feb 2018 02:27:11 +0100
-Message-Id: <20180205012754.23615-22-dbueso@wotan.suse.de>
+Subject: [PATCH 45/64] arch/m32r: use mm locking wrappers
+Date: Mon,  5 Feb 2018 02:27:35 +0100
+Message-Id: <20180205012754.23615-46-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,113 +22,66 @@ Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kerne
 
 From: Davidlohr Bueso <dave@stgolabs.net>
 
-And use the mm locking helpers. No changes in semantics.
+This becomes quite straightforward with the mmrange in place.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- include/linux/mm.h |  6 ++++--
- mm/mmap.c          | 12 +++++++-----
- mm/mmu_notifier.c  |  9 +++++----
- 3 files changed, 16 insertions(+), 11 deletions(-)
+ arch/m32r/mm/fault.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index fc4e7fdc3e76..0b9867e8a35d 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2198,8 +2198,10 @@ static inline int check_data_rlimit(unsigned long rlim,
- 	return 0;
- }
+diff --git a/arch/m32r/mm/fault.c b/arch/m32r/mm/fault.c
+index 0129aea46729..2c6b58ecfc53 100644
+--- a/arch/m32r/mm/fault.c
++++ b/arch/m32r/mm/fault.c
+@@ -137,11 +137,11 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
+ 	 * source.  If this is invalid we can skip the address space check,
+ 	 * thus avoiding the deadlock.
+ 	 */
+-	if (!down_read_trylock(&mm->mmap_sem)) {
++	if (!mm_read_trylock(mm, &mmrange)) {
+ 		if ((error_code & ACE_USERMODE) == 0 &&
+ 		    !search_exception_tables(regs->psw))
+ 			goto bad_area_nosemaphore;
+-		down_read(&mm->mmap_sem);
++		mm_read_lock(mm, &mmrange);
+ 	}
  
--extern int mm_take_all_locks(struct mm_struct *mm);
--extern void mm_drop_all_locks(struct mm_struct *mm);
-+extern int mm_take_all_locks(struct mm_struct *mm,
-+			     struct range_lock *mmrange);
-+extern void mm_drop_all_locks(struct mm_struct *mm,
-+			      struct range_lock *mmrange);
+ 	vma = find_vma(mm, address);
+@@ -213,7 +213,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
+ 	else
+ 		tsk->min_flt++;
+ 	set_thread_fault_code(0);
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	return;
  
- extern void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file);
- extern struct file *get_mm_exe_file(struct mm_struct *mm);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f61d49cb791e..8f0eb88a5d5e 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3461,12 +3461,13 @@ static void vm_lock_mapping(struct mm_struct *mm, struct address_space *mapping)
-  *
-  * mm_take_all_locks() can fail if it's interrupted by signals.
+ /*
+@@ -221,7 +221,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
+  * Fix it, but check if it's kernel or user first..
   */
--int mm_take_all_locks(struct mm_struct *mm)
-+int mm_take_all_locks(struct mm_struct *mm,
-+		      struct range_lock *mmrange)
- {
- 	struct vm_area_struct *vma;
- 	struct anon_vma_chain *avc;
+ bad_area:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
  
--	BUG_ON(down_read_trylock(&mm->mmap_sem));
-+	BUG_ON(mm_read_trylock(mm, mmrange));
- 
- 	mutex_lock(&mm_all_locks_mutex);
- 
-@@ -3497,7 +3498,7 @@ int mm_take_all_locks(struct mm_struct *mm)
- 	return 0;
- 
- out_unlock:
--	mm_drop_all_locks(mm);
-+	mm_drop_all_locks(mm, mmrange);
- 	return -EINTR;
- }
- 
-@@ -3541,12 +3542,13 @@ static void vm_unlock_mapping(struct address_space *mapping)
-  * The mmap_sem cannot be released by the caller until
-  * mm_drop_all_locks() returns.
+ bad_area_nosemaphore:
+ 	/* User mode accesses just cause a SIGSEGV */
+@@ -274,14 +274,14 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
+  * us unable to handle the page fault gracefully.
   */
--void mm_drop_all_locks(struct mm_struct *mm)
-+void mm_drop_all_locks(struct mm_struct *mm,
-+		       struct range_lock *mmrange)
- {
- 	struct vm_area_struct *vma;
- 	struct anon_vma_chain *avc;
+ out_of_memory:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	if (!(error_code & ACE_USERMODE))
+ 		goto no_context;
+ 	pagefault_out_of_memory();
+ 	return;
  
--	BUG_ON(down_read_trylock(&mm->mmap_sem));
-+	BUG_ON(mm_read_trylock(mm, mmrange));
- 	BUG_ON(!mutex_is_locked(&mm_all_locks_mutex));
+ do_sigbus:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
  
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 3e8a1a10607e..da99c01b8149 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -274,6 +274,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- {
- 	struct mmu_notifier_mm *mmu_notifier_mm;
- 	int ret;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
- 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
- 
-@@ -283,8 +284,8 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 		goto out;
- 
- 	if (take_mmap_sem)
--		down_write(&mm->mmap_sem);
--	ret = mm_take_all_locks(mm);
-+	        mm_write_lock(mm, &mmrange);
-+	ret = mm_take_all_locks(mm, &mmrange);
- 	if (unlikely(ret))
- 		goto out_clean;
- 
-@@ -309,10 +310,10 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 	hlist_add_head(&mn->hlist, &mm->mmu_notifier_mm->list);
- 	spin_unlock(&mm->mmu_notifier_mm->lock);
- 
--	mm_drop_all_locks(mm);
-+	mm_drop_all_locks(mm, &mmrange);
- out_clean:
- 	if (take_mmap_sem)
--		up_write(&mm->mmap_sem);
-+		mm_write_unlock(mm, &mmrange);
- 	kfree(mmu_notifier_mm);
- out:
- 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+ 	/* Kernel mode? Handle exception or die */
+ 	if (!(error_code & ACE_USERMODE))
 -- 
 2.13.6
 
