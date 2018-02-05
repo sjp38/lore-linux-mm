@@ -1,62 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 47A2B6B0005
-	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 07:43:29 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id m3so19850212pgd.20
-        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 04:43:29 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i14sor1271490pgp.145.2018.02.05.04.43.28
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F7A6B0005
+	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 08:45:46 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id h5so19930241pgv.21
+        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 05:45:46 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id y12si723623pff.230.2018.02.05.05.45.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Feb 2018 04:43:28 -0800 (PST)
-Date: Mon, 5 Feb 2018 21:43:23 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: bisected bd4c82c22c367e is the first bad commit (was [Bug
- 198617] New: zswap causing random applications to crash)
-Message-ID: <20180205124323.GB426@jagdpanzerIV>
-References: <20180130114841.aa2d3bd99526c03c6a5b5810@linux-foundation.org>
- <20180203013455.GA739@jagdpanzerIV>
- <CAC=cRTPyh-JTY=uOQf2dgmyPDyY-4+ryxkedp-iZMcFQZtnaqw@mail.gmail.com>
- <20180205013758.GA648@jagdpanzerIV>
- <87d11j4pdy.fsf@yhuang-dev.intel.com>
- <20180205123947.GA426@jagdpanzerIV>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Feb 2018 05:45:45 -0800 (PST)
+Subject: Re: Possible reasons of CMA allocation failure
+From: Alexey Skidanov <alexey.skidanov@intel.com>
+References: <10f52913-ad8b-4fd2-5e55-47aa46c48c0d@intel.com>
+Message-ID: <d566a6df-b0d7-8ab6-69dc-ae6077cee75b@intel.com>
+Date: Mon, 5 Feb 2018 15:46:13 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180205123947.GA426@jagdpanzerIV>
+In-Reply-To: <10f52913-ad8b-4fd2-5e55-47aa46c48c0d@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, huang ying <huang.ying.caritas@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, labbott@redhat.com
 
-On (02/05/18 21:39), Sergey Senozhatsky wrote:
-> > I have successfully reproduced the issue and find the problem.  The
-> > following patch fix the issue for me, can you try it?
-> 
-> That was quick ;)
-> 
-> > ---------------------------------8<-------------------------------
-> > From 4c52d531680f91572ebc6f4525a018e32a934ef0 Mon Sep 17 00:00:00 2001
-> > From: Huang Ying <huang.ying.caritas@gmail.com>
-> > Date: Mon, 5 Feb 2018 19:27:43 +0800
-> > Subject: [PATCH] fontswap thp fix
-> 
-> Seems to be fixing the problem on my x86 box. Executed several tests, no
-> crashes were observed. Can run more tests tomorrow.
-> 
-> 
-> ============================================================================
-> 
-> Probably unrelated, but may be it is related: my X server used to hang
-> sometimes (rarely) which I suspect was/is caused by nouveau driver. It,
-> surprisingly, didn't hang this time around. Nouveau spitted a number
-> of backtraces, but X server managed to survive it. Any chance that
-> nouveau-X server thing was caused by THP?
 
-No, wait. How could it be... I don't even use frontswap usually.
-Sorry for the silly question.
 
-	-ss
+On 02/05/2018 12:58 AM, Alexey Skidanov wrote:
+> Hello,
+> 
+> On x86 machine with 16GB RAM installed, I reserved 1 GB area for CMA:
+> [    0.000000] cma: Reserved 1024 MiB at 0x00000003fcc00000
+> 
+> Some time after the boot, CMa failed to allocate chunk of memory while
+> there are enough contiguous pages:
+> 
+> [  392.132392] cma: cma_alloc: alloc failed, req-size: 200000 pages,
+> ret: -16
+> [  392.132393] cma: number of available pages:
+> 6@8314+9@8343+9@8375+253648@8496=> 253672 free of 262144 total pages
+> [  392.132398] cma: cma_alloc(): returned (null)
+> 
+> What are the possible reasons for such failure (besides the pinned user
+> allocated pages) ?
+> 
+> Thanks,
+> Alexey
+> 
+
+After some debugging - the page migration failed because of there is the
+page with _refcount 2, _mapcount -1. Seems like it's pinned?
+
+Thanks,
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
