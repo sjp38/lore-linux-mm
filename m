@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E75996B02AE
-	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:46 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id h5so18600454pgv.21
-        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:46 -0800 (PST)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 420956B02AF
+	for <linux-mm@kvack.org>; Sun,  4 Feb 2018 20:29:57 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id q5so7784449pll.17
+        for <linux-mm@kvack.org>; Sun, 04 Feb 2018 17:29:57 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g1-v6si6334132plk.422.2018.02.04.17.28.06
+        by mx.google.com with ESMTPS id o3-v6si6201721plk.533.2018.02.04.17.28.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Feb 2018 17:28:06 -0800 (PST)
+        Sun, 04 Feb 2018 17:28:03 -0800 (PST)
 From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 33/64] arch/powerpc: use mm locking wrappers
-Date: Mon,  5 Feb 2018 02:27:23 +0100
-Message-Id: <20180205012754.23615-34-dbueso@wotan.suse.de>
+Subject: [PATCH 13/64] fs/proc: teach about range locking
+Date: Mon,  5 Feb 2018 02:27:03 +0100
+Message-Id: <20180205012754.23615-14-dbueso@wotan.suse.de>
 In-Reply-To: <20180205012754.23615-1-dbueso@wotan.suse.de>
 References: <20180205012754.23615-1-dbueso@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,375 +22,336 @@ Cc: peterz@infradead.org, ldufour@linux.vnet.ibm.com, jack@suse.cz, mhocko@kerne
 
 From: Davidlohr Bueso <dave@stgolabs.net>
 
-This becomes quite straightforward with the mmrange in place.
-For those mmap_sem callers who don't, we add it within the same
-function context.
+And use mm locking wrappers -- no change in semantics.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- arch/powerpc/kernel/vdso.c                 |  7 ++++---
- arch/powerpc/kvm/book3s_64_mmu_hv.c        |  6 ++++--
- arch/powerpc/kvm/book3s_64_mmu_radix.c     |  6 ++++--
- arch/powerpc/kvm/book3s_64_vio.c           |  5 +++--
- arch/powerpc/kvm/book3s_hv.c               |  7 ++++---
- arch/powerpc/kvm/e500_mmu_host.c           |  5 +++--
- arch/powerpc/mm/copro_fault.c              |  4 ++--
- arch/powerpc/mm/mmu_context_iommu.c        |  5 +++--
- arch/powerpc/mm/subpage-prot.c             | 13 +++++++------
- arch/powerpc/oprofile/cell/spu_task_sync.c |  7 ++++---
- arch/powerpc/platforms/cell/spufs/file.c   |  6 ++++--
- arch/powerpc/platforms/powernv/npu-dma.c   |  2 +-
- 12 files changed, 43 insertions(+), 30 deletions(-)
+ fs/proc/base.c       | 33 ++++++++++++++++++++-------------
+ fs/proc/task_mmu.c   | 22 +++++++++++-----------
+ fs/proc/task_nommu.c | 22 +++++++++++++---------
+ 3 files changed, 44 insertions(+), 33 deletions(-)
 
-diff --git a/arch/powerpc/kernel/vdso.c b/arch/powerpc/kernel/vdso.c
-index 22b01a3962f0..869632b601b8 100644
---- a/arch/powerpc/kernel/vdso.c
-+++ b/arch/powerpc/kernel/vdso.c
-@@ -155,6 +155,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
- 	unsigned long vdso_pages;
- 	unsigned long vdso_base;
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 9298324325ed..c94ee3e54f25 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -220,6 +220,7 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
+ 	unsigned long p;
+ 	char c;
+ 	ssize_t rv;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 
+ 	BUG_ON(*pos < 0);
+ 
+@@ -242,12 +243,12 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
+ 		goto out_mmput;
+ 	}
+ 
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 	arg_start = mm->arg_start;
+ 	arg_end = mm->arg_end;
+ 	env_start = mm->env_start;
+ 	env_end = mm->env_end;
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 
+ 	BUG_ON(arg_start > arg_end);
+ 	BUG_ON(env_start > env_end);
+@@ -915,6 +916,7 @@ static ssize_t environ_read(struct file *file, char __user *buf,
+ 	unsigned long src = *ppos;
+ 	int ret = 0;
+ 	struct mm_struct *mm = file->private_data;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 	unsigned long env_start, env_end;
+ 
+ 	/* Ensure the process spawned far enough to have an environment. */
+@@ -929,10 +931,10 @@ static ssize_t environ_read(struct file *file, char __user *buf,
+ 	if (!mmget_not_zero(mm))
+ 		goto free;
+ 
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 	env_start = mm->env_start;
+ 	env_end = mm->env_end;
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 
+ 	while (count > 0) {
+ 		size_t this_len, max_len;
+@@ -1962,9 +1964,11 @@ static int map_files_d_revalidate(struct dentry *dentry, unsigned int flags)
+ 		goto out;
+ 
+ 	if (!dname_to_vma_addr(dentry, &vm_start, &vm_end)) {
+-		down_read(&mm->mmap_sem);
++		DEFINE_RANGE_LOCK_FULL(mmrange);
++
++		mm_read_lock(mm, &mmrange);
+ 		exact_vma_exists = !!find_exact_vma(mm, vm_start, vm_end);
+-		up_read(&mm->mmap_sem);
++		mm_read_unlock(mm, &mmrange);
+ 	}
+ 
+ 	mmput(mm);
+@@ -1995,6 +1999,7 @@ static int map_files_get_link(struct dentry *dentry, struct path *path)
+ 	struct task_struct *task;
+ 	struct mm_struct *mm;
  	int rc;
 +	DEFINE_RANGE_LOCK_FULL(mmrange);
  
- 	if (!vdso_ready)
- 		return 0;
-@@ -196,7 +197,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
- 	 * and end up putting it elsewhere.
- 	 * Add enough to the size so that the result can be aligned.
- 	 */
--	if (down_write_killable(&mm->mmap_sem))
-+	if (mm_write_lock_killable(mm, &mmrange))
- 		return -EINTR;
- 	vdso_base = get_unmapped_area(NULL, vdso_base,
- 				      (vdso_pages << PAGE_SHIFT) +
-@@ -236,11 +237,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
- 		goto fail_mmapsem;
- 	}
+ 	rc = -ENOENT;
+ 	task = get_proc_task(d_inode(dentry));
+@@ -2011,14 +2016,14 @@ static int map_files_get_link(struct dentry *dentry, struct path *path)
+ 		goto out_mmput;
  
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
- 	return 0;
- 
-  fail_mmapsem:
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
- 	return rc;
- }
- 
-diff --git a/arch/powerpc/kvm/book3s_64_mmu_hv.c b/arch/powerpc/kvm/book3s_64_mmu_hv.c
-index b73dbc9e797d..c05a99209fc1 100644
---- a/arch/powerpc/kvm/book3s_64_mmu_hv.c
-+++ b/arch/powerpc/kvm/book3s_64_mmu_hv.c
-@@ -583,8 +583,10 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
- 	hva = gfn_to_hva_memslot(memslot, gfn);
- 	npages = get_user_pages_fast(hva, 1, writing, pages);
- 	if (npages < 1) {
-+		DEFINE_RANGE_LOCK_FULL(mmrange);
-+
- 		/* Check if it's an I/O mapping */
--		down_read(&current->mm->mmap_sem);
-+		mm_read_lock(current->mm, &mmrange);
- 		vma = find_vma(current->mm, hva);
- 		if (vma && vma->vm_start <= hva && hva + psize <= vma->vm_end &&
- 		    (vma->vm_flags & VM_PFNMAP)) {
-@@ -594,7 +596,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
- 			is_ci = pte_ci(__pte((pgprot_val(vma->vm_page_prot))));
- 			write_ok = vma->vm_flags & VM_WRITE;
- 		}
--		up_read(&current->mm->mmap_sem);
-+		mm_read_unlock(current->mm, &mmrange);
- 		if (!pfn)
- 			goto out_put;
- 	} else {
-diff --git a/arch/powerpc/kvm/book3s_64_mmu_radix.c b/arch/powerpc/kvm/book3s_64_mmu_radix.c
-index 0c854816e653..9a4d1758b0db 100644
---- a/arch/powerpc/kvm/book3s_64_mmu_radix.c
-+++ b/arch/powerpc/kvm/book3s_64_mmu_radix.c
-@@ -397,8 +397,10 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
- 	level = 0;
- 	npages = get_user_pages_fast(hva, 1, writing, pages);
- 	if (npages < 1) {
-+		DEFINE_RANGE_LOCK_FULL(mmrange);
-+
- 		/* Check if it's an I/O mapping */
--		down_read(&current->mm->mmap_sem);
-+		mm_read_lock(current->mm, &mmrange);
- 		vma = find_vma(current->mm, hva);
- 		if (vma && vma->vm_start <= hva && hva < vma->vm_end &&
- 		    (vma->vm_flags & VM_PFNMAP)) {
-@@ -406,7 +408,7 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
- 				((hva - vma->vm_start) >> PAGE_SHIFT);
- 			pgflags = pgprot_val(vma->vm_page_prot);
- 		}
--		up_read(&current->mm->mmap_sem);
-+		mm_read_unlock(current->mm, &mmrange);
- 		if (!pfn)
- 			return -EFAULT;
- 	} else {
-diff --git a/arch/powerpc/kvm/book3s_64_vio.c b/arch/powerpc/kvm/book3s_64_vio.c
-index 4dffa611376d..5e6fe2820009 100644
---- a/arch/powerpc/kvm/book3s_64_vio.c
-+++ b/arch/powerpc/kvm/book3s_64_vio.c
-@@ -60,11 +60,12 @@ static unsigned long kvmppc_stt_pages(unsigned long tce_pages)
- static long kvmppc_account_memlimit(unsigned long stt_pages, bool inc)
- {
- 	long ret = 0;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
- 	if (!current || !current->mm)
- 		return ret; /* process exited */
- 
--	down_write(&current->mm->mmap_sem);
-+	mm_write_lock(current->mm, &mmrange);
- 
- 	if (inc) {
- 		unsigned long locked, lock_limit;
-@@ -89,7 +90,7 @@ static long kvmppc_account_memlimit(unsigned long stt_pages, bool inc)
- 			rlimit(RLIMIT_MEMLOCK),
- 			ret ? " - exceeded" : "");
- 
--	up_write(&current->mm->mmap_sem);
-+	mm_write_unlock(current->mm, &mmrange);
- 
- 	return ret;
- }
-diff --git a/arch/powerpc/kvm/book3s_hv.c b/arch/powerpc/kvm/book3s_hv.c
-index 473f6eebe34f..1bf281f37713 100644
---- a/arch/powerpc/kvm/book3s_hv.c
-+++ b/arch/powerpc/kvm/book3s_hv.c
-@@ -3610,6 +3610,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
- 	unsigned long lpcr = 0, senc;
- 	unsigned long psize, porder;
- 	int srcu_idx;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
- 	/* Allocate hashed page table (if not done already) and reset it */
- 	if (!kvm->arch.hpt.virt) {
-@@ -3642,7 +3643,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
- 
- 	/* Look up the VMA for the start of this memory slot */
- 	hva = memslot->userspace_addr;
--	down_read(&current->mm->mmap_sem);
-+	mm_read_lock(current->mm, &mmrange);
- 	vma = find_vma(current->mm, hva);
- 	if (!vma || vma->vm_start > hva || (vma->vm_flags & VM_IO))
- 		goto up_out;
-@@ -3650,7 +3651,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
- 	psize = vma_kernel_pagesize(vma);
- 	porder = __ilog2(psize);
- 
--	up_read(&current->mm->mmap_sem);
-+	mm_read_unlock(current->mm, &mmrange);
- 
- 	/* We can handle 4k, 64k or 16M pages in the VRMA */
- 	err = -EINVAL;
-@@ -3680,7 +3681,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
- 	return err;
- 
-  up_out:
--	up_read(&current->mm->mmap_sem);
-+	mm_read_unlock(current->mm, &mmrange);
- 	goto out_srcu;
- }
- 
-diff --git a/arch/powerpc/kvm/e500_mmu_host.c b/arch/powerpc/kvm/e500_mmu_host.c
-index 423b21393bc9..72ce80fa9453 100644
---- a/arch/powerpc/kvm/e500_mmu_host.c
-+++ b/arch/powerpc/kvm/e500_mmu_host.c
-@@ -358,7 +358,8 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
- 
- 	if (tlbsel == 1) {
- 		struct vm_area_struct *vma;
--		down_read(&current->mm->mmap_sem);
-+		DEFINE_RANGE_LOCK_FULL(mmrange);
-+		mm_read_lock(current->mm, &mmrange);
- 
- 		vma = find_vma(current->mm, hva);
- 		if (vma && hva >= vma->vm_start &&
-@@ -444,7 +445,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
- 			tsize = max(BOOK3E_PAGESZ_4K, tsize & ~1);
- 		}
- 
--		up_read(&current->mm->mmap_sem);
-+		mm_read_unlock(current->mm, &mmrange);
- 	}
- 
- 	if (likely(!pfnmap)) {
-diff --git a/arch/powerpc/mm/copro_fault.c b/arch/powerpc/mm/copro_fault.c
-index 8f5e604828a1..570ebca7e2f8 100644
---- a/arch/powerpc/mm/copro_fault.c
-+++ b/arch/powerpc/mm/copro_fault.c
-@@ -47,7 +47,7 @@ int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
- 	if (mm->pgd == NULL)
- 		return -EFAULT;
- 
+ 	rc = -ENOENT;
 -	down_read(&mm->mmap_sem);
 +	mm_read_lock(mm, &mmrange);
- 	ret = -EFAULT;
- 	vma = find_vma(mm, ea);
- 	if (!vma)
-@@ -97,7 +97,7 @@ int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
- 		current->min_flt++;
- 
- out_unlock:
+ 	vma = find_exact_vma(mm, vm_start, vm_end);
+ 	if (vma && vma->vm_file) {
+ 		*path = vma->vm_file->f_path;
+ 		path_get(path);
+ 		rc = 0;
+ 	}
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(copro_handle_mm_fault);
-diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
-index 91ee2231c527..35d32a8ccb89 100644
---- a/arch/powerpc/mm/mmu_context_iommu.c
-+++ b/arch/powerpc/mm/mmu_context_iommu.c
-@@ -36,11 +36,12 @@ static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
- 		unsigned long npages, bool incr)
- {
- 	long ret = 0, locked, lock_limit;
+ 
+ out_mmput:
+ 	mmput(mm);
+@@ -2091,6 +2096,7 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
+ 	struct task_struct *task;
+ 	int result;
+ 	struct mm_struct *mm;
 +	DEFINE_RANGE_LOCK_FULL(mmrange);
  
- 	if (!npages)
- 		return 0;
- 
--	down_write(&mm->mmap_sem);
-+	mm_write_lock(mm, &mmrange);
- 
- 	if (incr) {
- 		locked = mm->locked_vm + npages;
-@@ -61,7 +62,7 @@ static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
- 			npages << PAGE_SHIFT,
- 			mm->locked_vm << PAGE_SHIFT,
- 			rlimit(RLIMIT_MEMLOCK));
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
- 
- 	return ret;
- }
-diff --git a/arch/powerpc/mm/subpage-prot.c b/arch/powerpc/mm/subpage-prot.c
-index f14a07c2fb90..0afd636123fd 100644
---- a/arch/powerpc/mm/subpage-prot.c
-+++ b/arch/powerpc/mm/subpage-prot.c
-@@ -97,9 +97,10 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
- 	u32 **spm, *spp;
- 	unsigned long i;
- 	size_t nw;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 	unsigned long next, limit;
- 
--	down_write(&mm->mmap_sem);
-+	mm_write_lock(mm, &mmrange);
- 	limit = addr + len;
- 	if (limit > spt->maxaddr)
- 		limit = spt->maxaddr;
-@@ -127,7 +128,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
- 		/* now flush any existing HPTEs for the range */
- 		hpte_flush_range(mm, addr, nw);
- 	}
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-@@ -216,7 +217,7 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
- 	if (!access_ok(VERIFY_READ, map, (len >> PAGE_SHIFT) * sizeof(u32)))
- 		return -EFAULT;
- 
--	down_write(&mm->mmap_sem);
-+	mm_write_lock(mm, &mmrange);
- 	subpage_mark_vma_nohuge(mm, addr, len);
- 	for (limit = addr + len; addr < limit; addr = next) {
- 		next = pmd_addr_end(addr, limit);
-@@ -251,11 +252,11 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
- 		if (addr + (nw << PAGE_SHIFT) > next)
- 			nw = (next - addr) >> PAGE_SHIFT;
- 
--		up_write(&mm->mmap_sem);
-+		mm_write_unlock(mm, &mmrange);
- 		if (__copy_from_user(spp, map, nw * sizeof(u32)))
- 			return -EFAULT;
- 		map += nw;
--		down_write(&mm->mmap_sem);
-+		mm_write_lock(mm, &mmrange);
- 
- 		/* now flush any existing HPTEs for the range */
- 		hpte_flush_range(mm, addr, nw);
-@@ -264,6 +265,6 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
- 		spt->maxaddr = limit;
- 	err = 0;
-  out:
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm, &mmrange);
- 	return err;
- }
-diff --git a/arch/powerpc/oprofile/cell/spu_task_sync.c b/arch/powerpc/oprofile/cell/spu_task_sync.c
-index 44d67b167e0b..50ebb615fdab 100644
---- a/arch/powerpc/oprofile/cell/spu_task_sync.c
-+++ b/arch/powerpc/oprofile/cell/spu_task_sync.c
-@@ -325,6 +325,7 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
- 	struct vm_area_struct *vma;
- 	struct file *exe_file;
- 	struct mm_struct *mm = spu->mm;
-+	DEFINE_RANGE_LOCK_FULL(mmrange);
- 
+ 	result = -ENOENT;
+ 	task = get_proc_task(dir);
+@@ -2109,7 +2115,7 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
  	if (!mm)
- 		goto out;
-@@ -336,7 +337,7 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
- 		fput(exe_file);
- 	}
+ 		goto out_put_task;
  
 -	down_read(&mm->mmap_sem);
 +	mm_read_lock(mm, &mmrange);
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 		if (vma->vm_start > spu_ref || vma->vm_end <= spu_ref)
- 			continue;
-@@ -353,13 +354,13 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
- 	*spu_bin_dcookie = fast_get_dcookie(&vma->vm_file->f_path);
- 	pr_debug("got dcookie for %pD\n", vma->vm_file);
+ 	vma = find_exact_vma(mm, vm_start, vm_end);
+ 	if (!vma)
+ 		goto out_no_vma;
+@@ -2119,7 +2125,7 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
+ 				(void *)(unsigned long)vma->vm_file->f_mode);
  
+ out_no_vma:
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	mmput(mm);
+ out_put_task:
+ 	put_task_struct(task);
+@@ -2144,6 +2150,7 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
+ 	struct map_files_info info;
+ 	struct map_files_info *p;
+ 	int ret;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 
+ 	ret = -ENOENT;
+ 	task = get_proc_task(file_inode(file));
+@@ -2161,7 +2168,7 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
+ 	mm = get_task_mm(task);
+ 	if (!mm)
+ 		goto out_put_task;
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 
+ 	nr_files = 0;
+ 
+@@ -2188,7 +2195,7 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
+ 			ret = -ENOMEM;
+ 			if (fa)
+ 				flex_array_free(fa);
+-			up_read(&mm->mmap_sem);
++			mm_read_unlock(mm, &mmrange);
+ 			mmput(mm);
+ 			goto out_put_task;
+ 		}
+@@ -2206,7 +2213,7 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
+ 				BUG();
+ 		}
+ 	}
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
  
- out:
- 	return app_cookie;
+ 	for (i = 0; i < nr_files; i++) {
+ 		char buf[4 * sizeof(long) + 2];	/* max: %lx-%lx\0 */
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 7c0a79a937b5..feb5bd4e5c82 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -136,7 +136,7 @@ static void vma_stop(struct proc_maps_private *priv)
+ 	struct mm_struct *mm = priv->mm;
  
- fail_no_image_cookie:
+ 	release_task_mempolicy(priv);
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &priv->mmrange);
+ 	mmput(mm);
+ }
+ 
+@@ -175,7 +175,7 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
+ 		return NULL;
+ 
+ 	range_lock_init_full(&priv->mmrange);
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &priv->mmrange);
+ 	hold_task_mempolicy(priv);
+ 	priv->tail_vma = get_gate_vma(mm);
+ 
+@@ -1135,7 +1135,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 		};
+ 
+ 		if (type == CLEAR_REFS_MM_HIWATER_RSS) {
+-			if (down_write_killable(&mm->mmap_sem)) {
++			if (mm_write_lock_killable(mm, &mmrange)) {
+ 				count = -EINTR;
+ 				goto out_mm;
+ 			}
+@@ -1145,18 +1145,18 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 			 * resident set size to this mm's current rss value.
+ 			 */
+ 			reset_mm_hiwater_rss(mm);
+-			up_write(&mm->mmap_sem);
++			mm_write_unlock(mm, &mmrange);
+ 			goto out_mm;
+ 		}
+ 
+-		down_read(&mm->mmap_sem);
++	        mm_read_lock(mm, &mmrange);
+ 		tlb_gather_mmu(&tlb, mm, 0, -1);
+ 		if (type == CLEAR_REFS_SOFT_DIRTY) {
+ 			for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 				if (!(vma->vm_flags & VM_SOFTDIRTY))
+ 					continue;
+-				up_read(&mm->mmap_sem);
+-				if (down_write_killable(&mm->mmap_sem)) {
++				mm_read_unlock(mm, &mmrange);
++				if (mm_write_lock_killable(mm, &mmrange)) {
+ 					count = -EINTR;
+ 					goto out_mm;
+ 				}
+@@ -1164,7 +1164,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 					vma->vm_flags &= ~VM_SOFTDIRTY;
+ 					vma_set_page_prot(vma);
+ 				}
+-				downgrade_write(&mm->mmap_sem);
++				mm_downgrade_write(mm, &mmrange);
+ 				break;
+ 			}
+ 			mmu_notifier_invalidate_range_start(mm, 0, -1);
+@@ -1174,7 +1174,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 		if (type == CLEAR_REFS_SOFT_DIRTY)
+ 			mmu_notifier_invalidate_range_end(mm, 0, -1);
+ 		tlb_finish_mmu(&tlb, 0, -1);
+-		up_read(&mm->mmap_sem);
++		mm_read_unlock(mm, &mmrange);
+ out_mm:
+ 		mmput(mm);
+ 	}
+@@ -1528,10 +1528,10 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 		/* overflow ? */
+ 		if (end < start_vaddr || end > end_vaddr)
+ 			end = end_vaddr;
+-		down_read(&mm->mmap_sem);
++		mm_read_lock(mm, mmrange);
+ 		ret = walk_page_range(start_vaddr, end, &pagemap_walk,
+ 				      mmrange);
+-		up_read(&mm->mmap_sem);
++		mm_read_unlock(mm, mmrange);
+ 		start_vaddr = end;
+ 
+ 		len = min(count, PM_ENTRY_BYTES * pm.pos);
+diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
+index 5b62f57bd9bc..50a21813f926 100644
+--- a/fs/proc/task_nommu.c
++++ b/fs/proc/task_nommu.c
+@@ -23,9 +23,10 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 	struct vm_area_struct *vma;
+ 	struct vm_region *region;
+ 	struct rb_node *p;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 	unsigned long bytes = 0, sbytes = 0, slack = 0, size;
+         
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
+ 		vma = rb_entry(p, struct vm_area_struct, vm_rb);
+ 
+@@ -77,7 +78,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 		"Shared:\t%8lu bytes\n",
+ 		bytes, slack, sbytes);
+ 
 -	up_read(&mm->mmap_sem);
 +	mm_read_unlock(mm, &mmrange);
+ }
  
- 	printk(KERN_ERR "SPU_PROF: "
- 		"%s, line %d: Cannot find dcookie for SPU binary\n",
-diff --git a/arch/powerpc/platforms/cell/spufs/file.c b/arch/powerpc/platforms/cell/spufs/file.c
-index c1be486da899..f2017a915bd8 100644
---- a/arch/powerpc/platforms/cell/spufs/file.c
-+++ b/arch/powerpc/platforms/cell/spufs/file.c
-@@ -347,11 +347,13 @@ static int spufs_ps_fault(struct vm_fault *vmf,
- 		goto refault;
+ unsigned long task_vsize(struct mm_struct *mm)
+@@ -85,13 +86,14 @@ unsigned long task_vsize(struct mm_struct *mm)
+ 	struct vm_area_struct *vma;
+ 	struct rb_node *p;
+ 	unsigned long vsize = 0;
++	DEFINE_RANGE_LOCK_FULL(mmrange);
  
- 	if (ctx->state == SPU_STATE_SAVED) {
--		up_read(&current->mm->mmap_sem);
-+		DEFINE_RANGE_LOCK_FULL(mmrange);
-+
-+		mm_read_unlock(current->mm, &mmrange);
- 		spu_context_nospu_trace(spufs_ps_fault__sleep, ctx);
- 		ret = spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
- 		spu_context_trace(spufs_ps_fault__wake, ctx, ctx->spu);
--		down_read(&current->mm->mmap_sem);
-+		mm_read_lock(current->mm, &mmrange);
- 	} else {
- 		area = ctx->spu->problem_phys + ps_offs;
- 		vm_insert_pfn(vmf->vma, vmf->address, (area + offset) >> PAGE_SHIFT);
-diff --git a/arch/powerpc/platforms/powernv/npu-dma.c b/arch/powerpc/platforms/powernv/npu-dma.c
-index 759e9a4c7479..8cf4be123663 100644
---- a/arch/powerpc/platforms/powernv/npu-dma.c
-+++ b/arch/powerpc/platforms/powernv/npu-dma.c
-@@ -802,7 +802,7 @@ int pnv_npu2_handle_fault(struct npu_context *context, uintptr_t *ea,
- 	if (!firmware_has_feature(FW_FEATURE_OPAL))
- 		return -ENODEV;
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
+ 		vma = rb_entry(p, struct vm_area_struct, vm_rb);
+ 		vsize += vma->vm_end - vma->vm_start;
+ 	}
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	return vsize;
+ }
  
--	WARN_ON(!rwsem_is_locked(&mm->mmap_sem));
-+	WARN_ON(!mm_is_locked(mm, mmrange));
+@@ -103,8 +105,9 @@ unsigned long task_statm(struct mm_struct *mm,
+ 	struct vm_region *region;
+ 	struct rb_node *p;
+ 	unsigned long size = kobjsize(mm);
++	DEFINE_RANGE_LOCK_FULL(mmrange);
  
- 	for (i = 0; i < count; i++) {
- 		is_write = flags[i] & NPU2_WRITE;
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm, &mmrange);
+ 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
+ 		vma = rb_entry(p, struct vm_area_struct, vm_rb);
+ 		size += kobjsize(vma);
+@@ -119,7 +122,7 @@ unsigned long task_statm(struct mm_struct *mm,
+ 		>> PAGE_SHIFT;
+ 	*data = (PAGE_ALIGN(mm->start_stack) - (mm->start_data & PAGE_MASK))
+ 		>> PAGE_SHIFT;
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &mmrange);
+ 	size >>= PAGE_SHIFT;
+ 	size += *text + *data;
+ 	*resident = size;
+@@ -223,13 +226,14 @@ static void *m_start(struct seq_file *m, loff_t *pos)
+ 	if (!mm || !mmget_not_zero(mm))
+ 		return NULL;
+ 
+-	down_read(&mm->mmap_sem);
++	range_lock_init_full(&priv->mmrange);
++	mm_read_lock(mm, &priv->mmrange);
+ 	/* start from the Nth VMA */
+ 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p))
+ 		if (n-- == 0)
+ 			return p;
+ 
+-	up_read(&mm->mmap_sem);
++	mm_read_unlock(mm, &priv->mmrange);
+ 	mmput(mm);
+ 	return NULL;
+ }
+@@ -239,7 +243,7 @@ static void m_stop(struct seq_file *m, void *_vml)
+ 	struct proc_maps_private *priv = m->private;
+ 
+ 	if (!IS_ERR_OR_NULL(_vml)) {
+-		up_read(&priv->mm->mmap_sem);
++		mm_read_unlock(priv->mm, &priv->mmrange);
+ 		mmput(priv->mm);
+ 	}
+ 	if (priv->task) {
 -- 
 2.13.6
 
