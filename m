@@ -1,39 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 834A96B0299
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 13:42:51 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q13so1800505pgt.17
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 10:42:51 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTPS id n24si142522pfa.269.2018.02.06.10.42.50
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A0AD06B029B
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 13:57:59 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id r82so1366915wme.0
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 10:57:59 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o204si70890wma.223.2018.02.06.10.57.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Feb 2018 10:42:50 -0800 (PST)
-Date: Tue, 06 Feb 2018 13:42:45 -0500 (EST)
-Message-Id: <20180206.134245.680837561909396767.davem@davemloft.net>
-Subject: Re: [PATCH v2] socket: Provide put_cmsg_whitelist() for constant
- size copies
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <CAGXu5j+JnJKQocO4LxshbPZ0HPO+sQ71D+iCtCJN1YJzKn2G0g@mail.gmail.com>
-References: <CAGXu5j+VnhgXFajjxR7HJkN=Z6r3Kfw-+Gg2x37AacOD6C+Wdg@mail.gmail.com>
-	<20180206.111949.1986970583522698316.davem@davemloft.net>
-	<CAGXu5j+JnJKQocO4LxshbPZ0HPO+sQ71D+iCtCJN1YJzKn2G0g@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 06 Feb 2018 10:57:58 -0800 (PST)
+Date: Tue, 6 Feb 2018 10:48:44 -0800
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: [RFC PATCH 00/64] mm: towards parallel address space operations
+Message-ID: <20180206184844.olcd34engojudsxt@linux-n805>
+References: <20180205012754.23615-1-dbueso@wotan.suse.de>
+ <df29e9eb-22ad-7e96-6ea4-2fd0ad2509a9@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <df29e9eb-22ad-7e96-6ea4-2fd0ad2509a9@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: keescook@chromium.org
-Cc: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, ebiggers3@gmail.com, james.morse@arm.com, keun-o.park@darkmatter.ae, labbott@redhat.com, linux-mm@kvack.org, mingo@kernel.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Davidlohr Bueso <dbueso@suse.de>, akpm@linux-foundation.org, mingo@kernel.org, peterz@infradead.org, jack@suse.cz, mhocko@kernel.org, kirill.shutemov@linux.intel.com, mawilcox@microsoft.com, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 7 Feb 2018 05:36:02 +1100
+On Mon, 05 Feb 2018, Laurent Dufour wrote:
 
-> Making put_cmsg() inline would help quite a bit with tracking the
-> builtin_const-ness, and that could speed things up a little bit too.
-> Would you be opposed to inlining?
+>On 05/02/2018 02:26, Davidlohr Bueso wrote:
+>> From: Davidlohr Bueso <dave@stgolabs.net>
+>>
+>> Hi,
+>>
+>> This patchset is a new version of both the range locking machinery as well
+>> as a full mmap_sem conversion that makes use of it -- as the worst case
+>> scenario as all mmap_sem calls are converted to a full range mmap_lock
+>> equivalent. As such, while there is no improvement of concurrency perse,
+>> these changes aim at adding the machinery to permit this in the future.
+>
+>Despite the massive rebase, what are the changes in this series compared to
+>the one I sent in last May - you silently based on, by the way :
+>https://lkml.org/lkml/2017/5/24/409
 
-Nope.
+Hardly, but yes I meant to reference that. It ended up being easier to just
+do a from scratch version. I haven't done a comparison, but at first I thought
+you missed gup users (now not so much), this patchset allows testing on more
+archs (see below), we remove the trylock in vm_insert_page(), etc.
+
+>>
+>> Direct users of the mm->mmap_sem can be classified as those that (1) acquire
+>> and release the lock within the same context, and (2) those who directly
+>> manipulate the mmap_sem down the callchain. For example:
+>>
+>> (1)  down_read(&mm->mmap_sem);
+>>      /* do something */
+>>      /* nobody down the chain uses mmap_sem directly */
+>>      up_read(&mm->mmap_sem);
+>>
+>> (2a)  down_read(&mm->mmap_sem);
+>>       /* do something that retuns mmap_sem unlocked */
+>>       fn(mm, &locked);
+>>       if (locked)
+>>         up_read(&mm->mmap_sem);
+>>
+>> (2b)  down_read(&mm->mmap_sem);
+>>       /* do something that in between released and reacquired mmap_sem */
+>>       fn(mm);
+>>       up_read(&mm->mmap_sem);
+>
+>Unfortunately, there are also indirect users which rely on the mmap_sem
+>locking to protect their data. For the first step using a full range this
+>doesn't matter, but when refining the range, these one would be the most
+>critical ones as they would have to be reworked to take the range in account.
+
+Of course. The value I see in this patchset is that we can determine whether or
+not we move forward based on the worst case scenario numbers.
+
+>> Testing: I have setup an mmtests config file with all the workloads described:
+>> http://linux-scalability.org/mmtests-config
+>
+>Is this link still valid, I can't reach it ?
+
+Sorry, that should have been:
+
+https://linux-scalability.org/range-mmap_lock/mmtests-config
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
