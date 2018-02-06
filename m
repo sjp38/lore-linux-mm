@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9949A6B0009
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 05:20:06 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id y13so732739pfl.16
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 02:20:06 -0800 (PST)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20122.outbound.protection.outlook.com. [40.107.2.122])
-        by mx.google.com with ESMTPS id v22si1335982pfd.22.2018.02.06.02.20.05
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 074BE6B0003
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 07:37:42 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id v186so936910pfb.8
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 04:37:41 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id g1si8571636pfj.237.2018.02.06.04.37.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 06 Feb 2018 02:20:05 -0800 (PST)
-Subject: [PATCH 2/2] mm: Use kvfree_rcu() in update_memcg_params()
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 06 Feb 2018 13:19:56 +0300
-Message-ID: <151791239671.5994.2058061081618636334.stgit@localhost.localdomain>
-In-Reply-To: <151791170164.5994.8253310844733420079.stgit@localhost.localdomain>
-References: <151791170164.5994.8253310844733420079.stgit@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 06 Feb 2018 04:37:40 -0800 (PST)
+Date: Tue, 6 Feb 2018 04:37:35 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 3/6] struct page: add field for vm_struct
+Message-ID: <20180206123735.GA6151@bombadil.infradead.org>
+References: <20180130151446.24698-1-igor.stoppa@huawei.com>
+ <20180130151446.24698-4-igor.stoppa@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180130151446.24698-4-igor.stoppa@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, mingo@redhat.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, ktkhai@virtuozzo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-Make update_memcg_params() to use generic kvfree_rcu()
-helper and remove free_memcg_params() code.
+On Tue, Jan 30, 2018 at 05:14:43PM +0200, Igor Stoppa wrote:
+> @@ -1744,6 +1748,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+>  			const void *caller)
+>  {
+>  	struct vm_struct *area;
+> +	unsigned int page_counter;
+>  	void *addr;
+>  	unsigned long real_size = size;
+>  
+> @@ -1769,6 +1774,9 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+>  
+>  	kmemleak_vmalloc(area, size, gfp_mask);
+>  
+> +	for (page_counter = 0; page_counter < area->nr_pages; page_counter++)
+> +		area->pages[page_counter]->area = area;
+> +
+>  	return addr;
+>  
 
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- mm/slab_common.c |   10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+LOCAL variable names should be short, and to the point.  If you have
+some random integer loop counter, it should probably be called ``i``.
+Calling it ``loop_counter`` is non-productive, if there is no chance of it
+being mis-understood.  Similarly, ``tmp`` can be just about any type of
+variable that is used to hold a temporary value.
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 10f127b2de7c..92d4a3a9471d 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -190,14 +190,6 @@ static void destroy_memcg_params(struct kmem_cache *s)
- 		kvfree(rcu_access_pointer(s->memcg_params.memcg_caches));
- }
- 
--static void free_memcg_params(struct rcu_head *rcu)
--{
--	struct memcg_cache_array *old;
--
--	old = container_of(rcu, struct memcg_cache_array, rcu);
--	kvfree(old);
--}
--
- static int update_memcg_params(struct kmem_cache *s, int new_array_size)
- {
- 	struct memcg_cache_array *old, *new;
-@@ -215,7 +207,7 @@ static int update_memcg_params(struct kmem_cache *s, int new_array_size)
- 
- 	rcu_assign_pointer(s->memcg_params.memcg_caches, new);
- 	if (old)
--		call_rcu(&old->rcu, free_memcg_params);
-+		kvfree_rcu(old, rcu);
- 	return 0;
- }
- 
+(Documentation/process/coding-style.rst)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
