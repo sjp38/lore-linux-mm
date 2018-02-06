@@ -1,74 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EB1B46B0024
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 11:29:56 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id u19so532653pfl.3
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 08:29:56 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e6si426705pgr.586.2018.02.06.08.29.55
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 684F56B0026
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 11:49:51 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id h33so1894513plh.19
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 08:49:51 -0800 (PST)
+Received: from smtp-fw-9101.amazon.com (smtp-fw-9101.amazon.com. [207.171.184.25])
+        by mx.google.com with ESMTPS id v5si2030639pfl.11.2018.02.06.08.49.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Feb 2018 08:29:55 -0800 (PST)
-Date: Tue, 6 Feb 2018 17:29:52 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [LSF/MM TOPIC] get_user_pages() and filesystems
-Message-ID: <20180206162952.krndup6lmbqpriga@quack2.suse.cz>
-References: <20180125115727.slf6zj4zzevcskkn@quack2.suse.cz>
- <20180202220411.GB23065@dhcp-10-211-47-181.usdhcp.oraclecorp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180202220411.GB23065@dhcp-10-211-47-181.usdhcp.oraclecorp.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Feb 2018 08:49:50 -0800 (PST)
+From: David Woodhouse <dwmw@amazon.co.uk>
+Subject: [PATCH] mm: Always print RLIMIT_DATA warning
+Date: Tue,  6 Feb 2018 16:45:05 +0000
+Message-Id: <1517935505-9321-1-git-send-email-dwmw@amazon.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liu Bo <bo.li.liu@oracle.com>
-Cc: Jan Kara <jack@suse.cz>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vegard Nossum <vegard.nossum@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andy Lutomirski <luto@amacapital.net>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Kees Cook <keescook@google.com>, Willy Tarreau <w@1wt.eu>, Pavel Emelyanov <xemul@virtuozzo.com>, Laura Abbott <labbott@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello,
+The documentation for ignore_rlimit_data says that it will print a warning
+at first misuse. Yet it doesn't seem to do that. Fix the code to print
+the warning even when we allow the process to continue.
 
-On Fri 02-02-18 15:04:11, Liu Bo wrote:
-> On Thu, Jan 25, 2018 at 12:57:27PM +0100, Jan Kara wrote:
-> > Hello,
-> > 
-> > this is about a problem I have identified last month and for which I still
-> > don't have good solution. Some discussion of the problem happened here [1]
-> > where also technical details are posted but culprit of the problem is
-> > relatively simple: Lots of places in kernel (fs code, writeback logic,
-> > stable-pages framework for DIF/DIX) assume that file pages in page cache
-> > can be modified either via write(2), truncate(2), fallocate(2) or similar
-> > code paths explicitely manipulating with file space or via a writeable
-> > mapping into page tables. In particular we assume that if we block all the
-> > above paths by taking proper locks, block page faults, and unmap (/ map
-> > read-only) the page, it cannot be modified. But this assumption is violated
-> > by get_user_pages() users (such as direct IO or RDMA drivers - and we've
-> > got reports from such users of weird things happening).
-> > 
-> > The problem with GUP users is that they acquire page reference (at that
-> > point page is writeably mapped into page tables) and some time in future
-> > (which can be quite far in case of RDMA) page contents gets modified and
-> > page marked dirty.
-> 
-> I got a question here, when you say 'page contents gets modified', do
-> you mean that GUP users modify the page content?
+Signed-off-by: David Woodhouse <dwmw@amazon.co.uk>
+---
+We should probably also do what Linus suggested in 
+https://lkml.org/lkml/2016/9/16/585
 
-Yes.
+ mm/mmap.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
-> I have another story about GUP users who use direct-IO, qemu sometimes
-> doesn't work well with btrfs when checksum enabled and reports
-> checksum failures when guest OS doesn't use stable pages, where it is
-> not GUP users but the original file/mapping that may be changing the
-> page content in flight.
-
-OK, but that is kind of expected, isn't it? The whole purpose of 'stable
-pages' is exactly to modifying pages while IO is in flight. So if a device
-image is backed by a storage (filesystem in this case) which checksums
-data, qemu should present it to the guest as a block device supporting
-DIF/DIX and thus requiring stable pages...
-
-								Honza
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 9efdc021..dd76ea3 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3184,13 +3184,15 @@ bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
+ 		if (rlimit(RLIMIT_DATA) == 0 &&
+ 		    mm->data_vm + npages <= rlimit_max(RLIMIT_DATA) >> PAGE_SHIFT)
+ 			return true;
+-		if (!ignore_rlimit_data) {
+-			pr_warn_once("%s (%d): VmData %lu exceed data ulimit %lu. Update limits or use boot option ignore_rlimit_data.\n",
+-				     current->comm, current->pid,
+-				     (mm->data_vm + npages) << PAGE_SHIFT,
+-				     rlimit(RLIMIT_DATA));
++
++		pr_warn_once("%s (%d): VmData %lu exceed data ulimit %lu. Update limits%s.\n",
++			     current->comm, current->pid,
++			     (mm->data_vm + npages) << PAGE_SHIFT,
++			     rlimit(RLIMIT_DATA),
++			     ignore_rlimit_data ? "" : " or use boot option ignore_rlimit_data");
++
++		if (!ignore_rlimit_data)
+ 			return false;
+-		}
+ 	}
+ 
+ 	return true;
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
