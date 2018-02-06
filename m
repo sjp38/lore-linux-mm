@@ -1,75 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C62456B0011
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 10:49:23 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q13so1594871pgt.17
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 07:49:23 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b24-v6si151356pls.617.2018.02.06.07.49.22
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DDF1F6B0022
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 11:19:52 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id o128so1285059pfg.6
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 08:19:52 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
+        by mx.google.com with ESMTPS id t27si2002050pfe.283.2018.02.06.08.19.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Feb 2018 07:49:22 -0800 (PST)
-Date: Tue, 6 Feb 2018 10:49:19 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 1/2] rcu: Transform kfree_rcu() into kvfree_rcu()
-Message-ID: <20180206104919.0bc1734d@gandalf.local.home>
-In-Reply-To: <52fe3917-cf72-d512-8422-d53bacf40113@virtuozzo.com>
-References: <151791170164.5994.8253310844733420079.stgit@localhost.localdomain>
-	<151791238553.5994.4933976056810745303.stgit@localhost.localdomain>
-	<20180206093451.0de5ceeb@gandalf.local.home>
-	<52fe3917-cf72-d512-8422-d53bacf40113@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 06 Feb 2018 08:19:51 -0800 (PST)
+Date: Tue, 06 Feb 2018 11:19:49 -0500 (EST)
+Message-Id: <20180206.111949.1986970583522698316.davem@davemloft.net>
+Subject: Re: [PATCH v2] socket: Provide put_cmsg_whitelist() for constant
+ size copies
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <CAGXu5j+VnhgXFajjxR7HJkN=Z6r3Kfw-+Gg2x37AacOD6C+Wdg@mail.gmail.com>
+References: <20180202102749.GA34019@beast>
+	<20180205.100347.176614123780866781.davem@davemloft.net>
+	<CAGXu5j+VnhgXFajjxR7HJkN=Z6r3Kfw-+Gg2x37AacOD6C+Wdg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, mingo@redhat.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: keescook@chromium.org
+Cc: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, ebiggers3@gmail.com, james.morse@arm.com, keun-o.park@darkmatter.ae, labbott@redhat.com, linux-mm@kvack.org, mingo@kernel.org
 
-On Tue, 6 Feb 2018 18:06:33 +0300
-Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 6 Feb 2018 04:31:50 +1100
 
-
-> There are kfree_rcu() and vfree_rcu() defined below, and they will give
-> compilation error if someone tries to implement one more primitive with
-> the same name.
-
-Ah, I misread the patch. I was thinking you were simply replacing
-kfree_rcu() with kvfree_rcu(), but now see the macros added below it.
-
-
+> On Tue, Feb 6, 2018 at 2:03 AM, David Miller <davem@davemloft.net> wrote:
+>> From: Kees Cook <keescook@chromium.org>
+>> Date: Fri, 2 Feb 2018 02:27:49 -0800
+>>
+>>> @@ -343,6 +343,14 @@ struct ucred {
+>>>
+>>>  extern int move_addr_to_kernel(void __user *uaddr, int ulen, struct sockaddr_storage *kaddr);
+>>>  extern int put_cmsg(struct msghdr*, int level, int type, int len, void *data);
+>>> +/*
+>>> + * Provide a bounce buffer for copying cmsg data to userspace when the
+>>> + * target memory isn't already whitelisted for hardened usercopy.
+>>> + */
+>>> +#define put_cmsg_whitelist(_msg, _level, _type, _ptr) ({             \
+>>> +             typeof(*(_ptr)) _val = *(_ptr);                         \
+>>> +             put_cmsg(_msg, _level, _type, sizeof(_val), &_val);     \
+>>> +     })
+>>
+>> I understand what you are trying to achieve, but it's at a real cost
+>> here.  Some of these objects are structures, for example the struct
+>> sock_extended_err is 16 bytes.
 > 
-> We may add a comment, but I'm not sure it will be good if people will use
-> unpaired brackets like:
-> 
-> 	obj = kmalloc(..)
-> 	kvfree_rcu(obj,..)
-> 
-> after they read such a commentary that it works for both vmalloc and kmalloc.
-> After this unpaired behavior distribute over the kernel, we won't be able
-> to implement some debug on top of this defines (I'm not sure it will be really
-> need in the future, but anyway).
-> 
-> Though, we may add a comment forcing use of paired bracket. Something like:
-> 
-> /**
->   * kvfree_rcu() - kvfree an object after a grace period.
->     This is a primitive for objects allocated via kvmalloc*() family primitives.
->     Do not use it to free kmalloc() and vmalloc() allocated objects, use kfree_rcu()
->     and vfree_rcu() wrappers instead.
-> 
-> How are you about this?
+> It didn't look like put_cmsg() was on a fast path, so it seemed like a
+> bounce buffer was the best solution here (and it's not without
+> precedent).
 
-Never mind, I missed the adding of kfree_rcu() at the bottom, and was
-thinking that we were just using kvfree_rcu() for everything.
-
-That's what I get for looking at patches before my first cup of
-coffee ;-)
-
-If you want to add a comment, feel free, but taking a second look, I
-don't feel it is necessary.
-
--- Steve
+For some things like timestamps it can be important.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
