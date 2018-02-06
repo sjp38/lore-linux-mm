@@ -1,141 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C7E2D6B028B
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 12:34:03 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id u65so1401756pfd.7
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 09:34:03 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n125sor1499360pga.297.2018.02.06.09.34.02
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DD676B028D
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 12:38:15 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id e28so2103186qkj.11
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 09:38:15 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id z7si470578qkl.343.2018.02.06.09.38.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Feb 2018 09:34:02 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Feb 2018 09:38:14 -0800 (PST)
+Subject: Re: [RFC PATCH v1 13/13] mm: splice local lists onto the front of the
+ LRU
+References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
+ <20180131230413.27653-14-daniel.m.jordan@oracle.com>
+ <20180202052120.GA16272@intel.com>
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Message-ID: <7b9c0aab-354d-c88b-3598-7bf91dd1ef74@oracle.com>
+Date: Tue, 6 Feb 2018 12:38:31 -0500
 MIME-Version: 1.0
-In-Reply-To: <94eb2c0efc1ede1c4205648e8a49@google.com>
-References: <94eb2c0efc1ede1c4205648e8a49@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 6 Feb 2018 18:33:41 +0100
-Message-ID: <CACT4Y+ZybLXnPiQ8BDLORD6VA8E7KeMrJZxO8q46MfMKyH7q_Q@mail.gmail.com>
-Subject: Re: WARNING: bad usercopy in put_cmsg
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180202052120.GA16272@intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <syzbot+c4dcac91687a29cbae15@syzkaller.appspotmail.com>
-Cc: Kees Cook <keescook@chromium.org>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com
+To: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: ak@linux.intel.com, akpm@linux-foundation.org, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, ldufour@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>
 
-On Tue, Feb 6, 2018 at 6:31 PM, syzbot
-<syzbot+c4dcac91687a29cbae15@syzkaller.appspotmail.com> wrote:
-> Hello,
->
-> syzbot hit the following crash on upstream commit
-> e237f98a9c134c3d600353f21e07db915516875b (Mon Feb 5 21:35:56 2018 +0000)
-> Merge tag 'xfs-4.16-merge-5' of
-> git://git.kernel.org/pub/scm/fs/xfs/xfs-linux
->
-> So far this crash happened 8 times on net-next, upstream.
-> C reproducer is attached.
-> syzkaller reproducer is attached.
-> Raw console output is attached.
-> compiler: gcc (GCC) 7.1.1 20170620
-> .config is attached.
+On 02/02/2018 12:21 AM, Aaron Lu wrote:
+> On Wed, Jan 31, 2018 at 06:04:13PM -0500, daniel.m.jordan@oracle.com wrote:
+>> Now that release_pages is scaling better with concurrent removals from
+>> the LRU, the performance results (included below) showed increased
+>> contention on lru_lock in the add-to-LRU path.
+>>
+>> To alleviate some of this contention, do more work outside the LRU lock.
+>> Prepare a local list of pages to be spliced onto the front of the LRU,
+>> including setting PageLRU in each page, before taking lru_lock.  Since
+>> other threads use this page flag in certain checks outside lru_lock,
+>> ensure each page's LRU links have been properly initialized before
+>> setting the flag, and use memory barriers accordingly.
+>>
+>> Performance Results
+>>
+>> This is a will-it-scale run of page_fault1 using 4 different kernels.
+>>
+>>              kernel     kern #
+>>
+>>            4.15-rc2          1
+>>    large-zone-batch          2
+>>       lru-lock-base          3
+>>     lru-lock-splice          4
+>>
+>> Each kernel builds on the last.  The first is a baseline, the second
+>> makes zone->lock more scalable by increasing an order-0 per-cpu
+>> pagelist's 'batch' and 'high' values to 310 and 1860 respectively
+> 
+> Since the purpose of the patchset is to optimize lru_lock, you may
+> consider adjusting pcp->high to be >= 32768(page_fault1's test size is
+> 128M = 32768 pages). That should eliminate zone->lock contention
+> entirely.
 
-#syz dup: WARNING in usercopy_warn
+Interesting, hadn't thought about taking zone->lock completely out of 
+the equation.  Will try this next time I test this series.
 
-Let's make that one the main copy, since Kees is already looking at it.
+
+While we're on this topic, it does seem from the performance of kernel 
+#2, and the numbers Aaron posted in a previous thread[*], that the 
+default 'batch' and 'high' values should be bigger on large systems.
+
+The code to control these two values last changed in 2005[**], so we hit 
+the largest values with just a 512M zone:
+
+    zone       4k_pages  batch   high  high/4k_pages
+     64M         16,384      3     18       0.10986%
+    128M         32,768      7     42       0.12817%
+    256M         65,536     15     90       0.13733%
+    512M        131,072     31    186       0.14191%
+      1G        262,144     31    186       0.07095%
+      2G        524,288     31    186       0.03548%
+      4G      1,048,576     31    186       0.01774%
+      8G      2,097,152     31    186       0.00887%
+     16G      4,194,304     31    186       0.00443%
+     32G      8,388,608     31    186       0.00222%
+     64G     16,777,216     31    186       0.00111%
+    128G     33,554,432     31    186       0.00055%
+    256G     67,108,864     31    186       0.00028%
+    512G    134,217,728     31    186       0.00014%
+   1024G    268,435,456     31    186       0.00007%
 
 
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+c4dcac91687a29cbae15@syzkaller.appspotmail.com
-> It will help syzbot understand when the bug is fixed. See footer for
-> details.
-> If you forward the report, please keep this part and the footer.
->
-> ------------[ cut here ]------------
-> Bad or missing usercopy whitelist? Kernel memory exposure attempt detected
-> from SLAB object 'skbuff_head_cache' (offset 64, size 16)!
-> WARNING: CPU: 1 PID: 4176 at mm/usercopy.c:81 usercopy_warn+0xdb/0x100
-> mm/usercopy.c:76
-> Kernel panic - not syncing: panic_on_warn set ...
->
-> CPU: 1 PID: 4176 Comm: syzkaller502931 Not tainted 4.15.0+ #299
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> Call Trace:
->  __dump_stack lib/dump_stack.c:17 [inline]
->  dump_stack+0x194/0x257 lib/dump_stack.c:53
->  panic+0x1e4/0x41c kernel/panic.c:183
->  __warn+0x1dc/0x200 kernel/panic.c:547
->  report_bug+0x211/0x2d0 lib/bug.c:184
->  fixup_bug.part.11+0x37/0x80 arch/x86/kernel/traps.c:178
->  fixup_bug arch/x86/kernel/traps.c:247 [inline]
->  do_error_trap+0x2d7/0x3e0 arch/x86/kernel/traps.c:296
->  do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:315
->  invalid_op+0x22/0x40 arch/x86/entry/entry_64.S:984
-> RIP: 0010:usercopy_warn+0xdb/0x100 mm/usercopy.c:76
-> RSP: 0018:ffff8801b2bc7598 EFLAGS: 00010286
-> RAX: dffffc0000000008 RBX: ffffffff86801907 RCX: ffffffff815a585e
-> RDX: 0000000000000000 RSI: 1ffff10036578e63 RDI: 1ffff10036578e38
-> RBP: ffff8801b2bc75f0 R08: 0000000000000000 R09: 0000000000000000
-> R10: 00000000000007a6 R11: 0000000000000000 R12: ffffffff86403180
-> R13: ffffffff85f2d4c0 R14: 0000000000000040 R15: 0000000000000010
->  __check_heap_object+0x89/0xc0 mm/slab.c:4426
->  check_heap_object mm/usercopy.c:236 [inline]
->  __check_object_size+0x272/0x530 mm/usercopy.c:259
->  check_object_size include/linux/thread_info.h:112 [inline]
->  check_copy_size include/linux/thread_info.h:143 [inline]
->  copy_to_user include/linux/uaccess.h:154 [inline]
->  put_cmsg+0x233/0x3f0 net/core/scm.c:242
->  sock_recv_errqueue+0x200/0x3e0 net/core/sock.c:2910
->  packet_recvmsg+0xb2e/0x17a0 net/packet/af_packet.c:3296
->  sock_recvmsg_nosec net/socket.c:803 [inline]
->  sock_recvmsg+0xc9/0x110 net/socket.c:810
->  ___sys_recvmsg+0x2a4/0x640 net/socket.c:2205
->  __sys_recvmsg+0xe2/0x210 net/socket.c:2250
->  SYSC_recvmsg net/socket.c:2262 [inline]
->  SyS_recvmsg+0x2d/0x50 net/socket.c:2257
->  do_syscall_64+0x282/0x940 arch/x86/entry/common.c:287
->  entry_SYSCALL_64_after_hwframe+0x26/0x9b
-> RIP: 0033:0x445399
-> RSP: 002b:00007ffdfb47d4d8 EFLAGS: 00000217 ORIG_RAX: 000000000000002f
-> RAX: ffffffffffffffda RBX: 0000000000000066 RCX: 0000000000445399
-> RDX: 0000000000002000 RSI: 0000000020006fc8 RDI: 0000000000000004
-> RBP: 00007ffdfb47d5e8 R08: 000000000000a1fd R09: 000000000000a1fd
-> R10: 000000000000a1fd R11: 0000000000000217 R12: 00007ffdfb47d5e8
-> R13: 0000000000402860 R14: 0000000000000000 R15: 0000000000000000
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Kernel Offset: disabled
-> Rebooting in 86400 seconds..
->
->
-> ---
-> This bug is generated by a dumb bot. It may contain errors.
-> See https://goo.gl/tpsmEJ for details.
-> Direct all questions to syzkaller@googlegroups.com.
->
-> syzbot will keep track of this bug report.
-> If you forgot to add the Reported-by tag, once the fix for this bug is
-> merged
-> into any tree, please reply to this email with:
-> #syz fix: exact-commit-title
-> If you want to test a patch for this bug, please reply with:
-> #syz test: git://repo/address.git branch
-> and provide the patch inline or as an attachment.
-> To mark this as a duplicate of another syzbot report, please reply with:
-> #syz dup: exact-subject-of-another-report
-> If it's a one-off invalid bug report, please reply with:
-> #syz invalid
-> Note: if the crash happens again, it will cause creation of a new bug
-> report.
-> Note: all commands must start from beginning of the line in the email body.
->
-> --
-> You received this message because you are subscribed to the Google Groups
-> "syzkaller-bugs" group.
-> To unsubscribe from this group and stop receiving emails from it, send an
-> email to syzkaller-bugs+unsubscribe@googlegroups.com.
-> To view this discussion on the web visit
-> https://groups.google.com/d/msgid/syzkaller-bugs/94eb2c0efc1ede1c4205648e8a49%40google.com.
-> For more options, visit https://groups.google.com/d/optout.
+[*] https://marc.info/?l=linux-netdev&m=150572010919327
+[**] ba56e91c9401 ("[PATCH] mm: page_alloc: increase size of per-cpu-pages")
+
+> 
+>> (courtesy of Aaron Lu's patch), the third scales lru_lock without
+>> splicing pages (the previous patch in this series), and the fourth adds
+>> page splicing (this patch).
+>>
+>> N tasks mmap, fault, and munmap anonymous pages in a loop until the test
+>> time has elapsed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
