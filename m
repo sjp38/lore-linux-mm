@@ -1,100 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F46A6B028F
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 12:47:40 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id f11so2042065qtj.21
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 09:47:40 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id 54si2102717qts.34.2018.02.06.09.47.38
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 58BC96B0292
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 12:48:48 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id c7so111249lfk.19
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 09:48:48 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t17sor2285358ljd.51.2018.02.06.09.48.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Feb 2018 09:47:39 -0800 (PST)
-Subject: Re: [RFC PATCH v1 12/13] mm: split up release_pages into non-sentinel
- and sentinel passes
-References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
- <20180131230413.27653-13-daniel.m.jordan@oracle.com>
- <3287f5ca-ab17-6437-c0fd-b867d90f8c1f@linux.vnet.ibm.com>
- <8a56da6b-8a47-3dc9-9b01-eb92be9fd828@linux.vnet.ibm.com>
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Message-ID: <c7cc5df1-5a2d-15d2-4fa7-0d289fcda2fa@oracle.com>
-Date: Tue, 6 Feb 2018 12:47:54 -0500
+        (Google Transport Security);
+        Tue, 06 Feb 2018 09:48:46 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <8a56da6b-8a47-3dc9-9b01-eb92be9fd828@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1517935505-9321-1-git-send-email-dwmw@amazon.co.uk>
+References: <1517935505-9321-1-git-send-email-dwmw@amazon.co.uk>
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Tue, 6 Feb 2018 20:48:46 +0300
+Message-ID: <CALYGNiOUZXiOeWSYMgeF3792NNWAgpcxnAOMQ_Wb-d1-Xo_k0Q@mail.gmail.com>
+Subject: Re: [PATCH] mm: Always print RLIMIT_DATA warning
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com
+To: David Woodhouse <dwmw@amazon.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vegard Nossum <vegard.nossum@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andy Lutomirski <luto@amacapital.net>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Kees Cook <keescook@google.com>, Willy Tarreau <w@1wt.eu>, Pavel Emelyanov <xemul@virtuozzo.com>, Laura Abbott <labbott@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 02/02/2018 12:00 PM, Laurent Dufour wrote:
-> On 02/02/2018 15:40, Laurent Dufour wrote:
->>
->>
->> On 01/02/2018 00:04, daniel.m.jordan@oracle.com wrote:
->>> A common case in release_pages is for the 'pages' list to be in roughly
->>> the same order as they are in their LRU.  With LRU batch locking, when a
->>> sentinel page is removed, an adjacent non-sentinel page must be promoted
->>> to a sentinel page to follow the locking scheme.  So we can get behavior
->>> where nearly every page in the 'pages' array is treated as a sentinel
->>> page, hurting the scalability of this approach.
->>>
->>> To address this, split up release_pages into non-sentinel and sentinel
->>> passes so that the non-sentinel pages can be locked with an LRU batch
->>> lock before the sentinel pages are removed.
->>>
->>> For the prototype, just use a bitmap and a temporary outer loop to
->>> implement this.
->>>
->>> Performance numbers from a single microbenchmark at this point in the
->>> series are included in the next patch.
->>>
->>> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
->>> ---
->>>   mm/swap.c | 20 +++++++++++++++++++-
->>>   1 file changed, 19 insertions(+), 1 deletion(-)
->>>
->>> diff --git a/mm/swap.c b/mm/swap.c
->>> index fae766e035a4..a302224293ad 100644
->>> --- a/mm/swap.c
->>> +++ b/mm/swap.c
->>> @@ -731,6 +731,7 @@ void lru_add_drain_all(void)
->>>   	put_online_cpus();
->>>   }
->>>
->>> +#define LRU_BITMAP_SIZE	512
->>>   /**
->>>    * release_pages - batched put_page()
->>>    * @pages: array of pages to release
->>> @@ -742,16 +743,32 @@ void lru_add_drain_all(void)
->>>    */
->>>   void release_pages(struct page **pages, int nr)
->>>   {
->>> -	int i;
->>> +	int h, i;
->>>   	LIST_HEAD(pages_to_free);
->>>   	struct pglist_data *locked_pgdat = NULL;
->>>   	spinlock_t *locked_lru_batch = NULL;
->>>   	struct lruvec *lruvec;
->>>   	unsigned long uninitialized_var(flags);
->>> +	DECLARE_BITMAP(lru_bitmap, LRU_BITMAP_SIZE);
->>> +
->>> +	VM_BUG_ON(nr > LRU_BITMAP_SIZE);
->>
->> While running your series rebased on v4.15-mmotm-2018-01-31-16-51, I'm
->> hitting this VM_BUG sometimes on a ppc64 system where page size is set to 64K.
-> 
-> I can't see any link between nr and LRU_BITMAP_SIZE, caller may pass a
-> larger list of pages which is not relative to the LRU list.
+On Tue, Feb 6, 2018 at 7:45 PM, David Woodhouse <dwmw@amazon.co.uk> wrote:
+> The documentation for ignore_rlimit_data says that it will print a warning
+> at first misuse. Yet it doesn't seem to do that. Fix the code to print
+> the warning even when we allow the process to continue.
 
-You're correct, I used the hard-coded size to quickly prototype, just to 
-see how this approach performs.  That's unfortunate that it bit you.
-  > To move forward seeing the benefit of this series with the SPF one, I
-> declared the bit map based on nr. This is still not a valid option but this
-> at least allows to process all the passed pages.
+Ack. But I think this was a misprint in docs.
+Anyway, this knob is a kludge so we might warn once even if it is set.
 
-Yes, the bitmap's not for the final version.
+So, somebody still have problems with this change?
+I remember concerns about that "warn_once" isn't enough to detect
+what's going wrong.
+And probably we should invent  "warn_sometimes".
+
+>
+> Signed-off-by: David Woodhouse <dwmw@amazon.co.uk>
+> ---
+> We should probably also do what Linus suggested in
+> https://lkml.org/lkml/2016/9/16/585
+>
+>  mm/mmap.c | 14 ++++++++------
+>  1 file changed, 8 insertions(+), 6 deletions(-)
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 9efdc021..dd76ea3 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -3184,13 +3184,15 @@ bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
+>                 if (rlimit(RLIMIT_DATA) == 0 &&
+>                     mm->data_vm + npages <= rlimit_max(RLIMIT_DATA) >> PAGE_SHIFT)
+>                         return true;
+> -               if (!ignore_rlimit_data) {
+> -                       pr_warn_once("%s (%d): VmData %lu exceed data ulimit %lu. Update limits or use boot option ignore_rlimit_data.\n",
+> -                                    current->comm, current->pid,
+> -                                    (mm->data_vm + npages) << PAGE_SHIFT,
+> -                                    rlimit(RLIMIT_DATA));
+> +
+> +               pr_warn_once("%s (%d): VmData %lu exceed data ulimit %lu. Update limits%s.\n",
+> +                            current->comm, current->pid,
+> +                            (mm->data_vm + npages) << PAGE_SHIFT,
+> +                            rlimit(RLIMIT_DATA),
+> +                            ignore_rlimit_data ? "" : " or use boot option ignore_rlimit_data");
+> +
+> +               if (!ignore_rlimit_data)
+>                         return false;
+> -               }
+>         }
+>
+>         return true;
+> --
+> 2.7.4
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
