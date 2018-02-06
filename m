@@ -1,55 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 074BE6B0003
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 07:37:42 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id v186so936910pfb.8
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 04:37:41 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g1si8571636pfj.237.2018.02.06.04.37.40
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 04B8B6B0003
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 08:34:47 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id d15so1524956qtg.2
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 05:34:47 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d8sor1787957qkc.4.2018.02.06.05.34.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 06 Feb 2018 04:37:40 -0800 (PST)
-Date: Tue, 6 Feb 2018 04:37:35 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 3/6] struct page: add field for vm_struct
-Message-ID: <20180206123735.GA6151@bombadil.infradead.org>
-References: <20180130151446.24698-1-igor.stoppa@huawei.com>
- <20180130151446.24698-4-igor.stoppa@huawei.com>
+        (Google Transport Security);
+        Tue, 06 Feb 2018 05:34:45 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180130151446.24698-4-igor.stoppa@huawei.com>
+In-Reply-To: <20180206090244.GA20545@eng-minchan1.roam.corp.google.com>
+References: <20180206065404.18815-1-ying.huang@intel.com> <20180206083101.GA17082@eng-minchan1.roam.corp.google.com>
+ <871shy3421.fsf@yhuang-dev.intel.com> <20180206090244.GA20545@eng-minchan1.roam.corp.google.com>
+From: huang ying <huang.ying.caritas@gmail.com>
+Date: Tue, 6 Feb 2018 21:34:44 +0800
+Message-ID: <CAC=cRTNCDLdobmepCA-9s6HxCgWs16adhre_LfT0HxtXg6meyw@mail.gmail.com>
+Subject: Re: [PATCH -mm] mm, swap, frontswap: Fix THP swap if frontswap enabled
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>, stable@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Tue, Jan 30, 2018 at 05:14:43PM +0200, Igor Stoppa wrote:
-> @@ -1744,6 +1748,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
->  			const void *caller)
->  {
->  	struct vm_struct *area;
-> +	unsigned int page_counter;
->  	void *addr;
->  	unsigned long real_size = size;
->  
-> @@ -1769,6 +1774,9 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
->  
->  	kmemleak_vmalloc(area, size, gfp_mask);
->  
-> +	for (page_counter = 0; page_counter < area->nr_pages; page_counter++)
-> +		area->pages[page_counter]->area = area;
-> +
->  	return addr;
->  
+On Tue, Feb 6, 2018 at 5:02 PM, Minchan Kim <minchan@kernel.org> wrote:
+> On Tue, Feb 06, 2018 at 04:39:18PM +0800, Huang, Ying wrote:
+>> Hi, Minchan,
+>>
+>> Minchan Kim <minchan@kernel.org> writes:
+>>
+>> > Hi Huang,
+>> >
+>> > On Tue, Feb 06, 2018 at 02:54:04PM +0800, Huang, Ying wrote:
+>> >> From: Huang Ying <ying.huang@intel.com>
+>> >>
+>> >> It was reported by Sergey Senozhatsky that if THP (Transparent Huge
+>> >> Page) and frontswap (via zswap) are both enabled, when memory goes low
+>> >> so that swap is triggered, segfault and memory corruption will occur
+>> >> in random user space applications as follow,
+>> >>
+>> >> kernel: urxvt[338]: segfault at 20 ip 00007fc08889ae0d sp 00007ffc73a7fc40 error 6 in libc-2.26.so[7fc08881a000+1ae000]
+>> >>  #0  0x00007fc08889ae0d _int_malloc (libc.so.6)
+>> >>  #1  0x00007fc08889c2f3 malloc (libc.so.6)
+>> >>  #2  0x0000560e6004bff7 _Z14rxvt_wcstoutf8PKwi (urxvt)
+>> >>  #3  0x0000560e6005e75c n/a (urxvt)
+>> >>  #4  0x0000560e6007d9f1 _ZN16rxvt_perl_interp6invokeEP9rxvt_term9hook_typez (urxvt)
+>> >>  #5  0x0000560e6003d988 _ZN9rxvt_term9cmd_parseEv (urxvt)
+>> >>  #6  0x0000560e60042804 _ZN9rxvt_term6pty_cbERN2ev2ioEi (urxvt)
+>> >>  #7  0x0000560e6005c10f _Z17ev_invoke_pendingv (urxvt)
+>> >>  #8  0x0000560e6005cb55 ev_run (urxvt)
+>> >>  #9  0x0000560e6003b9b9 main (urxvt)
+>> >>  #10 0x00007fc08883af4a __libc_start_main (libc.so.6)
+>> >>  #11 0x0000560e6003f9da _start (urxvt)
+>> >>
+>> >> After bisection, it was found the first bad commit is
+>> >> bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped
+>> >> out").
+>> >>
+>> >> The root cause is as follow.
+>> >>
+>> >> When the pages are written to storage device during swapping out in
+>> >> swap_writepage(), zswap (fontswap) is tried to compress the pages
+>> >> instead to improve the performance.  But zswap (frontswap) will treat
+>> >> THP as normal page, so only the head page is saved.  After swapping
+>> >> in, tail pages will not be restored to its original contents, so cause
+>> >> the memory corruption in the applications.
+>> >>
+>> >> This is fixed via splitting THP at the begin of swapping out if
+>> >> frontswap is enabled.  To avoid frontswap to be enabled at runtime,
+>> >> whether the page is THP is checked before using frontswap during
+>> >> swapping out too.
+>> >
+>> > Nice catch, Huang. However, before the adding a new dependency between
+>> > frontswap and vmscan that I want to avoid if it is possible, let's think
+>> > whether frontswap can support THP page or not.
+>> > Can't we handle it with some loop to handle all of subpages of THP page?
+>> > It might be not hard?
+>>
+>> Yes.  That could be an optimization over this patch.  This patch is just
+>> a simple fix to make things work and be suitable for stable tree.
+>
+> Yub, it would be more complex than this patch. However, this patch introduces
+> a new dependency to vmscan.c. IOW, we have been good without knowing frontswap
+> in vmscan.c but from now on, we should be aware of that, which is unfortunate.
+>
+> Can't we simple do like that if you want to make it simple and rely on someone
+> who makes frontswap THP-aware later?
+>
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 42fe5653814a..4bf1725407aa 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -934,7 +934,11 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
+>
+>         /* Only single cluster request supported */
+>         WARN_ON_ONCE(n_goal > 1 && cluster);
+> +#ifdef CONFIG_FRONTSWAP
+> +       /* Now, frontswap doesn't support THP page */
+> +       if (frontswap_enabled() && cluster)
+> +               return;
+> +#endif
+>         avail_pgs = atomic_long_read(&nr_swap_pages) / nr_pages;
+>         if (avail_pgs <= 0)
+>                 goto noswap;
+>
 
-LOCAL variable names should be short, and to the point.  If you have
-some random integer loop counter, it should probably be called ``i``.
-Calling it ``loop_counter`` is non-productive, if there is no chance of it
-being mis-understood.  Similarly, ``tmp`` can be just about any type of
-variable that is used to hold a temporary value.
+This can avoid introduce dependency on frontswap in vmscan.c.  But
+IMHO it doesn't look like the right place to place the logic.
+vmscan.c is the place we put policy to determine whether to split THP.
 
-(Documentation/process/coding-style.rst)
+[snip]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
