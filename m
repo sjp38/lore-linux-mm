@@ -1,51 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 190006B0294
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 13:18:47 -0500 (EST)
-Received: by mail-yw0-f200.google.com with SMTP id x68so3083307ywx.9
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 10:18:47 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id t83si1894278ywb.721.2018.02.06.10.18.45
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BB4946B0296
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 13:36:04 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id z11so1786185uaz.0
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 10:36:04 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c94sor4962120uac.170.2018.02.06.10.36.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Feb 2018 10:18:46 -0800 (PST)
-Subject: Re: [RFC PATCH v1 13/13] mm: splice local lists onto the front of the
- LRU
-References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
- <20180131230413.27653-14-daniel.m.jordan@oracle.com>
- <765238a2-8970-e05d-4fe3-cdcb796aa399@linux.vnet.ibm.com>
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Message-ID: <a9518500-cc2a-ce15-76a4-73a31b744852@oracle.com>
-Date: Tue, 6 Feb 2018 13:18:53 -0500
+        (Google Transport Security);
+        Tue, 06 Feb 2018 10:36:03 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <765238a2-8970-e05d-4fe3-cdcb796aa399@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180206.111949.1986970583522698316.davem@davemloft.net>
+References: <20180202102749.GA34019@beast> <20180205.100347.176614123780866781.davem@davemloft.net>
+ <CAGXu5j+VnhgXFajjxR7HJkN=Z6r3Kfw-+Gg2x37AacOD6C+Wdg@mail.gmail.com> <20180206.111949.1986970583522698316.davem@davemloft.net>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 7 Feb 2018 05:36:02 +1100
+Message-ID: <CAGXu5j+JnJKQocO4LxshbPZ0HPO+sQ71D+iCtCJN1YJzKn2G0g@mail.gmail.com>
+Subject: Re: [PATCH v2] socket: Provide put_cmsg_whitelist() for constant size copies
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aaron.lu@intel.com, ak@linux.intel.com, akpm@linux-foundation.org, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com
+To: David Miller <davem@davemloft.net>
+Cc: syzbot <syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com>, LKML <linux-kernel@vger.kernel.org>, Network Development <netdev@vger.kernel.org>, Eric Biggers <ebiggers3@gmail.com>, James Morse <james.morse@arm.com>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, Linux-MM <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>
 
-On 02/02/2018 10:22 AM, Laurent Dufour wrote:
-> On 01/02/2018 00:04, daniel.m.jordan@oracle.com wrote:
-...snip...
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 99a54df760e3..6911626f29b2 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -2077,6 +2077,7 @@ static void lock_page_lru(struct page *page, int *isolated)
+On Wed, Feb 7, 2018 at 3:19 AM, David Miller <davem@davemloft.net> wrote:
+> From: Kees Cook <keescook@chromium.org>
+> Date: Tue, 6 Feb 2018 04:31:50 +1100
+>
+>> On Tue, Feb 6, 2018 at 2:03 AM, David Miller <davem@davemloft.net> wrote:
+>>> From: Kees Cook <keescook@chromium.org>
+>>> Date: Fri, 2 Feb 2018 02:27:49 -0800
+>>>
+>>>> @@ -343,6 +343,14 @@ struct ucred {
+>>>>
+>>>>  extern int move_addr_to_kernel(void __user *uaddr, int ulen, struct sockaddr_storage *kaddr);
+>>>>  extern int put_cmsg(struct msghdr*, int level, int type, int len, void *data);
+>>>> +/*
+>>>> + * Provide a bounce buffer for copying cmsg data to userspace when the
+>>>> + * target memory isn't already whitelisted for hardened usercopy.
+>>>> + */
+>>>> +#define put_cmsg_whitelist(_msg, _level, _type, _ptr) ({             \
+>>>> +             typeof(*(_ptr)) _val = *(_ptr);                         \
+>>>> +             put_cmsg(_msg, _level, _type, sizeof(_val), &_val);     \
+>>>> +     })
+>>>
+>>> I understand what you are trying to achieve, but it's at a real cost
+>>> here.  Some of these objects are structures, for example the struct
+>>> sock_extended_err is 16 bytes.
 >>
->>   		lruvec = mem_cgroup_page_lruvec(page, zone->zone_pgdat);
->>   		ClearPageLRU(page);
->> +		smp_rmb(); /* Pairs with smp_wmb in __pagevec_lru_add */
-> 
-> Why not include the call to smp_rmb() in del_page_from_lru_list() instead
-> of spreading smp_rmb() before calls to del_page_from_lru_list() ?
+>> It didn't look like put_cmsg() was on a fast path, so it seemed like a
+>> bounce buffer was the best solution here (and it's not without
+>> precedent).
+>
+> For some things like timestamps it can be important.
 
-Yes, this is what I should have done.  The memory barriers came from 
-another patch I squashed in and I didn't look back to see how obvious 
-the encapsulation was.
+Making put_cmsg() inline would help quite a bit with tracking the
+builtin_const-ness, and that could speed things up a little bit too.
+Would you be opposed to inlining?
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
