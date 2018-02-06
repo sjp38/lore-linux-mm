@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C28A26B02A5
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 17:10:07 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id r82so1567432wme.0
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 14:10:07 -0800 (PST)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id i67si256515wmi.233.2018.02.06.14.10.06
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 397CC6B0005
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 17:32:16 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id f67so3360250itf.2
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 14:32:16 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s186sor5458iod.269.2018.02.06.14.32.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Feb 2018 14:10:06 -0800 (PST)
-From: Colin King <colin.king@canonical.com>
-Subject: [PATCH] mm/ksm: make function stable_node_dup static
-Date: Tue,  6 Feb 2018 22:10:05 +0000
-Message-Id: <20180206221005.12642-1-colin.king@canonical.com>
+        (Google Transport Security);
+        Tue, 06 Feb 2018 14:32:15 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180206220159.GA9680@eng-minchan1.roam.corp.google.com>
+References: <20180206004903.224390-1-joelaf@google.com> <20180206220159.GA9680@eng-minchan1.roam.corp.google.com>
+From: Joel Fernandes <joelaf@google.com>
+Date: Tue, 6 Feb 2018 14:32:13 -0800
+Message-ID: <CAJWu+opFVtVbPygHBYX5gv-LeH1uugY1DDPp2q4va4mOsvBeWw@mail.gmail.com>
+Subject: Re: [PATCH RFC] ashmem: Fix lockdep RECLAIM_FS false positive
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
-Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Peter Zilstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-From: Colin Ian King <colin.king@canonical.com>
+Hi Minchan,
 
-The function stable_node_dup is local to the source and does not need
-to be in global scope, so make it static.
+On Tue, Feb 6, 2018 at 2:01 PM, Minchan Kim <minchan@kernel.org> wrote:
+[...]
+> On Mon, Feb 05, 2018 at 04:49:03PM -0800, Joel Fernandes wrote:
+>> During invocation of ashmem shrinker under memory pressure, ashmem
+>> calls into VFS code via vfs_fallocate. We however make sure we
+>> don't enter it if the allocation was GFP_FS to prevent looping
+>> into filesystem code. However lockdep doesn't know this and prints
+>> a lockdep splat as below.
+>>
+>> This patch fixes the issue by releasing the reclaim_fs lock after
+>> checking for GFP_FS but before calling into the VFS path, and
+>> reacquiring it after so that lockdep can continue reporting any
+>> reclaim issues later.
+>
+> At first glance, it looks reasonable. However, Couldn't we return
+> just 0 in ashmem_shrink_count when the context is under FS?
+>
 
-Cleans up sparse warning:
-mm/ksm.c:1321:13: warning: symbol 'stable_node_dup' was not
-declared. Should it be static?
+We're already checking if GFP_FS in ashmem_shrink_scan and bailing out
+though, did I miss something?
 
-Signed-off-by: Colin Ian King <colin.king@canonical.com>
----
- mm/ksm.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+The problem is not that there is a deadlock that occurs, the problem
+that even when we're not under FS, lockdep reports an issue that can't
+happen. The fix is for the lockdep false positive that occurs.
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 293721f5da70..30ebdbfaf373 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1318,10 +1318,10 @@ bool is_page_sharing_candidate(struct stable_node *stable_node)
- 	return __is_page_sharing_candidate(stable_node, 0);
- }
- 
--struct page *stable_node_dup(struct stable_node **_stable_node_dup,
--			     struct stable_node **_stable_node,
--			     struct rb_root *root,
--			     bool prune_stale_stable_nodes)
-+static struct page *stable_node_dup(struct stable_node **_stable_node_dup,
-+				    struct stable_node **_stable_node,
-+				    struct rb_root *root,
-+				    bool prune_stale_stable_nodes)
- {
- 	struct stable_node *dup, *found = NULL, *stable_node = *_stable_node;
- 	struct hlist_node *hlist_safe;
--- 
-2.15.1
+thanks,
+
+- Joel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
