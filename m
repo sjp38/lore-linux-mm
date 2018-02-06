@@ -1,60 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DDF1F6B0022
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 11:19:52 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id o128so1285059pfg.6
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 08:19:52 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTPS id t27si2002050pfe.283.2018.02.06.08.19.51
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EB1B46B0024
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 11:29:56 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id u19so532653pfl.3
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 08:29:56 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e6si426705pgr.586.2018.02.06.08.29.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Feb 2018 08:19:51 -0800 (PST)
-Date: Tue, 06 Feb 2018 11:19:49 -0500 (EST)
-Message-Id: <20180206.111949.1986970583522698316.davem@davemloft.net>
-Subject: Re: [PATCH v2] socket: Provide put_cmsg_whitelist() for constant
- size copies
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <CAGXu5j+VnhgXFajjxR7HJkN=Z6r3Kfw-+Gg2x37AacOD6C+Wdg@mail.gmail.com>
-References: <20180202102749.GA34019@beast>
-	<20180205.100347.176614123780866781.davem@davemloft.net>
-	<CAGXu5j+VnhgXFajjxR7HJkN=Z6r3Kfw-+Gg2x37AacOD6C+Wdg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 06 Feb 2018 08:29:55 -0800 (PST)
+Date: Tue, 6 Feb 2018 17:29:52 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [LSF/MM TOPIC] get_user_pages() and filesystems
+Message-ID: <20180206162952.krndup6lmbqpriga@quack2.suse.cz>
+References: <20180125115727.slf6zj4zzevcskkn@quack2.suse.cz>
+ <20180202220411.GB23065@dhcp-10-211-47-181.usdhcp.oraclecorp.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180202220411.GB23065@dhcp-10-211-47-181.usdhcp.oraclecorp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: keescook@chromium.org
-Cc: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, ebiggers3@gmail.com, james.morse@arm.com, keun-o.park@darkmatter.ae, labbott@redhat.com, linux-mm@kvack.org, mingo@kernel.org
+To: Liu Bo <bo.li.liu@oracle.com>
+Cc: Jan Kara <jack@suse.cz>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
 
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 6 Feb 2018 04:31:50 +1100
+Hello,
 
-> On Tue, Feb 6, 2018 at 2:03 AM, David Miller <davem@davemloft.net> wrote:
->> From: Kees Cook <keescook@chromium.org>
->> Date: Fri, 2 Feb 2018 02:27:49 -0800
->>
->>> @@ -343,6 +343,14 @@ struct ucred {
->>>
->>>  extern int move_addr_to_kernel(void __user *uaddr, int ulen, struct sockaddr_storage *kaddr);
->>>  extern int put_cmsg(struct msghdr*, int level, int type, int len, void *data);
->>> +/*
->>> + * Provide a bounce buffer for copying cmsg data to userspace when the
->>> + * target memory isn't already whitelisted for hardened usercopy.
->>> + */
->>> +#define put_cmsg_whitelist(_msg, _level, _type, _ptr) ({             \
->>> +             typeof(*(_ptr)) _val = *(_ptr);                         \
->>> +             put_cmsg(_msg, _level, _type, sizeof(_val), &_val);     \
->>> +     })
->>
->> I understand what you are trying to achieve, but it's at a real cost
->> here.  Some of these objects are structures, for example the struct
->> sock_extended_err is 16 bytes.
+On Fri 02-02-18 15:04:11, Liu Bo wrote:
+> On Thu, Jan 25, 2018 at 12:57:27PM +0100, Jan Kara wrote:
+> > Hello,
+> > 
+> > this is about a problem I have identified last month and for which I still
+> > don't have good solution. Some discussion of the problem happened here [1]
+> > where also technical details are posted but culprit of the problem is
+> > relatively simple: Lots of places in kernel (fs code, writeback logic,
+> > stable-pages framework for DIF/DIX) assume that file pages in page cache
+> > can be modified either via write(2), truncate(2), fallocate(2) or similar
+> > code paths explicitely manipulating with file space or via a writeable
+> > mapping into page tables. In particular we assume that if we block all the
+> > above paths by taking proper locks, block page faults, and unmap (/ map
+> > read-only) the page, it cannot be modified. But this assumption is violated
+> > by get_user_pages() users (such as direct IO or RDMA drivers - and we've
+> > got reports from such users of weird things happening).
+> > 
+> > The problem with GUP users is that they acquire page reference (at that
+> > point page is writeably mapped into page tables) and some time in future
+> > (which can be quite far in case of RDMA) page contents gets modified and
+> > page marked dirty.
 > 
-> It didn't look like put_cmsg() was on a fast path, so it seemed like a
-> bounce buffer was the best solution here (and it's not without
-> precedent).
+> I got a question here, when you say 'page contents gets modified', do
+> you mean that GUP users modify the page content?
 
-For some things like timestamps it can be important.
+Yes.
+
+> I have another story about GUP users who use direct-IO, qemu sometimes
+> doesn't work well with btrfs when checksum enabled and reports
+> checksum failures when guest OS doesn't use stable pages, where it is
+> not GUP users but the original file/mapping that may be changing the
+> page content in flight.
+
+OK, but that is kind of expected, isn't it? The whole purpose of 'stable
+pages' is exactly to modifying pages while IO is in flight. So if a device
+image is backed by a storage (filesystem in this case) which checksums
+data, qemu should present it to the guest as a block device supporting
+DIF/DIX and thus requiring stable pages...
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
