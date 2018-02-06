@@ -1,60 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CEC886B0297
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 13:42:10 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id k14so1758618wrc.14
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 10:42:10 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m79si69391wmc.37.2018.02.06.10.42.09
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 834A96B0299
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 13:42:51 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id q13so1800505pgt.17
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 10:42:51 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
+        by mx.google.com with ESMTPS id n24si142522pfa.269.2018.02.06.10.42.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Feb 2018 10:42:09 -0800 (PST)
-Date: Tue, 6 Feb 2018 10:32:54 -0800
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: Re: [PATCH 06/64] mm: teach pagefault paths about range locking
-Message-ID: <20180206183254.zsm276etjarud3lj@linux-n805>
-References: <20180205012754.23615-1-dbueso@wotan.suse.de>
- <20180205012754.23615-7-dbueso@wotan.suse.de>
- <7217f6dc-bce0-e73f-7d63-a328180d6ca7@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <7217f6dc-bce0-e73f-7d63-a328180d6ca7@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Feb 2018 10:42:50 -0800 (PST)
+Date: Tue, 06 Feb 2018 13:42:45 -0500 (EST)
+Message-Id: <20180206.134245.680837561909396767.davem@davemloft.net>
+Subject: Re: [PATCH v2] socket: Provide put_cmsg_whitelist() for constant
+ size copies
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <CAGXu5j+JnJKQocO4LxshbPZ0HPO+sQ71D+iCtCJN1YJzKn2G0g@mail.gmail.com>
+References: <CAGXu5j+VnhgXFajjxR7HJkN=Z6r3Kfw-+Gg2x37AacOD6C+Wdg@mail.gmail.com>
+	<20180206.111949.1986970583522698316.davem@davemloft.net>
+	<CAGXu5j+JnJKQocO4LxshbPZ0HPO+sQ71D+iCtCJN1YJzKn2G0g@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Davidlohr Bueso <dbueso@suse.de>, akpm@linux-foundation.org, mingo@kernel.org, peterz@infradead.org, jack@suse.cz, mhocko@kernel.org, kirill.shutemov@linux.intel.com, mawilcox@microsoft.com, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: keescook@chromium.org
+Cc: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, ebiggers3@gmail.com, james.morse@arm.com, keun-o.park@darkmatter.ae, labbott@redhat.com, linux-mm@kvack.org, mingo@kernel.org
 
-On Mon, 05 Feb 2018, Laurent Dufour wrote:
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 7 Feb 2018 05:36:02 +1100
 
->> --- a/drivers/misc/sgi-gru/grufault.c
->> +++ b/drivers/misc/sgi-gru/grufault.c
->> @@ -189,7 +189,8 @@ static void get_clear_fault_map(struct gru_state *gru,
->>   */
->>  static int non_atomic_pte_lookup(struct vm_area_struct *vma,
->>  				 unsigned long vaddr, int write,
->> -				 unsigned long *paddr, int *pageshift)
->> +				 unsigned long *paddr, int *pageshift,
->> +				 struct range_lock *mmrange)
->>  {
->>  	struct page *page;
->>
->> @@ -198,7 +199,8 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
->>  #else
->>  	*pageshift = PAGE_SHIFT;
->>  #endif
->> -	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0, &page, NULL) <= 0)
->> +	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0,
->> +			   &page, NULL, mmrange) <= 0)
->
->There is no need to pass down the range here since underlying called
->__get_user_pages_locked() is told to not unlock the mmap_sem.
->In general get_user_pages() doesn't need a range parameter.
+> Making put_cmsg() inline would help quite a bit with tracking the
+> builtin_const-ness, and that could speed things up a little bit too.
+> Would you be opposed to inlining?
 
-Yeah, you're right. At least it was a productive exercise for auditing.
-
-Thanks,
-Davidlohr
+Nope.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
