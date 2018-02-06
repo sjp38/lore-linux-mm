@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 360466B0007
-	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 17:17:21 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id h5so20803584pgv.21
-        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 14:17:21 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id e3si3744928pga.1.2018.02.05.14.17.19
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8561E6B0003
+	for <linux-mm@kvack.org>; Mon,  5 Feb 2018 19:07:12 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id x11so189798pgr.9
+        for <linux-mm@kvack.org>; Mon, 05 Feb 2018 16:07:12 -0800 (PST)
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id b11-v6si680746plr.8.2018.02.05.16.07.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Feb 2018 14:17:20 -0800 (PST)
-Subject: Re: [RFC PATCH 1/2] __free_one_page: skip merge for order-0 page
- unless compaction is in progress
-References: <20180124023050.20097-1-aaron.lu@intel.com>
- <20180205053013.GB16980@intel.com> <20180205053139.GC16980@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <57fd532f-8fb7-33c4-914a-fb816db47ea9@intel.com>
-Date: Mon, 5 Feb 2018 14:17:18 -0800
-MIME-Version: 1.0
-In-Reply-To: <20180205053139.GC16980@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Mon, 05 Feb 2018 16:07:11 -0800 (PST)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [PATCH] mm: thp: fix potential clearing to referenced flag in page_idle_clear_pte_refs_one()
+Date: Tue,  6 Feb 2018 08:06:36 +0800
+Message-Id: <1517875596-76350-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: kirill.shutemov@linux.intel.com, akpm@linux-foundation.org
+Cc: gavin.dg@linux.alibaba.com, yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 02/04/2018 09:31 PM, Aaron Lu wrote:
-> Running will-it-scale/page_fault1 process mode workload on a 2 sockets
-> Intel Skylake server showed severe lock contention of zone->lock, as
-> high as about 80%(43% on allocation path and 38% on free path) CPU
-> cycles are burnt spinning. With perf, the most time consuming part inside
-> that lock on free path is cache missing on page structures, mostly on
-> the to-be-freed page's buddy due to merging.
-> 
-> One way to avoid this overhead is not do any merging at all for order-0
-> pages and leave the need for high order pages to compaction.
+For PTE-mapped THP, the compound THP has not been split to normal 4K
+pages yet, the whole THP is considered referenced if any one of sub
+page is referenced.
 
-I think the RFC here is: we *know* this hurts high-order allocations and
-Aaron demonstrated that it does make the latency worse.  But,
-unexpectedly, it didn't totally crater them.
+When walking PTE-mapped THP by pvmw, all relevant PTEs will be checked
+to retrieve referenced bit. But, the current code just returns the
+result of the last PTE. If the last PTE has not referenced, the
+referenced flag will be cleared.
 
-So, is the harm to large allocations worth the performance benefit
-afforded to smaller ones by this patch?  How would we make a decision on
-something like that?
+So, here just break pvmw walk once referenced PTE is found if the page
+is a part of THP.
 
-If nothing else, this would make a nice companion topic to Daniel
-Jordan's "lru_lock scalability" proposal for LSF/MM.
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Reported-by: Gang Deng <gavin.dg@linux.alibaba.com>
+---
+ mm/page_idle.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/mm/page_idle.c b/mm/page_idle.c
+index 0a49374..da6024f 100644
+--- a/mm/page_idle.c
++++ b/mm/page_idle.c
+@@ -67,6 +67,14 @@ static bool page_idle_clear_pte_refs_one(struct page *page,
+ 		if (pvmw.pte) {
+ 			referenced = ptep_clear_young_notify(vma, addr,
+ 					pvmw.pte);
++			/*
++			 * For PTE-mapped THP, one sub page is referenced,
++			 * the whole THP is referenced.
++			 */
++			if (referenced && PageTransCompound(pvmw.page)) {
++				page_vma_mapped_walk_done(&pvmw);
++				break;
++			}
+ 		} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
+ 			referenced = pmdp_clear_young_notify(vma, addr,
+ 					pvmw.pmd);
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
