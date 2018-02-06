@@ -1,80 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F16426B0003
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 09:14:26 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id b6so1741466plx.3
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 06:14:26 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e22sor1178554pgn.235.2018.02.06.06.14.25
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E3AA6B0006
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 09:34:56 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id f1so1752871plb.7
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 06:34:56 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id p12si17294pgn.253.2018.02.06.06.34.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Feb 2018 06:14:25 -0800 (PST)
-Date: Tue, 6 Feb 2018 06:14:18 -0800
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -mm] mm, swap, frontswap: Fix THP swap if frontswap
- enabled
-Message-ID: <20180206141418.GA25912@eng-minchan1.roam.corp.google.com>
-References: <20180206065404.18815-1-ying.huang@intel.com>
- <20180206083101.GA17082@eng-minchan1.roam.corp.google.com>
- <871shy3421.fsf@yhuang-dev.intel.com>
- <20180206090244.GA20545@eng-minchan1.roam.corp.google.com>
- <20180206094822.GA2265@jagdpanzerIV>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Feb 2018 06:34:54 -0800 (PST)
+Date: Tue, 6 Feb 2018 09:34:51 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 1/2] rcu: Transform kfree_rcu() into kvfree_rcu()
+Message-ID: <20180206093451.0de5ceeb@gandalf.local.home>
+In-Reply-To: <151791238553.5994.4933976056810745303.stgit@localhost.localdomain>
+References: <151791170164.5994.8253310844733420079.stgit@localhost.localdomain>
+	<151791238553.5994.4933976056810745303.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180206094822.GA2265@jagdpanzerIV>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>, stable@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, mingo@redhat.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Sergey,
+On Tue, 06 Feb 2018 13:19:45 +0300
+Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
 
-On Tue, Feb 06, 2018 at 06:48:22PM +0900, Sergey Senozhatsky wrote:
-> Hello,
-> 
-> On (02/06/18 01:02), Minchan Kim wrote:
-> [..]
-> > Can't we simple do like that if you want to make it simple and rely on someone
-> > who makes frontswap THP-aware later?
-> > 
-> > diff --git a/mm/swapfile.c b/mm/swapfile.c
-> > index 42fe5653814a..4bf1725407aa 100644
-> > --- a/mm/swapfile.c
-> > +++ b/mm/swapfile.c
-> > @@ -934,7 +934,11 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
-> >  
-> >         /* Only single cluster request supported */
-> >         WARN_ON_ONCE(n_goal > 1 && cluster);
-> > +#ifdef CONFIG_FRONTSWAP
-> 
-> Wouldn't #ifdef CONFIG_THP_SWAP be better? frontswap_enabled() is 'false'
-> on CONFIG_FRONTSWAP configs, should be compiled out anyway.
+> /**
+> - * kfree_rcu() - kfree an object after a grace period.
+> - * @ptr:	pointer to kfree
+> + * kvfree_rcu() - kvfree an object after a grace period.
+> + * @ptr:	pointer to kvfree
+>   * @rcu_head:	the name of the struct rcu_head within the type of @ptr.
+>   *
 
-Agree.
+You may want to add a big comment here that states this works for both
+free vmalloc and kmalloc data. Because if I saw this, I would think it
+only works for vmalloc, and start implementing a custom one for kmalloc
+data.
 
-> 
-> > +       /* Now, frontswap doesn't support THP page */
-> > +       if (frontswap_enabled() && cluster)
-> > +               return;
-> > +#endif
-> >         avail_pgs = atomic_long_read(&nr_swap_pages) / nr_pages;
-> >         if (avail_pgs <= 0)
-> >                 goto noswap;
-> 
-> Looks interesting. Technically, can be done earlier - in get_swap_page(),
-> can't it? get_swap_page() has the PageTransHuge(page) && CONFIG_THP_SWAP
-> condition checks. Can add frontswap dependency there. Something like
-> 
-> 	if (PageTransHuge(page)) {
-> 		if (IS_ENABLED(CONFIG_THP_SWAP))
-> +			if (!frontswap_enabled())
-> 				get_swap_pages(1, true, &entry);
-> 		return entry;
-> 	}
+-- Steve
 
-Looks better but it introduces frontswap thing to swap_slots.c while
-all frontswap works in swapfile.c.
+
+> - * Many rcu callbacks functions just call kfree() on the base structure.
+> + * Many rcu callbacks functions just call kvfree() on the base structure.
+>   * These functions are trivial, but their size adds up, and furthermore
+>   * when they are used in a kernel module, that module must invoke the
+>   * high-latency rcu_barrier() function at module-unload time.
+>   *
+> - * The kfree_rcu() function handles this issue.  Rather than encoding a
+> - * function address in the embedded rcu_head structure, kfree_rcu() instead
+> + * The kvfree_rcu() function handles this issue.  Rather than encoding a
+> + * function address in the embedded rcu_head structure, kvfree_rcu() instead
+>   * encodes the offset of the rcu_head structure within the base structure.
+>   * Because the functions are not allowed in the low-order 4096 bytes of
+>   * kernel virtual memory, offsets up to 4095 bytes can be accommodated.
+>   * If the offset is larger than 4095 bytes, a compile-time error will
+> - * be generated in __kfree_rcu().  If this error is triggered, you can
+> + * be generated in __kvfree_rcu().  If this error is triggered, you can
+>   * either fall back to use of call_rcu() or rearrange the structure to
+>   * position the rcu_head structure into the first 4096 bytes.
+>   *
+> @@ -871,9 +871,12 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
+>   * The BUILD_BUG_ON check must not involve any function calls, hence the
+>   * checks are done in macros here.
+>   */
+> -#define kfree_rcu(ptr, rcu_head)					\
+> -	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+> +#define kvfree_rcu(ptr, rcu_head)					\
+> +	__kvfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+>  
+> +#define kfree_rcu(ptr, rcu_head) kvfree_rcu(ptr, rcu_head)
+> +
+> +#define vfree_rcu(ptr, rcu_head) kvfree_rcu(ptr, rcu_head)
+>  
+>  /*
+>   * Place this after a lock-acquisition primitive to guarantee that
+> diff --git a/include/linux/rcutiny.h b/include/linux/rcutiny.h
+> index ce9beec35e34..2e484aaa534f 100644
+> --- a/include/linux/rcutiny.h
+> +++ b/include/linux/rcutiny.h
+> @@ -84,8 +84,8 @@ static inline void synchronize_sched_expedited(void)
+>  	synchronize_sched();
+>  }
+>  
+> -static inline void kfree_call_rcu(struct rcu_head *head,
+> -				  rcu_callback_t func)
+> +static inline void kvfree_call_rcu(struct rcu_head *head,
+> +				   rcu_callback_t func)
+>  {
+>  	call_rcu(head, func);
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
