@@ -1,72 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 73F496B0003
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 04:48:29 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id x11so1204198pgr.9
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 01:48:29 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p10sor259794pgn.8.2018.02.06.01.48.28
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AB15A6B0003
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 05:19:46 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id f4so1383113plr.14
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 02:19:46 -0800 (PST)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0105.outbound.protection.outlook.com. [104.47.0.105])
+        by mx.google.com with ESMTPS id j63si6696644pgc.591.2018.02.06.02.19.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Feb 2018 01:48:28 -0800 (PST)
-Date: Tue, 6 Feb 2018 18:48:22 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH -mm] mm, swap, frontswap: Fix THP swap if frontswap
- enabled
-Message-ID: <20180206094822.GA2265@jagdpanzerIV>
-References: <20180206065404.18815-1-ying.huang@intel.com>
- <20180206083101.GA17082@eng-minchan1.roam.corp.google.com>
- <871shy3421.fsf@yhuang-dev.intel.com>
- <20180206090244.GA20545@eng-minchan1.roam.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 06 Feb 2018 02:19:45 -0800 (PST)
+Subject: [PATCH 0/2] rcu: Transform kfree_rcu() into kvfree_rcu()
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Tue, 06 Feb 2018 13:19:29 +0300
+Message-ID: <151791170164.5994.8253310844733420079.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180206090244.GA20545@eng-minchan1.roam.corp.google.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>, stable@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, mingo@redhat.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, ktkhai@virtuozzo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello,
+Recent times kvmalloc() begun widely be used in kernel.
+Some of such memory allocations have to be freed after
+rcu grace period, and this patchset introduces a generic
+primitive for doing this.
 
-On (02/06/18 01:02), Minchan Kim wrote:
-[..]
-> Can't we simple do like that if you want to make it simple and rely on someone
-> who makes frontswap THP-aware later?
-> 
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 42fe5653814a..4bf1725407aa 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -934,7 +934,11 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
->  
->         /* Only single cluster request supported */
->         WARN_ON_ONCE(n_goal > 1 && cluster);
-> +#ifdef CONFIG_FRONTSWAP
+Actually, everything is made in [1/2]. Patch [2/2] is just
+added to make new kvfree_rcu() have the first user.
 
-Wouldn't #ifdef CONFIG_THP_SWAP be better? frontswap_enabled() is 'false'
-on CONFIG_FRONTSWAP configs, should be compiled out anyway.
+The patch [1/2] transforms kfree_rcu(), its sub definitions
+and its sub functions into kvfree_rcu() form. The most
+significant change is in __rcu_reclaim(), where kvfree()
+is used instead of kfree(). Since kvfree() is able to
+have a deal with memory allocated via kmalloc(), vmalloc()
+and kvmalloc(); kfree_rcu() and vfree_rcu() may simply
+be defined through this new kvfree_rcu().
 
-> +       /* Now, frontswap doesn't support THP page */
-> +       if (frontswap_enabled() && cluster)
-> +               return;
-> +#endif
->         avail_pgs = atomic_long_read(&nr_swap_pages) / nr_pages;
->         if (avail_pgs <= 0)
->                 goto noswap;
+---
 
-Looks interesting. Technically, can be done earlier - in get_swap_page(),
-can't it? get_swap_page() has the PageTransHuge(page) && CONFIG_THP_SWAP
-condition checks. Can add frontswap dependency there. Something like
+Kirill Tkhai (2):
+      rcu: Transform kfree_rcu() into kvfree_rcu()
+      mm: Use kvfree_rcu() in update_memcg_params()
 
-	if (PageTransHuge(page)) {
-		if (IS_ENABLED(CONFIG_THP_SWAP))
-+			if (!frontswap_enabled())
-				get_swap_pages(1, true, &entry);
-		return entry;
-	}
 
-	-ss
+ include/linux/rcupdate.h   |   31 +++++++++++++++++--------------
+ include/linux/rcutiny.h    |    4 ++--
+ include/linux/rcutree.h    |    2 +-
+ include/trace/events/rcu.h |   12 ++++++------
+ kernel/rcu/rcu.h           |    8 ++++----
+ kernel/rcu/tree.c          |   14 +++++++-------
+ kernel/rcu/tree_plugin.h   |   10 +++++-----
+ mm/slab_common.c           |   10 +---------
+ 8 files changed, 43 insertions(+), 48 deletions(-)
+
+--
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
