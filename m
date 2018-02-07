@@ -1,50 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E750B6B0325
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 10:52:44 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id f1-v6so162887plb.7
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 07:52:44 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id w3si1084745pgv.486.2018.02.07.07.52.43
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 22A546B0328
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:06:26 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id q195so1555334ioe.5
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:06:26 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id g194si1798564ita.117.2018.02.07.08.06.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Feb 2018 07:52:43 -0800 (PST)
-Date: Wed, 7 Feb 2018 07:52:29 -0800
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: INFO: task hung in sync_blockdev
-Message-ID: <20180207155229.GC10945@tassilo.jf.intel.com>
-References: <001a11447070ac6fcb0564a08cb1@google.com>
+        Wed, 07 Feb 2018 08:06:24 -0800 (PST)
+Subject: Re: [PATCH v11 00/10] Application Data Integrity feature introduced
+ by SPARC M7
+References: <cover.1517497017.git.khalid.aziz@oracle.com>
+ <87wozwi0p1.fsf@xmission.com>
+ <0f1bdb63-60d5-467c-a6a4-c06ba62b1f6e@oracle.com>
+ <87h8qtfdvj.fsf@xmission.com>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <c50c053f-1ee7-81f9-99bb-e5f6fe6bb43e@oracle.com>
+Date: Wed, 7 Feb 2018 09:04:50 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <001a11447070ac6fcb0564a08cb1@google.com>
+In-Reply-To: <87h8qtfdvj.fsf@xmission.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <syzbot+283c3c447181741aea28@syzkaller.appspotmail.com>
-Cc: akpm@linux-foundation.org, aryabinin@virtuozzo.com, jack@suse.cz, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, mingo@kernel.org, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, linux-fsdevel@vger.kernel.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: davem@davemloft.net, dave.hansen@linux.intel.com, aarcange@redhat.com, akpm@linux-foundation.org, allen.pais@oracle.com, anthony.yznaga@oracle.com, arnd@arndb.de, babu.moger@oracle.com, benh@kernel.crashing.org, bob.picco@oracle.com, bsingharora@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, dave.jiang@intel.com, david.j.aldridge@oracle.com, elena.reshetova@intel.com, glx@linutronix.de, gregkh@linuxfoundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, hpa@zytor.com, hughd@google.com, imbrenda@linux.vnet.ibm.com, jack@suse.cz, jag.raman@oracle.com, jane.chu@oracle.com, jglisse@redhat.com, jroedel@suse.de, khalid@gonehiking.org, khandual@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, kstewart@linuxfoundation.org, ktkhai@virtuozzo.com, liam.merwick@oracle.com, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux@roeck-us.net, me@tobin.cc, mgorman@suse.de, mgorman@techsingularity.net, mhocko@suse.com, mike.kravetz@oracle.com, minchan@kernel.org, mingo@kernel.org, mingo@redhat.com, mpe@ellerman.id.au, nadav.amit@gmail.com, nagarathnam.muthusamy@oracle.com, nborisov@suse.com, n-horiguchi@ah.jp.nec.com, nick.alcock@oracle.com, nitin.m.gupta@oracle.com, ombredanne@nexb.com, pasha.tatashin@oracle.com, paulus@samba.org, pombredanne@nexb.com, punit.agrawal@arm.com, rob.gardner@oracle.com, ross.zwisler@linux.intel.com, shannon.nelson@oracle.com, shli@fb.com, sparclinux@vger.kernel.org, steven.sistare@oracle.com, tglx@linutronix.de, thomas.tai@oracle.com, tklauser@distanz.ch, tom.hromatka@oracle.com, vegard.nossum@oracle.com, vijay.ac.kumar@oracle.com, willy@infradead.org, x86@kernel.org, zi.yan@cs.rutgers.edu
 
->  #0:  (&bdev->bd_mutex){+.+.}, at: [<0000000040269370>]
-> __blkdev_put+0xbc/0x7f0 fs/block_dev.c:1757
-> 1 lock held by blkid/19199:
->  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
-> __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
->  #1:  (&ldata->atomic_read_lock){+.+.}, at: [<0000000033edf9f2>]
-> n_tty_read+0x2ef/0x1a00 drivers/tty/n_tty.c:2131
-> 1 lock held by syz-executor5/19330:
->  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
-> __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
-> 1 lock held by syz-executor5/19331:
->  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
-> __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
+On 02/07/2018 12:38 AM, ebiederm@xmission.com wrote:
+> Khalid Aziz <khalid.aziz@oracle.com> writes:
+> 
+>> On 02/01/2018 07:29 PM, ebiederm@xmission.com wrote:
+>>> Khalid Aziz <khalid.aziz@oracle.com> writes:
+>>>
+>>>> V11 changes:
+>>>> This series is same as v10 and was simply rebased on 4.15 kernel. Can
+>>>> mm maintainers please review patches 2, 7, 8 and 9 which are arch
+>>>> independent, and include/linux/mm.h and mm/ksm.c changes in patch 10
+>>>> and ack these if everything looks good?
+>>>
+>>> I am a bit puzzled how this differs from the pkey's that other
+>>> architectures are implementing to achieve a similar result.
+>>>
+>>> I am a bit mystified why you don't store the tag in a vma
+>>> instead of inventing a new way to store data on page out.
+>>
+>> Hello Eric,
+>>
+>> As Steven pointed out, sparc sets tags per cacheline unlike pkey. This results
+>> in much finer granularity for tags that pkey and hence requires larger tag
+>> storage than what we can do in a vma.
+> 
+> *Nod*   I am a bit mystified where you keep the information in memory.
+> I would think the tags would need to be stored per cacheline or per
+> tlb entry, in some kind of cache that could overflow.  So I would be
+> surprised if swapping is the only time this information needs stored
+> in memory.  Which makes me wonder if you have the proper data
+> structures.
+> 
+> I would think an array per vma or something in the page tables would
+> tend to make sense.
+> 
+> But perhaps I am missing something.
 
-It seems multiple processes deadlocked on the bd_mutex. 
-Unfortunately there's no backtrace for the lock acquisitions,
-so it's hard to see the exact sequence.
+The ADI tags are stored in spare bits in the RAM. ADI tag storage is 
+managed entirely by memory controller which maintains these tags per ADI 
+block. An ADI block is the same size as cacheline on M7. Tags for each 
+ADI block are associated with the physical ADI block, not the virtual 
+address. When a physical page is reused, the physical ADI tag storage 
+for that page is overwritten with new ADI tags, hence we need to store 
+away the tags when we swap out a page. Kernel updates the ADI tags for 
+physical page when it swaps a new page in. Each vma can cover variable 
+number of pages so it is best to store a pointer to the tag storage in 
+vma as opposed to actual tags in an array. Each 8K page can have 128 
+tags on it. Since each tag is 4 bits, we need 64 bytes per page to store 
+the tags. That can add up for a large vma.
 
-It seems lockdep is already active, so it's likely not
-just an ordering violation, but something else.
+> 
+>>> Can you please use force_sig_fault to send these signals instead
+>>> of force_sig_info.  Emperically I have found that it is very
+>>> error prone to generate siginfo's by hand, especially on code
+>>> paths where several different si_codes may apply.  So it helps
+>>> to go through a helper function to ensure the fiddly bits are
+>>> all correct.  AKA the unused bits all need to be set to zero before
+>>> struct siginfo is copied to userspace.
+>>>
+>>
+>> What you say makes sense. I followed the same code as other fault handlers for
+>> sparc. I could change just the fault handlers for ADI related faults. Would it
+>> make more sense to change all the fault handlers in a separate patch and keep
+>> the code in arch/sparc/kernel/traps_64.c consistent? Dave M, do you have a
+>> preference?
+> 
+> It is my intention post -rc1 to start sending out patches to get the
+> rest of not just sparc but all of the architectures using the new
+> helpers.  I have the code I just ran out of time befor the merge
+> window opened to ensure everything had a good thorough review.
+> 
+> So if you can handle the your new changes I expect I will handle the
+> rest.
+> 
 
--Andi
+I can add a patch at the end of my series to update all force_sig_info() 
+in my patchset to force_sig_fault(). That will sync my patches up with 
+your changes cleanly. Does that work for you? I can send an updated 
+series with this change. Can you review and ack the patches after this 
+change.
+
+Thanks,
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
