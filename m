@@ -1,117 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 496C16B02CB
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 02:00:46 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id t64so2592772pfi.13
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 23:00:46 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id s66si563044pgc.481.2018.02.06.23.00.44
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 824716B02CE
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 02:13:29 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 9so870050pgg.3
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 23:13:29 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id n9si570805pgr.552.2018.02.06.23.13.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Feb 2018 23:00:45 -0800 (PST)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v2] mm, swap, frontswap: Fix THP swap if frontswap enabled
-Date: Wed,  7 Feb 2018 15:00:35 +0800
-Message-Id: <20180207070035.30302-1-ying.huang@intel.com>
+        Tue, 06 Feb 2018 23:13:28 -0800 (PST)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v27 0/4] Virtio-balloon: support free page reporting
+Date: Wed,  7 Feb 2018 14:54:27 +0800
+Message-Id: <1517986471-15185-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <huang.ying.caritas@gmail.com>, "Huang, Ying" <ying.huang@intel.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>, stable@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
 
-From: Huang Ying <huang.ying.caritas@gmail.com>
+This patch series is separated from the previous "Virtio-balloon
+Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,  
+implemented by this series enables the virtio-balloon driver to report
+hints of guest free pages to the host. It can be used to accelerate live
+migration of VMs. Here is an introduction of this usage:
 
-It was reported by Sergey Senozhatsky that if THP (Transparent Huge
-Page) and frontswap (via zswap) are both enabled, when memory goes low
-so that swap is triggered, segfault and memory corruption will occur
-in random user space applications as follow,
+Live migration needs to transfer the VM's memory from the source machine
+to the destination round by round. For the 1st round, all the VM's memory
+is transferred. From the 2nd round, only the pieces of memory that were
+written by the guest (after the 1st round) are transferred. One method
+that is popularly used by the hypervisor to track which part of memory is
+written is to write-protect all the guest memory.
 
-kernel: urxvt[338]: segfault at 20 ip 00007fc08889ae0d sp 00007ffc73a7fc40 error 6 in libc-2.26.so[7fc08881a000+1ae000]
- #0  0x00007fc08889ae0d _int_malloc (libc.so.6)
- #1  0x00007fc08889c2f3 malloc (libc.so.6)
- #2  0x0000560e6004bff7 _Z14rxvt_wcstoutf8PKwi (urxvt)
- #3  0x0000560e6005e75c n/a (urxvt)
- #4  0x0000560e6007d9f1 _ZN16rxvt_perl_interp6invokeEP9rxvt_term9hook_typez (urxvt)
- #5  0x0000560e6003d988 _ZN9rxvt_term9cmd_parseEv (urxvt)
- #6  0x0000560e60042804 _ZN9rxvt_term6pty_cbERN2ev2ioEi (urxvt)
- #7  0x0000560e6005c10f _Z17ev_invoke_pendingv (urxvt)
- #8  0x0000560e6005cb55 ev_run (urxvt)
- #9  0x0000560e6003b9b9 main (urxvt)
- #10 0x00007fc08883af4a __libc_start_main (libc.so.6)
- #11 0x0000560e6003f9da _start (urxvt)
+This feature enables the optimization of the 1st round memory transfer -
+the hypervisor can skip the transfer of guest free pages in the 1st round.
+It is not concerned that the memory pages are used after they are given
+to the hypervisor as a hint of the free pages, because they will be
+tracked by the hypervisor and transferred in the next round if they are
+used and written.
 
-After bisection, it was found the first bad commit is
-bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped
-out").
+* Tests
+- Migration time improvement
+Result:
+Live migration time is reduced to 14% with this optimization.
+Details:
+Local live migration of 8GB idle guest, the legacy live migration takes
+~1817ms. With this optimization, it takes ~254ms, which reduces the time
+to 14%.
+- Workload tests
+Results:
+Running this feature has no impact on the linux compilation workload
+running inside the guest.
+Details:
+Set up a Ping-Pong local live migration, where the guest ceaselessy
+migrates between the source and destination. Linux compilation,
+i.e. make bzImage -j4, is performed during the Ping-Pong migration. The
+legacy case takes 5min14s to finish the compilation. With this
+optimization patched, it takes 5min12s.
 
-The root cause is as follow.
+ChangeLog:
+v26->v27:
+    - add a new patch to expose page_poisoning_enabled to kernel modules
+    - virtio-balloon: set poison_val to 0xaaaaaaaa, instead of 0xaa
+v25->v26: virtio-balloon changes only
+    - remove kicking free page vq since the host now polls the vq after
+      initiating the reporting
+    - report_free_page_func: detach all the used buffers after sending
+      the stop cmd id. This avoids leaving the detaching burden (i.e.
+      overhead) to the next cmd id. Detaching here isn't considered
+      overhead since the stop cmd id has been sent, and host has already
+      moved formard.
+v24->v25:
+    - mm: change walk_free_mem_block to return 0 (instead of true) on
+          completing the report, and return a non-zero value from the
+          callabck, which stops the reporting.
+    - virtio-balloon:
+        - use enum instead of define for VIRTIO_BALLOON_VQ_INFLATE etc.
+        - avoid __virtio_clear_bit when bailing out;
+        - a new method to avoid reporting the some cmd id to host twice
+        - destroy_workqueue can cancel free page work when the feature is
+          negotiated;
+        - fail probe when the free page vq size is less than 2.
+v23->v24:
+    - change feature name VIRTIO_BALLOON_F_FREE_PAGE_VQ to
+      VIRTIO_BALLOON_F_FREE_PAGE_HINT
+    - kick when vq->num_free < half full, instead of "= half full"
+    - replace BUG_ON with bailing out
+    - check vb->balloon_wq in probe(), if null, bail out
+    - add a new feature bit for page poisoning
+    - solve the corner case that one cmd id being sent to host twice
+v22->v23:
+    - change to kick the device when the vq is half-way full;
+    - open-code batch_free_page_sg into add_one_sg;
+    - change cmd_id from "uint32_t" to "__virtio32";
+    - reserver one entry in the vq for the driver to send cmd_id, instead
+      of busywaiting for an available entry;
+    - add "stop_update" check before queue_work for prudence purpose for
+      now, will have a separate patch to discuss this flag check later;
+    - init_vqs: change to put some variables on stack to have simpler
+      implementation;
+    - add destroy_workqueue(vb->balloon_wq);
 
-When the pages are written to swap device during swapping out in
-swap_writepage(), zswap (fontswap) is tried to compress the pages
-instead to improve the performance.  But zswap (frontswap) will treat
-THP as normal page, so only the head page is saved.  After swapping
-in, tail pages will not be restored to its original contents, so cause
-the memory corruption in the applications.
+v21->v22:
+    - add_one_sg: some code and comment re-arrangement
+    - send_cmd_id: handle a cornercase
 
-This is fixed via splitting THP before writing the page to swap device
-if frontswap is enabled.  To deal with the situation where frontswap
-is enabled at runtime, whether the page is THP is checked before using
-frontswap during swapping out too.
+For previous ChangeLog, please reference
+https://lwn.net/Articles/743660/
 
-Reported-and-tested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Dan Streetman <ddstreet@ieee.org>
-Cc: Seth Jennings <sjenning@redhat.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Shakeel Butt <shakeelb@google.com>
-Cc: stable@vger.kernel.org # 4.14
-Fixes: bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped out")
+Wei Wang (4):
+  mm: support reporting free page blocks
+  virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+  mm/page_poison: expose page_poisoning_enabled to kernel modules
+  virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
 
-Changelog:
+ drivers/virtio/virtio_balloon.c     | 255 +++++++++++++++++++++++++++++++-----
+ include/linux/mm.h                  |   6 +
+ include/uapi/linux/virtio_balloon.h |   7 +
+ mm/page_alloc.c                     |  96 ++++++++++++++
+ mm/page_poison.c                    |   6 +
+ 5 files changed, 334 insertions(+), 36 deletions(-)
 
-v2:
-
-- Move frontswap check into swapfile.c to avoid to make vmscan.c
-  depends on frontswap.
----
- mm/page_io.c  | 2 +-
- mm/swapfile.c | 3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/mm/page_io.c b/mm/page_io.c
-index b41cf9644585..6dca817ae7a0 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -250,7 +250,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
- 		unlock_page(page);
- 		goto out;
- 	}
--	if (frontswap_store(page) == 0) {
-+	if (!PageTransHuge(page) && frontswap_store(page) == 0) {
- 		set_page_writeback(page);
- 		unlock_page(page);
- 		end_page_writeback(page);
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 006047b16814..0b7c7883ce64 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -934,6 +934,9 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
- 
- 	/* Only single cluster request supported */
- 	WARN_ON_ONCE(n_goal > 1 && cluster);
-+	/* Frontswap doesn't support THP */
-+	if (frontswap_enabled() && cluster)
-+		goto noswap;
- 
- 	avail_pgs = atomic_long_read(&nr_swap_pages) / nr_pages;
- 	if (avail_pgs <= 0)
 -- 
-2.15.1
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
