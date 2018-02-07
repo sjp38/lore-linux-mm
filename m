@@ -1,128 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F309F6B0333
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:28:09 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id b31so728500uah.12
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:28:09 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id v10si455793vkd.201.2018.02.07.08.28.08
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C47496B0335
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:34:20 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id b4so511152pgs.5
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:34:20 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id q11si1135605pgc.165.2018.02.07.08.34.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Feb 2018 08:28:08 -0800 (PST)
-Date: Wed, 7 Feb 2018 11:27:50 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH -mm -v2] mm, swap, frontswap: Fix THP swap if frontswap
- enabled
-Message-ID: <20180207162750.GB26849@char.us.oracle.com>
-References: <20180207070035.30302-1-ying.huang@intel.com>
+        Wed, 07 Feb 2018 08:34:19 -0800 (PST)
+Date: Wed, 7 Feb 2018 11:34:16 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 0/2] rcu: Transform kfree_rcu() into kvfree_rcu()
+Message-ID: <20180207113416.33b6247b@gandalf.local.home>
+In-Reply-To: <20180207161846.GA902@bombadil.infradead.org>
+References: <151791170164.5994.8253310844733420079.stgit@localhost.localdomain>
+	<20180207021703.GC3617@linux.vnet.ibm.com>
+	<20180207042334.GA16175@bombadil.infradead.org>
+	<20180207050200.GH3617@linux.vnet.ibm.com>
+	<db9bda80-7506-ae25-2c0a-45eaa08963d9@virtuozzo.com>
+	<20180207083104.GK3617@linux.vnet.ibm.com>
+	<20180207085700.393f90d0@gandalf.local.home>
+	<20180207161846.GA902@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180207070035.30302-1-ying.huang@intel.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <huang.ying.caritas@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>, stable@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, josh@joshtriplett.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, mingo@redhat.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com, rao.shoaib@oracle.com
 
-On Wed, Feb 07, 2018 at 03:00:35PM +0800, Huang, Ying wrote:
-> From: Huang Ying <huang.ying.caritas@gmail.com>
-> 
-> It was reported by Sergey Senozhatsky that if THP (Transparent Huge
-> Page) and frontswap (via zswap) are both enabled, when memory goes low
-> so that swap is triggered, segfault and memory corruption will occur
-> in random user space applications as follow,
-> 
-> kernel: urxvt[338]: segfault at 20 ip 00007fc08889ae0d sp 00007ffc73a7fc40 error 6 in libc-2.26.so[7fc08881a000+1ae000]
->  #0  0x00007fc08889ae0d _int_malloc (libc.so.6)
->  #1  0x00007fc08889c2f3 malloc (libc.so.6)
->  #2  0x0000560e6004bff7 _Z14rxvt_wcstoutf8PKwi (urxvt)
->  #3  0x0000560e6005e75c n/a (urxvt)
->  #4  0x0000560e6007d9f1 _ZN16rxvt_perl_interp6invokeEP9rxvt_term9hook_typez (urxvt)
->  #5  0x0000560e6003d988 _ZN9rxvt_term9cmd_parseEv (urxvt)
->  #6  0x0000560e60042804 _ZN9rxvt_term6pty_cbERN2ev2ioEi (urxvt)
->  #7  0x0000560e6005c10f _Z17ev_invoke_pendingv (urxvt)
->  #8  0x0000560e6005cb55 ev_run (urxvt)
->  #9  0x0000560e6003b9b9 main (urxvt)
->  #10 0x00007fc08883af4a __libc_start_main (libc.so.6)
->  #11 0x0000560e6003f9da _start (urxvt)
-> 
-> After bisection, it was found the first bad commit is
-> bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped
-> out").
-> 
-> The root cause is as follow.
-> 
-> When the pages are written to swap device during swapping out in
-> swap_writepage(), zswap (fontswap) is tried to compress the pages
-> instead to improve the performance.  But zswap (frontswap) will treat
-> THP as normal page, so only the head page is saved.  After swapping
-> in, tail pages will not be restored to its original contents, so cause
-> the memory corruption in the applications.
-> 
-> This is fixed via splitting THP before writing the page to swap device
-> if frontswap is enabled.  To deal with the situation where frontswap
-> is enabled at runtime, whether the page is THP is checked before using
-> frontswap during swapping out too.
-> 
-> Reported-and-tested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+On Wed, 7 Feb 2018 08:18:46 -0800
+Matthew Wilcox <willy@infradead.org> wrote:
 
-Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> Do we need to be able to free any of those objects in order to rename
+> kfree_rcu() to just free_rcu()?
 
-> Cc: Dan Streetman <ddstreet@ieee.org>
-> Cc: Seth Jennings <sjenning@redhat.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Shakeel Butt <shakeelb@google.com>
-> Cc: stable@vger.kernel.org # 4.14
-> Fixes: bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped out")
-> 
-> Changelog:
-> 
-> v2:
-> 
-> - Move frontswap check into swapfile.c to avoid to make vmscan.c
->   depends on frontswap.
-> ---
->  mm/page_io.c  | 2 +-
->  mm/swapfile.c | 3 +++
->  2 files changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_io.c b/mm/page_io.c
-> index b41cf9644585..6dca817ae7a0 100644
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
-> @@ -250,7 +250,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
->  		unlock_page(page);
->  		goto out;
->  	}
-> -	if (frontswap_store(page) == 0) {
-> +	if (!PageTransHuge(page) && frontswap_store(page) == 0) {
->  		set_page_writeback(page);
->  		unlock_page(page);
->  		end_page_writeback(page);
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 006047b16814..0b7c7883ce64 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -934,6 +934,9 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
->  
->  	/* Only single cluster request supported */
->  	WARN_ON_ONCE(n_goal > 1 && cluster);
-> +	/* Frontswap doesn't support THP */
-> +	if (frontswap_enabled() && cluster)
-> +		goto noswap;
->  
->  	avail_pgs = atomic_long_read(&nr_swap_pages) / nr_pages;
->  	if (avail_pgs <= 0)
-> -- 
-> 2.15.1
-> 
+I'm just nervous about tightly coupling free_rcu() with all the *free()
+from the memory management system. I've been burnt in the past by doing
+such things.
+
+What's the down side of having a way of matching *free_rcu() with all
+the *free()s? I think it's easier to understand, and rcu doesn't need
+to worry about changes of *free() code.
+
+To me:
+
+	kfree_rcu(x);
+
+is just a quick way of doing 'kfree(x)' after a synchronize_rcu() call.
+
+But a "free_rcu(x)", is something I have to think about, because I
+don't know from the name exactly what it is doing.
+
+I know this may sound a bit bike shedding, but the less I need to think
+about how other sub systems work, the easier it is to concentrate on my
+own sub system.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
