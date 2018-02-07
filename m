@@ -1,76 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A0FF16B035A
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 13:34:22 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id f11so1642071qtj.21
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 10:34:22 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u66si2085028qkc.317.2018.02.07.10.34.21
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AE1B6B035E
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 13:38:38 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 199so784663pfy.18
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 10:38:38 -0800 (PST)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id n128si1262381pgn.247.2018.02.07.10.38.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Feb 2018 10:34:21 -0800 (PST)
-Date: Wed, 7 Feb 2018 20:34:16 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v27 3/4] mm/page_poison: expose page_poisoning_enabled to
- kernel modules
-Message-ID: <20180207203004-mutt-send-email-mst@kernel.org>
-References: <1517986471-15185-1-git-send-email-wei.w.wang@intel.com>
- <1517986471-15185-4-git-send-email-wei.w.wang@intel.com>
+        Wed, 07 Feb 2018 10:38:37 -0800 (PST)
+Subject: Re: [PATCH RFC] x86: KASAN: Sanitize unauthorized irq stack access
+References: <151802005995.4570.824586713429099710.stgit@localhost.localdomain>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <6638b09b-30b0-861e-9c00-c294889a3791@linux.intel.com>
+Date: Wed, 7 Feb 2018 10:38:35 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1517986471-15185-4-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <151802005995.4570.824586713429099710.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: Kirill Tkhai <ktkhai@virtuozzo.com>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, aryabinin@virtuozzo.com, glider@google.com, dvyukov@google.com, luto@kernel.org, bp@alien8.de, jpoimboe@redhat.com, jgross@suse.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, minipli@googlemail.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
 
-On Wed, Feb 07, 2018 at 02:54:30PM +0800, Wei Wang wrote:
-> In some usages, e.g. virtio-balloon, a kernel module needs to know if
-> page poisoning is in use. This patch exposes the page_poisoning_enabled
-> function to kernel modules.
-> 
-> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Michael S. Tsirkin <mst@redhat.com>
-> ---
->  mm/page_poison.c | 6 ++++++
->  1 file changed, 6 insertions(+)
-> 
-> diff --git a/mm/page_poison.c b/mm/page_poison.c
-> index e83fd44..c08d02a 100644
-> --- a/mm/page_poison.c
-> +++ b/mm/page_poison.c
-> @@ -30,6 +30,11 @@ bool page_poisoning_enabled(void)
->  		debug_pagealloc_enabled()));
->  }
->  
-> +/**
-> + * page_poisoning_enabled - check if page poisoning is enabled
-> + *
-> + * Return true if page poisoning is enabled, or false if not.
-> + */
->  static void poison_page(struct page *page)
->  {
->  	void *addr = kmap_atomic(page);
-> @@ -37,6 +42,7 @@ static void poison_page(struct page *page)
->  	memset(addr, PAGE_POISON, PAGE_SIZE);
->  	kunmap_atomic(addr);
->  }
-> +EXPORT_SYMBOL_GPL(page_poisoning_enabled);
->  
->  static void poison_pages(struct page *page, int n)
->  {
+On 02/07/2018 08:14 AM, Kirill Tkhai wrote:
+> Sometimes it is possible to meet a situation,
+> when irq stack is corrupted, while innocent
+> callback function is being executed. This may
+> happen because of crappy drivers irq handlers,
+> when they access wrong memory on the irq stack.
 
-Looks like both the comment and the export are in the wrong place.
-I'm a bit concerned that callers also in fact poke at the
-PAGE_POISON - exporting that seems to be more of an accident
-as it's only used without page_poisoning.c - it might be
-better to have page_poisoning_enabled get u8 * and set it.
+Can you be more clear about the actual issue?  Which drivers do this?
+How do they even find an IRQ stack pointer?
 
-> -- 
-> 2.7.4
+> This patch aims to catch such the situations
+> and adds checks of unauthorized stack access.
+
+I think I forgot how KASAN did this.  KASAN has metadata that says which
+areas of memory are good or bad to access, right?  So, this just tags
+IRQ stacks as bad when we are not _in_ an interrupt?
+
+> +#define KASAN_IRQ_STACK_SIZE \
+> +	(sizeof(union irq_stack_union) - \
+> +		(offsetof(union irq_stack_union, stack_canary) + 8))
+
+Just curious, but why leave out the canary?  It shouldn't be accessed
+either.
+
+> +#ifdef CONFIG_KASAN
+> +void __visible x86_poison_irq_stack(void)
+> +{
+> +	if (this_cpu_read(irq_count) == -1)
+> +		kasan_poison_irq_stack();
+> +}
+> +void __visible x86_unpoison_irq_stack(void)
+> +{
+> +	if (this_cpu_read(irq_count) == -1)
+> +		kasan_unpoison_irq_stack();
+> +}
+> +#endif
+
+It might be handy to point out here that -1 means "not in an interrupt"
+and >=0 means "in an interrupt".
+
+Otherwise, this looks pretty straightforward.  Would it be something to
+extend to the other stacks like the NMI or double-fault stacks?  Or are
+those just not worth it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
