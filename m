@@ -1,119 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CFD6B6B036E
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 16:05:39 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id w102so1214163wrb.21
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 13:05:39 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 4si1745976wmw.138.2018.02.07.13.05.37
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C2D956B036F
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 16:30:51 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id a9so1002365pff.0
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 13:30:51 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id v26si976020pgc.137.2018.02.07.13.30.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Feb 2018 13:05:38 -0800 (PST)
-Date: Wed, 7 Feb 2018 13:05:34 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm -v2] mm, swap, frontswap: Fix THP swap if frontswap
- enabled
-Message-Id: <20180207130534.259cd71a595c6275b2da38d3@linux-foundation.org>
-In-Reply-To: <20180207070035.30302-1-ying.huang@intel.com>
-References: <20180207070035.30302-1-ying.huang@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 07 Feb 2018 13:30:50 -0800 (PST)
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH] mm: Split page_type out from _map_count
+Date: Wed,  7 Feb 2018 13:30:47 -0800
+Message-Id: <20180207213047.6148-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <huang.ying.caritas@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>, stable@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: linux-mm@kvack.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
 
-On Wed,  7 Feb 2018 15:00:35 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-> From: Huang Ying <huang.ying.caritas@gmail.com>
-> 
-> It was reported by Sergey Senozhatsky that if THP (Transparent Huge
-> Page) and frontswap (via zswap) are both enabled, when memory goes low
-> so that swap is triggered, segfault and memory corruption will occur
-> in random user space applications as follow,
-> 
-> kernel: urxvt[338]: segfault at 20 ip 00007fc08889ae0d sp 00007ffc73a7fc40 error 6 in libc-2.26.so[7fc08881a000+1ae000]
->  #0  0x00007fc08889ae0d _int_malloc (libc.so.6)
->  #1  0x00007fc08889c2f3 malloc (libc.so.6)
->  #2  0x0000560e6004bff7 _Z14rxvt_wcstoutf8PKwi (urxvt)
->  #3  0x0000560e6005e75c n/a (urxvt)
->  #4  0x0000560e6007d9f1 _ZN16rxvt_perl_interp6invokeEP9rxvt_term9hook_typez (urxvt)
->  #5  0x0000560e6003d988 _ZN9rxvt_term9cmd_parseEv (urxvt)
->  #6  0x0000560e60042804 _ZN9rxvt_term6pty_cbERN2ev2ioEi (urxvt)
->  #7  0x0000560e6005c10f _Z17ev_invoke_pendingv (urxvt)
->  #8  0x0000560e6005cb55 ev_run (urxvt)
->  #9  0x0000560e6003b9b9 main (urxvt)
->  #10 0x00007fc08883af4a __libc_start_main (libc.so.6)
->  #11 0x0000560e6003f9da _start (urxvt)
-> 
-> After bisection, it was found the first bad commit is
-> bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped
-> out").
-> 
-> The root cause is as follow.
-> 
-> When the pages are written to swap device during swapping out in
-> swap_writepage(), zswap (fontswap) is tried to compress the pages
-> instead to improve the performance.  But zswap (frontswap) will treat
-> THP as normal page, so only the head page is saved.  After swapping
-> in, tail pages will not be restored to its original contents, so cause
-> the memory corruption in the applications.
-> 
-> This is fixed via splitting THP before writing the page to swap device
-> if frontswap is enabled.  To deal with the situation where frontswap
-> is enabled at runtime, whether the page is THP is checked before using
-> frontswap during swapping out too.
->
-> ...
->
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
-> @@ -250,7 +250,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
->  		unlock_page(page);
->  		goto out;
->  	}
-> -	if (frontswap_store(page) == 0) {
-> +	if (!PageTransHuge(page) && frontswap_store(page) == 0) {
->  		set_page_writeback(page);
->  		unlock_page(page);
->  		end_page_writeback(page);
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 006047b16814..0b7c7883ce64 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -934,6 +934,9 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
->  
->  	/* Only single cluster request supported */
->  	WARN_ON_ONCE(n_goal > 1 && cluster);
-> +	/* Frontswap doesn't support THP */
-> +	if (frontswap_enabled() && cluster)
-> +		goto noswap;
->  
+We're already using a union of many fields here, so stop abusing the
+_map_count and make page_type its own field.  That implies renaming some
+of the machinery that creates PageBuddy, PageBalloon and PageKmemcg;
+bring back the PG_buddy, PG_balloon and PG_kmemcg names.  Also, the
+special values don't need to be (and probably shouldn't be) powers of two,
+so renumber them to just start at -128.
 
-hm.  This is assuming that "cluster==true" means "this is thp swap". 
-That's presently true, but is it appropriate that get_swap_pages() is
-peeking at "cluster" to work out why it is being called?
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+ include/linux/mm_types.h   | 13 ++++++++-----
+ include/linux/page-flags.h | 36 +++++++++++++++++-------------------
+ 2 files changed, 25 insertions(+), 24 deletions(-)
 
-Or would it be cleaner to do this in get_swap_page()?  Something like
-
---- a/mm/swap_slots.c~a
-+++ a/mm/swap_slots.c
-@@ -317,8 +317,11 @@ swp_entry_t get_swap_page(struct page *p
- 	entry.val = 0;
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index fd1af6b9591d..1c5dea402501 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -94,6 +94,14 @@ struct page {
+ 	};
  
- 	if (PageTransHuge(page)) {
--		if (IS_ENABLED(CONFIG_THP_SWAP))
--			get_swap_pages(1, true, &entry);
-+		/* Frontswap doesn't support THP */
-+		if (!frontswap_enabled()) {
-+			if (IS_ENABLED(CONFIG_THP_SWAP))
-+				get_swap_pages(1, true, &entry);
-+		}
- 		return entry;
- 	}
+ 	union {
++		/*
++		 * If the page is neither PageSlab nor PageAnon, the value
++		 * stored here may help distinguish it from page cache pages.
++		 * See page-flags.h for a list of page types which are
++		 * currently stored here.
++		 */
++		unsigned int page_type;
++
+ 		_slub_counter_t counters;
+ 		unsigned int active;		/* SLAB */
+ 		struct {			/* SLUB */
+@@ -107,11 +115,6 @@ struct page {
+ 			/*
+ 			 * Count of ptes mapped in mms, to show when
+ 			 * page is mapped & limit reverse map searches.
+-			 *
+-			 * Extra information about page type may be
+-			 * stored here for pages that are never mapped,
+-			 * in which case the value MUST BE <= -2.
+-			 * See page-flags.h for more details.
+ 			 */
+ 			atomic_t _mapcount;
  
-_
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 50c2b8786831..ba6a7e883425 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -630,49 +630,47 @@ PAGEFLAG_FALSE(DoubleMap)
+ #endif
+ 
+ /*
+- * For pages that are never mapped to userspace, page->mapcount may be
+- * used for storing extra information about page type. Any value used
+- * for this purpose must be <= -2, but it's better start not too close
+- * to -2 so that an underflow of the page_mapcount() won't be mistaken
+- * for a special page.
++ * For pages that are never mapped to userspace, page_type may be
++ * used.  Values used for this purpose must be <= -2, but we leave a gap
++ * so that an underflow of page_mapcount() won't be mistaken for a
++ * special page.
+  */
+-#define PAGE_MAPCOUNT_OPS(uname, lname)					\
++#define PAGE_TYPE_OPS(uname, lname)					\
+ static __always_inline int Page##uname(struct page *page)		\
+ {									\
+-	return atomic_read(&page->_mapcount) ==				\
+-				PAGE_##lname##_MAPCOUNT_VALUE;		\
++	return page->page_type == PG_##lname;				\
+ }									\
+ static __always_inline void __SetPage##uname(struct page *page)		\
+ {									\
+-	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);	\
+-	atomic_set(&page->_mapcount, PAGE_##lname##_MAPCOUNT_VALUE);	\
++	VM_BUG_ON_PAGE(page->page_type != -1, page);			\
++	page->page_type = PG_##lname;					\
+ }									\
+ static __always_inline void __ClearPage##uname(struct page *page)	\
+ {									\
+ 	VM_BUG_ON_PAGE(!Page##uname(page), page);			\
+-	atomic_set(&page->_mapcount, -1);				\
++	page->page_type = -1;						\
+ }
+ 
+ /*
+- * PageBuddy() indicate that the page is free and in the buddy system
++ * PageBuddy() indicates that the page is free and in the buddy system
+  * (see mm/page_alloc.c).
+  */
+-#define PAGE_BUDDY_MAPCOUNT_VALUE		(-128)
+-PAGE_MAPCOUNT_OPS(Buddy, BUDDY)
++#define PG_buddy		(-128)
++PAGE_TYPE_OPS(Buddy, buddy)
+ 
+ /*
+- * PageBalloon() is set on pages that are on the balloon page list
++ * PageBalloon() is true for pages that are on the balloon page list
+  * (see mm/balloon_compaction.c).
+  */
+-#define PAGE_BALLOON_MAPCOUNT_VALUE		(-256)
+-PAGE_MAPCOUNT_OPS(Balloon, BALLOON)
++#define PG_balloon		(-129)
++PAGE_TYPE_OPS(Balloon, balloon)
+ 
+ /*
+  * If kmemcg is enabled, the buddy allocator will set PageKmemcg() on
+  * pages allocated with __GFP_ACCOUNT. It gets cleared on page free.
+  */
+-#define PAGE_KMEMCG_MAPCOUNT_VALUE		(-512)
+-PAGE_MAPCOUNT_OPS(Kmemcg, KMEMCG)
++#define PG_kmemcg		(-130)
++PAGE_TYPE_OPS(Kmemcg, kmemcg)
+ 
+ extern bool is_free_buddy_page(struct page *page);
+ 
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
