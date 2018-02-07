@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C47496B0335
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:34:20 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id b4so511152pgs.5
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:34:20 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q11si1135605pgc.165.2018.02.07.08.34.19
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 704EB6B0337
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:45:24 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id w74so1395926qka.21
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:45:24 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 23si1953563qtr.35.2018.02.07.08.45.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Feb 2018 08:34:19 -0800 (PST)
-Date: Wed, 7 Feb 2018 11:34:16 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
+        Wed, 07 Feb 2018 08:45:23 -0800 (PST)
+Date: Wed, 7 Feb 2018 17:45:13 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
 Subject: Re: [PATCH 0/2] rcu: Transform kfree_rcu() into kvfree_rcu()
-Message-ID: <20180207113416.33b6247b@gandalf.local.home>
-In-Reply-To: <20180207161846.GA902@bombadil.infradead.org>
+Message-ID: <20180207174513.5cc9b503@redhat.com>
+In-Reply-To: <20180207085700.393f90d0@gandalf.local.home>
 References: <151791170164.5994.8253310844733420079.stgit@localhost.localdomain>
 	<20180207021703.GC3617@linux.vnet.ibm.com>
 	<20180207042334.GA16175@bombadil.infradead.org>
@@ -21,43 +21,79 @@ References: <151791170164.5994.8253310844733420079.stgit@localhost.localdomain>
 	<db9bda80-7506-ae25-2c0a-45eaa08963d9@virtuozzo.com>
 	<20180207083104.GK3617@linux.vnet.ibm.com>
 	<20180207085700.393f90d0@gandalf.local.home>
-	<20180207161846.GA902@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, josh@joshtriplett.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, mingo@redhat.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com, rao.shoaib@oracle.com
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, Matthew Wilcox <willy@infradead.org>, josh@joshtriplett.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, mingo@redhat.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rao.shoaib@oracle.com, brouer@redhat.com
 
-On Wed, 7 Feb 2018 08:18:46 -0800
-Matthew Wilcox <willy@infradead.org> wrote:
+On Wed, 7 Feb 2018 08:57:00 -0500
+Steven Rostedt <rostedt@goodmis.org> wrote:
 
-> Do we need to be able to free any of those objects in order to rename
-> kfree_rcu() to just free_rcu()?
+> On Wed, 7 Feb 2018 00:31:04 -0800
+> "Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
+> 
+> > I see problems.  We would then have two different names for exactly the
+> > same thing.
+> > 
+> > Seems like it would be a lot easier to simply document the existing
+> > kfree_rcu() behavior, especially given that it apparently already works.
+> > The really doesn't seem to me to be worth a name change.  
+> 
+> Honestly, I don't believe this is an RCU sub-system decision. This is a
+> memory management decision.
+> 
+> If we have kmalloc(), vmalloc(), kfree(), vfree() and kvfree(), and we
+> want kmalloc() to be freed with kfree(), and vmalloc() to be freed with
+> vfree(), and for strange reasons, we don't know how the data was
+> allocated we have kvfree(). That's an mm decision not an rcu one. We
+> should have kfree_rcu(), vfree_rcu() and kvfree_rcu(), and honestly,
+> they should not depend on kvfree() doing the same thing for everything.
+> Each should call the corresponding member that they represent. Which
+> would change this patch set.
+> 
+> Why? Too much coupling between RCU and MM. What if in the future
+> something changes and kvfree() goes away or changes drastically. We
+> would then have to go through all the users of RCU to change them too.
+> 
+> To me kvfree() is a special case and should not be used by RCU as a
+> generic function. That would make RCU and MM much more coupled than
+> necessary.
 
-I'm just nervous about tightly coupling free_rcu() with all the *free()
-from the memory management system. I've been burnt in the past by doing
-such things.
+For the record, I fully agree with Steve here. 
 
-What's the down side of having a way of matching *free_rcu() with all
-the *free()s? I think it's easier to understand, and rcu doesn't need
-to worry about changes of *free() code.
+And being a performance "fanatic" I don't like to have the extra branch
+(and compares) in the free code path... but it's a MM-decision (and
+sometimes you should not listen to "fanatics" ;-))
 
-To me:
+void kvfree(const void *addr)
+{
+	if (is_vmalloc_addr(addr))
+		vfree(addr);
+	else
+		kfree(addr);
+}
+EXPORT_SYMBOL(kvfree);
 
-	kfree_rcu(x);
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
-is just a quick way of doing 'kfree(x)' after a synchronize_rcu() call.
 
-But a "free_rcu(x)", is something I have to think about, because I
-don't know from the name exactly what it is doing.
+static inline bool is_vmalloc_addr(const void *x)
+{
+#ifdef CONFIG_MMU
+	unsigned long addr = (unsigned long)x;
 
-I know this may sound a bit bike shedding, but the less I need to think
-about how other sub systems work, the easier it is to concentrate on my
-own sub system.
-
--- Steve
+	return addr >= VMALLOC_START && addr < VMALLOC_END;
+#else
+	return false;
+#endif
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
