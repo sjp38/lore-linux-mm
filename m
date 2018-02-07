@@ -1,124 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 925646B032A
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:09:38 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id g24so1559434iob.13
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:09:38 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p126sor984022iof.277.2018.02.07.08.09.37
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 53A096B032D
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:14:54 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id e1so618675pfi.10
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:14:54 -0800 (PST)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0132.outbound.protection.outlook.com. [104.47.1.132])
+        by mx.google.com with ESMTPS id t66si1103488pgc.653.2018.02.07.08.14.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Feb 2018 08:09:37 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 07 Feb 2018 08:14:53 -0800 (PST)
+Subject: [PATCH RFC] x86: KASAN: Sanitize unauthorized irq stack access
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Wed, 07 Feb 2018 19:14:43 +0300
+Message-ID: <151802005995.4570.824586713429099710.stgit@localhost.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <20180207080740.GH2269@hirez.programming.kicks-ass.net>
-References: <20180206004903.224390-1-joelaf@google.com> <20180207080740.GH2269@hirez.programming.kicks-ass.net>
-From: Joel Fernandes <joelaf@google.com>
-Date: Wed, 7 Feb 2018 08:09:36 -0800
-Message-ID: <CAJWu+orvHb_-fSgtO0NqCai3PPc7fAe7LqNLVVhYbT+Wi-oATg@mail.gmail.com>
-Subject: Re: [PATCH RFC] ashmem: Fix lockdep RECLAIM_FS false positive
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, aryabinin@virtuozzo.com, glider@google.com, dvyukov@google.com, luto@kernel.org, bp@alien8.de, jpoimboe@redhat.com, dave.hansen@linux.intel.com, jgross@suse.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, minipli@googlemail.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
 
-Hi Peter,
+Sometimes it is possible to meet a situation,
+when irq stack is corrupted, while innocent
+callback function is being executed. This may
+happen because of crappy drivers irq handlers,
+when they access wrong memory on the irq stack.
 
-On Wed, Feb 7, 2018 at 12:07 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Mon, Feb 05, 2018 at 04:49:03PM -0800, Joel Fernandes wrote:
->
->> [ 2115.359650] -(1)[106:kswapd0]=================================
->> [ 2115.359665] -(1)[106:kswapd0][ INFO: inconsistent lock state ]
->> [ 2115.359684] -(1)[106:kswapd0]4.9.60+ #2 Tainted: G        W  O
->> [ 2115.359699] -(1)[106:kswapd0]---------------------------------
->> [ 2115.359715] -(1)[106:kswapd0]inconsistent {RECLAIM_FS-ON-W} ->
->> {IN-RECLAIM_FS-W} usage.
->
-> Please don't wrap log output, this is unreadable :/
+This patch aims to catch such the situations
+and adds checks of unauthorized stack access.
 
-Sorry about that, here's the unwrapped output, I'll fix the commit
-message in next rev: https://pastebin.com/e0BNGkaN
+Every time we enter in interrupt, we check for
+irq_count, and allow irq stack usage. After
+last nested irq handler is exited, we prohibit
+the access back.
 
->
-> Also, the output is from an ancient kernel and doesn't match the current
-> code.
+I did x86_unpoison_irq_stack() and x86_poison_irq_stack()
+calls unconditional, because this requires
+to change the order of incl PER_CPU_VAR(irq_count)
+and UNWIND_HINT_REGS(), and I'm not sure it's
+legitimately to do. So, irq_count is checked in
+x86_unpoison_irq_stack().
 
-Right, however the driver hasn't changed and I don't see immediately
-how lockdep handles this differently upstream, so I thought of fixing
-it upstream.
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+---
+ arch/x86/entry/entry_64.S        |    6 ++++++
+ arch/x86/include/asm/processor.h |    6 ++++++
+ arch/x86/kernel/irq_64.c         |   13 +++++++++++++
+ include/linux/kasan.h            |    3 +++
+ mm/kasan/kasan.c                 |   16 ++++++++++++++++
+ 5 files changed, 44 insertions(+)
 
->> diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
->> index 372ce9913e6d..7e060f32aaa8 100644
->> --- a/drivers/staging/android/ashmem.c
->> +++ b/drivers/staging/android/ashmem.c
->> @@ -32,6 +32,7 @@
->>  #include <linux/bitops.h>
->>  #include <linux/mutex.h>
->>  #include <linux/shmem_fs.h>
->> +#include <linux/sched/mm.h>
->>  #include "ashmem.h"
->>
->>  #define ASHMEM_NAME_PREFIX "dev/ashmem/"
->> @@ -446,8 +447,17 @@ ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
->>       if (!(sc->gfp_mask & __GFP_FS))
->>               return SHRINK_STOP;
->>
->> -     if (!mutex_trylock(&ashmem_mutex))
->> +     /*
->> +      * Release reclaim-fs marking since we've already checked GFP_FS, This
->> +      * will prevent lockdep's reclaim recursion deadlock false positives.
->> +      * We'll renable it before returning from this function.
->> +      */
->> +     fs_reclaim_release(sc->gfp_mask);
->> +
->> +     if (!mutex_trylock(&ashmem_mutex)) {
->> +             fs_reclaim_acquire(sc->gfp_mask);
->>               return -1;
->> +     }
->>
->>       list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
->>               loff_t start = range->pgstart * PAGE_SIZE;
->> @@ -464,6 +474,8 @@ ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
->>                       break;
->>       }
->>       mutex_unlock(&ashmem_mutex);
->> +
->> +     fs_reclaim_acquire(sc->gfp_mask);
->>       return freed;
->>  }
->
-> Yuck that is horrible.. so if GFP_FS was set, we bail, but if GFP_FS
-> wasn't set, why is fs_reclaim_*() doing anything at all?
->
-> That is, __need_fd_reclaim() should return false when !GFP_FS.
-
-So my patch is wrong, very sorry about that. That's why I marked it as
-RFC and wanted to get your expert eyes on it.
-The bail out happens when GFP_FS is *not* set. Lockdep reports this
-issue when GFP_FS is infact set, and we enter this path and acquire
-the lock. So lockdep seems to be doing the right thing however by
-design it is reporting a false-positive.
-
-The real issue is that the lock being acquired is of the same lock
-class and a different lock instance is acquired under GFP_FS that
-happens to be of the same class.
-
-So the issue seems to me to be:
-Process A          kswapd
----------          ------
-acquire i_mutex    Enter RECLAIM_FS
-
-Enter RECLAIM_FS   acquire different i_mutex
-
-Neil tried to fix this sometime back:
-https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg623909.html
-but it was kind of NAK'ed.
-
-Any thoughts on how we can fix this?
-
-Thanks Peter,
-
-- Joel
+diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
+index 741d9877b357..1e9d69de2528 100644
+--- a/arch/x86/entry/entry_64.S
++++ b/arch/x86/entry/entry_64.S
+@@ -485,6 +485,9 @@ END(irq_entries_start)
+  * The invariant is that, if irq_count != -1, then the IRQ stack is in use.
+  */
+ .macro ENTER_IRQ_STACK regs=1 old_rsp
++#ifdef CONFIG_KASAN
++	call	x86_unpoison_irq_stack
++#endif
+ 	DEBUG_ENTRY_ASSERT_IRQS_OFF
+ 	movq	%rsp, \old_rsp
+ 
+@@ -552,6 +555,9 @@ END(irq_entries_start)
+ 	 */
+ 
+ 	decl	PER_CPU_VAR(irq_count)
++#ifdef CONFIG_KASAN
++	call	x86_poison_irq_stack
++#endif
+ .endm
+ 
+ /*
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 793bae7e7ce3..4353e3a85b0b 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -404,6 +404,12 @@ union irq_stack_union {
+ 	};
+ };
+ 
++#define KASAN_IRQ_STACK_SIZE \
++	(sizeof(union irq_stack_union) - \
++		(offsetof(union irq_stack_union, stack_canary) + 8))
++
++#define percpu_irq_stack_addr() this_cpu_ptr(irq_stack_union.irq_stack)
++
+ DECLARE_PER_CPU_FIRST(union irq_stack_union, irq_stack_union) __visible;
+ DECLARE_INIT_PER_CPU(irq_stack_union);
+ 
+diff --git a/arch/x86/kernel/irq_64.c b/arch/x86/kernel/irq_64.c
+index d86e344f5b3d..ad78f4b3f0b5 100644
+--- a/arch/x86/kernel/irq_64.c
++++ b/arch/x86/kernel/irq_64.c
+@@ -77,3 +77,16 @@ bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
+ 	generic_handle_irq_desc(desc);
+ 	return true;
+ }
++
++#ifdef CONFIG_KASAN
++void __visible x86_poison_irq_stack(void)
++{
++	if (this_cpu_read(irq_count) == -1)
++		kasan_poison_irq_stack();
++}
++void __visible x86_unpoison_irq_stack(void)
++{
++	if (this_cpu_read(irq_count) == -1)
++		kasan_unpoison_irq_stack();
++}
++#endif
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index adc13474a53b..cb433f1bf178 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -40,6 +40,9 @@ void kasan_unpoison_shadow(const void *address, size_t size);
+ void kasan_unpoison_task_stack(struct task_struct *task);
+ void kasan_unpoison_stack_above_sp_to(const void *watermark);
+ 
++void kasan_poison_irq_stack(void);
++void kasan_unpoison_irq_stack(void);
++
+ void kasan_alloc_pages(struct page *page, unsigned int order);
+ void kasan_free_pages(struct page *page, unsigned int order);
+ 
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 0d9d9d268f32..9bc150c87205 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -412,6 +412,22 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
+ 			KASAN_KMALLOC_REDZONE);
+ }
+ 
++#ifdef KASAN_IRQ_STACK_SIZE
++void kasan_poison_irq_stack(void)
++{
++	void *stack = percpu_irq_stack_addr();
++
++	kasan_poison_shadow(stack, KASAN_IRQ_STACK_SIZE, KASAN_GLOBAL_REDZONE);
++}
++
++void kasan_unpoison_irq_stack(void)
++{
++	void *stack = percpu_irq_stack_addr();
++
++	kasan_unpoison_shadow(stack, KASAN_IRQ_STACK_SIZE);
++}
++#endif /* KASAN_IRQ_STACK_SIZE */
++
+ static inline int in_irqentry_text(unsigned long ptr)
+ {
+ 	return (ptr >= (unsigned long)&__irqentry_text_start &&
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
