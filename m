@@ -1,69 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 10EE56B033B
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:55:56 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id b15so870293wrb.0
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:55:56 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id i89si1301381edc.520.2018.02.07.08.55.54
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D09476B033E
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:58:06 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 9so533531pgg.3
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:58:06 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id u64si1364350pfk.340.2018.02.07.08.58.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 07 Feb 2018 08:55:54 -0800 (PST)
-Date: Wed, 7 Feb 2018 11:55:47 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: memcontrol: fix NR_WRITEBACK leak in memcg and
- system stats
-Message-ID: <20180207165547.GB29418@cmpxchg.org>
-References: <20180203082353.17284-1-hannes@cmpxchg.org>
- <CALvZod5-35Y+_eot6-6J5HyssnmAW-wfYhuQdxxA9Zj8Ng2e+g@mail.gmail.com>
+        Wed, 07 Feb 2018 08:58:05 -0800 (PST)
+Date: Wed, 7 Feb 2018 17:58:02 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH RFC] ashmem: Fix lockdep RECLAIM_FS false positive
+Message-ID: <20180207165802.GC25219@hirez.programming.kicks-ass.net>
+References: <20180206004903.224390-1-joelaf@google.com>
+ <20180207080740.GH2269@hirez.programming.kicks-ass.net>
+ <CAJWu+orvHb_-fSgtO0NqCai3PPc7fAe7LqNLVVhYbT+Wi-oATg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod5-35Y+_eot6-6J5HyssnmAW-wfYhuQdxxA9Zj8Ng2e+g@mail.gmail.com>
+In-Reply-To: <CAJWu+orvHb_-fSgtO0NqCai3PPc7fAe7LqNLVVhYbT+Wi-oATg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.com>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-team@fb.com
+To: Joel Fernandes <joelaf@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-Hi Shakeel,
-
-On Wed, Feb 07, 2018 at 07:44:08AM -0800, Shakeel Butt wrote:
-> On Sat, Feb 3, 2018 at 12:23 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > After the ("a983b5ebee57 mm: memcontrol: fix excessive complexity in
-> > memory.stat reporting"), we observed slowly upward creeping
-> > NR_WRITEBACK counts over the course of several days, both the
-> > per-memcg stats as well as the system counter in e.g. /proc/meminfo.
-> >
-> > The conversion from full per-cpu stat counts to per-cpu cached atomic
-> > stat counts introduced an irq-unsafe RMW operation into the updates.
-> >
-> > Most stat updates come from process context, but one notable exception
-> > is the NR_WRITEBACK counter. While writebacks are issued from process
-> > context, they are retired from (soft)irq context.
-> >
-> > When writeback completions interrupt the RMW counter updates of new
-> > writebacks being issued, the decs from the completions are lost.
-> >
-> > Since the global updates are routed through the joint lruvec API, both
-> > the memcg counters as well as the system counters are affected.
-> >
-> > This patch makes the joint stat and event API irq safe.
-> >
-> > Fixes: a983b5ebee57 ("mm: memcontrol: fix excessive complexity in memory.stat reporting")
-> > Debugged-by: Tejun Heo <tj@kernel.org>
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+On Wed, Feb 07, 2018 at 08:09:36AM -0800, Joel Fernandes wrote:
+> Hi Peter,
 > 
-> Should this be considered for stable?
+> On Wed, Feb 7, 2018 at 12:07 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> > On Mon, Feb 05, 2018 at 04:49:03PM -0800, Joel Fernandes wrote:
+> >
+> >> [ 2115.359650] -(1)[106:kswapd0]=================================
+> >> [ 2115.359665] -(1)[106:kswapd0][ INFO: inconsistent lock state ]
+> >> [ 2115.359684] -(1)[106:kswapd0]4.9.60+ #2 Tainted: G        W  O
+> >> [ 2115.359699] -(1)[106:kswapd0]---------------------------------
+> >> [ 2115.359715] -(1)[106:kswapd0]inconsistent {RECLAIM_FS-ON-W} ->
+> >> {IN-RECLAIM_FS-W} usage.
+> >
+> > Please don't wrap log output, this is unreadable :/
+> 
+> Sorry about that, here's the unwrapped output, I'll fix the commit
+> message in next rev: https://pastebin.com/e0BNGkaN
 
-The stable tree is only for fixes to already released kernels, but
-there is no release containing the faulty patch:
+So if you trim that leading garbage: "[ 2115.359650] -(1)[106:kswapd0]"
+you instantly have half you screen back.
 
-$ git describe --tags a983b5ebee57
-v4.15-3322-ga983b5ebee57
+> > Also, the output is from an ancient kernel and doesn't match the current
+> > code.
+> 
+> Right, however the driver hasn't changed and I don't see immediately
+> how lockdep handles this differently upstream, so I thought of fixing
+> it upstream.
 
-nor was the faulty patch itself marked for stable.
+Well, the annotation got a complete rewrite. Granted, it _should_ be
+similar, but the output will be different.
 
-So as long as this fix makes it into 4.16 we should be good.
+
+> The bail out happens when GFP_FS is *not* set.
+
+Argh, reading is hard.
+
+> Lockdep reports this issue when GFP_FS is infact set, and we enter
+> this path and acquire the lock. So lockdep seems to be doing the right
+> thing however by design it is reporting a false-positive.
+
+So I'm not seeing how its a false positive. fs/inode.c sets a different
+lock class per filesystem type. So recursing on an i_mutex within a
+filesystem does sound dodgy.
+
+> The real issue is that the lock being acquired is of the same lock
+> class and a different lock instance is acquired under GFP_FS that
+> happens to be of the same class.
+> 
+> So the issue seems to me to be:
+> Process A          kswapd
+> ---------          ------
+> acquire i_mutex    Enter RECLAIM_FS
+> 
+> Enter RECLAIM_FS   acquire different i_mutex
+
+That's not a false positive, that's a 2 process way of writing i_mutex
+recursion.
+
+What are the rules of acquiring two i_mutexes within a filesystem?
+
+> Neil tried to fix this sometime back:
+> https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg623909.html
+> but it was kind of NAK'ed.
+
+So that got nacked because Neil tried to fix it in the vfs core. Also
+not entirely sure that's the same problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
