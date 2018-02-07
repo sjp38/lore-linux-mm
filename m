@@ -1,35 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F37ED6B0331
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:25:21 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 30so807934wrw.6
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:25:21 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 91si1452089wrn.294.2018.02.07.08.25.20
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F309F6B0333
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:28:09 -0500 (EST)
+Received: by mail-ua0-f198.google.com with SMTP id b31so728500uah.12
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:28:09 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id v10si455793vkd.201.2018.02.07.08.28.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 07 Feb 2018 08:25:20 -0800 (PST)
-Date: Wed, 7 Feb 2018 17:25:07 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC 0/3] x86: Patchable constants
-Message-ID: <20180207162507.GB25219@hirez.programming.kicks-ass.net>
-References: <20180207145913.2703-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Feb 2018 08:28:08 -0800 (PST)
+Date: Wed, 7 Feb 2018 11:27:50 -0500
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH -mm -v2] mm, swap, frontswap: Fix THP swap if frontswap
+ enabled
+Message-ID: <20180207162750.GB26849@char.us.oracle.com>
+References: <20180207070035.30302-1-ying.huang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180207145913.2703-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180207070035.30302-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <huang.ying.caritas@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>, stable@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Wed, Feb 07, 2018 at 05:59:10PM +0300, Kirill A. Shutemov wrote:
-> This conversion makes GCC generate worse code. Conversion __PHYSICAL_MASK
-> to a patchable constant adds about 5k in .text on defconfig and makes it
-> slightly slower at runtime (~0.2% on my box).
+On Wed, Feb 07, 2018 at 03:00:35PM +0800, Huang, Ying wrote:
+> From: Huang Ying <huang.ying.caritas@gmail.com>
+> 
+> It was reported by Sergey Senozhatsky that if THP (Transparent Huge
+> Page) and frontswap (via zswap) are both enabled, when memory goes low
+> so that swap is triggered, segfault and memory corruption will occur
+> in random user space applications as follow,
+> 
+> kernel: urxvt[338]: segfault at 20 ip 00007fc08889ae0d sp 00007ffc73a7fc40 error 6 in libc-2.26.so[7fc08881a000+1ae000]
+>  #0  0x00007fc08889ae0d _int_malloc (libc.so.6)
+>  #1  0x00007fc08889c2f3 malloc (libc.so.6)
+>  #2  0x0000560e6004bff7 _Z14rxvt_wcstoutf8PKwi (urxvt)
+>  #3  0x0000560e6005e75c n/a (urxvt)
+>  #4  0x0000560e6007d9f1 _ZN16rxvt_perl_interp6invokeEP9rxvt_term9hook_typez (urxvt)
+>  #5  0x0000560e6003d988 _ZN9rxvt_term9cmd_parseEv (urxvt)
+>  #6  0x0000560e60042804 _ZN9rxvt_term6pty_cbERN2ev2ioEi (urxvt)
+>  #7  0x0000560e6005c10f _Z17ev_invoke_pendingv (urxvt)
+>  #8  0x0000560e6005cb55 ev_run (urxvt)
+>  #9  0x0000560e6003b9b9 main (urxvt)
+>  #10 0x00007fc08883af4a __libc_start_main (libc.so.6)
+>  #11 0x0000560e6003f9da _start (urxvt)
+> 
+> After bisection, it was found the first bad commit is
+> bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped
+> out").
+> 
+> The root cause is as follow.
+> 
+> When the pages are written to swap device during swapping out in
+> swap_writepage(), zswap (fontswap) is tried to compress the pages
+> instead to improve the performance.  But zswap (frontswap) will treat
+> THP as normal page, so only the head page is saved.  After swapping
+> in, tail pages will not be restored to its original contents, so cause
+> the memory corruption in the applications.
+> 
+> This is fixed via splitting THP before writing the page to swap device
+> if frontswap is enabled.  To deal with the situation where frontswap
+> is enabled at runtime, whether the page is THP is checked before using
+> frontswap during swapping out too.
+> 
+> Reported-and-tested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-Do you have explicit examples for the worse code? That might give clue
-on how to improve things.
+Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+
+> Cc: Dan Streetman <ddstreet@ieee.org>
+> Cc: Seth Jennings <sjenning@redhat.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Shakeel Butt <shakeelb@google.com>
+> Cc: stable@vger.kernel.org # 4.14
+> Fixes: bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped out")
+> 
+> Changelog:
+> 
+> v2:
+> 
+> - Move frontswap check into swapfile.c to avoid to make vmscan.c
+>   depends on frontswap.
+> ---
+>  mm/page_io.c  | 2 +-
+>  mm/swapfile.c | 3 +++
+>  2 files changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_io.c b/mm/page_io.c
+> index b41cf9644585..6dca817ae7a0 100644
+> --- a/mm/page_io.c
+> +++ b/mm/page_io.c
+> @@ -250,7 +250,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
+>  		unlock_page(page);
+>  		goto out;
+>  	}
+> -	if (frontswap_store(page) == 0) {
+> +	if (!PageTransHuge(page) && frontswap_store(page) == 0) {
+>  		set_page_writeback(page);
+>  		unlock_page(page);
+>  		end_page_writeback(page);
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 006047b16814..0b7c7883ce64 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -934,6 +934,9 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
+>  
+>  	/* Only single cluster request supported */
+>  	WARN_ON_ONCE(n_goal > 1 && cluster);
+> +	/* Frontswap doesn't support THP */
+> +	if (frontswap_enabled() && cluster)
+> +		goto noswap;
+>  
+>  	avail_pgs = atomic_long_read(&nr_swap_pages) / nr_pages;
+>  	if (avail_pgs <= 0)
+> -- 
+> 2.15.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
