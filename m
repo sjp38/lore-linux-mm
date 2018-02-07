@@ -1,72 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 497C36B02D8
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 02:24:01 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id w24so3149997plq.11
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 23:24:01 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id g129si696776pfc.338.2018.02.06.23.23.59
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A39C6B02D9
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 02:39:20 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id b34so3208320plc.2
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 23:39:20 -0800 (PST)
+Received: from out02.mta.xmission.com (out02.mta.xmission.com. [166.70.13.232])
+        by mx.google.com with ESMTPS id m6si601479pgr.468.2018.02.06.23.39.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Feb 2018 23:24:00 -0800 (PST)
-Message-ID: <5A7AAA2E.5090809@intel.com>
-Date: Wed, 07 Feb 2018 15:26:38 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        Tue, 06 Feb 2018 23:39:19 -0800 (PST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <cover.1517497017.git.khalid.aziz@oracle.com>
+	<87wozwi0p1.fsf@xmission.com>
+	<0f1bdb63-60d5-467c-a6a4-c06ba62b1f6e@oracle.com>
+Date: Wed, 07 Feb 2018 01:38:40 -0600
+In-Reply-To: <0f1bdb63-60d5-467c-a6a4-c06ba62b1f6e@oracle.com> (Khalid Aziz's
+	message of "Fri, 2 Feb 2018 07:59:25 -0700")
+Message-ID: <87h8qtfdvj.fsf@xmission.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v26 2/2 RESEND] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-References: <1517972467-14352-1-git-send-email-wei.w.wang@intel.com> <20180207062846-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180207062846-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Subject: Re: [PATCH v11 00/10] Application Data Integrity feature introduced by SPARC M7
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: davem@davemloft.net, dave.hansen@linux.intel.com, aarcange@redhat.com, akpm@linux-foundation.org, allen.pais@oracle.com, anthony.yznaga@oracle.com, arnd@arndb.de, babu.moger@oracle.com, benh@kernel.crashing.org, bob.picco@oracle.com, bsingharora@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, dave.jiang@intel.com, david.j.aldridge@oracle.com, elena.reshetova@intel.com, glx@linutronix.de, gregkh@linuxfoundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, hpa@zytor.com, hughd@google.com, imbrenda@linux.vnet.ibm.com, jack@suse.cz, jag.raman@oracle.com, jane.chu@oracle.com, jglisse@redhat.com, jroedel@suse.de, khalid@gonehiking.org, khandual@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, kstewart@linuxfoundation.org, ktkhai@virtuozzo.com, liam.merwick@oracle.com, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux@roeck-us.net, me@tobin.cc, mgorman@suse.de, mgorman@techsingularity.net, mhocko@suse.com, mike.kravetz@oracle.com, minchan@kernel.org, mingo@kernel.org, mingo@redhat.com, mpe@ellerman.id.au, nadav.amit@gmail.com, nagarathnam.muthusamy@oracle.com, nborisov@suse.com, n-horiguchi@ah.jp.nec.com, nick.alcock@oracle.com, nitin.m.gupta@oracle.com, ombredanne@nexb.com, pasha.tatashin@oracle.com, paulus@samba.org, pombredanne@nexb.com, punit.agrawal@arm.com, rob.gardner@oracle.com, ross.zwisler@linux.intel.com, shannon.nelson@oracle.com, shli@fb.com, sparclinux@vger.kernel.org, steven.sistare@oracle.com, tglx@linutronix.de, thomas.tai@oracle.com, tklauser@distanz.ch, tom.hromatka@oracle.com, vegard.nossum@oracle.com, vijay.ac.kumar@oracle.com, willy@infradead.org, x86@kernel.org, zi.yan@cs.rutgers.edu
 
-On 02/07/2018 12:34 PM, Michael S. Tsirkin wrote:
-> On Wed, Feb 07, 2018 at 11:01:06AM +0800, Wei Wang wrote:
->> Negotiation of the VIRTIO_BALLOON_F_FREE_PAGE_HINT feature indicates the
->> support of reporting hints of guest free pages to host via virtio-balloon.
+Khalid Aziz <khalid.aziz@oracle.com> writes:
+
+> On 02/01/2018 07:29 PM, ebiederm@xmission.com wrote:
+>> Khalid Aziz <khalid.aziz@oracle.com> writes:
 >>
->> Host requests the guest to report free page hints by sending a new cmd
->> id to the guest via the free_page_report_cmd_id configuration register.
+>>> V11 changes:
+>>> This series is same as v10 and was simply rebased on 4.15 kernel. Can
+>>> mm maintainers please review patches 2, 7, 8 and 9 which are arch
+>>> independent, and include/linux/mm.h and mm/ksm.c changes in patch 10
+>>> and ack these if everything looks good?
 >>
->> When the guest starts to report, the first element added to the free page
->> vq is the cmd id given by host. When the guest finishes the reporting
->> of all the free pages, VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID is added
->> to the vq to tell host that the reporting is done. Host polls the free
->> page vq after sending the starting cmd id, so the guest doesn't need to
->> kick after filling an element to the vq.
+>> I am a bit puzzled how this differs from the pkey's that other
+>> architectures are implementing to achieve a similar result.
 >>
->> Host may also requests the guest to stop the reporting in advance by
->> sending the stop cmd id to the guest via the configuration register.
->>
->> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
->> Signed-off-by: Liang Li <liang.z.li@intel.com>
->> Cc: Michael S. Tsirkin <mst@redhat.com>
->> Cc: Michal Hocko <mhocko@kernel.org>
->> ---
->>   drivers/virtio/virtio_balloon.c     | 255 +++++++++++++++++++++++++++++++-----
->>   include/uapi/linux/virtio_balloon.h |   7 +
->>   mm/page_poison.c                    |   6 +
->>   3 files changed, 232 insertions(+), 36 deletions(-)
->>
->> Resend Change:
->> 	- Expose page_poisoning_enabled to kernel modules
-> RESEND tag is for reposting unchanged patches.
-> you want to post a v27, and you want the mm patch
-> as a separate one, so you can get an ack on it from
-> someone on linux-mm.
+>> I am a bit mystified why you don't store the tag in a vma
+>> instead of inventing a new way to store data on page out.
 >
-> In fact, I would probably add reporting the poison value as
-> a separate feature/couple of patches.
+> Hello Eric,
 >
+> As Steven pointed out, sparc sets tags per cacheline unlike pkey. This results
+> in much finer granularity for tags that pkey and hence requires larger tag
+> storage than what we can do in a vma.
 
-OK. I have made them separate patches in v27. Thanks a lot for reviewing 
-so many versions, I learned a lot from the comments and discussion.
+*Nod*   I am a bit mystified where you keep the information in memory.
+I would think the tags would need to be stored per cacheline or per
+tlb entry, in some kind of cache that could overflow.  So I would be
+surprised if swapping is the only time this information needs stored
+in memory.  Which makes me wonder if you have the proper data
+structures.
 
-Best,
-Wei
+I would think an array per vma or something in the page tables would
+tend to make sense.
+
+But perhaps I am missing something.
+
+>> Can you please use force_sig_fault to send these signals instead
+>> of force_sig_info.  Emperically I have found that it is very
+>> error prone to generate siginfo's by hand, especially on code
+>> paths where several different si_codes may apply.  So it helps
+>> to go through a helper function to ensure the fiddly bits are
+>> all correct.  AKA the unused bits all need to be set to zero before
+>> struct siginfo is copied to userspace.
+>>
+>
+> What you say makes sense. I followed the same code as other fault handlers for
+> sparc. I could change just the fault handlers for ADI related faults. Would it
+> make more sense to change all the fault handlers in a separate patch and keep
+> the code in arch/sparc/kernel/traps_64.c consistent? Dave M, do you have a
+> preference?
+
+It is my intention post -rc1 to start sending out patches to get the
+rest of not just sparc but all of the architectures using the new
+helpers.  I have the code I just ran out of time befor the merge
+window opened to ensure everything had a good thorough review.
+
+So if you can handle the your new changes I expect I will handle the
+rest.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
