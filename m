@@ -1,85 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 054B56B02C0
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 22:43:19 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id t64so2324712pfi.13
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 19:43:18 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id m26-v6si420279pli.564.2018.02.06.19.43.17
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 786676B02C2
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 23:23:49 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id b6so2511811pgu.16
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 20:23:49 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id w8-v6si470203plk.597.2018.02.06.20.23.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Feb 2018 19:43:17 -0800 (PST)
-Subject: [PATCH] memremap: fix softlockup reports at teardown
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 06 Feb 2018 19:34:11 -0800
-Message-ID: <151797445154.29778.16795392483399217682.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 06 Feb 2018 20:23:48 -0800 (PST)
+Date: Tue, 6 Feb 2018 20:23:34 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 0/2] rcu: Transform kfree_rcu() into kvfree_rcu()
+Message-ID: <20180207042334.GA16175@bombadil.infradead.org>
+References: <151791170164.5994.8253310844733420079.stgit@localhost.localdomain>
+ <20180207021703.GC3617@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180207021703.GC3617@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@suse.com>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, mingo@redhat.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com, rao.shoaib@oracle.com
 
-The cond_resched() currently in the setup path needs to be duplicated in
-the teardown path. Rather than require each instance of
-for_each_device_pfn() to open code the same sequence, embed it in the
-helper.
+On Tue, Feb 06, 2018 at 06:17:03PM -0800, Paul E. McKenney wrote:
+> So it is OK to kvmalloc() something and pass it to either kfree() or
+> kvfree(), and it had better be OK to kvmalloc() something and pass it
+> to kvfree().
+> 
+> Is it OK to kmalloc() something and pass it to kvfree()?
 
-Link: https://github.com/intel/ixpdimm_sw/issues/11
-Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: <stable@vger.kernel.org>
-Fixes: 71389703839e ("mm, zone_device: Replace {get, put}_zone_device_page()...")
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- kernel/memremap.c |   15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+Yes, it absolutely is.
 
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 4849be5f9b3c..4dd4274cabe2 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -275,8 +275,15 @@ static unsigned long pfn_end(struct dev_pagemap *pgmap)
- 	return (res->start + resource_size(res)) >> PAGE_SHIFT;
- }
- 
-+static unsigned long pfn_next(unsigned long pfn)
-+{
-+	if (pfn % 1024 == 0)
-+		cond_resched();
-+	return pfn + 1;
-+}
-+
- #define for_each_device_pfn(pfn, map) \
--	for (pfn = pfn_first(map); pfn < pfn_end(map); pfn++)
-+	for (pfn = pfn_first(map); pfn < pfn_end(map); pfn = pfn_next(pfn))
- 
- static void devm_memremap_pages_release(void *data)
- {
-@@ -337,10 +344,10 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	resource_size_t align_start, align_size, align_end;
- 	struct vmem_altmap *altmap = pgmap->altmap_valid ?
- 			&pgmap->altmap : NULL;
-+	struct resource *res = &pgmap->res;
- 	unsigned long pfn, pgoff, order;
- 	pgprot_t pgprot = PAGE_KERNEL;
--	int error, nid, is_ram, i = 0;
--	struct resource *res = &pgmap->res;
-+	int error, nid, is_ram;
- 
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
-@@ -409,8 +416,6 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 		list_del(&page->lru);
- 		page->pgmap = pgmap;
- 		percpu_ref_get(pgmap->ref);
--		if (!(++i % 1024))
--			cond_resched();
- 	}
- 
- 	devm_add_action(dev, devm_memremap_pages_release, pgmap);
+void kvfree(const void *addr)
+{
+        if (is_vmalloc_addr(addr))
+                vfree(addr);
+        else
+                kfree(addr);
+}
+
+> If so, is it really useful to have two different names here, that is,
+> both kfree_rcu() and kvfree_rcu()?
+
+I think it's handy to have all three of kvfree_rcu(), kfree_rcu() and
+vfree_rcu() available in the API for the symmetry of calling kmalloc()
+/ kfree_rcu().
+
+Personally, I would like us to rename kvfree() to just free(), and have
+malloc(x) be an alias to kvmalloc(x, GFP_KERNEL), but I haven't won that
+fight yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
