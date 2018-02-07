@@ -1,475 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4467C6B02BA
-	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 22:20:05 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id 3so2898388pla.1
-        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 19:20:05 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id d126si351640pgc.105.2018.02.06.19.20.03
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 83A496B02BC
+	for <linux-mm@kvack.org>; Tue,  6 Feb 2018 22:35:46 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id i11so1711801pgq.10
+        for <linux-mm@kvack.org>; Tue, 06 Feb 2018 19:35:46 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id b3si358838pgc.496.2018.02.06.19.35.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Feb 2018 19:20:03 -0800 (PST)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v26 2/2 RESEND] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-Date: Wed,  7 Feb 2018 11:01:06 +0800
-Message-Id: <1517972467-14352-1-git-send-email-wei.w.wang@intel.com>
+        Tue, 06 Feb 2018 19:35:45 -0800 (PST)
+Date: Wed, 7 Feb 2018 11:35:06 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 121/198] arch/h8300/include/asm/byteorder.h:5:0:
+ warning: "__BIG_ENDIAN" redefined
+Message-ID: <201802071102.MIeAReaO%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="/9DWx/yDrRhgMJTb"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Negotiation of the VIRTIO_BALLOON_F_FREE_PAGE_HINT feature indicates the
-support of reporting hints of guest free pages to host via virtio-balloon.
 
-Host requests the guest to report free page hints by sending a new cmd
-id to the guest via the free_page_report_cmd_id configuration register.
+--/9DWx/yDrRhgMJTb
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-When the guest starts to report, the first element added to the free page
-vq is the cmd id given by host. When the guest finishes the reporting
-of all the free pages, VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID is added
-to the vq to tell host that the reporting is done. Host polls the free
-page vq after sending the starting cmd id, so the guest doesn't need to
-kick after filling an element to the vq.
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   bf384e483e31f8e2fc27d5fdb5236b2e9d3fdc84
+commit: 15105f5f068efaadc15936bc92da3f9d0a260ce2 [121/198] Kbuild: always define endianess in kconfig.h
+config: h8300-h8300h-sim_defconfig (attached as .config)
+compiler: h8300-linux-gcc (GCC) 7.2.0
+reproduce:
+        wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        git checkout 15105f5f068efaadc15936bc92da3f9d0a260ce2
+        # save the attached .config to linux build tree
+        make.cross ARCH=h8300 
 
-Host may also requests the guest to stop the reporting in advance by
-sending the stop cmd id to the guest via the configuration register.
+All warnings (new ones prefixed by >>):
 
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Signed-off-by: Liang Li <liang.z.li@intel.com>
-Cc: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
+   In file included from include/asm-generic/bitops/le.h:6:0,
+                    from arch/h8300/include/asm/bitops.h:177,
+                    from include/linux/bitops.h:38,
+                    from include/linux/log2.h:16,
+                    from include/asm-generic/getorder.h:8,
+                    from include/asm-generic/page.h:99,
+                    from arch/h8300/include/asm/page.h:5,
+                    from arch/h8300/include/asm/string.h:8,
+                    from include/linux/string.h:20,
+                    from include/linux/uuid.h:20,
+                    from include/linux/mod_devicetable.h:13,
+                    from scripts/mod/devicetable-offsets.c:3:
+>> arch/h8300/include/asm/byteorder.h:5:0: warning: "__BIG_ENDIAN" redefined
+    #define __BIG_ENDIAN __ORDER_BIG_ENDIAN__
+    
+   In file included from <command-line>:0:0:
+   include/linux/kconfig.h:8:0: note: this is the location of the previous definition
+    #define __BIG_ENDIAN 4321
+    
+--
+   In file included from include/asm-generic/bitops/le.h:6:0,
+                    from arch/h8300/include/asm/bitops.h:177,
+                    from include/linux/bitops.h:38,
+                    from include/linux/kernel.h:11,
+                    from include/linux/list.h:9,
+                    from include/linux/wait.h:7,
+                    from include/linux/wait_bit.h:8,
+                    from include/linux/fs.h:6,
+                    from include/linux/dax.h:5,
+                    from mm/filemap.c:14:
+>> arch/h8300/include/asm/byteorder.h:5:0: warning: "__BIG_ENDIAN" redefined
+    #define __BIG_ENDIAN __ORDER_BIG_ENDIAN__
+    
+   In file included from <command-line>:0:0:
+   include/linux/kconfig.h:8:0: note: this is the location of the previous definition
+    #define __BIG_ENDIAN 4321
+    
+   mm/filemap.c: In function 'clear_bit_unlock_is_negative_byte':
+   mm/filemap.c:1180:30: warning: passing argument 2 of 'test_bit' discards 'volatile' qualifier from pointer target type [-Wdiscarded-qualifiers]
+     return test_bit(PG_waiters, mem);
+                                 ^~~
+   In file included from include/linux/bitops.h:38:0,
+                    from include/linux/kernel.h:11,
+                    from include/linux/list.h:9,
+                    from include/linux/wait.h:7,
+                    from include/linux/wait_bit.h:8,
+                    from include/linux/fs.h:6,
+                    from include/linux/dax.h:5,
+                    from mm/filemap.c:14:
+   arch/h8300/include/asm/bitops.h:69:19: note: expected 'const long unsigned int *' but argument is of type 'volatile void *'
+    static inline int test_bit(int nr, const unsigned long *addr)
+                      ^~~~~~~~
+--
+   In file included from include/asm-generic/bitops/le.h:6:0,
+                    from arch/h8300/include/asm/bitops.h:177,
+                    from include/linux/bitops.h:38,
+                    from include/linux/kernel.h:11,
+                    from include/asm-generic/bug.h:18,
+                    from arch/h8300/include/asm/bug.h:8,
+                    from include/linux/bug.h:5,
+                    from include/linux/page-flags.h:10,
+                    from kernel/bounds.c:10:
+>> arch/h8300/include/asm/byteorder.h:5:0: warning: "__BIG_ENDIAN" redefined
+    #define __BIG_ENDIAN __ORDER_BIG_ENDIAN__
+    
+   In file included from <command-line>:0:0:
+   include/linux/kconfig.h:8:0: note: this is the location of the previous definition
+    #define __BIG_ENDIAN 4321
+    
+   In file included from include/asm-generic/bitops/le.h:6:0,
+                    from arch/h8300/include/asm/bitops.h:177,
+                    from include/linux/bitops.h:38,
+                    from include/linux/kernel.h:11,
+                    from include/asm-generic/bug.h:18,
+                    from arch/h8300/include/asm/bug.h:8,
+                    from include/linux/bug.h:5,
+                    from include/linux/thread_info.h:12,
+                    from include/asm-generic/current.h:5,
+                    from ./arch/h8300/include/generated/asm/current.h:1,
+                    from include/linux/sched.h:12,
+                    from arch/h8300/kernel/asm-offsets.c:13:
+>> arch/h8300/include/asm/byteorder.h:5:0: warning: "__BIG_ENDIAN" redefined
+    #define __BIG_ENDIAN __ORDER_BIG_ENDIAN__
+    
+   In file included from <command-line>:0:0:
+   include/linux/kconfig.h:8:0: note: this is the location of the previous definition
+    #define __BIG_ENDIAN 4321
+    
+
+vim +/__BIG_ENDIAN +5 arch/h8300/include/asm/byteorder.h
+
+d2a5f499 Yoshinori Sato 2015-05-11  4  
+d2a5f499 Yoshinori Sato 2015-05-11 @5  #define __BIG_ENDIAN __ORDER_BIG_ENDIAN__
+d2a5f499 Yoshinori Sato 2015-05-11  6  #include <linux/byteorder/big_endian.h>
+d2a5f499 Yoshinori Sato 2015-05-11  7  
+
+:::::: The code at line 5 was first introduced by commit
+:::::: d2a5f4999f6c211adf30d9788349e13988d6f2a7 h8300: Assembly headers
+
+:::::: TO: Yoshinori Sato <ysato@users.sourceforge.jp>
+:::::: CC: Yoshinori Sato <ysato@users.sourceforge.jp>
+
 ---
- drivers/virtio/virtio_balloon.c     | 255 +++++++++++++++++++++++++++++++-----
- include/uapi/linux/virtio_balloon.h |   7 +
- mm/page_poison.c                    |   6 +
- 3 files changed, 232 insertions(+), 36 deletions(-)
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-Resend Change:
-	- Expose page_poisoning_enabled to kernel modules
+--/9DWx/yDrRhgMJTb
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index a1fb52c..5476725 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -51,9 +51,22 @@ MODULE_PARM_DESC(oom_pages, "pages to free on OOM");
- static struct vfsmount *balloon_mnt;
- #endif
- 
-+enum virtio_balloon_vq {
-+	VIRTIO_BALLOON_VQ_INFLATE,
-+	VIRTIO_BALLOON_VQ_DEFLATE,
-+	VIRTIO_BALLOON_VQ_STATS,
-+	VIRTIO_BALLOON_VQ_FREE_PAGE,
-+	VIRTIO_BALLOON_VQ_MAX
-+};
-+
- struct virtio_balloon {
- 	struct virtio_device *vdev;
--	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
-+	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
-+
-+	/* Balloon's own wq for cpu-intensive work items */
-+	struct workqueue_struct *balloon_wq;
-+	/* The free page reporting work item submitted to the balloon wq */
-+	struct work_struct report_free_page_work;
- 
- 	/* The balloon servicing is delegated to a freezable workqueue. */
- 	struct work_struct update_balloon_stats_work;
-@@ -63,6 +76,11 @@ struct virtio_balloon {
- 	spinlock_t stop_update_lock;
- 	bool stop_update;
- 
-+	/* The new cmd id received from host */
-+	uint32_t cmd_id_received;
-+	/* The cmd id that is in use */
-+	__virtio32 cmd_id_use;
-+
- 	/* Waiting for host to ack the pages we released. */
- 	wait_queue_head_t acked;
- 
-@@ -316,17 +334,6 @@ static void stats_handle_request(struct virtio_balloon *vb)
- 	virtqueue_kick(vq);
- }
- 
--static void virtballoon_changed(struct virtio_device *vdev)
--{
--	struct virtio_balloon *vb = vdev->priv;
--	unsigned long flags;
--
--	spin_lock_irqsave(&vb->stop_update_lock, flags);
--	if (!vb->stop_update)
--		queue_work(system_freezable_wq, &vb->update_balloon_size_work);
--	spin_unlock_irqrestore(&vb->stop_update_lock, flags);
--}
--
- static inline s64 towards_target(struct virtio_balloon *vb)
- {
- 	s64 target;
-@@ -343,6 +350,34 @@ static inline s64 towards_target(struct virtio_balloon *vb)
- 	return target - vb->num_pages;
- }
- 
-+static void virtballoon_changed(struct virtio_device *vdev)
-+{
-+	struct virtio_balloon *vb = vdev->priv;
-+	unsigned long flags;
-+	s64 diff = towards_target(vb);
-+
-+	if (diff) {
-+		spin_lock_irqsave(&vb->stop_update_lock, flags);
-+		if (!vb->stop_update)
-+			queue_work(system_freezable_wq,
-+				   &vb->update_balloon_size_work);
-+		spin_unlock_irqrestore(&vb->stop_update_lock, flags);
-+	}
-+
-+	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-+		virtio_cread(vdev, struct virtio_balloon_config,
-+			     free_page_report_cmd_id, &vb->cmd_id_received);
-+		if (vb->cmd_id_received !=
-+		    VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID) {
-+			spin_lock_irqsave(&vb->stop_update_lock, flags);
-+			if (!vb->stop_update)
-+				queue_work(vb->balloon_wq,
-+					   &vb->report_free_page_work);
-+			spin_unlock_irqrestore(&vb->stop_update_lock, flags);
-+		}
-+	}
-+}
-+
- static void update_balloon_size(struct virtio_balloon *vb)
- {
- 	u32 actual = vb->num_pages;
-@@ -417,42 +452,155 @@ static void update_balloon_size_func(struct work_struct *work)
- 
- static int init_vqs(struct virtio_balloon *vb)
- {
--	struct virtqueue *vqs[3];
--	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
--	static const char * const names[] = { "inflate", "deflate", "stats" };
--	int err, nvqs;
-+	struct virtqueue *vqs[VIRTIO_BALLOON_VQ_MAX];
-+	vq_callback_t *callbacks[VIRTIO_BALLOON_VQ_MAX];
-+	const char *names[VIRTIO_BALLOON_VQ_MAX];
-+	struct scatterlist sg;
-+	int ret;
- 
- 	/*
--	 * We expect two virtqueues: inflate and deflate, and
--	 * optionally stat.
-+	 * Inflateq and deflateq are used unconditionally. The names[]
-+	 * will be NULL if the related feature is not enabled, which will
-+	 * cause no allocation for the corresponding virtqueue in find_vqs.
- 	 */
--	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
--	err = virtio_find_vqs(vb->vdev, nvqs, vqs, callbacks, names, NULL);
--	if (err)
--		return err;
-+	callbacks[VIRTIO_BALLOON_VQ_INFLATE] = balloon_ack;
-+	names[VIRTIO_BALLOON_VQ_INFLATE] = "inflate";
-+	callbacks[VIRTIO_BALLOON_VQ_DEFLATE] = balloon_ack;
-+	names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
-+	names[VIRTIO_BALLOON_VQ_STATS] = NULL;
-+	names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
- 
--	vb->inflate_vq = vqs[0];
--	vb->deflate_vq = vqs[1];
- 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
--		struct scatterlist sg;
--		unsigned int num_stats;
--		vb->stats_vq = vqs[2];
-+		names[VIRTIO_BALLOON_VQ_STATS] = "stats";
-+		callbacks[VIRTIO_BALLOON_VQ_STATS] = stats_request;
-+	}
- 
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-+		names[VIRTIO_BALLOON_VQ_FREE_PAGE] = "free_page_vq";
-+		callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
-+	}
-+
-+	ret = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
-+					 vqs, callbacks, names, NULL, NULL);
-+	if (ret)
-+		return ret;
-+
-+	vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
-+	vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-+		vb->stats_vq = vqs[VIRTIO_BALLOON_VQ_STATS];
- 		/*
- 		 * Prime this virtqueue with one buffer so the hypervisor can
- 		 * use it to signal us later (it can't be broken yet!).
- 		 */
--		num_stats = update_balloon_stats(vb);
--
--		sg_init_one(&sg, vb->stats, sizeof(vb->stats[0]) * num_stats);
--		if (virtqueue_add_outbuf(vb->stats_vq, &sg, 1, vb, GFP_KERNEL)
--		    < 0)
--			BUG();
-+		sg_init_one(&sg, vb->stats, sizeof(vb->stats));
-+		ret = virtqueue_add_outbuf(vb->stats_vq, &sg, 1, vb,
-+					   GFP_KERNEL);
-+		if (ret) {
-+			dev_warn(&vb->vdev->dev, "%s: add stat_vq failed\n",
-+				 __func__);
-+			return ret;
-+		}
- 		virtqueue_kick(vb->stats_vq);
- 	}
-+
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
-+		vb->free_page_vq = vqs[VIRTIO_BALLOON_VQ_FREE_PAGE];
-+
- 	return 0;
- }
- 
-+static int add_one_sg(struct virtqueue *vq, unsigned long pfn, uint32_t len)
-+{
-+	struct scatterlist sg;
-+	unsigned int unused;
-+
-+	sg_init_table(&sg, 1);
-+	sg_set_page(&sg, pfn_to_page(pfn), len, 0);
-+
-+	/* Detach all the used buffers from the vq */
-+	while (virtqueue_get_buf(vq, &unused))
-+		;
-+
-+	/*
-+	 * Since this is an optimization feature, losing a couple of free
-+	 * pages to report isn't important. We simply return without adding
-+	 * the page hint if the vq is full.
-+	 * We are adding one entry each time, which essentially results in no
-+	 * memory allocation, so the GFP_KERNEL flag below can be ignored.
-+	 * Host works by polling the free page vq for hints after sending the
-+	 * starting cmd id, so the driver doesn't need to kick after filling
-+	 * the vq.
-+	 * Lastly, there is always one entry reserved for the cmd id to use.
-+	 */
-+	if (vq->num_free > 1)
-+		return virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
-+
-+	return 0;
-+}
-+
-+static int virtio_balloon_send_free_pages(void *opaque, unsigned long pfn,
-+					   unsigned long nr_pages)
-+{
-+	struct virtio_balloon *vb = (struct virtio_balloon *)opaque;
-+	uint32_t len = nr_pages << PAGE_SHIFT;
-+
-+	/*
-+	 * If a stop id or a new cmd id was just received from host, stop
-+	 * the reporting, and return 1 to indicate an active stop.
-+	 */
-+	if (virtio32_to_cpu(vb->vdev, vb->cmd_id_use) != vb->cmd_id_received)
-+		return 1;
-+
-+	return add_one_sg(vb->free_page_vq, pfn, len);
-+}
-+
-+static int send_cmd_id(struct virtio_balloon *vb, uint32_t cmd_id)
-+{
-+	struct scatterlist sg;
-+	struct virtqueue *vq = vb->free_page_vq;
-+
-+	vb->cmd_id_use = cpu_to_virtio32(vb->vdev, cmd_id);
-+	sg_init_one(&sg, &vb->cmd_id_use, sizeof(vb->cmd_id_use));
-+
-+	return virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
-+}
-+
-+static void report_free_page_func(struct work_struct *work)
-+{
-+	struct virtio_balloon *vb;
-+	struct virtqueue *vq;
-+	unsigned int unused;
-+	int ret;
-+
-+	vb = container_of(work, struct virtio_balloon, report_free_page_work);
-+	vq = vb->free_page_vq;
-+
-+	/* Start by sending the received cmd id to host with an outbuf */
-+	ret = send_cmd_id(vb, vb->cmd_id_received);
-+	if (unlikely(ret))
-+		goto err;
-+
-+	ret = walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
-+	if (unlikely(ret == -EIO))
-+		goto err;
-+
-+	/* End by sending a stop id to host with an outbuf */
-+	ret = send_cmd_id(vb, VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
-+	if (likely(!ret)) {
-+		/*
-+		 * Ending: make sure all the used buffers have been detached
-+		 * from the vq.
-+		 */
-+		while (vq->num_free != virtqueue_get_vring_size(vq))
-+			virtqueue_get_buf(vq, &unused);
-+		return;
-+	}
-+err:
-+	dev_err(&vb->vdev->dev, "%s: free page vq failure, ret=%d\n",
-+		__func__, ret);
-+}
-+
- #ifdef CONFIG_BALLOON_COMPACTION
- /*
-  * virtballoon_migratepage - perform the balloon page migration on behalf of
-@@ -537,6 +685,7 @@ static struct file_system_type balloon_fs = {
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
-+	__u32 poison_val;
- 	int err;
- 
- 	if (!vdev->config->get) {
-@@ -566,18 +715,39 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 	if (err)
- 		goto out_free_vb;
- 
-+	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-+		/*
-+		 * There is always one entry reserved for cmd id, so the ring
-+		 * size needs to be at least two to report free page hints.
-+		 */
-+		if (virtqueue_get_vring_size(vb->free_page_vq) < 2)
-+			goto out_free_vb;
-+		vb->balloon_wq = alloc_workqueue("balloon-wq",
-+					WQ_FREEZABLE | WQ_CPU_INTENSIVE, 0);
-+		if (!vb->balloon_wq) {
-+			err = -ENOMEM;
-+			goto out_del_vqs;
-+		}
-+		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
-+		if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON)) {
-+			poison_val = PAGE_POISON;
-+			virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-+				      poison_val, &poison_val);
-+		}
-+	}
-+
- 	vb->nb.notifier_call = virtballoon_oom_notify;
- 	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
- 	err = register_oom_notifier(&vb->nb);
- 	if (err < 0)
--		goto out_del_vqs;
-+		goto out_del_balloon_wq;
- 
- #ifdef CONFIG_BALLOON_COMPACTION
- 	balloon_mnt = kern_mount(&balloon_fs);
- 	if (IS_ERR(balloon_mnt)) {
- 		err = PTR_ERR(balloon_mnt);
- 		unregister_oom_notifier(&vb->nb);
--		goto out_del_vqs;
-+		goto out_del_balloon_wq;
- 	}
- 
- 	vb->vb_dev_info.migratepage = virtballoon_migratepage;
-@@ -587,7 +757,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 		kern_unmount(balloon_mnt);
- 		unregister_oom_notifier(&vb->nb);
- 		vb->vb_dev_info.inode = NULL;
--		goto out_del_vqs;
-+		goto out_del_balloon_wq;
- 	}
- 	vb->vb_dev_info.inode->i_mapping->a_ops = &balloon_aops;
- #endif
-@@ -598,6 +768,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 		virtballoon_changed(vdev);
- 	return 0;
- 
-+out_del_balloon_wq:
-+	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
-+		destroy_workqueue(vb->balloon_wq);
- out_del_vqs:
- 	vdev->config->del_vqs(vdev);
- out_free_vb:
-@@ -631,6 +804,11 @@ static void virtballoon_remove(struct virtio_device *vdev)
- 	cancel_work_sync(&vb->update_balloon_size_work);
- 	cancel_work_sync(&vb->update_balloon_stats_work);
- 
-+	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-+		cancel_work_sync(&vb->report_free_page_work);
-+		destroy_workqueue(vb->balloon_wq);
-+	}
-+
- 	remove_common(vb);
- #ifdef CONFIG_BALLOON_COMPACTION
- 	if (vb->vb_dev_info.inode)
-@@ -674,6 +852,9 @@ static int virtballoon_restore(struct virtio_device *vdev)
- 
- static int virtballoon_validate(struct virtio_device *vdev)
- {
-+	if (!page_poisoning_enabled())
-+		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
-+
- 	__virtio_clear_bit(vdev, VIRTIO_F_IOMMU_PLATFORM);
- 	return 0;
- }
-@@ -682,6 +863,8 @@ static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
-+	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
-+	VIRTIO_BALLOON_F_PAGE_POISON,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index 343d7dd..3f97067 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -34,15 +34,22 @@
- #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
-+#define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
-+#define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
- 
-+#define VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID		0
- struct virtio_balloon_config {
- 	/* Number of pages host wants Guest to give up. */
- 	__u32 num_pages;
- 	/* Number of pages we've actually got in balloon. */
- 	__u32 actual;
-+	/* Free page report command id, readonly by guest */
-+	__u32 free_page_report_cmd_id;
-+	/* Stores PAGE_POISON if page poisoning is in use */
-+	__u32 poison_val;
- };
- 
- #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
-diff --git a/mm/page_poison.c b/mm/page_poison.c
-index e83fd44..762b472 100644
---- a/mm/page_poison.c
-+++ b/mm/page_poison.c
-@@ -17,6 +17,11 @@ static int early_page_poison_param(char *buf)
- }
- early_param("page_poison", early_page_poison_param);
- 
-+/**
-+ * page_poisoning_enabled - check if page poisoning is enabled
-+ *
-+ * Return true if page poisoning is enabled, or false if not.
-+ */
- bool page_poisoning_enabled(void)
- {
- 	/*
-@@ -29,6 +34,7 @@ bool page_poisoning_enabled(void)
- 		(!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC) &&
- 		debug_pagealloc_enabled()));
- }
-+EXPORT_SYMBOL_GPL(page_poisoning_enabled);
- 
- static void poison_page(struct page *page)
- {
--- 
-2.7.4
+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
+HhaUPgAA
+
+--/9DWx/yDrRhgMJTb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
