@@ -1,158 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 53A096B032D
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:14:54 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id e1so618675pfi.10
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:14:54 -0800 (PST)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0132.outbound.protection.outlook.com. [104.47.1.132])
-        by mx.google.com with ESMTPS id t66si1103488pgc.653.2018.02.07.08.14.52
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 09D716B032F
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 11:19:01 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id m65so620073pfm.14
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 08:19:01 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id u13si1108589pgr.530.2018.02.07.08.18.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 07 Feb 2018 08:14:53 -0800 (PST)
-Subject: [PATCH RFC] x86: KASAN: Sanitize unauthorized irq stack access
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Wed, 07 Feb 2018 19:14:43 +0300
-Message-ID: <151802005995.4570.824586713429099710.stgit@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 07 Feb 2018 08:18:59 -0800 (PST)
+Date: Wed, 7 Feb 2018 08:18:46 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 0/2] rcu: Transform kfree_rcu() into kvfree_rcu()
+Message-ID: <20180207161846.GA902@bombadil.infradead.org>
+References: <151791170164.5994.8253310844733420079.stgit@localhost.localdomain>
+ <20180207021703.GC3617@linux.vnet.ibm.com>
+ <20180207042334.GA16175@bombadil.infradead.org>
+ <20180207050200.GH3617@linux.vnet.ibm.com>
+ <db9bda80-7506-ae25-2c0a-45eaa08963d9@virtuozzo.com>
+ <20180207083104.GK3617@linux.vnet.ibm.com>
+ <20180207085700.393f90d0@gandalf.local.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180207085700.393f90d0@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, aryabinin@virtuozzo.com, glider@google.com, dvyukov@google.com, luto@kernel.org, bp@alien8.de, jpoimboe@redhat.com, dave.hansen@linux.intel.com, jgross@suse.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, minipli@googlemail.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, josh@joshtriplett.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, mingo@redhat.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com, rao.shoaib@oracle.com
 
-Sometimes it is possible to meet a situation,
-when irq stack is corrupted, while innocent
-callback function is being executed. This may
-happen because of crappy drivers irq handlers,
-when they access wrong memory on the irq stack.
+On Wed, Feb 07, 2018 at 08:57:00AM -0500, Steven Rostedt wrote:
+> On Wed, 7 Feb 2018 00:31:04 -0800
+> "Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
+> 
+> > I see problems.  We would then have two different names for exactly the
+> > same thing.
+> > 
+> > Seems like it would be a lot easier to simply document the existing
+> > kfree_rcu() behavior, especially given that it apparently already works.
+> > The really doesn't seem to me to be worth a name change.
+> 
+> Honestly, I don't believe this is an RCU sub-system decision. This is a
+> memory management decision.
+> 
+> If we have kmalloc(), vmalloc(), kfree(), vfree() and kvfree(), and we
 
-This patch aims to catch such the situations
-and adds checks of unauthorized stack access.
+You missed kvmalloc() ...
 
-Every time we enter in interrupt, we check for
-irq_count, and allow irq stack usage. After
-last nested irq handler is exited, we prohibit
-the access back.
+> want kmalloc() to be freed with kfree(), and vmalloc() to be freed with
+> vfree(), and for strange reasons, we don't know how the data was
+> allocated we have kvfree(). That's an mm decision not an rcu one. We
+> should have kfree_rcu(), vfree_rcu() and kvfree_rcu(), and honestly,
+> they should not depend on kvfree() doing the same thing for everything.
+> Each should call the corresponding member that they represent. Which
+> would change this patch set.
+> 
+> Why? Too much coupling between RCU and MM. What if in the future
+> something changes and kvfree() goes away or changes drastically. We
+> would then have to go through all the users of RCU to change them too.
+> 
+> To me kvfree() is a special case and should not be used by RCU as a
+> generic function. That would make RCU and MM much more coupled than
+> necessary.
 
-I did x86_unpoison_irq_stack() and x86_poison_irq_stack()
-calls unconditional, because this requires
-to change the order of incl PER_CPU_VAR(irq_count)
-and UNWIND_HINT_REGS(), and I'm not sure it's
-legitimately to do. So, irq_count is checked in
-x86_unpoison_irq_stack().
+I'd still like it to be called free_rcu() ... so let's turn it around.
 
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- arch/x86/entry/entry_64.S        |    6 ++++++
- arch/x86/include/asm/processor.h |    6 ++++++
- arch/x86/kernel/irq_64.c         |   13 +++++++++++++
- include/linux/kasan.h            |    3 +++
- mm/kasan/kasan.c                 |   16 ++++++++++++++++
- 5 files changed, 44 insertions(+)
+What memory can you allocate and then *not* free by calling kvfree()?
+kvfree() can free memory allocated by kmalloc(), vmalloc(), any slab
+allocation (is that guaranteed, or just something that happens to work?)
+I think it can't free per-cpu allocations, bootmem, DMA allocations, or
+alloc_page/get_free_page.
 
-diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
-index 741d9877b357..1e9d69de2528 100644
---- a/arch/x86/entry/entry_64.S
-+++ b/arch/x86/entry/entry_64.S
-@@ -485,6 +485,9 @@ END(irq_entries_start)
-  * The invariant is that, if irq_count != -1, then the IRQ stack is in use.
-  */
- .macro ENTER_IRQ_STACK regs=1 old_rsp
-+#ifdef CONFIG_KASAN
-+	call	x86_unpoison_irq_stack
-+#endif
- 	DEBUG_ENTRY_ASSERT_IRQS_OFF
- 	movq	%rsp, \old_rsp
- 
-@@ -552,6 +555,9 @@ END(irq_entries_start)
- 	 */
- 
- 	decl	PER_CPU_VAR(irq_count)
-+#ifdef CONFIG_KASAN
-+	call	x86_poison_irq_stack
-+#endif
- .endm
- 
- /*
-diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index 793bae7e7ce3..4353e3a85b0b 100644
---- a/arch/x86/include/asm/processor.h
-+++ b/arch/x86/include/asm/processor.h
-@@ -404,6 +404,12 @@ union irq_stack_union {
- 	};
- };
- 
-+#define KASAN_IRQ_STACK_SIZE \
-+	(sizeof(union irq_stack_union) - \
-+		(offsetof(union irq_stack_union, stack_canary) + 8))
-+
-+#define percpu_irq_stack_addr() this_cpu_ptr(irq_stack_union.irq_stack)
-+
- DECLARE_PER_CPU_FIRST(union irq_stack_union, irq_stack_union) __visible;
- DECLARE_INIT_PER_CPU(irq_stack_union);
- 
-diff --git a/arch/x86/kernel/irq_64.c b/arch/x86/kernel/irq_64.c
-index d86e344f5b3d..ad78f4b3f0b5 100644
---- a/arch/x86/kernel/irq_64.c
-+++ b/arch/x86/kernel/irq_64.c
-@@ -77,3 +77,16 @@ bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
- 	generic_handle_irq_desc(desc);
- 	return true;
- }
-+
-+#ifdef CONFIG_KASAN
-+void __visible x86_poison_irq_stack(void)
-+{
-+	if (this_cpu_read(irq_count) == -1)
-+		kasan_poison_irq_stack();
-+}
-+void __visible x86_unpoison_irq_stack(void)
-+{
-+	if (this_cpu_read(irq_count) == -1)
-+		kasan_unpoison_irq_stack();
-+}
-+#endif
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index adc13474a53b..cb433f1bf178 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -40,6 +40,9 @@ void kasan_unpoison_shadow(const void *address, size_t size);
- void kasan_unpoison_task_stack(struct task_struct *task);
- void kasan_unpoison_stack_above_sp_to(const void *watermark);
- 
-+void kasan_poison_irq_stack(void);
-+void kasan_unpoison_irq_stack(void);
-+
- void kasan_alloc_pages(struct page *page, unsigned int order);
- void kasan_free_pages(struct page *page, unsigned int order);
- 
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 0d9d9d268f32..9bc150c87205 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -412,6 +412,22 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
- 			KASAN_KMALLOC_REDZONE);
- }
- 
-+#ifdef KASAN_IRQ_STACK_SIZE
-+void kasan_poison_irq_stack(void)
-+{
-+	void *stack = percpu_irq_stack_addr();
-+
-+	kasan_poison_shadow(stack, KASAN_IRQ_STACK_SIZE, KASAN_GLOBAL_REDZONE);
-+}
-+
-+void kasan_unpoison_irq_stack(void)
-+{
-+	void *stack = percpu_irq_stack_addr();
-+
-+	kasan_unpoison_shadow(stack, KASAN_IRQ_STACK_SIZE);
-+}
-+#endif /* KASAN_IRQ_STACK_SIZE */
-+
- static inline int in_irqentry_text(unsigned long ptr)
- {
- 	return (ptr >= (unsigned long)&__irqentry_text_start &&
+Do we need to be able to free any of those objects in order to rename
+kfree_rcu() to just free_rcu()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
