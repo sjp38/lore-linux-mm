@@ -1,71 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AE1B6B035E
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 13:38:38 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 199so784663pfy.18
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 10:38:38 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id n128si1262381pgn.247.2018.02.07.10.38.36
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 91DD66B035F
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 14:06:47 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id w101so1024924wrc.18
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 11:06:47 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 13si1675635wmk.223.2018.02.07.11.06.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Feb 2018 10:38:37 -0800 (PST)
-Subject: Re: [PATCH RFC] x86: KASAN: Sanitize unauthorized irq stack access
-References: <151802005995.4570.824586713429099710.stgit@localhost.localdomain>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <6638b09b-30b0-861e-9c00-c294889a3791@linux.intel.com>
-Date: Wed, 7 Feb 2018 10:38:35 -0800
-MIME-Version: 1.0
-In-Reply-To: <151802005995.4570.824586713429099710.stgit@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        Wed, 07 Feb 2018 11:06:46 -0800 (PST)
+Date: Wed, 7 Feb 2018 11:06:42 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [netfilter-core] kernel panic: Out of memory and no killable
+ processes... (2)
+Message-Id: <20180207110642.dbb3fe499a134d1369f05a2f@linux-foundation.org>
+In-Reply-To: <20180207174439.esm4djxb4trbotne@salvia>
+References: <20180129182811.fze4vrb5zd5cojmr@node.shutemov.name>
+	<20180129223522.GG5906@breakpoint.cc>
+	<20180130075226.GL21609@dhcp22.suse.cz>
+	<20180130081127.GH5906@breakpoint.cc>
+	<20180130082817.cbax5qj4mxancx4b@node.shutemov.name>
+	<CACT4Y+bFKwoxopr1dwnc7OHUoHy28ksVguqtMY6tD=aRh-7LyQ@mail.gmail.com>
+	<20180130095739.GV21609@dhcp22.suse.cz>
+	<20180130140104.GE21609@dhcp22.suse.cz>
+	<20180130112745.934883e37e696ab7f875a385@linux-foundation.org>
+	<20180131081916.GO21609@dhcp22.suse.cz>
+	<20180207174439.esm4djxb4trbotne@salvia>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, aryabinin@virtuozzo.com, glider@google.com, dvyukov@google.com, luto@kernel.org, bp@alien8.de, jpoimboe@redhat.com, jgross@suse.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, minipli@googlemail.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
+To: Pablo Neira Ayuso <pablo@netfilter.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Yang Shi <yang.s@alibaba-inc.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, netdev <netdev@vger.kernel.org>, guro@fb.com, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Linux-MM <linux-mm@kvack.org>, coreteam@netfilter.org, netfilter-devel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, David Miller <davem@davemloft.net>, Dmitry Vyukov <dvyukov@google.com>
 
-On 02/07/2018 08:14 AM, Kirill Tkhai wrote:
-> Sometimes it is possible to meet a situation,
-> when irq stack is corrupted, while innocent
-> callback function is being executed. This may
-> happen because of crappy drivers irq handlers,
-> when they access wrong memory on the irq stack.
+On Wed, 7 Feb 2018 18:44:39 +0100 Pablo Neira Ayuso <pablo@netfilter.org> wrote:
 
-Can you be more clear about the actual issue?  Which drivers do this?
-How do they even find an IRQ stack pointer?
+> Hi,
+> 
+> On Wed, Jan 31, 2018 at 09:19:16AM +0100, Michal Hocko wrote:
+> [...]
+> > Yeah, we do not BUG but rather fail instead. See __vmalloc_node_range.
+> > My excavation tools pointed me to "VM: Rework vmalloc code to support mapping of arbitray pages"
+> > by Christoph back in 2002. So yes, we can safely remove it finally. Se
+> > below.
+> > 
+> > 
+> > From 8d52e1d939d101b0dafed6ae5c3c1376183e65bb Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Wed, 31 Jan 2018 09:16:56 +0100
+> > Subject: [PATCH] net/netfilter/x_tables.c: remove size check
+> > 
+> > Back in 2002 vmalloc used to BUG on too large sizes. We are much better
+> > behaved these days and vmalloc simply returns NULL for those. Remove
+> > the check as it simply not needed and the comment even misleading.
+> > 
+> > Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> >  net/netfilter/x_tables.c | 4 ----
+> >  1 file changed, 4 deletions(-)
+> > 
+> > diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
+> > index b55ec5aa51a6..48a6ff620493 100644
+> > --- a/net/netfilter/x_tables.c
+> > +++ b/net/netfilter/x_tables.c
+> > @@ -999,10 +999,6 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
+> >  	if (sz < sizeof(*info))
+> >  		return NULL;
+> >  
+> > -	/* Pedantry: prevent them from hitting BUG() in vmalloc.c --RR */
+> > -	if ((SMP_ALIGN(size) >> PAGE_SHIFT) + 2 > totalram_pages)
+> > -		return NULL;
+> > -
+> >  	/* __GFP_NORETRY is not fully supported by kvmalloc but it should
+> >  	 * work reasonably well if sz is too large and bail out rather
+> >  	 * than shoot all processes down before realizing there is nothing
+> 
+> Patchwork didn't catch this patch for some reason, would you mind to
+> resend?
 
-> This patch aims to catch such the situations
-> and adds checks of unauthorized stack access.
+From: Michal Hocko <mhocko@suse.com>
+Subject: net/netfilter/x_tables.c: remove size check
 
-I think I forgot how KASAN did this.  KASAN has metadata that says which
-areas of memory are good or bad to access, right?  So, this just tags
-IRQ stacks as bad when we are not _in_ an interrupt?
+Back in 2002 vmalloc used to BUG on too large sizes.  We are much better
+behaved these days and vmalloc simply returns NULL for those.  Remove the
+check as it simply not needed and the comment is even misleading.
 
-> +#define KASAN_IRQ_STACK_SIZE \
-> +	(sizeof(union irq_stack_union) - \
-> +		(offsetof(union irq_stack_union, stack_canary) + 8))
+Link: http://lkml.kernel.org/r/20180131081916.GO21609@dhcp22.suse.cz
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Cc: Florian Westphal <fw@strlen.de>
+Cc: David S. Miller <davem@davemloft.net>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
 
-Just curious, but why leave out the canary?  It shouldn't be accessed
-either.
+ net/netfilter/x_tables.c |    4 ----
+ 1 file changed, 4 deletions(-)
 
-> +#ifdef CONFIG_KASAN
-> +void __visible x86_poison_irq_stack(void)
-> +{
-> +	if (this_cpu_read(irq_count) == -1)
-> +		kasan_poison_irq_stack();
-> +}
-> +void __visible x86_unpoison_irq_stack(void)
-> +{
-> +	if (this_cpu_read(irq_count) == -1)
-> +		kasan_unpoison_irq_stack();
-> +}
-> +#endif
-
-It might be handy to point out here that -1 means "not in an interrupt"
-and >=0 means "in an interrupt".
-
-Otherwise, this looks pretty straightforward.  Would it be something to
-extend to the other stacks like the NMI or double-fault stacks?  Or are
-those just not worth it?
+diff -puN net/netfilter/x_tables.c~net-netfilter-x_tablesc-remove-size-check net/netfilter/x_tables.c
+--- a/net/netfilter/x_tables.c~net-netfilter-x_tablesc-remove-size-check
++++ a/net/netfilter/x_tables.c
+@@ -1004,10 +1004,6 @@ struct xt_table_info *xt_alloc_table_inf
+ 	if (sz < sizeof(*info))
+ 		return NULL;
+ 
+-	/* Pedantry: prevent them from hitting BUG() in vmalloc.c --RR */
+-	if ((size >> PAGE_SHIFT) + 2 > totalram_pages)
+-		return NULL;
+-
+ 	/* __GFP_NORETRY is not fully supported by kvmalloc but it should
+ 	 * work reasonably well if sz is too large and bail out rather
+ 	 * than shoot all processes down before realizing there is nothing
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
