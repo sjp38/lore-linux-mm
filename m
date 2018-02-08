@@ -1,106 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BDE2D6B0003
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 22:04:50 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id z15so2685148qti.16
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 19:04:50 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id f57si931143qtf.153.2018.02.07.19.04.49
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EBC16B0003
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 22:18:09 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id w135so1458816oie.11
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 19:18:09 -0800 (PST)
+Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
+        by mx.google.com with ESMTPS id s89si984804otb.118.2018.02.07.19.18.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Feb 2018 19:04:49 -0800 (PST)
-Date: Thu, 8 Feb 2018 05:04:43 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v27 3/4] mm/page_poison: expose page_poisoning_enabled to
- kernel modules
-Message-ID: <20180208050337-mutt-send-email-mst@kernel.org>
-References: <1517986471-15185-1-git-send-email-wei.w.wang@intel.com>
- <1517986471-15185-4-git-send-email-wei.w.wang@intel.com>
- <20180207203004-mutt-send-email-mst@kernel.org>
- <5A7BAB7D.7070805@intel.com>
+        Wed, 07 Feb 2018 19:18:08 -0800 (PST)
+Date: Thu, 8 Feb 2018 14:18:04 +1100
+From: "Tobin C. Harding" <me@tobin.cc>
+Subject: Re: [RFC] Warn the user when they could overflow mapcount
+Message-ID: <20180208031804.GD3304@eros>
+References: <20180208021112.GB14918@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5A7BAB7D.7070805@intel.com>
+In-Reply-To: <20180208021112.GB14918@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Feb 08, 2018 at 09:44:29AM +0800, Wei Wang wrote:
-> On 02/08/2018 02:34 AM, Michael S. Tsirkin wrote:
-> > On Wed, Feb 07, 2018 at 02:54:30PM +0800, Wei Wang wrote:
-> > > In some usages, e.g. virtio-balloon, a kernel module needs to know if
-> > > page poisoning is in use. This patch exposes the page_poisoning_enabled
-> > > function to kernel modules.
-> > > 
-> > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> > > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > > Cc: Michal Hocko <mhocko@kernel.org>
-> > > Cc: Michael S. Tsirkin <mst@redhat.com>
-> > > ---
-> > >   mm/page_poison.c | 6 ++++++
-> > >   1 file changed, 6 insertions(+)
-> > > 
-> > > diff --git a/mm/page_poison.c b/mm/page_poison.c
-> > > index e83fd44..c08d02a 100644
-> > > --- a/mm/page_poison.c
-> > > +++ b/mm/page_poison.c
-> > > @@ -30,6 +30,11 @@ bool page_poisoning_enabled(void)
-> > >   		debug_pagealloc_enabled()));
-> > >   }
-> > > +/**
-> > > + * page_poisoning_enabled - check if page poisoning is enabled
-> > > + *
-> > > + * Return true if page poisoning is enabled, or false if not.
-> > > + */
-> > >   static void poison_page(struct page *page)
-> > >   {
-> > >   	void *addr = kmap_atomic(page);
-> > > @@ -37,6 +42,7 @@ static void poison_page(struct page *page)
-> > >   	memset(addr, PAGE_POISON, PAGE_SIZE);
-> > >   	kunmap_atomic(addr);
-> > >   }
-> > > +EXPORT_SYMBOL_GPL(page_poisoning_enabled);
-> > >   static void poison_pages(struct page *page, int n)
-> > >   {
-> > Looks like both the comment and the export are in the wrong place.
+On Wed, Feb 07, 2018 at 06:11:12PM -0800, Matthew Wilcox wrote:
 > 
-> Thanks. Will be more careful.
+> Kirill and I were talking about trying to overflow page->_mapcount
+> the other day and realised that the default settings of pid_max and
+> max_map_count prevent it [1].  But there isn't even documentation to
+> warn a sysadmin that they've just opened themselves up to the possibility
+> that they've opened their system up to a sufficiently-determined attacker.
 > 
-> > I'm a bit concerned that callers also in fact poke at the
-> > PAGE_POISON - exporting that seems to be more of an accident
-> > as it's only used without page_poisoning.c - it might be
-> > better to have page_poisoning_enabled get u8 * and set it.
-> > 
+> I'm not sufficiently wise in the ways of the MM to understand exactly
+> what goes wrong if we do wrap mapcount.  Kirill says:
 > 
-> PAGE_POISON is a macro defined in the header, why would callers using it be
-> a concern?
+>   rmap depends on mapcount to decide when the page is not longer mapped.
+>   If it sees page_mapcount() == 0 due to 32-bit wrap we are screwed;
+>   data corruption, etc.
+> 
+> That seems pretty bad.  So here's a patch which adds documentation to the
+> two sysctls that a sysadmin could use to shoot themselves in the foot,
+> and adds a warning if they change either of them to a dangerous value.
+> It's possible to get into a dangerous situation without triggering this
+> warning (already have the file mapped a lot of times, then lower pid_max,
+> then raise max_map_count, then map the file a lot more times), but it's
+> unlikely to happen.
+> 
+> Comments?
+> 
+> [1] map_count counts the number of times that a page is mapped to
+> userspace; max_map_count restricts the number of times a process can
+> map a page and pid_max restricts the number of processes that can exist.
+> So map_count can never be larger than pid_max * max_map_count.
+> 
+> diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt
+> index 412314eebda6..ec90cd633e99 100644
+> --- a/Documentation/sysctl/kernel.txt
+> +++ b/Documentation/sysctl/kernel.txt
+> @@ -718,6 +718,8 @@ pid_max:
+>  PID allocation wrap value.  When the kernel's next PID value
+>  reaches this value, it wraps back to a minimum PID value.
+>  PIDs of value pid_max or larger are not allocated.
+> +Increasing this value without decreasing vm.max_map_count may
+> +allow a hostile user to corrupt kernel memory
+>  
+>  ==============================================================
+>  
+> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> index ff234d229cbb..0ab306ea8f80 100644
+> --- a/Documentation/sysctl/vm.txt
+> +++ b/Documentation/sysctl/vm.txt
+> @@ -379,7 +379,8 @@ While most applications need less than a thousand maps, certain
+>  programs, particularly malloc debuggers, may consume lots of them,
+>  e.g., up to one or two maps per allocation.
+>  
+> -The default value is 65536.
+> +The default value is 65530.  Increasing this value without decreasing
+> +pid_max may allow a hostile user to corrupt kernel memory.
 
+Just checking - did you mean the final '0' on this value?
 
-It might be a good idea to move it out of there though.
-
-> Do you suggest to have:
-> 
-> bool page_poisoning_get(u8 *val)
-> {
->     if (page_poisoning_enabled()) {
->         *val = PAGE_POISON;
->         return true;
->     }
-> 
->     return false;
-> }
-> EXPORT_SYMBOL_GPL(page_poisoning_get);
-> 
-> 
-> Best,
-> Wei
-
-Something like this, yes.
-
--- 
-MST
+	Tobin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
