@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B5516B0003
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 13:56:51 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id b4so2073733pgs.5
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 10:56:51 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B80036B0003
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 14:00:42 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id q13so2066083pgt.17
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 11:00:42 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id v8-v6si327111plp.785.2018.02.08.10.56.50
+        by mx.google.com with ESMTPS id w6si378975pfj.311.2018.02.08.11.00.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 08 Feb 2018 10:56:50 -0800 (PST)
-Date: Thu, 8 Feb 2018 10:56:48 -0800
+        Thu, 08 Feb 2018 11:00:41 -0800 (PST)
+Date: Thu, 8 Feb 2018 11:00:18 -0800
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC] Warn the user when they could overflow mapcount
-Message-ID: <20180208185648.GB9524@bombadil.infradead.org>
-References: <20180208021112.GB14918@bombadil.infradead.org>
- <CAG48ez2-MTJ2YrS5fPZi19RY6P_6NWuK1U5CcQpJ25=xrGSy_A@mail.gmail.com>
- <CA+DvKQLHDR0s=6r4uiHL8kw2_PnfJcwYfPxgQOmuLbc=5k39+g@mail.gmail.com>
+Subject: Re: [PATCH RFC] x86: KASAN: Sanitize unauthorized irq stack access
+Message-ID: <20180208190016.GC9524@bombadil.infradead.org>
+References: <151802005995.4570.824586713429099710.stgit@localhost.localdomain>
+ <6638b09b-30b0-861e-9c00-c294889a3791@linux.intel.com>
+ <d1b8c22c-79bf-55a1-37a1-2ce508881f3d@virtuozzo.com>
+ <20180208163041.zy7dbz4tlbit4i2h@treble>
+ <CACT4Y+bZ2JtwTK+a2=wuTm3891Zu1qksreyO63i6whKqFv66Cw@mail.gmail.com>
+ <20180208172026.6kqimndwyekyzzvl@treble>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+DvKQLHDR0s=6r4uiHL8kw2_PnfJcwYfPxgQOmuLbc=5k39+g@mail.gmail.com>
+In-Reply-To: <20180208172026.6kqimndwyekyzzvl@treble>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Micay <danielmicay@gmail.com>
-Cc: Jann Horn <jannh@google.com>, linux-mm@kvack.org, Kernel Hardening <kernel-hardening@lists.openwall.com>, kernel list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Juergen Gross <jgross@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Kees Cook <keescook@chromium.org>, Mathias Krause <minipli@googlemail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 
-On Thu, Feb 08, 2018 at 01:05:33PM -0500, Daniel Micay wrote:
-> The standard map_max_count / pid_max are very low and there are many
-> situations where either or both need to be raised.
+On Thu, Feb 08, 2018 at 11:20:26AM -0600, Josh Poimboeuf wrote:
+> The patch description is confusing.  It talks about "crappy drivers irq
+> handlers when they access wrong memory on the stack".  But if I
+> understand correctly, the patch doesn't actually protect against that
+> case, because irq handlers run on the irq stack, and this patch only
+> affects code which *isn't* running on the irq stack.
 
-[snip good reasons]
+This would catch a crappy driver which allocates some memory on the
+irq stack, squirrels the pointer to it away in a data structure, then
+returns to process (or softirq) context and dereferences the pointer.
 
-> I do think the default value in the documentation should be fixed but
-> if there's a clear problem with raising these it really needs to be
-> fixed. Google either of the sysctl names and look at all the people
-> running into issues and needing to raise them. It's only going to
-> become more common to raise these with people trying to use lots of
-> fine-grained sandboxing. Process-per-request is back in style.
-
-So we should make the count saturate instead, then?  That's going to
-be interesting.
+I have no idea if that's the case that Kirill is tracking down, but it's
+something I can imagine someone doing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
