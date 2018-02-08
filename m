@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BC6A6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 01:30:05 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id t14so1882593wmc.5
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 22:30:05 -0800 (PST)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id a141si2230927wma.13.2018.02.07.22.30.03
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CD706B0003
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 04:28:44 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r82so1952598wme.0
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 01:28:44 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y3si2617843wme.174.2018.02.08.01.28.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 07 Feb 2018 22:30:04 -0800 (PST)
-Received: from mail-pl0-f72.google.com ([209.85.160.72])
-	by youngberry.canonical.com with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
-	(Exim 4.76)
-	(envelope-from <kai.heng.feng@canonical.com>)
-	id 1ejfid-0003Ao-6L
-	for linux-mm@kvack.org; Thu, 08 Feb 2018 06:30:03 +0000
-Received: by mail-pl0-f72.google.com with SMTP id l3-v6so1211627pld.8
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 22:30:03 -0800 (PST)
-From: Kai Heng Feng <kai.heng.feng@canonical.com>
-Content-Type: text/plain;
-	charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0 (Mac OS X Mail 11.3 \(3445.6.9\))
-Subject: Regression after commit 19809c2da28a ("mm, vmalloc: use __GFP_HIGHMEM
- implicitly")
-Message-Id: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
-Date: Thu, 8 Feb 2018 14:29:57 +0800
+        Thu, 08 Feb 2018 01:28:43 -0800 (PST)
+Date: Thu, 8 Feb 2018 10:28:39 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: INFO: task hung in sync_blockdev
+Message-ID: <20180208092839.ebe5rk6mtvkk5da4@quack2.suse.cz>
+References: <001a11447070ac6fcb0564a08cb1@google.com>
+ <20180207155229.GC10945@tassilo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180207155229.GC10945@tassilo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, Laura Abbott <labbott@redhat.com>
-Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: syzbot <syzbot+283c3c447181741aea28@syzkaller.appspotmail.com>, akpm@linux-foundation.org, aryabinin@virtuozzo.com, jack@suse.cz, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, mingo@kernel.org, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, linux-fsdevel@vger.kernel.org
 
-A user with i386 instead of AMD64 machine reports [1] that commit =
-19809c2da28a ("mm, vmalloc: use __GFP_HIGHMEM implicitly=E2=80=9D) =
-causes a regression.
-BUG_ON(PageHighMem(pg)) in drivers/media/common/saa7146/saa7146_core.c =
-always gets triggered after that commit.
+On Wed 07-02-18 07:52:29, Andi Kleen wrote:
+> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<0000000040269370>]
+> > __blkdev_put+0xbc/0x7f0 fs/block_dev.c:1757
+> > 1 lock held by blkid/19199:
+> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
+> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
+> >  #1:  (&ldata->atomic_read_lock){+.+.}, at: [<0000000033edf9f2>]
+> > n_tty_read+0x2ef/0x1a00 drivers/tty/n_tty.c:2131
+> > 1 lock held by syz-executor5/19330:
+> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
+> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
+> > 1 lock held by syz-executor5/19331:
+> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
+> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
+> 
+> It seems multiple processes deadlocked on the bd_mutex. 
+> Unfortunately there's no backtrace for the lock acquisitions,
+> so it's hard to see the exact sequence.
 
-Commit 704b862f9efd ("mm/vmalloc.c: don't unconditonally use =
-__GFP_HIGHMEM=E2=80=9D) adjusts the mask logic, now the __GFP_HIGHMEM =
-only gets applied when there is no GFP_DMA or GFP_DMA32.
+Well, all in the report points to a situation where some IO was submitted
+to the block device and never completed (more exactly it took longer than
+those 120s to complete that IO). It would need more digging into the
+syzkaller program to find out what kind of device that was and possibly why
+the IO took so long to complete...
 
-So I tried to adjust its malloc to "__vmalloc(nr_pages * sizeof(struct =
-scatterlist), GFP_KERNEL | GFP_DMA | __GFP_ZERO, PAGE_KERNEL)=E2=80=9D, =
-but both GFP_DMA or GFP_DMA32 still trigger the BUG_ON(PageHighMem()) =
-macro.
-
-Also there are other BUG_ON(PageHighMem()) in drivers/media, I think =
-they will get hit by same regression in 32bit machine too.
-
-[1] https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1742316
-
-Kai-Heng
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
