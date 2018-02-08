@@ -1,115 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 020256B0003
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 21:56:49 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id l66so1430164oih.23
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 18:56:48 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x44sor1196973otd.168.2018.02.07.18.56.47
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BDE2D6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 22:04:50 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id z15so2685148qti.16
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 19:04:50 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id f57si931143qtf.153.2018.02.07.19.04.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Feb 2018 18:56:47 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Feb 2018 19:04:49 -0800 (PST)
+Date: Thu, 8 Feb 2018 05:04:43 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v27 3/4] mm/page_poison: expose page_poisoning_enabled to
+ kernel modules
+Message-ID: <20180208050337-mutt-send-email-mst@kernel.org>
+References: <1517986471-15185-1-git-send-email-wei.w.wang@intel.com>
+ <1517986471-15185-4-git-send-email-wei.w.wang@intel.com>
+ <20180207203004-mutt-send-email-mst@kernel.org>
+ <5A7BAB7D.7070805@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180208021112.GB14918@bombadil.infradead.org>
-References: <20180208021112.GB14918@bombadil.infradead.org>
-From: Jann Horn <jannh@google.com>
-Date: Thu, 8 Feb 2018 03:56:26 +0100
-Message-ID: <CAG48ez2-MTJ2YrS5fPZi19RY6P_6NWuK1U5CcQpJ25=xrGSy_A@mail.gmail.com>
-Subject: Re: [RFC] Warn the user when they could overflow mapcount
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5A7BAB7D.7070805@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Kernel Hardening <kernel-hardening@lists.openwall.com>, kernel list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
 
-On Thu, Feb 8, 2018 at 3:11 AM, Matthew Wilcox <willy@infradead.org> wrote:
-> Kirill and I were talking about trying to overflow page->_mapcount
-> the other day and realised that the default settings of pid_max and
-> max_map_count prevent it [1].  But there isn't even documentation to
-> warn a sysadmin that they've just opened themselves up to the possibility
-> that they've opened their system up to a sufficiently-determined attacker.
->
-> I'm not sufficiently wise in the ways of the MM to understand exactly
-> what goes wrong if we do wrap mapcount.  Kirill says:
->
->   rmap depends on mapcount to decide when the page is not longer mapped.
->   If it sees page_mapcount() == 0 due to 32-bit wrap we are screwed;
->   data corruption, etc.
+On Thu, Feb 08, 2018 at 09:44:29AM +0800, Wei Wang wrote:
+> On 02/08/2018 02:34 AM, Michael S. Tsirkin wrote:
+> > On Wed, Feb 07, 2018 at 02:54:30PM +0800, Wei Wang wrote:
+> > > In some usages, e.g. virtio-balloon, a kernel module needs to know if
+> > > page poisoning is in use. This patch exposes the page_poisoning_enabled
+> > > function to kernel modules.
+> > > 
+> > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > > Cc: Michal Hocko <mhocko@kernel.org>
+> > > Cc: Michael S. Tsirkin <mst@redhat.com>
+> > > ---
+> > >   mm/page_poison.c | 6 ++++++
+> > >   1 file changed, 6 insertions(+)
+> > > 
+> > > diff --git a/mm/page_poison.c b/mm/page_poison.c
+> > > index e83fd44..c08d02a 100644
+> > > --- a/mm/page_poison.c
+> > > +++ b/mm/page_poison.c
+> > > @@ -30,6 +30,11 @@ bool page_poisoning_enabled(void)
+> > >   		debug_pagealloc_enabled()));
+> > >   }
+> > > +/**
+> > > + * page_poisoning_enabled - check if page poisoning is enabled
+> > > + *
+> > > + * Return true if page poisoning is enabled, or false if not.
+> > > + */
+> > >   static void poison_page(struct page *page)
+> > >   {
+> > >   	void *addr = kmap_atomic(page);
+> > > @@ -37,6 +42,7 @@ static void poison_page(struct page *page)
+> > >   	memset(addr, PAGE_POISON, PAGE_SIZE);
+> > >   	kunmap_atomic(addr);
+> > >   }
+> > > +EXPORT_SYMBOL_GPL(page_poisoning_enabled);
+> > >   static void poison_pages(struct page *page, int n)
+> > >   {
+> > Looks like both the comment and the export are in the wrong place.
+> 
+> Thanks. Will be more careful.
+> 
+> > I'm a bit concerned that callers also in fact poke at the
+> > PAGE_POISON - exporting that seems to be more of an accident
+> > as it's only used without page_poisoning.c - it might be
+> > better to have page_poisoning_enabled get u8 * and set it.
+> > 
+> 
+> PAGE_POISON is a macro defined in the header, why would callers using it be
+> a concern?
 
-How much memory would you need to trigger this? You need one
-vm_area_struct per increment, and those are 200 bytes? So at least
-800GiB of memory for the vm_area_structs, and maybe more for other
-data structures?
 
-I wouldn't be too surprised if there are more 32-bit overflows that
-start being realistic once you put something on the order of terabytes
-of memory into one machine, given that refcount_t is 32 bits wide -
-for example, the i_count. See
-https://bugs.chromium.org/p/project-zero/issues/detail?id=809 for an
-example where, given a sufficiently high RLIMIT_MEMLOCK, it was
-possible to overflow a 32-bit refcounter on a system with just ~32GiB
-of free memory (minimum required to store 2^32 64-bit pointers).
+It might be a good idea to move it out of there though.
 
-On systems with RAM on the order of terabytes, it's probably a good
-idea to turn on refcount hardening to make issues like that
-non-exploitable for now.
+> Do you suggest to have:
+> 
+> bool page_poisoning_get(u8 *val)
+> {
+>     if (page_poisoning_enabled()) {
+>         *val = PAGE_POISON;
+>         return true;
+>     }
+> 
+>     return false;
+> }
+> EXPORT_SYMBOL_GPL(page_poisoning_get);
+> 
+> 
+> Best,
+> Wei
 
-> That seems pretty bad.  So here's a patch which adds documentation to the
-> two sysctls that a sysadmin could use to shoot themselves in the foot,
-> and adds a warning if they change either of them to a dangerous value.
+Something like this, yes.
 
-I have negative feelings about this patch, mostly because AFAICS:
-
- - It documents an issue instead of fixing it.
- - It likely only addresses a small part of the actual problem.
-
-> It's possible to get into a dangerous situation without triggering this
-> warning (already have the file mapped a lot of times, then lower pid_max,
-> then raise max_map_count, then map the file a lot more times), but it's
-> unlikely to happen.
->
-> Comments?
->
-> [1] map_count counts the number of times that a page is mapped to
-> userspace; max_map_count restricts the number of times a process can
-> map a page and pid_max restricts the number of processes that can exist.
-> So map_count can never be larger than pid_max * max_map_count.
-[...]
-> +int sysctl_pid_max(struct ctl_table *table, int write,
-> +                  void __user *buffer, size_t *lenp, loff_t *ppos)
-> +{
-> +       struct ctl_table t;
-> +       int ret;
-> +
-> +       t = *table;
-> +       t.data = &pid_max;
-> +       t.extra1 = &pid_max_min;
-> +       t.extra2 = &pid_max_max;
-> +
-> +       ret = proc_douintvec_minmax(&t, write, buffer, lenp, ppos);
-> +       if (ret || !write)
-> +               return ret;
-> +
-> +       if ((INT_MAX / max_map_count) > pid_max)
-> +               pr_warn("pid_max is dangerously large\n");
-
-This in reordered is "if (pid_max * max_map_count < INT_MAX)
-pr_warn(...);", no? That doesn't make sense to me. Same thing again
-further down.
-
-[...]
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index 4d3c922ea1a1..5b66a4a48192 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -147,7 +147,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
->         *prev = vma;
->
->         if (start != vma->vm_start) {
-> -               if (unlikely(mm->map_count >= sysctl_max_map_count)) {
-> +               if (unlikely(mm->map_count >= max_map_count)) {
-
-Why the renaming?
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
