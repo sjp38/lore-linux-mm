@@ -1,94 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B86CD6B0007
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 11:41:41 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q13so1939669pgt.17
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 08:41:41 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l12-v6sor98406plc.127.2018.02.08.08.41.40
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BDAB6B0005
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 12:14:18 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id z13so4221240qth.22
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 09:14:18 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id k9si389710qkk.27.2018.02.08.09.14.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Feb 2018 08:41:40 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Feb 2018 09:14:16 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w18HAvbu105044
+	for <linux-mm@kvack.org>; Thu, 8 Feb 2018 12:14:16 -0500
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2g0sc8mgnu-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 08 Feb 2018 12:14:15 -0500
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Thu, 8 Feb 2018 17:14:13 -0000
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: Re: [PATCH v7 04/24] mm: Dont assume page-table invariance during
+ faults
+References: <1517935810-31177-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1517935810-31177-5-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20180206202831.GB16511@bombadil.infradead.org>
+ <484242d8-e632-9e39-5c99-2e1b4b3b69a5@linux.vnet.ibm.com>
+ <20180208150025.GD15846@bombadil.infradead.org>
+Date: Thu, 8 Feb 2018 18:14:03 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180208163041.zy7dbz4tlbit4i2h@treble>
-References: <151802005995.4570.824586713429099710.stgit@localhost.localdomain>
- <6638b09b-30b0-861e-9c00-c294889a3791@linux.intel.com> <d1b8c22c-79bf-55a1-37a1-2ce508881f3d@virtuozzo.com>
- <20180208163041.zy7dbz4tlbit4i2h@treble>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 8 Feb 2018 17:41:19 +0100
-Message-ID: <CACT4Y+bZ2JtwTK+a2=wuTm3891Zu1qksreyO63i6whKqFv66Cw@mail.gmail.com>
-Subject: Re: [PATCH RFC] x86: KASAN: Sanitize unauthorized irq stack access
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180208150025.GD15846@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <79917740-7068-2328-2c02-1532054f357e@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Juergen Gross <jgross@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Kees Cook <keescook@chromium.org>, Mathias Krause <minipli@googlemail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Thu, Feb 8, 2018 at 5:30 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
-> On Thu, Feb 08, 2018 at 01:03:49PM +0300, Kirill Tkhai wrote:
->> On 07.02.2018 21:38, Dave Hansen wrote:
->> > On 02/07/2018 08:14 AM, Kirill Tkhai wrote:
->> >> Sometimes it is possible to meet a situation,
->> >> when irq stack is corrupted, while innocent
->> >> callback function is being executed. This may
->> >> happen because of crappy drivers irq handlers,
->> >> when they access wrong memory on the irq stack.
->> >
->> > Can you be more clear about the actual issue?  Which drivers do this?
->> > How do they even find an IRQ stack pointer?
->>
->> I can't say actual driver making this, because I'm still investigating the guilty one.
->> But I have couple of crash dumps with the crash inside update_sd_lb_stats() function,
->> where stack variable sg becomes corrupted. This time all scheduler-related not-stack
->> variables are in ideal state. And update_sd_lb_stats() is the function, which can't
->> corrupt its own stack. So, I thought this functionality may be useful for something else,
->> especially because of irq stack is one of the last stacks, which are not sanitized.
->> Task's stacks are already covered, as I know
->>
->> [1595450.678971] Call Trace:
->> [1595450.683991]  <IRQ>
->> [1595450.684038]
->> [1595450.688926]  [<ffffffff81320005>] cpumask_next_and+0x35/0x50
->> [1595450.693984]  [<ffffffff810d91d3>] find_busiest_group+0x143/0x950
->> [1595450.699088]  [<ffffffff810d9b7a>] load_balance+0x19a/0xc20
->> [1595450.704289]  [<ffffffff810cde55>] ? sched_clock_cpu+0x85/0xc0
->> [1595450.709457]  [<ffffffff810c29aa>] ? update_rq_clock.part.88+0x1a/0x150
->> [1595450.714711]  [<ffffffff810da770>] rebalance_domains+0x170/0x2b0
->> [1595450.719997]  [<ffffffff810da9d2>] run_rebalance_domains+0x122/0x1e0
->> [1595450.725321]  [<ffffffff816bb10f>] __do_softirq+0x10f/0x2aa
->> [1595450.730746]  [<ffffffff816b62ac>] call_softirq+0x1c/0x30
->> [1595450.736169]  [<ffffffff8102d325>] do_softirq+0x65/0xa0
->> [1595450.741754]  [<ffffffff81093ec5>] irq_exit+0x105/0x110
->> [1595450.747279]  [<ffffffff816baad2>] smp_apic_timer_interrupt+0x42/0x50
->> [1595450.752905]  [<ffffffff816b7a62>] apic_timer_interrupt+0x232/0x240
->> [1595450.758519]  <EOI>
->> [1595450.758569]
->> [1595450.764100]  [<ffffffff8152f282>] ? cpuidle_enter_state+0x52/0xc0
->> [1595450.769652]  [<ffffffff8152f3c8>] cpuidle_idle_call+0xd8/0x210
->> [1595450.775198]  [<ffffffff8103540e>] arch_cpu_idle+0xe/0x30
->> [1595450.780813]  [<ffffffff810effba>] cpu_startup_entry+0x14a/0x1c0
->> [1595450.786286]  [<ffffffff810523e6>] start_secondary+0x1d6/0x250
->
-> I'm not seeing how this patch would help.  If you're running on the irq
-> stack, the *entire* irq stack would be unpoisoned.  So there's still no
-> KASAN protection.  Or am I missing something?
->
-> Seems like it would be more useful for KASAN to detect redzone accesses
-> on the irq stack (if it's not doing that already).
 
-KASAN should do this already (unless there is something terribly
-broken). Compiler instrumentation adds redzones around all stack
-variables and injects code to poision/unpoison these redzones on
-function entry/exit.
-KASAN can also detect use-after-scope bugs for stack variables, but
-this requires a more recent gcc (6 or 7, don't remember exactly now)
-and CONFIG_KASAN_EXTRA since recently.
-User-space ASAN can also detect so called use-after-return bugs
-(dangling references to stack variables), but this requires manual
-management of stack frames and quarantine for stack frames. This is
-more tricky to do inside of kernel, so this was never implemented in
-KASAN. KASAN still can detect some of these, if it will happen so that
-the dangling reference happen to point to a redzone in a new frame.
+
+On 08/02/2018 16:00, Matthew Wilcox wrote:
+> On Thu, Feb 08, 2018 at 03:35:58PM +0100, Laurent Dufour wrote:
+>> I reviewed that part of code, and I think I could now change the way
+>> pte_unmap_safe() is checking for the pte's value. Since we now have all the
+>> needed details in the vm_fault structure, I will pass it to
+>> pte_unamp_same() and deal with the VMA checks when locking for the pte as
+>> it is done in the other part of the page fault handler by calling
+>> pte_spinlock().
+> 
+> This does indeed look much better!  Thank you!
+> 
+>> This means that this patch will be dropped, and pte_unmap_same() will become :
+>>
+>> static inline int pte_unmap_same(struct vm_fault *vmf, int *same)
+>> {
+>> 	int ret = 0;
+>>
+>> 	*same = 1;
+>> #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
+>> 	if (sizeof(pte_t) > sizeof(unsigned long)) {
+>> 		if (pte_spinlock(vmf)) {
+>> 			*same = pte_same(*vmf->pte, vmf->orig_pte);
+>> 			spin_unlock(vmf->ptl);
+>> 		}
+>> 		else
+>> 			ret = VM_FAULT_RETRY;
+>> 	}
+>> #endif
+>> 	pte_unmap(vmf->pte);
+>> 	return ret;
+>> }
+> 
+> I'm not a huge fan of auxiliary return values.  Perhaps we could do this
+> instead:
+> 
+> 	ret = pte_unmap_same(vmf);
+> 	if (ret != VM_FAULT_NOTSAME) {
+> 		if (page)
+> 			put_page(page);
+> 		goto out;
+> 	}
+> 	ret = 0;
+> 
+> (we have a lot of unused bits in VM_FAULT_, so adding a new one shouldn't
+> be a big deal)
+
+I do agree, using an auxiliary return value is not a good idea.
+
+What about the following changes based on your suggestion ?
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7de4323b9e89..0cd31a37bb3d 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1212,6 +1212,7 @@ static inline void clear_page_pfmemalloc(struct page *page)
+ #define VM_FAULT_NEEDDSYNC  0x2000     /* ->fault did not modify page tables
+                                         * and needs fsync() to complete (for
+                                         * synchronous page faults in DAX) */
++#define VM_FAULT_PTNOTSAME 0x4000      /* Page table entries have changed */
+ 
+ #define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
+                         VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
+diff --git a/mm/memory.c b/mm/memory.c
+index b7da99c74fef..c9b419f8e4c5 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2433,21 +2433,30 @@ static inline bool pte_map_lock(struct vm_fault *vmf)
+  * parts, do_swap_page must check under lock before unmapping the pte and
+  * proceeding (but do_wp_page is only called after already making such a check;
+  * and do_anonymous_page can safely check later on).
++ *
++ * pte_unmap_same() returns:
++ *     0                       if the PTE are the same
++ *     VM_FAULT_PTNOTSAME      if the PTE are different
++ *     VM_FAULT_RETRY          if the VMA has changed in our back during
++ *                             a speculative page fault handling.
+  */
+-static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
+-                               pte_t *page_table, pte_t orig_pte)
++static inline int pte_unmap_same(struct vm_fault *vmf)
+ {
+-       int same = 1;
++       int ret = 0;
++
+ #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
+        if (sizeof(pte_t) > sizeof(unsigned long)) {
+-               spinlock_t *ptl = pte_lockptr(mm, pmd);
+-               spin_lock(ptl);
+-               same = pte_same(*page_table, orig_pte);
+-               spin_unlock(ptl);
++               if (pte_spinlock(vmf)) {
++                       if (!pte_same(*vmf->pte, vmf->orig_pte))
++                               ret = VM_FAULT_PTNOTSAME;
++                       spin_unlock(vmf->ptl);
++               }
++               else
++                       ret = VM_FAULT_RETRY;
+        }
+ #endif
+-       pte_unmap(page_table);
+-       return same;
++       pte_unmap(vmf->pte);
++       return ret;
+ }
+ 
+ static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
+@@ -3037,7 +3046,7 @@ int do_swap_page(struct vm_fault *vmf)
+        pte_t pte;
+        int locked;
+        int exclusive = 0;
+-       int ret = 0;
++       int ret;
+        bool vma_readahead = swap_use_vma_readahead();
+ 
+        if (vma_readahead) {
+@@ -3045,9 +3054,16 @@ int do_swap_page(struct vm_fault *vmf)
+                swapcache = page;
+        }
+ 
+-       if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte)) {
++       ret = pte_unmap_same(vmf);
++       if (ret) {
+                if (page)
+                        put_page(page);
++               /*
++                * In the case the PTE are different, meaning that the
++                * page has already been processed by another CPU, we return 0.
++                */
++               if (ret == VM_FAULT_PTNOTSAME)
++                       ret = 0;
+                goto out;
+        }
+
+Thanks,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
