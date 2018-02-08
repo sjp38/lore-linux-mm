@@ -1,92 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4561B6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 11:18:25 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id y44so2814460wry.8
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 08:18:25 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 277256B0003
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 11:20:18 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 17so2872760wrm.10
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 08:20:18 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p18si200724wrp.126.2018.02.08.08.18.23
+        by mx.google.com with ESMTPS id b204si175471wme.106.2018.02.08.08.20.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Feb 2018 08:18:23 -0800 (PST)
-Date: Thu, 8 Feb 2018 17:18:21 +0100
+        Thu, 08 Feb 2018 08:20:16 -0800 (PST)
+Date: Thu, 8 Feb 2018 17:20:16 +0100
 From: Jan Kara <jack@suse.cz>
 Subject: Re: INFO: task hung in sync_blockdev
-Message-ID: <20180208161821.f7x3gopytdtzgf65@quack2.suse.cz>
+Message-ID: <20180208162016.buvilelvl5rze7wr@quack2.suse.cz>
 References: <001a11447070ac6fcb0564a08cb1@google.com>
  <20180207155229.GC10945@tassilo.jf.intel.com>
  <20180208092839.ebe5rk6mtvkk5da4@quack2.suse.cz>
- <CACT4Y+ZTNDhEhAAP2PYRH5WxEeEM0xHdp4UKqtNaWhU6w4sj_g@mail.gmail.com>
- <20180208140833.lpr4yjn7g3v3cdy3@quack2.suse.cz>
- <CACT4Y+bwnyFmgTNMTa1p8WKecH=OU5Za_hboY7Q=V2Aq+DOsKQ@mail.gmail.com>
+ <20180208144918.GF10945@tassilo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+bwnyFmgTNMTa1p8WKecH=OU5Za_hboY7Q=V2Aq+DOsKQ@mail.gmail.com>
+In-Reply-To: <20180208144918.GF10945@tassilo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, syzbot <syzbot+283c3c447181741aea28@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Ingo Molnar <mingo@kernel.org>, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, linux-fsdevel@vger.kernel.org
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, syzbot <syzbot+283c3c447181741aea28@syzkaller.appspotmail.com>, akpm@linux-foundation.org, aryabinin@virtuozzo.com, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, mingo@kernel.org, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, linux-fsdevel@vger.kernel.org
 
-On Thu 08-02-18 15:18:11, Dmitry Vyukov wrote:
-> On Thu, Feb 8, 2018 at 3:08 PM, Jan Kara <jack@suse.cz> wrote:
-> > On Thu 08-02-18 14:28:08, Dmitry Vyukov wrote:
-> >> On Thu, Feb 8, 2018 at 10:28 AM, Jan Kara <jack@suse.cz> wrote:
-> >> > On Wed 07-02-18 07:52:29, Andi Kleen wrote:
-> >> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<0000000040269370>]
-> >> >> > __blkdev_put+0xbc/0x7f0 fs/block_dev.c:1757
-> >> >> > 1 lock held by blkid/19199:
-> >> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
-> >> >> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
-> >> >> >  #1:  (&ldata->atomic_read_lock){+.+.}, at: [<0000000033edf9f2>]
-> >> >> > n_tty_read+0x2ef/0x1a00 drivers/tty/n_tty.c:2131
-> >> >> > 1 lock held by syz-executor5/19330:
-> >> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
-> >> >> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
-> >> >> > 1 lock held by syz-executor5/19331:
-> >> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
-> >> >> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
-> >> >>
-> >> >> It seems multiple processes deadlocked on the bd_mutex.
-> >> >> Unfortunately there's no backtrace for the lock acquisitions,
-> >> >> so it's hard to see the exact sequence.
-> >> >
-> >> > Well, all in the report points to a situation where some IO was submitted
-> >> > to the block device and never completed (more exactly it took longer than
-> >> > those 120s to complete that IO). It would need more digging into the
-> >> > syzkaller program to find out what kind of device that was and possibly why
-> >> > the IO took so long to complete...
-> >>
-> >>
-> >> Would a traceback of all task stacks help in this case?
-> >> What I've seen in several "task hung" reports is that the CPU
-> >> traceback is not showing anything useful. So perhaps it should be
-> >> changed to task traceback? Or it would not help either?
-> >
-> > Task stack traceback for all tasks (usually only tasks in D state - i.e.
-> > sysrq-w - are enough actually) would definitely help for debugging
-> > deadlocks on sleeping locks. For this particular case I'm not sure if it
-> > would help or not since it is quite possible the IO is just sitting in some
-> > queue never getting processed
+On Thu 08-02-18 06:49:18, Andi Kleen wrote:
+> > > It seems multiple processes deadlocked on the bd_mutex. 
+> > > Unfortunately there's no backtrace for the lock acquisitions,
+> > > so it's hard to see the exact sequence.
+> > 
+> > Well, all in the report points to a situation where some IO was submitted
+> > to the block device and never completed (more exactly it took longer than
+> > those 120s to complete that IO). It would need more digging into the
 > 
-> That's what I was afraid of.
-> 
-> > due to some racing syzkaller process tearing
-> > down the device in the wrong moment or something like that... Such case is
-> > very difficult to debug without full kernel crashdump of the hung kernel
-> > (or a reproducer for that matter) and even with that it is usually rather
-> > time consuming. But for the deadlocks which do occur more frequently it
-> > would be probably worth the time so it would be nice if such option was
-> > eventually available.
-> 
-> By "full kernel crashdump" you mean kdump thing, or something else?
+> Are you sure? I didn't think outstanding IO would take bd_mutex.
 
-Yes, the kdump thing (for KVM guest you can grab the memory dump also from
-the host in a simplier way and it should be usable with the crash utility
-AFAIK).
+The stack trace is:
+
+ schedule+0xf5/0x430 kernel/sched/core.c:3480
+ io_schedule+0x1c/0x70 kernel/sched/core.c:5096
+ wait_on_page_bit_common+0x4b3/0x770 mm/filemap.c:1099
+ wait_on_page_bit mm/filemap.c:1132 [inline]
+ wait_on_page_writeback include/linux/pagemap.h:546 [inline]
+ __filemap_fdatawait_range+0x282/0x430 mm/filemap.c:533
+ filemap_fdatawait_range mm/filemap.c:558 [inline]
+ filemap_fdatawait include/linux/fs.h:2590 [inline]
+ filemap_write_and_wait+0x7a/0xd0 mm/filemap.c:624
+ __sync_blockdev fs/block_dev.c:448 [inline]
+ sync_blockdev.part.29+0x50/0x70 fs/block_dev.c:457
+ sync_blockdev fs/block_dev.c:444 [inline]
+ __blkdev_put+0x18b/0x7f0 fs/block_dev.c:1763
+ blkdev_put+0x85/0x4f0 fs/block_dev.c:1835
+ blkdev_close+0x8b/0xb0 fs/block_dev.c:1842
+ __fput+0x327/0x7e0 fs/file_table.c:209
+ ____fput+0x15/0x20 fs/file_table.c:243
+
+
+So we are waiting for PageWriteback on some page. And bd_mutex is grabbed
+by this process in __blkdev_put() before calling sync_blockdev().
 
 								Honza
-
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
