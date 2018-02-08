@@ -1,46 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B80036B0003
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 14:00:42 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q13so2066083pgt.17
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 11:00:42 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id w6si378975pfj.311.2018.02.08.11.00.41
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E2DC86B0003
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 14:09:20 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id f16so4488797qth.20
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 11:09:20 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id w39si603367qta.19.2018.02.08.11.09.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 08 Feb 2018 11:00:41 -0800 (PST)
-Date: Thu, 8 Feb 2018 11:00:18 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH RFC] x86: KASAN: Sanitize unauthorized irq stack access
-Message-ID: <20180208190016.GC9524@bombadil.infradead.org>
-References: <151802005995.4570.824586713429099710.stgit@localhost.localdomain>
- <6638b09b-30b0-861e-9c00-c294889a3791@linux.intel.com>
- <d1b8c22c-79bf-55a1-37a1-2ce508881f3d@virtuozzo.com>
- <20180208163041.zy7dbz4tlbit4i2h@treble>
- <CACT4Y+bZ2JtwTK+a2=wuTm3891Zu1qksreyO63i6whKqFv66Cw@mail.gmail.com>
- <20180208172026.6kqimndwyekyzzvl@treble>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180208172026.6kqimndwyekyzzvl@treble>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Feb 2018 11:09:20 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w18J8q4Z018739
+	for <linux-mm@kvack.org>; Thu, 8 Feb 2018 14:09:19 -0500
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2g0vbggc6j-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 08 Feb 2018 14:09:17 -0500
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 8 Feb 2018 19:09:15 -0000
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH] mm/swap.c: make functions and their kernel-doc agree (again)
+Date: Thu,  8 Feb 2018 21:09:06 +0200
+Message-Id: <1518116946-20947-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Juergen Gross <jgross@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Kees Cook <keescook@chromium.org>, Mathias Krause <minipli@googlemail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Randy Dunlap <rdunlap@infradead.org>, Matthew Wilcox <willy@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Thu, Feb 08, 2018 at 11:20:26AM -0600, Josh Poimboeuf wrote:
-> The patch description is confusing.  It talks about "crappy drivers irq
-> handlers when they access wrong memory on the stack".  But if I
-> understand correctly, the patch doesn't actually protect against that
-> case, because irq handlers run on the irq stack, and this patch only
-> affects code which *isn't* running on the irq stack.
+There was a conflict between the commit e02a9f048ef7 ("mm/swap.c: make
+functions and their kernel-doc agree") and the commit f144c390f905 ("mm:
+docs: fix parameter names mismatch") that both tried to fix mismatch
+betweeen pagevec_lookup_entries() parameter names and their description.
 
-This would catch a crappy driver which allocates some memory on the
-irq stack, squirrels the pointer to it away in a data structure, then
-returns to process (or softirq) context and dereferences the pointer.
+Since nr_entries is a better name for the parameter, fix the description
+again.
 
-I have no idea if that's the case that Kirill is tracking down, but it's
-something I can imagine someone doing.
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+ mm/swap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/swap.c b/mm/swap.c
+index 567a7b96e41d..6d7b8bc58003 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -913,7 +913,7 @@ EXPORT_SYMBOL(__pagevec_lru_add);
+  * @pvec:	Where the resulting entries are placed
+  * @mapping:	The address_space to search
+  * @start:	The starting entry index
+- * @nr_pages:	The maximum number of pages
++ * @nr_entries:	The maximum number of pages
+  * @indices:	The cache indices corresponding to the entries in @pvec
+  *
+  * pagevec_lookup_entries() will search for and return a group of up
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
