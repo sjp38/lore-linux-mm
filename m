@@ -1,432 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E40936B0003
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 20:44:34 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id n11-v6so874553plp.13
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 17:44:34 -0800 (PST)
-Received: from heian.cn.fujitsu.com (mail.cn.fujitsu.com. [183.91.158.132])
-        by mx.google.com with ESMTP id t79si661380pfi.184.2018.02.07.17.44.32
-        for <linux-mm@kvack.org>;
-        Wed, 07 Feb 2018 17:44:33 -0800 (PST)
-Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
- runtime for CONFIG_SPARSEMEM_EXTREME=y
-References: <d71ba136-71ba-333a-f99b-b8283e2dc545@cn.fujitsu.com>
- <20180207104111.sljc62bgkggmtio4@node.shutemov.name>
- <1518000336.29698.1.camel@gmx.de>
- <cd7e23ce-60a3-08ad-eb5d-21bb91df5937@cn.fujitsu.com>
- <20180207120827.GB30270@localhost.localdomain>
- <2945e12f-caab-b7e7-77e0-bd3971e784be@cn.fujitsu.com>
- <20180207122724.GC30270@localhost.localdomain>
- <0a2d5abe-3081-a784-dd85-70d34a0f60cc@cn.fujitsu.com>
- <20180207124519.GD30270@localhost.localdomain>
- <0988774f-9de0-b18f-1216-57d802502bb7@cn.fujitsu.com>
- <20180208012323.GE30270@localhost.localdomain>
-From: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Message-ID: <df0cf441-ec74-9817-8f37-3bf22474f1c5@cn.fujitsu.com>
-Date: Thu, 8 Feb 2018 09:44:20 +0800
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CA5F26B0005
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 20:44:42 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id b4so1064177pgs.5
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 17:44:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p4sor102376pgc.299.2018.02.07.17.44.41
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 07 Feb 2018 17:44:41 -0800 (PST)
+Date: Wed, 7 Feb 2018 17:44:38 -0800
+From: Kees Cook <keescook@chromium.org>
+Subject: [PATCH] net: Whitelist the skbuff_head_cache "cb" field
+Message-ID: <20180208014438.GA12186@beast>
 MIME-Version: 1.0
-In-Reply-To: <20180208012323.GE30270@localhost.localdomain>
-Content-Type: text/plain; charset="gbk"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: Takao Indoh <indou.takao@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Mike Galbraith <efault@gmx.de>, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@suse.de>, Dave Young <dyoung@redhat.com>, Ingo Molnar <mingo@kernel.org>, Vivek Goyal <vgoyal@redhat.com>
+To: David Miller <davem@davemloft.net>
+Cc: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, ebiggers3@gmail.com, james.morse@arm.com, keun-o.park@darkmatter.ae, labbott@redhat.com, linux-mm@kvack.org
 
-Hi Baoquan,
+Most callers of put_cmsg() use a "sizeof(foo)" for the length argument.
+Within put_cmsg(), a copy_to_user() call is made with a dynamic size, as a
+result of the cmsg header calculations. This means that hardened usercopy
+will examine the copy, even though it was technically a fixed size and
+should be implicitly whitelisted. All the put_cmsg() calls being built
+from values in skbuff_head_cache are coming out of the protocol-defined
+"cb" field, so whitelist this field entirely instead of creating per-use
+bounce buffers, for which there are concerns about performance.
 
-At 02/08/2018 09:23 AM, Baoquan He wrote:
-> On 02/08/18 at 09:14am, Dou Liyang wrote:
->> Hi Baoquan,
->>
->> At 02/07/2018 08:45 PM, Baoquan He wrote:
->>> On 02/07/18 at 08:34pm, Dou Liyang wrote:
->>>>
->>>>
->>>> At 02/07/2018 08:27 PM, Baoquan He wrote:
->>>>> On 02/07/18 at 08:17pm, Dou Liyang wrote:
->>>>>> Hi Baoquan,
->>>>>>
->>>>>> At 02/07/2018 08:08 PM, Baoquan He wrote:
->>>>>>> On 02/07/18 at 08:00pm, Dou Liyang wrote:
->>>>>>>> Hi Kirill,Mike
->>>>>>>>
->>>>>>>> At 02/07/2018 06:45 PM, Mike Galbraith wrote:
->>>>>>>>> On Wed, 2018-02-07 at 13:41 +0300, Kirill A. Shutemov wrote:
->>>>>>>>>> On Wed, Feb 07, 2018 at 05:25:05PM +0800, Dou Liyang wrote:
->>>>>>>>>>> Hi All,
->>>>>>>>>>>
->>>>>>>>>>> I met the makedumpfile failed in the upstream kernel which contained
->>>>>>>>>>> this patch. Did I missed something else?
->>>>>>>>>>
->>>>>>>>>> None I'm aware of.
->>>>>>>>>>
->>>>>>>>>> Is there a reason to suspect that the issue is related to the bug this patch
->>>>>>>>>> fixed?
->>>>>>>>>
->>>>>>>>
->>>>>>>> I did a contrastive test by my colleagues Indoh's suggestion.
->>>
->>> OK, I may get the reason. kaslr is enabled, right? You can try to
->>
->> I add 'nokaslr' to disable the KASLR feature.
->      ~~~added??
+Original report was:
 
-oops! yes, the kaslr had already disabled by this option when I tested.
+Bad or missing usercopy whitelist? Kernel memory exposure attempt detected from SLAB object 'skbuff_head_cache' (offset 64, size 16)!
+WARNING: CPU: 0 PID: 3663 at mm/usercopy.c:81 usercopy_warn+0xdb/0x100 mm/usercopy.c:76
+...
+ __check_heap_object+0x89/0xc0 mm/slab.c:4426
+ check_heap_object mm/usercopy.c:236 [inline]
+ __check_object_size+0x272/0x530 mm/usercopy.c:259
+ check_object_size include/linux/thread_info.h:112 [inline]
+ check_copy_size include/linux/thread_info.h:143 [inline]
+ copy_to_user include/linux/uaccess.h:154 [inline]
+ put_cmsg+0x233/0x3f0 net/core/scm.c:242
+ sock_recv_errqueue+0x200/0x3e0 net/core/sock.c:2913
+ packet_recvmsg+0xb2e/0x17a0 net/packet/af_packet.c:3296
+ sock_recvmsg_nosec net/socket.c:803 [inline]
+ sock_recvmsg+0xc9/0x110 net/socket.c:810
+ ___sys_recvmsg+0x2a4/0x640 net/socket.c:2179
+ __sys_recvmmsg+0x2a9/0xaf0 net/socket.c:2287
+ SYSC_recvmmsg net/socket.c:2368 [inline]
+ SyS_recvmmsg+0xc4/0x160 net/socket.c:2352
+ entry_SYSCALL_64_fastpath+0x29/0xa0
 
->>
->> # cat /proc/cmdline
->> BOOT_IMAGE=/vmlinuz-4.15.0+ root=UUID=10f10326-c923-4098-86aa-afed5c54ee0b
->> ro crashkernel=512M rhgb console=tty0 console=ttyS0 nokaslr LANG=en_US.UTF-8
->>
->>> disable kaslr and try them again. Because phys_base and kaslr_offset are
->>> got from vmlinux, while these are generated at compiling time. Just a
->>> guess.
->>>
->>
->> Oh, I will recompile the kernel with KASLR disabled in .config.
-> 
-> Then it's not what I guessed. Need debug makedumpfile since using
-> vmlinux is another code path, few people use it usually.
-> 
+Reported-by: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com
+Fixes: 6d07d1cd300f ("usercopy: Restrict non-usercopy caches to size 0")
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+I tried the inlining, it was awful. Splitting put_cmsg() was awful. So,
+instead, whitelist the "cb" field as the least bad option if bounce
+buffers are unacceptable. Dave, do you want to take this through net, or
+should I take it through the usercopy tree?
+---
+ net/core/skbuff.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-Understood, I will try to look into it.
+diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+index 6b0ff396fa9d..201b96c8f414 100644
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -3889,10 +3889,12 @@ EXPORT_SYMBOL_GPL(skb_gro_receive);
+ 
+ void __init skb_init(void)
+ {
+-	skbuff_head_cache = kmem_cache_create("skbuff_head_cache",
++	skbuff_head_cache = kmem_cache_create_usercopy("skbuff_head_cache",
+ 					      sizeof(struct sk_buff),
+ 					      0,
+ 					      SLAB_HWCACHE_ALIGN|SLAB_PANIC,
++					      offsetof(struct sk_buff, cb),
++					      sizeof_field(struct sk_buff, cb),
+ 					      NULL);
+ 	skbuff_fclone_cache = kmem_cache_create("skbuff_fclone_cache",
+ 						sizeof(struct sk_buff_fclones),
+-- 
+2.7.4
 
-Thanks,
-	dou
 
->>
->>
->> Thanks,
->> 	dou.
->>>>>>>>
->>>>>>>> Revert your two commits:
->>>>>>>>
->>>>>>>> commit 83e3c48729d9ebb7af5a31a504f3fd6aff0348c4
->>>>>>>> Author: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>>>>>>> Date:   Fri Sep 29 17:08:16 2017 +0300
->>>>>>>>
->>>>>>>> commit 629a359bdb0e0652a8227b4ff3125431995fec6e
->>>>>>>> Author: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>>>>>>> Date:   Tue Nov 7 11:33:37 2017 +0300
->>>>>>>>
->>>>>>>> ...and keep others unchanged, the makedumpfile works well.
->>>>>>>>
->>>>>>>>> Still works fine for me with .today.  Box is only 16GB desktop box though.
->>>>>>>>>
->>>>>>>> Btw, In the upstream kernel which contained this patch, I did two tests:
->>>>>>>>
->>>>>>>>      1) use the makedumpfile as core_collector in /etc/kdump.conf, then
->>>>>>>> trigger the process of kdump by echo 1 >/proc/sysrq-trigger, the
->>>>>>>> makedumpfile works well and I can get the vmcore file.
->>>>>>>>
->>>>>>>>          ......It is OK
->>>>>>>>
->>>>>>>>      2) use cp as core_collector, do the same operation to get the vmcore file.
->>>>>>>> then use makedumpfile to do like above:
->>>>>>>>
->>>>>>>>         [douly@localhost code]$ ./makedumpfile -d 31 --message-level 31 -x
->>>>>>>> vmlinux_4.15+ vmcore_4.15+_from_cp_command vmcore_4.15+
->>>>>>>
->>>>>>> Oh, then please ignore my previous comment. Adding '-D' can give more
->>>>>>> debugging message.
->>>>>>
->>>>>> I added '-D', Just like before, no more debugging message:
->>>>>>
->>>>>> BTW, I use crash to analyze the vmcore file created by 'cp' command.
->>>>>>
->>>>>>       ./crash ../makedumpfile/code/vmcore_4.15+_from_cp_command
->>>>>> ../makedumpfile/code/vmlinux_4.15+
->>>>>>
->>>>>> the crash works well, It's so interesting.
->>>>>>
->>>>>> Thanks,
->>>>>> 	dou.
->>>>>>
->>>>>> The debugging message with '-D':
->>>>>
->>>>> And what's the debugging printing when trigger crash by sysrq?
->>>>>
->>>>
->>>> kdump: dump target is /dev/vda2
->>>> kdump: saving to /sysroot//var/crash/127.0.0.1-2018-02-07-07:31:56/
->>>> [    2.751352] EXT4-fs (vda2): re-mounted. Opts: data=ordered
->>>> kdump: saving vmcore-dmesg.txt
->>>> kdump: saving vmcore-dmesg.txt complete
->>>> kdump: saving vmcore
->>>> sadump: does not have partition header
->>>> sadump: read dump device as unknown format
->>>> sadump: unknown format
->>>> LOAD (0)
->>>>     phys_start : 1000000
->>>>     phys_end   : 2a86000
->>>>     virt_start : ffffffff81000000
->>>>     virt_end   : ffffffff82a86000
->>>> LOAD (1)
->>>>     phys_start : 1000
->>>>     phys_end   : 9fc00
->>>>     virt_start : ffff880000001000
->>>>     virt_end   : ffff88000009fc00
->>>> LOAD (2)
->>>>     phys_start : 100000
->>>>     phys_end   : 13000000
->>>>     virt_start : ffff880000100000
->>>>     virt_end   : ffff880013000000
->>>> LOAD (3)
->>>>     phys_start : 33000000
->>>>     phys_end   : 7ffd7000
->>>>     virt_start : ffff880033000000
->>>>     virt_end   : ffff88007ffd7000
->>>> Linux kdump
->>>> page_size    : 4096
->>>>
->>>> max_mapnr    : 7ffd7
->>>>
->>>> Buffer size for the cyclic mode: 131061
->>>>
->>>> num of NODEs : 1
->>>>
->>>>
->>>> Memory type  : SPARSEMEM_EX
->>>>
->>>> mem_map (0)
->>>>     mem_map    : ffffea0000000000
->>>>     pfn_start  : 0
->>>>     pfn_end    : 8000
->>>> mem_map (1)
->>>>     mem_map    : ffffea0000200000
->>>>     pfn_start  : 8000
->>>>     pfn_end    : 10000
->>>> mem_map (2)
->>>>     mem_map    : ffffea0000400000
->>>>     pfn_start  : 10000
->>>>     pfn_end    : 18000
->>>> mem_map (3)
->>>>     mem_map    : ffffea0000600000
->>>>     pfn_start  : 18000
->>>>     pfn_end    : 20000
->>>> mem_map (4)
->>>>     mem_map    : ffffea0000800000
->>>>     pfn_start  : 20000
->>>>     pfn_end    : 28000
->>>> mem_map (5)
->>>>     mem_map    : ffffea0000a00000
->>>>     pfn_start  : 28000
->>>>     pfn_end    : 30000
->>>> mem_map (6)
->>>>     mem_map    : ffffea0000c00000
->>>>     pfn_start  : 30000
->>>>     pfn_end    : 38000
->>>> mem_map (7)
->>>>     mem_map    : ffffea0000e00000
->>>>     pfn_start  : 38000
->>>>     pfn_end    : 40000
->>>> mem_map (8)
->>>>     mem_map    : ffffea0001000000
->>>>     pfn_start  : 40000
->>>>     pfn_end    : 48000
->>>> mem_map (9)
->>>>     mem_map    : ffffea0001200000
->>>>     pfn_start  : 48000
->>>>     pfn_end    : 50000
->>>> mem_map (10)
->>>>     mem_map    : ffffea0001400000
->>>>     pfn_start  : 50000
->>>>     pfn_end    : 58000
->>>> mem_map (11)
->>>>     mem_map    : ffffea0001600000
->>>>     pfn_start  : 58000
->>>>     pfn_end    : 60000
->>>> mem_map (12)
->>>>     mem_map    : ffffea0001800000
->>>>     pfn_start  : 60000
->>>>     pfn_end    : 68000
->>>> mem_map (13)
->>>>     mem_map    : ffffea0001a00000
->>>>     pfn_start  : 68000
->>>>     pfn_end    : 70000
->>>> mem_map (14)
->>>>     mem_map    : ffffea0001c00000
->>>>     pfn_start  : 70000
->>>>     pfn_end    : 78000
->>>> mem_map (15)
->>>>     mem_map    : ffffea0001e00000
->>>>     pfn_start  : 78000
->>>>     pfn_end    : 7ffd7
->>>> mmap() is available on the kernel.
->>>> Copying data                                      : [100.0 %] -  eta: 0s
->>>> Writing erase info...
->>>> offset_eraseinfo: 9567fb0, size_eraseinfo: 0
->>>> kdump: saving vmcore complete
->>>>
->>>> Thanks,
->>>> 	dou
->>>>
->>>>>>
->>>>>> [douly@localhost code]$ ./makedumpfile -D -d 31 --message-level 31 -x
->>>>>> vmlinux_4.15+  vmcore_4.15+_from_cp_command vmcore_4.15+
->>>>>> sadump: does not have partition header
->>>>>> sadump: read dump device as unknown format
->>>>>> sadump: unknown format
->>>>>> LOAD (0)
->>>>>>      phys_start : 1000000
->>>>>>      phys_end   : 2a86000
->>>>>>      virt_start : ffffffff81000000
->>>>>>      virt_end   : ffffffff82a86000
->>>>>> LOAD (1)
->>>>>>      phys_start : 1000
->>>>>>      phys_end   : 9fc00
->>>>>>      virt_start : ffff880000001000
->>>>>>      virt_end   : ffff88000009fc00
->>>>>> LOAD (2)
->>>>>>      phys_start : 100000
->>>>>>      phys_end   : 13000000
->>>>>>      virt_start : ffff880000100000
->>>>>>      virt_end   : ffff880013000000
->>>>>> LOAD (3)
->>>>>>      phys_start : 33000000
->>>>>>      phys_end   : 7ffd7000
->>>>>>      virt_start : ffff880033000000
->>>>>>      virt_end   : ffff88007ffd7000
->>>>>> Linux kdump
->>>>>> page_size    : 4096
->>>>>>
->>>>>> max_mapnr    : 7ffd7
->>>>>>
->>>>>> Buffer size for the cyclic mode: 131061
->>>>>> The kernel version is not supported.
->>>>>> The makedumpfile operation may be incomplete.
->>>>>>
->>>>>> num of NODEs : 1
->>>>>>
->>>>>>
->>>>>> Memory type  : SPARSEMEM_EX
->>>>>>
->>>>>> mem_map (0)
->>>>>>      mem_map    : ffff88007ff26000
->>>>>>      pfn_start  : 0
->>>>>>      pfn_end    : 8000
->>>>>> mem_map (1)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 8000
->>>>>>      pfn_end    : 10000
->>>>>> mem_map (2)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 10000
->>>>>>      pfn_end    : 18000
->>>>>> mem_map (3)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 18000
->>>>>>      pfn_end    : 20000
->>>>>> mem_map (4)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 20000
->>>>>>      pfn_end    : 28000
->>>>>> mem_map (5)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 28000
->>>>>>      pfn_end    : 30000
->>>>>> mem_map (6)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 30000
->>>>>>      pfn_end    : 38000
->>>>>> mem_map (7)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 38000
->>>>>>      pfn_end    : 40000
->>>>>> mem_map (8)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 40000
->>>>>>      pfn_end    : 48000
->>>>>> mem_map (9)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 48000
->>>>>>      pfn_end    : 50000
->>>>>> mem_map (10)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 50000
->>>>>>      pfn_end    : 58000
->>>>>> mem_map (11)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 58000
->>>>>>      pfn_end    : 60000
->>>>>> mem_map (12)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 60000
->>>>>>      pfn_end    : 68000
->>>>>> mem_map (13)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 68000
->>>>>>      pfn_end    : 70000
->>>>>> mem_map (14)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 70000
->>>>>>      pfn_end    : 78000
->>>>>> mem_map (15)
->>>>>>      mem_map    : 0
->>>>>>      pfn_start  : 78000
->>>>>>      pfn_end    : 7ffd7
->>>>>> mmap() is available on the kernel.
->>>>>> Checking for memory holes                         : [100.0 %] |         STEP
->>>>>> [Checking for memory holes  ] : 0.000014 seconds
->>>>>> __vtop4_x86_64: Can't get a valid pte.
->>>>>> readmem: Can't convert a virtual address(ffff88007ffd7000) to physical
->>>>>> address.
->>>>>> readmem: type_addr: 0, addr:ffff88007ffd7000, size:32768
->>>>>> __exclude_unnecessary_pages: Can't read the buffer of struct page.
->>>>>> create_2nd_bitmap: Can't exclude unnecessary pages.
->>>>>> Checking for memory holes                         : [100.0 %] \         STEP
->>>>>> [Checking for memory holes  ] : 0.000006 seconds
->>>>>> Checking for memory holes                         : [100.0 %] -         STEP
->>>>>> [Checking for memory holes  ] : 0.000004 seconds
->>>>>> __vtop4_x86_64: Can't get a valid pte.
->>>>>> readmem: Can't convert a virtual address(ffff88007ffd7000) to physical
->>>>>> address.
->>>>>> readmem: type_addr: 0, addr:ffff88007ffd7000, size:32768
->>>>>> __exclude_unnecessary_pages: Can't read the buffer of struct page.
->>>>>> create_2nd_bitmap: Can't exclude unnecessary pages.
->>>>>>
->>>>>> makedumpfile Failed.
->>>>>>
->>>>>>>
->>>>>>>>
->>>>>>>>         ......It causes makedumpfile failed.
->>>>>>>>
->>>>>>>>
->>>>>>>> Thanks,
->>>>>>>> 	dou.
->>>>>>>>
->>>>>>>>> 	-Mike
->>>>>>>>>
->>>>>>>>>
->>>>>>>>>
->>>>>>>>
->>>>>>>>
->>>>>>>
->>>>>>>
->>>>>>>
->>>>>>
->>>>>>
->>>>>
->>>>>
->>>>>
->>>>
->>>>
->>>
->>>
->>>
->>
->>
->>
->> _______________________________________________
->> kexec mailing list
->> kexec@lists.infradead.org
->> http://lists.infradead.org/mailman/listinfo/kexec
-> 
-> 
-> 
-
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
