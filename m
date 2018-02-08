@@ -1,107 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 788876B000A
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 05:09:28 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id z2so1578041pgu.18
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 02:09:28 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id 33-v6si2571912ply.512.2018.02.08.02.09.27
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 72B5E6B0012
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 05:17:59 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id e15so1898246oic.1
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 02:17:59 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t9sor1388340oib.186.2018.02.08.02.17.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Feb 2018 02:09:27 -0800 (PST)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v28 4/4] virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
-Date: Thu,  8 Feb 2018 17:50:20 +0800
-Message-Id: <1518083420-11108-5-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1518083420-11108-1-git-send-email-wei.w.wang@intel.com>
-References: <1518083420-11108-1-git-send-email-wei.w.wang@intel.com>
+        (Google Transport Security);
+        Thu, 08 Feb 2018 02:17:58 -0800 (PST)
+Date: Thu, 8 Feb 2018 02:17:52 -0800
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm -v2] mm, swap, frontswap: Fix THP swap if frontswap
+ enabled
+Message-ID: <20180208101752.GA74192@eng-minchan1.roam.corp.google.com>
+References: <20180207070035.30302-1-ying.huang@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180207070035.30302-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <huang.ying.caritas@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>, stable@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-The VIRTIO_BALLOON_F_PAGE_POISON feature bit is used to indicate if the
-guest is using page poisoning. Guest writes to the poison_val config
-field to tell host about the page poisoning value in use.
+On Wed, Feb 07, 2018 at 03:00:35PM +0800, Huang, Ying wrote:
+> From: Huang Ying <huang.ying.caritas@gmail.com>
+> 
+> It was reported by Sergey Senozhatsky that if THP (Transparent Huge
+> Page) and frontswap (via zswap) are both enabled, when memory goes low
+> so that swap is triggered, segfault and memory corruption will occur
+> in random user space applications as follow,
+> 
+> kernel: urxvt[338]: segfault at 20 ip 00007fc08889ae0d sp 00007ffc73a7fc40 error 6 in libc-2.26.so[7fc08881a000+1ae000]
+>  #0  0x00007fc08889ae0d _int_malloc (libc.so.6)
+>  #1  0x00007fc08889c2f3 malloc (libc.so.6)
+>  #2  0x0000560e6004bff7 _Z14rxvt_wcstoutf8PKwi (urxvt)
+>  #3  0x0000560e6005e75c n/a (urxvt)
+>  #4  0x0000560e6007d9f1 _ZN16rxvt_perl_interp6invokeEP9rxvt_term9hook_typez (urxvt)
+>  #5  0x0000560e6003d988 _ZN9rxvt_term9cmd_parseEv (urxvt)
+>  #6  0x0000560e60042804 _ZN9rxvt_term6pty_cbERN2ev2ioEi (urxvt)
+>  #7  0x0000560e6005c10f _Z17ev_invoke_pendingv (urxvt)
+>  #8  0x0000560e6005cb55 ev_run (urxvt)
+>  #9  0x0000560e6003b9b9 main (urxvt)
+>  #10 0x00007fc08883af4a __libc_start_main (libc.so.6)
+>  #11 0x0000560e6003f9da _start (urxvt)
+> 
+> After bisection, it was found the first bad commit is
+> bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped
+> out").
+> 
+> The root cause is as follow.
+> 
+> When the pages are written to swap device during swapping out in
+> swap_writepage(), zswap (fontswap) is tried to compress the pages
+> instead to improve the performance.  But zswap (frontswap) will treat
+> THP as normal page, so only the head page is saved.  After swapping
+> in, tail pages will not be restored to its original contents, so cause
+> the memory corruption in the applications.
+> 
+> This is fixed via splitting THP before writing the page to swap device
+> if frontswap is enabled.  To deal with the situation where frontswap
+> is enabled at runtime, whether the page is THP is checked before using
+> frontswap during swapping out too.
+> 
+> Reported-and-tested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> Cc: Dan Streetman <ddstreet@ieee.org>
+> Cc: Seth Jennings <sjenning@redhat.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Shakeel Butt <shakeelb@google.com>
+> Cc: stable@vger.kernel.org # 4.14
+> Fixes: bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped out")
+> 
+> Changelog:
+> 
+> v2:
+> 
+> - Move frontswap check into swapfile.c to avoid to make vmscan.c
+>   depends on frontswap.
+> ---
+>  mm/page_io.c  | 2 +-
+>  mm/swapfile.c | 3 +++
+>  2 files changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_io.c b/mm/page_io.c
+> index b41cf9644585..6dca817ae7a0 100644
+> --- a/mm/page_io.c
+> +++ b/mm/page_io.c
+> @@ -250,7 +250,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
+>  		unlock_page(page);
+>  		goto out;
+>  	}
+> -	if (frontswap_store(page) == 0) {
+> +	if (!PageTransHuge(page) && frontswap_store(page) == 0) {
 
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- drivers/virtio/virtio_balloon.c     | 13 +++++++++++++
- include/uapi/linux/virtio_balloon.h |  3 +++
- 2 files changed, 16 insertions(+)
+Why do we need this?
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 39ecce3..9fa7fcf 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -685,6 +685,7 @@ static struct file_system_type balloon_fs = {
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
-+	__u32 poison_val;
- 	int err;
- 
- 	if (!vdev->config->get) {
-@@ -728,6 +729,12 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 			goto out_del_vqs;
- 		}
- 		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
-+		if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON)) {
-+			page_poison_val_get((u8 *)&poison_val);
-+			memset(&poison_val, poison_val, sizeof(poison_val));
-+			virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-+				      poison_val, &poison_val);
-+		}
- 	}
- 
- 	vb->nb.notifier_call = virtballoon_oom_notify;
-@@ -846,6 +853,11 @@ static int virtballoon_restore(struct virtio_device *vdev)
- 
- static int virtballoon_validate(struct virtio_device *vdev)
- {
-+	uint8_t unused;
-+
-+	if (!page_poison_val_get(&unused))
-+		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
-+
- 	__virtio_clear_bit(vdev, VIRTIO_F_IOMMU_PLATFORM);
- 	return 0;
- }
-@@ -855,6 +867,7 @@ static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
- 	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
-+	VIRTIO_BALLOON_F_PAGE_POISON,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index 0c654db..3f97067 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -35,6 +35,7 @@
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
- #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
-+#define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
-@@ -47,6 +48,8 @@ struct virtio_balloon_config {
- 	__u32 actual;
- 	/* Free page report command id, readonly by guest */
- 	__u32 free_page_report_cmd_id;
-+	/* Stores PAGE_POISON if page poisoning is in use */
-+	__u32 poison_val;
- };
- 
- #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
--- 
-2.7.4
+If frontswap_enabled is enabled but it doesn't support THP, it doesn't allow
+cluster allocation by below logic so any THP page shouldn't come this path.
+What do I missing now?
+
+>  		set_page_writeback(page);
+>  		unlock_page(page);
+>  		end_page_writeback(page);
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 006047b16814..0b7c7883ce64 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -934,6 +934,9 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
+>  
+>  	/* Only single cluster request supported */
+>  	WARN_ON_ONCE(n_goal > 1 && cluster);
+> +	/* Frontswap doesn't support THP */
+> +	if (frontswap_enabled() && cluster)
+> +		goto noswap;
+>  
+>  	avail_pgs = atomic_long_read(&nr_swap_pages) / nr_pages;
+>  	if (avail_pgs <= 0)
+> -- 
+> 2.15.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
