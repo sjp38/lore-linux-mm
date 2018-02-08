@@ -1,134 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 667826B0010
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 07:30:49 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id r48so2289159otb.0
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 04:30:49 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l187si1273786oig.335.2018.02.08.04.30.47
-        for <linux-mm@kvack.org>;
-        Thu, 08 Feb 2018 04:30:48 -0800 (PST)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB hugepage
-References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
-	<1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<87inbbjx2w.fsf@e105922-lin.cambridge.arm.com>
-	<20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp>
-Date: Thu, 08 Feb 2018 12:30:45 +0000
-In-Reply-To: <20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp> (Naoya
-	Horiguchi's message of "Wed, 7 Feb 2018 01:14:57 +0000")
-Message-ID: <87fu6bfytm.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CCDDA6B0008
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 08:06:54 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id p20so2161188pfh.17
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 05:06:54 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id f1-v6si2771603plt.765.2018.02.08.05.06.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 08 Feb 2018 05:06:53 -0800 (PST)
+Date: Thu, 8 Feb 2018 05:06:49 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: Regression after commit 19809c2da28a ("mm, vmalloc: use
+ __GFP_HIGHMEM implicitly")
+Message-ID: <20180208130649.GA15846@bombadil.infradead.org>
+References: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Kai Heng Feng <kai.heng.feng@canonical.com>
+Cc: Michal Hocko <mhocko@suse.com>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Horiguchi-san,
+On Thu, Feb 08, 2018 at 02:29:57PM +0800, Kai Heng Feng wrote:
+> A user with i386 instead of AMD64 machine reports [1] that commit 19809c2da28a ("mm, vmalloc: use __GFP_HIGHMEM implicitlya??) causes a regression.
+> BUG_ON(PageHighMem(pg)) in drivers/media/common/saa7146/saa7146_core.c always gets triggered after that commit.
 
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+Well, the BUG_ON is wrong.  You can absolutely have pages which are both
+HighMem and under the 4GB boundary.  Only the first 896MB (iirc) are LowMem,
+and the next 3GB of pages are available to vmalloc_32().
 
-> Hi Punit,
->
-> On Mon, Feb 05, 2018 at 03:05:43PM +0000, Punit Agrawal wrote:
->> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
->> 
+> Also there are other BUG_ON(PageHighMem()) in drivers/media, I think they will get hit by same regression in 32bit machine too.
 
-[...]
+I fixed one of them.  I think the other three are also bogus, but it's
+hard to say; the comments say "DMA to HighMem might not work", and they
+probably mean "above the 4GB boundary", but I really don't know.
 
->> >
->> > You can easily reproduce this by calling madvise(MADV_HWPOISON) twice on
->> > a 1GB hugepage. This happens because get_user_pages_fast() is not aware
->> > of a migration entry on pud that was created in the 1st madvise() event.
->> 
->> Maybe I'm doing something wrong but I wasn't able to reproduce the issue
->> using the test at the end. I get -
->> 
->>     $ sudo ./hugepage
->> 
->>     Poisoning page...once
->>     [  121.295771] Injecting memory failure for pfn 0x8300000 at process virtual address 0x400000000000
->>     [  121.386450] Memory failure: 0x8300000: recovery action for huge page: Recovered
->> 
->>     Poisoning page...once again
->>     madvise: Bad address
->> 
->> What am I missing?
->
-> The test program below is exactly what I intended, so you did right
-> testing.
+(since two drivers now have this code, maybe it should be part of the core
+MM API?  Or maybe there's already something better they should be using?)
 
-Thanks for the confirmation. And the flow outline below. 
-
-> I try to guess what could happen. The related code is like below:
->
->   static int gup_pud_range(p4d_t p4d, unsigned long addr, unsigned long end,
->                            int write, struct page **pages, int *nr)
->   {
->           ...
->           do {
->                   pud_t pud = READ_ONCE(*pudp);
->
->                   next = pud_addr_end(addr, end);
->                   if (pud_none(pud))
->                           return 0;
->                   if (unlikely(pud_huge(pud))) {
->                           if (!gup_huge_pud(pud, pudp, addr, next, write,
->                                             pages, nr))
->                                   return 0;
->
-> pud_none() always returns false for hwpoison entry in any arch.
-> I guess that pud_huge() could behave in undefined manner for hwpoison entry
-> because pud_huge() assumes that a given pud has the present bit set, which
-> is not true for hwpoison entry.
-
-This is where the arm64 helpers behaves differently (though more by
-chance then design). A poisoned pud passes pud_huge() as it doesn't seem
-to be explicitly checking for the present bit.
-
-    int pud_huge(pud_t pud)
-    {
-            return pud_val(pud) && !(pud_val(pud) & PUD_TABLE_BIT);
-    }
-
-
-This doesn't lead to a crash as the first thing gup_huge_pud() does is
-check for pud_access_permitted() which does check for the present bit.
-
-I was able to crash the kernel by changing pud_huge() to check for the
-present bit.
-
-> As a result, pud_huge() checks an irrelevant bit used for other
-> purpose depending on non-present page table format of each arch. If
-> pud_huge() returns false for hwpoison entry, we try to go to the lower
-> level and the kernel highly likely to crash. So I guess your kernel
-> fell back the slow path and somehow ended up with returning EFAULT.
-
-Makes sense. Due to the difference above on arm64, it ends up falling
-back to the slow path which eventually returns -EFAULT (via
-follow_hugetlb_page) for poisoned pages.
-
->
-> So I don't think that the above test result means that errors are properly
-> handled, and the proposed patch should help for arm64.
-
-Although, the deviation of pud_huge() avoids a kernel crash the code
-would be easier to maintain and reason about if arm64 helpers are
-consistent with expectations by core code.
-
-I'll look to update the arm64 helpers once this patch gets merged. But
-it would be helpful if there was a clear expression of semantics for
-pud_huge() for various cases. Is there any version that can be used as
-reference?
-
-Also, do you know what the plans are for re-enabling hugepage poisoning
-disabled here?
-
-Thanks,
-Punit
-
-[...]
+diff --git a/drivers/media/common/saa7146/saa7146_core.c b/drivers/media/common/saa7146/saa7146_core.c
+index 9f7c5b0a6b45..329fd43228ff 100644
+--- a/drivers/media/common/saa7146/saa7146_core.c
++++ b/drivers/media/common/saa7146/saa7146_core.c
+@@ -160,7 +160,7 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
+ 		pg = vmalloc_to_page(virt);
+ 		if (NULL == pg)
+ 			goto err;
+-		BUG_ON(PageHighMem(pg));
++		BUG_ON(page_to_pfn(pg) >= (1 << (32 - PAGE_SHIFT)));
+ 		sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
+ 	}
+ 	return sglist;
+diff --git a/drivers/media/v4l2-core/videobuf-dma-sg.c b/drivers/media/v4l2-core/videobuf-dma-sg.c
+index f412429cf5ba..b5ec74b9c867 100644
+--- a/drivers/media/v4l2-core/videobuf-dma-sg.c
++++ b/drivers/media/v4l2-core/videobuf-dma-sg.c
+@@ -77,7 +77,7 @@ static struct scatterlist *videobuf_vmalloc_to_sg(unsigned char *virt,
+ 		pg = vmalloc_to_page(virt);
+ 		if (NULL == pg)
+ 			goto err;
+-		BUG_ON(PageHighMem(pg));
++		BUG_ON(page_to_pfn(pg) >= (1 << (32 - PAGE_SHIFT)));
+ 		sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
+ 	}
+ 	return sglist;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
