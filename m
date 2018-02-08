@@ -1,54 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D1E436B0003
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 14:13:01 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id h33so243324plh.19
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 11:13:01 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l1-v6sor199985pld.49.2018.02.08.11.13.00
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5862E6B0003
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 14:16:41 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id g69so5825934ita.9
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 11:16:41 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id r77si447968ioe.254.2018.02.08.11.16.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Feb 2018 11:13:00 -0800 (PST)
-Date: Thu, 8 Feb 2018 11:12:48 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm/migrate: Rename various page allocation helper
- functions
-In-Reply-To: <5458c2c9-3534-c00d-7abf-3315debbf896@linux.vnet.ibm.com>
-Message-ID: <alpine.LSU.2.11.1802081059190.16719@eggly.anvils>
-References: <20180204065816.6885-1-khandual@linux.vnet.ibm.com> <5458c2c9-3534-c00d-7abf-3315debbf896@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 08 Feb 2018 11:16:38 -0800 (PST)
+Subject: Re: [PATCH] mm/swap.c: make functions and their kernel-doc agree
+ (again)
+References: <1518116946-20947-1-git-send-email-rppt@linux.vnet.ibm.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <931229b3-cf82-0999-ac85-c19578a6ee2a@infradead.org>
+Date: Thu, 8 Feb 2018 11:16:29 -0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1518116946-20947-1-git-send-email-rppt@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mhocko@suse.com, hughd@google.com
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>
 
-On Thu, 8 Feb 2018, Anshuman Khandual wrote:
-> On 02/04/2018 12:28 PM, Anshuman Khandual wrote:
-> > Allocation helper functions for migrate_pages() remmain scattered with
-> > similar names making them really confusing. Rename these functions based
-> > on type of the intended migration. Function alloc_misplaced_dst_page()
-> > remains unchanged as its highly specialized. The renamed functions are
-> > listed below. Functionality of migration remains unchanged.
-> > 
-> > 1. alloc_migrate_target -> new_page_alloc
-> > 2. new_node_page -> new_page_alloc_othernode
-> > 3. new_page -> new_page_alloc_keepnode
-> > 4. alloc_new_node_page -> new_page_alloc_node
-> > 5. new_page -> new_page_alloc_mempolicy
+On 02/08/2018 11:09 AM, Mike Rapoport wrote:
+> There was a conflict between the commit e02a9f048ef7 ("mm/swap.c: make
+> functions and their kernel-doc agree") and the commit f144c390f905 ("mm:
+> docs: fix parameter names mismatch") that both tried to fix mismatch
+> betweeen pagevec_lookup_entries() parameter names and their description.
 > 
-> Hello Michal/Hugh,
+> Since nr_entries is a better name for the parameter, fix the description
+> again.
 > 
-> Does the renaming good enough or we should just not rename these.
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-I'll neither ack nor nack, I don't greatly care: my concern was
-to head you away from gathering them into a single header file.
+Thanks, I hadn't noticed.
 
-Though alloc_new_node_page seems to me a *much* better name than
-new_page_alloc_node; and I'm puzzled why you would demand this
-conformity of some but not all of the functions of that type.
+Acked-by: Randy Dunlap <rdunlap@infradead.org>
 
-Hugh
+
+> ---
+>  mm/swap.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 567a7b96e41d..6d7b8bc58003 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -913,7 +913,7 @@ EXPORT_SYMBOL(__pagevec_lru_add);
+>   * @pvec:	Where the resulting entries are placed
+>   * @mapping:	The address_space to search
+>   * @start:	The starting entry index
+> - * @nr_pages:	The maximum number of pages
+> + * @nr_entries:	The maximum number of pages
+>   * @indices:	The cache indices corresponding to the entries in @pvec
+>   *
+>   * pagevec_lookup_entries() will search for and return a group of up
+> 
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
