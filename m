@@ -1,58 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EEAC6B0007
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 18:20:10 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id w19so2501858pgv.4
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 15:20:10 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id l7-v6si643946pls.728.2018.02.08.15.20.08
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CA1166B0007
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 18:36:56 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id g16so2906841wmg.6
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 15:36:56 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id l6si726224wrb.94.2018.02.08.15.36.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 08 Feb 2018 15:20:09 -0800 (PST)
-Date: Thu, 8 Feb 2018 15:20:04 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: Regression after commit 19809c2da28a ("mm, vmalloc: use
- __GFP_HIGHMEM implicitly")
-Message-ID: <20180208232004.GA21027@bombadil.infradead.org>
-References: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
- <20180208130649.GA15846@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180208130649.GA15846@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Feb 2018 15:36:55 -0800 (PST)
+Date: Thu, 8 Feb 2018 15:36:52 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH v1 00/13] lru_lock scalability
+Message-Id: <20180208153652.481a77e57cc32c9e1a7e4269@linux-foundation.org>
+In-Reply-To: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
+References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kai Heng Feng <kai.heng.feng@canonical.com>
-Cc: Michal Hocko <mhocko@suse.com>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: daniel.m.jordan@oracle.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aaron.lu@intel.com, ak@linux.intel.com, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, ldufour@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com
 
-On Thu, Feb 08, 2018 at 05:06:49AM -0800, Matthew Wilcox wrote:
-> On Thu, Feb 08, 2018 at 02:29:57PM +0800, Kai Heng Feng wrote:
-> > A user with i386 instead of AMD64 machine reports [1] that commit 19809c2da28a ("mm, vmalloc: use __GFP_HIGHMEM implicitlya??) causes a regression.
-> > BUG_ON(PageHighMem(pg)) in drivers/media/common/saa7146/saa7146_core.c always gets triggered after that commit.
-> 
-> Well, the BUG_ON is wrong.  You can absolutely have pages which are both
-> HighMem and under the 4GB boundary.  Only the first 896MB (iirc) are LowMem,
-> and the next 3GB of pages are available to vmalloc_32().
+On Wed, 31 Jan 2018 18:04:00 -0500 daniel.m.jordan@oracle.com wrote:
 
-... nevertheless, 19809c2da28a does in fact break vmalloc_32 on 32-bit.  Look:
+> lru_lock, a per-node* spinlock that protects an LRU list, is one of the
+> hottest locks in the kernel.  On some workloads on large machines, it
+> shows up at the top of lock_stat.
 
-#if defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA32)
-#define GFP_VMALLOC32 GFP_DMA32 | GFP_KERNEL
-#elif defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA)
-#define GFP_VMALLOC32 GFP_DMA | GFP_KERNEL
-#else
-#define GFP_VMALLOC32 GFP_KERNEL
-#endif
-
-So we pass in GFP_KERNEL to __vmalloc_node, which calls __vmalloc_node_range
-which calls __vmalloc_area_node, which ORs in __GFP_HIGHMEM.
-
-So ... we could enable ZONE_DMA32 on 32-bit architectures.  I don't know
-what side-effects that might have; it's clearly only been tested on 64-bit
-architectures so far.
-
-It might be best to just revert 19809c2da28a and the follow-on 704b862f9efd.
+Do you have details on which callsites are causing the problem?  That
+would permit us to consider other approaches, perhaps.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
