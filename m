@@ -1,130 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 46F7E6B0006
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 05:09:18 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id s11so1943103pfh.23
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 02:09:18 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B52246B0007
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 05:09:20 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id t64so1963855pfi.13
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 02:09:20 -0800 (PST)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id e3si1064940pfi.191.2018.02.08.02.09.16
+        by mx.google.com with ESMTPS id e3si1064940pfi.191.2018.02.08.02.09.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Feb 2018 02:09:16 -0800 (PST)
+        Thu, 08 Feb 2018 02:09:19 -0800 (PST)
 From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v28 0/4] Virtio-balloon: support free page reporting
-Date: Thu,  8 Feb 2018 17:50:16 +0800
-Message-Id: <1518083420-11108-1-git-send-email-wei.w.wang@intel.com>
+Subject: [PATCH v28 1/4] mm: support reporting free page blocks
+Date: Thu,  8 Feb 2018 17:50:17 +0800
+Message-Id: <1518083420-11108-2-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1518083420-11108-1-git-send-email-wei.w.wang@intel.com>
+References: <1518083420-11108-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
 Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
 
-This patch series is separated from the previous "Virtio-balloon
-Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,  
-implemented by this series enables the virtio-balloon driver to report
-hints of guest free pages to the host. It can be used to accelerate live
-migration of VMs. Here is an introduction of this usage:
+This patch adds support to walk through the free page blocks in the
+system and report them via a callback function. Some page blocks may
+leave the free list after zone->lock is released, so it is the caller's
+responsibility to either detect or prevent the use of such pages.
 
-Live migration needs to transfer the VM's memory from the source machine
-to the destination round by round. For the 1st round, all the VM's memory
-is transferred. From the 2nd round, only the pieces of memory that were
-written by the guest (after the 1st round) are transferred. One method
-that is popularly used by the hypervisor to track which part of memory is
-written is to write-protect all the guest memory.
+One use example of this patch is to accelerate live migration by skipping
+the transfer of free pages reported from the guest. A popular method used
+by the hypervisor to track which part of memory is written during live
+migration is to write-protect all the guest memory. So, those pages that
+are reported as free pages but are written after the report function
+returns will be captured by the hypervisor, and they will be added to the
+next round of memory transfer.
 
-This feature enables the optimization of the 1st round memory transfer -
-the hypervisor can skip the transfer of guest free pages in the 1st round.
-It is not concerned that the memory pages are used after they are given
-to the hypervisor as a hint of the free pages, because they will be
-tracked by the hypervisor and transferred in the next round if they are
-used and written.
+Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+Signed-off-by: Liang Li <liang.z.li@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Acked-by: Michal Hocko <mhocko@kernel.org>
+---
+ include/linux/mm.h |  6 ++++
+ mm/page_alloc.c    | 96 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+)
 
-* Tests
-- Migration time improvement
-Result:
-Live migration time is reduced to 14% with this optimization.
-Details:
-Local live migration of 8GB idle guest, the legacy live migration takes
-~1817ms. With this optimization, it takes ~254ms, which reduces the time
-to 14%.
-- Workload tests
-Results:
-Running this feature has no impact on the linux compilation workload
-running inside the guest.
-Details:
-Set up a Ping-Pong local live migration, where the guest ceaselessy
-migrates between the source and destination. Linux compilation,
-i.e. make bzImage -j4, is performed during the Ping-Pong migration. The
-legacy case takes 5min14s to finish the compilation. With this
-optimization patched, it takes 5min12s.
-
-ChangeLog:
-v27->v28:
-    - mm/page_poison: Move PAGE_POISON to page_poison.c and add a function
-      to expose page poison val to kernel modules.
-v26->v27:
-    - add a new patch to expose page_poisoning_enabled to kernel modules
-    - virtio-balloon: set poison_val to 0xaaaaaaaa, instead of 0xaa
-v25->v26: virtio-balloon changes only
-    - remove kicking free page vq since the host now polls the vq after
-      initiating the reporting
-    - report_free_page_func: detach all the used buffers after sending
-      the stop cmd id. This avoids leaving the detaching burden (i.e.
-      overhead) to the next cmd id. Detaching here isn't considered
-      overhead since the stop cmd id has been sent, and host has already
-      moved formard.
-v24->v25:
-    - mm: change walk_free_mem_block to return 0 (instead of true) on
-          completing the report, and return a non-zero value from the
-          callabck, which stops the reporting.
-    - virtio-balloon:
-        - use enum instead of define for VIRTIO_BALLOON_VQ_INFLATE etc.
-        - avoid __virtio_clear_bit when bailing out;
-        - a new method to avoid reporting the some cmd id to host twice
-        - destroy_workqueue can cancel free page work when the feature is
-          negotiated;
-        - fail probe when the free page vq size is less than 2.
-v23->v24:
-    - change feature name VIRTIO_BALLOON_F_FREE_PAGE_VQ to
-      VIRTIO_BALLOON_F_FREE_PAGE_HINT
-    - kick when vq->num_free < half full, instead of "= half full"
-    - replace BUG_ON with bailing out
-    - check vb->balloon_wq in probe(), if null, bail out
-    - add a new feature bit for page poisoning
-    - solve the corner case that one cmd id being sent to host twice
-v22->v23:
-    - change to kick the device when the vq is half-way full;
-    - open-code batch_free_page_sg into add_one_sg;
-    - change cmd_id from "uint32_t" to "__virtio32";
-    - reserver one entry in the vq for the driver to send cmd_id, instead
-      of busywaiting for an available entry;
-    - add "stop_update" check before queue_work for prudence purpose for
-      now, will have a separate patch to discuss this flag check later;
-    - init_vqs: change to put some variables on stack to have simpler
-      implementation;
-    - add destroy_workqueue(vb->balloon_wq);
-
-v21->v22:
-    - add_one_sg: some code and comment re-arrangement
-    - send_cmd_id: handle a cornercase
-
-For previous ChangeLog, please reference
-https://lwn.net/Articles/743660/
-
-Wei Wang (4):
-  mm: support reporting free page blocks
-  virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-  mm/page_poison: add a function to expose page poison val to kernel
-    modules
-  virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
-
- drivers/virtio/virtio_balloon.c     | 258 +++++++++++++++++++++++++++++++-----
- include/linux/mm.h                  |   8 ++
- include/linux/poison.h              |   7 -
- include/uapi/linux/virtio_balloon.h |   7 +
- mm/page_alloc.c                     |  96 ++++++++++++++
- mm/page_poison.c                    |  24 ++++
- 6 files changed, 357 insertions(+), 43 deletions(-)
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 173d248..1c77d88 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1944,6 +1944,12 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
+ 		unsigned long zone_start_pfn, unsigned long *zholes_size);
+ extern void free_initmem(void);
+ 
++extern int walk_free_mem_block(void *opaque,
++			       int min_order,
++			       int (*report_pfn_range)(void *opaque,
++						       unsigned long pfn,
++						       unsigned long num));
++
+ /*
+  * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+  * into the buddy system. The freed pages will be poisoned with pattern
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c7dd9c8..995ff01 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4906,6 +4906,102 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+ 	show_swap_cache_info();
+ }
+ 
++/*
++ * Walk through a free page list and report the found pfn range via the
++ * callback.
++ *
++ * Return 0 if it completes the reporting. Otherwise, return the non-zero
++ * value returned from the callback.
++ */
++static int walk_free_page_list(void *opaque,
++			       struct zone *zone,
++			       int order,
++			       enum migratetype mt,
++			       int (*report_pfn_range)(void *,
++						       unsigned long,
++						       unsigned long))
++{
++	struct page *page;
++	struct list_head *list;
++	unsigned long pfn, flags;
++	int ret = 0;
++
++	spin_lock_irqsave(&zone->lock, flags);
++	list = &zone->free_area[order].free_list[mt];
++	list_for_each_entry(page, list, lru) {
++		pfn = page_to_pfn(page);
++		ret = report_pfn_range(opaque, pfn, 1 << order);
++		if (ret)
++			break;
++	}
++	spin_unlock_irqrestore(&zone->lock, flags);
++
++	return ret;
++}
++
++/**
++ * walk_free_mem_block - Walk through the free page blocks in the system
++ * @opaque: the context passed from the caller
++ * @min_order: the minimum order of free lists to check
++ * @report_pfn_range: the callback to report the pfn range of the free pages
++ *
++ * If the callback returns a non-zero value, stop iterating the list of free
++ * page blocks. Otherwise, continue to report.
++ *
++ * Please note that there are no locking guarantees for the callback and
++ * that the reported pfn range might be freed or disappear after the
++ * callback returns so the caller has to be very careful how it is used.
++ *
++ * The callback itself must not sleep or perform any operations which would
++ * require any memory allocations directly (not even GFP_NOWAIT/GFP_ATOMIC)
++ * or via any lock dependency. It is generally advisable to implement
++ * the callback as simple as possible and defer any heavy lifting to a
++ * different context.
++ *
++ * There is no guarantee that each free range will be reported only once
++ * during one walk_free_mem_block invocation.
++ *
++ * pfn_to_page on the given range is strongly discouraged and if there is
++ * an absolute need for that make sure to contact MM people to discuss
++ * potential problems.
++ *
++ * The function itself might sleep so it cannot be called from atomic
++ * contexts.
++ *
++ * In general low orders tend to be very volatile and so it makes more
++ * sense to query larger ones first for various optimizations which like
++ * ballooning etc... This will reduce the overhead as well.
++ *
++ * Return 0 if it completes the reporting. Otherwise, return the non-zero
++ * value returned from the callback.
++ */
++int walk_free_mem_block(void *opaque,
++			int min_order,
++			int (*report_pfn_range)(void *opaque,
++			unsigned long pfn,
++			unsigned long num))
++{
++	struct zone *zone;
++	int order;
++	enum migratetype mt;
++	int ret;
++
++	for_each_populated_zone(zone) {
++		for (order = MAX_ORDER - 1; order >= min_order; order--) {
++			for (mt = 0; mt < MIGRATE_TYPES; mt++) {
++				ret = walk_free_page_list(opaque, zone,
++							  order, mt,
++							  report_pfn_range);
++				if (ret)
++					return ret;
++			}
++		}
++	}
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(walk_free_mem_block);
++
+ static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+ {
+ 	zoneref->zone = zone;
 -- 
 2.7.4
 
