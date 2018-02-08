@@ -1,140 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 43C5E6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 10:27:52 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id j23so3985073qtn.18
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 07:27:52 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r28sor201291qta.7.2018.02.08.07.27.51
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4561B6B0003
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 11:18:25 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y44so2814460wry.8
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 08:18:25 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p18si200724wrp.126.2018.02.08.08.18.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Feb 2018 07:27:51 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 08 Feb 2018 08:18:23 -0800 (PST)
+Date: Thu, 8 Feb 2018 17:18:21 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: INFO: task hung in sync_blockdev
+Message-ID: <20180208161821.f7x3gopytdtzgf65@quack2.suse.cz>
+References: <001a11447070ac6fcb0564a08cb1@google.com>
+ <20180207155229.GC10945@tassilo.jf.intel.com>
+ <20180208092839.ebe5rk6mtvkk5da4@quack2.suse.cz>
+ <CACT4Y+ZTNDhEhAAP2PYRH5WxEeEM0xHdp4UKqtNaWhU6w4sj_g@mail.gmail.com>
+ <20180208140833.lpr4yjn7g3v3cdy3@quack2.suse.cz>
+ <CACT4Y+bwnyFmgTNMTa1p8WKecH=OU5Za_hboY7Q=V2Aq+DOsKQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180207070035.30302-1-ying.huang@intel.com>
-References: <20180207070035.30302-1-ying.huang@intel.com>
-From: huang ying <huang.ying.caritas@gmail.com>
-Date: Thu, 8 Feb 2018 23:27:50 +0800
-Message-ID: <CAC=cRTOacms57fSuQrYjfj_vijxx-9nK9c9u0YQ60qcYJ64Eow@mail.gmail.com>
-Subject: Re: [PATCH -mm -v2] mm, swap, frontswap: Fix THP swap if frontswap enabled
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+bwnyFmgTNMTa1p8WKecH=OU5Za_hboY7Q=V2Aq+DOsKQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>, stable@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "Huang, Ying" <ying.huang@intel.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, syzbot <syzbot+283c3c447181741aea28@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Ingo Molnar <mingo@kernel.org>, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, linux-fsdevel@vger.kernel.org
 
-On Wed, Feb 7, 2018 at 3:00 PM, Huang, Ying <ying.huang@intel.com> wrote:
-> From: Huang Ying <huang.ying.caritas@gmail.com>
->
-> It was reported by Sergey Senozhatsky that if THP (Transparent Huge
-> Page) and frontswap (via zswap) are both enabled, when memory goes low
-> so that swap is triggered, segfault and memory corruption will occur
-> in random user space applications as follow,
->
-> kernel: urxvt[338]: segfault at 20 ip 00007fc08889ae0d sp 00007ffc73a7fc40 error 6 in libc-2.26.so[7fc08881a000+1ae000]
->  #0  0x00007fc08889ae0d _int_malloc (libc.so.6)
->  #1  0x00007fc08889c2f3 malloc (libc.so.6)
->  #2  0x0000560e6004bff7 _Z14rxvt_wcstoutf8PKwi (urxvt)
->  #3  0x0000560e6005e75c n/a (urxvt)
->  #4  0x0000560e6007d9f1 _ZN16rxvt_perl_interp6invokeEP9rxvt_term9hook_typez (urxvt)
->  #5  0x0000560e6003d988 _ZN9rxvt_term9cmd_parseEv (urxvt)
->  #6  0x0000560e60042804 _ZN9rxvt_term6pty_cbERN2ev2ioEi (urxvt)
->  #7  0x0000560e6005c10f _Z17ev_invoke_pendingv (urxvt)
->  #8  0x0000560e6005cb55 ev_run (urxvt)
->  #9  0x0000560e6003b9b9 main (urxvt)
->  #10 0x00007fc08883af4a __libc_start_main (libc.so.6)
->  #11 0x0000560e6003f9da _start (urxvt)
->
-> After bisection, it was found the first bad commit is
-> bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped
-> out").
->
-> The root cause is as follow.
->
-> When the pages are written to swap device during swapping out in
-> swap_writepage(), zswap (fontswap) is tried to compress the pages
-> instead to improve the performance.  But zswap (frontswap) will treat
-> THP as normal page, so only the head page is saved.  After swapping
-> in, tail pages will not be restored to its original contents, so cause
-> the memory corruption in the applications.
->
-> This is fixed via splitting THP before writing the page to swap device
-> if frontswap is enabled.  To deal with the situation where frontswap
-> is enabled at runtime, whether the page is THP is checked before using
-> frontswap during swapping out too.
->
-> Reported-and-tested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> Cc: Dan Streetman <ddstreet@ieee.org>
-> Cc: Seth Jennings <sjenning@redhat.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Shakeel Butt <shakeelb@google.com>
-> Cc: stable@vger.kernel.org # 4.14
-> Fixes: bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped out")
->
-> Changelog:
->
-> v2:
->
-> - Move frontswap check into swapfile.c to avoid to make vmscan.c
->   depends on frontswap.
-> ---
->  mm/page_io.c  | 2 +-
->  mm/swapfile.c | 3 +++
->  2 files changed, 4 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/page_io.c b/mm/page_io.c
-> index b41cf9644585..6dca817ae7a0 100644
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
-> @@ -250,7 +250,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
->                 unlock_page(page);
->                 goto out;
->         }
-> -       if (frontswap_store(page) == 0) {
-> +       if (!PageTransHuge(page) && frontswap_store(page) == 0) {
->                 set_page_writeback(page);
->                 unlock_page(page);
->                 end_page_writeback(page);
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 006047b16814..0b7c7883ce64 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -934,6 +934,9 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
->
->         /* Only single cluster request supported */
->         WARN_ON_ONCE(n_goal > 1 && cluster);
-> +       /* Frontswap doesn't support THP */
-> +       if (frontswap_enabled() && cluster)
-> +               goto noswap;
+On Thu 08-02-18 15:18:11, Dmitry Vyukov wrote:
+> On Thu, Feb 8, 2018 at 3:08 PM, Jan Kara <jack@suse.cz> wrote:
+> > On Thu 08-02-18 14:28:08, Dmitry Vyukov wrote:
+> >> On Thu, Feb 8, 2018 at 10:28 AM, Jan Kara <jack@suse.cz> wrote:
+> >> > On Wed 07-02-18 07:52:29, Andi Kleen wrote:
+> >> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<0000000040269370>]
+> >> >> > __blkdev_put+0xbc/0x7f0 fs/block_dev.c:1757
+> >> >> > 1 lock held by blkid/19199:
+> >> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
+> >> >> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
+> >> >> >  #1:  (&ldata->atomic_read_lock){+.+.}, at: [<0000000033edf9f2>]
+> >> >> > n_tty_read+0x2ef/0x1a00 drivers/tty/n_tty.c:2131
+> >> >> > 1 lock held by syz-executor5/19330:
+> >> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
+> >> >> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
+> >> >> > 1 lock held by syz-executor5/19331:
+> >> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
+> >> >> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
+> >> >>
+> >> >> It seems multiple processes deadlocked on the bd_mutex.
+> >> >> Unfortunately there's no backtrace for the lock acquisitions,
+> >> >> so it's hard to see the exact sequence.
+> >> >
+> >> > Well, all in the report points to a situation where some IO was submitted
+> >> > to the block device and never completed (more exactly it took longer than
+> >> > those 120s to complete that IO). It would need more digging into the
+> >> > syzkaller program to find out what kind of device that was and possibly why
+> >> > the IO took so long to complete...
+> >>
+> >>
+> >> Would a traceback of all task stacks help in this case?
+> >> What I've seen in several "task hung" reports is that the CPU
+> >> traceback is not showing anything useful. So perhaps it should be
+> >> changed to task traceback? Or it would not help either?
+> >
+> > Task stack traceback for all tasks (usually only tasks in D state - i.e.
+> > sysrq-w - are enough actually) would definitely help for debugging
+> > deadlocks on sleeping locks. For this particular case I'm not sure if it
+> > would help or not since it is quite possible the IO is just sitting in some
+> > queue never getting processed
+> 
+> That's what I was afraid of.
+> 
+> > due to some racing syzkaller process tearing
+> > down the device in the wrong moment or something like that... Such case is
+> > very difficult to debug without full kernel crashdump of the hung kernel
+> > (or a reproducer for that matter) and even with that it is usually rather
+> > time consuming. But for the deadlocks which do occur more frequently it
+> > would be probably worth the time so it would be nice if such option was
+> > eventually available.
+> 
+> By "full kernel crashdump" you mean kdump thing, or something else?
 
-I found this will cause THP swap optimization be turned off forever if
-CONFIG_ZSWAP=y (which cannot =m).  Because frontswap is enabled quite
-statically instead of dynamically.  If frontswap_ops is registered, it
-will be enabled unconditionally and forever.  And zswap will register
-frontswap_ops during initialize regardless whether zswap is enabled or
-not.
+Yes, the kdump thing (for KVM guest you can grab the memory dump also from
+the host in a simplier way and it should be usable with the crash utility
+AFAIK).
 
-So I think it will be better to remove swapfile.c changes in this
-patch, just keep page_io.c changes.  Because THP is more dynamic, it
-is usually used if madvised by default.  And even if it is used always
-by default, this can be changed dynamically.  And even THP is used,
-zswap can still be used for non-THP pages.
+								Honza
 
-Best Regards,
-Huang, Ying
-
->
->         avail_pgs = atomic_long_read(&nr_swap_pages) / nr_pages;
->         if (avail_pgs <= 0)
-> --
-> 2.15.1
->
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
