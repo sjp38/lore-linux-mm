@@ -1,80 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 334B76B0006
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 09:18:34 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id b34-v6so1721310plc.2
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 06:18:34 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a3sor22630pfe.133.2018.02.08.06.18.32
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BF0046B0007
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 09:36:14 -0500 (EST)
+Received: by mail-yw0-f198.google.com with SMTP id a7so4422664ywc.1
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 06:36:14 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n185si43161qkc.479.2018.02.08.06.36.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Feb 2018 06:18:33 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Feb 2018 06:36:13 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w18ETYQf036047
+	for <linux-mm@kvack.org>; Thu, 8 Feb 2018 09:36:12 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2g0r119j5q-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 08 Feb 2018 09:36:11 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Thu, 8 Feb 2018 14:36:08 -0000
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: Re: [PATCH v7 04/24] mm: Dont assume page-table invariance during
+ faults
+References: <1517935810-31177-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1517935810-31177-5-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20180206202831.GB16511@bombadil.infradead.org>
+Date: Thu, 8 Feb 2018 15:35:58 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180208140833.lpr4yjn7g3v3cdy3@quack2.suse.cz>
-References: <001a11447070ac6fcb0564a08cb1@google.com> <20180207155229.GC10945@tassilo.jf.intel.com>
- <20180208092839.ebe5rk6mtvkk5da4@quack2.suse.cz> <CACT4Y+ZTNDhEhAAP2PYRH5WxEeEM0xHdp4UKqtNaWhU6w4sj_g@mail.gmail.com>
- <20180208140833.lpr4yjn7g3v3cdy3@quack2.suse.cz>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 8 Feb 2018 15:18:11 +0100
-Message-ID: <CACT4Y+bwnyFmgTNMTa1p8WKecH=OU5Za_hboY7Q=V2Aq+DOsKQ@mail.gmail.com>
-Subject: Re: INFO: task hung in sync_blockdev
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180206202831.GB16511@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <484242d8-e632-9e39-5c99-2e1b4b3b69a5@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andi Kleen <ak@linux.intel.com>, syzbot <syzbot+283c3c447181741aea28@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Ingo Molnar <mingo@kernel.org>, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, linux-fsdevel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Thu, Feb 8, 2018 at 3:08 PM, Jan Kara <jack@suse.cz> wrote:
-> On Thu 08-02-18 14:28:08, Dmitry Vyukov wrote:
->> On Thu, Feb 8, 2018 at 10:28 AM, Jan Kara <jack@suse.cz> wrote:
->> > On Wed 07-02-18 07:52:29, Andi Kleen wrote:
->> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<0000000040269370>]
->> >> > __blkdev_put+0xbc/0x7f0 fs/block_dev.c:1757
->> >> > 1 lock held by blkid/19199:
->> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
->> >> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
->> >> >  #1:  (&ldata->atomic_read_lock){+.+.}, at: [<0000000033edf9f2>]
->> >> > n_tty_read+0x2ef/0x1a00 drivers/tty/n_tty.c:2131
->> >> > 1 lock held by syz-executor5/19330:
->> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
->> >> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
->> >> > 1 lock held by syz-executor5/19331:
->> >> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
->> >> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
->> >>
->> >> It seems multiple processes deadlocked on the bd_mutex.
->> >> Unfortunately there's no backtrace for the lock acquisitions,
->> >> so it's hard to see the exact sequence.
->> >
->> > Well, all in the report points to a situation where some IO was submitted
->> > to the block device and never completed (more exactly it took longer than
->> > those 120s to complete that IO). It would need more digging into the
->> > syzkaller program to find out what kind of device that was and possibly why
->> > the IO took so long to complete...
+On 06/02/2018 21:28, Matthew Wilcox wrote:
+> On Tue, Feb 06, 2018 at 05:49:50PM +0100, Laurent Dufour wrote:
+>> From: Peter Zijlstra <peterz@infradead.org>
 >>
+>> One of the side effects of speculating on faults (without holding
+>> mmap_sem) is that we can race with free_pgtables() and therefore we
+>> cannot assume the page-tables will stick around.
 >>
->> Would a traceback of all task stacks help in this case?
->> What I've seen in several "task hung" reports is that the CPU
->> traceback is not showing anything useful. So perhaps it should be
->> changed to task traceback? Or it would not help either?
->
-> Task stack traceback for all tasks (usually only tasks in D state - i.e.
-> sysrq-w - are enough actually) would definitely help for debugging
-> deadlocks on sleeping locks. For this particular case I'm not sure if it
-> would help or not since it is quite possible the IO is just sitting in some
-> queue never getting processed
+>> Remove the reliance on the pte pointer.
+>>
+>> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+>>
+>> In most of the case pte_unmap_same() was returning 1, which meaning that
+>> do_swap_page() should do its processing. So in most of the case there will
+>> be no impact.
+>>
+>> Now regarding the case where pte_unmap_safe() was returning 0, and thus
+>> do_swap_page return 0 too, this happens when the page has already been
+>> swapped back. This may happen before do_swap_page() get called or while in
+>> the call to do_swap_page(). In that later case, the check done when
+>> swapin_readahead() returns will detect that case.
+>>
+>> The worst case would be that a page fault is occuring on 2 threads at the
+>> same time on the same swapped out page. In that case one thread will take
+>> much time looping in __read_swap_cache_async(). But in the regular page
+>> fault path, this is even worse since the thread would wait for semaphore to
+>> be released before starting anything.
+>>
+>> [Remove only if !CONFIG_SPECULATIVE_PAGE_FAULT]
+>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> 
+> I have a great deal of trouble connecting all of the words above to the
+> contents of the patch.
 
-That's what I was afraid of.
+Thanks for pushing forward here, this raised some doubts on my side.
 
-> due to some racing syzkaller process tearing
-> down the device in the wrong moment or something like that... Such case is
-> very difficult to debug without full kernel crashdump of the hung kernel
-> (or a reproducer for that matter) and even with that it is usually rather
-> time consuming. But for the deadlocks which do occur more frequently it
-> would be probably worth the time so it would be nice if such option was
-> eventually available.
+I reviewed that part of code, and I think I could now change the way
+pte_unmap_safe() is checking for the pte's value. Since we now have all the
+needed details in the vm_fault structure, I will pass it to
+pte_unamp_same() and deal with the VMA checks when locking for the pte as
+it is done in the other part of the page fault handler by calling
+pte_spinlock().
 
-By "full kernel crashdump" you mean kdump thing, or something else?
+This means that this patch will be dropped, and pte_unmap_same() will become :
+
+static inline int pte_unmap_same(struct vm_fault *vmf, int *same)
+{
+	int ret = 0;
+
+	*same = 1;
+#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
+	if (sizeof(pte_t) > sizeof(unsigned long)) {
+		if (pte_spinlock(vmf)) {
+			*same = pte_same(*vmf->pte, vmf->orig_pte);
+			spin_unlock(vmf->ptl);
+		}
+		else
+			ret = VM_FAULT_RETRY;
+	}
+#endif
+	pte_unmap(vmf->pte);
+	return ret;
+}
+
+Laurent.
+
+> 
+>>  
+>> +#ifndef CONFIG_SPECULATIVE_PAGE_FAULT
+>>  /*
+>>   * handle_pte_fault chooses page fault handler according to an entry which was
+>>   * read non-atomically.  Before making any commitment, on those architectures
+>> @@ -2311,6 +2312,7 @@ static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
+>>  	pte_unmap(page_table);
+>>  	return same;
+>>  }
+>> +#endif /* CONFIG_SPECULATIVE_PAGE_FAULT */
+>>  
+>>  static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
+>>  {
+>> @@ -2898,11 +2900,13 @@ int do_swap_page(struct vm_fault *vmf)
+>>  		swapcache = page;
+>>  	}
+>>  
+>> +#ifndef CONFIG_SPECULATIVE_PAGE_FAULT
+>>  	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte)) {
+>>  		if (page)
+>>  			put_page(page);
+>>  		goto out;
+>>  	}
+>> +#endif
+>>  
+> 
+> This feels to me like we want:
+> 
+> #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+> [current code]
+> #else
+> /*
+>  * Some words here which explains why we always want to return this
+>  * value if we support speculative page faults.
+>  */
+> static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
+> 				pte_t *page_table, pte_t orig_pte)
+> {
+> 	return 1;
+> }
+> #endif
+> 
+> instead of cluttering do_swap_page with an ifdef.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
