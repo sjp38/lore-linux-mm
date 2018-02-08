@@ -1,54 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 634C06B0006
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 14:09:58 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id z13so4472875qth.22
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 11:09:58 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id h18si609232qke.333.2018.02.08.11.09.57
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D1E436B0003
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 14:13:01 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id h33so243324plh.19
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 11:13:01 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l1-v6sor199985pld.49.2018.02.08.11.13.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Feb 2018 11:09:57 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w18J7p3R143902
-	for <linux-mm@kvack.org>; Thu, 8 Feb 2018 14:09:56 -0500
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2g0s8nhqg1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 08 Feb 2018 14:09:56 -0500
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 8 Feb 2018 19:09:53 -0000
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH] mm/zpool: zpool_evictable: fix mismatch in parameter name and kernel-doc
-Date: Thu,  8 Feb 2018 21:09:44 +0200
-Message-Id: <1518116984-21141-1-git-send-email-rppt@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Thu, 08 Feb 2018 11:13:00 -0800 (PST)
+Date: Thu, 8 Feb 2018 11:12:48 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm/migrate: Rename various page allocation helper
+ functions
+In-Reply-To: <5458c2c9-3534-c00d-7abf-3315debbf896@linux.vnet.ibm.com>
+Message-ID: <alpine.LSU.2.11.1802081059190.16719@eggly.anvils>
+References: <20180204065816.6885-1-khandual@linux.vnet.ibm.com> <5458c2c9-3534-c00d-7abf-3315debbf896@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mhocko@suse.com, hughd@google.com
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- mm/zpool.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+On Thu, 8 Feb 2018, Anshuman Khandual wrote:
+> On 02/04/2018 12:28 PM, Anshuman Khandual wrote:
+> > Allocation helper functions for migrate_pages() remmain scattered with
+> > similar names making them really confusing. Rename these functions based
+> > on type of the intended migration. Function alloc_misplaced_dst_page()
+> > remains unchanged as its highly specialized. The renamed functions are
+> > listed below. Functionality of migration remains unchanged.
+> > 
+> > 1. alloc_migrate_target -> new_page_alloc
+> > 2. new_node_page -> new_page_alloc_othernode
+> > 3. new_page -> new_page_alloc_keepnode
+> > 4. alloc_new_node_page -> new_page_alloc_node
+> > 5. new_page -> new_page_alloc_mempolicy
+> 
+> Hello Michal/Hugh,
+> 
+> Does the renaming good enough or we should just not rename these.
 
-diff --git a/mm/zpool.c b/mm/zpool.c
-index f8cb83e7699b..9d53a1ef8f1e 100644
---- a/mm/zpool.c
-+++ b/mm/zpool.c
-@@ -360,7 +360,7 @@ u64 zpool_get_total_size(struct zpool *zpool)
- 
- /**
-  * zpool_evictable() - Test if zpool is potentially evictable
-- * @pool	The zpool to test
-+ * @zpool	The zpool to test
-  *
-  * Zpool is only potentially evictable when it's created with struct
-  * zpool_ops.evict and its driver implements struct zpool_driver.shrink.
--- 
-2.7.4
+I'll neither ack nor nack, I don't greatly care: my concern was
+to head you away from gathering them into a single header file.
+
+Though alloc_new_node_page seems to me a *much* better name than
+new_page_alloc_node; and I'm puzzled why you would demand this
+conformity of some but not all of the functions of that type.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
