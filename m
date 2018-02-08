@@ -1,67 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 61C696B0005
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 17:39:30 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id h13so3436249wrc.9
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 14:39:30 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o10si632245wrg.396.2018.02.08.14.39.28
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EEAC6B0007
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 18:20:10 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id w19so2501858pgv.4
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 15:20:10 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id l7-v6si643946pls.728.2018.02.08.15.20.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Feb 2018 14:39:29 -0800 (PST)
-Date: Thu, 8 Feb 2018 14:39:26 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: thp: fix potential clearing to referenced flag in
- page_idle_clear_pte_refs_one()
-Message-Id: <20180208143926.5484e8fd75a56ff35b778bcc@linux-foundation.org>
-In-Reply-To: <1517875596-76350-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1517875596-76350-1-git-send-email-yang.shi@linux.alibaba.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 08 Feb 2018 15:20:09 -0800 (PST)
+Date: Thu, 8 Feb 2018 15:20:04 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: Regression after commit 19809c2da28a ("mm, vmalloc: use
+ __GFP_HIGHMEM implicitly")
+Message-ID: <20180208232004.GA21027@bombadil.infradead.org>
+References: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
+ <20180208130649.GA15846@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180208130649.GA15846@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: kirill.shutemov@linux.intel.com, gavin.dg@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kai Heng Feng <kai.heng.feng@canonical.com>
+Cc: Michal Hocko <mhocko@suse.com>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue,  6 Feb 2018 08:06:36 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
-
-> For PTE-mapped THP, the compound THP has not been split to normal 4K
-> pages yet, the whole THP is considered referenced if any one of sub
-> page is referenced.
+On Thu, Feb 08, 2018 at 05:06:49AM -0800, Matthew Wilcox wrote:
+> On Thu, Feb 08, 2018 at 02:29:57PM +0800, Kai Heng Feng wrote:
+> > A user with i386 instead of AMD64 machine reports [1] that commit 19809c2da28a ("mm, vmalloc: use __GFP_HIGHMEM implicitlya??) causes a regression.
+> > BUG_ON(PageHighMem(pg)) in drivers/media/common/saa7146/saa7146_core.c always gets triggered after that commit.
 > 
-> When walking PTE-mapped THP by pvmw, all relevant PTEs will be checked
-> to retrieve referenced bit. But, the current code just returns the
-> result of the last PTE. If the last PTE has not referenced, the
-> referenced flag will be cleared.
-> 
-> So, here just break pvmw walk once referenced PTE is found if the page
-> is a part of THP.
-> 
-> ...
->
-> --- a/mm/page_idle.c
-> +++ b/mm/page_idle.c
-> @@ -67,6 +67,14 @@ static bool page_idle_clear_pte_refs_one(struct page *page,
->  		if (pvmw.pte) {
->  			referenced = ptep_clear_young_notify(vma, addr,
->  					pvmw.pte);
-> +			/*
-> +			 * For PTE-mapped THP, one sub page is referenced,
-> +			 * the whole THP is referenced.
-> +			 */
-> +			if (referenced && PageTransCompound(pvmw.page)) {
-> +				page_vma_mapped_walk_done(&pvmw);
-> +				break;
-> +			}
+> Well, the BUG_ON is wrong.  You can absolutely have pages which are both
+> HighMem and under the 4GB boundary.  Only the first 896MB (iirc) are LowMem,
+> and the next 3GB of pages are available to vmalloc_32().
 
-This means that the function will no longer clear the referenced bits
-in all the ptes.  What effect does this have and should we document
-this in some fashion?
+... nevertheless, 19809c2da28a does in fact break vmalloc_32 on 32-bit.  Look:
 
->  		} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
->  			referenced = pmdp_clear_young_notify(vma, addr,
->  					pvmw.pmd);
+#if defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA32)
+#define GFP_VMALLOC32 GFP_DMA32 | GFP_KERNEL
+#elif defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA)
+#define GFP_VMALLOC32 GFP_DMA | GFP_KERNEL
+#else
+#define GFP_VMALLOC32 GFP_KERNEL
+#endif
+
+So we pass in GFP_KERNEL to __vmalloc_node, which calls __vmalloc_node_range
+which calls __vmalloc_area_node, which ORs in __GFP_HIGHMEM.
+
+So ... we could enable ZONE_DMA32 on 32-bit architectures.  I don't know
+what side-effects that might have; it's clearly only been tested on 64-bit
+architectures so far.
+
+It might be best to just revert 19809c2da28a and the follow-on 704b862f9efd.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
