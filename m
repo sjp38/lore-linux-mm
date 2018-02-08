@@ -1,52 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 68FDC6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 15:16:25 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id t23so351553ply.21
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 12:16:25 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTPS id p88si482750pfj.124.2018.02.08.12.16.24
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C0B076B0003
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 15:17:53 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id k14so3241855wrc.14
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 12:17:53 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id s128si436347wmf.75.2018.02.08.12.17.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Feb 2018 12:16:24 -0800 (PST)
-Date: Thu, 08 Feb 2018 15:16:21 -0500 (EST)
-Message-Id: <20180208.151621.581060088482890871.davem@davemloft.net>
-Subject: Re: [PATCH] net: Whitelist the skbuff_head_cache "cb" field
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20180208014438.GA12186@beast>
-References: <20180208014438.GA12186@beast>
+        Thu, 08 Feb 2018 12:17:52 -0800 (PST)
+Date: Thu, 8 Feb 2018 12:17:49 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB
+ hugepage
+Message-Id: <20180208121749.0ac09af2b5a143106f339f55@linux-foundation.org>
+In-Reply-To: <87fu6bfytm.fsf@e105922-lin.cambridge.arm.com>
+References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
+	<1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<87inbbjx2w.fsf@e105922-lin.cambridge.arm.com>
+	<20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp>
+	<87fu6bfytm.fsf@e105922-lin.cambridge.arm.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: keescook@chromium.org
-Cc: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, ebiggers3@gmail.com, james.morse@arm.com, keun-o.park@darkmatter.ae, labbott@redhat.com, linux-mm@kvack.org
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>
 
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 7 Feb 2018 17:44:38 -0800
+On Thu, 08 Feb 2018 12:30:45 +0000 Punit Agrawal <punit.agrawal@arm.com> wrote:
 
-> Most callers of put_cmsg() use a "sizeof(foo)" for the length argument.
-> Within put_cmsg(), a copy_to_user() call is made with a dynamic size, as a
-> result of the cmsg header calculations. This means that hardened usercopy
-> will examine the copy, even though it was technically a fixed size and
-> should be implicitly whitelisted. All the put_cmsg() calls being built
-> from values in skbuff_head_cache are coming out of the protocol-defined
-> "cb" field, so whitelist this field entirely instead of creating per-use
-> bounce buffers, for which there are concerns about performance.
+> >
+> > So I don't think that the above test result means that errors are properly
+> > handled, and the proposed patch should help for arm64.
 > 
-> Original report was:
- ...
-> Reported-by: syzbot+e2d6cfb305e9f3911dea@syzkaller.appspotmail.com
-> Fixes: 6d07d1cd300f ("usercopy: Restrict non-usercopy caches to size 0")
-> Signed-off-by: Kees Cook <keescook@chromium.org>
-> ---
-> I tried the inlining, it was awful. Splitting put_cmsg() was awful. So,
-> instead, whitelist the "cb" field as the least bad option if bounce
-> buffers are unacceptable. Dave, do you want to take this through net, or
-> should I take it through the usercopy tree?
+> Although, the deviation of pud_huge() avoids a kernel crash the code
+> would be easier to maintain and reason about if arm64 helpers are
+> consistent with expectations by core code.
+> 
+> I'll look to update the arm64 helpers once this patch gets merged. But
+> it would be helpful if there was a clear expression of semantics for
+> pud_huge() for various cases. Is there any version that can be used as
+> reference?
 
-Thanks Kees, I'll take this through my 'net' tree.
+Is that an ack or tested-by?
+
+Mike keeps plaintively asking the powerpc developers to take a look,
+but they remain steadfastly in hiding.
+
+Folks, this patch fixes a BUG and is marked for -stable.  Can we please
+prioritize it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
