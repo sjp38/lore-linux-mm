@@ -1,48 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AE656B0006
-	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 23:06:57 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id k78so1486651pfk.12
-        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 20:06:57 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g2si1864996pgq.416.2018.02.07.20.06.56
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 16E506B0007
+	for <linux-mm@kvack.org>; Wed,  7 Feb 2018 23:07:24 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id u194so2736515qka.20
+        for <linux-mm@kvack.org>; Wed, 07 Feb 2018 20:07:24 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id j13si3158325qtk.322.2018.02.07.20.07.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 07 Feb 2018 20:06:56 -0800 (PST)
-Date: Wed, 7 Feb 2018 20:06:55 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC] Warn the user when they could overflow mapcount
-Message-ID: <20180208040655.GD14918@bombadil.infradead.org>
-References: <20180208021112.GB14918@bombadil.infradead.org>
- <20180208031804.GD3304@eros>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Feb 2018 20:07:23 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w184479E009205
+	for <linux-mm@kvack.org>; Wed, 7 Feb 2018 23:07:22 -0500
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2g0dm3u3ja-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 07 Feb 2018 23:07:21 -0500
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 8 Feb 2018 04:07:19 -0000
+Subject: Re: [PATCH] mm/migrate: Rename various page allocation helper
+ functions
+References: <20180204065816.6885-1-khandual@linux.vnet.ibm.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 8 Feb 2018 09:37:12 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180208031804.GD3304@eros>
+In-Reply-To: <20180204065816.6885-1-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <5458c2c9-3534-c00d-7abf-3315debbf896@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Tobin C. Harding" <me@tobin.cc>
-Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, mhocko@suse.com, hughd@google.com
 
-On Thu, Feb 08, 2018 at 02:18:04PM +1100, Tobin C. Harding wrote:
-> > +++ b/Documentation/sysctl/vm.txt
-> > @@ -379,7 +379,8 @@ While most applications need less than a thousand maps, certain
-> >  programs, particularly malloc debuggers, may consume lots of them,
-> >  e.g., up to one or two maps per allocation.
-> >  
-> > -The default value is 65536.
-> > +The default value is 65530.  Increasing this value without decreasing
-> > +pid_max may allow a hostile user to corrupt kernel memory.
+On 02/04/2018 12:28 PM, Anshuman Khandual wrote:
+> Allocation helper functions for migrate_pages() remmain scattered with
+> similar names making them really confusing. Rename these functions based
+> on type of the intended migration. Function alloc_misplaced_dst_page()
+> remains unchanged as its highly specialized. The renamed functions are
+> listed below. Functionality of migration remains unchanged.
 > 
-> Just checking - did you mean the final '0' on this value?
+> 1. alloc_migrate_target -> new_page_alloc
+> 2. new_node_page -> new_page_alloc_othernode
+> 3. new_page -> new_page_alloc_keepnode
+> 4. alloc_new_node_page -> new_page_alloc_node
+> 5. new_page -> new_page_alloc_mempolicy
 
-That's what my laptop emits ...
+Hello Michal/Hugh,
 
-mm/mmap.c:int max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
-include/linux/mm.h:#define DEFAULT_MAX_MAP_COUNT        (USHRT_MAX - MAPCOUNT_ELF_CORE_MARGIN)
-include/linux/mm.h:#define MAPCOUNT_ELF_CORE_MARGIN     (5)
-
-should be the same value for everybody.
+Does the renaming good enough or we should just not rename these.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
