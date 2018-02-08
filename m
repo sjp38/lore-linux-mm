@@ -1,62 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BC4DD6B0005
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 12:18:10 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id b6so133552plx.3
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 09:18:10 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o33-v6sor131379plb.85.2018.02.08.09.18.09
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0763E6B0007
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 12:20:29 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id d131so4203659qkc.16
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 09:20:29 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id r17si409822qtn.202.2018.02.08.09.20.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Feb 2018 09:18:09 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Feb 2018 09:20:28 -0800 (PST)
+Date: Thu, 8 Feb 2018 11:20:26 -0600
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+Subject: Re: [PATCH RFC] x86: KASAN: Sanitize unauthorized irq stack access
+Message-ID: <20180208172026.6kqimndwyekyzzvl@treble>
+References: <151802005995.4570.824586713429099710.stgit@localhost.localdomain>
+ <6638b09b-30b0-861e-9c00-c294889a3791@linux.intel.com>
+ <d1b8c22c-79bf-55a1-37a1-2ce508881f3d@virtuozzo.com>
+ <20180208163041.zy7dbz4tlbit4i2h@treble>
+ <CACT4Y+bZ2JtwTK+a2=wuTm3891Zu1qksreyO63i6whKqFv66Cw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <22e5e2e1-fd64-1a75-a80c-332a34266717@virtuozzo.com>
-References: <001a11447070ac6fcb0564a08cb1@google.com> <20180207155229.GC10945@tassilo.jf.intel.com>
- <20180208092839.ebe5rk6mtvkk5da4@quack2.suse.cz> <CACT4Y+ZTNDhEhAAP2PYRH5WxEeEM0xHdp4UKqtNaWhU6w4sj_g@mail.gmail.com>
- <20180208140833.lpr4yjn7g3v3cdy3@quack2.suse.cz> <CACT4Y+bwnyFmgTNMTa1p8WKecH=OU5Za_hboY7Q=V2Aq+DOsKQ@mail.gmail.com>
- <20180208161821.f7x3gopytdtzgf65@quack2.suse.cz> <22e5e2e1-fd64-1a75-a80c-332a34266717@virtuozzo.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 8 Feb 2018 18:17:48 +0100
-Message-ID: <CACT4Y+b8CzoTXTitPX-O83p5zgEjsR37U3TPyQ0=4fGeNJHdiA@mail.gmail.com>
-Subject: Re: INFO: task hung in sync_blockdev
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+bZ2JtwTK+a2=wuTm3891Zu1qksreyO63i6whKqFv66Cw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, syzbot <syzbot+283c3c447181741aea28@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Ingo Molnar <mingo@kernel.org>, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, linux-fsdevel@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Juergen Gross <jgross@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Kees Cook <keescook@chromium.org>, Mathias Krause <minipli@googlemail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 
-On Thu, Feb 8, 2018 at 5:23 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->
->
-> On 02/08/2018 07:18 PM, Jan Kara wrote:
->
->>> By "full kernel crashdump" you mean kdump thing, or something else?
->>
->> Yes, the kdump thing (for KVM guest you can grab the memory dump also from
->> the host in a simplier way and it should be usable with the crash utility
->> AFAIK).
->>
->
-> In QEMU monitor 'dump-guest-memory' command:
->
-> (qemu) help dump-guest-memory
-> dump-guest-memory [-p] [-d] [-z|-l|-s] filename [begin length] -- dump guest memory into file 'filename'.
->                         -p: do paging to get guest's memory mapping.
->                         -d: return immediately (do not wait for completion).
->                         -z: dump in kdump-compressed format, with zlib compression.
->                         -l: dump in kdump-compressed format, with lzo compression.
->                         -s: dump in kdump-compressed format, with snappy compression.
->                         begin: the starting physical address.
->                         length: the memory size, in bytes
+On Thu, Feb 08, 2018 at 05:41:19PM +0100, Dmitry Vyukov wrote:
+> On Thu, Feb 8, 2018 at 5:30 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+> > On Thu, Feb 08, 2018 at 01:03:49PM +0300, Kirill Tkhai wrote:
+> >> On 07.02.2018 21:38, Dave Hansen wrote:
+> >> > On 02/07/2018 08:14 AM, Kirill Tkhai wrote:
+> >> >> Sometimes it is possible to meet a situation,
+> >> >> when irq stack is corrupted, while innocent
+> >> >> callback function is being executed. This may
+> >> >> happen because of crappy drivers irq handlers,
+> >> >> when they access wrong memory on the irq stack.
+> >> >
+> >> > Can you be more clear about the actual issue?  Which drivers do this?
+> >> > How do they even find an IRQ stack pointer?
+> >>
+> >> I can't say actual driver making this, because I'm still investigating the guilty one.
+> >> But I have couple of crash dumps with the crash inside update_sd_lb_stats() function,
+> >> where stack variable sg becomes corrupted. This time all scheduler-related not-stack
+> >> variables are in ideal state. And update_sd_lb_stats() is the function, which can't
+> >> corrupt its own stack. So, I thought this functionality may be useful for something else,
+> >> especially because of irq stack is one of the last stacks, which are not sanitized.
+> >> Task's stacks are already covered, as I know
+> >>
+> >> [1595450.678971] Call Trace:
+> >> [1595450.683991]  <IRQ>
+> >> [1595450.684038]
+> >> [1595450.688926]  [<ffffffff81320005>] cpumask_next_and+0x35/0x50
+> >> [1595450.693984]  [<ffffffff810d91d3>] find_busiest_group+0x143/0x950
+> >> [1595450.699088]  [<ffffffff810d9b7a>] load_balance+0x19a/0xc20
+> >> [1595450.704289]  [<ffffffff810cde55>] ? sched_clock_cpu+0x85/0xc0
+> >> [1595450.709457]  [<ffffffff810c29aa>] ? update_rq_clock.part.88+0x1a/0x150
+> >> [1595450.714711]  [<ffffffff810da770>] rebalance_domains+0x170/0x2b0
+> >> [1595450.719997]  [<ffffffff810da9d2>] run_rebalance_domains+0x122/0x1e0
+> >> [1595450.725321]  [<ffffffff816bb10f>] __do_softirq+0x10f/0x2aa
+> >> [1595450.730746]  [<ffffffff816b62ac>] call_softirq+0x1c/0x30
+> >> [1595450.736169]  [<ffffffff8102d325>] do_softirq+0x65/0xa0
+> >> [1595450.741754]  [<ffffffff81093ec5>] irq_exit+0x105/0x110
+> >> [1595450.747279]  [<ffffffff816baad2>] smp_apic_timer_interrupt+0x42/0x50
+> >> [1595450.752905]  [<ffffffff816b7a62>] apic_timer_interrupt+0x232/0x240
+> >> [1595450.758519]  <EOI>
+> >> [1595450.758569]
+> >> [1595450.764100]  [<ffffffff8152f282>] ? cpuidle_enter_state+0x52/0xc0
+> >> [1595450.769652]  [<ffffffff8152f3c8>] cpuidle_idle_call+0xd8/0x210
+> >> [1595450.775198]  [<ffffffff8103540e>] arch_cpu_idle+0xe/0x30
+> >> [1595450.780813]  [<ffffffff810effba>] cpu_startup_entry+0x14a/0x1c0
+> >> [1595450.786286]  [<ffffffff810523e6>] start_secondary+0x1d6/0x250
+> >
+> > I'm not seeing how this patch would help.  If you're running on the irq
+> > stack, the *entire* irq stack would be unpoisoned.  So there's still no
+> > KASAN protection.  Or am I missing something?
+> >
+> > Seems like it would be more useful for KASAN to detect redzone accesses
+> > on the irq stack (if it's not doing that already).
+> 
+> KASAN should do this already (unless there is something terribly
+> broken). Compiler instrumentation adds redzones around all stack
+> variables and injects code to poision/unpoison these redzones on
+> function entry/exit.
+> KASAN can also detect use-after-scope bugs for stack variables, but
+> this requires a more recent gcc (6 or 7, don't remember exactly now)
+> and CONFIG_KASAN_EXTRA since recently.
+> User-space ASAN can also detect so called use-after-return bugs
+> (dangling references to stack variables), but this requires manual
+> management of stack frames and quarantine for stack frames. This is
+> more tricky to do inside of kernel, so this was never implemented in
+> KASAN. KASAN still can detect some of these, if it will happen so that
+> the dangling reference happen to point to a redzone in a new frame.
 
+Ok, that's good.  And it seems this patch doesn't change that.
 
-Nice!
-Do you know straight away if it's scriptable/automatable? Or do I just
-send some magic sequence of bytes representing ^A+C,
-dump-guest-memory, \n to stdin pipe?
+So it looks like the purpose of the patch is to protect the irq stack
+from code which is *not* running on the irq stack.  Which seems a bit
+far-fetched and theoretical.  Though I don't see any harm in it.
 
-Unfortunately, syzbot uses GCE VMs for testing, and there does not
-seem to be such feature on GCE...
+The patch description is confusing.  It talks about "crappy drivers irq
+handlers when they access wrong memory on the stack".  But if I
+understand correctly, the patch doesn't actually protect against that
+case, because irq handlers run on the irq stack, and this patch only
+affects code which *isn't* running on the irq stack.
+
+-- 
+Josh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
