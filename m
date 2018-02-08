@@ -1,151 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 97E506B0003
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 14:55:45 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id y6so4544015qka.12
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 11:55:45 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id b126si595792qka.42.2018.02.08.11.55.44
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D91406B0003
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 15:03:39 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id k38so3126712wre.23
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 12:03:39 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 4si501130wrj.71.2018.02.08.12.03.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Feb 2018 11:55:44 -0800 (PST)
-Date: Thu, 8 Feb 2018 21:55:38 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v28 0/4] Virtio-balloon: support free page reporting
-Message-ID: <20180208215048-mutt-send-email-mst@kernel.org>
-References: <1518083420-11108-1-git-send-email-wei.w.wang@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1518083420-11108-1-git-send-email-wei.w.wang@intel.com>
+        Thu, 08 Feb 2018 12:03:38 -0800 (PST)
+Date: Thu, 8 Feb 2018 12:03:34 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 1/1] mm: initialize pages on demand during boot
+Message-Id: <20180208120334.0779ed0726bb527a9cad0336@linux-foundation.org>
+In-Reply-To: <20180208184555.5855-2-pasha.tatashin@oracle.com>
+References: <20180208184555.5855-1-pasha.tatashin@oracle.com>
+	<20180208184555.5855-2-pasha.tatashin@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, m.mizuma@jp.fujitsu.com, mhocko@suse.com, catalin.marinas@arm.com, takahiro.akashi@linaro.org, gi-oh.kim@profitbricks.com, heiko.carstens@de.ibm.com, baiyaowei@cmss.chinamobile.com, richard.weiyang@gmail.com, paul.burton@mips.com, miles.chen@mediatek.com, vbabka@suse.cz, mgorman@suse.de, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Feb 08, 2018 at 05:50:16PM +0800, Wei Wang wrote:
-> This patch series is separated from the previous "Virtio-balloon
-> Enhancement" series. The new feature, VIRTIO_BALLOON_F_FREE_PAGE_HINT,  
-> implemented by this series enables the virtio-balloon driver to report
-> hints of guest free pages to the host. It can be used to accelerate live
-> migration of VMs. Here is an introduction of this usage:
+On Thu,  8 Feb 2018 13:45:55 -0500 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+
+> Deferred page initialization allows the boot cpu to initialize a small
+> subset of the system's pages early in boot, with other cpus doing the rest
+> later on.
 > 
-> Live migration needs to transfer the VM's memory from the source machine
-> to the destination round by round. For the 1st round, all the VM's memory
-> is transferred. From the 2nd round, only the pieces of memory that were
-> written by the guest (after the 1st round) are transferred. One method
-> that is popularly used by the hypervisor to track which part of memory is
-> written is to write-protect all the guest memory.
+> It is, however, problematic to know how many pages the kernel needs during
+> boot.  Different modules and kernel parameters may change the requirement,
+> so the boot cpu either initializes too many pages or runs out of memory.
 > 
-> This feature enables the optimization of the 1st round memory transfer -
-> the hypervisor can skip the transfer of guest free pages in the 1st round.
-> It is not concerned that the memory pages are used after they are given
-> to the hypervisor as a hint of the free pages, because they will be
-> tracked by the hypervisor and transferred in the next round if they are
-> used and written.
-
-At this point I think it's a good idea to focus on the qemu
-side, that code is still not really ready yet.
-
-> * Tests
-> - Migration time improvement
-> Result:
-> Live migration time is reduced to 14% with this optimization.
-> Details:
-> Local live migration of 8GB idle guest, the legacy live migration takes
-> ~1817ms. With this optimization, it takes ~254ms, which reduces the time
-> to 14%.
-
-
-
-> - Workload tests
-> Results:
-> Running this feature has no impact on the linux compilation workload
-> running inside the guest.
-
-I think you should try something memory intensive. Try asking
-qemu migration guys for hints on a good test to run.
-
-
-> Details:
-> Set up a Ping-Pong local live migration, where the guest ceaselessy
-> migrates between the source and destination. Linux compilation,
-> i.e. make bzImage -j4, is performed during the Ping-Pong migration. The
-> legacy case takes 5min14s to finish the compilation. With this
-> optimization patched, it takes 5min12s.
-
-How is migration time affected in this case?
- 
-> ChangeLog:
-> v27->v28:
->     - mm/page_poison: Move PAGE_POISON to page_poison.c and add a function
->       to expose page poison val to kernel modules.
-> v26->v27:
->     - add a new patch to expose page_poisoning_enabled to kernel modules
->     - virtio-balloon: set poison_val to 0xaaaaaaaa, instead of 0xaa
-> v25->v26: virtio-balloon changes only
->     - remove kicking free page vq since the host now polls the vq after
->       initiating the reporting
->     - report_free_page_func: detach all the used buffers after sending
->       the stop cmd id. This avoids leaving the detaching burden (i.e.
->       overhead) to the next cmd id. Detaching here isn't considered
->       overhead since the stop cmd id has been sent, and host has already
->       moved formard.
-> v24->v25:
->     - mm: change walk_free_mem_block to return 0 (instead of true) on
->           completing the report, and return a non-zero value from the
->           callabck, which stops the reporting.
->     - virtio-balloon:
->         - use enum instead of define for VIRTIO_BALLOON_VQ_INFLATE etc.
->         - avoid __virtio_clear_bit when bailing out;
->         - a new method to avoid reporting the some cmd id to host twice
->         - destroy_workqueue can cancel free page work when the feature is
->           negotiated;
->         - fail probe when the free page vq size is less than 2.
-> v23->v24:
->     - change feature name VIRTIO_BALLOON_F_FREE_PAGE_VQ to
->       VIRTIO_BALLOON_F_FREE_PAGE_HINT
->     - kick when vq->num_free < half full, instead of "= half full"
->     - replace BUG_ON with bailing out
->     - check vb->balloon_wq in probe(), if null, bail out
->     - add a new feature bit for page poisoning
->     - solve the corner case that one cmd id being sent to host twice
-> v22->v23:
->     - change to kick the device when the vq is half-way full;
->     - open-code batch_free_page_sg into add_one_sg;
->     - change cmd_id from "uint32_t" to "__virtio32";
->     - reserver one entry in the vq for the driver to send cmd_id, instead
->       of busywaiting for an available entry;
->     - add "stop_update" check before queue_work for prudence purpose for
->       now, will have a separate patch to discuss this flag check later;
->     - init_vqs: change to put some variables on stack to have simpler
->       implementation;
->     - add destroy_workqueue(vb->balloon_wq);
+> To fix that, initialize early pages on demand.  This ensures the kernel
+> does the minimum amount of work to initialize pages during boot and leaves
+> the rest to be divided in the multithreaded initialization path
+> (deferred_init_memmap).
 > 
-> v21->v22:
->     - add_one_sg: some code and comment re-arrangement
->     - send_cmd_id: handle a cornercase
-> 
-> For previous ChangeLog, please reference
-> https://lwn.net/Articles/743660/
-> 
-> Wei Wang (4):
->   mm: support reporting free page blocks
->   virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
->   mm/page_poison: add a function to expose page poison val to kernel
->     modules
->   virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
-> 
->  drivers/virtio/virtio_balloon.c     | 258 +++++++++++++++++++++++++++++++-----
->  include/linux/mm.h                  |   8 ++
->  include/linux/poison.h              |   7 -
->  include/uapi/linux/virtio_balloon.h |   7 +
->  mm/page_alloc.c                     |  96 ++++++++++++++
->  mm/page_poison.c                    |  24 ++++
->  6 files changed, 357 insertions(+), 43 deletions(-)
-> 
-> -- 
-> 2.7.4
+> The on-demand code is permanently disabled using static branching once
+> deferred pages are initialized.  After the static branch is changed to
+> false, the overhead is up-to two branch-always instructions if the zone
+> watermark check fails or if rmqueue fails.
+>
+> ...
+>
+> @@ -1604,6 +1566,96 @@ static int __init deferred_init_memmap(void *data)
+>  	pgdat_init_report_one_done();
+>  	return 0;
+>  }
+> +
+> +/*
+> + * Protects some early interrupt threads, and also for a short period of time
+> + * from  smp_init() to page_alloc_init_late() when deferred pages are
+> + * initialized.
+> + */
+> +static __initdata DEFINE_SPINLOCK(deferred_zone_grow_lock);
+
+Comment is a little confusing.  Locks don't protect "threads" - they
+protect data.  Can we be specific about which data is being protected?
+
+Why is a new lock needed here?  Those data structures already have
+designated locks, don't they?
+
+If the lock protects "early interrupt threads" then it's surprising to
+see it taken with spin_lock() and not spin_lock_irqsave()?
+
+> +DEFINE_STATIC_KEY_TRUE(deferred_pages);
+> +
+> +/*
+> + * If this zone has deferred pages, try to grow it by initializing enough
+> + * deferred pages to satisfy the allocation specified by order, rounded up to
+> + * the nearest PAGES_PER_SECTION boundary.  So we're adding memory in increments
+> + * of SECTION_SIZE bytes by initializing struct pages in increments of
+> + * PAGES_PER_SECTION * sizeof(struct page) bytes.
+> + */
+
+Please also document the return value.
+
+> +static noinline bool __init
+
+Why was noinline needed?
+
+> +deferred_grow_zone(struct zone *zone, unsigned int order)
+> +{
+> +	int zid = zone_idx(zone);
+> +	int nid = zone->node;
+> +	pg_data_t *pgdat = NODE_DATA(nid);
+> +	unsigned long nr_pages_needed = ALIGN(1 << order, PAGES_PER_SECTION);
+> +	unsigned long nr_pages = 0;
+> +	unsigned long first_init_pfn, first_deferred_pfn, spfn, epfn, t;
+> +	phys_addr_t spa, epa;
+> +	u64 i;
+> +
+> +	/* Only the last zone may have deferred pages */
+> +	if (zone_end_pfn(zone) != pgdat_end_pfn(pgdat))
+> +		return false;
+> +
+> +	first_deferred_pfn = READ_ONCE(pgdat->first_deferred_pfn);
+
+It would be nice to have a little comment explaining why READ_ONCE was
+needed.
+
+Would it still be needed if this code was moved into the locked region?
+
+> +	first_init_pfn = max(zone->zone_start_pfn, first_deferred_pfn);
+> +
+> +	if (first_init_pfn >= pgdat_end_pfn(pgdat))
+> +		return false;
+> +
+> +	spin_lock(&deferred_zone_grow_lock);
+> +	/*
+> +	 * Bail if we raced with another thread that disabled on demand
+> +	 * initialization.
+> +	 */
+> +	if (!static_branch_unlikely(&deferred_pages)) {
+> +		spin_unlock(&deferred_zone_grow_lock);
+> +		return false;
+> +	}
+> +
+> +	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+> +		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+> +		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+> +
+> +		while (spfn < epfn && nr_pages < nr_pages_needed) {
+> +			t = ALIGN(spfn + PAGES_PER_SECTION, PAGES_PER_SECTION);
+> +			first_deferred_pfn = min(t, epfn);
+> +			nr_pages += deferred_init_pages(nid, zid, spfn,
+> +							first_deferred_pfn);
+> +			spfn = first_deferred_pfn;
+> +		}
+> +
+> +		if (nr_pages >= nr_pages_needed)
+> +			break;
+> +	}
+> +
+> +	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+> +		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+> +		epfn = min_t(unsigned long, first_deferred_pfn, PFN_DOWN(epa));
+> +		deferred_free_pages(nid, zid, spfn, epfn);
+> +
+> +		if (first_deferred_pfn == epfn)
+> +			break;
+> +	}
+> +	WRITE_ONCE(pgdat->first_deferred_pfn, first_deferred_pfn);
+> +	spin_unlock(&deferred_zone_grow_lock);
+> +
+> +	return nr_pages >= nr_pages_needed;
+> +}
+> +
+> +/*
+> + * deferred_grow_zone() is __init, but it is called from
+> + * get_page_from_freelist() during early boot until deferred_pages permanently
+> + * disables this call. This is why, we have refdata wrapper to avoid warning,
+> + * and ensure that the function body gets unloaded.
+
+s/why,/why/
+s/ensure/to ensure/
+
+> + */
+> +static bool __ref
+> +_deferred_grow_zone(struct zone *zone, unsigned int order)
+> +{
+> +	return deferred_grow_zone(zone, order);
+> +}
+> +
+>  #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+>  
+>  void __init page_alloc_init_late(void)
+> @@ -1613,6 +1665,14 @@ void __init page_alloc_init_late(void)
+>  #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+>  	int nid;
+>  
+> +	/*
+> +	 * We are about to initialize the rest of deferred pages, permanently
+> +	 * disable on-demand struct page initialization.
+> +	 */
+> +	spin_lock(&deferred_zone_grow_lock);
+> +	static_branch_disable(&deferred_pages);
+> +	spin_unlock(&deferred_zone_grow_lock);
+
+Ah, so the new lock is to protect the static branch machinery only?
+
+>  	/* There will be num_node_state(N_MEMORY) threads */
+>  	atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
+>  	for_each_node_state(nid, N_MEMORY) {
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
