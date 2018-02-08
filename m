@@ -1,73 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CCDDA6B0008
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 08:06:54 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id p20so2161188pfh.17
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 05:06:54 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id f1-v6si2771603plt.765.2018.02.08.05.06.53
+	by kanga.kvack.org (Postfix) with ESMTP id E38236B000A
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 08:28:30 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id k78so2186007pfk.12
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 05:28:30 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k6sor832393pgo.31.2018.02.08.05.28.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 08 Feb 2018 05:06:53 -0800 (PST)
-Date: Thu, 8 Feb 2018 05:06:49 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: Regression after commit 19809c2da28a ("mm, vmalloc: use
- __GFP_HIGHMEM implicitly")
-Message-ID: <20180208130649.GA15846@bombadil.infradead.org>
-References: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
+        (Google Transport Security);
+        Thu, 08 Feb 2018 05:28:29 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
+In-Reply-To: <20180208092839.ebe5rk6mtvkk5da4@quack2.suse.cz>
+References: <001a11447070ac6fcb0564a08cb1@google.com> <20180207155229.GC10945@tassilo.jf.intel.com>
+ <20180208092839.ebe5rk6mtvkk5da4@quack2.suse.cz>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 8 Feb 2018 14:28:08 +0100
+Message-ID: <CACT4Y+ZTNDhEhAAP2PYRH5WxEeEM0xHdp4UKqtNaWhU6w4sj_g@mail.gmail.com>
+Subject: Re: INFO: task hung in sync_blockdev
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kai Heng Feng <kai.heng.feng@canonical.com>
-Cc: Michal Hocko <mhocko@suse.com>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Andi Kleen <ak@linux.intel.com>, syzbot <syzbot+283c3c447181741aea28@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Ingo Molnar <mingo@kernel.org>, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, linux-fsdevel@vger.kernel.org
 
-On Thu, Feb 08, 2018 at 02:29:57PM +0800, Kai Heng Feng wrote:
-> A user with i386 instead of AMD64 machine reports [1] that commit 19809c2da28a ("mm, vmalloc: use __GFP_HIGHMEM implicitlya??) causes a regression.
-> BUG_ON(PageHighMem(pg)) in drivers/media/common/saa7146/saa7146_core.c always gets triggered after that commit.
+On Thu, Feb 8, 2018 at 10:28 AM, Jan Kara <jack@suse.cz> wrote:
+> On Wed 07-02-18 07:52:29, Andi Kleen wrote:
+>> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<0000000040269370>]
+>> > __blkdev_put+0xbc/0x7f0 fs/block_dev.c:1757
+>> > 1 lock held by blkid/19199:
+>> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
+>> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
+>> >  #1:  (&ldata->atomic_read_lock){+.+.}, at: [<0000000033edf9f2>]
+>> > n_tty_read+0x2ef/0x1a00 drivers/tty/n_tty.c:2131
+>> > 1 lock held by syz-executor5/19330:
+>> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
+>> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
+>> > 1 lock held by syz-executor5/19331:
+>> >  #0:  (&bdev->bd_mutex){+.+.}, at: [<00000000b4dcaa18>]
+>> > __blkdev_get+0x158/0x10e0 fs/block_dev.c:1439
+>>
+>> It seems multiple processes deadlocked on the bd_mutex.
+>> Unfortunately there's no backtrace for the lock acquisitions,
+>> so it's hard to see the exact sequence.
+>
+> Well, all in the report points to a situation where some IO was submitted
+> to the block device and never completed (more exactly it took longer than
+> those 120s to complete that IO). It would need more digging into the
+> syzkaller program to find out what kind of device that was and possibly why
+> the IO took so long to complete...
 
-Well, the BUG_ON is wrong.  You can absolutely have pages which are both
-HighMem and under the 4GB boundary.  Only the first 896MB (iirc) are LowMem,
-and the next 3GB of pages are available to vmalloc_32().
 
-> Also there are other BUG_ON(PageHighMem()) in drivers/media, I think they will get hit by same regression in 32bit machine too.
-
-I fixed one of them.  I think the other three are also bogus, but it's
-hard to say; the comments say "DMA to HighMem might not work", and they
-probably mean "above the 4GB boundary", but I really don't know.
-
-(since two drivers now have this code, maybe it should be part of the core
-MM API?  Or maybe there's already something better they should be using?)
-
-diff --git a/drivers/media/common/saa7146/saa7146_core.c b/drivers/media/common/saa7146/saa7146_core.c
-index 9f7c5b0a6b45..329fd43228ff 100644
---- a/drivers/media/common/saa7146/saa7146_core.c
-+++ b/drivers/media/common/saa7146/saa7146_core.c
-@@ -160,7 +160,7 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
- 		pg = vmalloc_to_page(virt);
- 		if (NULL == pg)
- 			goto err;
--		BUG_ON(PageHighMem(pg));
-+		BUG_ON(page_to_pfn(pg) >= (1 << (32 - PAGE_SHIFT)));
- 		sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
- 	}
- 	return sglist;
-diff --git a/drivers/media/v4l2-core/videobuf-dma-sg.c b/drivers/media/v4l2-core/videobuf-dma-sg.c
-index f412429cf5ba..b5ec74b9c867 100644
---- a/drivers/media/v4l2-core/videobuf-dma-sg.c
-+++ b/drivers/media/v4l2-core/videobuf-dma-sg.c
-@@ -77,7 +77,7 @@ static struct scatterlist *videobuf_vmalloc_to_sg(unsigned char *virt,
- 		pg = vmalloc_to_page(virt);
- 		if (NULL == pg)
- 			goto err;
--		BUG_ON(PageHighMem(pg));
-+		BUG_ON(page_to_pfn(pg) >= (1 << (32 - PAGE_SHIFT)));
- 		sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
- 	}
- 	return sglist;
+Would a traceback of all task stacks help in this case?
+What I've seen in several "task hung" reports is that the CPU
+traceback is not showing anything useful. So perhaps it should be
+changed to task traceback? Or it would not help either?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
