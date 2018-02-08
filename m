@@ -1,157 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D68A36B0027
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 06:44:11 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id m184so4740389ith.4
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 03:44:11 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id f67si1201968iod.76.2018.02.08.03.44.09
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Feb 2018 03:44:10 -0800 (PST)
-Subject: [PATCH v2] lockdep: Fix fs_reclaim warning.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <8f1c776d-b791-e0b9-1e5c-62b03dcd1d74@I-love.SAKURA.ne.jp>
-	<20180129102746.GQ2269@hirez.programming.kicks-ass.net>
-	<201801292047.EHC05241.OHSQOJOVtFMFLF@I-love.SAKURA.ne.jp>
-	<20180129135547.GR2269@hirez.programming.kicks-ass.net>
-	<201802012036.FEE78102.HOMFFOtJVFOSQL@I-love.SAKURA.ne.jp>
-In-Reply-To: <201802012036.FEE78102.HOMFFOtJVFOSQL@I-love.SAKURA.ne.jp>
-Message-Id: <201802082043.FFJ39503.SVQFFFOJMHLOtO@I-love.SAKURA.ne.jp>
-Date: Thu, 8 Feb 2018 20:43:36 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 667826B0010
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 07:30:49 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id r48so2289159otb.0
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 04:30:49 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l187si1273786oig.335.2018.02.08.04.30.47
+        for <linux-mm@kvack.org>;
+        Thu, 08 Feb 2018 04:30:48 -0800 (PST)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB hugepage
+References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
+	<1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<87inbbjx2w.fsf@e105922-lin.cambridge.arm.com>
+	<20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp>
+Date: Thu, 08 Feb 2018 12:30:45 +0000
+In-Reply-To: <20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp> (Naoya
+	Horiguchi's message of "Wed, 7 Feb 2018 01:14:57 +0000")
+Message-ID: <87fu6bfytm.fsf@e105922-lin.cambridge.arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org
-Cc: torvalds@linux-foundation.org, davej@codemonkey.org.uk, npiggin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, mhocko@kernel.org, linux-btrfs@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
->From 361d37a7d36978020dfb4c11ec1f4800937ccb68 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Thu, 8 Feb 2018 10:35:35 +0900
-Subject: [PATCH v2] lockdep: Fix fs_reclaim warning.
+Horiguchi-san,
 
-Dave Jones reported fs_reclaim lockdep warnings.
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
 
-  ============================================
-  WARNING: possible recursive locking detected
-  4.15.0-rc9-backup-debug+ #1 Not tainted
-  --------------------------------------------
-  sshd/24800 is trying to acquire lock:
-   (fs_reclaim){+.+.}, at: [<0000000084f438c2>] fs_reclaim_acquire.part.102+0x5/0x30
+> Hi Punit,
+>
+> On Mon, Feb 05, 2018 at 03:05:43PM +0000, Punit Agrawal wrote:
+>> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+>> 
 
-  but task is already holding lock:
-   (fs_reclaim){+.+.}, at: [<0000000084f438c2>] fs_reclaim_acquire.part.102+0x5/0x30
+[...]
 
-  other info that might help us debug this:
-   Possible unsafe locking scenario:
+>> >
+>> > You can easily reproduce this by calling madvise(MADV_HWPOISON) twice on
+>> > a 1GB hugepage. This happens because get_user_pages_fast() is not aware
+>> > of a migration entry on pud that was created in the 1st madvise() event.
+>> 
+>> Maybe I'm doing something wrong but I wasn't able to reproduce the issue
+>> using the test at the end. I get -
+>> 
+>>     $ sudo ./hugepage
+>> 
+>>     Poisoning page...once
+>>     [  121.295771] Injecting memory failure for pfn 0x8300000 at process virtual address 0x400000000000
+>>     [  121.386450] Memory failure: 0x8300000: recovery action for huge page: Recovered
+>> 
+>>     Poisoning page...once again
+>>     madvise: Bad address
+>> 
+>> What am I missing?
+>
+> The test program below is exactly what I intended, so you did right
+> testing.
 
-         CPU0
-         ----
-    lock(fs_reclaim);
-    lock(fs_reclaim);
+Thanks for the confirmation. And the flow outline below. 
 
-   *** DEADLOCK ***
+> I try to guess what could happen. The related code is like below:
+>
+>   static int gup_pud_range(p4d_t p4d, unsigned long addr, unsigned long end,
+>                            int write, struct page **pages, int *nr)
+>   {
+>           ...
+>           do {
+>                   pud_t pud = READ_ONCE(*pudp);
+>
+>                   next = pud_addr_end(addr, end);
+>                   if (pud_none(pud))
+>                           return 0;
+>                   if (unlikely(pud_huge(pud))) {
+>                           if (!gup_huge_pud(pud, pudp, addr, next, write,
+>                                             pages, nr))
+>                                   return 0;
+>
+> pud_none() always returns false for hwpoison entry in any arch.
+> I guess that pud_huge() could behave in undefined manner for hwpoison entry
+> because pud_huge() assumes that a given pud has the present bit set, which
+> is not true for hwpoison entry.
 
-   May be due to missing lock nesting notation
+This is where the arm64 helpers behaves differently (though more by
+chance then design). A poisoned pud passes pud_huge() as it doesn't seem
+to be explicitly checking for the present bit.
 
-  2 locks held by sshd/24800:
-   #0:  (sk_lock-AF_INET6){+.+.}, at: [<000000001a069652>] tcp_sendmsg+0x19/0x40
-   #1:  (fs_reclaim){+.+.}, at: [<0000000084f438c2>] fs_reclaim_acquire.part.102+0x5/0x30
+    int pud_huge(pud_t pud)
+    {
+            return pud_val(pud) && !(pud_val(pud) & PUD_TABLE_BIT);
+    }
 
-  stack backtrace:
-  CPU: 3 PID: 24800 Comm: sshd Not tainted 4.15.0-rc9-backup-debug+ #1
-  Call Trace:
-   dump_stack+0xbc/0x13f
-   __lock_acquire+0xa09/0x2040
-   lock_acquire+0x12e/0x350
-   fs_reclaim_acquire.part.102+0x29/0x30
-   kmem_cache_alloc+0x3d/0x2c0
-   alloc_extent_state+0xa7/0x410
-   __clear_extent_bit+0x3ea/0x570
-   try_release_extent_mapping+0x21a/0x260
-   __btrfs_releasepage+0xb0/0x1c0
-   btrfs_releasepage+0x161/0x170
-   try_to_release_page+0x162/0x1c0
-   shrink_page_list+0x1d5a/0x2fb0
-   shrink_inactive_list+0x451/0x940
-   shrink_node_memcg.constprop.88+0x4c9/0x5e0
-   shrink_node+0x12d/0x260
-   try_to_free_pages+0x418/0xaf0
-   __alloc_pages_slowpath+0x976/0x1790
-   __alloc_pages_nodemask+0x52c/0x5c0
-   new_slab+0x374/0x3f0
-   ___slab_alloc.constprop.81+0x47e/0x5a0
-   __slab_alloc.constprop.80+0x32/0x60
-   __kmalloc_track_caller+0x267/0x310
-   __kmalloc_reserve.isra.40+0x29/0x80
-   __alloc_skb+0xee/0x390
-   sk_stream_alloc_skb+0xb8/0x340
-   tcp_sendmsg_locked+0x8e6/0x1d30
-   tcp_sendmsg+0x27/0x40
-   inet_sendmsg+0xd0/0x310
-   sock_write_iter+0x17a/0x240
-   __vfs_write+0x2ab/0x380
-   vfs_write+0xfb/0x260
-   SyS_write+0xb6/0x140
-   do_syscall_64+0x1e5/0xc05
-   entry_SYSCALL64_slow_path+0x25/0x25
 
-This warning is caused by commit d92a8cfcb37ecd13 ("locking/lockdep: Rework
-FS_RECLAIM annotation") which replaced lockdep_set_current_reclaim_state()/
-lockdep_clear_current_reclaim_state() in __perform_reclaim() and
-lockdep_trace_alloc() in slab_pre_alloc_hook() with fs_reclaim_acquire()/
-fs_reclaim_release(). Since __kmalloc_reserve() from __alloc_skb() adds
-__GFP_NOMEMALLOC | __GFP_NOWARN to gfp_mask, and all reclaim path simply
-propagates __GFP_NOMEMALLOC, fs_reclaim_acquire() in slab_pre_alloc_hook()
-is trying to grab the 'fake' lock again when __perform_reclaim() already
-grabbed the 'fake' lock.
+This doesn't lead to a crash as the first thing gup_huge_pud() does is
+check for pud_access_permitted() which does check for the present bit.
 
-The
+I was able to crash the kernel by changing pud_huge() to check for the
+present bit.
 
-  /* this guy won't enter reclaim */
-  if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
-          return false;
+> As a result, pud_huge() checks an irrelevant bit used for other
+> purpose depending on non-present page table format of each arch. If
+> pud_huge() returns false for hwpoison entry, we try to go to the lower
+> level and the kernel highly likely to crash. So I guess your kernel
+> fell back the slow path and somehow ended up with returning EFAULT.
 
-test which causes slab_pre_alloc_hook() to try to grab the 'fake' lock
-was added by commit cf40bd16fdad42c0 ("lockdep: annotate reclaim context
-(__GFP_NOFS)"). But that test is outdated because PF_MEMALLOC thread won't
-enter reclaim regardless of __GFP_NOMEMALLOC after commit 341ce06f69abfafa
-("page allocator: calculate the alloc_flags for allocation only once")
-added the PF_MEMALLOC safeguard (
+Makes sense. Due to the difference above on arm64, it ends up falling
+back to the slow path which eventually returns -EFAULT (via
+follow_hugetlb_page) for poisoned pages.
 
-  /* Avoid recursion of direct reclaim */
-  if (p->flags & PF_MEMALLOC)
-          goto nopage;
+>
+> So I don't think that the above test result means that errors are properly
+> handled, and the proposed patch should help for arm64.
 
-in __alloc_pages_slowpath()).
+Although, the deviation of pud_huge() avoids a kernel crash the code
+would be easier to maintain and reason about if arm64 helpers are
+consistent with expectations by core code.
 
-Thus, let's fix outdated test by removing __GFP_NOMEMALLOC test and allow
-__need_fs_reclaim() to return false.
+I'll look to update the arm64 helpers once this patch gets merged. But
+it would be helpful if there was a clear expression of semantics for
+pud_huge() for various cases. Is there any version that can be used as
+reference?
 
-Reported-and-tested-by: Dave Jones <davej@codemonkey.org.uk>
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Nick Piggin <npiggin@gmail.com>
----
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Also, do you know what the plans are for re-enabling hugepage poisoning
+disabled here?
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 81e18ce..19fb76b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3590,7 +3590,7 @@ static bool __need_fs_reclaim(gfp_t gfp_mask)
- 		return false;
- 
- 	/* this guy won't enter reclaim */
--	if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
-+	if (current->flags & PF_MEMALLOC)
- 		return false;
- 
- 	/* We're only interested __GFP_FS allocations for now */
--- 
-1.8.3.1
+Thanks,
+Punit
+
+[...]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
