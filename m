@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BC4A36B002C
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 04:26:05 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 30so4207133wrw.6
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 01:26:05 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id b31si1662307edb.12.2018.02.09.01.26.04
+	by kanga.kvack.org (Postfix) with ESMTP id 35AAB6B002C
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 04:26:06 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id d17so4222941wrc.19
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 01:26:06 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id h9si1050492ede.369.2018.02.09.01.26.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 01:26:04 -0800 (PST)
+        Fri, 09 Feb 2018 01:26:05 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 20/31] x86/mm/pae: Populate the user page-table with user pgd's
-Date: Fri,  9 Feb 2018 10:25:29 +0100
-Message-Id: <1518168340-9392-21-git-send-email-joro@8bytes.org>
+Subject: [PATCH 24/31] x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on x86_32
+Date: Fri,  9 Feb 2018 10:25:33 +0100
+Message-Id: <1518168340-9392-25-git-send-email-joro@8bytes.org>
 In-Reply-To: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,39 +22,54 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-When we populate a PGD entry, make sure we populate it in
-the user page-table too.
+Cloning on the P4D level would clone the complete kernel
+address space into the user-space page-tables for PAE
+kernels. Cloning on PMD level is fine for PAE and legacy
+paging.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable-3level.h | 7 +++++++
- 1 file changed, 7 insertions(+)
+ arch/x86/mm/pti.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
-index bc4af54..1a0661b 100644
---- a/arch/x86/include/asm/pgtable-3level.h
-+++ b/arch/x86/include/asm/pgtable-3level.h
-@@ -98,6 +98,9 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
- 
- static inline void native_set_pud(pud_t *pudp, pud_t pud)
- {
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pud.p4d.pgd = pti_set_user_pgd(&pudp->p4d.pgd, pud.p4d.pgd);
-+#endif
- 	set_64bit((unsigned long long *)(pudp), native_pud_val(pud));
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index 7f5e698..ec9852a 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -312,6 +312,7 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
+ 	}
  }
  
-@@ -194,6 +197,10 @@ static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
- {
- 	union split_pud res, *orig = (union split_pud *)pudp;
++#ifdef CONFIG_X86_64
+ /*
+  * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
+  * next-level entry on 5-level systems.
+@@ -335,6 +336,25 @@ static void __init pti_clone_user_shared(void)
+ 	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
+ }
  
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pti_set_user_pgd(&pudp->p4d.pgd, __pgd(0));
-+#endif
++#else /* CONFIG_X86_64 */
 +
- 	/* xchg acts as a barrier before setting of the high bits */
- 	res.pud_low = xchg(&orig->pud_low, 0);
- 	res.pud_high = orig->pud_high;
++/*
++ * On 32 bit PAE systems with 1GB of Kernel address space there is only
++ * one pgd/p4d for the whole kernel. Cloning that would map the whole
++ * address space into the user page-tables, making PTI useless. So clone
++ * the page-table on the PMD level to prevent that.
++ */
++static void __init pti_clone_user_shared(void)
++{
++	unsigned long start, end;
++
++	start = CPU_ENTRY_AREA_BASE;
++	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
++
++	pti_clone_pmds(start, end, _PAGE_GLOBAL);
++}
++#endif /* CONFIG_X86_64 */
++
+ /*
+  * Clone the ESPFIX P4D into the user space visinble page table
+  */
 -- 
 2.7.4
 
