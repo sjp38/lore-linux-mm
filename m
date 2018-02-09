@@ -1,79 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1654B6B0005
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 10:31:33 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id w19so4103687pgv.4
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 07:31:33 -0800 (PST)
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40097.outbound.protection.outlook.com. [40.107.4.97])
-        by mx.google.com with ESMTPS id p12si1479267pgd.694.2018.02.09.07.31.31
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 36CB56B0005
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 11:18:26 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id 3so4004672oix.12
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 08:18:26 -0800 (PST)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id p8si991924oth.295.2018.02.09.08.18.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 09 Feb 2018 07:31:31 -0800 (PST)
-Subject: Re: INFO: task hung in sync_blockdev
-References: <001a11447070ac6fcb0564a08cb1@google.com>
- <20180207155229.GC10945@tassilo.jf.intel.com>
- <20180208092839.ebe5rk6mtvkk5da4@quack2.suse.cz>
- <CACT4Y+ZTNDhEhAAP2PYRH5WxEeEM0xHdp4UKqtNaWhU6w4sj_g@mail.gmail.com>
- <20180208140833.lpr4yjn7g3v3cdy3@quack2.suse.cz>
- <CACT4Y+bwnyFmgTNMTa1p8WKecH=OU5Za_hboY7Q=V2Aq+DOsKQ@mail.gmail.com>
- <20180208161821.f7x3gopytdtzgf65@quack2.suse.cz>
- <22e5e2e1-fd64-1a75-a80c-332a34266717@virtuozzo.com>
- <CACT4Y+b8CzoTXTitPX-O83p5zgEjsR37U3TPyQ0=4fGeNJHdiA@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <b1d86d56-e08f-56ef-f436-f94bc7f9ca61@virtuozzo.com>
-Date: Fri, 9 Feb 2018 18:31:51 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Feb 2018 08:18:25 -0800 (PST)
+Subject: Re: [PATCH 1/6] genalloc: track beginning of allocations
+References: <20180204164732.28241-1-igor.stoppa@huawei.com>
+ <20180204164732.28241-2-igor.stoppa@huawei.com>
+ <60e66c5a-c1de-246f-4be8-b02cb0275da6@infradead.org>
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Message-ID: <947ea9c3-b045-17d3-51e5-df80b4fb27e6@huawei.com>
+Date: Fri, 9 Feb 2018 18:18:06 +0200
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+b8CzoTXTitPX-O83p5zgEjsR37U3TPyQ0=4fGeNJHdiA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <60e66c5a-c1de-246f-4be8-b02cb0275da6@infradead.org>
+Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, syzbot <syzbot+283c3c447181741aea28@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Ingo Molnar <mingo@kernel.org>, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, linux-fsdevel@vger.kernel.org
+To: Randy Dunlap <rdunlap@infradead.org>, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, willy@infradead.org
+Cc: cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
 
 
-On 02/08/2018 08:17 PM, Dmitry Vyukov wrote:
-> On Thu, Feb 8, 2018 at 5:23 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->>
->>
->> On 02/08/2018 07:18 PM, Jan Kara wrote:
->>
->>>> By "full kernel crashdump" you mean kdump thing, or something else?
->>>
->>> Yes, the kdump thing (for KVM guest you can grab the memory dump also from
->>> the host in a simplier way and it should be usable with the crash utility
->>> AFAIK).
->>>
->>
->> In QEMU monitor 'dump-guest-memory' command:
->>
->> (qemu) help dump-guest-memory
->> dump-guest-memory [-p] [-d] [-z|-l|-s] filename [begin length] -- dump guest memory into file 'filename'.
->>                         -p: do paging to get guest's memory mapping.
->>                         -d: return immediately (do not wait for completion).
->>                         -z: dump in kdump-compressed format, with zlib compression.
->>                         -l: dump in kdump-compressed format, with lzo compression.
->>                         -s: dump in kdump-compressed format, with snappy compression.
->>                         begin: the starting physical address.
->>                         length: the memory size, in bytes
+On 05/02/18 00:34, Randy Dunlap wrote:
+> On 02/04/2018 08:47 AM, Igor Stoppa wrote:
+
+[...]
+
+> It would be good for a lot of this to be in a source file or the
+> pmalloc.rst documentation file instead of living only in the git repository.
+
+This is actually about genalloc. The genalloc documentation is high
+level and mostly about the API, while this talks about the guts of the
+library. The part modified by the patch. This text doesn't seem to
+belong to the generic genalloc documentation.
+I will move it to the .c file, but isn't it too much text in a source file?
+
+[...]
+
+>> + * @order: pow of 2 represented by each entry in the bitmap
 > 
-> 
-> Nice!
-> Do you know straight away if it's scriptable/automatable? Or do I just
-> send some magic sequence of bytes representing ^A+C,
-> dump-guest-memory, \n to stdin pipe?
-> 
+>               power
 
-I wouldn't do it via stdin. You can setup monitor on any chardev you like and send command
-there when you know that guest paniced. Look for -mon and -chardev qemu options.
+ok
 
-> Unfortunately, syzbot uses GCE VMs for testing, and there does not
-> seem to be such feature on GCE...
+[...]
+
+>> + * chunk_size - dimension of a chunk of memory
 > 
+> can this be more explicit about which dimension?
 
-Well, you still have kdump.
+I'll put "size in bytes of a chunk of memory"
+
+
+[...]
+
+>> + * cleart_bits_ll - according to the mask, clears the bits specified by
+> 
+>       clear_bits_ll
+
+yes :-(
+
+[...]
+
+>> - * bitmap_clear_ll - clear the specified number of bits at the specified position
+>> + * alter_bitmap_ll - set or clear the entries associated to an allocation
+> 
+>                                                             with an allocation
+
+ok
+
+
+>> + * @alteration: selection if the bits selected should be set or cleared
+> 
+>                    indicates if
+
+ok
+
+
+[...]
+
+>> +	/* Prepare for writing the initial part of the allocation, from
+>> +	 * starting entry, to the end of the UL bitmap element which
+>> +	 * contains it. It might be larger than the actual allocation.
+>> +	 */
+> 
+> Use kernel multi-line comment style.
+
+ok, also for further occurrences
+
+[...]
+
+>> +	index =  BITS_DIV_LONGS(start_bit);
+> 
+> 	index = BITS_DIV_LONGS
+> (only 1 space after '=')
+
+oops, yes
+
+--
+thank you, igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
