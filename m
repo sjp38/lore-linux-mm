@@ -1,63 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0916D6B000C
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 13:43:22 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id 3so2732898pla.1
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 10:43:22 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id b1si1689278pgn.191.2018.02.09.10.43.20
+	by kanga.kvack.org (Postfix) with ESMTP id 20B846B000E
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 14:02:35 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id f64so355372plb.7
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 11:02:35 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h6si1028952pgp.100.2018.02.09.11.02.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 10:43:21 -0800 (PST)
-Subject: Re: [PATCH v2] mm: Split page_type out from _map_count
-References: <20180207213047.6148-1-willy@infradead.org>
- <20180209105132.hhkjoijini3f74fz@node.shutemov.name>
- <20180209134942.GB16666@bombadil.infradead.org>
- <20180209152848.GF16666@bombadil.infradead.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <7c5414ce-fece-b908-bebc-22fa15fc783c@intel.com>
-Date: Fri, 9 Feb 2018 10:43:19 -0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 09 Feb 2018 11:02:33 -0800 (PST)
+Date: Fri, 9 Feb 2018 20:02:26 +0100
+From: Joerg Roedel <jroedel@suse.de>
+Subject: Re: [PATCH 09/31] x86/entry/32: Leave the kernel via trampoline stack
+Message-ID: <20180209190226.lqh6twf7thfg52cq@suse.de>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <1518168340-9392-10-git-send-email-joro@8bytes.org>
+ <CA+55aFzB9H=RT6YB3onZCephZMs9ccz4aJ_jcPcfEkKJD_YDCQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180209152848.GF16666@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFzB9H=RT6YB3onZCephZMs9ccz4aJ_jcPcfEkKJD_YDCQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
 
-On 02/09/2018 07:28 AM, Matthew Wilcox wrote:
->  	union {
-> +		/*
-> +		 * If the page is neither PageSlab nor PageAnon, the value
-> +		 * stored here may help distinguish it from page cache pages.
-> +		 * See page-flags.h for a list of page types which are
-> +		 * currently stored here.
-> +		 */
-> +		unsigned int page_type;
-> +
->  		_slub_counter_t counters;
->  		unsigned int active;		/* SLAB */
->  		struct {			/* SLUB */
-> @@ -107,11 +115,6 @@ struct page {
->  			/*
->  			 * Count of ptes mapped in mms, to show when
->  			 * page is mapped & limit reverse map searches.
-> -			 *
-> -			 * Extra information about page type may be
-> -			 * stored here for pages that are never mapped,
-> -			 * in which case the value MUST BE <= -2.
-> -			 * See page-flags.h for more details.
->  			 */
->  			atomic_t _mapcount;
+On Fri, Feb 09, 2018 at 09:05:02AM -0800, Linus Torvalds wrote:
+> On Fri, Feb 9, 2018 at 1:25 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> > +
+> > +       /* Copy over the stack-frame */
+> > +       cld
+> > +       rep movsb
+> 
+> Ugh. This is going to be horrendous. Maybe not noticeable on modern
+> CPU's, but the whole 32-bit code is kind of pointless on a modern CPU.
+> 
+> At least use "rep movsl". If the kernel stack isn't 4-byte aligned,
+> you have issues.
 
-Are there any straightforward rules that we can enforce here?  For
-instance, if you are using "page_type", you can never have PG_lru set.
+Okay, I used movsb because I remembered that being the recommendation
+for the most efficient memcpy, and it safes me an instruction. But that
+is probably only true on modern CPUs. I'll change it to use movsl here
+and in the other patches.
 
-Not that we have done this at all for 'struct page' historically, it
-would be really convenient to have a clear definition for when
-"page_type" is valid vs. "_mapcount".
+Thanks,
+
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
