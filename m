@@ -1,47 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F156D6B0005
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 21:55:25 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id k6so2896244pgt.15
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 18:55:25 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g1-v6sor412227plb.105.2018.02.08.18.55.24
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 559C26B0005
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 22:09:01 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id b24so1131255pls.15
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 19:09:01 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id x12si1008917pff.262.2018.02.08.19.08.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Feb 2018 18:55:24 -0800 (PST)
-Date: Fri, 9 Feb 2018 11:55:20 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 1/2] zsmalloc: introduce zs_huge_object() function
-Message-ID: <20180209025520.GA3423@jagdpanzerIV>
-References: <20180207092919.19696-1-sergey.senozhatsky@gmail.com>
- <20180207092919.19696-2-sergey.senozhatsky@gmail.com>
- <20180208163006.GB17354@rapoport-lnx>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Feb 2018 19:09:00 -0800 (PST)
+Message-ID: <5A7D116B.9070502@intel.com>
+Date: Fri, 09 Feb 2018 11:11:39 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180208163006.GB17354@rapoport-lnx>
+Subject: Re: [PATCH v28 0/4] Virtio-balloon: support free page reporting
+References: <1518083420-11108-1-git-send-email-wei.w.wang@intel.com> <20180208215048-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180208215048-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com, dgilbert@redhat.com
 
-On (02/08/18 18:30), Mike Rapoport wrote:
-[..]
-> > 
-> > +/*
-> > + * Check if the object's size falls into huge_class area. We must take
-> > + * ZS_HANDLE_SIZE into account and test the actual size we are going to
-> > + * use up. zs_malloc() unconditionally adds handle size before it performs
-> > + * size_class lookup, so we may endup in a huge class yet zs_huge_object()
-> > + * returned 'false'.
-> > + */
-> 
-> Can you please reformat this comment as kernel-doc?
+On 02/09/2018 03:55 AM, Michael S. Tsirkin wrote:
+> On Thu, Feb 08, 2018 at 05:50:16PM +0800, Wei Wang wrote:
+>
+>> Details:
+>> Set up a Ping-Pong local live migration, where the guest ceaselessy
+>> migrates between the source and destination. Linux compilation,
+>> i.e. make bzImage -j4, is performed during the Ping-Pong migration. The
+>> legacy case takes 5min14s to finish the compilation. With this
+>> optimization patched, it takes 5min12s.
+> How is migration time affected in this case?
 
-Is this - Documentation/doc-guide/kernel-doc.rst - the right thing
-to use as a reference?
 
-	-ss
+When the linux compilation workload runs, the migration time (both the 
+legacy and this optimization case) varies as the compilation goes on. It 
+seems not easy to give a static speedup number, some times the migration 
+time is reduced to 33%, sometimes to 50%, it varies, and depends on how 
+much free memory the system has at that moment. For example, at the 
+later stage of the compilation, I can observe 5GB memory being used as 
+page cache. But overall, I can observe obvious improvement of the 
+migration time.
+
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
