@@ -1,47 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E71E16B0011
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 14:04:18 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id k19so9030635ita.8
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 11:04:18 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id 80si1940990ioo.242.2018.02.09.11.04.18
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E1356B0022
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 14:07:00 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id a2so4421902pgn.7
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 11:07:00 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g3si2114661pfe.57.2018.02.09.11.06.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 11:04:18 -0800 (PST)
-Date: Fri, 9 Feb 2018 13:04:16 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH v2] mm: Split page_type out from _map_count
-In-Reply-To: <7c5414ce-fece-b908-bebc-22fa15fc783c@intel.com>
-Message-ID: <alpine.DEB.2.20.1802091300220.2923@nuc-kabylake>
-References: <20180207213047.6148-1-willy@infradead.org> <20180209105132.hhkjoijini3f74fz@node.shutemov.name> <20180209134942.GB16666@bombadil.infradead.org> <20180209152848.GF16666@bombadil.infradead.org> <7c5414ce-fece-b908-bebc-22fa15fc783c@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 09 Feb 2018 11:06:59 -0800 (PST)
+Date: Fri, 9 Feb 2018 20:06:54 +0100
+From: Joerg Roedel <jroedel@suse.de>
+Subject: Re: [PATCH 09/31] x86/entry/32: Leave the kernel via trampoline stack
+Message-ID: <20180209190654.cvlrp22ly5gbxbxr@suse.de>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <1518168340-9392-10-git-send-email-joro@8bytes.org>
+ <CA+55aFzB9H=RT6YB3onZCephZMs9ccz4aJ_jcPcfEkKJD_YDCQ@mail.gmail.com>
+ <CALCETrUfMk67QeubuujbzKXeJFT4hBcq6kuAX3r1bOOeU1bNSQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrUfMk67QeubuujbzKXeJFT4hBcq6kuAX3r1bOOeU1bNSQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
 
-On Fri, 9 Feb 2018, Dave Hansen wrote:
+On Fri, Feb 09, 2018 at 05:43:55PM +0000, Andy Lutomirski wrote:
+ 
+> The 64-bit code mostly uses a bunch of push instructions for this.
 
-> Are there any straightforward rules that we can enforce here?  For
-> instance, if you are using "page_type", you can never have PG_lru set.
->
-> Not that we have done this at all for 'struct page' historically, it
-> would be really convenient to have a clear definition for when
-> "page_type" is valid vs. "_mapcount".
+I had it implemented with tons of push instructions first, but that
+doesn't work in cases where the stack switch needs to happen only after
+everything is copied over.
 
-Well in general we would like to be able to enforce uses depending on
-the contents of other fields in struct page. That would require compiler
-support I guess?
+So I switched to 'rep movsb', which in my eyes also makes the code
+easier to understand.
 
-What we could do is write a struct page validator that checks contents
-using some macros? Could be added to the usual places where we check
-consistency and could also be used for a global sweep over struct pages
-for validation.
 
-SLUB can do that for metadata. If we could express consistency rules for
-objects in general then it may even have a wider applicability.
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
