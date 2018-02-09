@@ -1,36 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CA1166B0007
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 18:36:56 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id g16so2906841wmg.6
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 15:36:56 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l6si726224wrb.94.2018.02.08.15.36.55
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5656B0005
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 19:12:56 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id g65so3102461wmf.7
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 16:12:56 -0800 (PST)
+Received: from smtp1.de.adit-jv.com (smtp1.de.adit-jv.com. [62.225.105.245])
+        by mx.google.com with ESMTPS id y6si741025wrh.446.2018.02.08.16.12.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Feb 2018 15:36:55 -0800 (PST)
-Date: Thu, 8 Feb 2018 15:36:52 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH v1 00/13] lru_lock scalability
-Message-Id: <20180208153652.481a77e57cc32c9e1a7e4269@linux-foundation.org>
-In-Reply-To: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
-References: <20180131230413.27653-1-daniel.m.jordan@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 08 Feb 2018 16:12:54 -0800 (PST)
+Date: Fri, 9 Feb 2018 01:12:41 +0100
+From: Eugeniu Rosca <erosca@de.adit-jv.com>
+Subject: Re: [PATCH v3 1/1] mm: page_alloc: skip over regions of invalid pfns
+ on UMA
+Message-ID: <20180209001241.GA28668@vmlxhi-102.adit-jv.com>
+References: <20180124143545.31963-1-erosca@de.adit-jv.com>
+ <20180124143545.31963-2-erosca@de.adit-jv.com>
+ <20180129184746.GK21609@dhcp22.suse.cz>
+ <20180203122422.GA11832@vmlxhi-102.adit-jv.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180203122422.GA11832@vmlxhi-102.adit-jv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: daniel.m.jordan@oracle.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aaron.lu@intel.com, ak@linux.intel.com, Dave.Dice@oracle.com, dave@stgolabs.net, khandual@linux.vnet.ibm.com, ldufour@linux.vnet.ibm.com, mgorman@suse.de, mhocko@kernel.org, pasha.tatashin@oracle.com, steven.sistare@oracle.com, yossi.lev@oracle.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eugeniu Rosca <erosca@de.adit-jv.com>
 
-On Wed, 31 Jan 2018 18:04:00 -0500 daniel.m.jordan@oracle.com wrote:
+Hello linux-mm community,
 
-> lru_lock, a per-node* spinlock that protects an LRU list, is one of the
-> hottest locks in the kernel.  On some workloads on large machines, it
-> shows up at the top of lock_stat.
+Everyone of you might have and probably do have more important tasks in
+their queue, compared to the boot optimization discussed in this email
+chain.
 
-Do you have details on which callsites are causing the problem?  That
-would permit us to consider other approaches, perhaps.
+Still, this patch is important for our organization, our community and
+our suppliers. So, I still hope that we will be able to move forward
+with it somehow, especially because it has received positive feedback
+from Matthew Wilcox and Pavel Tatashin. Michal Hocko suggested that a
+previous version of this patch might be more appropriate due to its
+simplicity and slightly better readability.
+
+Many thanks for your participation so far.
+
+Best regards,
+Eugeniu.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
