@@ -1,110 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B00096B0007
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 11:41:32 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id z83so3911699wmc.5
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 08:41:32 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id b200si1781037wmf.157.2018.02.09.08.41.31
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EAECF6B0005
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 12:05:05 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id 62so7793536iow.16
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 09:05:05 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 41sor1664685iot.1.2018.02.09.09.05.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 08:41:31 -0800 (PST)
-Subject: Re: [PATCH 6/6] Documentation for Pmalloc
-References: <20180204164732.28241-1-igor.stoppa@huawei.com>
- <20180204170056.28772-1-igor.stoppa@huawei.com>
- <20180204170056.28772-2-igor.stoppa@huawei.com>
- <29176ee0-f253-ccd7-8201-3f061b5890b0@infradead.org>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <33d85206-abfb-86cf-d303-b7efba9cc325@huawei.com>
-Date: Fri, 9 Feb 2018 18:41:18 +0200
+        (Google Transport Security);
+        Fri, 09 Feb 2018 09:05:04 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <29176ee0-f253-ccd7-8201-3f061b5890b0@infradead.org>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1518168340-9392-10-git-send-email-joro@8bytes.org>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org> <1518168340-9392-10-git-send-email-joro@8bytes.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 9 Feb 2018 09:05:02 -0800
+Message-ID: <CA+55aFzB9H=RT6YB3onZCephZMs9ccz4aJ_jcPcfEkKJD_YDCQ@mail.gmail.com>
+Subject: Re: [PATCH 09/31] x86/entry/32: Leave the kernel via trampoline stack
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, willy@infradead.org
-Cc: cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
 
-On 04/02/18 23:37, Randy Dunlap wrote:
+On Fri, Feb 9, 2018 at 1:25 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> +
+> +       /* Copy over the stack-frame */
+> +       cld
+> +       rep movsb
 
-[...]
+Ugh. This is going to be horrendous. Maybe not noticeable on modern
+CPU's, but the whole 32-bit code is kind of pointless on a modern CPU.
 
->> +reason, could neither be declared as constant, nor it could take advantage
-> 
->                                                   nor could it
+At least use "rep movsl". If the kernel stack isn't 4-byte aligned,
+you have issues.
 
-ok
-
-[...]
-
->> +Ex: A policy that is loaded from userspace.
-> 
-> Either
->    Example:
-> or
->    E.g.:
-> (meaning For example)
-
-ok
-
-[...]
-
->> +Different kernel idrivers and threads can use different pools, for finer
-> 
->                     drivers
-
-:-( ok
-
-[...]
-
->> +  in use anymore by the requestor, however it will not become avaiable for
-> 
->                            requester; however,                   available
-
-ok
-
-[...]
-
->> +- pmalloc does not provide locking support wrt allocating vs protecting
-> 
-> Write out "wrt" -> with respect to.
-
-ok
-
->> +  an individual pool, for performance reason. It is recommended to not
-> 
->                                          reasons.                  not to
-
-ok & ok
-
-[...]
-
->> +  in the case of using directly vmalloc. The exact number depends on size
-> 
->                  of using vmalloc directly.                          on the size
-
-ok & ok
-
-[...]
-
->> +6. write protect the pool
-> 
->       write-protect
-
-ok
-
-[...]
-
->> +7. use in read-only mode the handlers obtained through the allocations
-> 
->                                 handles ??
-
-yes
-
----
-thanks, igor
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
