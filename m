@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FC426B000E
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CF1966B000C
 	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 04:25:59 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 30so4206953wrw.6
+Received: by mail-wr0-f197.google.com with SMTP id r15so4161233wrc.11
         for <linux-mm@kvack.org>; Fri, 09 Feb 2018 01:25:59 -0800 (PST)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id 36si1511743edo.126.2018.02.09.01.25.57
+        by mx.google.com with ESMTPS id f25si1508519edm.529.2018.02.09.01.25.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 01:25:57 -0800 (PST)
+        Fri, 09 Feb 2018 01:25:58 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 07/31] x86/entry/32: Restore segments before int registers
-Date: Fri,  9 Feb 2018 10:25:16 +0100
-Message-Id: <1518168340-9392-8-git-send-email-joro@8bytes.org>
+Subject: [PATCH 13/31] x86/entry/32: Handle Entry from Kernel-Mode on Entry-Stack
+Date: Fri,  9 Feb 2018 10:25:22 +0100
+Message-Id: <1518168340-9392-14-git-send-email-joro@8bytes.org>
 In-Reply-To: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,109 +22,194 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Restoring the segments can cause exceptions that need to be
-handled. With PTI enabled, we still need to be on kernel cr3
-when the exception happens. For the cr3-switch we need
-at least one integer scratch register, so we can't switch
-with the user integer registers already loaded.
+It can happen that we enter the kernel from kernel-mode and
+on the entry-stack. The most common way this happens is when
+we get an exception while loading the user-space segment
+registers on the kernel-to-userspace exit path.
 
-Avoid a push/pop cycle to free a register for the cr3 switch
-by restoring the segments first. That way the integer
-registers are not live yet and we can use them for the cr3
-switch.
+The segment loading needs to be done after the entry-stack
+switch, because the stack-switch needs kernel %fs for
+per_cpu access.
 
-This also helps in the NMI path, where we need to leave with
-the same cr3 as we entered. There we still have the
-callee-saved registers live when switching cr3s.
+When this happens, we need to make sure that we leave the
+kernel with the entry-stack again, so that the interrupted
+code-path runs on the right stack when switching to the
+user-cr3.
+
+We do this by detecting this condition on kernel-entry by
+checking CS.RPL and %esp, and if it happens, we copy over
+the complete content of the entry stack to the task-stack.
+This needs to be done because once we enter the exception
+handlers we might be scheduled out or even migrated to a
+different CPU, so that we can't rely on the entry-stack
+contents. We also leave a marker in the stack-frame to
+detect this condition on the exit path.
+
+On the exit path the copy is reversed, we copy all of the
+remaining task-stack back to the entry-stack and switch
+to it.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 50 ++++++++++++++++++++---------------------------
- 1 file changed, 21 insertions(+), 29 deletions(-)
+ arch/x86/entry/entry_32.S | 109 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 108 insertions(+), 1 deletion(-)
 
 diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 9bd7718..b39c5e2 100644
+index b5ef003..d94dab6 100644
 --- a/arch/x86/entry/entry_32.S
 +++ b/arch/x86/entry/entry_32.S
-@@ -92,11 +92,6 @@
- .macro PUSH_GS
- 	pushl	$0
- .endm
--.macro POP_GS pop=0
--	addl	$(4 + \pop), %esp
--.endm
--.macro POP_GS_EX
--.endm
- 
-  /* all the rest are no-op */
- .macro PTGS_TO_GS
-@@ -116,20 +111,6 @@
- 	pushl	%gs
- .endm
- 
--.macro POP_GS pop=0
--98:	popl	%gs
--  .if \pop <> 0
--	add	$\pop, %esp
--  .endif
--.endm
--.macro POP_GS_EX
--.pushsection .fixup, "ax"
--99:	movl	$0, (%esp)
--	jmp	98b
--.popsection
--	_ASM_EXTABLE(98b, 99b)
--.endm
--
- .macro PTGS_TO_GS
- 98:	mov	PT_GS(%esp), %gs
- .endm
-@@ -201,24 +182,35 @@
- 	popl	%eax
- .endm
- 
--.macro RESTORE_REGS pop=0
--	RESTORE_INT_REGS
--1:	popl	%ds
--2:	popl	%es
--3:	popl	%fs
--	POP_GS \pop
-+.macro RESTORE_SEGMENTS
-+1:	mov	PT_DS(%esp), %ds
-+2:	mov	PT_ES(%esp), %es
-+3:	mov	PT_FS(%esp), %fs
-+	PTGS_TO_GS
- .pushsection .fixup, "ax"
--4:	movl	$0, (%esp)
-+4:	movl	$0, PT_DS(%esp)
- 	jmp	1b
--5:	movl	$0, (%esp)
-+5:	movl	$0, PT_ES(%esp)
- 	jmp	2b
--6:	movl	$0, (%esp)
-+6:	movl	$0, PT_FS(%esp)
- 	jmp	3b
- .popsection
- 	_ASM_EXTABLE(1b, 4b)
- 	_ASM_EXTABLE(2b, 5b)
- 	_ASM_EXTABLE(3b, 6b)
--	POP_GS_EX
-+	PTGS_TO_GS_EX
-+.endm
+@@ -358,6 +358,9 @@
+  * copied there. So allocate the stack-frame on the task-stack and
+  * switch to it before we do any copying.
+  */
 +
-+.macro RESTORE_SKIP_SEGMENTS pop=0
-+	/* Jump over the segments stored on stack */
-+	addl	$((4 * 4) + \pop), %esp
-+.endm
++#define CS_FROM_ENTRY_STACK	(1 << 31)
 +
-+.macro RESTORE_REGS pop=0
-+	RESTORE_SEGMENTS
-+	RESTORE_INT_REGS
-+	/* Skip over already restored segment registers */
-+	RESTORE_SKIP_SEGMENTS \pop
+ .macro SWITCH_TO_KERNEL_STACK
+ 
+ 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
+@@ -381,6 +384,10 @@
+ 	/* Load top of task-stack into %edi */
+ 	movl	TSS_entry_stack(%edi), %edi
+ 
++	/* Special case - entry from kernel mode via entry stack */
++	testl	$SEGMENT_RPL_MASK, PT_CS(%esp)
++	jz	.Lentry_from_kernel_\@
++
+ 	/* Bytes to copy */
+ 	movl	$PTREGS_SIZE, %ecx
+ 
+@@ -394,8 +401,8 @@
+ 	 */
+ 	addl	$(4 * 4), %ecx
+ 
+-.Lcopy_pt_regs_\@:
+ #endif
++.Lcopy_pt_regs_\@:
+ 
+ 	/* Allocate frame on task-stack */
+ 	subl	%ecx, %edi
+@@ -410,6 +417,56 @@
+ 	cld
+ 	rep movsb
+ 
++	jmp .Lend_\@
++
++.Lentry_from_kernel_\@:
++
++	/*
++	 * This handles the case when we enter the kernel from
++	 * kernel-mode and %esp points to the entry-stack. When this
++	 * happens we need to switch to the task-stack to run C code,
++	 * but switch back to the entry-stack again when we approach
++	 * iret and return to the interrupted code-path. This usually
++	 * happens when we hit an exception while restoring user-space
++	 * segment registers on the way back to user-space.
++	 *
++	 * When we switch to the task-stack here, we can't trust the
++	 * contents of the entry-stack anymore, as the exception handler
++	 * might be scheduled out or moved to another CPU. Therefore we
++	 * copy the complete entry-stack to the task-stack and set a
++	 * marker in the iret-frame (bit 31 of the CS dword) to detect
++	 * what we've done on the iret path.
++	 *
++	 * On the iret path we copy everything back and switch to the
++	 * entry-stack, so that the interrupted kernel code-path
++	 * continues on the same stack it was interrupted with.
++	 *
++	 * Be aware that an NMI can happen anytime in this code.
++	 *
++	 * %esi: Entry-Stack pointer (same as %esp)
++	 * %edi: Top of the task stack
++	 */
++
++	/* Calculate number of bytes on the entry stack in %ecx */
++	movl	%esi, %ecx
++
++	/* %ecx to the top of entry-stack */
++	andl	$(MASK_entry_stack), %ecx
++	addl	$(SIZEOF_entry_stack), %ecx
++
++	/* Number of bytes on the entry stack to %ecx */
++	sub	%esi, %ecx
++
++	/* Mark stackframe as coming from entry stack */
++	orl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
++
++	/*
++	 * %esi and %edi are unchanged, %ecx contains the number of
++	 * bytes to copy. The code at .Lcopy_pt_regs_\@ will allocate
++	 * the stack-frame on task-stack and copy everything over
++	 */
++	jmp .Lcopy_pt_regs_\@
++
+ .Lend_\@:
  .endm
  
- .macro CHECK_AND_APPLY_ESPFIX
+@@ -467,6 +524,55 @@
+ .endm
+ 
+ /*
++ * This macro handles the case when we return to kernel-mode on the iret
++ * path and have to switch back to the entry stack.
++ *
++ * See the comments below the .Lentry_from_kernel_\@ label in the
++ * SWITCH_TO_KERNEL_STACK macro for more details.
++ */
++.macro PARANOID_EXIT_TO_KERNEL_MODE
++
++	/*
++	 * Test if we entered the kernel with the entry-stack. Most
++	 * likely we did not, because this code only runs on the
++	 * return-to-kernel path.
++	 */
++	testl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
++	jz	.Lend_\@
++
++	/* Unlikely slow-path */
++
++	/* Clear marker from stack-frame */
++	andl	$(~CS_FROM_ENTRY_STACK), PT_CS(%esp)
++
++	/* Copy the remaining task-stack contents to entry-stack */
++	movl	%esp, %esi
++	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %edi
++
++	/* Bytes on the task-stack to ecx */
++	movl	PER_CPU_VAR(cpu_current_top_of_stack), %ecx
++	subl	%esi, %ecx
++
++	/* Allocate stack-frame on entry-stack */
++	subl	%ecx, %edi
++
++	/*
++	 * Save future stack-pointer, we must not switch until the
++	 * copy is done, otherwise the NMI handler could destroy the
++	 * contents of the task-stack we are about to copy.
++	 */
++	movl	%edi, %ebx
++
++	/* Do the copy */
++	cld
++	rep movsb
++
++	/* Safe to switch to entry-stack now */
++	movl	%ebx, %esp
++
++.Lend_\@:
++.endm
++/*
+  * %eax: prev task
+  * %edx: next task
+  */
+@@ -837,6 +943,7 @@ restore_all:
+ 
+ restore_all_kernel:
+ 	TRACE_IRQS_IRET
++	PARANOID_EXIT_TO_KERNEL_MODE
+ 	RESTORE_REGS 4
+ 	jmp	.Lirq_return
+ 
 -- 
 2.7.4
 
