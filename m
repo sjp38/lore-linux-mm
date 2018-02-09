@@ -1,68 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 81B8B6B0005
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 07:34:51 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id d21so2117463pll.12
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 04:34:51 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p89sor656371pfk.85.2018.02.09.04.34.50
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C99416B0005
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 08:08:27 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id c27so4452021wrg.12
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 05:08:27 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p23sor1384292edm.20.2018.02.09.05.08.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 09 Feb 2018 04:34:50 -0800 (PST)
-Date: Fri, 9 Feb 2018 21:34:46 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH 1/2] zsmalloc: introduce zs_huge_object() function
-Message-ID: <20180209123446.GB485@tigerII.localdomain>
-References: <20180207092919.19696-1-sergey.senozhatsky@gmail.com>
- <20180207092919.19696-2-sergey.senozhatsky@gmail.com>
- <20180208163006.GB17354@rapoport-lnx>
- <20180209025520.GA3423@jagdpanzerIV>
- <20180209041046.GB23828@bombadil.infradead.org>
- <20180209053630.GC689@jagdpanzerIV>
- <20180209111102.GB2044@rapoport-lnx>
+        Fri, 09 Feb 2018 05:08:26 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180209111102.GB2044@rapoport-lnx>
+From: Pawan Kumar <pawan.yoda@gmail.com>
+Date: Fri, 9 Feb 2018 18:38:24 +0530
+Message-ID: <CAGL5iyR0R_YgVrSXO5gv-A4EeitwQGr5Pgp48sbb7QMk2pxU3g@mail.gmail.com>
+Subject: kenral error
+Content-Type: multipart/alternative; boundary="089e08210da83f505e0564c739fb"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Matthew Wilcox <willy@infradead.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: linux-mm@kvack.org
 
-On (02/09/18 13:11), Mike Rapoport wrote:
-[..]
-> > +/**
-> > + * zs_huge_object() - Test if a compressed object's size is too big for normal
-> > + *                    zspool classes and it will be stored in a huge class.
-> 
-> Maybe "it should be stored ..."?
+--089e08210da83f505e0564c739fb
+Content-Type: text/plain; charset="UTF-8"
 
-Agreed.
+Hi,
 
-> > + * @sz: Size in bytes of the compressed object.
-> > + *
-> > + * The functions checks if the object's size falls into huge_class area.
-> > + * We must take ZS_HANDLE_SIZE into account and test the actual size we
-> 
->                 ^ %ZS_HANDLE_SIZE
+I got this error but I am not much familiar this, can you explain on that.
+What should I need to do?
 
-Indeed. ``%CONST``
 
-> > + * are going to use up, because zs_malloc() unconditionally adds the
-> 
-> I think 's/use up/use/' here
 
-Agreed.
 
-> > + * handle size before it performs size_class lookup.
-> 
->                                    ^ &size_class
 
-OK. ``&struct name``
 
-Thanks for reviewing it!
+sysctl: The scan_unevictable_pages sysctl/node-interface has been disabled
+for lack of a legitimate use case.  If you have one, please send an email
+to linux-mm@kvack.org.
 
-	-ss
+Thanks
+
+--089e08210da83f505e0564c739fb
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">
+
+
+
+
+<span></span>
+
+
+
+
+
+<p class=3D"gmail-p1" style=3D"margin:0px;font-style:normal;font-variant-ca=
+ps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-w=
+eight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-fam=
+ily:Menlo;color:rgb(0,0,0);background-color:rgb(255,255,255)"><span style=
+=3D"font-variant-ligatures:no-common-ligatures">Hi,</span></p><p class=3D"g=
+mail-p1" style=3D"margin:0px;font-style:normal;font-variant-caps:normal;fon=
+t-variant-numeric:normal;font-variant-east-asian:normal;font-weight:normal;=
+font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;col=
+or:rgb(0,0,0);background-color:rgb(255,255,255)"><span style=3D"font-varian=
+t-ligatures:no-common-ligatures">I got this error but I am not much familia=
+r this, can you explain on that. What should I need to do?</span></p><p cla=
+ss=3D"gmail-p1" style=3D"margin:0px;font-style:normal;font-variant-caps:nor=
+mal;font-variant-numeric:normal;font-variant-east-asian:normal;font-weight:=
+normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Me=
+nlo;color:rgb(0,0,0);background-color:rgb(255,255,255)"><span style=3D"font=
+-variant-ligatures:no-common-ligatures">=C2=A0=C2=A0</span></p><p class=3D"=
+gmail-p1" style=3D"margin:0px;font-style:normal;font-variant:normal;font-we=
+ight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-fami=
+ly:Menlo;color:rgb(0,0,0);background-color:rgb(255,255,255)"><span class=3D=
+"gmail-s1" style=3D"font-variant-ligatures:no-common-ligatures"><br></span>=
+</p><p class=3D"gmail-p1" style=3D"margin:0px;font-style:normal;font-varian=
+t:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:=
+normal;font-family:Menlo;color:rgb(0,0,0);background-color:rgb(255,255,255)=
+"><br></p><p class=3D"gmail-p1" style=3D"margin:0px;font-style:normal;font-=
+variant:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-h=
+eight:normal;font-family:Menlo;color:rgb(0,0,0);background-color:rgb(255,25=
+5,255)"><span class=3D"gmail-s1" style=3D"font-variant-ligatures:no-common-=
+ligatures"><br></span></p><p class=3D"gmail-p1" style=3D"margin:0px;font-st=
+yle:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-=
+size:11px;line-height:normal;font-family:Menlo;color:rgb(0,0,0);background-=
+color:rgb(255,255,255)"><span class=3D"gmail-s1" style=3D"font-variant-liga=
+tures:no-common-ligatures">sysctl: The scan_unevictable_pages sysctl/node-i=
+nterface has been disabled for lack of a legitimate use case.<span class=3D=
+"gmail-Apple-converted-space">=C2=A0 </span>If you have one, please send an=
+ email to <a href=3D"mailto:linux-mm@kvack.org">linux-mm@kvack.org</a>.</sp=
+an></p>
+
+
+<br><div>Thanks</div><div><br></div></div>
+
+--089e08210da83f505e0564c739fb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
