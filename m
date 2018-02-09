@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 77BED6B0023
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 04:26:01 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id s18so4235137wrg.5
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 01:26:01 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id y94si1514017ede.315.2018.02.09.01.26.00
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F74D6B0025
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 04:26:02 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id x188so3421547wmg.2
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 01:26:02 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id p2si1492009edp.379.2018.02.09.01.26.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 09 Feb 2018 01:26:00 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 15/31] x86/pgtable/32: Allocate 8k page-tables when PTI is enabled
-Date: Fri,  9 Feb 2018 10:25:24 +0100
-Message-Id: <1518168340-9392-16-git-send-email-joro@8bytes.org>
+Subject: [PATCH 17/31] x86/pgtable: Move pti_set_user_pgd() to pgtable.h
+Date: Fri,  9 Feb 2018 10:25:26 +0100
+Message-Id: <1518168340-9392-18-git-send-email-joro@8bytes.org>
 In-Reply-To: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,95 +22,82 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Allocate a kernel and a user page-table root when PTI is
-enabled. Also allocate a full page per root for PAE because
-otherwise the bit to flip in cr3 to switch between them
-would be non-constant, which creates a lot of hassle.
-Keep that for a later optimization.
+There it is also usable from 32 bit code.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/kernel/head_32.S | 20 +++++++++++++++-----
- arch/x86/mm/pgtable.c     |  5 +++--
- 2 files changed, 18 insertions(+), 7 deletions(-)
+ arch/x86/include/asm/pgtable.h    | 23 +++++++++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h | 21 ---------------------
+ 2 files changed, 23 insertions(+), 21 deletions(-)
 
-diff --git a/arch/x86/kernel/head_32.S b/arch/x86/kernel/head_32.S
-index c290209..1f35d60 100644
---- a/arch/x86/kernel/head_32.S
-+++ b/arch/x86/kernel/head_32.S
-@@ -512,11 +512,18 @@ ENTRY(initial_code)
- ENTRY(setup_once_ref)
- 	.long setup_once
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 0a9f746..c9d3cf9 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -618,8 +618,31 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
  
+ pmd_t *populate_extra_pmd(unsigned long vaddr);
+ pte_t *populate_extra_pte(unsigned long vaddr);
++
 +#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+#define	PGD_ALIGN	(2 * PAGE_SIZE)
-+#define PTI_USER_PGD_FILL	1024
-+#else
-+#define	PGD_ALIGN	(PAGE_SIZE)
-+#define PTI_USER_PGD_FILL	0
-+#endif
- /*
-  * BSS section
-  */
- __PAGE_ALIGNED_BSS
--	.align PAGE_SIZE
-+	.align PGD_ALIGN
- #ifdef CONFIG_X86_PAE
- .globl initial_pg_pmd
- initial_pg_pmd:
-@@ -526,14 +533,17 @@ initial_pg_pmd:
- initial_page_table:
- 	.fill 1024,4,0
- #endif
-+	.align PGD_ALIGN
- initial_pg_fixmap:
- 	.fill 1024,4,0
--.globl empty_zero_page
--empty_zero_page:
--	.fill 4096,1,0
- .globl swapper_pg_dir
-+	.align PGD_ALIGN
- swapper_pg_dir:
- 	.fill 1024,4,0
-+	.fill PTI_USER_PGD_FILL,4,0
-+.globl empty_zero_page
-+empty_zero_page:
-+	.fill 4096,1,0
- EXPORT_SYMBOL(empty_zero_page)
++pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd);
++
++/*
++ * Take a PGD location (pgdp) and a pgd value that needs to be set there.
++ * Populates the user and returns the resulting PGD that must be set in
++ * the kernel copy of the page tables.
++ */
++static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++{
++	if (!static_cpu_has(X86_FEATURE_PTI))
++		return pgd;
++	return __pti_set_user_pgd(pgdp, pgd);
++}
++#else   /* CONFIG_PAGE_TABLE_ISOLATION */
++static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++{
++	return pgd;
++}
++#endif  /* CONFIG_PAGE_TABLE_ISOLATION */
++
+ #endif	/* __ASSEMBLY__ */
  
- /*
-@@ -542,7 +552,7 @@ EXPORT_SYMBOL(empty_zero_page)
- #ifdef CONFIG_X86_PAE
- __PAGE_ALIGNED_DATA
- 	/* Page-aligned for the benefit of paravirt? */
--	.align PAGE_SIZE
-+	.align PGD_ALIGN
- ENTRY(initial_page_table)
- 	.long	pa(initial_pg_pmd+PGD_IDENT_ATTR),0	/* low identity map */
- # if KPMDS == 3
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 004abf9..a81d42e 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -338,7 +338,8 @@ static inline pgd_t *_pgd_alloc(void)
- 	 * We allocate one page for pgd.
- 	 */
- 	if (!SHARED_KERNEL_PMD)
--		return (pgd_t *)__get_free_page(PGALLOC_GFP);
-+		return (pgd_t *)__get_free_pages(PGALLOC_GFP,
-+						 PGD_ALLOCATION_ORDER);
- 
- 	/*
- 	 * Now PAE kernel is not running as a Xen domain. We can allocate
-@@ -350,7 +351,7 @@ static inline pgd_t *_pgd_alloc(void)
- static inline void _pgd_free(pgd_t *pgd)
- {
- 	if (!SHARED_KERNEL_PMD)
--		free_page((unsigned long)pgd);
-+		free_pages((unsigned long)pgd, PGD_ALLOCATION_ORDER);
- 	else
- 		kmem_cache_free(pgd_cache, pgd);
++
+ #ifdef CONFIG_X86_32
+ # include <asm/pgtable_32.h>
+ #else
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 58d7f10..396664d 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -145,27 +145,6 @@ static inline bool pgdp_maps_userspace(void *__ptr)
+ 	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
  }
+ 
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd);
+-
+-/*
+- * Take a PGD location (pgdp) and a pgd value that needs to be set there.
+- * Populates the user and returns the resulting PGD that must be set in
+- * the kernel copy of the page tables.
+- */
+-static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
+-{
+-	if (!static_cpu_has(X86_FEATURE_PTI))
+-		return pgd;
+-	return __pti_set_user_pgd(pgdp, pgd);
+-}
+-#else
+-static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
+-{
+-	return pgd;
+-}
+-#endif
+-
+ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ {
+ #if defined(CONFIG_PAGE_TABLE_ISOLATION) && !defined(CONFIG_X86_5LEVEL)
 -- 
 2.7.4
 
