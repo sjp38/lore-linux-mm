@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 588156B0030
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 04:26:08 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id d37so2900869wrd.15
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0876A6B0031
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 04:26:09 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id d17so4223021wrc.19
         for <linux-mm@kvack.org>; Fri, 09 Feb 2018 01:26:08 -0800 (PST)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id j54si1651187eda.80.2018.02.09.01.26.07
+        by mx.google.com with ESMTPS id h13si1424851edi.303.2018.02.09.01.26.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 09 Feb 2018 01:26:07 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 27/31] x86/ldt: Reserve address-space range on 32 bit for the LDT
-Date: Fri,  9 Feb 2018 10:25:36 +0100
-Message-Id: <1518168340-9392-28-git-send-email-joro@8bytes.org>
+Subject: [PATCH 28/31] x86/ldt: Define LDT_END_ADDR
+Date: Fri,  9 Feb 2018 10:25:37 +0100
+Message-Id: <1518168340-9392-29-git-send-email-joro@8bytes.org>
 In-Reply-To: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,72 +22,62 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Reserve 2MB/4MB of address-space for mapping the LDT to
-user-space on 32 bit PTI kernels.
+It marks the end of the address-space range reserved for the
+LDT. The LDT-code will use it when unmapping the LDT for
+user-space.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable_32_types.h | 7 +++++--
- arch/x86/mm/dump_pagetables.c           | 9 +++++++++
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/pgtable_32_types.h | 2 ++
+ arch/x86/include/asm/pgtable_64_types.h | 2 ++
+ arch/x86/kernel/ldt.c                   | 2 +-
+ 3 files changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
-index 0777e18..eb2e97a 100644
+index eb2e97a..02bd445 100644
 --- a/arch/x86/include/asm/pgtable_32_types.h
 +++ b/arch/x86/include/asm/pgtable_32_types.h
-@@ -48,13 +48,16 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
- 	((FIXADDR_TOT_START - PAGE_SIZE * (CPU_ENTRY_AREA_PAGES + 1))   \
- 	 & PMD_MASK)
- 
--#define PKMAP_BASE		\
-+#define LDT_BASE_ADDR		\
+@@ -51,6 +51,8 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
+ #define LDT_BASE_ADDR		\
  	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)
  
-+#define PKMAP_BASE		\
-+	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
++#define LDT_END_ADDR		(LDT_BASE_ADDR + PMD_SIZE)
 +
- #ifdef CONFIG_HIGHMEM
- # define VMALLOC_END	(PKMAP_BASE - 2 * PAGE_SIZE)
+ #define PKMAP_BASE		\
+ 	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
+ 
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index e57003a..15188baa 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -90,12 +90,14 @@ typedef struct { pteval_t pte; } pte_t;
+ # define __VMEMMAP_BASE		_AC(0xffd4000000000000, UL)
+ # define LDT_PGD_ENTRY		_AC(-112, UL)
+ # define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
++#define  LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
  #else
--# define VMALLOC_END	(CPU_ENTRY_AREA_BASE - 2 * PAGE_SIZE)
-+# define VMALLOC_END	(LDT_BASE_ADDR - 2 * PAGE_SIZE)
+ # define VMALLOC_SIZE_TB	_AC(32, UL)
+ # define __VMALLOC_BASE		_AC(0xffffc90000000000, UL)
+ # define __VMEMMAP_BASE		_AC(0xffffea0000000000, UL)
+ # define LDT_PGD_ENTRY		_AC(-3, UL)
+ # define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
++#define  LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
  #endif
  
- #define MODULES_VADDR	VMALLOC_START
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 2151ebb..fdefdf0 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -117,6 +117,9 @@ enum address_markers_idx {
- #ifdef CONFIG_HIGHMEM
- 	PKMAP_BASE_NR,
- #endif
-+#ifdef CONFIG_MODIFY_LDT_SYSCALL
-+	LDT_NR,
-+#endif
- 	CPU_ENTRY_AREA_NR,
- 	FIXADDR_START_NR,
- 	END_OF_SPACE_NR,
-@@ -130,6 +133,9 @@ static struct addr_marker address_markers[] = {
- #ifdef CONFIG_HIGHMEM
- 	[PKMAP_BASE_NR]		= { 0UL,		"Persistent kmap() Area" },
- #endif
-+#ifdef CONFIG_MODIFY_LDT_SYSCALL
-+	[LDT_NR]		= { 0UL,		"LDT remap" },
-+#endif
- 	[CPU_ENTRY_AREA_NR]	= { 0UL,		"CPU entry area" },
- 	[FIXADDR_START_NR]	= { 0UL,		"Fixmap area" },
- 	[END_OF_SPACE_NR]	= { -1,			NULL }
-@@ -579,6 +585,9 @@ static int __init pt_dump_init(void)
- # endif
- 	address_markers[FIXADDR_START_NR].start_address = FIXADDR_START;
- 	address_markers[CPU_ENTRY_AREA_NR].start_address = CPU_ENTRY_AREA_BASE;
-+# ifdef CONFIG_MODIFY_LDT_SYSCALL
-+	address_markers[LDT_NR].start_address = LDT_BASE_ADDR;
-+# endif
- #endif
- 	return 0;
- }
+ #ifdef CONFIG_RANDOMIZE_MEMORY
+diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
+index 26d713e..f3c2fbf 100644
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -202,7 +202,7 @@ static void free_ldt_pgtables(struct mm_struct *mm)
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ 	struct mmu_gather tlb;
+ 	unsigned long start = LDT_BASE_ADDR;
+-	unsigned long end = start + (1UL << PGDIR_SHIFT);
++	unsigned long end = LDT_END_ADDR;
+ 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return;
 -- 
 2.7.4
 
