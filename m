@@ -1,87 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B33546B0005
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 11:23:55 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id f11so6988562qkm.1
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 08:23:55 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id s3si2442819qkc.334.2018.02.09.08.23.54
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B00096B0007
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 11:41:32 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id z83so3911699wmc.5
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 08:41:32 -0800 (PST)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id b200si1781037wmf.157.2018.02.09.08.41.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 08:23:54 -0800 (PST)
-Date: Fri, 9 Feb 2018 18:23:53 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH] mm/page_poison: move PAGE_POISON to page_poison.c
-Message-ID: <20180209180755-mutt-send-email-mst@kernel.org>
-References: <1518163694-27155-1-git-send-email-wei.w.wang@intel.com>
+        Fri, 09 Feb 2018 08:41:31 -0800 (PST)
+Subject: Re: [PATCH 6/6] Documentation for Pmalloc
+References: <20180204164732.28241-1-igor.stoppa@huawei.com>
+ <20180204170056.28772-1-igor.stoppa@huawei.com>
+ <20180204170056.28772-2-igor.stoppa@huawei.com>
+ <29176ee0-f253-ccd7-8201-3f061b5890b0@infradead.org>
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Message-ID: <33d85206-abfb-86cf-d303-b7efba9cc325@huawei.com>
+Date: Fri, 9 Feb 2018 18:41:18 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1518163694-27155-1-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <29176ee0-f253-ccd7-8201-3f061b5890b0@infradead.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org
+To: Randy Dunlap <rdunlap@infradead.org>, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, willy@infradead.org
+Cc: cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On Fri, Feb 09, 2018 at 04:08:14PM +0800, Wei Wang wrote:
-> The PAGE_POISON macro is used in page_poison.c only, so avoid exporting
-> it. Also remove the "mm/debug-pagealloc.c" related comment, which is
-> obsolete.
+On 04/02/18 23:37, Randy Dunlap wrote:
+
+[...]
+
+>> +reason, could neither be declared as constant, nor it could take advantage
 > 
-> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Michael S. Tsirkin <mst@redhat.com>
-> ---
->  include/linux/poison.h | 7 -------
->  mm/page_poison.c       | 6 ++++++
->  2 files changed, 6 insertions(+), 7 deletions(-)
+>                                                   nor could it
+
+ok
+
+[...]
+
+>> +Ex: A policy that is loaded from userspace.
 > 
-> diff --git a/include/linux/poison.h b/include/linux/poison.h
-> index 15927eb..348bf67 100644
-> --- a/include/linux/poison.h
-> +++ b/include/linux/poison.h
-> @@ -30,13 +30,6 @@
->   */
->  #define TIMER_ENTRY_STATIC	((void *) 0x300 + POISON_POINTER_DELTA)
->  
-> -/********** mm/debug-pagealloc.c **********/
-> -#ifdef CONFIG_PAGE_POISONING_ZERO
-> -#define PAGE_POISON 0x00
-> -#else
-> -#define PAGE_POISON 0xaa
-> -#endif
-> -
->  /********** mm/page_alloc.c ************/
->  
->  #define TAIL_MAPPING	((void *) 0x400 + POISON_POINTER_DELTA)
+> Either
+>    Example:
+> or
+>    E.g.:
+> (meaning For example)
 
+ok
 
-My question is, why are these macros kept in a single header.
-Is it so it's easy to figure out source of a crash by
-looking at the data and locating it in the file?
-If so we should keep it in the header, but fix the comment.
-If no there are more macros to move out, like flex array ones.
+[...]
 
-> diff --git a/mm/page_poison.c b/mm/page_poison.c
-> index e83fd44..8aaf076 100644
-> --- a/mm/page_poison.c
-> +++ b/mm/page_poison.c
-> @@ -7,6 +7,12 @@
->  #include <linux/poison.h>
->  #include <linux/ratelimit.h>
->  
-> +#ifdef CONFIG_PAGE_POISONING_ZERO
-> +#define PAGE_POISON 0x00
-> +#else
-> +#define PAGE_POISON 0xaa
-> +#endif
-> +
->  static bool want_page_poisoning __read_mostly;
->  
->  static int early_page_poison_param(char *buf)
-> -- 
-> 2.7.4
+>> +Different kernel idrivers and threads can use different pools, for finer
+> 
+>                     drivers
+
+:-( ok
+
+[...]
+
+>> +  in use anymore by the requestor, however it will not become avaiable for
+> 
+>                            requester; however,                   available
+
+ok
+
+[...]
+
+>> +- pmalloc does not provide locking support wrt allocating vs protecting
+> 
+> Write out "wrt" -> with respect to.
+
+ok
+
+>> +  an individual pool, for performance reason. It is recommended to not
+> 
+>                                          reasons.                  not to
+
+ok & ok
+
+[...]
+
+>> +  in the case of using directly vmalloc. The exact number depends on size
+> 
+>                  of using vmalloc directly.                          on the size
+
+ok & ok
+
+[...]
+
+>> +6. write protect the pool
+> 
+>       write-protect
+
+ok
+
+[...]
+
+>> +7. use in read-only mode the handlers obtained through the allocations
+> 
+>                                 handles ??
+
+yes
+
+---
+thanks, igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
