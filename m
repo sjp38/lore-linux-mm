@@ -1,58 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 448116B0006
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 09:30:44 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id g65so3954913wmf.7
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 06:30:44 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id f2si1628053wmh.242.2018.02.09.06.30.42
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 852EE6B0006
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 09:44:24 -0500 (EST)
+Received: by mail-vk0-f69.google.com with SMTP id l2so4251904vki.18
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 06:44:24 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id z185si847230vkf.110.2018.02.09.06.44.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 06:30:43 -0800 (PST)
-Subject: Re: [PATCH 2/6] genalloc: selftest
-References: <20180204164732.28241-1-igor.stoppa@huawei.com>
- <20180204164732.28241-3-igor.stoppa@huawei.com>
- <e05598c1-3c7c-15c6-7278-ed52ceff0acf@infradead.org>
- <20180204230346.GA12502@bombadil.infradead.org>
- <02f42250-949b-83af-f030-159fc46f6f81@infradead.org>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <fe437c92-98a7-aba9-33eb-f6aaa5526ef9@huawei.com>
-Date: Fri, 9 Feb 2018 16:30:28 +0200
-MIME-Version: 1.0
-In-Reply-To: <02f42250-949b-83af-f030-159fc46f6f81@infradead.org>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
+        Fri, 09 Feb 2018 06:44:23 -0800 (PST)
+Subject: Re: [Resend] Possible bug in __fragmentation_index()
+Mime-Version: 1.0 (Apple Message framework v1085)
+Content-Type: text/plain; charset=us-ascii
+From: Robert Harris <robert.m.harris@oracle.com>
+In-Reply-To: <20180202174721.f63gume3klxevkbj@suse.de>
+Date: Fri, 9 Feb 2018 14:43:50 +0000
 Content-Transfer-Encoding: 7bit
+Message-Id: <AA7930B9-1E4D-400C-89EA-FC2FC6A7E1E4@oracle.com>
+References: <83AECC32-77A4-427D-9043-DE6FC48AD3FC@oracle.com> <20180202174721.f63gume3klxevkbj@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>, Matthew Wilcox <willy@infradead.org>
-Cc: jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Kemi Wang <kemi.wang@intel.com>, ying.huang@intel.com, David Rientjes <rientjes@google.com>, Vinayak Menon <vinmenon@codeaurora.org>
 
 
+On 2 Feb 2018, at 17:47, Mel Gorman wrote:
 
-On 05/02/18 02:14, Randy Dunlap wrote:
-> On 02/04/2018 03:03 PM, Matthew Wilcox wrote:
->> On Sun, Feb 04, 2018 at 02:19:22PM -0800, Randy Dunlap wrote:
->>>> +#ifndef __GENALLOC_SELFTEST_H__
->>>> +#define __GENALLOC_SELFTEST_H__
->>>
->>> Please use _LINUX_GENALLOC_SELFTEST_H_
->>
->> willy@bobo:~/kernel/linux$ git grep define.*_H__$ include/linux/*.h |wc -l
->> 98
->> willy@bobo:~/kernel/linux$ git grep define.*_H_$ include/linux/*.h |wc -l
->> 110
->> willy@bobo:~/kernel/linux$ git grep define.*_H$ include/linux/*.h |wc -l
->> 885
->>
->> No trailing underscore is 8x as common as one trailing underscore.
-> 
-> OK, ack.
+> On Fri, Feb 02, 2018 at 02:16:39PM +0000, Robert Harris wrote:
+>> I was planning to annotate the opaque calculation in
+>> __fragmentation_index() but on closer inspection I think there may be a
+>> bug.  I could use some feedback.
 
-ok, I'll move to _LINUX_xxx_yyy_H format
+A belated thank you for the reply.
 
---
-thanks, igor
+> It's intentional but could be fixed to give a real bound of 0 to 1 instead
+> of half the range as it currently give. The sysctl_extfrag_threshold should
+> also be adjusted at that time. After that, the real work is determining
+> if it's safe to strike a balance between reclaim/compaction that avoids
+> unnecessary compaction while not being too aggressive about reclaim or
+> having kswapd enter a runaway loop with a reintroduction of the "kswapd
+> stuck at 100% CPU time" problems.
+
+In my (incomplete) view, striking the balance is a case of determining the
+cost of memory regeneration through compaction versus reclaim and choosing
+the cheaper.  I'm reasonably confident that this could be achieved for
+compaction, which is why the calculation in __fragmentation_index() caught
+my eye in the first place, but reclaim/swapping is probably significantly
+harder to quantify.  Similarly, a cost function for allocation failure
+is also necessary but not obvious.
+
+All of the above is just a nebulous plan for now;  in the meantime, I'll
+change __fragmentation_index() and the threshold as you suggest.
+
+Robert  Harris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
