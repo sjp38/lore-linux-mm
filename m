@@ -1,82 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CF0DA6B0005
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 12:37:57 -0500 (EST)
-Received: by mail-yw0-f198.google.com with SMTP id u1so9363105ywf.19
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 09:37:57 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id y196si476403ybe.753.2018.02.09.09.37.56
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AFBF6B0005
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 12:42:53 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id a2so4294052pgn.7
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 09:42:53 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id t83si2009353pfi.290.2018.02.09.09.42.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 09:37:56 -0800 (PST)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v3 0/1] initialize pages on demand during boot
-Date: Fri,  9 Feb 2018 12:27:19 -0500
-Message-Id: <20180209172720.10145-1-pasha.tatashin@oracle.com>
+        Fri, 09 Feb 2018 09:42:51 -0800 (PST)
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 86ACF217A5
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 17:42:51 +0000 (UTC)
+Received: by mail-io0-f176.google.com with SMTP id b198so10493277iof.6
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 09:42:51 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1518168340-9392-24-git-send-email-joro@8bytes.org>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org> <1518168340-9392-24-git-send-email-joro@8bytes.org>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Fri, 9 Feb 2018 17:42:18 +0000
+Message-ID: <CALCETrV14cb4sosu8T_ZtL3cbb6cCV52uHr3ZKBqZ5+TjqZf2Q@mail.gmail.com>
+Subject: Re: [PATCH 23/31] x86/mm/pti: Define X86_CR3_PTI_PCID_USER_BIT on x86_32
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, pasha.tatashin@oracle.com, m.mizuma@jp.fujitsu.com, akpm@linux-foundation.org, mhocko@suse.com, catalin.marinas@arm.com, takahiro.akashi@linaro.org, gi-oh.kim@profitbricks.com, heiko.carstens@de.ibm.com, baiyaowei@cmss.chinamobile.com, richard.weiyang@gmail.com, paul.burton@mips.com, miles.chen@mediatek.com, vbabka@suse.cz, mgorman@suse.de, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
 
-Change log:
-	v2 - v3
-	Andrew Morton's comments:
-	- Moved read of pgdat->first_deferred_pfn into
-	  deferred_zone_grow_lock, thus got rid of READ_ONCE()/WRITE_ONCE()
-	- Replaced spin_lock() with spin_lock_irqsave() in
-	  deferred_grow_zone
-	- Updated comments for deferred_zone_grow_lock
-	- Updated comment before deferred_grow_zone() explaining return
-	  value, and also noinline specifier.
-	- Fixed comment before _deferred_grow_zone().
+On Fri, Feb 9, 2018 at 9:25 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> From: Joerg Roedel <jroedel@suse.de>
+>
+> Move it out of the X86_64 specific processor defines so
+> that its visible for 32bit too.
+>
+> Signed-off-by: Joerg Roedel <jroedel@suse.de>
 
-	v1 - v2
-	Added Tested-by: Masayoshi Mizuma
-
-This change helps for three reasons:
-
-1. Insufficient amount of reserved memory due to arguments provided by
-user. User may request some buffers, increased hash tables sizes etc.
-Currently, machine panics during boot if it can't allocate memory due
-to insufficient amount of reserved memory. With this change, it will
-be able to grow zone before deferred pages are initialized.
-
-One observed example is described in the linked discussion [1] Mel
-Gorman writes:
-
-"
-Yasuaki Ishimatsu reported a premature OOM when trace_buf_size=100m was
-specified on a machine with many CPUs. The kernel tried to allocate 38.4GB
-but only 16GB was available due to deferred memory initialisation.
-"
-
-The allocations in the above scenario happen per-cpu in smp_init(),
-and before deferred pages are initialized. So, there is no way to
-predict how much memory we should put aside to boot successfully with
-deferred page initialization feature compiled in.
-
-2. The second reason is future proof. The kernel memory requirements
-may change, and we do not want to constantly update
-reset_deferred_meminit() to satisfy the new requirements. In addition,
-this function is currently in common code, but potentially would need
-to be split into arch specific variants, as more arches will start
-taking advantage of deferred page initialization feature.
-
-3. On demand initialization of reserved pages guarantees that we will
-initialize only as many pages early in boot using only one thread as
-needed, the rest are going to be efficiently initialized in parallel.
-
-[1] https://www.spinics.net/lists/linux-mm/msg139087.html
-
-Pavel Tatashin (1):
-  mm: initialize pages on demand during boot
-
- include/linux/memblock.h |  10 ---
- mm/memblock.c            |  23 -------
- mm/page_alloc.c          | 175 ++++++++++++++++++++++++++++++++++++-----------
- 3 files changed, 136 insertions(+), 72 deletions(-)
-
--- 
-2.16.1
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
