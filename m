@@ -1,84 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B94A6B0005
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 03:16:43 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id g16so3343428wmg.6
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 00:16:43 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c7sor973238edi.12.2018.02.09.00.16.41
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 368B86B0005
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 03:27:10 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id f4so1709205plr.14
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 00:27:10 -0800 (PST)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id f10si1112785pge.270.2018.02.09.00.27.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Feb 2018 00:16:41 -0800 (PST)
-Date: Fri, 9 Feb 2018 11:16:38 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: thp: fix potential clearing to referenced flag in
- page_idle_clear_pte_refs_one()
-Message-ID: <20180209081638.hcmruhckeu47kibx@node.shutemov.name>
-References: <1517875596-76350-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180208143926.5484e8fd75a56ff35b778bcc@linux-foundation.org>
- <20180209043325.l6b6hwgeomqldeb6@node.shutemov.name>
- <a19c08ad-ce34-3a9f-0c7c-6ca912660456@linux.alibaba.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a19c08ad-ce34-3a9f-0c7c-6ca912660456@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Feb 2018 00:27:09 -0800 (PST)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH] mm/page_poison: move PAGE_POISON to page_poison.c
+Date: Fri,  9 Feb 2018 16:08:14 +0800
+Message-Id: <1518163694-27155-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, gavin.dg@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
 
-On Thu, Feb 08, 2018 at 08:47:35PM -0800, Yang Shi wrote:
-> 
-> 
-> On 2/8/18 8:33 PM, Kirill A. Shutemov wrote:
-> > On Thu, Feb 08, 2018 at 02:39:26PM -0800, Andrew Morton wrote:
-> > > On Tue,  6 Feb 2018 08:06:36 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
-> > > 
-> > > > For PTE-mapped THP, the compound THP has not been split to normal 4K
-> > > > pages yet, the whole THP is considered referenced if any one of sub
-> > > > page is referenced.
-> > > > 
-> > > > When walking PTE-mapped THP by pvmw, all relevant PTEs will be checked
-> > > > to retrieve referenced bit. But, the current code just returns the
-> > > > result of the last PTE. If the last PTE has not referenced, the
-> > > > referenced flag will be cleared.
-> > > > 
-> > > > So, here just break pvmw walk once referenced PTE is found if the page
-> > > > is a part of THP.
-> > > > 
-> > > > ...
-> > > > 
-> > > > --- a/mm/page_idle.c
-> > > > +++ b/mm/page_idle.c
-> > > > @@ -67,6 +67,14 @@ static bool page_idle_clear_pte_refs_one(struct page *page,
-> > > >   		if (pvmw.pte) {
-> > > >   			referenced = ptep_clear_young_notify(vma, addr,
-> > > >   					pvmw.pte);
-> > > > +			/*
-> > > > +			 * For PTE-mapped THP, one sub page is referenced,
-> > > > +			 * the whole THP is referenced.
-> > > > +			 */
-> > > > +			if (referenced && PageTransCompound(pvmw.page)) {
-> > > > +				page_vma_mapped_walk_done(&pvmw);
-> > > > +				break;
-> > > > +			}
-> > > This means that the function will no longer clear the referenced bits
-> > > in all the ptes.  What effect does this have and should we document
-> > > this in some fashion?
-> > Yeah, the patch is wrong. We need to get all ptes for THP cleared.
-> > 
-> > What about something like this instead (untested):
-> 
-> Thanks, Kirill. It looks correct. All ptes should be cleared.
-> 
-> I'm going to prepare v2 patch.
+The PAGE_POISON macro is used in page_poison.c only, so avoid exporting
+it. Also remove the "mm/debug-pagealloc.c" related comment, which is
+obsolete.
 
-Note, it should be ||=, not |= (although it would work correctly too).
+Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+---
+ include/linux/poison.h | 7 -------
+ mm/page_poison.c       | 6 ++++++
+ 2 files changed, 6 insertions(+), 7 deletions(-)
 
-I should really wake up properly before touching code. :-/
-
+diff --git a/include/linux/poison.h b/include/linux/poison.h
+index 15927eb..348bf67 100644
+--- a/include/linux/poison.h
++++ b/include/linux/poison.h
+@@ -30,13 +30,6 @@
+  */
+ #define TIMER_ENTRY_STATIC	((void *) 0x300 + POISON_POINTER_DELTA)
+ 
+-/********** mm/debug-pagealloc.c **********/
+-#ifdef CONFIG_PAGE_POISONING_ZERO
+-#define PAGE_POISON 0x00
+-#else
+-#define PAGE_POISON 0xaa
+-#endif
+-
+ /********** mm/page_alloc.c ************/
+ 
+ #define TAIL_MAPPING	((void *) 0x400 + POISON_POINTER_DELTA)
+diff --git a/mm/page_poison.c b/mm/page_poison.c
+index e83fd44..8aaf076 100644
+--- a/mm/page_poison.c
++++ b/mm/page_poison.c
+@@ -7,6 +7,12 @@
+ #include <linux/poison.h>
+ #include <linux/ratelimit.h>
+ 
++#ifdef CONFIG_PAGE_POISONING_ZERO
++#define PAGE_POISON 0x00
++#else
++#define PAGE_POISON 0xaa
++#endif
++
+ static bool want_page_poisoning __read_mostly;
+ 
+ static int early_page_poison_param(char *buf)
 -- 
- Kirill A. Shutemov
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
