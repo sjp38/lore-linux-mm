@@ -1,114 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BDFAF6B0011
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 06:18:06 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id e195so3721153wmd.9
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 03:18:06 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id y16si1582287wrd.203.2018.02.09.03.18.05
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E84F6B0011
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 06:21:30 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id t31so6335417qtc.12
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 03:21:30 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n3si773295qtd.360.2018.02.09.03.21.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 03:18:05 -0800 (PST)
-Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
-References: <20180124175631.22925-1-igor.stoppa@huawei.com>
- <20180124175631.22925-5-igor.stoppa@huawei.com>
- <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
- <20180126053542.GA30189@bombadil.infradead.org>
- <alpine.DEB.2.20.1802021236510.31548@nuc-kabylake>
- <f2ddaed0-313e-8664-8a26-9d10b66ed0c5@huawei.com>
- <alpine.DEB.2.20.1802050935300.10705@nuc-kabylake>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <4e113814-7d24-b48c-993f-46d5aee1755d@huawei.com>
-Date: Fri, 9 Feb 2018 13:17:49 +0200
+        Fri, 09 Feb 2018 03:21:26 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w19BKfF1074227
+	for <linux-mm@kvack.org>; Fri, 9 Feb 2018 06:21:25 -0500
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2g17d31j06-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 09 Feb 2018 06:21:23 -0500
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Fri, 9 Feb 2018 11:11:11 -0000
+Date: Fri, 9 Feb 2018 13:11:03 +0200
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] zsmalloc: introduce zs_huge_object() function
+References: <20180207092919.19696-1-sergey.senozhatsky@gmail.com>
+ <20180207092919.19696-2-sergey.senozhatsky@gmail.com>
+ <20180208163006.GB17354@rapoport-lnx>
+ <20180209025520.GA3423@jagdpanzerIV>
+ <20180209041046.GB23828@bombadil.infradead.org>
+ <20180209053630.GC689@jagdpanzerIV>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1802050935300.10705@nuc-kabylake>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180209053630.GC689@jagdpanzerIV>
+Message-Id: <20180209111102.GB2044@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Boris Lukashev <blukashev@sempervictus.com>, Jann Horn <jannh@google.com>, jglisse@redhat.com, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-security-module@vger.kernel.org, linux-mm@kvack.org, kernel list <linux-kernel@vger.kernel.org>, Kernel
- Hardening <kernel-hardening@lists.openwall.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-
-
-On 05/02/18 17:40, Christopher Lameter wrote:
-> On Sat, 3 Feb 2018, Igor Stoppa wrote:
+On Fri, Feb 09, 2018 at 02:36:30PM +0900, Sergey Senozhatsky wrote:
+> On (02/08/18 20:10), Matthew Wilcox wrote:
+> [..]
+> > Examples::
+> > 
+> >   * Context: Any context.
+> >   * Context: Any context. Takes and releases the RCU lock.
+> >   * Context: Any context. Expects <lock> to be held by caller.
+> >   * Context: Process context. May sleep if @gfp flags permit.
+> >   * Context: Process context. Takes and releases <mutex>.
+> >   * Context: Softirq or process context. Takes and releases <lock>, BH-safe.
+> >   * Context: Interrupt context.
 > 
->>> We could even do this in a more thorough way. Can we use a ring 1 / 2
->>> distinction to create a hardened OS core that policies the rest of
->>> the ever expanding kernel with all its modules and this and that feature?
->>
->> What would be the differentiating criteria? Furthermore, what are the
->> chances
->> of invalidating the entire concept, because there is already an
->> hypervisor using
->> the higher level features?
->> That is what you are proposing, if I understand correctly.
+> I assume that  <mutex>  spelling serves as a placeholder and should be
+> replaced with a lock name in a real comment. E.g.
 > 
-> Were there not 4 rings as well as methods by the processor vendors to
-> virtualize them as well?
-
-I think you are talking x86, mostly.
-On ARM there are ELx and they are often (typically?) already used.
-For x86 I cannot comment.
-
->>> I think that will long term be a better approach and allow more than the
->>> current hardening approaches can get you. It seems that we are willing to
->>> tolerate significant performance regressions now. So lets use the
->>> protection mechanisms that the hardware offers.
->>
->> I would rather *not* propose significant performance regression :-P
+> 	Takes and releases audit_cmd_mutex.
 > 
-> But we already have implemented significant kernel hardening which causes
-> performance regressions. Using hardware capabilities allows the processor
-> vendor to further optimize these mechanisms whereas the software
-> preventative measures are eating up more and more performance as the pile
-> them on. Plus these are methods that can be worked around. Restrictions
-> implemented in a higher ring can be enforced and are much better than
-> just "hardening" (which is making life difficult for the hackers and
-> throwing away performannce for the average user).
+> or should it actually be
+> 
+> 	Takes and releases <audit_cmd_mutex>.
+> 
+> 
+> 
+> 
+> So below is zs_huge_object() documentation I came up with:
+>
+> ---
+> 
+> +/**
+> + * zs_huge_object() - Test if a compressed object's size is too big for normal
+> + *                    zspool classes and it will be stored in a huge class.
 
-What you are proposing requires major restructuring of the memory
-management - at the very least - provided that it doesn't cause the
-conflicts I mentioned above.
+Maybe "it should be stored ..."?
 
-Even after you do that, the system will still be working with memory
-pages, there will be still a need to segregate data within certain
-pages, or pay the penalty of handling exceptions, when data with
-different permissions coexist within the same page.
+> + * @sz: Size in bytes of the compressed object.
+> + *
+> + * The functions checks if the object's size falls into huge_class area.
+> + * We must take ZS_HANDLE_SIZE into account and test the actual size we
 
-The way the pmalloc API is designed is meant to facilitate the
-segregation and to actually improve performance, by grouping types of
-data with same scope and permission.
+                ^ %ZS_HANDLE_SIZE
 
-WRT the implementation, there is a minimal exposure to the memory
-provider, both for allocation and release.
+> + * are going to use up, because zs_malloc() unconditionally adds the
 
-Same goes for the protection mechanism.
-It's a single call to the function which makes pages read only.
-It would be trivial to swap it out with a call to whatever framework you
-want to come up with, for implementing ring/EL based protection.
+I think 's/use up/use/' here
 
->From this perspective, you can easily provide patches that implement
-what you are proposing, against pmalloc, if you really think that it's
-the way to go.
+> + * handle size before it performs size_class lookup.
 
-I'll be happy to use them, if they provide improved performance and same
-or better protection.
+                                   ^ &size_class
+> + *
+> + * Context: Any context.
+> + *
+> + * Return:
+> + * * true  - The object's size is too big, it will be stored in a huge class.
+> + * * false - The object will be store in normal zspool classes.
+> + */
+> ---
+> 
+> looks OK?
+> 
+> 	-ss
+> 
 
-The way I designed pmalloc was really to be able to switch to some
-alternate memory provider and/or protection mechanism, should a better
-one arise.
-
-But it can be done in a separate step, I think, since you are not
-proposing to just change pmalloc, you are proposing to re-design how the
-overall kernel memory hardening works (including executable pages, const
-data, __ro_after_init, etc.)
-
---
-igor
+-- 
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
