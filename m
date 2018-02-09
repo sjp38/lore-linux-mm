@@ -1,43 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A1036B0005
-	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 20:47:59 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id e8so3817259qkm.18
-        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 17:47:59 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 46sor1056015qtx.147.2018.02.08.17.47.58
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 48FF96B0005
+	for <linux-mm@kvack.org>; Thu,  8 Feb 2018 20:54:29 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id f1so984578plb.7
+        for <linux-mm@kvack.org>; Thu, 08 Feb 2018 17:54:29 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id z5-v6si806209pln.677.2018.02.08.17.54.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Feb 2018 17:47:58 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Feb 2018 17:54:28 -0800 (PST)
+Received: from mail.codeaurora.org (localhost.localdomain [127.0.0.1])
+	by smtp.codeaurora.org (Postfix) with ESMTP id C75DF6079C
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 01:54:27 +0000 (UTC)
 MIME-Version: 1.0
-In-Reply-To: <20180208202100.GB3424@bombadil.infradead.org>
-References: <20180208021112.GB14918@bombadil.infradead.org>
- <CAG48ez2-MTJ2YrS5fPZi19RY6P_6NWuK1U5CcQpJ25=xrGSy_A@mail.gmail.com>
- <CA+DvKQLHDR0s=6r4uiHL8kw2_PnfJcwYfPxgQOmuLbc=5k39+g@mail.gmail.com>
- <20180208185648.GB9524@bombadil.infradead.org> <CA+DvKQLHcFc3+kW_SnD6hs53yyD5Zi+uAeSgDMm1tRzxqy-Opg@mail.gmail.com>
- <20180208194235.GA3424@bombadil.infradead.org> <CA+DvKQKba0iU+tydbmGkAJsxCxazORDnuoe32sy-2nggyagUxQ@mail.gmail.com>
- <20180208202100.GB3424@bombadil.infradead.org>
-From: Daniel Micay <danielmicay@gmail.com>
-Date: Thu, 8 Feb 2018 20:47:57 -0500
-Message-ID: <CA+DvKQK_JAmy9AyJgX6wp=nMatYiAb5882JTzDuoD4Bcuzo2Cw@mail.gmail.com>
-Subject: Re: [RFC] Warn the user when they could overflow mapcount
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Thu, 08 Feb 2018 17:54:27 -0800
+From: pdaly@codeaurora.org
+Subject: [Question] zone_watermark_fast & highatomic reserve
+Message-ID: <93189939f16287f89a64691cf31a74fa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jann Horn <jannh@google.com>, linux-mm@kvack.org, Kernel Hardening <kernel-hardening@lists.openwall.com>, kernel list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Kees Cook <keescook@chromium.org>
+To: linux-mm@kvack.org
 
-I think there are likely legitimate programs mapping something a bunch of times.
+I am trying to understand the comment in zone_watermark_fast() that for 
+the case
+of an order-0 allocation, it is ok to return true without considering
+zone->nr_reserved_highatomic.
 
-Falling back to a global object -> count mapping (an rbtree / radix
-trie or whatever) with a lock once it hits saturation wouldn't risk
-breaking something. It would permanently leave the inline count
-saturated and just use the address of the inline counter as the key
-for the map to find the 64-bit counter. Once it gets to 0 in the map,
-it can delete it from the map and do the standard freeing process,
-avoiding leaks. It would really just make it a 64-bit reference count
-heavily size optimized for the common case. It would work elsewhere
-too, not just this case.
+Suppose that:
+1)CONFIG_CMA = n
+2)zone_page_state(z, NR_FREE_PAGES) > zone->watermark[WMARK_MIN]
+3)There is only one page which is MIGRATE_MOVABLE; all others are 
+MIGRATE_HIGHATOMIC.
+4)There is one zone, so zone->lowmem_reserve = 0
+
+For an order 0 GFP_KERNEL allocation:
+zone_watermark_fast() returns true due to not considering the amount of
+highatomic memory. rmqueue() finds the page in the MIGRATE_MOVEABLE 
+freelist
+and returns it.
+
+But I was expecting that the last available pages in the system would be
+reserved for allocations with ALLOC_HARDER/ALLOC_HIGH set. For example,
+order-0 atomic allocations.
+What am I getting wrong here?
+
+
+Regarding assumption 2&3)-
+For an device with 2Gb memory:
+the table above init_per_zone_wmark_min() shows that min_free_kbytes = 
+5792k.
+This would be ~1448 pages.
+reserve_highatomic_pageblock() caps highatomic pages at 1% of zone. This
+would be 2^31/(2^12 * 100) ~= 5242 pages.
+
+--Patrick
+
+-- 
+  The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+  a Linux Foundation Collaborative Project
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
