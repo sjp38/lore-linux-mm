@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 264976B0027
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 708B26B0026
 	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 04:26:03 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id i12so4148543wra.22
+Received: by mail-wr0-f198.google.com with SMTP id o20so4243089wro.3
         for <linux-mm@kvack.org>; Fri, 09 Feb 2018 01:26:03 -0800 (PST)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id w50si1630053eda.81.2018.02.09.01.26.01
+        by mx.google.com with ESMTPS id x6si1428846edh.347.2018.02.09.01.26.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 01:26:01 -0800 (PST)
+        Fri, 09 Feb 2018 01:26:02 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 16/31] x86/pgtable: Move pgdp kernel/user conversion functions to pgtable.h
-Date: Fri,  9 Feb 2018 10:25:25 +0100
-Message-Id: <1518168340-9392-17-git-send-email-joro@8bytes.org>
+Subject: [PATCH 19/31] x86/mm/pae: Populate valid user PGD entries
+Date: Fri,  9 Feb 2018 10:25:28 +0100
+Message-Id: <1518168340-9392-20-git-send-email-joro@8bytes.org>
 In-Reply-To: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,134 +22,69 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Make them available on 32 bit and clone_pgd_range() happy.
+Generic page-table code populates all non-leaf entries with
+_KERNPG_TABLE bits set. This is fine for all paging modes
+except PAE.
+
+In PAE mode only a subset of the bits is allowed to be set.
+Make sure we only set allowed bits by masking out the
+reserved bits.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable.h    | 49 +++++++++++++++++++++++++++++++++++++++
- arch/x86/include/asm/pgtable_64.h | 49 ---------------------------------------
- 2 files changed, 49 insertions(+), 49 deletions(-)
+ arch/x86/include/asm/pgtable_types.h | 26 ++++++++++++++++++++++++--
+ 1 file changed, 24 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index e42b894..0a9f746 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -1109,6 +1109,55 @@ static inline int pud_write(pud_t pud)
- 	return pud_flags(pud) & _PAGE_RW;
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 3696398..5027470 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -50,6 +50,7 @@
+ #define _PAGE_GLOBAL	(_AT(pteval_t, 1) << _PAGE_BIT_GLOBAL)
+ #define _PAGE_SOFTW1	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW1)
+ #define _PAGE_SOFTW2	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW2)
++#define _PAGE_SOFTW3	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW3)
+ #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
+ #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+ #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+@@ -267,14 +268,35 @@ typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
+ 
+ typedef struct { pgdval_t pgd; } pgd_t;
+ 
++#ifdef CONFIG_X86_PAE
++
++/*
++ * PHYSICAL_PAGE_MASK might be non-constant when SME is compiled in, so we can't
++ * use it here.
++ */
++#define PGD_PAE_PHYS_MASK	(((1ULL << __PHYSICAL_MASK_SHIFT)-1) & PAGE_MASK)
++
++/*
++ * PAE allows Base Address, P, PWT, PCD and AVL bits to be set in PGD entries.
++ * All other bits are Reserved MBZ
++ */
++#define PGD_ALLOWED_BITS	(PGD_PAE_PHYS_MASK | _PAGE_PRESENT | \
++				 _PAGE_PWT | _PAGE_PCD | \
++				 _PAGE_SOFTW1 | _PAGE_SOFTW2 | _PAGE_SOFTW3 )
++
++#else
++/* No need to mask any bits for !PAE */
++#define PGD_ALLOWED_BITS	(~0ULL)
++#endif
++
+ static inline pgd_t native_make_pgd(pgdval_t val)
+ {
+-	return (pgd_t) { val };
++	return (pgd_t) { val & PGD_ALLOWED_BITS };
  }
  
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+/*
-+ * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
-+ * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
-+ * the user one is in the last 4k.  To switch between them, you
-+ * just need to flip the 12th bit in their addresses.
-+ */
-+#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
-+
-+/*
-+ * This generates better code than the inline assembly in
-+ * __set_bit().
-+ */
-+static inline void *ptr_set_bit(void *ptr, int bit)
-+{
-+	unsigned long __ptr = (unsigned long)ptr;
-+
-+	__ptr |= BIT(bit);
-+	return (void *)__ptr;
-+}
-+static inline void *ptr_clear_bit(void *ptr, int bit)
-+{
-+	unsigned long __ptr = (unsigned long)ptr;
-+
-+	__ptr &= ~BIT(bit);
-+	return (void *)__ptr;
-+}
-+
-+static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
-+{
-+	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+
-+static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
-+{
-+	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+
-+static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
-+{
-+	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+
-+static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
-+{
-+	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
-+
- /*
-  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
-  *
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 81462e9..58d7f10 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -131,55 +131,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
- #endif
+ static inline pgdval_t native_pgd_val(pgd_t pgd)
+ {
+-	return pgd.pgd;
++	return pgd.pgd & PGD_ALLOWED_BITS;
  }
  
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--/*
-- * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
-- * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
-- * the user one is in the last 4k.  To switch between them, you
-- * just need to flip the 12th bit in their addresses.
-- */
--#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
--
--/*
-- * This generates better code than the inline assembly in
-- * __set_bit().
-- */
--static inline void *ptr_set_bit(void *ptr, int bit)
--{
--	unsigned long __ptr = (unsigned long)ptr;
--
--	__ptr |= BIT(bit);
--	return (void *)__ptr;
--}
--static inline void *ptr_clear_bit(void *ptr, int bit)
--{
--	unsigned long __ptr = (unsigned long)ptr;
--
--	__ptr &= ~BIT(bit);
--	return (void *)__ptr;
--}
--
--static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
--{
--	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
--}
--
--static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
--{
--	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
--}
--
--static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
--{
--	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
--}
--
--static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
--{
--	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
--}
--#endif /* CONFIG_PAGE_TABLE_ISOLATION */
--
- /*
-  * Page table pages are page-aligned.  The lower half of the top
-  * level is used for userspace and the top half for the kernel.
+ static inline pgdval_t pgd_flags(pgd_t pgd)
 -- 
 2.7.4
 
