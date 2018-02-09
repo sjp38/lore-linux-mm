@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DFDD6B0031
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 04:26:10 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id k38so4116218wre.23
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 01:26:10 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id l10si1559276edf.546.2018.02.09.01.26.08
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B2C1B6B0005
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 04:27:20 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id 17so988499wma.1
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 01:27:20 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id o1si1542637edd.346.2018.02.09.01.25.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 01:26:08 -0800 (PST)
+        Fri, 09 Feb 2018 01:25:57 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 31/31] x86/pti: Allow CONFIG_PAGE_TABLE_ISOLATION for x86_32
-Date: Fri,  9 Feb 2018 10:25:40 +0100
-Message-Id: <1518168340-9392-32-git-send-email-joro@8bytes.org>
+Subject: [PATCH 05/31] x86/entry/32: Unshare NMI return path
+Date: Fri,  9 Feb 2018 10:25:14 +0100
+Message-Id: <1518168340-9392-6-git-send-email-joro@8bytes.org>
 In-Reply-To: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,26 +22,41 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Allow PTI to be compiled on x86_32.
+NMI will no longer use most of the shared return path,
+because NMI needs special handling when the CR3 switches for
+PTI are added. This patch prepares for that.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- security/Kconfig | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/entry/entry_32.S | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/security/Kconfig b/security/Kconfig
-index b0cb9a5..93d85fd 100644
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -57,7 +57,7 @@ config SECURITY_NETWORK
- config PAGE_TABLE_ISOLATION
- 	bool "Remove the kernel mapping in user mode"
- 	default y
--	depends on X86_64 && !UML
-+	depends on X86 && !UML
- 	help
- 	  This feature reduces the number of hardware side channels by
- 	  ensuring that the majority of kernel addresses are not mapped
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 0289bde..00ae759 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -1007,7 +1007,7 @@ ENTRY(nmi)
+ 
+ 	/* Not on SYSENTER stack. */
+ 	call	do_nmi
+-	jmp	.Lrestore_all_notrace
++	jmp	.Lnmi_return
+ 
+ .Lnmi_from_sysenter_stack:
+ 	/*
+@@ -1018,7 +1018,11 @@ ENTRY(nmi)
+ 	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+ 	call	do_nmi
+ 	movl	%ebx, %esp
+-	jmp	.Lrestore_all_notrace
++
++.Lnmi_return:
++	CHECK_AND_APPLY_ESPFIX
++	RESTORE_REGS 4
++	jmp	.Lirq_return
+ 
+ #ifdef CONFIG_X86_ESPFIX32
+ .Lnmi_espfix_stack:
 -- 
 2.7.4
 
