@@ -1,99 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C99416B0005
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 08:08:27 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id c27so4452021wrg.12
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 05:08:27 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p23sor1384292edm.20.2018.02.09.05.08.25
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 20AD96B0005
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 08:35:10 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id b193so3680507wmd.7
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 05:35:10 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id d46si1807995edb.88.2018.02.09.05.35.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Feb 2018 05:08:26 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Feb 2018 05:35:08 -0800 (PST)
+Date: Fri, 9 Feb 2018 14:35:07 +0100
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [PATCH 00/31 v2] PTI support for x86_32
+Message-ID: <20180209133507.GD16484@8bytes.org>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <35f19c79-7277-3ad8-50bf-8def929377b6@suse.com>
 MIME-Version: 1.0
-From: Pawan Kumar <pawan.yoda@gmail.com>
-Date: Fri, 9 Feb 2018 18:38:24 +0530
-Message-ID: <CAGL5iyR0R_YgVrSXO5gv-A4EeitwQGr5Pgp48sbb7QMk2pxU3g@mail.gmail.com>
-Subject: kenral error
-Content-Type: multipart/alternative; boundary="089e08210da83f505e0564c739fb"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <35f19c79-7277-3ad8-50bf-8def929377b6@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Juergen Gross <jgross@suse.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de
 
---089e08210da83f505e0564c739fb
-Content-Type: text/plain; charset="UTF-8"
+Hi Juergen,
 
-Hi,
+On Fri, Feb 09, 2018 at 01:11:42PM +0100, Juergen Gross wrote:
+> On 09/02/18 10:25, Joerg Roedel wrote:
+> > XENPV is also untested from my side, but I added checks to
+> > not do the stack switches in the entry-code when XENPV is
+> > enabled, so hopefully it works. But someone should test it,
+> > of course.
+> 
+> That's unfortunate. 32 bit XENPV kernel is vulnerable to Meltdown, too.
+> I'll have a look whether 32 bit XENPV is still working, though.
+> 
+> Adding support for KPTI with Xen PV should probably be done later. :-)
 
-I got this error but I am not much familiar this, can you explain on that.
-What should I need to do?
+Not sure how much is missing to make it work there, one point is
+certainly to write the right stack into tss.sp0 for xenpv on 32bit. This
+write has a check to only happen for !xenpv.
 
-
-
-
-
-
-sysctl: The scan_unevictable_pages sysctl/node-interface has been disabled
-for lack of a legitimate use case.  If you have one, please send an email
-to linux-mm@kvack.org.
-
-Thanks
-
---089e08210da83f505e0564c739fb
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr">
+But let's first test the code as-is on XENPV and see if it still boots
+:)
 
 
+Thanks,
 
-
-<span></span>
-
-
-
-
-
-<p class=3D"gmail-p1" style=3D"margin:0px;font-style:normal;font-variant-ca=
-ps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-w=
-eight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-fam=
-ily:Menlo;color:rgb(0,0,0);background-color:rgb(255,255,255)"><span style=
-=3D"font-variant-ligatures:no-common-ligatures">Hi,</span></p><p class=3D"g=
-mail-p1" style=3D"margin:0px;font-style:normal;font-variant-caps:normal;fon=
-t-variant-numeric:normal;font-variant-east-asian:normal;font-weight:normal;=
-font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;col=
-or:rgb(0,0,0);background-color:rgb(255,255,255)"><span style=3D"font-varian=
-t-ligatures:no-common-ligatures">I got this error but I am not much familia=
-r this, can you explain on that. What should I need to do?</span></p><p cla=
-ss=3D"gmail-p1" style=3D"margin:0px;font-style:normal;font-variant-caps:nor=
-mal;font-variant-numeric:normal;font-variant-east-asian:normal;font-weight:=
-normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Me=
-nlo;color:rgb(0,0,0);background-color:rgb(255,255,255)"><span style=3D"font=
--variant-ligatures:no-common-ligatures">=C2=A0=C2=A0</span></p><p class=3D"=
-gmail-p1" style=3D"margin:0px;font-style:normal;font-variant:normal;font-we=
-ight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-fami=
-ly:Menlo;color:rgb(0,0,0);background-color:rgb(255,255,255)"><span class=3D=
-"gmail-s1" style=3D"font-variant-ligatures:no-common-ligatures"><br></span>=
-</p><p class=3D"gmail-p1" style=3D"margin:0px;font-style:normal;font-varian=
-t:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:=
-normal;font-family:Menlo;color:rgb(0,0,0);background-color:rgb(255,255,255)=
-"><br></p><p class=3D"gmail-p1" style=3D"margin:0px;font-style:normal;font-=
-variant:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-h=
-eight:normal;font-family:Menlo;color:rgb(0,0,0);background-color:rgb(255,25=
-5,255)"><span class=3D"gmail-s1" style=3D"font-variant-ligatures:no-common-=
-ligatures"><br></span></p><p class=3D"gmail-p1" style=3D"margin:0px;font-st=
-yle:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-=
-size:11px;line-height:normal;font-family:Menlo;color:rgb(0,0,0);background-=
-color:rgb(255,255,255)"><span class=3D"gmail-s1" style=3D"font-variant-liga=
-tures:no-common-ligatures">sysctl: The scan_unevictable_pages sysctl/node-i=
-nterface has been disabled for lack of a legitimate use case.<span class=3D=
-"gmail-Apple-converted-space">=C2=A0 </span>If you have one, please send an=
- email to <a href=3D"mailto:linux-mm@kvack.org">linux-mm@kvack.org</a>.</sp=
-an></p>
-
-
-<br><div>Thanks</div><div><br></div></div>
-
---089e08210da83f505e0564c739fb--
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
