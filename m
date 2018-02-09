@@ -1,111 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 36CB56B0005
-	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 11:18:26 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id 3so4004672oix.12
-        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 08:18:26 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id p8si991924oth.295.2018.02.09.08.18.24
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B33546B0005
+	for <linux-mm@kvack.org>; Fri,  9 Feb 2018 11:23:55 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id f11so6988562qkm.1
+        for <linux-mm@kvack.org>; Fri, 09 Feb 2018 08:23:55 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id s3si2442819qkc.334.2018.02.09.08.23.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Feb 2018 08:18:25 -0800 (PST)
-Subject: Re: [PATCH 1/6] genalloc: track beginning of allocations
-References: <20180204164732.28241-1-igor.stoppa@huawei.com>
- <20180204164732.28241-2-igor.stoppa@huawei.com>
- <60e66c5a-c1de-246f-4be8-b02cb0275da6@infradead.org>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <947ea9c3-b045-17d3-51e5-df80b4fb27e6@huawei.com>
-Date: Fri, 9 Feb 2018 18:18:06 +0200
+        Fri, 09 Feb 2018 08:23:54 -0800 (PST)
+Date: Fri, 9 Feb 2018 18:23:53 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH] mm/page_poison: move PAGE_POISON to page_poison.c
+Message-ID: <20180209180755-mutt-send-email-mst@kernel.org>
+References: <1518163694-27155-1-git-send-email-wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <60e66c5a-c1de-246f-4be8-b02cb0275da6@infradead.org>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1518163694-27155-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, willy@infradead.org
-Cc: cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org
 
-
-
-On 05/02/18 00:34, Randy Dunlap wrote:
-> On 02/04/2018 08:47 AM, Igor Stoppa wrote:
-
-[...]
-
-> It would be good for a lot of this to be in a source file or the
-> pmalloc.rst documentation file instead of living only in the git repository.
-
-This is actually about genalloc. The genalloc documentation is high
-level and mostly about the API, while this talks about the guts of the
-library. The part modified by the patch. This text doesn't seem to
-belong to the generic genalloc documentation.
-I will move it to the .c file, but isn't it too much text in a source file?
-
-[...]
-
->> + * @order: pow of 2 represented by each entry in the bitmap
+On Fri, Feb 09, 2018 at 04:08:14PM +0800, Wei Wang wrote:
+> The PAGE_POISON macro is used in page_poison.c only, so avoid exporting
+> it. Also remove the "mm/debug-pagealloc.c" related comment, which is
+> obsolete.
 > 
->               power
-
-ok
-
-[...]
-
->> + * chunk_size - dimension of a chunk of memory
+> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Michael S. Tsirkin <mst@redhat.com>
+> ---
+>  include/linux/poison.h | 7 -------
+>  mm/page_poison.c       | 6 ++++++
+>  2 files changed, 6 insertions(+), 7 deletions(-)
 > 
-> can this be more explicit about which dimension?
-
-I'll put "size in bytes of a chunk of memory"
-
-
-[...]
-
->> + * cleart_bits_ll - according to the mask, clears the bits specified by
-> 
->       clear_bits_ll
-
-yes :-(
-
-[...]
-
->> - * bitmap_clear_ll - clear the specified number of bits at the specified position
->> + * alter_bitmap_ll - set or clear the entries associated to an allocation
-> 
->                                                             with an allocation
-
-ok
+> diff --git a/include/linux/poison.h b/include/linux/poison.h
+> index 15927eb..348bf67 100644
+> --- a/include/linux/poison.h
+> +++ b/include/linux/poison.h
+> @@ -30,13 +30,6 @@
+>   */
+>  #define TIMER_ENTRY_STATIC	((void *) 0x300 + POISON_POINTER_DELTA)
+>  
+> -/********** mm/debug-pagealloc.c **********/
+> -#ifdef CONFIG_PAGE_POISONING_ZERO
+> -#define PAGE_POISON 0x00
+> -#else
+> -#define PAGE_POISON 0xaa
+> -#endif
+> -
+>  /********** mm/page_alloc.c ************/
+>  
+>  #define TAIL_MAPPING	((void *) 0x400 + POISON_POINTER_DELTA)
 
 
->> + * @alteration: selection if the bits selected should be set or cleared
-> 
->                    indicates if
+My question is, why are these macros kept in a single header.
+Is it so it's easy to figure out source of a crash by
+looking at the data and locating it in the file?
+If so we should keep it in the header, but fix the comment.
+If no there are more macros to move out, like flex array ones.
 
-ok
-
-
-[...]
-
->> +	/* Prepare for writing the initial part of the allocation, from
->> +	 * starting entry, to the end of the UL bitmap element which
->> +	 * contains it. It might be larger than the actual allocation.
->> +	 */
-> 
-> Use kernel multi-line comment style.
-
-ok, also for further occurrences
-
-[...]
-
->> +	index =  BITS_DIV_LONGS(start_bit);
-> 
-> 	index = BITS_DIV_LONGS
-> (only 1 space after '=')
-
-oops, yes
-
---
-thank you, igor
+> diff --git a/mm/page_poison.c b/mm/page_poison.c
+> index e83fd44..8aaf076 100644
+> --- a/mm/page_poison.c
+> +++ b/mm/page_poison.c
+> @@ -7,6 +7,12 @@
+>  #include <linux/poison.h>
+>  #include <linux/ratelimit.h>
+>  
+> +#ifdef CONFIG_PAGE_POISONING_ZERO
+> +#define PAGE_POISON 0x00
+> +#else
+> +#define PAGE_POISON 0xaa
+> +#endif
+> +
+>  static bool want_page_poisoning __read_mostly;
+>  
+>  static int early_page_poison_param(char *buf)
+> -- 
+> 2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
