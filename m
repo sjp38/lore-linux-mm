@@ -1,58 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AA76F6B0003
-	for <linux-mm@kvack.org>; Sat, 10 Feb 2018 15:18:19 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id e64so2303417itd.1
-        for <linux-mm@kvack.org>; Sat, 10 Feb 2018 12:18:19 -0800 (PST)
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 772166B0007
+	for <linux-mm@kvack.org>; Sat, 10 Feb 2018 15:23:01 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id n130so2300281itg.1
+        for <linux-mm@kvack.org>; Sat, 10 Feb 2018 12:23:01 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s66sor1256135itd.18.2018.02.10.12.18.18
+        by mx.google.com with SMTPS id g1sor1299148itg.13.2018.02.10.12.23.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 10 Feb 2018 12:18:18 -0800 (PST)
+        Sat, 10 Feb 2018 12:23:00 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <50431bff2cda445490f5242c1189c8cd@AcuMS.aculab.com>
+In-Reply-To: <20180210091543.ynypx4y3koz44g7y@angband.pl>
 References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
- <1518168340-9392-10-git-send-email-joro@8bytes.org> <CA+55aFzB9H=RT6YB3onZCephZMs9ccz4aJ_jcPcfEkKJD_YDCQ@mail.gmail.com>
- <aa52108c-4874-9810-8ff5-e6415189cd73@redhat.com> <50431bff2cda445490f5242c1189c8cd@AcuMS.aculab.com>
+ <CALCETrUF61fqjXKG=kwf83JWpw=kgL16UvKowezDVwVA1=YVAw@mail.gmail.com>
+ <20180209191112.55zyjf4njum75brd@suse.de> <20180210091543.ynypx4y3koz44g7y@angband.pl>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 10 Feb 2018 12:18:17 -0800
-Message-ID: <CA+55aFwdk9pGMxHpScf9jQAL0K0OkkghCWMrgxcrdFtYPbXmUw@mail.gmail.com>
-Subject: Re: [PATCH 09/31] x86/entry/32: Leave the kernel via trampoline stack
+Date: Sat, 10 Feb 2018 12:22:59 -0800
+Message-ID: <CA+55aFwdLZjDcfhj4Ps=dUfd7ifkoYxW0FoH_JKjhXJYzxUSZQ@mail.gmail.com>
+Subject: Re: [PATCH 00/31 v2] PTI support for x86_32
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
+To: Adam Borowski <kilobyte@angband.pl>
+Cc: Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
 
-On Sat, Feb 10, 2018 at 7:26 AM, David Laight <David.Laight@aculab.com> wrote:
+On Sat, Feb 10, 2018 at 1:15 AM, Adam Borowski <kilobyte@angband.pl> wrote:
 >
-> The alignment doesn't matter, 'rep movsl' will still work.
+> Alas, we got some data:
+> https://popcon.debian.org/ says 20% of x86 users have i386 as their main ABI
+> (current; people with popcon installed).
 
-.. no it won't. It might not copy the last two bytes or whatever,
-because the shift of the count will have ignored the low bits.
+One of the issues I've seen is that people often simply move a disk
+(or copy an installation) when upgrading machines.
 
-But since an unaligned stack pointer really shouldn't be an issue,
-it's fine to not care.
+Does Debian make it easy to upgrade to a 64-bit kernel if you have a
+32-bit install? Because if not, then it's entirely possible that a lot
+of people started out with a 32-bit install (maybe they even had a
+64-bit kernel, but they started when the 32-bit install was the
+default one), and never upgraded their kernel.
 
->> Indeed, "rep movs" has some setup overhead that makes it undesirable
->> for small sizes. In my testing, moving less than 128 bytes with "rep movs"
->> is a loss.
->
-> It very much depends on the cpu.
-
-No again.
-
-It does NOT depend on the CPU, since the only CPU's that are relevant
-to this patch are the ones that don't do 64-bit. If you run a 32-bit
-Linux on a 64-bit CPU, performance simply isn't an issue. The problem
-is between keyboard and chair, not in the kernel.
-
-And absolutely *no* 32-bit-only CPU does "rep movs" really well.  Some
-of them do it even worse than others (P4), but none of them do a great
-job.
-
-That said, none of them should do _such_ a shitty job that this will
-be in the least noticeable compared to all the crazy %cr3 stuff.
+It really should be easy to _just_ upgrade the kernel. But if the
+distro doesn't support it, most people won't do it.
 
                 Linus
 
