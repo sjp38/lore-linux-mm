@@ -1,952 +1,685 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A0546B0003
-	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 07:25:00 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id v68so11160430qki.13
-        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 04:25:00 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c55si474366qte.355.2018.02.11.04.24.57
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CE7D6B0007
+	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 07:34:50 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id p20so4300292pfh.17
+        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 04:34:50 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id j76si2620660pfj.146.2018.02.11.04.34.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 11 Feb 2018 04:24:58 -0800 (PST)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1BCOWN9105583
-	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 07:24:57 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2g2jv0bs74-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 07:24:56 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Sun, 11 Feb 2018 12:24:53 -0000
-Date: Sun, 11 Feb 2018 14:24:45 +0200
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/6] genalloc: track beginning of allocations
-References: <20180211031920.3424-1-igor.stoppa@huawei.com>
- <20180211031920.3424-2-igor.stoppa@huawei.com>
+        Sun, 11 Feb 2018 04:34:49 -0800 (PST)
+Date: Sun, 11 Feb 2018 20:33:32 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [matwey:bbb-3.8-v4 977/1465] drivers//acpi/acpi_memhotplug.c:302:12:
+ error: too many arguments to function 'remove_memory'
+Message-ID: <201802112029.HiNJujj8%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="k+w/mQv8wyuph6w0"
 Content-Disposition: inline
-In-Reply-To: <20180211031920.3424-2-igor.stoppa@huawei.com>
-Message-Id: <20180211122444.GB13931@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: willy@infradead.org, rdunlap@infradead.org, corbet@lwn.net, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, jglisse@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: kbuild-all@01.org, "Matwey V. Kornilov" <matwey@sai.msu.ru>, Wen Congyang <wency@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Sun, Feb 11, 2018 at 05:19:15AM +0200, Igor Stoppa wrote:
-> The genalloc library is only capable of tracking if a certain unit of
-> allocation is in use or not.
-> 
-> It is not capable of discerning where the memory associated to an
-> allocation request begins and where it ends.
-> 
-> The reason is that units of allocations are tracked by using a bitmap,
-> where each bit represents that the unit is either allocated (1) or
-> available (0).
-> 
-> The user of the API must keep track of how much space was requested, if
-> it ever needs to be freed.
-> 
-> This can cause errors being undetected.
-> Examples:
-> * Only a subset of the memory provided to an allocation request is freed
-> * The memory from a subsequent allocation is freed
-> * The memory being freed doesn't start at the beginning of an
->   allocation.
-> 
-> The bitmap is used because it allows to perform lockless read/write
-> access, where this is supported by hw through cmpxchg.
-> Similarly, it is possible to scan the bitmap for a sufficiently long
-> sequence of zeros, to identify zones available for allocation.
-> 
-> This patch doubles the space reserved in the bitmap for each allocation,
-> to track their beginning.
-> 
-> For details, see the documentation inside lib/genalloc.c
-> 
-> Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-> ---
->  include/linux/genalloc.h |   4 +-
->  lib/genalloc.c           | 527 ++++++++++++++++++++++++++++++++++-------------
->  2 files changed, 390 insertions(+), 141 deletions(-)
-> 
-> diff --git a/include/linux/genalloc.h b/include/linux/genalloc.h
-> index 872f930f1b06..dcaa33e74b1c 100644
-> --- a/include/linux/genalloc.h
-> +++ b/include/linux/genalloc.h
-> @@ -32,7 +32,7 @@
-> 
->  #include <linux/types.h>
->  #include <linux/spinlock_types.h>
-> -#include <linux/atomic.h>
-> +#include <linux/slab.h>
-> 
->  struct device;
->  struct device_node;
-> @@ -76,7 +76,7 @@ struct gen_pool_chunk {
->  	phys_addr_t phys_addr;		/* physical starting address of memory chunk */
->  	unsigned long start_addr;	/* start address of memory chunk */
->  	unsigned long end_addr;		/* end address of memory chunk (inclusive) */
-> -	unsigned long bits[0];		/* bitmap for allocating memory chunk */
-> +	unsigned long entries[0];	/* bitmap for allocating memory chunk */
->  };
-> 
->  /*
-> diff --git a/lib/genalloc.c b/lib/genalloc.c
-> index ca06adc4f445..044347163acb 100644
-> --- a/lib/genalloc.c
-> +++ b/lib/genalloc.c
-> @@ -26,6 +26,74 @@
->   *
->   * This source code is licensed under the GNU General Public License,
->   * Version 2.  See the file COPYING for more details.
-> + *
-> + *
-> + *
-> + * Encoding of the bitmap tracking the allocations
-> + * -----------------------------------------------
-> + *
-> + * The bitmap is composed of units of allocations.
-> + *
-> + * Each unit of allocation is represented using 2 consecutive bits.
-> + *
-> + * This makes it possible to encode, for each unit of allocation,
-> + * information about:
-> + *  - allocation status (busy/free)
-> + *  - beginning of a sequennce of allocation units (first / successive)
-> + *
-> + *
-> + * Dictionary of allocation units (msb to the left, lsb to the right):
-> + *
-> + * 11: first allocation unit in the allocation
-> + * 10: any subsequent allocation unit (if any) in the allocation
-> + * 00: available allocation unit
-> + * 01: invalid
-> + *
-> + * Example, using the same notation as above - MSb.......LSb:
-> + *
-> + *  ...000010111100000010101011   <-- Read in this direction.
-> + *     \__|\__|\|\____|\______|
-> + *        |   | |     |       \___ 4 used allocation units
-> + *        |   | |     \___________ 3 empty allocation units
-> + *        |   | \_________________ 1 used allocation unit
-> + *        |   \___________________ 2 used allocation units
-> + *        \_______________________ 2 empty allocation units
-> + *
-> + * The encoding allows for lockless operations, such as:
-> + * - search for a sufficiently large range of allocation units
-> + * - reservation of a selected range of allocation units
-> + * - release of a specific allocation
-> + *
-> + * The alignment at which to perform the research for sequence of empty
-> + * allocation units (marked as zeros in the bitmap) is 2^1.
-> + *
-> + * This means that an allocation can start only at even places
-> + * (bit 0, bit 2, etc.) in the bitmap.
-> + *
-> + * Therefore, the number of zeroes to look for must be twice the number
-> + * of desired allocation units.
-> + *
-> + * When it's time to free the memory associated to an allocation request,
-> + * it's a matter of checking if the corresponding allocation unit is
-> + * really the beginning of an allocation (both bits are set to 1).
-> + *
-> + * Looking for the ending can also be performed locklessly.
-> + * It's sufficient to identify the first mapped allocation unit
-> + * that is represented either as free (00) or busy (11).
-> + * Even if the allocation status should change in the meanwhile, it
-> + * doesn't matter, since it can only transition between free (00) and
-> + * first-allocated (11).
-> + *
-> + * The parameter indicating to the *_free() function the size of the
-> + * space that should be freed can be either set to 0, for automated
-> + * assessment, or it can be specified explicitly.
-> + *
-> + * In case it is specified explicitly, the value is verified agaisnt what
-> + * the library is tracking internally.
-> + *
-> + * If ever needed, the bitmap could be extended, assigning larger amounts
-> + * of bits to each allocation unit (the increase must follow powers of 2),
-> + * to track other properties of the allocations.
->   */
-> 
->  #include <linux/slab.h>
-> @@ -36,118 +104,230 @@
->  #include <linux/genalloc.h>
->  #include <linux/of_device.h>
-> 
-> +#define ENTRY_ORDER 1UL
-> +#define ENTRY_MASK ((1UL << ((ENTRY_ORDER) + 1UL)) - 1UL)
-> +#define ENTRY_HEAD ENTRY_MASK
-> +#define ENTRY_UNUSED 0UL
-> +#define BITS_PER_ENTRY (1U << ENTRY_ORDER)
-> +#define BITS_DIV_ENTRIES(x) ((x) >> ENTRY_ORDER)
-> +#define ENTRIES_TO_BITS(x) ((x) << ENTRY_ORDER)
-> +#define BITS_DIV_LONGS(x) ((x) / BITS_PER_LONG)
-> +#define ENTRIES_DIV_LONGS(x) (BITS_DIV_LONGS(ENTRIES_TO_BITS(x)))
-> +
-> +#define ENTRIES_PER_LONG BITS_DIV_ENTRIES(BITS_PER_LONG)
-> +
-> +/* Binary pattern of 1010...1010 that spans one unsigned long. */
-> +#define MASK (~0UL / 3 * 2)
-> +
-> +/**
-> + * get_bitmap_entry - extracts the specified entry from the bitmap
-> + * @map: pointer to a bitmap
-> + * @entry_index: the index of the desired entry in the bitmap
-> + *
-> + * Return: The requested bitmap.
-> + */
-> +static inline unsigned long get_bitmap_entry(unsigned long *map,
-> +					    int entry_index)
-> +{
-> +	return (map[ENTRIES_DIV_LONGS(entry_index)] >>
-> +		ENTRIES_TO_BITS(entry_index % ENTRIES_PER_LONG)) &
-> +		ENTRY_MASK;
-> +}
-> +
-> +
-> +/**
-> + * mem_to_units - convert references to memory into orders of allocation
 
-Documentation/doc-guide/kernel-doc.rst recommends to to include brackets
-for function comments. I haven't noticed any difference in the resulting
-html, so I'm not sure if the brackets are actually required.
+--k+w/mQv8wyuph6w0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> + * @size: amount in bytes
-> + * @order: power of 2 represented by each entry in the bitmap
-> + *
-> + * Returns the number of units representing the size.
+tree:   https://github.com/matwey/linux bbb-3.8-v4
+head:   95ce62d197bf09acc7489ecdb72c1c1f03ad7ba5
+commit: b3562b3bc64b081f51a74c391aaf5be78c7066c0 [977/1465] memory-hotplug: remove sysfs file of node
+config: x86_64-allyesdebian (attached as .config)
+compiler: gcc-7 (Debian 7.3.0-1) 7.3.0
+reproduce:
+        git checkout b3562b3bc64b081f51a74c391aaf5be78c7066c0
+        # save the attached .config to linux build tree
+        make ARCH=x86_64 
 
-Please s/Return/Return:/
+All errors (new ones prefixed by >>):
 
-> + */
-> +static inline unsigned long mem_to_units(unsigned long size,
-> +					 unsigned long order)
-> +{
-> +	return (size + (1UL << order) - 1) >> order;
-> +}
-> +
-> +/**
-> + * chunk_size - dimension of a chunk of memory, in bytes
-> + * @chunk: pointer to the struct describing the chunk
-> + *
-> + * Return: The size of the chunk, in bytes.
-> + */
->  static inline size_t chunk_size(const struct gen_pool_chunk *chunk)
->  {
->  	return chunk->end_addr - chunk->start_addr + 1;
->  }
-> 
-> -static int set_bits_ll(unsigned long *addr, unsigned long mask_to_set)
-> +
-> +/**
-> + * set_bits_ll - according to the mask, sets the bits specified by
-> + * value, at the address specified.
-> + * @addr: where to write
-> + * @mask: filter to apply for the bits to alter
-> + * @value: actual configuration of bits to store
-> + *
-> + * Return: 0 upon success, -EBUSY otherwise
-> + */
-> +static int set_bits_ll(unsigned long *addr,
-> +		       unsigned long mask, unsigned long value)
->  {
-> -	unsigned long val, nval;
-> +	unsigned long nval;
-> +	unsigned long present;
-> +	unsigned long target;
-> 
->  	nval = *addr;
->  	do {
-> -		val = nval;
-> -		if (val & mask_to_set)
-> +		present = nval;
-> +		if (present & mask)
->  			return -EBUSY;
-> +		target =  present | value;
->  		cpu_relax();
-> -	} while ((nval = cmpxchg(addr, val, val | mask_to_set)) != val);
-> -
-> +	} while ((nval = cmpxchg(addr, present, target)) != target);
->  	return 0;
->  }
-> 
-> -static int clear_bits_ll(unsigned long *addr, unsigned long mask_to_clear)
-> +
-> +/**
-> + * clear_bits_ll - according to the mask, clears the bits specified by
-> + * value, at the address specified.
-> + * @addr: where to write
-> + * @mask: filter to apply for the bits to alter
-> + * @value: actual configuration of bits to clear
-> + *
-> + * Return: 0 upon success, -EBUSY otherwise
-> + */
-> +static int clear_bits_ll(unsigned long *addr,
-> +			 unsigned long mask, unsigned long value)
->  {
-> -	unsigned long val, nval;
-> +	unsigned long nval;
-> +	unsigned long present;
-> +	unsigned long target;
-> 
->  	nval = *addr;
-> +	present = nval;
-> +	if (unlikely((present & mask) ^ value))
-> +		return -EBUSY;
->  	do {
-> -		val = nval;
-> -		if ((val & mask_to_clear) != mask_to_clear)
-> +		present = nval;
-> +		if (unlikely((present & mask) ^ value))
->  			return -EBUSY;
-> +		target =  present & ~mask;
->  		cpu_relax();
-> -	} while ((nval = cmpxchg(addr, val, val & ~mask_to_clear)) != val);
-> -
-> +	} while ((nval = cmpxchg(addr, present, target)) != target);
->  	return 0;
->  }
-> 
-> -/*
-> - * bitmap_set_ll - set the specified number of bits at the specified position
-> +
-> +/**
-> + * get_boundary - verify that an allocation effectively
-> + * starts at the given address, then measure its length.
->   * @map: pointer to a bitmap
-> - * @start: a bit position in @map
-> - * @nr: number of bits to set
-> + * @start_entry: the index of the first entry in the bitmap
-> + * @nentries: number of entries to alter
->   *
-> - * Set @nr bits start from @start in @map lock-lessly. Several users
-> - * can set/clear the same bitmap simultaneously without lock. If two
-> - * users set the same bit, one user will return remain bits, otherwise
-> - * return 0.
-> + * Return: the length of an allocation, otherwise -EINVAL if the
-> + * parameters do not refer to a correct allocation.
->   */
-> -static int bitmap_set_ll(unsigned long *map, int start, int nr)
-> +static int get_boundary(unsigned long *map, int start_entry, int nentries)
->  {
-> -	unsigned long *p = map + BIT_WORD(start);
-> -	const int size = start + nr;
-> -	int bits_to_set = BITS_PER_LONG - (start % BITS_PER_LONG);
-> -	unsigned long mask_to_set = BITMAP_FIRST_WORD_MASK(start);
-> -
-> -	while (nr - bits_to_set >= 0) {
-> -		if (set_bits_ll(p, mask_to_set))
-> -			return nr;
-> -		nr -= bits_to_set;
-> -		bits_to_set = BITS_PER_LONG;
-> -		mask_to_set = ~0UL;
-> -		p++;
-> -	}
-> -	if (nr) {
-> -		mask_to_set &= BITMAP_LAST_WORD_MASK(size);
-> -		if (set_bits_ll(p, mask_to_set))
-> -			return nr;
-> -	}
-> +	int i;
-> +	unsigned long bitmap_entry;
-> 
-> -	return 0;
-> +
-> +	if (unlikely(get_bitmap_entry(map, start_entry) != ENTRY_HEAD))
-> +		return -EINVAL;
-> +	for (i = start_entry + 1; i < nentries; i++) {
-> +		bitmap_entry = get_bitmap_entry(map, i);
-> +		if (bitmap_entry == ENTRY_HEAD ||
-> +		    bitmap_entry == ENTRY_UNUSED)
-> +			return i;
-> +	}
-> +	return nentries - start_entry;
->  }
-> 
-> +
-> +#define SET_BITS 1
-> +#define CLEAR_BITS 0
-> +
->  /*
-> - * bitmap_clear_ll - clear the specified number of bits at the specified position
-> + * alter_bitmap_ll - set or clear the entries associated with an allocation
-> + * @alteration: indicates if the bits selected should be set or cleared
->   * @map: pointer to a bitmap
-> - * @start: a bit position in @map
-> - * @nr: number of bits to set
-> + * @start: the index of the first entry in the bitmap
-> + * @nentries: number of entries to alter
-> + *
-> + * The modification happens lock-lessly.
-> + * Several users can write to the same map simultaneously, without lock.
->   *
-> - * Clear @nr bits start from @start in @map lock-lessly. Several users
-> - * can set/clear the same bitmap simultaneously without lock. If two
-> - * users clear the same bit, one user will return remain bits,
-> - * otherwise return 0.
-> + * Return: If two users alter the same bit, to one it will return
-> + * remaining entries, to the other it will return 0.
+   drivers//acpi/acpi_memhotplug.c: In function 'acpi_memory_remove_memory':
+>> drivers//acpi/acpi_memhotplug.c:302:12: error: too many arguments to function 'remove_memory'
+      result = remove_memory(nid, info->start_addr, info->length);
+               ^~~~~~~~~~~~~
+   In file included from include/linux/mmzone.h:761:0,
+                    from include/linux/gfp.h:4,
+                    from include/linux/kmod.h:22,
+                    from include/linux/module.h:13,
+                    from drivers//acpi/acpi_memhotplug.c:29:
+   include/linux/memory_hotplug.h:250:12: note: declared here
+    extern int remove_memory(u64 start, u64 size);
+               ^~~~~~~~~~~~~
 
-And what if there are three or four concurrent users? ;-)
+vim +/remove_memory +302 drivers//acpi/acpi_memhotplug.c
 
-I believe that a more elaborate description about what happens with
-concurrent attempts to alter the bitmap would be really helpful.
+   280	
+   281	static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+   282	{
+   283		int result = 0, nid;
+   284		struct acpi_memory_info *info, *n;
+   285	
+   286		nid = acpi_get_node(mem_device->device->handle);
+   287	
+   288		list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+   289			if (info->failed)
+   290				/* The kernel does not use this memory block */
+   291				continue;
+   292	
+   293			if (!info->enabled)
+   294				/*
+   295				 * The kernel uses this memory block, but it may be not
+   296				 * managed by us.
+   297				 */
+   298				return -EBUSY;
+   299	
+   300			if (nid < 0)
+   301				nid = memory_add_physaddr_to_nid(info->start_addr);
+ > 302			result = remove_memory(nid, info->start_addr, info->length);
+   303			if (result)
+   304				return result;
+   305	
+   306			list_del(&info->list);
+   307			kfree(info);
+   308		}
+   309	
+   310		return result;
+   311	}
+   312	
 
->   */
-> -static int bitmap_clear_ll(unsigned long *map, int start, int nr)
-> +static int alter_bitmap_ll(bool alteration, unsigned long *map,
-> +			   int start_entry, int nentries)
->  {
-> -	unsigned long *p = map + BIT_WORD(start);
-> -	const int size = start + nr;
-> -	int bits_to_clear = BITS_PER_LONG - (start % BITS_PER_LONG);
-> -	unsigned long mask_to_clear = BITMAP_FIRST_WORD_MASK(start);
-> -
-> -	while (nr - bits_to_clear >= 0) {
-> -		if (clear_bits_ll(p, mask_to_clear))
-> -			return nr;
-> -		nr -= bits_to_clear;
-> -		bits_to_clear = BITS_PER_LONG;
-> -		mask_to_clear = ~0UL;
-> -		p++;
-> -	}
-> -	if (nr) {
-> -		mask_to_clear &= BITMAP_LAST_WORD_MASK(size);
-> -		if (clear_bits_ll(p, mask_to_clear))
-> -			return nr;
-> +	unsigned long start_bit;
-> +	unsigned long end_bit;
-> +	unsigned long mask;
-> +	unsigned long value;
-> +	int nbits;
-> +	int bits_to_write;
-> +	int index;
-> +	int (*action)(unsigned long *addr,
-> +		      unsigned long mask, unsigned long value);
-> +
-> +	action = (alteration == SET_BITS) ? set_bits_ll : clear_bits_ll;
-> +
-> +	/*
-> +	 * Prepare for writing the initial part of the allocation, from
-> +	 * starting entry, to the end of the UL bitmap element which
-> +	 * contains it. It might be larger than the actual allocation.
-> +	 */
-> +	start_bit = ENTRIES_TO_BITS(start_entry);
-> +	end_bit = ENTRIES_TO_BITS(start_entry + nentries);
-> +	nbits = ENTRIES_TO_BITS(nentries);
-> +	bits_to_write = BITS_PER_LONG - start_bit % BITS_PER_LONG;
-> +	mask = BITMAP_FIRST_WORD_MASK(start_bit);
-> +	/* Mark the beginning of the allocation. */
-> +	value = MASK | (1UL << (start_bit % BITS_PER_LONG));
-> +	index = BITS_DIV_LONGS(start_bit);
-> +
-> +	/*
-> +	 * Writes entries to the bitmap, as long as the reminder is
-> +	 * positive or zero.
-> +	 * Might be skipped if the entries to write do not reach the end
-> +	 * of a bitmap UL unit.
-> +	 */
-> +	while (nbits >= bits_to_write) {
-> +		if (action(map + index, mask, value & mask))
-> +			return BITS_DIV_ENTRIES(nbits);
-> +		nbits -= bits_to_write;
-> +		bits_to_write = BITS_PER_LONG;
-> +		mask = ~0UL;
-> +		value = MASK;
-> +		index++;
->  	}
-> 
-> +	/* Takes care of the ending part of the entries to mark. */
-> +	if (nbits > 0) {
-> +		mask ^= BITMAP_FIRST_WORD_MASK((end_bit) % BITS_PER_LONG);
-> +		bits_to_write = nbits;
-> +		if (action(map + index, mask, value & mask))
-> +			return BITS_DIV_ENTRIES(nbits);
-> +	}
->  	return 0;
->  }
-> 
-> +
->  /**
->   * gen_pool_create - create a new special memory pool
-> - * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
-> + * @min_alloc_order: log base 2 of number of bytes each bitmap entry represents
->   * @nid: node id of the node the pool structure should be allocated on, or -1
->   *
->   * Create a new special memory pool that can be used to manage special purpose
->   * memory not managed by the regular kmalloc/kfree interface.
-> + *
-> + * Return: pointer to the pool, if successful, NULL otherwise
->   */
->  struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
->  {
-> @@ -177,16 +357,18 @@ EXPORT_SYMBOL(gen_pool_create);
->   *
->   * Add a new chunk of special memory to the specified pool.
->   *
-> - * Returns 0 on success or a -ve errno on failure.
-> + * Return: 0 on success or a -ve errno on failure.
->   */
->  int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
->  		 size_t size, int nid)
->  {
->  	struct gen_pool_chunk *chunk;
-> -	int nbits = size >> pool->min_alloc_order;
-> -	int nbytes = sizeof(struct gen_pool_chunk) +
-> -				BITS_TO_LONGS(nbits) * sizeof(long);
-> +	int nentries;
-> +	int nbytes;
-> 
-> +	nentries = size >> pool->min_alloc_order;
-> +	nbytes = sizeof(struct gen_pool_chunk) +
-> +		 ENTRIES_DIV_LONGS(nentries) * sizeof(long);
->  	chunk = kzalloc_node(nbytes, GFP_KERNEL, nid);
->  	if (unlikely(chunk == NULL))
->  		return -ENOMEM;
-> @@ -209,7 +391,7 @@ EXPORT_SYMBOL(gen_pool_add_virt);
->   * @pool: pool to allocate from
->   * @addr: starting address of memory
->   *
-> - * Returns the physical address on success, or -1 on error.
-> + * Return: the physical address on success, or -1 on error.
->   */
->  phys_addr_t gen_pool_virt_to_phys(struct gen_pool *pool, unsigned long addr)
->  {
-> @@ -248,7 +430,7 @@ void gen_pool_destroy(struct gen_pool *pool)
->  		list_del(&chunk->next_chunk);
-> 
->  		end_bit = chunk_size(chunk) >> order;
-> -		bit = find_next_bit(chunk->bits, end_bit, 0);
-> +		bit = find_next_bit(chunk->entries, end_bit, 0);
->  		BUG_ON(bit < end_bit);
-> 
->  		kfree(chunk);
-> @@ -267,6 +449,8 @@ EXPORT_SYMBOL(gen_pool_destroy);
->   * Uses the pool allocation function (with first-fit algorithm by default).
->   * Can not be used in NMI handler on architectures without
->   * NMI-safe cmpxchg implementation.
-> + *
-> + * Return: address of the memory allocated, otherwise NULL
->   */
->  unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
->  {
-> @@ -285,6 +469,8 @@ EXPORT_SYMBOL(gen_pool_alloc);
->   * Uses the pool allocation function (with first-fit algorithm by default).
->   * Can not be used in NMI handler on architectures without
->   * NMI-safe cmpxchg implementation.
-> + *
-> + * Return: address of the memory allocated, otherwise NULL
->   */
->  unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
->  		genpool_algo_t algo, void *data)
-> @@ -292,7 +478,7 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
->  	struct gen_pool_chunk *chunk;
->  	unsigned long addr = 0;
->  	int order = pool->min_alloc_order;
-> -	int nbits, start_bit, end_bit, remain;
-> +	int nentries, start_entry, end_entry, remain;
-> 
->  #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
->  	BUG_ON(in_nmi());
-> @@ -301,29 +487,32 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
->  	if (size == 0)
->  		return 0;
-> 
-> -	nbits = (size + (1UL << order) - 1) >> order;
-> +	nentries = mem_to_units(size, order);
->  	rcu_read_lock();
->  	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk) {
->  		if (size > atomic_long_read(&chunk->avail))
->  			continue;
-> 
-> -		start_bit = 0;
-> -		end_bit = chunk_size(chunk) >> order;
-> +		start_entry = 0;
-> +		end_entry = chunk_size(chunk) >> order;
->  retry:
-> -		start_bit = algo(chunk->bits, end_bit, start_bit,
-> -				 nbits, data, pool);
-> -		if (start_bit >= end_bit)
-> +		start_entry = algo(chunk->entries, end_entry, start_entry,
-> +				  nentries, data, pool);
-> +		if (start_entry >= end_entry)
->  			continue;
-> -		remain = bitmap_set_ll(chunk->bits, start_bit, nbits);
-> +		remain = alter_bitmap_ll(SET_BITS, chunk->entries,
-> +					 start_entry, nentries);
->  		if (remain) {
-> -			remain = bitmap_clear_ll(chunk->bits, start_bit,
-> -						 nbits - remain);
-> -			BUG_ON(remain);
-> +			remain = alter_bitmap_ll(CLEAR_BITS,
-> +						 chunk->entries,
-> +						 start_entry,
-> +						 nentries - remain);
->  			goto retry;
->  		}
-> 
-> -		addr = chunk->start_addr + ((unsigned long)start_bit << order);
-> -		size = nbits << order;
-> +		addr = chunk->start_addr +
-> +			((unsigned long)start_entry << order);
-> +		size = nentries << order;
->  		atomic_long_sub(size, &chunk->avail);
->  		break;
->  	}
-> @@ -342,6 +531,8 @@ EXPORT_SYMBOL(gen_pool_alloc_algo);
->   * Uses the pool allocation function (with first-fit algorithm by default).
->   * Can not be used in NMI handler on architectures without
->   * NMI-safe cmpxchg implementation.
-> + *
-> + * Return: address of the memory allocated, otherwise NULL
->   */
->  void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
->  {
-> @@ -365,7 +556,7 @@ EXPORT_SYMBOL(gen_pool_dma_alloc);
->   * gen_pool_free - free allocated special memory back to the pool
->   * @pool: pool to free to
->   * @addr: starting address of memory to free back to pool
-> - * @size: size in bytes of memory to free
-> + * @size: size in bytes of memory to free or 0, for auto-detection
->   *
->   * Free previously allocated special memory back to the specified
->   * pool.  Can not be used in NMI handler on architectures without
-> @@ -375,22 +566,29 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
->  {
->  	struct gen_pool_chunk *chunk;
->  	int order = pool->min_alloc_order;
-> -	int start_bit, nbits, remain;
-> +	int start_entry, remaining_entries, nentries, remain;
-> +	int boundary;
-> 
->  #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
->  	BUG_ON(in_nmi());
->  #endif
-> 
-> -	nbits = (size + (1UL << order) - 1) >> order;
->  	rcu_read_lock();
->  	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk) {
->  		if (addr >= chunk->start_addr && addr <= chunk->end_addr) {
->  			BUG_ON(addr + size - 1 > chunk->end_addr);
-> -			start_bit = (addr - chunk->start_addr) >> order;
-> -			remain = bitmap_clear_ll(chunk->bits, start_bit, nbits);
-> +			start_entry = (addr - chunk->start_addr) >> order;
-> +			remaining_entries = (chunk->end_addr - addr) >> order;
-> +			boundary = get_boundary(chunk->entries, start_entry,
-> +						remaining_entries);
-> +			BUG_ON(boundary < 0);
-> +			nentries = boundary - start_entry;
-> +			BUG_ON(size &&
-> +			       (nentries != mem_to_units(size, order)));
-> +			remain = alter_bitmap_ll(CLEAR_BITS, chunk->entries,
-> +						 start_entry, nentries);
->  			BUG_ON(remain);
-> -			size = nbits << order;
-> -			atomic_long_add(size, &chunk->avail);
-> +			atomic_long_add(nentries << order, &chunk->avail);
->  			rcu_read_unlock();
->  			return;
->  		}
-> @@ -428,8 +626,9 @@ EXPORT_SYMBOL(gen_pool_for_each_chunk);
->   * @start:	start address
->   * @size:	size of the region
->   *
-> - * Check if the range of addresses falls within the specified pool. Returns
-> - * true if the entire range is contained in the pool and false otherwise.
-> + * Check if the range of addresses falls within the specified pool.
-> + *
-> + * Return: true if the entire range is contained in the pool, false otherwise.
->   */
->  bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
->  			size_t size)
-> @@ -455,7 +654,7 @@ bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
->   * gen_pool_avail - get available free space of the pool
->   * @pool: pool to get available free space
->   *
-> - * Return available free space of the specified pool.
-> + * Return: available free space of the specified pool.
->   */
->  size_t gen_pool_avail(struct gen_pool *pool)
->  {
-> @@ -474,7 +673,7 @@ EXPORT_SYMBOL_GPL(gen_pool_avail);
->   * gen_pool_size - get size in bytes of memory managed by the pool
->   * @pool: pool to get size
->   *
-> - * Return size in bytes of memory managed by the pool.
-> + * Return: size in bytes of memory managed by the pool.
->   */
->  size_t gen_pool_size(struct gen_pool *pool)
->  {
-> @@ -517,17 +716,27 @@ EXPORT_SYMBOL(gen_pool_set_algo);
->   * gen_pool_first_fit - find the first available region
->   * of memory matching the size requirement (no alignment constraint)
->   * @map: The address to base the search on
-> - * @size: The bitmap size in bits
-> - * @start: The bitnumber to start searching at
-> - * @nr: The number of zeroed bits we're looking for
-> + * @size: The number of allocation units in the bitmap
-> + * @start: The allocation unit to start searching at
-> + * @nr: The number of allocation units we're looking for
->   * @data: additional data - unused
->   * @pool: pool to find the fit region memory from
-> + *
-> + * Return: index of the memory allocated, otherwise the end of the range
->   */
->  unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
->  		unsigned long start, unsigned int nr, void *data,
->  		struct gen_pool *pool)
->  {
-> -	return bitmap_find_next_zero_area(map, size, start, nr, 0);
-> +	unsigned long align_mask;
-> +	unsigned long bit_index;
-> +
-> +	align_mask = roundup_pow_of_two(BITS_PER_ENTRY) - 1;
-> +	bit_index = bitmap_find_next_zero_area(map, ENTRIES_TO_BITS(size),
-> +					       ENTRIES_TO_BITS(start),
-> +					       ENTRIES_TO_BITS(nr),
-> +					       align_mask);
-> +	return BITS_DIV_ENTRIES(bit_index);
->  }
->  EXPORT_SYMBOL(gen_pool_first_fit);
-> 
-> @@ -535,11 +744,13 @@ EXPORT_SYMBOL(gen_pool_first_fit);
->   * gen_pool_first_fit_align - find the first available region
->   * of memory matching the size requirement (alignment constraint)
->   * @map: The address to base the search on
-> - * @size: The bitmap size in bits
-> - * @start: The bitnumber to start searching at
-> - * @nr: The number of zeroed bits we're looking for
-> + * @size: The number of allocation units in the bitmap
-> + * @start: The allocation unit to start searching at
-> + * @nr: The number of allocation units we're looking for
->   * @data: data for alignment
->   * @pool: pool to get order from
-> + *
-> + * Return: index of the memory allocated, otherwise the end of the range
->   */
->  unsigned long gen_pool_first_fit_align(unsigned long *map, unsigned long size,
->  		unsigned long start, unsigned int nr, void *data,
-> @@ -547,23 +758,32 @@ unsigned long gen_pool_first_fit_align(unsigned long *map, unsigned long size,
->  {
->  	struct genpool_data_align *alignment;
->  	unsigned long align_mask;
-> +	unsigned long bit_index;
->  	int order;
-> 
->  	alignment = data;
->  	order = pool->min_alloc_order;
-> -	align_mask = ((alignment->align + (1UL << order) - 1) >> order) - 1;
-> -	return bitmap_find_next_zero_area(map, size, start, nr, align_mask);
-> +	align_mask = roundup_pow_of_two(
-> +			ENTRIES_TO_BITS(mem_to_units(alignment->align,
-> +						     order))) - 1;
-> +	bit_index = bitmap_find_next_zero_area(map, ENTRIES_TO_BITS(size),
-> +					       ENTRIES_TO_BITS(start),
-> +					       ENTRIES_TO_BITS(nr),
-> +					       align_mask);
-> +	return BITS_DIV_ENTRIES(bit_index);
->  }
->  EXPORT_SYMBOL(gen_pool_first_fit_align);
-> 
->  /**
->   * gen_pool_fixed_alloc - reserve a specific region
->   * @map: The address to base the search on
-> - * @size: The bitmap size in bits
-> - * @start: The bitnumber to start searching at
-> - * @nr: The number of zeroed bits we're looking for
-> + * @size: The number of allocation units in the bitmap
-> + * @start: The allocation unit to start searching at
-> + * @nr: The number of allocation units we're looking for
->   * @data: data for alignment
->   * @pool: pool to get order from
-> + *
-> + * Return: index of the memory allocated, otherwise the end of the range
->   */
->  unsigned long gen_pool_fixed_alloc(unsigned long *map, unsigned long size,
->  		unsigned long start, unsigned int nr, void *data,
-> @@ -571,20 +791,23 @@ unsigned long gen_pool_fixed_alloc(unsigned long *map, unsigned long size,
->  {
->  	struct genpool_data_fixed *fixed_data;
->  	int order;
-> -	unsigned long offset_bit;
-> -	unsigned long start_bit;
-> +	unsigned long offset;
-> +	unsigned long align_mask;
-> +	unsigned long bit_index;
-> 
->  	fixed_data = data;
->  	order = pool->min_alloc_order;
-> -	offset_bit = fixed_data->offset >> order;
->  	if (WARN_ON(fixed_data->offset & ((1UL << order) - 1)))
->  		return size;
-> +	offset = fixed_data->offset >> order;
-> +	align_mask = roundup_pow_of_two(BITS_PER_ENTRY) - 1;
-> +	bit_index = bitmap_find_next_zero_area(map, ENTRIES_TO_BITS(size),
-> +					       ENTRIES_TO_BITS(start + offset),
-> +					       ENTRIES_TO_BITS(nr), align_mask);
-> +	if (bit_index != ENTRIES_TO_BITS(offset))
-> +		return size;
-> 
-> -	start_bit = bitmap_find_next_zero_area(map, size,
-> -			start + offset_bit, nr, 0);
-> -	if (start_bit != offset_bit)
-> -		start_bit = size;
-> -	return start_bit;
-> +	return BITS_DIV_ENTRIES(bit_index);
->  }
->  EXPORT_SYMBOL(gen_pool_fixed_alloc);
-> 
-> @@ -593,60 +816,84 @@ EXPORT_SYMBOL(gen_pool_fixed_alloc);
->   * of memory matching the size requirement. The region will be aligned
->   * to the order of the size specified.
->   * @map: The address to base the search on
-> - * @size: The bitmap size in bits
-> - * @start: The bitnumber to start searching at
-> - * @nr: The number of zeroed bits we're looking for
-> + * @size: The number of allocation units in the bitmap
-> + * @start: The allocation unit to start searching at
-> + * @nr: The number of allocation units we're looking for
->   * @data: additional data - unused
->   * @pool: pool to find the fit region memory from
-> + *
-> + * Return: index of the memory allocated, otherwise the end of the range
->   */
->  unsigned long gen_pool_first_fit_order_align(unsigned long *map,
->  		unsigned long size, unsigned long start,
->  		unsigned int nr, void *data, struct gen_pool *pool)
->  {
-> -	unsigned long align_mask = roundup_pow_of_two(nr) - 1;
-> -
-> -	return bitmap_find_next_zero_area(map, size, start, nr, align_mask);
-> +	unsigned long align_mask;
-> +	unsigned long bit_index;
-> +
-> +	align_mask = roundup_pow_of_two(ENTRIES_TO_BITS(nr)) - 1;
-> +	bit_index = bitmap_find_next_zero_area(map, ENTRIES_TO_BITS(size),
-> +					       ENTRIES_TO_BITS(start),
-> +					       ENTRIES_TO_BITS(nr),
-> +					       align_mask);
-> +	return BITS_DIV_ENTRIES(bit_index);
->  }
->  EXPORT_SYMBOL(gen_pool_first_fit_order_align);
-> 
->  /**
->   * gen_pool_best_fit - find the best fitting region of memory
-> - * macthing the size requirement (no alignment constraint)
-> + * matching the size requirement (no alignment constraint)
->   * @map: The address to base the search on
-> - * @size: The bitmap size in bits
-> - * @start: The bitnumber to start searching at
-> - * @nr: The number of zeroed bits we're looking for
-> + * @size: The number of allocation units in the bitmap
-> + * @start: The allocation unit to start searching at
-> + * @nr: The number of allocation units we're looking for
->   * @data: additional data - unused
->   * @pool: pool to find the fit region memory from
->   *
->   * Iterate over the bitmap to find the smallest free region
->   * which we can allocate the memory.
-> + *
-> + * Return: index of the memory allocated, otherwise the end of the range
->   */
->  unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
->  		unsigned long start, unsigned int nr, void *data,
->  		struct gen_pool *pool)
->  {
-> -	unsigned long start_bit = size;
-> +	unsigned long start_bit = ENTRIES_TO_BITS(size);
->  	unsigned long len = size + 1;
->  	unsigned long index;
-> +	unsigned long align_mask;
-> +	unsigned long bit_index;
-> 
-> -	index = bitmap_find_next_zero_area(map, size, start, nr, 0);
-> +	align_mask = roundup_pow_of_two(BITS_PER_ENTRY) - 1;
-> +	bit_index = bitmap_find_next_zero_area(map, ENTRIES_TO_BITS(size),
-> +					       ENTRIES_TO_BITS(start),
-> +					       ENTRIES_TO_BITS(nr),
-> +					       align_mask);
-> +	index = BITS_DIV_ENTRIES(bit_index);
-> 
->  	while (index < size) {
-> -		int next_bit = find_next_bit(map, size, index + nr);
-> -		if ((next_bit - index) < len) {
-> -			len = next_bit - index;
-> -			start_bit = index;
-> +		int next_bit;
-> +
-> +		next_bit = find_next_bit(map, ENTRIES_TO_BITS(size),
-> +					 ENTRIES_TO_BITS(index + nr));
-> +		if ((BITS_DIV_ENTRIES(next_bit) - index) < len) {
-> +			len = BITS_DIV_ENTRIES(next_bit) - index;
-> +			start_bit = ENTRIES_TO_BITS(index);
->  			if (len == nr)
-> -				return start_bit;
-> +				return BITS_DIV_ENTRIES(start_bit);
->  		}
-> -		index = bitmap_find_next_zero_area(map, size,
-> -						   next_bit + 1, nr, 0);
-> +		bit_index =
-> +			bitmap_find_next_zero_area(map,
-> +						   ENTRIES_TO_BITS(size),
-> +						   next_bit + 1,
-> +						   ENTRIES_TO_BITS(nr),
-> +						   align_mask);
-> +		index = BITS_DIV_ENTRIES(bit_index);
->  	}
-> 
-> -	return start_bit;
-> +	return BITS_DIV_ENTRIES(start_bit);
->  }
-> -EXPORT_SYMBOL(gen_pool_best_fit);
-> 
->  static void devm_gen_pool_release(struct device *dev, void *res)
->  {
-> @@ -672,7 +919,7 @@ static int devm_gen_pool_match(struct device *dev, void *res, void *data)
->   * @dev: device to retrieve the gen_pool from
->   * @name: name of a gen_pool or NULL, identifies a particular gen_pool on device
->   *
-> - * Returns the gen_pool for the device if one is present, or NULL.
-> + * Return: the gen_pool for the device if one is present, or NULL.
->   */
->  struct gen_pool *gen_pool_get(struct device *dev, const char *name)
->  {
-> @@ -696,6 +943,8 @@ EXPORT_SYMBOL_GPL(gen_pool_get);
->   * Create a new special memory pool that can be used to manage special purpose
->   * memory not managed by the regular kmalloc/kfree interface. The pool will be
->   * automatically destroyed by the device management code.
-> + *
-> + * Return: the address of the pool, if successful, otherwise NULL
->   */
->  struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
->  				      int nid, const char *name)
-> @@ -743,7 +992,7 @@ EXPORT_SYMBOL(devm_gen_pool_create);
->   * @propname: property name containing phandle(s)
->   * @index: index into the phandle array
->   *
-> - * Returns the pool that contains the chunk starting at the physical
-> + * Return: the pool that contains the chunk starting at the physical
->   * address of the device tree node pointed at by the phandle property,
->   * or NULL if not found.
->   */
-> -- 
-> 2.14.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
--- 
-Sincerely yours,
-Mike.
+--k+w/mQv8wyuph6w0
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+PSwhOoX/B3byaZ5/6gEA
+
+--k+w/mQv8wyuph6w0--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
