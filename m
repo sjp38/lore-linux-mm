@@ -1,44 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E580A6B0006
-	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 16:18:07 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id g16so1622114wmg.6
-        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 13:18:07 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:8b0:10b:1236::1])
-        by mx.google.com with ESMTPS id k5si2800497wmg.177.2018.02.11.13.18.06
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A165E6B0003
+	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 17:12:45 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id f64so2971601plb.7
+        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 14:12:45 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id r3-v6si4950964plo.432.2018.02.11.14.12.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 11 Feb 2018 13:18:06 -0800 (PST)
-Date: Sun, 11 Feb 2018 13:16:46 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 3/6] struct page: add field for vm_struct
-Message-ID: <20180211211646.GC4680@bombadil.infradead.org>
-References: <20180211031920.3424-1-igor.stoppa@huawei.com>
- <20180211031920.3424-4-igor.stoppa@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180211031920.3424-4-igor.stoppa@huawei.com>
+        Sun, 11 Feb 2018 14:12:44 -0800 (PST)
+Message-ID: <1518387160.3979.10.camel@HansenPartnership.com>
+Subject: Re: [PATCH 00/31 v2] PTI support for x86_32
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Sun, 11 Feb 2018 14:12:40 -0800
+In-Reply-To: <0C6EFF56-F135-480C-867C-B117F114A99F@amacapital.net>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+	 <CALCETrUF61fqjXKG=kwf83JWpw=kgL16UvKowezDVwVA1=YVAw@mail.gmail.com>
+	 <20180209191112.55zyjf4njum75brd@suse.de>
+	 <20180210091543.ynypx4y3koz44g7y@angband.pl>
+	 <CA+55aFwdLZjDcfhj4Ps=dUfd7ifkoYxW0FoH_JKjhXJYzxUSZQ@mail.gmail.com>
+	 <20180211105909.53bv5q363u7jgrsc@angband.pl>
+	 <6FB16384-7597-474E-91A1-1AF09201CEAC@gmail.com>
+	 <0C6EFF56-F135-480C-867C-B117F114A99F@amacapital.net>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: rdunlap@infradead.org, corbet@lwn.net, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, jglisse@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Andy Lutomirski <luto@amacapital.net>, Mark D Rustad <mrustad@gmail.com>
+Cc: Adam Borowski <kilobyte@angband.pl>, Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter
+ Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
 
-On Sun, Feb 11, 2018 at 05:19:17AM +0200, Igor Stoppa wrote:
-> The struct page has a "mapping" field, which can be re-used, to store a
-> pointer to the parent area. This will avoid more expensive searches.
+On Sun, 2018-02-11 at 11:42 -0800, Andy Lutomirski wrote:
 > 
-> As example, the function find_vm_area is reimplemented, to take advantage
-> of the newly introduced field.
+> On Feb 11, 2018, at 9:40 AM, Mark D Rustad <mrustad@gmail.com> wrote:
+> 
+> > 
+> > > 
+> > > On Feb 11, 2018, at 2:59 AM, Adam Borowski <kilobyte@angband.pl>
+> > > wrote:
+> > > 
+> > > > 
+> > > > Does Debian make it easy to upgrade to a 64-bit kernel if you
+> > > > have a
+> > > > 32-bit install?
+> > > 
+> > > Quite easy, yeah.A A Crossgrading userspace is not for the faint of
+> > > the heart,
+> > > but changing just the kernel is fine.
+> > 
+> > ISTR that iscsi doesn't work when running a 64-bit kernel with a
+> > 32-bit userspace. I remember someone offered kernel patches to fix
+> > it, but I think they were rejected. I haven't messed with that
+> > stuff in many years, so perhaps the userspace side now has
+> > accommodation for it. It might be something to check on.
+> > 
+> 
+> At the risk of suggesting heresy, should we consider removing x86_32
+> support at some point?
 
-Umm.  Is it more efficient?  You're replacing an rb-tree search with a
-page-table walk.  You eliminate a spinlock, which is great, but is the
-page-table walk more efficient?  I suppose it'll depend on the depth of
-the rb-tree, and (at least on x86), the page tables should already be
-in cache.
+Hey, my cloud server is 32 bit:
 
-Unrelated to this patch, I'm working on a patch to give us page_type,
-and I think I'll allocate a bit to mark pages which are vmalloced.
+bedivere:~# cat /proc/cpuinfoA 
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 15
+model		: 2
+model name	: Intel(R) Pentium(R) 4 CPU 2.80GHz
+stepping	: 9
+microcode	: 0x2e
+cpu MHz		: 2813.464
+[...]
+
+I suspect a lot of people are in the same position: grandfathered in on
+an old hosting plan, but not really willing to switch to a new 64 bit
+box because the monthly cost about doubles and nothing it does is
+currently anywhere up to (let alone over) the capacity of the single
+686 processor.
+
+The thing which is making me consider it is actually getting a TPM to
+protect the private keys, but doubling the monthly cost is still a huge
+disincentive.
+
+James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
