@@ -1,24 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BADD86B0003
-	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 01:43:44 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id c62so3999152pfk.21
-        for <linux-mm@kvack.org>; Sat, 10 Feb 2018 22:43:44 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id n66si4458397pfb.213.2018.02.10.22.43.42
+	by kanga.kvack.org (Postfix) with ESMTP id 61C4E6B0007
+	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 01:47:48 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id k78so3994201pfk.12
+        for <linux-mm@kvack.org>; Sat, 10 Feb 2018 22:47:48 -0800 (PST)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id v34-v6si4128519plg.803.2018.02.10.22.47.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 10 Feb 2018 22:43:43 -0800 (PST)
+        Sat, 10 Feb 2018 22:47:47 -0800 (PST)
 From: "Huang\, Ying" <ying.huang@intel.com>
 Subject: The usage of page_mapping() in architecture code
-Date: Sun, 11 Feb 2018 14:43:39 +0800
-Message-ID: <87vaf4xbz8.fsf@yhuang-dev.intel.com>
+References: <87vaf4xbz8.fsf@yhuang-dev.intel.com>
+Date: Sun, 11 Feb 2018 14:47:42 +0800
+In-Reply-To: <87vaf4xbz8.fsf@yhuang-dev.intel.com> (Ying Huang's message of
+	"Sun, 11 Feb 2018 14:43:39 +0800")
+Message-ID: <87o9kwxbsh.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@intel.com>, Chen Liqin <liqin.linux@gmail.com>, Russell King <linux@armlinux.org.uk>, Yoshinori Sato <ysato@users.sourceforge.jp>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "David S. Miller" <davem@davemloft.net>, Chris Zankel <chris@zankel.net>, Vineet Gupta <vgupta@synopsys.com>, Ley Foon Tan <lftan@altera.com>, Ralf Baechle <ralf@linux-mips.org>, Andi Kleen <ak@linux.intel.com>
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+
+Sorry for bothering, forget to Cc LKML in the original email.
 
 Hi, All,
 
