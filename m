@@ -1,127 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 61C4E6B0007
-	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 01:47:48 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id k78so3994201pfk.12
-        for <linux-mm@kvack.org>; Sat, 10 Feb 2018 22:47:48 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id v34-v6si4128519plg.803.2018.02.10.22.47.46
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DF8B6B0009
+	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 02:05:50 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id u10so5226412qtg.7
+        for <linux-mm@kvack.org>; Sat, 10 Feb 2018 23:05:50 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i5si6513075qka.304.2018.02.10.23.05.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 10 Feb 2018 22:47:47 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: The usage of page_mapping() in architecture code
-References: <87vaf4xbz8.fsf@yhuang-dev.intel.com>
-Date: Sun, 11 Feb 2018 14:47:42 +0800
-In-Reply-To: <87vaf4xbz8.fsf@yhuang-dev.intel.com> (Ying Huang's message of
-	"Sun, 11 Feb 2018 14:43:39 +0800")
-Message-ID: <87o9kwxbsh.fsf@yhuang-dev.intel.com>
+        Sat, 10 Feb 2018 23:05:49 -0800 (PST)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1B73qKi117137
+	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 02:05:48 -0500
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2g2h3qg1v3-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 02:05:47 -0500
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Sun, 11 Feb 2018 07:05:45 -0000
+Date: Sun, 11 Feb 2018 09:05:40 +0200
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCHv2 1/2] zsmalloc: introduce zs_huge_object() function
+References: <20180207092919.19696-2-sergey.senozhatsky@gmail.com>
+ <20180210082321.17798-1-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180210082321.17798-1-sergey.senozhatsky@gmail.com>
+Message-Id: <20180211070539.GA13931@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@intel.com>, Chen Liqin <liqin.linux@gmail.com>, Russell King <linux@armlinux.org.uk>, Yoshinori Sato <ysato@users.sourceforge.jp>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "David S. Miller" <davem@davemloft.net>, Chris Zankel <chris@zankel.net>, Vineet Gupta <vgupta@synopsys.com>, Ley Foon Tan <lftan@altera.com>, Ralf Baechle <ralf@linux-mips.org>, Andi Kleen <ak@linux.intel.com>
-Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-Sorry for bothering, forget to Cc LKML in the original email.
+Some more nitpicks :)
 
-Hi, All,
+On Sat, Feb 10, 2018 at 05:23:21PM +0900, Sergey Senozhatsky wrote:
+> Not every object can be share its zspage with other objects, e.g.
+> when the object is as big as zspage or nearly as big a zspage.
+> For such objects zsmalloc has a so called huge class - every object
+> which belongs to huge class consumes the entire zspage (which
+> consists of a physical page). On x86_64, PAGE_SHIFT 12 box, the
+> first non-huge class size is 3264, so starting down from size 3264,
+> objects can share page(-s) and thus minimize memory wastage.
+> 
+> ZRAM, however, has its own statically defined watermark for huge
+> objects - "3 * PAGE_SIZE / 4 = 3072", and forcibly stores every
+> object larger than this watermark (3072) as a PAGE_SIZE object,
+> in other words, to a huge class, while zsmalloc can keep some of
+> those objects in non-huge classes. This results in increased
+> memory consumption.
+> 
+> zsmalloc knows better if the object is huge or not. Introduce
+> zs_huge_object() function which tells if the given object can be
+> stored in one of non-huge classes or not. This will let us to drop
+> ZRAM's huge object watermark and fully rely on zsmalloc when we
+> decide if the object is huge.
+> 
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> ---
+>  include/linux/zsmalloc.h |  2 ++
+>  mm/zsmalloc.c            | 26 ++++++++++++++++++++++++++
+>  2 files changed, 28 insertions(+)
+> 
+> diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
+> index 57a8e98f2708..9a1baf673cc1 100644
+> --- a/include/linux/zsmalloc.h
+> +++ b/include/linux/zsmalloc.h
+> @@ -47,6 +47,8 @@ void zs_destroy_pool(struct zs_pool *pool);
+>  unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t flags);
+>  void zs_free(struct zs_pool *pool, unsigned long obj);
+> 
+> +bool zs_huge_object(size_t sz);
+> +
+>  void *zs_map_object(struct zs_pool *pool, unsigned long handle,
+>  			enum zs_mapmode mm);
+>  void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index c3013505c305..922180183ca3 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -192,6 +192,7 @@ static struct vfsmount *zsmalloc_mnt;
+>   * (see: fix_fullness_group())
+>   */
+>  static const int fullness_threshold_frac = 4;
+> +static size_t zs_huge_class_size;
+> 
+>  struct size_class {
+>  	spinlock_t lock;
+> @@ -1417,6 +1418,28 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
+>  }
+>  EXPORT_SYMBOL_GPL(zs_unmap_object);
+> 
+> +/**
+> + * zs_huge_object() - Test if a compressed object's size is too big for normal
+> + *                    zspool classes and it shall be stored in a huge class.
 
-To optimize the scalability of swap cache, it is made more dynamic
-than before.  That is, after being swapped off, the address space of
-the swap device will be freed too.  So the usage of page_mapping()
-need to be audited to make sure the address space of the swap device
-will not be used after it is freed.  For most cases it is OK, because
-to call page_mapping(), the page, page table, or LRU list will be
-locked.  But I found at least one usage isn't safe.  When
-page_mapping() is called in architecture specific code to flush dcache
-or sync between dcache and icache.
+I think "is should be stored" is more appropriate
 
-The typical usage models are,
+> + * @sz: Size of the compressed object (in bytes).
+> + *
+> + * The function checks if the object's size falls into huge_class
+> + * area. We must take handle size into account and test the actual
+> + * size we are going to use, because zs_malloc() unconditionally
+> + * adds %ZS_HANDLE_SIZE before it performs %size_class lookup.
 
+                                            ^ &size_class ;-)
 
-1) Check whether page_mapping() is NULL, which is safe
+> + *
+> + * Context: Any context.
+> + *
+> + * Return:
+> + * * true  - The object's size is too big, it will be stored in a huge class.
+> + * * false - The object will be store in normal zspool classes.
+> + */
+> +bool zs_huge_object(size_t sz)
+> +{
+> +	return sz + ZS_HANDLE_SIZE >= zs_huge_class_size;
+> +}
+> +EXPORT_SYMBOL_GPL(zs_huge_object);
+> +
+>  static unsigned long obj_malloc(struct size_class *class,
+>  				struct zspage *zspage, unsigned long handle)
+>  {
+> @@ -2404,6 +2427,9 @@ struct zs_pool *zs_create_pool(const char *name)
+>  			INIT_LIST_HEAD(&class->fullness_list[fullness]);
+> 
+>  		prev_class = class;
+> +		if (pages_per_zspage == 1 && objs_per_zspage == 1
+> +				&& !zs_huge_class_size)
+> +			zs_huge_class_size = size;
+>  	}
+> 
+>  	/* debug only, don't abort if it fails */
+> -- 
+> 2.16.1
+> 
 
-2) Call mapping_mapped() to check whether the backing file is mapped
-   to user space.
-
-3) Iterate all vmas via the interval tree (mapping->i_mmap) to flush dcache
-
-
-2) and 3) isn't safe, because no lock to prevent swap device from
-swapping off is held.  But I found the code is for file address space
-only, not for swap cache.  For example, for flush_dcache_page() in
-arch/parisc/kernel/cache.c,
-
-
-void flush_dcache_page(struct page *page)
-{
-	struct address_space *mapping = page_mapping(page);
-	struct vm_area_struct *mpnt;
-	unsigned long offset;
-	unsigned long addr, old_addr = 0;
-	pgoff_t pgoff;
-
-	if (mapping && !mapping_mapped(mapping)) {
-		set_bit(PG_dcache_dirty, &page->flags);
-		return;
-	}
-
-	flush_kernel_dcache_page(page);
-
-	if (!mapping)
-		return;
-
-	pgoff = page->index;
-
-	/* We have carefully arranged in arch_get_unmapped_area() that
-	 * *any* mappings of a file are always congruently mapped (whether
-	 * declared as MAP_PRIVATE or MAP_SHARED), so we only need
-	 * to flush one address here for them all to become coherent */
-
-	flush_dcache_mmap_lock(mapping);
-	vma_interval_tree_foreach(mpnt, &mapping->i_mmap, pgoff, pgoff) {
-		offset = (pgoff - mpnt->vm_pgoff) << PAGE_SHIFT;
-		addr = mpnt->vm_start + offset;
-
-		/* The TLB is the engine of coherence on parisc: The
-		 * CPU is entitled to speculate any page with a TLB
-		 * mapping, so here we kill the mapping then flush the
-		 * page along a special flush only alias mapping.
-		 * This guarantees that the page is no-longer in the
-		 * cache for any process and nor may it be
-		 * speculatively read in (until the user or kernel
-		 * specifically accesses it, of course) */
-
-		flush_tlb_page(mpnt, addr);
-		if (old_addr == 0 || (old_addr & (SHM_COLOUR - 1))
-				      != (addr & (SHM_COLOUR - 1))) {
-			__flush_cache_page(mpnt, addr, page_to_phys(page));
-			if (old_addr)
-				printk(KERN_ERR "INEQUIVALENT ALIASES 0x%lx and 0x%lx in file %pD\n", old_addr, addr, mpnt->vm_file);
-			old_addr = addr;
-		}
-	}
-	flush_dcache_mmap_unlock(mapping);
-}
-
-
-if page is an anonymous page in swap cache, "mapping &&
-!mapping_mapped()" will be true, so we will delay flushing.  But if my
-understanding of the code were correct, we should call
-flush_kernel_dcache() because the kernel may access the page during
-swapping in/out.
-
-The code in other architectures follow the similar logic.  Would it be
-better for page_mapping() here to return NULL for anonymous pages even
-if they are in swap cache?  Of course we need to change the function
-name.  page_file_mapping() appears a good name, but that has been used
-already.  Any suggestion?
-
-Is my understanding correct?  Could you help me on this?
-
-Best Regards,
-Huang, Ying
+-- 
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
