@@ -1,170 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C2B566B000E
-	for <linux-mm@kvack.org>; Sat, 10 Feb 2018 22:23:10 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id i12so6811923wra.22
-        for <linux-mm@kvack.org>; Sat, 10 Feb 2018 19:23:10 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id a43si1780702edf.314.2018.02.10.19.23.09
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EB61A6B0003
+	for <linux-mm@kvack.org>; Sat, 10 Feb 2018 23:34:02 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id e74so1243771wmg.0
+        for <linux-mm@kvack.org>; Sat, 10 Feb 2018 20:34:02 -0800 (PST)
+Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
+        by mx.google.com with ESMTPS id p13si4387121wrd.431.2018.02.10.20.34.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 10 Feb 2018 19:23:09 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 6/6] Documentation for Pmalloc
-Date: Sun, 11 Feb 2018 05:19:20 +0200
-Message-ID: <20180211031920.3424-7-igor.stoppa@huawei.com>
-In-Reply-To: <20180211031920.3424-1-igor.stoppa@huawei.com>
-References: <20180211031920.3424-1-igor.stoppa@huawei.com>
+        Sat, 10 Feb 2018 20:34:01 -0800 (PST)
+Content-Type: text/plain; charset="UTF-8"
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-Content-Type: text/plain
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Sun, 11 Feb 2018 04:31:11 +0000
+Message-ID: <lsq.1518323471.705119318@decadent.org.uk>
+Subject: [PATCH 3.16 131/136] x86/vdso: Get pvclock data from the vvar VMA
+ instead of the fixmap
+In-Reply-To: <lsq.1518323469.348919605@decadent.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org, rdunlap@infradead.org, corbet@lwn.net, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, jglisse@redhat.com, hch@infradead.org
-Cc: cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
+Cc: akpm@linux-foundation.org, Brian Gerst <brgerst@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, linux-mm@kvack.org, Andy Lutomirski <luto@amacapital.net>, Paolo Bonzini <pbonzini@redhat.com>, Borislav Petkov <bp@alien8.de>, Peter Zijlstra <peterz@infradead.org>, "H. Peter Anvin" <hpa@zytor.com>
 
-Detailed documentation about the protectable memory allocator.
+3.16.54-rc1 review patch.  If anyone has any objections, please let me know.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+------------------
+
+From: Andy Lutomirski <luto@kernel.org>
+
+commit dac16fba6fc590fa7239676b35ed75dae4c4cd2b upstream.
+
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Reviewed-by: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/9d37826fdc7e2d2809efe31d5345f97186859284.1449702533.git.luto@kernel.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+[bwh: Backported to 3.16: adjust filenames]
+Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
 ---
- Documentation/core-api/index.rst   |   1 +
- Documentation/core-api/pmalloc.rst | 114 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 115 insertions(+)
- create mode 100644 Documentation/core-api/pmalloc.rst
+ arch/x86/vdso/vclock_gettime.c  | 20 ++++++++------------
+ arch/x86/vdso/vdso-layout.lds.S |  3 ++-
+ arch/x86/vdso/vdso2c.c          |  3 +++
+ arch/x86/vdso/vma.c             | 13 +++++++++++++
+ arch/x86/include/asm/pvclock.h  |  9 +++++++++
+ arch/x86/include/asm/vdso.h     |  1 +
+ arch/x86/kernel/kvmclock.c      |  5 +++++
+ 7 files changed, 41 insertions(+), 13 deletions(-)
 
-diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-index c670a8031786..8f5de42d6571 100644
---- a/Documentation/core-api/index.rst
-+++ b/Documentation/core-api/index.rst
-@@ -25,6 +25,7 @@ Core utilities
-    genalloc
-    errseq
-    printk-formats
-+   pmalloc
+--- a/arch/x86/vdso/vclock_gettime.c
++++ b/arch/x86/vdso/vclock_gettime.c
+@@ -36,6 +36,11 @@ static notrace cycle_t vread_hpet(void)
+ }
+ #endif
  
- Interfaces for kernel debugging
- ===============================
-diff --git a/Documentation/core-api/pmalloc.rst b/Documentation/core-api/pmalloc.rst
-new file mode 100644
-index 000000000000..1afc13b6a74d
---- /dev/null
-+++ b/Documentation/core-api/pmalloc.rst
-@@ -0,0 +1,114 @@
-+SPDX-License-Identifier: CC-BY-SA-4.0
++#ifdef CONFIG_PARAVIRT_CLOCK
++extern u8 pvclock_page
++	__attribute__((visibility("hidden")));
++#endif
 +
-+Protectable memory allocator
-+============================
+ #ifndef BUILD_VDSO32
+ 
+ #include <linux/kernel.h>
+@@ -62,23 +67,14 @@ notrace static long vdso_fallback_gtod(s
+ 
+ #ifdef CONFIG_PARAVIRT_CLOCK
+ 
+-static notrace const struct pvclock_vsyscall_time_info *get_pvti(int cpu)
++static notrace const struct pvclock_vsyscall_time_info *get_pvti0(void)
+ {
+-	const struct pvclock_vsyscall_time_info *pvti_base;
+-	int idx = cpu / (PAGE_SIZE/PVTI_SIZE);
+-	int offset = cpu % (PAGE_SIZE/PVTI_SIZE);
+-
+-	BUG_ON(PVCLOCK_FIXMAP_BEGIN + idx > PVCLOCK_FIXMAP_END);
+-
+-	pvti_base = (struct pvclock_vsyscall_time_info *)
+-		    __fix_to_virt(PVCLOCK_FIXMAP_BEGIN+idx);
+-
+-	return &pvti_base[offset];
++	return (const struct pvclock_vsyscall_time_info *)&pvclock_page;
+ }
+ 
+ static notrace cycle_t vread_pvclock(int *mode)
+ {
+-	const struct pvclock_vcpu_time_info *pvti = &get_pvti(0)->pvti;
++	const struct pvclock_vcpu_time_info *pvti = &get_pvti0()->pvti;
+ 	cycle_t ret;
+ 	u64 tsc, pvti_tsc;
+ 	u64 last, delta, pvti_system_time;
+--- a/arch/x86/vdso/vdso-layout.lds.S
++++ b/arch/x86/vdso/vdso-layout.lds.S
+@@ -25,7 +25,7 @@ SECTIONS
+ 	 * segment.
+ 	 */
+ 
+-	vvar_start = . - 2 * PAGE_SIZE;
++	vvar_start = . - 3 * PAGE_SIZE;
+ 	vvar_page = vvar_start;
+ 
+ 	/* Place all vvars at the offsets in asm/vvar.h. */
+@@ -36,6 +36,7 @@ SECTIONS
+ #undef EMIT_VVAR
+ 
+ 	hpet_page = vvar_start + PAGE_SIZE;
++	pvclock_page = vvar_start + 2 * PAGE_SIZE;
+ 
+ 	. = SIZEOF_HEADERS;
+ 
+--- a/arch/x86/vdso/vdso2c.c
++++ b/arch/x86/vdso/vdso2c.c
+@@ -23,6 +23,7 @@ enum {
+ 	sym_vvar_start,
+ 	sym_vvar_page,
+ 	sym_hpet_page,
++	sym_pvclock_page,
+ 	sym_VDSO_FAKE_SECTION_TABLE_START,
+ 	sym_VDSO_FAKE_SECTION_TABLE_END,
+ };
+@@ -30,6 +31,7 @@ enum {
+ const int special_pages[] = {
+ 	sym_vvar_page,
+ 	sym_hpet_page,
++	sym_pvclock_page,
+ };
+ 
+ struct vdso_sym {
+@@ -41,6 +43,7 @@ struct vdso_sym required_syms[] = {
+ 	[sym_vvar_start] = {"vvar_start", true},
+ 	[sym_vvar_page] = {"vvar_page", true},
+ 	[sym_hpet_page] = {"hpet_page", true},
++	[sym_pvclock_page] = {"pvclock_page", true},
+ 	[sym_VDSO_FAKE_SECTION_TABLE_START] = {
+ 		"VDSO_FAKE_SECTION_TABLE_START", false
+ 	},
+--- a/arch/x86/vdso/vma.c
++++ b/arch/x86/vdso/vma.c
+@@ -113,6 +113,7 @@ static int map_vdso(const struct vdso_im
+ 		.name = "[vvar]",
+ 		.pages = no_pages,
+ 	};
++	struct pvclock_vsyscall_time_info *pvti;
+ 
+ 	if (calculate_addr) {
+ 		addr = vdso_addr(current->mm->start_stack,
+@@ -182,6 +183,18 @@ static int map_vdso(const struct vdso_im
+ 	}
+ #endif
+ 
++	pvti = pvclock_pvti_cpu0_va();
++	if (pvti && image->sym_pvclock_page) {
++		ret = remap_pfn_range(vma,
++				      text_start + image->sym_pvclock_page,
++				      __pa(pvti) >> PAGE_SHIFT,
++				      PAGE_SIZE,
++				      PAGE_READONLY);
 +
-+Purpose
-+-------
++		if (ret)
++			goto up_fail;
++	}
 +
-+The pmalloc library is meant to provide R/O status to data that, for some
-+reason, could neither be declared as constant, nor could it take advantage
-+of the qualifier __ro_after_init, but is write-once and read-only in spirit.
-+It protects data from both accidental and malicious overwrites.
+ up_fail:
+ 	if (ret)
+ 		current->mm->context.vdso = NULL;
+--- a/arch/x86/include/asm/pvclock.h
++++ b/arch/x86/include/asm/pvclock.h
+@@ -4,6 +4,15 @@
+ #include <linux/clocksource.h>
+ #include <asm/pvclock-abi.h>
+ 
++#ifdef CONFIG_PARAVIRT_CLOCK
++extern struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void);
++#else
++static inline struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void)
++{
++	return NULL;
++}
++#endif
 +
-+Example: A policy that is loaded from userspace.
+ /* some helper functions for xen and kvm pv clock sources */
+ cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src);
+ u8 pvclock_read_flags(struct pvclock_vcpu_time_info *src);
+--- a/arch/x86/include/asm/vdso.h
++++ b/arch/x86/include/asm/vdso.h
+@@ -22,6 +22,7 @@ struct vdso_image {
+ 
+ 	long sym_vvar_page;
+ 	long sym_hpet_page;
++	long sym_pvclock_page;
+ 	long sym_VDSO32_NOTE_MASK;
+ 	long sym___kernel_sigreturn;
+ 	long sym___kernel_rt_sigreturn;
+--- a/arch/x86/kernel/kvmclock.c
++++ b/arch/x86/kernel/kvmclock.c
+@@ -44,6 +44,11 @@ early_param("no-kvmclock", parse_no_kvmc
+ static struct pvclock_vsyscall_time_info *hv_clock;
+ static struct pvclock_wall_clock wall_clock;
+ 
++struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void)
++{
++	return hv_clock;
++}
 +
-+
-+Concept
-+-------
-+
-+pmalloc builds on top of genalloc, using the same concept of memory pools.
-+
-+The value added by pmalloc is that now the memory contained in a pool can
-+become R/O, for the rest of the life of the pool.
-+
-+Different kernel drivers and threads can use different pools, for finer
-+control of what becomes R/O and when. And for improved lockless concurrency.
-+
-+
-+Caveats
-+-------
-+
-+- Memory freed while a pool is not yet protected will be reused.
-+
-+- Once a pool is protected, it's not possible to allocate any more memory
-+  from it.
-+
-+- Memory "freed" from a protected pool indicates that such memory is not
-+  in use anymore by the requester; however, it will not become available
-+  for further use, until the pool is destroyed.
-+
-+- Before destroying a pool, all the memory allocated from it must be
-+  released.
-+
-+- pmalloc does not provide locking support with respect to allocating vs
-+  protecting an individual pool, for performance reasons.
-+  It is recommended not to share the same pool between unrelated functions.
-+  Should sharing be a necessity, the user of the shared pool is expected
-+  to implement locking for that pool.
-+
-+- pmalloc uses genalloc to optimize the use of the space it allocates
-+  through vmalloc. Some more TLB entries will be used, however less than
-+  in the case of using vmalloc directly. The exact number depends on the
-+  size of each allocation request and possible slack.
-+
-+- Considering that not much data is supposed to be dynamically allocated
-+  and then marked as read-only, it shouldn't be an issue that the address
-+  range for pmalloc is limited, on 32-bit systems.
-+
-+- Regarding SMP systems, the allocations are expected to happen mostly
-+  during an initial transient, after which there should be no more need to
-+  perform cross-processor synchronizations of page tables.
-+
-+- To facilitate the conversion of existing code to pmalloc pools, several
-+  helper functions are provided, mirroring their kmalloc counterparts.
-+
-+
-+Use
-+---
-+
-+The typical sequence, when using pmalloc, is:
-+
-+1. create a pool
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pmalloc_create_pool
-+
-+2. [optional] pre-allocate some memory in the pool
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pmalloc_prealloc
-+
-+3. issue one or more allocation requests to the pool with locking as needed
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pmalloc
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pzalloc
-+
-+4. initialize the memory obtained with desired values
-+
-+5. [optional] iterate over points 3 & 4 as needed
-+
-+6. write-protect the pool
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pmalloc_protect_pool
-+
-+7. use in read-only mode the handles obtained through the allocations
-+
-+8. [optional] release all the memory allocated
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pfree
-+
-+9. [optional, but depends on point 8] destroy the pool
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pmalloc_destroy_pool
-+
-+API
-+---
-+
-+.. kernel-doc:: include/linux/pmalloc.h
--- 
-2.14.1
+ /*
+  * The wallclock is the time of day when we booted. Since then, some time may
+  * have elapsed since the hypervisor wrote the data. So we try to account for
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
