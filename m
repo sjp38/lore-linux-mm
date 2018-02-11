@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 475FC6B0011
-	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 03:39:13 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id s11so4067598pfh.23
-        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 00:39:13 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id r23si658449pfj.315.2018.02.11.00.39.11
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AB2D46B0006
+	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 04:26:57 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id x11so5603061pgr.9
+        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 01:26:57 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x20si4639876pfa.129.2018.02.11.01.26.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 11 Feb 2018 00:39:12 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: The usage of page_mapping() in architecture code
-References: <87vaf4xbz8.fsf@yhuang-dev.intel.com>
-	<20180211081707.GM9418@n2100.armlinux.org.uk>
-Date: Sun, 11 Feb 2018 16:39:07 +0800
-In-Reply-To: <20180211081707.GM9418@n2100.armlinux.org.uk> (Russell King's
-	message of "Sun, 11 Feb 2018 08:17:07 +0000")
-Message-ID: <87fu67yl78.fsf@yhuang-dev.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 11 Feb 2018 01:26:56 -0800 (PST)
+Date: Sun, 11 Feb 2018 10:26:52 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Regression after commit 19809c2da28a ("mm, vmalloc: use
+ __GFP_HIGHMEM implicitly")
+Message-ID: <20180211092652.GV21609@dhcp22.suse.cz>
+References: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
+ <20180208130649.GA15846@bombadil.infradead.org>
+ <20180208232004.GA21027@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180208232004.GA21027@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@armlinux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@intel.com>, Chen Liqin <liqin.linux@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "David S. Miller" <davem@davemloft.net>, Chris Zankel <chris@zankel.net>, Vineet Gupta <vgupta@synopsys.com>, Ley Foon Tan <lftan@altera.com>, Ralf Baechle <ralf@linux-mips.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Kai Heng Feng <kai.heng.feng@canonical.com>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hi, Russell,
+On Thu 08-02-18 15:20:04, Matthew Wilcox wrote:
+> On Thu, Feb 08, 2018 at 05:06:49AM -0800, Matthew Wilcox wrote:
+> > On Thu, Feb 08, 2018 at 02:29:57PM +0800, Kai Heng Feng wrote:
+> > > A user with i386 instead of AMD64 machine reports [1] that commit 19809c2da28a ("mm, vmalloc: use __GFP_HIGHMEM implicitlya??) causes a regression.
+> > > BUG_ON(PageHighMem(pg)) in drivers/media/common/saa7146/saa7146_core.c always gets triggered after that commit.
+> > 
+> > Well, the BUG_ON is wrong.  You can absolutely have pages which are both
+> > HighMem and under the 4GB boundary.  Only the first 896MB (iirc) are LowMem,
+> > and the next 3GB of pages are available to vmalloc_32().
+> 
+> ... nevertheless, 19809c2da28a does in fact break vmalloc_32 on 32-bit.  Look:
+> 
+> #if defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA32)
+> #define GFP_VMALLOC32 GFP_DMA32 | GFP_KERNEL
+> #elif defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA)
+> #define GFP_VMALLOC32 GFP_DMA | GFP_KERNEL
+> #else
+> #define GFP_VMALLOC32 GFP_KERNEL
+> #endif
+> 
+> So we pass in GFP_KERNEL to __vmalloc_node, which calls __vmalloc_node_range
+> which calls __vmalloc_area_node, which ORs in __GFP_HIGHMEM.
 
-Russell King - ARM Linux <linux@armlinux.org.uk> writes:
+Dohh. I have missed this. I was convinced that we always add GFP_DMA32
+when doing vmalloc_32. Sorry about that. The above definition looks
+quite weird to be honest. First of all do we have any 64b system without
+both DMA and DMA32 zones? If yes, what is the actual semantic of
+vmalloc_32? Or is there any magic forcing GFP_KERNEL into low 32b?
 
-> On Sun, Feb 11, 2018 at 02:43:39PM +0800, Huang, Ying wrote:
-[snip]
->> 
->> 
->> if page is an anonymous page in swap cache, "mapping &&
->> !mapping_mapped()" will be true, so we will delay flushing.  But if my
->> understanding of the code were correct, we should call
->> flush_kernel_dcache() because the kernel may access the page during
->> swapping in/out.
->> 
->> The code in other architectures follow the similar logic.  Would it be
->> better for page_mapping() here to return NULL for anonymous pages even
->> if they are in swap cache?  Of course we need to change the function
->> name.  page_file_mapping() appears a good name, but that has been used
->> already.  Any suggestion?
->
-> flush_dcache_page() does nothing for anonymous pages (see cachetlb.txt,
-> it's only defined to do anything for page cache pages.)
->
-> flush_anon_page() deals with anonymous pages.
+Also I would expect that __GFP_DMA32 should do the right thing on 32b
+systems. So something like the below should do the trick
+---
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 673942094328..2eab5d1ef548 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1947,7 +1947,8 @@ void *vmalloc_exec(unsigned long size)
+ #elif defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA)
+ #define GFP_VMALLOC32 GFP_DMA | GFP_KERNEL
+ #else
+-#define GFP_VMALLOC32 GFP_KERNEL
++/* This should be only 32b systems */
++#define GFP_VMALLOC32 GFP_DMA32 | GFP_KERNEL
+ #endif
+ 
+ /**
 
-Thanks for your information!  But I found this isn't followed exactly in
-the code.  For example, in get_mergeable_page() in mm/ksm.c,
-
-	if (PageAnon(page)) {
-		flush_anon_page(vma, page, addr);
-		flush_dcache_page(page);
-	} else {
-		put_page(page);
-
-flush_dcache_page() is called for anonymous pages too.
-
-Best Regards,
-Huang, Ying
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
