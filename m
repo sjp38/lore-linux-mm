@@ -1,82 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AB2D46B0006
-	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 04:26:57 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id x11so5603061pgr.9
-        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 01:26:57 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x20si4639876pfa.129.2018.02.11.01.26.55
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 683A76B0003
+	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 05:35:23 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id v198so3501952lfa.8
+        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 02:35:23 -0800 (PST)
+Received: from forwardcorp1j.cmail.yandex.net (forwardcorp1j.cmail.yandex.net. [2a02:6b8:0:1630::190])
+        by mx.google.com with ESMTPS id o9si2183389ljd.37.2018.02.11.02.35.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 11 Feb 2018 01:26:56 -0800 (PST)
-Date: Sun, 11 Feb 2018 10:26:52 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Regression after commit 19809c2da28a ("mm, vmalloc: use
- __GFP_HIGHMEM implicitly")
-Message-ID: <20180211092652.GV21609@dhcp22.suse.cz>
-References: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
- <20180208130649.GA15846@bombadil.infradead.org>
- <20180208232004.GA21027@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 11 Feb 2018 02:35:21 -0800 (PST)
+Subject: [PATCH] mm/huge_memory.c: split should clone page flags before
+ unfreezing pageref
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Sun, 11 Feb 2018 13:35:17 +0300
+Message-ID: <151834531706.176342.14968581451762734122.stgit@buzz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180208232004.GA21027@bombadil.infradead.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Kai Heng Feng <kai.heng.feng@canonical.com>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>
 
-On Thu 08-02-18 15:20:04, Matthew Wilcox wrote:
-> On Thu, Feb 08, 2018 at 05:06:49AM -0800, Matthew Wilcox wrote:
-> > On Thu, Feb 08, 2018 at 02:29:57PM +0800, Kai Heng Feng wrote:
-> > > A user with i386 instead of AMD64 machine reports [1] that commit 19809c2da28a ("mm, vmalloc: use __GFP_HIGHMEM implicitlya??) causes a regression.
-> > > BUG_ON(PageHighMem(pg)) in drivers/media/common/saa7146/saa7146_core.c always gets triggered after that commit.
-> > 
-> > Well, the BUG_ON is wrong.  You can absolutely have pages which are both
-> > HighMem and under the 4GB boundary.  Only the first 896MB (iirc) are LowMem,
-> > and the next 3GB of pages are available to vmalloc_32().
-> 
-> ... nevertheless, 19809c2da28a does in fact break vmalloc_32 on 32-bit.  Look:
-> 
-> #if defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA32)
-> #define GFP_VMALLOC32 GFP_DMA32 | GFP_KERNEL
-> #elif defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA)
-> #define GFP_VMALLOC32 GFP_DMA | GFP_KERNEL
-> #else
-> #define GFP_VMALLOC32 GFP_KERNEL
-> #endif
-> 
-> So we pass in GFP_KERNEL to __vmalloc_node, which calls __vmalloc_node_range
-> which calls __vmalloc_area_node, which ORs in __GFP_HIGHMEM.
+THP split makes non-atomic change of tail page flags. This is almost ok
+because tail pages are locked and isolated but this breaks recent changes
+in page locking: non-atomic operation could clear bit PG_waiters.
 
-Dohh. I have missed this. I was convinced that we always add GFP_DMA32
-when doing vmalloc_32. Sorry about that. The above definition looks
-quite weird to be honest. First of all do we have any 64b system without
-both DMA and DMA32 zones? If yes, what is the actual semantic of
-vmalloc_32? Or is there any magic forcing GFP_KERNEL into low 32b?
+As a result concurrent sequence get_page_unless_zero() -> lock_page()
+might block forever. Especially if this page was truncated later.
 
-Also I would expect that __GFP_DMA32 should do the right thing on 32b
-systems. So something like the below should do the trick
+Fix is trivial: clone flags before unfreezing page reference counter.
+
+This race exists since commit 62906027091f ("mm: add PageWaiters indicating
+tasks are waiting for a page bit") while unsave unfreeze itself was added
+in commit 8df651c7059e ("thp: cleanup split_huge_page()").
+
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 ---
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 673942094328..2eab5d1ef548 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1947,7 +1947,8 @@ void *vmalloc_exec(unsigned long size)
- #elif defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA)
- #define GFP_VMALLOC32 GFP_DMA | GFP_KERNEL
- #else
--#define GFP_VMALLOC32 GFP_KERNEL
-+/* This should be only 32b systems */
-+#define GFP_VMALLOC32 GFP_DMA32 | GFP_KERNEL
- #endif
- 
- /**
+ mm/huge_memory.c |   25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)
 
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 87ab9b8f56b5..2b38d9f2f262 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2357,6 +2357,19 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 	VM_BUG_ON_PAGE(atomic_read(&page_tail->_mapcount) != -1, page_tail);
+ 	VM_BUG_ON_PAGE(page_ref_count(page_tail) != 0, page_tail);
+ 
++	/* Clone page flags before unfreezing refcount. */
++	page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
++	page_tail->flags |= (head->flags &
++			((1L << PG_referenced) |
++			 (1L << PG_swapbacked) |
++			 (1L << PG_swapcache) |
++			 (1L << PG_mlocked) |
++			 (1L << PG_uptodate) |
++			 (1L << PG_active) |
++			 (1L << PG_locked) |
++			 (1L << PG_unevictable) |
++			 (1L << PG_dirty)));
++
+ 	/*
+ 	 * tail_page->_refcount is zero and not changing from under us. But
+ 	 * get_page_unless_zero() may be running from under us on the
+@@ -2375,18 +2388,6 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 		page_ref_add(page_tail, 2);
+ 	}
+ 
+-	page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+-	page_tail->flags |= (head->flags &
+-			((1L << PG_referenced) |
+-			 (1L << PG_swapbacked) |
+-			 (1L << PG_swapcache) |
+-			 (1L << PG_mlocked) |
+-			 (1L << PG_uptodate) |
+-			 (1L << PG_active) |
+-			 (1L << PG_locked) |
+-			 (1L << PG_unevictable) |
+-			 (1L << PG_dirty)));
+-
+ 	/*
+ 	 * After clearing PageTail the gup refcount can be released.
+ 	 * Page flags also must be visible before we make the page non-compound.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
