@@ -1,57 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 097BB6B000C
-	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 08:13:18 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id s1so3047676lfe.9
-        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 05:13:17 -0800 (PST)
-Received: from forwardcorp1j.cmail.yandex.net (forwardcorp1j.cmail.yandex.net. [2a02:6b8:0:1630::190])
-        by mx.google.com with ESMTPS id y22si2283728lje.107.2018.02.11.05.13.15
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DD2436B000E
+	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 08:22:25 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id e74so1593314wmg.0
+        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 05:22:25 -0800 (PST)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id 10si276222eds.499.2018.02.11.05.22.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 11 Feb 2018 05:13:15 -0800 (PST)
-Subject: Re: [PATCH] mm/huge_memory.c: split should clone page flags before
- unfreezing pageref
-References: <151834531706.176342.14968581451762734122.stgit@buzz>
- <20180211110751.tsseper2356aptbe@node.shutemov.name>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <4f64569f-b8ce-54f8-33d9-0e67216bb54c@yandex-team.ru>
-Date: Sun, 11 Feb 2018 16:13:14 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 11 Feb 2018 05:22:24 -0800 (PST)
+Date: Sun, 11 Feb 2018 13:21:29 +0000
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
+Subject: Re: The usage of page_mapping() in architecture code
+Message-ID: <20180211132128.GN9418@n2100.armlinux.org.uk>
+References: <87vaf4xbz8.fsf@yhuang-dev.intel.com>
+ <20180211081707.GM9418@n2100.armlinux.org.uk>
+ <87fu67yl78.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180211110751.tsseper2356aptbe@node.shutemov.name>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87fu67yl78.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@intel.com>, Chen Liqin <liqin.linux@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "David S. Miller" <davem@davemloft.net>, Chris Zankel <chris@zankel.net>, Vineet Gupta <vgupta@synopsys.com>, Ley Foon Tan <lftan@altera.com>, Ralf Baechle <ralf@linux-mips.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On 11.02.2018 14:07, Kirill A. Shutemov wrote:
-> On Sun, Feb 11, 2018 at 01:35:17PM +0300, Konstantin Khlebnikov wrote:
->> THP split makes non-atomic change of tail page flags. This is almost ok
->> because tail pages are locked and isolated but this breaks recent changes
->> in page locking: non-atomic operation could clear bit PG_waiters.
->>
->> As a result concurrent sequence get_page_unless_zero() -> lock_page()
->> might block forever. Especially if this page was truncated later.
->>
->> Fix is trivial: clone flags before unfreezing page reference counter.
->>
->> This race exists since commit 62906027091f ("mm: add PageWaiters indicating
->> tasks are waiting for a page bit") while unsave unfreeze itself was added
->> in commit 8df651c7059e ("thp: cleanup split_huge_page()").
+On Sun, Feb 11, 2018 at 04:39:07PM +0800, Huang, Ying wrote:
+> Hi, Russell,
 > 
-> Hm. Don't we have to have barrier between setting flags and updating
-> the refcounter in this case? Atomics don't generally have this semantics,
-> so you can see new refcount before new flags even after the change.
+> Russell King - ARM Linux <linux@armlinux.org.uk> writes:
 > 
+> > On Sun, Feb 11, 2018 at 02:43:39PM +0800, Huang, Ying wrote:
+> [snip]
+> >> 
+> >> 
+> >> if page is an anonymous page in swap cache, "mapping &&
+> >> !mapping_mapped()" will be true, so we will delay flushing.  But if my
+> >> understanding of the code were correct, we should call
+> >> flush_kernel_dcache() because the kernel may access the page during
+> >> swapping in/out.
+> >> 
+> >> The code in other architectures follow the similar logic.  Would it be
+> >> better for page_mapping() here to return NULL for anonymous pages even
+> >> if they are in swap cache?  Of course we need to change the function
+> >> name.  page_file_mapping() appears a good name, but that has been used
+> >> already.  Any suggestion?
+> >
+> > flush_dcache_page() does nothing for anonymous pages (see cachetlb.txt,
+> > it's only defined to do anything for page cache pages.)
+> >
+> > flush_anon_page() deals with anonymous pages.
+> 
+> Thanks for your information!  But I found this isn't followed exactly in
+> the code.  For example, in get_mergeable_page() in mm/ksm.c,
+> 
+> 	if (PageAnon(page)) {
+> 		flush_anon_page(vma, page, addr);
+> 		flush_dcache_page(page);
+> 	} else {
+> 		put_page(page);
+> 
+> flush_dcache_page() is called for anonymous pages too.
 
-Ok.
+... and flush_dcache_page() will be a no-op here, as per its
+documentation.  Any flushing required here will have been taken care of
+with flush_anon_page().
 
-I see another problem here - clear_compound_head() is placed after unfreeze.
+If flush_dcache_page() were to do flushing here, it would repeat the
+flushing that flush_anon_page() has just done, so its pointless.
 
-This opens race window with get/put_page after speculative get page.
-I think successful get_page_unless_zero() must stabilize compound_head() for tails as well as for heads.
+-- 
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
+According to speedtest.net: 8.21Mbps down 510kbps up
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
