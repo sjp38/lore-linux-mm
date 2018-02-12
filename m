@@ -1,95 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BE4D6B0005
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 982BB6B0007
 	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 17:21:23 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id u4so7426478iti.2
+Received: by mail-it0-f70.google.com with SMTP id k19so7308518ita.8
         for <linux-mm@kvack.org>; Mon, 12 Feb 2018 14:21:23 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id u35si590994ioi.278.2018.02.12.14.21.21
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 201si172092ioe.181.2018.02.12.14.21.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 12 Feb 2018 14:21:22 -0800 (PST)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC PATCH 1/3] mm: make start_isolate_page_range() fail if already isolated
-Date: Mon, 12 Feb 2018 14:20:54 -0800
-Message-Id: <20180212222056.9735-2-mike.kravetz@oracle.com>
-In-Reply-To: <20180212222056.9735-1-mike.kravetz@oracle.com>
-References: <20180212222056.9735-1-mike.kravetz@oracle.com>
+Subject: [RFC PATCH 0/3] Interface for higher order contiguous allocations
+Date: Mon, 12 Feb 2018 14:20:53 -0800
+Message-Id: <20180212222056.9735-1-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-start_isolate_page_range() is used to set the migrate type of a
-page block to MIGRATE_ISOLATE while attempting to start a
-migration operation.  It is assumed that only one thread is
-attempting such an operation, and due to the limited number of
-callers this is generally the case.  However, there are no
-guarantees and it is 'possible' for two threads to operate on
-the same range.
+These patches came out of the "[RFC] mmap(MAP_CONTIG)" discussions at:
+http://lkml.kernel.org/r/21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com
 
-Since start_isolate_page_range() is called at the beginning of
-such operations, have it return -EBUSY if MIGRATE_ISOLATE is
-already set.
+One suggestion in that thread was to create a friendlier interface that
+could be used by drivers and others outside core mm code to allocate a
+contiguous set of pages.  The alloc_contig_range() interface is used for
+this purpose today by CMA and gigantic page allocation.  However, this is
+not a general purpose interface.  So, wrap alloc_contig_range() in the
+more general interface:
 
-This will allow start_isolate_page_range to serve as a
-synchronization mechanism and will allow for more general use
-of callers making use of these interfaces.
+struct page *find_alloc_contig_pages(unsigned int order, gfp_t gfp, int nid,
+					nodemask_t *nodemask)
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- mm/page_alloc.c     |  8 ++++----
- mm/page_isolation.c | 10 +++++++++-
- 2 files changed, 13 insertions(+), 5 deletions(-)
+No underlying changes are made to increase the likelihood that a contiguous
+set of pages can be found and allocated.  Therefore, any user of this
+interface must deal with failure.  The hope is that this interface will be
+able to satisfy some use cases today.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 76c9688b6a0a..064458f317bf 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7605,11 +7605,11 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
-  * @gfp_mask:	GFP mask to use during compaction
-  *
-  * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
-- * aligned, however it's the caller's responsibility to guarantee that
-- * we are the only thread that changes migrate type of pageblocks the
-- * pages fall in.
-+ * aligned.  The PFN range must belong to a single zone.
-  *
-- * The PFN range must belong to a single zone.
-+ * The first thing this routine does is attempt to MIGRATE_ISOLATE all
-+ * pageblocks in the range.  Once isolated, the pageblocks should not
-+ * be modified by others.
-  *
-  * Returns zero on success or negative error code.  On success all
-  * pages which PFN is in [start, end) are allocated for the caller and
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 165ed8117bd1..e815879d525f 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -28,6 +28,13 @@ static int set_migratetype_isolate(struct page *page, int migratetype,
- 
- 	spin_lock_irqsave(&zone->lock, flags);
- 
-+	/*
-+	 * We assume we are the only ones trying to isolate this block.
-+	 * If MIGRATE_ISOLATE already set, return -EBUSY
-+	 */
-+	if (is_migrate_isolate_page(page))
-+		goto out;
-+
- 	pfn = page_to_pfn(page);
- 	arg.start_pfn = pfn;
- 	arg.nr_pages = pageblock_nr_pages;
-@@ -166,7 +173,8 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
-  * future will not be allocated again.
-  *
-  * start_pfn/end_pfn must be aligned to pageblock_order.
-- * Returns 0 on success and -EBUSY if any part of range cannot be isolated.
-+ * Returns 0 on success and -EBUSY if any part of range cannot be isolated
-+ * or any part of the range is already set to MIGRATE_ISOLATE.
-  */
- int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
- 			     unsigned migratetype, bool skip_hwpoisoned_pages)
+If the "rate of failure" is too high to be useful, then more work can be put
+into methods to help increase the rate of successful allocations.  Such a
+proposal was recently sent by Christoph Lameter "[RFC] Protect larger order
+pages from breaking up":
+http://lkml.kernel.org/r/alpine.DEB.2.20.1802091311090.3059@nuc-kabylake
+
+find_alloc_contig_pages() uses the same logic that exists today for scanning
+zones to look for contiguous ranges suitable for gigantic pages.  The last
+patch in the series changes gigantic page allocation to use the new interface.
+
+Mike Kravetz (3):
+  mm: make start_isolate_page_range() fail if already isolated
+  mm: add find_alloc_contig_pages() interface
+  mm/hugetlb: use find_alloc_contig_pages() to allocate gigantic pages
+
+ include/linux/gfp.h | 12 +++++++
+ mm/hugetlb.c        | 88 ++++--------------------------------------------
+ mm/page_alloc.c     | 97 +++++++++++++++++++++++++++++++++++++++++++++++++----
+ mm/page_isolation.c | 10 +++++-
+ 4 files changed, 118 insertions(+), 89 deletions(-)
+
 -- 
 2.13.6
 
