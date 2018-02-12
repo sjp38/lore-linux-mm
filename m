@@ -1,142 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 26E3E6B0003
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 04:50:22 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id v14so2518220wmd.3
-        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 01:50:22 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i33si6012855wri.110.2018.02.12.01.50.20
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3410C6B0006
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 05:16:29 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id k14so8626689wrc.14
+        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 02:16:29 -0800 (PST)
+Received: from mail.alarsen.net (joe.alarsen.net. [2a01:4f8:191:10e8:1::fe])
+        by mx.google.com with ESMTPS id i8si3320448wma.61.2018.02.12.02.16.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Feb 2018 01:50:20 -0800 (PST)
-Date: Mon, 12 Feb 2018 10:50:19 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Regression after commit 19809c2da28a ("mm, vmalloc: use
- __GFP_HIGHMEM implicitly")
-Message-ID: <20180212095019.GX21609@dhcp22.suse.cz>
-References: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
- <20180208130649.GA15846@bombadil.infradead.org>
- <20180208232004.GA21027@bombadil.infradead.org>
- <20180211092652.GV21609@dhcp22.suse.cz>
- <20180211112808.GA4551@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Feb 2018 02:16:27 -0800 (PST)
+From: Anders Larsen <al@alarsen.net>
+Subject: Re: [PATCH 00/31 v2] PTI support for x86_32
+Date: Mon, 12 Feb 2018 11:16:24 +0100
+Message-ID: <4155513.GHlSKmbAgC@alarsen-lx>
+In-Reply-To: <20180211232556.1fdde355@alans-desktop>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org> <0C6EFF56-F135-480C-867C-B117F114A99F@amacapital.net> <20180211232556.1fdde355@alans-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180211112808.GA4551@bombadil.infradead.org>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Kai Heng Feng <kai.heng.feng@canonical.com>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Alan Cox <gnomes@lxorguk.ukuu.org.uk>
+Cc: Andy Lutomirski <luto@amacapital.net>, Mark D Rustad <mrustad@gmail.com>, Adam Borowski <kilobyte@angband.pl>, Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <"dani el.gruss"@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
 
-[I am crawling over a large backlog after vacation so I will get to
- other emails in this thread later. Let's just fix the regression
- first. The patch with the full changelog is at the end of this email.
- CC Andrew - the original report is http://lkml.kernel.org/r/627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com]
-
-On Sun 11-02-18 03:28:08, Matthew Wilcox wrote:
-> On Sun, Feb 11, 2018 at 10:26:52AM +0100, Michal Hocko wrote:
-> > On Thu 08-02-18 15:20:04, Matthew Wilcox wrote:
-> > > ... nevertheless, 19809c2da28a does in fact break vmalloc_32 on 32-bit.  Look:
+On Sunday, 11 February 2018 23:25 Alan Cox wrote:
+> On Sun, 11 Feb 2018 11:42:47 -0800
+> 
+> Andy Lutomirski <luto@amacapital.net> wrote:
+> > On Feb 11, 2018, at 9:40 AM, Mark D Rustad <mrustad@gmail.com> wrote:
+> > >> On Feb 11, 2018, at 2:59 AM, Adam Borowski <kilobyte@angband.pl> wrote:
+> > >>> Does Debian make it easy to upgrade to a 64-bit kernel if you have a
+> > >>> 32-bit install?
+> > >> 
+> > >> Quite easy, yeah.  Crossgrading userspace is not for the faint of the
+> > >> heart, but changing just the kernel is fine.
 > > > 
-> > > #if defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA32)
-> > > #define GFP_VMALLOC32 GFP_DMA32 | GFP_KERNEL
-> > > #elif defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA)
-> > > #define GFP_VMALLOC32 GFP_DMA | GFP_KERNEL
-> > > #else
-> > > #define GFP_VMALLOC32 GFP_KERNEL
-> > > #endif
+> > > ISTR that iscsi doesn't work when running a 64-bit kernel with a 32-bit
+> > > userspace. I remember someone offered kernel patches to fix it, but I
+> > > think they were rejected. I haven't messed with that stuff in many
+> > > years, so perhaps the userspace side now has accommodation for it. It
+> > > might be something to check on.
 > > > 
-> > > So we pass in GFP_KERNEL to __vmalloc_node, which calls __vmalloc_node_range
-> > > which calls __vmalloc_area_node, which ORs in __GFP_HIGHMEM.
-> > 
-> > Dohh. I have missed this. I was convinced that we always add GFP_DMA32
-> > when doing vmalloc_32. Sorry about that. The above definition looks
-> > quite weird to be honest. First of all do we have any 64b system without
-> > both DMA and DMA32 zones? If yes, what is the actual semantic of
-> > vmalloc_32? Or is there any magic forcing GFP_KERNEL into low 32b?
+> > At the risk of suggesting heresy, should we consider removing x86_32
+> > support at some point?
 > 
-> mmzone.h has the following, which may be inaccurate / out of date:
-> 
->          * parisc, ia64, sparc  <4G
->          * s390                 <2G
->          * arm                  Various
->          * alpha                Unlimited or 0-16MB.
->          *
->          * i386, x86_64 and multiple other arches
->          *                      <16M.
-> 
-> It claims ZONE_DMA32 is x86-64 only, which is incorrect; it's now used
-> by arm64, ia64, mips, powerpc, tile.
+> Probably - although it's still relevant for Quark. I can't think of any
+> other in-production 32bit only processor at this point. Big core Intel
+> went 64bit 2006 or so, atoms mostly 2008 or so (with some stragglers that
+> are 32 or 64 bit depending if it's enabled) until 2011 (Cedartrail)
 
-yes, nobody seem to keep this one in sync.
+FWIW the Atom E6xx series (Tunnel Creek) is 32bit only and still in
+production; my employer is using those beasts in several devices - and I'm
+fighting an uphill battle to have those products ship with a recent kernel
+(for certain values of recent)
 
-> > Also I would expect that __GFP_DMA32 should do the right thing on 32b
-> > systems. So something like the below should do the trick
+> If someone stuck a fork in it just after the next long term kernel
+> release then by the time that expired it would probably be historical
+> interest only.
 > 
-> Oh, I see.  Because we have:
-> 
-> #ifdef CONFIG_ZONE_DMA32
-> #define OPT_ZONE_DMA32 ZONE_DMA32
-> #else
-> #define OPT_ZONE_DMA32 ZONE_NORMAL
-> #endif
-> 
-> we'll end up allocating from ZONE_NORMAL if a non-DMA32 architecture asks
-> for GFP_DMA32 memory.  Thanks; I missed that.
+> Does it not depend if there is someone crazy enough to maintain it
+> however - 68000 is doing fine 8)
 
-yep
+Cheers
+Anders
 
-> I'd recommend this instead then:
-> 
-> #if defined(CONFIG_64BIT) && !defined(CONFIG_ZONE_DMA32)
-> #define GFP_VMALLOC32 GFP_DMA | GFP_KERNEL
-> #else
-> #define GFP_VMALLOC32 GFP_DMA32 | GFP_KERNEL
-> #endif
-> 
-> I think it's clearer than the three-way #if.
-
-I do not have a strong opinion here. I just wanted the change to be
-obvious without meddling with the 64b ifdefs much. Follow up cleanups
-are certainly possible.
-
-> Now, longer-term, perhaps we should do the following:
-> 
-> #ifdef CONFIG_ZONE_DMA32
-> #define OPT_ZONE_DMA32	ZONE_DMA32
-> #elif defined(CONFIG_64BIT)
-> #define OPT_ZONE_DMA	OPT_ZONE_DMA
-> #else
-> #define OPT_ZONE_DMA32 ZONE_NORMAL
-> #endif
-> 
-> Then we wouldn't need the ifdef here and could always use GFP_DMA32
-> | GFP_KERNEL.  Would need to audit current users and make sure they
-> wouldn't be broken by such a change.
-
-I am pretty sure improvements are possible.
-
-> I noticed a mistake in 704b862f9efd;
-> 
-> -               pages = __vmalloc_node(array_size, 1, nested_gfp|__GFP_HIGHMEM,
-> +               pages = __vmalloc_node(array_size, 1, nested_gfp|highmem_mask,
-> 
-> We should unconditionally use __GFP_HIGHMEM here instead of highmem_mask
-> because this is where we allocate the array to hold the struct page
-> pointers.  This can be allocated from highmem, and does not need to be
-> allocated from ZONE_NORMAL.
-
-You seem to be right. nested_gfp doesn't include zone modifiers. Care to
-send a patch?
-
-> Similarly,
-> 
-> -               if (gfpflags_allow_blocking(gfp_mask))
-> +               if (gfpflags_allow_blocking(gfp_mask|highmem_mask))
-> 
-> is not needed (it's not *wrong*, it was just an unnecessary change).
-
-yes. highmem_mask has no influence on the blocking behavior.
-
-The fix for the regressions should be
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
