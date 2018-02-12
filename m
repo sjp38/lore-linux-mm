@@ -1,60 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 42BD26B000A
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 08:42:19 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id s18so8894952wrg.5
-        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 05:42:19 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id 6si487260edn.491.2018.02.12.05.42.17
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 998F76B000D
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 08:47:52 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id j68so7598349oih.14
+        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 05:47:52 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id s135si2793170oie.532.2018.02.12.05.47.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Feb 2018 05:42:17 -0800 (PST)
-Subject: Re: [PATCH 4/6] Protectable Memory
-References: <20180211031920.3424-1-igor.stoppa@huawei.com>
- <20180211031920.3424-5-igor.stoppa@huawei.com>
- <20180211123743.GC13931@rapoport-lnx>
- <e7ea02b4-3d43-9543-3d14-61c27e155042@huawei.com>
- <20180212114310.GD20737@rapoport-lnx> <20180212125347.GE20737@rapoport-lnx>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <68edadf0-2b23-eaeb-17de-884032f0b906@huawei.com>
-Date: Mon, 12 Feb 2018 15:41:57 +0200
-MIME-Version: 1.0
-In-Reply-To: <20180212125347.GE20737@rapoport-lnx>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 12 Feb 2018 05:47:51 -0800 (PST)
+Subject: Re: [PATCH v2] lockdep: Fix fs_reclaim warning.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201801292047.EHC05241.OHSQOJOVtFMFLF@I-love.SAKURA.ne.jp>
+	<20180129135547.GR2269@hirez.programming.kicks-ass.net>
+	<201802012036.FEE78102.HOMFFOtJVFOSQL@I-love.SAKURA.ne.jp>
+	<201802082043.FFJ39503.SVQFFFOJMHLOtO@I-love.SAKURA.ne.jp>
+	<e6f5dc9b-2066-4f31-8e0f-c713f53e6592@suse.com>
+In-Reply-To: <e6f5dc9b-2066-4f31-8e0f-c713f53e6592@suse.com>
+Message-Id: <201802122246.FAI52698.FVOStMHQFLFJOO@I-love.SAKURA.ne.jp>
+Date: Mon, 12 Feb 2018 22:46:51 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: willy@infradead.org, rdunlap@infradead.org, corbet@lwn.net, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, jglisse@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: nborisov@suse.com, peterz@infradead.org
+Cc: torvalds@linux-foundation.org, davej@codemonkey.org.uk, npiggin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, mhocko@kernel.org, linux-btrfs@vger.kernel.org
 
+Nikolay Borisov wrote:
+> I think I've hit another incarnation of that one. The call stack is:
+> http://paste.opensuse.org/3f22d013
+> 
+> The cleaned up callstack of all the ? entries look like:
+> 
+> __lock_acquire+0x2d8a/0x4b70
+> lock_acquire+0x110/0x330
+> kmem_cache_alloc+0x29/0x2c0
+> __clear_extent_bit+0x488/0x800
+> try_release_extent_mapping+0x288/0x3c0
+> __btrfs_releasepage+0x6c/0x140
+> shrink_page_list+0x227e/0x3110
+> shrink_inactive_list+0x414/0xdb0
+> shrink_node_memcg+0x7c8/0x1250
+> shrink_node+0x2ae/0xb50
+> do_try_to_free_pages+0x2b1/0xe20
+> try_to_free_pages+0x205/0x570
+>  __alloc_pages_nodemask+0xb91/0x2160
+> new_slab+0x27a/0x4e0
+> ___slab_alloc+0x355/0x610
+>  __slab_alloc+0x4c/0xa0
+> kmem_cache_alloc+0x22d/0x2c0
+> mempool_alloc+0xe1/0x280
 
+Yes, for mempool_alloc() is adding __GFP_NOMEMALLOC | __GFP_NOWARN to gfp_mask.
 
-On 12/02/18 14:53, Mike Rapoport wrote:
-> 'scripts/kernel-doc -v -none 
+	gfp_mask |= __GFP_NOMEMALLOC;   /* don't allocate emergency reserves */
+	gfp_mask |= __GFP_NORETRY;      /* don't loop in __alloc_pages */
+	gfp_mask |= __GFP_NOWARN;       /* failures are OK */
 
-That has a quite interesting behavior.
-
-I run it on genalloc.c while I am in the process of adding the brackets
-to the function names in the kernel-doc description.
-
-The brackets confuse the script and it fails to output the name of the
-function in the log:
-
-lib/genalloc.c:123: info: Scanning doc for get_bitmap_entry
-lib/genalloc.c:139: info: Scanning doc for
-lib/genalloc.c:152: info: Scanning doc for
-lib/genalloc.c:164: info: Scanning doc for
-
-
-The first function does not have the brackets.
-The others do. So what should I do with the missing brackets?
-Add them, according to the kernel docs, or leave them out?
-
-I'd lean toward adding them.
-
---
-igor
+> bio_alloc_bioset+0x1d7/0x830
+> ext4_mpage_readpages+0x99f/0x1000 <-
+> __do_page_cache_readahead+0x4be/0x840
+> filemap_fault+0x8c8/0xfc0
+> ext4_filemap_fault+0x7d/0xb0
+> __do_fault+0x7a/0x150
+> __handle_mm_fault+0x1542/0x29d0
+> __do_page_fault+0x557/0xa30
+> async_page_fault+0x4c/0x60
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
