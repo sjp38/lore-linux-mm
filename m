@@ -1,66 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 09B4E6B0007
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 07:28:17 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id f4so6395582plr.14
-        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 04:28:17 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id h3-v6si3830830plb.527.2018.02.12.04.28.15
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0679F6B0007
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 07:44:03 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id o20so8824813wro.3
+        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 04:44:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e203si3750041wmd.36.2018.02.12.04.44.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 12 Feb 2018 04:28:16 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH] headers: untangle kmemleak.h from mm.h
-In-Reply-To: <a4629db7-194d-3c7c-c8fd-24f61b220a70@infradead.org>
-References: <a4629db7-194d-3c7c-c8fd-24f61b220a70@infradead.org>
-Date: Mon, 12 Feb 2018 23:28:09 +1100
-Message-ID: <87zi4ev1d2.fsf@concordia.ellerman.id.au>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 12 Feb 2018 04:44:01 -0800 (PST)
+Date: Mon, 12 Feb 2018 13:43:59 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Possible deadlock in v4.14.15 contention on shrinker_rwsem in
+ shrink_slab()
+Message-ID: <20180212124359.GB3443@dhcp22.suse.cz>
+References: <4e9300f9-14c4-84a9-2258-b7e52bb6f753@I-love.SAKURA.ne.jp>
+ <alpine.LRH.2.11.1801272305200.20457@mail.ewheeler.net>
+ <201801290527.w0T5RsPg024008@www262.sakura.ne.jp>
+ <201802031648.EBH81222.QOSOFVOMtJFHLF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201802031648.EBH81222.QOSOFVOMtJFHLF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>
-Cc: linux-s390 <linux-s390@vger.kernel.org>, John Johansen <john.johansen@canonical.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, X86 ML <x86@kernel.org>, linux-wireless <linux-wireless@vger.kernel.org>, virtualization@lists.linux-foundation.org, iommu@lists.linux-foundation.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@lists.ewheeler.net, linux-mm@kvack.org, kirill@shutemov.name, minchan@kernel.org, tj@kernel.org, agk@redhat.com, snitzer@redhat.com, kent.overstreet@gmail.com
 
-Randy Dunlap <rdunlap@infradead.org> writes:
+On Sat 03-02-18 16:48:28, Tetsuo Handa wrote:
+> Michal, what do you think? If no comment, let's try page_owner + SystemTap
+> and check whether there are some characteristics with stalling pages.
 
-> From: Randy Dunlap <rdunlap@infradead.org>
->
-> Currently <linux/slab.h> #includes <linux/kmemleak.h> for no obvious
-> reason. It looks like it's only a convenience, so remove kmemleak.h
-> from slab.h and add <linux/kmemleak.h> to any users of kmemleak_*
-> that don't already #include it.
-> Also remove <linux/kmemleak.h> from source files that do not use it.
->
-> This is tested on i386 allmodconfig and x86_64 allmodconfig. It
-> would be good to run it through the 0day bot for other $ARCHes.
-> I have neither the horsepower nor the storage space for the other
-> $ARCHes.
->
-> [slab.h is the second most used header file after module.h; kernel.h
-> is right there with slab.h. There could be some minor error in the
-> counting due to some #includes having comments after them and I
-> didn't combine all of those.]
->
-> This is Lingchi patch #1 (death by a thousand cuts, applied to kernel
-> header files).
->
-> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+I am sorry, I was on vacation and now catching up. So I will not get to
+this anytime soon. Next week hopefully, but I cannot promise anything.
 
-I threw it at a random selection of configs and so far the only failures
-I'm seeing are:
-
-  lib/test_firmware.c:134:2: error: implicit declaration of function 'vfree' [-Werror=implicit-function-declaration]                                                                                                          
-  lib/test_firmware.c:620:25: error: implicit declaration of function 'vzalloc' [-Werror=implicit-function-declaration]
-  lib/test_firmware.c:620:2: error: implicit declaration of function 'vzalloc' [-Werror=implicit-function-declaration]
-  security/integrity/digsig.c:146:2: error: implicit declaration of function 'vfree' [-Werror=implicit-function-declaration]
-
-Full results trickling in here, not all the failures there are caused by
-this patch, ie. some configs are broken in mainline:
-
-  http://kisskb.ellerman.id.au/kisskb/head/13396/
-
-cheers
+I am not sure page_owner will help us much here. We know this is a shmem
+page. Pagelock tracking is quite a PITA so a bisection sounds like a
+less PITA even though the reproduction might take quite a lot of time.
+Another approach would be to reduce the problem space, e.g. rule out
+zram by using a different swap storage.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
