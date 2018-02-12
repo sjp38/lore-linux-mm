@@ -1,64 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E4DDA6B0003
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 02:27:31 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id a6so1958511wme.9
-        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 23:27:31 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m189sor1117722wmd.62.2018.02.11.23.27.30
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 420A76B0003
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 03:12:43 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id w24so6051368plq.11
+        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 00:12:43 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id 6si1486659pgf.474.2018.02.12.00.12.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 11 Feb 2018 23:27:30 -0800 (PST)
-Date: Mon, 12 Feb 2018 08:27:27 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH] headers: untangle kmemleak.h from mm.h
-Message-ID: <20180212072727.saupl35jvwex6hbe@gmail.com>
-References: <a4629db7-194d-3c7c-c8fd-24f61b220a70@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a4629db7-194d-3c7c-c8fd-24f61b220a70@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Feb 2018 00:12:42 -0800 (PST)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH] mm: Fix races between address_space dereference and free in page_evicatable
+Date: Mon, 12 Feb 2018 16:12:27 +0800
+Message-Id: <20180212081227.1940-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, iommu@lists.linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-s390 <linux-s390@vger.kernel.org>, sparclinux@vger.kernel.org, X86 ML <x86@kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-wireless <linux-wireless@vger.kernel.org>, virtualization@lists.linux-foundation.org, John Johansen <john.johansen@canonical.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
 
+From: Huang Ying <ying.huang@intel.com>
 
-* Randy Dunlap <rdunlap@infradead.org> wrote:
+When page_mapping() is called and the mapping is dereferenced in
+page_evicatable() through shrink_active_list(), it is possible for the
+inode to be truncated and the embedded address space to be freed at
+the same time.  This may lead to the following race.
 
-> From: Randy Dunlap <rdunlap@infradead.org>
-> 
-> Currently <linux/slab.h> #includes <linux/kmemleak.h> for no obvious
-> reason. It looks like it's only a convenience, so remove kmemleak.h
-> from slab.h and add <linux/kmemleak.h> to any users of kmemleak_*
-> that don't already #include it.
-> Also remove <linux/kmemleak.h> from source files that do not use it.
-> 
-> This is tested on i386 allmodconfig and x86_64 allmodconfig. It
-> would be good to run it through the 0day bot for other $ARCHes.
-> I have neither the horsepower nor the storage space for the other
-> $ARCHes.
-> 
-> [slab.h is the second most used header file after module.h; kernel.h
-> is right there with slab.h. There could be some minor error in the
-> counting due to some #includes having comments after them and I
-> didn't combine all of those.]
-> 
-> This is Lingchi patch #1 (death by a thousand cuts, applied to kernel
-> header files).
-> 
-> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+CPU1                                                CPU2
 
-Nice find:
+truncate(inode)                                     shrink_active_list()
+  ...                                                 page_evictable(page)
+  truncate_inode_page(mapping, page);
+    delete_from_page_cache(page)
+      spin_lock_irqsave(&mapping->tree_lock, flags);
+        __delete_from_page_cache(page, NULL)
+          page_cache_tree_delete(..)
+            ...                                         mapping = page_mapping(page);
+            page->mapping = NULL;
+            ...
+      spin_unlock_irqrestore(&mapping->tree_lock, flags);
+      page_cache_free_page(mapping, page)
+        put_page(page)
+          if (put_page_testzero(page)) -> false
+- inode now has no pages and can be freed including embedded address_space
 
-Reviewed-by: Ingo Molnar <mingo@kernel.org>
+                                                        mapping_unevictable(mapping)
+							  test_bit(AS_UNEVICTABLE, &mapping->flags);
+- we've dereferenced mapping which is potentially already free.
 
-I agree that it needs to go through 0-day to find any hidden dependencies we might 
-have grown due to this.
+Similar race exists between swap cache freeing and page_evicatable() too.
 
-Thanks,
+The address_space in inode and swap cache will be freed after a RCU
+grace period.  So the races are fixed via enclosing the page_mapping()
+and address_space usage in rcu_read_lock/unlock().  Some comments are
+added in code to make it clear what is protected by the RCU read lock.
 
-	Ingo
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.com>
+---
+ mm/vmscan.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index d1c1e00b08bb..10a0f32a3f90 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3886,7 +3886,13 @@ int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
+  */
+ int page_evictable(struct page *page)
+ {
+-	return !mapping_unevictable(page_mapping(page)) && !PageMlocked(page);
++	int ret;
++
++	/* Prevent address_space of inode and swap cache from being freed */
++	rcu_read_lock();
++	ret = !mapping_unevictable(page_mapping(page)) && !PageMlocked(page);
++	rcu_read_unlock();
++	return ret;
+ }
+ 
+ #ifdef CONFIG_SHMEM
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
