@@ -1,101 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CE6956B000A
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 06:36:45 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id f21so12834552qtm.11
-        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 03:36:45 -0800 (PST)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DF0666B0003
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 06:43:23 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id l7so3467178qth.22
+        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 03:43:23 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s62si6483404qkb.266.2018.02.12.03.36.44
+        by mx.google.com with ESMTPS id u190si8290664qkd.288.2018.02.12.03.43.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Feb 2018 03:36:45 -0800 (PST)
+        Mon, 12 Feb 2018 03:43:23 -0800 (PST)
 Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1CBZM3E030840
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 06:36:44 -0500
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1CBgXEH050674
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 06:43:22 -0500
 Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2g35j3jnga-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2g35j3jvjp-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 06:36:43 -0500
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 06:43:22 -0500
 Received: from localhost
 	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 12 Feb 2018 11:36:40 -0000
-Date: Mon, 12 Feb 2018 13:36:33 +0200
+	Mon, 12 Feb 2018 11:43:19 -0000
+Date: Mon, 12 Feb 2018 13:43:11 +0200
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/6] genalloc: track beginning of allocations
+Subject: Re: [PATCH 4/6] Protectable Memory
 References: <20180211031920.3424-1-igor.stoppa@huawei.com>
- <20180211031920.3424-2-igor.stoppa@huawei.com>
- <20180211122444.GB13931@rapoport-lnx>
- <f0a244f2-f63a-376b-28f2-debbe914da34@huawei.com>
+ <20180211031920.3424-5-igor.stoppa@huawei.com>
+ <20180211123743.GC13931@rapoport-lnx>
+ <e7ea02b4-3d43-9543-3d14-61c27e155042@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f0a244f2-f63a-376b-28f2-debbe914da34@huawei.com>
-Message-Id: <20180212113633.GC20737@rapoport-lnx>
+In-Reply-To: <e7ea02b4-3d43-9543-3d14-61c27e155042@huawei.com>
+Message-Id: <20180212114310.GD20737@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Igor Stoppa <igor.stoppa@huawei.com>
 Cc: willy@infradead.org, rdunlap@infradead.org, corbet@lwn.net, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, jglisse@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On Mon, Feb 12, 2018 at 01:17:01PM +0200, Igor Stoppa wrote:
+On Mon, Feb 12, 2018 at 01:26:28PM +0200, Igor Stoppa wrote:
+> On 11/02/18 14:37, Mike Rapoport wrote:
+> > On Sun, Feb 11, 2018 at 05:19:18AM +0200, Igor Stoppa wrote:
 > 
+> >> + * Return: 0 if the object does not belong to pmalloc, 1 if it belongs to
+> >> + * pmalloc, -1 if it partially overlaps pmalloc meory, but incorectly.
+> > 
+> > typo:                                            ^ memory
 > 
-> On 11/02/18 14:24, Mike Rapoport wrote:
-> > On Sun, Feb 11, 2018 at 05:19:15AM +0200, Igor Stoppa wrote:
+> thanks :-(
+> 
 > [...]
 > 
 > >> +/**
-> >> + * mem_to_units - convert references to memory into orders of allocation
+> >> + * When the sysfs is ready to receive registrations, connect all the
+> >> + * pools previously created. Also enable further pools to be connected
+> >> + * right away.
+> >> + */
 > > 
-> > Documentation/doc-guide/kernel-doc.rst recommends to to include brackets
-> > for function comments. I haven't noticed any difference in the resulting
-> > html, so I'm not sure if the brackets are actually required.
+> > This does not seem as kernel-doc comment. Please either remove the second *
+> > from the opening comment mark or reformat the comment.
 > 
-> This is what I see in the example from mailine docs:
+> For this too, I thought I had caught them all, but I was wrong ...
 > 
-> /**
->  * foobar() - Brief description of foobar.
->  * @argument1: Description of parameter argument1 of foobar.
->  * @argument2: Description of parameter argument2 of foobar.
->  *
->  * Longer description of foobar.
->  *
->  * Return: Description of return value of foobar.
->  */
-> int foobar(int argument1, char *argument2)
-> 
-> 
-> What are you referring to?
- 
-I'm referring to "foobar() - brief description" vs "foobar - brief
-description".
+> I didn't find any mention of automated checking for comments.
+> Is there such tool?
 
-The generated html looks exactly the same in the browser, so I don't know
-if the brackets are really required.
+I don't know if there is a tool. I couldn't find anything in scripts, maybe
+somebody have such tool out of tree.
 
-> [...]
-> 
-> >> + * @size: amount in bytes
-> >> + * @order: power of 2 represented by each entry in the bitmap
-> >> + *
-> >> + * Returns the number of units representing the size.
-> > 
-> > Please s/Return/Return:/
-> 
-> :-( I thought I had fixed them all. thanks for spotting this.
-> 
-> [...]
-> 
-> >> + * Return: If two users alter the same bit, to one it will return
-> >> + * remaining entries, to the other it will return 0.
-> > 
-> > And what if there are three or four concurrent users? ;-)
-> > 
-> > I believe that a more elaborate description about what happens with
-> > concurrent attempts to alter the bitmap would be really helpful.
-> 
-> ok
-> 
+For now, I've added mm-api.rst that includes all mm .c files and run 'make
+htmldocs' which spits plenty of warnings and errors.
+
 > --
 > thanks, igor
 > 
