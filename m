@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C313D6B0007
-	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 19:10:48 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id c142so2047561wmh.4
-        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 16:10:48 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:8b0:10b:1236::1])
-        by mx.google.com with ESMTPS id h192si2837103wmd.232.2018.02.11.16.10.47
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E98B06B0003
+	for <linux-mm@kvack.org>; Sun, 11 Feb 2018 21:28:06 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id h33so5693851plh.19
+        for <linux-mm@kvack.org>; Sun, 11 Feb 2018 18:28:06 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t3sor760894pgn.76.2018.02.11.18.28.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 11 Feb 2018 16:10:47 -0800 (PST)
-Date: Sun, 11 Feb 2018 15:51:07 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: Regression after commit 19809c2da28a ("mm, vmalloc: use
- __GFP_HIGHMEM implicitly")
-Message-ID: <20180211235107.GE4680@bombadil.infradead.org>
-References: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
- <20180208130649.GA15846@bombadil.infradead.org>
- <20180208232004.GA21027@bombadil.infradead.org>
- <20180211092652.GV21609@dhcp22.suse.cz>
- <20180211112808.GA4551@bombadil.infradead.org>
- <20180211120515.GB4551@bombadil.infradead.org>
+        (Google Transport Security);
+        Sun, 11 Feb 2018 18:28:05 -0800 (PST)
+Date: Mon, 12 Feb 2018 11:28:00 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH -mm -v3] mm, swap, frontswap: Fix THP swap if frontswap
+ enabled
+Message-ID: <20180212022800.GA458@jagdpanzerIV>
+References: <20180209084947.22749-1-ying.huang@intel.com>
+ <20180209130339.e91c8709e9c46e5b3f941a29@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180211120515.GB4551@bombadil.infradead.org>
+In-Reply-To: <20180209130339.e91c8709e9c46e5b3f941a29@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Kai Heng Feng <kai.heng.feng@canonical.com>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, James.Bottomley@HansenPartnership.com, davem@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <huang.ying.caritas@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, stable@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>
 
-On Sun, Feb 11, 2018 at 04:05:15AM -0800, Matthew Wilcox wrote:
-> On Sun, Feb 11, 2018 at 03:28:08AM -0800, Matthew Wilcox wrote:
-> > Now, longer-term, perhaps we should do the following:
+Hello,
+
+On (02/09/18 13:03), Andrew Morton wrote:
+[..]
+> > Frontswap has multiple backends, to make it easy for one backend to
+> > enable THP support, the THP checking is put in backend frontswap store
+> > functions instead of the general interfaces.
 > > 
-> > #ifdef CONFIG_ZONE_DMA32
-> > #define OPT_ZONE_DMA32	ZONE_DMA32
-> > #elif defined(CONFIG_64BIT)
-> > #define OPT_ZONE_DMA	OPT_ZONE_DMA
-> > #else
-> > #define OPT_ZONE_DMA32 ZONE_NORMAL
-> > #endif
+> > Fixes: bd4c82c22c367e068 ("mm, THP, swap: delay splitting THP after swapped out")
+> > Reported-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > Tested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 > 
-> For consistent / coherent memory, we have an allocation function.
-> But we don't have an allocation function for streaming memory, which is
-> what these drivers want.  They also flush the DMA memory and then access
-> the memory through a different virtual mapping, which I'm not sure is
-> going to work well on virtually-indexed caches like SPARC and PA-RISC
-> (maybe not MIPS either?)
+> I don't think Sergey has tested this version and I suspect this is a
+> holdover from the earlier patch, so I'll remove this line.
 
-Perhaps I (and a number of other people ...) have misunderstood the
-semantics of GFP_DMA32.  Perhaps GFP_DMA32 is not "allocate memory below
-4GB", perhaps it's "allocate memory which can be mapped below 4GB".
-Machines with an IOMMU can use ZONE_NORMAL.  Machines with no IOMMU can
-choose to allocate memory with a physical address below 4GB.
+Just tested it (v3) with FRONTSWAP enabled (didn't test XEN tmem).
+Works fine.
 
-After all, it has 'DMA' right there in the name.  If someone's relying
-on it to allocate physical memory below 4GB, they're arguably misusing it.
+FWIW
+Tested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com> # frontswap
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
