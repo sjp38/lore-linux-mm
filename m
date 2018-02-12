@@ -1,78 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DDF866B0280
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 14:41:34 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id r9so3226589wme.8
-        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 11:41:34 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:8b0:10b:1236::1])
-        by mx.google.com with ESMTPS id 8si4194295wmu.74.2018.02.12.11.41.33
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BE4D6B0005
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 17:21:23 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id u4so7426478iti.2
+        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 14:21:23 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id u35si590994ioi.278.2018.02.12.14.21.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 12 Feb 2018 11:41:33 -0800 (PST)
-Subject: Re: [PATCH] headers: untangle kmemleak.h from mm.h
-References: <a4629db7-194d-3c7c-c8fd-24f61b220a70@infradead.org>
- <87zi4ev1d2.fsf@concordia.ellerman.id.au>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <f119a273-2e86-1b7f-346f-7627ad8b51ed@infradead.org>
-Date: Mon, 12 Feb 2018 11:40:56 -0800
-MIME-Version: 1.0
-In-Reply-To: <87zi4ev1d2.fsf@concordia.ellerman.id.au>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Feb 2018 14:21:22 -0800 (PST)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [RFC PATCH 1/3] mm: make start_isolate_page_range() fail if already isolated
+Date: Mon, 12 Feb 2018 14:20:54 -0800
+Message-Id: <20180212222056.9735-2-mike.kravetz@oracle.com>
+In-Reply-To: <20180212222056.9735-1-mike.kravetz@oracle.com>
+References: <20180212222056.9735-1-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>
-Cc: linux-s390 <linux-s390@vger.kernel.org>, John Johansen <john.johansen@canonical.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, X86 ML <x86@kernel.org>, linux-wireless <linux-wireless@vger.kernel.org>, virtualization@lists.linux-foundation.org, iommu@lists.linux-foundation.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Dmitry Kasatkin <dmitry.kasatkin@intel.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On 02/12/2018 04:28 AM, Michael Ellerman wrote:
-> Randy Dunlap <rdunlap@infradead.org> writes:
-> 
->> From: Randy Dunlap <rdunlap@infradead.org>
->>
->> Currently <linux/slab.h> #includes <linux/kmemleak.h> for no obvious
->> reason. It looks like it's only a convenience, so remove kmemleak.h
->> from slab.h and add <linux/kmemleak.h> to any users of kmemleak_*
->> that don't already #include it.
->> Also remove <linux/kmemleak.h> from source files that do not use it.
->>
->> This is tested on i386 allmodconfig and x86_64 allmodconfig. It
->> would be good to run it through the 0day bot for other $ARCHes.
->> I have neither the horsepower nor the storage space for the other
->> $ARCHes.
->>
->> [slab.h is the second most used header file after module.h; kernel.h
->> is right there with slab.h. There could be some minor error in the
->> counting due to some #includes having comments after them and I
->> didn't combine all of those.]
->>
->> This is Lingchi patch #1 (death by a thousand cuts, applied to kernel
->> header files).
->>
->> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
-> 
-> I threw it at a random selection of configs and so far the only failures
-> I'm seeing are:
-> 
->   lib/test_firmware.c:134:2: error: implicit declaration of function 'vfree' [-Werror=implicit-function-declaration]                                                                                                          
->   lib/test_firmware.c:620:25: error: implicit declaration of function 'vzalloc' [-Werror=implicit-function-declaration]
->   lib/test_firmware.c:620:2: error: implicit declaration of function 'vzalloc' [-Werror=implicit-function-declaration]
->   security/integrity/digsig.c:146:2: error: implicit declaration of function 'vfree' [-Werror=implicit-function-declaration]
-> 
+start_isolate_page_range() is used to set the migrate type of a
+page block to MIGRATE_ISOLATE while attempting to start a
+migration operation.  It is assumed that only one thread is
+attempting such an operation, and due to the limited number of
+callers this is generally the case.  However, there are no
+guarantees and it is 'possible' for two threads to operate on
+the same range.
 
-Both of those source files need to #include <linux/vmalloc.h>.
+Since start_isolate_page_range() is called at the beginning of
+such operations, have it return -EBUSY if MIGRATE_ISOLATE is
+already set.
 
-> Full results trickling in here, not all the failures there are caused by
-> this patch, ie. some configs are broken in mainline:
-> 
->   http://kisskb.ellerman.id.au/kisskb/head/13396/
-> 
-> cheers
+This will allow start_isolate_page_range to serve as a
+synchronization mechanism and will allow for more general use
+of callers making use of these interfaces.
 
-:)
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ mm/page_alloc.c     |  8 ++++----
+ mm/page_isolation.c | 10 +++++++++-
+ 2 files changed, 13 insertions(+), 5 deletions(-)
 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 76c9688b6a0a..064458f317bf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7605,11 +7605,11 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+  * @gfp_mask:	GFP mask to use during compaction
+  *
+  * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
+- * aligned, however it's the caller's responsibility to guarantee that
+- * we are the only thread that changes migrate type of pageblocks the
+- * pages fall in.
++ * aligned.  The PFN range must belong to a single zone.
+  *
+- * The PFN range must belong to a single zone.
++ * The first thing this routine does is attempt to MIGRATE_ISOLATE all
++ * pageblocks in the range.  Once isolated, the pageblocks should not
++ * be modified by others.
+  *
+  * Returns zero on success or negative error code.  On success all
+  * pages which PFN is in [start, end) are allocated for the caller and
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 165ed8117bd1..e815879d525f 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -28,6 +28,13 @@ static int set_migratetype_isolate(struct page *page, int migratetype,
+ 
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 
++	/*
++	 * We assume we are the only ones trying to isolate this block.
++	 * If MIGRATE_ISOLATE already set, return -EBUSY
++	 */
++	if (is_migrate_isolate_page(page))
++		goto out;
++
+ 	pfn = page_to_pfn(page);
+ 	arg.start_pfn = pfn;
+ 	arg.nr_pages = pageblock_nr_pages;
+@@ -166,7 +173,8 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
+  * future will not be allocated again.
+  *
+  * start_pfn/end_pfn must be aligned to pageblock_order.
+- * Returns 0 on success and -EBUSY if any part of range cannot be isolated.
++ * Returns 0 on success and -EBUSY if any part of range cannot be isolated
++ * or any part of the range is already set to MIGRATE_ISOLATE.
+  */
+ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+ 			     unsigned migratetype, bool skip_hwpoisoned_pages)
 -- 
-~Randy
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
