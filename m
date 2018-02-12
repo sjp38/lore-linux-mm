@@ -1,85 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B20636B0003
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 07:53:58 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id 78so3446084qky.17
-        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 04:53:58 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id q8si8418964qke.278.2018.02.12.04.53.57
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F7F16B0009
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 08:35:53 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id d17so8879985wrc.19
+        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 05:35:53 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l25si6613565wrl.367.2018.02.12.05.35.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Feb 2018 04:53:57 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1CCqbnK040660
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 07:53:57 -0500
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2g392knasb-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 07:53:56 -0500
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 12 Feb 2018 12:53:55 -0000
-Date: Mon, 12 Feb 2018 14:53:47 +0200
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 4/6] Protectable Memory
-References: <20180211031920.3424-1-igor.stoppa@huawei.com>
- <20180211031920.3424-5-igor.stoppa@huawei.com>
- <20180211123743.GC13931@rapoport-lnx>
- <e7ea02b4-3d43-9543-3d14-61c27e155042@huawei.com>
- <20180212114310.GD20737@rapoport-lnx>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 12 Feb 2018 05:35:51 -0800 (PST)
+Date: Mon, 12 Feb 2018 14:35:47 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [nf:master 1/9] arch/x86/tools/insn_decoder_test: warning:
+ ffffffff817c07c3:	0f ff e9             	ud0    %ecx,%ebp
+Message-ID: <20180212133547.GD3443@dhcp22.suse.cz>
+References: <201802071027.gHIvqB29%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180212114310.GD20737@rapoport-lnx>
-Message-Id: <20180212125347.GE20737@rapoport-lnx>
+In-Reply-To: <201802071027.gHIvqB29%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: willy@infradead.org, rdunlap@infradead.org, corbet@lwn.net, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, jglisse@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, Pablo Neira Ayuso <pablo@netfilter.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon, Feb 12, 2018 at 01:43:11PM +0200, Mike Rapoport wrote:
-> On Mon, Feb 12, 2018 at 01:26:28PM +0200, Igor Stoppa wrote:
-> > On 11/02/18 14:37, Mike Rapoport wrote:
-> > > On Sun, Feb 11, 2018 at 05:19:18AM +0200, Igor Stoppa wrote:
-> > 
-> > >> + * Return: 0 if the object does not belong to pmalloc, 1 if it belongs to
-> > >> + * pmalloc, -1 if it partially overlaps pmalloc meory, but incorectly.
-> > > 
-> > > typo:                                            ^ memory
-> > 
-> > thanks :-(
-> > 
-> > [...]
-> > 
-> > >> +/**
-> > >> + * When the sysfs is ready to receive registrations, connect all the
-> > >> + * pools previously created. Also enable further pools to be connected
-> > >> + * right away.
-> > >> + */
-> > > 
-> > > This does not seem as kernel-doc comment. Please either remove the second *
-> > > from the opening comment mark or reformat the comment.
-> > 
-> > For this too, I thought I had caught them all, but I was wrong ...
-> > 
-> > I didn't find any mention of automated checking for comments.
-> > Is there such tool?
+On Wed 07-02-18 10:16:31, Wu Fengguang wrote:
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/pablo/nf.git master
+> head:   b408c5b04f82fe4e20bceb8e4f219453d4f21f02
+> commit: 0537250fdc6c876ed4cbbe874c739aebef493ee2 [1/9] netfilter: x_tables: make allocation less aggressive
+> config: x86_64-rhel-7.2 (attached as .config)
+> compiler: gcc-7 (Debian 7.3.0-1) 7.3.0
+> reproduce:
+>         git checkout 0537250fdc6c876ed4cbbe874c739aebef493ee2
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
 > 
-> I don't know if there is a tool. I couldn't find anything in scripts, maybe
-> somebody have such tool out of tree.
+> All warnings (new ones prefixed by >>):
 > 
-> For now, I've added mm-api.rst that includes all mm .c files and run 'make
-> htmldocs' which spits plenty of warnings and errors.
+>    arch/x86/tools/insn_decoder_test: warning: Found an x86 instruction decoder bug, please report this.
+>    arch/x86/tools/insn_decoder_test: warning: ffffffff817aed81:	0f ff c3             	ud0    %ebx,%eax
 
-Actually, you can run 'scripts/kernel-doc -v -none <filename>' to check
-comments starting with '/**'. I afraid it won't catch formatted blocks that
-start with '/*'
- 
+I really fail to see how the above patch could have made any difference.
+I am even not sure what the actual bug is, to be honest.
 
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
