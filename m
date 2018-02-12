@@ -1,105 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5695B6B002A
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 09:51:32 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id x188so2452420wmg.2
-        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 06:51:32 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id l64si6988665ede.72.2018.02.12.06.51.27
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B7046B002C
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 10:28:54 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id m19so1141637pgv.5
+        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 07:28:54 -0800 (PST)
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id n1-v6si5870495pld.589.2018.02.12.07.28.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Feb 2018 06:51:27 -0800 (PST)
-Date: Mon, 12 Feb 2018 15:51:25 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 00/31 v2] PTI support for x86_32
-Message-ID: <20180212145125.GE16484@8bytes.org>
-References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
- <CALCETrUF61fqjXKG=kwf83JWpw=kgL16UvKowezDVwVA1=YVAw@mail.gmail.com>
- <20180209191112.55zyjf4njum75brd@suse.de>
- <20180211191312.54apu5edk3olsfz3@gmail.com>
+        Mon, 12 Feb 2018 07:28:53 -0800 (PST)
+Date: Mon, 12 Feb 2018 08:28:49 -0700
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH 5/6] Documentation for Pmalloc
+Message-ID: <20180212082849.1377f7e6@lwn.net>
+In-Reply-To: <20180210033714.GA12711@bombadil.infradead.org>
+References: <20180130151446.24698-1-igor.stoppa@huawei.com>
+	<20180130151446.24698-6-igor.stoppa@huawei.com>
+	<20180130100852.2213b94d@lwn.net>
+	<56eb3e0d-d74d-737a-9f85-fead2c40c17c@huawei.com>
+	<20180210033714.GA12711@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180211191312.54apu5edk3olsfz3@gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Igor Stoppa <igor.stoppa@huawei.com>, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-Hi Ingo,
+On Fri, 9 Feb 2018 19:37:14 -0800
+Matthew Wilcox <willy@infradead.org> wrote:
 
-On Sun, Feb 11, 2018 at 08:13:12PM +0100, Ingo Molnar wrote:
-> Could you please measure the PTI kernel vs. vanilla kernel?
+> I've done this as the first line of my new documentation files:
+> 
+> .. SPDX-License-Identifier: CC-BY-SA-4.0
+> 
+> I think this is the CC license that's closest in spirit to the GPL without
+> the unintended consequences of the GPL when used on documentation.  The
+> GFDL seems to be out of favour these days.
 
-Okay, did that, here is the data. The test machine is a Xeon E5-1620v2,
-which is Ivy Bridge based (no PCIE) and has 4C/8T.
+I think that's a great license.  I still fear that it is not suitable for
+kernel documentation, though, especially when we produce documents that
+include significant text from the (GPL-licensed) kernel source.  The
+result is almost certainly not distributable, and I don't think that's a
+good thing.  The GPL is not perfect for documentation, but I don't think
+that we have a better alternative for in-kernel docs.
 
-I ran the 2 tests you suggested:
-
-	* Test-1: perf stat --null --sync --repeat 10 perf bench sched messaging -g 20
-
-	* Test-2: perf stat --null --sync --repeat 10 perf bench sched messaging -g 20 -t
-
-The tests ran on these kernels:
-
-	* tip-32-pae: current top of tip/x86-tip-for-linus branch,
-	              compiled as a 32 bit kernel with PAE
-	              (commit b2ac58f90540e39324e7a29a7ad471407ae0bf48)
-
-	* pti-32-pae: Same as above with my patches on-top, as on
-
-		      git://git.kernel.org/pub/scm/linux/kernel/git/joro/linux.git pti-x32-v2
-
-	              compiled as a 32 bit kernel with PAE
-		      (commit dbb0074f778b396a11e0c897fef9d0c4583e7ccb)
-
-	* pti-off-64: current top of tip/x86-tip-for-linus branch,
-		      compiled as a 64 bit kernel, booted with pti=off
-	              (commit b2ac58f90540e39324e7a29a7ad471407ae0bf48)
-
-	* pti-on-64: current top of tip/x86-tip-for-linus branch,
-		     compiled as a 64 bit kernel, booted with pti=on
-	             (commit b2ac58f90540e39324e7a29a7ad471407ae0bf48)
-
-Results are:
-	            | Test-1             | Test-2          
-	------------+--------------------+-----------------
-	tip-32-pae  | 0.28s (+-0.44%)    | 0.27s (+-2.15%) 
-	------------+--------------------+-----------------
-	pti-32-pae  | 0.44s (+-0.40%)    | 0.42s (+-0.48%) 
-	------------+--------------------+-----------------
-	pti-off-64  | 0.24s (+-0.40%)    | 0.25s (+-1.31%) 
-	------------+--------------------+-----------------
-	pti-on-64   | 0.30s (+-0.47%)    | 0.31s (+-0.95%)
-
-On 32 bit with PTI enabled the test needs 157% (non-threaded) and
-156% (threaded) of time compared to the non-PTI baseline.
-
-On 64 bit these numbers are 125% (non-threaded) and 124% (threaded).
-
-The pti-32-pae kernel still used 'rep movsb' in the entry code. I
-replaced that with 'rep movsl' and measured again, but overhead is still
-around 152%.
-
-I also measured cycles with 'perf record' to see where the additional
-time is spent. The report showed around 25% in entry_SYSENTER_32 for
-the pti-32-pae kernel. The same report on the tip-32-pae kernel shows
-around 2.5% for the same symbol.
-
-The entry_SYSENTER_32 path does no stack-copy on entry (it only
-push/pops 8 bytes for the cr3 switch), but one full pt_regs copy on
-exit. The exit-path was easy to optimize, I got it to the point where it
-only copied 8 bytes to the entry stack (flags and eax).  This way I got
-the 'perf report' numbers for entry_SYSENTER_32 down to around 20%, but
-the overall numbers for Test-1 and Test-2 are still at around 150% of
-the baseline.
-
-So it seems that most of the additional time is actually spent switching
-the cr3s.
-
-Regards,
-
-	Joerg
+jon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
