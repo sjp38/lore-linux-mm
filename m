@@ -1,351 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C77B86B0006
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 10:36:17 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id b6so72588pgu.16
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 07:36:17 -0800 (PST)
-Received: from terminus.zytor.com (terminus.zytor.com. [198.137.202.136])
-        by mx.google.com with ESMTPS id 31-v6si7521166pli.832.2018.02.13.07.36.15
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BC5A86B0003
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 11:09:44 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id q35so11214764otg.14
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 08:09:44 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id i8sor4368808oia.240.2018.02.13.08.09.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Feb 2018 07:36:16 -0800 (PST)
-Date: Tue, 13 Feb 2018 07:29:45 -0800
-From: tip-bot for Andy Lutomirski <tipbot@zytor.com>
-Message-ID: <tip-084c63d0cf9b2b2e9ee77984e570571f5df65dd5@git.kernel.org>
-Reply-To: hpa@zytor.com, brgerst@gmail.com, linux-kernel@vger.kernel.org,
-        linux-mm@kvack.org, will.deacon@arm.com, bp@alien8.de,
-        peterz@infradead.org, keescook@google.com, luto@kernel.org,
-        boris.ostrovsky@oracle.com, jgross@suse.com, jpoimboe@redhat.com,
-        hughd@google.com, mingo@kernel.org, eduval@amazon.com, riel@redhat.com,
-        torvalds@linux-foundation.org, dave.hansen@intel.com,
-        tglx@linutronix.de
-In-Reply-To: <3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org>
-References: <3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org>
-Subject: [tip:x86/pti] x86/mm: Rename flush_tlb_single() and flush_tlb_one()
- to __flush_tlb_one_[user|kernel]()
+        (Google Transport Security);
+        Tue, 13 Feb 2018 08:09:40 -0800 (PST)
+Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
+References: <20180124175631.22925-1-igor.stoppa@huawei.com>
+ <20180124175631.22925-5-igor.stoppa@huawei.com>
+ <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
+ <20180126053542.GA30189@bombadil.infradead.org>
+ <alpine.DEB.2.20.1802021236510.31548@nuc-kabylake>
+ <f2ddaed0-313e-8664-8a26-9d10b66ed0c5@huawei.com>
+ <b75b5903-0177-8ad9-5c2b-fc63438fb5f2@huawei.com>
+ <CAFUG7CfrCpcbwgf5ixMC5EZZgiVVVp1NXhDHK1UoJJcC08R2qQ@mail.gmail.com>
+ <8818bfd4-dd9f-f279-0432-69b59531bd41@huawei.com>
+ <CAFUG7CeUhFcvA82uZ2ZH1j_6PM=aBo4XmYDN85pf8G0gPU44dg@mail.gmail.com>
+ <17e5b515-84c8-dca2-1695-cdf819834ea2@huawei.com>
+ <CAGXu5j+LS1pgOOroi7Yxp2nh=DwtTnU3p-NZa6bQu_wkvvVkwg@mail.gmail.com>
+ <414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com>
+ <CAGXu5j++igQD4tMh0J8nZ9jNji5mU16C7OygFJ5Td+Bq-KSMgw@mail.gmail.com>
+ <CAG48ez1utN_vwHUwk=BU6zM4Wa_53TPu8rm9JuTtY-vGP0Shqw@mail.gmail.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <f4226a44-92fd-8ead-b458-7551ba82f96d@redhat.com>
+Date: Tue, 13 Feb 2018 08:09:35 -0800
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline
+In-Reply-To: <CAG48ez1utN_vwHUwk=BU6zM4Wa_53TPu8rm9JuTtY-vGP0Shqw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-tip-commits@vger.kernel.org
-Cc: boris.ostrovsky@oracle.com, luto@kernel.org, keescook@google.com, peterz@infradead.org, bp@alien8.de, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hpa@zytor.com, brgerst@gmail.com, tglx@linutronix.de, dave.hansen@intel.com, torvalds@linux-foundation.org, riel@redhat.com, eduval@amazon.com, mingo@kernel.org, hughd@google.com, jpoimboe@redhat.com, jgross@suse.com
+To: Jann Horn <jannh@google.com>, Kees Cook <keescook@chromium.org>
+Cc: Igor Stoppa <igor.stoppa@huawei.com>, Boris Lukashev <blukashev@sempervictus.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-Commit-ID:  084c63d0cf9b2b2e9ee77984e570571f5df65dd5
-Gitweb:     https://git.kernel.org/tip/084c63d0cf9b2b2e9ee77984e570571f5df65dd5
-Author:     Andy Lutomirski <luto@kernel.org>
-AuthorDate: Wed, 31 Jan 2018 08:03:10 -0800
-Committer:  Ingo Molnar <mingo@kernel.org>
-CommitDate: Tue, 13 Feb 2018 15:11:59 +0100
+On 02/12/2018 07:39 PM, Jann Horn wrote:
+> On Tue, Feb 13, 2018 at 2:25 AM, Kees Cook <keescook@chromium.org> wrote:
+>> On Mon, Feb 12, 2018 at 4:40 PM, Laura Abbott <labbott@redhat.com> wrote:
+>>> On 02/12/2018 03:27 PM, Kees Cook wrote:
+>>>>
+>>>> On Sun, Feb 4, 2018 at 7:05 AM, Igor Stoppa <igor.stoppa@huawei.com>
+>>>> wrote:
+>>>>>
+>>>>> On 04/02/18 00:29, Boris Lukashev wrote:
+>>>>>>
+>>>>>> On Sat, Feb 3, 2018 at 3:32 PM, Igor Stoppa <igor.stoppa@huawei.com>
+>>>>>> wrote:
+>>>>>
+>>>>>
+>>>>> [...]
+>>>>>
+>>>>>>> What you are suggesting, if I have understood it correctly, is that,
+>>>>>>> when the pool is protected, the addresses already given out, will
+>>>>>>> become
+>>>>>>> traps that get resolved through a lookup table that is built based on
+>>>>>>> the content of each allocation.
+>>>>>>>
+>>>>>>> That seems to generate a lot of overhead, not to mention the fact that
+>>>>>>> it might not play very well with the MMU.
+>>>>>>
+>>>>>>
+>>>>>> That is effectively what i'm suggesting - as a form of protection for
+>>>>>> consumers against direct reads of data which may have been corrupted
+>>>>>> by some irrelevant means. In the context of pmalloc, it would probably
+>>>>>> be a separate type of ro+verified pool
+>>>>>
+>>>>> ok, that seems more like an extension though.
+>>>>>
+>>>>> ATM I am having problems gaining traction to get even the basic merged
+>>>>> :-)
+>>>>>
+>>>>> I would consider this as a possibility for future work, unless it is
+>>>>> said that it's necessary for pmalloc to be accepted ...
+>>>>
+>>>>
+>>>> I would agree: let's get basic functionality in first. Both
+>>>> verification and the physmap part can be done separately, IMO.
+>>>
+>>>
+>>> Skipping over physmap leaves a pretty big area of exposure that could
+>>> be difficult to solve later. I appreciate this might block basic
+>>> functionality but I don't think we should just gloss over it without
+>>> at least some idea of what we would do.
+>>
+>> What's our exposure on physmap for other regions? e.g. things that are
+>> executable, or made read-only later (like __ro_after_init)?
+> 
+> I just checked on a system with a 4.9 kernel, and there seems to be no
+> physical memory that is mapped as writable in the init PGD and
+> executable elsewhere.
+> 
+> Ah, I think I missed something. At least on X86, set_memory_ro,
+> set_memory_rw, set_memory_nx and set_memory_x all use
+> change_page_attr_clear/change_page_attr_set, which use
+> change_page_attr_set_clr, which calls __change_page_attr_set_clr()
+> with a second parameter "checkalias" that is set to 1 unless the bit
+> being changed is the NX bit, and that parameter causes the invocation
+> of cpa_process_alias(), which will, for mapped ranges, also change the
+> attributes of physmap ranges. set_memory_ro() and so on are also used
+> by the module loading code.
+> 
+> But in the ARM64 code, I don't see anything similar. Does anyone with
+> a better understanding of ARM64 want to check whether I missed
+> something? Or maybe, with a recent kernel, check whether executable
+> module pages show up with a second writable mapping in the
+> "kernel_page_tables" file in debugfs?
+> 
 
-x86/mm: Rename flush_tlb_single() and flush_tlb_one() to __flush_tlb_one_[user|kernel]()
+No, arm64 doesn't fixup the aliases, mostly because arm64 uses larger
+page sizes which can't be broken down at runtime. CONFIG_PAGE_POISONING
+does use 4K pages which could be adjusted at runtime. So yes, you are
+right we would have physmap exposure on arm64 as well.
 
-flush_tlb_single() and flush_tlb_one() sound almost identical, but
-they really mean "flush one user translation" and "flush one kernel
-translation".  Rename them to flush_tlb_one_user() and
-flush_tlb_one_kernel() to make the semantics more obvious.
+To the original question, it does sound like we are actually okay
+with the physmap.
 
-[ I was looking at some PTI-related code, and the flush-one-address code
-  is unnecessarily hard to understand because the names of the helpers are
-  uninformative.  This came up during PTI review, but no one got around to
-  doing it. ]
-
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Kees Cook <keescook@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Will Deacon <will.deacon@arm.com>
-Link: http://lkml.kernel.org/r/3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
----
- arch/x86/include/asm/paravirt.h       |  4 ++--
- arch/x86/include/asm/paravirt_types.h |  2 +-
- arch/x86/include/asm/pgtable_32.h     |  2 +-
- arch/x86/include/asm/tlbflush.h       | 27 ++++++++++++++++++++-------
- arch/x86/kernel/paravirt.c            |  6 +++---
- arch/x86/mm/init_64.c                 |  2 +-
- arch/x86/mm/ioremap.c                 |  2 +-
- arch/x86/mm/kmmio.c                   |  2 +-
- arch/x86/mm/pgtable_32.c              |  2 +-
- arch/x86/mm/tlb.c                     |  6 +++---
- arch/x86/platform/uv/tlb_uv.c         |  2 +-
- arch/x86/xen/mmu_pv.c                 |  6 +++---
- include/trace/events/xen.h            |  2 +-
- 13 files changed, 39 insertions(+), 26 deletions(-)
-
-diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
-index 892df37..554841f 100644
---- a/arch/x86/include/asm/paravirt.h
-+++ b/arch/x86/include/asm/paravirt.h
-@@ -297,9 +297,9 @@ static inline void __flush_tlb_global(void)
- {
- 	PVOP_VCALL0(pv_mmu_ops.flush_tlb_kernel);
- }
--static inline void __flush_tlb_single(unsigned long addr)
-+static inline void __flush_tlb_one_user(unsigned long addr)
- {
--	PVOP_VCALL1(pv_mmu_ops.flush_tlb_single, addr);
-+	PVOP_VCALL1(pv_mmu_ops.flush_tlb_one_user, addr);
- }
- 
- static inline void flush_tlb_others(const struct cpumask *cpumask,
-diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
-index 6ec54d0..f624f1f 100644
---- a/arch/x86/include/asm/paravirt_types.h
-+++ b/arch/x86/include/asm/paravirt_types.h
-@@ -217,7 +217,7 @@ struct pv_mmu_ops {
- 	/* TLB operations */
- 	void (*flush_tlb_user)(void);
- 	void (*flush_tlb_kernel)(void);
--	void (*flush_tlb_single)(unsigned long addr);
-+	void (*flush_tlb_one_user)(unsigned long addr);
- 	void (*flush_tlb_others)(const struct cpumask *cpus,
- 				 const struct flush_tlb_info *info);
- 
-diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
-index e67c062..e554667 100644
---- a/arch/x86/include/asm/pgtable_32.h
-+++ b/arch/x86/include/asm/pgtable_32.h
-@@ -61,7 +61,7 @@ void paging_init(void);
- #define kpte_clear_flush(ptep, vaddr)		\
- do {						\
- 	pte_clear(&init_mm, (vaddr), (ptep));	\
--	__flush_tlb_one((vaddr));		\
-+	__flush_tlb_one_kernel((vaddr));		\
- } while (0)
- 
- #endif /* !__ASSEMBLY__ */
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 2b8f18c..84137c2 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -140,7 +140,7 @@ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
- #else
- #define __flush_tlb() __native_flush_tlb()
- #define __flush_tlb_global() __native_flush_tlb_global()
--#define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
-+#define __flush_tlb_one_user(addr) __native_flush_tlb_one_user(addr)
- #endif
- 
- static inline bool tlb_defer_switch_to_init_mm(void)
-@@ -400,7 +400,7 @@ static inline void __native_flush_tlb_global(void)
- /*
-  * flush one page in the user mapping
-  */
--static inline void __native_flush_tlb_single(unsigned long addr)
-+static inline void __native_flush_tlb_one_user(unsigned long addr)
- {
- 	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
- 
-@@ -437,18 +437,31 @@ static inline void __flush_tlb_all(void)
- /*
-  * flush one page in the kernel mapping
-  */
--static inline void __flush_tlb_one(unsigned long addr)
-+static inline void __flush_tlb_one_kernel(unsigned long addr)
- {
- 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
--	__flush_tlb_single(addr);
-+
-+	/*
-+	 * If PTI is off, then __flush_tlb_one_user() is just INVLPG or its
-+	 * paravirt equivalent.  Even with PCID, this is sufficient: we only
-+	 * use PCID if we also use global PTEs for the kernel mapping, and
-+	 * INVLPG flushes global translations across all address spaces.
-+	 *
-+	 * If PTI is on, then the kernel is mapped with non-global PTEs, and
-+	 * __flush_tlb_one_user() will flush the given address for the current
-+	 * kernel address space and for its usermode counterpart, but it does
-+	 * not flush it for other address spaces.
-+	 */
-+	__flush_tlb_one_user(addr);
- 
- 	if (!static_cpu_has(X86_FEATURE_PTI))
- 		return;
- 
- 	/*
--	 * __flush_tlb_single() will have cleared the TLB entry for this ASID,
--	 * but since kernel space is replicated across all, we must also
--	 * invalidate all others.
-+	 * See above.  We need to propagate the flush to all other address
-+	 * spaces.  In principle, we only need to propagate it to kernelmode
-+	 * address spaces, but the extra bookkeeping we would need is not
-+	 * worth it.
- 	 */
- 	invalidate_other_asid();
- }
-diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
-index 041096b..99dc79e 100644
---- a/arch/x86/kernel/paravirt.c
-+++ b/arch/x86/kernel/paravirt.c
-@@ -200,9 +200,9 @@ static void native_flush_tlb_global(void)
- 	__native_flush_tlb_global();
- }
- 
--static void native_flush_tlb_single(unsigned long addr)
-+static void native_flush_tlb_one_user(unsigned long addr)
- {
--	__native_flush_tlb_single(addr);
-+	__native_flush_tlb_one_user(addr);
- }
- 
- struct static_key paravirt_steal_enabled;
-@@ -401,7 +401,7 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
- 
- 	.flush_tlb_user = native_flush_tlb,
- 	.flush_tlb_kernel = native_flush_tlb_global,
--	.flush_tlb_single = native_flush_tlb_single,
-+	.flush_tlb_one_user = native_flush_tlb_one_user,
- 	.flush_tlb_others = native_flush_tlb_others,
- 
- 	.pgd_alloc = __paravirt_pgd_alloc,
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 4a83728..60ae1fe 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -256,7 +256,7 @@ static void __set_pte_vaddr(pud_t *pud, unsigned long vaddr, pte_t new_pte)
- 	 * It's enough to flush this one mapping.
- 	 * (PGE mappings get flushed as well)
- 	 */
--	__flush_tlb_one(vaddr);
-+	__flush_tlb_one_kernel(vaddr);
- }
- 
- void set_pte_vaddr_p4d(p4d_t *p4d_page, unsigned long vaddr, pte_t new_pte)
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index c45b6ec..e2db83b 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -820,5 +820,5 @@ void __init __early_set_fixmap(enum fixed_addresses idx,
- 		set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, flags));
- 	else
- 		pte_clear(&init_mm, addr, pte);
--	__flush_tlb_one(addr);
-+	__flush_tlb_one_kernel(addr);
- }
-diff --git a/arch/x86/mm/kmmio.c b/arch/x86/mm/kmmio.c
-index 58477ec..7c86867 100644
---- a/arch/x86/mm/kmmio.c
-+++ b/arch/x86/mm/kmmio.c
-@@ -168,7 +168,7 @@ static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
- 		return -1;
- 	}
- 
--	__flush_tlb_one(f->addr);
-+	__flush_tlb_one_kernel(f->addr);
- 	return 0;
- }
- 
-diff --git a/arch/x86/mm/pgtable_32.c b/arch/x86/mm/pgtable_32.c
-index c3c5274..9bb7f0a 100644
---- a/arch/x86/mm/pgtable_32.c
-+++ b/arch/x86/mm/pgtable_32.c
-@@ -63,7 +63,7 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
- 	 * It's enough to flush this one mapping.
- 	 * (PGE mappings get flushed as well)
- 	 */
--	__flush_tlb_one(vaddr);
-+	__flush_tlb_one_kernel(vaddr);
- }
- 
- unsigned long __FIXADDR_TOP = 0xfffff000;
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 012d026..0c93643 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -492,7 +492,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
- 	 *    flush that changes context.tlb_gen from 2 to 3.  If they get
- 	 *    processed on this CPU in reverse order, we'll see
- 	 *     local_tlb_gen == 1, mm_tlb_gen == 3, and end != TLB_FLUSH_ALL.
--	 *    If we were to use __flush_tlb_single() and set local_tlb_gen to
-+	 *    If we were to use __flush_tlb_one_user() and set local_tlb_gen to
- 	 *    3, we'd be break the invariant: we'd update local_tlb_gen above
- 	 *    1 without the full flush that's needed for tlb_gen 2.
- 	 *
-@@ -513,7 +513,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
- 
- 		addr = f->start;
- 		while (addr < f->end) {
--			__flush_tlb_single(addr);
-+			__flush_tlb_one_user(addr);
- 			addr += PAGE_SIZE;
- 		}
- 		if (local)
-@@ -660,7 +660,7 @@ static void do_kernel_range_flush(void *info)
- 
- 	/* flush range by one by one 'invlpg' */
- 	for (addr = f->start; addr < f->end; addr += PAGE_SIZE)
--		__flush_tlb_one(addr);
-+		__flush_tlb_one_kernel(addr);
- }
- 
- void flush_tlb_kernel_range(unsigned long start, unsigned long end)
-diff --git a/arch/x86/platform/uv/tlb_uv.c b/arch/x86/platform/uv/tlb_uv.c
-index 8538a67..7d5d53f 100644
---- a/arch/x86/platform/uv/tlb_uv.c
-+++ b/arch/x86/platform/uv/tlb_uv.c
-@@ -299,7 +299,7 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
- 		local_flush_tlb();
- 		stat->d_alltlb++;
- 	} else {
--		__flush_tlb_single(msg->address);
-+		__flush_tlb_one_user(msg->address);
- 		stat->d_onetlb++;
- 	}
- 	stat->d_requestee++;
-diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index d850762..aae88fe 100644
---- a/arch/x86/xen/mmu_pv.c
-+++ b/arch/x86/xen/mmu_pv.c
-@@ -1300,12 +1300,12 @@ static void xen_flush_tlb(void)
- 	preempt_enable();
- }
- 
--static void xen_flush_tlb_single(unsigned long addr)
-+static void xen_flush_tlb_one_user(unsigned long addr)
- {
- 	struct mmuext_op *op;
- 	struct multicall_space mcs;
- 
--	trace_xen_mmu_flush_tlb_single(addr);
-+	trace_xen_mmu_flush_tlb_one_user(addr);
- 
- 	preempt_disable();
- 
-@@ -2370,7 +2370,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
- 
- 	.flush_tlb_user = xen_flush_tlb,
- 	.flush_tlb_kernel = xen_flush_tlb,
--	.flush_tlb_single = xen_flush_tlb_single,
-+	.flush_tlb_one_user = xen_flush_tlb_one_user,
- 	.flush_tlb_others = xen_flush_tlb_others,
- 
- 	.pgd_alloc = xen_pgd_alloc,
-diff --git a/include/trace/events/xen.h b/include/trace/events/xen.h
-index b8adf05..7dd8f34 100644
---- a/include/trace/events/xen.h
-+++ b/include/trace/events/xen.h
-@@ -368,7 +368,7 @@ TRACE_EVENT(xen_mmu_flush_tlb,
- 	    TP_printk("%s", "")
- 	);
- 
--TRACE_EVENT(xen_mmu_flush_tlb_single,
-+TRACE_EVENT(xen_mmu_flush_tlb_one_user,
- 	    TP_PROTO(unsigned long addr),
- 	    TP_ARGS(addr),
- 	    TP_STRUCT__entry(
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
