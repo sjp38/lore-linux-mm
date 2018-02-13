@@ -1,119 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 753C86B0003
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F1676B0005
 	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 14:32:15 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id g125so9988632ita.6
+Received: by mail-io0-f198.google.com with SMTP id p189so9834062iod.2
         for <linux-mm@kvack.org>; Tue, 13 Feb 2018 11:32:15 -0800 (PST)
 Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id 92si1568365ioj.8.2018.02.13.11.32.13
+        by mx.google.com with ESMTPS id v186si916795itd.69.2018.02.13.11.32.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Feb 2018 11:32:14 -0800 (PST)
+        Tue, 13 Feb 2018 11:32:13 -0800 (PST)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v3 3/4] mm: uninitialized struct page poisoning sanity checking
-Date: Tue, 13 Feb 2018 14:31:58 -0500
-Message-Id: <20180213193159.14606-4-pasha.tatashin@oracle.com>
+Subject: [PATCH v3 2/4] x86/mm/memory_hotplug: determine block size based on the end of boot memory
+Date: Tue, 13 Feb 2018 14:31:57 -0500
+Message-Id: <20180213193159.14606-3-pasha.tatashin@oracle.com>
 In-Reply-To: <20180213193159.14606-1-pasha.tatashin@oracle.com>
 References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
-During boot we poison struct page memory in order to ensure that no one is
-accessing this memory until the struct pages are initialized in
-__init_single_page().
+Memory sections are combined into "memory block" chunks. These chunks are
+the units upon which memory can be added and removed.
 
-This patch adds more scrutiny to this checking, by making sure that flags
-do not equal to poison pattern when the are accessed. The pattern is all
-ones.
+On x86, the new memory may be added after the end of the boot memory,
+therefore, if block size does not align with end of boot memory, memory
+hot-plugging/hot-removing can be broken.
 
-Since, node id is also stored in struct page, and may be accessed quiet
-early we add the enforcement into page_to_nid() function as well.
+Currently, whenever machine is boot with more than 64G the block size
+unconditionally increased to 2G from the base 128M in order to reduce
+number of memory devices in sysfs:
+	/sys/devices/system/memory/memoryXXX
+
+But, we must use the largest allowed block size that aligns to the next
+address to be able to hotplug the next block of memory.
+
+So, when memory is larger than 64G, we check the end address and find the
+largest block size that is still power of two but smaller or equal to 2G.
+
+Before, the fix:
+Run qemu with:
+-m 64G,slots=2,maxmem=66G -object memory-backend-ram,id=mem1,size=2G
+
+(qemu) device_add pc-dimm,id=dimm1,memdev=mem1
+Block size [0x80000000] unaligned hotplug range: start 0x1040000000,
+							size 0x80000000
+acpi PNP0C80:00: add_memory failed
+acpi PNP0C80:00: acpi_memory_enable_device() error
+acpi PNP0C80:00: Enumeration failure
+
+With the fix memory is added successfully, as the block size is set to 1G,
+and therefore aligns with start address 0x1040000000.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 ---
- include/linux/mm.h         |  4 +++-
- include/linux/page-flags.h | 22 +++++++++++++++++-----
- mm/memblock.c              |  2 +-
- 3 files changed, 21 insertions(+), 7 deletions(-)
+ arch/x86/mm/init_64.c | 33 +++++++++++++++++++++++++++++----
+ 1 file changed, 29 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ad06d42adb1a..ad71136a6494 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -896,7 +896,9 @@ extern int page_to_nid(const struct page *page);
- #else
- static inline int page_to_nid(const struct page *page)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 1ab42c852069..f7dc80364397 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1326,14 +1326,39 @@ int kern_addr_valid(unsigned long addr)
+ 	return pfn_valid(pte_pfn(*pte));
+ }
+ 
++/*
++ * Block size is the minimum quantum of memory which can be hot-plugged or
++ * hot-removed. It must be power of two, and must be equal or larger than
++ * MIN_MEMORY_BLOCK_SIZE.
++ */
++#define MAX_BLOCK_SIZE (2UL << 30)
++
++/* Amount of ram needed to start using large blocks */
++#define MEM_SIZE_FOR_LARGE_BLOCK (64UL << 30)
++
+ static unsigned long probe_memory_block_size(void)
  {
--	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
-+	struct page *p = (struct page *)page;
+-	unsigned long bz = MIN_MEMORY_BLOCK_SIZE;
++	unsigned long boot_mem_end = max_pfn << PAGE_SHIFT;
++	unsigned long bz;
+ 
+-	/* if system is UV or has 64GB of RAM or more, use large blocks */
+-	if (is_uv_system() || ((max_pfn << PAGE_SHIFT) >= (64UL << 30)))
+-		bz = 2UL << 30; /* 2GB */
++	/* If this is UV system, always set 2G block size */
++	if (is_uv_system()) {
++		bz = MAX_BLOCK_SIZE;
++		goto done;
++	}
+ 
++	/* Use regular block if RAM is smaller than MEM_SIZE_FOR_LARGE_BLOCK */
++	if (boot_mem_end < MEM_SIZE_FOR_LARGE_BLOCK) {
++		bz = MIN_MEMORY_BLOCK_SIZE;
++		goto done;
++	}
 +
-+	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
- }
- #endif
++	/* Find the largest allowed block size that aligns to memory end */
++	for (bz = MAX_BLOCK_SIZE; bz > MIN_MEMORY_BLOCK_SIZE; bz >>= 1) {
++		if (IS_ALIGNED(boot_mem_end, bz))
++			break;
++	}
++done:
+ 	pr_info("x86/mm: Memory block size: %ldMB\n", bz >> 20);
  
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 50c2b8786831..5d5493e1f7ba 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -156,9 +156,18 @@ static __always_inline int PageCompound(struct page *page)
- 	return test_bit(PG_head, &page->flags) || PageTail(page);
- }
- 
-+#define	PAGE_POISON_PATTERN	~0ul
-+static inline int PagePoisoned(const struct page *page)
-+{
-+	return page->flags == PAGE_POISON_PATTERN;
-+}
-+
- /*
-  * Page flags policies wrt compound pages
-  *
-+ * PF_POISONED_CHECK
-+ *     check if this struct page poisoned/uninitialized
-+ *
-  * PF_ANY:
-  *     the page flag is relevant for small, head and tail pages.
-  *
-@@ -176,17 +185,20 @@ static __always_inline int PageCompound(struct page *page)
-  * PF_NO_COMPOUND:
-  *     the page flag is not relevant for compound pages.
-  */
--#define PF_ANY(page, enforce)	page
--#define PF_HEAD(page, enforce)	compound_head(page)
-+#define PF_POISONED_CHECK(page) ({					\
-+		VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);		\
-+		page;})
-+#define PF_ANY(page, enforce)	PF_POISONED_CHECK(page)
-+#define PF_HEAD(page, enforce)	PF_POISONED_CHECK(compound_head(page))
- #define PF_ONLY_HEAD(page, enforce) ({					\
- 		VM_BUG_ON_PGFLAGS(PageTail(page), page);		\
--		page;})
-+		PF_POISONED_CHECK(page);})
- #define PF_NO_TAIL(page, enforce) ({					\
- 		VM_BUG_ON_PGFLAGS(enforce && PageTail(page), page);	\
--		compound_head(page);})
-+		PF_POISONED_CHECK(compound_head(page));})
- #define PF_NO_COMPOUND(page, enforce) ({				\
- 		VM_BUG_ON_PGFLAGS(enforce && PageCompound(page), page);	\
--		page;})
-+		PF_POISONED_CHECK(page);})
- 
- /*
-  * Macros to create function definitions for page flags
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 5a9ca2a1751b..d85c8754e0ce 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1373,7 +1373,7 @@ void * __init memblock_virt_alloc_try_nid_raw(
- 					   min_addr, max_addr, nid);
- #ifdef CONFIG_DEBUG_VM
- 	if (ptr && size > 0)
--		memset(ptr, 0xff, size);
-+		memset(ptr, PAGE_POISON_PATTERN, size);
- #endif
- 	return ptr;
- }
+ 	return bz;
 -- 
 2.16.1
 
