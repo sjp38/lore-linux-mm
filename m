@@ -1,104 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 137476B0006
-	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 21:48:17 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id w16so7831770plp.20
-        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 18:48:17 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id x3-v6si1414315plo.2.2018.02.12.18.48.15
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 848A26B0003
+	for <linux-mm@kvack.org>; Mon, 12 Feb 2018 22:40:00 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id 5so10387238ote.9
+        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 19:40:00 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t1sor4070192oth.262.2018.02.12.19.39.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 12 Feb 2018 18:48:15 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB hugepage
-In-Reply-To: <20180208121749.0ac09af2b5a143106f339f55@linux-foundation.org>
-References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp> <1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com> <87inbbjx2w.fsf@e105922-lin.cambridge.arm.com> <20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp> <87fu6bfytm.fsf@e105922-lin.cambridge.arm.com> <20180208121749.0ac09af2b5a143106f339f55@linux-foundation.org>
-Date: Tue, 13 Feb 2018 13:48:06 +1100
-Message-ID: <87wozhvc49.fsf@concordia.ellerman.id.au>
+        (Google Transport Security);
+        Mon, 12 Feb 2018 19:39:59 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <CAGXu5j++igQD4tMh0J8nZ9jNji5mU16C7OygFJ5Td+Bq-KSMgw@mail.gmail.com>
+References: <20180124175631.22925-1-igor.stoppa@huawei.com>
+ <20180124175631.22925-5-igor.stoppa@huawei.com> <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
+ <20180126053542.GA30189@bombadil.infradead.org> <alpine.DEB.2.20.1802021236510.31548@nuc-kabylake>
+ <f2ddaed0-313e-8664-8a26-9d10b66ed0c5@huawei.com> <b75b5903-0177-8ad9-5c2b-fc63438fb5f2@huawei.com>
+ <CAFUG7CfrCpcbwgf5ixMC5EZZgiVVVp1NXhDHK1UoJJcC08R2qQ@mail.gmail.com>
+ <8818bfd4-dd9f-f279-0432-69b59531bd41@huawei.com> <CAFUG7CeUhFcvA82uZ2ZH1j_6PM=aBo4XmYDN85pf8G0gPU44dg@mail.gmail.com>
+ <17e5b515-84c8-dca2-1695-cdf819834ea2@huawei.com> <CAGXu5j+LS1pgOOroi7Yxp2nh=DwtTnU3p-NZa6bQu_wkvvVkwg@mail.gmail.com>
+ <414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com> <CAGXu5j++igQD4tMh0J8nZ9jNji5mU16C7OygFJ5Td+Bq-KSMgw@mail.gmail.com>
+From: Jann Horn <jannh@google.com>
+Date: Tue, 13 Feb 2018 04:39:38 +0100
+Message-ID: <CAG48ez1utN_vwHUwk=BU6zM4Wa_53TPu8rm9JuTtY-vGP0Shqw@mail.gmail.com>
+Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Punit Agrawal <punit.agrawal@arm.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linuxppc-dev@lists.ozlabs.orglinuxppc-dev@lists.ozlabs.org
+To: Kees Cook <keescook@chromium.org>
+Cc: Laura Abbott <labbott@redhat.com>, Igor Stoppa <igor.stoppa@huawei.com>, Boris Lukashev <blukashev@sempervictus.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
-
-> On Thu, 08 Feb 2018 12:30:45 +0000 Punit Agrawal <punit.agrawal@arm.com> wrote:
+On Tue, Feb 13, 2018 at 2:25 AM, Kees Cook <keescook@chromium.org> wrote:
+> On Mon, Feb 12, 2018 at 4:40 PM, Laura Abbott <labbott@redhat.com> wrote:
+>> On 02/12/2018 03:27 PM, Kees Cook wrote:
+>>>
+>>> On Sun, Feb 4, 2018 at 7:05 AM, Igor Stoppa <igor.stoppa@huawei.com>
+>>> wrote:
+>>>>
+>>>> On 04/02/18 00:29, Boris Lukashev wrote:
+>>>>>
+>>>>> On Sat, Feb 3, 2018 at 3:32 PM, Igor Stoppa <igor.stoppa@huawei.com>
+>>>>> wrote:
+>>>>
+>>>>
+>>>> [...]
+>>>>
+>>>>>> What you are suggesting, if I have understood it correctly, is that,
+>>>>>> when the pool is protected, the addresses already given out, will
+>>>>>> become
+>>>>>> traps that get resolved through a lookup table that is built based on
+>>>>>> the content of each allocation.
+>>>>>>
+>>>>>> That seems to generate a lot of overhead, not to mention the fact that
+>>>>>> it might not play very well with the MMU.
+>>>>>
+>>>>>
+>>>>> That is effectively what i'm suggesting - as a form of protection for
+>>>>> consumers against direct reads of data which may have been corrupted
+>>>>> by some irrelevant means. In the context of pmalloc, it would probably
+>>>>> be a separate type of ro+verified pool
+>>>>
+>>>> ok, that seems more like an extension though.
+>>>>
+>>>> ATM I am having problems gaining traction to get even the basic merged
+>>>> :-)
+>>>>
+>>>> I would consider this as a possibility for future work, unless it is
+>>>> said that it's necessary for pmalloc to be accepted ...
+>>>
+>>>
+>>> I would agree: let's get basic functionality in first. Both
+>>> verification and the physmap part can be done separately, IMO.
+>>
+>>
+>> Skipping over physmap leaves a pretty big area of exposure that could
+>> be difficult to solve later. I appreciate this might block basic
+>> functionality but I don't think we should just gloss over it without
+>> at least some idea of what we would do.
 >
->> >
->> > So I don't think that the above test result means that errors are properly
->> > handled, and the proposed patch should help for arm64.
->> 
->> Although, the deviation of pud_huge() avoids a kernel crash the code
->> would be easier to maintain and reason about if arm64 helpers are
->> consistent with expectations by core code.
->> 
->> I'll look to update the arm64 helpers once this patch gets merged. But
->> it would be helpful if there was a clear expression of semantics for
->> pud_huge() for various cases. Is there any version that can be used as
->> reference?
->
-> Is that an ack or tested-by?
->
-> Mike keeps plaintively asking the powerpc developers to take a look,
-> but they remain steadfastly in hiding.
+> What's our exposure on physmap for other regions? e.g. things that are
+> executable, or made read-only later (like __ro_after_init)?
 
-Cc'ing linuxppc-dev is always a good idea :)
+I just checked on a system with a 4.9 kernel, and there seems to be no
+physical memory that is mapped as writable in the init PGD and
+executable elsewhere.
 
-> Folks, this patch fixes a BUG and is marked for -stable.  Can we please
-> prioritize it?
+Ah, I think I missed something. At least on X86, set_memory_ro,
+set_memory_rw, set_memory_nx and set_memory_x all use
+change_page_attr_clear/change_page_attr_set, which use
+change_page_attr_set_clr, which calls __change_page_attr_set_clr()
+with a second parameter "checkalias" that is set to 1 unless the bit
+being changed is the NX bit, and that parameter causes the invocation
+of cpa_process_alias(), which will, for mapped ranges, also change the
+attributes of physmap ranges. set_memory_ro() and so on are also used
+by the module loading code.
 
-It's not crashing for me (on 4.16-rc1):
-
-  # ./huge-poison 
-  Poisoning page...once
-  Poisoning page...once again
-  madvise: Bad address
-
-And I guess the above is the expected behaviour?
-
-Looking at the function trace it looks like the 2nd madvise is going
-down reasonable code paths, but I don't know for sure:
-
-  8)               |  SyS_madvise() {
-  8)               |    capable() {
-  8)               |      ns_capable_common() {
-  8)   0.094 us    |        cap_capable();
-  8)   0.516 us    |      }
-  8)   1.052 us    |    }
-  8)               |    get_user_pages_fast() {
-  8)   0.354 us    |      gup_pgd_range();
-  8)               |      get_user_pages_unlocked() {
-  8)   0.050 us    |        down_read();
-  8)               |        __get_user_pages() {
-  8)               |          find_extend_vma() {
-  8)               |            find_vma() {
-  8)   0.148 us    |              vmacache_find();
-  8)   0.622 us    |            }
-  8)   1.064 us    |          }
-  8)   0.028 us    |          arch_vma_access_permitted();
-  8)               |          follow_hugetlb_page() {
-  8)               |            huge_pte_offset() {
-  8)   0.128 us    |              __find_linux_pte();
-  8)   0.580 us    |            }
-  8)   0.048 us    |            _raw_spin_lock();
-  8)               |            hugetlb_fault() {
-  8)               |              huge_pte_offset() {
-  8)   0.034 us    |                __find_linux_pte();
-  8)   0.434 us    |              }
-  8)   0.028 us    |              is_hugetlb_entry_migration();
-  8)   0.032 us    |              is_hugetlb_entry_hwpoisoned();
-  8)   2.118 us    |            }
-  8)   4.940 us    |          }
-  8)   7.468 us    |        }
-  8)   0.056 us    |        up_read();
-  8)   8.722 us    |      }
-  8) + 10.264 us   |    }
-  8) + 12.212 us   |  }
-
-
-cheers
+But in the ARM64 code, I don't see anything similar. Does anyone with
+a better understanding of ARM64 want to check whether I missed
+something? Or maybe, with a recent kernel, check whether executable
+module pages show up with a second writable mapping in the
+"kernel_page_tables" file in debugfs?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
