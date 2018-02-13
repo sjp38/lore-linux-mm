@@ -1,61 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 741E06B0003
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 03:54:37 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id w102so10398217wrb.21
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 00:54:37 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 44si7929934wrz.280.2018.02.13.00.54.35
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E2916B0003
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 04:46:25 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id u194so15966663qka.20
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 01:46:25 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id t58si2480931qtt.337.2018.02.13.01.46.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Feb 2018 00:54:36 -0800 (PST)
-Date: Tue, 13 Feb 2018 09:54:29 +0100
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 00/31 v2] PTI support for x86_32
-Message-ID: <20180213085429.GB10278@kroah.com>
-References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
- <CALCETrUF61fqjXKG=kwf83JWpw=kgL16UvKowezDVwVA1=YVAw@mail.gmail.com>
- <20180209191112.55zyjf4njum75brd@suse.de>
- <20180210091543.ynypx4y3koz44g7y@angband.pl>
- <CA+55aFwdLZjDcfhj4Ps=dUfd7ifkoYxW0FoH_JKjhXJYzxUSZQ@mail.gmail.com>
- <20180211105909.53bv5q363u7jgrsc@angband.pl>
- <6FB16384-7597-474E-91A1-1AF09201CEAC@gmail.com>
+        Tue, 13 Feb 2018 01:46:24 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1D9iJX5102035
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 04:46:23 -0500
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2g3tbcqc45-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 04:46:22 -0500
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 13 Feb 2018 09:46:19 -0000
+Date: Tue, 13 Feb 2018 11:46:11 +0200
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 1/3] mm: make start_isolate_page_range() fail if
+ already isolated
+References: <20180212222056.9735-1-mike.kravetz@oracle.com>
+ <20180212222056.9735-2-mike.kravetz@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <6FB16384-7597-474E-91A1-1AF09201CEAC@gmail.com>
+In-Reply-To: <20180212222056.9735-2-mike.kravetz@oracle.com>
+Message-Id: <20180213094610.GA2196@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark D Rustad <mrustad@gmail.com>
-Cc: Adam Borowski <kilobyte@angband.pl>, Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>
 
-On Sun, Feb 11, 2018 at 09:40:41AM -0800, Mark D Rustad wrote:
-> > On Feb 11, 2018, at 2:59 AM, Adam Borowski <kilobyte@angband.pl> wrote:
-> > 
-> >> Does Debian make it easy to upgrade to a 64-bit kernel if you have a
-> >> 32-bit install?
-> > 
-> > Quite easy, yeah.  Crossgrading userspace is not for the faint of the heart,
-> > but changing just the kernel is fine.
+On Mon, Feb 12, 2018 at 02:20:54PM -0800, Mike Kravetz wrote:
+> start_isolate_page_range() is used to set the migrate type of a
+> page block to MIGRATE_ISOLATE while attempting to start a
+> migration operation.  It is assumed that only one thread is
+> attempting such an operation, and due to the limited number of
+> callers this is generally the case.  However, there are no
+> guarantees and it is 'possible' for two threads to operate on
+> the same range.
 > 
-> ISTR that iscsi doesn't work when running a 64-bit kernel with a
-> 32-bit userspace. I remember someone offered kernel patches to fix it,
-> but I think they were rejected. I haven't messed with that stuff in
-> many years, so perhaps the userspace side now has accommodation for
-> it. It might be something to check on.
+> Since start_isolate_page_range() is called at the beginning of
+> such operations, have it return -EBUSY if MIGRATE_ISOLATE is
+> already set.
+> 
+> This will allow start_isolate_page_range to serve as a
+> synchronization mechanism and will allow for more general use
+> of callers making use of these interfaces.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  mm/page_alloc.c     |  8 ++++----
+>  mm/page_isolation.c | 10 +++++++++-
+>  2 files changed, 13 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 76c9688b6a0a..064458f317bf 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7605,11 +7605,11 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+>   * @gfp_mask:	GFP mask to use during compaction
+>   *
+>   * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
+> - * aligned, however it's the caller's responsibility to guarantee that
+> - * we are the only thread that changes migrate type of pageblocks the
+> - * pages fall in.
+> + * aligned.  The PFN range must belong to a single zone.
+>   *
+> - * The PFN range must belong to a single zone.
+> + * The first thing this routine does is attempt to MIGRATE_ISOLATE all
+> + * pageblocks in the range.  Once isolated, the pageblocks should not
+> + * be modified by others.
+>   *
+>   * Returns zero on success or negative error code.  On success all
+>   * pages which PFN is in [start, end) are allocated for the caller and
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index 165ed8117bd1..e815879d525f 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -28,6 +28,13 @@ static int set_migratetype_isolate(struct page *page, int migratetype,
+> 
+>  	spin_lock_irqsave(&zone->lock, flags);
+> 
+> +	/*
+> +	 * We assume we are the only ones trying to isolate this block.
+> +	 * If MIGRATE_ISOLATE already set, return -EBUSY
+> +	 */
+> +	if (is_migrate_isolate_page(page))
+> +		goto out;
+> +
+>  	pfn = page_to_pfn(page);
+>  	arg.start_pfn = pfn;
+>  	arg.nr_pages = pageblock_nr_pages;
+> @@ -166,7 +173,8 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
+>   * future will not be allocated again.
+>   *
+>   * start_pfn/end_pfn must be aligned to pageblock_order.
+> - * Returns 0 on success and -EBUSY if any part of range cannot be isolated.
+> + * Returns 0 on success and -EBUSY if any part of range cannot be isolated
 
-IPSEC doesn't work with a 64bit kernel and 32bit userspace right now.
+Nit: please s/Returns/Return:/ and keep the period in the end 
 
-Back in 2015 someone started to work on that, and properly marked that
-the kernel could not handle this with commit 74005991b78a ("xfrm: Do not
-parse 32bits compiled xfrm netlink msg on 64bits host")
+> + * or any part of the range is already set to MIGRATE_ISOLATE.
+>   */
+>  int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+>  			     unsigned migratetype, bool skip_hwpoisoned_pages)
+> -- 
+> 2.13.6
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
-This is starting to be hit by some Android systems that are moving
-(yeah, slowly) to 4.4 :(
-
-thanks,
-
-greg k-h
+-- 
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
