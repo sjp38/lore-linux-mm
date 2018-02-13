@@ -1,76 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 472246B0006
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 05:04:45 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id l1so1714045pga.1
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 02:04:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l26si1133479pfj.401.2018.02.13.02.04.43
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 16A756B0008
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 05:09:14 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id x11so9000154pgr.9
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 02:09:14 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id bc11-v6si7085343plb.688.2018.02.13.02.09.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 13 Feb 2018 02:04:43 -0800 (PST)
-Date: Tue, 13 Feb 2018 11:04:40 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH] elf: enforce MAP_FIXED on overlaying elf segments (was:
- Re: ppc elf_map breakage with MAP_FIXED_NOREPLACE)
-Message-ID: <20180213100440.GM3443@dhcp22.suse.cz>
-References: <6db9b33d-fd46-c529-b357-3397926f0733@linux.vnet.ibm.com>
- <20180129132235.GE21609@dhcp22.suse.cz>
- <87k1w081e7.fsf@concordia.ellerman.id.au>
- <20180130094205.GS21609@dhcp22.suse.cz>
- <5eccdc1b-6a10-b48a-c63f-295f69473d97@linux.vnet.ibm.com>
- <20180131131937.GA6740@dhcp22.suse.cz>
- <bfecda5e-ae8b-df91-0add-df6322b42a70@linux.vnet.ibm.com>
- <20180201131007.GJ21609@dhcp22.suse.cz>
- <20180201134026.GK21609@dhcp22.suse.cz>
- <CAGXu5j+fo0Z_ax2O10A-3D3puLhnX+o5M4Lp3TBsnE=NtFCjpw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 13 Feb 2018 02:09:12 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH] headers: untangle kmemleak.h from mm.h
+In-Reply-To: <f119a273-2e86-1b7f-346f-7627ad8b51ed@infradead.org>
+References: <a4629db7-194d-3c7c-c8fd-24f61b220a70@infradead.org> <87zi4ev1d2.fsf@concordia.ellerman.id.au> <f119a273-2e86-1b7f-346f-7627ad8b51ed@infradead.org>
+Date: Tue, 13 Feb 2018 21:09:05 +1100
+Message-ID: <87fu652oce.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGXu5j+fo0Z_ax2O10A-3D3puLhnX+o5M4Lp3TBsnE=NtFCjpw@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-Next <linux-next@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Mark Brown <broonie@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Randy Dunlap <rdunlap@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>
+Cc: linux-s390 <linux-s390@vger.kernel.org>, John Johansen <john.johansen@canonical.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, X86 ML <x86@kernel.org>, linux-wireless <linux-wireless@vger.kernel.org>, virtualization@lists.linux-foundation.org, iommu@lists.linux-foundation.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Dmitry Kasatkin <dmitry.kasatkin@intel.com>
 
-On Fri 02-02-18 07:55:14, Kees Cook wrote:
-> On Fri, Feb 2, 2018 at 12:40 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Thu 01-02-18 14:10:07, Michal Hocko wrote:
-> > Thanks a lot to Michael Matz for his background. He has pointed me to
-> > the following two segments from your binary[1]
-> >   LOAD           0x0000000000000000 0x0000000010000000 0x0000000010000000
-> >                  0x0000000000013a8c 0x0000000000013a8c  R E    10000
-> >   LOAD           0x000000000001fd40 0x000000001002fd40 0x000000001002fd40
-> >                  0x00000000000002c0 0x00000000000005e8  RW     10000
-> >   LOAD           0x0000000000020328 0x0000000010030328 0x0000000010030328
-> >                  0x0000000000000384 0x00000000000094a0  RW     10000
-> >
-> > That binary has two RW LOAD segments, the first crosses a page border
-> > into the second
-> > 0x1002fd40 (LOAD2-vaddr) + 0x5e8 (LOAD2-memlen) == 0x10030328 (LOAD3-vaddr)
-> >
-> > He says
-> > : This is actually an artifact of RELRO machinism.  The first RW mapping
-> > : will be remapped as RO after relocations are applied (to increase
-> > : security).
-> > : Well, to be honest, normal relro binaries also don't have more than
-> > : two LOAD segments, so whatever RHEL did to their compilation options,
-> > : it's something in addition to just relro (which can be detected by
-> > : having a GNU_RELRO program header)
-> > : But it definitely has something to do with relro, it's just not the
-> > : whole story yet.
-> >
-> > I am still trying to wrap my head around all this, but it smells rather
-> > dubious to map different segments over the same page. Is this something
-> > that might happen widely and therefore MAP_FIXED_NOREPLACE is a no-go
-> > when loading ELF segments? Or is this a special case we can detect?
-> 
-> Eww. FWIW, I would expect that to be rare and detectable.
+Randy Dunlap <rdunlap@infradead.org> writes:
 
-OK, so Anshuman has confirmed [1] that the patch below fixes the issue
-for him. I am sending this as an RFC because this is not really my area
-and load_elf_binary is obscure as hell. The changelog could see much
-more clear wording than I am able to provide. Any help would be highly
-appreciated.
+> On 02/12/2018 04:28 AM, Michael Ellerman wrote:
+>> Randy Dunlap <rdunlap@infradead.org> writes:
+>> 
+>>> From: Randy Dunlap <rdunlap@infradead.org>
+>>>
+>>> Currently <linux/slab.h> #includes <linux/kmemleak.h> for no obvious
+>>> reason. It looks like it's only a convenience, so remove kmemleak.h
+>>> from slab.h and add <linux/kmemleak.h> to any users of kmemleak_*
+>>> that don't already #include it.
+>>> Also remove <linux/kmemleak.h> from source files that do not use it.
+>>>
+>>> This is tested on i386 allmodconfig and x86_64 allmodconfig. It
+>>> would be good to run it through the 0day bot for other $ARCHes.
+>>> I have neither the horsepower nor the storage space for the other
+>>> $ARCHes.
+>>>
+>>> [slab.h is the second most used header file after module.h; kernel.h
+>>> is right there with slab.h. There could be some minor error in the
+>>> counting due to some #includes having comments after them and I
+>>> didn't combine all of those.]
+>>>
+>>> This is Lingchi patch #1 (death by a thousand cuts, applied to kernel
+>>> header files).
+>>>
+>>> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+>> 
+>> I threw it at a random selection of configs and so far the only failures
+>> I'm seeing are:
+>> 
+>>   lib/test_firmware.c:134:2: error: implicit declaration of function 'vfree' [-Werror=implicit-function-declaration]                                                                                                          
+>>   lib/test_firmware.c:620:25: error: implicit declaration of function 'vzalloc' [-Werror=implicit-function-declaration]
+>>   lib/test_firmware.c:620:2: error: implicit declaration of function 'vzalloc' [-Werror=implicit-function-declaration]
+>>   security/integrity/digsig.c:146:2: error: implicit declaration of function 'vfree' [-Werror=implicit-function-declaration]
+>
+> Both of those source files need to #include <linux/vmalloc.h>.
 
-[1] http://lkml.kernel.org/r/b0a751c4-9552-87b4-c768-3e1b02c18b5c@linux.vnet.ibm.com
+Yep, I added those and rebuilt. I don't see any more failures that look
+related to your patch.
+
+  http://kisskb.ellerman.id.au/kisskb/head/13399/
+
+
+I haven't gone through the defconfigs I have enabled for a while, so
+it's possible I have some missing but it's still a reasonable cross
+section.
+
+cheers
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
