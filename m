@@ -1,88 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BDC456B0006
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 12:51:20 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id w24so9320967plq.11
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 09:51:20 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f4-v6si1552785plt.765.2018.02.13.09.51.19
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C2A7E6B0003
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 13:10:17 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id p127so9559176oic.21
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 10:10:17 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l3sor4614175oii.227.2018.02.13.10.10.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 13 Feb 2018 09:51:19 -0800 (PST)
-Subject: Re: [PATCH] headers: untangle kmemleak.h from mm.h
-References: <a4629db7-194d-3c7c-c8fd-24f61b220a70@infradead.org>
- <87zi4ev1d2.fsf@concordia.ellerman.id.au>
- <f119a273-2e86-1b7f-346f-7627ad8b51ed@infradead.org>
- <87fu652oce.fsf@concordia.ellerman.id.au>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <1f96a3c7-0bb3-6c06-0b44-ca47e5a5d127@infradead.org>
-Date: Tue, 13 Feb 2018 09:51:09 -0800
+        (Google Transport Security);
+        Tue, 13 Feb 2018 10:10:16 -0800 (PST)
+Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
+References: <20180124175631.22925-1-igor.stoppa@huawei.com>
+ <20180124175631.22925-5-igor.stoppa@huawei.com>
+ <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
+ <20180126053542.GA30189@bombadil.infradead.org>
+ <alpine.DEB.2.20.1802021236510.31548@nuc-kabylake>
+ <f2ddaed0-313e-8664-8a26-9d10b66ed0c5@huawei.com>
+ <b75b5903-0177-8ad9-5c2b-fc63438fb5f2@huawei.com>
+ <CAFUG7CfrCpcbwgf5ixMC5EZZgiVVVp1NXhDHK1UoJJcC08R2qQ@mail.gmail.com>
+ <8818bfd4-dd9f-f279-0432-69b59531bd41@huawei.com>
+ <CAFUG7CeUhFcvA82uZ2ZH1j_6PM=aBo4XmYDN85pf8G0gPU44dg@mail.gmail.com>
+ <17e5b515-84c8-dca2-1695-cdf819834ea2@huawei.com>
+ <CAGXu5j+LS1pgOOroi7Yxp2nh=DwtTnU3p-NZa6bQu_wkvvVkwg@mail.gmail.com>
+ <414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com>
+ <5a83024c.64369d0a.a1e94.cdd6SMTPIN_ADDED_BROKEN@mx.google.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <13a50f85-bbd8-5d78-915a-a29c4a9f0c32@redhat.com>
+Date: Tue, 13 Feb 2018 10:10:13 -0800
 MIME-Version: 1.0
-In-Reply-To: <87fu652oce.fsf@concordia.ellerman.id.au>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <5a83024c.64369d0a.a1e94.cdd6SMTPIN_ADDED_BROKEN@mx.google.com>
+Content-Type: text/plain; charset=gbk; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>
-Cc: linux-s390 <linux-s390@vger.kernel.org>, John Johansen <john.johansen@canonical.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, X86 ML <x86@kernel.org>, linux-wireless <linux-wireless@vger.kernel.org>, virtualization@lists.linux-foundation.org, iommu@lists.linux-foundation.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Dmitry Kasatkin <dmitry.kasatkin@intel.com>
+To: Igor Stoppa <igor.stoppa@huawei.com>, Kees Cook <keescook@chromium.org>
+Cc: Boris Lukashev <blukashev@sempervictus.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-On 02/13/2018 02:09 AM, Michael Ellerman wrote:
-> Randy Dunlap <rdunlap@infradead.org> writes:
-> 
->> On 02/12/2018 04:28 AM, Michael Ellerman wrote:
->>> Randy Dunlap <rdunlap@infradead.org> writes:
->>>
->>>> From: Randy Dunlap <rdunlap@infradead.org>
->>>>
->>>> Currently <linux/slab.h> #includes <linux/kmemleak.h> for no obvious
->>>> reason. It looks like it's only a convenience, so remove kmemleak.h
->>>> from slab.h and add <linux/kmemleak.h> to any users of kmemleak_*
->>>> that don't already #include it.
->>>> Also remove <linux/kmemleak.h> from source files that do not use it.
->>>>
->>>> This is tested on i386 allmodconfig and x86_64 allmodconfig. It
->>>> would be good to run it through the 0day bot for other $ARCHes.
->>>> I have neither the horsepower nor the storage space for the other
->>>> $ARCHes.
->>>>
->>>> [slab.h is the second most used header file after module.h; kernel.h
->>>> is right there with slab.h. There could be some minor error in the
->>>> counting due to some #includes having comments after them and I
->>>> didn't combine all of those.]
->>>>
->>>> This is Lingchi patch #1 (death by a thousand cuts, applied to kernel
->>>> header files).
->>>>
->>>> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
->>>
->>> I threw it at a random selection of configs and so far the only failures
->>> I'm seeing are:
->>>
->>>   lib/test_firmware.c:134:2: error: implicit declaration of function 'vfree' [-Werror=implicit-function-declaration]                                                                                                          
->>>   lib/test_firmware.c:620:25: error: implicit declaration of function 'vzalloc' [-Werror=implicit-function-declaration]
->>>   lib/test_firmware.c:620:2: error: implicit declaration of function 'vzalloc' [-Werror=implicit-function-declaration]
->>>   security/integrity/digsig.c:146:2: error: implicit declaration of function 'vfree' [-Werror=implicit-function-declaration]
->>
->> Both of those source files need to #include <linux/vmalloc.h>.
-> 
-> Yep, I added those and rebuilt. I don't see any more failures that look
-> related to your patch.
+On 02/13/2018 07:20 AM, Igor Stoppa wrote:
+> Why alterations of page properties are not considered a risk and the physmap is?
+> And how would it be easier (i suppose) to attack the latter?
 
-Great, thanks.
+Alterations are certainly a risk but with the physmap the
+mapping is already there. Find the address and you have
+access vs. needing to actually modify the properties
+then do the access. I could also be complete off base
+on my threat model here so please correct me if I'm
+wrong.
 
-I also sent patches for both of those.
+I think your other summaries are good points though
+and should go in the cover letter.
 
->   http://kisskb.ellerman.id.au/kisskb/head/13399/
-> 
-> 
-> I haven't gone through the defconfigs I have enabled for a while, so
-> it's possible I have some missing but it's still a reasonable cross
-> section.
-
-
--- 
-~Randy
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
