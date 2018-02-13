@@ -1,76 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 16A756B0008
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 05:09:14 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id x11so9000154pgr.9
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 02:09:14 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id bc11-v6si7085343plb.688.2018.02.13.02.09.12
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 511926B0003
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 05:13:32 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id t6so5099211wrc.12
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 02:13:32 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a69si4922772wme.273.2018.02.13.02.13.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 13 Feb 2018 02:09:12 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH] headers: untangle kmemleak.h from mm.h
-In-Reply-To: <f119a273-2e86-1b7f-346f-7627ad8b51ed@infradead.org>
-References: <a4629db7-194d-3c7c-c8fd-24f61b220a70@infradead.org> <87zi4ev1d2.fsf@concordia.ellerman.id.au> <f119a273-2e86-1b7f-346f-7627ad8b51ed@infradead.org>
-Date: Tue, 13 Feb 2018 21:09:05 +1100
-Message-ID: <87fu652oce.fsf@concordia.ellerman.id.au>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 13 Feb 2018 02:13:31 -0800 (PST)
+Date: Tue, 13 Feb 2018 11:13:29 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm,vmscan: don't pretend forward progress upon
+ shrinker_rwsem contention
+Message-ID: <20180213101329.GN3443@dhcp22.suse.cz>
+References: <1518184544-3293-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1518184544-3293-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>
-Cc: linux-s390 <linux-s390@vger.kernel.org>, John Johansen <john.johansen@canonical.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, X86 ML <x86@kernel.org>, linux-wireless <linux-wireless@vger.kernel.org>, virtualization@lists.linux-foundation.org, iommu@lists.linux-foundation.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Dmitry Kasatkin <dmitry.kasatkin@intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@gmail.com>
 
-Randy Dunlap <rdunlap@infradead.org> writes:
+[Fix Glauber's email]
 
-> On 02/12/2018 04:28 AM, Michael Ellerman wrote:
->> Randy Dunlap <rdunlap@infradead.org> writes:
->> 
->>> From: Randy Dunlap <rdunlap@infradead.org>
->>>
->>> Currently <linux/slab.h> #includes <linux/kmemleak.h> for no obvious
->>> reason. It looks like it's only a convenience, so remove kmemleak.h
->>> from slab.h and add <linux/kmemleak.h> to any users of kmemleak_*
->>> that don't already #include it.
->>> Also remove <linux/kmemleak.h> from source files that do not use it.
->>>
->>> This is tested on i386 allmodconfig and x86_64 allmodconfig. It
->>> would be good to run it through the 0day bot for other $ARCHes.
->>> I have neither the horsepower nor the storage space for the other
->>> $ARCHes.
->>>
->>> [slab.h is the second most used header file after module.h; kernel.h
->>> is right there with slab.h. There could be some minor error in the
->>> counting due to some #includes having comments after them and I
->>> didn't combine all of those.]
->>>
->>> This is Lingchi patch #1 (death by a thousand cuts, applied to kernel
->>> header files).
->>>
->>> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
->> 
->> I threw it at a random selection of configs and so far the only failures
->> I'm seeing are:
->> 
->>   lib/test_firmware.c:134:2: error: implicit declaration of function 'vfree' [-Werror=implicit-function-declaration]                                                                                                          
->>   lib/test_firmware.c:620:25: error: implicit declaration of function 'vzalloc' [-Werror=implicit-function-declaration]
->>   lib/test_firmware.c:620:2: error: implicit declaration of function 'vzalloc' [-Werror=implicit-function-declaration]
->>   security/integrity/digsig.c:146:2: error: implicit declaration of function 'vfree' [-Werror=implicit-function-declaration]
->
-> Both of those source files need to #include <linux/vmalloc.h>.
+On Fri 09-02-18 22:55:44, Tetsuo Handa wrote:
+> Since we no longer use return value of shrink_slab() for normal reclaim,
+> the comment is no longer true. If some do_shrink_slab() call takes
+> unexpectedly long (root cause of stall is currently unknown) when
+> register_shrinker()/unregister_shrinker() is pending, trying to drop
+> caches via /proc/sys/vm/drop_caches could become infinite cond_resched()
+> loop if many mem_cgroup are defined. For safety, let's not pretend forward
+> progress.
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Dave Chinner <dchinner@redhat.com>
+> Cc: Glauber Costa <glommer@parallels.com>
+> Cc: Mel Gorman <mgorman@suse.de>
 
-Yep, I added those and rebuilt. I don't see any more failures that look
-related to your patch.
+Yes, this makes sense to me. The whole "let's pretend we made some
+progress" was an ugly hack IMHO.
 
-  http://kisskb.ellerman.id.au/kisskb/head/13399/
+Acked-by: Michal Hocko <mhocko@suse.ccom>
 
+> ---
+>  mm/vmscan.c | 10 +---------
+>  1 file changed, 1 insertion(+), 9 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 4447496..17da5a5 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -442,16 +442,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>  	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
+>  		return 0;
+>  
+> -	if (!down_read_trylock(&shrinker_rwsem)) {
+> -		/*
+> -		 * If we would return 0, our callers would understand that we
+> -		 * have nothing else to shrink and give up trying. By returning
+> -		 * 1 we keep it going and assume we'll be able to shrink next
+> -		 * time.
+> -		 */
+> -		freed = 1;
+> +	if (!down_read_trylock(&shrinker_rwsem))
+>  		goto out;
+> -	}
+>  
+>  	list_for_each_entry(shrinker, &shrinker_list, list) {
+>  		struct shrink_control sc = {
+> -- 
+> 1.8.3.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-I haven't gone through the defconfigs I have enabled for a while, so
-it's possible I have some missing but it's still a reasonable cross
-section.
-
-cheers
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
