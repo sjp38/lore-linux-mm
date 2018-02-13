@@ -1,83 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5002A6B0003
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 13:40:56 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id v68so17149428qki.13
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 10:40:56 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g4sor318783qke.29.2018.02.13.10.40.55
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 13 Feb 2018 10:40:55 -0800 (PST)
-Subject: Re: [PATCH 00/11] KASan for arm
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
-From: Florian Fainelli <f.fainelli@gmail.com>
-Message-ID: <09f86876-2247-1d2c-b195-76d8b34d0aff@gmail.com>
-Date: Tue, 13 Feb 2018 10:40:38 -0800
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 951466B0003
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 14:01:11 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id t17so1218456oij.23
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 11:01:11 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a17si861919oic.512.2018.02.13.11.01.09
+        for <linux-mm@kvack.org>;
+        Tue, 13 Feb 2018 11:01:10 -0800 (PST)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB hugepage
+References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
+	<1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<87inbbjx2w.fsf@e105922-lin.cambridge.arm.com>
+	<20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp>
+	<87fu6bfytm.fsf@e105922-lin.cambridge.arm.com>
+	<84c6e1f7-e693-30f3-d208-c3a094d9e3b0@ah.jp.nec.com>
+Date: Tue, 13 Feb 2018 19:01:06 +0000
+In-Reply-To: <84c6e1f7-e693-30f3-d208-c3a094d9e3b0@ah.jp.nec.com> (Naoya
+	Horiguchi's message of "Fri, 9 Feb 2018 01:17:48 +0000")
+Message-ID: <87607067f1.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20171011082227.20546-1-liuwenliang@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Abbott Liu <liuwenliang@huawei.com>, linux@armlinux.org.uk, aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org
-Cc: glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hi Abbott,
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
 
-On 10/11/2017 01:22 AM, Abbott Liu wrote:
-> Hi,all:
->    These patches add arch specific code for kernel address sanitizer 
-> (see Documentation/kasan.txt). 
-> 
->    1/8 of kernel addresses reserved for shadow memory. There was no 
-> big enough hole for this, so virtual addresses for shadow were 
-> stolen from user space.
->    
->    At early boot stage the whole shadow region populated with just 
-> one physical page (kasan_zero_page). Later, this page reused 
-> as readonly zero shadow for some memory that KASan currently 
-> don't track (vmalloc). 
-> 
->   After mapping the physical memory, pages for shadow memory are 
-> allocated and mapped. 
-> 
->   KASan's stack instrumentation significantly increases stack's 
-> consumption, so CONFIG_KASAN doubles THREAD_SIZE.
->   
->   Functions like memset/memmove/memcpy do a lot of memory accesses. 
-> If bad pointer passed to one of these function it is important 
-> to catch this. Compiler's instrumentation cannot do this since 
-> these functions are written in assembly. 
-> 
->   KASan replaces memory functions with manually instrumented variants. 
-> Original functions declared as weak symbols so strong definitions 
-> in mm/kasan/kasan.c could replace them. Original functions have aliases 
-> with '__' prefix in name, so we could call non-instrumented variant 
-> if needed. 
-> 
->   Some files built without kasan instrumentation (e.g. mm/slub.c). 
-> Original mem* function replaced (via #define) with prefixed variants 
-> to disable memory access checks for such files. 
-> 
->   On arm LPAE architecture,  the mapping table of KASan shadow memory(if 
-> PAGE_OFFSET is 0xc0000000, the KASan shadow memory's virtual space is 
-> 0xb6e000000~0xbf000000) can't be filled in do_translation_fault function, 
-> because kasan instrumentation maybe cause do_translation_fault function 
-> accessing KASan shadow memory. The accessing of KASan shadow memory in 
-> do_translation_fault function maybe cause dead circle. So the mapping table 
-> of KASan shadow memory need be copyed in pgd_alloc function.
-> 
-> 
-> Most of the code comes from:
-> https://github.com/aryabinin/linux/commit/0b54f17e70ff50a902c4af05bb92716eb95acefe.
+> On 02/08/2018 09:30 PM, Punit Agrawal wrote:
 
-Are you planning on picking up these patches and sending a second
-version? I would be more than happy to provide test results once you
-have something, this is very useful, thank you!
--- 
-Florian
+[...]
+
+>> I'll look to update the arm64 helpers once this patch gets merged. But
+>> it would be helpful if there was a clear expression of semantics for
+>> pud_huge() for various cases. Is there any version that can be used as
+>> reference?
+>
+> Sorry if I misunderstand you, but with this patch there is no non-present
+> pud entry, so I feel that you don't have to change pud_huge() in arm64.
+>
+> When we get to have non-present pud entries (by enabling hwpoison or 1GB
+> hugepage migration), we need to explicitly check pud_present in every page
+> table walk. So I think the current semantics is like:
+>
+>   if (pud_none(pud))
+>           /* skip this entry */
+>   else if (pud_huge(pud))
+>           /* do something for pud-hugetlb */
+>   else
+>           /* go to next (pmd) level */
+>
+> and after enabling hwpoison or migartion:
+>
+>   if (pud_none(pud))
+>           /* skip this entry */
+>   else if (!pud_present(pud))
+>           /* do what we need to handle peculiar cases */
+>   else if (pud_huge(pud))
+>           /* do something for pud-hugetlb */
+>   else
+>           /* go to next (pmd) level */
+>
+> What we did for pmd can also be a reference to what we do for pud.
+
+Thanks for clarifying this.
+
+Based on the above - p*d_huge() should never be called with swap entries
+(here and in other parts of the kernel as well). If that's the case,
+then no change is needed for arm64.
+
+Thanks,
+Punit
+
+[...]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
