@@ -1,195 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0958C6B0003
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 02:57:08 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id r5so2626666qkb.22
-        for <linux-mm@kvack.org>; Mon, 12 Feb 2018 23:57:08 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r67si2230710qkl.193.2018.02.12.23.57.06
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 741E06B0003
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 03:54:37 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id w102so10398217wrb.21
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 00:54:37 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 44si7929934wrz.280.2018.02.13.00.54.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Feb 2018 23:57:06 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1D7sQ1C007182
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 02:57:06 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2g3upugrc3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 02:57:05 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 13 Feb 2018 07:56:41 -0000
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: Re: [PATCH v7 00/24] Speculative page faults
-References: <1517935810-31177-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <20180208125301.99445c91979343756e4cca9b@linux-foundation.org>
-Date: Tue, 13 Feb 2018 08:56:31 +0100
+        Tue, 13 Feb 2018 00:54:36 -0800 (PST)
+Date: Tue, 13 Feb 2018 09:54:29 +0100
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 00/31 v2] PTI support for x86_32
+Message-ID: <20180213085429.GB10278@kroah.com>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <CALCETrUF61fqjXKG=kwf83JWpw=kgL16UvKowezDVwVA1=YVAw@mail.gmail.com>
+ <20180209191112.55zyjf4njum75brd@suse.de>
+ <20180210091543.ynypx4y3koz44g7y@angband.pl>
+ <CA+55aFwdLZjDcfhj4Ps=dUfd7ifkoYxW0FoH_JKjhXJYzxUSZQ@mail.gmail.com>
+ <20180211105909.53bv5q363u7jgrsc@angband.pl>
+ <6FB16384-7597-474E-91A1-1AF09201CEAC@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180208125301.99445c91979343756e4cca9b@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <f32656e6-ff3d-4833-6564-96471e061a48@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6FB16384-7597-474E-91A1-1AF09201CEAC@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Mark D Rustad <mrustad@gmail.com>
+Cc: Adam Borowski <kilobyte@angband.pl>, Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
 
-On 08/02/2018 21:53, Andrew Morton wrote:
-> On Tue,  6 Feb 2018 17:49:46 +0100 Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
+On Sun, Feb 11, 2018 at 09:40:41AM -0800, Mark D Rustad wrote:
+> > On Feb 11, 2018, at 2:59 AM, Adam Borowski <kilobyte@angband.pl> wrote:
+> > 
+> >> Does Debian make it easy to upgrade to a 64-bit kernel if you have a
+> >> 32-bit install?
+> > 
+> > Quite easy, yeah.  Crossgrading userspace is not for the faint of the heart,
+> > but changing just the kernel is fine.
 > 
->> This is a port on kernel 4.15 of the work done by Peter Zijlstra to
->> handle page fault without holding the mm semaphore [1].
->>
->> The idea is to try to handle user space page faults without holding the
->> mmap_sem. This should allow better concurrency for massively threaded
->> process since the page fault handler will not wait for other threads memory
->> layout change to be done, assuming that this change is done in another part
->> of the process's memory space. This type page fault is named speculative
->> page fault. If the speculative page fault fails because of a concurrency is
->> detected or because underlying PMD or PTE tables are not yet allocating, it
->> is failing its processing and a classic page fault is then tried.
->>
->> The speculative page fault (SPF) has to look for the VMA matching the fault
->> address without holding the mmap_sem, this is done by introducing a rwlock
->> which protects the access to the mm_rb tree. Previously this was done using
->> SRCU but it was introducing a lot of scheduling to process the VMA's
->> freeing
->> operation which was hitting the performance by 20% as reported by Kemi Wang
->> [2].Using a rwlock to protect access to the mm_rb tree is limiting the
->> locking contention to these operations which are expected to be in a O(log
->> n)
->> order. In addition to ensure that the VMA is not freed in our back a
->> reference count is added and 2 services (get_vma() and put_vma()) are
->> introduced to handle the reference count. When a VMA is fetch from the RB
->> tree using get_vma() is must be later freeed using put_vma(). Furthermore,
->> to allow the VMA to be used again by the classic page fault handler a
->> service is introduced can_reuse_spf_vma(). This service is expected to be
->> called with the mmap_sem hold. It checked that the VMA is still matching
->> the specified address and is releasing its reference count as the mmap_sem
->> is hold it is ensure that it will not be freed in our back. In general, the
->> VMA's reference count could be decremented when holding the mmap_sem but it
->> should not be increased as holding the mmap_sem is ensuring that the VMA is
->> stable. I can't see anymore the overhead I got while will-it-scale
->> benchmark anymore.
->>
->> The VMA's attributes checked during the speculative page fault processing
->> have to be protected against parallel changes. This is done by using a per
->> VMA sequence lock. This sequence lock allows the speculative page fault
->> handler to fast check for parallel changes in progress and to abort the
->> speculative page fault in that case.
->>
->> Once the VMA is found, the speculative page fault handler would check for
->> the VMA's attributes to verify that the page fault has to be handled
->> correctly or not. Thus the VMA is protected through a sequence lock which
->> allows fast detection of concurrent VMA changes. If such a change is
->> detected, the speculative page fault is aborted and a *classic* page fault
->> is tried.  VMA sequence lockings are added when VMA attributes which are
->> checked during the page fault are modified.
->>
->> When the PTE is fetched, the VMA is checked to see if it has been changed,
->> so once the page table is locked, the VMA is valid, so any other changes
->> leading to touching this PTE will need to lock the page table, so no
->> parallel change is possible at this time.
->>
->> The locking of the PTE is done with interrupts disabled, this allows to
->> check for the PMD to ensure that there is not an ongoing collapsing
->> operation. Since khugepaged is firstly set the PMD to pmd_none and then is
->> waiting for the other CPU to have catch the IPI interrupt, if the pmd is
->> valid at the time the PTE is locked, we have the guarantee that the
->> collapsing opertion will have to wait on the PTE lock to move foward. This
->> allows the SPF handler to map the PTE safely. If the PMD value is different
->> than the one recorded at the beginning of the SPF operation, the classic
->> page fault handler will be called to handle the operation while holding the
->> mmap_sem. As the PTE lock is done with the interrupts disabled, the lock is
->> done using spin_trylock() to avoid dead lock when handling a page fault
->> while a TLB invalidate is requested by an other CPU holding the PTE.
->>
->> Support for THP is not done because when checking for the PMD, we can be
->> confused by an in progress collapsing operation done by khugepaged. The
->> issue is that pmd_none() could be true either if the PMD is not already
->> populate or if the underlying PTE are in the way to be collapsed. So we
->> cannot safely allocate a PMD if pmd_none() is true.
->>
->> This series builds on top of v4.15-mmotm-2018-01-31-16-51 and is
->> functional on x86 and PowerPC.
-> 
-> One question which people will want to answer is "is this thing
-> working".  ie, how frequently does the code fall back to the regular
-> heavyweight fault path.
-> 
-> I see that trace events have been added for this, but the overall
-> changelog doesn't describe them.  I think this material is important
-> enough to justify including it here.
+> ISTR that iscsi doesn't work when running a 64-bit kernel with a
+> 32-bit userspace. I remember someone offered kernel patches to fix it,
+> but I think they were rejected. I haven't messed with that stuff in
+> many years, so perhaps the userspace side now has accommodation for
+> it. It might be something to check on.
 
-Got it, I'll detail the new perf and trace events here.
+IPSEC doesn't work with a 64bit kernel and 32bit userspace right now.
 
-> Also, a few words to help people figure out how to gather these stats
-> would be nice.  And maybe helper scripts if appropriate?
+Back in 2015 someone started to work on that, and properly marked that
+the kernel could not handle this with commit 74005991b78a ("xfrm: Do not
+parse 32bits compiled xfrm netlink msg on 64bits host")
 
-I'll provide some command line examples detailing how to capture those events.
- 
-> I'm wondering if this info should even be presented via
-> /proc/self/something, dunno.
+This is starting to be hit by some Android systems that are moving
+(yeah, slowly) to 4.4 :(
 
-My understanding is that this is part of the kernel ABI, so I was not comfortable 
-to touch it but if needed I could probably put some numbers there.
- 
-> And it would be interesting to present the fallback frequency in the
-> benchmark results.
+thanks,
 
-Yes these numbers are missing.
-
-Here are numbers I captured during a kernbench run on a 80 CPUs Power node:
-
-          87549520      faults                                                      
-                 0      spf                                                         
-
-Which is expected as the kernbench's processes are not multithreaded.
-
-When running ebizzy on the same node:
-
-            711589      faults                                                      
-            692649      spf                                                         
-             10579      pagefault:spf_pte_lock                                      
-              7815      pagefault:spf_vma_changed                                   
-                 0      pagefault:spf_vma_noanon                                    
-               417      pagefault:spf_vma_notsup                                    
-                 0      pagefault:spf_vma_access                                    
-                 0      pagefault:spf_pmd_changed                                   
-
-Here about 98% of the page faults where managed in a speculative way.
-
-> 
->> ------------------
->> Benchmarks results
->>
->> There is no functional change compared to the v6 so benchmark results are
->> the same.
->> Please see https://lkml.org/lkml/2018/1/12/515 for details.
-> 
-> Please include this vitally important info in the [0/n], don't make
-> people chase links.
-
-Sorry, will do next time.
-
-> 
-> And I'd really like to see some quantitative testing results for real
-> workloads, not just a bunch of microbenchmarks.  Help us understand how
-> useful this patchset is to our users.
-
-We did non official runs using a "popular in memory multithreaded database product" on 
-176 cores SMT8 Power system which showed a 30% improvements in the number of transaction
-processed per second.
-Here are the perf data captured during 2 of these runs :
-		vanilla		spf
-faults		89.418		101.364
-spf                n/a		 97.989
-
-With the SPF kernel, most of the page fault were processed in a speculative way.
-
-Laurent.
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
