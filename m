@@ -1,244 +1,351 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 270616B0003
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 10:20:11 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id e195so4759593wmd.9
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 07:20:11 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id w8si762256edh.139.2018.02.13.07.20.08
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C77B86B0006
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 10:36:17 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id b6so72588pgu.16
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 07:36:17 -0800 (PST)
+Received: from terminus.zytor.com (terminus.zytor.com. [198.137.202.136])
+        by mx.google.com with ESMTPS id 31-v6si7521166pli.832.2018.02.13.07.36.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Feb 2018 07:20:09 -0800 (PST)
-Message-ID: <5a830229.88c9500a.8a8d1.a5afSMTPIN_ADDED_BROKEN@mx.google.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: RE: [kernel-hardening] [PATCH 4/6] Protectable Memory
-Date: Tue, 13 Feb 2018 15:20:03 +0000
-References: <20180124175631.22925-1-igor.stoppa@huawei.com>
- <20180124175631.22925-5-igor.stoppa@huawei.com>
- <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
- <20180126053542.GA30189@bombadil.infradead.org>
- <alpine.DEB.2.20.1802021236510.31548@nuc-kabylake>
- <f2ddaed0-313e-8664-8a26-9d10b66ed0c5@huawei.com>
- <b75b5903-0177-8ad9-5c2b-fc63438fb5f2@huawei.com>
- <CAFUG7CfrCpcbwgf5ixMC5EZZgiVVVp1NXhDHK1UoJJcC08R2qQ@mail.gmail.com>
- <8818bfd4-dd9f-f279-0432-69b59531bd41@huawei.com>
- <CAFUG7CeUhFcvA82uZ2ZH1j_6PM=aBo4XmYDN85pf8G0gPU44dg@mail.gmail.com>
- <17e5b515-84c8-dca2-1695-cdf819834ea2@huawei.com>
- <CAGXu5j+LS1pgOOroi7Yxp2nh=DwtTnU3p-NZa6bQu_wkvvVkwg@mail.gmail.com>,<414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com>
-In-Reply-To: <414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com>
-Content-Language: en-GB
-Content-Type: multipart/alternative;
-	boundary="_000_688F43F436AB4D988B8234437CFD85BC_"
+        Tue, 13 Feb 2018 07:36:16 -0800 (PST)
+Date: Tue, 13 Feb 2018 07:29:45 -0800
+From: tip-bot for Andy Lutomirski <tipbot@zytor.com>
+Message-ID: <tip-084c63d0cf9b2b2e9ee77984e570571f5df65dd5@git.kernel.org>
+Reply-To: hpa@zytor.com, brgerst@gmail.com, linux-kernel@vger.kernel.org,
+        linux-mm@kvack.org, will.deacon@arm.com, bp@alien8.de,
+        peterz@infradead.org, keescook@google.com, luto@kernel.org,
+        boris.ostrovsky@oracle.com, jgross@suse.com, jpoimboe@redhat.com,
+        hughd@google.com, mingo@kernel.org, eduval@amazon.com, riel@redhat.com,
+        torvalds@linux-foundation.org, dave.hansen@intel.com,
+        tglx@linutronix.de
+In-Reply-To: <3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org>
+References: <3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org>
+Subject: [tip:x86/pti] x86/mm: Rename flush_tlb_single() and flush_tlb_one()
+ to __flush_tlb_one_[user|kernel]()
 MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, Kees Cook <keescook@chromium.org>
-Cc: Boris Lukashev <blukashev@sempervictus.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel
- Hardening <kernel-hardening@lists.openwall.com>
+To: linux-tip-commits@vger.kernel.org
+Cc: boris.ostrovsky@oracle.com, luto@kernel.org, keescook@google.com, peterz@infradead.org, bp@alien8.de, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hpa@zytor.com, brgerst@gmail.com, tglx@linutronix.de, dave.hansen@intel.com, torvalds@linux-foundation.org, riel@redhat.com, eduval@amazon.com, mingo@kernel.org, hughd@google.com, jpoimboe@redhat.com, jgross@suse.com
 
---_000_688F43F436AB4D988B8234437CFD85BC_
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Commit-ID:  084c63d0cf9b2b2e9ee77984e570571f5df65dd5
+Gitweb:     https://git.kernel.org/tip/084c63d0cf9b2b2e9ee77984e570571f5df65dd5
+Author:     Andy Lutomirski <luto@kernel.org>
+AuthorDate: Wed, 31 Jan 2018 08:03:10 -0800
+Committer:  Ingo Molnar <mingo@kernel.org>
+CommitDate: Tue, 13 Feb 2018 15:11:59 +0100
 
-aGksDQphcG9sb2dpZXMgZm9yIChwcm9iYWJseSkgYnJlYWtpbmcgYW55IGVtYWlsIGV0aXF1ZXR0
-ZSwgYnV0IGknbSB0cmF2ZWxsaW5nIGFuZCBpIGhhdmUgYXZhaWxhYmxlIG9ubHkgdGhlIGNvcnBv
-cmF0ZSBtYWlsIGNsaWVudC4NCkknbGwgcmVwbHkgbW9yZSBleHRlbnNpdmVseSB0byBhbGwgdGhl
-IGNvbW1lbnRzIGkgZ28gbmV4dCB3ZWVrLCB3aGVuIGknbSBiYWNrIHRvIHRoZSBvZmZpY2UuDQoN
-CkluIHRoZSBtZWFud2hpbGUgaSB3b3VsZCBsaWtlIHRvIHBvaW50IG91dCB0aGF0IEkgaGFkIGFs
-cmVhZHkgYWRkcmVzc2VkIHRoaXMsIGluIHBhc3QgdGhyZWFkLCBidXQgZ290IG5vIHJlcGx5Lg0K
-DQpUbyByZWNhcDoNCi0xKSB2bWFsbG9jZWQgbWVtb3J5IGlzIGhhcmRlciB0byBhdHRhY2sgdGhh
-biBrbWFsbG9jZWQsIGJlY2F1c2UgaXQgcmVxdWlyZXMgdGhlIGF0dGFja2VyIHRvIGZpZ3VlcmUg
-b3V0IGFsc28gdGhlIHBoeXNpY2FsIGFkZHJlc3MuIEN1cnJlbnRseSBpdCdzIHN1ZmZpY2llbnQg
-dG8gaWRlbnRpZnkgdGhlIHJhbmRvbWl6ZWQgYmFzZSBhZGRyZXNzIGFuZCB0aGUgb2Zmc2V0IGlu
-IG1lbW9yeSBvZiB0aGUgdmljdGltLg0KSSBoYXZlIG5vdCBzZWVuIGNvbW1lbnRzIGFib3V0IHRo
-aXMgc3RhdGVtZW50IEkgbWFkZS4gSXMgaXQgaW5jb3JyZWN0Pw0KLTIpIHRoaXMgcGF0Y2hzZXQg
-aXMgYWJvdXQgcHJvdGVjdGluZyBzb21ldGhpbmcgdGhhdCByaWdodCBub3cgaXMgbm90IHByb3Rl
-Y3RlZCBhdCBhbGwuIFRoYXQgc2hvdWxkIGJlIHRoZSBzdGFydGluZyBwb2ludCBmb3IgY29tcGFy
-aXNvbi4gSWYgaXQgd2FzIHBvc3NpYmxlIHRvIGhhdmUgc2VwYXJhdGUgc2VjdGlvbiBsaWtlIGNv
-bnN0IG9yIF9yb19hZnRlciBpbml0LCB0aGUgc2l0dWF0aW9uIHdvdWxkIGJlIGRpZmZlcmVudCwg
-YnV0IGkgd2FzIHRvbGQgdGhhdCBpdCdzIG5vdCBwb3NzaWJsZS4gZnVydGhlcm1vcmUsIGl0IHdv
-dWxkIHJlcXVpcmUgcmVzZXJ2aW5nIGEgZml4ZWQgc2l6ZSAiem9uZSIsIGkgdGhpbmsuDQotMylX
-aGF0IGlzIHRoZSBhdHRhY2sgd2Ugd2FudCB0byBtYWtlIGhhcmRlciB0byBwZXJmb3JtPyBCZWNh
-dXNlIGV2ZW4gY29uc3QgZGF0YSBjYW4gYmUgYXR0YWNrZWQsIGlmIHdlIGFzc3VtZSB0aGF0IHRo
-ZSBhdHRhY2tlciBjYW4gYWx0ZXIgcGFnZSBtYXBwaW5ncy4gSW4gcmVhbGl0eSwgdGhlIG9ubHkg
-c2FmZSB3YXkgd291bGQgYmUgdG8gaGF2ZSBvbmUtd2F5IG9ubHkgcHJvdGVjdGlvbi4gQnV0IHdl
-IGRvIG5vdCBoYXZlIGl0LiBXaHkgYWx0ZXJhdGlvbnMgb2YgcGFnZSBwcm9wZXJ0aWVzIGFyZSBu
-b3QgY29uc2lkZXJlZCBhIHJpc2sgYW5kIHRoZSBwaHlzbWFwIGlzPw0KQW5kIGhvdyB3b3VsZCBp
-dCBiZSBlYXNpZXIgKGkgc3VwcG9zZSkgdG8gYXR0YWNrIHRoZSBsYXR0ZXI/DQpJJ20gYWxsIGZv
-ciBoYXJkZW5pbmcgd2hhdCBpcyBwb3NzaWJsZSwgYnV0IEkgZmVlbCBJIGRvIG5vdCBoYXZlIGZ1
-bGwgdW5kZXJzdGFuZGluZyBvZiBzb21lIG9mIHRoZSBhc3N1bXB0aW9ucyBiZWluZyBtYWRlIGhl
-cmUuDQpHZXR0aW5nIHNvbWUgYW5zd2VycyB0byBteSBxdWVzdGlvbnMgYWJvdmUgbWlnaHQgaGVs
-cCBtZSBzZWVpbmcgdGhlIHBvaW50IGJlaW5nIG1hZGUuDQoNCi0tDQp0aGFua3MsIGlnb3INCg0K
-DQoNCi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tDQpJ
-Z29yIFN0b3BwYSBJZ29yIFN0b3BwYQ0KTToNCkU6IGlnb3Iuc3RvcHBhQGh1YXdlaS5jb208bWFp
-bHRvOmlnb3Iuc3RvcHBhQGh1YXdlaS5jb20+DQoyMDEyPHRlbDoyMDEyPsq10enK0i261bb70MG7
-+dHQvr/L+Q0KMjAxMjx0ZWw6MjAxMj4gTGFib3JhdG9yaWVzLUhlbHNpbmtpIFJlc2VhcmNoIENl
-bnRlcg0KRnJvbTpMYXVyYSBBYmJvdHQNClRvOktlZXMgQ29vayxJZ29yIFN0b3BwYSwNCkNjOkJv
-cmlzIEx1a2FzaGV2LENocmlzdG9waGVyIExhbWV0ZXIsTWF0dGhldyBXaWxjb3gsSmFubiBIb3Ju
-LEplcm9tZSBHbGlzc2UsTWljaGFsIEhvY2tvLENocmlzdG9waCBIZWxsd2lnLGxpbnV4LXNlY3Vy
-aXR5LW1vZHVsZSxMaW51eC1NTSxrZXJuZWwgbGlzdCxLZXJuZWwgSGFyZGVuaW5nLA0KRGF0ZToy
-MDE4LTAyLTEzIDAwOjQwOjU0DQpTdWJqZWN0OlJlOiBba2VybmVsLWhhcmRlbmluZ10gW1BBVENI
-IDQvNl0gUHJvdGVjdGFibGUgTWVtb3J5DQoNCk9uIDAyLzEyLzIwMTggMDM6MjcgUE0sIEtlZXMg
-Q29vayB3cm90ZToNCj4gT24gU3VuLCBGZWIgNCwgMjAxOCBhdCA3OjA1IEFNLCBJZ29yIFN0b3Bw
-YSA8aWdvci5zdG9wcGFAaHVhd2VpLmNvbT4gd3JvdGU6DQo+PiBPbiAwNC8wMi8xOCAwMDoyOSwg
-Qm9yaXMgTHVrYXNoZXYgd3JvdGU6DQo+Pj4gT24gU2F0LCBGZWIgMywgMjAxOCBhdCAzOjMyIFBN
-LCBJZ29yIFN0b3BwYSA8aWdvci5zdG9wcGFAaHVhd2VpLmNvbT4gd3JvdGU6DQo+Pg0KPj4gWy4u
-Ll0NCj4+DQo+Pj4+IFdoYXQgeW91IGFyZSBzdWdnZXN0aW5nLCBpZiBJIGhhdmUgdW5kZXJzdG9v
-ZCBpdCBjb3JyZWN0bHksIGlzIHRoYXQsDQo+Pj4+IHdoZW4gdGhlIHBvb2wgaXMgcHJvdGVjdGVk
-LCB0aGUgYWRkcmVzc2VzIGFscmVhZHkgZ2l2ZW4gb3V0LCB3aWxsIGJlY29tZQ0KPj4+PiB0cmFw
-cyB0aGF0IGdldCByZXNvbHZlZCB0aHJvdWdoIGEgbG9va3VwIHRhYmxlIHRoYXQgaXMgYnVpbHQg
-YmFzZWQgb24NCj4+Pj4gdGhlIGNvbnRlbnQgb2YgZWFjaCBhbGxvY2F0aW9uLg0KPj4+Pg0KPj4+
-PiBUaGF0IHNlZW1zIHRvIGdlbmVyYXRlIGEgbG90IG9mIG92ZXJoZWFkLCBub3QgdG8gbWVudGlv
-biB0aGUgZmFjdCB0aGF0DQo+Pj4+IGl0IG1pZ2h0IG5vdCBwbGF5IHZlcnkgd2VsbCB3aXRoIHRo
-ZSBNTVUuDQo+Pj4NCj4+PiBUaGF0IGlzIGVmZmVjdGl2ZWx5IHdoYXQgaSdtIHN1Z2dlc3Rpbmcg
-LSBhcyBhIGZvcm0gb2YgcHJvdGVjdGlvbiBmb3INCj4+PiBjb25zdW1lcnMgYWdhaW5zdCBkaXJl
-Y3QgcmVhZHMgb2YgZGF0YSB3aGljaCBtYXkgaGF2ZSBiZWVuIGNvcnJ1cHRlZA0KPj4+IGJ5IHNv
-bWUgaXJyZWxldmFudCBtZWFucy4gSW4gdGhlIGNvbnRleHQgb2YgcG1hbGxvYywgaXQgd291bGQg
-cHJvYmFibHkNCj4+PiBiZSBhIHNlcGFyYXRlIHR5cGUgb2Ygcm8rdmVyaWZpZWQgcG9vbA0KPj4g
-b2ssIHRoYXQgc2VlbXMgbW9yZSBsaWtlIGFuIGV4dGVuc2lvbiB0aG91Z2guDQo+Pg0KPj4gQVRN
-IEkgYW0gaGF2aW5nIHByb2JsZW1zIGdhaW5pbmcgdHJhY3Rpb24gdG8gZ2V0IGV2ZW4gdGhlIGJh
-c2ljIG1lcmdlZCA6LSkNCj4+DQo+PiBJIHdvdWxkIGNvbnNpZGVyIHRoaXMgYXMgYSBwb3NzaWJp
-bGl0eSBmb3IgZnV0dXJlIHdvcmssIHVubGVzcyBpdCBpcw0KPj4gc2FpZCB0aGF0IGl0J3MgbmVj
-ZXNzYXJ5IGZvciBwbWFsbG9jIHRvIGJlIGFjY2VwdGVkIC4uLg0KPg0KPiBJIHdvdWxkIGFncmVl
-OiBsZXQncyBnZXQgYmFzaWMgZnVuY3Rpb25hbGl0eSBpbiBmaXJzdC4gQm90aA0KPiB2ZXJpZmlj
-YXRpb24gYW5kIHRoZSBwaHlzbWFwIHBhcnQgY2FuIGJlIGRvbmUgc2VwYXJhdGVseSwgSU1PLg0K
-DQpTa2lwcGluZyBvdmVyIHBoeXNtYXAgbGVhdmVzIGEgcHJldHR5IGJpZyBhcmVhIG9mIGV4cG9z
-dXJlIHRoYXQgY291bGQNCmJlIGRpZmZpY3VsdCB0byBzb2x2ZSBsYXRlci4gSSBhcHByZWNpYXRl
-IHRoaXMgbWlnaHQgYmxvY2sgYmFzaWMNCmZ1bmN0aW9uYWxpdHkgYnV0IEkgZG9uJ3QgdGhpbmsg
-d2Ugc2hvdWxkIGp1c3QgZ2xvc3Mgb3ZlciBpdCB3aXRob3V0DQphdCBsZWFzdCBzb21lIGlkZWEg
-b2Ygd2hhdCB3ZSB3b3VsZCBkby4NCg0KVGhhbmtzLA0KTGF1cmENCg==
+x86/mm: Rename flush_tlb_single() and flush_tlb_one() to __flush_tlb_one_[user|kernel]()
 
---_000_688F43F436AB4D988B8234437CFD85BC_
-Content-Type: text/html; charset="gb2312"
-Content-Transfer-Encoding: quoted-printable
+flush_tlb_single() and flush_tlb_one() sound almost identical, but
+they really mean "flush one user translation" and "flush one kernel
+translation".  Rename them to flush_tlb_one_user() and
+flush_tlb_one_kernel() to make the semantics more obvious.
 
-<html>
-<head>
-<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dgb2312">
-<meta name=3D"Generator" content=3D"Microsoft Exchange Server">
-<!-- converted from text --><style><!-- .EmailQuote { margin-left: 1pt; pad=
-ding-left: 4pt; border-left: #800000 2px solid; } --></style>
-</head>
-<body>
-<style type=3D"text/css">
-<!--
--->
-</style>
-<div>
-<div>hi,<br>
-apologies for (probably) breaking any email etiquette, but i'm travelling a=
-nd i have available only the corporate mail client.<br>
-I'll reply more extensively to all the comments i go next week, when i'm ba=
-ck to the office.<br>
-<br>
-In the meanwhile i would like to point out that I had already addressed thi=
-s, in past thread, but got no reply.<br>
-<br>
-To recap:<br>
--1) vmalloced memory is harder to attack than kmalloced, because it require=
-s the attacker to figuere out also the physical address. Currently it's suf=
-ficient to identify the randomized base address and the offset in memory of=
- the victim.<br>
-I have not seen comments about this statement I made. Is it incorrect?<br>
--2) this patchset is about protecting something that right now is not prote=
-cted at all. That should be the starting point for comparison. If it was po=
-ssible to have separate section like const or _ro_after init, the situation=
- would be different, but i was told
- that it's not possible. furthermore, it would require reserving a fixed si=
-ze &quot;zone&quot;, i think.<br>
--3)What is the attack we want to make harder to perform? Because even const=
- data can be attacked, if we assume that the attacker can alter page mappin=
-gs. In reality, the only safe way would be to have one-way only protection.=
- But we do not have it. Why alterations
- of page properties are not considered a risk and the physmap is?<br>
-And how would it be easier (i suppose) to attack the latter?<br>
-I'm all for hardening what is possible, but I feel I do not have full under=
-standing of some of the assumptions being made here.<br>
-Getting some answers to my questions above might help me seeing the point b=
-eing made.<br>
-<br>
---<br>
-thanks, igor<br>
-<br>
-<br>
-<br>
-</div>
-<div></div>
-<div>--------------------------------------------------<br>
-Igor Stoppa Igor Stoppa<br>
-M:<br>
-E: <a href=3D"mailto:igor.stoppa@huawei.com">igor.stoppa@huawei.com</a><br>
-<a href=3D"tel:2012">2012</a>=CA=B5=D1=E9=CA=D2-=BA=D5=B6=FB=D0=C1=BB=F9=D1=
-=D0=BE=BF=CB=F9<br>
-<a href=3D"tel:2012">2012</a> Laboratories-Helsinki Research Center</div>
-<div name=3D"x_AnyOffice-Background-Image" style=3D"border-top:1px solid #B=
-5C4DF; padding:8px">
-<div style=3D"word-break:break-all"><b>From:</b>Laura Abbott</div>
-<div style=3D"word-break:break-all"><b>To:</b>Kees Cook,Igor Stoppa,</div>
-<div style=3D"word-break:break-all"><b>Cc:</b>Boris Lukashev,Christopher La=
-meter,Matthew Wilcox,Jann Horn,Jerome Glisse,Michal Hocko,Christoph Hellwig=
-,linux-security-module,Linux-MM,kernel list,Kernel Hardening,</div>
-<div style=3D"word-break:break-all"><b>Date:</b>2018-02-13 00:40:54</div>
-<div style=3D"word-break:break-all"><b>Subject:</b>Re: [kernel-hardening] [=
-PATCH 4/6] Protectable Memory</div>
-<div><br>
-</div>
-</div>
-</div>
-<font size=3D"2"><span style=3D"font-size:10pt;">
-<div class=3D"PlainText">On 02/12/2018 03:27 PM, Kees Cook wrote:<br>
-&gt; On Sun, Feb 4, 2018 at 7:05 AM, Igor Stoppa &lt;igor.stoppa@huawei.com=
-&gt; wrote:<br>
-&gt;&gt; On 04/02/18 00:29, Boris Lukashev wrote:<br>
-&gt;&gt;&gt; On Sat, Feb 3, 2018 at 3:32 PM, Igor Stoppa &lt;igor.stoppa@hu=
-awei.com&gt; wrote:<br>
-&gt;&gt;<br>
-&gt;&gt; [...]<br>
-&gt;&gt;<br>
-&gt;&gt;&gt;&gt; What you are suggesting, if I have understood it correctly=
-, is that,<br>
-&gt;&gt;&gt;&gt; when the pool is protected, the addresses already given ou=
-t, will become<br>
-&gt;&gt;&gt;&gt; traps that get resolved through a lookup table that is bui=
-lt based on<br>
-&gt;&gt;&gt;&gt; the content of each allocation.<br>
-&gt;&gt;&gt;&gt;<br>
-&gt;&gt;&gt;&gt; That seems to generate a lot of overhead, not to mention t=
-he fact that<br>
-&gt;&gt;&gt;&gt; it might not play very well with the MMU.<br>
-&gt;&gt;&gt;<br>
-&gt;&gt;&gt; That is effectively what i'm suggesting - as a form of protect=
-ion for<br>
-&gt;&gt;&gt; consumers against direct reads of data which may have been cor=
-rupted<br>
-&gt;&gt;&gt; by some irrelevant means. In the context of pmalloc, it would =
-probably<br>
-&gt;&gt;&gt; be a separate type of ro&#43;verified pool<br>
-&gt;&gt; ok, that seems more like an extension though.<br>
-&gt;&gt;<br>
-&gt;&gt; ATM I am having problems gaining traction to get even the basic me=
-rged :-)<br>
-&gt;&gt;<br>
-&gt;&gt; I would consider this as a possibility for future work, unless it =
-is<br>
-&gt;&gt; said that it's necessary for pmalloc to be accepted ...<br>
-&gt; <br>
-&gt; I would agree: let's get basic functionality in first. Both<br>
-&gt; verification and the physmap part can be done separately, IMO.<br>
-<br>
-Skipping over physmap leaves a pretty big area of exposure that could<br>
-be difficult to solve later. I appreciate this might block basic<br>
-functionality but I don't think we should just gloss over it without<br>
-at least some idea of what we would do.<br>
-<br>
-Thanks,<br>
-Laura<br>
-</div>
-</span></font>
-</body>
-</html>
+[ I was looking at some PTI-related code, and the flush-one-address code
+  is unnecessarily hard to understand because the names of the helpers are
+  uninformative.  This came up during PTI review, but no one got around to
+  doing it. ]
 
---_000_688F43F436AB4D988B8234437CFD85BC_--
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Eduardo Valentin <eduval@amazon.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Kees Cook <keescook@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Will Deacon <will.deacon@arm.com>
+Link: http://lkml.kernel.org/r/3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ arch/x86/include/asm/paravirt.h       |  4 ++--
+ arch/x86/include/asm/paravirt_types.h |  2 +-
+ arch/x86/include/asm/pgtable_32.h     |  2 +-
+ arch/x86/include/asm/tlbflush.h       | 27 ++++++++++++++++++++-------
+ arch/x86/kernel/paravirt.c            |  6 +++---
+ arch/x86/mm/init_64.c                 |  2 +-
+ arch/x86/mm/ioremap.c                 |  2 +-
+ arch/x86/mm/kmmio.c                   |  2 +-
+ arch/x86/mm/pgtable_32.c              |  2 +-
+ arch/x86/mm/tlb.c                     |  6 +++---
+ arch/x86/platform/uv/tlb_uv.c         |  2 +-
+ arch/x86/xen/mmu_pv.c                 |  6 +++---
+ include/trace/events/xen.h            |  2 +-
+ 13 files changed, 39 insertions(+), 26 deletions(-)
+
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+index 892df37..554841f 100644
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -297,9 +297,9 @@ static inline void __flush_tlb_global(void)
+ {
+ 	PVOP_VCALL0(pv_mmu_ops.flush_tlb_kernel);
+ }
+-static inline void __flush_tlb_single(unsigned long addr)
++static inline void __flush_tlb_one_user(unsigned long addr)
+ {
+-	PVOP_VCALL1(pv_mmu_ops.flush_tlb_single, addr);
++	PVOP_VCALL1(pv_mmu_ops.flush_tlb_one_user, addr);
+ }
+ 
+ static inline void flush_tlb_others(const struct cpumask *cpumask,
+diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+index 6ec54d0..f624f1f 100644
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -217,7 +217,7 @@ struct pv_mmu_ops {
+ 	/* TLB operations */
+ 	void (*flush_tlb_user)(void);
+ 	void (*flush_tlb_kernel)(void);
+-	void (*flush_tlb_single)(unsigned long addr);
++	void (*flush_tlb_one_user)(unsigned long addr);
+ 	void (*flush_tlb_others)(const struct cpumask *cpus,
+ 				 const struct flush_tlb_info *info);
+ 
+diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
+index e67c062..e554667 100644
+--- a/arch/x86/include/asm/pgtable_32.h
++++ b/arch/x86/include/asm/pgtable_32.h
+@@ -61,7 +61,7 @@ void paging_init(void);
+ #define kpte_clear_flush(ptep, vaddr)		\
+ do {						\
+ 	pte_clear(&init_mm, (vaddr), (ptep));	\
+-	__flush_tlb_one((vaddr));		\
++	__flush_tlb_one_kernel((vaddr));		\
+ } while (0)
+ 
+ #endif /* !__ASSEMBLY__ */
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 2b8f18c..84137c2 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -140,7 +140,7 @@ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
+ #else
+ #define __flush_tlb() __native_flush_tlb()
+ #define __flush_tlb_global() __native_flush_tlb_global()
+-#define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
++#define __flush_tlb_one_user(addr) __native_flush_tlb_one_user(addr)
+ #endif
+ 
+ static inline bool tlb_defer_switch_to_init_mm(void)
+@@ -400,7 +400,7 @@ static inline void __native_flush_tlb_global(void)
+ /*
+  * flush one page in the user mapping
+  */
+-static inline void __native_flush_tlb_single(unsigned long addr)
++static inline void __native_flush_tlb_one_user(unsigned long addr)
+ {
+ 	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
+ 
+@@ -437,18 +437,31 @@ static inline void __flush_tlb_all(void)
+ /*
+  * flush one page in the kernel mapping
+  */
+-static inline void __flush_tlb_one(unsigned long addr)
++static inline void __flush_tlb_one_kernel(unsigned long addr)
+ {
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
+-	__flush_tlb_single(addr);
++
++	/*
++	 * If PTI is off, then __flush_tlb_one_user() is just INVLPG or its
++	 * paravirt equivalent.  Even with PCID, this is sufficient: we only
++	 * use PCID if we also use global PTEs for the kernel mapping, and
++	 * INVLPG flushes global translations across all address spaces.
++	 *
++	 * If PTI is on, then the kernel is mapped with non-global PTEs, and
++	 * __flush_tlb_one_user() will flush the given address for the current
++	 * kernel address space and for its usermode counterpart, but it does
++	 * not flush it for other address spaces.
++	 */
++	__flush_tlb_one_user(addr);
+ 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return;
+ 
+ 	/*
+-	 * __flush_tlb_single() will have cleared the TLB entry for this ASID,
+-	 * but since kernel space is replicated across all, we must also
+-	 * invalidate all others.
++	 * See above.  We need to propagate the flush to all other address
++	 * spaces.  In principle, we only need to propagate it to kernelmode
++	 * address spaces, but the extra bookkeeping we would need is not
++	 * worth it.
+ 	 */
+ 	invalidate_other_asid();
+ }
+diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
+index 041096b..99dc79e 100644
+--- a/arch/x86/kernel/paravirt.c
++++ b/arch/x86/kernel/paravirt.c
+@@ -200,9 +200,9 @@ static void native_flush_tlb_global(void)
+ 	__native_flush_tlb_global();
+ }
+ 
+-static void native_flush_tlb_single(unsigned long addr)
++static void native_flush_tlb_one_user(unsigned long addr)
+ {
+-	__native_flush_tlb_single(addr);
++	__native_flush_tlb_one_user(addr);
+ }
+ 
+ struct static_key paravirt_steal_enabled;
+@@ -401,7 +401,7 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
+ 
+ 	.flush_tlb_user = native_flush_tlb,
+ 	.flush_tlb_kernel = native_flush_tlb_global,
+-	.flush_tlb_single = native_flush_tlb_single,
++	.flush_tlb_one_user = native_flush_tlb_one_user,
+ 	.flush_tlb_others = native_flush_tlb_others,
+ 
+ 	.pgd_alloc = __paravirt_pgd_alloc,
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 4a83728..60ae1fe 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -256,7 +256,7 @@ static void __set_pte_vaddr(pud_t *pud, unsigned long vaddr, pte_t new_pte)
+ 	 * It's enough to flush this one mapping.
+ 	 * (PGE mappings get flushed as well)
+ 	 */
+-	__flush_tlb_one(vaddr);
++	__flush_tlb_one_kernel(vaddr);
+ }
+ 
+ void set_pte_vaddr_p4d(p4d_t *p4d_page, unsigned long vaddr, pte_t new_pte)
+diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+index c45b6ec..e2db83b 100644
+--- a/arch/x86/mm/ioremap.c
++++ b/arch/x86/mm/ioremap.c
+@@ -820,5 +820,5 @@ void __init __early_set_fixmap(enum fixed_addresses idx,
+ 		set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, flags));
+ 	else
+ 		pte_clear(&init_mm, addr, pte);
+-	__flush_tlb_one(addr);
++	__flush_tlb_one_kernel(addr);
+ }
+diff --git a/arch/x86/mm/kmmio.c b/arch/x86/mm/kmmio.c
+index 58477ec..7c86867 100644
+--- a/arch/x86/mm/kmmio.c
++++ b/arch/x86/mm/kmmio.c
+@@ -168,7 +168,7 @@ static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
+ 		return -1;
+ 	}
+ 
+-	__flush_tlb_one(f->addr);
++	__flush_tlb_one_kernel(f->addr);
+ 	return 0;
+ }
+ 
+diff --git a/arch/x86/mm/pgtable_32.c b/arch/x86/mm/pgtable_32.c
+index c3c5274..9bb7f0a 100644
+--- a/arch/x86/mm/pgtable_32.c
++++ b/arch/x86/mm/pgtable_32.c
+@@ -63,7 +63,7 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
+ 	 * It's enough to flush this one mapping.
+ 	 * (PGE mappings get flushed as well)
+ 	 */
+-	__flush_tlb_one(vaddr);
++	__flush_tlb_one_kernel(vaddr);
+ }
+ 
+ unsigned long __FIXADDR_TOP = 0xfffff000;
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 012d026..0c93643 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -492,7 +492,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 	 *    flush that changes context.tlb_gen from 2 to 3.  If they get
+ 	 *    processed on this CPU in reverse order, we'll see
+ 	 *     local_tlb_gen == 1, mm_tlb_gen == 3, and end != TLB_FLUSH_ALL.
+-	 *    If we were to use __flush_tlb_single() and set local_tlb_gen to
++	 *    If we were to use __flush_tlb_one_user() and set local_tlb_gen to
+ 	 *    3, we'd be break the invariant: we'd update local_tlb_gen above
+ 	 *    1 without the full flush that's needed for tlb_gen 2.
+ 	 *
+@@ -513,7 +513,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 
+ 		addr = f->start;
+ 		while (addr < f->end) {
+-			__flush_tlb_single(addr);
++			__flush_tlb_one_user(addr);
+ 			addr += PAGE_SIZE;
+ 		}
+ 		if (local)
+@@ -660,7 +660,7 @@ static void do_kernel_range_flush(void *info)
+ 
+ 	/* flush range by one by one 'invlpg' */
+ 	for (addr = f->start; addr < f->end; addr += PAGE_SIZE)
+-		__flush_tlb_one(addr);
++		__flush_tlb_one_kernel(addr);
+ }
+ 
+ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+diff --git a/arch/x86/platform/uv/tlb_uv.c b/arch/x86/platform/uv/tlb_uv.c
+index 8538a67..7d5d53f 100644
+--- a/arch/x86/platform/uv/tlb_uv.c
++++ b/arch/x86/platform/uv/tlb_uv.c
+@@ -299,7 +299,7 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
+ 		local_flush_tlb();
+ 		stat->d_alltlb++;
+ 	} else {
+-		__flush_tlb_single(msg->address);
++		__flush_tlb_one_user(msg->address);
+ 		stat->d_onetlb++;
+ 	}
+ 	stat->d_requestee++;
+diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
+index d850762..aae88fe 100644
+--- a/arch/x86/xen/mmu_pv.c
++++ b/arch/x86/xen/mmu_pv.c
+@@ -1300,12 +1300,12 @@ static void xen_flush_tlb(void)
+ 	preempt_enable();
+ }
+ 
+-static void xen_flush_tlb_single(unsigned long addr)
++static void xen_flush_tlb_one_user(unsigned long addr)
+ {
+ 	struct mmuext_op *op;
+ 	struct multicall_space mcs;
+ 
+-	trace_xen_mmu_flush_tlb_single(addr);
++	trace_xen_mmu_flush_tlb_one_user(addr);
+ 
+ 	preempt_disable();
+ 
+@@ -2370,7 +2370,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
+ 
+ 	.flush_tlb_user = xen_flush_tlb,
+ 	.flush_tlb_kernel = xen_flush_tlb,
+-	.flush_tlb_single = xen_flush_tlb_single,
++	.flush_tlb_one_user = xen_flush_tlb_one_user,
+ 	.flush_tlb_others = xen_flush_tlb_others,
+ 
+ 	.pgd_alloc = xen_pgd_alloc,
+diff --git a/include/trace/events/xen.h b/include/trace/events/xen.h
+index b8adf05..7dd8f34 100644
+--- a/include/trace/events/xen.h
++++ b/include/trace/events/xen.h
+@@ -368,7 +368,7 @@ TRACE_EVENT(xen_mmu_flush_tlb,
+ 	    TP_printk("%s", "")
+ 	);
+ 
+-TRACE_EVENT(xen_mmu_flush_tlb_single,
++TRACE_EVENT(xen_mmu_flush_tlb_one_user,
+ 	    TP_PROTO(unsigned long addr),
+ 	    TP_ARGS(addr),
+ 	    TP_STRUCT__entry(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
