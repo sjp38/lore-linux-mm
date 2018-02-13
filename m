@@ -1,49 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E3DDE6B0005
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 16:43:51 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id s7so5041121uaj.21
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 13:43:51 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r11sor4713745vkf.212.2018.02.13.13.43.50
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 35DFC6B0005
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 16:54:04 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id r6so8051628wrg.17
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 13:54:04 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id c23si1582959wra.212.2018.02.13.13.54.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 13 Feb 2018 13:43:50 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <f4226a44-92fd-8ead-b458-7551ba82f96d@redhat.com>
-References: <20180124175631.22925-1-igor.stoppa@huawei.com>
- <20180124175631.22925-5-igor.stoppa@huawei.com> <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
- <20180126053542.GA30189@bombadil.infradead.org> <alpine.DEB.2.20.1802021236510.31548@nuc-kabylake>
- <f2ddaed0-313e-8664-8a26-9d10b66ed0c5@huawei.com> <b75b5903-0177-8ad9-5c2b-fc63438fb5f2@huawei.com>
- <CAFUG7CfrCpcbwgf5ixMC5EZZgiVVVp1NXhDHK1UoJJcC08R2qQ@mail.gmail.com>
- <8818bfd4-dd9f-f279-0432-69b59531bd41@huawei.com> <CAFUG7CeUhFcvA82uZ2ZH1j_6PM=aBo4XmYDN85pf8G0gPU44dg@mail.gmail.com>
- <17e5b515-84c8-dca2-1695-cdf819834ea2@huawei.com> <CAGXu5j+LS1pgOOroi7Yxp2nh=DwtTnU3p-NZa6bQu_wkvvVkwg@mail.gmail.com>
- <414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com> <CAGXu5j++igQD4tMh0J8nZ9jNji5mU16C7OygFJ5Td+Bq-KSMgw@mail.gmail.com>
- <CAG48ez1utN_vwHUwk=BU6zM4Wa_53TPu8rm9JuTtY-vGP0Shqw@mail.gmail.com> <f4226a44-92fd-8ead-b458-7551ba82f96d@redhat.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 13 Feb 2018 13:43:49 -0800
-Message-ID: <CAGXu5j+zOCLerneUt2b-tvyLLg7fEbr9B0YYow-4DH6oV-nnCw@mail.gmail.com>
-Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Feb 2018 13:54:03 -0800 (PST)
+Date: Tue, 13 Feb 2018 13:53:59 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 0/4] optimize memory hotplug
+Message-Id: <20180213135359.705680d373a482b650f38b50@linux-foundation.org>
+In-Reply-To: <20180213193159.14606-1-pasha.tatashin@oracle.com>
+References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Jann Horn <jannh@google.com>, Igor Stoppa <igor.stoppa@huawei.com>, Boris Lukashev <blukashev@sempervictus.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
-On Tue, Feb 13, 2018 at 8:09 AM, Laura Abbott <labbott@redhat.com> wrote:
-> No, arm64 doesn't fixup the aliases, mostly because arm64 uses larger
-> page sizes which can't be broken down at runtime. CONFIG_PAGE_POISONING
-> does use 4K pages which could be adjusted at runtime. So yes, you are
-> right we would have physmap exposure on arm64 as well.
+On Tue, 13 Feb 2018 14:31:55 -0500 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
 
-Errr, so that means even modules and kernel code are writable via the
-arm64 physmap? That seems extraordinarily bad. :(
+> This patchset:
+> - Improves hotplug performance by eliminating a number of
+> struct page traverses during memory hotplug.
+> 
+> - Fixes some issues with hotplugging, where boundaries
+> were not properly checked. And on x86 block size was not properly aligned
+> with end of memory
+> 
+> - Also, potentially improves boot performance by eliminating condition from
+>   __init_single_page().
+> 
+> - Adds robustness by verifying that that struct pages are correctly
+>   poisoned when flags are accessed.
 
--Kees
+I'm now attempting to get a 100% review rate on MM patches, which is
+why I started adding my Reviewed-by: when I do that thing.
 
--- 
-Kees Cook
-Pixel Security
+I'm not familiar enough with this code to add my own Reviewed-by:, and
+we'll need to figure out what to do in such cases.  I shall be sending
+out periodic review-status summaries.
+
+If you're able to identify a suitable reviewer for this work and to
+offer them beer, that would help.  Let's see what happens as the weeks
+unfold.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
