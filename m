@@ -1,109 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F1676B0005
+	by kanga.kvack.org (Postfix) with ESMTP id A8AC96B0006
 	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 14:32:15 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id p189so9834062iod.2
+Received: by mail-io0-f198.google.com with SMTP id z6so18121046iob.3
         for <linux-mm@kvack.org>; Tue, 13 Feb 2018 11:32:15 -0800 (PST)
 Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id v186si916795itd.69.2018.02.13.11.32.13
+        by mx.google.com with ESMTPS id h101si1770629ioi.229.2018.02.13.11.32.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Feb 2018 11:32:13 -0800 (PST)
+        Tue, 13 Feb 2018 11:32:14 -0800 (PST)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v3 2/4] x86/mm/memory_hotplug: determine block size based on the end of boot memory
-Date: Tue, 13 Feb 2018 14:31:57 -0500
-Message-Id: <20180213193159.14606-3-pasha.tatashin@oracle.com>
-In-Reply-To: <20180213193159.14606-1-pasha.tatashin@oracle.com>
-References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
+Subject: [PATCH v3 0/4] optimize memory hotplug
+Date: Tue, 13 Feb 2018 14:31:55 -0500
+Message-Id: <20180213193159.14606-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
-Memory sections are combined into "memory block" chunks. These chunks are
-the units upon which memory can be added and removed.
+Changelog:
+	v2 - v3
+	Fixed two issues found during testing
+	Addressed Kbuild warning reports
 
-On x86, the new memory may be added after the end of the boot memory,
-therefore, if block size does not align with end of boot memory, memory
-hot-plugging/hot-removing can be broken.
+	v1 - v2
+	Added struct page poisoning checking in order to verify that
+	struct pages are never accessed until initialized during memory
+	hotplug
 
-Currently, whenever machine is boot with more than 64G the block size
-unconditionally increased to 2G from the base 128M in order to reduce
-number of memory devices in sysfs:
-	/sys/devices/system/memory/memoryXXX
+This patchset:
+- Improves hotplug performance by eliminating a number of
+struct page traverses during memory hotplug.
 
-But, we must use the largest allowed block size that aligns to the next
-address to be able to hotplug the next block of memory.
+- Fixes some issues with hotplugging, where boundaries
+were not properly checked. And on x86 block size was not properly aligned
+with end of memory
 
-So, when memory is larger than 64G, we check the end address and find the
-largest block size that is still power of two but smaller or equal to 2G.
+- Also, potentially improves boot performance by eliminating condition from
+  __init_single_page().
 
-Before, the fix:
-Run qemu with:
--m 64G,slots=2,maxmem=66G -object memory-backend-ram,id=mem1,size=2G
+- Adds robustness by verifying that that struct pages are correctly
+  poisoned when flags are accessed.
 
-(qemu) device_add pc-dimm,id=dimm1,memdev=mem1
-Block size [0x80000000] unaligned hotplug range: start 0x1040000000,
-							size 0x80000000
-acpi PNP0C80:00: add_memory failed
-acpi PNP0C80:00: acpi_memory_enable_device() error
-acpi PNP0C80:00: Enumeration failure
+The following experiments were performed on Xeon(R) CPU E7-8895 v3 @ 2.60GHz
+with 1T RAM:
 
-With the fix memory is added successfully, as the block size is set to 1G,
-and therefore aligns with start address 0x1040000000.
+booting in qemu with 960G of memory, time to initialize struct pages:
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
----
- arch/x86/mm/init_64.c | 33 +++++++++++++++++++++++++++++----
- 1 file changed, 29 insertions(+), 4 deletions(-)
+no-kvm:
+	TRY1		TRY2
+BEFORE:	39.433668	39.39705
+AFTER:	36.903781	36.989329
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 1ab42c852069..f7dc80364397 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1326,14 +1326,39 @@ int kern_addr_valid(unsigned long addr)
- 	return pfn_valid(pte_pfn(*pte));
- }
- 
-+/*
-+ * Block size is the minimum quantum of memory which can be hot-plugged or
-+ * hot-removed. It must be power of two, and must be equal or larger than
-+ * MIN_MEMORY_BLOCK_SIZE.
-+ */
-+#define MAX_BLOCK_SIZE (2UL << 30)
-+
-+/* Amount of ram needed to start using large blocks */
-+#define MEM_SIZE_FOR_LARGE_BLOCK (64UL << 30)
-+
- static unsigned long probe_memory_block_size(void)
- {
--	unsigned long bz = MIN_MEMORY_BLOCK_SIZE;
-+	unsigned long boot_mem_end = max_pfn << PAGE_SHIFT;
-+	unsigned long bz;
- 
--	/* if system is UV or has 64GB of RAM or more, use large blocks */
--	if (is_uv_system() || ((max_pfn << PAGE_SHIFT) >= (64UL << 30)))
--		bz = 2UL << 30; /* 2GB */
-+	/* If this is UV system, always set 2G block size */
-+	if (is_uv_system()) {
-+		bz = MAX_BLOCK_SIZE;
-+		goto done;
-+	}
- 
-+	/* Use regular block if RAM is smaller than MEM_SIZE_FOR_LARGE_BLOCK */
-+	if (boot_mem_end < MEM_SIZE_FOR_LARGE_BLOCK) {
-+		bz = MIN_MEMORY_BLOCK_SIZE;
-+		goto done;
-+	}
-+
-+	/* Find the largest allowed block size that aligns to memory end */
-+	for (bz = MAX_BLOCK_SIZE; bz > MIN_MEMORY_BLOCK_SIZE; bz >>= 1) {
-+		if (IS_ALIGNED(boot_mem_end, bz))
-+			break;
-+	}
-+done:
- 	pr_info("x86/mm: Memory block size: %ldMB\n", bz >> 20);
- 
- 	return bz;
+with-kvm:
+BEFORE:	10.977447	11.103164
+AFTER:	10.929072	10.751885
+
+Hotplug 896G memory:
+no-kvm:
+	TRY1		TRY2
+BEFORE: 848.740000	846.910000
+AFTER:  783.070000	786.560000
+
+with-kvm:
+	TRY1		TRY2
+BEFORE: 34.410000	33.57
+AFTER:	29.810000	29.580000
+
+Pavel Tatashin (4):
+  mm/memory_hotplug: enforce block size aligned range check
+  x86/mm/memory_hotplug: determine block size based on the end of boot
+    memory
+  mm: uninitialized struct page poisoning sanity checking
+  mm/memory_hotplug: optimize memory hotplug
+
+ arch/x86/mm/init_64.c          | 33 +++++++++++++++++++++++++++++----
+ drivers/base/memory.c          | 38 +++++++++++++++++++++-----------------
+ drivers/base/node.c            | 17 ++++++++++-------
+ include/linux/memory_hotplug.h |  2 ++
+ include/linux/mm.h             |  4 +++-
+ include/linux/node.h           |  4 ++--
+ include/linux/page-flags.h     | 22 +++++++++++++++++-----
+ mm/memblock.c                  |  2 +-
+ mm/memory_hotplug.c            | 36 ++++++++++--------------------------
+ mm/page_alloc.c                | 28 ++++++++++------------------
+ mm/sparse.c                    | 29 ++++++++++++++++++++++++++---
+ 11 files changed, 131 insertions(+), 84 deletions(-)
+
 -- 
 2.16.1
 
