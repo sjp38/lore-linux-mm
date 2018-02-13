@@ -1,126 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC5A86B0003
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 11:09:44 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id q35so11214764otg.14
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 08:09:44 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i8sor4368808oia.240.2018.02.13.08.09.38
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 467B66B0003
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 12:25:37 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id w125so9797423itf.0
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 09:25:37 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r188sor628839ith.79.2018.02.13.09.25.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Feb 2018 08:09:40 -0800 (PST)
-Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
-References: <20180124175631.22925-1-igor.stoppa@huawei.com>
- <20180124175631.22925-5-igor.stoppa@huawei.com>
- <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
- <20180126053542.GA30189@bombadil.infradead.org>
- <alpine.DEB.2.20.1802021236510.31548@nuc-kabylake>
- <f2ddaed0-313e-8664-8a26-9d10b66ed0c5@huawei.com>
- <b75b5903-0177-8ad9-5c2b-fc63438fb5f2@huawei.com>
- <CAFUG7CfrCpcbwgf5ixMC5EZZgiVVVp1NXhDHK1UoJJcC08R2qQ@mail.gmail.com>
- <8818bfd4-dd9f-f279-0432-69b59531bd41@huawei.com>
- <CAFUG7CeUhFcvA82uZ2ZH1j_6PM=aBo4XmYDN85pf8G0gPU44dg@mail.gmail.com>
- <17e5b515-84c8-dca2-1695-cdf819834ea2@huawei.com>
- <CAGXu5j+LS1pgOOroi7Yxp2nh=DwtTnU3p-NZa6bQu_wkvvVkwg@mail.gmail.com>
- <414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com>
- <CAGXu5j++igQD4tMh0J8nZ9jNji5mU16C7OygFJ5Td+Bq-KSMgw@mail.gmail.com>
- <CAG48ez1utN_vwHUwk=BU6zM4Wa_53TPu8rm9JuTtY-vGP0Shqw@mail.gmail.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <f4226a44-92fd-8ead-b458-7551ba82f96d@redhat.com>
-Date: Tue, 13 Feb 2018 08:09:35 -0800
+        Tue, 13 Feb 2018 09:25:35 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAG48ez1utN_vwHUwk=BU6zM4Wa_53TPu8rm9JuTtY-vGP0Shqw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180213085429.GB10278@kroah.com>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <CALCETrUF61fqjXKG=kwf83JWpw=kgL16UvKowezDVwVA1=YVAw@mail.gmail.com>
+ <20180209191112.55zyjf4njum75brd@suse.de> <20180210091543.ynypx4y3koz44g7y@angband.pl>
+ <CA+55aFwdLZjDcfhj4Ps=dUfd7ifkoYxW0FoH_JKjhXJYzxUSZQ@mail.gmail.com>
+ <20180211105909.53bv5q363u7jgrsc@angband.pl> <6FB16384-7597-474E-91A1-1AF09201CEAC@gmail.com>
+ <20180213085429.GB10278@kroah.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 13 Feb 2018 09:25:34 -0800
+Message-ID: <CA+55aFzLR2DbGnAKQwg79Ob9dpkOM1Z7bxkjyPBSp3Zdxmk5eQ@mail.gmail.com>
+Subject: Re: [PATCH 00/31 v2] PTI support for x86_32
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>, Kees Cook <keescook@chromium.org>
-Cc: Igor Stoppa <igor.stoppa@huawei.com>, Boris Lukashev <blukashev@sempervictus.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Mark D Rustad <mrustad@gmail.com>, Adam Borowski <kilobyte@angband.pl>, Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
 
-On 02/12/2018 07:39 PM, Jann Horn wrote:
-> On Tue, Feb 13, 2018 at 2:25 AM, Kees Cook <keescook@chromium.org> wrote:
->> On Mon, Feb 12, 2018 at 4:40 PM, Laura Abbott <labbott@redhat.com> wrote:
->>> On 02/12/2018 03:27 PM, Kees Cook wrote:
->>>>
->>>> On Sun, Feb 4, 2018 at 7:05 AM, Igor Stoppa <igor.stoppa@huawei.com>
->>>> wrote:
->>>>>
->>>>> On 04/02/18 00:29, Boris Lukashev wrote:
->>>>>>
->>>>>> On Sat, Feb 3, 2018 at 3:32 PM, Igor Stoppa <igor.stoppa@huawei.com>
->>>>>> wrote:
->>>>>
->>>>>
->>>>> [...]
->>>>>
->>>>>>> What you are suggesting, if I have understood it correctly, is that,
->>>>>>> when the pool is protected, the addresses already given out, will
->>>>>>> become
->>>>>>> traps that get resolved through a lookup table that is built based on
->>>>>>> the content of each allocation.
->>>>>>>
->>>>>>> That seems to generate a lot of overhead, not to mention the fact that
->>>>>>> it might not play very well with the MMU.
->>>>>>
->>>>>>
->>>>>> That is effectively what i'm suggesting - as a form of protection for
->>>>>> consumers against direct reads of data which may have been corrupted
->>>>>> by some irrelevant means. In the context of pmalloc, it would probably
->>>>>> be a separate type of ro+verified pool
->>>>>
->>>>> ok, that seems more like an extension though.
->>>>>
->>>>> ATM I am having problems gaining traction to get even the basic merged
->>>>> :-)
->>>>>
->>>>> I would consider this as a possibility for future work, unless it is
->>>>> said that it's necessary for pmalloc to be accepted ...
->>>>
->>>>
->>>> I would agree: let's get basic functionality in first. Both
->>>> verification and the physmap part can be done separately, IMO.
->>>
->>>
->>> Skipping over physmap leaves a pretty big area of exposure that could
->>> be difficult to solve later. I appreciate this might block basic
->>> functionality but I don't think we should just gloss over it without
->>> at least some idea of what we would do.
+On Tue, Feb 13, 2018 at 12:54 AM, Greg KH <gregkh@linuxfoundation.org> wrote:
+> On Sun, Feb 11, 2018 at 09:40:41AM -0800, Mark D Rustad wrote:
 >>
->> What's our exposure on physmap for other regions? e.g. things that are
->> executable, or made read-only later (like __ro_after_init)?
-> 
-> I just checked on a system with a 4.9 kernel, and there seems to be no
-> physical memory that is mapped as writable in the init PGD and
-> executable elsewhere.
-> 
-> Ah, I think I missed something. At least on X86, set_memory_ro,
-> set_memory_rw, set_memory_nx and set_memory_x all use
-> change_page_attr_clear/change_page_attr_set, which use
-> change_page_attr_set_clr, which calls __change_page_attr_set_clr()
-> with a second parameter "checkalias" that is set to 1 unless the bit
-> being changed is the NX bit, and that parameter causes the invocation
-> of cpa_process_alias(), which will, for mapped ranges, also change the
-> attributes of physmap ranges. set_memory_ro() and so on are also used
-> by the module loading code.
-> 
-> But in the ARM64 code, I don't see anything similar. Does anyone with
-> a better understanding of ARM64 want to check whether I missed
-> something? Or maybe, with a recent kernel, check whether executable
-> module pages show up with a second writable mapping in the
-> "kernel_page_tables" file in debugfs?
-> 
+>> ISTR that iscsi doesn't work when running a 64-bit kernel with a
+>> 32-bit userspace. I remember someone offered kernel patches to fix it,
+>> but I think they were rejected. I haven't messed with that stuff in
+>> many years, so perhaps the userspace side now has accommodation for
+>> it. It might be something to check on.
+>
+> IPSEC doesn't work with a 64bit kernel and 32bit userspace right now.
+>
+> Back in 2015 someone started to work on that, and properly marked that
+> the kernel could not handle this with commit 74005991b78a ("xfrm: Do not
+> parse 32bits compiled xfrm netlink msg on 64bits host")
+>
+> This is starting to be hit by some Android systems that are moving
+> (yeah, slowly) to 4.4 :(
 
-No, arm64 doesn't fixup the aliases, mostly because arm64 uses larger
-page sizes which can't be broken down at runtime. CONFIG_PAGE_POISONING
-does use 4K pages which could be adjusted at runtime. So yes, you are
-right we would have physmap exposure on arm64 as well.
+Does anybody have test-programs/harnesses for this?
 
-To the original question, it does sound like we are actually okay
-with the physmap.
+This is an area I care deeply about: I really want people to not have
+any excuses for not upgrading to a 64-bit kernel.  It used to be
+autofs (I actually added that whole "packetized pipe" model just to
+make automount "just w ork" even though the stupid protocol used a
+pipe to send command packets that had different layout on 32-bit and
+64-bit).
 
-Thanks,
-Laura
+See commit 64f371bc3107 ("autofs: make the autofsv5 packet file
+descriptor use a packetized pipe") for some discussion of that
+particular saga.
+
+Some drm people used to run 32-bit kernels because of compat worries,
+and that would have been a disaster. They got very good about not
+having compat issues.
+
+So let's try to fix the iscsi and ipsec issues. Not that anybody sane
+should use that overly complex ipsec thing, and I think we should
+strive to merge WireGuard and get people moved over to that instead,
+but I haven't heard anything from davem about it since I last asked..
+I have some hope that it's slowly happening.
+
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
