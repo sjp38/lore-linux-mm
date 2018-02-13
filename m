@@ -1,84 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 511926B0003
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 05:13:32 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id t6so5099211wrc.12
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 02:13:32 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 26F4C6B0003
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 05:16:17 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id 137so3977432wml.0
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 02:16:17 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a69si4922772wme.273.2018.02.13.02.13.30
+        by mx.google.com with ESMTPS id 6si344975wrn.544.2018.02.13.02.16.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 13 Feb 2018 02:13:31 -0800 (PST)
-Date: Tue, 13 Feb 2018 11:13:29 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,vmscan: don't pretend forward progress upon
- shrinker_rwsem contention
-Message-ID: <20180213101329.GN3443@dhcp22.suse.cz>
-References: <1518184544-3293-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        Tue, 13 Feb 2018 02:16:15 -0800 (PST)
+Date: Tue, 13 Feb 2018 11:16:15 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/page_poison: move PAGE_POISON to page_poison.c
+Message-ID: <20180213101615.GO3443@dhcp22.suse.cz>
+References: <1518163694-27155-1-git-send-email-wei.w.wang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1518184544-3293-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1518163694-27155-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@gmail.com>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, mst@redhat.com, akpm@linux-foundation.org
 
-[Fix Glauber's email]
+On Fri 09-02-18 16:08:14, Wei Wang wrote:
+> The PAGE_POISON macro is used in page_poison.c only, so avoid exporting
+> it. Also remove the "mm/debug-pagealloc.c" related comment, which is
+> obsolete.
 
-On Fri 09-02-18 22:55:44, Tetsuo Handa wrote:
-> Since we no longer use return value of shrink_slab() for normal reclaim,
-> the comment is no longer true. If some do_shrink_slab() call takes
-> unexpectedly long (root cause of stall is currently unknown) when
-> register_shrinker()/unregister_shrinker() is pending, trying to drop
-> caches via /proc/sys/vm/drop_caches could become infinite cond_resched()
-> loop if many mem_cgroup are defined. For safety, let's not pretend forward
-> progress.
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Dave Chinner <dchinner@redhat.com>
-> Cc: Glauber Costa <glommer@parallels.com>
-> Cc: Mel Gorman <mgorman@suse.de>
+Why is this an improvement? I thought the whole point of poison.h is to
+keep all the poison value at a single place to make them obviously
+unique.
 
-Yes, this makes sense to me. The whole "let's pretend we made some
-progress" was an ugly hack IMHO.
-
-Acked-by: Michal Hocko <mhocko@suse.ccom>
-
+> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Michael S. Tsirkin <mst@redhat.com>
 > ---
->  mm/vmscan.c | 10 +---------
->  1 file changed, 1 insertion(+), 9 deletions(-)
+>  include/linux/poison.h | 7 -------
+>  mm/page_poison.c       | 6 ++++++
+>  2 files changed, 6 insertions(+), 7 deletions(-)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 4447496..17da5a5 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -442,16 +442,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
->  		return 0;
+> diff --git a/include/linux/poison.h b/include/linux/poison.h
+> index 15927eb..348bf67 100644
+> --- a/include/linux/poison.h
+> +++ b/include/linux/poison.h
+> @@ -30,13 +30,6 @@
+>   */
+>  #define TIMER_ENTRY_STATIC	((void *) 0x300 + POISON_POINTER_DELTA)
 >  
-> -	if (!down_read_trylock(&shrinker_rwsem)) {
-> -		/*
-> -		 * If we would return 0, our callers would understand that we
-> -		 * have nothing else to shrink and give up trying. By returning
-> -		 * 1 we keep it going and assume we'll be able to shrink next
-> -		 * time.
-> -		 */
-> -		freed = 1;
-> +	if (!down_read_trylock(&shrinker_rwsem))
->  		goto out;
-> -	}
+> -/********** mm/debug-pagealloc.c **********/
+> -#ifdef CONFIG_PAGE_POISONING_ZERO
+> -#define PAGE_POISON 0x00
+> -#else
+> -#define PAGE_POISON 0xaa
+> -#endif
+> -
+>  /********** mm/page_alloc.c ************/
 >  
->  	list_for_each_entry(shrinker, &shrinker_list, list) {
->  		struct shrink_control sc = {
+>  #define TAIL_MAPPING	((void *) 0x400 + POISON_POINTER_DELTA)
+> diff --git a/mm/page_poison.c b/mm/page_poison.c
+> index e83fd44..8aaf076 100644
+> --- a/mm/page_poison.c
+> +++ b/mm/page_poison.c
+> @@ -7,6 +7,12 @@
+>  #include <linux/poison.h>
+>  #include <linux/ratelimit.h>
+>  
+> +#ifdef CONFIG_PAGE_POISONING_ZERO
+> +#define PAGE_POISON 0x00
+> +#else
+> +#define PAGE_POISON 0xaa
+> +#endif
+> +
+>  static bool want_page_poisoning __read_mostly;
+>  
+>  static int early_page_poison_param(char *buf)
 > -- 
-> 1.8.3.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 2.7.4
 
 -- 
 Michal Hocko
