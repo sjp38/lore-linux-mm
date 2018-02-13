@@ -1,158 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 045456B0005
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 17:20:04 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id 137so5009807wml.0
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 14:20:03 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t15sor5407251wrb.59.2018.02.13.14.20.02
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C7B06B0005
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 17:34:00 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id e33so13298579uae.22
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 14:34:00 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id d185si2972267vkg.151.2018.02.13.14.33.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 13 Feb 2018 14:20:02 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Feb 2018 14:33:59 -0800 (PST)
+Subject: Re: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB
+ hugepage
+References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
+ <1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <87inbbjx2w.fsf@e105922-lin.cambridge.arm.com>
+ <20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp>
+ <87fu6bfytm.fsf@e105922-lin.cambridge.arm.com>
+ <20180208121749.0ac09af2b5a143106f339f55@linux-foundation.org>
+ <87wozhvc49.fsf@concordia.ellerman.id.au>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <e673f38a-9e5f-21f6-421b-b3cb4ff02e91@oracle.com>
+Date: Tue, 13 Feb 2018 14:33:33 -0800
 MIME-Version: 1.0
-In-Reply-To: <CAOQ4uxghwNg9Ni23EQA-971-qAaTNceSZS2MSvK06uEjoXG_yg@mail.gmail.com>
-References: <20171030124358.GF23278@quack2.suse.cz> <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
- <20171031101238.GD8989@quack2.suse.cz> <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
- <10924085-6275-125f-d56b-547d734b6f4e@alibaba-inc.com> <20171114093909.dbhlm26qnrrb2ww4@dhcp22.suse.cz>
- <afa2dc80-16a3-d3d1-5090-9430eaafc841@alibaba-inc.com> <20171115093131.GA17359@quack2.suse.cz>
- <CALvZod6HJO73GUfLemuAXJfr4vZ8xMOmVQpFO3vJRog-s2T-OQ@mail.gmail.com>
- <CAOQ4uxg-mTgQfTv-qO6EVwfttyOy+oFyAHyFDKTQsDOkQPyyfA@mail.gmail.com>
- <20180124103454.ibuqt3njaqbjnrfr@quack2.suse.cz> <CAOQ4uxhDpBBUrr0JWRBaNQTTaUeJ4=gnM0iij2KivaGgp1ggtg@mail.gmail.com>
- <CALvZod4PyqfaqgEswegF5uOjNwVwbY1C4ptJB0Ouvgchv2aVFg@mail.gmail.com>
- <CAOQ4uxhyZNghjQU5atNv5xtgdHzA75UayphCyQDzxjM8GDTv3Q@mail.gmail.com>
- <CALvZod5H4eL=YtZ3zkGG3p8gD+3=qnC3siUw1zpKL+128KufAA@mail.gmail.com>
- <CAOQ4uxgJqn0CJaf=LMH-iv2g1MJZwPM97K6iCtzrcY3eoN6KjA@mail.gmail.com>
- <CAOQ4uxjgKUFJ_uhyrQdcTs1FzcN6JrR_JpPc9QBrGJEU+cf65w@mail.gmail.com>
- <CALvZod45r7oW=HWH7KJyvFhJWB=6+Si54JK7E0Mx_2gLTZd1Pg@mail.gmail.com> <CAOQ4uxghwNg9Ni23EQA-971-qAaTNceSZS2MSvK06uEjoXG_yg@mail.gmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 13 Feb 2018 14:20:00 -0800
-Message-ID: <CALvZod7FTNzoGfGnaorqjk4KEsxJFdz1pApHi04P1cF10ejxpQ@mail.gmail.com>
-Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <87wozhvc49.fsf@concordia.ellerman.id.au>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Yang Shi <yang.s@alibaba-inc.com>, Michal Hocko <mhocko@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Punit Agrawal <punit.agrawal@arm.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
 
-On Tue, Feb 13, 2018 at 1:54 PM, Amir Goldstein <amir73il@gmail.com> wrote:
-> On Tue, Feb 13, 2018 at 11:10 PM, Shakeel Butt <shakeelb@google.com> wrote:
->> On Mon, Feb 12, 2018 at 10:30 PM, Amir Goldstein <amir73il@gmail.com> wrote:
->>> On Thu, Jan 25, 2018 at 10:36 PM, Amir Goldstein <amir73il@gmail.com> wrote:
->>>> On Thu, Jan 25, 2018 at 10:20 PM, Shakeel Butt <shakeelb@google.com> wrote:
->>>>> On Wed, Jan 24, 2018 at 11:51 PM, Amir Goldstein <amir73il@gmail.com> wrote:
->>>>>>
->>>>>> There is a nicer alternative, instead of failing the file access,
->>>>>> an overflow event can be queued. I sent a patch for that and Jan
->>>>>> agreed to the concept, but thought we should let user opt-in for this
->>>>>> change:
->>>>>> https://marc.info/?l=linux-fsdevel&m=150944704716447&w=2
->>>>>>
->>>>>> So IMO, if user opts-in for OVERFLOW instead of ENOMEM,
->>>>>> charging the listener memcg would be non controversial.
->>>>>> Otherwise, I cannot say that starting to charge the listener memgc
->>>>>> for events won't break any application.
->>>>>>
->>>>>
->>>
->>> Shakeel, Jan,
->>>
->>> Reviving this thread and adding linux-api, because I think it is important to
->>> agree on the API before patches.
->>>
->>> The last message on the thread you referenced suggest an API change
->>> for opting in for Q_OVERFLOW on ENOMEM:
->>> https://marc.info/?l=linux-api&m=150946878623441&w=2
->>>
->>> However, the suggested API change in in fanotify_mark() syscall and
->>> this is not the time when fsnotify_group is initialized.
->>> I believe for opting-in to accounting events for listener, you
->>> will need to add an opt-in flag for the fanotify_init() syscall.
->>>
+On 02/12/2018 06:48 PM, Michael Ellerman wrote:
+> Andrew Morton <akpm@linux-foundation.org> writes:
+> 
+>> On Thu, 08 Feb 2018 12:30:45 +0000 Punit Agrawal <punit.agrawal@arm.com> wrote:
 >>
->> I thought the reason to opt-in "charge memory to listener" was the
->> risk of oom-killing the listener but it is now clear that there will
->> be no oom-kills on memcg hitting its limit (no oom-killing listener
->> risk). In my (not so strong) opinion we should only opt-in for
->> receiving the {FAN|IN}_Q_OVERFLOW event on ENOMEM but always charge
->> the memory for events to the listener's memcg if kmem accounting is
->> enabled.
->>
->
-> I agree that charging listener's memcg is preferred, but it is still a change
-> of behavior, because if attacker can allocate memory from listener's memcg,
-> then attacker can force overflow and hide the traces of its own filesystem
-> operations.
->
-
-ACK.
-
->>> Something like FAN_GROUP_QUEUE  (better name is welcome)
->>> which is mutually exclusive (?) with FAN_UNLIMITED_QUEUE.
+>>>>
+>>>> So I don't think that the above test result means that errors are properly
+>>>> handled, and the proposed patch should help for arm64.
 >>>
-
-How about FAN_CHARGE_MEMCG?
-
->>
->> There is no need to make them mutually exclusive. One should be able
->> to request an unlimited queue limited by available memory on system
->> (with no kmem charging) or limited by limit of the listener's memcg
->> (with kmem charging).
->
-> OK.
->
->>
->>> The question is, do we need the user to also explicitly opt-in for
->>> Q_OVERFLOW on ENOMEM with FAN_Q_ERR mark mask?
->>> Should these 2 new APIs be coupled or independent?
+>>> Although, the deviation of pud_huge() avoids a kernel crash the code
+>>> would be easier to maintain and reason about if arm64 helpers are
+>>> consistent with expectations by core code.
 >>>
+>>> I'll look to update the arm64 helpers once this patch gets merged. But
+>>> it would be helpful if there was a clear expression of semantics for
+>>> pud_huge() for various cases. Is there any version that can be used as
+>>> reference?
 >>
->> Are there any error which are not related to queue overflows? I see
->> the mention of ENODEV and EOVERFLOW in the discussion. If there are
->> such errors and might be interesting to the listener then we should
->> have 2 independent APIs.
+>> Is that an ack or tested-by?
 >>
->
-> These are indeed 2 different use cases.
-> A Q_OVERFLOW event is only expected one of ENOMEM or
-> EOVERFLOW in event->fd, but other events (like open of special device
-> file) can have ENODEV in event->fd.
->
-> But I am not convinced that those require 2 independent APIs.
-> Specifying FAN_Q_ERR means that the user expects to reads errors
-> from event->fd.
->
+>> Mike keeps plaintively asking the powerpc developers to take a look,
+>> but they remain steadfastly in hiding.
+> 
+> Cc'ing linuxppc-dev is always a good idea :)
+> 
 
-Can you please explain what you mean by 2 independent APIs? I thought
-"no independent APIs" means FAN_Q_ERR can only be used with
-FAN_Q_OVERFLOW and without FAN_Q_OVERFLOW, FAN_Q_ERR is ignored. Is
-that right or I misunderstood?
+Thanks Michael,
 
->>> Another question is whether FAN_GROUP_QUEUE may require
->>> less than CAP_SYS_ADMIN? Of course for now, this is only a
->>> semantic change, because fanotify_init() requires CAP_SYS_ADMIN
->>> but as the documentation suggests, this may be relaxed in the future.
->>>
->>
->> I think there is no need for imposing CAP_SYS_ADMIN for requesting to
->> charge self for the event memory.
->>
->
-> Certainly. The question is whether the flag combination
-> FAN_GROUP_QUEUE|FAN_UNLIMITED_QUEUE could relax the
-> CAP_SYS_ADMIN requirement that is imposed by FAN_UNLIMITED_QUEUE
-> by itself.
->
+I was mostly concerned about use cases for soft/hard offline of huge pages
+larger than PMD_SIZE on powerpc.  I know that powerpc supports PGD_SIZE
+huge pages, and soft/hard offline support was specifically added for this.
+See, 94310cbcaa3c "mm/madvise: enable (soft|hard) offline of HugeTLB pages
+at PGD level"
 
-Oh, I agree with relaxing CAP_SYS_ADMIN requirement if both flags are given.
+This patch will disable that functionality.  So, at a minimum this is a
+'heads up'.  If there are actual use cases that depend on this, then more
+work/discussions will need to happen.  From the e-mail thread on PGD_SIZE
+support, I can not tell if there is a real use case or this is just a
+'nice to have'.
 
-> Note that FAN_UNLIMITED_MARKS cannot relax CAP_SYS_ADMIN
-> even though marks are already accounted to listener memcg. This is because
-> most of the memory consumption in this case comes from marks pinning the
-> watched inodes to cache and not from the marks themselves.
->
+-- 
+Mike Kravetz
 
-thanks,
-Shakeel
+>> Folks, this patch fixes a BUG and is marked for -stable.  Can we please
+>> prioritize it?
+> 
+> It's not crashing for me (on 4.16-rc1):
+> 
+>   # ./huge-poison 
+>   Poisoning page...once
+>   Poisoning page...once again
+>   madvise: Bad address
+> 
+> And I guess the above is the expected behaviour?
+> 
+> Looking at the function trace it looks like the 2nd madvise is going
+> down reasonable code paths, but I don't know for sure:
+> 
+>   8)               |  SyS_madvise() {
+>   8)               |    capable() {
+>   8)               |      ns_capable_common() {
+>   8)   0.094 us    |        cap_capable();
+>   8)   0.516 us    |      }
+>   8)   1.052 us    |    }
+>   8)               |    get_user_pages_fast() {
+>   8)   0.354 us    |      gup_pgd_range();
+>   8)               |      get_user_pages_unlocked() {
+>   8)   0.050 us    |        down_read();
+>   8)               |        __get_user_pages() {
+>   8)               |          find_extend_vma() {
+>   8)               |            find_vma() {
+>   8)   0.148 us    |              vmacache_find();
+>   8)   0.622 us    |            }
+>   8)   1.064 us    |          }
+>   8)   0.028 us    |          arch_vma_access_permitted();
+>   8)               |          follow_hugetlb_page() {
+>   8)               |            huge_pte_offset() {
+>   8)   0.128 us    |              __find_linux_pte();
+>   8)   0.580 us    |            }
+>   8)   0.048 us    |            _raw_spin_lock();
+>   8)               |            hugetlb_fault() {
+>   8)               |              huge_pte_offset() {
+>   8)   0.034 us    |                __find_linux_pte();
+>   8)   0.434 us    |              }
+>   8)   0.028 us    |              is_hugetlb_entry_migration();
+>   8)   0.032 us    |              is_hugetlb_entry_hwpoisoned();
+>   8)   2.118 us    |            }
+>   8)   4.940 us    |          }
+>   8)   7.468 us    |        }
+>   8)   0.056 us    |        up_read();
+>   8)   8.722 us    |      }
+>   8) + 10.264 us   |    }
+>   8) + 12.212 us   |  }
+> 
+> 
+> cheers
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
