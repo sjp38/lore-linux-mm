@@ -1,58 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C2A7E6B0003
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 13:10:17 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id p127so9559176oic.21
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 10:10:17 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l3sor4614175oii.227.2018.02.13.10.10.16
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5002A6B0003
+	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 13:40:56 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id v68so17149428qki.13
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 10:40:56 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g4sor318783qke.29.2018.02.13.10.40.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Feb 2018 10:10:16 -0800 (PST)
-Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
-References: <20180124175631.22925-1-igor.stoppa@huawei.com>
- <20180124175631.22925-5-igor.stoppa@huawei.com>
- <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
- <20180126053542.GA30189@bombadil.infradead.org>
- <alpine.DEB.2.20.1802021236510.31548@nuc-kabylake>
- <f2ddaed0-313e-8664-8a26-9d10b66ed0c5@huawei.com>
- <b75b5903-0177-8ad9-5c2b-fc63438fb5f2@huawei.com>
- <CAFUG7CfrCpcbwgf5ixMC5EZZgiVVVp1NXhDHK1UoJJcC08R2qQ@mail.gmail.com>
- <8818bfd4-dd9f-f279-0432-69b59531bd41@huawei.com>
- <CAFUG7CeUhFcvA82uZ2ZH1j_6PM=aBo4XmYDN85pf8G0gPU44dg@mail.gmail.com>
- <17e5b515-84c8-dca2-1695-cdf819834ea2@huawei.com>
- <CAGXu5j+LS1pgOOroi7Yxp2nh=DwtTnU3p-NZa6bQu_wkvvVkwg@mail.gmail.com>
- <414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com>
- <5a83024c.64369d0a.a1e94.cdd6SMTPIN_ADDED_BROKEN@mx.google.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <13a50f85-bbd8-5d78-915a-a29c4a9f0c32@redhat.com>
-Date: Tue, 13 Feb 2018 10:10:13 -0800
+        Tue, 13 Feb 2018 10:40:55 -0800 (PST)
+Subject: Re: [PATCH 00/11] KASan for arm
+References: <20171011082227.20546-1-liuwenliang@huawei.com>
+From: Florian Fainelli <f.fainelli@gmail.com>
+Message-ID: <09f86876-2247-1d2c-b195-76d8b34d0aff@gmail.com>
+Date: Tue, 13 Feb 2018 10:40:38 -0800
 MIME-Version: 1.0
-In-Reply-To: <5a83024c.64369d0a.a1e94.cdd6SMTPIN_ADDED_BROKEN@mx.google.com>
-Content-Type: text/plain; charset=gbk; format=flowed
+In-Reply-To: <20171011082227.20546-1-liuwenliang@huawei.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>, Kees Cook <keescook@chromium.org>
-Cc: Boris Lukashev <blukashev@sempervictus.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Abbott Liu <liuwenliang@huawei.com>, linux@armlinux.org.uk, aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org
+Cc: glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
 
-On 02/13/2018 07:20 AM, Igor Stoppa wrote:
-> Why alterations of page properties are not considered a risk and the physmap is?
-> And how would it be easier (i suppose) to attack the latter?
+Hi Abbott,
 
-Alterations are certainly a risk but with the physmap the
-mapping is already there. Find the address and you have
-access vs. needing to actually modify the properties
-then do the access. I could also be complete off base
-on my threat model here so please correct me if I'm
-wrong.
+On 10/11/2017 01:22 AM, Abbott Liu wrote:
+> Hi,all:
+>    These patches add arch specific code for kernel address sanitizer 
+> (see Documentation/kasan.txt). 
+> 
+>    1/8 of kernel addresses reserved for shadow memory. There was no 
+> big enough hole for this, so virtual addresses for shadow were 
+> stolen from user space.
+>    
+>    At early boot stage the whole shadow region populated with just 
+> one physical page (kasan_zero_page). Later, this page reused 
+> as readonly zero shadow for some memory that KASan currently 
+> don't track (vmalloc). 
+> 
+>   After mapping the physical memory, pages for shadow memory are 
+> allocated and mapped. 
+> 
+>   KASan's stack instrumentation significantly increases stack's 
+> consumption, so CONFIG_KASAN doubles THREAD_SIZE.
+>   
+>   Functions like memset/memmove/memcpy do a lot of memory accesses. 
+> If bad pointer passed to one of these function it is important 
+> to catch this. Compiler's instrumentation cannot do this since 
+> these functions are written in assembly. 
+> 
+>   KASan replaces memory functions with manually instrumented variants. 
+> Original functions declared as weak symbols so strong definitions 
+> in mm/kasan/kasan.c could replace them. Original functions have aliases 
+> with '__' prefix in name, so we could call non-instrumented variant 
+> if needed. 
+> 
+>   Some files built without kasan instrumentation (e.g. mm/slub.c). 
+> Original mem* function replaced (via #define) with prefixed variants 
+> to disable memory access checks for such files. 
+> 
+>   On arm LPAE architecture,  the mapping table of KASan shadow memory(if 
+> PAGE_OFFSET is 0xc0000000, the KASan shadow memory's virtual space is 
+> 0xb6e000000~0xbf000000) can't be filled in do_translation_fault function, 
+> because kasan instrumentation maybe cause do_translation_fault function 
+> accessing KASan shadow memory. The accessing of KASan shadow memory in 
+> do_translation_fault function maybe cause dead circle. So the mapping table 
+> of KASan shadow memory need be copyed in pgd_alloc function.
+> 
+> 
+> Most of the code comes from:
+> https://github.com/aryabinin/linux/commit/0b54f17e70ff50a902c4af05bb92716eb95acefe.
 
-I think your other summaries are good points though
-and should go in the cover letter.
-
-Thanks,
-Laura
+Are you planning on picking up these patches and sending a second
+version? I would be more than happy to provide test results once you
+have something, this is very useful, thank you!
+-- 
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
