@@ -1,76 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BCAC86B0006
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:31:38 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id w24so11285612plq.11
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 10:31:38 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id bd1-v6si9275565plb.69.2018.02.14.10.31.37
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FBE36B000A
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:47:43 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id t192so20697989iof.6
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 10:47:43 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0197.hostedemail.com. [216.40.44.197])
+        by mx.google.com with ESMTPS id d31si1484348ioj.98.2018.02.14.10.47.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Feb 2018 10:31:37 -0800 (PST)
-Subject: Re: [RFC PATCH V2 00/22] Intel(R) Resource Director Technology Cache
- Pseudo-Locking enabling
-References: <cover.1518443616.git.reinette.chatre@intel.com>
- <e0d59d83-14a1-6059-6f0b-da47b3b7de31@oracle.com>
-From: Reinette Chatre <reinette.chatre@intel.com>
-Message-ID: <29d1be82-9fc8-ecde-a5ee-4eafc92e39f1@intel.com>
-Date: Wed, 14 Feb 2018 10:31:36 -0800
-MIME-Version: 1.0
-In-Reply-To: <e0d59d83-14a1-6059-6f0b-da47b3b7de31@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        Wed, 14 Feb 2018 10:47:42 -0800 (PST)
+Message-ID: <1518634058.3678.15.camel@perches.com>
+Subject: Re: [PATCH 0/2] Add kvzalloc_struct to complement kvzalloc_array
+From: Joe Perches <joe@perches.com>
+Date: Wed, 14 Feb 2018 10:47:38 -0800
+In-Reply-To: <20180214182618.14627-1-willy@infradead.org>
+References: <20180214182618.14627-1-willy@infradead.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, tglx@linutronix.de, fenghua.yu@intel.com, tony.luck@intel.com
-Cc: gavin.hindman@intel.com, vikas.shivappa@linux.intel.com, dave.hansen@intel.com, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-Hi Mike,
-
-On 2/14/2018 10:12 AM, Mike Kravetz wrote:
-> On 02/13/2018 07:46 AM, Reinette Chatre wrote:
->> Adding MM maintainers to v2 to share the new MM change (patch 21/22) that
->> enables large contiguous regions that was created to support large Cache
->> Pseudo-Locked regions (patch 22/22). This week MM team received another
->> proposal to support large contiguous allocations ("[RFC PATCH 0/3]
->> Interface for higher order contiguous allocations" at
->> http://lkml.kernel.org/r/20180212222056.9735-1-mike.kravetz@oracle.com).
->> I have not yet tested with this new proposal but it does seem appropriate
->> and I should be able to rework patch 22 from this series on top of that if
->> it is accepted instead of what I have in patch 21 of this series.
->>
+On Wed, 2018-02-14 at 10:26 -0800, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> Well, I certainly would prefer the adoption and use of a more general
-> purpose interface rather than exposing alloc_gigantic_page().
+> We all know the perils of multiplying a value provided from userspace
+> by a constant and then allocating the resulting number of bytes.  That's
+> why we have kvmalloc_array(), so we don't have to think about it.
+> This solves the same problem when we embed one of these arrays in a
+> struct like this:
 > 
-> Both the interface I suggested and alloc_gigantic_page end up calling
-> alloc_contig_range().  I have not looked at your entire patch series, but
-> do be aware that in its present form alloc_contig_range will run into
-> issues if called by two threads simultaneously for the same page range.
-> Calling alloc_gigantic_page without some form of synchronization will
-> expose this issue.  Currently this is handled by hugetlb_lock for all
-> users of alloc_gigantic_page.  If you simply expose alloc_gigantic_page
-> without any type of synchronization, you may run into issues.  The first
-> patch in my RFC "mm: make start_isolate_page_range() fail if already
-> isolated" should handle this situation IF we decide to expose
-> alloc_gigantic_page (which I do not suggest).
+> struct {
+> 	int n;
+> 	unsigned long array[];
+> };
 
-My work depends on the ability to create large contiguous regions,
-creating these large regions is not the goal in itself. Certainly I
-would want to use the most appropriate mechanism and I would gladly
-modify my work to do so.
-
-I do not insist on using alloc_gigantic_page(). Now that I am aware of
-your RFC I started the process to convert to the new
-find_alloc_contig_pages(). I did not do so earlier because it was not
-available when I prepared this work for submission. I plan to respond to
-your RFC when my testing is complete but please give me a few days to do
-so. Could you please also cc me if you do send out any new versions?
-
-Thank you very much!
-
-Reinette
+I think expanding the number of allocation functions
+is not necessary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
