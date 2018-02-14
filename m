@@ -1,350 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C65666B000E
-	for <linux-mm@kvack.org>; Tue, 13 Feb 2018 21:58:21 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id w16so10320676plp.20
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 18:58:21 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E79196B0003
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 00:08:49 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id i8so1356690pgv.23
+        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 21:08:49 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m26-v6sor1258529pli.33.2018.02.13.18.58.20
+        by mx.google.com with SMTPS id s12sor140420pgf.286.2018.02.13.21.08.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Feb 2018 18:58:20 -0800 (PST)
-From: Shakeel Butt <shakeelb@google.com>
-Subject: [RFC PATCH 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
-Date: Tue, 13 Feb 2018 18:56:53 -0800
-Message-Id: <20180214025653.132942-4-shakeelb@google.com>
-In-Reply-To: <20180214025653.132942-1-shakeelb@google.com>
-References: <20180214025653.132942-1-shakeelb@google.com>
+        Tue, 13 Feb 2018 21:08:48 -0800 (PST)
+Date: Wed, 14 Feb 2018 14:08:43 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v3 1/1] mm: initialize pages on demand during boot
+Message-ID: <20180214050843.GA2811@jagdpanzerIV>
+References: <20180209192216.20509-1-pasha.tatashin@oracle.com>
+ <20180209192216.20509-2-pasha.tatashin@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180209192216.20509-2-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, m.mizuma@jp.fujitsu.com, akpm@linux-foundation.org, mhocko@suse.com, catalin.marinas@arm.com, takahiro.akashi@linaro.org, gi-oh.kim@profitbricks.com, heiko.carstens@de.ibm.com, baiyaowei@cmss.chinamobile.com, richard.weiyang@gmail.com, paul.burton@mips.com, miles.chen@mediatek.com, vbabka@suse.cz, mgorman@suse.de, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This is RFC patch and the discussion on the API is still happening at
-the following link but I am sending the early draft for feedback.
-[link] https://marc.info/?l=linux-api&m=151850343717274
+On (02/09/18 14:22), Pavel Tatashin wrote:
+[..]
+> +/*
+> + * If this zone has deferred pages, try to grow it by initializing enough
+> + * deferred pages to satisfy the allocation specified by order, rounded up to
+> + * the nearest PAGES_PER_SECTION boundary.  So we're adding memory in increments
+> + * of SECTION_SIZE bytes by initializing struct pages in increments of
+> + * PAGES_PER_SECTION * sizeof(struct page) bytes.
+> + *
+> + * Return true when zone was grown by at least number of pages specified by
+> + * order. Otherwise return false.
+> + *
+> + * Note: We use noinline because this function is needed only during boot, and
+> + * it is called from a __ref function _deferred_grow_zone. This way we are
+> + * making sure that it is not inlined into permanent text section.
+> + */
+> +static noinline bool __init
+> +deferred_grow_zone(struct zone *zone, unsigned int order)
+> +{
+> +	int zid = zone_idx(zone);
+> +	int nid = zone->node;
 
-A lot of memory can be consumed by the events generated for the huge or
-unlimited queues if there is either no or slow listener. This can cause
-system level memory pressure or OOMs. So, it's better to account the
-fsnotify kmem caches to the memcg of the listener.
+		^^^^^^^^^
 
-There are seven fsnotify kmem caches and among them allocations from
-dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
-inotify_inode_mark_cachep happens in the context of syscall from the
-listener. So, SLAB_ACCOUNT is enough for these caches. The allocations
-from the remaining caches can happen in the context of the event
-producer. For such caches we will need to remote charge the allocations
-to the listener's memcg. Thus we save the memcg reference in the
-fsnotify_group structure of the listener.
+Should be CONFIG_NUMA dependent
 
-This patch has also moved the members of fsnotify_group to keep the
-size same, at least for 64 bit build, even with additional member by
-filling the holes.
+struct zone {
+...
+#ifdef CONFIG_NUMA
+	int node;
+#endif
+...
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- fs/notify/dnotify/dnotify.c          |  5 +++--
- fs/notify/fanotify/fanotify.c        | 12 +++++++-----
- fs/notify/fanotify/fanotify.h        |  3 ++-
- fs/notify/fanotify/fanotify_user.c   |  8 ++++++--
- fs/notify/group.c                    |  4 ++++
- fs/notify/inotify/inotify_fsnotify.c |  2 +-
- fs/notify/inotify/inotify_user.c     |  5 ++++-
- fs/notify/mark.c                     |  9 ++++++---
- include/linux/fsnotify_backend.h     | 12 ++++++++----
- include/linux/memcontrol.h           |  6 ++++++
- mm/memcontrol.c                      |  2 +-
- 11 files changed, 48 insertions(+), 20 deletions(-)
-
-diff --git a/fs/notify/dnotify/dnotify.c b/fs/notify/dnotify/dnotify.c
-index 63a1ca4b9dee..eb5c41284649 100644
---- a/fs/notify/dnotify/dnotify.c
-+++ b/fs/notify/dnotify/dnotify.c
-@@ -384,8 +384,9 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
- 
- static int __init dnotify_init(void)
- {
--	dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC);
--	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC);
-+	dnotify_struct_cache = KMEM_CACHE(dnotify_struct,
-+					  SLAB_PANIC|SLAB_ACCOUNT);
-+	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
- 
- 	dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
- 	if (IS_ERR(dnotify_group))
-diff --git a/fs/notify/fanotify/fanotify.c b/fs/notify/fanotify/fanotify.c
-index 6702a6a0bbb5..4ffd195ca605 100644
---- a/fs/notify/fanotify/fanotify.c
-+++ b/fs/notify/fanotify/fanotify.c
-@@ -140,22 +140,24 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
- }
- 
- struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
--						 const struct path *path)
-+						 const struct path *path,
-+						 struct mem_cgroup *memcg)
- {
- 	struct fanotify_event_info *event;
- 
- 	if (fanotify_is_perm_event(mask)) {
- 		struct fanotify_perm_event_info *pevent;
- 
--		pevent = kmem_cache_alloc(fanotify_perm_event_cachep,
--					  GFP_KERNEL);
-+		pevent = kmem_cache_alloc_memcg(fanotify_perm_event_cachep,
-+						GFP_KERNEL, memcg);
- 		if (!pevent)
- 			return NULL;
- 		event = &pevent->fae;
- 		pevent->response = 0;
- 		goto init;
- 	}
--	event = kmem_cache_alloc(fanotify_event_cachep, GFP_KERNEL);
-+	event = kmem_cache_alloc_memcg(fanotify_event_cachep, GFP_KERNEL,
-+				       memcg);
- 	if (!event)
- 		return NULL;
- init: __maybe_unused
-@@ -210,7 +212,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
- 			return 0;
- 	}
- 
--	event = fanotify_alloc_event(inode, mask, data);
-+	event = fanotify_alloc_event(inode, mask, data, group->memcg_to_charge);
- 	ret = -ENOMEM;
- 	if (unlikely(!event))
- 		goto finish;
-diff --git a/fs/notify/fanotify/fanotify.h b/fs/notify/fanotify/fanotify.h
-index 256d9d1ddea9..51b797896c87 100644
---- a/fs/notify/fanotify/fanotify.h
-+++ b/fs/notify/fanotify/fanotify.h
-@@ -53,4 +53,5 @@ static inline struct fanotify_event_info *FANOTIFY_E(struct fsnotify_event *fse)
- }
- 
- struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
--						 const struct path *path);
-+						 const struct path *path,
-+						 struct mem_cgroup *memcg);
-diff --git a/fs/notify/fanotify/fanotify_user.c b/fs/notify/fanotify/fanotify_user.c
-index ef08d64c84b8..456c8146843a 100644
---- a/fs/notify/fanotify/fanotify_user.c
-+++ b/fs/notify/fanotify/fanotify_user.c
-@@ -16,6 +16,7 @@
- #include <linux/uaccess.h>
- #include <linux/compat.h>
- #include <linux/sched/signal.h>
-+#include <linux/memcontrol.h>
- 
- #include <asm/ioctls.h>
- 
-@@ -756,8 +757,10 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
- 
- 	group->fanotify_data.user = user;
- 	atomic_inc(&user->fanotify_listeners);
-+	group->memcg_to_charge = get_mem_cgroup_from_mm(current->mm);
- 
--	oevent = fanotify_alloc_event(NULL, FS_Q_OVERFLOW, NULL);
-+	oevent = fanotify_alloc_event(NULL, FS_Q_OVERFLOW, NULL,
-+				      group->memcg_to_charge);
- 	if (unlikely(!oevent)) {
- 		fd = -ENOMEM;
- 		goto out_destroy_group;
-@@ -951,7 +954,8 @@ COMPAT_SYSCALL_DEFINE6(fanotify_mark,
-  */
- static int __init fanotify_user_setup(void)
- {
--	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
-+	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark,
-+					 SLAB_PANIC|SLAB_ACCOUNT);
- 	fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
- 	if (IS_ENABLED(CONFIG_FANOTIFY_ACCESS_PERMISSIONS)) {
- 		fanotify_perm_event_cachep =
-diff --git a/fs/notify/group.c b/fs/notify/group.c
-index b7a4b6a69efa..555a5ec4e882 100644
---- a/fs/notify/group.c
-+++ b/fs/notify/group.c
-@@ -22,6 +22,7 @@
- #include <linux/srcu.h>
- #include <linux/rculist.h>
- #include <linux/wait.h>
-+#include <linux/memcontrol.h>
- 
- #include <linux/fsnotify_backend.h>
- #include "fsnotify.h"
-@@ -36,6 +37,9 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
- 	if (group->ops->free_group_priv)
- 		group->ops->free_group_priv(group);
- 
-+	if (group->memcg_to_charge)
-+		mem_cgroup_put(group->memcg_to_charge);
-+
- 	kfree(group);
- }
- 
-diff --git a/fs/notify/inotify/inotify_fsnotify.c b/fs/notify/inotify/inotify_fsnotify.c
-index 8b73332735ba..6c4a7485d524 100644
---- a/fs/notify/inotify/inotify_fsnotify.c
-+++ b/fs/notify/inotify/inotify_fsnotify.c
-@@ -98,7 +98,7 @@ int inotify_handle_event(struct fsnotify_group *group,
- 	i_mark = container_of(inode_mark, struct inotify_inode_mark,
- 			      fsn_mark);
- 
--	event = kmalloc(alloc_len, GFP_KERNEL);
-+	event = kmalloc_memcg(alloc_len, GFP_KERNEL, group->memcg_to_charge);
- 	if (unlikely(!event))
- 		return -ENOMEM;
- 
-diff --git a/fs/notify/inotify/inotify_user.c b/fs/notify/inotify/inotify_user.c
-index 5c29bf16814f..b1d29b360519 100644
---- a/fs/notify/inotify/inotify_user.c
-+++ b/fs/notify/inotify/inotify_user.c
-@@ -38,6 +38,7 @@
- #include <linux/uaccess.h>
- #include <linux/poll.h>
- #include <linux/wait.h>
-+#include <linux/memcontrol.h>
- 
- #include "inotify.h"
- #include "../fdinfo.h"
-@@ -618,6 +619,7 @@ static struct fsnotify_group *inotify_new_group(unsigned int max_events)
- 	oevent->name_len = 0;
- 
- 	group->max_events = max_events;
-+	group->memcg_to_charge = get_mem_cgroup_from_mm(current->mm);
- 
- 	spin_lock_init(&group->inotify_data.idr_lock);
- 	idr_init(&group->inotify_data.idr);
-@@ -785,7 +787,8 @@ static int __init inotify_user_setup(void)
- 
- 	BUG_ON(hweight32(ALL_INOTIFY_BITS) != 21);
- 
--	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC);
-+	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark,
-+					       SLAB_PANIC|SLAB_ACCOUNT);
- 
- 	inotify_max_queued_events = 16384;
- 	init_user_ns.ucount_max[UCOUNT_INOTIFY_INSTANCES] = 128;
-diff --git a/fs/notify/mark.c b/fs/notify/mark.c
-index e9191b416434..9f0f54dd8a9f 100644
---- a/fs/notify/mark.c
-+++ b/fs/notify/mark.c
-@@ -432,11 +432,13 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
- static int fsnotify_attach_connector_to_object(
- 				struct fsnotify_mark_connector __rcu **connp,
- 				struct inode *inode,
--				struct vfsmount *mnt)
-+				struct vfsmount *mnt,
-+				struct fsnotify_group *group)
- {
- 	struct fsnotify_mark_connector *conn;
- 
--	conn = kmem_cache_alloc(fsnotify_mark_connector_cachep, GFP_KERNEL);
-+	conn = kmem_cache_alloc_memcg(fsnotify_mark_connector_cachep,
-+				      GFP_KERNEL, group->memcg_to_charge);
- 	if (!conn)
- 		return -ENOMEM;
- 	spin_lock_init(&conn->lock);
-@@ -517,7 +519,8 @@ static int fsnotify_add_mark_list(struct fsnotify_mark *mark,
- 	conn = fsnotify_grab_connector(connp);
- 	if (!conn) {
- 		spin_unlock(&mark->lock);
--		err = fsnotify_attach_connector_to_object(connp, inode, mnt);
-+		err = fsnotify_attach_connector_to_object(connp, inode, mnt,
-+							  mark->group);
- 		if (err)
- 			return err;
- 		goto restart;
-diff --git a/include/linux/fsnotify_backend.h b/include/linux/fsnotify_backend.h
-index 067d52e95f02..e1ed0f32ff92 100644
---- a/include/linux/fsnotify_backend.h
-+++ b/include/linux/fsnotify_backend.h
-@@ -84,6 +84,8 @@ struct fsnotify_event_private_data;
- struct fsnotify_fname;
- struct fsnotify_iter_info;
- 
-+struct mem_cgroup;
-+
- /*
-  * Each group much define these ops.  The fsnotify infrastructure will call
-  * these operations for each relevant group.
-@@ -129,6 +131,8 @@ struct fsnotify_event {
-  * everything will be cleaned up.
-  */
- struct fsnotify_group {
-+	const struct fsnotify_ops *ops;	/* how this group handles things */
-+
- 	/*
- 	 * How the refcnt is used is up to each group.  When the refcnt hits 0
- 	 * fsnotify will clean up all of the resources associated with this group.
-@@ -139,8 +143,6 @@ struct fsnotify_group {
- 	 */
- 	refcount_t refcnt;		/* things with interest in this group */
- 
--	const struct fsnotify_ops *ops;	/* how this group handles things */
--
- 	/* needed to send notification to userspace */
- 	spinlock_t notification_lock;		/* protect the notification_list */
- 	struct list_head notification_list;	/* list of event_holder this group needs to send to userspace */
-@@ -162,6 +164,8 @@ struct fsnotify_group {
- 	atomic_t num_marks;		/* 1 for each mark and 1 for not being
- 					 * past the point of no return when freeing
- 					 * a group */
-+	atomic_t user_waits;		/* Number of tasks waiting for user
-+					 * response */
- 	struct list_head marks_list;	/* all inode marks for this group */
- 
- 	struct fasync_struct *fsn_fa;    /* async notification */
-@@ -169,8 +173,8 @@ struct fsnotify_group {
- 	struct fsnotify_event *overflow_event;	/* Event we queue when the
- 						 * notification list is too
- 						 * full */
--	atomic_t user_waits;		/* Number of tasks waiting for user
--					 * response */
-+
-+	struct mem_cgroup *memcg_to_charge; /* memcg to charge allocations */
- 
- 	/* groups can define private fields here or use the void *private */
- 	union {
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 9dec8a5c0ca2..0c877ddae4ef 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -352,6 +352,7 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
- 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
- }
- 
-+struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm);
- static inline void mem_cgroup_put(struct mem_cgroup *memcg)
- {
- 	css_put(&memcg->css);
-@@ -809,6 +810,11 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
- 	return true;
- }
- 
-+static inline struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
-+{
-+	return NULL;
-+}
-+
- static inline void mem_cgroup_put(struct mem_cgroup *memcg)
- {
- }
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 0dcd6ab6cc94..3a72394510a7 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -678,7 +678,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
- }
- EXPORT_SYMBOL(mem_cgroup_from_task);
- 
--static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
-+struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
- {
- 	struct mem_cgroup *memcg = NULL;
- 
--- 
-2.16.1.291.g4437f3f132-goog
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
