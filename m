@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D3F26B0010
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EBAC56B0010
 	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:25:54 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id 4so3772456plb.1
+Received: by mail-pg0-f69.google.com with SMTP id e12so2175542pgu.11
         for <linux-mm@kvack.org>; Wed, 14 Feb 2018 10:25:54 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id t65si2003022pfd.11.2018.02.14.10.25.53
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id k131si980928pgc.101.2018.02.14.10.25.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 14 Feb 2018 10:25:53 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 9/9] x86/mm: Allow to boot without la57 if CONFIG_X86_5LEVEL=y
-Date: Wed, 14 Feb 2018 21:25:42 +0300
-Message-Id: <20180214182542.69302-10-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 5/9] x86/mm: Initialize vmemmap_base at boot-time
+Date: Wed, 14 Feb 2018 21:25:38 +0300
+Message-Id: <20180214182542.69302-6-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180214182542.69302-1-kirill.shutemov@linux.intel.com>
 References: <20180214182542.69302-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,117 +20,63 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-All pieces of the puzzle are in place and we can now allow to boot with
-CONFIG_X86_5LEVEL=y on a machine without la57 support.
-
-Kernel will detect that la57 is missing and fold p4d at runtime.
-
-Update documentation and Kconfig option description to reflect the
-change.
+vmemmap area has different placement depending on paging mode.
+Let's adjust it during early boot accodring to machine capability.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/x86/x86_64/5level-paging.txt |  9 +++------
- arch/x86/Kconfig                           |  4 ++--
- arch/x86/boot/compressed/misc.c            | 16 ----------------
- arch/x86/include/asm/required-features.h   |  8 +-------
- 4 files changed, 6 insertions(+), 31 deletions(-)
+ arch/x86/include/asm/pgtable_64_types.h | 9 +++------
+ arch/x86/kernel/head64.c                | 3 ++-
+ 2 files changed, 5 insertions(+), 7 deletions(-)
 
-diff --git a/Documentation/x86/x86_64/5level-paging.txt b/Documentation/x86/x86_64/5level-paging.txt
-index 087251a0d99c..2432a5ef86d9 100644
---- a/Documentation/x86/x86_64/5level-paging.txt
-+++ b/Documentation/x86/x86_64/5level-paging.txt
-@@ -20,12 +20,9 @@ Documentation/x86/x86_64/mm.txt
- 
- CONFIG_X86_5LEVEL=y enables the feature.
- 
--So far, a kernel compiled with the option enabled will be able to boot
--only on machines that supports the feature -- see for 'la57' flag in
--/proc/cpuinfo.
--
--The plan is to implement boot-time switching between 4- and 5-level paging
--in the future.
-+Kernel with CONFIG_X86_5LEVEL=y still able to boot on 4-level hardware.
-+In this case additional page table level -- p4d -- will be folded at
-+runtime.
- 
- == User-space and large virtual address space ==
- 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 0d780a3ee924..40140378c3e6 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1481,8 +1481,8 @@ config X86_5LEVEL
- 
- 	  It will be supported by future Intel CPUs.
- 
--	  Note: a kernel with this option enabled can only be booted
--	  on machines that support the feature.
-+	  A kernel with the option enabled can be booted on machines that
-+	  support 4- or 5-level paging.
- 
- 	  See Documentation/x86/x86_64/5level-paging.txt for more
- 	  information.
-diff --git a/arch/x86/boot/compressed/misc.c b/arch/x86/boot/compressed/misc.c
-index 98761a1576ce..b50c42455e25 100644
---- a/arch/x86/boot/compressed/misc.c
-+++ b/arch/x86/boot/compressed/misc.c
-@@ -169,16 +169,6 @@ void __puthex(unsigned long value)
- 	}
- }
- 
--static bool l5_supported(void)
--{
--	/* Check if leaf 7 is supported. */
--	if (native_cpuid_eax(0) < 7)
--		return 0;
--
--	/* Check if la57 is supported. */
--	return native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31));
--}
--
- #if CONFIG_X86_NEED_RELOCS
- static void handle_relocations(void *output, unsigned long output_len,
- 			       unsigned long virt_addr)
-@@ -372,12 +362,6 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
- 	console_init();
- 	debug_putstr("early console in extract_kernel\n");
- 
--	if (IS_ENABLED(CONFIG_X86_5LEVEL) && !l5_supported()) {
--		error("This linux kernel as configured requires 5-level paging\n"
--			"This CPU does not support the required 'cr4.la57' feature\n"
--			"Unable to boot - please use a kernel appropriate for your CPU\n");
--	}
--
- 	free_mem_ptr     = heap;	/* Heap */
- 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
- 
-diff --git a/arch/x86/include/asm/required-features.h b/arch/x86/include/asm/required-features.h
-index fb3a6de7440b..6847d85400a8 100644
---- a/arch/x86/include/asm/required-features.h
-+++ b/arch/x86/include/asm/required-features.h
-@@ -53,12 +53,6 @@
- # define NEED_MOVBE	0
- #endif
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 686329994ade..68909a68e5b9 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -108,11 +108,8 @@ extern unsigned int ptrs_per_p4d;
+ #define VMALLOC_SIZE_TB_L4	32UL
+ #define VMALLOC_SIZE_TB_L5	12800UL
  
 -#ifdef CONFIG_X86_5LEVEL
--# define NEED_LA57	(1<<(X86_FEATURE_LA57 & 31))
+-# define __VMEMMAP_BASE		_AC(0xffd4000000000000, UL)
 -#else
--# define NEED_LA57	0
+-# define __VMEMMAP_BASE		_AC(0xffffea0000000000, UL)
 -#endif
--
- #ifdef CONFIG_X86_64
- #ifdef CONFIG_PARAVIRT
- /* Paravirtualized systems may not have PSE or PGE available */
-@@ -104,7 +98,7 @@
- #define REQUIRED_MASK13	0
- #define REQUIRED_MASK14	0
- #define REQUIRED_MASK15	0
--#define REQUIRED_MASK16	(NEED_LA57)
-+#define REQUIRED_MASK16	0
- #define REQUIRED_MASK17	0
- #define REQUIRED_MASK18	0
- #define REQUIRED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 19)
++#define __VMEMMAP_BASE_L4	0xffffea0000000000
++#define __VMEMMAP_BASE_L5	0xffd4000000000000
+ 
+ #ifdef CONFIG_DYNAMIC_MEMORY_LAYOUT
+ # define VMALLOC_START		vmalloc_base
+@@ -121,7 +118,7 @@ extern unsigned int ptrs_per_p4d;
+ #else
+ # define VMALLOC_START		__VMALLOC_BASE_L4
+ # define VMALLOC_SIZE_TB	VMALLOC_SIZE_TB_L4
+-# define VMEMMAP_START		__VMEMMAP_BASE
++# define VMEMMAP_START		__VMEMMAP_BASE_L4
+ #endif /* CONFIG_DYNAMIC_MEMORY_LAYOUT */
+ 
+ #define VMALLOC_END		(VMALLOC_START + (VMALLOC_SIZE_TB << 40) - 1)
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index 22bf2015254c..795e762f3c66 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -53,7 +53,7 @@ unsigned long page_offset_base __ro_after_init = __PAGE_OFFSET_BASE_L4;
+ EXPORT_SYMBOL(page_offset_base);
+ unsigned long vmalloc_base __ro_after_init = __VMALLOC_BASE_L4;
+ EXPORT_SYMBOL(vmalloc_base);
+-unsigned long vmemmap_base __ro_after_init = __VMEMMAP_BASE;
++unsigned long vmemmap_base __ro_after_init = __VMEMMAP_BASE_L4;
+ EXPORT_SYMBOL(vmemmap_base);
+ #endif
+ 
+@@ -88,6 +88,7 @@ static void __head check_la57_support(unsigned long physaddr)
+ 	*fixup_int(&ptrs_per_p4d, physaddr) = 512;
+ 	*fixup_long(&page_offset_base, physaddr) = __PAGE_OFFSET_BASE_L5;
+ 	*fixup_long(&vmalloc_base, physaddr) = __VMALLOC_BASE_L5;
++	*fixup_long(&vmemmap_base, physaddr) = __VMEMMAP_BASE_L5;
+ }
+ #else
+ static void __head check_la57_support(unsigned long physaddr) {}
 -- 
 2.15.1
 
