@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A25D6B0009
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D1AF86B0007
 	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:25:51 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id f4so11319175plr.14
+Received: by mail-pg0-f72.google.com with SMTP id a2so2182286pgn.7
         for <linux-mm@kvack.org>; Wed, 14 Feb 2018 10:25:51 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id l1si140806pgc.548.2018.02.14.10.25.49
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id b9si1651107pff.42.2018.02.14.10.25.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 14 Feb 2018 10:25:50 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 1/9] x86/mm: Initialize pgtable_l5_enabled at boot-time
-Date: Wed, 14 Feb 2018 21:25:34 +0300
-Message-Id: <20180214182542.69302-2-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 4/9] x86/mm: Adjust vmalloc base and size at boot-time
+Date: Wed, 14 Feb 2018 21:25:37 +0300
+Message-Id: <20180214182542.69302-5-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180214182542.69302-1-kirill.shutemov@linux.intel.com>
 References: <20180214182542.69302-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,90 +20,98 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-pgtable_l5_enabled indicates which paging mode we are using. We need to
-initialize it at boot-time according to machine capability.
+vmalloc area has different placement and size depending on paging mode.
+Let's adjust it during early boot accodring to machine capability.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/boot/compressed/kaslr.c |  8 +++++++-
- arch/x86/kernel/head64.c         | 24 +++++++++++++++++++++++-
- 2 files changed, 30 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/pgtable_64_types.h | 16 ++++++++++------
+ arch/x86/kernel/head64.c                |  3 ++-
+ arch/x86/mm/kaslr.c                     |  3 ++-
+ 3 files changed, 14 insertions(+), 8 deletions(-)
 
-diff --git a/arch/x86/boot/compressed/kaslr.c b/arch/x86/boot/compressed/kaslr.c
-index b18e8f9512de..d02a838c0ce4 100644
---- a/arch/x86/boot/compressed/kaslr.c
-+++ b/arch/x86/boot/compressed/kaslr.c
-@@ -47,7 +47,7 @@
- #include <linux/decompress/mm.h>
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 59d971c85de5..686329994ade 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -102,25 +102,29 @@ extern unsigned int ptrs_per_p4d;
+ #define LDT_PGD_ENTRY		(pgtable_l5_enabled ? LDT_PGD_ENTRY_L5 : LDT_PGD_ENTRY_L4)
+ #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
  
- #ifdef CONFIG_X86_5LEVEL
--unsigned int pgtable_l5_enabled __ro_after_init = 1;
-+unsigned int pgtable_l5_enabled __ro_after_init;
- unsigned int pgdir_shift __ro_after_init = 48;
- unsigned int ptrs_per_p4d __ro_after_init = 512;
- #endif
-@@ -729,6 +729,12 @@ void choose_random_location(unsigned long input,
- 		return;
- 	}
- 
-+#ifdef CONFIG_X86_5LEVEL
-+	if (__read_cr4() & X86_CR4_LA57) {
-+		pgtable_l5_enabled = 1;
-+	}
-+#endif
++#define __VMALLOC_BASE_L4	0xffffc90000000000
++#define __VMALLOC_BASE_L5 	0xffa0000000000000
 +
- 	boot_params->hdr.loadflags |= KASLR_FLAG;
++#define VMALLOC_SIZE_TB_L4	32UL
++#define VMALLOC_SIZE_TB_L5	12800UL
++
+ #ifdef CONFIG_X86_5LEVEL
+-# define VMALLOC_SIZE_TB	_AC(12800, UL)
+-# define __VMALLOC_BASE		_AC(0xffa0000000000000, UL)
+ # define __VMEMMAP_BASE		_AC(0xffd4000000000000, UL)
+ #else
+-# define VMALLOC_SIZE_TB	_AC(32, UL)
+-# define __VMALLOC_BASE		_AC(0xffffc90000000000, UL)
+ # define __VMEMMAP_BASE		_AC(0xffffea0000000000, UL)
+ #endif
  
- 	/* Prepare to add new identity pagetables on demand. */
+ #ifdef CONFIG_DYNAMIC_MEMORY_LAYOUT
+ # define VMALLOC_START		vmalloc_base
++# define VMALLOC_SIZE_TB	(pgtable_l5_enabled ? VMALLOC_SIZE_TB_L5 : VMALLOC_SIZE_TB_L4)
+ # define VMEMMAP_START		vmemmap_base
+ #else
+-# define VMALLOC_START		__VMALLOC_BASE
++# define VMALLOC_START		__VMALLOC_BASE_L4
++# define VMALLOC_SIZE_TB	VMALLOC_SIZE_TB_L4
+ # define VMEMMAP_START		__VMEMMAP_BASE
+ #endif /* CONFIG_DYNAMIC_MEMORY_LAYOUT */
+ 
+-#define VMALLOC_END		(VMALLOC_START + _AC((VMALLOC_SIZE_TB << 40) - 1, UL))
++#define VMALLOC_END		(VMALLOC_START + (VMALLOC_SIZE_TB << 40) - 1)
+ 
+ #define MODULES_VADDR		(__START_KERNEL_map + KERNEL_IMAGE_SIZE)
+ /* The module sections ends with the start of the fixmap */
 diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index 98b0ff49b220..ffb31c50d515 100644
+index 876d3bf2b23a..22bf2015254c 100644
 --- a/arch/x86/kernel/head64.c
 +++ b/arch/x86/kernel/head64.c
-@@ -40,7 +40,7 @@ static unsigned int __initdata next_early_pgt;
- pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
- 
- #ifdef CONFIG_X86_5LEVEL
--unsigned int pgtable_l5_enabled __ro_after_init = 1;
-+unsigned int pgtable_l5_enabled __ro_after_init;
- EXPORT_SYMBOL(pgtable_l5_enabled);
- unsigned int pgdir_shift __ro_after_init = 48;
- EXPORT_SYMBOL(pgdir_shift);
-@@ -64,6 +64,26 @@ static void __head *fixup_pointer(void *ptr, unsigned long physaddr)
- 	return ptr - (void *)_text + (void *)physaddr;
+@@ -51,7 +51,7 @@ EXPORT_SYMBOL(ptrs_per_p4d);
+ #ifdef CONFIG_DYNAMIC_MEMORY_LAYOUT
+ unsigned long page_offset_base __ro_after_init = __PAGE_OFFSET_BASE_L4;
+ EXPORT_SYMBOL(page_offset_base);
+-unsigned long vmalloc_base __ro_after_init = __VMALLOC_BASE;
++unsigned long vmalloc_base __ro_after_init = __VMALLOC_BASE_L4;
+ EXPORT_SYMBOL(vmalloc_base);
+ unsigned long vmemmap_base __ro_after_init = __VMEMMAP_BASE;
+ EXPORT_SYMBOL(vmemmap_base);
+@@ -87,6 +87,7 @@ static void __head check_la57_support(unsigned long physaddr)
+ 	*fixup_int(&pgdir_shift, physaddr) = 48;
+ 	*fixup_int(&ptrs_per_p4d, physaddr) = 512;
+ 	*fixup_long(&page_offset_base, physaddr) = __PAGE_OFFSET_BASE_L5;
++	*fixup_long(&vmalloc_base, physaddr) = __VMALLOC_BASE_L5;
  }
+ #else
+ static void __head check_la57_support(unsigned long physaddr) {}
+diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
+index 7828a7ca3bba..641169d38184 100644
+--- a/arch/x86/mm/kaslr.c
++++ b/arch/x86/mm/kaslr.c
+@@ -50,7 +50,7 @@ static __initdata struct kaslr_memory_region {
+ 	unsigned long size_tb;
+ } kaslr_regions[] = {
+ 	{ &page_offset_base, 0 },
+-	{ &vmalloc_base, VMALLOC_SIZE_TB },
++	{ &vmalloc_base, 0 },
+ 	{ &vmemmap_base, 1 },
+ };
  
-+#ifdef CONFIG_X86_5LEVEL
-+static unsigned int __head *fixup_int(void *ptr, unsigned long physaddr)
-+{
-+	return fixup_pointer(ptr, physaddr);
-+}
-+
-+static void __head check_la57_support(unsigned long physaddr)
-+{
-+	if (native_cpuid_eax(0) < 7)
-+		return;
-+
-+	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
-+		return;
-+
-+	*fixup_int(&pgtable_l5_enabled, physaddr) = 1;
-+}
-+#else
-+static void __head check_la57_support(unsigned long physaddr) {}
-+#endif
-+
- unsigned long __head __startup_64(unsigned long physaddr,
- 				  struct boot_params *bp)
- {
-@@ -76,6 +96,8 @@ unsigned long __head __startup_64(unsigned long physaddr,
- 	int i;
- 	unsigned int *next_pgt_ptr;
+@@ -94,6 +94,7 @@ void __init kernel_randomize_memory(void)
+ 		return;
  
-+	check_la57_support(physaddr);
-+
- 	/* Is the address too large? */
- 	if (physaddr >> MAX_PHYSMEM_BITS)
- 		for (;;);
+ 	kaslr_regions[0].size_tb = 1 << (__PHYSICAL_MASK_SHIFT - TB_SHIFT);
++	kaslr_regions[1].size_tb = VMALLOC_SIZE_TB;
+ 
+ 	/*
+ 	 * Update Physical memory mapping to available and
 -- 
 2.15.1
 
