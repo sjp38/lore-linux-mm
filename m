@@ -1,72 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D3DD76B0003
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 07:26:56 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id d17so12863503wrc.19
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 04:26:56 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 65sor1407561wrj.51.2018.02.14.04.26.55
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 57CFA6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 07:30:01 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id l73so13969754qke.9
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 04:30:01 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id p53si888778qtf.357.2018.02.14.04.30.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Feb 2018 04:26:55 -0800 (PST)
-Date: Wed, 14 Feb 2018 13:26:52 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 9/9] x86/mm: Adjust virtual address space layout in early
- boot
-Message-ID: <20180214122652.pzcmiakssichuhn5@gmail.com>
-References: <20180214111656.88514-1-kirill.shutemov@linux.intel.com>
- <20180214111656.88514-10-kirill.shutemov@linux.intel.com>
- <20180214121049.z4cjsdwxaaq5gpv5@gmail.com>
- <20180214121910.yvnm7wcejpjux6eo@black.fi.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Feb 2018 04:30:00 -0800 (PST)
+Date: Wed, 14 Feb 2018 13:29:50 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: WARNING in kvmalloc_node
+Message-ID: <20180214132950.2d06e612@redhat.com>
+In-Reply-To: <dcbb4ead-2a76-310c-69dc-4f253e711fe9@iogearbox.net>
+References: <001a1144c4ca5dc9d6056520c7b7@google.com>
+	<20180214025533.GA28811@bombadil.infradead.org>
+	<20180214084308.GX3443@dhcp22.suse.cz>
+	<f3fda93e-b223-3c94-3213-43cad4346716@iogearbox.net>
+	<24351362-a099-3317-2b96-8cdc6835eb1e@redhat.com>
+	<20180214115119.GA3443@dhcp22.suse.cz>
+	<62489a86-b578-b075-3ada-c2f5baf5b787@redhat.com>
+	<dcbb4ead-2a76-310c-69dc-4f253e711fe9@iogearbox.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180214121910.yvnm7wcejpjux6eo@black.fi.intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Daniel Borkmann <daniel@iogearbox.net>
+Cc: Jason Wang <jasowang@redhat.com>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, syzbot <syzbot+1a240cdb1f4cc88819df@syzkaller.appspotmail.com>, akpm@linux-foundation.org, dhowells@redhat.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, rppt@linux.vnet.ibm.com, syzkaller-bugs@googlegroups.com, vbabka@suse.cz, viro@zeniv.linux.org.uk, Alexei Starovoitov <ast@kernel.org>, netdev@vger.kernel.org, "Michael S. Tsirkin" <mst@redhat.com>, brouer@redhat.com
 
+On Wed, 14 Feb 2018 13:17:18 +0100
+Daniel Borkmann <daniel@iogearbox.net> wrote:
 
-* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
+> On 02/14/2018 01:02 PM, Jason Wang wrote:
+> > On 2018=E5=B9=B402=E6=9C=8814=E6=97=A5 19:51, Michal Hocko wrote: =20
+> >> On Wed 14-02-18 19:47:30, Jason Wang wrote: =20
+> >>> On 2018=E5=B9=B402=E6=9C=8814=E6=97=A5 17:28, Daniel Borkmann wrote: =
+=20
+> >>>> [ +Jason, +Jesper ]
+> >>>>
+> >>>> On 02/14/2018 09:43 AM, Michal Hocko wrote: =20
+> >>>>> On Tue 13-02-18 18:55:33, Matthew Wilcox wrote: =20
+> >>>>>> On Tue, Feb 13, 2018 at 03:59:01PM -0800, syzbot wrote: =20
+> >>>>> [...] =20
+> >>>>>>> =C2=A0=C2=A0 kvmalloc include/linux/mm.h:541 [inline]
+> >>>>>>> =C2=A0=C2=A0 kvmalloc_array include/linux/mm.h:557 [inline]
+> >>>>>>> =C2=A0=C2=A0 __ptr_ring_init_queue_alloc include/linux/ptr_ring.h=
+:474 [inline]
+> >>>>>>> =C2=A0=C2=A0 ptr_ring_init include/linux/ptr_ring.h:492 [inline]
+> >>>>>>> =C2=A0=C2=A0 __cpu_map_entry_alloc kernel/bpf/cpumap.c:359 [inlin=
+e]
+> >>>>>>> =C2=A0=C2=A0 cpu_map_update_elem+0x3c3/0x8e0 kernel/bpf/cpumap.c:=
+490
+> >>>>>>> =C2=A0=C2=A0 map_update_elem kernel/bpf/syscall.c:698 [inline] =20
+> >>>>>> Blame the BPF people, not the MM people ;-) =20
+> >>>> Heh, not really. ;-)
+> >>>> =20
+> >>>>> Yes. kvmalloc (the vmalloc part) doesn't support GFP_ATOMIC semanti=
+c. =20
+> >>>> Agree, that doesn't work.
+> >>>>
+> >>>> Bug was added in commit 0bf7800f1799 ("ptr_ring: try vmalloc() when =
+kmalloc() fails").
+> >>>>
+> >>>> Jason, please take a look at fixing this, thanks! =20
+> >>> It looks to me the only solution is to revert that commit. =20
+> >> Do you really need this to be GFP_ATOMIC? I can see some callers are
+> >> under RCU read lock but can we perhaps do the allocation outside of th=
+is
+> >> section? =20
+> >=20
+> > If I understand the code correctly, the code would be called by XDP pro=
+gram (usually run inside a bh) which makes it hard to do this.
+> >=20
+> > Rethink of this, we can probably test gfp and not call kvmalloc if GFP_=
+ATOMIC is set in __ptr_ring_init_queue_alloc(). =20
+>=20
+> That would be one option indeed (probably useful in any case to make the =
+API
+> more robust). Another one is to just not use GFP_ATOMIC in cpumap. Lookin=
+g at
+> it, update can neither be called out of a BPF prog since prevented by ver=
+ifier
+> nor under RCU reader side when updating this type of map from syscall pat=
+h.
+> Jesper, any concrete reason we still need GFP_ATOMIC here?
 
-> On Wed, Feb 14, 2018 at 12:10:49PM +0000, Ingo Molnar wrote:
-> > 
-> > * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
-> > 
-> > > We need to adjust virtual address space to support switching between
-> > > paging modes.
-> > > 
-> > > The adjustment happens in __startup_64().
-> > > 
-> > > We also have to change KASLR code that doesn't expect variable
-> > > VMALLOC_SIZE_TB.
-> > > 
-> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > ---
-> > >  arch/x86/boot/compressed/kaslr.c        | 14 ++++++++--
-> > >  arch/x86/include/asm/page_64_types.h    |  9 ++----
-> > >  arch/x86/include/asm/pgtable_64_types.h | 25 +++++++++--------
-> > >  arch/x86/kernel/head64.c                | 49 +++++++++++++++++++++++++++------
-> > >  arch/x86/kernel/head_64.S               |  2 +-
-> > >  arch/x86/mm/dump_pagetables.c           |  3 ++
-> > >  arch/x86/mm/kaslr.c                     | 11 ++++----
-> > >  7 files changed, 77 insertions(+), 36 deletions(-)
-> > 
-> > This is too large and risky - would it be possible to split this up into multiple, 
-> > smaller patches?
-> 
-> Let me check what I can do here.
-> 
-> If you are fine with previous patches please apply. I will send split up
-> of this patch separately.
+Allocations in cpumap (related to ptr_ring) should only be possible to
+be initiated through userspace via bpf-syscall. Thus, there isn't any
+reason for GFP_ATOMIC here.
 
-Yes, the first 8 patches are looking good and I have already applied them locally, 
-will push them out after testing.
-
-Thanks,
-
-	Ingo
+--=20
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
