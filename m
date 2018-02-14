@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 16BA36B0009
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:12:02 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id w4so810906pgq.15
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0049E6B000A
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:12:03 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id h33so11466398plh.19
         for <linux-mm@kvack.org>; Wed, 14 Feb 2018 12:12:02 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a7-v6si3078997plz.18.2018.02.14.12.12.00
+        by mx.google.com with ESMTPS id f10si2257717pgn.762.2018.02.14.12.12.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Feb 2018 12:12:00 -0800 (PST)
+        Wed, 14 Feb 2018 12:12:01 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v2 3/8] Convert virtio_console to kvzalloc_struct
-Date: Wed, 14 Feb 2018 12:11:49 -0800
-Message-Id: <20180214201154.10186-4-willy@infradead.org>
+Subject: [PATCH v2 4/8] Convert dax device to kvzalloc_struct
+Date: Wed, 14 Feb 2018 12:11:50 -0800
+Message-Id: <20180214201154.10186-5-willy@infradead.org>
 In-Reply-To: <20180214201154.10186-1-willy@infradead.org>
 References: <20180214201154.10186-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,22 +24,21 @@ From: Matthew Wilcox <mawilcox@microsoft.com>
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- drivers/char/virtio_console.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/dax/device.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/char/virtio_console.c b/drivers/char/virtio_console.c
-index 468f06134012..e0816cc2c6bd 100644
---- a/drivers/char/virtio_console.c
-+++ b/drivers/char/virtio_console.c
-@@ -433,8 +433,7 @@ static struct port_buffer *alloc_buf(struct virtqueue *vq, size_t buf_size,
- 	 * Allocate buffer and the sg list. The sg list array is allocated
- 	 * directly after the port_buffer struct.
- 	 */
--	buf = kmalloc(sizeof(*buf) + sizeof(struct scatterlist) * pages,
--		      GFP_KERNEL);
-+	buf = kvzalloc_struct(buf, sg, pages, GFP_KERNEL);
- 	if (!buf)
- 		goto fail;
+diff --git a/drivers/dax/device.c b/drivers/dax/device.c
+index 2137dbc29877..5821cde340f6 100644
+--- a/drivers/dax/device.c
++++ b/drivers/dax/device.c
+@@ -586,7 +586,7 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
+ 	if (!count)
+ 		return ERR_PTR(-EINVAL);
+ 
+-	dev_dax = kzalloc(sizeof(*dev_dax) + sizeof(*res) * count, GFP_KERNEL);
++	dev_dax = kvzalloc_struct(dev_dax, res, count, GFP_KERNEL);
+ 	if (!dev_dax)
+ 		return ERR_PTR(-ENOMEM);
  
 -- 
 2.15.1
