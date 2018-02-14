@@ -1,40 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 31E706B0007
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 12:18:04 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id p189so12444666iod.2
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 09:18:04 -0800 (PST)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id 81si159449ioh.195.2018.02.14.09.18.02
+	by kanga.kvack.org (Postfix) with ESMTP id 8B0256B0009
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 12:23:26 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id g24so20738284iob.13
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 09:23:26 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c80sor5142645itc.27.2018.02.14.09.23.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Feb 2018 09:18:02 -0800 (PST)
-Date: Wed, 14 Feb 2018 11:18:00 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH v1] mm: Re-use DEFINE_SHOW_ATTRIBUTE() macro
-In-Reply-To: <20180214160409.GA25747@bombadil.infradead.org>
-Message-ID: <alpine.DEB.2.20.1802141117400.26770@nuc-kabylake>
-References: <20180214154644.54505-1-andriy.shevchenko@linux.intel.com> <20180214160409.GA25747@bombadil.infradead.org>
+        (Google Transport Security);
+        Wed, 14 Feb 2018 09:23:25 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180214111656.88514-9-kirill.shutemov@linux.intel.com>
+References: <20180214111656.88514-1-kirill.shutemov@linux.intel.com> <20180214111656.88514-9-kirill.shutemov@linux.intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 14 Feb 2018 17:22:58 +0000
+Message-ID: <CALCETrVafx9kZwsJrihUxKszio9rJCPZJHnWSh3QC992o=zxnA@mail.gmail.com>
+Subject: Re: [PATCH 8/9] x86/mm: Make __VIRTUAL_MASK_SHIFT dynamic
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Tejun Heo <tj@kernel.org>, Dennis Zhou <dennisszhou@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-
-Acked-by: Christoph Lameter <cl@linux.com>
-
-On Wed, 14 Feb 2018, Matthew Wilcox wrote:
-
-> On Wed, Feb 14, 2018 at 05:46:44PM +0200, Andy Shevchenko wrote:
-> > ...instead of open coding file operations followed by custom ->open()
-> > callbacks per each attribute.
-> >
-> > Signed-off-by: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+On Wed, Feb 14, 2018 at 11:16 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> For boot-time switching between paging modes, we need to be able to
+> adjust virtual mask shifts.
 >
-> Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+> The change doesn't affect the kernel image size much:
 >
+>    text    data     bss     dec     hex filename
+> 8628892 4734340 1368064 14731296         e0c820 vmlinux.before
+> 8628966 4734340 1368064 14731370         e0c86a vmlinux.after
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  arch/x86/entry/entry_64.S            | 12 ++++++++++++
+>  arch/x86/include/asm/page_64_types.h |  2 +-
+>  arch/x86/mm/dump_pagetables.c        | 12 ++++++++++--
+>  arch/x86/mm/kaslr.c                  |  4 +++-
+>  4 files changed, 26 insertions(+), 4 deletions(-)
+>
+> diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
+> index cd216c9431e1..1608b13a0b36 100644
+> --- a/arch/x86/entry/entry_64.S
+> +++ b/arch/x86/entry/entry_64.S
+> @@ -260,8 +260,20 @@ GLOBAL(entry_SYSCALL_64_after_hwframe)
+>          * Change top bits to match most significant bit (47th or 56th bit
+>          * depending on paging mode) in the address.
+>          */
+> +#ifdef CONFIG_X86_5LEVEL
+> +       testl   $1, pgtable_l5_enabled(%rip)
+> +       jz      1f
+> +       shl     $(64 - 57), %rcx
+> +       sar     $(64 - 57), %rcx
+> +       jmp     2f
+> +1:
+> +       shl     $(64 - 48), %rcx
+> +       sar     $(64 - 48), %rcx
+> +2:
+> +#else
+>         shl     $(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+>         sar     $(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+> +#endif
+
+Eww.
+
+Can't this be ALTERNATIVE "shl ... sar ...", "shl ... sar ...",
+X86_FEATURE_5LEVEL or similar?
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
