@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B123F6B0006
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:11:59 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id r1so2336887pgp.2
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 12:11:59 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D63926B0008
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:12:00 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id h10so2334314pgf.3
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 12:12:00 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q11si118597pgp.400.2018.02.14.12.11.58
+        by mx.google.com with ESMTPS id c89si63378pfe.260.2018.02.14.12.11.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Feb 2018 12:11:58 -0800 (PST)
+        Wed, 14 Feb 2018 12:11:59 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v2 1/8] mm: Add kernel-doc for kvfree
-Date: Wed, 14 Feb 2018 12:11:47 -0800
-Message-Id: <20180214201154.10186-2-willy@infradead.org>
+Subject: [PATCH v2 2/8] mm: Add kvmalloc_ab_c and kvzalloc_struct
+Date: Wed, 14 Feb 2018 12:11:48 -0800
+Message-Id: <20180214201154.10186-3-willy@infradead.org>
 In-Reply-To: <20180214201154.10186-1-willy@infradead.org>
 References: <20180214201154.10186-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,32 +22,94 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, Kees Cook <kees
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
+We have kvmalloc_array in order to safely allocate an array with a
+number of elements specified by userspace (avoiding arithmetic overflow
+leading to a buffer overrun).  But it's fairly common to have a header
+in front of that array (eg specifying the length of the array), so we
+need a helper function for that situation.
+
+kvmalloc_ab_c() is the workhorse that does the calculation, but in spite
+of our best efforts to name the arguments, it's really hard to remember
+which order to put the arguments in.  kvzalloc_struct() eliminates that
+effort; you tell it about the struct you're allocating, and it puts the
+arguments in the right order for you (and checks that the arguments
+you've given are at least plausible).
+
+For comparison between the three schemes:
+
+	sev = kvzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems,
+			GFP_KERNEL);
+	sev = kvzalloc_ab_c(elems, sizeof(struct v4l2_kevent), sizeof(*sev),
+			GFP_KERNEL);
+	sev = kvzalloc_struct(sev, events, elems, GFP_KERNEL);
+
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/util.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ include/linux/mm.h | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)
 
-diff --git a/mm/util.c b/mm/util.c
-index c1250501364f..dc4c7b551aaf 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -430,6 +430,16 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 81bd7f0be286..3b07ba12c8cc 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -557,6 +557,57 @@ static inline void *kvmalloc_array(size_t n, size_t size, gfp_t flags)
+ 	return kvmalloc(n * size, flags);
  }
- EXPORT_SYMBOL(kvmalloc_node);
  
 +/**
-+ * kvfree() - Free memory.
-+ * @addr: Pointer to allocated memory.
++ * kvmalloc_ab_c() - Allocate (a * b + c) bytes of memory.
++ * @n: Number of elements.
++ * @size: Size of each element (should be constant).
++ * @c: Size of header (should be constant).
++ * @gfp: Memory allocation flags.
 + *
-+ * kvfree frees memory allocated by any of vmalloc(), kmalloc() or
-+ * kvmalloc().  It is slightly more efficient to use kfree() or vfree()
-+ * if you are certain that you know which one to use.
++ * Use this function to allocate @n * @size + @c bytes of memory.  This
++ * function is safe to use when @n is controlled from userspace; it will
++ * return %NULL if the required amount of memory cannot be allocated.
++ * Use kvfree() to free the allocated memory.
 + *
-+ * Context: Any context except NMI.
++ * The kvzalloc_struct() function is easier to use as it has typechecking
++ * and you do not need to remember which of the arguments should be constants.
++ *
++ * Context: Process context.  May sleep; the @gfp flags should be based on
++ *	    %GFP_KERNEL.
++ * Return: A pointer to the allocated memory or %NULL.
 + */
- void kvfree(const void *addr)
- {
- 	if (is_vmalloc_addr(addr))
++static inline __must_check
++void *kvmalloc_ab_c(size_t n, size_t size, size_t c, gfp_t gfp)
++{
++	if (size != 0 && n > (SIZE_MAX - c) / size)
++		return NULL;
++
++	return kvmalloc(n * size + c, gfp);
++}
++#define kvzalloc_ab_c(a, b, c, gfp) kvmalloc_ab_c(a, b, c, (gfp) | __GFP_ZERO)
++
++/**
++ * kvzalloc_struct() - Allocate and zero-fill a structure containing a
++ *		       variable length array.
++ * @p: Pointer to the structure.
++ * @member: Name of the array member.
++ * @n: Number of elements in the array.
++ * @gfp: Memory allocation flags.
++ *
++ * Allocate (and zero-fill) enough memory for a structure with an array
++ * of @n elements.  This function is safe to use when @n is specified by
++ * userspace as the arithmetic will not overflow.
++ * Use kvfree() to free the allocated memory.
++ *
++ * Context: Process context.  May sleep; the @gfp flags should be based on
++ *	    %GFP_KERNEL.
++ * Return: Zero-filled memory or a NULL pointer.
++ */
++#define kvzalloc_struct(p, member, n, gfp)				\
++	(typeof(p))kvzalloc_ab_c(n,					\
++		sizeof(*(p)->member) + __must_be_array((p)->member),	\
++		offsetof(typeof(*(p)), member), gfp)
++
+ extern void kvfree(const void *addr);
+ 
+ static inline atomic_t *compound_mapcount_ptr(struct page *page)
 -- 
 2.15.1
 
