@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 859EC6B0005
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 16:52:49 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id c18so2451211pgv.8
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:52:49 -0800 (PST)
-Received: from ipmailnode02.adl6.internode.on.net (ipmailnode02.adl6.internode.on.net. [150.101.137.148])
-        by mx.google.com with ESMTP id e5si3151258pgp.469.2018.02.14.13.52.47
-        for <linux-mm@kvack.org>;
-        Wed, 14 Feb 2018 13:52:48 -0800 (PST)
-Date: Thu, 15 Feb 2018 08:52:45 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: freezing system for several second on high I/O [kernel 4.15]
-Message-ID: <20180214215245.GI7000@dastard>
-References: <20180131022209.lmhespbauhqtqrxg@destitution>
- <1517888875.7303.3.camel@gmail.com>
- <20180206060840.kj2u6jjmkuk3vie6@destitution>
- <CABXGCsOgcYyj8Xukn7Pi_M2qz2aJ1MJZTaxaSgYno7f_BtZH6w@mail.gmail.com>
- <1517974845.4352.8.camel@gmail.com>
- <20180207065520.66f6gocvxlnxmkyv@destitution>
- <1518255240.31843.6.camel@gmail.com>
- <1518255352.31843.8.camel@gmail.com>
- <20180211225657.GA6778@dastard>
- <1518643669.6070.21.camel@gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id E2CEB6B0005
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 17:13:32 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id e12so2495525pgu.11
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 14:13:32 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g3-v6sor70380plp.67.2018.02.14.14.13.31
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 14 Feb 2018 14:13:31 -0800 (PST)
+Date: Wed, 14 Feb 2018 15:13:28 -0700
+From: Tycho Andersen <tycho@tycho.ws>
+Subject: Re: arm64 physmap (was Re: [kernel-hardening] [PATCH 4/6]
+ Protectable Memory)
+Message-ID: <20180214221328.glbrdib3wumve53z@cisco>
+References: <CAFUG7CeUhFcvA82uZ2ZH1j_6PM=aBo4XmYDN85pf8G0gPU44dg@mail.gmail.com>
+ <17e5b515-84c8-dca2-1695-cdf819834ea2@huawei.com>
+ <CAGXu5j+LS1pgOOroi7Yxp2nh=DwtTnU3p-NZa6bQu_wkvvVkwg@mail.gmail.com>
+ <414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com>
+ <CAGXu5j++igQD4tMh0J8nZ9jNji5mU16C7OygFJ5Td+Bq-KSMgw@mail.gmail.com>
+ <CAG48ez1utN_vwHUwk=BU6zM4Wa_53TPu8rm9JuTtY-vGP0Shqw@mail.gmail.com>
+ <f4226a44-92fd-8ead-b458-7551ba82f96d@redhat.com>
+ <CAGXu5j+zOCLerneUt2b-tvyLLg7fEbr9B0YYow-4DH6oV-nnCw@mail.gmail.com>
+ <2f23544a-bd24-1e71-967b-e8d1cf5a20a3@redhat.com>
+ <CAGXu5j+zkFx+1Dn908iqaTV-yP7Wk_rMXZRvXN32h+i_oAcy6w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1518643669.6070.21.camel@gmail.com>
+In-Reply-To: <CAGXu5j+zkFx+1Dn908iqaTV-yP7Wk_rMXZRvXN32h+i_oAcy6w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mikhail <mikhail.v.gavrilov@gmail.com>
-Cc: "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: Laura Abbott <labbott@redhat.com>, Jann Horn <jannh@google.com>, Igor Stoppa <igor.stoppa@huawei.com>, Boris Lukashev <blukashev@sempervictus.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>
 
-On Thu, Feb 15, 2018 at 02:27:49AM +0500, mikhail wrote:
-> On Mon, 2018-02-12 at 09:56 +1100, Dave Chinner wrote:
-> > IOWs, this is not an XFS problem. It's exactly what I'd expect
-> > to see when you try to run a very IO intensive workload on a
-> > cheap SATA drive that can't keep up with what is being asked of
-> > it....
-> > 
+On Wed, Feb 14, 2018 at 11:48:38AM -0800, Kees Cook wrote:
+> On Wed, Feb 14, 2018 at 11:06 AM, Laura Abbott <labbott@redhat.com> wrote:
+> > fixed. Modules yes are not fully protected. The conclusion from past
+> > experience has been that we cannot safely break down larger page sizes
+> > at runtime like x86 does. We could theoretically
+> > add support for fixing up the alias if PAGE_POISONING is enabled but
+> > I don't know who would actually use that in production. Performance
+> > is very poor at that point.
 > 
-> I am understand that XFS is not culprit here. But I am worried
-> about of interface freezing and various kernel messages with
-> traces which leads to XFS. This is my only clue, and I do not know
-> where to dig yet.
+> XPFO forces 4K pages on the physmap[1] for similar reasons. I have no
+> doubt about performance changes, but I'd be curious to see real
+> numbers. Did anyone do benchmarks on just the huge/4K change? (Without
+> also the XPFO overhead?)
+> 
+> If this, XPFO, and PAGE_POISONING all need it, I think we have to
+> start a closer investigation. :)
 
-I've already told you the problem: sustained storage subsystem
-overload. You can't "tune" you way around that. i.e. You need a
-faster disk subsystem to maintian the load you are putting on your
-system - either add more disks (e.g. RAID 0/5/6) or to move to SSDs.
+I haven't but it shouldn't be too hard. What benchmarks are you
+thinking?
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Tycho
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
