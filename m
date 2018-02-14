@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 319206B0005
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 16:12:07 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id t18so11563783plo.9
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:12:07 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b184si170674pgc.786.2018.02.14.13.12.05
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D1016B0005
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 16:24:11 -0500 (EST)
+Received: by mail-vk0-f72.google.com with SMTP id y11so8484582vkd.11
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:24:11 -0800 (PST)
+Received: from www62.your-server.de (www62.your-server.de. [213.133.104.62])
+        by mx.google.com with ESMTPS id 5si6572277wmf.69.2018.02.14.01.28.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Feb 2018 13:12:06 -0800 (PST)
-Date: Wed, 14 Feb 2018 13:12:03 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 2/8] mm: Add kvmalloc_ab_c and kvzalloc_struct
-Message-ID: <20180214211203.GF20627@bombadil.infradead.org>
-References: <20180214201154.10186-1-willy@infradead.org>
- <20180214201154.10186-3-willy@infradead.org>
- <1518641152.3678.28.camel@perches.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Feb 2018 01:28:44 -0800 (PST)
+Subject: Re: WARNING in kvmalloc_node
+References: <001a1144c4ca5dc9d6056520c7b7@google.com>
+ <20180214025533.GA28811@bombadil.infradead.org>
+ <20180214084308.GX3443@dhcp22.suse.cz>
+From: Daniel Borkmann <daniel@iogearbox.net>
+Message-ID: <f3fda93e-b223-3c94-3213-43cad4346716@iogearbox.net>
+Date: Wed, 14 Feb 2018 10:28:26 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1518641152.3678.28.camel@perches.com>
+In-Reply-To: <20180214084308.GX3443@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
+Cc: syzbot <syzbot+1a240cdb1f4cc88819df@syzkaller.appspotmail.com>, akpm@linux-foundation.org, dhowells@redhat.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, rppt@linux.vnet.ibm.com, syzkaller-bugs@googlegroups.com, vbabka@suse.cz, viro@zeniv.linux.org.uk, Alexei Starovoitov <ast@kernel.org>, netdev@vger.kernel.org, brouer@redhat.com, jasowang@redhat.com
 
-On Wed, Feb 14, 2018 at 12:45:52PM -0800, Joe Perches wrote:
-> On Wed, 2018-02-14 at 12:11 -0800, Matthew Wilcox wrote:
-> > We have kvmalloc_array in order to safely allocate an array with a
-> > number of elements specified by userspace (avoiding arithmetic overflow
-> > leading to a buffer overrun).  But it's fairly common to have a header
-> > in front of that array (eg specifying the length of the array), so we
-> > need a helper function for that situation.
-> > 
-> > kvmalloc_ab_c() is the workhorse that does the calculation, but in spite
-> > of our best efforts to name the arguments, it's really hard to remember
-> > which order to put the arguments in.  kvzalloc_struct() eliminates that
-> > effort; you tell it about the struct you're allocating, and it puts the
-> > arguments in the right order for you (and checks that the arguments
-> > you've given are at least plausible).
-> > 
-> > For comparison between the three schemes:
-> > 
-> > 	sev = kvzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems,
-> > 			GFP_KERNEL);
-> > 	sev = kvzalloc_ab_c(elems, sizeof(struct v4l2_kevent), sizeof(*sev),
-> > 			GFP_KERNEL);
-> > 	sev = kvzalloc_struct(sev, events, elems, GFP_KERNEL);
-> 
-> Perhaps kv[zm]alloc_buf_and_array is better naming.
+[ +Jason, +Jesper ]
 
-I think that's actively misleading.  The programmer isn't allocating a
-buf, they're allocating a struct.  kvzalloc_hdr_arr was the earlier name,
-and that made some sense; they're allocating an array with a header.
-But nobody thinks about it like that; they're allocating a structure
-with a variably sized array at the end of it.
+On 02/14/2018 09:43 AM, Michal Hocko wrote:
+> On Tue 13-02-18 18:55:33, Matthew Wilcox wrote:
+>> On Tue, Feb 13, 2018 at 03:59:01PM -0800, syzbot wrote:
+> [...]
+>>>  kvmalloc include/linux/mm.h:541 [inline]
+>>>  kvmalloc_array include/linux/mm.h:557 [inline]
+>>>  __ptr_ring_init_queue_alloc include/linux/ptr_ring.h:474 [inline]
+>>>  ptr_ring_init include/linux/ptr_ring.h:492 [inline]
+>>>  __cpu_map_entry_alloc kernel/bpf/cpumap.c:359 [inline]
+>>>  cpu_map_update_elem+0x3c3/0x8e0 kernel/bpf/cpumap.c:490
+>>>  map_update_elem kernel/bpf/syscall.c:698 [inline]
+>>
+>> Blame the BPF people, not the MM people ;-)
 
-If C macros had decent introspection, I'd like it to be:
+Heh, not really. ;-)
 
-	sev = kvzalloc_struct(elems, GFP_KERNEL);
+> Yes. kvmalloc (the vmalloc part) doesn't support GFP_ATOMIC semantic.
 
-and have the macro examine the structure pointed to by 'sev', check
-the last element was an array, calculate the size of the array element,
-and call kvzalloc_ab_c.  But we don't live in that world, so I have to
-get the programmer to tell me the structure and the name of the last
-element in it.
+Agree, that doesn't work.
+
+Bug was added in commit 0bf7800f1799 ("ptr_ring: try vmalloc() when kmalloc() fails").
+
+Jason, please take a look at fixing this, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
