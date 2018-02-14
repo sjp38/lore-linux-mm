@@ -1,117 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 699666B0023
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:26:26 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id h33so11325346plh.19
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 10:26:26 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id u16-v6si8069288plq.693.2018.02.14.10.26.25
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BCAC86B0006
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:31:38 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id w24so11285612plq.11
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 10:31:38 -0800 (PST)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id bd1-v6si9275565plb.69.2018.02.14.10.31.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Feb 2018 10:26:25 -0800 (PST)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 2/2] mm: Add kvmalloc_ab_c and kvzalloc_struct
-Date: Wed, 14 Feb 2018 10:26:18 -0800
-Message-Id: <20180214182618.14627-3-willy@infradead.org>
-In-Reply-To: <20180214182618.14627-1-willy@infradead.org>
-References: <20180214182618.14627-1-willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Feb 2018 10:31:37 -0800 (PST)
+Subject: Re: [RFC PATCH V2 00/22] Intel(R) Resource Director Technology Cache
+ Pseudo-Locking enabling
+References: <cover.1518443616.git.reinette.chatre@intel.com>
+ <e0d59d83-14a1-6059-6f0b-da47b3b7de31@oracle.com>
+From: Reinette Chatre <reinette.chatre@intel.com>
+Message-ID: <29d1be82-9fc8-ecde-a5ee-4eafc92e39f1@intel.com>
+Date: Wed, 14 Feb 2018 10:31:36 -0800
+MIME-Version: 1.0
+In-Reply-To: <e0d59d83-14a1-6059-6f0b-da47b3b7de31@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Mike Kravetz <mike.kravetz@oracle.com>, tglx@linutronix.de, fenghua.yu@intel.com, tony.luck@intel.com
+Cc: gavin.hindman@intel.com, vikas.shivappa@linux.intel.com, dave.hansen@intel.com, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+Hi Mike,
 
-We have kvmalloc_array in order to safely allocate an array with a
-number of elements specified by userspace (avoiding arithmetic overflow
-leading to a buffer overrun).  But it's fairly common to have a header
-in front of that array (eg specifying the length of the array), so we
-need a helper function for that situation.
+On 2/14/2018 10:12 AM, Mike Kravetz wrote:
+> On 02/13/2018 07:46 AM, Reinette Chatre wrote:
+>> Adding MM maintainers to v2 to share the new MM change (patch 21/22) that
+>> enables large contiguous regions that was created to support large Cache
+>> Pseudo-Locked regions (patch 22/22). This week MM team received another
+>> proposal to support large contiguous allocations ("[RFC PATCH 0/3]
+>> Interface for higher order contiguous allocations" at
+>> http://lkml.kernel.org/r/20180212222056.9735-1-mike.kravetz@oracle.com).
+>> I have not yet tested with this new proposal but it does seem appropriate
+>> and I should be able to rework patch 22 from this series on top of that if
+>> it is accepted instead of what I have in patch 21 of this series.
+>>
+> 
+> Well, I certainly would prefer the adoption and use of a more general
+> purpose interface rather than exposing alloc_gigantic_page().
+> 
+> Both the interface I suggested and alloc_gigantic_page end up calling
+> alloc_contig_range().  I have not looked at your entire patch series, but
+> do be aware that in its present form alloc_contig_range will run into
+> issues if called by two threads simultaneously for the same page range.
+> Calling alloc_gigantic_page without some form of synchronization will
+> expose this issue.  Currently this is handled by hugetlb_lock for all
+> users of alloc_gigantic_page.  If you simply expose alloc_gigantic_page
+> without any type of synchronization, you may run into issues.  The first
+> patch in my RFC "mm: make start_isolate_page_range() fail if already
+> isolated" should handle this situation IF we decide to expose
+> alloc_gigantic_page (which I do not suggest).
 
-kvmalloc_ab_c() is the workhorse that does the calculation, but in spite
-of our best efforts to name the arguments, it's really hard to remember
-which order to put the arguments in.  kvzalloc_struct() eliminates that
-effort; you tell it about the struct you're allocating, and it puts the
-arguments in the right order for you (and checks that the arguments
-you've given are at least plausible).
+My work depends on the ability to create large contiguous regions,
+creating these large regions is not the goal in itself. Certainly I
+would want to use the most appropriate mechanism and I would gladly
+modify my work to do so.
 
-For comparison between the three schemes:
+I do not insist on using alloc_gigantic_page(). Now that I am aware of
+your RFC I started the process to convert to the new
+find_alloc_contig_pages(). I did not do so earlier because it was not
+available when I prepared this work for submission. I plan to respond to
+your RFC when my testing is complete but please give me a few days to do
+so. Could you please also cc me if you do send out any new versions?
 
-	sev = kvzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems,
-			GFP_KERNEL);
-	sev = kvzalloc_ab_c(elems, sizeof(struct v4l2_kevent), sizeof(*sev),
-			GFP_KERNEL);
-	sev = kvzalloc_struct(sev, events, elems, GFP_KERNEL);
+Thank you very much!
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- include/linux/mm.h | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 81bd7f0be286..ddf929c5aaee 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -557,6 +557,57 @@ static inline void *kvmalloc_array(size_t n, size_t size, gfp_t flags)
- 	return kvmalloc(n * size, flags);
- }
- 
-+/**
-+ * kvmalloc_ab_c() - Allocate memory.
-+ * @n: Number of elements.
-+ * @size: Size of each element (should be constant).
-+ * @c: Size of header (should be constant).
-+ * @gfp: Memory allocation flags.
-+ *
-+ * Use this function to allocate @n * @size + @c bytes of memory.  This
-+ * function is safe to use when @n is controlled from userspace; it will
-+ * return %NULL if the required amount of memory cannot be allocated.
-+ * Use kvfree() to free the allocated memory.
-+ *
-+ * The kvzalloc_hdr_arr() function is easier to use as it has typechecking
-+ * and you do not need to remember which of the arguments should be constants.
-+ *
-+ * Context: Process context.  May sleep; the @gfp flags should be based on
-+ *	    %GFP_KERNEL.
-+ * Return: A pointer to the allocated memory or %NULL.
-+ */
-+static inline __must_check
-+void *kvmalloc_ab_c(size_t n, size_t size, size_t c, gfp_t gfp)
-+{
-+	if (size != 0 && n > (SIZE_MAX - c) / size)
-+		return NULL;
-+
-+	return kvmalloc(n * size + c, gfp);
-+}
-+#define kvzalloc_ab_c(a, b, c, gfp)	kvmalloc_ab_c(a, b, c, gfp | __GFP_ZERO)
-+
-+/**
-+ * kvzalloc_struct() - Allocate and zero-fill a structure containing a
-+ *		       variable length array.
-+ * @p: Pointer to the structure.
-+ * @member: Name of the array member.
-+ * @n: Number of elements in the array.
-+ * @gfp: Memory allocation flags.
-+ *
-+ * Allocate (and zero-fill) enough memory for a structure with an array
-+ * of @n elements.  This function is safe to use when @n is specified by
-+ * userspace as the arithmetic will not overflow.
-+ * Use kvfree() to free the allocated memory.
-+ *
-+ * Context: Process context.  May sleep; the @gfp flags should be based on
-+ *	    %GFP_KERNEL.
-+ * Return: Zero-filled memory or a NULL pointer.
-+ */
-+#define kvzalloc_struct(p, member, n, gfp)				\
-+	(typeof(p))kvzalloc_ab_c(n,					\
-+		sizeof(*(p)->member) + __must_be_array((p)->member),	\
-+		offsetof(typeof(*(p)), member), gfp)
-+
- extern void kvfree(const void *addr);
- 
- static inline atomic_t *compound_mapcount_ptr(struct page *page)
--- 
-2.15.1
+Reinette
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
