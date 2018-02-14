@@ -1,72 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F1F3C6B0003
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 09:02:00 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id d21so10976199pll.12
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 06:02:00 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n189sor299068pfn.108.2018.02.14.06.01.59
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C3306B0003
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 09:04:34 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id y75so35927wrc.18
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 06:04:34 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h128si6802679wmh.130.2018.02.14.06.04.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Feb 2018 06:01:59 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Feb 2018 06:04:32 -0800 (PST)
+Date: Wed, 14 Feb 2018 15:04:30 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Regression after commit 19809c2da28a ("mm, vmalloc: use
+ __GFP_HIGHMEM implicitly")
+Message-ID: <20180214140430.GB3443@dhcp22.suse.cz>
+References: <627DA40A-D0F6-41C1-BB5A-55830FBC9800@canonical.com>
+ <20180208130649.GA15846@bombadil.infradead.org>
+ <20180208232004.GA21027@bombadil.infradead.org>
+ <20180211092652.GV21609@dhcp22.suse.cz>
+ <20180211112808.GA4551@bombadil.infradead.org>
+ <20180211120515.GB4551@bombadil.infradead.org>
+ <20180211235107.GE4680@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171101235456.GA3928@X58A-UD3R>
-References: <20171030100921.GA18085@X58A-UD3R> <20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net>
- <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz> <20171031135104.rnlytzawi2xzuih3@hirez.programming.kicks-ass.net>
- <CACT4Y+Zi_Gqh1V7QHzUdRuYQAtNjyNU2awcPOHSQYw9TsCwEsw@mail.gmail.com>
- <20171031145247.5kjbanjqged34lbp@hirez.programming.kicks-ass.net>
- <20171031145804.ulrpk245ih6t7q7h@dhcp22.suse.cz> <20171031151024.uhbaynabzq6k7fbc@hirez.programming.kicks-ass.net>
- <20171101085927.GB3172@X58A-UD3R> <20171101120101.d6jlzwjks2j3az2v@hirez.programming.kicks-ass.net>
- <20171101235456.GA3928@X58A-UD3R>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 14 Feb 2018 15:01:38 +0100
-Message-ID: <CACT4Y+bvUmjkGDqoOGtMSBfqvbwF4=e8ZyiYYfq0kiVov8Ebiw@mail.gmail.com>
-Subject: Re: possible deadlock in lru_add_drain_all
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180211235107.GE4680@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Kai Heng Feng <kai.heng.feng@canonical.com>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, James.Bottomley@HansenPartnership.com, davem@redhat.com
 
-On Thu, Nov 2, 2017 at 12:54 AM, Byungchul Park <byungchul.park@lge.com> wrote:
-> On Wed, Nov 01, 2017 at 01:01:01PM +0100, Peter Zijlstra wrote:
->> On Wed, Nov 01, 2017 at 05:59:27PM +0900, Byungchul Park wrote:
->> > On Tue, Oct 31, 2017 at 04:10:24PM +0100, Peter Zijlstra wrote:
->> > > On Tue, Oct 31, 2017 at 03:58:04PM +0100, Michal Hocko wrote:
->> > > > On Tue 31-10-17 15:52:47, Peter Zijlstra wrote:
->> > > > [...]
->> > > > > If we want to save those stacks; we have to save a stacktrace on _every_
->> > > > > lock acquire, simply because we never know ahead of time if there will
->> > > > > be a new link. Doing this is _expensive_.
->> > > > >
->> > > > > Furthermore, the space into which we store stacktraces is limited;
->> > > > > since memory allocators use locks we can't very well use dynamic memory
->> > > > > for lockdep -- that would give recursive and robustness issues.
->> >
->> > I agree with all you said.
->> >
->> > But, I have a better idea, that is, to save only the caller's ip of each
->> > acquisition as an additional information? Of course, it's not enough in
->> > some cases, but it's cheep and better than doing nothing.
->> >
->> > For example, when building A->B, let's save not only full stack of B,
->> > but also caller's ip of A together, then use them on warning like:
->>
->> Like said; I've never really had trouble finding where we take A. And
->
-> Me, either, since I know the way. But I've seen many guys who got
-> confused with it, which is why I suggested it.
->
-> But, leave it if you don't think so.
->
->> for the most difficult cases, just the IP isn't too useful either.
->>
->> So that would solve a non problem while leaving the real problem.
+On Sun 11-02-18 15:51:07, Matthew Wilcox wrote:
+> On Sun, Feb 11, 2018 at 04:05:15AM -0800, Matthew Wilcox wrote:
+> > On Sun, Feb 11, 2018 at 03:28:08AM -0800, Matthew Wilcox wrote:
+> > > Now, longer-term, perhaps we should do the following:
+> > > 
+> > > #ifdef CONFIG_ZONE_DMA32
+> > > #define OPT_ZONE_DMA32	ZONE_DMA32
+> > > #elif defined(CONFIG_64BIT)
+> > > #define OPT_ZONE_DMA	OPT_ZONE_DMA
+> > > #else
+> > > #define OPT_ZONE_DMA32 ZONE_NORMAL
+> > > #endif
+> > 
+> > For consistent / coherent memory, we have an allocation function.
+> > But we don't have an allocation function for streaming memory, which is
+> > what these drivers want.  They also flush the DMA memory and then access
+> > the memory through a different virtual mapping, which I'm not sure is
+> > going to work well on virtually-indexed caches like SPARC and PA-RISC
+> > (maybe not MIPS either?)
+> 
+> Perhaps I (and a number of other people ...) have misunderstood the
+> semantics of GFP_DMA32.  Perhaps GFP_DMA32 is not "allocate memory below
+> 4GB", perhaps it's "allocate memory which can be mapped below 4GB".
 
+Well, GFP_DMA32 is clearly under-documented. But I _believe_ the
+intention was to really return a physical memory within 32b address
+range.
 
-Hi,
+> Machines with an IOMMU can use ZONE_NORMAL.  Machines with no IOMMU can
+> choose to allocate memory with a physical address below 4GB.
 
-What's the status of this? Was any patch submitted for this?
+This would be something for the higher level allocator I think. The page
+allocator is largely unaware of IOMMU or any remapping and that is good
+IMHO.
+
+> After all, it has 'DMA' right there in the name.
+
+The name is misnomer following GFP_DMA which is arguably a better fit.
+GFP_MEM32 would be a better name.
+
+Btw. I believe the GFP_VMALLOC32 shows that our GFP_DM32 needs some
+love. The user shouldn't really care about lowmem zones layout.
+GFP_DMA32 should simply use the appropriate zone regardless the arch
+specific details.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
