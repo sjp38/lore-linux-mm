@@ -1,83 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 914276B0007
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 10:44:37 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id f3so5966092wmc.8
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 07:44:37 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m11si2740498wmc.150.2018.02.14.07.44.36
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E08CB6B0007
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 10:46:49 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id x11so2009438pgr.9
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 07:46:49 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id d26si2609845pge.98.2018.02.14.07.46.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Feb 2018 07:44:36 -0800 (PST)
-Date: Wed, 14 Feb 2018 16:44:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: possible deadlock in lru_add_drain_all
-Message-ID: <20180214154433.GD3443@dhcp22.suse.cz>
-References: <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz>
- <20171031135104.rnlytzawi2xzuih3@hirez.programming.kicks-ass.net>
- <CACT4Y+Zi_Gqh1V7QHzUdRuYQAtNjyNU2awcPOHSQYw9TsCwEsw@mail.gmail.com>
- <20171031145247.5kjbanjqged34lbp@hirez.programming.kicks-ass.net>
- <20171031145804.ulrpk245ih6t7q7h@dhcp22.suse.cz>
- <20171031151024.uhbaynabzq6k7fbc@hirez.programming.kicks-ass.net>
- <20171101085927.GB3172@X58A-UD3R>
- <20171101120101.d6jlzwjks2j3az2v@hirez.programming.kicks-ass.net>
- <20171101235456.GA3928@X58A-UD3R>
- <CACT4Y+bvUmjkGDqoOGtMSBfqvbwF4=e8ZyiYYfq0kiVov8Ebiw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+bvUmjkGDqoOGtMSBfqvbwF4=e8ZyiYYfq0kiVov8Ebiw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Feb 2018 07:46:48 -0800 (PST)
+From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Subject: [PATCH v1] mm: Re-use DEFINE_SHOW_ATTRIBUTE() macro
+Date: Wed, 14 Feb 2018 17:46:44 +0200
+Message-Id: <20180214154644.54505-1-andriy.shevchenko@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Byungchul Park <byungchul.park@lge.com>, Peter Zijlstra <peterz@infradead.org>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
+To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Dennis Zhou <dennisszhou@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 
-On Wed 14-02-18 15:01:38, Dmitry Vyukov wrote:
-> On Thu, Nov 2, 2017 at 12:54 AM, Byungchul Park <byungchul.park@lge.com> wrote:
-> > On Wed, Nov 01, 2017 at 01:01:01PM +0100, Peter Zijlstra wrote:
-> >> On Wed, Nov 01, 2017 at 05:59:27PM +0900, Byungchul Park wrote:
-> >> > On Tue, Oct 31, 2017 at 04:10:24PM +0100, Peter Zijlstra wrote:
-> >> > > On Tue, Oct 31, 2017 at 03:58:04PM +0100, Michal Hocko wrote:
-> >> > > > On Tue 31-10-17 15:52:47, Peter Zijlstra wrote:
-> >> > > > [...]
-> >> > > > > If we want to save those stacks; we have to save a stacktrace on _every_
-> >> > > > > lock acquire, simply because we never know ahead of time if there will
-> >> > > > > be a new link. Doing this is _expensive_.
-> >> > > > >
-> >> > > > > Furthermore, the space into which we store stacktraces is limited;
-> >> > > > > since memory allocators use locks we can't very well use dynamic memory
-> >> > > > > for lockdep -- that would give recursive and robustness issues.
-> >> >
-> >> > I agree with all you said.
-> >> >
-> >> > But, I have a better idea, that is, to save only the caller's ip of each
-> >> > acquisition as an additional information? Of course, it's not enough in
-> >> > some cases, but it's cheep and better than doing nothing.
-> >> >
-> >> > For example, when building A->B, let's save not only full stack of B,
-> >> > but also caller's ip of A together, then use them on warning like:
-> >>
-> >> Like said; I've never really had trouble finding where we take A. And
-> >
-> > Me, either, since I know the way. But I've seen many guys who got
-> > confused with it, which is why I suggested it.
-> >
-> > But, leave it if you don't think so.
-> >
-> >> for the most difficult cases, just the IP isn't too useful either.
-> >>
-> >> So that would solve a non problem while leaving the real problem.
-> 
-> 
-> Hi,
-> 
-> What's the status of this? Was any patch submitted for this?
+...instead of open coding file operations followed by custom ->open()
+callbacks per each attribute.
 
-This http://lkml.kernel.org/r/20171116120535.23765-1-mhocko@kernel.org?
+Signed-off-by: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+---
+ mm/backing-dev.c  | 12 +-----------
+ mm/memblock.c     | 12 +-----------
+ mm/percpu-stats.c | 12 +-----------
+ mm/zsmalloc.c     | 12 +-----------
+ 4 files changed, 4 insertions(+), 44 deletions(-)
 
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index ffa0c6b9e78a..71292de5f026 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -101,17 +101,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 	return 0;
+ }
+ 
+-static int bdi_debug_stats_open(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, bdi_debug_stats_show, inode->i_private);
+-}
+-
+-static const struct file_operations bdi_debug_stats_fops = {
+-	.open		= bdi_debug_stats_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
++DEFINE_SHOW_ATTRIBUTE(bdi_debug_stats);
+ 
+ static int bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+ {
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 5a9ca2a1751b..c2e5925ebdc4 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1847,17 +1847,7 @@ static int memblock_debug_show(struct seq_file *m, void *private)
+ 	return 0;
+ }
+ 
+-static int memblock_debug_open(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, memblock_debug_show, inode->i_private);
+-}
+-
+-static const struct file_operations memblock_debug_fops = {
+-	.open = memblock_debug_open,
+-	.read = seq_read,
+-	.llseek = seq_lseek,
+-	.release = single_release,
+-};
++DEFINE_SHOW_ATTRIBUTE(memblock_debug);
+ 
+ static int __init memblock_init_debugfs(void)
+ {
+diff --git a/mm/percpu-stats.c b/mm/percpu-stats.c
+index 7a58460bfd27..0305cc4cbc3e 100644
+--- a/mm/percpu-stats.c
++++ b/mm/percpu-stats.c
+@@ -224,17 +224,7 @@ static int percpu_stats_show(struct seq_file *m, void *v)
+ 	return 0;
+ }
+ 
+-static int percpu_stats_open(struct inode *inode, struct file *filp)
+-{
+-	return single_open(filp, percpu_stats_show, NULL);
+-}
+-
+-static const struct file_operations percpu_stats_fops = {
+-	.open		= percpu_stats_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
++DEFINE_SHOW_ATTRIBUTE(percpu_stats);
+ 
+ static int __init init_percpu_stats_debugfs(void)
+ {
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index c3013505c305..1b5cea3fe9fe 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -642,17 +642,7 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
+ 	return 0;
+ }
+ 
+-static int zs_stats_size_open(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, zs_stats_size_show, inode->i_private);
+-}
+-
+-static const struct file_operations zs_stat_size_ops = {
+-	.open           = zs_stats_size_open,
+-	.read           = seq_read,
+-	.llseek         = seq_lseek,
+-	.release        = single_release,
+-};
++DEFINE_SHOW_ATTRIBUTE(zs_stats_size);
+ 
+ static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
+ {
 -- 
-Michal Hocko
-SUSE Labs
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
