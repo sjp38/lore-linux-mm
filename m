@@ -1,94 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F3EFC6B0009
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 03:38:10 -0500 (EST)
-Received: by mail-yw0-f199.google.com with SMTP id g125so24942136ywe.5
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 00:38:10 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j16sor1172423ywk.178.2018.02.14.00.38.09
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AE2E6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 03:43:11 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id j100so12532226wrj.4
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 00:43:11 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a3si8919676wri.160.2018.02.14.00.43.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Feb 2018 00:38:10 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Feb 2018 00:43:09 -0800 (PST)
+Date: Wed, 14 Feb 2018 09:43:08 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: WARNING in kvmalloc_node
+Message-ID: <20180214084308.GX3443@dhcp22.suse.cz>
+References: <001a1144c4ca5dc9d6056520c7b7@google.com>
+ <20180214025533.GA28811@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <CALvZod4SNwWHYZQsphB90cY-wc8WSLurKsA2kNxfVKV-upwy9A@mail.gmail.com>
-References: <20171030124358.GF23278@quack2.suse.cz> <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
- <20171031101238.GD8989@quack2.suse.cz> <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
- <10924085-6275-125f-d56b-547d734b6f4e@alibaba-inc.com> <20171114093909.dbhlm26qnrrb2ww4@dhcp22.suse.cz>
- <afa2dc80-16a3-d3d1-5090-9430eaafc841@alibaba-inc.com> <20171115093131.GA17359@quack2.suse.cz>
- <CALvZod6HJO73GUfLemuAXJfr4vZ8xMOmVQpFO3vJRog-s2T-OQ@mail.gmail.com>
- <CAOQ4uxg-mTgQfTv-qO6EVwfttyOy+oFyAHyFDKTQsDOkQPyyfA@mail.gmail.com>
- <20180124103454.ibuqt3njaqbjnrfr@quack2.suse.cz> <CAOQ4uxhDpBBUrr0JWRBaNQTTaUeJ4=gnM0iij2KivaGgp1ggtg@mail.gmail.com>
- <CALvZod4PyqfaqgEswegF5uOjNwVwbY1C4ptJB0Ouvgchv2aVFg@mail.gmail.com>
- <CAOQ4uxhyZNghjQU5atNv5xtgdHzA75UayphCyQDzxjM8GDTv3Q@mail.gmail.com>
- <CALvZod5H4eL=YtZ3zkGG3p8gD+3=qnC3siUw1zpKL+128KufAA@mail.gmail.com>
- <CAOQ4uxgJqn0CJaf=LMH-iv2g1MJZwPM97K6iCtzrcY3eoN6KjA@mail.gmail.com>
- <CAOQ4uxjgKUFJ_uhyrQdcTs1FzcN6JrR_JpPc9QBrGJEU+cf65w@mail.gmail.com>
- <CALvZod45r7oW=HWH7KJyvFhJWB=6+Si54JK7E0Mx_2gLTZd1Pg@mail.gmail.com>
- <CAOQ4uxghwNg9Ni23EQA-971-qAaTNceSZS2MSvK06uEjoXG_yg@mail.gmail.com>
- <CALvZod7FTNzoGfGnaorqjk4KEsxJFdz1pApHi04P1cF10ejxpQ@mail.gmail.com> <CALvZod4SNwWHYZQsphB90cY-wc8WSLurKsA2kNxfVKV-upwy9A@mail.gmail.com>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Wed, 14 Feb 2018 10:38:09 +0200
-Message-ID: <CAOQ4uxifddquri4BNqBSKv6O_b13=C08kKYinTo9+m56z1n+aQ@mail.gmail.com>
-Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180214025533.GA28811@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Jan Kara <jack@suse.cz>, Yang Shi <yang.s@alibaba-inc.com>, Michal Hocko <mhocko@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: syzbot <syzbot+1a240cdb1f4cc88819df@syzkaller.appspotmail.com>, akpm@linux-foundation.org, dhowells@redhat.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, rppt@linux.vnet.ibm.com, syzkaller-bugs@googlegroups.com, vbabka@suse.cz, viro@zeniv.linux.org.uk, Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, netdev@vger.kernel.org
 
-On Wed, Feb 14, 2018 at 3:59 AM, Shakeel Butt <shakeelb@google.com> wrote:
-> On Tue, Feb 13, 2018 at 2:20 PM, Shakeel Butt <shakeelb@google.com> wrote:
+On Tue 13-02-18 18:55:33, Matthew Wilcox wrote:
+> On Tue, Feb 13, 2018 at 03:59:01PM -0800, syzbot wrote:
 [...]
->>>>> Something like FAN_GROUP_QUEUE  (better name is welcome)
->>>>> which is mutually exclusive (?) with FAN_UNLIMITED_QUEUE.
->>>>>
->>
->> How about FAN_CHARGE_MEMCG?
->>
+> >  kvmalloc include/linux/mm.h:541 [inline]
+> >  kvmalloc_array include/linux/mm.h:557 [inline]
+> >  __ptr_ring_init_queue_alloc include/linux/ptr_ring.h:474 [inline]
+> >  ptr_ring_init include/linux/ptr_ring.h:492 [inline]
+> >  __cpu_map_entry_alloc kernel/bpf/cpumap.c:359 [inline]
+> >  cpu_map_update_elem+0x3c3/0x8e0 kernel/bpf/cpumap.c:490
+> >  map_update_elem kernel/bpf/syscall.c:698 [inline]
+> 
+> Blame the BPF people, not the MM people ;-)
 
-I am not crazy about this name.
-Imagine a user that writes a file system listener that is going to run
-inside a container.
-The user doesn't need to know about the container or what is memcg
-and what is memcg charging.
-IMO, we need to hide those implementation details from the user and
-yet encourage user to opt-in for memcg charging... or do we?
-
->
-> Also should there be a similar flag for inotify_init1() as well?
->
-
-This question changed my perspective on the fanotify_init() flag.
-Unlike with fanotify, for inotify, is it the sysadmin that determines
-the size of the queue of future listeners by setting
-/proc/sys/fs/inotify/max_queued_events
-
-IMO, there is little justification for a program to opt-out of memcg
-charging if the sysadmin opts-in for memcg charging.
-Anyone disagrees with that claim?
-
-So how about /proc/sys/fs/inotify/charge_memcg
-which defaults to CONFIG_INOTIFY_CHARGE_MEMCG
-which defaults to N.
-
-Then sysadmin can opt-in/out of new behavior and distro can
-opt-in for new behavior by default and programs don't need to
-be recompiled.
-
-I think that should be enough to address the concern of changing
-existing behavior.
-
-The same logic could also apply to fanotify, excpet we may want to
-use sysfs instead of procfs.
-The question is: do we need a separate knob for charging memcg
-for inotify and fanotify or same knob can control both?
-
-I can't think of a reason why we really need 2 knobs, but maybe
-its just nicer to have the inotify knob next to the existing
-max_queued_events knob.
-
-Thanks,
-Amir.
+Yes. kvmalloc (the vmalloc part) doesn't support GFP_ATOMIC semantic.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
