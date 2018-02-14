@@ -1,54 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 192F46B0003
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 04:15:35 -0500 (EST)
-Received: by mail-vk0-f72.google.com with SMTP id n186so12983428vkc.3
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 01:15:35 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x2sor1535342vka.13.2018.02.14.01.15.33
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ACB0D6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 04:46:02 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id w19so1668098pgv.4
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 01:46:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x1si7924259pgv.124.2018.02.14.01.46.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Feb 2018 01:15:33 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Feb 2018 01:46:01 -0800 (PST)
+Subject: Re: [PATCH 19/31] x86/mm/pae: Populate valid user PGD entries
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <1518168340-9392-20-git-send-email-joro@8bytes.org>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <3913f255-7309-58c5-b6c3-39cf0e29a844@suse.com>
+Date: Wed, 14 Feb 2018 10:45:53 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180125153755.GU28465@dhcp22.suse.cz>
-References: <20180116213008.GC8801@redhat.com> <20180125153755.GU28465@dhcp22.suse.cz>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Wed, 14 Feb 2018 20:15:32 +1100
-Message-ID: <CAKTCnzkiKpdGFPXqwVutpd=JVbvf8WMNEK1LG1tjM0ftvmR+rQ@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] HMM status upstream user what's next, mmu_notifier
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1518168340-9392-20-git-send-email-joro@8bytes.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, lsf-pc <lsf-pc@lists.linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, John Hubbard <jhubbard@nvidia.com>
+To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de
 
-On Fri, Jan 26, 2018 at 2:37 AM, Michal Hocko <mhocko@suse.com> wrote:
-> On Tue 16-01-18 16:30:08, Jerome Glisse wrote:
->> I want to talk about status of HMM and respective upstream user for
->> it and also talk about what's next in term of features/improvement
->> plan (generic page write protection, mmu_notifier, ...). Most likely
->> short 15-30minutes if mmu_notifier is split into its own topic.
->>
->> I want to talk about mmu_notifier, specificaly adding more context
->> information to mmu_notifier callback (why a notification is happening
->> reclaim, munmap, migrate, ...). Maybe we can grow this into its own
->> topic and talk about mmu_notifier and issue with it like OOM or being
->> able to sleep/take lock ... and improving mitigation.
->>
->> People (mmu_notifier probably interest a larger set):
->>     "Anshuman Khandual" <khandual@linux.vnet.ibm.com>
->>     "Balbir Singh" <bsingharora@gmail.com>
->>     "David Rientjes" <rientjes@google.com>
->>     "John Hubbard" <jhubbard@nvidia.com>
->>     "Michal Hocko" <mhocko@suse.com>
->
-> I am definitely interested.
+On 09/02/18 10:25, Joerg Roedel wrote:
+> From: Joerg Roedel <jroedel@suse.de>
+> 
+> Generic page-table code populates all non-leaf entries with
+> _KERNPG_TABLE bits set. This is fine for all paging modes
+> except PAE.
+> 
+> In PAE mode only a subset of the bits is allowed to be set.
+> Make sure we only set allowed bits by masking out the
+> reserved bits.
+> 
+> Signed-off-by: Joerg Roedel <jroedel@suse.de>
+> ---
+>  arch/x86/include/asm/pgtable_types.h | 26 ++++++++++++++++++++++++--
+>  1 file changed, 24 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+> index 3696398..5027470 100644
+> --- a/arch/x86/include/asm/pgtable_types.h
+> +++ b/arch/x86/include/asm/pgtable_types.h
+> @@ -50,6 +50,7 @@
+>  #define _PAGE_GLOBAL	(_AT(pteval_t, 1) << _PAGE_BIT_GLOBAL)
+>  #define _PAGE_SOFTW1	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW1)
+>  #define _PAGE_SOFTW2	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW2)
+> +#define _PAGE_SOFTW3	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW3)
+>  #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
+>  #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+>  #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+> @@ -267,14 +268,35 @@ typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
+>  
+>  typedef struct { pgdval_t pgd; } pgd_t;
+>  
+> +#ifdef CONFIG_X86_PAE
+> +
+> +/*
+> + * PHYSICAL_PAGE_MASK might be non-constant when SME is compiled in, so we can't
+> + * use it here.
+> + */
+> +#define PGD_PAE_PHYS_MASK	(((1ULL << __PHYSICAL_MASK_SHIFT)-1) & PAGE_MASK)
 
-me too and as I said in the previous email, we may have other examples
-of coherent memory like openCAPI and lots of experience with both NUMA
-and HMM/HMM-CDM. I'd like to share them and discuss the path forward
+I think PAGE_MASK is a 32 bit value here, so you are chopping off
+the high physical address bits.
 
-Balbir Singh.
+With that corrected the kernel is coming up as Xen PV guest.
+
+
+Juergen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
