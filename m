@@ -1,55 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 434F26B0005
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:06:08 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id l16so13138207iti.4
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 12:06:08 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0086.hostedemail.com. [216.40.44.86])
-        by mx.google.com with ESMTPS id u35si445081ioi.278.2018.02.14.12.06.07
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 720786B0006
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:06:52 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id b6so11464704plx.3
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 12:06:52 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s25sor1216848pge.369.2018.02.14.12.06.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Feb 2018 12:06:07 -0800 (PST)
-Message-ID: <1518638764.3678.23.camel@perches.com>
-Subject: Re: [PATCH 0/2] Add kvzalloc_struct to complement kvzalloc_array
-From: Joe Perches <joe@perches.com>
-Date: Wed, 14 Feb 2018 12:06:04 -0800
-In-Reply-To: <20180214195631.GC20627@bombadil.infradead.org>
-References: <20180214182618.14627-1-willy@infradead.org>
-	 <1518634058.3678.15.camel@perches.com>
-	 <CAGXu5jJdAJt3HK7FgaCyPRbXeFV-hJOrPodNnOkx=kCvSieK3w@mail.gmail.com>
-	 <1518636765.3678.19.camel@perches.com>
-	 <20180214193613.GB20627@bombadil.infradead.org>
-	 <1518637426.3678.21.camel@perches.com>
-	 <20180214195631.GC20627@bombadil.infradead.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 14 Feb 2018 12:06:51 -0800 (PST)
+From: Kees Cook <keescook@chromium.org>
+Subject: [RESEND][PATCH 0/3] exec: Pin stack limit during exec
+Date: Wed, 14 Feb 2018 12:06:33 -0800
+Message-Id: <1518638796-20819-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Ben Hutchings <ben@decadent.org.uk>, Willy Tarreau <w@1wt.eu>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, "Jason A. Donenfeld" <Jason@zx2c4.com>, Rik van Riel <riel@redhat.com>, Laura Abbott <labbott@redhat.com>, Greg KH <greg@kroah.com>, Andy Lutomirski <luto@kernel.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On Wed, 2018-02-14 at 11:56 -0800, Matthew Wilcox wrote:
-> On Wed, Feb 14, 2018 at 11:43:46AM -0800, Joe Perches wrote:
-> > On Wed, 2018-02-14 at 11:36 -0800, Matthew Wilcox wrote:
-> > > If somebody wants them, then we can add them.
-> > 
-> > Yeah, but I don't think any of it is necessary.
-> > 
-> > How many of these struct+bufsize * count entries
-> > actually exist?
-> 
-> Wrong question.  How many of them currently exist that don't check for
-> integer overflow?  How many of them will be added in the future that
-> will fail to check for integer overflow?
-> 
-> I chose five at random to fix as demonstration that the API is good.
-> There are more; I imagine that Julia will be able to tell us how many.
+Attempts to solve problems with the stack limit changing during exec
+continue to be frustrated[1][2]. In addition to the specific issues around
+the Stack Clash family of flaws, Andy Lutomirski pointed out[3] other
+places during exec where the stack limit is used and is assumed to be
+unchanging. Given the many places it gets used and the fact that it can be
+manipulated/raced via setrlimit() and prlimit(), I think the only way to
+handle this is to move away from the "current" view of the stack limit and
+instead attach it to the bprm, and plumb this down into the functions that
+need to know the stack limits. This series implements the approach.
 
-No such conversions exist in the patch series
-you submitted.
+Neither I nor 0-day have found issues with this series, so I'd like to
+get it into -mm for further testing.
 
-What are those?
+Thanks!
+
+-Kees
+
+[1] 04e35f4495dd ("exec: avoid RLIMIT_STACK races with prlimit()")
+[2] 779f4e1c6c7c ("Revert "exec: avoid RLIMIT_STACK races with prlimit()"")
+[3] to security@kernel.org, "Subject: existing rlimit races?"
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
