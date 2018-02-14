@@ -1,96 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EB7B6B0005
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D9826B0007
 	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 06:17:14 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id w16so10864301plp.20
+Received: by mail-pl0-f70.google.com with SMTP id 62so6759314ply.4
         for <linux-mm@kvack.org>; Wed, 14 Feb 2018 03:17:14 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id d8si93666pgf.637.2018.02.14.03.17.12
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id j75si2238413pgc.156.2018.02.14.03.17.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 14 Feb 2018 03:17:12 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 4/9] x86: Introduce pgtable_l5_enabled
-Date: Wed, 14 Feb 2018 14:16:51 +0300
-Message-Id: <20180214111656.88514-5-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/9] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
+Date: Wed, 14 Feb 2018 14:16:49 +0300
+Message-Id: <20180214111656.88514-3-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180214111656.88514-1-kirill.shutemov@linux.intel.com>
 References: <20180214111656.88514-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-The new flag would indicate what paging mode we are in.
+With boot-time switching between paging mode we will have variable
+MAX_PHYSMEM_BITS.
+
+Let's use the maximum variable possible for CONFIG_X86_5LEVEL=y
+configuration to define zsmalloc data structures.
+
+The patch introduces MAX_POSSIBLE_PHYSMEM_BITS to cover such case.
+It also suits well to handle PAE special case.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
+Reviewed-by: Nitin Gupta <ngupta@vflare.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 ---
- arch/x86/boot/compressed/kaslr.c        | 4 ++++
- arch/x86/include/asm/pgtable_32_types.h | 2 ++
- arch/x86/include/asm/pgtable_64_types.h | 6 ++++++
- arch/x86/kernel/head64.c                | 5 +++++
- 4 files changed, 17 insertions(+)
+ arch/x86/include/asm/pgtable-3level_types.h |  1 +
+ arch/x86/include/asm/pgtable_64_types.h     |  2 ++
+ mm/zsmalloc.c                               | 13 +++++++------
+ 3 files changed, 10 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/boot/compressed/kaslr.c b/arch/x86/boot/compressed/kaslr.c
-index 8199a6187251..bd69e1830fbe 100644
---- a/arch/x86/boot/compressed/kaslr.c
-+++ b/arch/x86/boot/compressed/kaslr.c
-@@ -46,6 +46,10 @@
- #define STATIC
- #include <linux/decompress/mm.h>
+diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
+index 876b4c77d983..6a59a6d0cc50 100644
+--- a/arch/x86/include/asm/pgtable-3level_types.h
++++ b/arch/x86/include/asm/pgtable-3level_types.h
+@@ -44,5 +44,6 @@ typedef union {
+  */
+ #define PTRS_PER_PTE	512
  
-+#ifdef CONFIG_X86_5LEVEL
-+unsigned int pgtable_l5_enabled __ro_after_init = 1;
-+#endif
-+
- extern unsigned long get_cmd_line_ptr(void);
++#define MAX_POSSIBLE_PHYSMEM_BITS	36
  
- /* Simplified build-specific string for starting entropy. */
-diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
-index 0777e18a1d23..e3225e83db7d 100644
---- a/arch/x86/include/asm/pgtable_32_types.h
-+++ b/arch/x86/include/asm/pgtable_32_types.h
-@@ -15,6 +15,8 @@
- # include <asm/pgtable-2level_types.h>
- #endif
- 
-+#define pgtable_l5_enabled 0
-+
- #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
- #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
- 
+ #endif /* _ASM_X86_PGTABLE_3LEVEL_DEFS_H */
 diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index a0db91ab63b8..5e2d724f8f47 100644
+index 6b8f73dcbc2c..7168de7d34eb 100644
 --- a/arch/x86/include/asm/pgtable_64_types.h
 +++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -20,6 +20,12 @@ typedef unsigned long	pgprotval_t;
+@@ -40,6 +40,8 @@ typedef struct { pteval_t pte; } pte_t;
+ #define P4D_SIZE	(_AC(1, UL) << P4D_SHIFT)
+ #define P4D_MASK	(~(P4D_SIZE - 1))
  
- typedef struct { pteval_t pte; } pte_t;
++#define MAX_POSSIBLE_PHYSMEM_BITS	52
++
+ #else /* CONFIG_X86_5LEVEL */
  
-+#ifdef CONFIG_X86_5LEVEL
-+extern unsigned int pgtable_l5_enabled;
+ /*
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index c3013505c305..b7f61cd1c709 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -84,18 +84,19 @@
+  * This is made more complicated by various memory models and PAE.
+  */
+ 
+-#ifndef MAX_PHYSMEM_BITS
+-#ifdef CONFIG_HIGHMEM64G
+-#define MAX_PHYSMEM_BITS 36
+-#else /* !CONFIG_HIGHMEM64G */
++#ifndef MAX_POSSIBLE_PHYSMEM_BITS
++#ifdef MAX_PHYSMEM_BITS
++#define MAX_POSSIBLE_PHYSMEM_BITS MAX_PHYSMEM_BITS
 +#else
-+#define pgtable_l5_enabled 0
-+#endif
+ /*
+  * If this definition of MAX_PHYSMEM_BITS is used, OBJ_INDEX_BITS will just
+  * be PAGE_SHIFT
+  */
+-#define MAX_PHYSMEM_BITS BITS_PER_LONG
++#define MAX_POSSIBLE_PHYSMEM_BITS BITS_PER_LONG
+ #endif
+ #endif
+-#define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
 +
- #endif	/* !__ASSEMBLY__ */
++#define _PFN_BITS		(MAX_POSSIBLE_PHYSMEM_BITS - PAGE_SHIFT)
  
- #define SHARED_KERNEL_PMD	0
-diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index bf5c9ba63ba1..17d00d1886de 100644
---- a/arch/x86/kernel/head64.c
-+++ b/arch/x86/kernel/head64.c
-@@ -39,6 +39,11 @@ extern pmd_t early_dynamic_pgts[EARLY_DYNAMIC_PAGE_TABLES][PTRS_PER_PMD];
- static unsigned int __initdata next_early_pgt;
- pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
- 
-+#ifdef CONFIG_X86_5LEVEL
-+unsigned int pgtable_l5_enabled __ro_after_init = 1;
-+EXPORT_SYMBOL(pgtable_l5_enabled);
-+#endif
-+
- #ifdef CONFIG_DYNAMIC_MEMORY_LAYOUT
- unsigned long page_offset_base __ro_after_init = __PAGE_OFFSET_BASE;
- EXPORT_SYMBOL(page_offset_base);
+ /*
+  * Memory for allocating for handle keeps object position by
 -- 
 2.15.1
 
