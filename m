@@ -1,148 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 593786B0007
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 18:05:03 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id t193so11599380oif.6
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:05:03 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t200si1434846oih.27.2018.02.14.15.05.02
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BE4016B0005
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 18:58:38 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id y79so2078580wme.6
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:58:38 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i13si10792039wrh.130.2018.02.14.15.58.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Feb 2018 15:05:02 -0800 (PST)
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9A5617AE92
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 23:05:01 +0000 (UTC)
-Received: from colo-mx.corp.redhat.com (colo-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.20])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 8F03F60621
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 23:05:01 +0000 (UTC)
-Date: Wed, 14 Feb 2018 18:05:01 -0500 (EST)
-From: Jan Stancek <jstancek@redhat.com>
-Message-ID: <1847959563.1954032.1518649501357.JavaMail.zimbra@redhat.com>
-In-Reply-To: <1523287676.1950020.1518648233654.JavaMail.zimbra@redhat.com>
-Subject: [bug?] mallocstress poor performance with THP on arm64 system
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        Wed, 14 Feb 2018 15:58:37 -0800 (PST)
+Date: Wed, 14 Feb 2018 15:58:33 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 2/8] mm: Add kvmalloc_ab_c and kvzalloc_struct
+Message-Id: <20180214155833.9f1563b87391f7ff79ca7ed0@linux-foundation.org>
+In-Reply-To: <20180214211203.GF20627@bombadil.infradead.org>
+References: <20180214201154.10186-1-willy@infradead.org>
+	<20180214201154.10186-3-willy@infradead.org>
+	<1518641152.3678.28.camel@perches.com>
+	<20180214211203.GF20627@bombadil.infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: lwoodman <lwoodman@redhat.com>, Rafael Aquini <aquini@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Joe Perches <joe@perches.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-Hi,
+On Wed, 14 Feb 2018 13:12:03 -0800 Matthew Wilcox <willy@infradead.org> wrote:
 
-mallocstress[1] LTP testcase takes ~5+ minutes to complete
-on some arm64 systems (e.g. 4 node, 64 CPU, 256GB RAM):
- real    7m58.089s
- user    0m0.513s
- sys     24m27.041s
+> On Wed, Feb 14, 2018 at 12:45:52PM -0800, Joe Perches wrote:
+> > On Wed, 2018-02-14 at 12:11 -0800, Matthew Wilcox wrote:
+> > > We have kvmalloc_array in order to safely allocate an array with a
+> > > number of elements specified by userspace (avoiding arithmetic overflow
+> > > leading to a buffer overrun).  But it's fairly common to have a header
+> > > in front of that array (eg specifying the length of the array), so we
+> > > need a helper function for that situation.
+> > > 
+> > > kvmalloc_ab_c() is the workhorse that does the calculation, but in spite
+> > > of our best efforts to name the arguments, it's really hard to remember
+> > > which order to put the arguments in.  kvzalloc_struct() eliminates that
+> > > effort; you tell it about the struct you're allocating, and it puts the
+> > > arguments in the right order for you (and checks that the arguments
+> > > you've given are at least plausible).
+> > > 
+> > > For comparison between the three schemes:
+> > > 
+> > > 	sev = kvzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems,
+> > > 			GFP_KERNEL);
+> > > 	sev = kvzalloc_ab_c(elems, sizeof(struct v4l2_kevent), sizeof(*sev),
+> > > 			GFP_KERNEL);
+> > > 	sev = kvzalloc_struct(sev, events, elems, GFP_KERNEL);
+> > 
+> > Perhaps kv[zm]alloc_buf_and_array is better naming.
+> 
+> I think that's actively misleading.  The programmer isn't allocating a
+> buf, they're allocating a struct.  kvzalloc_hdr_arr was the earlier name,
+> and that made some sense; they're allocating an array with a header.
+> But nobody thinks about it like that; they're allocating a structure
+> with a variably sized array at the end of it.
+> 
+> If C macros had decent introspection, I'd like it to be:
+> 
+> 	sev = kvzalloc_struct(elems, GFP_KERNEL);
+> 
+> and have the macro examine the structure pointed to by 'sev', check
+> the last element was an array, calculate the size of the array element,
+> and call kvzalloc_ab_c.  But we don't live in that world, so I have to
+> get the programmer to tell me the structure and the name of the last
+> element in it.
 
-But if I turn off THP ("transparent_hugepage=3Dnever") it's a lot faster:
- real    0m4.185s
- user    0m0.298s
- sys     0m13.954s
+hm, bikeshedding fun.
 
-Perf suggests, that most time is spent in clear_page().
 
--   94.25%    94.24%  mallocstress  [kernel.kallsyms]   [k] clear_page
-     94.24% thread_start
-        start_thread
-        alloc_mem
-        allocate_free
-      - malloc
-         - 94.24% _int_malloc
-            - 94.24% sysmalloc
-                 el0_da
-                 do_mem_abort
-                 do_translation_fault
-                 do_page_fault
-                 handle_mm_fault
-               - __handle_mm_fault
-                  - 94.22% do_huge_pmd_anonymous_page
-                     - __do_huge_pmd_anonymous_page
-                        - 94.21% clear_huge_page
-                             clear_page
+struct foo {
+	whatevs;
+	struct bar[0];
+}
 
-Percent=E2=94=82
-       =E2=94=82
-       =E2=94=82
-       =E2=94=82    Disassembly of section load0:
-       =E2=94=82
-       =E2=94=82    ffff0000087f0540 <load0>:
-  0.00 =E2=94=82      mrs    x1, dczid_el0
-  0.00 =E2=94=82      and    w1, w1, #0xf
-       =E2=94=82      mov    x2, #0x4                        // #4
-       =E2=94=82      lsl    x1, x2, x1
-100.00 =E2=94=8210:   dc     zva, x0
-       =E2=94=82      add    x0, x0, x1
-       =E2=94=82      tst    x0, #0xffff
-       =E2=94=82    =E2=86=91 b.ne   10
-       =E2=94=82    =E2=86=90 ret
 
-# uname -r
-4.15.3
+	struct foo *a_foo;
 
-# grep HUGE -r .config
-CONFIG_CGROUP_HUGETLB=3Dy
-CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=3Dy
-CONFIG_HAVE_ARCH_HUGE_VMAP=3Dy
-CONFIG_SYS_SUPPORTS_HUGETLBFS=3Dy
-CONFIG_TRANSPARENT_HUGEPAGE=3Dy
-CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=3Dy
-# CONFIG_TRANSPARENT_HUGEPAGE_MADVISE is not set
-CONFIG_TRANSPARENT_HUGE_PAGECACHE=3Dy
-CONFIG_HUGETLBFS=3Dy
-CONFIG_HUGETLB_PAGE=3Dy
+	a_foo = kvzalloc_struct_buf(foo, bar, nr_bars);
 
-# grep _PAGE -r .config
-CONFIG_ARM64_PAGE_SHIFT=3D16
-CONFIG_PAGE_COUNTER=3Dy
-CONFIG_HAVE_ALIGNED_STRUCT_PAGE=3Dy
-# CONFIG_ARM64_4K_PAGES is not set
-# CONFIG_ARM64_16K_PAGES is not set
-CONFIG_ARM64_64K_PAGES=3Dy
-CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC=3Dy
-CONFIG_TRANSPARENT_HUGE_PAGECACHE=3Dy
-CONFIG_IDLE_PAGE_TRACKING=3Dy
-CONFIG_PROC_PAGE_MONITOR=3Dy
-CONFIG_HUGETLB_PAGE=3Dy
-CONFIG_ARCH_HAS_GIGANTIC_PAGE=3Dy
-# CONFIG_PAGE_OWNER is not set
-# CONFIG_PAGE_EXTENSION is not set
-# CONFIG_DEBUG_PAGEALLOC is not set
-# CONFIG_PAGE_POISONING is not set
-# CONFIG_DEBUG_PAGE_REF is not set
+and macro magic will insert the `struct' keyword.  This will help to
+force a miscompile if inappropriate types are used for foo and bar.
 
-# cat /proc/meminfo  | grep Huge
-Hugepagesize:     524288 kB
+Problem is, foo may be a union(?) and bar may be a scalar type.  So
 
-# numactl -H
-available: 4 nodes (0-3)
-node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
-node 0 size: 65308 MB
-node 0 free: 64892 MB
-node 1 cpus: 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
-node 1 size: 65404 MB
-node 1 free: 62804 MB
-node 2 cpus: 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47
-node 2 size: 65404 MB
-node 2 free: 62847 MB
-node 3 cpus: 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63
-node 3 size: 65402 MB
-node 3 free: 64671 MB
-node distances:
-node   0   1   2   3=20
-  0:  10  15  20  20=20
-  1:  15  10  20  20=20
-  2:  20  20  10  15=20
-  3:  20  20  15  10
+	a_foo = kvzalloc_struct_buf(struct foo, struct bar, nr_bars);
 
-Regards,
-Jan
+or, of course.
 
-[1] https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/=
-mem/mtest07/mallocstress.c
+	a_foo = kvzalloc_struct_buf(typeof(*a_foo), typeof(a_foo->bar[0]),
+				    nr_bars);
+
+or whatever.
+
+The basic idea is to use the wrapper macros to force compile errors if
+these things are misused.
+
+
+Also,
+
+> +/**
+> + * kvmalloc_ab_c() - Allocate (a * b + c) bytes of memory.
+> + * @n: Number of elements.
+> + * @size: Size of each element (should be constant).
+> + * @c: Size of header (should be constant).
+> + * @gfp: Memory allocation flags.
+> + *
+> + * Use this function to allocate @n * @size + @c bytes of memory.  This
+> + * function is safe to use when @n is controlled from userspace; it will
+> + * return %NULL if the required amount of memory cannot be allocated.
+> + * Use kvfree() to free the allocated memory.
+> + *
+> + * The kvzalloc_struct() function is easier to use as it has typechecking
+> + * and you do not need to remember which of the arguments should be constants.
+> + *
+> + * Context: Process context.  May sleep; the @gfp flags should be based on
+> + *	    %GFP_KERNEL.
+> + * Return: A pointer to the allocated memory or %NULL.
+> + */
+> +static inline __must_check
+> +void *kvmalloc_ab_c(size_t n, size_t size, size_t c, gfp_t gfp)
+> +{
+> +	if (size != 0 && n > (SIZE_MAX - c) / size)
+> +		return NULL;
+> +
+> +	return kvmalloc(n * size + c, gfp);
+> +}
+
+Can we please avoid the single-char identifiers?
+
+void *kvmalloc_ab_c(size_t n_elems, size_t elem_size, size_t header_size,
+		    gfp_t gfp);
+
+makes the code so much more readable.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
