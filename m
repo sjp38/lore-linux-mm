@@ -1,68 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DFD86B000E
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 16:29:41 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id w24so11536592plq.11
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:29:41 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b21si1812093pfe.31.2018.02.14.13.29.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Feb 2018 13:29:40 -0800 (PST)
-Date: Wed, 14 Feb 2018 13:29:37 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 2/8] mm: Add kvmalloc_ab_c and kvzalloc_struct
-Message-ID: <20180214212937.GG20627@bombadil.infradead.org>
-References: <20180214201154.10186-1-willy@infradead.org>
- <20180214201154.10186-3-willy@infradead.org>
- <1518641152.3678.28.camel@perches.com>
- <20180214211203.GF20627@bombadil.infradead.org>
- <1518643449.3678.33.camel@perches.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 859EC6B0005
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 16:52:49 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id c18so2451211pgv.8
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:52:49 -0800 (PST)
+Received: from ipmailnode02.adl6.internode.on.net (ipmailnode02.adl6.internode.on.net. [150.101.137.148])
+        by mx.google.com with ESMTP id e5si3151258pgp.469.2018.02.14.13.52.47
+        for <linux-mm@kvack.org>;
+        Wed, 14 Feb 2018 13:52:48 -0800 (PST)
+Date: Thu, 15 Feb 2018 08:52:45 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: freezing system for several second on high I/O [kernel 4.15]
+Message-ID: <20180214215245.GI7000@dastard>
+References: <20180131022209.lmhespbauhqtqrxg@destitution>
+ <1517888875.7303.3.camel@gmail.com>
+ <20180206060840.kj2u6jjmkuk3vie6@destitution>
+ <CABXGCsOgcYyj8Xukn7Pi_M2qz2aJ1MJZTaxaSgYno7f_BtZH6w@mail.gmail.com>
+ <1517974845.4352.8.camel@gmail.com>
+ <20180207065520.66f6gocvxlnxmkyv@destitution>
+ <1518255240.31843.6.camel@gmail.com>
+ <1518255352.31843.8.camel@gmail.com>
+ <20180211225657.GA6778@dastard>
+ <1518643669.6070.21.camel@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1518643449.3678.33.camel@perches.com>
+In-Reply-To: <1518643669.6070.21.camel@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: mikhail <mikhail.v.gavrilov@gmail.com>
+Cc: "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Feb 14, 2018 at 01:24:09PM -0800, Joe Perches wrote:
-> On Wed, 2018-02-14 at 13:12 -0800, Matthew Wilcox wrote:
-> > On Wed, Feb 14, 2018 at 12:45:52PM -0800, Joe Perches wrote:
-> > > Perhaps kv[zm]alloc_buf_and_array is better naming.
+On Thu, Feb 15, 2018 at 02:27:49AM +0500, mikhail wrote:
+> On Mon, 2018-02-12 at 09:56 +1100, Dave Chinner wrote:
+> > IOWs, this is not an XFS problem. It's exactly what I'd expect
+> > to see when you try to run a very IO intensive workload on a
+> > cheap SATA drive that can't keep up with what is being asked of
+> > it....
 > > 
-> > I think that's actively misleading.  The programmer isn't allocating a
-> > buf, they're allocating a struct.  kvzalloc_hdr_arr was the earlier name,
-> > and that made some sense; they're allocating an array with a header.
-> > But nobody thinks about it like that; they're allocating a structure
-> > with a variably sized array at the end of it.
-> > 
-> > If C macros had decent introspection, I'd like it to be:
-> > 
-> > 	sev = kvzalloc_struct(elems, GFP_KERNEL);
-> > 
-> > and have the macro examine the structure pointed to by 'sev', check
-> > the last element was an array, calculate the size of the array element,
-> > and call kvzalloc_ab_c.  But we don't live in that world, so I have to
-> > get the programmer to tell me the structure and the name of the last
-> > element in it.
 > 
-> Look at your patch 4
-> 
-> -       dev_dax = kzalloc(sizeof(*dev_dax) + sizeof(*res) * count, GFP_KERNEL);
-> +       dev_dax = kvzalloc_struct(dev_dax, res, count, GFP_KERNEL);
-> 
-> Here what is being allocated is exactly a struct
-> and an array.
+> I am understand that XFS is not culprit here. But I am worried
+> about of interface freezing and various kernel messages with
+> traces which leads to XFS. This is my only clue, and I do not know
+> where to dig yet.
 
-No, it's a struct *containing* an array.  Look at patches 5 & 8 where I
-have to convert the structs to contain the array which was silently
-being allocated immediately after them.
+I've already told you the problem: sustained storage subsystem
+overload. You can't "tune" you way around that. i.e. You need a
+faster disk subsystem to maintian the load you are putting on your
+system - either add more disks (e.g. RAID 0/5/6) or to move to SSDs.
 
-> And this doesn't compile either.
+Cheers,
 
-Does for me.  What error are you seeing?
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
