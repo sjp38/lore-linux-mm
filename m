@@ -1,57 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E734D6B0005
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 14:32:49 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id m70so7365478ioi.8
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 11:32:49 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0103.hostedemail.com. [216.40.44.103])
-        by mx.google.com with ESMTPS id v2si3178790iod.72.2018.02.14.11.32.48
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BFFB66B0005
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 14:35:21 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id o2so11387150pls.10
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 11:35:21 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 43-v6si3364888pla.70.2018.02.14.11.35.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Feb 2018 11:32:49 -0800 (PST)
-Message-ID: <1518636765.3678.19.camel@perches.com>
-Subject: Re: [PATCH 0/2] Add kvzalloc_struct to complement kvzalloc_array
-From: Joe Perches <joe@perches.com>
-Date: Wed, 14 Feb 2018 11:32:45 -0800
-In-Reply-To: <CAGXu5jJdAJt3HK7FgaCyPRbXeFV-hJOrPodNnOkx=kCvSieK3w@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 14 Feb 2018 11:35:20 -0800 (PST)
+Date: Wed, 14 Feb 2018 11:35:17 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 2/2] mm: Add kvmalloc_ab_c and kvzalloc_struct
+Message-ID: <20180214193517.GA20627@bombadil.infradead.org>
 References: <20180214182618.14627-1-willy@infradead.org>
-	 <1518634058.3678.15.camel@perches.com>
-	 <CAGXu5jJdAJt3HK7FgaCyPRbXeFV-hJOrPodNnOkx=kCvSieK3w@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20180214182618.14627-3-willy@infradead.org>
+ <CAGXu5jL9hqQGe672CmvFwqNbtTr=qu7WRwHuS4Vy7o5sX_UTgg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGXu5jL9hqQGe672CmvFwqNbtTr=qu7WRwHuS4Vy7o5sX_UTgg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kees Cook <keescook@chromium.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Julia Lawall <julia.lawall@lip6.fr>, cocci@systeme.lip6.fr
 
-On Wed, 2018-02-14 at 11:23 -0800, Kees Cook wrote:
-> On Wed, Feb 14, 2018 at 10:47 AM, Joe Perches <joe@perches.com> wrote:
-> > On Wed, 2018-02-14 at 10:26 -0800, Matthew Wilcox wrote:
-> > > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > > 
-> > > We all know the perils of multiplying a value provided from userspace
-> > > by a constant and then allocating the resulting number of bytes.  That's
-> > > why we have kvmalloc_array(), so we don't have to think about it.
-> > > This solves the same problem when we embed one of these arrays in a
-> > > struct like this:
-> > > 
-> > > struct {
-> > >       int n;
-> > >       unsigned long array[];
-> > > };
-> > 
-> > I think expanding the number of allocation functions
-> > is not necessary.
+On Wed, Feb 14, 2018 at 11:22:38AM -0800, Kees Cook wrote:
+> > +/**
+> > + * kvmalloc_ab_c() - Allocate memory.
 > 
-> I think removing common mispatterns in favor of overflow-protected
-> allocation functions makes sense.
+> Longer description, maybe? "Allocate a *b + c bytes of memory"?
 
-Function symmetry matters too.
+Done!
 
-These allocation functions are specific to kvz<foo>
-and are not symmetric for k<foo>, v<foo>, devm_<foo>
-<foo>_node, and the like.
+> > + * @n: Number of elements.
+> > + * @size: Size of each element (should be constant).
+> > + * @c: Size of header (should be constant).
+> 
+> If these should be constant, should we mark them as "const"? Or WARN
+> if __builtin_constant_p() isn't true?
+
+It's only less efficient if they're not const.  Theoretically they could be
+variable ... and I've been bitten by __builtin_constant_p() recently
+(gcc bug 83653 which I still don't really understand).
+
+> > + * @gfp: Memory allocation flags.
+> > + *
+> > + * Use this function to allocate @n * @size + @c bytes of memory.  This
+> > + * function is safe to use when @n is controlled from userspace; it will
+> > + * return %NULL if the required amount of memory cannot be allocated.
+> > + * Use kvfree() to free the allocated memory.
+> > + *
+> > + * The kvzalloc_hdr_arr() function is easier to use as it has typechecking
+> 
+> renaming typo? Should this be "kvzalloc_struct()"?
+
+Urgh, yes.  I swear I searched for it ... must've typoed my search string.
+Anyway, fixed, because kvzalloc_hdr_arr() wasn't a good name.
+
+> > +#define kvzalloc_ab_c(a, b, c, gfp)    kvmalloc_ab_c(a, b, c, gfp | __GFP_ZERO)
+> 
+> Nit: "(gfp) | __GFP_ZERO" just in case of insane usage.
+
+Fixed!
+
+> It might be nice to include another patch that replaces some of the
+> existing/common uses of a*b+c with the new function...
+
+Sure!  I have a few examples in my tree, I just didn't want to complicate
+things by sending a patch that crossed dozens of maintainer trees.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
