@@ -1,59 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 54A046B0003
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 08:51:46 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id m3so1880631pgd.20
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 05:51:46 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w7si1318804pgs.639.2018.02.14.05.51.45
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F1F3C6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 09:02:00 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id d21so10976199pll.12
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 06:02:00 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n189sor299068pfn.108.2018.02.14.06.01.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Feb 2018 05:51:45 -0800 (PST)
-Date: Wed, 14 Feb 2018 05:51:41 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC] Limit mappings to ten per page per process
-Message-ID: <20180214135141.GA16215@bombadil.infradead.org>
-References: <20180208021112.GB14918@bombadil.infradead.org>
- <CAG48ez2-MTJ2YrS5fPZi19RY6P_6NWuK1U5CcQpJ25=xrGSy_A@mail.gmail.com>
- <CA+DvKQLHDR0s=6r4uiHL8kw2_PnfJcwYfPxgQOmuLbc=5k39+g@mail.gmail.com>
- <20180208185648.GB9524@bombadil.infradead.org>
- <CA+DvKQLHcFc3+kW_SnD6hs53yyD5Zi+uAeSgDMm1tRzxqy-Opg@mail.gmail.com>
- <20180208194235.GA3424@bombadil.infradead.org>
- <CA+DvKQKba0iU+tydbmGkAJsxCxazORDnuoe32sy-2nggyagUxQ@mail.gmail.com>
- <20180208202100.GB3424@bombadil.infradead.org>
- <20180208213743.GC3424@bombadil.infradead.org>
- <20180209042609.wi6zho24wmmdkg6i@node.shutemov.name>
+        (Google Transport Security);
+        Wed, 14 Feb 2018 06:01:59 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180209042609.wi6zho24wmmdkg6i@node.shutemov.name>
+In-Reply-To: <20171101235456.GA3928@X58A-UD3R>
+References: <20171030100921.GA18085@X58A-UD3R> <20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net>
+ <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz> <20171031135104.rnlytzawi2xzuih3@hirez.programming.kicks-ass.net>
+ <CACT4Y+Zi_Gqh1V7QHzUdRuYQAtNjyNU2awcPOHSQYw9TsCwEsw@mail.gmail.com>
+ <20171031145247.5kjbanjqged34lbp@hirez.programming.kicks-ass.net>
+ <20171031145804.ulrpk245ih6t7q7h@dhcp22.suse.cz> <20171031151024.uhbaynabzq6k7fbc@hirez.programming.kicks-ass.net>
+ <20171101085927.GB3172@X58A-UD3R> <20171101120101.d6jlzwjks2j3az2v@hirez.programming.kicks-ass.net>
+ <20171101235456.GA3928@X58A-UD3R>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 14 Feb 2018 15:01:38 +0100
+Message-ID: <CACT4Y+bvUmjkGDqoOGtMSBfqvbwF4=e8ZyiYYfq0kiVov8Ebiw@mail.gmail.com>
+Subject: Re: possible deadlock in lru_add_drain_all
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Daniel Micay <danielmicay@gmail.com>, Jann Horn <jannh@google.com>, linux-mm@kvack.org, Kernel Hardening <kernel-hardening@lists.openwall.com>, kernel list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
 
-On Fri, Feb 09, 2018 at 07:26:09AM +0300, Kirill A. Shutemov wrote:
-> On Thu, Feb 08, 2018 at 01:37:43PM -0800, Matthew Wilcox wrote:
-> > On Thu, Feb 08, 2018 at 12:21:00PM -0800, Matthew Wilcox wrote:
-> > > Now that I think about it, though, perhaps the simplest solution is not
-> > > to worry about checking whether _mapcount has saturated, and instead when
-> > > adding a new mmap, check whether this task already has it mapped 10 times.
-> > > If so, refuse the mapping.
-> > 
-> > That turns out to be quite easy.  Comments on this approach?
-> 
-> This *may* break some remap_file_pages() users.
+On Thu, Nov 2, 2017 at 12:54 AM, Byungchul Park <byungchul.park@lge.com> wrote:
+> On Wed, Nov 01, 2017 at 01:01:01PM +0100, Peter Zijlstra wrote:
+>> On Wed, Nov 01, 2017 at 05:59:27PM +0900, Byungchul Park wrote:
+>> > On Tue, Oct 31, 2017 at 04:10:24PM +0100, Peter Zijlstra wrote:
+>> > > On Tue, Oct 31, 2017 at 03:58:04PM +0100, Michal Hocko wrote:
+>> > > > On Tue 31-10-17 15:52:47, Peter Zijlstra wrote:
+>> > > > [...]
+>> > > > > If we want to save those stacks; we have to save a stacktrace on _every_
+>> > > > > lock acquire, simply because we never know ahead of time if there will
+>> > > > > be a new link. Doing this is _expensive_.
+>> > > > >
+>> > > > > Furthermore, the space into which we store stacktraces is limited;
+>> > > > > since memory allocators use locks we can't very well use dynamic memory
+>> > > > > for lockdep -- that would give recursive and robustness issues.
+>> >
+>> > I agree with all you said.
+>> >
+>> > But, I have a better idea, that is, to save only the caller's ip of each
+>> > acquisition as an additional information? Of course, it's not enough in
+>> > some cases, but it's cheep and better than doing nothing.
+>> >
+>> > For example, when building A->B, let's save not only full stack of B,
+>> > but also caller's ip of A together, then use them on warning like:
+>>
+>> Like said; I've never really had trouble finding where we take A. And
+>
+> Me, either, since I know the way. But I've seen many guys who got
+> confused with it, which is why I suggested it.
+>
+> But, leave it if you don't think so.
+>
+>> for the most difficult cases, just the IP isn't too useful either.
+>>
+>> So that would solve a non problem while leaving the real problem.
 
-We have some?!  ;-)  I don't understand the use case where they want to
-map the same page of a file multiple times into the same process.  I mean,
-yes, of course, they might ask for it, but I don't understand why they would.
-Do you have any insight here?
 
-> And it may be rather costly for popular binaries. Consider libc.so.
+Hi,
 
-We already walk this tree to insert the mapping; this just adds a second
-walk of the tree to check which overlapping mappings exist.  I would
-expect it to just make the tree cache-hot.
+What's the status of this? Was any patch submitted for this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
