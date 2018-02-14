@@ -1,76 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 20AF66B0003
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EB7B6B0005
 	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 06:17:14 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id m22so5400131pfg.15
+Received: by mail-pl0-f69.google.com with SMTP id w16so10864301plp.20
         for <linux-mm@kvack.org>; Wed, 14 Feb 2018 03:17:14 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id j75si2238413pgc.156.2018.02.14.03.17.12
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id d8si93666pgf.637.2018.02.14.03.17.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 14 Feb 2018 03:17:12 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 0/9] x86/mm: Dynamic memory layout
-Date: Wed, 14 Feb 2018 14:16:47 +0300
-Message-Id: <20180214111656.88514-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 4/9] x86: Introduce pgtable_l5_enabled
+Date: Wed, 14 Feb 2018 14:16:51 +0300
+Message-Id: <20180214111656.88514-5-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180214111656.88514-1-kirill.shutemov@linux.intel.com>
+References: <20180214111656.88514-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This is the next batch of patches required to bring boot-time switching
-between 4- and 5-level paging. Please review and consider applying.
+The new flag would indicate what paging mode we are in.
 
-Patches in this patchset makes memory layout dynamic enough to be able to
-switch between paging modes at boot-time.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/boot/compressed/kaslr.c        | 4 ++++
+ arch/x86/include/asm/pgtable_32_types.h | 2 ++
+ arch/x86/include/asm/pgtable_64_types.h | 6 ++++++
+ arch/x86/kernel/head64.c                | 5 +++++
+ 4 files changed, 17 insertions(+)
 
-Ingo, it worth noticing that we discussed some parts of the patchset
-before (back in October) and had disagrement on how to handle situation.
-You can read my position on the matter by the link[1].
-
-Some changes made in this patchset can be replaced by patching constants
-in code once we have infrastructure for this.
-
-[1] http://lkml.kernel.org/r/20171031120429.ehaqy2iciewcij35@node.shutemov.name
-
-Kirill A. Shutemov (9):
-  x86/mm/64: Make __PHYSICAL_MASK_SHIFT always 52
-  mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
-  x86/mm: Make virtual memory layout movable for CONFIG_X86_5LEVEL
-  x86: Introduce pgtable_l5_enabled
-  x86/mm: Make LDT_BASE_ADDR dynamic
-  x86/mm: Make PGDIR_SHIFT and PTRS_PER_P4D variable
-  x86/mm: Make MAX_PHYSADDR_BITS and MAX_PHYSMEM_BITS dynamic
-  x86/mm: Make __VIRTUAL_MASK_SHIFT dynamic
-  x86/mm: Adjust virtual address space layout in early boot
-
- arch/x86/Kconfig                            |  9 ++++
- arch/x86/boot/compressed/kaslr.c            | 14 ++++++
- arch/x86/entry/entry_64.S                   | 12 ++++++
- arch/x86/include/asm/kaslr.h                |  4 --
- arch/x86/include/asm/page_64.h              |  4 ++
- arch/x86/include/asm/page_64_types.h        | 20 ++++-----
- arch/x86/include/asm/pgtable-3level_types.h |  1 +
- arch/x86/include/asm/pgtable_32.h           |  2 +
- arch/x86/include/asm/pgtable_32_types.h     |  2 +
- arch/x86/include/asm/pgtable_64_types.h     | 67 ++++++++++++++++++-----------
- arch/x86/include/asm/sparsemem.h            |  9 +---
- arch/x86/kernel/cpu/mcheck/mce.c            | 18 +++-----
- arch/x86/kernel/head64.c                    | 57 ++++++++++++++++++++++--
- arch/x86/kernel/head_64.S                   |  2 +-
- arch/x86/kernel/setup.c                     |  5 +--
- arch/x86/mm/dump_pagetables.c               | 32 +++++++++-----
- arch/x86/mm/init_64.c                       |  2 +-
- arch/x86/mm/kasan_init_64.c                 |  2 +-
- arch/x86/mm/kaslr.c                         | 23 ++++------
- arch/x86/platform/efi/efi_64.c              |  4 +-
- include/asm-generic/5level-fixup.h          |  1 +
- include/asm-generic/pgtable-nop4d.h         |  9 ++--
- include/linux/kasan.h                       |  2 +-
- mm/kasan/kasan_init.c                       |  2 +-
- mm/zsmalloc.c                               | 13 +++---
- 25 files changed, 208 insertions(+), 108 deletions(-)
-
+diff --git a/arch/x86/boot/compressed/kaslr.c b/arch/x86/boot/compressed/kaslr.c
+index 8199a6187251..bd69e1830fbe 100644
+--- a/arch/x86/boot/compressed/kaslr.c
++++ b/arch/x86/boot/compressed/kaslr.c
+@@ -46,6 +46,10 @@
+ #define STATIC
+ #include <linux/decompress/mm.h>
+ 
++#ifdef CONFIG_X86_5LEVEL
++unsigned int pgtable_l5_enabled __ro_after_init = 1;
++#endif
++
+ extern unsigned long get_cmd_line_ptr(void);
+ 
+ /* Simplified build-specific string for starting entropy. */
+diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
+index 0777e18a1d23..e3225e83db7d 100644
+--- a/arch/x86/include/asm/pgtable_32_types.h
++++ b/arch/x86/include/asm/pgtable_32_types.h
+@@ -15,6 +15,8 @@
+ # include <asm/pgtable-2level_types.h>
+ #endif
+ 
++#define pgtable_l5_enabled 0
++
+ #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+ #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
+ 
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index a0db91ab63b8..5e2d724f8f47 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -20,6 +20,12 @@ typedef unsigned long	pgprotval_t;
+ 
+ typedef struct { pteval_t pte; } pte_t;
+ 
++#ifdef CONFIG_X86_5LEVEL
++extern unsigned int pgtable_l5_enabled;
++#else
++#define pgtable_l5_enabled 0
++#endif
++
+ #endif	/* !__ASSEMBLY__ */
+ 
+ #define SHARED_KERNEL_PMD	0
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index bf5c9ba63ba1..17d00d1886de 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -39,6 +39,11 @@ extern pmd_t early_dynamic_pgts[EARLY_DYNAMIC_PAGE_TABLES][PTRS_PER_PMD];
+ static unsigned int __initdata next_early_pgt;
+ pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
+ 
++#ifdef CONFIG_X86_5LEVEL
++unsigned int pgtable_l5_enabled __ro_after_init = 1;
++EXPORT_SYMBOL(pgtable_l5_enabled);
++#endif
++
+ #ifdef CONFIG_DYNAMIC_MEMORY_LAYOUT
+ unsigned long page_offset_base __ro_after_init = __PAGE_OFFSET_BASE;
+ EXPORT_SYMBOL(page_offset_base);
 -- 
 2.15.1
 
