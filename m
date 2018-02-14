@@ -1,68 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E298F6B0010
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:12:06 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id f4so11459371plr.14
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 12:12:06 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id p3si1895647pgr.271.2018.02.14.12.12.05
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CC4F6B0006
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:13:41 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id k19so13297783otj.6
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 12:13:41 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j100sor980778otj.201.2018.02.14.12.13.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Feb 2018 12:12:05 -0800 (PST)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v2 8/8] Convert jffs2 acl to kvzalloc_struct
-Date: Wed, 14 Feb 2018 12:11:54 -0800
-Message-Id: <20180214201154.10186-9-willy@infradead.org>
-In-Reply-To: <20180214201154.10186-1-willy@infradead.org>
-References: <20180214201154.10186-1-willy@infradead.org>
+        (Google Transport Security);
+        Wed, 14 Feb 2018 12:13:40 -0800 (PST)
+Subject: Re: arm64 physmap (was Re: [kernel-hardening] [PATCH 4/6] Protectable
+ Memory)
+References: <20180124175631.22925-1-igor.stoppa@huawei.com>
+ <20180126053542.GA30189@bombadil.infradead.org>
+ <alpine.DEB.2.20.1802021236510.31548@nuc-kabylake>
+ <f2ddaed0-313e-8664-8a26-9d10b66ed0c5@huawei.com>
+ <b75b5903-0177-8ad9-5c2b-fc63438fb5f2@huawei.com>
+ <CAFUG7CfrCpcbwgf5ixMC5EZZgiVVVp1NXhDHK1UoJJcC08R2qQ@mail.gmail.com>
+ <8818bfd4-dd9f-f279-0432-69b59531bd41@huawei.com>
+ <CAFUG7CeUhFcvA82uZ2ZH1j_6PM=aBo4XmYDN85pf8G0gPU44dg@mail.gmail.com>
+ <17e5b515-84c8-dca2-1695-cdf819834ea2@huawei.com>
+ <CAGXu5j+LS1pgOOroi7Yxp2nh=DwtTnU3p-NZa6bQu_wkvvVkwg@mail.gmail.com>
+ <414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com>
+ <CAGXu5j++igQD4tMh0J8nZ9jNji5mU16C7OygFJ5Td+Bq-KSMgw@mail.gmail.com>
+ <CAG48ez1utN_vwHUwk=BU6zM4Wa_53TPu8rm9JuTtY-vGP0Shqw@mail.gmail.com>
+ <f4226a44-92fd-8ead-b458-7551ba82f96d@redhat.com>
+ <CAGXu5j+zOCLerneUt2b-tvyLLg7fEbr9B0YYow-4DH6oV-nnCw@mail.gmail.com>
+ <2f23544a-bd24-1e71-967b-e8d1cf5a20a3@redhat.com>
+ <CAKv+Gu8CNGFKLhX2XRuesn3n3k5P2bYS8qKWTTNXGFnr7SUVUA@mail.gmail.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <213effab-f0d0-cfc5-8feb-c72eed8ae0aa@redhat.com>
+Date: Wed, 14 Feb 2018 12:13:36 -0800
+MIME-Version: 1.0
+In-Reply-To: <CAKv+Gu8CNGFKLhX2XRuesn3n3k5P2bYS8qKWTTNXGFnr7SUVUA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Joe Perches <joe@perches.com>
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Kees Cook <keescook@chromium.org>, Jann Horn <jannh@google.com>, Igor Stoppa <igor.stoppa@huawei.com>, Boris Lukashev <blukashev@sempervictus.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+On 02/14/2018 11:28 AM, Ard Biesheuvel wrote:
+> On 14 February 2018 at 19:06, Laura Abbott <labbott@redhat.com> wrote:
+>> On 02/13/2018 01:43 PM, Kees Cook wrote:
+>>>
+>>> On Tue, Feb 13, 2018 at 8:09 AM, Laura Abbott <labbott@redhat.com> wrote:
+>>>>
+>>>> No, arm64 doesn't fixup the aliases, mostly because arm64 uses larger
+>>>> page sizes which can't be broken down at runtime. CONFIG_PAGE_POISONING
+>>>> does use 4K pages which could be adjusted at runtime. So yes, you are
+>>>> right we would have physmap exposure on arm64 as well.
+>>>
+>>>
+>>> Errr, so that means even modules and kernel code are writable via the
+>>> arm64 physmap? That seems extraordinarily bad. :(
+>>>
+>>> -Kees
+>>>
+>>
+>> (adding linux-arm-kernel and changing the subject)
+>>
+>> Kernel code should be fine, if it isn't that is a bug that should be
+>> fixed.
+> 
+> We take care to ensure that the linear alias of the core kernel's
+> .text and .rodata segments are mapped read-only. When we first moved
+> the kernel out of the linear region, we did not map it there at all
+> anymore, but that broke hibernation so we had to put something back.
+> 
+>> Modules yes are not fully protected. The conclusion from past
+>> experience has been that we cannot safely break down larger page sizes
+>> at runtime like x86 does. We could theoretically
+>> add support for fixing up the alias if PAGE_POISONING is enabled but
+>> I don't know who would actually use that in production. Performance
+>> is very poor at that point.
+>>
+> 
+> As long as the linear alias of the module is mapped down to pages, we
+> should be able to tweak the permissions. I take it that PAGE_POISONING
+> does more than just that?
+> 
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- fs/jffs2/acl.c | 3 ++-
- fs/jffs2/acl.h | 1 +
- 2 files changed, 3 insertions(+), 1 deletion(-)
+Page poisoning does exactly that. The argument I was trying to make
+was that if nobody really uses page poisoning except for debugging
+it might not be worth it to fix up the alias. Thinking a bit more,
+this is a terrible argument for many reasons so yes I agree that
+we can just fix up the alias if PAGE_POISONING (or other features)
+are enabled.
 
-diff --git a/fs/jffs2/acl.c b/fs/jffs2/acl.c
-index 7ebacf14837f..9df7feffd6ea 100644
---- a/fs/jffs2/acl.c
-+++ b/fs/jffs2/acl.c
-@@ -13,6 +13,7 @@
- 
- #include <linux/kernel.h>
- #include <linux/slab.h>
-+#include <linux/mm.h>
- #include <linux/fs.h>
- #include <linux/sched.h>
- #include <linux/time.h>
-@@ -133,7 +134,7 @@ static void *jffs2_acl_to_medium(const struct posix_acl *acl, size_t *size)
- 	size_t i;
- 
- 	*size = jffs2_acl_size(acl->a_count);
--	header = kmalloc(sizeof(*header) + acl->a_count * sizeof(*entry), GFP_KERNEL);
-+	header = kvzalloc_struct(header, a_entries, acl->a_count, GFP_KERNEL);
- 	if (!header)
- 		return ERR_PTR(-ENOMEM);
- 	header->a_version = cpu_to_je32(JFFS2_ACL_VERSION);
-diff --git a/fs/jffs2/acl.h b/fs/jffs2/acl.h
-index 2e2b5745c3b7..12d0271bdde3 100644
---- a/fs/jffs2/acl.h
-+++ b/fs/jffs2/acl.h
-@@ -22,6 +22,7 @@ struct jffs2_acl_entry_short {
- 
- struct jffs2_acl_header {
- 	jint32_t	a_version;
-+	struct jffs2_acl_entry	a_entries[];
- };
- 
- #ifdef CONFIG_JFFS2_FS_POSIX_ACL
--- 
-2.15.1
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
