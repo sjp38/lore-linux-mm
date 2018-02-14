@@ -1,118 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C42626B0007
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 00:58:04 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id x11so1429116pgr.9
-        for <linux-mm@kvack.org>; Tue, 13 Feb 2018 21:58:04 -0800 (PST)
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D0996B0003
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 03:08:34 -0500 (EST)
+Received: by mail-yw0-f198.google.com with SMTP id h187so10884256ywb.9
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 00:08:34 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j22-v6sor517932pli.2.2018.02.13.21.58.03
+        by mx.google.com with SMTPS id o16sor1571679ybm.30.2018.02.14.00.08.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Feb 2018 21:58:03 -0800 (PST)
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: [PATCHv3 1/2] zsmalloc: introduce zs_huge_object() function
-Date: Wed, 14 Feb 2018 14:57:47 +0900
-Message-Id: <20180214055747.8420-1-sergey.senozhatsky@gmail.com>
-In-Reply-To: <20180210082321.17798-1-sergey.senozhatsky@gmail.com>
-References: <20180210082321.17798-1-sergey.senozhatsky@gmail.com>
+        Wed, 14 Feb 2018 00:08:33 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20180214025653.132942-4-shakeelb@google.com>
+References: <20180214025653.132942-1-shakeelb@google.com> <20180214025653.132942-4-shakeelb@google.com>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Wed, 14 Feb 2018 10:08:31 +0200
+Message-ID: <CAOQ4uxjHtV+9=T3wGdg9na0zPiBYzDtDAOJx7rWUMv5KS6Bi2g@mail.gmail.com>
+Subject: Re: [RFC PATCH 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Jan Kara <jack@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, cgroups@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-Not every object can be share its zspage with other objects, e.g.
-when the object is as big as zspage or nearly as big a zspage.
-For such objects zsmalloc has a so called huge class - every object
-which belongs to huge class consumes the entire zspage (which
-consists of a physical page). On x86_64, PAGE_SHIFT 12 box, the
-first non-huge class size is 3264, so starting down from size 3264,
-objects can share page(-s) and thus minimize memory wastage.
+On Wed, Feb 14, 2018 at 4:56 AM, Shakeel Butt <shakeelb@google.com> wrote:
+> This is RFC patch and the discussion on the API is still happening at
+> the following link but I am sending the early draft for feedback.
+> [link] https://marc.info/?l=linux-api&m=151850343717274
+>
+> A lot of memory can be consumed by the events generated for the huge or
+> unlimited queues if there is either no or slow listener. This can cause
+> system level memory pressure or OOMs. So, it's better to account the
+> fsnotify kmem caches to the memcg of the listener.
+>
+> There are seven fsnotify kmem caches and among them allocations from
+> dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
+> inotify_inode_mark_cachep happens in the context of syscall from the
 
-ZRAM, however, has its own statically defined watermark for huge
-objects - "3 * PAGE_SIZE / 4 = 3072", and forcibly stores every
-object larger than this watermark (3072) as a PAGE_SIZE object,
-in other words, to a huge class, while zsmalloc can keep some of
-those objects in non-huge classes. This results in increased
-memory consumption.
+fsnotify_mark_connector_cachep as well.
 
-zsmalloc knows better if the object is huge or not. Introduce
-zs_huge_object() function which tells if the given object can be
-stored in one of non-huge classes or not. This will let us to drop
-ZRAM's huge object watermark and fully rely on zsmalloc when we
-decide if the object is huge.
+> listener. So, SLAB_ACCOUNT is enough for these caches. The allocations
+> from the remaining caches can happen in the context of the event
 
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
----
- include/linux/zsmalloc.h |  2 ++
- mm/zsmalloc.c            | 26 ++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+I would rephrase: "The allocations from the event caches happen in the
+context of the event producer".
 
-diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
-index 57a8e98f2708..9a1baf673cc1 100644
---- a/include/linux/zsmalloc.h
-+++ b/include/linux/zsmalloc.h
-@@ -47,6 +47,8 @@ void zs_destroy_pool(struct zs_pool *pool);
- unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t flags);
- void zs_free(struct zs_pool *pool, unsigned long obj);
- 
-+bool zs_huge_object(size_t sz);
-+
- void *zs_map_object(struct zs_pool *pool, unsigned long handle,
- 			enum zs_mapmode mm);
- void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index c3013505c305..e43fc6ebb8e1 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -192,6 +192,7 @@ static struct vfsmount *zsmalloc_mnt;
-  * (see: fix_fullness_group())
-  */
- static const int fullness_threshold_frac = 4;
-+static size_t zs_huge_class_size;
- 
- struct size_class {
- 	spinlock_t lock;
-@@ -1417,6 +1418,28 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
- }
- EXPORT_SYMBOL_GPL(zs_unmap_object);
- 
-+/**
-+ * zs_huge_object() - Test if a compressed object's size is too big for normal
-+ *                    zspool classes and it should be stored in a huge class.
-+ * @sz: Size of the compressed object (in bytes).
-+ *
-+ * The function checks if the object's size falls into huge_class
-+ * area. We must take handle size into account and test the actual
-+ * size we are going to use, because zs_malloc() unconditionally
-+ * adds %ZS_HANDLE_SIZE before it performs &size_class lookup.
-+ *
-+ * Context: Any context.
-+ *
-+ * Return:
-+ * * true  - The object is too big, it will be stored in the huge class.
-+ * * false - The object will be stored in a normal zspool class.
-+ */
-+bool zs_huge_object(size_t sz)
-+{
-+	return sz + ZS_HANDLE_SIZE >= zs_huge_class_size;
-+}
-+EXPORT_SYMBOL_GPL(zs_huge_object);
-+
- static unsigned long obj_malloc(struct size_class *class,
- 				struct zspage *zspage, unsigned long handle)
- {
-@@ -2404,6 +2427,9 @@ struct zs_pool *zs_create_pool(const char *name)
- 			INIT_LIST_HEAD(&class->fullness_list[fullness]);
- 
- 		prev_class = class;
-+		if (pages_per_zspage == 1 && objs_per_zspage == 1
-+				&& !zs_huge_class_size)
-+			zs_huge_class_size = size;
- 	}
- 
- 	/* debug only, don't abort if it fails */
--- 
-2.16.1
+> producer. For such caches we will need to remote charge the allocations
+> to the listener's memcg. Thus we save the memcg reference in the
+> fsnotify_group structure of the listener.
+>
+> This patch has also moved the members of fsnotify_group to keep the
+> size same, at least for 64 bit build, even with additional member by
+> filling the holes.
+>
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+
+Other than connector cache and the API issue, this looks good.
+Only some nit picking below.
+
+[...]
+> diff --git a/include/linux/fsnotify_backend.h b/include/linux/fsnotify_backend.h
+> index 067d52e95f02..e1ed0f32ff92 100644
+> --- a/include/linux/fsnotify_backend.h
+> +++ b/include/linux/fsnotify_backend.h
+> @@ -84,6 +84,8 @@ struct fsnotify_event_private_data;
+>  struct fsnotify_fname;
+>  struct fsnotify_iter_info;
+>
+> +struct mem_cgroup;
+> +
+>  /*
+>   * Each group much define these ops.  The fsnotify infrastructure will call
+>   * these operations for each relevant group.
+> @@ -129,6 +131,8 @@ struct fsnotify_event {
+>   * everything will be cleaned up.
+>   */
+>  struct fsnotify_group {
+> +       const struct fsnotify_ops *ops; /* how this group handles things */
+> +
+>         /*
+>          * How the refcnt is used is up to each group.  When the refcnt hits 0
+>          * fsnotify will clean up all of the resources associated with this group.
+> @@ -139,8 +143,6 @@ struct fsnotify_group {
+>          */
+>         refcount_t refcnt;              /* things with interest in this group */
+>
+> -       const struct fsnotify_ops *ops; /* how this group handles things */
+> -
+>         /* needed to send notification to userspace */
+>         spinlock_t notification_lock;           /* protect the notification_list */
+>         struct list_head notification_list;     /* list of event_holder this group needs to send to userspace */
+> @@ -162,6 +164,8 @@ struct fsnotify_group {
+>         atomic_t num_marks;             /* 1 for each mark and 1 for not being
+>                                          * past the point of no return when freeing
+>                                          * a group */
+> +       atomic_t user_waits;            /* Number of tasks waiting for user
+> +                                        * response */
+>         struct list_head marks_list;    /* all inode marks for this group */
+>
+>         struct fasync_struct *fsn_fa;    /* async notification */
+> @@ -169,8 +173,8 @@ struct fsnotify_group {
+>         struct fsnotify_event *overflow_event;  /* Event we queue when the
+>                                                  * notification list is too
+>                                                  * full */
+> -       atomic_t user_waits;            /* Number of tasks waiting for user
+> -                                        * response */
+> +
+> +       struct mem_cgroup *memcg_to_charge; /* memcg to charge allocations */
+>
+
+I am for brevity. IMO 'memcg' would be descriptive enough.
+
+>         /* groups can define private fields here or use the void *private */
+>         union {
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 9dec8a5c0ca2..0c877ddae4ef 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -352,6 +352,7 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
+>         return css ? container_of(css, struct mem_cgroup, css) : NULL;
+>  }
+>
+> +struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm);
+
+Missing newline.
+
+>  static inline void mem_cgroup_put(struct mem_cgroup *memcg)
+>  {
+>         css_put(&memcg->css);
+
+Thanks,
+Amir.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
