@@ -1,77 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 78ADB6B0007
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 03:09:35 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id 63so8902150wrn.7
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 00:09:35 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p21sor2537915wmc.37.2018.02.14.00.09.34
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F3EFC6B0009
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 03:38:10 -0500 (EST)
+Received: by mail-yw0-f199.google.com with SMTP id g125so24942136ywe.5
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 00:38:10 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j16sor1172423ywk.178.2018.02.14.00.38.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 14 Feb 2018 00:09:34 -0800 (PST)
-Date: Wed, 14 Feb 2018 09:09:30 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v3 0/4] optimize memory hotplug
-Message-ID: <20180214080930.n44x3arzqanja5zq@gmail.com>
-References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
- <20180213135359.705680d373a482b650f38b50@linux-foundation.org>
+        Wed, 14 Feb 2018 00:38:10 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180213135359.705680d373a482b650f38b50@linux-foundation.org>
+In-Reply-To: <CALvZod4SNwWHYZQsphB90cY-wc8WSLurKsA2kNxfVKV-upwy9A@mail.gmail.com>
+References: <20171030124358.GF23278@quack2.suse.cz> <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
+ <20171031101238.GD8989@quack2.suse.cz> <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
+ <10924085-6275-125f-d56b-547d734b6f4e@alibaba-inc.com> <20171114093909.dbhlm26qnrrb2ww4@dhcp22.suse.cz>
+ <afa2dc80-16a3-d3d1-5090-9430eaafc841@alibaba-inc.com> <20171115093131.GA17359@quack2.suse.cz>
+ <CALvZod6HJO73GUfLemuAXJfr4vZ8xMOmVQpFO3vJRog-s2T-OQ@mail.gmail.com>
+ <CAOQ4uxg-mTgQfTv-qO6EVwfttyOy+oFyAHyFDKTQsDOkQPyyfA@mail.gmail.com>
+ <20180124103454.ibuqt3njaqbjnrfr@quack2.suse.cz> <CAOQ4uxhDpBBUrr0JWRBaNQTTaUeJ4=gnM0iij2KivaGgp1ggtg@mail.gmail.com>
+ <CALvZod4PyqfaqgEswegF5uOjNwVwbY1C4ptJB0Ouvgchv2aVFg@mail.gmail.com>
+ <CAOQ4uxhyZNghjQU5atNv5xtgdHzA75UayphCyQDzxjM8GDTv3Q@mail.gmail.com>
+ <CALvZod5H4eL=YtZ3zkGG3p8gD+3=qnC3siUw1zpKL+128KufAA@mail.gmail.com>
+ <CAOQ4uxgJqn0CJaf=LMH-iv2g1MJZwPM97K6iCtzrcY3eoN6KjA@mail.gmail.com>
+ <CAOQ4uxjgKUFJ_uhyrQdcTs1FzcN6JrR_JpPc9QBrGJEU+cf65w@mail.gmail.com>
+ <CALvZod45r7oW=HWH7KJyvFhJWB=6+Si54JK7E0Mx_2gLTZd1Pg@mail.gmail.com>
+ <CAOQ4uxghwNg9Ni23EQA-971-qAaTNceSZS2MSvK06uEjoXG_yg@mail.gmail.com>
+ <CALvZod7FTNzoGfGnaorqjk4KEsxJFdz1pApHi04P1cF10ejxpQ@mail.gmail.com> <CALvZod4SNwWHYZQsphB90cY-wc8WSLurKsA2kNxfVKV-upwy9A@mail.gmail.com>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Wed, 14 Feb 2018 10:38:09 +0200
+Message-ID: <CAOQ4uxifddquri4BNqBSKv6O_b13=C08kKYinTo9+m56z1n+aQ@mail.gmail.com>
+Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Jan Kara <jack@suse.cz>, Yang Shi <yang.s@alibaba-inc.com>, Michal Hocko <mhocko@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
 
+On Wed, Feb 14, 2018 at 3:59 AM, Shakeel Butt <shakeelb@google.com> wrote:
+> On Tue, Feb 13, 2018 at 2:20 PM, Shakeel Butt <shakeelb@google.com> wrote:
+[...]
+>>>>> Something like FAN_GROUP_QUEUE  (better name is welcome)
+>>>>> which is mutually exclusive (?) with FAN_UNLIMITED_QUEUE.
+>>>>>
+>>
+>> How about FAN_CHARGE_MEMCG?
+>>
 
-* Andrew Morton <akpm@linux-foundation.org> wrote:
+I am not crazy about this name.
+Imagine a user that writes a file system listener that is going to run
+inside a container.
+The user doesn't need to know about the container or what is memcg
+and what is memcg charging.
+IMO, we need to hide those implementation details from the user and
+yet encourage user to opt-in for memcg charging... or do we?
 
-> On Tue, 13 Feb 2018 14:31:55 -0500 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
-> 
-> > This patchset:
-> > - Improves hotplug performance by eliminating a number of
-> > struct page traverses during memory hotplug.
-> > 
-> > - Fixes some issues with hotplugging, where boundaries
-> > were not properly checked. And on x86 block size was not properly aligned
-> > with end of memory
-> > 
-> > - Also, potentially improves boot performance by eliminating condition from
-> >   __init_single_page().
-> > 
-> > - Adds robustness by verifying that that struct pages are correctly
-> >   poisoned when flags are accessed.
-> 
-> I'm now attempting to get a 100% review rate on MM patches, which is
-> why I started adding my Reviewed-by: when I do that thing.
-> 
-> I'm not familiar enough with this code to add my own Reviewed-by:, and
-> we'll need to figure out what to do in such cases.  I shall be sending
-> out periodic review-status summaries.
-> 
-> If you're able to identify a suitable reviewer for this work and to
-> offer them beer, that would help.  Let's see what happens as the weeks
-> unfold.
+>
+> Also should there be a similar flag for inotify_init1() as well?
+>
 
-The largest patch, fix patch #2, looks good to me and fixes a real bug.
-Patch #1 and #3 also look good to me (assuming the runtime overhead
-added by patch #3 is OK to you):
+This question changed my perspective on the fanotify_init() flag.
+Unlike with fanotify, for inotify, is it the sysadmin that determines
+the size of the queue of future listeners by setting
+/proc/sys/fs/inotify/max_queued_events
 
-  Reviewed-by: Ingo Molnar <mingo@kernel.org>
+IMO, there is little justification for a program to opt-out of memcg
+charging if the sysadmin opts-in for memcg charging.
+Anyone disagrees with that claim?
 
-(I suspect patch #1 and patch #2 should also get a Cc: stable.)
+So how about /proc/sys/fs/inotify/charge_memcg
+which defaults to CONFIG_INOTIFY_CHARGE_MEMCG
+which defaults to N.
 
-Patch #4 is too large to review IMO: it should be split up into as many patches as 
-practically possible. That will also help bisectability, should anything break.
+Then sysadmin can opt-in/out of new behavior and distro can
+opt-in for new behavior by default and programs don't need to
+be recompiled.
 
-Before applying these patches please fix changelog and code comment spelling.
+I think that should be enough to address the concern of changing
+existing behavior.
 
-But it's all good stuff AFAICS!
+The same logic could also apply to fanotify, excpet we may want to
+use sysfs instead of procfs.
+The question is: do we need a separate knob for charging memcg
+for inotify and fanotify or same knob can control both?
+
+I can't think of a reason why we really need 2 knobs, but maybe
+its just nicer to have the inotify knob next to the existing
+max_queued_events knob.
 
 Thanks,
-
-	Ingo
+Amir.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
