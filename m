@@ -1,83 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6557F6B0007
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 16:24:14 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id l16so13316000iti.4
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:24:14 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0250.hostedemail.com. [216.40.44.250])
-        by mx.google.com with ESMTPS id c127si7251911itc.82.2018.02.14.13.24.13
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 68CA86B0008
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 16:24:16 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id i12so661146wra.22
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 13:24:16 -0800 (PST)
+Received: from www62.your-server.de (www62.your-server.de. [213.133.104.62])
+        by mx.google.com with ESMTPS id o199si679654wmd.268.2018.02.14.05.29.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Feb 2018 13:24:13 -0800 (PST)
-Message-ID: <1518643449.3678.33.camel@perches.com>
-Subject: Re: [PATCH v2 2/8] mm: Add kvmalloc_ab_c and kvzalloc_struct
-From: Joe Perches <joe@perches.com>
-Date: Wed, 14 Feb 2018 13:24:09 -0800
-In-Reply-To: <20180214211203.GF20627@bombadil.infradead.org>
-References: <20180214201154.10186-1-willy@infradead.org>
-	 <20180214201154.10186-3-willy@infradead.org>
-	 <1518641152.3678.28.camel@perches.com>
-	 <20180214211203.GF20627@bombadil.infradead.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 14 Feb 2018 05:29:33 -0800 (PST)
+Subject: Re: WARNING in kvmalloc_node
+References: <001a1144c4ca5dc9d6056520c7b7@google.com>
+ <20180214025533.GA28811@bombadil.infradead.org>
+ <20180214084308.GX3443@dhcp22.suse.cz>
+ <f3fda93e-b223-3c94-3213-43cad4346716@iogearbox.net>
+ <24351362-a099-3317-2b96-8cdc6835eb1e@redhat.com>
+ <20180214115119.GA3443@dhcp22.suse.cz>
+ <62489a86-b578-b075-3ada-c2f5baf5b787@redhat.com>
+ <dcbb4ead-2a76-310c-69dc-4f253e711fe9@iogearbox.net>
+ <20180214132950.2d06e612@redhat.com>
+ <ce8cbaab-796b-2838-d1c4-c63243fb5f69@redhat.com>
+From: Daniel Borkmann <daniel@iogearbox.net>
+Message-ID: <0c511cb9-9f3c-eb58-9d33-e4fc873b26a3@iogearbox.net>
+Date: Wed, 14 Feb 2018 14:29:23 +0100
+MIME-Version: 1.0
+In-Reply-To: <ce8cbaab-796b-2838-d1c4-c63243fb5f69@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Jason Wang <jasowang@redhat.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, syzbot <syzbot+1a240cdb1f4cc88819df@syzkaller.appspotmail.com>, akpm@linux-foundation.org, dhowells@redhat.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, rppt@linux.vnet.ibm.com, syzkaller-bugs@googlegroups.com, vbabka@suse.cz, viro@zeniv.linux.org.uk, Alexei Starovoitov <ast@kernel.org>, netdev@vger.kernel.org, "Michael S. Tsirkin" <mst@redhat.com>
 
-On Wed, 2018-02-14 at 13:12 -0800, Matthew Wilcox wrote:
-> On Wed, Feb 14, 2018 at 12:45:52PM -0800, Joe Perches wrote:
-> > On Wed, 2018-02-14 at 12:11 -0800, Matthew Wilcox wrote:
-> > > We have kvmalloc_array in order to safely allocate an array with a
-> > > number of elements specified by userspace (avoiding arithmetic overflow
-> > > leading to a buffer overrun).  But it's fairly common to have a header
-> > > in front of that array (eg specifying the length of the array), so we
-> > > need a helper function for that situation.
-> > > 
-> > > kvmalloc_ab_c() is the workhorse that does the calculation, but in spite
-> > > of our best efforts to name the arguments, it's really hard to remember
-> > > which order to put the arguments in.  kvzalloc_struct() eliminates that
-> > > effort; you tell it about the struct you're allocating, and it puts the
-> > > arguments in the right order for you (and checks that the arguments
-> > > you've given are at least plausible).
-> > > 
-> > > For comparison between the three schemes:
-> > > 
-> > > 	sev = kvzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems,
-> > > 			GFP_KERNEL);
-> > > 	sev = kvzalloc_ab_c(elems, sizeof(struct v4l2_kevent), sizeof(*sev),
-> > > 			GFP_KERNEL);
-> > > 	sev = kvzalloc_struct(sev, events, elems, GFP_KERNEL);
-> > 
-> > Perhaps kv[zm]alloc_buf_and_array is better naming.
+On 02/14/2018 01:47 PM, Jason Wang wrote:
+> On 2018a1'02ae??14ae?JPY 20:29, Jesper Dangaard Brouer wrote:
+>> On Wed, 14 Feb 2018 13:17:18 +0100
+>> Daniel Borkmann <daniel@iogearbox.net> wrote:
+>>> On 02/14/2018 01:02 PM, Jason Wang wrote:
+>>>> On 2018a1'02ae??14ae?JPY 19:51, Michal Hocko wrote:
+>>>>> On Wed 14-02-18 19:47:30, Jason Wang wrote:
+>>>>>> On 2018a1'02ae??14ae?JPY 17:28, Daniel Borkmann wrote:
+>>>>>>> [ +Jason, +Jesper ]
+>>>>>>>
+>>>>>>> On 02/14/2018 09:43 AM, Michal Hocko wrote:
+>>>>>>>> On Tue 13-02-18 18:55:33, Matthew Wilcox wrote:
+>>>>>>>>> On Tue, Feb 13, 2018 at 03:59:01PM -0800, syzbot wrote:
+>>>>>>>> [...]
+>>>>>>>>>> A A A  kvmalloc include/linux/mm.h:541 [inline]
+>>>>>>>>>> A A A  kvmalloc_array include/linux/mm.h:557 [inline]
+>>>>>>>>>> A A A  __ptr_ring_init_queue_alloc include/linux/ptr_ring.h:474 [inline]
+>>>>>>>>>> A A A  ptr_ring_init include/linux/ptr_ring.h:492 [inline]
+>>>>>>>>>> A A A  __cpu_map_entry_alloc kernel/bpf/cpumap.c:359 [inline]
+>>>>>>>>>> A A A  cpu_map_update_elem+0x3c3/0x8e0 kernel/bpf/cpumap.c:490
+>>>>>>>>>> A A A  map_update_elem kernel/bpf/syscall.c:698 [inline]
+>>>>>>>>> Blame the BPF people, not the MM people ;-)
+>>>>>>> Heh, not really. ;-)
+>>>>>>> A 
+>>>>>>>> Yes. kvmalloc (the vmalloc part) doesn't support GFP_ATOMIC semantic.
+>>>>>>> Agree, that doesn't work.
+>>>>>>>
+>>>>>>> Bug was added in commit 0bf7800f1799 ("ptr_ring: try vmalloc() when kmalloc() fails").
+>>>>>>>
+>>>>>>> Jason, please take a look at fixing this, thanks!
+>>>>>> It looks to me the only solution is to revert that commit.
+>>>>> Do you really need this to be GFP_ATOMIC? I can see some callers are
+>>>>> under RCU read lock but can we perhaps do the allocation outside of this
+>>>>> section?
+>>>> If I understand the code correctly, the code would be called by XDP program (usually run inside a bh) which makes it hard to do this.
+>>>>
+>>>> Rethink of this, we can probably test gfp and not call kvmalloc if GFP_ATOMIC is set in __ptr_ring_init_queue_alloc().
+>>> That would be one option indeed (probably useful in any case to make the API
+>>> more robust). Another one is to just not use GFP_ATOMIC in cpumap. Looking at
+>>> it, update can neither be called out of a BPF prog since prevented by verifier
+>>> nor under RCU reader side when updating this type of map from syscall path.
+>>> Jesper, any concrete reason we still need GFP_ATOMIC here?
+>> Allocations in cpumap (related to ptr_ring) should only be possible to
+>> be initiated through userspace via bpf-syscall.
 > 
-> I think that's actively misleading.  The programmer isn't allocating a
-> buf, they're allocating a struct.  kvzalloc_hdr_arr was the earlier name,
-> and that made some sense; they're allocating an array with a header.
-> But nobody thinks about it like that; they're allocating a structure
-> with a variably sized array at the end of it.
+> I see verifier guarantees this.
 > 
-> If C macros had decent introspection, I'd like it to be:
+>> A  Thus, there isn't any
+>> reason for GFP_ATOMIC here.
 > 
-> 	sev = kvzalloc_struct(elems, GFP_KERNEL);
-> 
-> and have the macro examine the structure pointed to by 'sev', check
-> the last element was an array, calculate the size of the array element,
-> and call kvzalloc_ab_c.  But we don't live in that world, so I have to
-> get the programmer to tell me the structure and the name of the last
-> element in it.
+> Want me to send a patch to remove GFP_ATOMIC here?
 
-Look at your patch 4
-
--       dev_dax = kzalloc(sizeof(*dev_dax) + sizeof(*res) * count, GFP_KERNEL);
-+       dev_dax = kvzalloc_struct(dev_dax, res, count, GFP_KERNEL);
-
-Here what is being allocated is exactly a struct
-and an array.
-
-And this doesn't compile either.
-
+Sounds good, thanks Jason!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
