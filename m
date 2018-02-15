@@ -1,102 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D60A76B0003
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 15:14:11 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id v126so462040pgb.21
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:14:11 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b190si463710pgc.312.2018.02.15.12.14.10
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EF8516B0006
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 15:22:35 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id v126so474055pgb.21
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:22:35 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id j7-v6si3264357plk.553.2018.02.15.12.22.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Feb 2018 12:14:10 -0800 (PST)
-Date: Thu, 15 Feb 2018 12:14:05 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [patch 1/2] mm, page_alloc: extend kernelcore and movablecore
- for percent
-Message-ID: <20180215201405.GA22948@bombadil.infradead.org>
-References: <alpine.DEB.2.10.1802121622470.179479@chino.kir.corp.google.com>
- <20180214095911.GB28460@dhcp22.suse.cz>
- <alpine.DEB.2.10.1802140225290.261065@chino.kir.corp.google.com>
- <20180215144525.GG7275@dhcp22.suse.cz>
- <20180215151129.GB12360@bombadil.infradead.org>
- <alpine.DEB.2.20.1802150947240.1902@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Feb 2018 12:22:34 -0800 (PST)
+Subject: Re: [RFC PATCH 0/3] Interface for higher order contiguous allocations
+References: <20180212222056.9735-1-mike.kravetz@oracle.com>
+From: Reinette Chatre <reinette.chatre@intel.com>
+Message-ID: <770445b3-6caa-a87a-5de7-3157fc5280c2@intel.com>
+Date: Thu, 15 Feb 2018 12:22:33 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1802150947240.1902@nuc-kabylake>
+In-Reply-To: <20180212222056.9735-1-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>
 
-On Thu, Feb 15, 2018 at 09:49:00AM -0600, Christopher Lameter wrote:
-> On Thu, 15 Feb 2018, Matthew Wilcox wrote:
+Hi Mike,
+
+On 2/12/2018 2:20 PM, Mike Kravetz wrote:
+> These patches came out of the "[RFC] mmap(MAP_CONTIG)" discussions at:
+> http://lkml.kernel.org/r/21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com
 > 
-> > What if ... on startup, slab allocated a MAX_ORDER page for itself.
-> > It would then satisfy its own page allocation requests from this giant
-> > page.  If we start to run low on memory in the rest of the system, slab
-> > can be induced to return some of it via its shrinker.  If slab runs low
-> > on memory, it tries to allocate another MAX_ORDER page for itself.
+> One suggestion in that thread was to create a friendlier interface that
+> could be used by drivers and others outside core mm code to allocate a
+> contiguous set of pages.  The alloc_contig_range() interface is used for
+> this purpose today by CMA and gigantic page allocation.  However, this is
+> not a general purpose interface.  So, wrap alloc_contig_range() in the
+> more general interface:
 > 
-> The inducing of releasing memory back is not there but you can run SLUB
-> with MAX_ORDER allocations by passing "slab_min_order=9" or so on bootup.
+> struct page *find_alloc_contig_pages(unsigned int order, gfp_t gfp, int nid,
+> 					nodemask_t *nodemask)
+> 
+> No underlying changes are made to increase the likelihood that a contiguous
+> set of pages can be found and allocated.  Therefore, any user of this
+> interface must deal with failure.  The hope is that this interface will be
+> able to satisfy some use cases today.
 
-Maybe we should try this patch in order to automatically scale the slub
-page size with the amount of memory in the machine?
+As discussed in another thread a new feature, Cache Pseudo-Locking,
+requires large contiguous regions. Until now I just exposed
+alloc_gigantic_page() to handle these allocations in my testing. I now
+moved to using find_alloc_contig_pages() as introduced here and all my
+tests passed. I do hope that an API supporting large contiguous regions
+become available.
 
-diff --git a/mm/internal.h b/mm/internal.h
-index e6bd35182dae..7059a8389194 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -167,6 +167,7 @@ extern void prep_compound_page(struct page *page, unsigned int order);
- extern void post_alloc_hook(struct page *page, unsigned int order,
- 					gfp_t gfp_flags);
- extern int user_min_free_kbytes;
-+extern unsigned long __meminitdata nr_kernel_pages;
- 
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ef9c259db041..3c51bb22403f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -264,7 +264,7 @@ int min_free_kbytes = 1024;
- int user_min_free_kbytes = -1;
- int watermark_scale_factor = 10;
- 
--static unsigned long __meminitdata nr_kernel_pages;
-+unsigned long __meminitdata nr_kernel_pages;
- static unsigned long __meminitdata nr_all_pages;
- static unsigned long __meminitdata dma_reserve;
- 
-diff --git a/mm/slub.c b/mm/slub.c
-index e381728a3751..abca4a6e9b6c 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4194,6 +4194,23 @@ void __init kmem_cache_init(void)
- 
- 	if (debug_guardpage_minorder())
- 		slub_max_order = 0;
-+	if (slub_min_order == 0) {
-+		unsigned long numentries = nr_kernel_pages;
-+
-+		/*
-+		 * Above 4GB, we start to care more about fragmenting large
-+		 * pages than about using the minimum amount of memory.
-+		 * Scale the slub page size at half the rate that we scale
-+		 * the memory size; at 4GB we double the page size to 8k,
-+		 * 16GB to 16k, 64GB to 32k, 256GB to 64k.
-+		 */
-+		while (numentries > (4UL << 30)) {
-+			if (slub_min_order >= slub_max_order)
-+				break;
-+			slub_min_order++;
-+			numentries /= 4;
-+		}
-+	}
- 
- 	kmem_cache_node = &boot_kmem_cache_node;
- 	kmem_cache = &boot_kmem_cache;
+Thank you very much for creating this.
+
+Tested-by: Reinette Chatre <reinette.chatre@intel.com>
+
+Reinette
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
