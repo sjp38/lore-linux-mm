@@ -1,75 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 68D1D6B0003
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 09:55:26 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 5so860916wrt.12
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 06:55:26 -0800 (PST)
-Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
-        by mx.google.com with ESMTPS id v13si1038067edi.511.2018.02.15.06.55.24
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EFF2C6B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 10:05:27 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id d21so13264377pll.12
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 07:05:27 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id l80si7786694pfb.178.2018.02.15.07.05.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Feb 2018 06:55:24 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 8D6711C5974
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 14:55:24 +0000 (GMT)
-Date: Thu, 15 Feb 2018 14:55:23 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH v2 1/2] free_pcppages_bulk: do not hold lock when picking
- pages to free
-Message-ID: <20180215145523.btoutbrskdvizkqk@techsingularity.net>
-References: <20180124023050.20097-1-aaron.lu@intel.com>
- <20180124163926.c7ptagn655aeiut3@techsingularity.net>
- <20180125072144.GA27678@intel.com>
- <20180215124644.GA12360@bombadil.infradead.org>
+        Thu, 15 Feb 2018 07:05:26 -0800 (PST)
+Subject: Re: [PATCH v3 1/4] mm/memory_hotplug: enforce block size aligned
+ range check
+References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
+ <20180213193159.14606-2-pasha.tatashin@oracle.com>
+ <20180215113407.GB7275@dhcp22.suse.cz>
+ <CAOAebxvF6mxDb4Ub02F0B9TEMRJUG0UGrKJ6ypaMGcje80cy6w@mail.gmail.com>
+ <20180215144011.GF7275@dhcp22.suse.cz>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <6b02e1f4-a68f-787d-fbde-ec081ebba058@oracle.com>
+Date: Thu, 15 Feb 2018 10:05:19 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20180215124644.GA12360@bombadil.infradead.org>
+In-Reply-To: <20180215144011.GF7275@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
-On Thu, Feb 15, 2018 at 04:46:44AM -0800, Matthew Wilcox wrote:
-> On Thu, Jan 25, 2018 at 03:21:44PM +0800, Aaron Lu wrote:
-> > When freeing a batch of pages from Per-CPU-Pages(PCP) back to buddy,
-> > the zone->lock is held and then pages are chosen from PCP's migratetype
-> > list. While there is actually no need to do this 'choose part' under
-> > lock since it's PCP pages, the only CPU that can touch them is us and
-> > irq is also disabled.
+> No, not really. I just think the alignment shouldn't really matter. Each
+> memory block should simply represent a hotplugable entitity with a well
+> defined pfn start and size (in multiples of section size). This is in
+> fact what we do internally anyway. One problem might be that an existing
+> userspace might depend on the existing size restrictions so we might not
+> be able to have variable block sizes. But block size alignment should be
+> fixable.
 > 
-> I have no objection to this patch.  If you're looking for ideas for
-> future improvement though, I wonder whether using a LIST_HEAD is the
-> best way to store these pages temporarily.  If you batch them into a
-> pagevec and then free the entire pagevec, the CPU should be a little
-> faster scanning a short array than walking a linked list.
-> 
-> It would also puts a hard boundary on how long zone->lock is held, as
-> you'd drop it and go back for another batch after 15 pages.  That might
-> be bad, of course.
-> 
+Hi Michal,
 
-It's not a guaranteed win. You're trading a list traversal for increased
-stack usage of 128 bytes (unless you stick a static one in the pgdat and
-incur a cache miss penalty instead or a per-cpu pagevec and increase memory
-consumption) and 2 spin lock acquire/releases in the common case which may
-or may not be contended. It might make more sense if the PCP's themselves
-where statically sized but that would limit tuning options and increase
-the per-cpu footprint of the pcp structures.
+I see what you mean, and I agree Linux should simply honor reasonable 
+requests from HW/HV.
 
-Maybe I'm missing something obvious and it really would be a universal
-win but right now I find it hard to imagine that it's a win.
+On x86 qemu hotplugable entity is 128M, on sun4v SPARC it is 256M, with 
+current scheme we still would end up with huge number of memory devices 
+in sysfs if block size is fixed and equal to minimum hotplugable 
+entitity. Just as an example, SPARC sun4v may have logical domains up-to 
+32T, with 256M granularity that is 131K files in 
+/sys/devices/system/memory/!
 
-> Another minor change I'd like to see is free_pcpages_bulk updating
+But, if it is variable, I am not sure how to solve it. The whole 
+interface must be redefined. Because even if we hotplugged a highly 
+aligned large chunk of memory and created only one memory device for it, 
+we should have a way to remove just a small piece of that memory if 
+underlying HV/HW requested.
 
-> pcp->count itself; all of the callers do it currently.
-> 
+/sys/devices/system/memory/block_size_bytes
 
-That should be reasonable, it's not even particularly difficult.
+Would have to be moved into memory block
 
--- 
-Mel Gorman
-SUSE Labs
+echo offline > /sys/devices/system/memory/memoryXXX/state
+
+This would need to be redefined somehow to work only on part of the block.
+
+I am not really sure what a good solution would be without breaking the 
+userspace.
+
+Thank you,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
