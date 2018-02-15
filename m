@@ -1,52 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 37E606B000A
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 14:00:07 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id y11so589959wmd.5
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 11:00:07 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m26sor7697112wrb.86.2018.02.15.11.00.05
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F3846B000E
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 14:02:46 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id m79so166581lfm.17
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 11:02:46 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o22sor3419147ljc.43.2018.02.15.11.02.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 15 Feb 2018 11:00:05 -0800 (PST)
-Date: Thu, 15 Feb 2018 20:00:01 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v3 2/4] x86/mm/memory_hotplug: determine block size based
- on the end of boot memory
-Message-ID: <20180215190001.rbvrb74jxpvs6vrz@gmail.com>
-References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
- <20180213193159.14606-3-pasha.tatashin@oracle.com>
- <20180215113725.GC7275@dhcp22.suse.cz>
- <CAOAebxu5EM1qhC=pS2cCqjGfBabFEj0aQQNon1nAz5_3YPOsCw@mail.gmail.com>
+        Thu, 15 Feb 2018 11:02:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOAebxu5EM1qhC=pS2cCqjGfBabFEj0aQQNon1nAz5_3YPOsCw@mail.gmail.com>
+In-Reply-To: <20180215054436.GN7000@dastard>
+References: <20180206060840.kj2u6jjmkuk3vie6@destitution> <CABXGCsOgcYyj8Xukn7Pi_M2qz2aJ1MJZTaxaSgYno7f_BtZH6w@mail.gmail.com>
+ <1517974845.4352.8.camel@gmail.com> <20180207065520.66f6gocvxlnxmkyv@destitution>
+ <1518255240.31843.6.camel@gmail.com> <1518255352.31843.8.camel@gmail.com>
+ <20180211225657.GA6778@dastard> <1518643669.6070.21.camel@gmail.com>
+ <20180214215245.GI7000@dastard> <1518666178.6070.25.camel@gmail.com> <20180215054436.GN7000@dastard>
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Fri, 16 Feb 2018 00:02:28 +0500
+Message-ID: <CABXGCsOpJU4WU2w5DYBA+Q1nquh14zN0oCW6OfCbhTOFYLwO5w@mail.gmail.com>
+Subject: Re: freezing system for several second on high I/O [kernel 4.15]
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+On 15 February 2018 at 10:44, Dave Chinner <david@fromorbit.com> wrote:
+> I've already explained that we can't annotate these memory
+> allocations to turn off the false positives because that will also
+> turning off all detection of real deadlock conditions.  Lockdep has
+> many, many limitations, and this happens to be one of them.
+>
+> FWIW, is there any specific reason you running lockdep on your
+> desktop system?
 
-* Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+Because I wanna make open source better (help fixing all freezing)
 
-> > I dunno. If x86 maintainers are OK with this then why not, but I do not
-> > like how this is x86 specific. I would much rather address this by
-> > making the memblock user interface more sane.
-> >
-> 
-> Hi Michal,
-> 
-> Ingo Molnar reviewed this patch, and Okayed it.
+>
+> I think I've already explained that, too. The graphics subsystem -
+> which is responsible for updating the cursor - requires memory
+> allocation. The machine is running low on memory, so it runs memory
+> reclaim, which recurses back into the filesystem and blocks waiting
+> for IO to be completed (either writing dirty data pages or flushing
+> dirty metadata) so it can free memory.
 
-But I'd not be against robustifying the whole generic interface against such 
-misconfiguration either.
+Which means machine is running low on memory?
+How many memory needed?
 
-But having the warning should be enough in practice, right?
+$ free -h
+              total        used        free      shared  buff/cache   available
+Mem:            30G         17G        2,1G        1,4G         10G         12G
+Swap:           59G          0B         59G
 
-Thanks,
+As can we see machine have 12G available memory. Is this means low memory?
 
-	Ingo
+> IOWs, your problems all stem from long IO latencies caused by the
+> overloaded storage subsystem - they are propagate to all
+> aspects of the OS via direct memory reclaim blocking on IO....
+
+I'm surprised that no QOS analog for disk I/O.
+This is reminiscent of the situation in past where a torrent client
+clogs the entire channel on the cheap router and it causes problems
+with opening web pages. In nowadays it never happens with modern
+routers even with overloaded network channel are possible video calls
+.
+In 2018 my personaly expectation that user can run any set of
+applications on computer and this never shoudn't harm system.
+
+--
+Best Regards,
+Mike Gavrilov.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
