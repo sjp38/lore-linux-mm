@@ -1,93 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E75BD6B0022
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 22:53:25 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id k38so1072553wre.23
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 19:53:25 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l38si918328wrl.367.2018.02.14.19.53.23
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Feb 2018 19:53:24 -0800 (PST)
-From: NeilBrown <neilb@suse.com>
-Date: Thu, 15 Feb 2018 14:53:15 +1100
-Subject: Re: [LSF/MM ATTEND] memory allocation scope
-In-Reply-To: <8b9d4170-bc71-3338-6b46-22130f828adb@suse.de>
-References: <8b9d4170-bc71-3338-6b46-22130f828adb@suse.de>
-Message-ID: <87po56q578.fsf@notabene.neil.brown.name>
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A1C16B0024
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 00:44:50 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id f4so12423588plr.14
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 21:44:50 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id a89si859721pfg.329.2018.02.14.21.44.48
+        for <linux-mm@kvack.org>;
+        Wed, 14 Feb 2018 21:44:49 -0800 (PST)
+Date: Thu, 15 Feb 2018 16:44:36 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: freezing system for several second on high I/O [kernel 4.15]
+Message-ID: <20180215054436.GN7000@dastard>
+References: <20180206060840.kj2u6jjmkuk3vie6@destitution>
+ <CABXGCsOgcYyj8Xukn7Pi_M2qz2aJ1MJZTaxaSgYno7f_BtZH6w@mail.gmail.com>
+ <1517974845.4352.8.camel@gmail.com>
+ <20180207065520.66f6gocvxlnxmkyv@destitution>
+ <1518255240.31843.6.camel@gmail.com>
+ <1518255352.31843.8.camel@gmail.com>
+ <20180211225657.GA6778@dastard>
+ <1518643669.6070.21.camel@gmail.com>
+ <20180214215245.GI7000@dastard>
+ <1518666178.6070.25.camel@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1518666178.6070.25.camel@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Goldwyn Rodrigues <rgoldwyn@suse.de>, lsf-pc@lists.linux-foundation.org, Linux FS-devel Mailing List <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
+To: mikhail <mikhail.v.gavrilov@gmail.com>
+Cc: "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
---=-=-=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Thu, Feb 15, 2018 at 08:42:58AM +0500, mikhail wrote:
+> On Thu, 2018-02-15 at 08:52 +1100, Dave Chinner wrote:
+> > On Thu, Feb 15, 2018 at 02:27:49AM +0500, mikhail wrote:
+> > > On Mon, 2018-02-12 at 09:56 +1100, Dave Chinner wrote:
+> > > > IOWs, this is not an XFS problem. It's exactly what I'd
+> > > > expect to see when you try to run a very IO intensive
+> > > > workload on a cheap SATA drive that can't keep up with what
+> > > > is being asked of it....
+> > > > 
+> > > 
+> > > I am understand that XFS is not culprit here. But I am worried
+> > > about of interface freezing and various kernel messages with
+> > > traces which leads to XFS. This is my only clue, and I do not
+> > > know where to dig yet.
+> > 
+> > I've already told you the problem: sustained storage subsystem
+> > overload. You can't "tune" you way around that. i.e. You need a
+> > faster disk subsystem to maintian the load you are putting on
+> > your system - either add more disks (e.g. RAID 0/5/6) or to move
+> > to SSDs.
+> 
+> 
+> I know that you are bored already, but: - But it not a reason send
+> false positive messages in log, because next time when a real
+> problems will occurs I would ignore all messages.
 
-On Wed, Feb 14 2018, Goldwyn Rodrigues wrote:
+I've already explained that we can't annotate these memory
+allocations to turn off the false positives because that will also
+turning off all detection of real deadlock conditions.  Lockdep has
+many, many limitations, and this happens to be one of them.
 
-> Discussion with the memory folks towards scope based allocation
-> I am working on converting some of the GFP_NOFS memory allocation calls
-> to new scope API [1]. While other allocation types (noio, nofs,
-> noreclaim) are covered. Are there plans for identifying scope of
-> GFP_ATOMIC allocations? This should cover most (if not all) of the
-> allocation scope.
->
-> Transient Errors with direct I/O
-> In a large enough direct I/O, bios are split. If any of these bios get
-> an error, the whole I/O is marked as erroneous. What this means at the
-> application level is that part of your direct I/O data may be written
-> while part may not be. In the end, you can have an inconsistent write
-> with some parts of it written and some not. Currently the applications
-> need to overwrite the whole write() again.
+FWIW, is there any specific reason you running lockdep on your
+desktop system?
 
-So?
-If that is a problem for the application, maybe it should use smaller
-writes.  If smaller writes cause higher latency, then use aio to submit
-them.
+> - I am not believe that for mouse pointer moving needed disk
+> throughput. Very wildly that mouse pointer freeze I never seen
+> this on Windows even I then I create such workload. So it look
+> like on real blocking vital processes for GUI.
 
-I doubt that splitting bios is the only thing that can cause a write
-that reported as EIO to have partially completed.  An application should
-*always* assume that EIO from a write means that the data on the device
-is indistinguishable from garbage - shouldn't it?
+I think I've already explained that, too. The graphics subsystem -
+which is responsible for updating the cursor - requires memory
+allocation. The machine is running low on memory, so it runs memory
+reclaim, which recurses back into the filesystem and blocks waiting
+for IO to be completed (either writing dirty data pages or flushing
+dirty metadata) so it can free memory.
 
-NeilBrown
+IOWs, your problems all stem from long IO latencies caused by the
+overloaded storage subsystem - they are propagate to all
+aspects of the OS via direct memory reclaim blocking on IO....
 
+Cheers,
 
->
-> Other things I am interested in:
->  - new mount API
->  - Online Filesystem Check
->  - FS cache shrinking
->
-> [1] https://lwn.net/Articles/710545/
->
->
-> --=20
-> Goldwyn
-
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAlqFBCsACgkQOeye3VZi
-gblVUw/8Cd/6TXzgPKjvvtVEVAFMRLkDHmKw146mKZGUDdiD+aRgQnWbVWPnm+xl
-M8uaIt5GLrXKzxA55Jtq7WprvwxK7bCS23tXQWAYJjn857lKVsbTCNjT+9kj/Cwn
-1Ig1bZTuvl+jWEzcZEJgjItguC1b5SFAlXSpfaF6/mf+0T3U3ljgeVyfsOw+I9iW
-koTnP1H9IXksXq6X6dpS6qW4QsYgI2N54GBvLdS+tguUMnocjqDoLQnHh6fltMl+
-9MJmTsAmnJg7RApQzJSSb99AyqMCcer+fg/Iz1lLwEBrHZmgbSbx6ufXvjCaWdzR
-KqapmH4FG7OgfMNzQ+RFKc8kgG4zNWNcLsryzU+cQqTnFEYCW9FIcY89Ynd/vRo4
-lU0PyUwwRHi57iSr2I+lYzm79avvlnvj0D0/VPNsPDTRsxPLfHYnbNK47g1VfhkI
-LiNSOsLmdCLys+7N0KoaErTww/XDd8TMV3ImQ9JnyI3LZH2n29t/yd9mOs5Nurwc
-vFT3nEBc3caqZ6hMNzR7aZdK3bQdL+9fe2BQ9rr/HEvA1uPWri4+i5m7N9KIP8nE
-sVfLYL+Pa324jd00cI+GYLP57tA/GypxrYgM3lnQhpREjp12e63cavhS9QtTgwSf
-ubylsB4zj7xKEjdJ41IGLwCX4/vEgQ7aGTmsZ8Uon+gGtxZpW14=
-=eKnq
------END PGP SIGNATURE-----
---=-=-=--
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
