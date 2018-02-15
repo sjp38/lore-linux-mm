@@ -1,172 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B333E6B0003
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:40:26 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id f10so313863oth.14
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 10:40:26 -0800 (PST)
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A1F56B0006
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:58:47 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id l17so337976otf.12
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 10:58:47 -0800 (PST)
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id h197si1650968oic.366.2018.02.15.10.40.25
+        by mx.google.com with ESMTP id j10si5257492oia.106.2018.02.15.10.58.45
         for <linux-mm@kvack.org>;
-        Thu, 15 Feb 2018 10:40:25 -0800 (PST)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [bug?] mallocstress poor performance with THP on arm64 system
-References: <1847959563.1954032.1518649501357.JavaMail.zimbra@redhat.com>
-Date: Thu, 15 Feb 2018 18:40:22 +0000
-In-Reply-To: <1847959563.1954032.1518649501357.JavaMail.zimbra@redhat.com>
-	(Jan Stancek's message of "Wed, 14 Feb 2018 18:05:01 -0500 (EST)")
-Message-ID: <87sha23xm1.fsf@e105922-lin.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        Thu, 15 Feb 2018 10:58:46 -0800 (PST)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH 00/11] APEI in_nmi() rework and arm64 SDEI wire-up
+Date: Thu, 15 Feb 2018 18:55:55 +0000
+Message-Id: <20180215185606.26736-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Stancek <jstancek@redhat.com>
-Cc: linux-mm@kvack.org, lwoodman <lwoodman@redhat.com>, Rafael Aquini <aquini@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, James Morse <james.morse@arm.com>
 
-Jan Stancek <jstancek@redhat.com> writes:
+Hello!
 
-> Hi,
->
-> mallocstress[1] LTP testcase takes ~5+ minutes to complete
-> on some arm64 systems (e.g. 4 node, 64 CPU, 256GB RAM):
->  real    7m58.089s
->  user    0m0.513s
->  sys     24m27.041s
->
-> But if I turn off THP ("transparent_hugepage=3Dnever") it's a lot faster:
->  real    0m4.185s
->  user    0m0.298s
->  sys     0m13.954s
->
+The aim of this series is to wire arm64's SDEI into APEI.
 
->From the config fragment below the kernel is using 64k pages which
-matches up with the 512MB default hugepage at PMD level.
+What's SDEI? Its ARM's "Software Delegated Exception Interface" [0]. It's
+used by firmware to tell the OS about firmware-first RAS events.
 
-With transparent hugepage enabled, the kernel tries to allocate
-hugepages on page faults. Each fault taken by 'mallocstress' test this
-ends up allocating in 512MB chunks but only uses the first few bytes.
+These Software exceptions can interrupt anything, so I describe them as
+NMI-like. They aren't the only NMI-like way to notify the OS about
+firmware-first RAS events, the ACPI spec also defines 'NOTFIY_SEA' and
+'NOTIFY_SEI'.
 
-You can change the default transparent hugepage option to madvise (by
-setting CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=3Dy or by "echo madvise >
-/sys/kernel/mm/transparent_hugepage/enabled").
+(Acronyms: SEA, Synchronous External Abort. The CPU requested some memory,
+but the owner of that memory said no. These are always synchronous with the
+instruction that caused them. SEI, System-Error Interrupt, commonly called
+SError. This is an asynchronous external abort, the memory-owner didn't say no
+at the right point. Collectively these things are called external-aborts
+How is firmware involved? It traps these and re-injects them into the kernel
+once its written the CPER records).
 
-The other option is to ignore 'mallocstress' runtime as it is not
-representative and for certain workloads (e.g., VMs) it can be useful to
-boot with transparent_hugepage=3Dalways.
+APEI's GHES code only expects one source of NMI. If a platform implements
+more than one of these mechanisms, APEI needs to handle the interaction.
+'SEA' and 'SEI' can interact as 'SEI' is asynchronous. SDEI can interact
+with itself: its exceptions can be 'normal' or 'critical', and firmware
+could use both types for RAS. (errors using normal, 'panic-now' using
+critical).
+
+What does this series do?
+Patches 1-3 refactor APEIs 'estatus queue' so it can be used for all
+NMI-like notifications. This defers the NMI work to irq_work, which will
+happen when we next unmask interrupts.
+
+Patches 4&5 move the arch and KVM code around so that NMI-like notifications
+are always called in_nmi().
+
+Patch 6 splits the 'irq or nmi?' path through ghes_copy_tofrom_phys()
+up to be per-ghes. This lets each ghes specify which other error-sources
+it can share a fixmap-slot and lock with.
+
+Patch 7 renames NOTIFY_SEA's use of NOTIFY_NMI's infrastructure, as we're
+about to have multiple NMI-like users that can't share resources.
+
+Pathes 8&9 add the SDEI helper, and notify methods for APEI.
+
+After this, adding the last firmware-first piece for arm64 is simple
+(and safe), and all our NMI-like notifications behave the same as x86's
+NOTIFY_NMI.
+
+
+All of this makes the race between memory_failure_queue() and
+ret_to_user worse, as there is now always irq_work involved.
+
+Patch 10 makes the reschedule to memory_failure() run as soon as possible.
+Patch 11 makes sure the arch code knows whether the irq_work has run by
+the time do_sea() returns. We can skip the signalling step if it has as
+APEI has done its work.
+
+
+ghes.c became clearer to me when I worked out that it has three sets of
+functions with 'estatus' in the name. One is a pool of memory that can be
+allocated-from atomically. This is grown/shrunk when new NMI users are
+allocated.
+The second is the estatus-cache, which holds recent notifications so it
+can suppress notifications we've already handled.
+The last it the estatus-queue, which holds data from NMI-like notifications
+(in pool memory) to be processed from irq_work.
+
+Testing?
+Tested with the SDEI FVP based software model and a mocked up NOTFIY_SEA using
+KVM. I've only build tested this on x86.
+
+Trees... The changes outside APEI are tiny, but there will be some changes
+to how arch/arm64/mm/fault.c generates signals, affecting do_sea() that will
+cause conflicts with patch 5.
+
 
 Thanks,
-Punit
 
-> Perf suggests, that most time is spent in clear_page().
->
-> -   94.25%    94.24%  mallocstress  [kernel.kallsyms]   [k] clear_page
->      94.24% thread_start
->         start_thread
->         alloc_mem
->         allocate_free
->       - malloc
->          - 94.24% _int_malloc
->             - 94.24% sysmalloc
->                  el0_da
->                  do_mem_abort
->                  do_translation_fault
->                  do_page_fault
->                  handle_mm_fault
->                - __handle_mm_fault
->                   - 94.22% do_huge_pmd_anonymous_page
->                      - __do_huge_pmd_anonymous_page
->                         - 94.21% clear_huge_page
->                              clear_page
->
-> Percent=E2=94=82
->        =E2=94=82
->        =E2=94=82
->        =E2=94=82    Disassembly of section load0:
->        =E2=94=82
->        =E2=94=82    ffff0000087f0540 <load0>:
->   0.00 =E2=94=82      mrs    x1, dczid_el0
->   0.00 =E2=94=82      and    w1, w1, #0xf
->        =E2=94=82      mov    x2, #0x4                        // #4
->        =E2=94=82      lsl    x1, x2, x1
-> 100.00 =E2=94=8210:   dc     zva, x0
->        =E2=94=82      add    x0, x0, x1
->        =E2=94=82      tst    x0, #0xffff
->        =E2=94=82    =E2=86=91 b.ne   10
->        =E2=94=82    =E2=86=90 ret
->
-> # uname -r
-> 4.15.3
->
-> # grep HUGE -r .config
-> CONFIG_CGROUP_HUGETLB=3Dy
-> CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=3Dy
-> CONFIG_HAVE_ARCH_HUGE_VMAP=3Dy
-> CONFIG_SYS_SUPPORTS_HUGETLBFS=3Dy
-> CONFIG_TRANSPARENT_HUGEPAGE=3Dy
-> CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=3Dy
-> # CONFIG_TRANSPARENT_HUGEPAGE_MADVISE is not set
-> CONFIG_TRANSPARENT_HUGE_PAGECACHE=3Dy
-> CONFIG_HUGETLBFS=3Dy
-> CONFIG_HUGETLB_PAGE=3Dy
->
-> # grep _PAGE -r .config
-> CONFIG_ARM64_PAGE_SHIFT=3D16
-> CONFIG_PAGE_COUNTER=3Dy
-> CONFIG_HAVE_ALIGNED_STRUCT_PAGE=3Dy
-> # CONFIG_ARM64_4K_PAGES is not set
-> # CONFIG_ARM64_16K_PAGES is not set
-> CONFIG_ARM64_64K_PAGES=3Dy
-> CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC=3Dy
-> CONFIG_TRANSPARENT_HUGE_PAGECACHE=3Dy
-> CONFIG_IDLE_PAGE_TRACKING=3Dy
-> CONFIG_PROC_PAGE_MONITOR=3Dy
-> CONFIG_HUGETLB_PAGE=3Dy
-> CONFIG_ARCH_HAS_GIGANTIC_PAGE=3Dy
-> # CONFIG_PAGE_OWNER is not set
-> # CONFIG_PAGE_EXTENSION is not set
-> # CONFIG_DEBUG_PAGEALLOC is not set
-> # CONFIG_PAGE_POISONING is not set
-> # CONFIG_DEBUG_PAGE_REF is not set
->
-> # cat /proc/meminfo  | grep Huge
-> Hugepagesize:     524288 kB
+James
 
-I noticed 512MB - that's a _huge_ hugepage.
+[0] http://infocenter.arm.com/help/topic/com.arm.doc.den0054a/ARM_DEN0054A_Software_Delegated_Exception_Interface.pdf
 
-The config suggests that the kernel is running with 64k pages.
->
-> # numactl -H
-> available: 4 nodes (0-3)
-> node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
-> node 0 size: 65308 MB
-> node 0 free: 64892 MB
-> node 1 cpus: 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
-> node 1 size: 65404 MB
-> node 1 free: 62804 MB
-> node 2 cpus: 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47
-> node 2 size: 65404 MB
-> node 2 free: 62847 MB
-> node 3 cpus: 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63
-> node 3 size: 65402 MB
-> node 3 free: 64671 MB
-> node distances:
-> node   0   1   2   3=20
->   0:  10  15  20  20=20
->   1:  15  10  20  20=20
->   2:  20  20  10  15=20
->   3:  20  20  15  10
->
-> Regards,
-> Jan
->
-> [1] https://github.com/linux-test-project/ltp/blob/master/testcases/kerne=
-l/mem/mtest07/mallocstress.c
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+James Morse (11):
+  ACPI / APEI: Move the estatus queue code up, and under its own ifdef
+  ACPI / APEI: Generalise the estatus queue's add/remove and notify code
+  ACPI / APEI: Switch NOTIFY_SEA to use the estatus queue
+  KVM: arm/arm64: Add kvm_ras.h to collect kvm specific RAS plumbing
+  arm64: KVM/mm: Move SEA handling behind a single 'claim' interface
+  ACPI / APEI: Make the fixmap_idx per-ghes to allow multiple in_nmi()
+    users
+  ACPI / APEI: Split fixmap pages for arm64 NMI-like notifications
+  firmware: arm_sdei: Add ACPI GHES registration helper
+  ACPI / APEI: Add support for the SDEI GHES Notification type
+  mm/memory-failure: increase queued recovery work's priority
+  arm64: acpi: Make apei_claim_sea() synchronise with APEI's irq work
+
+ arch/arm/include/asm/kvm_ras.h       |  14 +
+ arch/arm/include/asm/system_misc.h   |   5 -
+ arch/arm64/include/asm/acpi.h        |   3 +
+ arch/arm64/include/asm/daifflags.h   |   1 +
+ arch/arm64/include/asm/fixmap.h      |   8 +-
+ arch/arm64/include/asm/kvm_ras.h     |  29 ++
+ arch/arm64/include/asm/system_misc.h |   2 -
+ arch/arm64/kernel/acpi.c             |  49 ++++
+ arch/arm64/mm/fault.c                |  30 +-
+ drivers/acpi/apei/ghes.c             | 533 ++++++++++++++++++++---------------
+ drivers/firmware/arm_sdei.c          |  75 +++++
+ include/acpi/ghes.h                  |   5 +
+ include/linux/arm_sdei.h             |   8 +
+ mm/memory-failure.c                  |  11 +-
+ virt/kvm/arm/mmu.c                   |   4 +-
+ 15 files changed, 517 insertions(+), 260 deletions(-)
+ create mode 100644 arch/arm/include/asm/kvm_ras.h
+ create mode 100644 arch/arm64/include/asm/kvm_ras.h
+
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
