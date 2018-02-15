@@ -1,143 +1,351 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BE4016B0005
-	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 18:58:38 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id y79so2078580wme.6
-        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 15:58:38 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i13si10792039wrh.130.2018.02.14.15.58.36
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A0E0A6B0005
+	for <linux-mm@kvack.org>; Wed, 14 Feb 2018 19:36:20 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id f64so9444607plb.7
+        for <linux-mm@kvack.org>; Wed, 14 Feb 2018 16:36:20 -0800 (PST)
+Received: from terminus.zytor.com (terminus.zytor.com. [198.137.202.136])
+        by mx.google.com with ESMTPS id 88-v6si626116plc.131.2018.02.14.16.36.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Feb 2018 15:58:37 -0800 (PST)
-Date: Wed, 14 Feb 2018 15:58:33 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/8] mm: Add kvmalloc_ab_c and kvzalloc_struct
-Message-Id: <20180214155833.9f1563b87391f7ff79ca7ed0@linux-foundation.org>
-In-Reply-To: <20180214211203.GF20627@bombadil.infradead.org>
-References: <20180214201154.10186-1-willy@infradead.org>
-	<20180214201154.10186-3-willy@infradead.org>
-	<1518641152.3678.28.camel@perches.com>
-	<20180214211203.GF20627@bombadil.infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 14 Feb 2018 16:36:19 -0800 (PST)
+Date: Wed, 14 Feb 2018 16:28:56 -0800
+From: tip-bot for Andy Lutomirski <tipbot@zytor.com>
+Message-ID: <tip-1299ef1d8870d2d9f09a5aadf2f8b2c887c2d033@git.kernel.org>
+Reply-To: hughd@google.com, linux-mm@kvack.org, will.deacon@arm.com,
+        keescook@google.com, torvalds@linux-foundation.org,
+        boris.ostrovsky@oracle.com, linux-kernel@vger.kernel.org,
+        jgross@suse.com, luto@kernel.org, dave.hansen@intel.com,
+        peterz@infradead.org, brgerst@gmail.com, bp@alien8.de, riel@redhat.com,
+        hpa@zytor.com, mingo@kernel.org, tglx@linutronix.de,
+        jpoimboe@redhat.com, eduval@amazon.com
+In-Reply-To: <3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org>
+References: <3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org>
+Subject: [tip:x86/pti] x86/mm: Rename flush_tlb_single() and flush_tlb_one()
+ to __flush_tlb_one_[user|kernel]()
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Joe Perches <joe@perches.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: linux-tip-commits@vger.kernel.org
+Cc: brgerst@gmail.com, bp@alien8.de, riel@redhat.com, mingo@kernel.org, tglx@linutronix.de, hpa@zytor.com, eduval@amazon.com, jpoimboe@redhat.com, linux-mm@kvack.org, hughd@google.com, will.deacon@arm.com, keescook@google.com, torvalds@linux-foundation.org, jgross@suse.com, luto@kernel.org, boris.ostrovsky@oracle.com, linux-kernel@vger.kernel.org, dave.hansen@intel.com, peterz@infradead.org
 
-On Wed, 14 Feb 2018 13:12:03 -0800 Matthew Wilcox <willy@infradead.org> wrote:
+Commit-ID:  1299ef1d8870d2d9f09a5aadf2f8b2c887c2d033
+Gitweb:     https://git.kernel.org/tip/1299ef1d8870d2d9f09a5aadf2f8b2c887c2d033
+Author:     Andy Lutomirski <luto@kernel.org>
+AuthorDate: Wed, 31 Jan 2018 08:03:10 -0800
+Committer:  Ingo Molnar <mingo@kernel.org>
+CommitDate: Thu, 15 Feb 2018 01:15:52 +0100
 
-> On Wed, Feb 14, 2018 at 12:45:52PM -0800, Joe Perches wrote:
-> > On Wed, 2018-02-14 at 12:11 -0800, Matthew Wilcox wrote:
-> > > We have kvmalloc_array in order to safely allocate an array with a
-> > > number of elements specified by userspace (avoiding arithmetic overflow
-> > > leading to a buffer overrun).  But it's fairly common to have a header
-> > > in front of that array (eg specifying the length of the array), so we
-> > > need a helper function for that situation.
-> > > 
-> > > kvmalloc_ab_c() is the workhorse that does the calculation, but in spite
-> > > of our best efforts to name the arguments, it's really hard to remember
-> > > which order to put the arguments in.  kvzalloc_struct() eliminates that
-> > > effort; you tell it about the struct you're allocating, and it puts the
-> > > arguments in the right order for you (and checks that the arguments
-> > > you've given are at least plausible).
-> > > 
-> > > For comparison between the three schemes:
-> > > 
-> > > 	sev = kvzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems,
-> > > 			GFP_KERNEL);
-> > > 	sev = kvzalloc_ab_c(elems, sizeof(struct v4l2_kevent), sizeof(*sev),
-> > > 			GFP_KERNEL);
-> > > 	sev = kvzalloc_struct(sev, events, elems, GFP_KERNEL);
-> > 
-> > Perhaps kv[zm]alloc_buf_and_array is better naming.
-> 
-> I think that's actively misleading.  The programmer isn't allocating a
-> buf, they're allocating a struct.  kvzalloc_hdr_arr was the earlier name,
-> and that made some sense; they're allocating an array with a header.
-> But nobody thinks about it like that; they're allocating a structure
-> with a variably sized array at the end of it.
-> 
-> If C macros had decent introspection, I'd like it to be:
-> 
-> 	sev = kvzalloc_struct(elems, GFP_KERNEL);
-> 
-> and have the macro examine the structure pointed to by 'sev', check
-> the last element was an array, calculate the size of the array element,
-> and call kvzalloc_ab_c.  But we don't live in that world, so I have to
-> get the programmer to tell me the structure and the name of the last
-> element in it.
+x86/mm: Rename flush_tlb_single() and flush_tlb_one() to __flush_tlb_one_[user|kernel]()
 
-hm, bikeshedding fun.
+flush_tlb_single() and flush_tlb_one() sound almost identical, but
+they really mean "flush one user translation" and "flush one kernel
+translation".  Rename them to flush_tlb_one_user() and
+flush_tlb_one_kernel() to make the semantics more obvious.
 
+[ I was looking at some PTI-related code, and the flush-one-address code
+  is unnecessarily hard to understand because the names of the helpers are
+  uninformative.  This came up during PTI review, but no one got around to
+  doing it. ]
 
-struct foo {
-	whatevs;
-	struct bar[0];
-}
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Eduardo Valentin <eduval@amazon.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Kees Cook <keescook@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Will Deacon <will.deacon@arm.com>
+Link: http://lkml.kernel.org/r/3303b02e3c3d049dc5235d5651e0ae6d29a34354.1517414378.git.luto@kernel.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ arch/x86/include/asm/paravirt.h       |  4 ++--
+ arch/x86/include/asm/paravirt_types.h |  2 +-
+ arch/x86/include/asm/pgtable_32.h     |  2 +-
+ arch/x86/include/asm/tlbflush.h       | 27 ++++++++++++++++++++-------
+ arch/x86/kernel/paravirt.c            |  6 +++---
+ arch/x86/mm/init_64.c                 |  2 +-
+ arch/x86/mm/ioremap.c                 |  2 +-
+ arch/x86/mm/kmmio.c                   |  2 +-
+ arch/x86/mm/pgtable_32.c              |  2 +-
+ arch/x86/mm/tlb.c                     |  6 +++---
+ arch/x86/platform/uv/tlb_uv.c         |  2 +-
+ arch/x86/xen/mmu_pv.c                 |  6 +++---
+ include/trace/events/xen.h            |  2 +-
+ 13 files changed, 39 insertions(+), 26 deletions(-)
 
-
-	struct foo *a_foo;
-
-	a_foo = kvzalloc_struct_buf(foo, bar, nr_bars);
-
-and macro magic will insert the `struct' keyword.  This will help to
-force a miscompile if inappropriate types are used for foo and bar.
-
-Problem is, foo may be a union(?) and bar may be a scalar type.  So
-
-	a_foo = kvzalloc_struct_buf(struct foo, struct bar, nr_bars);
-
-or, of course.
-
-	a_foo = kvzalloc_struct_buf(typeof(*a_foo), typeof(a_foo->bar[0]),
-				    nr_bars);
-
-or whatever.
-
-The basic idea is to use the wrapper macros to force compile errors if
-these things are misused.
-
-
-Also,
-
-> +/**
-> + * kvmalloc_ab_c() - Allocate (a * b + c) bytes of memory.
-> + * @n: Number of elements.
-> + * @size: Size of each element (should be constant).
-> + * @c: Size of header (should be constant).
-> + * @gfp: Memory allocation flags.
-> + *
-> + * Use this function to allocate @n * @size + @c bytes of memory.  This
-> + * function is safe to use when @n is controlled from userspace; it will
-> + * return %NULL if the required amount of memory cannot be allocated.
-> + * Use kvfree() to free the allocated memory.
-> + *
-> + * The kvzalloc_struct() function is easier to use as it has typechecking
-> + * and you do not need to remember which of the arguments should be constants.
-> + *
-> + * Context: Process context.  May sleep; the @gfp flags should be based on
-> + *	    %GFP_KERNEL.
-> + * Return: A pointer to the allocated memory or %NULL.
-> + */
-> +static inline __must_check
-> +void *kvmalloc_ab_c(size_t n, size_t size, size_t c, gfp_t gfp)
-> +{
-> +	if (size != 0 && n > (SIZE_MAX - c) / size)
-> +		return NULL;
-> +
-> +	return kvmalloc(n * size + c, gfp);
-> +}
-
-Can we please avoid the single-char identifiers?
-
-void *kvmalloc_ab_c(size_t n_elems, size_t elem_size, size_t header_size,
-		    gfp_t gfp);
-
-makes the code so much more readable.
-
-
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+index 892df37..554841f 100644
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -297,9 +297,9 @@ static inline void __flush_tlb_global(void)
+ {
+ 	PVOP_VCALL0(pv_mmu_ops.flush_tlb_kernel);
+ }
+-static inline void __flush_tlb_single(unsigned long addr)
++static inline void __flush_tlb_one_user(unsigned long addr)
+ {
+-	PVOP_VCALL1(pv_mmu_ops.flush_tlb_single, addr);
++	PVOP_VCALL1(pv_mmu_ops.flush_tlb_one_user, addr);
+ }
+ 
+ static inline void flush_tlb_others(const struct cpumask *cpumask,
+diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+index 6ec54d0..f624f1f 100644
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -217,7 +217,7 @@ struct pv_mmu_ops {
+ 	/* TLB operations */
+ 	void (*flush_tlb_user)(void);
+ 	void (*flush_tlb_kernel)(void);
+-	void (*flush_tlb_single)(unsigned long addr);
++	void (*flush_tlb_one_user)(unsigned long addr);
+ 	void (*flush_tlb_others)(const struct cpumask *cpus,
+ 				 const struct flush_tlb_info *info);
+ 
+diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
+index e67c062..e554667 100644
+--- a/arch/x86/include/asm/pgtable_32.h
++++ b/arch/x86/include/asm/pgtable_32.h
+@@ -61,7 +61,7 @@ void paging_init(void);
+ #define kpte_clear_flush(ptep, vaddr)		\
+ do {						\
+ 	pte_clear(&init_mm, (vaddr), (ptep));	\
+-	__flush_tlb_one((vaddr));		\
++	__flush_tlb_one_kernel((vaddr));		\
+ } while (0)
+ 
+ #endif /* !__ASSEMBLY__ */
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 2b8f18c..84137c2 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -140,7 +140,7 @@ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
+ #else
+ #define __flush_tlb() __native_flush_tlb()
+ #define __flush_tlb_global() __native_flush_tlb_global()
+-#define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
++#define __flush_tlb_one_user(addr) __native_flush_tlb_one_user(addr)
+ #endif
+ 
+ static inline bool tlb_defer_switch_to_init_mm(void)
+@@ -400,7 +400,7 @@ static inline void __native_flush_tlb_global(void)
+ /*
+  * flush one page in the user mapping
+  */
+-static inline void __native_flush_tlb_single(unsigned long addr)
++static inline void __native_flush_tlb_one_user(unsigned long addr)
+ {
+ 	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
+ 
+@@ -437,18 +437,31 @@ static inline void __flush_tlb_all(void)
+ /*
+  * flush one page in the kernel mapping
+  */
+-static inline void __flush_tlb_one(unsigned long addr)
++static inline void __flush_tlb_one_kernel(unsigned long addr)
+ {
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
+-	__flush_tlb_single(addr);
++
++	/*
++	 * If PTI is off, then __flush_tlb_one_user() is just INVLPG or its
++	 * paravirt equivalent.  Even with PCID, this is sufficient: we only
++	 * use PCID if we also use global PTEs for the kernel mapping, and
++	 * INVLPG flushes global translations across all address spaces.
++	 *
++	 * If PTI is on, then the kernel is mapped with non-global PTEs, and
++	 * __flush_tlb_one_user() will flush the given address for the current
++	 * kernel address space and for its usermode counterpart, but it does
++	 * not flush it for other address spaces.
++	 */
++	__flush_tlb_one_user(addr);
+ 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return;
+ 
+ 	/*
+-	 * __flush_tlb_single() will have cleared the TLB entry for this ASID,
+-	 * but since kernel space is replicated across all, we must also
+-	 * invalidate all others.
++	 * See above.  We need to propagate the flush to all other address
++	 * spaces.  In principle, we only need to propagate it to kernelmode
++	 * address spaces, but the extra bookkeeping we would need is not
++	 * worth it.
+ 	 */
+ 	invalidate_other_asid();
+ }
+diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
+index 041096b..99dc79e 100644
+--- a/arch/x86/kernel/paravirt.c
++++ b/arch/x86/kernel/paravirt.c
+@@ -200,9 +200,9 @@ static void native_flush_tlb_global(void)
+ 	__native_flush_tlb_global();
+ }
+ 
+-static void native_flush_tlb_single(unsigned long addr)
++static void native_flush_tlb_one_user(unsigned long addr)
+ {
+-	__native_flush_tlb_single(addr);
++	__native_flush_tlb_one_user(addr);
+ }
+ 
+ struct static_key paravirt_steal_enabled;
+@@ -401,7 +401,7 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
+ 
+ 	.flush_tlb_user = native_flush_tlb,
+ 	.flush_tlb_kernel = native_flush_tlb_global,
+-	.flush_tlb_single = native_flush_tlb_single,
++	.flush_tlb_one_user = native_flush_tlb_one_user,
+ 	.flush_tlb_others = native_flush_tlb_others,
+ 
+ 	.pgd_alloc = __paravirt_pgd_alloc,
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 4a83728..60ae1fe 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -256,7 +256,7 @@ static void __set_pte_vaddr(pud_t *pud, unsigned long vaddr, pte_t new_pte)
+ 	 * It's enough to flush this one mapping.
+ 	 * (PGE mappings get flushed as well)
+ 	 */
+-	__flush_tlb_one(vaddr);
++	__flush_tlb_one_kernel(vaddr);
+ }
+ 
+ void set_pte_vaddr_p4d(p4d_t *p4d_page, unsigned long vaddr, pte_t new_pte)
+diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+index c45b6ec..e2db83b 100644
+--- a/arch/x86/mm/ioremap.c
++++ b/arch/x86/mm/ioremap.c
+@@ -820,5 +820,5 @@ void __init __early_set_fixmap(enum fixed_addresses idx,
+ 		set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, flags));
+ 	else
+ 		pte_clear(&init_mm, addr, pte);
+-	__flush_tlb_one(addr);
++	__flush_tlb_one_kernel(addr);
+ }
+diff --git a/arch/x86/mm/kmmio.c b/arch/x86/mm/kmmio.c
+index 58477ec..7c86867 100644
+--- a/arch/x86/mm/kmmio.c
++++ b/arch/x86/mm/kmmio.c
+@@ -168,7 +168,7 @@ static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
+ 		return -1;
+ 	}
+ 
+-	__flush_tlb_one(f->addr);
++	__flush_tlb_one_kernel(f->addr);
+ 	return 0;
+ }
+ 
+diff --git a/arch/x86/mm/pgtable_32.c b/arch/x86/mm/pgtable_32.c
+index c3c5274..9bb7f0a 100644
+--- a/arch/x86/mm/pgtable_32.c
++++ b/arch/x86/mm/pgtable_32.c
+@@ -63,7 +63,7 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
+ 	 * It's enough to flush this one mapping.
+ 	 * (PGE mappings get flushed as well)
+ 	 */
+-	__flush_tlb_one(vaddr);
++	__flush_tlb_one_kernel(vaddr);
+ }
+ 
+ unsigned long __FIXADDR_TOP = 0xfffff000;
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 012d026..0c93643 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -492,7 +492,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 	 *    flush that changes context.tlb_gen from 2 to 3.  If they get
+ 	 *    processed on this CPU in reverse order, we'll see
+ 	 *     local_tlb_gen == 1, mm_tlb_gen == 3, and end != TLB_FLUSH_ALL.
+-	 *    If we were to use __flush_tlb_single() and set local_tlb_gen to
++	 *    If we were to use __flush_tlb_one_user() and set local_tlb_gen to
+ 	 *    3, we'd be break the invariant: we'd update local_tlb_gen above
+ 	 *    1 without the full flush that's needed for tlb_gen 2.
+ 	 *
+@@ -513,7 +513,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 
+ 		addr = f->start;
+ 		while (addr < f->end) {
+-			__flush_tlb_single(addr);
++			__flush_tlb_one_user(addr);
+ 			addr += PAGE_SIZE;
+ 		}
+ 		if (local)
+@@ -660,7 +660,7 @@ static void do_kernel_range_flush(void *info)
+ 
+ 	/* flush range by one by one 'invlpg' */
+ 	for (addr = f->start; addr < f->end; addr += PAGE_SIZE)
+-		__flush_tlb_one(addr);
++		__flush_tlb_one_kernel(addr);
+ }
+ 
+ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+diff --git a/arch/x86/platform/uv/tlb_uv.c b/arch/x86/platform/uv/tlb_uv.c
+index 8538a67..7d5d53f 100644
+--- a/arch/x86/platform/uv/tlb_uv.c
++++ b/arch/x86/platform/uv/tlb_uv.c
+@@ -299,7 +299,7 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
+ 		local_flush_tlb();
+ 		stat->d_alltlb++;
+ 	} else {
+-		__flush_tlb_single(msg->address);
++		__flush_tlb_one_user(msg->address);
+ 		stat->d_onetlb++;
+ 	}
+ 	stat->d_requestee++;
+diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
+index d850762..aae88fe 100644
+--- a/arch/x86/xen/mmu_pv.c
++++ b/arch/x86/xen/mmu_pv.c
+@@ -1300,12 +1300,12 @@ static void xen_flush_tlb(void)
+ 	preempt_enable();
+ }
+ 
+-static void xen_flush_tlb_single(unsigned long addr)
++static void xen_flush_tlb_one_user(unsigned long addr)
+ {
+ 	struct mmuext_op *op;
+ 	struct multicall_space mcs;
+ 
+-	trace_xen_mmu_flush_tlb_single(addr);
++	trace_xen_mmu_flush_tlb_one_user(addr);
+ 
+ 	preempt_disable();
+ 
+@@ -2370,7 +2370,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
+ 
+ 	.flush_tlb_user = xen_flush_tlb,
+ 	.flush_tlb_kernel = xen_flush_tlb,
+-	.flush_tlb_single = xen_flush_tlb_single,
++	.flush_tlb_one_user = xen_flush_tlb_one_user,
+ 	.flush_tlb_others = xen_flush_tlb_others,
+ 
+ 	.pgd_alloc = xen_pgd_alloc,
+diff --git a/include/trace/events/xen.h b/include/trace/events/xen.h
+index b8adf05..7dd8f34 100644
+--- a/include/trace/events/xen.h
++++ b/include/trace/events/xen.h
+@@ -368,7 +368,7 @@ TRACE_EVENT(xen_mmu_flush_tlb,
+ 	    TP_printk("%s", "")
+ 	);
+ 
+-TRACE_EVENT(xen_mmu_flush_tlb_single,
++TRACE_EVENT(xen_mmu_flush_tlb_one_user,
+ 	    TP_PROTO(unsigned long addr),
+ 	    TP_ARGS(addr),
+ 	    TP_STRUCT__entry(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
