@@ -1,117 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 844136B0005
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 08:46:37 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id r1so3966059pgp.2
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 05:46:37 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id c21si2604643pfk.354.2018.02.15.05.46.36
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 980EA6B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 09:19:21 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id x77so253962wmd.0
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 06:19:21 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z132si8338435wmg.108.2018.02.15.06.19.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Feb 2018 05:46:36 -0800 (PST)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w1FDg2pq158292
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:46:35 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2130.oracle.com with ESMTP id 2g5b2k84cy-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:46:35 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w1FDkYJV016708
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:46:34 GMT
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w1FDkXww029992
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:46:34 GMT
-Received: by mail-ot0-f179.google.com with SMTP id e64so23409373ote.4
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 05:46:33 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Feb 2018 06:19:20 -0800 (PST)
+Subject: Re: [LSF/MM ATTEND] memory allocation scope
+References: <8b9d4170-bc71-3338-6b46-22130f828adb@suse.de>
+ <87po56q578.fsf@notabene.neil.brown.name>
+From: Goldwyn Rodrigues <rgoldwyn@suse.de>
+Message-ID: <a6dfc5fe-56c5-731e-701b-93cd41cf547b@suse.de>
+Date: Thu, 15 Feb 2018 08:19:16 -0600
 MIME-Version: 1.0
-In-Reply-To: <20180215124320.GE7275@dhcp22.suse.cz>
-References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
- <20180213193159.14606-5-pasha.tatashin@oracle.com> <20180215124320.GE7275@dhcp22.suse.cz>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Thu, 15 Feb 2018 08:46:33 -0500
-Message-ID: <CAOAebxsf21pKsHoJQ7+5mWnfj=TA_Nd2h=YvuEfj=SmpFfvjxQ@mail.gmail.com>
-Subject: Re: [PATCH v3 4/4] mm/memory_hotplug: optimize memory hotplug
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <87po56q578.fsf@notabene.neil.brown.name>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
+To: NeilBrown <neilb@suse.com>, lsf-pc@lists.linux-foundation.org, Linux FS-devel Mailing List <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
 
-> This should be a separate patch IMHO. It is an optimization on its
-> own. The original code tries to be sparse neutral but we do depend on
-> sparse anyway.
 
-Yes, Mingo already asked me to split this patch. I've done just that
-and will send it out soon.
 
->
-> [...]
->>  /* register memory section under specified node if it spans that node */
->> -int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
->> +int register_mem_sect_under_node(struct memory_block *mem_blk, int nid,
->> +                              bool check_nid)
->
-> This check_nid begs for a documentation. When do we need to set it? I
-> can see that register_new_memory path doesn't check node id. It is quite
-> reasonable to expect that a new memblock doesn't span multiple numa
-> nodes which can be the case for register_one_node but a word or two are
-> really due.
-
-OK, I will add a comment, and BTW, this is also going to be a separate
-patch for ease of review.
-
->
->>  {
->>       int ret;
->>       unsigned long pfn, sect_start_pfn, sect_end_pfn;
->> @@ -423,11 +424,13 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
->>                       continue;
->>               }
+On 02/14/2018 09:53 PM, NeilBrown wrote:
+> On Wed, Feb 14 2018, Goldwyn Rodrigues wrote:
+> 
+>> Discussion with the memory folks towards scope based allocation
+>> I am working on converting some of the GFP_NOFS memory allocation calls
+>> to new scope API [1]. While other allocation types (noio, nofs,
+>> noreclaim) are covered. Are there plans for identifying scope of
+>> GFP_ATOMIC allocations? This should cover most (if not all) of the
+>> allocation scope.
 >>
->> -             page_nid = get_nid_for_pfn(pfn);
->> -             if (page_nid < 0)
->> -                     continue;
->> -             if (page_nid != nid)
->> -                     continue;
->> +             if (check_nid) {
->> +                     page_nid = get_nid_for_pfn(pfn);
->> +                     if (page_nid < 0)
->> +                             continue;
->> +                     if (page_nid != nid)
->> +                             continue;
->> +             }
->>               ret = sysfs_create_link_nowarn(&node_devices[nid]->dev.kobj,
->>                                       &mem_blk->dev.kobj,
->>                                       kobject_name(&mem_blk->dev.kobj));
->> @@ -502,7 +505,7 @@ int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages)
->>
->>               mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
->>
->> -             ret = register_mem_sect_under_node(mem_blk, nid);
->> +             ret = register_mem_sect_under_node(mem_blk, nid, true);
->>               if (!err)
->>                       err = ret;
->>
->
-> I would be tempted to split this into a separate patch as well. The
-> review will be much easier.
+>> Transient Errors with direct I/O
+>> In a large enough direct I/O, bios are split. If any of these bios get
+>> an error, the whole I/O is marked as erroneous. What this means at the
+>> application level is that part of your direct I/O data may be written
+>> while part may not be. In the end, you can have an inconsistent write
+>> with some parts of it written and some not. Currently the applications
+>> need to overwrite the whole write() again.
+> 
+> So?
+> If that is a problem for the application, maybe it should use smaller
+> writes.  If smaller writes cause higher latency, then use aio to submit
+> them.
+> 
+> I doubt that splitting bios is the only thing that can cause a write
+> that reported as EIO to have partially completed.  An application should
+> *always* assume that EIO from a write means that the data on the device
+> is indistinguishable from garbage - shouldn't it?
+> 
 
-Yes, but that would be the last patch in the series.
+Yes, and that is what I got from others as well. The scenario is not
+deterministic of the contents of the file in case of overwriting a file.
+And no, splitting bios is not the only reason you can have partial
+write. This is different from what buffered I/O would result in, where a
+partial write may not be an error and returns the bytes written.
 
-> This is quite ugly. You allocate 256MB for small numa systems and 512MB
-> for larger NUMAs unconditionally for MEMORY_HOTPLUG. I see you need it
-> to safely replace page_to_nid by get_section_nid but this is just too
-> high of the price. Please note that this shouldn't be really needed. At
-> least not for onlining. We already _do_ know the node association with
-> the pfn range. So we should be able to get the nid from memblock.
+Perhaps this needs to be documented in the man pages. I will put in one
+shortly.
 
-OK, I will think for a different place to store nid temporarily, or
-how to get it.
-
-Thank you,
-Pavel
+-- 
+Goldwyn
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
