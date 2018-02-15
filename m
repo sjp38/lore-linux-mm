@@ -1,50 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C55936B0003
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 10:49:03 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id b5so536544itd.6
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 07:49:03 -0800 (PST)
-Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
-        by mx.google.com with ESMTPS id u67si1648385iod.280.2018.02.15.07.49.02
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BDA346B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 10:57:40 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id b34so58373plc.2
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 07:57:40 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id w3si2675458pgb.754.2018.02.15.07.57.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Feb 2018 07:49:02 -0800 (PST)
-Date: Thu, 15 Feb 2018 09:49:00 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [patch 1/2] mm, page_alloc: extend kernelcore and movablecore
- for percent
-In-Reply-To: <20180215151129.GB12360@bombadil.infradead.org>
-Message-ID: <alpine.DEB.2.20.1802150947240.1902@nuc-kabylake>
-References: <alpine.DEB.2.10.1802121622470.179479@chino.kir.corp.google.com> <20180214095911.GB28460@dhcp22.suse.cz> <alpine.DEB.2.10.1802140225290.261065@chino.kir.corp.google.com> <20180215144525.GG7275@dhcp22.suse.cz>
- <20180215151129.GB12360@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 15 Feb 2018 07:57:39 -0800 (PST)
+Message-ID: <1518710257.5399.4.camel@HansenPartnership.com>
+Subject: Re: [Lsf-pc] [LSF/MM ATTEND] memory allocation scope
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Thu, 15 Feb 2018 07:57:37 -0800
+In-Reply-To: <20180215144807.GH7275@dhcp22.suse.cz>
+References: <8b9d4170-bc71-3338-6b46-22130f828adb@suse.de>
+	 <20180215144807.GH7275@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Goldwyn Rodrigues <rgoldwyn@suse.de>
+Cc: Linux FS-devel Mailing List <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-On Thu, 15 Feb 2018, Matthew Wilcox wrote:
+On Thu, 2018-02-15 at 15:48 +0100, Michal Hocko wrote:
+> On Wed 14-02-18 16:51:53, Goldwyn Rodrigues wrote:
+> > 
+> > 
+> > Discussion with the memory folks towards scope based allocation
+> > I am working on converting some of the GFP_NOFS memory allocation
+> > calls to new scope API [1]. While other allocation types (noio,
+> > nofs, noreclaim) are covered. Are there plans for identifying scope
+> > of GFP_ATOMIC allocations? This should cover most (if not all) of
+> > the allocation scope.
+> 
+> There was no explicit request for that but I can see how some users
+> might want it. I would have to double check but maybe this would
+> allow vmalloc(GFP_ATOMIC). There were some users but most of them
+> could have been changed in some way so the motivation is not very
+> large.
 
-> What if ... on startup, slab allocated a MAX_ORDER page for itself.
-> It would then satisfy its own page allocation requests from this giant
-> page.  If we start to run low on memory in the rest of the system, slab
-> can be induced to return some of it via its shrinker.  If slab runs low
-> on memory, it tries to allocate another MAX_ORDER page for itself.
+We have to be careful about that: most GFP_ATOMIC allocations are in
+drivers and may be for DMA'able memory. A We can't currently use vmalloc
+memory for DMA to kernel via block because bio_map_kern() uses
+virt_to_page() which assumes offset mapping. A The latter is fixable,
+obviously, but is it worth fixing? A Very few GFP_ATOMIC allocations in
+drivers will be for large chunks.
 
-The inducing of releasing memory back is not there but you can run SLUB
-with MAX_ORDER allocations by passing "slab_min_order=9" or so on bootup.
-
-> I think even this should reduce fragmentation.  We could enhance the
-> fragmentation reduction by noticing when somebody else releases a page
-> that was previously part of a slab MAX_ORDER page and handing that page
-> back to slab.  When slab notices that it has an entire MAX_ORDER page free
-> (and sufficient other memory on hand that it's unlikely to need it soon),
-> it can hand that MAX_ORDER page back to the page allocator.
-
-SLUB will release MAX_ORDER pages if they are completely free with the
-above configuration.
-
+James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
