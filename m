@@ -1,71 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 021B46B0003
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:36:44 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id h8so215959pgr.12
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 09:36:43 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id bg11-v6si1397123plb.272.2018.02.15.09.36.42
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 534206B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:47:12 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id v5so890908iog.10
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 09:47:12 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z196sor3148346itb.114.2018.02.15.09.47.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Feb 2018 09:36:42 -0800 (PST)
-Date: Thu, 15 Feb 2018 09:36:39 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 2/8] mm: Add kvmalloc_ab_c and kvzalloc_struct
-Message-ID: <20180215173639.GA10146@bombadil.infradead.org>
-References: <20180214201154.10186-1-willy@infradead.org>
- <20180214201154.10186-3-willy@infradead.org>
- <1518641152.3678.28.camel@perches.com>
- <20180214211203.GF20627@bombadil.infradead.org>
- <20180214155833.9f1563b87391f7ff79ca7ed0@linux-foundation.org>
- <20180215034050.GA5775@bombadil.infradead.org>
+        (Google Transport Security);
+        Thu, 15 Feb 2018 09:47:11 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180215034050.GA5775@bombadil.infradead.org>
+In-Reply-To: <20180215132053.6C9B48C8@viggo.jf.intel.com>
+References: <20180215132053.6C9B48C8@viggo.jf.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 15 Feb 2018 09:47:10 -0800
+Message-ID: <CA+55aFy8k_zSJ_ASyzkA9C-jLV4mZsHpv1sOxJ9qpvfS_P6eMg@mail.gmail.com>
+Subject: Re: [PATCH 0/3] Use global pages with PTI
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joe Perches <joe@perches.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>
 
-On Wed, Feb 14, 2018 at 07:40:50PM -0800, Matthew Wilcox wrote:
-> > 	a_foo = kvzalloc_struct_buf(struct foo, struct bar, nr_bars);
-> > 
-> > or, of course.
-> > 
-> > 	a_foo = kvzalloc_struct_buf(typeof(*a_foo), typeof(a_foo->bar[0]),
-> > 				    nr_bars);
-> > 
-> > or whatever.
+On Thu, Feb 15, 2018 at 5:20 AM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+>
+> During the switch over to PTI, we seem to have lost our ability to have
+> GLOBAL mappings.
 
-This version works, although it's more typing in the callers:
+Oops. Odd, I have this distinct memory of somebody even _testing_ the
+global bit performance when I pointed out that we shouldn't just make
+the bit go away entirely.
 
--               attr_group = kvzalloc_struct(attr_group, attrs, i + 1,
-+               attr_group = kvzalloc_struct(typeof(*attr_group), attrs, i + 1,
-                                                                GFP_KERNEL);
-...
--       dev_dax = kvzalloc_struct(dev_dax, res, count, GFP_KERNEL);
-+       dev_dax = kvzalloc_struct(struct dev_dax, res, count, GFP_KERNEL);
-...
--#define kvzalloc_struct(p, member, n, gfp)                             \
--       (typeof(p))kvzalloc_ab_c(n,                                     \
--               sizeof(*(p)->member) + __must_be_array((p)->member),    \
--               offsetof(typeof(*(p)), member), gfp)
-+#define kvzalloc_struct(s, member, n, gfp) ({                          \
-+       s *__p;                                                         \
-+       (s *)kvzalloc_ab_c(n,                                           \
-+               sizeof(*(__p)->member) + __must_be_array((__p)->member),\
-+               offsetof(s, member), gfp);                              \
-+})
+[ goes back and looks at archives ]
 
-Gives all the same checking as the current version, and doesn't involve
-passing an uninitialised pointer to the macro.
+Oh, that was in fact you who did that performance test.
 
-It also looks pretty similar:
+Heh. Anyway, back then you claimed a noticeable improvement on that
+will-it-scale test (although a bigger one when pcid wasn't available),
+so yes, if we lost the "global pages for the shared user/kernel
+mapping" bit we should definitely get this fixed.
 
-	p = kvzalloc(sizeof(*p), GFP_KERNEL);
-	p = kvzalloc_struct(typeof(*p), array, count, GFP_KERNEL);
-	p = kvzalloc_array(sizeof(*p), count);
+Did you perhaps re-run any benchmark numbers just to verify? Because
+it's always good to back up patches that should improve performance
+with actual numbers..
+
+           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
