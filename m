@@ -1,66 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 134D76B005D
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 07:06:11 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id r15so1704495wrc.11
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 04:06:11 -0800 (PST)
-Received: from outbound-smtp20.blacknight.com (outbound-smtp20.blacknight.com. [46.22.139.247])
-        by mx.google.com with ESMTPS id e29si555218eda.89.2018.02.15.04.06.08
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B9D16B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 07:40:19 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id f3so105730wmc.8
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 04:40:19 -0800 (PST)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id i33si1168324edi.437.2018.02.15.04.40.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Feb 2018 04:06:09 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp20.blacknight.com (Postfix) with ESMTPS id A6B0F1C5014
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:06:08 +0000 (GMT)
-Date: Thu, 15 Feb 2018 12:06:08 +0000
+        Thu, 15 Feb 2018 04:40:18 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 91D781C52D8
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:40:17 +0000 (GMT)
+Date: Thu, 15 Feb 2018 12:40:16 +0000
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH v2 1/2] free_pcppages_bulk: do not hold lock when picking
- pages to free
-Message-ID: <20180215120608.g5wj2qb2thkkzu5e@techsingularity.net>
-References: <20180124023050.20097-1-aaron.lu@intel.com>
- <20180124163926.c7ptagn655aeiut3@techsingularity.net>
- <20180125072144.GA27678@intel.com>
+Subject: Re: [RFC] kswapd aggressiveness with watermark_scale_factor
+Message-ID: <20180215124016.hn64v57istrfwz7p@techsingularity.net>
+References: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20180125072144.GA27678@intel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: Linux-MM <linux-mm@kvack.org>, hannes@cmpxchg.org, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "vbabka@suse.cz" <vbabka@suse.cz>
 
-On Thu, Jan 25, 2018 at 03:21:44PM +0800, Aaron Lu wrote:
-> When freeing a batch of pages from Per-CPU-Pages(PCP) back to buddy,
-> the zone->lock is held and then pages are chosen from PCP's migratetype
-> list. While there is actually no need to do this 'choose part' under
-> lock since it's PCP pages, the only CPU that can touch them is us and
-> irq is also disabled.
+On Wed, Jan 24, 2018 at 09:25:37PM +0530, Vinayak Menon wrote:
+> Hi,
 > 
-> Moving this part outside could reduce lock held time and improve
-> performance. Test with will-it-scale/page_fault1 full load:
+> It is observed that watermark_scale_factor when used to reduce thundering herds
+> in direct reclaim, reduces the direct reclaims, but results in unnecessary reclaim
+> due to kswapd running for long after being woken up. The tests are done with 4 GB
+> of RAM and the tests done are multibuild and another which opens a set of apps
+> sequentially on Android and repeating the sequence N times. The tests are done on
+> 4.9 kernel.
 > 
-> kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
-> v4.15-rc4   9037332        8000124       13642741       15728686
-> this patch  9608786 +6.3%  8368915 +4.6% 14042169 +2.9% 17433559 +10.8%
+> The issue seems to be because of watermark_scale_factor creating larger gap between
+> low and high watermarks. The following results are with watermark_scale_factor of 120
+> and the other with watermark_scale_factor 120 with a reduced gap between low and
+> high watermarks. The patch used to reduce the gap is given below. The min-low gap is
+> untouched. It can be seen that with the reduced low-high gap, the direct reclaims are
+> almost same as base, but with 45% less pgpgin. Reduced low-high gap improves the
+> latency by around 11% in the sequential app test due to lesser IO and kswapd activity.
 > 
-> What the test does is: starts $nr_cpu processes and each will repeatedly
-> do the following for 5 minutes:
-> 1 mmap 128M anonymouse space;
-> 2 write access to that space;
-> 3 munmap.
-> The score is the aggregated iteration.
+>                        wsf-120-default      wsf-120-reduced-low-high-gap
+> workingset_activate    15120206             8319182
+> pgpgin                 269795482            147928581
+> allocstall             1406                 1498
+> pgsteal_kswapd         68676960             38105142
+> slabs_scanned          94181738             49085755
 > 
-> https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault1.c
+> This is the diff of wsf-120-reduced-low-high-gap for comments. The patch considers
+> low-high gap as a fraction of min-low gap, and the fraction a function of managed pages,
+> increasing non-linearly. The multiplier 4 is was chosen as a reasonable value which does
+> not alter the low-high gap much from the base for large machines.
 > 
-> Acked-by: Mel Gorman <mgorman@techsingularity.net>
-> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
 
-It looks like this series may have gotten lost because it was embedded
-within an existing thread or else it was the proximity to the merge
-window. I suggest a rebase, retest and resubmit unless there was some
-major objection that I missed. Patch 1 is fine by me at least. I never
-explicitly acked patch 2 but I've no major objection to it, just am a tad
-uncomfortable with prefetch magic sauce in general.
+This needs a proper changelog, signed-offs and a comment on the reasoning
+behind the new min value for the gap between low and high and how it
+was derived.  It appears the equation was designed such at the gap, as
+a percentage of the zone size, would shrink according as the zone size
+increases but I'm not 100% certain that was the intent. That should be
+explained and why not just using "tmp >> 2" would have problems.
+
+It would also need review/testing by Johannes to ensure that there is no
+reintroduction of the problems that watermark_scale_factor was designed
+to solve.
+
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3a11a50..749d1eb 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6898,7 +6898,11 @@ static void __setup_per_zone_wmarks(void)
+>                                       watermark_scale_factor, 10000));
+> 
+>                 zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
+> -               zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
+> +
+> +               tmp = clamp_t(u64, mult_frac(tmp, int_sqrt(4 * zone->managed_pages),
+> +                               10000), min_wmark_pages(zone) >> 2 , tmp);
+> +
+> +               zone->watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
+> 
+>                 spin_unlock_irqrestore(&zone->lock, flags);
+>         }
+> 
+> With the patch,
+> With watermark_scale_factor as default 10, the low-high gap:
+> unchanged for 140G at 143M,
+> for 65G, reduces from 65M to 53M
+> for 4GB, reduces from 4M to 1M
+> 
+> With watermark_scale_factor 120, the low-high gap:
+> unchanged for 140G
+> for 65G, reduces from 786M to 644M
+> for 4GB, reduces from 49M to 10M
+> 
+
+This information should also be in the changelog.
 
 -- 
 Mel Gorman
