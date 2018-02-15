@@ -1,86 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B3D586B0003
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 09:40:17 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id a14so1797473pls.8
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 06:40:17 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 973C86B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 09:45:29 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id u83so300420wmb.3
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 06:45:29 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q14si1086605pfa.215.2018.02.15.06.40.15
+        by mx.google.com with ESMTPS id k22si2635030wmc.253.2018.02.15.06.45.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Feb 2018 06:40:16 -0800 (PST)
-Date: Thu, 15 Feb 2018 15:40:11 +0100
+        Thu, 15 Feb 2018 06:45:28 -0800 (PST)
+Date: Thu, 15 Feb 2018 15:45:25 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 1/4] mm/memory_hotplug: enforce block size aligned
- range check
-Message-ID: <20180215144011.GF7275@dhcp22.suse.cz>
-References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
- <20180213193159.14606-2-pasha.tatashin@oracle.com>
- <20180215113407.GB7275@dhcp22.suse.cz>
- <CAOAebxvF6mxDb4Ub02F0B9TEMRJUG0UGrKJ6ypaMGcje80cy6w@mail.gmail.com>
+Subject: Re: [patch 1/2] mm, page_alloc: extend kernelcore and movablecore
+ for percent
+Message-ID: <20180215144525.GG7275@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1802121622470.179479@chino.kir.corp.google.com>
+ <20180214095911.GB28460@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1802140225290.261065@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOAebxvF6mxDb4Ub02F0B9TEMRJUG0UGrKJ6ypaMGcje80cy6w@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1802140225290.261065@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On Thu 15-02-18 08:36:00, Pavel Tatashin wrote:
-> Hi Michal,
+On Wed 14-02-18 02:28:38, David Rientjes wrote:
+> On Wed, 14 Feb 2018, Michal Hocko wrote:
 > 
-> Thank you very much for your reviews and for Acking this patch.
+> > I do not have any objections regarding the extension. What I am more
+> > interested in is _why_ people are still using this command line
+> > parameter at all these days. Why would anybody want to introduce lowmem
+> > issues from 32b days. I can see the CMA/Hotplug usecases for
+> > ZONE_MOVABLE but those have their own ways to define zone movable. I was
+> > tempted to simply remove the kernelcore already. Could you be more
+> > specific what is your usecase which triggered a need of an easier
+> > scaling of the size?
 > 
-> >
-> > The whole memblock != section_size sucks! It leads to corner cases like
-> > you see. There is no real reason why we shouldn't be able to to online
-> > 2G unaligned memory range. Failing for that purpose is just wrong. The
-> > whole thing is just not well thought through and works only for well
-> > configured cases.
+> Fragmentation of non-__GFP_MOVABLE pages due to low on memory situations 
+> can pollute most pageblocks on the system, as much as 1GB of slab being 
+> fragmented over 128GB of memory, for example.
+
+OK, I was assuming something like that.
+
+> When the amount of kernel 
+> memory is well bounded for certain systems, it is better to aggressively 
+> reclaim from existing MIGRATE_UNMOVABLE pageblocks rather than eagerly 
+> fallback to others.
 > 
-> Hotplug operates over memory blocks, and it seems that conceptually
-> memory blocks are OK: their sizes are defined by arch, and may
-> represent a pluggable dimm (on virtual machines it is a different
-> story though). If we forced memory blocks to be equal to section size,
-> that would force us to handle millions of memory devices in sysfs,
-> which would not scale well.
+> We have additional patches that help with this fragmentation if you're 
+> interested, specifically kcompactd compaction of MIGRATE_UNMOVABLE 
+> pageblocks triggered by fallback of non-__GFP_MOVABLE allocations and 
+> draining of pcp lists back to the zone free area to prevent stranding.
 
-Yes, I am very well avare of the reason why memblock is larger on larger
-systems. I was merely ranting about the way how it has been added to the
-existing code.
+Yes, I think we need a proper fix. (Ab)using zone_movable for this
+usecase is just sad.
 
-> > Your patch doesn't address the underlying problem.
-> 
-> What is the underlying problem? The hotplug operation was allowed, but
-> we ended up with half populated memory block, which is broken. The
-> patch solves this problem by making sure that this is never the case
-> for any arch, no matter what block size is defined as unit of
-> hotplugging.
-
-The underlying problem is that we require some alignment here. There
-shouldn't be any reason to do so. The only requirement dictated by the
-memory model is the size of the section.
-
-> > On the other hand, it
-> > is incorrect to check memory section here conceptually because this is
-> > not a hotplug unit as you say so I am OK with the patch regardless. It
-> > deserves a big fat TODO to fix this properly at least. I am not sure why
-> > we insist on the alignment in the first place. All we should care about
-> > is the proper memory section based range. The code is crap and it
-> > assumes pageblock start aligned at some places but there shouldn't be
-> > anything fundamental to change that.
-> 
-> So, if I understand correctly, ideally you would like to redefine unit
-> of memory hotplug to be equal to section size?
-
-No, not really. I just think the alignment shouldn't really matter. Each
-memory block should simply represent a hotplugable entitity with a well
-defined pfn start and size (in multiples of section size). This is in
-fact what we do internally anyway. One problem might be that an existing
-userspace might depend on the existing size restrictions so we might not
-be able to have variable block sizes. But block size alignment should be
-fixable.
 -- 
 Michal Hocko
 SUSE Labs
