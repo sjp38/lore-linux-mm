@@ -1,35 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 553A86B0003
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 11:40:16 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id w184so708461ita.0
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 08:40:16 -0800 (PST)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [69.252.207.44])
-        by mx.google.com with ESMTPS id k3si1924880itg.33.2018.02.15.08.40.15
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EE406B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 11:59:33 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id w17so771768iow.23
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 08:59:33 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id x22si146902ioi.66.2018.02.15.08.59.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Feb 2018 08:40:15 -0800 (PST)
-Date: Thu, 15 Feb 2018 10:39:13 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] percpu: match chunk allocator declarations with
- definitions
-In-Reply-To: <3865d86559d8499f9bbb12f578bf9e6aa8f8882e.1518668149.git.dennisszhou@gmail.com>
-Message-ID: <alpine.DEB.2.20.1802151038510.2970@nuc-kabylake>
-References: <cover.1518668149.git.dennisszhou@gmail.com> <3865d86559d8499f9bbb12f578bf9e6aa8f8882e.1518668149.git.dennisszhou@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Thu, 15 Feb 2018 08:59:31 -0800 (PST)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [v4 0/6] optimize memory hotplug
+Date: Thu, 15 Feb 2018 11:59:14 -0500
+Message-Id: <20180215165920.8570-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dennis Zhou <dennisszhou@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
-On Thu, 15 Feb 2018, Dennis Zhou wrote:
+Changelog:
+	v3 - v4
+	Addressed comments from Ingo Molnar and from Michal Hocko
+	Splitted 4th patch into three patches
+	Instead of using section table to save node ids, saving node id in
+	the first page of every section.
 
-> At some point the function declaration parameters got out of sync with
-> the function definitions in percpu-vm.c and percpu-km.c. This patch
-> makes them match again.
+	v2 - v3
+	Fixed two issues found during testing
+	Addressed Kbuild warning reports
 
-Acked-by: Christoph Lameter <cl@linux.com>
+	v1 - v2
+	Added struct page poisoning checking in order to verify that
+	struct pages are never accessed until initialized during memory
+	hotplug
+
+This patchset:
+- Improves hotplug performance by eliminating a number of
+struct page traverses during memory hotplug.
+
+- Fixes some issues with hotplugging, where boundaries
+were not properly checked. And on x86 block size was not properly aligned
+with end of memory
+
+- Also, potentially improves boot performance by eliminating condition from
+  __init_single_page().
+
+- Adds robustness by verifying that that struct pages are correctly
+  poisoned when flags are accessed.
+
+The following experiments were performed on Xeon(R) CPU E7-8895 v3 @ 2.60GHz
+with 1T RAM:
+
+booting in qemu with 960G of memory, time to initialize struct pages:
+
+no-kvm:
+	TRY1		TRY2
+BEFORE:	39.433668	39.39705
+AFTER:	36.903781	36.989329
+
+with-kvm:
+BEFORE:	10.977447	11.103164
+AFTER:	10.929072	10.751885
+
+Hotplug 896G memory:
+no-kvm:
+	TRY1		TRY2
+BEFORE: 848.740000	846.910000
+AFTER:  783.070000	786.560000
+
+with-kvm:
+	TRY1		TRY2
+BEFORE: 34.410000	33.57
+AFTER:	29.810000	29.580000
+
+Pavel Tatashin (6):
+  mm/memory_hotplug: enforce block size aligned range check
+  x86/mm/memory_hotplug: determine block size based on the end of boot
+    memory
+  mm: uninitialized struct page poisoning sanity checking
+  mm/memory_hotplug: optimize probe routine
+  mm/memory_hotplug: don't read nid from struct page during hotplug
+  mm/memory_hotplug: optimize memory hotplug
+
+ arch/x86/mm/init_64.c      | 33 +++++++++++++++++++++++++++++----
+ drivers/base/memory.c      | 38 +++++++++++++++++++++-----------------
+ drivers/base/node.c        | 22 +++++++++++++++-------
+ include/linux/mm.h         |  4 +++-
+ include/linux/node.h       |  4 ++--
+ include/linux/page-flags.h | 22 +++++++++++++++++-----
+ mm/memblock.c              |  2 +-
+ mm/memory_hotplug.c        | 36 ++++++++++++++----------------------
+ mm/page_alloc.c            | 28 ++++++++++------------------
+ mm/sparse.c                |  9 ++++++++-
+ 10 files changed, 120 insertions(+), 78 deletions(-)
+
+-- 
+2.16.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
