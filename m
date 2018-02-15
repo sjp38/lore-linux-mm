@@ -1,108 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B9D16B0003
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 07:40:19 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id f3so105730wmc.8
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 04:40:19 -0800 (PST)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id i33si1168324edi.437.2018.02.15.04.40.17
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F27A6B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 07:43:26 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id w16so13111026plp.20
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 04:43:26 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b89-v6si2786795plb.809.2018.02.15.04.43.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Feb 2018 04:40:18 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 91D781C52D8
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:40:17 +0000 (GMT)
-Date: Thu, 15 Feb 2018 12:40:16 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC] kswapd aggressiveness with watermark_scale_factor
-Message-ID: <20180215124016.hn64v57istrfwz7p@techsingularity.net>
-References: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Feb 2018 04:43:25 -0800 (PST)
+Date: Thu, 15 Feb 2018 13:43:20 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 4/4] mm/memory_hotplug: optimize memory hotplug
+Message-ID: <20180215124320.GE7275@dhcp22.suse.cz>
+References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
+ <20180213193159.14606-5-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
+In-Reply-To: <20180213193159.14606-5-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: Linux-MM <linux-mm@kvack.org>, hannes@cmpxchg.org, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "vbabka@suse.cz" <vbabka@suse.cz>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
-On Wed, Jan 24, 2018 at 09:25:37PM +0530, Vinayak Menon wrote:
-> Hi,
-> 
-> It is observed that watermark_scale_factor when used to reduce thundering herds
-> in direct reclaim, reduces the direct reclaims, but results in unnecessary reclaim
-> due to kswapd running for long after being woken up. The tests are done with 4 GB
-> of RAM and the tests done are multibuild and another which opens a set of apps
-> sequentially on Android and repeating the sequence N times. The tests are done on
-> 4.9 kernel.
-> 
-> The issue seems to be because of watermark_scale_factor creating larger gap between
-> low and high watermarks. The following results are with watermark_scale_factor of 120
-> and the other with watermark_scale_factor 120 with a reduced gap between low and
-> high watermarks. The patch used to reduce the gap is given below. The min-low gap is
-> untouched. It can be seen that with the reduced low-high gap, the direct reclaims are
-> almost same as base, but with 45% less pgpgin. Reduced low-high gap improves the
-> latency by around 11% in the sequential app test due to lesser IO and kswapd activity.
-> 
->                        wsf-120-default      wsf-120-reduced-low-high-gap
-> workingset_activate    15120206             8319182
-> pgpgin                 269795482            147928581
-> allocstall             1406                 1498
-> pgsteal_kswapd         68676960             38105142
-> slabs_scanned          94181738             49085755
-> 
-> This is the diff of wsf-120-reduced-low-high-gap for comments. The patch considers
-> low-high gap as a fraction of min-low gap, and the fraction a function of managed pages,
-> increasing non-linearly. The multiplier 4 is was chosen as a reasonable value which does
-> not alter the low-high gap much from the base for large machines.
-> 
+On Tue 13-02-18 14:31:59, Pavel Tatashin wrote:
+[...]
+> @@ -201,21 +202,24 @@ static bool pages_correctly_reserved(unsigned long start_pfn)
+>  	 * SPARSEMEM_VMEMMAP. We lookup the page once per section
+>  	 * and assume memmap is contiguous within each section
+>  	 */
+> -	for (i = 0; i < sections_per_block; i++, pfn += PAGES_PER_SECTION) {
+> +	for (; section_nr < section_nr_end; section_nr++) {
+>  		if (WARN_ON_ONCE(!pfn_valid(pfn)))
+>  			return false;
+> -		page = pfn_to_page(pfn);
+> -
+> -		for (j = 0; j < PAGES_PER_SECTION; j++) {
+> -			if (PageReserved(page + j))
+> -				continue;
+> -
+> -			printk(KERN_WARNING "section number %ld page number %d "
+> -				"not reserved, was it already online?\n",
+> -				pfn_to_section_nr(pfn), j);
+>  
+> +		if (!present_section_nr(section_nr)) {
+> +			pr_warn("section %ld pfn[%lx, %lx) not present",
+> +				section_nr, pfn, pfn + PAGES_PER_SECTION);
+> +			return false;
+> +		} else if (!valid_section_nr(section_nr)) {
+> +			pr_warn("section %ld pfn[%lx, %lx) no valid memmap",
+> +				section_nr, pfn, pfn + PAGES_PER_SECTION);
+> +			return false;
+> +		} else if (online_section_nr(section_nr)) {
+> +			pr_warn("section %ld pfn[%lx, %lx) is already online",
+> +				section_nr, pfn, pfn + PAGES_PER_SECTION);
+>  			return false;
+>  		}
+> +		pfn += PAGES_PER_SECTION;
+>  	}
 
-This needs a proper changelog, signed-offs and a comment on the reasoning
-behind the new min value for the gap between low and high and how it
-was derived.  It appears the equation was designed such at the gap, as
-a percentage of the zone size, would shrink according as the zone size
-increases but I'm not 100% certain that was the intent. That should be
-explained and why not just using "tmp >> 2" would have problems.
+This should be a separate patch IMHO. It is an optimization on its
+own. The original code tries to be sparse neutral but we do depend on
+sparse anyway.
 
-It would also need review/testing by Johannes to ensure that there is no
-reintroduction of the problems that watermark_scale_factor was designed
-to solve.
+[...]
+>  /* register memory section under specified node if it spans that node */
+> -int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
+> +int register_mem_sect_under_node(struct memory_block *mem_blk, int nid,
+> +				 bool check_nid)
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3a11a50..749d1eb 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6898,7 +6898,11 @@ static void __setup_per_zone_wmarks(void)
->                                       watermark_scale_factor, 10000));
-> 
->                 zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
-> -               zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
-> +
-> +               tmp = clamp_t(u64, mult_frac(tmp, int_sqrt(4 * zone->managed_pages),
-> +                               10000), min_wmark_pages(zone) >> 2 , tmp);
-> +
-> +               zone->watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
-> 
->                 spin_unlock_irqrestore(&zone->lock, flags);
->         }
-> 
-> With the patch,
-> With watermark_scale_factor as default 10, the low-high gap:
-> unchanged for 140G at 143M,
-> for 65G, reduces from 65M to 53M
-> for 4GB, reduces from 4M to 1M
-> 
-> With watermark_scale_factor 120, the low-high gap:
-> unchanged for 140G
-> for 65G, reduces from 786M to 644M
-> for 4GB, reduces from 49M to 10M
-> 
+This check_nid begs for a documentation. When do we need to set it? I
+can see that register_new_memory path doesn't check node id. It is quite
+reasonable to expect that a new memblock doesn't span multiple numa
+nodes which can be the case for register_one_node but a word or two are
+really due.
 
-This information should also be in the changelog.
+>  {
+>  	int ret;
+>  	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+> @@ -423,11 +424,13 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
+>  			continue;
+>  		}
+>  
+> -		page_nid = get_nid_for_pfn(pfn);
+> -		if (page_nid < 0)
+> -			continue;
+> -		if (page_nid != nid)
+> -			continue;
+> +		if (check_nid) {
+> +			page_nid = get_nid_for_pfn(pfn);
+> +			if (page_nid < 0)
+> +				continue;
+> +			if (page_nid != nid)
+> +				continue;
+> +		}
+>  		ret = sysfs_create_link_nowarn(&node_devices[nid]->dev.kobj,
+>  					&mem_blk->dev.kobj,
+>  					kobject_name(&mem_blk->dev.kobj));
+> @@ -502,7 +505,7 @@ int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages)
+>  
+>  		mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
+>  
+> -		ret = register_mem_sect_under_node(mem_blk, nid);
+> +		ret = register_mem_sect_under_node(mem_blk, nid, true);
+>  		if (!err)
+>  			err = ret;
+>  
 
+I would be tempted to split this into a separate patch as well. The
+review will be much easier.
+
+[...]
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 7af5e7a92528..d7808307023b 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -30,11 +30,14 @@ struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
+>  #endif
+>  EXPORT_SYMBOL(mem_section);
+>  
+> -#ifdef NODE_NOT_IN_PAGE_FLAGS
+> +#if defined(NODE_NOT_IN_PAGE_FLAGS) || defined(CONFIG_MEMORY_HOTPLUG)
+>  /*
+>   * If we did not store the node number in the page then we have to
+>   * do a lookup in the section_to_node_table in order to find which
+>   * node the page belongs to.
+> + *
+> + * We also use this data in case memory hotplugging is enabled to be
+> + * able to determine nid while struct pages are not yet initialized.
+>   */
+>  #if MAX_NUMNODES <= 256
+>  static u8 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
+> @@ -42,17 +45,28 @@ static u8 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
+>  static u16 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
+>  #endif
+>  
+> +#ifdef NODE_NOT_IN_PAGE_FLAGS
+>  int page_to_nid(const struct page *page)
+>  {
+>  	return section_to_node_table[page_to_section(page)];
+>  }
+>  EXPORT_SYMBOL(page_to_nid);
+> +#endif /* NODE_NOT_IN_PAGE_FLAGS */
+
+This is quite ugly. You allocate 256MB for small numa systems and 512MB
+for larger NUMAs unconditionally for MEMORY_HOTPLUG. I see you need it
+to safely replace page_to_nid by get_section_nid but this is just too
+high of the price. Please note that this shouldn't be really needed. At
+least not for onlining. We already _do_ know the node association with
+the pfn range. So we should be able to get the nid from memblock.
+
+[...]
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
