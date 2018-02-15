@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B81CE6B0003
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 16:39:18 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id d67so889814qkb.7
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:39:18 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h89sor1441956qtd.103.2018.02.15.13.39.17
+	by kanga.kvack.org (Postfix) with ESMTP id 52A526B0006
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 16:41:52 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id g7so889439qkd.14
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:41:52 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id u5sor2300452qta.52.2018.02.15.13.41.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 15 Feb 2018 13:39:17 -0800 (PST)
-Date: Thu, 15 Feb 2018 13:39:09 -0800
+        Thu, 15 Feb 2018 13:41:51 -0800 (PST)
+Date: Thu, 15 Feb 2018 13:41:48 -0800
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/3] percpu: add __GFP_NORETRY semantics to the percpu
- balancing path
-Message-ID: <20180215213909.GU695913@devbig577.frc2.facebook.com>
+Subject: Re: [PATCH 3/3] percpu: allow select gfp to be passed to underlying
+ allocators
+Message-ID: <20180215214148.GV695913@devbig577.frc2.facebook.com>
 References: <cover.1518668149.git.dennisszhou@gmail.com>
- <d51c5dc100f0d7423bbf5bb32760f91646097b9f.1518668149.git.dennisszhou@gmail.com>
+ <a166972c727e3a1235a7ad17b9df94ca407a1548.1518668149.git.dennisszhou@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d51c5dc100f0d7423bbf5bb32760f91646097b9f.1518668149.git.dennisszhou@gmail.com>
+In-Reply-To: <a166972c727e3a1235a7ad17b9df94ca407a1548.1518668149.git.dennisszhou@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dennis Zhou <dennisszhou@gmail.com>
@@ -27,55 +27,13 @@ Cc: Christoph Lameter <cl@linux.com>, Daniel Borkmann <daniel@iogearbox.net>, li
 
 Hello,
 
-On Thu, Feb 15, 2018 at 10:08:15AM -0600, Dennis Zhou wrote:
-> -static struct pcpu_chunk *pcpu_create_chunk(void)
-> +static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
->  {
->  	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
->  	struct pcpu_chunk *chunk;
->  	struct page *pages;
->  	int i;
->  
-> -	chunk = pcpu_alloc_chunk();
-> +	chunk = pcpu_alloc_chunk(gfp);
->  	if (!chunk)
->  		return NULL;
->  
-> -	pages = alloc_pages(GFP_KERNEL, order_base_2(nr_pages));
-> +	pages = alloc_pages(gfp | GFP_KERNEL, order_base_2(nr_pages));
+On Thu, Feb 15, 2018 at 10:08:16AM -0600, Dennis Zhou wrote:
+> +/* the whitelisted flags that can be passed to the backing allocators */
+> +#define gfp_percpu_mask(gfp) (((gfp) & (__GFP_NORETRY | __GFP_NOWARN)) | \
+> +			      GFP_KERNEL)
 
-Is there a reason to set GFP_KERNEL in this function?  I'd prefer
-pushing this to the callers.
-
-> diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
-> index 9158e5a..ea9906a 100644
-> --- a/mm/percpu-vm.c
-> +++ b/mm/percpu-vm.c
-> @@ -37,7 +37,7 @@ static struct page **pcpu_get_pages(void)
->  	lockdep_assert_held(&pcpu_alloc_mutex);
->  
->  	if (!pages)
-> -		pages = pcpu_mem_zalloc(pages_size);
-> +		pages = pcpu_mem_zalloc(pages_size, 0);
-                                                  ^^^^
-						  because this is confusing
->  static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
-> -			    struct page **pages, int page_start, int page_end)
-> +			    struct page **pages, int page_start, int page_end,
-> +			    gfp_t gfp)
->  {
-> -	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM;
->  	unsigned int cpu, tcpu;
->  	int i;
->  
-> +	gfp |=  GFP_KERNEL | __GFP_HIGHMEM;
-              ^^
-	      double space
-
-So, setting __GFP_HIGHMEM unconditionally here makes sense because
-it's indicating the types of pages we can use (we also accept high
-pages); however, I'm not sure GFP_KERNEL makes sense.  That's about
-"how to allocate" and looks like it should be left to the caller.
+Isn't there just one place where gfp comes in from outside?  If so,
+this looks like a bit of overkill.  Can't we just filter there?
 
 Thanks.
 
