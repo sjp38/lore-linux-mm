@@ -1,76 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F3846B000E
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 14:02:46 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id m79so166581lfm.17
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 11:02:46 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o22sor3419147ljc.43.2018.02.15.11.02.44
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D60A76B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 15:14:11 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id v126so462040pgb.21
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:14:11 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id b190si463710pgc.312.2018.02.15.12.14.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 15 Feb 2018 11:02:44 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 15 Feb 2018 12:14:10 -0800 (PST)
+Date: Thu, 15 Feb 2018 12:14:05 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [patch 1/2] mm, page_alloc: extend kernelcore and movablecore
+ for percent
+Message-ID: <20180215201405.GA22948@bombadil.infradead.org>
+References: <alpine.DEB.2.10.1802121622470.179479@chino.kir.corp.google.com>
+ <20180214095911.GB28460@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1802140225290.261065@chino.kir.corp.google.com>
+ <20180215144525.GG7275@dhcp22.suse.cz>
+ <20180215151129.GB12360@bombadil.infradead.org>
+ <alpine.DEB.2.20.1802150947240.1902@nuc-kabylake>
 MIME-Version: 1.0
-In-Reply-To: <20180215054436.GN7000@dastard>
-References: <20180206060840.kj2u6jjmkuk3vie6@destitution> <CABXGCsOgcYyj8Xukn7Pi_M2qz2aJ1MJZTaxaSgYno7f_BtZH6w@mail.gmail.com>
- <1517974845.4352.8.camel@gmail.com> <20180207065520.66f6gocvxlnxmkyv@destitution>
- <1518255240.31843.6.camel@gmail.com> <1518255352.31843.8.camel@gmail.com>
- <20180211225657.GA6778@dastard> <1518643669.6070.21.camel@gmail.com>
- <20180214215245.GI7000@dastard> <1518666178.6070.25.camel@gmail.com> <20180215054436.GN7000@dastard>
-From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Date: Fri, 16 Feb 2018 00:02:28 +0500
-Message-ID: <CABXGCsOpJU4WU2w5DYBA+Q1nquh14zN0oCW6OfCbhTOFYLwO5w@mail.gmail.com>
-Subject: Re: freezing system for several second on high I/O [kernel 4.15]
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1802150947240.1902@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christopher Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On 15 February 2018 at 10:44, Dave Chinner <david@fromorbit.com> wrote:
-> I've already explained that we can't annotate these memory
-> allocations to turn off the false positives because that will also
-> turning off all detection of real deadlock conditions.  Lockdep has
-> many, many limitations, and this happens to be one of them.
->
-> FWIW, is there any specific reason you running lockdep on your
-> desktop system?
+On Thu, Feb 15, 2018 at 09:49:00AM -0600, Christopher Lameter wrote:
+> On Thu, 15 Feb 2018, Matthew Wilcox wrote:
+> 
+> > What if ... on startup, slab allocated a MAX_ORDER page for itself.
+> > It would then satisfy its own page allocation requests from this giant
+> > page.  If we start to run low on memory in the rest of the system, slab
+> > can be induced to return some of it via its shrinker.  If slab runs low
+> > on memory, it tries to allocate another MAX_ORDER page for itself.
+> 
+> The inducing of releasing memory back is not there but you can run SLUB
+> with MAX_ORDER allocations by passing "slab_min_order=9" or so on bootup.
 
-Because I wanna make open source better (help fixing all freezing)
+Maybe we should try this patch in order to automatically scale the slub
+page size with the amount of memory in the machine?
 
->
-> I think I've already explained that, too. The graphics subsystem -
-> which is responsible for updating the cursor - requires memory
-> allocation. The machine is running low on memory, so it runs memory
-> reclaim, which recurses back into the filesystem and blocks waiting
-> for IO to be completed (either writing dirty data pages or flushing
-> dirty metadata) so it can free memory.
-
-Which means machine is running low on memory?
-How many memory needed?
-
-$ free -h
-              total        used        free      shared  buff/cache   available
-Mem:            30G         17G        2,1G        1,4G         10G         12G
-Swap:           59G          0B         59G
-
-As can we see machine have 12G available memory. Is this means low memory?
-
-> IOWs, your problems all stem from long IO latencies caused by the
-> overloaded storage subsystem - they are propagate to all
-> aspects of the OS via direct memory reclaim blocking on IO....
-
-I'm surprised that no QOS analog for disk I/O.
-This is reminiscent of the situation in past where a torrent client
-clogs the entire channel on the cheap router and it causes problems
-with opening web pages. In nowadays it never happens with modern
-routers even with overloaded network channel are possible video calls
-.
-In 2018 my personaly expectation that user can run any set of
-applications on computer and this never shoudn't harm system.
-
---
-Best Regards,
-Mike Gavrilov.
+diff --git a/mm/internal.h b/mm/internal.h
+index e6bd35182dae..7059a8389194 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -167,6 +167,7 @@ extern void prep_compound_page(struct page *page, unsigned int order);
+ extern void post_alloc_hook(struct page *page, unsigned int order,
+ 					gfp_t gfp_flags);
+ extern int user_min_free_kbytes;
++extern unsigned long __meminitdata nr_kernel_pages;
+ 
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ef9c259db041..3c51bb22403f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -264,7 +264,7 @@ int min_free_kbytes = 1024;
+ int user_min_free_kbytes = -1;
+ int watermark_scale_factor = 10;
+ 
+-static unsigned long __meminitdata nr_kernel_pages;
++unsigned long __meminitdata nr_kernel_pages;
+ static unsigned long __meminitdata nr_all_pages;
+ static unsigned long __meminitdata dma_reserve;
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index e381728a3751..abca4a6e9b6c 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4194,6 +4194,23 @@ void __init kmem_cache_init(void)
+ 
+ 	if (debug_guardpage_minorder())
+ 		slub_max_order = 0;
++	if (slub_min_order == 0) {
++		unsigned long numentries = nr_kernel_pages;
++
++		/*
++		 * Above 4GB, we start to care more about fragmenting large
++		 * pages than about using the minimum amount of memory.
++		 * Scale the slub page size at half the rate that we scale
++		 * the memory size; at 4GB we double the page size to 8k,
++		 * 16GB to 16k, 64GB to 32k, 256GB to 64k.
++		 */
++		while (numentries > (4UL << 30)) {
++			if (slub_min_order >= slub_max_order)
++				break;
++			slub_min_order++;
++			numentries /= 4;
++		}
++	}
+ 
+ 	kmem_cache_node = &boot_kmem_cache_node;
+ 	kmem_cache = &boot_kmem_cache;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
