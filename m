@@ -1,146 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ED926B005A
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 06:53:19 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id k82so306736wmd.1
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 03:53:19 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f3si11355623wrg.301.2018.02.15.03.53.17
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 134D76B005D
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 07:06:11 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id r15so1704495wrc.11
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 04:06:11 -0800 (PST)
+Received: from outbound-smtp20.blacknight.com (outbound-smtp20.blacknight.com. [46.22.139.247])
+        by mx.google.com with ESMTPS id e29si555218eda.89.2018.02.15.04.06.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Feb 2018 03:53:17 -0800 (PST)
-Date: Thu, 15 Feb 2018 12:53:16 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 3/4] mm: uninitialized struct page poisoning sanity
- checking
-Message-ID: <20180215115316.GD7275@dhcp22.suse.cz>
-References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
- <20180213193159.14606-4-pasha.tatashin@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Feb 2018 04:06:09 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp20.blacknight.com (Postfix) with ESMTPS id A6B0F1C5014
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:06:08 +0000 (GMT)
+Date: Thu, 15 Feb 2018 12:06:08 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH v2 1/2] free_pcppages_bulk: do not hold lock when picking
+ pages to free
+Message-ID: <20180215120608.g5wj2qb2thkkzu5e@techsingularity.net>
+References: <20180124023050.20097-1-aaron.lu@intel.com>
+ <20180124163926.c7ptagn655aeiut3@techsingularity.net>
+ <20180125072144.GA27678@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20180213193159.14606-4-pasha.tatashin@oracle.com>
+In-Reply-To: <20180125072144.GA27678@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue 13-02-18 14:31:58, Pavel Tatashin wrote:
-> During boot we poison struct page memory in order to ensure that no one is
-> accessing this memory until the struct pages are initialized in
-> __init_single_page().
+On Thu, Jan 25, 2018 at 03:21:44PM +0800, Aaron Lu wrote:
+> When freeing a batch of pages from Per-CPU-Pages(PCP) back to buddy,
+> the zone->lock is held and then pages are chosen from PCP's migratetype
+> list. While there is actually no need to do this 'choose part' under
+> lock since it's PCP pages, the only CPU that can touch them is us and
+> irq is also disabled.
 > 
-> This patch adds more scrutiny to this checking, by making sure that flags
-> do not equal to poison pattern when the are accessed. The pattern is all
-
-s@the are@they are@
-
-> ones.
+> Moving this part outside could reduce lock held time and improve
+> performance. Test with will-it-scale/page_fault1 full load:
 > 
-> Since, node id is also stored in struct page, and may be accessed quiet
-
-s@quiet@quite@
-
-> early we add the enforcement into page_to_nid() function as well.
-
-It would be worth adding that this applies only to
-NODE_NOT_IN_PAGE_FLAGS=n
-
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-
-Other than that it looks like a reasonable debugging feature.
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  include/linux/mm.h         |  4 +++-
->  include/linux/page-flags.h | 22 +++++++++++++++++-----
->  mm/memblock.c              |  2 +-
->  3 files changed, 21 insertions(+), 7 deletions(-)
+> kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
+> v4.15-rc4   9037332        8000124       13642741       15728686
+> this patch  9608786 +6.3%  8368915 +4.6% 14042169 +2.9% 17433559 +10.8%
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index ad06d42adb1a..ad71136a6494 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -896,7 +896,9 @@ extern int page_to_nid(const struct page *page);
->  #else
->  static inline int page_to_nid(const struct page *page)
->  {
-> -	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
-> +	struct page *p = (struct page *)page;
-> +
-> +	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
->  }
->  #endif
->  
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 50c2b8786831..5d5493e1f7ba 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -156,9 +156,18 @@ static __always_inline int PageCompound(struct page *page)
->  	return test_bit(PG_head, &page->flags) || PageTail(page);
->  }
->  
-> +#define	PAGE_POISON_PATTERN	~0ul
-> +static inline int PagePoisoned(const struct page *page)
-> +{
-> +	return page->flags == PAGE_POISON_PATTERN;
-> +}
-> +
->  /*
->   * Page flags policies wrt compound pages
->   *
-> + * PF_POISONED_CHECK
-> + *     check if this struct page poisoned/uninitialized
-> + *
->   * PF_ANY:
->   *     the page flag is relevant for small, head and tail pages.
->   *
-> @@ -176,17 +185,20 @@ static __always_inline int PageCompound(struct page *page)
->   * PF_NO_COMPOUND:
->   *     the page flag is not relevant for compound pages.
->   */
-> -#define PF_ANY(page, enforce)	page
-> -#define PF_HEAD(page, enforce)	compound_head(page)
-> +#define PF_POISONED_CHECK(page) ({					\
-> +		VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);		\
-> +		page;})
-> +#define PF_ANY(page, enforce)	PF_POISONED_CHECK(page)
-> +#define PF_HEAD(page, enforce)	PF_POISONED_CHECK(compound_head(page))
->  #define PF_ONLY_HEAD(page, enforce) ({					\
->  		VM_BUG_ON_PGFLAGS(PageTail(page), page);		\
-> -		page;})
-> +		PF_POISONED_CHECK(page);})
->  #define PF_NO_TAIL(page, enforce) ({					\
->  		VM_BUG_ON_PGFLAGS(enforce && PageTail(page), page);	\
-> -		compound_head(page);})
-> +		PF_POISONED_CHECK(compound_head(page));})
->  #define PF_NO_COMPOUND(page, enforce) ({				\
->  		VM_BUG_ON_PGFLAGS(enforce && PageCompound(page), page);	\
-> -		page;})
-> +		PF_POISONED_CHECK(page);})
->  
->  /*
->   * Macros to create function definitions for page flags
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 5a9ca2a1751b..d85c8754e0ce 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1373,7 +1373,7 @@ void * __init memblock_virt_alloc_try_nid_raw(
->  					   min_addr, max_addr, nid);
->  #ifdef CONFIG_DEBUG_VM
->  	if (ptr && size > 0)
-> -		memset(ptr, 0xff, size);
-> +		memset(ptr, PAGE_POISON_PATTERN, size);
->  #endif
->  	return ptr;
->  }
-> -- 
-> 2.16.1
+> What the test does is: starts $nr_cpu processes and each will repeatedly
+> do the following for 5 minutes:
+> 1 mmap 128M anonymouse space;
+> 2 write access to that space;
+> 3 munmap.
+> The score is the aggregated iteration.
 > 
+> https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault1.c
+> 
+> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+
+It looks like this series may have gotten lost because it was embedded
+within an existing thread or else it was the proximity to the merge
+window. I suggest a rebase, retest and resubmit unless there was some
+major objection that I missed. Patch 1 is fine by me at least. I never
+explicitly acked patch 2 but I've no major objection to it, just am a tad
+uncomfortable with prefetch magic sauce in general.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
