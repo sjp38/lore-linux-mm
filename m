@@ -1,109 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 50A166B0006
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 16:49:03 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id i11so630102pgq.10
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:49:03 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id a3si322493pgc.128.2018.02.15.13.49.01
-        for <linux-mm@kvack.org>;
-        Thu, 15 Feb 2018 13:49:02 -0800 (PST)
-Date: Fri, 16 Feb 2018 08:48:58 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: freezing system for several second on high I/O [kernel 4.15]
-Message-ID: <20180215214858.GQ7000@dastard>
-References: <1517974845.4352.8.camel@gmail.com>
- <20180207065520.66f6gocvxlnxmkyv@destitution>
- <1518255240.31843.6.camel@gmail.com>
- <1518255352.31843.8.camel@gmail.com>
- <20180211225657.GA6778@dastard>
- <1518643669.6070.21.camel@gmail.com>
- <20180214215245.GI7000@dastard>
- <1518666178.6070.25.camel@gmail.com>
- <20180215054436.GN7000@dastard>
- <CABXGCsOpJU4WU2w5DYBA+Q1nquh14zN0oCW6OfCbhTOFYLwO5w@mail.gmail.com>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ED2F46B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 18:10:35 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id e64so66186itd.1
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 15:10:35 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id h10sor4390626ioh.275.2018.02.15.15.10.34
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 15 Feb 2018 15:10:34 -0800 (PST)
+Date: Thu, 15 Feb 2018 17:10:27 -0600
+From: Dennis Zhou <dennisszhou@gmail.com>
+Subject: Re: [PATCH 2/3] percpu: add __GFP_NORETRY semantics to the percpu
+ balancing path
+Message-ID: <20180215231027.GA79973@localhost>
+References: <cover.1518668149.git.dennisszhou@gmail.com>
+ <d51c5dc100f0d7423bbf5bb32760f91646097b9f.1518668149.git.dennisszhou@gmail.com>
+ <20180215213909.GU695913@devbig577.frc2.facebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CABXGCsOpJU4WU2w5DYBA+Q1nquh14zN0oCW6OfCbhTOFYLwO5w@mail.gmail.com>
+In-Reply-To: <20180215213909.GU695913@devbig577.frc2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Daniel Borkmann <daniel@iogearbox.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Feb 16, 2018 at 12:02:28AM +0500, Mikhail Gavrilov wrote:
-> On 15 February 2018 at 10:44, Dave Chinner <david@fromorbit.com> wrote:
-> > I've already explained that we can't annotate these memory
-> > allocations to turn off the false positives because that will also
-> > turning off all detection of real deadlock conditions.  Lockdep has
-> > many, many limitations, and this happens to be one of them.
-> >
-> > FWIW, is there any specific reason you running lockdep on your
-> > desktop system?
+Hi Tejun,
+
+On Thu, Feb 15, 2018 at 01:39:09PM -0800, Tejun Heo wrote:
+> On Thu, Feb 15, 2018 at 10:08:15AM -0600, Dennis Zhou wrote:
+> > -static struct pcpu_chunk *pcpu_create_chunk(void)
+> > +static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
+> >  {
+> >  	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
+> >  	struct pcpu_chunk *chunk;
+> >  	struct page *pages;
+> >  	int i;
+> >  
+> > -	chunk = pcpu_alloc_chunk();
+> > +	chunk = pcpu_alloc_chunk(gfp);
+> >  	if (!chunk)
+> >  		return NULL;
+> >  
+> > -	pages = alloc_pages(GFP_KERNEL, order_base_2(nr_pages));
+> > +	pages = alloc_pages(gfp | GFP_KERNEL, order_base_2(nr_pages));
 > 
-> Because I wanna make open source better (help fixing all freezing)
-
-lockdep isn't a user tool - most developers don't even understand
-what it tries to tell them. Worse, it is likely contributing to your
-problems as it has a significant runtime CPU and memory overhead....
-
-> > I think I've already explained that, too. The graphics subsystem -
-> > which is responsible for updating the cursor - requires memory
-> > allocation. The machine is running low on memory, so it runs memory
-> > reclaim, which recurses back into the filesystem and blocks waiting
-> > for IO to be completed (either writing dirty data pages or flushing
-> > dirty metadata) so it can free memory.
+> Is there a reason to set GFP_KERNEL in this function?  I'd prefer
+> pushing this to the callers.
 > 
-> Which means machine is running low on memory?
-> How many memory needed?
+
+Not particularly. As I wasn't sure of the original decision to use
+GFP_KERNEL for all percpu underlying allocations, I didn't want to
+add the gfp passthrough and remove functionality.
+
+> > diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
+> > index 9158e5a..ea9906a 100644
+> > --- a/mm/percpu-vm.c
+> > +++ b/mm/percpu-vm.c
+> > @@ -37,7 +37,7 @@ static struct page **pcpu_get_pages(void)
+> >  	lockdep_assert_held(&pcpu_alloc_mutex);
+> >  
+> >  	if (!pages)
+> > -		pages = pcpu_mem_zalloc(pages_size);
+> > +		pages = pcpu_mem_zalloc(pages_size, 0);
+>                                                   ^^^^
+> 						  because this is confusing
+
+Yeah.. The next patch removes this as the additional gfp flags is weird.
+
+> >  static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
+> > -			    struct page **pages, int page_start, int page_end)
+> > +			    struct page **pages, int page_start, int page_end,
+> > +			    gfp_t gfp)
+> >  {
+> > -	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM;
+> >  	unsigned int cpu, tcpu;
+> >  	int i;
+> >  
+> > +	gfp |=  GFP_KERNEL | __GFP_HIGHMEM;
+>               ^^
+> 	      double space
 > 
-> $ free -h
->               total        used        free      shared  buff/cache   available
-> Mem:            30G         17G        2,1G        1,4G         10G         12G
-> Swap:           59G          0B         59G
+
+I'll fix this with any other updates.
+
+> So, setting __GFP_HIGHMEM unconditionally here makes sense because
+> it's indicating the types of pages we can use (we also accept high
+> pages); however, I'm not sure GFP_KERNEL makes sense.  That's about
+> "how to allocate" and looks like it should be left to the caller.
 > 
-> As can we see machine have 12G available memory. Is this means low memory?
 
-No, you only have 2.1G free memory. You have 10GB of *reclaimable
-memory* in the buffer/page cache, and that gives you 12GB of
-"available memory". Memory reclaim happens all the time in a normal
-system - it does not mean you are running low on memory, it just
-means your system is busy.
+That makes sense, I can remove the forced GFP_KERNEL use in the next
+patch as that patch moves the flags to the caller.
 
-And, FWIW, we know you have memory pressure because the lockdep
-reports you are pasting are a result of memory reclaim operating.
+I'd rather be explicit though and whitelist GFP_KERNEL as I don't have a
+full grasp of all the flags. Our use case is a little different because
+we ultimately become the owner of the pages until the chunk is freed. So
+there are certain flags such as __GFP_HARDWALL (poor example), the
+difference between GFP_KERNEL and GFP_USER, which don't make sense here.
 
-> > IOWs, your problems all stem from long IO latencies caused by the
-> > overloaded storage subsystem - they are propagate to all
-> > aspects of the OS via direct memory reclaim blocking on IO....
-> 
-> I'm surprised that no QOS analog for disk I/O.
+Regarding high pages, I think you're referring to GFP_ATOMIC
+allocations? We actually never allocate on this path as allocations must
+be served out of parts of chunks that are already backed.
 
-There is, but it's not like a network where overload situations are
-mitigated by dropping packets to reduce load. We cannot do that with
-IO (dropped IO == broken filesystem), so QoS doesn't help when you
-drive the storage subsystem in extreme, long term overload
-conditions as you seem to be doing.
-
-> This is reminiscent of the situation in past where a torrent client
-> clogs the entire channel on the cheap router and it causes problems
-> with opening web pages. In nowadays it never happens with modern
-> routers even with overloaded network channel are possible video calls
-
-Storage != network.
-
-> In 2018 my personaly expectation that user can run any set of
-> applications on computer and this never shoudn't harm system.
-
-There's no "harm" occurring on your system - it's just slow
-because the load you've put on it means no task can execute quickly.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+Dennis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
