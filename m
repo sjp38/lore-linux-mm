@@ -1,65 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ACE0D6B0009
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 15:47:41 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id q4so1354301ioh.4
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:47:41 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d67sor3309923iof.241.2018.02.15.12.47.40
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E29E86B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 15:48:21 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id r1so535952pgp.2
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 12:48:21 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id b11si1447659pgq.275.2018.02.15.12.48.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 15 Feb 2018 12:47:40 -0800 (PST)
-Date: Thu, 15 Feb 2018 12:47:37 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 15 Feb 2018 12:48:20 -0800 (PST)
+Date: Thu, 15 Feb 2018 12:48:17 -0800
+From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: [patch 1/2] mm, page_alloc: extend kernelcore and movablecore
  for percent
-In-Reply-To: <20180215144525.GG7275@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1802151239470.217103@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1802121622470.179479@chino.kir.corp.google.com> <20180214095911.GB28460@dhcp22.suse.cz> <alpine.DEB.2.10.1802140225290.261065@chino.kir.corp.google.com> <20180215144525.GG7275@dhcp22.suse.cz>
+Message-ID: <20180215204817.GB22948@bombadil.infradead.org>
+References: <alpine.DEB.2.10.1802121622470.179479@chino.kir.corp.google.com>
+ <20180214095911.GB28460@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1802140225290.261065@chino.kir.corp.google.com>
+ <20180215144525.GG7275@dhcp22.suse.cz>
+ <20180215151129.GB12360@bombadil.infradead.org>
+ <alpine.DEB.2.20.1802150947240.1902@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1802150947240.1902@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On Thu, 15 Feb 2018, Michal Hocko wrote:
-
-> > When the amount of kernel 
-> > memory is well bounded for certain systems, it is better to aggressively 
-> > reclaim from existing MIGRATE_UNMOVABLE pageblocks rather than eagerly 
-> > fallback to others.
-> > 
-> > We have additional patches that help with this fragmentation if you're 
-> > interested, specifically kcompactd compaction of MIGRATE_UNMOVABLE 
-> > pageblocks triggered by fallback of non-__GFP_MOVABLE allocations and 
-> > draining of pcp lists back to the zone free area to prevent stranding.
+On Thu, Feb 15, 2018 at 09:49:00AM -0600, Christopher Lameter wrote:
+> On Thu, 15 Feb 2018, Matthew Wilcox wrote:
+> > What if ... on startup, slab allocated a MAX_ORDER page for itself.
+> > It would then satisfy its own page allocation requests from this giant
+> > page.  If we start to run low on memory in the rest of the system, slab
+> > can be induced to return some of it via its shrinker.  If slab runs low
+> > on memory, it tries to allocate another MAX_ORDER page for itself.
 > 
-> Yes, I think we need a proper fix. (Ab)using zone_movable for this
-> usecase is just sad.
-> 
+> The inducing of releasing memory back is not there but you can run SLUB
+> with MAX_ORDER allocations by passing "slab_min_order=9" or so on bootup.
 
-It's a hard balance to achieve between a fast page allocator with per-cpu 
-pagesets, reducing fragmentation of unmovable memory, and the performance 
-impact of any fix to reduce that fragmentation for users currently 
-unaffected.  Our patches to kick kcompactd for MIGRATE_UNMOVABLE 
-pageblocks on fallback would be a waste unless you have a ton of anonymous 
-memory you want backed by thp.
+This is subtly different from the idea that I had.  If you set
+slub_min_order to 9, then slub will allocate 2MB pages for each slab,
+so allocating one object from kmalloc-32 and one object from dentry will
+cause 4MB to be taken from the system.
 
-If hugepages is the main motivation for reducing the fragmentation, 
-hugetlbfs could be suggested because it would give us more runtime control 
-and we could leave surplus pages sitting in the free pool unless reclaimed 
-under memory pressure.  That works fine in dedicated environments where we 
-know how much hugetlb to reserve; if we give it back under memory pressure 
-it becomes hard to reallocate the high number of hugepages we want (>95% 
-of system memory).  It's much more sloppy in shared environments where the 
-amount of hugepages are unknown.
-
-And of course this doesn't address when a pin prevents memory from being 
-migrated during memory compaction that is __GFP_MOVABLE at allocation but 
-later pinned in place, which can still be a problem with ZONE_MOVABLE.  It 
-would nice to have a solution where this memory can be annotated to want 
-to come from a non-MIGRATE_MOVABLE pageblock, if possible.
+What I was proposing was an intermediate page allocator where slab would
+request 2MB for its own uses all at once, then allocate pages from that to
+individual slabs, so allocating a kmalloc-32 object and a dentry object
+would result in 510 pages of memory still being available for any slab
+that needed it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
