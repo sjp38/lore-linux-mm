@@ -1,123 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B1376B0008
-	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 08:25:23 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id z11so9552989plo.21
-        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 05:25:23 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id i4si4033040pfa.152.2018.02.15.05.25.21
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A43796B0003
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 08:36:05 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id m19so3958778pgv.5
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 05:36:05 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id c7si9526074pgn.791.2018.02.15.05.36.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Feb 2018 05:25:21 -0800 (PST)
-Subject: [PATCH 3/3] x86/pti: enable global pages for shared areas
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Thu, 15 Feb 2018 05:20:57 -0800
-References: <20180215132053.6C9B48C8@viggo.jf.intel.com>
-In-Reply-To: <20180215132053.6C9B48C8@viggo.jf.intel.com>
-Message-Id: <20180215132057.054C1DC1@viggo.jf.intel.com>
+        Thu, 15 Feb 2018 05:36:04 -0800 (PST)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w1FDYuLX160194
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:36:03 GMT
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp2120.oracle.com with ESMTP id 2g5b7e004w-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:36:03 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w1FDa2IU030472
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL)
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:36:02 GMT
+Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w1FDa2et022541
+	for <linux-mm@kvack.org>; Thu, 15 Feb 2018 13:36:02 GMT
+Received: by mail-ot0-f176.google.com with SMTP id q9so23401584oti.0
+        for <linux-mm@kvack.org>; Thu, 15 Feb 2018 05:36:01 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20180215113407.GB7275@dhcp22.suse.cz>
+References: <20180213193159.14606-1-pasha.tatashin@oracle.com>
+ <20180213193159.14606-2-pasha.tatashin@oracle.com> <20180215113407.GB7275@dhcp22.suse.cz>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Thu, 15 Feb 2018 08:36:00 -0500
+Message-ID: <CAOAebxvF6mxDb4Ub02F0B9TEMRJUG0UGrKJ6ypaMGcje80cy6w@mail.gmail.com>
+Subject: Re: [PATCH v3 1/4] mm/memory_hotplug: enforce block size aligned
+ range check
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
+Hi Michal,
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Thank you very much for your reviews and for Acking this patch.
 
-The entry/exit text and cpu_entry_area are mapped into userspace and
-the kernel.  But, they are not _PAGE_GLOBAL.  This creates unnecessary
-TLB misses.
+>
+> The whole memblock != section_size sucks! It leads to corner cases like
+> you see. There is no real reason why we shouldn't be able to to online
+> 2G unaligned memory range. Failing for that purpose is just wrong. The
+> whole thing is just not well thought through and works only for well
+> configured cases.
 
-Add the _PAGE_GLOBAL flag for these areas.
+Hotplug operates over memory blocks, and it seems that conceptually
+memory blocks are OK: their sizes are defined by arch, and may
+represent a pluggable dimm (on virtual machines it is a different
+story though). If we forced memory blocks to be equal to section size,
+that would force us to handle millions of memory devices in sysfs,
+which would not scale well.
 
-After this patch, we can see that "GLB" shows up in each copy of the
-page tables, that we have the same number of global entries in each
-and that they are the *same* entries.
+>
+> Your patch doesn't address the underlying problem.
 
-# grep -c GLB /sys/kernel/debug/page_tables/*
-/sys/kernel/debug/page_tables/current_kernel:11
-/sys/kernel/debug/page_tables/current_user:11
-/sys/kernel/debug/page_tables/kernel:11
+What is the underlying problem? The hotplug operation was allowed, but
+we ended up with half populated memory block, which is broken. The
+patch solves this problem by making sure that this is never the case
+for any arch, no matter what block size is defined as unit of
+hotplugging.
 
-# for f in `ls /sys/kernel/debug/page_tables/`; do grep GLB /sys/kernel/debug/page_tables/$f > $f.GLB; done
-# md5sum *.GLB
-9caae8ad6a1fb53aca2407ec037f612d  current_kernel.GLB
-9caae8ad6a1fb53aca2407ec037f612d  current_user.GLB
-9caae8ad6a1fb53aca2407ec037f612d  kernel.GLB
+> On the other hand, it
+> is incorrect to check memory section here conceptually because this is
+> not a hotplug unit as you say so I am OK with the patch regardless. It
+> deserves a big fat TODO to fix this properly at least. I am not sure why
+> we insist on the alignment in the first place. All we should care about
+> is the proper memory section based range. The code is crap and it
+> assumes pageblock start aligned at some places but there shouldn't be
+> anything fundamental to change that.
 
-A quick visual audit also shows that all the entries make sense.
-0xfffffe0000000000 is the cpu_entry_area and 0xffffffff81c00000
-is the entry/exit text:
+So, if I understand correctly, ideally you would like to redefine unit
+of memory hotplug to be equal to section size?
 
-# grep -c GLB /sys/kernel/debug/page_tables/current_user
-0xfffffe0000000000-0xfffffe0000002000           8K     ro                 GLB NX pte
-0xfffffe0000002000-0xfffffe0000003000           4K     RW                 GLB NX pte
-0xfffffe0000003000-0xfffffe0000006000          12K     ro                 GLB NX pte
-0xfffffe0000006000-0xfffffe0000007000           4K     ro                 GLB x  pte
-0xfffffe0000007000-0xfffffe000000d000          24K     RW                 GLB NX pte
-0xfffffe000002d000-0xfffffe000002e000           4K     ro                 GLB NX pte
-0xfffffe000002e000-0xfffffe000002f000           4K     RW                 GLB NX pte
-0xfffffe000002f000-0xfffffe0000032000          12K     ro                 GLB NX pte
-0xfffffe0000032000-0xfffffe0000033000           4K     ro                 GLB x  pte
-0xfffffe0000033000-0xfffffe0000039000          24K     RW                 GLB NX pte
-0xffffffff81c00000-0xffffffff81e00000           2M     ro         PSE     GLB x  pmd
+>
+>> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+>
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Kees Cook <keescook@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: x86@kernel.org
----
-
- b/arch/x86/mm/cpu_entry_area.c |    7 +++++++
- b/arch/x86/mm/pti.c            |    9 ++++++++-
- 2 files changed, 15 insertions(+), 1 deletion(-)
-
-diff -puN arch/x86/mm/cpu_entry_area.c~kpti-why-no-global arch/x86/mm/cpu_entry_area.c
---- a/arch/x86/mm/cpu_entry_area.c~kpti-why-no-global	2018-02-13 15:17:56.735210059 -0800
-+++ b/arch/x86/mm/cpu_entry_area.c	2018-02-13 15:17:56.740210059 -0800
-@@ -28,6 +28,13 @@ void cea_set_pte(void *cea_vaddr, phys_a
- {
- 	unsigned long va = (unsigned long) cea_vaddr;
- 
-+	/*
-+	 * The cpu_entry_area is shared between the user and kernel
-+	 * page tables.  All of its ptes can safely be global.
-+	 */
-+	if (boot_cpu_has(X86_FEATURE_PGE))
-+		pgprot_val(flags) |= _PAGE_GLOBAL;
-+
- 	set_pte_vaddr(va, pfn_pte(pa >> PAGE_SHIFT, flags));
- }
- 
-diff -puN arch/x86/mm/pti.c~kpti-why-no-global arch/x86/mm/pti.c
---- a/arch/x86/mm/pti.c~kpti-why-no-global	2018-02-13 15:17:56.737210059 -0800
-+++ b/arch/x86/mm/pti.c	2018-02-13 15:17:56.740210059 -0800
-@@ -300,6 +300,13 @@ pti_clone_pmds(unsigned long start, unsi
- 			return;
- 
- 		/*
-+		 * Setting 'target_pmd' below creates a mapping in both
-+		 * the user and kernel page tables.  It is effectively
-+		 * global, so set it as global in both copies.
-+		 */
-+		*pmd = pmd_set_flags(*pmd, _PAGE_GLOBAL);
-+
-+		/*
- 		 * Copy the PMD.  That is, the kernelmode and usermode
- 		 * tables will share the last-level page tables of this
- 		 * address range
-@@ -348,7 +355,7 @@ static void __init pti_clone_entry_text(
- {
- 	pti_clone_pmds((unsigned long) __entry_text_start,
- 			(unsigned long) __irqentry_text_end,
--		       _PAGE_RW | _PAGE_GLOBAL);
-+		       _PAGE_RW);
- }
- 
- /*
-_
+Thank you,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
