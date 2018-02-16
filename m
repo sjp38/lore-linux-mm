@@ -1,122 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EC0246B0006
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 04:30:04 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 63so1300246wrn.7
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 01:30:04 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 73sor762742wmj.32.2018.02.16.01.30.03
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 42C8D6B0003
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 06:49:55 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id l1so1976023pga.1
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 03:49:55 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id v3-v6si367116ply.829.2018.02.16.03.49.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Feb 2018 01:30:03 -0800 (PST)
-Date: Fri, 16 Feb 2018 10:30:00 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [v4 6/6] mm/memory_hotplug: optimize memory hotplug
-Message-ID: <20180216092959.gkm6d4j2zplk724r@gmail.com>
-References: <20180215165920.8570-1-pasha.tatashin@oracle.com>
- <20180215165920.8570-7-pasha.tatashin@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180215165920.8570-7-pasha.tatashin@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Feb 2018 03:49:54 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/3] x86/mm: Redefine some of page table helpers as macros
+Date: Fri, 16 Feb 2018 14:49:47 +0300
+Message-Id: <20180216114948.68868-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180216114948.68868-1-kirill.shutemov@linux.intel.com>
+References: <20180216114948.68868-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+This is preparation for the next patch, which would change
+pgtable_l5_enabled to be cpu_feature_enabled(X86_FEATURE_LA57).
 
-* Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+The change makes few helpers in paravirt.h dependent on
+cpu_feature_enabled() definition from cpufeature.h.
+And cpufeature.h is dependent on paravirt.h.
 
-> During memory hotplugging we traverse struct pages three times:
-> 
-> 1. memset(0) in sparse_add_one_section()
-> 2. loop in __add_section() to set do: set_page_node(page, nid); and
->    SetPageReserved(page);
-> 3. loop in memmap_init_zone() to call __init_single_pfn()
-> 
-> This patch remove the first two loops, and leaves only loop 3. All struct
-> pages are initialized in one place, the same as it is done during boot.
+Let's re-define some of helpers as macros to break this dependency loop.
 
-s/remove
- /removes
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/include/asm/paravirt.h | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)
 
-> The benefits:
-> - We improve the memory hotplug performance because we are not evicting
->   cache several times and also reduce loop branching overheads.
-
-s/We improve the memory hotplug performance
- /We improve memory hotplug performance
-
-s/not evicting cache several times
- /not evicting the cache several times
-
-s/overheads
- /overhead
-
-> - Remove condition from hotpath in __init_single_pfn(), that was added in
->   order to fix the problem that was reported by Bharata in the above email
->   thread, thus also improve the performance during normal boot.
-
-s/improve the performance
- /improve performance
-
-> - Make memory hotplug more similar to boot memory initialization path
->   because we zero and initialize struct pages only in one function.
-
-s/more similar to boot memory initialization path
- /more similar to the boot memory initialization path
-
-> - Simplifies memory hotplug strut page initialization code, and thus
->   enables future improvements, such as multi-threading the initialization
->   of struct pages in order to improve the hotplug performance even further
->   on larger machines.
-
-s/strut
- /struct
-
-s/to improve the hotplug performance even further
- /to improve hotplug performance even further
-
-> @@ -260,21 +260,12 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
->  		return ret;
->  
->  	/*
-> -	 * Make all the pages reserved so that nobody will stumble over half
-> -	 * initialized state.
-> -	 * FIXME: We also have to associate it with a node because page_to_nid
-> -	 * relies on having page with the proper node.
-> +	 * The first page in every section holds node id, this is because we
-> +	 * will need it in online_pages().
-
-s/holds node id
- /holds the node id
-
-> +#ifdef CONFIG_DEBUG_VM
-> +	/*
-> +	 * poison uninitialized struct pages in order to catch invalid flags
-> +	 * combinations.
-
-Please capitalize sentences properly.
-
-> +	 */
-> +	memset(memmap, PAGE_POISON_PATTERN,
-> +	       sizeof(struct page) * PAGES_PER_SECTION);
-> +#endif
-
-I'd suggest writing this into a single line:
-
-	memset(memmap, PAGE_POISON_PATTERN, sizeof(struct page)*PAGES_PER_SECTION);
-
-(And ignore any checkpatch whinging - the line break didn't make it more 
-readable.)
-
-With those details fixed, and assuming that this patch was tested:
-
-  Reviewed-by: Ingo Molnar <mingo@kernel.org>
-
-Thanks,
-
-	Ingo
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+index 70d3c86927de..6d3b921ae43a 100644
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -567,19 +567,22 @@ static inline p4dval_t p4d_val(p4d_t p4d)
+ 	return PVOP_CALLEE1(p4dval_t, pv_mmu_ops.p4d_val, p4d.p4d);
+ }
+ 
+-static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
++static inline void __set_pgd(pgd_t *pgdp, pgd_t pgd)
+ {
+-	if (pgtable_l5_enabled)
+-		PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, native_pgd_val(pgd));
+-	else
+-		set_p4d((p4d_t *)(pgdp), (p4d_t) { pgd.pgd });
++	PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, native_pgd_val(pgd));
+ }
+ 
+-static inline void pgd_clear(pgd_t *pgdp)
+-{
+-	if (pgtable_l5_enabled)
+-		set_pgd(pgdp, __pgd(0));
+-}
++#define set_pgd(pgdp, pgdval) do {					\
++	if (pgtable_l5_enabled)						\
++		__set_pgd(pgdp, pgdval);				\
++	else								\
++		set_p4d((p4d_t *)(pgdp), (p4d_t) { (pgdval).pgd });	\
++} while (0)
++
++#define pgd_clear(pgdp) do {						\
++	if (pgtable_l5_enabled)						\
++		set_pgd(pgdp, __pgd(0));				\
++} while (0)
+ 
+ #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
+ 
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
