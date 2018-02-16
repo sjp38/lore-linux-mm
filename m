@@ -1,148 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C814A6B000E
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:26:13 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id a129so2852742qkb.9
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 07:26:13 -0800 (PST)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 620376B0010
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:26:18 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id r5so2803314qkb.22
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 07:26:18 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id e22si709052qkj.404.2018.02.16.07.26.12
+        by mx.google.com with ESMTPS id n33si49035qta.436.2018.02.16.07.26.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Feb 2018 07:26:12 -0800 (PST)
+        Fri, 16 Feb 2018 07:26:17 -0800 (PST)
 Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1GFNRND135059
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:26:12 -0500
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2g603bctsx-1
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1GFNS9C135113
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:26:16 -0500
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2g603bctw6-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:26:12 -0500
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:26:16 -0500
 Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Fri, 16 Feb 2018 15:26:09 -0000
+	Fri, 16 Feb 2018 15:26:14 -0000
 From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [PATCH v8 06/24] mm: make pte_unmap_same compatible with SPF
-Date: Fri, 16 Feb 2018 16:25:20 +0100
+Subject: [PATCH v8 07/24] mm: VMA sequence count
+Date: Fri, 16 Feb 2018 16:25:21 +0100
 In-Reply-To: <1518794738-4186-1-git-send-email-ldufour@linux.vnet.ibm.com>
 References: <1518794738-4186-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <1518794738-4186-7-git-send-email-ldufour@linux.vnet.ibm.com>
+Message-Id: <1518794738-4186-8-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-pte_unmap_same() is making the assumption that the page table are still
-around because the mmap_sem is held.
-This is no more the case when running a speculative page fault and
-additional check must be made to ensure that the final page table are still
-there.
+From: Peter Zijlstra <peterz@infradead.org>
 
-This is now done by calling pte_spinlock() to check for the VMA's
-consistency while locking for the page tables.
+Wrap the VMA modifications (vma_adjust/unmap_page_range) with sequence
+counts such that we can easily test if a VMA is changed.
 
-This is requiring passing a vm_fault structure to pte_unmap_same() which is
-containing all the needed parameters.
+The unmap_page_range() one allows us to make assumptions about
+page-tables; when we find the seqcount hasn't changed we can assume
+page-tables are still valid.
 
-As pte_spinlock() may fail in the case of a speculative page fault, if the
-VMA has been touched in our back, pte_unmap_same() should now return 3
-cases :
-	1. pte are the same (0)
-	2. pte are different (VM_FAULT_PTNOTSAME)
-	3. a VMA's changes has been detected (VM_FAULT_RETRY)
+The flip side is that we cannot distinguish between a vma_adjust() and
+the unmap_page_range() -- where with the former we could have
+re-checked the vma bounds against the address.
 
-The case 2 is handled by the introduction of a new VM_FAULT flag named
-VM_FAULT_PTNOTSAME which is then trapped in cow_user_page().
-If VM_FAULT_RETRY is returned, it is passed up to the callers to retry the
-page fault while holding the mmap_sem.
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 
+[Port to 4.12 kernel]
+[Build depends on CONFIG_SPECULATIVE_PAGE_FAULT]
+[Introduce vm_write_* inline function depending on
+ CONFIG_SPECULATIVE_PAGE_FAULT]
+[Fix lock dependency between mapping->i_mmap_rwsem and vma->vm_sequence by
+ using vm_raw_write* functions]
 Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 ---
- include/linux/mm.h |  1 +
- mm/memory.c        | 37 ++++++++++++++++++++++++++-----------
- 2 files changed, 27 insertions(+), 11 deletions(-)
+ include/linux/mm.h       | 41 +++++++++++++++++++++++++++++++++++++++++
+ include/linux/mm_types.h |  3 +++
+ mm/memory.c              |  2 ++
+ mm/mmap.c                | 35 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 81 insertions(+)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 51d950cac772..e869adec9023 100644
+index e869adec9023..9c22b4134c5d 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -1197,6 +1197,7 @@ static inline void clear_page_pfmemalloc(struct page *page)
- #define VM_FAULT_NEEDDSYNC  0x2000	/* ->fault did not modify page tables
- 					 * and needs fsync() to complete (for
- 					 * synchronous page faults in DAX) */
-+#define VM_FAULT_PTNOTSAME 0x4000	/* Page table entries have changed */
- 
- #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
- 			 VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
-diff --git a/mm/memory.c b/mm/memory.c
-index 1ca289f53dd6..a301b9003200 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2309,21 +2309,29 @@ static bool pte_map_lock(struct vm_fault *vmf)
-  * parts, do_swap_page must check under lock before unmapping the pte and
-  * proceeding (but do_wp_page is only called after already making such a check;
-  * and do_anonymous_page can safely check later on).
-+ *
-+ * pte_unmap_same() returns:
-+ *	0			if the PTE are the same
-+ *	VM_FAULT_PTNOTSAME	if the PTE are different
-+ *	VM_FAULT_RETRY		if the VMA has changed in our back during
-+ *				a speculative page fault handling.
-  */
--static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
--				pte_t *page_table, pte_t orig_pte)
-+static inline int pte_unmap_same(struct vm_fault *vmf)
- {
--	int same = 1;
-+	int ret = 0;
-+
- #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
- 	if (sizeof(pte_t) > sizeof(unsigned long)) {
--		spinlock_t *ptl = pte_lockptr(mm, pmd);
--		spin_lock(ptl);
--		same = pte_same(*page_table, orig_pte);
--		spin_unlock(ptl);
-+		if (pte_spinlock(vmf)) {
-+			if (!pte_same(*vmf->pte, vmf->orig_pte))
-+				ret = VM_FAULT_PTNOTSAME;
-+			spin_unlock(vmf->ptl);
-+		} else
-+			ret = VM_FAULT_RETRY;
- 	}
- #endif
--	pte_unmap(page_table);
--	return same;
-+	pte_unmap(vmf->pte);
-+	return ret;
+@@ -1370,6 +1370,47 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
+ 	unmap_mapping_range(mapping, holebegin, holelen, 0);
  }
  
- static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
-@@ -2912,7 +2920,7 @@ int do_swap_page(struct vm_fault *vmf)
- 	pte_t pte;
- 	int locked;
- 	int exclusive = 0;
--	int ret = 0;
-+	int ret;
- 	bool vma_readahead = swap_use_vma_readahead();
++#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
++static inline void vm_write_begin(struct vm_area_struct *vma)
++{
++	write_seqcount_begin(&vma->vm_sequence);
++}
++static inline void vm_write_begin_nested(struct vm_area_struct *vma,
++					 int subclass)
++{
++	write_seqcount_begin_nested(&vma->vm_sequence, subclass);
++}
++static inline void vm_write_end(struct vm_area_struct *vma)
++{
++	write_seqcount_end(&vma->vm_sequence);
++}
++static inline void vm_raw_write_begin(struct vm_area_struct *vma)
++{
++	raw_write_seqcount_begin(&vma->vm_sequence);
++}
++static inline void vm_raw_write_end(struct vm_area_struct *vma)
++{
++	raw_write_seqcount_end(&vma->vm_sequence);
++}
++#else
++static inline void vm_write_begin(struct vm_area_struct *vma)
++{
++}
++static inline void vm_write_begin_nested(struct vm_area_struct *vma,
++					 int subclass)
++{
++}
++static inline void vm_write_end(struct vm_area_struct *vma)
++{
++}
++static inline void vm_raw_write_begin(struct vm_area_struct *vma)
++{
++}
++static inline void vm_raw_write_end(struct vm_area_struct *vma)
++{
++}
++#endif /* CONFIG_SPECULATIVE_PAGE_FAULT */
++
+ extern int access_process_vm(struct task_struct *tsk, unsigned long addr,
+ 		void *buf, int len, unsigned int gup_flags);
+ extern int access_remote_vm(struct mm_struct *mm, unsigned long addr,
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index fd1af6b9591d..34fde7111e88 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -333,6 +333,9 @@ struct vm_area_struct {
+ 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
+ #endif
+ 	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
++#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
++	seqcount_t vm_sequence;
++#endif
+ } __randomize_layout;
  
- 	if (vma_readahead) {
-@@ -2920,9 +2928,16 @@ int do_swap_page(struct vm_fault *vmf)
- 		swapcache = page;
- 	}
+ struct core_thread {
+diff --git a/mm/memory.c b/mm/memory.c
+index a301b9003200..3cc1a13417cf 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1503,6 +1503,7 @@ void unmap_page_range(struct mmu_gather *tlb,
+ 	unsigned long next;
  
--	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte)) {
-+	ret = pte_unmap_same(vmf);
-+	if (ret) {
- 		if (page)
- 			put_page(page);
-+		/*
-+		 * In the case the PTE are different, meaning that the
-+		 * page has already been processed by another CPU, we return 0.
-+		 */
-+		if (ret == VM_FAULT_PTNOTSAME)
-+			ret = 0;
- 		goto out;
- 	}
+ 	BUG_ON(addr >= end);
++	vm_write_begin(vma);
+ 	tlb_start_vma(tlb, vma);
+ 	pgd = pgd_offset(vma->vm_mm, addr);
+ 	do {
+@@ -1512,6 +1513,7 @@ void unmap_page_range(struct mmu_gather *tlb,
+ 		next = zap_p4d_range(tlb, vma, pgd, addr, next, details);
+ 	} while (pgd++, addr = next, addr != end);
+ 	tlb_end_vma(tlb, vma);
++	vm_write_end(vma);
+ }
  
+ 
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 4bb038e7984b..671940b72696 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -558,6 +558,10 @@ void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	else
+ 		mm->highest_vm_end = vm_end_gap(vma);
+ 
++#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
++	seqcount_init(&vma->vm_sequence);
++#endif
++
+ 	/*
+ 	 * vma->vm_prev wasn't known when we followed the rbtree to find the
+ 	 * correct insertion point for that vma. As a result, we could not
+@@ -692,6 +696,30 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ 	long adjust_next = 0;
+ 	int remove_next = 0;
+ 
++	/*
++	 * Why using vm_raw_write*() functions here to avoid lockdep's warning ?
++	 *
++	 * Locked is complaining about a theoretical lock dependency, involving
++	 * 3 locks:
++	 *   mapping->i_mmap_rwsem --> vma->vm_sequence --> fs_reclaim
++	 *
++	 * Here are the major path leading to this dependency :
++	 *  1. __vma_adjust() mmap_sem  -> vm_sequence -> i_mmap_rwsem
++	 *  2. move_vmap() mmap_sem -> vm_sequence -> fs_reclaim
++	 *  3. __alloc_pages_nodemask() fs_reclaim -> i_mmap_rwsem
++	 *  4. unmap_mapping_range() i_mmap_rwsem -> vm_sequence
++	 *
++	 * So there is no way to solve this easily, especially because in
++	 * unmap_mapping_range() the i_mmap_rwsem is grab while the impacted
++	 * VMAs are not yet known.
++	 * However, the way the vm_seq is used is guarantying that we will
++	 * never block on it since we just check for its value and never wait
++	 * for it to move, see vma_has_changed() and handle_speculative_fault().
++	 */
++	vm_raw_write_begin(vma);
++	if (next)
++		vm_raw_write_begin(next);
++
+ 	if (next && !insert) {
+ 		struct vm_area_struct *exporter = NULL, *importer = NULL;
+ 
+@@ -902,6 +930,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ 			anon_vma_merge(vma, next);
+ 		mm->map_count--;
+ 		mpol_put(vma_policy(next));
++		vm_raw_write_end(next);
+ 		kmem_cache_free(vm_area_cachep, next);
+ 		/*
+ 		 * In mprotect's case 6 (see comments on vma_merge),
+@@ -916,6 +945,8 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ 			 * "vma->vm_next" gap must be updated.
+ 			 */
+ 			next = vma->vm_next;
++			if (next)
++				vm_raw_write_begin(next);
+ 		} else {
+ 			/*
+ 			 * For the scope of the comment "next" and
+@@ -962,6 +993,10 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ 	if (insert && file)
+ 		uprobe_mmap(insert);
+ 
++	if (next && next != vma)
++		vm_raw_write_end(next);
++	vm_raw_write_end(vma);
++
+ 	validate_mm(mm);
+ 
+ 	return 0;
 -- 
 2.7.4
 
