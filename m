@@ -1,51 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1605F6B000A
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 08:15:41 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id w203so1621589itf.5
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 05:15:41 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id f31si3269578ioi.326.2018.02.16.05.15.40
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E3616B0003
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 08:47:07 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id a61so2210020pla.22
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 05:47:07 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b185si1557248pgc.608.2018.02.16.05.47.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Feb 2018 05:15:40 -0800 (PST)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w1GDFb8i126132
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:15:39 GMT
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by aserp2120.oracle.com with ESMTP id 2g5xjbgccy-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:15:38 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w1GDCW7a031492
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:12:32 GMT
-Received: from abhmp0006.oracle.com (abhmp0006.oracle.com [141.146.116.12])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w1GDCW8P019000
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:12:32 GMT
-Received: by mail-oi0-f49.google.com with SMTP id t145so2235346oif.8
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 05:12:31 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20180216092959.gkm6d4j2zplk724r@gmail.com>
-References: <20180215165920.8570-1-pasha.tatashin@oracle.com>
- <20180215165920.8570-7-pasha.tatashin@oracle.com> <20180216092959.gkm6d4j2zplk724r@gmail.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Fri, 16 Feb 2018 08:12:31 -0500
-Message-ID: <CAOAebxuFivBx+6kexgV0JRtdxi+j9qy-hReMPsYk8NmzaKUNkQ@mail.gmail.com>
-Subject: Re: [v4 6/6] mm/memory_hotplug: optimize memory hotplug
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 16 Feb 2018 05:47:06 -0800 (PST)
+From: Juergen Gross <jgross@suse.com>
+Subject: [PATCH] mm: don't defer struct page initialization for Xen pv guests
+Date: Fri, 16 Feb 2018 14:37:26 +0100
+Message-Id: <20180216133726.30813-1-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org
+Cc: akpm@linux-foundation.org, mhocko@suse.com, Juergen Gross <jgross@suse.com>, stable@vger.kernel.org
 
->
->   Reviewed-by: Ingo Molnar <mingo@kernel.org>
+Commit f7f99100d8d95dbcf09e0216a143211e79418b9f ("mm: stop zeroing
+memory during allocation in vmemmap") broke Xen pv domains in some
+configurations, as the "Pinned" information in struct page of early
+page tables could get lost.
 
-Thank you for your review! I will address all of your comments in the
-next patch iteration.
+Avoid this problem by not deferring struct page initialization when
+running as Xen pv guest.
 
-Pavel
+Cc: <stable@vger.kernel.org> #4.15
+Signed-off-by: Juergen Gross <jgross@suse.com>
+---
+ mm/page_alloc.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 81e18ceef579..681d504b9a40 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -347,6 +347,9 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+ 	/* Always populate low zones for address-constrained allocations */
+ 	if (zone_end < pgdat_end_pfn(pgdat))
+ 		return true;
++	/* Xen PV domains need page structures early */
++	if (xen_pv_domain())
++		return true;
+ 	(*nr_initialised)++;
+ 	if ((*nr_initialised > pgdat->static_init_pgcnt) &&
+ 	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
+-- 
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
