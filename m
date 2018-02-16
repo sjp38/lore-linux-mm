@@ -1,55 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B02F96B0003
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 15:44:00 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id l7so1438735wmh.4
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 12:44:00 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 2si1588892wrg.537.2018.02.16.12.43.59
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 776786B0006
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 16:08:14 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id n11so2956311plp.13
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:08:14 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id a33-v6si220752pld.653.2018.02.16.13.08.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Feb 2018 12:43:59 -0800 (PST)
-Date: Fri, 16 Feb 2018 12:43:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RESEND v2] mm: don't defer struct page initialization for Xen
- pv guests
-Message-Id: <20180216124357.de2cb8fe96c07dea51556adb@linux-foundation.org>
-In-Reply-To: <20180216154101.22865-1-jgross@suse.com>
-References: <20180216154101.22865-1-jgross@suse.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Fri, 16 Feb 2018 13:08:13 -0800 (PST)
+Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
+References: <20180216160110.641666320@linux.com>
+ <20180216160121.519788537@linux.com>
+ <87d2edf7-ce5e-c643-f972-1f2538208d86@intel.com>
+ <alpine.DEB.2.20.1802161413340.11934@nuc-kabylake>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <7fcd53ab-ba06-f80e-6cb7-73e87bcbdd20@intel.com>
+Date: Fri, 16 Feb 2018 13:08:11 -0800
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.20.1802161413340.11934@nuc-kabylake>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Juergen Gross <jgross@suse.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, mhocko@suse.com, stable@vger.kernel.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Mel Gorman <mel@skynet.ie>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Fri, 16 Feb 2018 16:41:01 +0100 Juergen Gross <jgross@suse.com> wrote:
+On 02/16/2018 12:15 PM, Christopher Lameter wrote:
+>> This has the potential to be really confusing to apps.  If this memory
+>> is now not available to normal apps, they might plow into the invisible
+>> memory limits and get into nasty reclaim scenarios.
+>> Shouldn't this subtract the memory for MemFree and friends?
+> Ok certainly we could do that. But on the other hand the memory is
+> available if those subsystems ask for the right order. Its not clear to me
+> what the right way of handling this is. Right now it adds the reserved
+> pages to the watermarks. But then under some circumstances the memory is
+> available. What is the best solution here?
 
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -347,6 +347,9 @@ static inline bool update_defer_init(pg_data_t *pgdat,
->  	/* Always populate low zones for address-constrained allocations */
->  	if (zone_end < pgdat_end_pfn(pgdat))
->  		return true;
-> +	/* Xen PV domains need page structures early */
-> +	if (xen_pv_domain())
-> +		return true;
+There's definitely no perfect solution.
 
-I'll do this:
-
---- a/mm/page_alloc.c~mm-dont-defer-struct-page-initialization-for-xen-pv-guests-fix
-+++ a/mm/page_alloc.c
-@@ -46,6 +46,7 @@
- #include <linux/stop_machine.h>
- #include <linux/sort.h>
- #include <linux/pfn.h>
-+#include <xen/xen.h>
- #include <linux/backing-dev.h>
- #include <linux/fault-inject.h>
- #include <linux/page-isolation.h>
-
-So we're not relying on dumb luck ;)
+But, in general, I think we should cater to the dumbest users.  Folks
+doing higher-order allocations are not that.  I say we make the picture
+the most clear for the traditional 4k users.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
