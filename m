@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E2F46B0008
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 16:58:53 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id a14so3012924pls.8
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:58:53 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c11-v6si3848423plo.675.2018.02.16.13.58.52
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EE686B0003
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 18:19:03 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id b6so2966034pgu.16
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 15:19:03 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id a5-v6si347377plh.450.2018.02.16.15.19.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 16 Feb 2018 13:58:52 -0800 (PST)
-Date: Fri, 16 Feb 2018 13:58:48 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v21 1/5] xbitmap: Introduce xbitmap
-Message-ID: <20180216215848.GB32655@bombadil.infradead.org>
-References: <1515496262-7533-1-git-send-email-wei.w.wang@intel.com>
- <1515496262-7533-2-git-send-email-wei.w.wang@intel.com>
- <CAHp75Ve-1-TOVJUZ4anhwkkeq-RhpSg3EmN3N0r09rj6sFrQZQ@mail.gmail.com>
- <20180216183032.GA7439@bombadil.infradead.org>
- <CAHp75Vd_tt0bV_OqAOwc=_uWrsF2zP9pMSbxPw_AxF_s9zj-pw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Feb 2018 15:19:02 -0800 (PST)
+Subject: Re: [PATCH 2/3] x86/mm: introduce __PAGE_KERNEL_GLOBAL
+References: <20180215132053.6C9B48C8@viggo.jf.intel.com>
+ <20180215132055.F341C31E@viggo.jf.intel.com>
+ <E0AB2852-C4E0-43D3-ABA7-34117A5516C1@gmail.com>
+ <a3dd1676-a2dc-aa02-77ad-51cd3b7a78d5@linux.intel.com>
+ <DF43D1DD-42EE-4545-9F54-4BC2395D66EA@gmail.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <562aaaf0-fb8e-1cc8-61eb-1d74b5922714@linux.intel.com>
+Date: Fri, 16 Feb 2018 15:19:00 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHp75Vd_tt0bV_OqAOwc=_uWrsF2zP9pMSbxPw_AxF_s9zj-pw@mail.gmail.com>
+In-Reply-To: <DF43D1DD-42EE-4545-9F54-4BC2395D66EA@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Shevchenko <andy.shevchenko@gmail.com>
-Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, david@redhat.com, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org
 
-On Fri, Feb 16, 2018 at 11:45:51PM +0200, Andy Shevchenko wrote:
-> Now, the question about test case. Why do you heavily use BUG_ON?
-> Isn't resulting statistics enough?
+On 02/16/2018 10:25 AM, Nadav Amit wrote:
+>> --- a/arch/x86/mm/pageattr.c~kpti-no-global-for-kernel-mappings	2018-02-13 15:17:56.148210060 -0800
+>> +++ b/arch/x86/mm/pageattr.c	2018-02-13 15:17:56.153210060 -0800
+>> @@ -593,7 +593,8 @@ try_preserve_large_page(pte_t *kpte, uns
+>> 	 * different bit positions in the two formats.
+>> 	 */
+>> 	req_prot = pgprot_4k_2_large(req_prot);
+>> -	req_prot = pgprot_set_on_present(req_prot, _PAGE_GLOBAL | _PAGE_PSE);
+>> +	req_prot = pgprot_set_on_present(req_prot,
+>> +			__PAGE_KERNEL_GLOBAL | _PAGE_PSE);
+>> 	req_prot = canon_pgprot(req_prot);
+> From these chunks, it seems to me as req_prot will not have the global bit
+> on when a??noptia?? parameter is provided. What am I missing?
 
-No.  If any of those tests fail, we want to stop dead.  They'll lead to
-horrendous bugs throughout the kernel if they're wrong.  I think more of
-the in-kernel test suite should stop dead instead of printing a warning.
-Would you want to boot a machine which has a known bug in the page cache,
-for example?
+BTW, this code is broken.  It's trying to unconditionally set
+_PAGE_GLOBAL whenever set do change_page_attr() and friends.  It gets
+fixed up by canon_pgprot(), but it's wrong to do in the first place.
+I've got a better fix for this coming.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
