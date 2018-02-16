@@ -1,61 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 76A2F6B005A
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 11:01:21 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q2so2316537pgf.22
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 08:01:21 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y16si1337316pfe.214.2018.02.16.08.01.19
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 810486B005C
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 11:01:27 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id p127so1700523oic.21
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 08:01:27 -0800 (PST)
+Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
+        by mx.google.com with ESMTPS id q67si11045591itg.126.2018.02.16.08.01.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 16 Feb 2018 08:01:20 -0800 (PST)
-Date: Fri, 16 Feb 2018 08:01:16 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [patch 1/2] mm, page_alloc: extend kernelcore and movablecore
- for percent
-Message-ID: <20180216160116.GA24395@bombadil.infradead.org>
-References: <alpine.DEB.2.10.1802121622470.179479@chino.kir.corp.google.com>
- <20180214095911.GB28460@dhcp22.suse.cz>
- <alpine.DEB.2.10.1802140225290.261065@chino.kir.corp.google.com>
- <20180215144525.GG7275@dhcp22.suse.cz>
- <20180215151129.GB12360@bombadil.infradead.org>
- <alpine.DEB.2.20.1802150947240.1902@nuc-kabylake>
- <20180215204817.GB22948@bombadil.infradead.org>
- <alpine.DEB.2.20.1802160941500.9660@nuc-kabylake>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1802160941500.9660@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Feb 2018 08:01:24 -0800 (PST)
+Message-Id: <20180216160110.641666320@linux.com>
+Date: Fri, 16 Feb 2018 10:01:10 -0600
+From: Christoph Lameter <cl@linux.com>
+Subject: [RFC 0/2] Larger Order Protection V1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+To: Mel Gorman <mel@skynet.ie>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Fri, Feb 16, 2018 at 09:44:25AM -0600, Christopher Lameter wrote:
-> On Thu, 15 Feb 2018, Matthew Wilcox wrote:
-> > What I was proposing was an intermediate page allocator where slab would
-> > request 2MB for its own uses all at once, then allocate pages from that to
-> > individual slabs, so allocating a kmalloc-32 object and a dentry object
-> > would result in 510 pages of memory still being available for any slab
-> > that needed it.
-> 
-> Well thats not really going to work since you would be mixing objects of
-> different sizes which may present more fragmentation problems within the
-> 2M later if they are freed and more objects are allocated.
+We have discussed for years ways to create more reliable ways to allocate large contiguous
+memory segments and to avoid fragmentation. This is an ad hoc scheme based on reservation
+of higher order pages in the page allocator. It is fully transparent and integrated
+into the page allocator.
 
-I don't understand this response.  I'm not suggesting mixing objects
-of different sizes within the same page.  The vast majority of slabs
-use order-0 pages, a few use order-1 pages and larger sizes are almost
-unheard of.  I'm suggesting the slab have it's own private arena of pages
-that it uses for allocating pages to slabs; when an entire page comes
-free in a slab, it is returned to the arena.  When the arena is empty,
-slab requests another arena from the page allocator.
+This approach goes back to the meeting on contiguous memory at the Plumbers conference
+in 2017 and the effort by Guy and Mike Kravetz to establish and API to map contiguous
+memory segments into user space. Reservations will allow the contiguous memory allocations
+to work even after the system has run for a considerable time.
 
-If you're concerned about order-0 allocations fragmenting the arena
-for order-1 slabs, then we could have separate arenas for order-0 and
-order-1.  But there should be no more fragmentation caused by sticking
-within an arena for page allocations than there would be by spreading
-slab allocations across all memory.
+Contiguous memory is also important for general system performance. F.e. slab
+allocators can be made to use large frames in order to optimize performance.
+See patch 1.
+
+Other use cases are jumbo frames or device driver specific allocations.
+
+For more on this see Mike Kravetz patches in particular 
+
+Mike Kravetz MMAP CONTIG flag support at
+
+https://lkml.org/lkml/2017/10/3/992
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
