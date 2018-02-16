@@ -1,45 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7516B0007
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 16:47:58 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 189so2861235pge.0
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:47:58 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id x6si5638721pgc.357.2018.02.16.13.47.57
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E2F46B0008
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 16:58:53 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id a14so3012924pls.8
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:58:53 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c11-v6si3848423plo.675.2018.02.16.13.58.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Feb 2018 13:47:57 -0800 (PST)
-Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
-References: <20180216160110.641666320@linux.com>
- <20180216160121.519788537@linux.com>
- <87d2edf7-ce5e-c643-f972-1f2538208d86@intel.com>
- <alpine.DEB.2.20.1802161413340.11934@nuc-kabylake>
- <7fcd53ab-ba06-f80e-6cb7-73e87bcbdd20@intel.com>
- <20180216214353.GA32655@bombadil.infradead.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <4925b480-f6ef-1a7a-66ac-75c8ec9d9d58@intel.com>
-Date: Fri, 16 Feb 2018 13:47:55 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 16 Feb 2018 13:58:52 -0800 (PST)
+Date: Fri, 16 Feb 2018 13:58:48 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v21 1/5] xbitmap: Introduce xbitmap
+Message-ID: <20180216215848.GB32655@bombadil.infradead.org>
+References: <1515496262-7533-1-git-send-email-wei.w.wang@intel.com>
+ <1515496262-7533-2-git-send-email-wei.w.wang@intel.com>
+ <CAHp75Ve-1-TOVJUZ4anhwkkeq-RhpSg3EmN3N0r09rj6sFrQZQ@mail.gmail.com>
+ <20180216183032.GA7439@bombadil.infradead.org>
+ <CAHp75Vd_tt0bV_OqAOwc=_uWrsF2zP9pMSbxPw_AxF_s9zj-pw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180216214353.GA32655@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHp75Vd_tt0bV_OqAOwc=_uWrsF2zP9pMSbxPw_AxF_s9zj-pw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Christopher Lameter <cl@linux.com>, Mel Gorman <mel@skynet.ie>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Andy Shevchenko <andy.shevchenko@gmail.com>
+Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, david@redhat.com, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On 02/16/2018 01:43 PM, Matthew Wilcox wrote:
->> There's definitely no perfect solution.
->>
->> But, in general, I think we should cater to the dumbest users.  Folks
->> doing higher-order allocations are not that.  I say we make the picture
->> the most clear for the traditional 4k users.
-> Your way might be confusing -- if there's a system which is under varying
-> amounts of jumboframe load and all the 16k pages get gobbled up by the
-> ethernet driver, MemFree won't change at all, for example.
+On Fri, Feb 16, 2018 at 11:45:51PM +0200, Andy Shevchenko wrote:
+> Now, the question about test case. Why do you heavily use BUG_ON?
+> Isn't resulting statistics enough?
 
-IOW, you agree that "there's definitely no perfect solution." :)
+No.  If any of those tests fail, we want to stop dead.  They'll lead to
+horrendous bugs throughout the kernel if they're wrong.  I think more of
+the in-kernel test suite should stop dead instead of printing a warning.
+Would you want to boot a machine which has a known bug in the page cache,
+for example?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
