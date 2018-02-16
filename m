@@ -1,66 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 89EE26B0007
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 16:45:53 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id r5so3651876qkb.22
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:45:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 123sor822825qkn.142.2018.02.16.13.45.52
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A7516B0007
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 16:47:58 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 189so2861235pge.0
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:47:58 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id x6si5638721pgc.357.2018.02.16.13.47.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Feb 2018 13:45:52 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Feb 2018 13:47:57 -0800 (PST)
+Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
+References: <20180216160110.641666320@linux.com>
+ <20180216160121.519788537@linux.com>
+ <87d2edf7-ce5e-c643-f972-1f2538208d86@intel.com>
+ <alpine.DEB.2.20.1802161413340.11934@nuc-kabylake>
+ <7fcd53ab-ba06-f80e-6cb7-73e87bcbdd20@intel.com>
+ <20180216214353.GA32655@bombadil.infradead.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <4925b480-f6ef-1a7a-66ac-75c8ec9d9d58@intel.com>
+Date: Fri, 16 Feb 2018 13:47:55 -0800
 MIME-Version: 1.0
-In-Reply-To: <20180216183032.GA7439@bombadil.infradead.org>
-References: <1515496262-7533-1-git-send-email-wei.w.wang@intel.com>
- <1515496262-7533-2-git-send-email-wei.w.wang@intel.com> <CAHp75Ve-1-TOVJUZ4anhwkkeq-RhpSg3EmN3N0r09rj6sFrQZQ@mail.gmail.com>
- <20180216183032.GA7439@bombadil.infradead.org>
-From: Andy Shevchenko <andy.shevchenko@gmail.com>
-Date: Fri, 16 Feb 2018 23:45:51 +0200
-Message-ID: <CAHp75Vd_tt0bV_OqAOwc=_uWrsF2zP9pMSbxPw_AxF_s9zj-pw@mail.gmail.com>
-Subject: Re: [PATCH v21 1/5] xbitmap: Introduce xbitmap
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180216214353.GA32655@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, david@redhat.com, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+Cc: Christopher Lameter <cl@linux.com>, Mel Gorman <mel@skynet.ie>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Fri, Feb 16, 2018 at 8:30 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> On Fri, Feb 16, 2018 at 07:44:50PM +0200, Andy Shevchenko wrote:
->> On Tue, Jan 9, 2018 at 1:10 PM, Wei Wang <wei.w.wang@intel.com> wrote:
->> > From: Matthew Wilcox <mawilcox@microsoft.com>
->> >
->> > The eXtensible Bitmap is a sparse bitmap representation which is
->> > efficient for set bits which tend to cluster. It supports up to
->> > 'unsigned long' worth of bits.
+On 02/16/2018 01:43 PM, Matthew Wilcox wrote:
+>> There's definitely no perfect solution.
 >>
->> >  lib/xbitmap.c                            | 444 +++++++++++++++++++++++++++++++
->>
->> Please, split tests to a separate module.
->
-> Hah, I just did this two days ago!  I didn't publish it yet, but I also made
-> it compile both in userspace and as a kernel module.
->
-> It's the top two commits here:
->
-> http://git.infradead.org/users/willy/linux-dax.git/shortlog/refs/heads/xarray-2018-02-12
->
+>> But, in general, I think we should cater to the dumbest users.  Folks
+>> doing higher-order allocations are not that.  I say we make the picture
+>> the most clear for the traditional 4k users.
+> Your way might be confusing -- if there's a system which is under varying
+> amounts of jumboframe load and all the 16k pages get gobbled up by the
+> ethernet driver, MemFree won't change at all, for example.
 
-Thanks!
-
-> Note this is a complete rewrite compared to the version presented here; it
-> sits on top of the XArray and no longer has a preload interface.  It has a
-> superset of the IDA functionality.
-
-Noted.
-
-Now, the question about test case. Why do you heavily use BUG_ON?
-Isn't resulting statistics enough?
-
-See how other lib/test_* modules do.
-
--- 
-With Best Regards,
-Andy Shevchenko
+IOW, you agree that "there's definitely no perfect solution." :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
