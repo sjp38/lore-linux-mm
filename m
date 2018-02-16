@@ -1,51 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C937C6B0006
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 12:48:52 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id t18so2637137plo.9
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 09:48:52 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l67sor446078pfb.88.2018.02.16.09.48.51
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CCB006B0006
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:03:45 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id h13so2051837wrc.9
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:03:45 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id x13si7800673wrg.466.2018.02.16.10.03.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Feb 2018 09:48:51 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 16 Feb 2018 10:03:44 -0800 (PST)
+Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
+References: <20180216160110.641666320@linux.com>
+ <20180216160121.519788537@linux.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <b76028c6-c755-8178-2dfc-81c7db1f8bed@infradead.org>
+Date: Fri, 16 Feb 2018 10:02:53 -0800
+MIME-Version: 1.0
+In-Reply-To: <20180216160121.519788537@linux.com>
 Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [PATCH 2/3] x86/mm: introduce __PAGE_KERNEL_GLOBAL
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <20180215132055.F341C31E@viggo.jf.intel.com>
-Date: Fri, 16 Feb 2018 09:47:49 -0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <E0AB2852-C4E0-43D3-ABA7-34117A5516C1@gmail.com>
-References: <20180215132053.6C9B48C8@viggo.jf.intel.com>
- <20180215132055.F341C31E@viggo.jf.intel.com>
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org
+To: Christoph Lameter <cl@linux.com>, Mel Gorman <mel@skynet.ie>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-Dave Hansen <dave.hansen@linux.intel.com> wrote:
-
->=20
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->=20
-> Kernel mappings are historically _PAGE_GLOBAL.  But, with PTI, we do =
-not
-> want them to be _PAGE_GLOBAL.  We currently accomplish this by simply
-> clearing _PAGE_GLOBAL from the suppotred mask which ensures it is
-> cleansed from many of our PTE construction sites:
->=20
->        if (!static_cpu_has(X86_FEATURE_PTI))
-> 	                __supported_pte_mask |=3D _PAGE_GLOBAL;
->=20
-> But, this also means that we now get *no* opportunity to use global
-> pages with PTI, even for data which is shared such as the =
-cpu_entry_area
-> and entry/exit text.
+On 02/16/2018 08:01 AM, Christoph Lameter wrote:
+> Control over this feature is by writing to /proc/zoneinfo.
+> 
+> F.e. to ensure that 2000 16K pages stay available for jumbo
+> frames do
+> 
+> 	echo "2=2000" >/proc/zoneinfo
+> 
+> or through the order=<page spec> on the kernel command line.
+> F.e.
+> 
+> 	order=2=2000,4N2=500
 
 
-Doesn=E2=80=99t this patch change the kernel behavior when the =
-=E2=80=9Cnopti=E2=80=9D parameter is used?
+Please document the the kernel command line option in
+Documentation/admin-guide/kernel-parameters.txt.
+
+I suppose that /proc/zoneinfo should be added somewhere in Documentation/vm/
+but I'm not sure where that would be.
+
+thanks,
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
