@@ -1,24 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7866B0003
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 04:13:10 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id k38so1254671wre.23
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 01:13:10 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 15sor4117162wmu.78.2018.02.16.01.13.08
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DE52C6B0006
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 04:19:23 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id a6so608144wme.9
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 01:19:23 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s130sor3735445wms.82.2018.02.16.01.19.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 16 Feb 2018 01:13:08 -0800 (PST)
-Date: Fri, 16 Feb 2018 10:13:04 +0100
+        Fri, 16 Feb 2018 01:19:22 -0800 (PST)
+Date: Fri, 16 Feb 2018 10:19:18 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [v4 4/6] mm/memory_hotplug: optimize probe routine
-Message-ID: <20180216091304.hgp5tn25nleuy4jc@gmail.com>
+Subject: Re: [v4 5/6] mm/memory_hotplug: don't read nid from struct page
+ during hotplug
+Message-ID: <20180216091918.axu57tfsezzybeoa@gmail.com>
 References: <20180215165920.8570-1-pasha.tatashin@oracle.com>
- <20180215165920.8570-5-pasha.tatashin@oracle.com>
+ <20180215165920.8570-6-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180215165920.8570-5-pasha.tatashin@oracle.com>
+In-Reply-To: <20180215165920.8570-6-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pavel Tatashin <pasha.tatashin@oracle.com>
@@ -27,22 +28,44 @@ Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation
 
 * Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
 
-> When memory is hotplugged pages_correctly_reserved() is called to verify
-> that the added memory is present, this routine traverses through every
-> struct page and verifies that PageReserved() is set. This is a slow
-> operation especially if a large amount of memory is added.
+> During memory hotplugging the probe routine will leave struct pages
+> uninitialized, the same as it is currently done during boot. Therefore, we
+> do not want to access the inside of struct pages before
+> __init_single_page() is called during onlining.
 > 
-> Instead of checking every page, it is enough to simply check that the
-> section is present, has mapping (struct page array is allocated), and the
-> mapping is online.
-> 
-> In addition, we should not excpect that probe routine sets flags in struct
-> page, as the struct pages have not yet been initialized. The initialization
-> should be done in __init_single_page(), the same as during boot.
+> Because during hotplug we know that pages in one memory block belong to
+> the same numa node, we can skip the checking. We should keep checking for
+> the boot case.
 > 
 > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> ---
+>  drivers/base/memory.c |  2 +-
+>  drivers/base/node.c   | 22 +++++++++++++++-------
+>  include/linux/node.h  |  4 ++--
+>  3 files changed, 18 insertions(+), 10 deletions(-)
+> 
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index deb3f029b451..a14fb0cd424a 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -731,7 +731,7 @@ int register_new_memory(int nid, struct mem_section *section)
+>  	}
+>  
+>  	if (mem->section_count == sections_per_block)
+> -		ret = register_mem_sect_under_node(mem, nid);
+> +		ret = register_mem_sect_under_node(mem, nid, false);
+>  out:
 
-Reviewed-by: Ingo Molnar <mingo@kernel.org>
+The namespace of all these memory range handling functions is horribly random,
+and I think now it got worse: we add an assumption that register_new_memory() is 
+implicitly called as part of hotplugged memory (where things are pre-cleared) - 
+but nothing in its naming suggests so.
+
+How about renaming it to hotplug_memory_register() or so?
+
+With that change you can add:
+
+  Reviewed-by: Ingo Molnar <mingo@kernel.org>
 
 Thanks,
 
