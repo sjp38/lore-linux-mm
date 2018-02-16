@@ -1,53 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CCB006B0006
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:03:45 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id h13so2051837wrc.9
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:03:45 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id x13si7800673wrg.466.2018.02.16.10.03.44
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B08F26B0007
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:03:52 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id 4so2680302plb.1
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:03:52 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id s25si162169pge.187.2018.02.16.10.03.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 16 Feb 2018 10:03:44 -0800 (PST)
-Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
-References: <20180216160110.641666320@linux.com>
- <20180216160121.519788537@linux.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <b76028c6-c755-8178-2dfc-81c7db1f8bed@infradead.org>
-Date: Fri, 16 Feb 2018 10:02:53 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Feb 2018 10:03:51 -0800 (PST)
+Subject: Re: [PATCH 2/3] x86/mm: introduce __PAGE_KERNEL_GLOBAL
+References: <20180215132053.6C9B48C8@viggo.jf.intel.com>
+ <20180215132055.F341C31E@viggo.jf.intel.com>
+ <E0AB2852-C4E0-43D3-ABA7-34117A5516C1@gmail.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <a3dd1676-a2dc-aa02-77ad-51cd3b7a78d5@linux.intel.com>
+Date: Fri, 16 Feb 2018 10:03:50 -0800
 MIME-Version: 1.0
-In-Reply-To: <20180216160121.519788537@linux.com>
+In-Reply-To: <E0AB2852-C4E0-43D3-ABA7-34117A5516C1@gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Mel Gorman <mel@skynet.ie>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org
 
-On 02/16/2018 08:01 AM, Christoph Lameter wrote:
-> Control over this feature is by writing to /proc/zoneinfo.
+On 02/16/2018 09:47 AM, Nadav Amit wrote:
+>> But, this also means that we now get *no* opportunity to use
+>> global pages with PTI, even for data which is shared such as the
+>> cpu_entry_area and entry/exit text.
 > 
-> F.e. to ensure that 2000 16K pages stay available for jumbo
-> frames do
-> 
-> 	echo "2=2000" >/proc/zoneinfo
-> 
-> or through the order=<page spec> on the kernel command line.
-> F.e.
-> 
-> 	order=2=2000,4N2=500
+> Doesna??t this patch change the kernel behavior when the a??noptia??
+> parameter is used?
 
+I don't think so.  It takes the "nopti" behavior and effectively makes
+it apply everywhere.  So it changes the PTI behavior, not the "nopti"
+behavior.
 
-Please document the the kernel command line option in
-Documentation/admin-guide/kernel-parameters.txt.
-
-I suppose that /proc/zoneinfo should be added somewhere in Documentation/vm/
-but I'm not sure where that would be.
-
-thanks,
--- 
-~Randy
+Maybe it would help to quote the code that you think does this instead
+of the description. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
