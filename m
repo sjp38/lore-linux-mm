@@ -1,30 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D75FD6B0003
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:27:18 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id z2so2357707ite.5
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:27:18 -0800 (PST)
-Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
-        by mx.google.com with ESMTPS id k17si1436400ioo.40.2018.02.16.10.27.18
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D7336B0005
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 13:30:45 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id z11so2688720plo.21
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 10:30:45 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id y96-v6si106963plh.796.2018.02.16.10.30.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Feb 2018 10:27:18 -0800 (PST)
-Date: Fri, 16 Feb 2018 12:27:09 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [RFC 0/2] Larger Order Protection V1
-In-Reply-To: <20180216160110.641666320@linux.com>
-Message-ID: <alpine.DEB.2.20.1802161226510.11268@nuc-kabylake>
-References: <20180216160110.641666320@linux.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 16 Feb 2018 10:30:44 -0800 (PST)
+Date: Fri, 16 Feb 2018 10:30:32 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v21 1/5] xbitmap: Introduce xbitmap
+Message-ID: <20180216183032.GA7439@bombadil.infradead.org>
+References: <1515496262-7533-1-git-send-email-wei.w.wang@intel.com>
+ <1515496262-7533-2-git-send-email-wei.w.wang@intel.com>
+ <CAHp75Ve-1-TOVJUZ4anhwkkeq-RhpSg3EmN3N0r09rj6sFrQZQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHp75Ve-1-TOVJUZ4anhwkkeq-RhpSg3EmN3N0r09rj6sFrQZQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@skynet.ie>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Andy Shevchenko <andy.shevchenko@gmail.com>
+Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, david@redhat.com, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, Paolo Bonzini <pbonzini@redhat.com>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
+On Fri, Feb 16, 2018 at 07:44:50PM +0200, Andy Shevchenko wrote:
+> On Tue, Jan 9, 2018 at 1:10 PM, Wei Wang <wei.w.wang@intel.com> wrote:
+> > From: Matthew Wilcox <mawilcox@microsoft.com>
+> >
+> > The eXtensible Bitmap is a sparse bitmap representation which is
+> > efficient for set bits which tend to cluster. It supports up to
+> > 'unsigned long' worth of bits.
+> 
+> >  lib/xbitmap.c                            | 444 +++++++++++++++++++++++++++++++
+> 
+> Please, split tests to a separate module.
 
-Why are the patches not making linux-mm? They are on other mailing lists.
+Hah, I just did this two days ago!  I didn't publish it yet, but I also made
+it compile both in userspace and as a kernel module.  
 
+It's the top two commits here:
+
+http://git.infradead.org/users/willy/linux-dax.git/shortlog/refs/heads/xarray-2018-02-12
+
+Note this is a complete rewrite compared to the version presented here; it
+sits on top of the XArray and no longer has a preload interface.  It has a
+superset of the IDA functionality.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
