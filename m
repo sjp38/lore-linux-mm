@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CE966B0003
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 12:44:52 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id z64so3129884qka.23
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 09:44:52 -0800 (PST)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C937C6B0006
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 12:48:52 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id t18so2637137plo.9
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 09:48:52 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d190sor166532qka.138.2018.02.16.09.44.51
+        by mx.google.com with SMTPS id l67sor446078pfb.88.2018.02.16.09.48.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 16 Feb 2018 09:44:51 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1515496262-7533-2-git-send-email-wei.w.wang@intel.com>
-References: <1515496262-7533-1-git-send-email-wei.w.wang@intel.com> <1515496262-7533-2-git-send-email-wei.w.wang@intel.com>
-From: Andy Shevchenko <andy.shevchenko@gmail.com>
-Date: Fri, 16 Feb 2018 19:44:50 +0200
-Message-ID: <CAHp75Ve-1-TOVJUZ4anhwkkeq-RhpSg3EmN3N0r09rj6sFrQZQ@mail.gmail.com>
-Subject: Re: [PATCH v21 1/5] xbitmap: Introduce xbitmap
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 16 Feb 2018 09:48:51 -0800 (PST)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: [PATCH 2/3] x86/mm: introduce __PAGE_KERNEL_GLOBAL
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <20180215132055.F341C31E@viggo.jf.intel.com>
+Date: Fri, 16 Feb 2018 09:47:49 -0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <E0AB2852-C4E0-43D3-ABA7-34117A5516C1@gmail.com>
+References: <20180215132053.6C9B48C8@viggo.jf.intel.com>
+ <20180215132055.F341C31E@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, "Michael S. Tsirkin" <mst@redhat.com>, mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, david@redhat.com, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, Paolo Bonzini <pbonzini@redhat.com>, Matthew Wilcox <willy@infradead.org>, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org
 
-On Tue, Jan 9, 2018 at 1:10 PM, Wei Wang <wei.w.wang@intel.com> wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
->
-> The eXtensible Bitmap is a sparse bitmap representation which is
-> efficient for set bits which tend to cluster. It supports up to
-> 'unsigned long' worth of bits.
+Dave Hansen <dave.hansen@linux.intel.com> wrote:
 
->  lib/xbitmap.c                            | 444 +++++++++++++++++++++++++++++++
+>=20
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+>=20
+> Kernel mappings are historically _PAGE_GLOBAL.  But, with PTI, we do =
+not
+> want them to be _PAGE_GLOBAL.  We currently accomplish this by simply
+> clearing _PAGE_GLOBAL from the suppotred mask which ensures it is
+> cleansed from many of our PTE construction sites:
+>=20
+>        if (!static_cpu_has(X86_FEATURE_PTI))
+> 	                __supported_pte_mask |=3D _PAGE_GLOBAL;
+>=20
+> But, this also means that we now get *no* opportunity to use global
+> pages with PTI, even for data which is shared such as the =
+cpu_entry_area
+> and entry/exit text.
 
-Please, split tests to a separate module.
 
--- 
-With Best Regards,
-Andy Shevchenko
+Doesn=E2=80=99t this patch change the kernel behavior when the =
+=E2=80=9Cnopti=E2=80=9D parameter is used?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
