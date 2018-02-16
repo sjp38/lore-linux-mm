@@ -1,59 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B81566B000A
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 12:30:23 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id i5so1967736otf.8
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 09:30:23 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t200si787763oih.27.2018.02.16.09.30.22
-        for <linux-mm@kvack.org>;
-        Fri, 16 Feb 2018 09:30:22 -0800 (PST)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [bug?] mallocstress poor performance with THP on arm64 system
-References: <1523287676.1950020.1518648233654.JavaMail.zimbra@redhat.com>
-	<1847959563.1954032.1518649501357.JavaMail.zimbra@redhat.com>
-	<20180215090246.qrsnncq3ajtbdlfy@node.shutemov.name>
-Date: Fri, 16 Feb 2018 17:30:19 +0000
-In-Reply-To: <20180215090246.qrsnncq3ajtbdlfy@node.shutemov.name> (Kirill
-	A. Shutemov's message of "Thu, 15 Feb 2018 12:02:46 +0300")
-Message-ID: <87a7w84zbo.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 121776B0003
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 12:42:44 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id 6so2254396iti.4
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 09:42:44 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b204sor11470976itb.71.2018.02.16.09.42.42
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 16 Feb 2018 09:42:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20180216152608.1626885-1-arnd@arndb.de>
+References: <20180216152608.1626885-1-arnd@arndb.de>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 16 Feb 2018 09:42:42 -0800
+Message-ID: <CA+55aFxRo=X3_fb5JC55JjWt8KOWAdaMaBt5k5VPZhosT25WpQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: hide a #warning for COMPILE_TEST
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org, lwoodman <lwoodman@redhat.com>, Rafael Aquini <aquini@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable <stable@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Jiang <dave.jiang@intel.com>, Jan Kara <jack@suse.cz>, Ingo Molnar <mingo@kernel.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Huang Ying <ying.huang@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Tobin C Harding <me@tobin.cc>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hi Kirill,
-
-"Kirill A. Shutemov" <kirill@shutemov.name> writes:
-
-> On Wed, Feb 14, 2018 at 06:05:01PM -0500, Jan Stancek wrote:
->> Hi,
->> 
->> mallocstress[1] LTP testcase takes ~5+ minutes to complete
->> on some arm64 systems (e.g. 4 node, 64 CPU, 256GB RAM):
->>  real    7m58.089s
->>  user    0m0.513s
->>  sys     24m27.041s
->> 
->> But if I turn off THP ("transparent_hugepage=never") it's a lot faster:
->>  real    0m4.185s
->>  user    0m0.298s
->>  sys     0m13.954s
->> 
+On Fri, Feb 16, 2018 at 7:25 AM, Arnd Bergmann <arnd@arndb.de> wrote:
 >
-> It's multi-threaded workload. My *guess* is that poor performance is due
-> to lack of ARCH_ENABLE_SPLIT_PMD_PTLOCK support on arm64.
+> The warning is reasonable by itself, but gets in the way of
+> randconfig build testing, so I'm hiding it whenever CONFIG_COMPILE_TEST
+> is set.
 
-In this instance I think the latency is due to the large size of PMD
-hugepages and THP=always. But split PMD locks seem like a useful feature
-to have for large core count systems.
+Ack, looks sane, so I just applied it directly to my tree instead of
+waiting for this to get back to me from Andrew ;)
 
-I'll have a go at enabling this for arm64.
-
-Thanks,
-Punit
+                 Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
