@@ -1,25 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DE52C6B0006
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 04:19:23 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id a6so608144wme.9
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 01:19:23 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 217286B0006
+	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 04:23:35 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id f3so616753wmc.8
+        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 01:23:35 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s130sor3735445wms.82.2018.02.16.01.19.22
+        by mx.google.com with SMTPS id v190sor3772502wme.91.2018.02.16.01.23.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 16 Feb 2018 01:19:22 -0800 (PST)
-Date: Fri, 16 Feb 2018 10:19:18 +0100
+        Fri, 16 Feb 2018 01:23:33 -0800 (PST)
+Date: Fri, 16 Feb 2018 10:23:30 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [v4 5/6] mm/memory_hotplug: don't read nid from struct page
- during hotplug
-Message-ID: <20180216091918.axu57tfsezzybeoa@gmail.com>
+Subject: Re: [v4 3/6] mm: uninitialized struct page poisoning sanity checking
+Message-ID: <20180216092330.k7hutkvjmy7nope3@gmail.com>
 References: <20180215165920.8570-1-pasha.tatashin@oracle.com>
- <20180215165920.8570-6-pasha.tatashin@oracle.com>
+ <20180215165920.8570-4-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180215165920.8570-6-pasha.tatashin@oracle.com>
+In-Reply-To: <20180215165920.8570-4-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pavel Tatashin <pasha.tatashin@oracle.com>
@@ -28,44 +27,27 @@ Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation
 
 * Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
 
-> During memory hotplugging the probe routine will leave struct pages
-> uninitialized, the same as it is currently done during boot. Therefore, we
-> do not want to access the inside of struct pages before
-> __init_single_page() is called during onlining.
+> During boot we poison struct page memory in order to ensure that no one is
+> accessing this memory until the struct pages are initialized in
+> __init_single_page().
 > 
-> Because during hotplug we know that pages in one memory block belong to
-> the same numa node, we can skip the checking. We should keep checking for
-> the boot case.
+> This patch adds more scrutiny to this checking by making sure that flags
+> do not equal the poison pattern when they are accessed.  The pattern is all
+> ones.
+> 
+> Since node id is also stored in struct page, and may be accessed quite
+> early, we add this enforcement into page_to_nid() function as well.
+> Note, this is applicable only when NODE_NOT_IN_PAGE_FLAGS=n
 > 
 > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> ---
->  drivers/base/memory.c |  2 +-
->  drivers/base/node.c   | 22 +++++++++++++++-------
->  include/linux/node.h  |  4 ++--
->  3 files changed, 18 insertions(+), 10 deletions(-)
-> 
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index deb3f029b451..a14fb0cd424a 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -731,7 +731,7 @@ int register_new_memory(int nid, struct mem_section *section)
->  	}
->  
->  	if (mem->section_count == sections_per_block)
-> -		ret = register_mem_sect_under_node(mem, nid);
-> +		ret = register_mem_sect_under_node(mem, nid, false);
->  out:
+> Reviewed-by: Ingo Molnar <mingo@kernel.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-The namespace of all these memory range handling functions is horribly random,
-and I think now it got worse: we add an assumption that register_new_memory() is 
-implicitly called as part of hotplugged memory (where things are pre-cleared) - 
-but nothing in its naming suggests so.
+Please always start patch titles with a verb, i.e.:
 
-How about renaming it to hotplug_memory_register() or so?
+ mm: Add uninitialized struct page poisoning sanity check
 
-With that change you can add:
-
-  Reviewed-by: Ingo Molnar <mingo@kernel.org>
+or so.
 
 Thanks,
 
