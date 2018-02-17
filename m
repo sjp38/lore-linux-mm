@@ -1,106 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E4B556B0009
-	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 11:11:13 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 202so3638393pgb.13
-        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 08:11:13 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n59-v6sor1472135plb.30.2018.02.17.08.11.12
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 485746B0005
+	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 16:17:18 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id i143so2734692wmf.2
+        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 13:17:18 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id i130si11342515wmf.178.2018.02.17.13.17.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 17 Feb 2018 08:11:12 -0800 (PST)
-Date: Sat, 17 Feb 2018 21:42:31 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH] mm: zbud: Remove zbud_map() and zbud_unmap() function
-Message-ID: <20180217161230.GA16890@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 17 Feb 2018 13:17:16 -0800 (PST)
+Date: Sat, 17 Feb 2018 22:17:25 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC 2/2] Page order diagnostics
+Message-ID: <20180217211725.GA9640@amd>
+References: <20180216160110.641666320@linux.com>
+ <20180216160121.583566579@linux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="EeQfGwPcQSOJBaQU"
 Content-Disposition: inline
+In-Reply-To: <20180216160121.583566579@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sjenning@redhat.com, ddstreet@ieee.org
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Mel Gorman <mel@skynet.ie>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-zbud_unmap() is empty function and not getting called from
-anywhere except from zbud_zpool_unmap(). Hence we can remove
-zbud_unmap().
 
-Similarly, zbud_map() is only returning (void *)(handle)
-which can be done within zbud_zpool_map(). Hence we can
-remove zbud_map().
+--EeQfGwPcQSOJBaQU
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
- include/linux/zbud.h |  2 --
- mm/zbud.c            | 30 ++----------------------------
- 2 files changed, 2 insertions(+), 30 deletions(-)
+Hi!
 
-diff --git a/include/linux/zbud.h b/include/linux/zbud.h
-index b1eaf6e..565b88c 100644
---- a/include/linux/zbud.h
-+++ b/include/linux/zbud.h
-@@ -16,8 +16,6 @@ int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
- 	unsigned long *handle);
- void zbud_free(struct zbud_pool *pool, unsigned long handle);
- int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
--void *zbud_map(struct zbud_pool *pool, unsigned long handle);
--void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
- u64 zbud_get_pool_size(struct zbud_pool *pool);
+> @@ -1289,6 +1289,52 @@ const char * const vmstat_text[] =3D {
+>  	"swap_ra",
+>  	"swap_ra_hit",
+>  #endif
+> +#ifdef CONFIG_ORDER_STATS
+> +	"order0_failure",
+> +	"order1_failure",
+> +	"order2_failure",
+> +	"order3_failure",
+> +	"order4_failure",
+> +	"order5_failure",
+> +	"order6_failure",
+> +	"order7_failure",
+> +	"order8_failure",
+> +	"order9_failure",
+> +	"order10_failure",
+> +#ifdef CONFIG_FORCE_MAX_ZONEORDER
+> +#if MAX_ORDER > 11
+> +	"order11_failure"
+> +#endif
+> +#if MAX_ORDER > 12
+> +	"order12_failure"
+> +#endif
+> +#if MAX_ORDER > 13
+> +	"order13_failure"
+> +#endif
+> +#if MAX_ORDER > 14
+> +	"order14_failure"
+> +#endif
+> +#if MAX_ORDER > 15
+> +	"order15_failure"
+> +#endif
+> +#if MAX_ORDER > 16
+> +	"order16_failure"
+> +#endif
+> +#if MAX_ORDER > 17
+> +	"order17_failure"
+> +#endif
+> +#if MAX_ORDER > 18
+> +	"order18_failure"
+> +#endif
+> +#if MAX_ORDER > 19
+> +	"order19_failure"
+> +#endif
 
- #endif /* _ZBUD_H_ */
-diff --git a/mm/zbud.c b/mm/zbud.c
-index 28458f7..c83c876 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -188,11 +188,11 @@ static int zbud_zpool_shrink(void *pool, unsigned int pages,
- static void *zbud_zpool_map(void *pool, unsigned long handle,
- 			enum zpool_mapmode mm)
- {
--	return zbud_map(pool, handle);
-+	return (void *)(handle);
- }
- static void zbud_zpool_unmap(void *pool, unsigned long handle)
- {
--	zbud_unmap(pool, handle);
-+
- }
+I don't think this does what you want it to do. Commas are missing.
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
 
- static u64 zbud_zpool_total_size(void *pool)
-@@ -569,32 +569,6 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
- }
+--EeQfGwPcQSOJBaQU
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
 
- /**
-- * zbud_map() - maps the allocation associated with the given handle
-- * @pool:	pool in which the allocation resides
-- * @handle:	handle associated with the allocation to be mapped
-- *
-- * While trivial for zbud, the mapping functions for others allocators
-- * implementing this allocation API could have more complex information encoded
-- * in the handle and could create temporary mappings to make the data
-- * accessible to the user.
-- *
-- * Returns: a pointer to the mapped allocation
-- */
--void *zbud_map(struct zbud_pool *pool, unsigned long handle)
--{
--	return (void *)(handle);
--}
--
--/**
-- * zbud_unmap() - maps the allocation associated with the given handle
-- * @pool:	pool in which the allocation resides
-- * @handle:	handle associated with the allocation to be unmapped
-- */
--void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
--{
--}
--
--/**
-  * zbud_get_pool_size() - gets the zbud pool size in pages
-  * @pool:	pool whose size is being queried
-  *
---
-1.9.1
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAlqIm+UACgkQMOfwapXb+vKJdQCdH7guQtlyHyWkIpEQCQp9Xb6j
+wcMAoLef0VPOAoaaG2ac5C1EMuQU6hgD
+=bP1b
+-----END PGP SIGNATURE-----
+
+--EeQfGwPcQSOJBaQU--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
