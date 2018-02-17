@@ -1,75 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A37B66B0003
-	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 11:07:30 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id r5so5277506qkb.22
-        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 08:07:30 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d10si60528qth.432.2018.02.17.08.07.29
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E4B556B0009
+	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 11:11:13 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 202so3638393pgb.13
+        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 08:11:13 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n59-v6sor1472135plb.30.2018.02.17.08.11.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Feb 2018 08:07:29 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1HG4YWE045423
-	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 11:07:29 -0500
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2g6ewb4p71-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 11:07:28 -0500
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Sat, 17 Feb 2018 16:07:27 -0000
-Date: Sat, 17 Feb 2018 17:07:16 +0100
-In-Reply-To: <b76028c6-c755-8178-2dfc-81c7db1f8bed@infradead.org>
-References: <20180216160110.641666320@linux.com> <20180216160121.519788537@linux.com> <b76028c6-c755-8178-2dfc-81c7db1f8bed@infradead.org>
+        (Google Transport Security);
+        Sat, 17 Feb 2018 08:11:12 -0800 (PST)
+Date: Sat, 17 Feb 2018 21:42:31 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH] mm: zbud: Remove zbud_map() and zbud_unmap() function
+Message-ID: <20180217161230.GA16890@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
-From: Mike Rapoprt <rppt@linux.vnet.ibm.com>
-Message-Id: <CF0D4656-676E-42EA-BB20-C3A557A397C6@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mel@skynet.ie>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: sjenning@redhat.com, ddstreet@ieee.org
+Cc: linux-mm@kvack.org
 
+zbud_unmap() is empty function and not getting called from
+anywhere except from zbud_zpool_unmap(). Hence we can remove
+zbud_unmap().
 
+Similarly, zbud_map() is only returning (void *)(handle)
+which can be done within zbud_zpool_map(). Hence we can
+remove zbud_map().
 
-On February 16, 2018 7:02:53 PM GMT+01:00, Randy Dunlap <rdunlap@infradead=
-=2Eorg> wrote:
->On 02/16/2018 08:01 AM, Christoph Lameter wrote:
->> Control over this feature is by writing to /proc/zoneinfo=2E
->>=20
->> F=2Ee=2E to ensure that 2000 16K pages stay available for jumbo
->> frames do
->>=20
->> 	echo "2=3D2000" >/proc/zoneinfo
->>=20
->> or through the order=3D<page spec> on the kernel command line=2E
->> F=2Ee=2E
->>=20
->> 	order=3D2=3D2000,4N2=3D500
->
->
->Please document the the kernel command line option in
->Documentation/admin-guide/kernel-parameters=2Etxt=2E
->
->I suppose that /proc/zoneinfo should be added somewhere in
->Documentation/vm/
->but I'm not sure where that would be=2E
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+---
+ include/linux/zbud.h |  2 --
+ mm/zbud.c            | 30 ++----------------------------
+ 2 files changed, 2 insertions(+), 30 deletions(-)
 
-It's in Documentation/sysctl/vm=2Etxt and in 'man proc' [1]
+diff --git a/include/linux/zbud.h b/include/linux/zbud.h
+index b1eaf6e..565b88c 100644
+--- a/include/linux/zbud.h
++++ b/include/linux/zbud.h
+@@ -16,8 +16,6 @@ int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
+ 	unsigned long *handle);
+ void zbud_free(struct zbud_pool *pool, unsigned long handle);
+ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
+-void *zbud_map(struct zbud_pool *pool, unsigned long handle);
+-void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
+ u64 zbud_get_pool_size(struct zbud_pool *pool);
 
-[1] https://git=2Ekernel=2Eorg/pub/scm/docs/man-pages/man-pages=2Egit/tree=
-/man5/proc=2E5
+ #endif /* _ZBUD_H_ */
+diff --git a/mm/zbud.c b/mm/zbud.c
+index 28458f7..c83c876 100644
+--- a/mm/zbud.c
++++ b/mm/zbud.c
+@@ -188,11 +188,11 @@ static int zbud_zpool_shrink(void *pool, unsigned int pages,
+ static void *zbud_zpool_map(void *pool, unsigned long handle,
+ 			enum zpool_mapmode mm)
+ {
+-	return zbud_map(pool, handle);
++	return (void *)(handle);
+ }
+ static void zbud_zpool_unmap(void *pool, unsigned long handle)
+ {
+-	zbud_unmap(pool, handle);
++
+ }
 
->thanks,
+ static u64 zbud_zpool_total_size(void *pool)
+@@ -569,32 +569,6 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+ }
 
---=20
-Sincerely yours,
-Mike=2E
+ /**
+- * zbud_map() - maps the allocation associated with the given handle
+- * @pool:	pool in which the allocation resides
+- * @handle:	handle associated with the allocation to be mapped
+- *
+- * While trivial for zbud, the mapping functions for others allocators
+- * implementing this allocation API could have more complex information encoded
+- * in the handle and could create temporary mappings to make the data
+- * accessible to the user.
+- *
+- * Returns: a pointer to the mapped allocation
+- */
+-void *zbud_map(struct zbud_pool *pool, unsigned long handle)
+-{
+-	return (void *)(handle);
+-}
+-
+-/**
+- * zbud_unmap() - maps the allocation associated with the given handle
+- * @pool:	pool in which the allocation resides
+- * @handle:	handle associated with the allocation to be unmapped
+- */
+-void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
+-{
+-}
+-
+-/**
+  * zbud_get_pool_size() - gets the zbud pool size in pages
+  * @pool:	pool whose size is being queried
+  *
+--
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
