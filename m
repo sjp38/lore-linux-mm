@@ -1,51 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 497776B0003
-	for <linux-mm@kvack.org>; Fri, 16 Feb 2018 19:43:33 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id 137so2949542wml.0
-        for <linux-mm@kvack.org>; Fri, 16 Feb 2018 16:43:33 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 4si10512913wma.257.2018.02.16.16.43.31
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B6E96B0003
+	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 03:14:16 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id a76so1465972lfb.3
+        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 00:14:15 -0800 (PST)
+Received: from forwardcorp1o.cmail.yandex.net (forwardcorp1o.cmail.yandex.net. [2a02:6b8:0:1a72::290])
+        by mx.google.com with ESMTPS id i192si7293574lfg.363.2018.02.17.00.14.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Feb 2018 16:43:31 -0800 (PST)
-Date: Fri, 16 Feb 2018 16:43:28 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 1/1] mm: page_alloc: skip over regions of invalid
- pfns on UMA
-Message-Id: <20180216164328.de7d37584409e827c396bf69@linux-foundation.org>
-In-Reply-To: <20180212184759.GI3443@dhcp22.suse.cz>
-References: <20180124143545.31963-1-erosca@de.adit-jv.com>
-	<20180124143545.31963-2-erosca@de.adit-jv.com>
-	<20180129184746.GK21609@dhcp22.suse.cz>
-	<20180203122422.GA11832@vmlxhi-102.adit-jv.com>
-	<20180212150314.GG3443@dhcp22.suse.cz>
-	<20180212161640.GA30811@vmlxhi-102.adit-jv.com>
-	<20180212184759.GI3443@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Sat, 17 Feb 2018 00:14:14 -0800 (PST)
+Subject: Re: [PATCH] proc/kpageflags: add KPF_WAITERS
+References: <151834540184.176427.12174649162560874101.stgit@buzz>
+ <20180216155752.4a17cfd41875911c79807585@linux-foundation.org>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <cd7b5099-0575-81ce-9f48-2efd664f2fc2@yandex-team.ru>
+Date: Sat, 17 Feb 2018 11:14:10 +0300
+MIME-Version: 1.0
+In-Reply-To: <20180216155752.4a17cfd41875911c79807585@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Eugeniu Rosca <erosca@de.adit-jv.com>, Matthew Wilcox <willy@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>
 
-On Mon, 12 Feb 2018 19:47:59 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-
-> > prerequisite for this is to reach some agreement on what people think is
-> > the best option, which I feel didn't occur yet.
+On 17.02.2018 02:57, Andrew Morton wrote:
+> On Sun, 11 Feb 2018 13:36:41 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
 > 
-> I do not have a _strong_ preference here as well. So I will leave the
-> decision to you.
+>> KPF_WAITERS indicates tasks are waiting for a page lock or writeback.
+>> This might be false-positive, in this case next unlock will clear it.
 > 
-> In any case feel free to add
-> Acked-by: Michal Hocko <mhocko@suse.com>
+> Well, kpageflags is full of potential false-positives.  Or do you think
+> this flag is especially vulnerable?
+> 
+> In other words, under what circumstances will we have KPF_WAITERS set
+> when PG_locked and PG-writeback are clear?
 
-I find Michal's version to be a little tidier.
+Looks like lock_page() - unlock_page() shouldn't leave longstanding
+false-positive: last unlock_page() must clear PG_waiters.
 
-Eugeniu, please send Michal's patch at me with a fresh changelog, with
-your signed-off-by and your tested-by and your reported-by and we may
-as well add Michal's (thus-far-missing) signed-off-by ;)
+But I've seen them. Probably that was from  wait_on_page_writeback():
+it test PG_writeback, set PG_waiters under queue lock unconditionally
+and then test PG_writeback again before sleep - and might exit
+without wakeup i.e. without clearing PG_waiters.
+
+This could be fixed with extra check for in wait_on_page_bit_common()
+under queue lock.
+
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1087,6 +1087,10 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
+                 spin_lock_irq(&q->lock);
+
+                 if (likely(list_empty(&wait->entry))) {
++                       if (unlikely(!test_bit(bit_nr, &page->flags))) {
++                               spin_unlock_irq(&q->lock);
++                               goto try;
++                       }
+                         __add_wait_queue_entry_tail(q, wait);
+                         SetPageWaiters(page);
+                 }
+@@ -1098,7 +1102,7 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
+                 if (likely(test_bit(bit_nr, &page->flags))) {
+                         io_schedule();
+                 }
+-
++try:
+                 if (lock) {
+                         if (!test_and_set_bit_lock(bit_nr, &page->flags))
+                                 break;
+
+But this seems redundant.
+
+> 
+>> This looks like worth information not only for kernel hacking.
+> 
+> Why?  What are the use-cases, in detail?  How are we to justify this
+> modification?
+
+This bit tells which page or D 3/4 ffset in file is actually wanted
+by somebody in the system. That's another way to track where major
+faults or writeback blocks something. We don't have to record flow
+of events - snapshot of page-flags will show where contention is.
+
+> 
+>> In tool page-types in non-raw mode treat KPF_WAITERS without
+>> KPF_LOCKED and KPF_WRITEBACK as false-positive and hide it.
+> 
+>>   fs/proc/page.c                         |    1 +
+>>   include/uapi/linux/kernel-page-flags.h |    1 +
+>>   tools/vm/page-types.c                  |    7 +++++++
+> 
+> Please update Documentation/vm/pagemap.txt.
+> 
+
+ok
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
