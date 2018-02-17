@@ -1,149 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 384BB6B0009
-	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 09:43:00 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id v10so319103pfl.21
-        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 06:43:00 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id a14si2497668pgd.467.2018.02.17.06.42.58
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 50D256B0007
+	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 10:33:00 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id y200so4560145itc.7
+        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 07:33:00 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id s184si1852776iod.52.2018.02.17.07.32.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Feb 2018 06:42:58 -0800 (PST)
-From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-Subject: [PATCH v2] mm: Re-use DEFINE_SHOW_ATTRIBUTE() macro
-Date: Sat, 17 Feb 2018 16:42:53 +0200
-Message-Id: <20180217144253.58604-1-andriy.shevchenko@linux.intel.com>
+        Sat, 17 Feb 2018 07:32:58 -0800 (PST)
+Subject: Re: [RESEND v2] mm: don't defer struct page initialization for Xen pv
+ guests
+References: <20180216154101.22865-1-jgross@suse.com>
+ <20180216124004.8465f643a5539125d77ba79f@linux-foundation.org>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <b153984d-4976-ebb0-c88f-0cb13d78d5b5@oracle.com>
+Date: Sat, 17 Feb 2018 10:32:51 -0500
+MIME-Version: 1.0
+In-Reply-To: <20180216124004.8465f643a5539125d77ba79f@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Dennis Zhou <dennisszhou@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, mhocko@suse.com, stable@vger.kernel.org
 
-...instead of open coding file operations followed by custom ->open()
-callbacks per each attribute.
+Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 
-Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
-Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Acked-by: Christoph Lameter <cl@linux.com>
-Signed-off-by: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
----
+This is unique for Xen, so this particular issue won't effect other 
+configurations. I am going to investigate if there is a way to re-enable 
+deferred page initialization on xen guests.
 
-In v2:
-- add tags
-- fix compilation issue kbuild bot reported about
+Pavel
 
- mm/backing-dev.c  | 13 +------------
- mm/memblock.c     | 13 +------------
- mm/percpu-stats.c | 13 +------------
- mm/zsmalloc.c     | 15 ++-------------
- 4 files changed, 5 insertions(+), 49 deletions(-)
-
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index ffa0c6b9e78a..c05fbe4daa5e 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -100,18 +100,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
- 
- 	return 0;
- }
--
--static int bdi_debug_stats_open(struct inode *inode, struct file *file)
--{
--	return single_open(file, bdi_debug_stats_show, inode->i_private);
--}
--
--static const struct file_operations bdi_debug_stats_fops = {
--	.open		= bdi_debug_stats_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= single_release,
--};
-+DEFINE_SHOW_ATTRIBUTE(bdi_debug_stats);
- 
- static int bdi_debug_register(struct backing_dev_info *bdi, const char *name)
- {
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 5a9ca2a1751b..c4a522273664 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1846,18 +1846,7 @@ static int memblock_debug_show(struct seq_file *m, void *private)
- 	}
- 	return 0;
- }
--
--static int memblock_debug_open(struct inode *inode, struct file *file)
--{
--	return single_open(file, memblock_debug_show, inode->i_private);
--}
--
--static const struct file_operations memblock_debug_fops = {
--	.open = memblock_debug_open,
--	.read = seq_read,
--	.llseek = seq_lseek,
--	.release = single_release,
--};
-+DEFINE_SHOW_ATTRIBUTE(memblock_debug);
- 
- static int __init memblock_init_debugfs(void)
- {
-diff --git a/mm/percpu-stats.c b/mm/percpu-stats.c
-index 7a58460bfd27..063ff60ecd90 100644
---- a/mm/percpu-stats.c
-+++ b/mm/percpu-stats.c
-@@ -223,18 +223,7 @@ static int percpu_stats_show(struct seq_file *m, void *v)
- 
- 	return 0;
- }
--
--static int percpu_stats_open(struct inode *inode, struct file *filp)
--{
--	return single_open(filp, percpu_stats_show, NULL);
--}
--
--static const struct file_operations percpu_stats_fops = {
--	.open		= percpu_stats_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= single_release,
--};
-+DEFINE_SHOW_ATTRIBUTE(percpu_stats);
- 
- static int __init init_percpu_stats_debugfs(void)
- {
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index b7f61cd1c709..a583ab111a43 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -642,18 +642,7 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
- 
- 	return 0;
- }
--
--static int zs_stats_size_open(struct inode *inode, struct file *file)
--{
--	return single_open(file, zs_stats_size_show, inode->i_private);
--}
--
--static const struct file_operations zs_stat_size_ops = {
--	.open           = zs_stats_size_open,
--	.read           = seq_read,
--	.llseek         = seq_lseek,
--	.release        = single_release,
--};
-+DEFINE_SHOW_ATTRIBUTE(zs_stats_size);
- 
- static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
- {
-@@ -672,7 +661,7 @@ static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
- 	pool->stat_dentry = entry;
- 
- 	entry = debugfs_create_file("classes", S_IFREG | S_IRUGO,
--			pool->stat_dentry, pool, &zs_stat_size_ops);
-+			pool->stat_dentry, pool, &zs_stats_size_fops);
- 	if (!entry) {
- 		pr_warn("%s: debugfs file entry <%s> creation failed\n",
- 				name, "classes");
--- 
-2.15.1
+On 02/16/2018 03:40 PM, Andrew Morton wrote:
+> On Fri, 16 Feb 2018 16:41:01 +0100 Juergen Gross <jgross@suse.com> wrote:
+> 
+>> Commit f7f99100d8d95dbcf09e0216a143211e79418b9f ("mm: stop zeroing
+>> memory during allocation in vmemmap") broke Xen pv domains in some
+>> configurations, as the "Pinned" information in struct page of early
+>> page tables could get lost. This will lead to the kernel trying to
+>> write directly into the page tables instead of asking the hypervisor
+>> to do so. The result is a crash like the following:
+> 
+> Let's cc Pavel, who authored f7f99100d8d95d.
+> 
+>> [    0.004000] BUG: unable to handle kernel paging request at ffff8801ead19008
+>> [    0.004000] IP: xen_set_pud+0x4e/0xd0
+>> [    0.004000] PGD 1c0a067 P4D 1c0a067 PUD 23a0067 PMD 1e9de0067 PTE 80100001ead19065
+>> [    0.004000] Oops: 0003 [#1] PREEMPT SMP
+>> [    0.004000] Modules linked in:
+>> [    0.004000] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.14.0-default+ #271
+>> [    0.004000] Hardware name: Dell Inc. Latitude E6440/0159N7, BIOS A07 06/26/2014
+>> [    0.004000] task: ffffffff81c10480 task.stack: ffffffff81c00000
+>> [    0.004000] RIP: e030:xen_set_pud+0x4e/0xd0
+>> [    0.004000] RSP: e02b:ffffffff81c03cd8 EFLAGS: 00010246
+>> [    0.004000] RAX: 002ffff800000800 RBX: ffff88020fd31000 RCX: 0000000000000000
+>> [    0.004000] RDX: ffffea0000000000 RSI: 00000001b8308067 RDI: ffff8801ead19008
+>> [    0.004000] RBP: ffff8801ead19008 R08: aaaaaaaaaaaaaaaa R09: 00000000063f4c80
+>> [    0.004000] R10: aaaaaaaaaaaaaaaa R11: 0720072007200720 R12: 00000001b8308067
+>> [    0.004000] R13: ffffffff81c8a9cc R14: ffff88018fd31000 R15: 000077ff80000000
+>> [    0.004000] FS:  0000000000000000(0000) GS:ffff88020f600000(0000) knlGS:0000000000000000
+>> [    0.004000] CS:  e033 DS: 0000 ES: 0000 CR0: 0000000080050033
+>> [    0.004000] CR2: ffff8801ead19008 CR3: 0000000001c09000 CR4: 0000000000042660
+>> [    0.004000] Call Trace:
+>> [    0.004000]  __pmd_alloc+0x128/0x140
+>> [    0.004000]  ? acpi_os_map_iomem+0x175/0x1b0
+>> [    0.004000]  ioremap_page_range+0x3f4/0x410
+>> [    0.004000]  ? acpi_os_map_iomem+0x175/0x1b0
+>> [    0.004000]  __ioremap_caller+0x1c3/0x2e0
+>> [    0.004000]  acpi_os_map_iomem+0x175/0x1b0
+>> [    0.004000]  acpi_tb_acquire_table+0x39/0x66
+>> [    0.004000]  acpi_tb_validate_table+0x44/0x7c
+>> [    0.004000]  acpi_tb_verify_temp_table+0x45/0x304
+>> [    0.004000]  ? acpi_ut_acquire_mutex+0x12a/0x1c2
+>> [    0.004000]  acpi_reallocate_root_table+0x12d/0x141
+>> [    0.004000]  acpi_early_init+0x4d/0x10a
+>> [    0.004000]  start_kernel+0x3eb/0x4a1
+>> [    0.004000]  ? set_init_arg+0x55/0x55
+>> [    0.004000]  xen_start_kernel+0x528/0x532
+>> [    0.004000] Code: 48 01 e8 48 0f 42 15 a2 fd be 00 48 01 d0 48 ba 00 00 00 00 00 ea ff ff 48 c1 e8 0c 48 c1 e0 06 48 01 d0 48 8b 00 f6 c4 02 75 5d <4c> 89 65 00 5b 5d 41 5c c3 65 8b 05 52 9f fe 7e 89 c0 48 0f a3
+>> [    0.004000] RIP: xen_set_pud+0x4e/0xd0 RSP: ffffffff81c03cd8
+>> [    0.004000] CR2: ffff8801ead19008
+>> [    0.004000] ---[ end trace 38eca2e56f1b642e ]---
+>>
+>> Avoid this problem by not deferring struct page initialization when
+>> running as Xen pv guest.
+>>
+>> ...
+>>
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -347,6 +347,9 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+>>   	/* Always populate low zones for address-constrained allocations */
+>>   	if (zone_end < pgdat_end_pfn(pgdat))
+>>   		return true;
+>> +	/* Xen PV domains need page structures early */
+>> +	if (xen_pv_domain())
+>> +		return true;
+>>   	(*nr_initialised)++;
+>>   	if ((*nr_initialised > pgdat->static_init_pgcnt) &&
+>>   	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
+> 
+> I'm OK with applying the patch as a short-term regression fix but I do
+> wonder whether it's the correct fix.  What is special about Xen (in
+> some configurations!) that causes it to find a hole in deferred
+> initialization?
+> 
+> I'd like us to delve further please.  Because if Xen found a hole in
+> the implementation, others might do so.  Or perhaps Xen is doing
+> something naughty.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
