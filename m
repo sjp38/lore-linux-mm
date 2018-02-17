@@ -1,117 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 50D256B0007
-	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 10:33:00 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id y200so4560145itc.7
-        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 07:33:00 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id s184si1852776iod.52.2018.02.17.07.32.58
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A37B66B0003
+	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 11:07:30 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id r5so5277506qkb.22
+        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 08:07:30 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d10si60528qth.432.2018.02.17.08.07.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Feb 2018 07:32:58 -0800 (PST)
-Subject: Re: [RESEND v2] mm: don't defer struct page initialization for Xen pv
- guests
-References: <20180216154101.22865-1-jgross@suse.com>
- <20180216124004.8465f643a5539125d77ba79f@linux-foundation.org>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <b153984d-4976-ebb0-c88f-0cb13d78d5b5@oracle.com>
-Date: Sat, 17 Feb 2018 10:32:51 -0500
+        Sat, 17 Feb 2018 08:07:29 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1HG4YWE045423
+	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 11:07:29 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2g6ewb4p71-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 11:07:28 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Sat, 17 Feb 2018 16:07:27 -0000
+Date: Sat, 17 Feb 2018 17:07:16 +0100
+In-Reply-To: <b76028c6-c755-8178-2dfc-81c7db1f8bed@infradead.org>
+References: <20180216160110.641666320@linux.com> <20180216160121.519788537@linux.com> <b76028c6-c755-8178-2dfc-81c7db1f8bed@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180216124004.8465f643a5539125d77ba79f@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+ charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
+From: Mike Rapoprt <rppt@linux.vnet.ibm.com>
+Message-Id: <CF0D4656-676E-42EA-BB20-C3A557A397C6@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Juergen Gross <jgross@suse.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, mhocko@suse.com, stable@vger.kernel.org
+To: Randy Dunlap <rdunlap@infradead.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mel@skynet.ie>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 
-This is unique for Xen, so this particular issue won't effect other 
-configurations. I am going to investigate if there is a way to re-enable 
-deferred page initialization on xen guests.
 
-Pavel
+On February 16, 2018 7:02:53 PM GMT+01:00, Randy Dunlap <rdunlap@infradead=
+=2Eorg> wrote:
+>On 02/16/2018 08:01 AM, Christoph Lameter wrote:
+>> Control over this feature is by writing to /proc/zoneinfo=2E
+>>=20
+>> F=2Ee=2E to ensure that 2000 16K pages stay available for jumbo
+>> frames do
+>>=20
+>> 	echo "2=3D2000" >/proc/zoneinfo
+>>=20
+>> or through the order=3D<page spec> on the kernel command line=2E
+>> F=2Ee=2E
+>>=20
+>> 	order=3D2=3D2000,4N2=3D500
+>
+>
+>Please document the the kernel command line option in
+>Documentation/admin-guide/kernel-parameters=2Etxt=2E
+>
+>I suppose that /proc/zoneinfo should be added somewhere in
+>Documentation/vm/
+>but I'm not sure where that would be=2E
 
-On 02/16/2018 03:40 PM, Andrew Morton wrote:
-> On Fri, 16 Feb 2018 16:41:01 +0100 Juergen Gross <jgross@suse.com> wrote:
-> 
->> Commit f7f99100d8d95dbcf09e0216a143211e79418b9f ("mm: stop zeroing
->> memory during allocation in vmemmap") broke Xen pv domains in some
->> configurations, as the "Pinned" information in struct page of early
->> page tables could get lost. This will lead to the kernel trying to
->> write directly into the page tables instead of asking the hypervisor
->> to do so. The result is a crash like the following:
-> 
-> Let's cc Pavel, who authored f7f99100d8d95d.
-> 
->> [    0.004000] BUG: unable to handle kernel paging request at ffff8801ead19008
->> [    0.004000] IP: xen_set_pud+0x4e/0xd0
->> [    0.004000] PGD 1c0a067 P4D 1c0a067 PUD 23a0067 PMD 1e9de0067 PTE 80100001ead19065
->> [    0.004000] Oops: 0003 [#1] PREEMPT SMP
->> [    0.004000] Modules linked in:
->> [    0.004000] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.14.0-default+ #271
->> [    0.004000] Hardware name: Dell Inc. Latitude E6440/0159N7, BIOS A07 06/26/2014
->> [    0.004000] task: ffffffff81c10480 task.stack: ffffffff81c00000
->> [    0.004000] RIP: e030:xen_set_pud+0x4e/0xd0
->> [    0.004000] RSP: e02b:ffffffff81c03cd8 EFLAGS: 00010246
->> [    0.004000] RAX: 002ffff800000800 RBX: ffff88020fd31000 RCX: 0000000000000000
->> [    0.004000] RDX: ffffea0000000000 RSI: 00000001b8308067 RDI: ffff8801ead19008
->> [    0.004000] RBP: ffff8801ead19008 R08: aaaaaaaaaaaaaaaa R09: 00000000063f4c80
->> [    0.004000] R10: aaaaaaaaaaaaaaaa R11: 0720072007200720 R12: 00000001b8308067
->> [    0.004000] R13: ffffffff81c8a9cc R14: ffff88018fd31000 R15: 000077ff80000000
->> [    0.004000] FS:  0000000000000000(0000) GS:ffff88020f600000(0000) knlGS:0000000000000000
->> [    0.004000] CS:  e033 DS: 0000 ES: 0000 CR0: 0000000080050033
->> [    0.004000] CR2: ffff8801ead19008 CR3: 0000000001c09000 CR4: 0000000000042660
->> [    0.004000] Call Trace:
->> [    0.004000]  __pmd_alloc+0x128/0x140
->> [    0.004000]  ? acpi_os_map_iomem+0x175/0x1b0
->> [    0.004000]  ioremap_page_range+0x3f4/0x410
->> [    0.004000]  ? acpi_os_map_iomem+0x175/0x1b0
->> [    0.004000]  __ioremap_caller+0x1c3/0x2e0
->> [    0.004000]  acpi_os_map_iomem+0x175/0x1b0
->> [    0.004000]  acpi_tb_acquire_table+0x39/0x66
->> [    0.004000]  acpi_tb_validate_table+0x44/0x7c
->> [    0.004000]  acpi_tb_verify_temp_table+0x45/0x304
->> [    0.004000]  ? acpi_ut_acquire_mutex+0x12a/0x1c2
->> [    0.004000]  acpi_reallocate_root_table+0x12d/0x141
->> [    0.004000]  acpi_early_init+0x4d/0x10a
->> [    0.004000]  start_kernel+0x3eb/0x4a1
->> [    0.004000]  ? set_init_arg+0x55/0x55
->> [    0.004000]  xen_start_kernel+0x528/0x532
->> [    0.004000] Code: 48 01 e8 48 0f 42 15 a2 fd be 00 48 01 d0 48 ba 00 00 00 00 00 ea ff ff 48 c1 e8 0c 48 c1 e0 06 48 01 d0 48 8b 00 f6 c4 02 75 5d <4c> 89 65 00 5b 5d 41 5c c3 65 8b 05 52 9f fe 7e 89 c0 48 0f a3
->> [    0.004000] RIP: xen_set_pud+0x4e/0xd0 RSP: ffffffff81c03cd8
->> [    0.004000] CR2: ffff8801ead19008
->> [    0.004000] ---[ end trace 38eca2e56f1b642e ]---
->>
->> Avoid this problem by not deferring struct page initialization when
->> running as Xen pv guest.
->>
->> ...
->>
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -347,6 +347,9 @@ static inline bool update_defer_init(pg_data_t *pgdat,
->>   	/* Always populate low zones for address-constrained allocations */
->>   	if (zone_end < pgdat_end_pfn(pgdat))
->>   		return true;
->> +	/* Xen PV domains need page structures early */
->> +	if (xen_pv_domain())
->> +		return true;
->>   	(*nr_initialised)++;
->>   	if ((*nr_initialised > pgdat->static_init_pgcnt) &&
->>   	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
-> 
-> I'm OK with applying the patch as a short-term regression fix but I do
-> wonder whether it's the correct fix.  What is special about Xen (in
-> some configurations!) that causes it to find a hole in deferred
-> initialization?
-> 
-> I'd like us to delve further please.  Because if Xen found a hole in
-> the implementation, others might do so.  Or perhaps Xen is doing
-> something naughty.
-> 
+It's in Documentation/sysctl/vm=2Etxt and in 'man proc' [1]
+
+[1] https://git=2Ekernel=2Eorg/pub/scm/docs/man-pages/man-pages=2Egit/tree=
+/man5/proc=2E5
+
+>thanks,
+
+--=20
+Sincerely yours,
+Mike=2E
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
