@@ -1,76 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 759BE6B0005
-	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 17:48:22 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id o20so3693722wro.3
-        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 14:48:22 -0800 (PST)
-Received: from smtp1.de.adit-jv.com (smtp1.de.adit-jv.com. [62.225.105.245])
-        by mx.google.com with ESMTPS id v7si15081827wrd.168.2018.02.17.14.48.19
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E598F6B0003
+	for <linux-mm@kvack.org>; Sat, 17 Feb 2018 20:06:49 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id b67so6147695qkh.5
+        for <linux-mm@kvack.org>; Sat, 17 Feb 2018 17:06:49 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h89sor2107505qtd.103.2018.02.17.17.06.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Feb 2018 14:48:19 -0800 (PST)
-Date: Sat, 17 Feb 2018 23:48:06 +0100
-From: Eugeniu Rosca <erosca@de.adit-jv.com>
-Subject: Re: [PATCH v3 1/1] mm: page_alloc: skip over regions of invalid pfns
- on UMA
-Message-ID: <20180217224806.GA32581@vmlxhi-102.adit-jv.com>
-References: <20180124143545.31963-1-erosca@de.adit-jv.com>
- <20180124143545.31963-2-erosca@de.adit-jv.com>
- <20180129184746.GK21609@dhcp22.suse.cz>
- <20180203122422.GA11832@vmlxhi-102.adit-jv.com>
- <20180212150314.GG3443@dhcp22.suse.cz>
- <20180212161640.GA30811@vmlxhi-102.adit-jv.com>
- <20180212184759.GI3443@dhcp22.suse.cz>
- <20180216164328.de7d37584409e827c396bf69@linux-foundation.org>
+        (Google Transport Security);
+        Sat, 17 Feb 2018 17:06:48 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180216164328.de7d37584409e827c396bf69@linux-foundation.org>
+In-Reply-To: <20180216153823.ad74f1d2c157adc67ed2c970@linux-foundation.org>
+References: <20180213014220.2464-1-ying.huang@intel.com> <20180213154123.9f4ef9e406ea8365ca46d9c5@linux-foundation.org>
+ <87fu64jthz.fsf@yhuang-dev.intel.com> <20180216153823.ad74f1d2c157adc67ed2c970@linux-foundation.org>
+From: huang ying <huang.ying.caritas@gmail.com>
+Date: Sun, 18 Feb 2018 09:06:47 +0800
+Message-ID: <CAC=cRTMuDtuwCqTK+0UfaTrKcVHzuN4YkHLnH3Yn7FkxknKXtw@mail.gmail.com>
+Subject: Re: [PATCH -mm -v5 RESEND] mm, swap: Fix race between swapoff and
+ some swap operations
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steven Sistare <steven.sistare@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Paul Burton <paul.burton@mips.com>, James Hartley <james.hartley@mips.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eugeniu Rosca <erosca@de.adit-jv.com>, Eugeniu Rosca <rosca.eugeniu@gmail.com>
+Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, jglisse@redhat.com, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-Hello Andrew,
+On Sat, Feb 17, 2018 at 7:38 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 14 Feb 2018 08:38:00 +0800 "Huang\, Ying" <ying.huang@intel.com> wrote:
+>
+>> Andrew Morton <akpm@linux-foundation.org> writes:
+>>
+>> > On Tue, 13 Feb 2018 09:42:20 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+>> >
+>> >> From: Huang Ying <ying.huang@intel.com>
+>> >>
+>> >> When the swapin is performed, after getting the swap entry information
+>> >> from the page table, system will swap in the swap entry, without any
+>> >> lock held to prevent the swap device from being swapoff.  This may
+>> >> cause the race like below,
+>> >
+>> > Sigh.  In terms of putting all the work into the swapoff path and
+>> > avoiding overheads in the hot paths, I guess this is about as good as
+>> > it will get.
+>> >
+>> > It's a very low-priority fix so I'd prefer to keep the patch in -mm
+>> > until Hugh has had an opportunity to think about it.
+>> >
+>> >> ...
+>> >>
+>> >> +/*
+>> >> + * Check whether swap entry is valid in the swap device.  If so,
+>> >> + * return pointer to swap_info_struct, and keep the swap entry valid
+>> >> + * via preventing the swap device from being swapoff, until
+>> >> + * put_swap_device() is called.  Otherwise return NULL.
+>> >> + */
+>> >> +struct swap_info_struct *get_swap_device(swp_entry_t entry)
+>> >> +{
+>> >> +  struct swap_info_struct *si;
+>> >> +  unsigned long type, offset;
+>> >> +
+>> >> +  if (!entry.val)
+>> >> +          goto out;
+>> >> +  type = swp_type(entry);
+>> >> +  if (type >= nr_swapfiles)
+>> >> +          goto bad_nofile;
+>> >> +  si = swap_info[type];
+>> >> +
+>> >> +  preempt_disable();
+>> >
+>> > This preempt_disable() is later than I'd expect.  If a well-timed race
+>> > occurs, `si' could now be pointing at a defunct entry.  If that
+>> > well-timed race include a swapoff AND a swapon, `si' could be pointing
+>> > at the info for a new device?
+>>
+>> struct swap_info_struct pointed to by swap_info[] will never be freed.
+>> During swapoff, we only free the memory pointed to by the fields of
+>> struct swap_info_struct.  And when swapon, we will always reuse
+>> swap_info[type] if it's not NULL.  So it should be safe to dereference
+>> swap_info[type] with preemption enabled.
+>
+> That's my point.  If there's a race window during which there is a
+> parallel swapoff+swapon, this swap_info_struct may now be in use for a
+> different device?
 
-On Fri, Feb 16, 2018 at 04:43:28PM -0800, Andrew Morton wrote:
-> On Mon, 12 Feb 2018 19:47:59 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > > prerequisite for this is to reach some agreement on what people think is
-> > > the best option, which I feel didn't occur yet.
-> > 
-> > I do not have a _strong_ preference here as well. So I will leave the
-> > decision to you.
-> > 
-> > In any case feel free to add
-> > Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> I find Michal's version to be a little tidier.
-> 
-> Eugeniu, please send Michal's patch at me with a fresh changelog, with
-> your signed-off-by and your tested-by and your reported-by and we may
-> as well add Michal's (thus-far-missing) signed-off-by ;)
+Yes.  It's possible.  And the caller of get_swap_device() can live
+with it if the swap_info_struct has been fully initialized.  For
+example, for the race in the patch description,
 
-I only needed to apply below touch to Michal's patch, which otherwise
-works fine for me. I've sent it to you as v4. Thank you very much for
-picking it.
+do_swap_page
+  swapin_readahead
+    __read_swap_cache_async
+      swapcache_prepare
+        __swap_duplicate
 
-Best regards,
-Eugeniu.
+in __swap_duplicate(), it's possible that the swap device returned by
+get_swap_device() is different from the swap device when
+__swap_duplicate() call get_swap_device().  But the struct_info_struct
+has been fully initialized, so __swap_duplicate() can reference
+si->swap_map[] safely.  And we will check si->swap_map[] before any
+further operation.  Even if the swap entry is swapped out again for
+the new swap device, we will check the page table again in
+do_swap_page().  So there is no functionality problem.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index cb3f844092ad..66891b3fb144 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5356,7 +5356,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-                         * end_pfn), such that we hit a valid pfn (or end_pfn)
-                         * on our next iteration of the loop.
-                         */
--                       if IS_ENABLED(HAVE_MEMBLOCK)
-+                       if (IS_ENABLED(CONFIG_HAVE_MEMBLOCK))
-                                pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
-                        continue;
-                }
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
