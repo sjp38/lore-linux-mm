@@ -1,76 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 248CD6B0006
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 08:56:51 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id h13so6024404wrc.9
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 05:56:51 -0800 (PST)
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BC836B0005
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 09:16:41 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id e64so8844343itd.1
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 06:16:41 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k26sor8317358edk.34.2018.02.19.05.56.49
+        by mx.google.com with SMTPS id 202sor2098656iti.46.2018.02.19.06.16.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 19 Feb 2018 05:56:49 -0800 (PST)
-Date: Mon, 19 Feb 2018 16:56:46 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [mainline][Memory off/on][83e3c48] kernel Oops with memory
- hot-unplug on ppc
-Message-ID: <20180219135646.lsmxkbgdwrjdlwxy@node.shutemov.name>
-References: <1517840664.647.17.camel@abdul.in.ibm.com>
- <20180219134735.GN21134@dhcp22.suse.cz>
+        Mon, 19 Feb 2018 06:16:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180219134735.GN21134@dhcp22.suse.cz>
+In-Reply-To: <20180217161230.GA16890@jordon-HP-15-Notebook-PC>
+References: <20180217161230.GA16890@jordon-HP-15-Notebook-PC>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Mon, 19 Feb 2018 09:15:59 -0500
+Message-ID: <CALZtONBW8imhSCu5RU68U0L+TtYiOgAdzwZa0NdrgVEGdSGELw@mail.gmail.com>
+Subject: Re: [PATCH] mm: zbud: Remove zbud_map() and zbud_unmap() function
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Abdul Haleem <abdhalee@linux.vnet.ibm.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, mpe <mpe@ellerman.id.au>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-kernel <linux-kernel@vger.kernel.org>, sachinp <sachinp@linux.vnet.ibm.com>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Seth Jennings <sjenning@redhat.com>, Linux-MM <linux-mm@kvack.org>
 
-On Mon, Feb 19, 2018 at 02:47:35PM +0100, Michal Hocko wrote:
-> [CC Kirill - I have a vague recollection that there were some follow ups
->  for 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for
->  CONFIG_SPARSEMEM_EXTREME=y"). Does any of them apply to this issue?]
+On Sat, Feb 17, 2018 at 11:12 AM, Souptick Joarder <jrdr.linux@gmail.com> wrote:
+> zbud_unmap() is empty function and not getting called from
+> anywhere except from zbud_zpool_unmap(). Hence we can remove
+> zbud_unmap().
+>
+> Similarly, zbud_map() is only returning (void *)(handle)
+> which can be done within zbud_zpool_map(). Hence we can
+> remove zbud_map().
 
-All fixups are in v4.15.
+The comments at the top of zbud.c talk about using zbud_map() and
+zbud_unmap(), so just removing the functions without changing the doc
+in the file is not right.
 
-> On Mon 05-02-18 19:54:24, Abdul Haleem wrote:
-> > 
-> > Greetings,
-> > 
-> > Kernel Oops seen when memory hot-unplug on powerpc mainline kernel.
-> > 
-> > Machine: Power6 PowerVM ppc64
-> > Kernel: 4.15.0
-> > Config: attached
-> > gcc: 4.8.2
-> > Test: Memory hot-unplug of a memory block
-> > echo offline > /sys/devices/system/memory/memory<x>/state
-> > 
-> > The faulty instruction address points to the code path:
-> > 
-> > # gdb -batch vmlinux -ex 'list *(0xc000000000238330)'
-> > 0xc000000000238330 is in get_pfnblock_flags_mask
-> > (./include/linux/mmzone.h:1157).
-> > 1152	#endif
-> > 1153	
-> > 1154	static inline struct mem_section *__nr_to_section(unsigned long nr)
-> > 1155	{
-> > 1156	#ifdef CONFIG_SPARSEMEM_EXTREME
-> > 1157		if (!mem_section)
-> > 1158			return NULL;
-> > 1159	#endif
-> > 1160		if (!mem_section[SECTION_NR_TO_ROOT(nr)])
-> > 1161			return NULL;
-> > 
-> > 
-> > The code was first introduced with commit( 83e3c48: mm/sparsemem:
-> > Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y)
+Additionally, the functions will get compiled out, so this change
+won't actually make any difference in the compiled kernel.
 
-Any chance to bisect it?
+Finally, removing them from the header file makes the zbud API
+effectively unusable for any code except zpool, so it would be
+pointless to leave zbud.h in include/linux (which it doesn't
+necessarily need to be in anyway, but that's a different topic).
 
-Could you check if the commit just before 83e3c48729d9 is fine?
+I'd prefer to just leave zbud_map/zbud_unmap in the API, so NAK from me.
 
--- 
- Kirill A. Shutemov
+>
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> ---
+>  include/linux/zbud.h |  2 --
+>  mm/zbud.c            | 30 ++----------------------------
+>  2 files changed, 2 insertions(+), 30 deletions(-)
+>
+> diff --git a/include/linux/zbud.h b/include/linux/zbud.h
+> index b1eaf6e..565b88c 100644
+> --- a/include/linux/zbud.h
+> +++ b/include/linux/zbud.h
+> @@ -16,8 +16,6 @@ int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
+>         unsigned long *handle);
+>  void zbud_free(struct zbud_pool *pool, unsigned long handle);
+>  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
+> -void *zbud_map(struct zbud_pool *pool, unsigned long handle);
+> -void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
+>  u64 zbud_get_pool_size(struct zbud_pool *pool);
+>
+>  #endif /* _ZBUD_H_ */
+> diff --git a/mm/zbud.c b/mm/zbud.c
+> index 28458f7..c83c876 100644
+> --- a/mm/zbud.c
+> +++ b/mm/zbud.c
+> @@ -188,11 +188,11 @@ static int zbud_zpool_shrink(void *pool, unsigned int pages,
+>  static void *zbud_zpool_map(void *pool, unsigned long handle,
+>                         enum zpool_mapmode mm)
+>  {
+> -       return zbud_map(pool, handle);
+> +       return (void *)(handle);
+>  }
+>  static void zbud_zpool_unmap(void *pool, unsigned long handle)
+>  {
+> -       zbud_unmap(pool, handle);
+> +
+>  }
+>
+>  static u64 zbud_zpool_total_size(void *pool)
+> @@ -569,32 +569,6 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+>  }
+>
+>  /**
+> - * zbud_map() - maps the allocation associated with the given handle
+> - * @pool:      pool in which the allocation resides
+> - * @handle:    handle associated with the allocation to be mapped
+> - *
+> - * While trivial for zbud, the mapping functions for others allocators
+> - * implementing this allocation API could have more complex information encoded
+> - * in the handle and could create temporary mappings to make the data
+> - * accessible to the user.
+> - *
+> - * Returns: a pointer to the mapped allocation
+> - */
+> -void *zbud_map(struct zbud_pool *pool, unsigned long handle)
+> -{
+> -       return (void *)(handle);
+> -}
+> -
+> -/**
+> - * zbud_unmap() - maps the allocation associated with the given handle
+> - * @pool:      pool in which the allocation resides
+> - * @handle:    handle associated with the allocation to be unmapped
+> - */
+> -void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
+> -{
+> -}
+> -
+> -/**
+>   * zbud_get_pool_size() - gets the zbud pool size in pages
+>   * @pool:      pool whose size is being queried
+>   *
+> --
+> 1.9.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
