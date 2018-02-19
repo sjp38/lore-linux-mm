@@ -1,124 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BC836B0005
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 09:16:41 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id e64so8844343itd.1
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 06:16:41 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 202sor2098656iti.46.2018.02.19.06.16.39
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A816A6B0005
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 09:33:51 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id d2so6014029plr.11
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 06:33:51 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f90-v6si3820181plb.63.2018.02.19.06.33.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 19 Feb 2018 06:16:40 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 19 Feb 2018 06:33:50 -0800 (PST)
+Date: Mon, 19 Feb 2018 15:33:43 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC PATCH 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
+Message-ID: <20180219143343.u5ckigir7svpkiem@quack2.suse.cz>
+References: <20180214025653.132942-1-shakeelb@google.com>
+ <20180214025653.132942-4-shakeelb@google.com>
+ <CAOQ4uxjHtV+9=T3wGdg9na0zPiBYzDtDAOJx7rWUMv5KS6Bi2g@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180217161230.GA16890@jordon-HP-15-Notebook-PC>
-References: <20180217161230.GA16890@jordon-HP-15-Notebook-PC>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Mon, 19 Feb 2018 09:15:59 -0500
-Message-ID: <CALZtONBW8imhSCu5RU68U0L+TtYiOgAdzwZa0NdrgVEGdSGELw@mail.gmail.com>
-Subject: Re: [PATCH] mm: zbud: Remove zbud_map() and zbud_unmap() function
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOQ4uxjHtV+9=T3wGdg9na0zPiBYzDtDAOJx7rWUMv5KS6Bi2g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Seth Jennings <sjenning@redhat.com>, Linux-MM <linux-mm@kvack.org>
+To: Amir Goldstein <amir73il@gmail.com>
+Cc: Shakeel Butt <shakeelb@google.com>, Jan Kara <jack@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, cgroups@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Sat, Feb 17, 2018 at 11:12 AM, Souptick Joarder <jrdr.linux@gmail.com> wrote:
-> zbud_unmap() is empty function and not getting called from
-> anywhere except from zbud_zpool_unmap(). Hence we can remove
-> zbud_unmap().
->
-> Similarly, zbud_map() is only returning (void *)(handle)
-> which can be done within zbud_zpool_map(). Hence we can
-> remove zbud_map().
+On Wed 14-02-18 10:08:31, Amir Goldstein wrote:
+> On Wed, Feb 14, 2018 at 4:56 AM, Shakeel Butt <shakeelb@google.com> wrote:
+> > This is RFC patch and the discussion on the API is still happening at
+> > the following link but I am sending the early draft for feedback.
+> > [link] https://marc.info/?l=linux-api&m=151850343717274
+> >
+> > A lot of memory can be consumed by the events generated for the huge or
+> > unlimited queues if there is either no or slow listener. This can cause
+> > system level memory pressure or OOMs. So, it's better to account the
+> > fsnotify kmem caches to the memcg of the listener.
+> >
+> > There are seven fsnotify kmem caches and among them allocations from
+> > dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
+> > inotify_inode_mark_cachep happens in the context of syscall from the
+> 
+> fsnotify_mark_connector_cachep as well.
 
-The comments at the top of zbud.c talk about using zbud_map() and
-zbud_unmap(), so just removing the functions without changing the doc
-in the file is not right.
+Yes, but for the purposes of memcg accounting, I'd just ignore this cache
+and not account fsnotify_mark_connector objects at all. They are small
+compared to the notification mark or events and it is unclear whom to
+account connector to since it is shared by all events attached to the
+inode.
 
-Additionally, the functions will get compiled out, so this change
-won't actually make any difference in the compiled kernel.
-
-Finally, removing them from the header file makes the zbud API
-effectively unusable for any code except zpool, so it would be
-pointless to leave zbud.h in include/linux (which it doesn't
-necessarily need to be in anyway, but that's a different topic).
-
-I'd prefer to just leave zbud_map/zbud_unmap in the API, so NAK from me.
-
->
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> ---
->  include/linux/zbud.h |  2 --
->  mm/zbud.c            | 30 ++----------------------------
->  2 files changed, 2 insertions(+), 30 deletions(-)
->
-> diff --git a/include/linux/zbud.h b/include/linux/zbud.h
-> index b1eaf6e..565b88c 100644
-> --- a/include/linux/zbud.h
-> +++ b/include/linux/zbud.h
-> @@ -16,8 +16,6 @@ int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
->         unsigned long *handle);
->  void zbud_free(struct zbud_pool *pool, unsigned long handle);
->  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
-> -void *zbud_map(struct zbud_pool *pool, unsigned long handle);
-> -void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
->  u64 zbud_get_pool_size(struct zbud_pool *pool);
->
->  #endif /* _ZBUD_H_ */
-> diff --git a/mm/zbud.c b/mm/zbud.c
-> index 28458f7..c83c876 100644
-> --- a/mm/zbud.c
-> +++ b/mm/zbud.c
-> @@ -188,11 +188,11 @@ static int zbud_zpool_shrink(void *pool, unsigned int pages,
->  static void *zbud_zpool_map(void *pool, unsigned long handle,
->                         enum zpool_mapmode mm)
->  {
-> -       return zbud_map(pool, handle);
-> +       return (void *)(handle);
->  }
->  static void zbud_zpool_unmap(void *pool, unsigned long handle)
->  {
-> -       zbud_unmap(pool, handle);
-> +
->  }
->
->  static u64 zbud_zpool_total_size(void *pool)
-> @@ -569,32 +569,6 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
->  }
->
->  /**
-> - * zbud_map() - maps the allocation associated with the given handle
-> - * @pool:      pool in which the allocation resides
-> - * @handle:    handle associated with the allocation to be mapped
-> - *
-> - * While trivial for zbud, the mapping functions for others allocators
-> - * implementing this allocation API could have more complex information encoded
-> - * in the handle and could create temporary mappings to make the data
-> - * accessible to the user.
-> - *
-> - * Returns: a pointer to the mapped allocation
-> - */
-> -void *zbud_map(struct zbud_pool *pool, unsigned long handle)
-> -{
-> -       return (void *)(handle);
-> -}
-> -
-> -/**
-> - * zbud_unmap() - maps the allocation associated with the given handle
-> - * @pool:      pool in which the allocation resides
-> - * @handle:    handle associated with the allocation to be unmapped
-> - */
-> -void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
-> -{
-> -}
-> -
-> -/**
->   * zbud_get_pool_size() - gets the zbud pool size in pages
->   * @pool:      pool whose size is being queried
->   *
-> --
-> 1.9.1
->
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
