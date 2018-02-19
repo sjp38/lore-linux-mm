@@ -1,85 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E88BE6B0005
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 08:10:29 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id c188so708065wma.7
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 05:10:29 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 647CD6B0005
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 08:23:18 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id 62so5989056wrg.0
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 05:23:18 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w190si6253270wmd.61.2018.02.19.05.10.28
+        by mx.google.com with ESMTPS id 62si14149630wml.166.2018.02.19.05.23.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Feb 2018 05:10:28 -0800 (PST)
-Date: Mon, 19 Feb 2018 13:10:24 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/1] mm, compaction: correct the bounds of
- __fragmentation_index()
-Message-ID: <20180219131024.oqonm6ba3pl2l4qa@suse.de>
-References: <1518972475-11340-1-git-send-email-robert.m.harris@oracle.com>
- <1518972475-11340-2-git-send-email-robert.m.harris@oracle.com>
- <20180219094735.g4sm4kxawjnojgyd@suse.de>
- <CB73A16F-5B32-4681-86E3-00786C67ADEF@oracle.com>
+        Mon, 19 Feb 2018 05:23:16 -0800 (PST)
+Date: Mon, 19 Feb 2018 14:23:13 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v4 4/6] mm/memory_hotplug: optimize probe routine
+Message-ID: <20180219132313.GK21134@dhcp22.suse.cz>
+References: <20180215165920.8570-1-pasha.tatashin@oracle.com>
+ <20180215165920.8570-5-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CB73A16F-5B32-4681-86E3-00786C67ADEF@oracle.com>
+In-Reply-To: <20180215165920.8570-5-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Harris <robert.m.harris@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Yafang Shao <laoar.shao@gmail.com>, Kangmin Park <l4stpr0gr4m@gmail.com>, Yisheng Xie <xieyisheng1@huawei.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Huang Ying <ying.huang@intel.com>, Vinayak Menon <vinmenon@codeaurora.org>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
-On Mon, Feb 19, 2018 at 12:26:39PM +0000, Robert Harris wrote:
+On Thu 15-02-18 11:59:18, Pavel Tatashin wrote:
+> When memory is hotplugged pages_correctly_reserved() is called to verify
+> that the added memory is present, this routine traverses through every
+> struct page and verifies that PageReserved() is set. This is a slow
+> operation especially if a large amount of memory is added.
 > 
+> Instead of checking every page, it is enough to simply check that the
+> section is present, has mapping (struct page array is allocated), and the
+> mapping is online.
 > 
-> > On 19 Feb 2018, at 09:47, Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> > On Sun, Feb 18, 2018 at 04:47:55PM +0000, robert.m.harris@oracle.com wrote:
-> >> From: "Robert M. Harris" <robert.m.harris@oracle.com>
-> >> 
-> >> __fragmentation_index() calculates a value used to determine whether
-> >> compaction should be favoured over page reclaim in the event of allocation
-> >> failure.  The calculation itself is opaque and, on inspection, does not
-> >> match its existing description.  The function purports to return a value
-> >> between 0 and 1000, representing units of 1/1000.  Barring the case of a
-> >> pathological shortfall of memory, the lower bound is instead 500.  This is
-> >> significant because it is the default value of sysctl_extfrag_threshold,
-> >> i.e. the value below which compaction should be avoided in favour of page
-> >> reclaim for costly pages.
-> >> 
-> >> This patch implements and documents a modified version of the original
-> >> expression that returns a value in the range 0 <= index < 1000.  It amends
-> >> the default value of sysctl_extfrag_threshold to preserve the existing
-> >> behaviour.
-> >> 
-> >> Signed-off-by: Robert M. Harris <robert.m.harris@oracle.com>
-> > 
-> > You have to update sysctl_extfrag_threshold as well for the new bounds.
+> In addition, we should not excpect that probe routine sets flags in struct
+> page, as the struct pages have not yet been initialized. The initialization
+> should be done in __init_single_page(), the same as during boot.
 > 
-> This patch makes its default value zero.
-> 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 
-Sorry, I'm clearly blind.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-> > It effectively makes it a no-op but it was a no-op already and adjusting
-> > that default should be supported by data indicating it's safe.
-> 
-> Would it be acceptable to demonstrate using tracing that in both the
-> pre- and post-patch cases
-> 
->   1. compaction is attempted regardless of fragmentation index,
->      excepting that
-> 
->   2. reclaim is preferred even for non-zero fragmentation during
->      an extreme shortage of memory
-> 
+Thanks!
 
-If you can demonstrate that for both reclaim-intensive and
-compaction-intensive workloads then yes. Also include the reclaim and
-compaction stats from /proc/vmstat and not just tracepoints to demonstrate
-that reclaim doesn't get out of control and reclaim the world in
-response to failed high-order allocations such as THP.
+> ---
+>  drivers/base/memory.c | 36 ++++++++++++++++++++----------------
+>  1 file changed, 20 insertions(+), 16 deletions(-)
+> 
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index fe4b24f05f6a..deb3f029b451 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -187,13 +187,14 @@ int memory_isolate_notify(unsigned long val, void *v)
+>  }
+>  
+>  /*
+> - * The probe routines leave the pages reserved, just as the bootmem code does.
+> - * Make sure they're still that way.
+> + * The probe routines leave the pages uninitialized, just as the bootmem code
+> + * does. Make sure we do not access them, but instead use only information from
+> + * within sections.
+>   */
+> -static bool pages_correctly_reserved(unsigned long start_pfn)
+> +static bool pages_correctly_probed(unsigned long start_pfn)
+>  {
+> -	int i, j;
+> -	struct page *page;
+> +	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+> +	unsigned long section_nr_end = section_nr + sections_per_block;
+>  	unsigned long pfn = start_pfn;
+>  
+>  	/*
+> @@ -201,21 +202,24 @@ static bool pages_correctly_reserved(unsigned long start_pfn)
+>  	 * SPARSEMEM_VMEMMAP. We lookup the page once per section
+>  	 * and assume memmap is contiguous within each section
+>  	 */
+> -	for (i = 0; i < sections_per_block; i++, pfn += PAGES_PER_SECTION) {
+> +	for (; section_nr < section_nr_end; section_nr++) {
+>  		if (WARN_ON_ONCE(!pfn_valid(pfn)))
+>  			return false;
+> -		page = pfn_to_page(pfn);
+> -
+> -		for (j = 0; j < PAGES_PER_SECTION; j++) {
+> -			if (PageReserved(page + j))
+> -				continue;
+> -
+> -			printk(KERN_WARNING "section number %ld page number %d "
+> -				"not reserved, was it already online?\n",
+> -				pfn_to_section_nr(pfn), j);
+>  
+> +		if (!present_section_nr(section_nr)) {
+> +			pr_warn("section %ld pfn[%lx, %lx) not present",
+> +				section_nr, pfn, pfn + PAGES_PER_SECTION);
+> +			return false;
+> +		} else if (!valid_section_nr(section_nr)) {
+> +			pr_warn("section %ld pfn[%lx, %lx) no valid memmap",
+> +				section_nr, pfn, pfn + PAGES_PER_SECTION);
+> +			return false;
+> +		} else if (online_section_nr(section_nr)) {
+> +			pr_warn("section %ld pfn[%lx, %lx) is already online",
+> +				section_nr, pfn, pfn + PAGES_PER_SECTION);
+>  			return false;
+>  		}
+> +		pfn += PAGES_PER_SECTION;
+>  	}
+>  
+>  	return true;
+> @@ -237,7 +241,7 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
+>  
+>  	switch (action) {
+>  	case MEM_ONLINE:
+> -		if (!pages_correctly_reserved(start_pfn))
+> +		if (!pages_correctly_probed(start_pfn))
+>  			return -EBUSY;
+>  
+>  		ret = online_pages(start_pfn, nr_pages, online_type);
+> -- 
+> 2.16.1
+> 
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
