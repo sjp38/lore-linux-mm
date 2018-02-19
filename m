@@ -1,44 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A0C86B0003
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 15:54:50 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q15so2430679pgv.2
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 12:54:50 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b4-v6si335709plb.648.2018.02.20.12.54.48
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E316A6B0003
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 16:07:04 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id h8so11280521iob.20
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 13:07:04 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id x26si14155776wmc.182.2018.02.19.13.05.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 20 Feb 2018 12:54:49 -0800 (PST)
-Date: Tue, 20 Feb 2018 12:54:42 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 3/6] struct page: add field for vm_struct
-Message-ID: <20180220205442.GA15973@bombadil.infradead.org>
-References: <20180211031920.3424-1-igor.stoppa@huawei.com>
- <20180211031920.3424-4-igor.stoppa@huawei.com>
- <20180211211646.GC4680@bombadil.infradead.org>
- <cef01110-dc23-4442-f277-88d1d3662e00@huawei.com>
- <b59546a4-5a5b-ca48-3b51-09440b6a5493@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Feb 2018 13:05:36 -0800 (PST)
+Date: Mon, 19 Feb 2018 22:05:23 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 00/11] APEI in_nmi() rework and arm64 SDEI wire-up
+Message-ID: <20180219210523.GA17922@pd.tnic>
+References: <20180215185606.26736-1-james.morse@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <b59546a4-5a5b-ca48-3b51-09440b6a5493@huawei.com>
+In-Reply-To: <20180215185606.26736-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: rdunlap@infradead.org, corbet@lwn.net, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, jglisse@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>
 
-On Tue, Feb 20, 2018 at 09:53:30PM +0200, Igor Stoppa wrote:
-> The patch relies on the function vmalloc_to_page ... which will return
-> NULL when applied to huge mappings, while the original implementation
-> will still work.
+On Thu, Feb 15, 2018 at 06:55:55PM +0000, James Morse wrote:
+> Hello!
+> 
+> The aim of this series is to wire arm64's SDEI into APEI.
+> 
+> What's SDEI? Its ARM's "Software Delegated Exception Interface" [0]. It's
+> used by firmware to tell the OS about firmware-first RAS events.
+> 
+> These Software exceptions can interrupt anything, so I describe them as
+> NMI-like. They aren't the only NMI-like way to notify the OS about
+> firmware-first RAS events, the ACPI spec also defines 'NOTFIY_SEA' and
+> 'NOTIFY_SEI'.
+> 
+> (Acronyms: SEA, Synchronous External Abort. The CPU requested some memory,
+> but the owner of that memory said no. These are always synchronous with the
+> instruction that caused them. SEI, System-Error Interrupt, commonly called
+> SError. This is an asynchronous external abort, the memory-owner didn't say no
+> at the right point. Collectively these things are called external-aborts
+> How is firmware involved? It traps these and re-injects them into the kernel
+> once its written the CPER records).
 
-Huh?  vmalloc_to_page() should work for huge mappings...
+Thank you about those! This is how people should write 0/N introductory
+messages with fancy new abbreviations.
 
-> It was found while testing on a configuration with framebuffer.
+:-)
 
-... ah.  You tried to use vmalloc_to_page() on something which wasn't
-backed by a struct page.  That's *supposed* to return NULL, but my
-guess is that after this patch it returned garbage.
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
