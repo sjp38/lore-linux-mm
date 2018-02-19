@@ -1,57 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A816A6B0005
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 09:33:51 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id d2so6014029plr.11
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 06:33:51 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AEBBA6B0007
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 09:42:20 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id e143so4354798wma.2
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 06:42:20 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f90-v6si3820181plb.63.2018.02.19.06.33.50
+        by mx.google.com with ESMTPS id s3si5589020wra.67.2018.02.19.06.42.19
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Feb 2018 06:33:50 -0800 (PST)
-Date: Mon, 19 Feb 2018 15:33:43 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC PATCH 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
-Message-ID: <20180219143343.u5ckigir7svpkiem@quack2.suse.cz>
-References: <20180214025653.132942-1-shakeelb@google.com>
- <20180214025653.132942-4-shakeelb@google.com>
- <CAOQ4uxjHtV+9=T3wGdg9na0zPiBYzDtDAOJx7rWUMv5KS6Bi2g@mail.gmail.com>
+        Mon, 19 Feb 2018 06:42:19 -0800 (PST)
+Date: Mon, 19 Feb 2018 15:42:16 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
+Message-ID: <20180219144216.GP21134@dhcp22.suse.cz>
+References: <20180216160110.641666320@linux.com>
+ <20180216160121.519788537@linux.com>
+ <20180219101935.cb3gnkbjimn5hbud@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOQ4uxjHtV+9=T3wGdg9na0zPiBYzDtDAOJx7rWUMv5KS6Bi2g@mail.gmail.com>
+In-Reply-To: <20180219101935.cb3gnkbjimn5hbud@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: Shakeel Butt <shakeelb@google.com>, Jan Kara <jack@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, cgroups@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Wed 14-02-18 10:08:31, Amir Goldstein wrote:
-> On Wed, Feb 14, 2018 at 4:56 AM, Shakeel Butt <shakeelb@google.com> wrote:
-> > This is RFC patch and the discussion on the API is still happening at
-> > the following link but I am sending the early draft for feedback.
-> > [link] https://marc.info/?l=linux-api&m=151850343717274
-> >
-> > A lot of memory can be consumed by the events generated for the huge or
-> > unlimited queues if there is either no or slow listener. This can cause
-> > system level memory pressure or OOMs. So, it's better to account the
-> > fsnotify kmem caches to the memcg of the listener.
-> >
-> > There are seven fsnotify kmem caches and among them allocations from
-> > dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
-> > inotify_inode_mark_cachep happens in the context of syscall from the
+On Mon 19-02-18 10:19:35, Mel Gorman wrote:
+[...]
+> Access to the pool is unprotected so you might create a reserve for jumbo
+> frames only to have them consumed by something else entirely. It's not
+> clear if that is even fixable as GFP flags are too coarse.
 > 
-> fsnotify_mark_connector_cachep as well.
+> It is not covered in the changelog why MIGRATE_HIGHATOMIC was not
+> sufficient for jumbo frames which are generally expected to be allocated
+> from atomic context. If there is a problem there then maybe
+> MIGRATE_HIGHATOMIC should be made more strict instead of a hack like
+> this. It'll be very difficult, if not impossible, for this to be tuned
+> properly.
+> 
+> Finally, while I accept that fragmentation over time is a problem for
+> unmovable allocations (fragmentation protection was originally designed
+> for THP/hugetlbfs), this is papering over the problem. If greater
+> protections are needed then the right approach is to be more strict about
+> fallbacks. Specifically, unmovable allocations should migrate all movable
+> pages out of migrate_unmovable pageblocks before falling back and that
+> can be controlled by policy due to the overhead of migration. For atomic
+> allocations, allow fallback but use kcompact or a workqueue to migrate
+> movable pages out of migrate_unmovable pageblocks to limit fallbacks in
+> the future.
 
-Yes, but for the purposes of memcg accounting, I'd just ignore this cache
-and not account fsnotify_mark_connector objects at all. They are small
-compared to the notification mark or events and it is unclear whom to
-account connector to since it is shared by all events attached to the
-inode.
+Completely agreed!
 
-								Honza
+> I'm not a fan of this patch.
+
+Yes, I think the approach is just wrong. It will just hit all sorts of
+weird corner cases and won't work reliable for those who care.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
