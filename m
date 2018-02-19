@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C46FB6B02A3
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 14:46:29 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q2so5801509pgf.22
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 11:46:29 -0800 (PST)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C6B246B02A4
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 14:46:30 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id 4so6715511plb.1
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 11:46:30 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a66si2652107pgc.221.2018.02.19.11.46.28
+        by mx.google.com with ESMTPS id c5-v6si8443388plo.194.2018.02.19.11.46.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 19 Feb 2018 11:46:28 -0800 (PST)
+        Mon, 19 Feb 2018 11:46:29 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v7 48/61] shmem: Convert shmem_wait_for_pins to XArray
-Date: Mon, 19 Feb 2018 11:45:43 -0800
-Message-Id: <20180219194556.6575-49-willy@infradead.org>
+Subject: [PATCH v7 49/61] shmem: Convert shmem_add_to_page_cache to XArray
+Date: Mon, 19 Feb 2018 11:45:44 -0800
+Message-Id: <20180219194556.6575-50-willy@infradead.org>
 In-Reply-To: <20180219194556.6575-1-willy@infradead.org>
 References: <20180219194556.6575-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,106 +22,161 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-As with shmem_tag_pins(), hold the lock around the entire loop instead
-of acquiring & dropping it for each entry we're going to untag.
+This removes the last caller of radix_tree_maybe_preload_order().
+Simpler code, unless we run out of memory for new xa_nodes partway through
+inserting entries into the xarray.  Hopefully we can support multi-index
+entries in the page cache soon and all the awful code goes away.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 59 ++++++++++++++++++++++++-----------------------------------
- 1 file changed, 24 insertions(+), 35 deletions(-)
+ mm/shmem.c | 87 ++++++++++++++++++++++++++++----------------------------------
+ 1 file changed, 39 insertions(+), 48 deletions(-)
 
 diff --git a/mm/shmem.c b/mm/shmem.c
-index 5b70fbdec605..ccb6d7ecdee0 100644
+index ccb6d7ecdee0..347661653803 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -2636,9 +2636,7 @@ static void shmem_tag_pins(struct address_space *mapping)
+@@ -558,9 +558,10 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
   */
- static int shmem_wait_for_pins(struct address_space *mapping)
+ static int shmem_add_to_page_cache(struct page *page,
+ 				   struct address_space *mapping,
+-				   pgoff_t index, void *expected)
++				   pgoff_t index, void *expected, gfp_t gfp)
  {
--	struct radix_tree_iter iter;
--	void **slot;
--	pgoff_t start;
-+	XA_STATE(xas, &mapping->pages, 0);
- 	struct page *page;
- 	int error, scan;
+-	int error, nr = hpage_nr_pages(page);
++	XA_STATE(xas, &mapping->pages, index);
++	unsigned long i, nr = 1UL << compound_order(page);
  
-@@ -2646,7 +2644,9 @@ static int shmem_wait_for_pins(struct address_space *mapping)
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	VM_BUG_ON_PAGE(index != round_down(index, nr), page);
+@@ -569,49 +570,47 @@ static int shmem_add_to_page_cache(struct page *page,
+ 	VM_BUG_ON(expected && PageTransHuge(page));
  
- 	error = 0;
- 	for (scan = 0; scan <= LAST_SCAN; scan++) {
--		if (!radix_tree_tagged(&mapping->pages, SHMEM_TAG_PINNED))
-+		unsigned int tagged = 0;
-+
-+		if (!xas_tagged(&xas, SHMEM_TAG_PINNED))
- 			break;
+ 	page_ref_add(page, nr);
+-	page->mapping = mapping;
+ 	page->index = index;
++	page->mapping = mapping;
  
- 		if (!scan)
-@@ -2654,45 +2654,34 @@ static int shmem_wait_for_pins(struct address_space *mapping)
- 		else if (schedule_timeout_killable((HZ << scan) / 200))
- 			scan = LAST_SCAN;
- 
--		start = 0;
--		rcu_read_lock();
--		radix_tree_for_each_tagged(slot, &mapping->pages, &iter,
--					   start, SHMEM_TAG_PINNED) {
+-	xa_lock_irq(&mapping->pages);
+-	if (PageTransHuge(page)) {
+-		void __rcu **results;
+-		pgoff_t idx;
+-		int i;
 -
--			page = radix_tree_deref_slot(slot);
--			if (radix_tree_exception(page)) {
--				if (radix_tree_deref_retry(page)) {
--					slot = radix_tree_iter_retry(&iter);
--					continue;
--				}
--
--				page = NULL;
--			}
--
--			if (page &&
--			    page_count(page) - page_mapcount(page) != 1) {
--				if (scan < LAST_SCAN)
--					goto continue_resched;
--
-+		xas_set(&xas, 0);
+-		error = 0;
+-		if (radix_tree_gang_lookup_slot(&mapping->pages,
+-					&results, &idx, index, 1) &&
+-				idx < index + HPAGE_PMD_NR) {
+-			error = -EEXIST;
++	do {
 +		xas_lock_irq(&xas);
-+		xas_for_each_tag(&xas, page, ULONG_MAX, SHMEM_TAG_PINNED) {
-+			bool clear = true;
-+			if (xa_is_value(page))
-+				continue;
-+			if (page_count(page) - page_mapcount(page) != 1) {
- 				/*
- 				 * On the last scan, we clean up all those tags
- 				 * we inserted; but make a note that we still
- 				 * found pages pinned.
- 				 */
--				error = -EBUSY;
-+				if (scan == LAST_SCAN)
-+					error = -EBUSY;
-+				else
-+					clear = false;
- 			}
-+			if (clear)
-+				xas_clear_tag(&xas, SHMEM_TAG_PINNED);
-+			if (++tagged % XA_CHECK_SCHED)
-+				continue;
- 
--			xa_lock_irq(&mapping->pages);
--			radix_tree_tag_clear(&mapping->pages,
--					     iter.index, SHMEM_TAG_PINNED);
--			xa_unlock_irq(&mapping->pages);
--continue_resched:
--			if (need_resched()) {
--				slot = radix_tree_iter_resume(slot, &iter);
--				cond_resched_rcu();
--			}
-+			xas_pause(&xas);
-+			xas_unlock_irq(&xas);
-+			cond_resched();
-+			xas_lock_irq(&xas);
++		xas_create_range(&xas, index + nr - 1);
++		if (xas_error(&xas))
++			goto unlock;
++		for (i = 0; i < nr; i++) {
++			void *entry = xas_load(&xas);
++			if (entry != expected)
++				xas_set_err(&xas, -ENOENT);
++			if (xas_error(&xas))
++				goto undo;
++			xas_store(&xas, page + i);
++			xas_next(&xas);
  		}
--		rcu_read_unlock();
+-
+-		if (!error) {
+-			for (i = 0; i < HPAGE_PMD_NR; i++) {
+-				error = radix_tree_insert(&mapping->pages,
+-						index + i, page + i);
+-				VM_BUG_ON(error);
+-			}
++		if (PageTransHuge(page)) {
+ 			count_vm_event(THP_FILE_ALLOC);
++			__inc_node_page_state(page, NR_SHMEM_THPS);
+ 		}
+-	} else if (!expected) {
+-		error = radix_tree_insert(&mapping->pages, index, page);
+-	} else {
+-		error = shmem_xa_replace(mapping, index, expected, page);
+-	}
+-
+-	if (!error) {
+ 		mapping->nrpages += nr;
+-		if (PageTransHuge(page))
+-			__inc_node_page_state(page, NR_SHMEM_THPS);
+ 		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
+ 		__mod_node_page_state(page_pgdat(page), NR_SHMEM, nr);
+-		xa_unlock_irq(&mapping->pages);
+-	} else {
++		goto unlock;
++undo:
++		while (i-- > 0) {
++			xas_store(&xas, NULL);
++			xas_prev(&xas);
++		}
++unlock:
 +		xas_unlock_irq(&xas);
++	} while (xas_nomem(&xas, gfp));
++
++	if (xas_error(&xas)) {
+ 		page->mapping = NULL;
+-		xa_unlock_irq(&mapping->pages);
+ 		page_ref_sub(page, nr);
++		return xas_error(&xas);
  	}
+-	return error;
++
++	return 0;
+ }
  
- 	return error;
+ /*
+@@ -1159,7 +1158,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
+ 	 */
+ 	if (!error)
+ 		error = shmem_add_to_page_cache(*pagep, mapping, index,
+-						radswap);
++						radswap, gfp);
+ 	if (error != -ENOMEM) {
+ 		/*
+ 		 * Truncation and eviction use free_swap_and_cache(), which
+@@ -1677,7 +1676,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 				false);
+ 		if (!error) {
+ 			error = shmem_add_to_page_cache(page, mapping, index,
+-						swp_to_radix_entry(swap));
++						swp_to_radix_entry(swap), gfp);
+ 			/*
+ 			 * We already confirmed swap under page lock, and make
+ 			 * no memory allocation here, so usually no possibility
+@@ -1783,13 +1782,8 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, inode,
+ 				PageTransHuge(page));
+ 		if (error)
+ 			goto unacct;
+-		error = radix_tree_maybe_preload_order(gfp & GFP_RECLAIM_MASK,
+-				compound_order(page));
+-		if (!error) {
+-			error = shmem_add_to_page_cache(page, mapping, hindex,
+-							NULL);
+-			radix_tree_preload_end();
+-		}
++		error = shmem_add_to_page_cache(page, mapping, hindex,
++						NULL, gfp & GFP_RECLAIM_MASK);
+ 		if (error) {
+ 			mem_cgroup_cancel_charge(page, memcg,
+ 					PageTransHuge(page));
+@@ -2256,11 +2250,8 @@ static int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
+ 	if (ret)
+ 		goto out_release;
+ 
+-	ret = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
+-	if (!ret) {
+-		ret = shmem_add_to_page_cache(page, mapping, pgoff, NULL);
+-		radix_tree_preload_end();
+-	}
++	ret = shmem_add_to_page_cache(page, mapping, pgoff, NULL,
++						gfp & GFP_RECLAIM_MASK);
+ 	if (ret)
+ 		goto out_release_uncharge;
+ 
 -- 
 2.16.1
 
