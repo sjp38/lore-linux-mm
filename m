@@ -1,90 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CBFC6B0005
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 05:57:40 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id w102so5700971wrb.21
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 02:57:40 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o4si1074044wra.176.2018.02.19.02.57.37
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D0286B0005
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 06:41:14 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id c76so9328675qke.19
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 03:41:14 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id y30si3966342qtd.117.2018.02.19.03.41.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Feb 2018 02:57:37 -0800 (PST)
-Date: Mon, 19 Feb 2018 11:57:35 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Fix races between address_space dereference and free
- in page_evicatable
-Message-ID: <20180219105735.32iplpsmnigwf75j@quack2.suse.cz>
-References: <20180212081227.1940-1-ying.huang@intel.com>
- <20180218092245.GA52741@rodete-laptop-imager.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180218092245.GA52741@rodete-laptop-imager.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Feb 2018 03:41:13 -0800 (PST)
+From: Robert Harris <robert.m.harris@oracle.com>
+Message-Id: <8C0380A8-56B9-43C4-9F80-996805FAE980@oracle.com>
+Content-Type: multipart/alternative;
+	boundary="Apple-Mail=_0D433A24-8820-47A1-80DF-3C3AD7B2662F"
+Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
+Subject: Re: [PATCH 0/1] mm, compaction: correct the bounds of
+ __fragmentation_index()
+Date: Mon, 19 Feb 2018 11:40:39 +0000
+In-Reply-To: <20180219082428.GC21134@dhcp22.suse.cz>
+References: <1518972475-11340-1-git-send-email-robert.m.harris@oracle.com>
+ <20180219082428.GC21134@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Yafang Shao <laoar.shao@gmail.com>, Kangmin Park <l4stpr0gr4m@gmail.com>, Mel Gorman <mgorman@suse.de>, Yisheng Xie <xieyisheng1@huawei.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Huang Ying <ying.huang@intel.com>, Vinayak Menon <vinmenon@codeaurora.org>
 
-Hi Minchan,
 
-On Sun 18-02-18 18:22:45, Minchan Kim wrote:
-> On Mon, Feb 12, 2018 at 04:12:27PM +0800, Huang, Ying wrote:
-> > From: Huang Ying <ying.huang@intel.com>
-> > 
-> > When page_mapping() is called and the mapping is dereferenced in
-> > page_evicatable() through shrink_active_list(), it is possible for the
-> > inode to be truncated and the embedded address space to be freed at
-> > the same time.  This may lead to the following race.
-> > 
-> > CPU1                                                CPU2
-> > 
-> > truncate(inode)                                     shrink_active_list()
-> >   ...                                                 page_evictable(page)
-> >   truncate_inode_page(mapping, page);
-> >     delete_from_page_cache(page)
-> >       spin_lock_irqsave(&mapping->tree_lock, flags);
-> >         __delete_from_page_cache(page, NULL)
-> >           page_cache_tree_delete(..)
-> >             ...                                         mapping = page_mapping(page);
-> >             page->mapping = NULL;
-> >             ...
-> >       spin_unlock_irqrestore(&mapping->tree_lock, flags);
-> >       page_cache_free_page(mapping, page)
-> >         put_page(page)
-> >           if (put_page_testzero(page)) -> false
-> > - inode now has no pages and can be freed including embedded address_space
-> > 
-> >                                                         mapping_unevictable(mapping)
-> > 							  test_bit(AS_UNEVICTABLE, &mapping->flags);
-> > - we've dereferenced mapping which is potentially already free.
-> > 
-> > Similar race exists between swap cache freeing and page_evicatable() too.
-> > 
-> > The address_space in inode and swap cache will be freed after a RCU
-> > grace period.  So the races are fixed via enclosing the page_mapping()
-> > and address_space usage in rcu_read_lock/unlock().  Some comments are
-> > added in code to make it clear what is protected by the RCU read lock.
-> 
-> Is it always true for every FSes, even upcoming FSes?
-> IOW, do we have any strict rule FS folks must use RCU(i.e., call_rcu)
-> to destroy inode?
-> 
-> Let's cc linux-fs.
+--Apple-Mail=_0D433A24-8820-47A1-80DF-3C3AD7B2662F
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=utf-8
 
-That's actually a good question. Pathname lookup relies on inodes being
-protected by RCU so "normal" filesystems definitely need to use RCU freeing
-of inodes. OTOH a filesystem could in theory refuse any attempt for RCU
-pathname walk (in its .d_revalidate/.d_compare callback) and then get away
-with freeing its inodes normally AFAICT. I don't see that happening
-anywhere in the tree but in theory it is possible with some effort... But
-frankly I don't see a good reason for that so all we should do is to
-document that .destroy_inode needs to free the inode structure through RCU
-if it uses page cache? Al?
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+
+> On 19 Feb 2018, at 08:24, Michal Hocko <mhocko@kernel.org> wrote:
+>=20
+> On Sun 18-02-18 16:47:54, robert.m.harris@oracle.com =
+<mailto:robert.m.harris@oracle.com> wrote:
+>> From: "Robert M. Harris" <robert.m.harris@oracle.com>
+>>=20
+>> __fragmentation_index() calculates a value used to determine whether
+>> compaction should be favoured over page reclaim in the event of
+>> allocation failure.  The function purports to return a value between =
+0
+>> and 1000, representing units of 1/1000.  Barring the case of a
+>> pathological shortfall of memory, the lower bound is instead 500.  =
+This
+>> is significant because it is the default value of
+>> sysctl_extfrag_threshold, i.e. the value below which compaction =
+should
+>> be avoided in favour of page reclaim for costly pages.
+>>=20
+>> Here's an illustration using a zone that I fragmented with selective
+>> calls to __alloc_pages() and __free_pages --- the fragmentation for
+>> order-1 could not be minimised further yet is reported as 0.5:
+>=20
+> Cover letter for a single patch is usually an overkill. Why is this
+> information not valuable in the patch description directly?
+
+This is my first patch and I=E2=80=99m not familiar with all the =
+conventions.
+I=E2=80=99ll incorporate those details in the next version of the commit =
+message.
+
+Robert Harris=
+
+--Apple-Mail=_0D433A24-8820-47A1-80DF-3C3AD7B2662F
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html;
+	charset=utf-8
+
+<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html; =
+charset=3Dutf-8"></head><body style=3D"word-wrap: break-word; =
+-webkit-nbsp-mode: space; line-break: after-white-space;" class=3D""><br =
+class=3D""><div><br class=3D""><blockquote type=3D"cite" class=3D""><div =
+class=3D"">On 19 Feb 2018, at 08:24, Michal Hocko &lt;<a =
+href=3D"mailto:mhocko@kernel.org" class=3D"">mhocko@kernel.org</a>&gt; =
+wrote:</div><br class=3D"Apple-interchange-newline"><div class=3D""><span =
+style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
+font-variant-caps: normal; font-weight: normal; letter-spacing: normal; =
+text-align: start; text-indent: 0px; text-transform: none; white-space: =
+normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; =
+display: inline !important;" class=3D"">On Sun 18-02-18 16:47:54,<span =
+class=3D"Apple-converted-space">&nbsp;</span></span><a =
+href=3D"mailto:robert.m.harris@oracle.com" style=3D"font-family: =
+Helvetica; font-size: 12px; font-style: normal; font-variant-caps: =
+normal; font-weight: normal; letter-spacing: normal; orphans: auto; =
+text-align: start; text-indent: 0px; text-transform: none; white-space: =
+normal; widows: auto; word-spacing: 0px; -webkit-text-size-adjust: auto; =
+-webkit-text-stroke-width: 0px;" =
+class=3D"">robert.m.harris@oracle.com</a><span style=3D"font-family: =
+Helvetica; font-size: 12px; font-style: normal; font-variant-caps: =
+normal; font-weight: normal; letter-spacing: normal; text-align: start; =
+text-indent: 0px; text-transform: none; white-space: normal; =
+word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; display: =
+inline !important;" class=3D""><span =
+class=3D"Apple-converted-space">&nbsp;</span>wrote:</span><br =
+style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
+font-variant-caps: normal; font-weight: normal; letter-spacing: normal; =
+text-align: start; text-indent: 0px; text-transform: none; white-space: =
+normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
+class=3D""><blockquote type=3D"cite" style=3D"font-family: Helvetica; =
+font-size: 12px; font-style: normal; font-variant-caps: normal; =
+font-weight: normal; letter-spacing: normal; orphans: auto; text-align: =
+start; text-indent: 0px; text-transform: none; white-space: normal; =
+widows: auto; word-spacing: 0px; -webkit-text-size-adjust: auto; =
+-webkit-text-stroke-width: 0px;" class=3D"">From: "Robert M. Harris" =
+&lt;<a href=3D"mailto:robert.m.harris@oracle.com" =
+class=3D"">robert.m.harris@oracle.com</a>&gt;<br class=3D""><br =
+class=3D"">__fragmentation_index() calculates a value used to determine =
+whether<br class=3D"">compaction should be favoured over page reclaim in =
+the event of<br class=3D"">allocation failure. &nbsp;The function =
+purports to return a value between 0<br class=3D"">and 1000, =
+representing units of 1/1000. &nbsp;Barring the case of a<br =
+class=3D"">pathological shortfall of memory, the lower bound is instead =
+500. &nbsp;This<br class=3D"">is significant because it is the default =
+value of<br class=3D"">sysctl_extfrag_threshold, i.e. the value below =
+which compaction should<br class=3D"">be avoided in favour of page =
+reclaim for costly pages.<br class=3D""><br class=3D"">Here's an =
+illustration using a zone that I fragmented with selective<br =
+class=3D"">calls to __alloc_pages() and __free_pages --- the =
+fragmentation for<br class=3D"">order-1 could not be minimised further =
+yet is reported as 0.5:<br class=3D""></blockquote><br =
+style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
+font-variant-caps: normal; font-weight: normal; letter-spacing: normal; =
+text-align: start; text-indent: 0px; text-transform: none; white-space: =
+normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
+class=3D""><span style=3D"font-family: Helvetica; font-size: 12px; =
+font-style: normal; font-variant-caps: normal; font-weight: normal; =
+letter-spacing: normal; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; word-spacing: 0px; =
+-webkit-text-stroke-width: 0px; float: none; display: inline =
+!important;" class=3D"">Cover letter for a single patch is usually an =
+overkill. Why is this</span><br style=3D"font-family: Helvetica; =
+font-size: 12px; font-style: normal; font-variant-caps: normal; =
+font-weight: normal; letter-spacing: normal; text-align: start; =
+text-indent: 0px; text-transform: none; white-space: normal; =
+word-spacing: 0px; -webkit-text-stroke-width: 0px;" class=3D""><span =
+style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
+font-variant-caps: normal; font-weight: normal; letter-spacing: normal; =
+text-align: start; text-indent: 0px; text-transform: none; white-space: =
+normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; =
+display: inline !important;" class=3D"">information not valuable in the =
+patch description directly?</span><br style=3D"font-family: Helvetica; =
+font-size: 12px; font-style: normal; font-variant-caps: normal; =
+font-weight: normal; letter-spacing: normal; text-align: start; =
+text-indent: 0px; text-transform: none; white-space: normal; =
+word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
+class=3D""></div></blockquote></div><br class=3D""><div class=3D"">This =
+is my first patch and I=E2=80=99m not familiar with all the =
+conventions.</div><div class=3D"">I=E2=80=99ll incorporate those details =
+in the next version of the commit message.</div><div class=3D""><br =
+class=3D""></div><div class=3D"">Robert Harris</div></body></html>=
+
+--Apple-Mail=_0D433A24-8820-47A1-80DF-3C3AD7B2662F--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
