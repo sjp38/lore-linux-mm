@@ -1,88 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D8046B0022
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 12:19:20 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id r29so888523wra.13
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 09:19:20 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 12si9716283wmy.239.2018.02.19.09.19.18
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EDE86B0024
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 12:48:54 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id h82so107050lfe.0
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 09:48:54 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t17sor5332147lfi.45.2018.02.19.09.48.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Feb 2018 09:19:18 -0800 (PST)
-Date: Mon, 19 Feb 2018 18:19:16 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm: Fix for PG_reserved page flag clearing
-Message-ID: <20180219171916.GR21134@dhcp22.suse.cz>
-References: <d77ca418-1614-6ad3-d739-161ca737b7ec@gmail.com>
+        (Google Transport Security);
+        Mon, 19 Feb 2018 09:48:52 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d77ca418-1614-6ad3-d739-161ca737b7ec@gmail.com>
+In-Reply-To: <CALZtONBW8imhSCu5RU68U0L+TtYiOgAdzwZa0NdrgVEGdSGELw@mail.gmail.com>
+References: <20180217161230.GA16890@jordon-HP-15-Notebook-PC> <CALZtONBW8imhSCu5RU68U0L+TtYiOgAdzwZa0NdrgVEGdSGELw@mail.gmail.com>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 19 Feb 2018 23:18:50 +0530
+Message-ID: <CAFqt6zbr85-QB8FTe1kmMOrT1ZuS7iVKciYd1WM2ERzuZbwKHg@mail.gmail.com>
+Subject: Re: [PATCH] mm: zbud: Remove zbud_map() and zbud_unmap() function
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masayoshi Mizuma <msys.mizuma@gmail.com>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, pasha.tatashin@oracle.com, linux-mm@kvack.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Seth Jennings <sjenning@redhat.com>, Linux-MM <linux-mm@kvack.org>
 
-On Mon 19-02-18 12:06:14, Masayoshi Mizuma wrote:
-> From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-> 
-> struct page is inizialized as zero in __init_single_page().
-> If the page is offlined page, PG_reserved flag is set in early boot
-> time before __init_single_page(), so we should not clear the flag.
-> 
-> The real problem is that we can not online the offlined page
-> through following sysfs operation because offlined page is
-> expected PG_reserved flag is set. 
-> It is not needed the initialization, so remove it simply.
-> 
->   Code:
-> 
->   static int online_pages_range(unsigned long start_pfn, 
->   ...
->           if (PageReserved(pfn_to_page(start_pfn))) <= HERE!!
->                   for (i = 0; i < nr_pages; i++) {
->                           page = pfn_to_page(start_pfn + i);
->                           (*online_page_callback)(page);
->                           onlined_pages++;
->   sysfs operation:
-> 
->   # echo online > /sys/devices/system/node/node2/memory12288/online
->   # cat /sys/devices/system/node/node2/memory12288/online 
->   1
->   # cat /sys/devices/system/node/node2/meminfo 
->   Node 2 MemTotal:              0 kB
+On Mon, Feb 19, 2018 at 7:45 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Sat, Feb 17, 2018 at 11:12 AM, Souptick Joarder <jrdr.linux@gmail.com> wrote:
+>> zbud_unmap() is empty function and not getting called from
+>> anywhere except from zbud_zpool_unmap(). Hence we can remove
+>> zbud_unmap().
+>>
+>> Similarly, zbud_map() is only returning (void *)(handle)
+>> which can be done within zbud_zpool_map(). Hence we can
+>> remove zbud_map().
+>
+> The comments at the top of zbud.c talk about using zbud_map() and
+> zbud_unmap(), so just removing the functions without changing the doc
+> in the file is not right.
+>
+> Additionally, the functions will get compiled out, so this change
+> won't actually make any difference in the compiled kernel.
+>
+> Finally, removing them from the header file makes the zbud API
+> effectively unusable for any code except zpool, so it would be
+> pointless to leave zbud.h in include/linux (which it doesn't
+> necessarily need to be in anyway, but that's a different topic).
+>
+> I'd prefer to just leave zbud_map/zbud_unmap in the API, so NAK from me.
 
-Nack. The patch is simply wrong. We do need to zero page for the boot
-pages. I believe the fix you are looking for is 9bb5a391f9a5 ("mm,
-memory_hotplug: fix memmap initialization"). Or do you still see a
-problem with this patch applied?
+Thanks for the feedback :)
 
-> Fixes: f7f99100d8d9 ("mm: stop zeroing memory during allocation in vmemmap")
-> Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-> ---
->  mm/page_alloc.c | 1 -
->  1 file changed, 1 deletion(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 76c9688..3260cd2 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1179,7 +1179,6 @@ static void free_one_page(struct zone *zone,
->  static void __meminit __init_single_page(struct page *page, unsigned long pfn,
->  				unsigned long zone, int nid)
->  {
-> -	mm_zero_struct_page(page);
->  	set_page_links(page, zone, nid, pfn);
->  	init_page_count(page);
->  	page_mapcount_reset(page);
-> -- 
-> 2.16.1
-> 
-> - Masayoshi
-
--- 
-Michal Hocko
-SUSE Labs
+>
+>>
+>> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+>> ---
+>>  include/linux/zbud.h |  2 --
+>>  mm/zbud.c            | 30 ++----------------------------
+>>  2 files changed, 2 insertions(+), 30 deletions(-)
+>>
+>> diff --git a/include/linux/zbud.h b/include/linux/zbud.h
+>> index b1eaf6e..565b88c 100644
+>> --- a/include/linux/zbud.h
+>> +++ b/include/linux/zbud.h
+>> @@ -16,8 +16,6 @@ int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
+>>         unsigned long *handle);
+>>  void zbud_free(struct zbud_pool *pool, unsigned long handle);
+>>  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
+>> -void *zbud_map(struct zbud_pool *pool, unsigned long handle);
+>> -void zbud_unmap(struct zbud_pool *pool, unsigned long handle);
+>>  u64 zbud_get_pool_size(struct zbud_pool *pool);
+>>
+>>  #endif /* _ZBUD_H_ */
+>> diff --git a/mm/zbud.c b/mm/zbud.c
+>> index 28458f7..c83c876 100644
+>> --- a/mm/zbud.c
+>> +++ b/mm/zbud.c
+>> @@ -188,11 +188,11 @@ static int zbud_zpool_shrink(void *pool, unsigned int pages,
+>>  static void *zbud_zpool_map(void *pool, unsigned long handle,
+>>                         enum zpool_mapmode mm)
+>>  {
+>> -       return zbud_map(pool, handle);
+>> +       return (void *)(handle);
+>>  }
+>>  static void zbud_zpool_unmap(void *pool, unsigned long handle)
+>>  {
+>> -       zbud_unmap(pool, handle);
+>> +
+>>  }
+>>
+>>  static u64 zbud_zpool_total_size(void *pool)
+>> @@ -569,32 +569,6 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
+>>  }
+>>
+>>  /**
+>> - * zbud_map() - maps the allocation associated with the given handle
+>> - * @pool:      pool in which the allocation resides
+>> - * @handle:    handle associated with the allocation to be mapped
+>> - *
+>> - * While trivial for zbud, the mapping functions for others allocators
+>> - * implementing this allocation API could have more complex information encoded
+>> - * in the handle and could create temporary mappings to make the data
+>> - * accessible to the user.
+>> - *
+>> - * Returns: a pointer to the mapped allocation
+>> - */
+>> -void *zbud_map(struct zbud_pool *pool, unsigned long handle)
+>> -{
+>> -       return (void *)(handle);
+>> -}
+>> -
+>> -/**
+>> - * zbud_unmap() - maps the allocation associated with the given handle
+>> - * @pool:      pool in which the allocation resides
+>> - * @handle:    handle associated with the allocation to be unmapped
+>> - */
+>> -void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
+>> -{
+>> -}
+>> -
+>> -/**
+>>   * zbud_get_pool_size() - gets the zbud pool size in pages
+>>   * @pool:      pool whose size is being queried
+>>   *
+>> --
+>> 1.9.1
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
