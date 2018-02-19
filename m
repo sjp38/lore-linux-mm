@@ -1,63 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AEBBA6B0007
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 09:42:20 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id e143so4354798wma.2
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 06:42:20 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s3si5589020wra.67.2018.02.19.06.42.19
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E445F6B0009
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 09:44:47 -0500 (EST)
+Received: by mail-yw0-f199.google.com with SMTP id e125so7730296ywh.10
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 06:44:47 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id m71si1599498ybf.697.2018.02.19.06.44.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Feb 2018 06:42:19 -0800 (PST)
-Date: Mon, 19 Feb 2018 15:42:16 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
-Message-ID: <20180219144216.GP21134@dhcp22.suse.cz>
-References: <20180216160110.641666320@linux.com>
- <20180216160121.519788537@linux.com>
- <20180219101935.cb3gnkbjimn5hbud@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180219101935.cb3gnkbjimn5hbud@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Feb 2018 06:44:46 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
+Subject: Re: [PATCH 1/1] mm, compaction: correct the bounds of
+ __fragmentation_index()
+From: Robert Harris <robert.m.harris@oracle.com>
+In-Reply-To: <20180219131024.oqonm6ba3pl2l4qa@suse.de>
+Date: Mon, 19 Feb 2018 14:37:02 +0000
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <EBC66026-6A17-4F90-920D-859921C7D9B9@oracle.com>
+References: <1518972475-11340-1-git-send-email-robert.m.harris@oracle.com>
+ <1518972475-11340-2-git-send-email-robert.m.harris@oracle.com>
+ <20180219094735.g4sm4kxawjnojgyd@suse.de>
+ <CB73A16F-5B32-4681-86E3-00786C67ADEF@oracle.com>
+ <20180219131024.oqonm6ba3pl2l4qa@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Yafang Shao <laoar.shao@gmail.com>, Kangmin Park <l4stpr0gr4m@gmail.com>, Yisheng Xie <xieyisheng1@huawei.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Huang Ying <ying.huang@intel.com>, Vinayak Menon <vinmenon@codeaurora.org>
 
-On Mon 19-02-18 10:19:35, Mel Gorman wrote:
-[...]
-> Access to the pool is unprotected so you might create a reserve for jumbo
-> frames only to have them consumed by something else entirely. It's not
-> clear if that is even fixable as GFP flags are too coarse.
-> 
-> It is not covered in the changelog why MIGRATE_HIGHATOMIC was not
-> sufficient for jumbo frames which are generally expected to be allocated
-> from atomic context. If there is a problem there then maybe
-> MIGRATE_HIGHATOMIC should be made more strict instead of a hack like
-> this. It'll be very difficult, if not impossible, for this to be tuned
-> properly.
-> 
-> Finally, while I accept that fragmentation over time is a problem for
-> unmovable allocations (fragmentation protection was originally designed
-> for THP/hugetlbfs), this is papering over the problem. If greater
-> protections are needed then the right approach is to be more strict about
-> fallbacks. Specifically, unmovable allocations should migrate all movable
-> pages out of migrate_unmovable pageblocks before falling back and that
-> can be controlled by policy due to the overhead of migration. For atomic
-> allocations, allow fallback but use kcompact or a workqueue to migrate
-> movable pages out of migrate_unmovable pageblocks to limit fallbacks in
-> the future.
 
-Completely agreed!
 
-> I'm not a fan of this patch.
+> On 19 Feb 2018, at 13:10, Mel Gorman <mgorman@suse.de> wrote:
+>=20
+> On Mon, Feb 19, 2018 at 12:26:39PM +0000, Robert Harris wrote:
+>>=20
+>>=20
+>>> On 19 Feb 2018, at 09:47, Mel Gorman <mgorman@suse.de> wrote:
+>>>=20
+>>> On Sun, Feb 18, 2018 at 04:47:55PM +0000, robert.m.harris@oracle.com =
+wrote:
+>>>> From: "Robert M. Harris" <robert.m.harris@oracle.com>
+>>>>=20
+>>>> __fragmentation_index() calculates a value used to determine =
+whether
+>>>> compaction should be favoured over page reclaim in the event of =
+allocation
+>>>> failure.  The calculation itself is opaque and, on inspection, does =
+not
+>>>> match its existing description.  The function purports to return a =
+value
+>>>> between 0 and 1000, representing units of 1/1000.  Barring the case =
+of a
+>>>> pathological shortfall of memory, the lower bound is instead 500.  =
+This is
+>>>> significant because it is the default value of =
+sysctl_extfrag_threshold,
+>>>> i.e. the value below which compaction should be avoided in favour =
+of page
+>>>> reclaim for costly pages.
+>>>>=20
+>>>> This patch implements and documents a modified version of the =
+original
+>>>> expression that returns a value in the range 0 <=3D index < 1000.  =
+It amends
+>>>> the default value of sysctl_extfrag_threshold to preserve the =
+existing
+>>>> behaviour.
+>>>>=20
+>>>> Signed-off-by: Robert M. Harris <robert.m.harris@oracle.com>
+>>>=20
+>>> You have to update sysctl_extfrag_threshold as well for the new =
+bounds.
+>>=20
+>> This patch makes its default value zero.
+>>=20
+>=20
+> Sorry, I'm clearly blind.
+>=20
+>>> It effectively makes it a no-op but it was a no-op already and =
+adjusting
+>>> that default should be supported by data indicating it's safe.
+>>=20
+>> Would it be acceptable to demonstrate using tracing that in both the
+>> pre- and post-patch cases
+>>=20
+>>  1. compaction is attempted regardless of fragmentation index,
+>>     excepting that
+>>=20
+>>  2. reclaim is preferred even for non-zero fragmentation during
+>>     an extreme shortage of memory
+>>=20
+>=20
+> If you can demonstrate that for both reclaim-intensive and
+> compaction-intensive workloads then yes. Also include the reclaim and
+> compaction stats from /proc/vmstat and not just tracepoints to =
+demonstrate
+> that reclaim doesn't get out of control and reclaim the world in
+> response to failed high-order allocations such as THP.
 
-Yes, I think the approach is just wrong. It will just hit all sorts of
-weird corner cases and won't work reliable for those who care.
--- 
-Michal Hocko
-SUSE Labs
+Understood.  Thanks.
+
+Robert Harris=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
