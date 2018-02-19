@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C3306B02BF
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 14:48:04 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id w73so3679429pfd.18
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 11:48:04 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id DA3696B02C3
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 14:48:05 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 67so632044pfg.0
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 11:48:05 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 62-v6si7756082ply.15.2018.02.19.11.46.28
+        by mx.google.com with ESMTPS id n10si2455258pge.256.2018.02.19.11.46.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 19 Feb 2018 11:46:28 -0800 (PST)
+        Mon, 19 Feb 2018 11:46:33 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v7 47/61] shmem: Convert shmem_tag_pins to XArray
-Date: Mon, 19 Feb 2018 11:45:42 -0800
-Message-Id: <20180219194556.6575-48-willy@infradead.org>
+Subject: [PATCH v7 58/61] f2fs: Convert to XArray
+Date: Mon, 19 Feb 2018 11:45:53 -0800
+Message-Id: <20180219194556.6575-59-willy@infradead.org>
 In-Reply-To: <20180219194556.6575-1-willy@infradead.org>
 References: <20180219194556.6575-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,75 +22,109 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Simplify the locking by taking the spinlock while we walk the tree on
-the assumption that many acquires and releases of the lock will be
-worse than holding the lock for a (potentially) long time.
-
-We could replicate the same locking behaviour with the xarray, but would
-have to be careful that the xa_node wasn't RCU-freed under us before we
-took the lock.
+This is a straightforward conversion.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 39 ++++++++++++++++-----------------------
- 1 file changed, 16 insertions(+), 23 deletions(-)
+ fs/f2fs/data.c   |  3 +--
+ fs/f2fs/dir.c    |  5 +----
+ fs/f2fs/inline.c |  6 +-----
+ fs/f2fs/node.c   | 10 ++--------
+ 4 files changed, 5 insertions(+), 19 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 0179f9aa7d0e..5b70fbdec605 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2601,35 +2601,28 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
+diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
+index ce029060acd0..6de3d82377e4 100644
+--- a/fs/f2fs/data.c
++++ b/fs/f2fs/data.c
+@@ -2384,8 +2384,7 @@ void f2fs_set_page_dirty_nobuffers(struct page *page)
+ 	xa_lock_irqsave(&mapping->pages, flags);
+ 	WARN_ON_ONCE(!PageUptodate(page));
+ 	account_page_dirtied(page, mapping);
+-	radix_tree_tag_set(&mapping->pages,
+-			page_index(page), PAGECACHE_TAG_DIRTY);
++	__xa_set_tag(&mapping->pages, page_index(page), PAGECACHE_TAG_DIRTY);
+ 	xa_unlock_irqrestore(&mapping->pages, flags);
+ 	unlock_page_memcg(page);
  
- static void shmem_tag_pins(struct address_space *mapping)
+diff --git a/fs/f2fs/dir.c b/fs/f2fs/dir.c
+index 0fd9695eddf6..ab833f624cc2 100644
+--- a/fs/f2fs/dir.c
++++ b/fs/f2fs/dir.c
+@@ -708,7 +708,6 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
+ 	unsigned int bit_pos;
+ 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
+ 	struct address_space *mapping = page_mapping(page);
+-	unsigned long flags;
+ 	int i;
+ 
+ 	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
+@@ -741,10 +740,8 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
+ 
+ 	if (bit_pos == NR_DENTRY_IN_BLOCK &&
+ 			!truncate_hole(dir, page->index, page->index + 1)) {
+-		xa_lock_irqsave(&mapping->pages, flags);
+-		radix_tree_tag_clear(&mapping->pages, page_index(page),
++		xa_clear_tag(&mapping->pages, page_index(page),
+ 				     PAGECACHE_TAG_DIRTY);
+-		xa_unlock_irqrestore(&mapping->pages, flags);
+ 
+ 		clear_page_dirty_for_io(page);
+ 		ClearPagePrivate(page);
+diff --git a/fs/f2fs/inline.c b/fs/f2fs/inline.c
+index 7858b8e15f33..d3c3f84beca9 100644
+--- a/fs/f2fs/inline.c
++++ b/fs/f2fs/inline.c
+@@ -204,7 +204,6 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
+ 	void *src_addr, *dst_addr;
+ 	struct dnode_of_data dn;
+ 	struct address_space *mapping = page_mapping(page);
+-	unsigned long flags;
+ 	int err;
+ 
+ 	set_new_dnode(&dn, inode, NULL, NULL, 0);
+@@ -226,10 +225,7 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
+ 	kunmap_atomic(src_addr);
+ 	set_page_dirty(dn.inode_page);
+ 
+-	xa_lock_irqsave(&mapping->pages, flags);
+-	radix_tree_tag_clear(&mapping->pages, page_index(page),
+-			     PAGECACHE_TAG_DIRTY);
+-	xa_unlock_irqrestore(&mapping->pages, flags);
++	xa_clear_tag(&mapping->pages, page_index(page), PAGECACHE_TAG_DIRTY);
+ 
+ 	set_inode_flag(inode, FI_APPEND_WRITE);
+ 	set_inode_flag(inode, FI_DATA_EXIST);
+diff --git a/fs/f2fs/node.c b/fs/f2fs/node.c
+index fba2644abdf0..0c1e9add0952 100644
+--- a/fs/f2fs/node.c
++++ b/fs/f2fs/node.c
+@@ -88,14 +88,10 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
+ static void clear_node_page_dirty(struct page *page)
  {
--	struct radix_tree_iter iter;
--	void **slot;
--	pgoff_t start;
-+	XA_STATE(xas, &mapping->pages, 0);
- 	struct page *page;
-+	unsigned int tagged = 0;
+ 	struct address_space *mapping = page->mapping;
+-	unsigned int long flags;
  
- 	lru_add_drain();
--	start = 0;
+ 	if (PageDirty(page)) {
+-		xa_lock_irqsave(&mapping->pages, flags);
+-		radix_tree_tag_clear(&mapping->pages,
+-				page_index(page),
++		xa_clear_tag(&mapping->pages, page_index(page),
+ 				PAGECACHE_TAG_DIRTY);
+-		xa_unlock_irqrestore(&mapping->pages, flags);
+ 
+ 		clear_page_dirty_for_io(page);
+ 		dec_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_NODES);
+@@ -1139,9 +1135,7 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
+ 		return;
+ 	f2fs_bug_on(sbi, check_nid_range(sbi, nid));
+ 
 -	rcu_read_lock();
- 
--	radix_tree_for_each_slot(slot, &mapping->pages, &iter, start) {
--		page = radix_tree_deref_slot(slot);
--		if (!page || radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page)) {
--				slot = radix_tree_iter_retry(&iter);
--				continue;
--			}
--		} else if (page_count(page) - page_mapcount(page) > 1) {
--			xa_lock_irq(&mapping->pages);
--			radix_tree_tag_set(&mapping->pages, iter.index,
--					   SHMEM_TAG_PINNED);
--			xa_unlock_irq(&mapping->pages);
--		}
-+	xas_lock_irq(&xas);
-+	xas_for_each(&xas, page, ULONG_MAX) {
-+		if (xa_is_value(page))
-+			continue;
-+		if (page_count(page) - page_mapcount(page) > 1)
-+			xas_set_tag(&xas, SHMEM_TAG_PINNED);
- 
--		if (need_resched()) {
--			slot = radix_tree_iter_resume(slot, &iter);
--			cond_resched_rcu();
--		}
-+		if (++tagged % XA_CHECK_SCHED)
-+			continue;
-+
-+		xas_pause(&xas);
-+		xas_unlock_irq(&xas);
-+		cond_resched();
-+		xas_lock_irq(&xas);
- 	}
+-	apage = radix_tree_lookup(&NODE_MAPPING(sbi)->pages, nid);
 -	rcu_read_unlock();
-+	xas_unlock_irq(&xas);
- }
++	apage = xa_load(&NODE_MAPPING(sbi)->pages, nid);
+ 	if (apage)
+ 		return;
  
- /*
 -- 
 2.16.1
 
