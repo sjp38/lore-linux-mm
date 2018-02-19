@@ -1,37 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E7736B0005
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 07:15:00 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id x4so7915159qkc.7
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 04:15:00 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id t8si1504813qth.244.2018.02.19.04.14.58
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 916C86B0005
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 07:27:12 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id p11so8939215qtg.19
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 04:27:12 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id z16si3309901qta.419.2018.02.19.04.27.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Feb 2018 04:14:58 -0800 (PST)
+        Mon, 19 Feb 2018 04:27:11 -0800 (PST)
 Content-Type: text/plain;
 	charset=us-ascii
 Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
 Subject: Re: [PATCH 1/1] mm, compaction: correct the bounds of
  __fragmentation_index()
 From: Robert Harris <robert.m.harris@oracle.com>
-In-Reply-To: <20180219082649.GD21134@dhcp22.suse.cz>
-Date: Mon, 19 Feb 2018 12:14:26 +0000
+In-Reply-To: <20180219094735.g4sm4kxawjnojgyd@suse.de>
+Date: Mon, 19 Feb 2018 12:26:39 +0000
 Content-Transfer-Encoding: 7bit
-Message-Id: <E718672A-91A0-4A5A-91B5-A6CF1E9BD544@oracle.com>
+Message-Id: <CB73A16F-5B32-4681-86E3-00786C67ADEF@oracle.com>
 References: <1518972475-11340-1-git-send-email-robert.m.harris@oracle.com>
  <1518972475-11340-2-git-send-email-robert.m.harris@oracle.com>
- <20180219082649.GD21134@dhcp22.suse.cz>
+ <20180219094735.g4sm4kxawjnojgyd@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Yafang Shao <laoar.shao@gmail.com>, Kangmin Park <l4stpr0gr4m@gmail.com>, Mel Gorman <mgorman@suse.de>, Yisheng Xie <xieyisheng1@huawei.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Huang Ying <ying.huang@intel.com>, Vinayak Menon <vinmenon@codeaurora.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Yafang Shao <laoar.shao@gmail.com>, Kangmin Park <l4stpr0gr4m@gmail.com>, Yisheng Xie <xieyisheng1@huawei.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Huang Ying <ying.huang@intel.com>, Vinayak Menon <vinmenon@codeaurora.org>
 
 
 
-> On 19 Feb 2018, at 08:26, Michal Hocko <mhocko@kernel.org> wrote:
+> On 19 Feb 2018, at 09:47, Mel Gorman <mgorman@suse.de> wrote:
 > 
-> On Sun 18-02-18 16:47:55, robert.m.harris@oracle.com wrote:
+> On Sun, Feb 18, 2018 at 04:47:55PM +0000, robert.m.harris@oracle.com wrote:
 >> From: "Robert M. Harris" <robert.m.harris@oracle.com>
 >> 
 >> __fragmentation_index() calculates a value used to determine whether
@@ -48,35 +48,26 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
 >> expression that returns a value in the range 0 <= index < 1000.  It amends
 >> the default value of sysctl_extfrag_threshold to preserve the existing
 >> behaviour.
+>> 
+>> Signed-off-by: Robert M. Harris <robert.m.harris@oracle.com>
 > 
-> It is not really clear to me what is the actual problem you are trying
-> to solve by this patch. Is there any bug or are you just trying to
-> improve the current implementation to be more effective?
+> You have to update sysctl_extfrag_threshold as well for the new bounds.
 
-There is not a significant bug.
+This patch makes its default value zero.
 
-The first problem is that the mathematical expression in
-__fragmentation_index() is opaque, particularly given the lack of
-description in the comments or the original commit message.  This patch
-provides such a description.
+> It effectively makes it a no-op but it was a no-op already and adjusting
+> that default should be supported by data indicating it's safe.
 
-Simply annotating the expression did not make sense since the formula
-doesn't work as advertised.  The fragmentation index is described as
-being in the range 0 to 1000 but the bounds of the formula are instead
-500 to 1000.  This patch changes the formula so that its lower bound is
-0.
+Would it be acceptable to demonstrate using tracing that in both the
+pre- and post-patch cases
 
-The fragmentation index is compared to the tuneable
-sysctl_extfrag_threshold, which defaults to 500.  If the index is above
-this value then compaction is preferred over page reclaim in the event
-of allocation failure.  Given the issue above, the index will almost
-always exceed the default threshold and compaction will occur even if
-there is low fragmentation.  This patch changes the default value of the
-tuneable to 0, meaning that the existing behaviour will be unchanged.
-Changing sysctl_extfrag_threshold back to something non-zero in a future
-patch would effect the behaviour intended by the original code but would
-require more comprehensive testing since it would modify the kernel's
-performance under memory pressure.
+  1. compaction is attempted regardless of fragmentation index,
+     excepting that
+
+  2. reclaim is preferred even for non-zero fragmentation during
+     an extreme shortage of memory
+
+?
 
 Robert Harris
 
