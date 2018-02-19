@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B3546B02B6
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 14:47:46 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q2so5802411pgf.22
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 11:47:46 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C56E6B02B6
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 14:47:47 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id m65so3680900pfm.14
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 11:47:47 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c67si9215081pfl.332.2018.02.19.11.46.15
+        by mx.google.com with ESMTPS id g5-v6si6438841pll.488.2018.02.19.11.46.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 19 Feb 2018 11:46:15 -0800 (PST)
+        Mon, 19 Feb 2018 11:46:22 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v7 23/61] xarray: Add xas_create_range
-Date: Mon, 19 Feb 2018 11:45:18 -0800
-Message-Id: <20180219194556.6575-24-willy@infradead.org>
+Subject: [PATCH v7 37/61] mm: Convert delete_from_swap_cache to XArray
+Date: Mon, 19 Feb 2018 11:45:32 -0800
+Message-Id: <20180219194556.6575-38-willy@infradead.org>
 In-Reply-To: <20180219194556.6575-1-willy@infradead.org>
 References: <20180219194556.6575-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,61 +22,105 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This hopefully temporary function is useful for users who have not yet
-been converted to multi-index entries.
+Both callers of __delete_from_swap_cache have the swp_entry_t already,
+so pass that in to make constructing the XA_STATE easier.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/xarray.h |  2 ++
- lib/xarray.c           | 22 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ include/linux/swap.h |  5 +++--
+ mm/swap_state.c      | 24 ++++++++++--------------
+ mm/vmscan.c          |  2 +-
+ 3 files changed, 14 insertions(+), 17 deletions(-)
 
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index c8a0ddc1b3df..387be18d05ba 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -744,6 +744,8 @@ void xas_init_tags(const struct xa_state *);
- bool xas_nomem(struct xa_state *, gfp_t);
- void xas_pause(struct xa_state *);
- 
-+void xas_create_range(struct xa_state *, unsigned long max);
-+
- /**
-  * xas_reload() - Refetch an entry from the xarray.
-  * @xas: XArray operation state.
-diff --git a/lib/xarray.c b/lib/xarray.c
-index 7cf195b6e740..1d94ecc2dca3 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -612,6 +612,28 @@ void *xas_create(struct xa_state *xas)
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 5933f02a3219..8c6f46797b82 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -406,7 +406,7 @@ extern void show_swap_cache_info(void);
+ extern int add_to_swap(struct page *page);
+ extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
+ extern int __add_to_swap_cache(struct page *page, swp_entry_t entry);
+-extern void __delete_from_swap_cache(struct page *);
++extern void __delete_from_swap_cache(struct page *, swp_entry_t entry);
+ extern void delete_from_swap_cache(struct page *);
+ extern void free_page_and_swap_cache(struct page *);
+ extern void free_pages_and_swap_cache(struct page **, int);
+@@ -581,7 +581,8 @@ static inline int add_to_swap_cache(struct page *page, swp_entry_t entry,
+ 	return -1;
  }
- EXPORT_SYMBOL_GPL(xas_create);
  
-+/**
-+ * xas_create_range() - Ensure that stores to this range will succeed
-+ * @xas: XArray operation state.
-+ * @max: The highest index to create a slot for.
-+ *
-+ * Creates all of the slots in the range between the current position of
-+ * @xas and @max.  This is for the benefit of users who have not yet been
-+ * converted to multi-index entries.
-+ *
-+ * The implementation is naive.
-+ */
-+void xas_create_range(struct xa_state *xas, unsigned long max)
-+{
-+	XA_STATE(tmp, xas->xa, xas->xa_index);
-+
-+	do {
-+		xas_create(&tmp);
-+		xas_set(&tmp, tmp.xa_index + XA_CHUNK_SIZE);
-+	} while (tmp.xa_index < max);
-+}
-+EXPORT_SYMBOL_GPL(xas_create_range);
-+
- static void store_siblings(struct xa_state *xas, void *entry, void *curr,
- 				int *countp, int *valuesp)
+-static inline void __delete_from_swap_cache(struct page *page)
++static inline void __delete_from_swap_cache(struct page *page,
++							swp_entry_t entry)
  {
+ }
+ 
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index a57b5ad4c503..219e3b4f09e6 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -154,23 +154,22 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
+  * This must be called only on pages that have
+  * been verified to be in the swap cache.
+  */
+-void __delete_from_swap_cache(struct page *page)
++void __delete_from_swap_cache(struct page *page, swp_entry_t entry)
+ {
+-	struct address_space *address_space;
++	struct address_space *address_space = swap_address_space(entry);
+ 	int i, nr = hpage_nr_pages(page);
+-	swp_entry_t entry;
+-	pgoff_t idx;
++	pgoff_t idx = swp_offset(entry);
++	XA_STATE(xas, &address_space->pages, idx);
+ 
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
+ 	VM_BUG_ON_PAGE(PageWriteback(page), page);
+ 
+-	entry.val = page_private(page);
+-	address_space = swap_address_space(entry);
+-	idx = swp_offset(entry);
+ 	for (i = 0; i < nr; i++) {
+-		radix_tree_delete(&address_space->pages, idx + i);
++		void *entry = xas_store(&xas, NULL);
++		VM_BUG_ON_PAGE(entry != page + i, entry);
+ 		set_page_private(page + i, 0);
++		xas_next(&xas);
+ 	}
+ 	ClearPageSwapCache(page);
+ 	address_space->nrpages -= nr;
+@@ -246,14 +245,11 @@ int add_to_swap(struct page *page)
+  */
+ void delete_from_swap_cache(struct page *page)
+ {
+-	swp_entry_t entry;
+-	struct address_space *address_space;
+-
+-	entry.val = page_private(page);
++	swp_entry_t entry = { .val = page_private(page) };
++	struct address_space *address_space = swap_address_space(entry);
+ 
+-	address_space = swap_address_space(entry);
+ 	xa_lock_irq(&address_space->pages);
+-	__delete_from_swap_cache(page);
++	__delete_from_swap_cache(page, entry);
+ 	xa_unlock_irq(&address_space->pages);
+ 
+ 	put_swap_page(page, entry);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 93f4b4634431..3eb9f7c732bb 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -697,7 +697,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
+ 	if (PageSwapCache(page)) {
+ 		swp_entry_t swap = { .val = page_private(page) };
+ 		mem_cgroup_swapout(page, swap);
+-		__delete_from_swap_cache(page);
++		__delete_from_swap_cache(page, swap);
+ 		xa_unlock_irqrestore(&mapping->pages, flags);
+ 		put_swap_page(page, swap);
+ 	} else {
 -- 
 2.16.1
 
