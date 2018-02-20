@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9327D6B0005
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 05:27:04 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id k8so5414856wrg.18
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 02:27:04 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 6AAE86B0008
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 05:30:11 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id 62so7562610wrg.0
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 02:30:11 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i52si7536055wrf.497.2018.02.20.02.27.02
+        by mx.google.com with ESMTPS id q18si9811877wmd.54.2018.02.20.02.30.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Feb 2018 02:27:02 -0800 (PST)
-Subject: Patch "x86/mm: Rename flush_tlb_single() and flush_tlb_one() to __flush_tlb_one_[user|kernel]()" has been added to the 4.14-stable tree
+        Tue, 20 Feb 2018 02:30:09 -0800 (PST)
+Subject: Patch "x86/mm: Rename flush_tlb_single() and flush_tlb_one() to __flush_tlb_one_[user|kernel]()" has been added to the 4.15-stable tree
 From: <gregkh@linuxfoundation.org>
-Date: Tue, 20 Feb 2018 11:26:08 +0100
-Message-ID: <15191223689933@kroah.com>
+Date: Tue, 20 Feb 2018 11:26:46 +0100
+Message-ID: <151912240616348@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
@@ -26,12 +26,12 @@ This is a note to let you know that I've just added the patch titled
 
     x86/mm: Rename flush_tlb_single() and flush_tlb_one() to __flush_tlb_one_[user|kernel]()
 
-to the 4.14-stable tree which can be found at:
+to the 4.15-stable tree which can be found at:
     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
 The filename of the patch is:
      x86-mm-rename-flush_tlb_single-and-flush_tlb_one-to-__flush_tlb_one_.patch
-and it can be found in the queue-4.14 subdirectory.
+and it can be found in the queue-4.15 subdirectory.
 
 If you, or anyone else, feels it should not be added to the stable tree,
 please let <stable@vger.kernel.org> know about it.
