@@ -1,43 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B4DB16B0005
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 10:04:52 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id y25so5013860pfe.5
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 07:04:52 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g17si103246pfj.154.2018.02.20.07.04.51
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 85C836B0007
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 10:13:16 -0500 (EST)
+Received: by mail-yw0-f199.google.com with SMTP id l24so4012803ywh.17
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 07:13:16 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u3si8144335qkb.79.2018.02.20.07.13.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 20 Feb 2018 07:04:51 -0800 (PST)
-Date: Tue, 20 Feb 2018 07:04:49 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] slab: fix /proc/slabinfo alignment
-Message-ID: <20180220150449.GF21243@bombadil.infradead.org>
-References: <BM1PR0101MB2083C73A6E7608B630CE4C26B1CF0@BM1PR0101MB2083.INDPRD01.PROD.OUTLOOK.COM>
- <alpine.DEB.2.20.1802200855300.28634@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Feb 2018 07:13:14 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1KFCpGt110200
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 10:13:13 -0500
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2g8n8m2m5q-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 10:12:57 -0500
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 20 Feb 2018 15:12:35 -0000
+Date: Tue, 20 Feb 2018 17:12:30 +0200
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [LSF/MM ATTEND] mm documentation
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1802200855300.28634@nuc-kabylake>
+Message-Id: <20180220151230.GA13640@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: ? ? <mordorw@hotmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On Tue, Feb 20, 2018 at 08:56:11AM -0600, Christopher Lameter wrote:
-> On Tue, 20 Feb 2018, ? ? wrote:
-> 
-> > /proc/slabinfo is not aligned, it is difficult to read, so correct it
-> 
-> How does it look on a terminal with 80 characters per line?
+I would like to participate in LSF/MM 2018 and discuss the mm
+documentation.
 
-That ship sailed long ago ...
+If anybody will be interested in userfaultfd (which I actually doubt :) )
+I'll be glad to join discussion on this topic as well.
 
-kmalloc-8192         433    435   8192    1    2 : tunables    8    4    0 : sla
-bdata    433    435      0
-
-(I put in a manual carriage return at 80 columns for those not reading on
-an 80 column terminal).
+-- 
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
