@@ -1,71 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 349846B0029
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 14:54:00 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id w10so8915283wrg.2
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 11:54:00 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id 5si15204231wmn.169.2018.02.20.11.53.58
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BA39B6B0003
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 15:30:27 -0500 (EST)
+Received: by mail-yb0-f200.google.com with SMTP id n136-v6so8295898ybf.20
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 12:30:27 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k193sor1066928ywe.388.2018.02.20.12.30.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Feb 2018 11:53:58 -0800 (PST)
-Subject: Re: [PATCH 3/6] struct page: add field for vm_struct
-From: Igor Stoppa <igor.stoppa@huawei.com>
-References: <20180211031920.3424-1-igor.stoppa@huawei.com>
- <20180211031920.3424-4-igor.stoppa@huawei.com>
- <20180211211646.GC4680@bombadil.infradead.org>
- <cef01110-dc23-4442-f277-88d1d3662e00@huawei.com>
-Message-ID: <b59546a4-5a5b-ca48-3b51-09440b6a5493@huawei.com>
-Date: Tue, 20 Feb 2018 21:53:30 +0200
+        (Google Transport Security);
+        Tue, 20 Feb 2018 12:30:26 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <cef01110-dc23-4442-f277-88d1d3662e00@huawei.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180220124354.6awua447q55lfduf@quack2.suse.cz>
+References: <CALvZod5H4eL=YtZ3zkGG3p8gD+3=qnC3siUw1zpKL+128KufAA@mail.gmail.com>
+ <CAOQ4uxgJqn0CJaf=LMH-iv2g1MJZwPM97K6iCtzrcY3eoN6KjA@mail.gmail.com>
+ <CAOQ4uxjgKUFJ_uhyrQdcTs1FzcN6JrR_JpPc9QBrGJEU+cf65w@mail.gmail.com>
+ <CALvZod45r7oW=HWH7KJyvFhJWB=6+Si54JK7E0Mx_2gLTZd1Pg@mail.gmail.com>
+ <CAOQ4uxghwNg9Ni23EQA-971-qAaTNceSZS2MSvK06uEjoXG_yg@mail.gmail.com>
+ <CALvZod7FTNzoGfGnaorqjk4KEsxJFdz1pApHi04P1cF10ejxpQ@mail.gmail.com>
+ <CALvZod4SNwWHYZQsphB90cY-wc8WSLurKsA2kNxfVKV-upwy9A@mail.gmail.com>
+ <CAOQ4uxifddquri4BNqBSKv6O_b13=C08kKYinTo9+m56z1n+aQ@mail.gmail.com>
+ <20180219135027.fd6doess7satenxk@quack2.suse.cz> <CAOQ4uxjkfTTJ7nxrtj8ZsKcsWfBz=J0RPv3N=u3JaskRgG9aWw@mail.gmail.com>
+ <20180220124354.6awua447q55lfduf@quack2.suse.cz>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Tue, 20 Feb 2018 22:30:25 +0200
+Message-ID: <CAOQ4uxjAaRXPEwbqEMqL9Jr4-JhAscYcFtc01EMQbm5yEafq2Q@mail.gmail.com>
+Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: rdunlap@infradead.org, corbet@lwn.net, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, jglisse@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Jan Kara <jack@suse.cz>
+Cc: Shakeel Butt <shakeelb@google.com>, Yang Shi <yang.s@alibaba-inc.com>, Michal Hocko <mhocko@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
 
-
-
-On 12/02/18 18:24, Igor Stoppa wrote:
-> 
-> 
-> On 11/02/18 23:16, Matthew Wilcox wrote:
->> On Sun, Feb 11, 2018 at 05:19:17AM +0200, Igor Stoppa wrote:
->>> The struct page has a "mapping" field, which can be re-used, to store a
->>> pointer to the parent area. This will avoid more expensive searches.
->>>
->>> As example, the function find_vm_area is reimplemented, to take advantage
->>> of the newly introduced field.
+On Tue, Feb 20, 2018 at 2:43 PM, Jan Kara <jack@suse.cz> wrote:
+> On Mon 19-02-18 21:07:28, Amir Goldstein wrote:
+[...]
 >>
->> Umm.  Is it more efficient?  You're replacing an rb-tree search with a
->> page-table walk.  You eliminate a spinlock, which is great, but is the
->> page-table walk more efficient?  I suppose it'll depend on the depth of
->> the rb-tree, and (at least on x86), the page tables should already be
->> in cache.
-> 
-> I thought the tradeoff favorable.
+>> I just feel sorry about passing an opportunity to improve functionality.
+>> The fact that fanotify does not have a way for defining the events queue
+>> size is a deficiency IMO, one which I had to work around in the past.
+>> I find that assigning group to memgc and configure memcg to desired
+>> memory limit and getting Q_OVERFLOW on failure to allocate event
+>> is going to be a proper way of addressing this deficiency.
+>
+> So if you don't pass FAN_Q_UNLIMITED, you will get queue with a fixed size
+> and will get Q_OVERFLOW if that is exceeded. So is your concern that you'd
+> like some other fixed limit? Larger one or smaller one and for what
+> reason?
+>
 
-It turns out that it's probably not so favorable.
-The patch relies on the function vmalloc_to_page ... which will return
-NULL when applied to huge mappings, while the original implementation
-will still work.
+My use case was that with the default queue size, I would get Q_OVERFLOW
+on bursty fs workloads, but using  FAN_Q_UNLIMITED and allowing to
+consume entire system memory with events was not a desired alternative.
+The actual queue size was not important, only allowing admin to tune the
+system to bursty workloads without overflowing the event queue.
 
-It was found while testing on a configuration with framebuffer.
+Something like FAN_Q_BESTEFFORT (i.e. Q_OVERFLOW on ENOMEM)
++ allowing to restrict event allocation to memcg, would allow admin to tune
+the system to bursty workloads.
 
-So it seems unlikely that there is any gain to be had, from this
-perspective.
+>> But if you don't think we should bind these 2 things together,
+>> I'll let Shakeel decide if he want to pursue the Q_OVERFLOW change
+>> or not.
+>
+> So if there is still some uncovered use case for finer tuning of event
+> queue length than setting or not setting FAN_Q_UNLIMITED (+ possibly
+> putting the task to memcg to limit memory usage), we can talk about how to
+> address that but at this point I don't see a strong reason to bind this to
+> whether / how events are accounted to memcg...
 
-The use of the field still makes sense from the perspective of adding
-pmalloc support to hardened usercopy, but there is no more need for the
-field to exist as separate patch.
+Agreed.
 
-This patch can be simplified and merged with the pmalloc patch.
+>
+> And we still need to make sure we properly do ENOMEM -> Q_OVERFLOW
+> translation and use GFP_NOFAIL for FAN_Q_UNLIMITED groups before merging
 
---
-igor
+Good. it wasn't clear to me from your summary if were going to require
+ENOEM -> Q_OVERFLOW before merging this work. If you put it this way,
+I think it makes sense to let user to choose between GFP_NOFAIL and
+Q_OVERFLOW behavior when queue is not limited, for example by using new
+fanotify_init flag FAN_Q_BESTEFFORT (or better name), but I have no problem
+with postponing that for later.
+
+Thanks,
+Amir.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
