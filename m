@@ -1,55 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BE4176B0007
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 07:47:46 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id a6so4831119pff.6
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 04:47:46 -0800 (PST)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2653C6B0007
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 07:52:52 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id t2so7783297plr.15
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 04:52:52 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id k20si4949893pfb.120.2018.02.20.04.47.45
+        by mx.google.com with ESMTPS id v4-v6si2592581plz.143.2018.02.20.04.52.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 20 Feb 2018 04:47:45 -0800 (PST)
-Date: Tue, 20 Feb 2018 04:47:42 -0800
+        Tue, 20 Feb 2018 04:52:50 -0800 (PST)
+Date: Tue, 20 Feb 2018 04:52:46 -0800
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v7 15/61] xarray: Add xa_load
-Message-ID: <20180220124742.GA21243@bombadil.infradead.org>
-References: <20180219194556.6575-1-willy@infradead.org>
- <20180219194556.6575-16-willy@infradead.org>
- <CAOFm3uFQsycp1LpCwsMYJ0TynO03c5v3wBsNmE6mJxXaXyk+yA@mail.gmail.com>
+Subject: Re: [PATCH] mm: zsmalloc: Replace return type int with bool
+Message-ID: <20180220125246.GB21243@bombadil.infradead.org>
+References: <20180219194216.GA26165@jordon-HP-15-Notebook-PC>
+ <201802201156.4Z60eDwx%fengguang.wu@intel.com>
+ <CAFqt6zagwbvs06yK6KPp1TE5Z-mXzv6Bh2rhFFAyjz3Nh0BXmA@mail.gmail.com>
+ <20180220090820.GA153760@rodete-desktop-imager.corp.google.com>
+ <CAFqt6zZeiU9uMq0kNJRBs_aBTmHvZZkaotJ6GnVOjT6Y3nyS9g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOFm3uFQsycp1LpCwsMYJ0TynO03c5v3wBsNmE6mJxXaXyk+yA@mail.gmail.com>
+In-Reply-To: <CAFqt6zZeiU9uMq0kNJRBs_aBTmHvZZkaotJ6GnVOjT6Y3nyS9g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Philippe Ombredanne <pombredanne@nexb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, kbuild test robot <lkp@intel.com>, kbuild-all@01.org, Nitin Gupta <ngupta@vflare.org>, sergey.senozhatsky.work@gmail.com, Linux-MM <linux-mm@kvack.org>
 
-On Tue, Feb 20, 2018 at 08:34:06AM +0100, Philippe Ombredanne wrote:
-> > +++ b/tools/testing/radix-tree/xarray-test.c
-> > @@ -0,0 +1,56 @@
-> > +/*
-> > + * xarray-test.c: Test the XArray API
-> > + * Copyright (c) 2017 Microsoft Corporation <mawilcox@microsoft.com>
-> > + *
-> > + * This program is free software; you can redistribute it and/or modify it
-> > + * under the terms and conditions of the GNU General Public License,
-> > + * version 2, as published by the Free Software Foundation.
-> > + *
-> > + * This program is distributed in the hope it will be useful, but WITHOUT
-> > + * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-> > + * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-> > + * more details.
-> > + */
+On Tue, Feb 20, 2018 at 04:25:15PM +0530, Souptick Joarder wrote:
+> On Tue, Feb 20, 2018 at 2:38 PM, Minchan Kim <minchan@kernel.org> wrote:
+> > Yub, bool could be more appropriate. However, there are lots of other places
+> > in kernel where use int instead of bool.
+> > If we fix every such places with each patch, it would be very painful.
+> > If you believe it's really worth, it would be better to find/fix every
+> > such places in one patch. But I'm not sure it's worth.
+> >
 > 
-> Do you mind using SPDX tags per [1] rather that this fine but long legalese?
-> Unless you are a legalese lover of course.
+> Sure, I will create patch series and send it.
 
-Argh, missed that one.
-
-I'm more concerned with the documentation license, though.  I didn't
-get a response from you to the email I sent Feb 12, Subject: License
-documentation.
+Please don't.  If you're touching a function for another reason, it's
+fine to convert it to return bool.  A series of patches converting every
+function in the kernel that could be converted will not make friends.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
