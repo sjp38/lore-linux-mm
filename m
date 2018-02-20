@@ -1,82 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A6A206B0008
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 12:17:04 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id c37so4106501wra.5
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 09:17:04 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id m187si15889469wmg.35.2018.02.20.09.17.03
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BF8776B000C
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 12:45:19 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id v16so8641739wrv.14
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 09:45:19 -0800 (PST)
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id 3si9994165wmd.3.2018.02.20.09.45.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Feb 2018 09:17:03 -0800 (PST)
-Subject: Re: [kernel-hardening] [PATCH 4/6] Protectable Memory
-References: <20180124175631.22925-1-igor.stoppa@huawei.com>
- <20180124175631.22925-5-igor.stoppa@huawei.com>
- <CAG48ez0JRU8Nmn7jLBVoy6SMMrcj46R0_R30Lcyouc4R9igi-g@mail.gmail.com>
- <20180126053542.GA30189@bombadil.infradead.org>
- <alpine.DEB.2.20.1802021236510.31548@nuc-kabylake>
- <f2ddaed0-313e-8664-8a26-9d10b66ed0c5@huawei.com>
- <b75b5903-0177-8ad9-5c2b-fc63438fb5f2@huawei.com>
- <CAFUG7CfrCpcbwgf5ixMC5EZZgiVVVp1NXhDHK1UoJJcC08R2qQ@mail.gmail.com>
- <8818bfd4-dd9f-f279-0432-69b59531bd41@huawei.com>
- <CAFUG7CeUhFcvA82uZ2ZH1j_6PM=aBo4XmYDN85pf8G0gPU44dg@mail.gmail.com>
- <17e5b515-84c8-dca2-1695-cdf819834ea2@huawei.com>
- <CAGXu5j+LS1pgOOroi7Yxp2nh=DwtTnU3p-NZa6bQu_wkvvVkwg@mail.gmail.com>
- <414027d3-dd73-cf11-dc2a-e8c124591646@redhat.com>
- <5a83024c.64369d0a.a1e94.cdd6SMTPIN_ADDED_BROKEN@mx.google.com>
- <13a50f85-bbd8-5d78-915a-a29c4a9f0c32@redhat.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <7972cf4d-dfb2-6682-b1cb-e514a41196a6@huawei.com>
-Date: Tue, 20 Feb 2018 19:16:38 +0200
+        Tue, 20 Feb 2018 09:45:18 -0800 (PST)
+Subject: Re: [PATCH 1/6] powerpc/mm/32: Use pfn_valid to check if pointer is
+ in RAM
+References: <20180220161424.5421-1-j.neuschaefer@gmx.net>
+ <20180220161424.5421-2-j.neuschaefer@gmx.net>
+From: christophe leroy <christophe.leroy@c-s.fr>
+Message-ID: <0d14cb2c-dd00-d258-cb15-302b2a9d684f@c-s.fr>
+Date: Tue, 20 Feb 2018 18:45:09 +0100
 MIME-Version: 1.0
-In-Reply-To: <13a50f85-bbd8-5d78-915a-a29c4a9f0c32@redhat.com>
-Content-Type: text/plain; charset="gbk"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180220161424.5421-2-j.neuschaefer@gmx.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, Kees Cook <keescook@chromium.org>
-Cc: Boris Lukashev <blukashev@sempervictus.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Kernel
- Hardening <kernel-hardening@lists.openwall.com>
+To: =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>, linuxppc-dev@lists.ozlabs.org
+Cc: linux-kernel@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, Joel Stanley <joel@jms.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Balbir Singh <bsingharora@gmail.com>, Guenter Roeck <linux@roeck-us.net>
 
 
 
-On 13/02/18 20:10, Laura Abbott wrote:
-> On 02/13/2018 07:20 AM, Igor Stoppa wrote:
->> Why alterations of page properties are not considered a risk and the physmap is?
->> And how would it be easier (i suppose) to attack the latter?
+Le 20/02/2018 A  17:14, Jonathan NeuschA?fer a A(C)critA :
+> The Nintendo Wii has a memory layout that places two chunks of RAM at
+> non-adjacent addresses, and MMIO between them. Currently, the allocation
+> of these MMIO areas is made possible by declaring the MMIO hole as
+> reserved memory and allowing reserved memory to be allocated (cf.
+> wii_memory_fixups).
 > 
-> Alterations are certainly a risk but with the physmap the
-> mapping is already there. Find the address and you have
-> access vs. needing to actually modify the properties
-> then do the access. I could also be complete off base
-> on my threat model here so please correct me if I'm
-> wrong.
+> This patch is the first step towards proper support for discontiguous
+> memory on PPC32 by using pfn_valid to check if a pointer points into
+> RAM, rather than open-coding the check. It should result in no
+> functional difference.
+> 
+> Signed-off-by: Jonathan NeuschA?fer <j.neuschaefer@gmx.net>
+> ---
+>   arch/powerpc/mm/pgtable_32.c | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/arch/powerpc/mm/pgtable_32.c b/arch/powerpc/mm/pgtable_32.c
+> index d35d9ad3c1cd..b5c009893a44 100644
+> --- a/arch/powerpc/mm/pgtable_32.c
+> +++ b/arch/powerpc/mm/pgtable_32.c
+> @@ -147,7 +147,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
+>   	 * Don't allow anybody to remap normal RAM that we're using.
+>   	 * mem_init() sets high_memory so only do the check after that.
+>   	 */
+> -	if (slab_is_available() && (p < virt_to_phys(high_memory)) &&
+> +	if (slab_is_available() && pfn_valid(__phys_to_pfn(p)) &&
 
-It's difficult for me to comment on this without knowing *how* the
-attack would be performed, in your model.
+I'm not sure this is equivalent:
 
-Ex: my expectation is that the attacked has R/W access to kernel data
-and has knowledge of the location of static variables.
+high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
+#define ARCH_PFN_OFFSET		((unsigned long)(MEMORY_START >> PAGE_SHIFT))
+#define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && (pfn) < max_mapnr)
+set_max_mapnr(max_pfn);
 
-This is not just a guess, but a real-life scenario, found in attacks
-that, among other things, are capable of disabling SELinux, to proceed
-toward gaining full root capability.
+So in the current implementation it checks against max_low_pfn while 
+your patch checks against max_pfn
 
-At that point, I think that variables which are allocated dynamically,
-in vmalloc address space, are harder to locate, because of the virtual
-mapping and the randomness of the address chosen (this I have not
-confirmed yet, but I suppose there is some randomness in picking the
-address to assign to a certain allocation request to vmalloc, otherwise,
-it could be added).
+	max_low_pfn = max_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
+#ifdef CONFIG_HIGHMEM
+	max_low_pfn = lowmem_end_addr >> PAGE_SHIFT;
+#endif
 
-> I think your other summaries are good points though
-> and should go in the cover letter.
+Christophe
 
-Ok, I'm just afraid it risks becoming a lengthy dissertation :-)
+>   	    !(__allow_ioremap_reserved && memblock_is_region_reserved(p, size))) {
+>   		printk("__ioremap(): phys addr 0x%llx is RAM lr %ps\n",
+>   		       (unsigned long long)p, __builtin_return_address(0));
+> 
 
---
-igor
+---
+L'absence de virus dans ce courrier A(C)lectronique a A(C)tA(C) vA(C)rifiA(C)e par le logiciel antivirus Avast.
+https://www.avast.com/antivirus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
