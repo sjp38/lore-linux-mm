@@ -1,67 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CFD866B0005
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 08:29:34 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id y200so11665202itc.7
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 05:29:34 -0800 (PST)
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4983A6B0006
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 08:33:14 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id a32so7290672otj.5
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 05:33:14 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 1si1739784itj.89.2018.02.20.05.29.32
+        by mx.google.com with ESMTPS id u205si2237590oig.485.2018.02.20.05.33.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 20 Feb 2018 05:29:33 -0800 (PST)
-Subject: [PATCH] mm,vmscan: don't pretend forward progress upon shrinker_rwsem contention
+        Tue, 20 Feb 2018 05:33:13 -0800 (PST)
+Subject: [PATCH] mm,page_alloc: wait for oom_lock than back off
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1518184544-3293-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20180213101329.GN3443@dhcp22.suse.cz>
-In-Reply-To: <20180213101329.GN3443@dhcp22.suse.cz>
-Message-Id: <201802202229.GGF26507.LVFtMSOOHFJOQF@I-love.SAKURA.ne.jp>
-Date: Tue, 20 Feb 2018 22:29:24 +0900
+References: <20180123083806.GF1526@dhcp22.suse.cz>
+	<201801232107.HJB48975.OHJFFOOLFQMVSt@I-love.SAKURA.ne.jp>
+	<20180123124245.GK1526@dhcp22.suse.cz>
+	<201801242228.FAD52671.SFFLQMOVOFHOtJ@I-love.SAKURA.ne.jp>
+	<201802132058.HAG51540.QFtSLOJFOOFVMH@I-love.SAKURA.ne.jp>
+In-Reply-To: <201802132058.HAG51540.QFtSLOJFOOFVMH@I-love.SAKURA.ne.jp>
+Message-Id: <201802202232.IEC26597.FOQtMFOFJHOSVL@I-love.SAKURA.ne.jp>
+Date: Tue, 20 Feb 2018 22:32:56 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, mhocko@suse.com, dchinner@redhat.com, mgorman@suse.de, glommer@gmail.com
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
 
-Since we no longer use return value of shrink_slab() for normal reclaim,
-the comment is no longer true. If some do_shrink_slab() call takes
-unexpectedly long (root cause of stall is currently unknown) when
-register_shrinker()/unregister_shrinker() is pending, trying to drop
-caches via /proc/sys/vm/drop_caches could become infinite cond_resched()
-loop if many mem_cgroup are defined. For safety, let's not pretend forward
-progress.
+>From c3b6616238fcd65d5a0fdabcb4577c7e6f40d35e Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Tue, 20 Feb 2018 11:07:23 +0900
+Subject: [PATCH] mm,page_alloc: wait for oom_lock than back off
+
+This patch fixes a bug which is essentially same with a bug fixed by
+commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
+too long").
+
+Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
+on an assumption that the owner of oom_lock is making progress for us. But
+it is possible to trigger OOM lockup when many threads concurrently called
+__alloc_pages_slowpath() because all CPU resources are wasted for pointless
+direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
+__alloc_pages_may_oom() does not always give enough CPU resource to the
+owner of the oom_lock.
+
+It is possible that the owner of oom_lock is preempted by other threads.
+Preemption makes the OOM situation much worse. But the page allocator is
+not responsible about wasting CPU resource for something other than memory
+allocation request. Wasting CPU resource for memory allocation request
+without allowing the owner of oom_lock to make forward progress is a page
+allocator's bug.
+
+Therefore, this patch changes to wait for oom_lock in order to guarantee
+that no thread waiting for the owner of oom_lock to make forward progress
+will not consume CPU resources for pointless direct reclaim efforts.
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Acked-by: Michal Hocko <mhocko@suse.ccom>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Glauber Costa <glommer@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: David Rientjes <rientjes@google.com>
 ---
- mm/vmscan.c | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ mm/page_alloc.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4447496..17da5a5 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -442,16 +442,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
- 		return 0;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e2b42f6..0cd48ae6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3350,11 +3350,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
  
--	if (!down_read_trylock(&shrinker_rwsem)) {
--		/*
--		 * If we would return 0, our callers would understand that we
--		 * have nothing else to shrink and give up trying. By returning
--		 * 1 we keep it going and assume we'll be able to shrink next
--		 * time.
--		 */
--		freed = 1;
-+	if (!down_read_trylock(&shrinker_rwsem))
- 		goto out;
--	}
+ 	*did_some_progress = 0;
  
- 	list_for_each_entry(shrinker, &shrinker_list, list) {
- 		struct shrink_control sc = {
+-	/*
+-	 * Acquire the oom lock.  If that fails, somebody else is
+-	 * making progress for us.
+-	 */
+-	if (!mutex_trylock(&oom_lock)) {
++	if (mutex_lock_killable(&oom_lock)) {
+ 		*did_some_progress = 1;
+ 		schedule_timeout_uninterruptible(1);
+ 		return NULL;
 -- 
 1.8.3.1
 
