@@ -1,84 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B9626B0009
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 10:19:02 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id v123so555422lfa.4
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 07:19:02 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l34sor456334lfi.44.2018.02.20.07.19.00
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 956E56B0008
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 11:05:26 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id o10so7503106iod.21
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 08:05:26 -0800 (PST)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id e197si61421iof.53.2018.02.20.08.05.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 20 Feb 2018 07:19:00 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Feb 2018 08:05:25 -0800 (PST)
+Date: Tue, 20 Feb 2018 10:05:23 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH] slab: fix /proc/slabinfo alignment
+In-Reply-To: <20180220150449.GF21243@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.20.1802201004480.29180@nuc-kabylake>
+References: <BM1PR0101MB2083C73A6E7608B630CE4C26B1CF0@BM1PR0101MB2083.INDPRD01.PROD.OUTLOOK.COM> <alpine.DEB.2.20.1802200855300.28634@nuc-kabylake> <20180220150449.GF21243@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180220133725.GC21243@bombadil.infradead.org>
-References: <20180219194216.GA26165@jordon-HP-15-Notebook-PC>
- <201802201156.4Z60eDwx%fengguang.wu@intel.com> <CAFqt6zagwbvs06yK6KPp1TE5Z-mXzv6Bh2rhFFAyjz3Nh0BXmA@mail.gmail.com>
- <20180220090820.GA153760@rodete-desktop-imager.corp.google.com>
- <CAFqt6zZeiU9uMq0kNJRBs_aBTmHvZZkaotJ6GnVOjT6Y3nyS9g@mail.gmail.com>
- <20180220125246.GB21243@bombadil.infradead.org> <20180220133725.GC21243@bombadil.infradead.org>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Tue, 20 Feb 2018 20:48:58 +0530
-Message-ID: <CAFqt6zYab6Spqf16ssAvEVrsGt4X2jkys85G8u-Aqgxa5_qpmw@mail.gmail.com>
-Subject: Re: [PATCH] mm: zsmalloc: Replace return type int with bool
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Minchan Kim <minchan@kernel.org>, kbuild test robot <lkp@intel.com>, Nitin Gupta <ngupta@vflare.org>, sergey.senozhatsky.work@gmail.com, Linux-MM <linux-mm@kvack.org>
+Cc: ? ? <mordorw@hotmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi Matthew,
+On Tue, 20 Feb 2018, Matthew Wilcox wrote:
 
-On Tue, Feb 20, 2018 at 7:07 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> On Tue, Feb 20, 2018 at 04:52:46AM -0800, Matthew Wilcox wrote:
->> On Tue, Feb 20, 2018 at 04:25:15PM +0530, Souptick Joarder wrote:
->> > On Tue, Feb 20, 2018 at 2:38 PM, Minchan Kim <minchan@kernel.org> wrote:
->> > > Yub, bool could be more appropriate. However, there are lots of other places
->> > > in kernel where use int instead of bool.
->> > > If we fix every such places with each patch, it would be very painful.
->> > > If you believe it's really worth, it would be better to find/fix every
->> > > such places in one patch. But I'm not sure it's worth.
->> > >
->> >
->> > Sure, I will create patch series and send it.
->>
->> Please don't.  If you're touching a function for another reason, it's
->> fine to convert it to return bool.  A series of patches converting every
->> function in the kernel that could be converted will not make friends.
+> On Tue, Feb 20, 2018 at 08:56:11AM -0600, Christopher Lameter wrote:
+> > On Tue, 20 Feb 2018, ? ? wrote:
+> >
+> > > /proc/slabinfo is not aligned, it is difficult to read, so correct it
+> >
+> > How does it look on a terminal with 80 characters per line?
 >
-> ... but if you're looking for something to do, here's something from my
-> TODO list that's in the same category.
+> That ship sailed long ago ...
+>
+> kmalloc-8192         433    435   8192    1    2 : tunables    8    4    0 : sla
+> bdata    433    435      0
+>
+> (I put in a manual carriage return at 80 columns for those not reading on
+> an 80 column terminal).
 
-Thanks. I would like to take it.
->
-> The vm_ops fault, huge_fault, page_mkwrite and pfn_mkwrite handlers are
-> currently defined to return an int (see linux/mm.h).  Unlike the majority
-> of functions which return int, these functions are supposed to return
-> one or more of the VM_FAULT flags.  There's general agreement that this
-> should become a new typedef, vm_fault_t.  We can do a gradual conversion;
-> start off by adding
->
-> typedef int vm_fault_t;
->
-> to linux/mm.h.  Then the individual drivers can be converted (one patch
-> per driver) to return vm_fault_t from those handlers (probably about
-> 180 patches, so take it slowly).  Once all drivers are converted, we
-> can change that typedef to:
->
-> typedef enum {
->         VM_FAULT_OOM    = 1,
->         VM_FAULT_SIGBUS = 2,
->         VM_FAULT_MAJOR  = 4,
-> ...
-> } vm_fault_t;
->
-> and then the compiler will warn if anyone tries to introduce a new handler
-> that returns int.
->
-
-Let me go through the shared details and will reply you back
-before making any changes.
-
--Souptick
+Well yes but if someone is fixing things then the 80 character issue also
+should be fixed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
