@@ -1,52 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C3B4F6B0007
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 02:39:28 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id m200so583454lfg.2
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 23:39:28 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g30sor177142lja.30.2018.02.19.23.39.27
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CF0A6B0005
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 03:49:05 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id j28so5980217wrd.17
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 00:49:05 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 189si1143461wmp.128.2018.02.20.00.49.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 19 Feb 2018 23:39:27 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 20 Feb 2018 00:49:03 -0800 (PST)
+Date: Tue, 20 Feb 2018 09:49:02 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] slab: fix /proc/slabinfo alignment
+Message-ID: <20180220084902.GT21134@dhcp22.suse.cz>
+References: <BM1PR0101MB2083C73A6E7608B630CE4C26B1CF0@BM1PR0101MB2083.INDPRD01.PROD.OUTLOOK.COM>
 MIME-Version: 1.0
-In-Reply-To: <201802201156.4Z60eDwx%fengguang.wu@intel.com>
-References: <20180219194216.GA26165@jordon-HP-15-Notebook-PC> <201802201156.4Z60eDwx%fengguang.wu@intel.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Tue, 20 Feb 2018 13:09:26 +0530
-Message-ID: <CAFqt6zagwbvs06yK6KPp1TE5Z-mXzv6Bh2rhFFAyjz3Nh0BXmA@mail.gmail.com>
-Subject: Re: [PATCH] mm: zsmalloc: Replace return type int with bool
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BM1PR0101MB2083C73A6E7608B630CE4C26B1CF0@BM1PR0101MB2083.INDPRD01.PROD.OUTLOOK.COM>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, minchan@kernel.org, Nitin Gupta <ngupta@vflare.org>, sergey.senozhatsky.work@gmail.com, Linux-MM <linux-mm@kvack.org>
+To: ? ? <mordorw@hotmail.com>
+Cc: "cl@linux.com" <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Feb 20, 2018 at 9:07 AM, kbuild test robot <lkp@intel.com> wrote:
-> Hi Souptick,
->
-> Thank you for the patch! Perhaps something to improve:
->
-> [auto build test WARNING on mmotm/master]
-> [also build test WARNING on v4.16-rc2 next-20180219]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
->
-> url:    https://github.com/0day-ci/linux/commits/Souptick-Joarder/mm-zsmalloc-Replace-return-type-int-with-bool/20180220-070147
-> base:   git://git.cmpxchg.org/linux-mmotm.git master
->
->
-> coccinelle warnings: (new ones prefixed by >>)
->
->>> mm/zsmalloc.c:309:65-66: WARNING: return of 0/1 in function 'zs_register_migration' with return type bool
->
-> Please review and possibly fold the followup patch.
->
+On Tue 20-02-18 02:29:13, ? ? wrote:
+> Signed-off-by: mordor <mordorw@hotmail.com>
+> /proc/slabinfo is not aligned, it is difficult to read, so correct it
 
-OK, I will send the v2.
+I do not see this as an improvement, to be honest. Moreover you risk a
+regression when some dumb parsing tool relies on the current layout
+format. I find the later rather unlikely but there would have to be a
+very good reason to take the risk.
 
 > ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+>  mm/slab_common.c | 10 +++++-----
+>  1 file changed, 5 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 10f127b..7111549 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -1232,7 +1232,6 @@ void cache_random_seq_destroy(struct kmem_cache *cachep)
+>  #else
+>  #define SLABINFO_RIGHTS S_IRUSR
+>  #endif
+> -
+>  static void print_slabinfo_header(struct seq_file *m)
+>  {
+>  	/*
+> @@ -1244,7 +1243,7 @@ static void print_slabinfo_header(struct seq_file *m)
+>  #else
+>  	seq_puts(m, "slabinfo - version: 2.1\n");
+>  #endif
+> -	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
+> +	seq_puts(m, "# name                         <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
+>  	seq_puts(m, " : tunables <limit> <batchcount> <sharedfactor>");
+>  	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
+>  #ifdef CONFIG_DEBUG_SLAB
+> @@ -1291,6 +1290,7 @@ memcg_accumulate_slabinfo(struct kmem_cache *s, struct slabinfo *info)
+>  	}
+>  }
+>  
+> +
+>  static void cache_show(struct kmem_cache *s, struct seq_file *m)
+>  {
+>  	struct slabinfo sinfo;
+> @@ -1300,13 +1300,13 @@ static void cache_show(struct kmem_cache *s, struct seq_file *m)
+>  
+>  	memcg_accumulate_slabinfo(s, &sinfo);
+>  
+> -	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
+> +	seq_printf(m, "%-30s %13lu %10lu %9u %12u %14d",
+>  		   cache_name(s), sinfo.active_objs, sinfo.num_objs, s->size,
+>  		   sinfo.objects_per_slab, (1 << sinfo.cache_order));
+>  
+> -	seq_printf(m, " : tunables %4u %4u %4u",
+> +	seq_printf(m, " : tunables %7u %12u %14u",
+>  		   sinfo.limit, sinfo.batchcount, sinfo.shared);
+> -	seq_printf(m, " : slabdata %6lu %6lu %6lu",
+> +	seq_printf(m, " : slabdata %14lu %11lu %13lu",
+>  		   sinfo.active_slabs, sinfo.num_slabs, sinfo.shared_avail);
+>  	slabinfo_show_stats(m, s);
+>  	seq_putc(m, '\n');
+> -- 
+> 2.7.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
