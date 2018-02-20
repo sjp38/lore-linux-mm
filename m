@@ -1,83 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D34566B000E
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 12:56:53 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id o66so5219672pfg.22
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 09:56:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x2sor1155589pgt.275.2018.02.20.09.56.52
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C024E6B0011
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 13:04:18 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 62so8690372wrg.0
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 10:04:18 -0800 (PST)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id t57si1723792edd.20.2018.02.20.10.04.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 20 Feb 2018 09:56:52 -0800 (PST)
-Date: Tue, 20 Feb 2018 23:28:11 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v2] mm: zsmalloc: Replace return type int with bool
-Message-ID: <20180220175811.GA28277@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Feb 2018 10:04:17 -0800 (PST)
+Subject: Re: [RFC PATCH v16 0/6] mm: security: ro protection for dynamic data
+References: <20180212165301.17933-1-igor.stoppa@huawei.com>
+ <CAGXu5j+ZNFX17Vxd37rPnkahFepFn77Fi9zEy+OL8nNd_2bjqQ@mail.gmail.com>
+ <20180220012111.GC3728@rh>
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Message-ID: <24e65dec-f452-a444-4382-d1f88fbb334c@huawei.com>
+Date: Tue, 20 Feb 2018 20:03:49 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20180220012111.GC3728@rh>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com
-Cc: linux-mm@kvack.org
+To: Dave Chinner <dchinner@redhat.com>, Kees Cook <keescook@chromium.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Christoph
+ Lameter <cl@linux.com>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-zs_register_migration() returns either 0 or 1.
-So the return type int should be replaced with bool.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
 
-v2: Returning false in zs_register_migration() as return
-    type is bool
+On 20/02/18 03:21, Dave Chinner wrote:
+> On Mon, Feb 12, 2018 at 03:32:36PM -0800, Kees Cook wrote:
+>> On Mon, Feb 12, 2018 at 8:52 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
+>>> This patch-set introduces the possibility of protecting memory that has
+>>> been allocated dynamically.
+>>>
+>>> The memory is managed in pools: when a memory pool is turned into R/O,
+>>> all the memory that is part of it, will become R/O.
+>>>
+>>> A R/O pool can be destroyed, to recover its memory, but it cannot be
+>>> turned back into R/W mode.
+>>>
+>>> This is intentional. This feature is meant for data that doesn't need
+>>> further modifications after initialization.
+>>
+>> This series came up in discussions with Dave Chinner (and Matthew
+>> Wilcox, already part of the discussion, and others) at LCA. I wonder
+>> if XFS would make a good initial user of this, as it could allocate
+>> all the function pointers and other const information about a
+>> superblock in pmalloc(), keeping it separate from the R/W portions?
+>> Could other filesystems do similar things?
+> 
+> I wasn't cc'd on this patchset, (please use david@fromorbit.com for
+> future postings) 
 
- mm/zsmalloc.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+Apologies, somehow I didn't realize that I should have put you too in
+CC. It will be fixed at the next iteration.
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index c301350..5fa2dfe 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -295,7 +295,7 @@ struct mapping_area {
- };
+> so I can't really say anything about it right
+> now. My interest for XFS was that we have a fair amount of static
+> data in XFS that we set up at mount time and it never gets modified
+> after that.
 
- #ifdef CONFIG_COMPACTION
--static int zs_register_migration(struct zs_pool *pool);
-+static bool zs_register_migration(struct zs_pool *pool);
- static void zs_unregister_migration(struct zs_pool *pool);
- static void migrate_lock_init(struct zspage *zspage);
- static void migrate_read_lock(struct zspage *zspage);
-@@ -306,7 +306,7 @@ struct mapping_area {
- #else
- static int zsmalloc_mount(void) { return 0; }
- static void zsmalloc_unmount(void) {}
--static int zs_register_migration(struct zs_pool *pool) { return 0; }
-+static bool zs_register_migration(struct zs_pool *pool) { return false; }
- static void zs_unregister_migration(struct zs_pool *pool) {}
- static void migrate_lock_init(struct zspage *zspage) {}
- static void migrate_read_lock(struct zspage *zspage) {}
-@@ -2101,17 +2101,17 @@ void zs_page_putback(struct page *page)
- 	.putback_page = zs_page_putback,
- };
+This is the typical use case I had in mind, although it requires a
+conversion.
+Ex:
 
--static int zs_register_migration(struct zs_pool *pool)
-+static bool zs_register_migration(struct zs_pool *pool)
- {
- 	pool->inode = alloc_anon_inode(zsmalloc_mnt->mnt_sb);
- 	if (IS_ERR(pool->inode)) {
- 		pool->inode = NULL;
--		return 1;
-+		return true;
- 	}
+before:
 
- 	pool->inode->i_mapping->private_data = pool;
- 	pool->inode->i_mapping->a_ops = &zsmalloc_aops;
--	return 0;
-+	return false;
- }
+static int a;
 
- static void zs_unregister_migration(struct zs_pool *pool)
+
+void set_a(void)
+{
+	a = 4;
+}
+
+
+
+after:
+
+static int *a __ro_after_init;
+struct gen_pool *pool;
+
+void init_a(void)
+{
+	pool = pmalloc_create_pool("pool", 0);
+	a = (int *)pmalloc(pool, sizeof(int), GFP_KERNEL);
+}
+
+void set_a(void)
+{
+	*a = 4;
+	pmalloc_protect_pool(pool);
+}
+
+> I'm not so worried about VFS level objects (that's a
+> much more complex issue) but there is a lot of low hanging fruit in
+> the XFS structures we could convert to write-once structures.
+
+I'd be interested to have your review of the pmalloc API, if you think
+something is missing, once I send out the next revision.
+
 --
-1.9.1
+igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
