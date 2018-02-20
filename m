@@ -1,87 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 600F76B0005
-	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 21:29:19 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id o61so6311891pld.5
-        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 18:29:19 -0800 (PST)
-Received: from APC01-SG2-obe.outbound.protection.outlook.com (mail-oln040092253029.outbound.protection.outlook.com. [40.92.253.29])
-        by mx.google.com with ESMTPS id r19si6021448pfi.100.2018.02.19.18.29.17
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 804EA6B0005
+	for <linux-mm@kvack.org>; Mon, 19 Feb 2018 22:37:37 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id q11so4225139pff.19
+        for <linux-mm@kvack.org>; Mon, 19 Feb 2018 19:37:37 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id bc9-v6si5349680plb.12.2018.02.19.19.37.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 19 Feb 2018 18:29:18 -0800 (PST)
-From: ? ? <mordorw@hotmail.com>
-Subject: [PATCH] slab: fix /proc/slabinfo alignment
-Date: Tue, 20 Feb 2018 02:29:13 +0000
-Message-ID: <BM1PR0101MB2083C73A6E7608B630CE4C26B1CF0@BM1PR0101MB2083.INDPRD01.PROD.OUTLOOK.COM>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Feb 2018 19:37:36 -0800 (PST)
+Date: Tue, 20 Feb 2018 11:37:08 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH] mm: zsmalloc: Replace return type int with bool
+Message-ID: <201802201156.4Z60eDwx%fengguang.wu@intel.com>
+References: <20180219194216.GA26165@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180219194216.GA26165@jordon-HP-15-Notebook-PC>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "cl@linux.com" <cl@linux.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, ? ? <mordorw@hotmail.com>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: kbuild-all@01.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org
 
-Signed-off-by: mordor <mordorw@hotmail.com>
-/proc/slabinfo is not aligned, it is difficult to read, so correct it
+Hi Souptick,
+
+Thank you for the patch! Perhaps something to improve:
+
+[auto build test WARNING on mmotm/master]
+[also build test WARNING on v4.16-rc2 next-20180219]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Souptick-Joarder/mm-zsmalloc-Replace-return-type-int-with-bool/20180220-070147
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+
+
+coccinelle warnings: (new ones prefixed by >>)
+
+>> mm/zsmalloc.c:309:65-66: WARNING: return of 0/1 in function 'zs_register_migration' with return type bool
+
+Please review and possibly fold the followup patch.
 
 ---
- mm/slab_common.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
-
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 10f127b..7111549 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1232,7 +1232,6 @@ void cache_random_seq_destroy(struct kmem_cache *cach=
-ep)
- #else
- #define SLABINFO_RIGHTS S_IRUSR
- #endif
--
- static void print_slabinfo_header(struct seq_file *m)
- {
- 	/*
-@@ -1244,7 +1243,7 @@ static void print_slabinfo_header(struct seq_file *m)
- #else
- 	seq_puts(m, "slabinfo - version: 2.1\n");
- #endif
--	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> <objper=
-slab> <pagesperslab>");
-+	seq_puts(m, "# name                         <active_objs> <num_objs> <obj=
-size> <objperslab> <pagesperslab>");
- 	seq_puts(m, " : tunables <limit> <batchcount> <sharedfactor>");
- 	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
- #ifdef CONFIG_DEBUG_SLAB
-@@ -1291,6 +1290,7 @@ memcg_accumulate_slabinfo(struct kmem_cache *s, struc=
-t slabinfo *info)
- 	}
- }
-=20
-+
- static void cache_show(struct kmem_cache *s, struct seq_file *m)
- {
- 	struct slabinfo sinfo;
-@@ -1300,13 +1300,13 @@ static void cache_show(struct kmem_cache *s, struct=
- seq_file *m)
-=20
- 	memcg_accumulate_slabinfo(s, &sinfo);
-=20
--	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
-+	seq_printf(m, "%-30s %13lu %10lu %9u %12u %14d",
- 		   cache_name(s), sinfo.active_objs, sinfo.num_objs, s->size,
- 		   sinfo.objects_per_slab, (1 << sinfo.cache_order));
-=20
--	seq_printf(m, " : tunables %4u %4u %4u",
-+	seq_printf(m, " : tunables %7u %12u %14u",
- 		   sinfo.limit, sinfo.batchcount, sinfo.shared);
--	seq_printf(m, " : slabdata %6lu %6lu %6lu",
-+	seq_printf(m, " : slabdata %14lu %11lu %13lu",
- 		   sinfo.active_slabs, sinfo.num_slabs, sinfo.shared_avail);
- 	slabinfo_show_stats(m, s);
- 	seq_putc(m, '\n');
---=20
-2.7.4
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
