@@ -1,84 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CB1F6B0005
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 11:53:04 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 63so1897841wrn.7
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 08:53:04 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.18])
-        by mx.google.com with ESMTPS id 44si2694418wrb.187.2018.02.21.08.53.02
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D0D886B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 11:59:36 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id f16so1695392qth.20
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 08:59:36 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v21sor6631961qkl.84.2018.02.21.08.59.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Feb 2018 08:53:03 -0800 (PST)
-Date: Wed, 21 Feb 2018 17:52:57 +0100
-From: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>
-Subject: Re: [PATCH 0/6] DISCONTIGMEM support for PPC32
-Message-ID: <20180221165257.kyf35ifr4ndblowt@latitude>
-References: <20180220161424.5421-1-j.neuschaefer@gmx.net>
- <193a407d-e6b8-9e29-af47-3d401b6414a0@c-s.fr>
- <20180221144240.pfu2run3pixt3pzo@latitude>
- <a36983ec-5e97-e968-8143-1b2615ea55f8@c-s.fr>
+        (Google Transport Security);
+        Wed, 21 Feb 2018 08:59:35 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="okldkbspm4p3rco7"
-Content-Disposition: inline
-In-Reply-To: <a36983ec-5e97-e968-8143-1b2615ea55f8@c-s.fr>
+In-Reply-To: <CAKD1Yr2mgYZ7uFCQsQ9M5YMGX1LuhO0CQR6tLvQM=dND4RBrbQ@mail.gmail.com>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <CALCETrUF61fqjXKG=kwf83JWpw=kgL16UvKowezDVwVA1=YVAw@mail.gmail.com>
+ <20180209191112.55zyjf4njum75brd@suse.de> <20180210091543.ynypx4y3koz44g7y@angband.pl>
+ <CA+55aFwdLZjDcfhj4Ps=dUfd7ifkoYxW0FoH_JKjhXJYzxUSZQ@mail.gmail.com>
+ <20180211105909.53bv5q363u7jgrsc@angband.pl> <6FB16384-7597-474E-91A1-1AF09201CEAC@gmail.com>
+ <20180213085429.GB10278@kroah.com> <CA+55aFzLR2DbGnAKQwg79Ob9dpkOM1Z7bxkjyPBSp3Zdxmk5eQ@mail.gmail.com>
+ <20180214085425.GA12779@kroah.com> <CAKD1Yr2mgYZ7uFCQsQ9M5YMGX1LuhO0CQR6tLvQM=dND4RBrbQ@mail.gmail.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Wed, 21 Feb 2018 17:59:34 +0100
+Message-ID: <CAK8P3a2iFfrH5B8sha7GMEPN-pv995X_1b6-Bo4h=wBLGhhUPg@mail.gmail.com>
+Subject: Re: [PATCH 00/31 v2] PTI support for x86_32
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christophe LEROY <christophe.leroy@c-s.fr>
-Cc: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, linuxppc-dev@lists.ozlabs.org, Joel Stanley <joel@jms.id.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lorenzo Colitti <lorenzo@google.com>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mark D Rustad <mrustad@gmail.com>, Adam Borowski <kilobyte@angband.pl>, Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Florian Westphal <fw@strlen.de>
 
+On Wed, Feb 21, 2018 at 11:26 AM, Lorenzo Colitti <lorenzo@google.com> wrote:
+> On Wed, Feb 14, 2018 at 5:54 PM, Greg KH <gregkh@linuxfoundation.org> wrote:
+>> > > IPSEC doesn't work with a 64bit kernel and 32bit userspace right now.
+>> > >
+>> > > Back in 2015 someone started to work on that, and properly marked that
+>> > > the kernel could not handle this with commit 74005991b78a ("xfrm: Do not
+>> > > parse 32bits compiled xfrm netlink msg on 64bits host")
+>> > >
+>> > > This is starting to be hit by some Android systems that are moving
+>> > > (yeah, slowly) to 4.4 :(
+>> >
+>> > Does anybody have test-programs/harnesses for this?
+>>
+>> Lorenzo (now on the To: line), is the one that I think is looking into
+>> this, and should have some sort of test for it.  Lorenzo?
+>
+> Sorry for the late reply here. The issue is that the xfrm uapi structs
+> don't specify padding at the end, so they're a different size on
+> 32-bit and 64-bit archs. This by itself would be fine, as the kernel
+> could just ignore the (lack of) padding. But some of these structs
+> contain others (e.g., xfrm_userspi_info contains xfrm_usersa_info),
+> and in that case the whole layout after the contained struct is
+> different.
 
---okldkbspm4p3rco7
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+So this is x86 specific then and it already works correctly on all
+other architectures (especially arm64 Android), right?
 
-On Wed, Feb 21, 2018 at 04:02:25PM +0100, Christophe LEROY wrote:
-[...]
-> > > My question might me stupid, as I don't know PCC64 in deep, but when =
-looking
-> > > at page_is_ram() in arch/powerpc/mm/mem.c, I have the feeling the PPC=
-64
-> > > implements ram by blocks. Isn't it what you are trying to achieve ? W=
-ouldn't
-> > > it be feasible to map to what's done in PPC64 for PPC32 ?
-> >=20
-> > Using page_is_ram in __ioremap_caller and the same memblock-based
-> > approach that's used on PPC64 on PPC32 *should* work, but I think due to
-> > the following line in initmem_init, it won't:
-> >=20
-> > 	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
->=20
-> Can't we just fix that ?
-
-I'll give it a try.
-
-
-Thanks,
-Jonathan Neusch=C3=A4fer
-
---okldkbspm4p3rco7
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAABAgAGBQJajaPhAAoJEAgwRJqO81/b+aAP/A8ieDpgUlAvsfT1R0W2JTwZ
-fWSbAAewS0RNzEyDXJMKuhPHPIFsed0oBGKLd2MelE0DPqIqAab+nC8gtXjFWcWT
-ze47sr01w+ePMhnX3UtVT71WFXMYlYder8iaj3CTBtNFSAZlt7hgouHFRDuqXos9
-IogPzpgqsHml/4rOP0Qr/i9EKmCeXOKW4jRI3xTxTOUlaJaxbWUky+7CofvxRXpc
-quq3ljk6SlBXeiZuskiN9u3g7h1uBfRXsl50QH/XrRaMZB5xVyzUSbT5hSHdmI1b
-F/XS54jsZVFN0PcUOTg8E5XuLYA9/fZPxk/9+XwrI854VU5Br9qFmCW4grwsMIVE
-efJEft6/2LRlZsLh2M/iJKNJ7isFKbzwI96x5SqT0lpY2QdrXYrlTWlWQY9UpMIY
-urWQxOPogQ1LCqgKyi7aTBcWJh5VQ/imU4a91SancINfUMu0fpGkdquhCFLoLpTK
-ZvkzsRJdLoy/urFxXFoWOsIeiz0MoHPW7dCfU9qZx/7jj3DQojqBxtltmrVXZdEc
-bgOTMGGiYe2E6cbA6pXgVCNpbL0VqEzlc8Wkb3AQQCQbvZf+A5y1bLp7boHRD91z
-zsmDfdCDxkbXqNhSKaBSwlO9zQIElbPauoidd2zDu3WBPH0CLPMr7P1o63By7HKA
-6t8sFNQ2NavTaYaFH6Ij
-=H5py
------END PGP SIGNATURE-----
-
---okldkbspm4p3rco7--
+      Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
