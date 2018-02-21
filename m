@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DF8BF6B0009
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 22:01:43 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id b6so157626plx.3
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 19:01:43 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 501EB6B0011
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 22:01:50 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id s17so142949pfm.23
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 19:01:50 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j63sor2321957pge.337.2018.02.20.19.01.42
+        by mx.google.com with SMTPS id l61-v6sor273081plb.91.2018.02.20.19.01.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 20 Feb 2018 19:01:42 -0800 (PST)
+        Tue, 20 Feb 2018 19:01:45 -0800 (PST)
 From: Shakeel Butt <shakeelb@google.com>
-Subject: [PATCH v2 2/3] mm: memcg: plumbing memcg for kmalloc allocations
-Date: Tue, 20 Feb 2018 19:01:00 -0800
-Message-Id: <20180221030101.221206-3-shakeelb@google.com>
+Subject: [PATCH v2 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
+Date: Tue, 20 Feb 2018 19:01:01 -0800
+Message-Id: <20180221030101.221206-4-shakeelb@google.com>
 In-Reply-To: <20180221030101.221206-1-shakeelb@google.com>
 References: <20180221030101.221206-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,508 +20,329 @@ List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-Introducing the memcg variant for kmalloc allocation functions.
-The kmalloc allocations are underlying served using the kmem caches
-unless the size of the allocation request is larger than
-KMALLOC_MAX_CACHE_SIZE, in which case, the kmem caches are bypassed and
-the request is routed directly to page allocator. So, for __GFP_ACCOUNT
-kmalloc allocations, the memcg of current task is charged. This patch
-introduces memcg variant of kmalloc functions to allow callers to
-provide memcg for charging.
+A lot of memory can be consumed by the events generated for the huge or
+unlimited queues if there is either no or slow listener. This can cause
+system level memory pressure or OOMs. So, it's better to account the
+fsnotify kmem caches to the memcg of the listener.
+
+There are seven fsnotify kmem caches and among them allocations from
+dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
+inotify_inode_mark_cachep happens in the context of syscall from the
+listener. So, SLAB_ACCOUNT is enough for these caches.
+
+The objects from fsnotify_mark_connector_cachep are not accounted as
+they are small compared to the notification mark or events and it is
+unclear whom to account connector to since it is shared by all events
+attached to the inode.
+
+The allocations from the event caches happen in the context of the event
+producer. For such caches we will need to remote charge the allocations
+to the listener's memcg. Thus we save the memcg reference in the
+fsnotify_group structure of the listener.
+
+This patch has also moved the members of fsnotify_group to keep the
+size same, at least for 64 bit build, even with additional member by
+filling the holes.
 
 Signed-off-by: Shakeel Butt <shakeelb@google.com>
 ---
 Changelog since v1:
-- Fixed build for SLOB
+- no more charging fsnotify_mark_connector objects
+- Fixed the build for SLOB
 
- include/linux/memcontrol.h |  3 +-
- include/linux/slab.h       | 45 +++++++++++++++++++++++---
- mm/memcontrol.c            |  9 ++++--
- mm/page_alloc.c            |  2 +-
- mm/slab.c                  | 31 +++++++++++++-----
- mm/slab_common.c           | 41 +++++++++++++++++++++++-
- mm/slob.c                  |  6 ++++
- mm/slub.c                  | 65 +++++++++++++++++++++++++++++++-------
- 8 files changed, 172 insertions(+), 30 deletions(-)
+ fs/notify/dnotify/dnotify.c          |  5 +++--
+ fs/notify/fanotify/fanotify.c        | 12 +++++++-----
+ fs/notify/fanotify/fanotify.h        |  3 ++-
+ fs/notify/fanotify/fanotify_user.c   |  7 +++++--
+ fs/notify/group.c                    |  4 ++++
+ fs/notify/inotify/inotify_fsnotify.c |  2 +-
+ fs/notify/inotify/inotify_user.c     |  5 ++++-
+ fs/notify/mark.c                     |  6 ++++--
+ include/linux/fsnotify_backend.h     | 12 ++++++++----
+ include/linux/memcontrol.h           |  7 +++++++
+ mm/memcontrol.c                      |  2 +-
+ 11 files changed, 46 insertions(+), 19 deletions(-)
 
+diff --git a/fs/notify/dnotify/dnotify.c b/fs/notify/dnotify/dnotify.c
+index 63a1ca4b9dee..eb5c41284649 100644
+--- a/fs/notify/dnotify/dnotify.c
++++ b/fs/notify/dnotify/dnotify.c
+@@ -384,8 +384,9 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
+ 
+ static int __init dnotify_init(void)
+ {
+-	dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC);
+-	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC);
++	dnotify_struct_cache = KMEM_CACHE(dnotify_struct,
++					  SLAB_PANIC|SLAB_ACCOUNT);
++	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
+ 
+ 	dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
+ 	if (IS_ERR(dnotify_group))
+diff --git a/fs/notify/fanotify/fanotify.c b/fs/notify/fanotify/fanotify.c
+index 6702a6a0bbb5..0d9493ebc7cd 100644
+--- a/fs/notify/fanotify/fanotify.c
++++ b/fs/notify/fanotify/fanotify.c
+@@ -140,22 +140,24 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
+ }
+ 
+ struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
+-						 const struct path *path)
++						 const struct path *path,
++						 struct mem_cgroup *memcg)
+ {
+ 	struct fanotify_event_info *event;
+ 
+ 	if (fanotify_is_perm_event(mask)) {
+ 		struct fanotify_perm_event_info *pevent;
+ 
+-		pevent = kmem_cache_alloc(fanotify_perm_event_cachep,
+-					  GFP_KERNEL);
++		pevent = kmem_cache_alloc_memcg(fanotify_perm_event_cachep,
++						GFP_KERNEL, memcg);
+ 		if (!pevent)
+ 			return NULL;
+ 		event = &pevent->fae;
+ 		pevent->response = 0;
+ 		goto init;
+ 	}
+-	event = kmem_cache_alloc(fanotify_event_cachep, GFP_KERNEL);
++	event = kmem_cache_alloc_memcg(fanotify_event_cachep, GFP_KERNEL,
++				       memcg);
+ 	if (!event)
+ 		return NULL;
+ init: __maybe_unused
+@@ -210,7 +212,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
+ 			return 0;
+ 	}
+ 
+-	event = fanotify_alloc_event(inode, mask, data);
++	event = fanotify_alloc_event(inode, mask, data, group->memcg);
+ 	ret = -ENOMEM;
+ 	if (unlikely(!event))
+ 		goto finish;
+diff --git a/fs/notify/fanotify/fanotify.h b/fs/notify/fanotify/fanotify.h
+index 256d9d1ddea9..51b797896c87 100644
+--- a/fs/notify/fanotify/fanotify.h
++++ b/fs/notify/fanotify/fanotify.h
+@@ -53,4 +53,5 @@ static inline struct fanotify_event_info *FANOTIFY_E(struct fsnotify_event *fse)
+ }
+ 
+ struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
+-						 const struct path *path);
++						 const struct path *path,
++						 struct mem_cgroup *memcg);
+diff --git a/fs/notify/fanotify/fanotify_user.c b/fs/notify/fanotify/fanotify_user.c
+index ef08d64c84b8..29c9b3e57a29 100644
+--- a/fs/notify/fanotify/fanotify_user.c
++++ b/fs/notify/fanotify/fanotify_user.c
+@@ -16,6 +16,7 @@
+ #include <linux/uaccess.h>
+ #include <linux/compat.h>
+ #include <linux/sched/signal.h>
++#include <linux/memcontrol.h>
+ 
+ #include <asm/ioctls.h>
+ 
+@@ -756,8 +757,9 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
+ 
+ 	group->fanotify_data.user = user;
+ 	atomic_inc(&user->fanotify_listeners);
++	group->memcg = get_mem_cgroup_from_mm(current->mm);
+ 
+-	oevent = fanotify_alloc_event(NULL, FS_Q_OVERFLOW, NULL);
++	oevent = fanotify_alloc_event(NULL, FS_Q_OVERFLOW, NULL, group->memcg);
+ 	if (unlikely(!oevent)) {
+ 		fd = -ENOMEM;
+ 		goto out_destroy_group;
+@@ -951,7 +953,8 @@ COMPAT_SYSCALL_DEFINE6(fanotify_mark,
+  */
+ static int __init fanotify_user_setup(void)
+ {
+-	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
++	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark,
++					 SLAB_PANIC|SLAB_ACCOUNT);
+ 	fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
+ 	if (IS_ENABLED(CONFIG_FANOTIFY_ACCESS_PERMISSIONS)) {
+ 		fanotify_perm_event_cachep =
+diff --git a/fs/notify/group.c b/fs/notify/group.c
+index b7a4b6a69efa..3e56459f4773 100644
+--- a/fs/notify/group.c
++++ b/fs/notify/group.c
+@@ -22,6 +22,7 @@
+ #include <linux/srcu.h>
+ #include <linux/rculist.h>
+ #include <linux/wait.h>
++#include <linux/memcontrol.h>
+ 
+ #include <linux/fsnotify_backend.h>
+ #include "fsnotify.h"
+@@ -36,6 +37,9 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
+ 	if (group->ops->free_group_priv)
+ 		group->ops->free_group_priv(group);
+ 
++	if (group->memcg)
++		mem_cgroup_put(group->memcg);
++
+ 	kfree(group);
+ }
+ 
+diff --git a/fs/notify/inotify/inotify_fsnotify.c b/fs/notify/inotify/inotify_fsnotify.c
+index 8b73332735ba..ed8e7b5f3981 100644
+--- a/fs/notify/inotify/inotify_fsnotify.c
++++ b/fs/notify/inotify/inotify_fsnotify.c
+@@ -98,7 +98,7 @@ int inotify_handle_event(struct fsnotify_group *group,
+ 	i_mark = container_of(inode_mark, struct inotify_inode_mark,
+ 			      fsn_mark);
+ 
+-	event = kmalloc(alloc_len, GFP_KERNEL);
++	event = kmalloc_memcg(alloc_len, GFP_KERNEL, group->memcg);
+ 	if (unlikely(!event))
+ 		return -ENOMEM;
+ 
+diff --git a/fs/notify/inotify/inotify_user.c b/fs/notify/inotify/inotify_user.c
+index 5c29bf16814f..e80f4656799f 100644
+--- a/fs/notify/inotify/inotify_user.c
++++ b/fs/notify/inotify/inotify_user.c
+@@ -38,6 +38,7 @@
+ #include <linux/uaccess.h>
+ #include <linux/poll.h>
+ #include <linux/wait.h>
++#include <linux/memcontrol.h>
+ 
+ #include "inotify.h"
+ #include "../fdinfo.h"
+@@ -618,6 +619,7 @@ static struct fsnotify_group *inotify_new_group(unsigned int max_events)
+ 	oevent->name_len = 0;
+ 
+ 	group->max_events = max_events;
++	group->memcg = get_mem_cgroup_from_mm(current->mm);
+ 
+ 	spin_lock_init(&group->inotify_data.idr_lock);
+ 	idr_init(&group->inotify_data.idr);
+@@ -785,7 +787,8 @@ static int __init inotify_user_setup(void)
+ 
+ 	BUG_ON(hweight32(ALL_INOTIFY_BITS) != 21);
+ 
+-	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC);
++	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark,
++					       SLAB_PANIC|SLAB_ACCOUNT);
+ 
+ 	inotify_max_queued_events = 16384;
+ 	init_user_ns.ucount_max[UCOUNT_INOTIFY_INSTANCES] = 128;
+diff --git a/fs/notify/mark.c b/fs/notify/mark.c
+index e9191b416434..c0014d0c3783 100644
+--- a/fs/notify/mark.c
++++ b/fs/notify/mark.c
+@@ -432,7 +432,8 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
+ static int fsnotify_attach_connector_to_object(
+ 				struct fsnotify_mark_connector __rcu **connp,
+ 				struct inode *inode,
+-				struct vfsmount *mnt)
++				struct vfsmount *mnt,
++				struct fsnotify_group *group)
+ {
+ 	struct fsnotify_mark_connector *conn;
+ 
+@@ -517,7 +518,8 @@ static int fsnotify_add_mark_list(struct fsnotify_mark *mark,
+ 	conn = fsnotify_grab_connector(connp);
+ 	if (!conn) {
+ 		spin_unlock(&mark->lock);
+-		err = fsnotify_attach_connector_to_object(connp, inode, mnt);
++		err = fsnotify_attach_connector_to_object(connp, inode, mnt,
++							  mark->group);
+ 		if (err)
+ 			return err;
+ 		goto restart;
+diff --git a/include/linux/fsnotify_backend.h b/include/linux/fsnotify_backend.h
+index 067d52e95f02..e4428e383215 100644
+--- a/include/linux/fsnotify_backend.h
++++ b/include/linux/fsnotify_backend.h
+@@ -84,6 +84,8 @@ struct fsnotify_event_private_data;
+ struct fsnotify_fname;
+ struct fsnotify_iter_info;
+ 
++struct mem_cgroup;
++
+ /*
+  * Each group much define these ops.  The fsnotify infrastructure will call
+  * these operations for each relevant group.
+@@ -129,6 +131,8 @@ struct fsnotify_event {
+  * everything will be cleaned up.
+  */
+ struct fsnotify_group {
++	const struct fsnotify_ops *ops;	/* how this group handles things */
++
+ 	/*
+ 	 * How the refcnt is used is up to each group.  When the refcnt hits 0
+ 	 * fsnotify will clean up all of the resources associated with this group.
+@@ -139,8 +143,6 @@ struct fsnotify_group {
+ 	 */
+ 	refcount_t refcnt;		/* things with interest in this group */
+ 
+-	const struct fsnotify_ops *ops;	/* how this group handles things */
+-
+ 	/* needed to send notification to userspace */
+ 	spinlock_t notification_lock;		/* protect the notification_list */
+ 	struct list_head notification_list;	/* list of event_holder this group needs to send to userspace */
+@@ -162,6 +164,8 @@ struct fsnotify_group {
+ 	atomic_t num_marks;		/* 1 for each mark and 1 for not being
+ 					 * past the point of no return when freeing
+ 					 * a group */
++	atomic_t user_waits;		/* Number of tasks waiting for user
++					 * response */
+ 	struct list_head marks_list;	/* all inode marks for this group */
+ 
+ 	struct fasync_struct *fsn_fa;    /* async notification */
+@@ -169,8 +173,8 @@ struct fsnotify_group {
+ 	struct fsnotify_event *overflow_event;	/* Event we queue when the
+ 						 * notification list is too
+ 						 * full */
+-	atomic_t user_waits;		/* Number of tasks waiting for user
+-					 * response */
++
++	struct mem_cgroup *memcg;	/* memcg to charge allocations */
+ 
+ 	/* groups can define private fields here or use the void *private */
+ 	union {
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 48eaf19859e9..9dec8a5c0ca2 100644
+index 9dec8a5c0ca2..ee4b6b9d6813 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -1179,7 +1179,8 @@ struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep,
- void memcg_kmem_put_cache(struct kmem_cache *cachep);
- int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
- 			    struct mem_cgroup *memcg);
--int memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
-+int memcg_kmem_charge(struct page *page, gfp_t gfp, int order,
-+		      struct mem_cgroup *memcg);
- void memcg_kmem_uncharge(struct page *page, int order);
- 
- #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 24355bc9e655..9df5d6279b38 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -352,6 +352,8 @@ static __always_inline int kmalloc_index(size_t size)
- #endif /* !CONFIG_SLOB */
- 
- void *__kmalloc(size_t size, gfp_t flags) __assume_kmalloc_alignment __malloc;
-+void *__kmalloc_memcg(size_t size, gfp_t flags,
-+		struct mem_cgroup *memcg) __assume_kmalloc_alignment __malloc;
- void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags) __assume_slab_alignment __malloc;
- void *kmem_cache_alloc_memcg(struct kmem_cache *, gfp_t flags,
- 		struct mem_cgroup *memcg) __assume_slab_alignment __malloc;
-@@ -378,6 +380,8 @@ static __always_inline void kfree_bulk(size_t size, void **p)
- 
- #ifdef CONFIG_NUMA
- void *__kmalloc_node(size_t size, gfp_t flags, int node) __assume_kmalloc_alignment __malloc;
-+void *__kmalloc_node_memcg(size_t size, gfp_t flags, int node,
-+		struct mem_cgroup *memcg) __assume_kmalloc_alignment __malloc;
- void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node) __assume_slab_alignment __malloc;
- void *kmem_cache_alloc_node_memcg(struct kmem_cache *, gfp_t flags, int node,
- 		struct mem_cgroup *memcg) __assume_slab_alignment __malloc;
-@@ -387,6 +391,12 @@ static __always_inline void *__kmalloc_node(size_t size, gfp_t flags, int node)
- 	return __kmalloc(size, flags);
+@@ -352,6 +352,8 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
+ 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
  }
  
-+static __always_inline void *__kmalloc_node_memcg(size_t size, gfp_t flags,
-+					struct mem_cgroup *memcg, int node)
-+{
-+	return __kmalloc_memcg(size, flags, memcg);
-+}
++struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm);
 +
- static __always_inline void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t flags, int node)
+ static inline void mem_cgroup_put(struct mem_cgroup *memcg)
  {
- 	return kmem_cache_alloc(s, flags);
-@@ -470,15 +480,26 @@ kmem_cache_alloc_node_memcg_trace(struct kmem_cache *s, gfp_t gfpflags,
- #endif /* CONFIG_TRACING */
+ 	css_put(&memcg->css);
+@@ -809,6 +811,11 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
+ 	return true;
+ }
  
- extern void *kmalloc_order(size_t size, gfp_t flags, unsigned int order) __assume_page_alignment __malloc;
-+extern void *kmalloc_order_memcg(size_t size, gfp_t flags, unsigned int order,
-+		struct mem_cgroup *memcg) __assume_page_alignment __malloc;
- 
- #ifdef CONFIG_TRACING
- extern void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order) __assume_page_alignment __malloc;
-+extern void *kmalloc_order_memcg_trace(size_t size, gfp_t flags,
-+	unsigned int order,
-+	struct mem_cgroup *memcg) __assume_page_alignment __malloc;
- #else
- static __always_inline void *
- kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
++static inline struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
++{
++	return NULL;
++}
++
+ static inline void mem_cgroup_put(struct mem_cgroup *memcg)
  {
- 	return kmalloc_order(size, flags, order);
  }
-+static __always_inline void *
-+kmalloc_order_memcg_trace(size_t size, gfp_t flags, unsigned int order,
-+			  struct mem_cgroup *memcg)
-+{
-+	return kmalloc_order_memcg(size, flags, order, memcg);
-+}
- #endif
- 
- static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
-@@ -487,6 +508,14 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
- 	return kmalloc_order_trace(size, flags, order);
- }
- 
-+static __always_inline void *kmalloc_large_memcg(size_t size, gfp_t flags,
-+						 struct mem_cgroup *memcg)
-+{
-+	unsigned int order = get_order(size);
-+
-+	return kmalloc_order_memcg_trace(size, flags, order, memcg);
-+}
-+
- /**
-  * kmalloc - allocate memory
-  * @size: how many bytes of memory are required.
-@@ -538,11 +567,12 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
-  * for general use, and so are not documented here. For a full list of
-  * potential flags, always refer to linux/gfp.h.
-  */
--static __always_inline void *kmalloc(size_t size, gfp_t flags)
-+static __always_inline void *
-+kmalloc_memcg(size_t size, gfp_t flags, struct mem_cgroup *memcg)
- {
- 	if (__builtin_constant_p(size)) {
- 		if (size > KMALLOC_MAX_CACHE_SIZE)
--			return kmalloc_large(size, flags);
-+			return kmalloc_large_memcg(size, flags, memcg);
- #ifndef CONFIG_SLOB
- 		if (!(flags & GFP_DMA)) {
- 			int index = kmalloc_index(size);
-@@ -550,12 +580,17 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
- 			if (!index)
- 				return ZERO_SIZE_PTR;
- 
--			return kmem_cache_alloc_trace(kmalloc_caches[index],
--					flags, size);
-+			return kmem_cache_alloc_memcg_trace(
-+				kmalloc_caches[index], flags, size, memcg);
- 		}
- #endif
- 	}
--	return __kmalloc(size, flags);
-+	return __kmalloc_memcg(size, flags, memcg);
-+}
-+
-+static __always_inline void *kmalloc(size_t size, gfp_t flags)
-+{
-+	return kmalloc_memcg(size, flags, NULL);
- }
- 
- /*
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index bd37e855e277..0dcd6ab6cc94 100644
+index 0dcd6ab6cc94..3a72394510a7 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2348,15 +2348,18 @@ int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
-  *
-  * Returns 0 on success, an error code on failure.
-  */
--int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
-+int memcg_kmem_charge(struct page *page, gfp_t gfp, int order,
-+		      struct mem_cgroup *memcg)
- {
--	struct mem_cgroup *memcg;
- 	int ret = 0;
- 
- 	if (memcg_kmem_bypass())
- 		return 0;
- 
--	memcg = get_mem_cgroup_from_mm(current->mm);
-+	if (memcg)
-+		memcg = get_mem_cgroup(memcg);
-+	if (!memcg)
-+		memcg = get_mem_cgroup_from_mm(current->mm);
- 	if (!mem_cgroup_is_root(memcg)) {
- 		ret = memcg_kmem_charge_memcg(page, gfp, order, memcg);
- 		if (!ret)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e2b42f603b1a..d65d58045893 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4261,7 +4261,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
- 
- out:
- 	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&
--	    unlikely(memcg_kmem_charge(page, gfp_mask, order) != 0)) {
-+	    unlikely(memcg_kmem_charge(page, gfp_mask, order, NULL) != 0)) {
- 		__free_pages(page, order);
- 		page = NULL;
- 	}
-diff --git a/mm/slab.c b/mm/slab.c
-index 3daeda62bd0c..4282f5a84dcd 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3715,7 +3715,8 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_memcg_trace);
- #endif
- 
- static __always_inline void *
--__do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
-+__do_kmalloc_node(size_t size, gfp_t flags, int node, struct mem_cgroup *memcg,
-+		  unsigned long caller)
- {
- 	struct kmem_cache *cachep;
- 	void *ret;
-@@ -3723,7 +3724,8 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
- 	cachep = kmalloc_slab(size, flags);
- 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
- 		return cachep;
--	ret = kmem_cache_alloc_node_trace(cachep, flags, node, size);
-+	ret = kmem_cache_alloc_node_memcg_trace(cachep, flags, node, size,
-+						memcg);
- 	kasan_kmalloc(cachep, ret, size, flags);
- 
- 	return ret;
-@@ -3731,14 +3733,21 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
- 
- void *__kmalloc_node(size_t size, gfp_t flags, int node)
- {
--	return __do_kmalloc_node(size, flags, node, _RET_IP_);
-+	return __do_kmalloc_node(size, flags, node, NULL, _RET_IP_);
+@@ -678,7 +678,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
  }
- EXPORT_SYMBOL(__kmalloc_node);
+ EXPORT_SYMBOL(mem_cgroup_from_task);
  
-+void *__kmalloc_node_memcg(size_t size, gfp_t flags, int node,
-+			   struct mem_cgroup *memcg)
-+{
-+	return __do_kmalloc_node(size, flags, node, memcg, _RET_IP_);
-+}
-+EXPORT_SYMBOL(__kmalloc_node_memcg);
-+
- void *__kmalloc_node_track_caller(size_t size, gfp_t flags,
- 		int node, unsigned long caller)
+-static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
++struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
  {
--	return __do_kmalloc_node(size, flags, node, caller);
-+	return __do_kmalloc_node(size, flags, node, NULL, caller);
- }
- EXPORT_SYMBOL(__kmalloc_node_track_caller);
- #endif /* CONFIG_NUMA */
-@@ -3750,7 +3759,7 @@ EXPORT_SYMBOL(__kmalloc_node_track_caller);
-  * @caller: function caller for debug tracking of the caller
-  */
- static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
--					  unsigned long caller)
-+				struct mem_cgroup *memcg, unsigned long caller)
- {
- 	struct kmem_cache *cachep;
- 	void *ret;
-@@ -3758,7 +3767,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
- 	cachep = kmalloc_slab(size, flags);
- 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
- 		return cachep;
--	ret = slab_alloc(cachep, flags, NULL, caller);
-+	ret = slab_alloc(cachep, flags, memcg, caller);
+ 	struct mem_cgroup *memcg = NULL;
  
- 	kasan_kmalloc(cachep, ret, size, flags);
- 	trace_kmalloc(caller, ret,
-@@ -3769,13 +3778,19 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
- 
- void *__kmalloc(size_t size, gfp_t flags)
- {
--	return __do_kmalloc(size, flags, _RET_IP_);
-+	return __do_kmalloc(size, flags, NULL, _RET_IP_);
- }
- EXPORT_SYMBOL(__kmalloc);
- 
-+void *__kmalloc_memcg(size_t size, gfp_t flags, struct mem_cgroup *memcg)
-+{
-+	return __do_kmalloc(size, flags, memcg, _RET_IP_);
-+}
-+EXPORT_SYMBOL(__kmalloc_memcg);
-+
- void *__kmalloc_track_caller(size_t size, gfp_t flags, unsigned long caller)
- {
--	return __do_kmalloc(size, flags, caller);
-+	return __do_kmalloc(size, flags, NULL, caller);
- }
- EXPORT_SYMBOL(__kmalloc_track_caller);
- 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 10f127b2de7c..49aea3b0725d 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1155,20 +1155,49 @@ void __init create_kmalloc_caches(slab_flags_t flags)
-  * directly to the page allocator. We use __GFP_COMP, because we will need to
-  * know the allocation order to free the pages properly in kfree.
-  */
--void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
-+static __always_inline void *__kmalloc_order_memcg(size_t size, gfp_t flags,
-+						   unsigned int order,
-+						   struct mem_cgroup *memcg)
- {
- 	void *ret;
- 	struct page *page;
- 
- 	flags |= __GFP_COMP;
-+
-+	/*
-+	 * Do explicit targeted memcg charging instead of
-+	 * __alloc_pages_nodemask charging current memcg.
-+	 */
-+	if (memcg && (flags & __GFP_ACCOUNT))
-+		flags &= ~__GFP_ACCOUNT;
-+
- 	page = alloc_pages(flags, order);
-+
-+	if (memcg && page && memcg_kmem_enabled() &&
-+	    memcg_kmem_charge(page, flags, order, memcg)) {
-+		__free_pages(page, order);
-+		page = NULL;
-+	}
-+
- 	ret = page ? page_address(page) : NULL;
- 	kmemleak_alloc(ret, size, 1, flags);
- 	kasan_kmalloc_large(ret, size, flags);
- 	return ret;
- }
-+
-+void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
-+{
-+	return __kmalloc_order_memcg(size, flags, order, NULL);
-+}
- EXPORT_SYMBOL(kmalloc_order);
- 
-+void *kmalloc_order_memcg(size_t size, gfp_t flags, unsigned int order,
-+			  struct mem_cgroup *memcg)
-+{
-+	return __kmalloc_order_memcg(size, flags, order, memcg);
-+}
-+EXPORT_SYMBOL(kmalloc_order_memcg);
-+
- #ifdef CONFIG_TRACING
- void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
- {
-@@ -1177,6 +1206,16 @@ void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
- 	return ret;
- }
- EXPORT_SYMBOL(kmalloc_order_trace);
-+
-+void *kmalloc_order_memcg_trace(size_t size, gfp_t flags, unsigned int order,
-+				struct mem_cgroup *memcg)
-+{
-+	void *ret = kmalloc_order_memcg(size, flags, order, memcg);
-+
-+	trace_kmalloc(_RET_IP_, ret, size, PAGE_SIZE << order, flags);
-+	return ret;
-+}
-+EXPORT_SYMBOL(kmalloc_order_memcg_trace);
- #endif
- 
- #ifdef CONFIG_SLAB_FREELIST_RANDOM
-diff --git a/mm/slob.c b/mm/slob.c
-index 49cdd24424b0..696baf517bda 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -470,6 +470,12 @@ void *__kmalloc(size_t size, gfp_t gfp)
- }
- EXPORT_SYMBOL(__kmalloc);
- 
-+void *__kmalloc_memcg(size_t size, gfp_t gfp, struct mem_cgroup *memcg)
-+{
-+	return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, _RET_IP_);
-+}
-+EXPORT_SYMBOL(__kmalloc_memcg);
-+
- void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
- {
- 	return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, caller);
-diff --git a/mm/slub.c b/mm/slub.c
-index 061cfbc7c3d7..5b119f4fb6bc 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3791,13 +3791,14 @@ static int __init setup_slub_min_objects(char *str)
- 
- __setup("slub_min_objects=", setup_slub_min_objects);
- 
--void *__kmalloc(size_t size, gfp_t flags)
-+static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
-+				struct mem_cgroup *memcg, unsigned long caller)
- {
- 	struct kmem_cache *s;
- 	void *ret;
- 
- 	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE))
--		return kmalloc_large(size, flags);
-+		return kmalloc_large_memcg(size, flags, memcg);
- 
- 	s = kmalloc_slab(size, flags);
- 
-@@ -3806,22 +3807,50 @@ void *__kmalloc(size_t size, gfp_t flags)
- 
- 	ret = slab_alloc(s, flags, NULL, _RET_IP_);
- 
--	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
-+	trace_kmalloc(caller, ret, size, s->size, flags);
- 
- 	kasan_kmalloc(s, ret, size, flags);
- 
- 	return ret;
- }
-+
-+void *__kmalloc(size_t size, gfp_t flags)
-+{
-+	return __do_kmalloc(size, flags, NULL, _RET_IP_);
-+}
- EXPORT_SYMBOL(__kmalloc);
- 
-+void *__kmalloc_memcg(size_t size, gfp_t flags, struct mem_cgroup *memcg)
-+{
-+	return __do_kmalloc(size, flags, memcg, _RET_IP_);
-+}
-+EXPORT_SYMBOL(__kmalloc_memcg);
-+
- #ifdef CONFIG_NUMA
--static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
-+static void *kmalloc_large_node(size_t size, gfp_t flags, int node,
-+				struct mem_cgroup *memcg)
- {
- 	struct page *page;
- 	void *ptr = NULL;
-+	unsigned int order = get_order(size);
- 
- 	flags |= __GFP_COMP;
--	page = alloc_pages_node(node, flags, get_order(size));
-+
-+	/*
-+	 * Do explicit targeted memcg charging instead of
-+	 * __alloc_pages_nodemask charging current memcg.
-+	 */
-+	if (memcg && (flags & __GFP_ACCOUNT))
-+		flags &= ~__GFP_ACCOUNT;
-+
-+	page = alloc_pages_node(node, flags, order);
-+
-+	if (memcg && page && memcg_kmem_enabled() &&
-+	    memcg_kmem_charge(page, flags, order, memcg)) {
-+		__free_pages(page, order);
-+		page = NULL;
-+	}
-+
- 	if (page)
- 		ptr = page_address(page);
- 
-@@ -3829,15 +3858,17 @@ static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
- 	return ptr;
- }
- 
--void *__kmalloc_node(size_t size, gfp_t flags, int node)
-+static __always_inline void *
-+__do_kmalloc_node_memcg(size_t size, gfp_t flags, int node,
-+			struct mem_cgroup *memcg, unsigned long caller)
- {
- 	struct kmem_cache *s;
- 	void *ret;
- 
- 	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE)) {
--		ret = kmalloc_large_node(size, flags, node);
-+		ret = kmalloc_large_node(size, flags, node, memcg);
- 
--		trace_kmalloc_node(_RET_IP_, ret,
-+		trace_kmalloc_node(caller, ret,
- 				   size, PAGE_SIZE << get_order(size),
- 				   flags, node);
- 
-@@ -3849,15 +3880,27 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
- 	if (unlikely(ZERO_OR_NULL_PTR(s)))
- 		return s;
- 
--	ret = slab_alloc_node(s, flags, node, NULL, _RET_IP_);
-+	ret = slab_alloc_node(s, flags, node, memcg, caller);
- 
--	trace_kmalloc_node(_RET_IP_, ret, size, s->size, flags, node);
-+	trace_kmalloc_node(caller, ret, size, s->size, flags, node);
- 
- 	kasan_kmalloc(s, ret, size, flags);
- 
- 	return ret;
- }
-+
-+void *__kmalloc_node(size_t size, gfp_t flags, int node)
-+{
-+	return __do_kmalloc_node_memcg(size, flags, node, NULL, _RET_IP_);
-+}
- EXPORT_SYMBOL(__kmalloc_node);
-+
-+void *__kmalloc_node_memcg(size_t size, gfp_t flags, int node,
-+			   struct mem_cgroup *memcg)
-+{
-+	return __do_kmalloc_node_memcg(size, flags, node, memcg, _RET_IP_);
-+}
-+EXPORT_SYMBOL(__kmalloc_node_memcg);
- #endif
- 
- #ifdef CONFIG_HARDENED_USERCOPY
-@@ -4370,7 +4413,7 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
- 	void *ret;
- 
- 	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE)) {
--		ret = kmalloc_large_node(size, gfpflags, node);
-+		ret = kmalloc_large_node(size, gfpflags, node, NULL);
- 
- 		trace_kmalloc_node(caller, ret,
- 				   size, PAGE_SIZE << get_order(size),
 -- 
 2.16.1.291.g4437f3f132-goog
 
