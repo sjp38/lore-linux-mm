@@ -1,52 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 848596B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 12:57:51 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id r1so2317650ioa.0
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 09:57:51 -0800 (PST)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id g1si18563586itd.56.2018.02.21.09.57.50
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 759D96B0006
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 12:59:49 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id w125so2365793itf.0
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 09:59:49 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id f138si164753iof.226.2018.02.21.09.59.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Feb 2018 09:57:50 -0800 (PST)
-Date: Wed, 21 Feb 2018 11:57:47 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 0/3] Directed kmem charging
-In-Reply-To: <CALvZod68LD-wnbm2+MQks=bd_D2zY64uScUBp28hyug_vaGyDA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1802211155500.13845@nuc-kabylake>
-References: <20180221030101.221206-1-shakeelb@google.com> <alpine.DEB.2.20.1802211002200.12567@nuc-kabylake> <CALvZod68LD-wnbm2+MQks=bd_D2zY64uScUBp28hyug_vaGyDA@mail.gmail.com>
+        Wed, 21 Feb 2018 09:59:48 -0800 (PST)
+Subject: Re: [PATCH 5/6] mm, hugetlb: further simplify hugetlb allocation API
+References: <20180103093213.26329-1-mhocko@kernel.org>
+ <20180103093213.26329-6-mhocko@kernel.org>
+ <20180221042457.uolmhlmv5je5dqx7@xps> <20180221095526.GB2231@dhcp22.suse.cz>
+ <20180221100107.GC2231@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <840f8c4f-0994-fa7d-0b8d-ad2c8d77c67d@oracle.com>
+Date: Wed, 21 Feb 2018 09:59:40 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180221100107.GC2231@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Dan Rue <dan.rue@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 21 Feb 2018, Shakeel Butt wrote:
+On 02/21/2018 02:01 AM, Michal Hocko wrote:
+> On Wed 21-02-18 10:55:26, Michal Hocko wrote:
+> Hmm, I guess I can see it. Does the following help?
+> ---
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 7c204e3d132b..a963f2034dfc 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1583,7 +1583,7 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
+>  		page = NULL;
+>  	} else {
+>  		h->surplus_huge_pages++;
+> -		h->nr_huge_pages_node[page_to_nid(page)]++;
+> +		h->surplus_huge_pages_node[page_to_nid(page)]++;
+>  	}
+>  
+>  out_unlock:
 
-> On Wed, Feb 21, 2018 at 8:09 AM, Christopher Lameter <cl@linux.com> wrote:
-> > Another way to solve this is to switch the user context right?
-> >
-> > Isnt it possible to avoid these patches if do the allocation in another
-> > task context instead?
-> >
->
-> Sorry, can you please explain what you mean by 'switch the user
-> context'. Is there any example in kernel which does something similar?
+I thought we had this corrected in a previous version of the patch.
+My apologies for not looking more closely at this version.
 
-See include/linux/task_work.h. One use case is in mntput_no_expire() in
-linux/fs/namespace.c
-
-> > Are there really any other use cases beyond fsnotify?
-> >
->
-> Another use case I have in mind and plan to upstream is to bind a
-> filesystem mount with a memcg. So, all the file pages (or anon pages
-> for shmem) and kmem (like inodes and dentry) will be charged to that
-> memcg.
-
-The mount logic already uses task_work.h. That may be the approach to
-expand there.
+FWIW,
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
