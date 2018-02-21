@@ -1,101 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A03746B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 04:14:53 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id w10so870554wrg.2
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 01:14:53 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r30sor398593edb.35.2018.02.21.01.14.51
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DAAEA6B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 04:55:30 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id i11so555063pgq.10
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 01:55:30 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a25si4721535pgn.429.2018.02.21.01.55.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Feb 2018 01:14:51 -0800 (PST)
-Date: Wed, 21 Feb 2018 12:14:45 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: kernel BUG at mm/khugepaged.c:533 on 4.15.3
-Message-ID: <20180221091445.iqtncxx66etpqamt@node.shutemov.name>
-References: <2a152301-0535-6cb6-8823-44035f007fae@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Feb 2018 01:55:29 -0800 (PST)
+Date: Wed, 21 Feb 2018 10:55:26 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 5/6] mm, hugetlb: further simplify hugetlb allocation API
+Message-ID: <20180221095526.GB2231@dhcp22.suse.cz>
+References: <20180103093213.26329-1-mhocko@kernel.org>
+ <20180103093213.26329-6-mhocko@kernel.org>
+ <20180221042457.uolmhlmv5je5dqx7@xps>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2a152301-0535-6cb6-8823-44035f007fae@redhat.com>
+In-Reply-To: <20180221042457.uolmhlmv5je5dqx7@xps>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Dan Rue <dan.rue@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Feb 19, 2018 at 10:51:01AM -0800, Laura Abbott wrote:
-> Hi,
+On Tue 20-02-18 22:24:57, Dan Rue wrote:
+> On Wed, Jan 03, 2018 at 10:32:12AM +0100, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > Hugetlb allocator has several layer of allocation functions depending
+> > and the purpose of the allocation. There are two allocators depending
+> > on whether the page can be allocated from the page allocator or we need
+> > a contiguous allocator. This is currently opencoded in alloc_fresh_huge_page
+> > which is the only path that might allocate giga pages which require the
+> > later allocator. Create alloc_fresh_huge_page which hides this
+> > implementation detail and use it in all callers which hardcoded the
+> > buddy allocator path (__hugetlb_alloc_buddy_huge_page). This shouldn't
+> > introduce any funtional change because both migration and surplus
+> > allocators exlude giga pages explicitly.
+> > 
+> > While we are at it let's do some renaming. The current scheme is not
+> > consistent and overly painfull to read and understand. Get rid of prefix
+> > underscores from most functions. There is no real reason to make names
+> > longer.
+> > * alloc_fresh_huge_page is the new layer to abstract underlying
+> >   allocator
+> > * __hugetlb_alloc_buddy_huge_page becomes shorter and neater
+> >   alloc_buddy_huge_page.
+> > * Former alloc_fresh_huge_page becomes alloc_pool_huge_page because we put
+> >   the new page directly to the pool
+> > * alloc_surplus_huge_page can drop the opencoded prep_new_huge_page code
+> >   as it uses alloc_fresh_huge_page now
+> > * others lose their excessive prefix underscores to make names shorter
 > 
-> Fedora got a bug report of a BUG with 4.15.3:
-> (https://bugzilla.redhat.com/show_bug.cgi?id=1546709)
-
-Is it new to v4.15 kernel?
-I don't see any recent change that could cause it.
-
-
-> page:fffffac1800a0000 count:513 mapcount:1 mapping:ffff95657ef359a1 index:0x7f95d3400 compound_mapcount: 0
-> flags: 0xffffe00048268(uptodate|lru|active|owner_priv_1|head|swapbacked)
-> raw: 000ffffe00048268 ffff95657ef359a1 00000007f95d3400 0000020100000000
-> raw: fffffac18edea9a0 fffffac18e7085a0 00000000000db400 ffff9567a3269800
-> page dumped because: VM_BUG_ON_PAGE(PageCompound(page))
-> page->mem_cgroup:ffff9567a3269800
-> ------------[ cut here ]------------
-> kernel BUG at mm/khugepaged.c:533!
-> invalid opcode: 0000 [#1] SMP PTI
-> Modules linked in: vhost_net vhost tap fuse xt_CHECKSUM ipt_MASQUERADE nf_nat_masquerade_ipv4 tun ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 xt_conntrack ip_set nfnetlink ebtable_nat ebtable_broute bridge stp llc ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_raw ip6table_security iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack libcrc32c iptable_mangle iptable_raw iptable_security ebtable_filter ebtables ip6table_filter ip6_tables sunrpc vfat fat rmi_smbus rmi_core arc4 intel_rapl x86_pkg_temp_thermal intel_powerclamp coretemp snd_hda_codec_hdmi iwlmvm kvm_intel iTCO_wdt mac80211 snd_hda_codec_realtek iTCO_vendor_support mei_wdt kvm snd_hda_codec_generic irqbypass intel_cstate snd_hda_intel intel_uncore iwlwifi uvcvideo intel_rapl_perf
-> snd_hda_codec videobuf2_vmalloc videobuf2_memops videobuf2_v4l2 videobuf2_core snd_hda_core cfg80211 videodev snd_hwdep snd_seq snd_seq_device snd_pcm media mei_me snd_timer thinkpad_acpi wmi_bmof rtsx_pci_ms joydev tpm_tis memstick i2c_i801 mei tpm_tis_core snd soundcore intel_pch_thermal tpm shpchp rfkill dm_crypt hid_logitech_hidpp hid_logitech_dj mmc_block nouveau i915 rtsx_pci_sdmmc mmc_core mxm_wmi ttm e1000e i2c_algo_bit drm_kms_helper crct10dif_pclmul crc32_pclmul crc32c_intel ptp drm ghash_clmulni_intel serio_raw rtsx_pci pps_core wmi video
-> CPU: 2 PID: 66 Comm: khugepaged Not tainted 4.15.3-300.fc27.x86_64 #1
-> Hardware name: LENOVO 20FXS0BB14/20FXS0BB14, BIOS R07ET63W (2.03 ) 03/15/2016
-> RIP: 0010:khugepaged+0x1af6/0x2130
-> RSP: 0018:ffffacacc1b4bdc0 EFLAGS: 00010282
-> RAX: 0000000000000021 RBX: fffffac1800a0000 RCX: 0000000000000006
-> RDX: 0000000000000000 RSI: 0000000000000086 RDI: ffff9567c14968f0
-> RBP: fffffac18e3a5b40 R08: 00000000000004a8 R09: 0000000000000004
-> R10: ffffacacc1b4bd70 R11: ffffffffb995b1ed R12: 00007f95f7e00000
-> R13: ffff95661113eaf0 R14: ffff9567a9ea0000 R15: 8000000002800825
-> FS:  0000000000000000(0000) GS:ffff9567c1480000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000000481046 CR3: 00000002ee20a005 CR4: 00000000003626e0
-> Call Trace:
-> ? finish_wait+0x80/0x80
-> ? collapse_shmem+0xdd0/0xdd0
-> kthread+0x113/0x130
-> ? kthread_create_worker_on_cpu+0x70/0x70
-> ret_from_fork+0x35/0x40
-> Code: ff e9 e7 fd ff ff bb 07 00 00 00 49 89 c7 e9 20 fb ff ff 48 83 ea 01 e9 66 fc ff ff 48 c7 c6 d8 3f 0a b9 48 89 df e8 0a 82 fa ff <0f> 0b 31 c9 4c 89 fa 48 89 de 4c 89 f7 e8 58 f1 fd ff e9 2e fa
-> RIP: khugepaged+0x1af6/0x2130 RSP: ffffacacc1b4bdc0
-> ---[ end trace a734c2f4d682e3bd ]---
+> Hi Michal -
 > 
-> Reporter said it happened several times. Config is attached.
-> Any ideas?
+> We (Linaro) run the libhugetlbfs test suite continuously against
+> mainline and recently (Feb 1), the 'counters' test started failing on
+> with the following error:
+> 
+>     root@localhost:~# mount_point="/mnt/hugetlb/"
+>     root@localhost:~# echo 200 > /proc/sys/vm/nr_hugepages
+>     root@localhost:~# mkdir -p "${mount_point}"
+>     root@localhost:~# mount -t hugetlbfs hugetlbfs "${mount_point}"
+>     root@localhost:~# export LD_LIBRARY_PATH=/root/libhugetlbfs/libhugetlbfs-2.20/obj64
+>     root@localhost:~# /root/libhugetlbfs/libhugetlbfs-2.20/tests/obj64/counters
+>     Starting testcase "/root/libhugetlbfs/libhugetlbfs-2.20/tests/obj64/counters", pid 3319
+>     Base pool size: 0
+>     Clean...
+>     FAIL    Line 326: Bad HugePages_Total: expected 0, actual 1
+> 
+> Line 326 refers to the test source @
+> https://github.com/libhugetlbfs/libhugetlbfs/blob/master/tests/counters.c#L326
 
-Looks like somebody managed to insert THP into the range in split it back
-between khugepaged_scan_pmd() and __collapse_huge_page_isolate().
+Thanks for the report. I am fighting to get hugetlb tests working. My
+previous deployment is gone and the new git snapshot fails to build. I
+will look into it further but ...
 
-That's rather unlikely chain of events, but I don't see other option.
+> I bisected the failure to this commit. The problem is seen on multiple
+> architectures (tested x86-64 and arm64).
 
-Could you check if this works:
-
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index b7e2268dfc9a..c15da1ea7e63 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -530,7 +530,12 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
- 			goto out;
- 		}
- 
--		VM_BUG_ON_PAGE(PageCompound(page), page);
-+		/* TODO: teach khugepaged to collapse THP mapped with pte */
-+		if (PageCompound(page)) {
-+			result = SCAN_PAGE_COMPOUND;
-+			goto out;
-+		}
-+
- 		VM_BUG_ON_PAGE(!PageAnon(page), page);
- 
- 		/*
+The patch shouldn't have introduced any functional changes IIRC. But let
+me have a look
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
