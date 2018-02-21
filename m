@@ -1,73 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E4C36B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 10:02:28 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id y44so1615905wry.8
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 07:02:28 -0800 (PST)
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id b81si205073wmd.97.2018.02.21.07.02.26
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C4B56B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 10:42:20 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id e126so998541pfh.4
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 07:42:20 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d30-v6si10976492pld.452.2018.02.21.07.42.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Feb 2018 07:02:26 -0800 (PST)
-Subject: Re: [PATCH 0/6] DISCONTIGMEM support for PPC32
-References: <20180220161424.5421-1-j.neuschaefer@gmx.net>
- <193a407d-e6b8-9e29-af47-3d401b6414a0@c-s.fr>
- <20180221144240.pfu2run3pixt3pzo@latitude>
-From: Christophe LEROY <christophe.leroy@c-s.fr>
-Message-ID: <a36983ec-5e97-e968-8143-1b2615ea55f8@c-s.fr>
-Date: Wed, 21 Feb 2018 16:02:25 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 21 Feb 2018 07:42:18 -0800 (PST)
+Date: Wed, 21 Feb 2018 07:42:14 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Use higher-order pages in vmalloc
+Message-ID: <20180221154214.GA4167@bombadil.infradead.org>
+References: <151670492223.658225.4605377710524021456.stgit@buzz>
+ <151670493255.658225.2881484505285363395.stgit@buzz>
 MIME-Version: 1.0
-In-Reply-To: <20180221144240.pfu2run3pixt3pzo@latitude>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <151670493255.658225.2881484505285363395.stgit@buzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>
-Cc: linuxppc-dev@lists.ozlabs.org, Joel Stanley <joel@jms.id.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
+On Tue, Jan 23, 2018 at 01:55:32PM +0300, Konstantin Khlebnikov wrote:
+> Virtually mapped stack have two bonuses: it eats order-0 pages and
+> adds guard page at the end. But it slightly slower if system have
+> plenty free high-order pages.
+> 
+> This patch adds option to use virtually bapped stack as fallback for
+> atomic allocation of traditional high-order page.
 
+This prompted me to write a patch I've been meaning to do for a while,
+allocating large pages if they're available to satisfy vmalloc.  I thought
+it would save on touching multiple struct pages, but it turns out that
+the checking code we currently have in the free_pages path requires you
+to have initialised all of the tail pages (maybe we can make that code
+conditional ...)
 
-Le 21/02/2018 A  15:42, Jonathan NeuschA?fer a A(C)critA :
-> Hi,
-> 
-> On Wed, Feb 21, 2018 at 08:06:10AM +0100, Christophe LEROY wrote:
->>
->>
->> Le 20/02/2018 A  17:14, Jonathan NeuschA?fer a A(C)critA :
->>> This patchset adds support for DISCONTIGMEM on 32-bit PowerPC. This is
->>> required to properly support the Nintendo Wii's memory layout, in which
->>> there are two blocks of RAM and MMIO in the middle.
->>>
->>> Previously, this memory layout was handled by code that joins the two
->>> RAM blocks into one, reserves the MMIO hole, and permits allocations of
->>> reserved memory in ioremap. This hack didn't work with resource-based
->>> allocation (as used for example in the GPIO driver for Wii[1]), however.
->>>
->>> After this patchset, users of the Wii can either select CONFIG_FLATMEM
->>> to get the old behaviour, or CONFIG_DISCONTIGMEM to get the new
->>> behaviour.
->>
->> My question might me stupid, as I don't know PCC64 in deep, but when looking
->> at page_is_ram() in arch/powerpc/mm/mem.c, I have the feeling the PPC64
->> implements ram by blocks. Isn't it what you are trying to achieve ? Wouldn't
->> it be feasible to map to what's done in PPC64 for PPC32 ?
-> 
-> Using page_is_ram in __ioremap_caller and the same memblock-based
-> approach that's used on PPC64 on PPC32 *should* work, but I think due to
-> the following line in initmem_init, it won't:
-> 
-> 	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
+It does save the buddy allocator the trouble of breaking down higher-order
+pages into order-0 pages, only to allocate them again immediately.
 
-Can't we just fix that ?
+(um, i seem to have broken the patch while cleaning it up for submission.
+since it probably won't be accepted anyway, I'm not going to try to debug it)
 
-Christophe
-
-> 
-> 
-> Thanks,
-> Jonathan NeuschA?fer
-> 
+diff --git a/kernel/fork.c b/kernel/fork.c
+index be8aa5b98666..2bc01071b6ae 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -319,12 +319,12 @@ static void account_kernel_stack(struct task_struct *tsk, int account)
+ 	if (vm) {
+ 		int i;
+ 
+-		BUG_ON(vm->nr_pages != THREAD_SIZE / PAGE_SIZE);
+-
+-		for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++) {
+-			mod_zone_page_state(page_zone(vm->pages[i]),
++		for (i = 0; i < vm->nr_pages; i++) {
++			struct page *page = vm->pages[i];
++			unsigned int size = PAGE_SIZE << compound_order(page);
++			mod_zone_page_state(page_zone(page),
+ 					    NR_KERNEL_STACK_KB,
+-					    PAGE_SIZE / 1024 * account);
++					    size / 1024 * account);
+ 		}
+ 
+ 		/* All stack pages belong to the same memcg. */
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index b728c98f49cd..4bfc29b21bc1 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -134,6 +134,7 @@ static void vunmap_page_range(unsigned long addr, unsigned long end)
+ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
+ 		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+ {
++	unsigned int i;
+ 	pte_t *pte;
+ 
+ 	/*
+@@ -151,9 +152,13 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
+ 			return -EBUSY;
+ 		if (WARN_ON(!page))
+ 			return -ENOMEM;
+-		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
++		for (i = 0; i < (1UL << compound_order(page)); i++) {
++			set_pte_at(&init_mm, addr, pte++,
++					mk_pte(page + i, prot));
++			addr += PAGE_SIZE;
++		}
+ 		(*nr)++;
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
++	} while (addr != end);
+ 	return 0;
+ }
+ 
+@@ -1530,14 +1535,14 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 	debug_check_no_obj_freed(addr, get_vm_area_size(area));
+ 
+ 	if (deallocate_pages) {
+-		int i;
++		unsigned int i;
+ 
+ 		for (i = 0; i < area->nr_pages; i++) {
+ 			struct page *page = area->pages[i];
+ 
+ 			BUG_ON(!page);
+ 			__ClearPageVmalloc(page);
+-			__free_pages(page, 0);
++			__free_pages(page, compound_order(page));
+ 		}
+ 
+ 		kvfree(area->pages);
+@@ -1696,11 +1701,20 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 
+ 	for (i = 0; i < area->nr_pages; i++) {
+ 		struct page *page;
+-
+-		if (node == NUMA_NO_NODE)
+-			page = alloc_page(alloc_mask);
+-		else
+-			page = alloc_pages_node(node, alloc_mask, 0);
++		unsigned int j = ilog2(area->nr_pages - i) + 1;
++
++		do {
++			j--;
++			if (node == NUMA_NO_NODE)
++				page = alloc_pages(alloc_mask, j);
++			else
++				page = alloc_pages_node(node, alloc_mask, j);
++		} while (!page && j);
++
++		if (j) {
++			area->nr_pages -= (1UL << j) - 1;
++			prep_compound_page(page, j);
++		}
+ 
+ 		if (unlikely(!page)) {
+ 			/* Successfully allocated i pages, free them in __vunmap() */
+@@ -1719,8 +1733,8 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 
+ fail:
+ 	warn_alloc(gfp_mask, NULL,
+-			  "vmalloc: allocation failure, allocated %ld of %ld bytes",
+-			  (area->nr_pages*PAGE_SIZE), area->size);
++		   "vmalloc: allocation failure, allocated %ld of %ld bytes",
++		   (nr_pages * PAGE_SIZE), get_vm_area_size(area));
+ 	vfree(area->addr);
+ 	return NULL;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
