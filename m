@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 43DF96B0003
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 19:51:00 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id l12so5723696pff.11
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 16:51:00 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id e68si7309882pfa.94.2018.02.20.16.50.58
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8830C6B0003
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 20:26:08 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id x3so38684plo.9
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 17:26:08 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id o11si937906pgc.820.2018.02.20.17.26.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Feb 2018 16:50:59 -0800 (PST)
-Date: Wed, 21 Feb 2018 08:50:26 +0800
+        Tue, 20 Feb 2018 17:26:03 -0800 (PST)
+Date: Wed, 21 Feb 2018 09:25:09 +0800
 From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH 2/3] mm: memcg: plumbing memcg for kmalloc allocations
-Message-ID: <201802210808.WQI77OFL%fengguang.wu@intel.com>
-References: <20180220194149.242009-3-shakeelb@google.com>
+Subject: Re: [PATCH 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
+Message-ID: <201802210900.TfEuJbYS%fengguang.wu@intel.com>
+References: <20180220194149.242009-4-shakeelb@google.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="jRHKVT23PllUwdXP"
+Content-Type: multipart/mixed; boundary="W/nzBZO5zC0uMSeA"
 Content-Disposition: inline
-In-Reply-To: <20180220194149.242009-3-shakeelb@google.com>
+In-Reply-To: <20180220194149.242009-4-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shakeel Butt <shakeelb@google.com>
 Cc: kbuild-all@01.org, Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
 
---jRHKVT23PllUwdXP
+--W/nzBZO5zC0uMSeA
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
@@ -33,8 +33,8 @@ Hi Shakeel,
 Thank you for the patch! Yet something to improve:
 
 [auto build test ERROR on mmotm/master]
-[also build test ERROR on v4.16-rc2 next-20180220]
-[cannot apply to linus/master]
+[also build test ERROR on next-20180220]
+[cannot apply to linus/master v4.16-rc2]
 [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
 url:    https://github.com/0day-ci/linux/commits/Shakeel-Butt/Directed-kmem-charging/20180221-071026
@@ -48,101 +48,75 @@ reproduce:
 All errors (new ones prefixed by >>):
 
    init/initramfs.o: In function `kmalloc_memcg':
->> include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
->> include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
+   include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
+   include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
    arch/x86/events/core.o: In function `kmalloc_memcg':
->> include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
->> include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
+   include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
+   include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
    arch/x86/kernel/ksysfs.o: In function `kmalloc_memcg':
->> include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
+   include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
    arch/x86/kernel/e820.o:include/linux/slab.h:588: more undefined references to `__kmalloc_memcg' follow
+   fs/notify/fanotify/fanotify.o: In function `fanotify_alloc_event':
+>> fs/notify/fanotify/fanotify.c:159: undefined reference to `kmem_cache_alloc_memcg'
+   fs/eventpoll.o: In function `kmalloc_memcg':
+   include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
+   fs/signalfd.o: In function `kmalloc_memcg':
+   include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
+   fs/timerfd.o: In function `kmalloc_memcg':
+   include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
+   include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
+   fs/eventfd.o: In function `kmalloc_memcg':
+   include/linux/slab.h:588: undefined reference to `__kmalloc_memcg'
+   fs/userfaultfd.o:include/linux/slab.h:588: more undefined references to `__kmalloc_memcg' follow
 
-vim +588 include/linux/slab.h
+vim +159 fs/notify/fanotify/fanotify.c
 
-   518	
-   519	/**
-   520	 * kmalloc - allocate memory
-   521	 * @size: how many bytes of memory are required.
-   522	 * @flags: the type of memory to allocate.
-   523	 *
-   524	 * kmalloc is the normal method of allocating memory
-   525	 * for objects smaller than page size in the kernel.
-   526	 *
-   527	 * The @flags argument may be one of:
-   528	 *
-   529	 * %GFP_USER - Allocate memory on behalf of user.  May sleep.
-   530	 *
-   531	 * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
-   532	 *
-   533	 * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
-   534	 *   For example, use this inside interrupt handlers.
-   535	 *
-   536	 * %GFP_HIGHUSER - Allocate pages from high memory.
-   537	 *
-   538	 * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
-   539	 *
-   540	 * %GFP_NOFS - Do not make any fs calls while trying to get memory.
-   541	 *
-   542	 * %GFP_NOWAIT - Allocation will not sleep.
-   543	 *
-   544	 * %__GFP_THISNODE - Allocate node-local memory only.
-   545	 *
-   546	 * %GFP_DMA - Allocation suitable for DMA.
-   547	 *   Should only be used for kmalloc() caches. Otherwise, use a
-   548	 *   slab created with SLAB_DMA.
-   549	 *
-   550	 * Also it is possible to set different flags by OR'ing
-   551	 * in one or more of the following additional @flags:
-   552	 *
-   553	 * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
-   554	 *
-   555	 * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
-   556	 *   (think twice before using).
-   557	 *
-   558	 * %__GFP_NORETRY - If memory is not immediately available,
-   559	 *   then give up at once.
-   560	 *
-   561	 * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
-   562	 *
-   563	 * %__GFP_RETRY_MAYFAIL - Try really hard to succeed the allocation but fail
-   564	 *   eventually.
-   565	 *
-   566	 * There are other flags available as well, but these are not intended
-   567	 * for general use, and so are not documented here. For a full list of
-   568	 * potential flags, always refer to linux/gfp.h.
-   569	 */
-   570	static __always_inline void *
-   571	kmalloc_memcg(size_t size, gfp_t flags, struct mem_cgroup *memcg)
-   572	{
-   573		if (__builtin_constant_p(size)) {
-   574			if (size > KMALLOC_MAX_CACHE_SIZE)
-   575				return kmalloc_large_memcg(size, flags, memcg);
-   576	#ifndef CONFIG_SLOB
-   577			if (!(flags & GFP_DMA)) {
-   578				int index = kmalloc_index(size);
-   579	
-   580				if (!index)
-   581					return ZERO_SIZE_PTR;
-   582	
-   583				return kmem_cache_alloc_memcg_trace(
-   584					kmalloc_caches[index], flags, size, memcg);
-   585			}
-   586	#endif
-   587		}
- > 588		return __kmalloc_memcg(size, flags, memcg);
-   589	}
-   590	
+   141	
+   142	struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
+   143							 const struct path *path,
+   144							 struct mem_cgroup *memcg)
+   145	{
+   146		struct fanotify_event_info *event;
+   147	
+   148		if (fanotify_is_perm_event(mask)) {
+   149			struct fanotify_perm_event_info *pevent;
+   150	
+   151			pevent = kmem_cache_alloc_memcg(fanotify_perm_event_cachep,
+   152							GFP_KERNEL, memcg);
+   153			if (!pevent)
+   154				return NULL;
+   155			event = &pevent->fae;
+   156			pevent->response = 0;
+   157			goto init;
+   158		}
+ > 159		event = kmem_cache_alloc_memcg(fanotify_event_cachep, GFP_KERNEL,
+   160					       memcg);
+   161		if (!event)
+   162			return NULL;
+   163	init: __maybe_unused
+   164		fsnotify_init_event(&event->fse, inode, mask);
+   165		event->tgid = get_pid(task_tgid(current));
+   166		if (path) {
+   167			event->path = *path;
+   168			path_get(&event->path);
+   169		} else {
+   170			event->path.mnt = NULL;
+   171			event->path.dentry = NULL;
+   172		}
+   173		return event;
+   174	}
+   175	
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---jRHKVT23PllUwdXP
+--W/nzBZO5zC0uMSeA
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICNa+jFoAAy5jb25maWcAlDxdc9u2su/nV2jS+3DOQxt/xc2ZO36AQFBCRRIsAEqWXziO
+H4sICJzCjFoAAy5jb25maWcAlDxdc9u2su/nV2jS+3DOQxt/xc2ZO36AQFBCRRIsAEqWXziO
 raSeOnauZZ+2//7uAqQIgEulp5NpQuzia7HfC+iHf/wwY2+vz19vXx/ubh8f/5p92T3tXm5f
 d/ezzw+Pu/+dZWpWKTsTmbQ/AXLx8PT25/uH84+Xs4ufTj/8dPLj16+ns9Xu5Wn3OOPPT58f
 vrxB94fnp3/8AOhcVblctJcXc2lnD/vZ0/PrbL97/UfXfv3xsj0/u/or+B4+ZGWsbriVqmoz
@@ -724,7 +698,7 @@ KL91AIHdv0dcwvlGwimZbRlHtYB70ydWqUT3BCBxnT/pOCXe7CuIfVJF4XzSwQFr9lZ/ROmO
 92FMQQn5OwF52UFHkgCgdB7qtXke1hPR96A+B+NVjW8gNh/5Ike6i9muxA0bSIxWq66mod61
 DL6um3EuGhVsNnuZVaKv7VZGDd284zRwt/4H/nl3SknkAQA=
 
---jRHKVT23PllUwdXP--
+--W/nzBZO5zC0uMSeA--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
