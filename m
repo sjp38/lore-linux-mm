@@ -1,92 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 246F46B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 01:28:11 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id 78so515556qky.17
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 22:28:11 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 53sor79043qtr.9.2018.02.20.22.28.09
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 23C456B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 02:06:18 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id z14so594756wrh.1
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 23:06:18 -0800 (PST)
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id a5si8709184wra.143.2018.02.20.23.06.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 20 Feb 2018 22:28:09 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Feb 2018 23:06:16 -0800 (PST)
+Subject: Re: [PATCH 0/6] DISCONTIGMEM support for PPC32
+References: <20180220161424.5421-1-j.neuschaefer@gmx.net>
+From: Christophe LEROY <christophe.leroy@c-s.fr>
+Message-ID: <193a407d-e6b8-9e29-af47-3d401b6414a0@c-s.fr>
+Date: Wed, 21 Feb 2018 08:06:10 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180220153857.dee8f7d5c904cd7219529312@linux-foundation.org>
-References: <20180213014220.2464-1-ying.huang@intel.com> <20180213154123.9f4ef9e406ea8365ca46d9c5@linux-foundation.org>
- <87fu64jthz.fsf@yhuang-dev.intel.com> <20180216153823.ad74f1d2c157adc67ed2c970@linux-foundation.org>
- <CAC=cRTMuDtuwCqTK+0UfaTrKcVHzuN4YkHLnH3Yn7FkxknKXtw@mail.gmail.com> <20180220153857.dee8f7d5c904cd7219529312@linux-foundation.org>
-From: huang ying <huang.ying.caritas@gmail.com>
-Date: Wed, 21 Feb 2018 14:28:08 +0800
-Message-ID: <CAC=cRTP1=PLbiL+VCy3xa4DkQj4j5=M_+eNEGqCRtW0hcbekQw@mail.gmail.com>
-Subject: Re: [PATCH -mm -v5 RESEND] mm, swap: Fix race between swapoff and
- some swap operations
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180220161424.5421-1-j.neuschaefer@gmx.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, jglisse@redhat.com, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>, linuxppc-dev@lists.ozlabs.org
+Cc: Joel Stanley <joel@jms.id.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Feb 21, 2018 at 7:38 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Sun, 18 Feb 2018 09:06:47 +0800 huang ying <huang.ying.caritas@gmail.com> wrote:
->
->> >> >> +struct swap_info_struct *get_swap_device(swp_entry_t entry)
->> >> >> +{
->> >> >> +  struct swap_info_struct *si;
->> >> >> +  unsigned long type, offset;
->> >> >> +
->> >> >> +  if (!entry.val)
->> >> >> +          goto out;
->> >> >> +  type = swp_type(entry);
->> >> >> +  if (type >= nr_swapfiles)
->> >> >> +          goto bad_nofile;
->> >> >> +  si = swap_info[type];
->> >> >> +
->> >> >> +  preempt_disable();
->> >> >
->> >> > This preempt_disable() is later than I'd expect.  If a well-timed race
->> >> > occurs, `si' could now be pointing at a defunct entry.  If that
->> >> > well-timed race include a swapoff AND a swapon, `si' could be pointing
->> >> > at the info for a new device?
->> >>
->> >> struct swap_info_struct pointed to by swap_info[] will never be freed.
->> >> During swapoff, we only free the memory pointed to by the fields of
->> >> struct swap_info_struct.  And when swapon, we will always reuse
->> >> swap_info[type] if it's not NULL.  So it should be safe to dereference
->> >> swap_info[type] with preemption enabled.
->> >
->> > That's my point.  If there's a race window during which there is a
->> > parallel swapoff+swapon, this swap_info_struct may now be in use for a
->> > different device?
->>
->> Yes.  It's possible.  And the caller of get_swap_device() can live
->> with it if the swap_info_struct has been fully initialized.  For
->> example, for the race in the patch description,
->>
->> do_swap_page
->>   swapin_readahead
->>     __read_swap_cache_async
->>       swapcache_prepare
->>         __swap_duplicate
->>
->> in __swap_duplicate(), it's possible that the swap device returned by
->> get_swap_device() is different from the swap device when
->> __swap_duplicate() call get_swap_device().  But the struct_info_struct
->> has been fully initialized, so __swap_duplicate() can reference
->> si->swap_map[] safely.  And we will check si->swap_map[] before any
->> further operation.  Even if the swap entry is swapped out again for
->> the new swap device, we will check the page table again in
->> do_swap_page().  So there is no functionality problem.
->
-> That's rather revolting.  Can we tighten this up?  Or at least very
-> loudly document it?
 
-TBH, I think my original fix patch which uses a reference count in
-swap_info_struct is easier to be understood.  But I understand it has
-its own drawbacks too.  Anyway, unless there are some better ideas to
-resolve this, I will send out a new version with more document.
 
-Best Regards,
-Huang, Ying
+Le 20/02/2018 A  17:14, Jonathan NeuschA?fer a A(C)critA :
+> This patchset adds support for DISCONTIGMEM on 32-bit PowerPC. This is
+> required to properly support the Nintendo Wii's memory layout, in which
+> there are two blocks of RAM and MMIO in the middle.
+> 
+> Previously, this memory layout was handled by code that joins the two
+> RAM blocks into one, reserves the MMIO hole, and permits allocations of
+> reserved memory in ioremap. This hack didn't work with resource-based
+> allocation (as used for example in the GPIO driver for Wii[1]), however.
+> 
+> After this patchset, users of the Wii can either select CONFIG_FLATMEM
+> to get the old behaviour, or CONFIG_DISCONTIGMEM to get the new
+> behaviour.
+
+My question might me stupid, as I don't know PCC64 in deep, but when 
+looking at page_is_ram() in arch/powerpc/mm/mem.c, I have the feeling 
+the PPC64 implements ram by blocks. Isn't it what you are trying to 
+achieve ? Wouldn't it be feasible to map to what's done in PPC64 for PPC32 ?
+
+Christophe
+
+> 
+> Some parts of this patchset are probably not ideal (I'm thinking of my
+> implementation of pfn_to_nid here), and will require some discussion/
+> changes.
+> 
+> [1]: https://www.spinics.net/lists/devicetree/msg213956.html
+> 
+> Jonathan NeuschA?fer (6):
+>    powerpc/mm/32: Use pfn_valid to check if pointer is in RAM
+>    powerpc: numa: Fix overshift on PPC32
+>    powerpc: numa: Use the right #ifdef guards around functions
+>    powerpc: numa: Restrict fake NUMA enulation to CONFIG_NUMA systems
+>    powerpc: Implement DISCONTIGMEM and allow selection on PPC32
+>    powerpc: wii: Don't rely on reserved memory hack if DISCONTIGMEM is
+>      set
+> 
+>   arch/powerpc/Kconfig                     |  5 ++++-
+>   arch/powerpc/include/asm/mmzone.h        | 21 +++++++++++++++++++++
+>   arch/powerpc/mm/numa.c                   | 18 +++++++++++++++---
+>   arch/powerpc/mm/pgtable_32.c             |  2 +-
+>   arch/powerpc/platforms/embedded6xx/wii.c | 10 +++++++---
+>   5 files changed, 48 insertions(+), 8 deletions(-)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
