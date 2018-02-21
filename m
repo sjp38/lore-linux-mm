@@ -1,66 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B3FC66B000E
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 11:19:17 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id t192so2056471iof.6
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 08:19:17 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q67sor6648410itg.134.2018.02.21.08.19.16
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 605086B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 11:35:56 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id w184so2234656ita.0
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 08:35:56 -0800 (PST)
+Received: from resqmta-po-07v.sys.comcast.net (resqmta-po-07v.sys.comcast.net. [2001:558:fe16:19:96:114:154:166])
+        by mx.google.com with ESMTPS id j34si1800103ioi.303.2018.02.21.08.35.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Feb 2018 08:19:16 -0800 (PST)
-Date: Wed, 21 Feb 2018 10:19:14 -0600
-From: Dan Rue <dan.rue@linaro.org>
-Subject: Re: [PATCH 5/6] mm, hugetlb: further simplify hugetlb allocation API
-Message-ID: <20180221161914.ltssyoumwpyiwca6@xps>
-References: <20180103093213.26329-1-mhocko@kernel.org>
- <20180103093213.26329-6-mhocko@kernel.org>
- <20180221042457.uolmhlmv5je5dqx7@xps>
- <20180221095526.GB2231@dhcp22.suse.cz>
- <20180221100107.GC2231@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Feb 2018 08:35:55 -0800 (PST)
+Date: Wed, 21 Feb 2018 10:35:51 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 3/3] fs: fsnotify: account fsnotify metadata to
+ kmemcg
+In-Reply-To: <20180221030101.221206-4-shakeelb@google.com>
+Message-ID: <alpine.DEB.2.20.1802211029080.13404@nuc-kabylake>
+References: <20180221030101.221206-1-shakeelb@google.com> <20180221030101.221206-4-shakeelb@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180221100107.GC2231@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Feb 21, 2018 at 11:01:07AM +0100, Michal Hocko wrote:
-> On Wed 21-02-18 10:55:26, Michal Hocko wrote:
-> > On Tue 20-02-18 22:24:57, Dan Rue wrote:
-> [...]
-> > > I bisected the failure to this commit. The problem is seen on multiple
-> > > architectures (tested x86-64 and arm64).
-> > 
-> > The patch shouldn't have introduced any functional changes IIRC. But let
-> > me have a look
-> 
-> Hmm, I guess I can see it. Does the following help?
-> ---
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 7c204e3d132b..a963f2034dfc 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1583,7 +1583,7 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
->  		page = NULL;
->  	} else {
->  		h->surplus_huge_pages++;
-> -		h->nr_huge_pages_node[page_to_nid(page)]++;
-> +		h->surplus_huge_pages_node[page_to_nid(page)]++;
->  	}
->  
->  out_unlock:
+On Tue, 20 Feb 2018, Shakeel Butt wrote:
 
-That did the trick. Confirmed fixed on v4.15-3389-g0c397daea1d4 and
-v4.16-rc2 with the above patch.
+> diff --git a/fs/notify/fanotify/fanotify.c b/fs/notify/fanotify/fanotify.c
+> index 6702a6a0bbb5..0d9493ebc7cd 100644
+> --- a/fs/notify/fanotify/fanotify.c
+> +++ b/fs/notify/fanotify/fanotify.c
+>  	if (fanotify_is_perm_event(mask)) {
+>  		struct fanotify_perm_event_info *pevent;
+>
+> -		pevent = kmem_cache_alloc(fanotify_perm_event_cachep,
+> -					  GFP_KERNEL);
+> +		pevent = kmem_cache_alloc_memcg(fanotify_perm_event_cachep,
+> +						GFP_KERNEL, memcg);
+>  		if (!pevent)
 
-Dan
+#1
 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> index 8b73332735ba..ed8e7b5f3981 100644
+> --- a/fs/notify/inotify/inotify_fsnotify.c
+> +++ b/fs/notify/inotify/inotify_fsnotify.c
+> @@ -98,7 +98,7 @@ int inotify_handle_event(struct fsnotify_group *group,
+>  	i_mark = container_of(inode_mark, struct inotify_inode_mark,
+>  			      fsn_mark);
+>
+> -	event = kmalloc(alloc_len, GFP_KERNEL);
+> +	event = kmalloc_memcg(alloc_len, GFP_KERNEL, group->memcg);
+>  	if (unlikely(!event))
+>  		return -ENOMEM;
+
+#2
+
+
+So we have all this churn for those two allocations which are basically
+the same code for two different notification schemes.
+
+Could you store the task that is requesting the fsnotify action instead of
+the memcg? Then do the allocation in the context of that task. That
+reduces the modifications to fsnotify.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
