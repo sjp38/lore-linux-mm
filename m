@@ -1,110 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E221F6B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 08:51:28 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id j3so1230966wrb.18
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 05:51:28 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.22])
-        by mx.google.com with ESMTPS id a53si9104593wra.252.2018.02.21.05.51.27
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E3AF86B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 09:27:35 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id o22so1858209itc.9
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 06:27:35 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p129si12866014itd.33.2018.02.21.06.27.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Feb 2018 05:51:27 -0800 (PST)
-Date: Wed, 21 Feb 2018 14:51:19 +0100
-From: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>
-Subject: Re: [PATCH 1/6] powerpc/mm/32: Use pfn_valid to check if pointer is
- in RAM
-Message-ID: <20180221135119.d3qgvdck5yruomi7@latitude>
-References: <20180220161424.5421-1-j.neuschaefer@gmx.net>
- <20180220161424.5421-2-j.neuschaefer@gmx.net>
- <0d14cb2c-dd00-d258-cb15-302b2a9d684f@c-s.fr>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="jgd5mu54dmgravdc"
-Content-Disposition: inline
-In-Reply-To: <0d14cb2c-dd00-d258-cb15-302b2a9d684f@c-s.fr>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Feb 2018 06:27:34 -0800 (PST)
+Subject: Re: [PATCH] mm,page_alloc: wait for oom_lock than back off
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20180123124245.GK1526@dhcp22.suse.cz>
+	<201801242228.FAD52671.SFFLQMOVOFHOtJ@I-love.SAKURA.ne.jp>
+	<201802132058.HAG51540.QFtSLOJFOOFVMH@I-love.SAKURA.ne.jp>
+	<201802202232.IEC26597.FOQtMFOFJHOSVL@I-love.SAKURA.ne.jp>
+	<20180220144920.GB21134@dhcp22.suse.cz>
+In-Reply-To: <20180220144920.GB21134@dhcp22.suse.cz>
+Message-Id: <201802212327.CAB51013.FOStFVLHFJMOOQ@I-love.SAKURA.ne.jp>
+Date: Wed, 21 Feb 2018 23:27:05 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: christophe leroy <christophe.leroy@c-s.fr>
-Cc: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, Joel Stanley <joel@jms.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Balbir Singh <bsingharora@gmail.com>, Guenter Roeck <linux@roeck-us.net>
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
 
+Michal Hocko wrote:
+> On Tue 20-02-18 22:32:56, Tetsuo Handa wrote:
+> > >From c3b6616238fcd65d5a0fdabcb4577c7e6f40d35e Mon Sep 17 00:00:00 2001
+> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Date: Tue, 20 Feb 2018 11:07:23 +0900
+> > Subject: [PATCH] mm,page_alloc: wait for oom_lock than back off
+> > 
+> > This patch fixes a bug which is essentially same with a bug fixed by
+> > commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
+> > too long").
+> > 
+> > Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
+> > on an assumption that the owner of oom_lock is making progress for us. But
+> > it is possible to trigger OOM lockup when many threads concurrently called
+> > __alloc_pages_slowpath() because all CPU resources are wasted for pointless
+> > direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
+> > __alloc_pages_may_oom() does not always give enough CPU resource to the
+> > owner of the oom_lock.
+> > 
+> > It is possible that the owner of oom_lock is preempted by other threads.
+> > Preemption makes the OOM situation much worse. But the page allocator is
+> > not responsible about wasting CPU resource for something other than memory
+> > allocation request. Wasting CPU resource for memory allocation request
+> > without allowing the owner of oom_lock to make forward progress is a page
+> > allocator's bug.
+> > 
+> > Therefore, this patch changes to wait for oom_lock in order to guarantee
+> > that no thread waiting for the owner of oom_lock to make forward progress
+> > will not consume CPU resources for pointless direct reclaim efforts.
+> 
+> So instead we will have many tasks sleeping on the lock and prevent the
+> oom reaper to make any forward progress. This is not a solution without
+> further steps. Also I would like to see a real life workload that would
+> benefit from this.
 
---jgd5mu54dmgravdc
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Of course I will propose follow-up patches. We already discussed that it is
+safe to use ALLOC_WMARK_MIN for last second allocation attempt with oom_lock
+held and ALLOC_OOM for OOM victim's last second allocation attempt with
+oom_lock held. We don't need to serialize whole __oom_reap_task_mm() using
+oom_lock; we need to serialize only setting of MMF_OOM_SKIP using oom_lock.
+(We won't need oom_lock serialization for setting MMF_OOM_SKIP if everyone
+can agree with doing last second allocation attempt with oom_lock held after
+confirming that there is no !MMF_OOM_SKIP mm. But we could not agree it.)
+Even more, we could try direct OOM reaping than schedule_timeout_killable(1)
+if preventing the OOM reaper kernel thread is a problem, for we should be
+able to concurrently run __oom_reap_task_mm() because we allow exit_mmap()
+and __oom_reap_task_mm() to run concurrently.
 
-Hello Christophe,
-
-On Tue, Feb 20, 2018 at 06:45:09PM +0100, christophe leroy wrote:
-[...]
-> > -	if (slab_is_available() && (p < virt_to_phys(high_memory)) &&
-> > +	if (slab_is_available() && pfn_valid(__phys_to_pfn(p)) &&
->=20
-> I'm not sure this is equivalent:
->=20
-> high_memory =3D (void *) __va(max_low_pfn * PAGE_SIZE);
-> #define ARCH_PFN_OFFSET		((unsigned long)(MEMORY_START >> PAGE_SHIFT))
-> #define pfn_valid(pfn)		((pfn) >=3D ARCH_PFN_OFFSET && (pfn) < max_mapnr)
-> set_max_mapnr(max_pfn);
->=20
-> So in the current implementation it checks against max_low_pfn while your
-> patch checks against max_pfn
->=20
-> 	max_low_pfn =3D max_pfn =3D memblock_end_of_DRAM() >> PAGE_SHIFT;
-> #ifdef CONFIG_HIGHMEM
-> 	max_low_pfn =3D lowmem_end_addr >> PAGE_SHIFT;
-> #endif
-
-Good point, I haven't considered CONFIG_HIGHMEM before.
-
-As far as I understand it, in the non-CONFIG_HIGHMEM case:
-
-  - max_low_pfn is set to the same value as max_pfn, so the ioremap
-    check should detect the same PFNs as RAM.
-
-and with CONFIG_HIGHMEM:
-
-  - max_low_pfn is set to lowmem_end_addr >> PAGE_SHIFT
-  - but max_pfn isn't
-
-So, I think you're right.
-
-
-While looking through arch/powerpc/mm, I noticed that there's a
-page_is_ram function, which simply uses the memblocks directly, on
-PPC32. It seems like a good candidate for the RAM check in
-__ioremap_caller, except that there's this code, which apparently
-trashes memblock 0 completely on non-CONFIG_NEED_MULTIPLE_NODES:
-
-  https://elixir.bootlin.com/linux/v4.16-rc2/source/arch/powerpc/mm/mem.c#L=
-223
-
-
-Thanks,
-Jonathan Neusch=C3=A4fer
-
---jgd5mu54dmgravdc
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAABAgAGBQJajXlOAAoJEAgwRJqO81/bA04P/A5eYOetCVfwe5i8CzVCzswi
-syAI04l5dw0ka8DJ6Vn3mGtDFbw+uDpOmZ4bwyebvvmr4nMnbJP6DLrYgOfs6Jz1
-aczZBbk1Jf/bO28zSvfZtrq1cfw5YI1RF54d6mJsjzC+oDpdCvTAwB03Feq1MbAu
-QYO6tilAaCnJyQ8vvxRL309oh1/jiYSfXga0pyH3KkjxWlPYAK7BrSW4IuWsp8Yw
-7mDJFnWuhiVxRMBgnvlXt4ykz6GLACM/mKaT/mWGtsvh/mTt2r+jk07QnnqX+Tvb
-V9iiXMof5TAM+nLlI8oLgxsXTFbu//QJMiNa6s6NWv6WMA3/Dq2HlWf8X4lj6TXx
-dmNNrcGWkVdCGdZKliwS+jAU0kMZ3cz2VCcLQH+rWJgCutQpbpF1I+J9Lv3vg7cH
-0lcRcsmfnBF5JGKScvjaHjCqH2M98JDSER5xU9B2ff9dZn5db6zeN/804OD7htX3
-nS//MoDImnbeur7ryfthSLgrVv5te78mv1aA/PLclGnveo5C/lrxWU1DjmBEmxW/
-h6o5JU6hV1To0teV47Cu9QLPPebpmM0iVR45TK4Y9u5DjdmvpYLYgnTsxtgXJGkW
-LX5tE060VtbeKZIA0N2VxKpwp+t+osCRPch+bPLlVjlS6Bo/gTtAHO5w9ldqDqf/
-UGnCm3zfS2X0jWMdxvRc
-=afR/
------END PGP SIGNATURE-----
-
---jgd5mu54dmgravdc--
+We know printk() from OOM situation where a lot of threads are doing almost
+busy-looping is a nightmare. printk() with oom_lock held can start utilizing
+CPU resources saved by this patch (and reduce preemption during printk(),
+making printk() complete faster) is already a benefit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
