@@ -1,94 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EE7F6B0003
-	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 20:36:50 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id b23so31002oib.16
-        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 17:36:50 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g81si8787094oia.247.2018.02.20.17.36.48
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AF6C26B0006
+	for <linux-mm@kvack.org>; Tue, 20 Feb 2018 22:01:41 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id p188so165023pfp.1
+        for <linux-mm@kvack.org>; Tue, 20 Feb 2018 19:01:41 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h3sor231269pgr.109.2018.02.20.19.01.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Feb 2018 17:36:49 -0800 (PST)
-Date: Wed, 21 Feb 2018 12:36:36 +1100
-From: Dave Chinner <dchinner@redhat.com>
-Subject: Re: [RFC PATCH v16 0/6] mm: security: ro protection for dynamic data
-Message-ID: <20180221013636.GE3728@rh>
-References: <20180212165301.17933-1-igor.stoppa@huawei.com>
- <CAGXu5j+ZNFX17Vxd37rPnkahFepFn77Fi9zEy+OL8nNd_2bjqQ@mail.gmail.com>
- <20180220012111.GC3728@rh>
- <24e65dec-f452-a444-4382-d1f88fbb334c@huawei.com>
- <20180220213604.GD3728@rh>
- <20180220235600.GA3706@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180220235600.GA3706@bombadil.infradead.org>
+        (Google Transport Security);
+        Tue, 20 Feb 2018 19:01:36 -0800 (PST)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH v2 0/3] Directed kmem charging
+Date: Tue, 20 Feb 2018 19:00:58 -0800
+Message-Id: <20180221030101.221206-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Igor Stoppa <igor.stoppa@huawei.com>, Kees Cook <keescook@chromium.org>, Randy Dunlap <rdunlap@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-On Tue, Feb 20, 2018 at 03:56:00PM -0800, Matthew Wilcox wrote:
-> On Wed, Feb 21, 2018 at 08:36:04AM +1100, Dave Chinner wrote:
-> > FWIW, I'm not wanting to use it to replace static variables. All the
-> > structures are dynamically allocated right now, and get assigned to
-> > other dynamically allocated pointers. I'd likely split the current
-> > structures into a "ro after init" structure and rw structure, so
-> > how does the "__ro_after_init" attribute work in that case? Is it
-> > something like this?
-> > 
-> > struct xfs_mount {
-> > 	struct xfs_mount_ro{
-> > 		.......
-> > 	} *ro __ro_after_init;
-       ^^^^^^^^
+This patchset introduces memcg variant memory allocation functions. The
+caller can explicitly pass the memcg to charge for kmem allocations.
+Currently the kernel, for __GFP_ACCOUNT memory allocation requests,
+extract the memcg of the current task to charge for the kmem allocation.
+This patch series introduces kmem allocation functions where the caller
+can pass the pointer to the remote memcg. The remote memcg will be
+charged for the allocation instead of the memcg of the caller. However
+the caller must have a reference to the remote memcg.
 
-pointer, not embedded structure....
+Fixed the build for SLOB in v2.
 
-> > 	......
-> 
-> No, you'd do:
-> 
-> struct xfs_mount_ro {
-> 	[...]
-> };
-> 
-> struct xfs_mount {
-> 	const struct xfs_mount_ro *ro;
-> 	[...]
-> };
+Shakeel Butt (3):
+  mm: memcg: plumbing memcg for kmem cache allocations
+  mm: memcg: plumbing memcg for kmalloc allocations
+  fs: fsnotify: account fsnotify metadata to kmemcg
 
-.... so that's pretty much the same thing :P
+ fs/notify/dnotify/dnotify.c          |   5 +-
+ fs/notify/fanotify/fanotify.c        |  12 ++-
+ fs/notify/fanotify/fanotify.h        |   3 +-
+ fs/notify/fanotify/fanotify_user.c   |   7 +-
+ fs/notify/group.c                    |   4 +
+ fs/notify/inotify/inotify_fsnotify.c |   2 +-
+ fs/notify/inotify/inotify_user.c     |   5 +-
+ fs/notify/mark.c                     |   6 +-
+ include/linux/fsnotify_backend.h     |  12 ++-
+ include/linux/memcontrol.h           |  13 ++-
+ include/linux/slab.h                 |  86 +++++++++++++++-
+ mm/memcontrol.c                      |  29 ++++--
+ mm/page_alloc.c                      |   2 +-
+ mm/slab.c                            | 107 ++++++++++++++++----
+ mm/slab.h                            |   6 +-
+ mm/slab_common.c                     |  41 +++++++-
+ mm/slob.c                            |  13 +++
+ mm/slub.c                            | 140 ++++++++++++++++++++++-----
+ 18 files changed, 415 insertions(+), 78 deletions(-)
 
-> > Also, what compile time checks are in place to catch writes to
-> > ro structure members? Is sparse going to be able to check this sort
-> > of thing, like is does with endian-specific variables?
-> 
-> Just labelling the pointer const should be enough for the compiler to
-> catch unintended writes.
-
-Ok.
-
-> > > I'd be interested to have your review of the pmalloc API, if you think
-> > > something is missing, once I send out the next revision.
-> > 
-> > I'll look at it in more depth when it comes past again. :P
-> 
-> I think the key question is whether you want a slab-style interface
-> or whether you want a kmalloc-style interface.  I'd been assuming
-> the former, but Igor has implemented the latter already.
-
-Slabs are rally only useful when you have lots of a specific type of
-object. I'm concerned mostly about one-off per-mount point
-structures, of which there are relatively few. A heap-like pool per
-mount is fine for this.
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-dchinner@redhat.com
+2.16.1.291.g4437f3f132-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
