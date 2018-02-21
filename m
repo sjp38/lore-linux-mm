@@ -1,200 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 28E7E6B0008
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 18:41:05 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id n11so1398419plp.13
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 15:41:05 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g2-v6si675439pll.556.2018.02.21.15.41.03
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 924F36B0007
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 18:53:04 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id c135so2590227qkb.10
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 15:53:04 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s11sor87646qtn.102.2018.02.21.15.53.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Feb 2018 15:41:03 -0800 (PST)
-From: James Hogan <jhogan@kernel.org>
-Subject: [PATCH 04/13] Drop a bunch of metag references
-Date: Wed, 21 Feb 2018 23:38:16 +0000
-Message-Id: <20180221233825.10024-5-jhogan@kernel.org>
-In-Reply-To: <20180221233825.10024-1-jhogan@kernel.org>
-References: <20180221233825.10024-1-jhogan@kernel.org>
+        (Google Transport Security);
+        Wed, 21 Feb 2018 15:53:03 -0800 (PST)
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: [PATCH v12 0/3] mm, x86, powerpc: Enhancements to Memory Protection Keys.
+Date: Wed, 21 Feb 2018 15:52:15 -0800
+Message-Id: <1519257138-23797-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-metag@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, James Hogan <jhogan@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, linux-mm@kvack.org
+To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com
 
-Now that arch/metag/ has been removed, drop a bunch of metag references
-in various codes across the whole tree:
- - VM_GROWSUP and __VM_ARCH_PECIFIC_1.
- - MT_METAG_* ELF note types.
- - METAG Kconfig dependencies (FRAME_POINTER) and ranges
-   (MAX_STACK_SIZE_MB).
- - metag cases in tools (checkstack.pl, recordmcount.c, perf).
+This patch series provides arch-neutral enhancements to
+enable memory-keys on new architecutes, and the corresponding
+changes in x86 and powerpc specific code to support that.
 
-Signed-off-by: James Hogan <jhogan@kernel.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
-Cc: Jiri Olsa <jolsa@redhat.com>
-Cc: Namhyung Kim <namhyung@kernel.org>
-Cc: linux-mm@kvack.org
-Cc: linux-metag@vger.kernel.org
----
- include/linux/mm.h             |  2 --
- include/trace/events/mmflags.h |  2 +-
- include/uapi/linux/elf.h       |  3 ---
- lib/Kconfig.debug              |  2 +-
- mm/Kconfig                     |  7 +++----
- scripts/checkstack.pl          |  4 ----
- scripts/recordmcount.c         | 20 --------------------
- tools/perf/perf-sys.h          |  4 ----
- 8 files changed, 5 insertions(+), 39 deletions(-)
+a) Provides ability to support upto 32 keys.  PowerPC
+	can handle 32 keys and hence needs this.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ad06d42adb1a..ccac10682ce5 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -241,8 +241,6 @@ extern unsigned int kobjsize(const void *objp);
- # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
- #elif defined(CONFIG_PARISC)
- # define VM_GROWSUP	VM_ARCH_1
--#elif defined(CONFIG_METAG)
--# define VM_GROWSUP	VM_ARCH_1
- #elif defined(CONFIG_IA64)
- # define VM_GROWSUP	VM_ARCH_1
- #elif !defined(CONFIG_MMU)
-diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-index dbe1bb058c09..a81cffb76d89 100644
---- a/include/trace/events/mmflags.h
-+++ b/include/trace/events/mmflags.h
-@@ -115,7 +115,7 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
- #define __VM_ARCH_SPECIFIC_1 {VM_PAT,     "pat"           }
- #elif defined(CONFIG_PPC)
- #define __VM_ARCH_SPECIFIC_1 {VM_SAO,     "sao"           }
--#elif defined(CONFIG_PARISC) || defined(CONFIG_METAG) || defined(CONFIG_IA64)
-+#elif defined(CONFIG_PARISC) || defined(CONFIG_IA64)
- #define __VM_ARCH_SPECIFIC_1 {VM_GROWSUP,	"growsup"	}
- #elif !defined(CONFIG_MMU)
- #define __VM_ARCH_SPECIFIC_1 {VM_MAPPED_COPY,"mappedcopy"	}
-diff --git a/include/uapi/linux/elf.h b/include/uapi/linux/elf.h
-index 3bf73fb58045..e2535d6dcec7 100644
---- a/include/uapi/linux/elf.h
-+++ b/include/uapi/linux/elf.h
-@@ -420,9 +420,6 @@ typedef struct elf64_shdr {
- #define NT_ARM_HW_WATCH	0x403		/* ARM hardware watchpoint registers */
- #define NT_ARM_SYSTEM_CALL	0x404	/* ARM system call number */
- #define NT_ARM_SVE	0x405		/* ARM Scalable Vector Extension registers */
--#define NT_METAG_CBUF	0x500		/* Metag catch buffer registers */
--#define NT_METAG_RPIPE	0x501		/* Metag read pipeline state */
--#define NT_METAG_TLS	0x502		/* Metag TLS pointer */
- #define NT_ARC_V2	0x600		/* ARCv2 accumulator/extra registers */
- 
- /* Note header in a PT_NOTE section */
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 6088408ef26c..d1c523e408e9 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -356,7 +356,7 @@ config FRAME_POINTER
- 	bool "Compile the kernel with frame pointers"
- 	depends on DEBUG_KERNEL && \
- 		(CRIS || M68K || FRV || UML || \
--		 SUPERH || BLACKFIN || MN10300 || METAG) || \
-+		 SUPERH || BLACKFIN || MN10300) || \
- 		ARCH_WANT_FRAME_POINTERS
- 	default y if (DEBUG_INFO && UML) || ARCH_WANT_FRAME_POINTERS
- 	help
-diff --git a/mm/Kconfig b/mm/Kconfig
-index c782e8fb7235..abefa573bcd8 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -627,15 +627,14 @@ config GENERIC_EARLY_IOREMAP
- config MAX_STACK_SIZE_MB
- 	int "Maximum user stack size for 32-bit processes (MB)"
- 	default 80
--	range 8 256 if METAG
- 	range 8 2048
- 	depends on STACK_GROWSUP && (!64BIT || COMPAT)
- 	help
- 	  This is the maximum stack size in Megabytes in the VM layout of 32-bit
- 	  user processes when the stack grows upwards (currently only on parisc
--	  and metag arch). The stack will be located at the highest memory
--	  address minus the given value, unless the RLIMIT_STACK hard limit is
--	  changed to a smaller value in which case that is used.
-+	  arch). The stack will be located at the highest memory address minus
-+	  the given value, unless the RLIMIT_STACK hard limit is changed to a
-+	  smaller value in which case that is used.
- 
- 	  A sane initial value is 80 MB.
- 
-diff --git a/scripts/checkstack.pl b/scripts/checkstack.pl
-index cb993801e4b2..eeb9ac8dbcfb 100755
---- a/scripts/checkstack.pl
-+++ b/scripts/checkstack.pl
-@@ -64,10 +64,6 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
- 		#    2b6c:       4e56 fb70       linkw %fp,#-1168
- 		#  1df770:       defc ffe4       addaw #-28,%sp
- 		$re = qr/.*(?:linkw %fp,|addaw )#-([0-9]{1,4})(?:,%sp)?$/o;
--	} elsif ($arch eq 'metag') {
--		#400026fc:       40 00 00 82     ADD       A0StP,A0StP,#0x8
--		$re = qr/.*ADD.*A0StP,A0StP,\#(0x$x{1,8})/o;
--		$funcre = qr/^$x* <[^\$](.*)>:$/;
- 	} elsif ($arch eq 'mips64') {
- 		#8800402c:       67bdfff0        daddiu  sp,sp,-16
- 		$re = qr/.*daddiu.*sp,sp,-(([0-9]{2}|[3-9])[0-9]{2})/o;
-diff --git a/scripts/recordmcount.c b/scripts/recordmcount.c
-index 16e086dcc567..8c9691c3329e 100644
---- a/scripts/recordmcount.c
-+++ b/scripts/recordmcount.c
-@@ -33,20 +33,6 @@
- #include <string.h>
- #include <unistd.h>
- 
--/*
-- * glibc synced up and added the metag number but didn't add the relocations.
-- * Work around this in a crude manner for now.
-- */
--#ifndef EM_METAG
--#define EM_METAG      174
--#endif
--#ifndef R_METAG_ADDR32
--#define R_METAG_ADDR32                   2
--#endif
--#ifndef R_METAG_NONE
--#define R_METAG_NONE                     3
--#endif
--
- #ifndef EM_AARCH64
- #define EM_AARCH64	183
- #define R_AARCH64_NONE		0
-@@ -538,12 +524,6 @@ do_file(char const *const fname)
- 			gpfx = '_';
- 			break;
- 	case EM_IA_64:	 reltype = R_IA64_IMM64;   gpfx = '_'; break;
--	case EM_METAG:	 reltype = R_METAG_ADDR32;
--			 altmcount = "_mcount_wrapper";
--			 rel_type_nop = R_METAG_NONE;
--			 /* We happen to have the same requirement as MIPS */
--			 is_fake_mcount32 = MIPS32_is_fake_mcount;
--			 break;
- 	case EM_MIPS:	 /* reltype: e_class    */ gpfx = '_'; break;
- 	case EM_PPC:	 reltype = R_PPC_ADDR32;   gpfx = '_'; break;
- 	case EM_PPC64:	 reltype = R_PPC64_ADDR64; gpfx = '_'; break;
-diff --git a/tools/perf/perf-sys.h b/tools/perf/perf-sys.h
-index 36673f98d66b..3eb7a39169f6 100644
---- a/tools/perf/perf-sys.h
-+++ b/tools/perf/perf-sys.h
-@@ -46,10 +46,6 @@
- #define CPUINFO_PROC	{"Processor"}
- #endif
- 
--#ifdef __metag__
--#define CPUINFO_PROC	{"CPU"}
--#endif
--
- #ifdef __xtensa__
- #define CPUINFO_PROC	{"core ID"}
- #endif
--- 
-2.13.6
+b) Arch-neutral code; and not the arch-specific code,
+   determines the format of the string, that displays the key
+   for each vma in smaps.
+
+History:
+-------
+version v12:
+	(1) fixed compilation errors seen with various x86
+		configs.
+version v11:
+	(1) code that displays key in smaps is not any more
+		defined under CONFIG_ARCH_HAS_PKEYS.
+       	    - Comment by Eric W. Biederman and Michal Hocko
+	(2) merged two patches that implemented (1).
+		- comment by Michal Hocko
+
+version prior to v11:
+	(1) used one additional bit from VM_HIGH_ARCH_*
+       		to support 32 keys.
+	    - Suggestion by Dave Hansen.
+	(2) powerpc specific changes to support memory keys.
+
+Ram Pai (3):
+  mm, powerpc, x86: define VM_PKEY_BITx bits if CONFIG_ARCH_HAS_PKEYS
+    is enabled
+  mm, powerpc, x86: introduce an additional vma bit for powerpc pkey
+  mm, x86, powerpc: display pkey in smaps only if arch supports pkeys
+
+ arch/powerpc/include/asm/mmu_context.h |    5 -----
+ arch/x86/include/asm/mmu_context.h     |    5 -----
+ arch/x86/include/asm/pkeys.h           |    1 +
+ arch/x86/kernel/fpu/xstate.c           |    5 +++++
+ arch/x86/kernel/setup.c                |    8 --------
+ fs/proc/task_mmu.c                     |   15 ++++++++-------
+ include/linux/mm.h                     |   12 +++++++-----
+ include/linux/pkeys.h                  |    7 ++++++-
+ 8 files changed, 27 insertions(+), 31 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
