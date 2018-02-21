@@ -1,61 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D0D886B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 11:59:36 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id f16so1695392qth.20
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 08:59:36 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v21sor6631961qkl.84.2018.02.21.08.59.35
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D7FEB6B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 12:01:37 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id x3so991000plo.9
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 09:01:37 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 3-v6si9606048pll.585.2018.02.21.09.01.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Feb 2018 08:59:35 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 21 Feb 2018 09:01:36 -0800 (PST)
+Date: Wed, 21 Feb 2018 09:01:29 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: Use higher-order pages in vmalloc
+Message-ID: <20180221170129.GB27687@bombadil.infradead.org>
+References: <151670492223.658225.4605377710524021456.stgit@buzz>
+ <151670493255.658225.2881484505285363395.stgit@buzz>
+ <20180221154214.GA4167@bombadil.infradead.org>
+ <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAKD1Yr2mgYZ7uFCQsQ9M5YMGX1LuhO0CQR6tLvQM=dND4RBrbQ@mail.gmail.com>
-References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
- <CALCETrUF61fqjXKG=kwf83JWpw=kgL16UvKowezDVwVA1=YVAw@mail.gmail.com>
- <20180209191112.55zyjf4njum75brd@suse.de> <20180210091543.ynypx4y3koz44g7y@angband.pl>
- <CA+55aFwdLZjDcfhj4Ps=dUfd7ifkoYxW0FoH_JKjhXJYzxUSZQ@mail.gmail.com>
- <20180211105909.53bv5q363u7jgrsc@angband.pl> <6FB16384-7597-474E-91A1-1AF09201CEAC@gmail.com>
- <20180213085429.GB10278@kroah.com> <CA+55aFzLR2DbGnAKQwg79Ob9dpkOM1Z7bxkjyPBSp3Zdxmk5eQ@mail.gmail.com>
- <20180214085425.GA12779@kroah.com> <CAKD1Yr2mgYZ7uFCQsQ9M5YMGX1LuhO0CQR6tLvQM=dND4RBrbQ@mail.gmail.com>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Wed, 21 Feb 2018 17:59:34 +0100
-Message-ID: <CAK8P3a2iFfrH5B8sha7GMEPN-pv995X_1b6-Bo4h=wBLGhhUPg@mail.gmail.com>
-Subject: Re: [PATCH 00/31 v2] PTI support for x86_32
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lorenzo Colitti <lorenzo@google.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mark D Rustad <mrustad@gmail.com>, Adam Borowski <kilobyte@angband.pl>, Joerg Roedel <jroedel@suse.de>, Andy Lutomirski <luto@kernel.org>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Florian Westphal <fw@strlen.de>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Wed, Feb 21, 2018 at 11:26 AM, Lorenzo Colitti <lorenzo@google.com> wrote:
-> On Wed, Feb 14, 2018 at 5:54 PM, Greg KH <gregkh@linuxfoundation.org> wrote:
->> > > IPSEC doesn't work with a 64bit kernel and 32bit userspace right now.
->> > >
->> > > Back in 2015 someone started to work on that, and properly marked that
->> > > the kernel could not handle this with commit 74005991b78a ("xfrm: Do not
->> > > parse 32bits compiled xfrm netlink msg on 64bits host")
->> > >
->> > > This is starting to be hit by some Android systems that are moving
->> > > (yeah, slowly) to 4.4 :(
->> >
->> > Does anybody have test-programs/harnesses for this?
->>
->> Lorenzo (now on the To: line), is the one that I think is looking into
->> this, and should have some sort of test for it.  Lorenzo?
->
-> Sorry for the late reply here. The issue is that the xfrm uapi structs
-> don't specify padding at the end, so they're a different size on
-> 32-bit and 64-bit archs. This by itself would be fine, as the kernel
-> could just ignore the (lack of) padding. But some of these structs
-> contain others (e.g., xfrm_userspi_info contains xfrm_usersa_info),
-> and in that case the whole layout after the contained struct is
-> different.
+On Wed, Feb 21, 2018 at 08:16:22AM -0800, Dave Hansen wrote:
+> On 02/21/2018 07:42 AM, Matthew Wilcox wrote:
+> > This prompted me to write a patch I've been meaning to do for a while,
+> > allocating large pages if they're available to satisfy vmalloc.  I thought
+> > it would save on touching multiple struct pages, but it turns out that
+> > the checking code we currently have in the free_pages path requires you
+> > to have initialised all of the tail pages (maybe we can make that code
+> > conditional ...)
+> 
+> What the concept here?  If we can use high-order pages for vmalloc() at
+> the moment, we *should* use them?
 
-So this is x86 specific then and it already works correctly on all
-other architectures (especially arm64 Android), right?
+Right.  It helps with fragmentation if we can keep higher-order
+allocations together.
 
-      Arnd
+> One of the coolest things about vmalloc() is that it can do large
+> allocations without consuming large (high-order) pages, so it has very
+> few side-effects compared to doing a bunch of order-0 allocations.  This
+> patch seems to propose removing that cool thing.  Even trying the
+> high-order allocation could kick off a bunch of reclaim and compaction
+> that was not there previously.
+
+Yes, that's one of the debatable things.  It'd be nice to have a GFP
+flag that stopped after calling get_page_from_freelist() and didn't try
+to do compaction or reclaim.
+
+> If you could take this an only _opportunistically_ allocate large pages,
+> it could be a more universal win.  You could try to make sure that no
+> compaction or reclaim is done for the large allocation.  Or, maybe you
+> only try it if there are *only* high-order pages in the allocator that
+> would have been broken down into order-0 *anyway*.
+> 
+> I'm not sure it's worth it, though.  I don't see a lot of folks
+> complaining about vmalloc()'s speed or TLB impact.
+
+No, I'm not sure it's worth it either, although Konstantin's mail
+suggesting improvements in fork speed were possible by avoiding vmalloc
+reminded me that I'd been meaning to give this a try.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
