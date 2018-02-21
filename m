@@ -1,73 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7603F6B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 14:05:03 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id l19so2464589ioc.19
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 11:05:03 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x24sor12858833ioi.116.2018.02.21.11.05.02
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 33DDE6B0008
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 14:05:07 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id r1so2496393ioa.0
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 11:05:07 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id n144sor9505232iod.244.2018.02.21.11.05.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 21 Feb 2018 11:05:02 -0800 (PST)
-Date: Wed, 21 Feb 2018 13:05:00 -0600
-From: Dan Rue <dan.rue@linaro.org>
-Subject: Re: [PATCH 5/6] mm, hugetlb: further simplify hugetlb allocation API
-Message-ID: <20180221190500.oa2osuf3kwxpizz4@xps>
-References: <20180103093213.26329-1-mhocko@kernel.org>
- <20180103093213.26329-6-mhocko@kernel.org>
- <20180221042457.uolmhlmv5je5dqx7@xps>
- <20180221095526.GB2231@dhcp22.suse.cz>
- <20180221100107.GC2231@dhcp22.suse.cz>
- <20180221161914.ltssyoumwpyiwca6@xps>
- <20180221185252.GJ2231@dhcp22.suse.cz>
+        Wed, 21 Feb 2018 11:05:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180221185252.GJ2231@dhcp22.suse.cz>
+In-Reply-To: <20180205220325.197241-1-dancol@google.com>
+References: <20180205220325.197241-1-dancol@google.com>
+From: Daniel Colascione <dancol@google.com>
+Date: Wed, 21 Feb 2018 11:05:04 -0800
+Message-ID: <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
+Subject: Re: [PATCH] Synchronize task mm counters on context switch
+Content-Type: multipart/alternative; boundary="94eb2c189b8ce24b120565bd9ac2"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Daniel Colascione <dancol@google.com>
 
-On Wed, Feb 21, 2018 at 07:52:52PM +0100, Michal Hocko wrote:
-> On Wed 21-02-18 10:19:14, Dan Rue wrote:
-> > On Wed, Feb 21, 2018 at 11:01:07AM +0100, Michal Hocko wrote:
-> > > On Wed 21-02-18 10:55:26, Michal Hocko wrote:
-> > > > On Tue 20-02-18 22:24:57, Dan Rue wrote:
-> > > [...]
-> > > > > I bisected the failure to this commit. The problem is seen on multiple
-> > > > > architectures (tested x86-64 and arm64).
-> > > > 
-> > > > The patch shouldn't have introduced any functional changes IIRC. But let
-> > > > me have a look
-> > > 
-> > > Hmm, I guess I can see it. Does the following help?
-> > > ---
-> > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > > index 7c204e3d132b..a963f2034dfc 100644
-> > > --- a/mm/hugetlb.c
-> > > +++ b/mm/hugetlb.c
-> > > @@ -1583,7 +1583,7 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
-> > >  		page = NULL;
-> > >  	} else {
-> > >  		h->surplus_huge_pages++;
-> > > -		h->nr_huge_pages_node[page_to_nid(page)]++;
-> > > +		h->surplus_huge_pages_node[page_to_nid(page)]++;
-> > >  	}
-> > >  
-> > >  out_unlock:
-> > 
-> > That did the trick. Confirmed fixed on v4.15-3389-g0c397daea1d4 and
-> > v4.16-rc2 with the above patch.
-> 
-> Thanks a lot for re-testing! Can I assume your Tested-by?
+--94eb2c189b8ce24b120565bd9ac2
+Content-Type: text/plain; charset="UTF-8"
 
-Tested-by: Dan Rue <dan.rue@linaro.org>
+On Mon, Feb 5, 2018 at 2:03 PM, Daniel Colascione <dancol@google.com> wrote:
 
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> When SPLIT_RSS_COUNTING is in use (which it is on SMP systems,
+> generally speaking), we buffer certain changes to mm-wide counters
+> through counters local to the current struct task, flushing them to
+> the mm after seeing 64 page faults, as well as on task exit and
+> exec. This scheme can leave a large amount of memory unaccounted-for
+> in process memory counters, especially for processes with many threads
+> (each of which gets 64 "free" faults), and it produces an
+> inconsistency with the same memory counters scanned VMA-by-VMA using
+> smaps. This inconsistency can persist for an arbitrarily long time,
+> since there is no way to force a task to flush its counters to its mm.
+>
+> This patch flushes counters on context switch. This way, we bound the
+> amount of unaccounted memory without forcing tasks to flush to the
+> mm-wide counters on each minor page fault. The flush operation should
+> be cheap: we only have a few counters, adjacent in struct task, and we
+> don't atomically write to the mm counters unless we've changed
+> something since the last flush.
+>
+> Signed-off-by: Daniel Colascione <dancol@google.com>
+> ---
+>  kernel/sched/core.c | 3 +++
+>  1 file changed, 3 insertions(+)
+>
+> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> index a7bf32aabfda..7f197a7698ee 100644
+> --- a/kernel/sched/core.c
+> +++ b/kernel/sched/core.c
+> @@ -3429,6 +3429,9 @@ asmlinkage __visible void __sched schedule(void)
+>         struct task_struct *tsk = current;
+>
+>         sched_submit_work(tsk);
+> +       if (tsk->mm)
+> +               sync_mm_rss(tsk->mm);
+> +
+>         do {
+>                 preempt_disable();
+>                 __schedule(false);
+>
+
+
+Ping? Is this approach just a bad idea? We could instead just manually sync
+all mm-attached tasks at counter-retrieval time.
+
+--94eb2c189b8ce24b120565bd9ac2
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On M=
+on, Feb 5, 2018 at 2:03 PM, Daniel Colascione <span dir=3D"ltr">&lt;<a href=
+=3D"mailto:dancol@google.com" target=3D"_blank">dancol@google.com</a>&gt;</=
+span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8e=
+x;border-left:1px #ccc solid;padding-left:1ex">When SPLIT_RSS_COUNTING is i=
+n use (which it is on SMP systems,<br>
+generally speaking), we buffer certain changes to mm-wide counters<br>
+through counters local to the current struct task, flushing them to<br>
+the mm after seeing 64 page faults, as well as on task exit and<br>
+exec. This scheme can leave a large amount of memory unaccounted-for<br>
+in process memory counters, especially for processes with many threads<br>
+(each of which gets 64 &quot;free&quot; faults), and it produces an<br>
+inconsistency with the same memory counters scanned VMA-by-VMA using<br>
+smaps. This inconsistency can persist for an arbitrarily long time,<br>
+since there is no way to force a task to flush its counters to its mm.<br>
+<br>
+This patch flushes counters on context switch. This way, we bound the<br>
+amount of unaccounted memory without forcing tasks to flush to the<br>
+mm-wide counters on each minor page fault. The flush operation should<br>
+be cheap: we only have a few counters, adjacent in struct task, and we<br>
+don&#39;t atomically write to the mm counters unless we&#39;ve changed<br>
+something since the last flush.<br>
+<br>
+Signed-off-by: Daniel Colascione &lt;<a href=3D"mailto:dancol@google.com">d=
+ancol@google.com</a>&gt;<br>
+---<br>
+=C2=A0kernel/sched/core.c | 3 +++<br>
+=C2=A01 file changed, 3 insertions(+)<br>
+<br>
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c<br>
+index a7bf32aabfda..7f197a7698ee 100644<br>
+--- a/kernel/sched/core.c<br>
++++ b/kernel/sched/core.c<br>
+@@ -3429,6 +3429,9 @@ asmlinkage __visible void __sched schedule(void)<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 struct task_struct *tsk =3D current;<br>
+<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 sched_submit_work(tsk);<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0if (tsk-&gt;mm)<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0sync_mm_rss(tsk-&gt=
+;mm);<br>
++<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 do {<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 preempt_disable();<=
+br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __schedule(false);<=
+br></blockquote><div><br></div><div>=C2=A0</div><div>Ping? Is this approach=
+ just a bad idea? We could instead just manually sync all mm-attached tasks=
+ at counter-retrieval time.</div></div><br></div></div>
+
+--94eb2c189b8ce24b120565bd9ac2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
