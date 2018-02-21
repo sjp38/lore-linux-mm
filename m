@@ -1,83 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E3AF86B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 09:27:35 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id o22so1858209itc.9
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 06:27:35 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id p129si12866014itd.33.2018.02.21.06.27.33
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B65D6B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 09:42:45 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id c37so1615819wra.5
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 06:42:45 -0800 (PST)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.17.20])
+        by mx.google.com with ESMTPS id m53si1091782wrm.146.2018.02.21.06.42.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Feb 2018 06:27:34 -0800 (PST)
-Subject: Re: [PATCH] mm,page_alloc: wait for oom_lock than back off
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20180123124245.GK1526@dhcp22.suse.cz>
-	<201801242228.FAD52671.SFFLQMOVOFHOtJ@I-love.SAKURA.ne.jp>
-	<201802132058.HAG51540.QFtSLOJFOOFVMH@I-love.SAKURA.ne.jp>
-	<201802202232.IEC26597.FOQtMFOFJHOSVL@I-love.SAKURA.ne.jp>
-	<20180220144920.GB21134@dhcp22.suse.cz>
-In-Reply-To: <20180220144920.GB21134@dhcp22.suse.cz>
-Message-Id: <201802212327.CAB51013.FOStFVLHFJMOOQ@I-love.SAKURA.ne.jp>
-Date: Wed, 21 Feb 2018 23:27:05 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Feb 2018 06:42:43 -0800 (PST)
+Date: Wed, 21 Feb 2018 15:42:40 +0100
+From: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>
+Subject: Re: [PATCH 0/6] DISCONTIGMEM support for PPC32
+Message-ID: <20180221144240.pfu2run3pixt3pzo@latitude>
+References: <20180220161424.5421-1-j.neuschaefer@gmx.net>
+ <193a407d-e6b8-9e29-af47-3d401b6414a0@c-s.fr>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="sj7gzac6guuidn6w"
+Content-Disposition: inline
+In-Reply-To: <193a407d-e6b8-9e29-af47-3d401b6414a0@c-s.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
+To: Christophe LEROY <christophe.leroy@c-s.fr>
+Cc: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, linuxppc-dev@lists.ozlabs.org, Joel Stanley <joel@jms.id.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Michal Hocko wrote:
-> On Tue 20-02-18 22:32:56, Tetsuo Handa wrote:
-> > >From c3b6616238fcd65d5a0fdabcb4577c7e6f40d35e Mon Sep 17 00:00:00 2001
-> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Date: Tue, 20 Feb 2018 11:07:23 +0900
-> > Subject: [PATCH] mm,page_alloc: wait for oom_lock than back off
-> > 
-> > This patch fixes a bug which is essentially same with a bug fixed by
-> > commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
-> > too long").
-> > 
-> > Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
-> > on an assumption that the owner of oom_lock is making progress for us. But
-> > it is possible to trigger OOM lockup when many threads concurrently called
-> > __alloc_pages_slowpath() because all CPU resources are wasted for pointless
-> > direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
-> > __alloc_pages_may_oom() does not always give enough CPU resource to the
-> > owner of the oom_lock.
-> > 
-> > It is possible that the owner of oom_lock is preempted by other threads.
-> > Preemption makes the OOM situation much worse. But the page allocator is
-> > not responsible about wasting CPU resource for something other than memory
-> > allocation request. Wasting CPU resource for memory allocation request
-> > without allowing the owner of oom_lock to make forward progress is a page
-> > allocator's bug.
-> > 
-> > Therefore, this patch changes to wait for oom_lock in order to guarantee
-> > that no thread waiting for the owner of oom_lock to make forward progress
-> > will not consume CPU resources for pointless direct reclaim efforts.
-> 
-> So instead we will have many tasks sleeping on the lock and prevent the
-> oom reaper to make any forward progress. This is not a solution without
-> further steps. Also I would like to see a real life workload that would
-> benefit from this.
 
-Of course I will propose follow-up patches. We already discussed that it is
-safe to use ALLOC_WMARK_MIN for last second allocation attempt with oom_lock
-held and ALLOC_OOM for OOM victim's last second allocation attempt with
-oom_lock held. We don't need to serialize whole __oom_reap_task_mm() using
-oom_lock; we need to serialize only setting of MMF_OOM_SKIP using oom_lock.
-(We won't need oom_lock serialization for setting MMF_OOM_SKIP if everyone
-can agree with doing last second allocation attempt with oom_lock held after
-confirming that there is no !MMF_OOM_SKIP mm. But we could not agree it.)
-Even more, we could try direct OOM reaping than schedule_timeout_killable(1)
-if preventing the OOM reaper kernel thread is a problem, for we should be
-able to concurrently run __oom_reap_task_mm() because we allow exit_mmap()
-and __oom_reap_task_mm() to run concurrently.
+--sj7gzac6guuidn6w
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-We know printk() from OOM situation where a lot of threads are doing almost
-busy-looping is a nightmare. printk() with oom_lock held can start utilizing
-CPU resources saved by this patch (and reduce preemption during printk(),
-making printk() complete faster) is already a benefit.
+Hi,
+
+On Wed, Feb 21, 2018 at 08:06:10AM +0100, Christophe LEROY wrote:
+>=20
+>=20
+> Le 20/02/2018 =C3=A0 17:14, Jonathan Neusch=C3=A4fer a =C3=A9crit=C2=A0:
+> > This patchset adds support for DISCONTIGMEM on 32-bit PowerPC. This is
+> > required to properly support the Nintendo Wii's memory layout, in which
+> > there are two blocks of RAM and MMIO in the middle.
+> >=20
+> > Previously, this memory layout was handled by code that joins the two
+> > RAM blocks into one, reserves the MMIO hole, and permits allocations of
+> > reserved memory in ioremap. This hack didn't work with resource-based
+> > allocation (as used for example in the GPIO driver for Wii[1]), however.
+> >=20
+> > After this patchset, users of the Wii can either select CONFIG_FLATMEM
+> > to get the old behaviour, or CONFIG_DISCONTIGMEM to get the new
+> > behaviour.
+>=20
+> My question might me stupid, as I don't know PCC64 in deep, but when look=
+ing
+> at page_is_ram() in arch/powerpc/mm/mem.c, I have the feeling the PPC64
+> implements ram by blocks. Isn't it what you are trying to achieve ? Would=
+n't
+> it be feasible to map to what's done in PPC64 for PPC32 ?
+
+Using page_is_ram in __ioremap_caller and the same memblock-based
+approach that's used on PPC64 on PPC32 *should* work, but I think due to
+the following line in initmem_init, it won't:
+
+	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
+
+
+Thanks,
+Jonathan Neusch=C3=A4fer
+
+--sj7gzac6guuidn6w
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAABAgAGBQJajYVWAAoJEAgwRJqO81/bt2YQAJVWrBF/ocJJjhm+aS/UxJkD
+QtVPunOENVzUa3TvGRkB+Snlik8tAon75OZBBj0OHllUqiLLVxzUC1OOz8wTzOdP
+AFeBcN4KE+OV1iRlEoN6g42kPs+b9pHWnVnWDnLIdPGpUJxkDIoPV1AnhKjdiNMu
+2X2ri0/aGzFYFBB8je9vV3b9rD9HVkUgDa4UjC01gVL5J+dX0qlPJ/Qj3xLzIFsf
+TFkIQbeU2yuOWxdVk5ngI6J1tW+bzIklqk8ptwtvBMVysU7j4b1Zvx8xu2tZjhmu
+F1/QNOZlcQAQdKvRJn+3O8wUyl3dseD/wXHHZkfeQi1bHnCNRWl7+peiNIdNlfWj
+FneQf7NFENHRHdnblhmYkJuFNIIjJU/K5dFc4UMuYwOMwtyNSdQqnHfCwYRmjOq/
+HynUlOiOSEok411GuOCtd+y2SmTsmdoSB7fqqIZTIrqlqqDUsmAdu/f0WNuPqG2t
+yCrm/+8hrmylwloqWK+kQCpcRSkN90dHwQE/ZWiPDsI59qCdMdJSnfFYFbbgzbbK
+br2sNx1YHXkwDPqkKLCI9gymCgO4BWJGeevuH4gJbfehBGC9+b2Oij5uP9plM4HC
+QPATH4CmOZH7RbBrOaunuHtuva26VpX8f5+IVGzx+ilKFuaBPucsquoDFJu7/SmJ
+LBIs6ol1cb/jr268Wlfl
+=vWFI
+-----END PGP SIGNATURE-----
+
+--sj7gzac6guuidn6w--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
