@@ -1,83 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 54C116B0009
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 11:14:59 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id y44so1789786wry.8
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 08:14:59 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.21])
-        by mx.google.com with ESMTPS id y62si3651195wme.174.2018.02.21.08.14.57
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2841F6B000C
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 11:16:28 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id f4so945968plo.11
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 08:16:28 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id z188si3176668pfz.46.2018.02.21.08.16.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Feb 2018 08:14:58 -0800 (PST)
-Date: Wed, 21 Feb 2018 17:08:15 +0100
-From: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>
-Subject: Re: [PATCH 5/6] powerpc: Implement DISCONTIGMEM and allow selection
- on PPC32
-Message-ID: <20180221160815.dxhpsejt74zeqqjd@latitude>
-References: <20180220161424.5421-6-j.neuschaefer@gmx.net>
- <201802210756.OZokd64C%fengguang.wu@intel.com>
+        Wed, 21 Feb 2018 08:16:27 -0800 (PST)
+Subject: Re: Use higher-order pages in vmalloc
+References: <151670492223.658225.4605377710524021456.stgit@buzz>
+ <151670493255.658225.2881484505285363395.stgit@buzz>
+ <20180221154214.GA4167@bombadil.infradead.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
+Date: Wed, 21 Feb 2018 08:16:22 -0800
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="cqenwn745jgkwtzn"
-Content-Disposition: inline
-In-Reply-To: <201802210756.OZokd64C%fengguang.wu@intel.com>
+In-Reply-To: <20180221154214.GA4167@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, kbuild-all@01.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, Joel Stanley <joel@jms.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Michael Bringmann <mwb@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>
+To: Matthew Wilcox <willy@infradead.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
+On 02/21/2018 07:42 AM, Matthew Wilcox wrote:
+> On Tue, Jan 23, 2018 at 01:55:32PM +0300, Konstantin Khlebnikov wrote:
+>> Virtually mapped stack have two bonuses: it eats order-0 pages and
+>> adds guard page at the end. But it slightly slower if system have
+>> plenty free high-order pages.
+>>
+>> This patch adds option to use virtually bapped stack as fallback for
+>> atomic allocation of traditional high-order page.
+> This prompted me to write a patch I've been meaning to do for a while,
+> allocating large pages if they're available to satisfy vmalloc.  I thought
+> it would save on touching multiple struct pages, but it turns out that
+> the checking code we currently have in the free_pages path requires you
+> to have initialised all of the tail pages (maybe we can make that code
+> conditional ...)
 
---cqenwn745jgkwtzn
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+What the concept here?  If we can use high-order pages for vmalloc() at
+the moment, we *should* use them?
 
-On Wed, Feb 21, 2018 at 07:46:28AM +0800, kbuild test robot wrote:
-[...]
-> >> include/linux/mmzone.h:1239:19: error: conflicting types for 'pfn_valid'
->     static inline int pfn_valid(unsigned long pfn)
->                       ^~~~~~~~~
->    In file included from include/linux/mmzone.h:912:0,
->                     from include/linux/gfp.h:6,
->                     from include/linux/mm.h:10,
->                     from include/linux/mman.h:5,
->                     from arch/powerpc/kernel/asm-offsets.c:22:
->    arch/powerpc/include/asm/mmzone.h:40:19: note: previous definition of 'pfn_valid' was here
->     static inline int pfn_valid(int pfn)
->                       ^~~~~~~~~
->    make[2]: *** [arch/powerpc/kernel/asm-offsets.s] Error 1
->    make[2]: Target '__build' not remade because of errors.
->    make[1]: *** [prepare0] Error 2
->    make[1]: Target 'prepare' not remade because of errors.
->    make: *** [sub-make] Error 2
+One of the coolest things about vmalloc() is that it can do large
+allocations without consuming large (high-order) pages, so it has very
+few side-effects compared to doing a bunch of order-0 allocations.  This
+patch seems to propose removing that cool thing.  Even trying the
+high-order allocation could kick off a bunch of reclaim and compaction
+that was not there previously.
 
-Oops, I'll fix this in the next version (and compile-test on ppc64...).
+If you could take this an only _opportunistically_ allocate large pages,
+it could be a more universal win.  You could try to make sure that no
+compaction or reclaim is done for the large allocation.  Or, maybe you
+only try it if there are *only* high-order pages in the allocator that
+would have been broken down into order-0 *anyway*.
 
-Weirdly enough, x86-32 and parisc define pfn_valid with an int
-parameter, too (both of them since the Beginning Of Time, aka.
-v2.6.12-rc2).
-
---cqenwn745jgkwtzn
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAABAgAGBQJajZlkAAoJEAgwRJqO81/bC9EP/0FAWTZxjLN1131rfl2qXHHO
-PiRFHOZgt/dlfqJQiFZSF8F33gEwQMn29NdOFqPnFyUT+9BNoBbv3RcEVNuJ2Y26
-gyEVfVSINkrhqHHxtHNl+NlFsClxlo5Nrhss4gja1Jm+fZDrvFDj7YoBR1mINdbs
-Wcf4OSqUjSW8ZBG1MJLli5CX5QeKpzmhiBVMKiaNEIyPaceoNZVFSIsqwTxK0LcY
-ILkaUS2lAh7GF+C7vdE7/ur0U77+yPq/dc8RAw0XzzRLfAzuwt8Q12OqnoyoK598
-WMcsFHF1BYs403wktKCHsLlSgQ7YfDDKq+VaJJ1kWm0FwPzAMvSkwyIUcZltAacC
-c6JKm7P+CkyFkrBe/iVIGyoUSWyWAg94V4xT+UdqKz0fQxMRd0HzQNVc0q6Lwgr4
-ij1ylSr+x7uuxlgPtDn1WSP5W9hGCAHcKs7g/XVMqCLXvAgElZ6edZmdSJ2wMDEJ
-TRNz6LMOwUAV1ull1t+1EGOXQzKJDT/fvdeTteDjwjoc0AeycpF1x/tHreYNqaQ7
-ulaG5A5tEfIZ+IxsvOjNJos1WXWG/oGwdqGcFsPgjlehtO9AEKGvlhUWcqRKItmP
-LGO1oWLPejICN8Ev7eeZbJI8JFzkFcKTnZoeJjAtOIV1IOolGqfMFDKgAGVUATkM
-5qCaWm6302I3zd+K6KD3
-=207V
------END PGP SIGNATURE-----
-
---cqenwn745jgkwtzn--
+I'm not sure it's worth it, though.  I don't see a lot of folks
+complaining about vmalloc()'s speed or TLB impact.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
