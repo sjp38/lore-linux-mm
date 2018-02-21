@@ -1,69 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D7FEB6B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 12:01:37 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id x3so991000plo.9
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 09:01:37 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 3-v6si9606048pll.585.2018.02.21.09.01.36
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 900056B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 12:17:04 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id n11so2203098ioc.15
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 09:17:04 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id i12si1843947ita.106.2018.02.21.09.17.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 21 Feb 2018 09:01:36 -0800 (PST)
-Date: Wed, 21 Feb 2018 09:01:29 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: Use higher-order pages in vmalloc
-Message-ID: <20180221170129.GB27687@bombadil.infradead.org>
-References: <151670492223.658225.4605377710524021456.stgit@buzz>
- <151670493255.658225.2881484505285363395.stgit@buzz>
- <20180221154214.GA4167@bombadil.infradead.org>
- <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Feb 2018 09:17:03 -0800 (PST)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [PATCH v12 09/11] mm: Allow arch code to override copy_highpage()
+Date: Wed, 21 Feb 2018 10:15:51 -0700
+Message-Id: <ecbafa2bfcc05f22183be2e7784ed11943b1d5b2.1519227112.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1519227112.git.khalid.aziz@oracle.com>
+References: <cover.1519227112.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1519227112.git.khalid.aziz@oracle.com>
+References: <cover.1519227112.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: akpm@linux-foundation.org, davem@davemloft.net, dave.hansen@linux.intel.com
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, kstewart@linuxfoundation.org, pombredanne@nexb.com, tglx@linutronix.de, anthony.yznaga@oracle.com, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
 
-On Wed, Feb 21, 2018 at 08:16:22AM -0800, Dave Hansen wrote:
-> On 02/21/2018 07:42 AM, Matthew Wilcox wrote:
-> > This prompted me to write a patch I've been meaning to do for a while,
-> > allocating large pages if they're available to satisfy vmalloc.  I thought
-> > it would save on touching multiple struct pages, but it turns out that
-> > the checking code we currently have in the free_pages path requires you
-> > to have initialised all of the tail pages (maybe we can make that code
-> > conditional ...)
-> 
-> What the concept here?  If we can use high-order pages for vmalloc() at
-> the moment, we *should* use them?
+Some architectures can support metadata for memory pages and when a
+page is copied, its metadata must also be copied. Sparc processors
+from M7 onwards support metadata for memory pages. This metadata
+provides tag based protection for access to memory pages. To maintain
+this protection, the tag data must be copied to the new page when a
+page is migrated across NUMA nodes. This patch allows arch specific
+code to override default copy_highpage() and copy metadata along
+with page data upon migration.
 
-Right.  It helps with fragmentation if we can keep higher-order
-allocations together.
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: Khalid Aziz <khalid@gonehiking.org>
+Reviewed-by: Anthony Yznaga <anthony.yznaga@oracle.com>
+---
+v9:
+	- new patch
 
-> One of the coolest things about vmalloc() is that it can do large
-> allocations without consuming large (high-order) pages, so it has very
-> few side-effects compared to doing a bunch of order-0 allocations.  This
-> patch seems to propose removing that cool thing.  Even trying the
-> high-order allocation could kick off a bunch of reclaim and compaction
-> that was not there previously.
+ include/linux/highmem.h | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-Yes, that's one of the debatable things.  It'd be nice to have a GFP
-flag that stopped after calling get_page_from_freelist() and didn't try
-to do compaction or reclaim.
-
-> If you could take this an only _opportunistically_ allocate large pages,
-> it could be a more universal win.  You could try to make sure that no
-> compaction or reclaim is done for the large allocation.  Or, maybe you
-> only try it if there are *only* high-order pages in the allocator that
-> would have been broken down into order-0 *anyway*.
-> 
-> I'm not sure it's worth it, though.  I don't see a lot of folks
-> complaining about vmalloc()'s speed or TLB impact.
-
-No, I'm not sure it's worth it either, although Konstantin's mail
-suggesting improvements in fork speed were possible by avoiding vmalloc
-reminded me that I'd been meaning to give this a try.
+diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+index 776f90f3a1cd..0690679832d4 100644
+--- a/include/linux/highmem.h
++++ b/include/linux/highmem.h
+@@ -237,6 +237,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
+ 
+ #endif
+ 
++#ifndef __HAVE_ARCH_COPY_HIGHPAGE
++
+ static inline void copy_highpage(struct page *to, struct page *from)
+ {
+ 	char *vfrom, *vto;
+@@ -248,4 +250,6 @@ static inline void copy_highpage(struct page *to, struct page *from)
+ 	kunmap_atomic(vfrom);
+ }
+ 
++#endif
++
+ #endif /* _LINUX_HIGHMEM_H */
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
