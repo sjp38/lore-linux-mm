@@ -1,70 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E78B6B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 12:53:47 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id h14so2051868wre.19
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 09:53:47 -0800 (PST)
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id m20si12692395wrb.65.2018.02.21.09.53.45
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 848596B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 12:57:51 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id r1so2317650ioa.0
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 09:57:51 -0800 (PST)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id g1si18563586itd.56.2018.02.21.09.57.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Feb 2018 09:53:45 -0800 (PST)
-Subject: Re: [PATCH 5/6] powerpc: Implement DISCONTIGMEM and allow selection
- on PPC32
-References: <20180220161424.5421-6-j.neuschaefer@gmx.net>
- <201802210756.OZokd64C%fengguang.wu@intel.com>
- <20180221160815.dxhpsejt74zeqqjd@latitude>
-From: christophe leroy <christophe.leroy@c-s.fr>
-Message-ID: <a0c7806e-e06e-eb6c-416b-022bdc36d757@c-s.fr>
-Date: Wed, 21 Feb 2018 18:53:43 +0100
+        Wed, 21 Feb 2018 09:57:50 -0800 (PST)
+Date: Wed, 21 Feb 2018 11:57:47 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 0/3] Directed kmem charging
+In-Reply-To: <CALvZod68LD-wnbm2+MQks=bd_D2zY64uScUBp28hyug_vaGyDA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1802211155500.13845@nuc-kabylake>
+References: <20180221030101.221206-1-shakeelb@google.com> <alpine.DEB.2.20.1802211002200.12567@nuc-kabylake> <CALvZod68LD-wnbm2+MQks=bd_D2zY64uScUBp28hyug_vaGyDA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180221160815.dxhpsejt74zeqqjd@latitude>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>
-Cc: Kate Stewart <kstewart@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Bringmann <mwb@linux.vnet.ibm.com>, Paul Mackerras <paulus@samba.org>, kbuild-all@01.org, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linuxppc-dev@lists.ozlabs.org, Joel Stanley <joel@jms.id.au>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Wed, 21 Feb 2018, Shakeel Butt wrote:
 
+> On Wed, Feb 21, 2018 at 8:09 AM, Christopher Lameter <cl@linux.com> wrote:
+> > Another way to solve this is to switch the user context right?
+> >
+> > Isnt it possible to avoid these patches if do the allocation in another
+> > task context instead?
+> >
+>
+> Sorry, can you please explain what you mean by 'switch the user
+> context'. Is there any example in kernel which does something similar?
 
-Le 21/02/2018 a 17:08, Jonathan Neuschafer a ecrit :
-> On Wed, Feb 21, 2018 at 07:46:28AM +0800, kbuild test robot wrote:
-> [...]
->>>> include/linux/mmzone.h:1239:19: error: conflicting types for 'pfn_valid'
->>      static inline int pfn_valid(unsigned long pfn)
->>                        ^~~~~~~~~
->>     In file included from include/linux/mmzone.h:912:0,
->>                      from include/linux/gfp.h:6,
->>                      from include/linux/mm.h:10,
->>                      from include/linux/mman.h:5,
->>                      from arch/powerpc/kernel/asm-offsets.c:22:
->>     arch/powerpc/include/asm/mmzone.h:40:19: note: previous definition of 'pfn_valid' was here
->>      static inline int pfn_valid(int pfn)
->>                        ^~~~~~~~~
->>     make[2]: *** [arch/powerpc/kernel/asm-offsets.s] Error 1
->>     make[2]: Target '__build' not remade because of errors.
->>     make[1]: *** [prepare0] Error 2
->>     make[1]: Target 'prepare' not remade because of errors.
->>     make: *** [sub-make] Error 2
-> 
-> Oops, I'll fix this in the next version (and compile-test on ppc64...).
-> 
-> Weirdly enough, x86-32 and parisc define pfn_valid with an int
-> parameter, too (both of them since the Beginning Of Time, aka.
-> v2.6.12-rc2).
-> 
+See include/linux/task_work.h. One use case is in mntput_no_expire() in
+linux/fs/namespace.c
 
-Behind the fact that the pfn type is different, my understanding is that 
-you have to define CONFIG_HAVE_ARCH_PFN_VALID in the Kconfig in order to 
-avoid it being included in include/linux/mmzone.h
+> > Are there really any other use cases beyond fsnotify?
+> >
+>
+> Another use case I have in mind and plan to upstream is to bind a
+> filesystem mount with a memcg. So, all the file pages (or anon pages
+> for shmem) and kmem (like inodes and dentry) will be charged to that
+> memcg.
 
-Christophe
-
----
-L'absence de virus dans ce courrier electronique a ete verifiee par le logiciel antivirus Avast.
-https://www.avast.com/antivirus
+The mount logic already uses task_work.h. That may be the approach to
+expand there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
