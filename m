@@ -1,211 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 089BE6B0006
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 08:12:40 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id j21so1391490wre.20
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 05:12:39 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g2si14278713wrb.225.2018.02.21.05.12.38
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E221F6B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 08:51:28 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id j3so1230966wrb.18
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 05:51:28 -0800 (PST)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.17.22])
+        by mx.google.com with ESMTPS id a53si9104593wra.252.2018.02.21.05.51.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Feb 2018 05:12:38 -0800 (PST)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.15 153/163] x86/mm, mm/hwpoison: Dont unconditionally unmap kernel 1:1 pages
-Date: Wed, 21 Feb 2018 13:49:42 +0100
-Message-Id: <20180221124538.447153011@linuxfoundation.org>
-In-Reply-To: <20180221124529.931834518@linuxfoundation.org>
-References: <20180221124529.931834518@linuxfoundation.org>
+        Wed, 21 Feb 2018 05:51:27 -0800 (PST)
+Date: Wed, 21 Feb 2018 14:51:19 +0100
+From: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>
+Subject: Re: [PATCH 1/6] powerpc/mm/32: Use pfn_valid to check if pointer is
+ in RAM
+Message-ID: <20180221135119.d3qgvdck5yruomi7@latitude>
+References: <20180220161424.5421-1-j.neuschaefer@gmx.net>
+ <20180220161424.5421-2-j.neuschaefer@gmx.net>
+ <0d14cb2c-dd00-d258-cb15-302b2a9d684f@c-s.fr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="jgd5mu54dmgravdc"
+Content-Disposition: inline
+In-Reply-To: <0d14cb2c-dd00-d258-cb15-302b2a9d684f@c-s.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Brian Gerst <brgerst@gmail.com>, Dave <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Peter Zijlstra <peterz@infradead.org>, "Robert (Persistent Memory)" <elliott@hpe.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: christophe leroy <christophe.leroy@c-s.fr>
+Cc: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, Joel Stanley <joel@jms.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Balbir Singh <bsingharora@gmail.com>, Guenter Roeck <linux@roeck-us.net>
 
-4.15-stable review patch.  If anyone has any objections, please let me know.
 
-------------------
+--jgd5mu54dmgravdc
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-From: Tony Luck <tony.luck@intel.com>
+Hello Christophe,
 
-commit fd0e786d9d09024f67bd71ec094b110237dc3840 upstream.
+On Tue, Feb 20, 2018 at 06:45:09PM +0100, christophe leroy wrote:
+[...]
+> > -	if (slab_is_available() && (p < virt_to_phys(high_memory)) &&
+> > +	if (slab_is_available() && pfn_valid(__phys_to_pfn(p)) &&
+>=20
+> I'm not sure this is equivalent:
+>=20
+> high_memory =3D (void *) __va(max_low_pfn * PAGE_SIZE);
+> #define ARCH_PFN_OFFSET		((unsigned long)(MEMORY_START >> PAGE_SHIFT))
+> #define pfn_valid(pfn)		((pfn) >=3D ARCH_PFN_OFFSET && (pfn) < max_mapnr)
+> set_max_mapnr(max_pfn);
+>=20
+> So in the current implementation it checks against max_low_pfn while your
+> patch checks against max_pfn
+>=20
+> 	max_low_pfn =3D max_pfn =3D memblock_end_of_DRAM() >> PAGE_SHIFT;
+> #ifdef CONFIG_HIGHMEM
+> 	max_low_pfn =3D lowmem_end_addr >> PAGE_SHIFT;
+> #endif
 
-In the following commit:
+Good point, I haven't considered CONFIG_HIGHMEM before.
 
-  ce0fa3e56ad2 ("x86/mm, mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings of poison pages")
+As far as I understand it, in the non-CONFIG_HIGHMEM case:
 
-... we added code to memory_failure() to unmap the page from the
-kernel 1:1 virtual address space to avoid speculative access to the
-page logging additional errors.
+  - max_low_pfn is set to the same value as max_pfn, so the ioremap
+    check should detect the same PFNs as RAM.
 
-But memory_failure() may not always succeed in taking the page offline,
-especially if the page belongs to the kernel.  This can happen if
-there are too many corrected errors on a page and either mcelog(8)
-or drivers/ras/cec.c asks to take a page offline.
+and with CONFIG_HIGHMEM:
 
-Since we remove the 1:1 mapping early in memory_failure(), we can
-end up with the page unmapped, but still in use. On the next access
-the kernel crashes :-(
+  - max_low_pfn is set to lowmem_end_addr >> PAGE_SHIFT
+  - but max_pfn isn't
 
-There are also various debug paths that call memory_failure() to simulate
-occurrence of an error. Since there is no actual error in memory, we
-don't need to map out the page for those cases.
+So, I think you're right.
 
-Revert most of the previous attempt and keep the solution local to
-arch/x86/kernel/cpu/mcheck/mce.c. Unmap the page only when:
 
-	1) there is a real error
-	2) memory_failure() succeeds.
+While looking through arch/powerpc/mm, I noticed that there's a
+page_is_ram function, which simply uses the memblocks directly, on
+PPC32. It seems like a good candidate for the RAM check in
+__ioremap_caller, except that there's this code, which apparently
+trashes memblock 0 completely on non-CONFIG_NEED_MULTIPLE_NODES:
 
-All of this only applies to 64-bit systems. 32-bit kernel doesn't map
-all of memory into kernel space. It isn't worth adding the code to unmap
-the piece that is mapped because nobody would run a 32-bit kernel on a
-machine that has recoverable machine checks.
+  https://elixir.bootlin.com/linux/v4.16-rc2/source/arch/powerpc/mm/mem.c#L=
+223
 
-Signed-off-by: Tony Luck <tony.luck@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave <dave.hansen@intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Robert (Persistent Memory) <elliott@hpe.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Cc: stable@vger.kernel.org #v4.14
-Fixes: ce0fa3e56ad2 ("x86/mm, mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings of poison pages")
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
----
- arch/x86/include/asm/page_64.h            |    4 ----
- arch/x86/kernel/cpu/mcheck/mce-internal.h |   15 +++++++++++++++
- arch/x86/kernel/cpu/mcheck/mce.c          |   17 +++++++++++------
- include/linux/mm_inline.h                 |    6 ------
- mm/memory-failure.c                       |    2 --
- 5 files changed, 26 insertions(+), 18 deletions(-)
+Thanks,
+Jonathan Neusch=C3=A4fer
 
---- a/arch/x86/include/asm/page_64.h
-+++ b/arch/x86/include/asm/page_64.h
-@@ -52,10 +52,6 @@ static inline void clear_page(void *page
- 
- void copy_page(void *to, void *from);
- 
--#ifdef CONFIG_X86_MCE
--#define arch_unmap_kpfn arch_unmap_kpfn
--#endif
--
- #endif	/* !__ASSEMBLY__ */
- 
- #ifdef CONFIG_X86_VSYSCALL_EMULATION
---- a/arch/x86/kernel/cpu/mcheck/mce-internal.h
-+++ b/arch/x86/kernel/cpu/mcheck/mce-internal.h
-@@ -115,4 +115,19 @@ static inline void mce_unregister_inject
- 
- extern struct mca_config mca_cfg;
- 
-+#ifndef CONFIG_X86_64
-+/*
-+ * On 32-bit systems it would be difficult to safely unmap a poison page
-+ * from the kernel 1:1 map because there are no non-canonical addresses that
-+ * we can use to refer to the address without risking a speculative access.
-+ * However, this isn't much of an issue because:
-+ * 1) Few unmappable pages are in the 1:1 map. Most are in HIGHMEM which
-+ *    are only mapped into the kernel as needed
-+ * 2) Few people would run a 32-bit kernel on a machine that supports
-+ *    recoverable errors because they have too much memory to boot 32-bit.
-+ */
-+static inline void mce_unmap_kpfn(unsigned long pfn) {}
-+#define mce_unmap_kpfn mce_unmap_kpfn
-+#endif
-+
- #endif /* __X86_MCE_INTERNAL_H__ */
---- a/arch/x86/kernel/cpu/mcheck/mce.c
-+++ b/arch/x86/kernel/cpu/mcheck/mce.c
-@@ -106,6 +106,10 @@ static struct irq_work mce_irq_work;
- 
- static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
- 
-+#ifndef mce_unmap_kpfn
-+static void mce_unmap_kpfn(unsigned long pfn);
-+#endif
-+
- /*
-  * CPU/chipset specific EDAC code can register a notifier call here to print
-  * MCE errors in a human-readable form.
-@@ -582,7 +586,8 @@ static int srao_decode_notifier(struct n
- 
- 	if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
- 		pfn = mce->addr >> PAGE_SHIFT;
--		memory_failure(pfn, MCE_VECTOR, 0);
-+		if (memory_failure(pfn, MCE_VECTOR, 0))
-+			mce_unmap_kpfn(pfn);
- 	}
- 
- 	return NOTIFY_OK;
-@@ -1049,12 +1054,13 @@ static int do_memory_failure(struct mce
- 	ret = memory_failure(m->addr >> PAGE_SHIFT, MCE_VECTOR, flags);
- 	if (ret)
- 		pr_err("Memory error not recovered");
-+	else
-+		mce_unmap_kpfn(m->addr >> PAGE_SHIFT);
- 	return ret;
- }
- 
--#if defined(arch_unmap_kpfn) && defined(CONFIG_MEMORY_FAILURE)
--
--void arch_unmap_kpfn(unsigned long pfn)
-+#ifndef mce_unmap_kpfn
-+static void mce_unmap_kpfn(unsigned long pfn)
- {
- 	unsigned long decoy_addr;
- 
-@@ -1065,7 +1071,7 @@ void arch_unmap_kpfn(unsigned long pfn)
- 	 * We would like to just call:
- 	 *	set_memory_np((unsigned long)pfn_to_kaddr(pfn), 1);
- 	 * but doing that would radically increase the odds of a
--	 * speculative access to the posion page because we'd have
-+	 * speculative access to the poison page because we'd have
- 	 * the virtual address of the kernel 1:1 mapping sitting
- 	 * around in registers.
- 	 * Instead we get tricky.  We create a non-canonical address
-@@ -1090,7 +1096,6 @@ void arch_unmap_kpfn(unsigned long pfn)
- 
- 	if (set_memory_np(decoy_addr, 1))
- 		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
--
- }
- #endif
- 
---- a/include/linux/mm_inline.h
-+++ b/include/linux/mm_inline.h
-@@ -127,10 +127,4 @@ static __always_inline enum lru_list pag
- 
- #define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
- 
--#ifdef arch_unmap_kpfn
--extern void arch_unmap_kpfn(unsigned long pfn);
--#else
--static __always_inline void arch_unmap_kpfn(unsigned long pfn) { }
--#endif
--
- #endif
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1146,8 +1146,6 @@ int memory_failure(unsigned long pfn, in
- 		return 0;
- 	}
- 
--	arch_unmap_kpfn(pfn);
--
- 	orig_head = hpage = compound_head(p);
- 	num_poisoned_pages_inc();
- 
+--jgd5mu54dmgravdc
+Content-Type: application/pgp-signature; name="signature.asc"
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAABAgAGBQJajXlOAAoJEAgwRJqO81/bA04P/A5eYOetCVfwe5i8CzVCzswi
+syAI04l5dw0ka8DJ6Vn3mGtDFbw+uDpOmZ4bwyebvvmr4nMnbJP6DLrYgOfs6Jz1
+aczZBbk1Jf/bO28zSvfZtrq1cfw5YI1RF54d6mJsjzC+oDpdCvTAwB03Feq1MbAu
+QYO6tilAaCnJyQ8vvxRL309oh1/jiYSfXga0pyH3KkjxWlPYAK7BrSW4IuWsp8Yw
+7mDJFnWuhiVxRMBgnvlXt4ykz6GLACM/mKaT/mWGtsvh/mTt2r+jk07QnnqX+Tvb
+V9iiXMof5TAM+nLlI8oLgxsXTFbu//QJMiNa6s6NWv6WMA3/Dq2HlWf8X4lj6TXx
+dmNNrcGWkVdCGdZKliwS+jAU0kMZ3cz2VCcLQH+rWJgCutQpbpF1I+J9Lv3vg7cH
+0lcRcsmfnBF5JGKScvjaHjCqH2M98JDSER5xU9B2ff9dZn5db6zeN/804OD7htX3
+nS//MoDImnbeur7ryfthSLgrVv5te78mv1aA/PLclGnveo5C/lrxWU1DjmBEmxW/
+h6o5JU6hV1To0teV47Cu9QLPPebpmM0iVR45TK4Y9u5DjdmvpYLYgnTsxtgXJGkW
+LX5tE060VtbeKZIA0N2VxKpwp+t+osCRPch+bPLlVjlS6Bo/gTtAHO5w9ldqDqf/
+UGnCm3zfS2X0jWMdxvRc
+=afR/
+-----END PGP SIGNATURE-----
+
+--jgd5mu54dmgravdc--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
