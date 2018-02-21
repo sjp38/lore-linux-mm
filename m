@@ -1,57 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FF666B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 06:58:01 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id l12so618950oth.10
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 03:58:01 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 186si4785940oif.458.2018.02.21.03.57.59
-        for <linux-mm@kvack.org>;
-        Wed, 21 Feb 2018 03:58:00 -0800 (PST)
-Date: Wed, 21 Feb 2018 11:57:58 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: =?utf-8?B?562U5aSNOiBbUkZDIHBhdGNoXSBp?= =?utf-8?Q?oremap?=
- =?utf-8?Q?=3A?= don't set up huge I/O mappings when p4d/pud/pmd is zero
-Message-ID: <20180221115758.GA7614@arm.com>
-References: <1514460261-65222-1-git-send-email-guohanjun@huawei.com>
- <861128ce-966f-7006-45ba-6a7298918686@codeaurora.org>
- <1519175992.16384.121.camel@hpe.com>
- <etPan.5a8d2180.1dbfd272.49b8@localhost>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 03C636B0006
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 07:01:48 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id 62so1256622wrg.0
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 04:01:47 -0800 (PST)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id m25si1768505edb.219.2018.02.21.04.01.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Feb 2018 04:01:46 -0800 (PST)
+Subject: Re: [PATCH 3/6] struct page: add field for vm_struct
+References: <20180211031920.3424-1-igor.stoppa@huawei.com>
+ <20180211031920.3424-4-igor.stoppa@huawei.com>
+ <20180211211646.GC4680@bombadil.infradead.org>
+ <cef01110-dc23-4442-f277-88d1d3662e00@huawei.com>
+ <b59546a4-5a5b-ca48-3b51-09440b6a5493@huawei.com>
+ <20180220205442.GA15973@bombadil.infradead.org>
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Message-ID: <c4c805ed-5869-81c2-4c05-cf53bfbef168@huawei.com>
+Date: Wed, 21 Feb 2018 14:01:20 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <etPan.5a8d2180.1dbfd272.49b8@localhost>
+In-Reply-To: <20180220205442.GA15973@bombadil.infradead.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wangxuefeng (E)" <wxf.wang@hisilicon.com>
-Cc: "toshi.kani" <toshi.kani@hpe.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, cpandya <cpandya@codeaurora.org>, linux-kernel <linux-kernel@vger.kernel.org>, "Guohanjun (Hanjun Guo)" <guohanjun@huawei.com>, Linuxarm <linuxarm@huawei.com>, linux-mm <linux-mm@kvack.org>, akpm <akpm@linux-foundation.org>, "mark.rutland" <mark.rutland@arm.com>, "catalin.marinas" <catalin.marinas@arm.com>, mhocko <mhocko@suse.com>, "hanjun.guo" <hanjun.guo@linaro.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: rdunlap@infradead.org, corbet@lwn.net, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, jglisse@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-[sorry, trying to deal with top-posting here]
 
-On Wed, Feb 21, 2018 at 07:36:34AM +0000, Wangxuefeng (E) wrote:
->      The old flow of reuse the 4k page as 2M page does not follow the BBM flow
-> for page table reconstructioni 1/4 ?not only the memory leak problems.  If BBM flow
-> is not followedi 1/4 ?the speculative prefetch of tlb will made false tlb entries
-> cached in MMU, the false address will be goti 1/4 ? panic will happen.
 
-If I understand Toshi's suggestion correctly, he's saying that the PMD can
-be cleared when unmapping the last PTE (like try_to_free_pte_page). In this
-case, there's no issue with the TLB because this is exactly BBM -- the PMD
-is cleared and TLB invalidation is issued before the PTE table is freed. A
-subsequent 2M map request will see an empty PMD and put down a block
-mapping.
+On 20/02/18 22:54, Matthew Wilcox wrote:
+> On Tue, Feb 20, 2018 at 09:53:30PM +0200, Igor Stoppa wrote:
 
-The downside is that freeing becomes more expensive as the last level table
-becomes more sparsely populated and you need to ensure you don't have any
-concurrent maps going on for the same table when you're unmapping. I also
-can't see a neat way to fit this into the current vunmap code. Perhaps we
-need an iounmap_page_range.
+[...]
 
-In the meantime, the code in lib/ioremap.c looks totally broken so I think
-we should deselect CONFIG_HAVE_ARCH_HUGE_VMAP on arm64 until it's fixed.
+>> It was found while testing on a configuration with framebuffer.
+> 
+> ... ah.  You tried to use vmalloc_to_page() on something which wasn't
+> backed by a struct page.  That's *supposed* to return NULL, but my
+> guess is that after this patch it returned garbage.
 
-Will
+it seems to return garbage also without this patch, but I need to clean
+up the code, try it again and possibly come up with a demo patch for
+triggering the problem.
+
+I'll investigate it more. However it doesn't seem to be related to the
+functionality I need. So I plan to treat it as separate issue and leave
+find_vm_area untouched, at least in pmalloc scope.
+
+--
+igor
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
