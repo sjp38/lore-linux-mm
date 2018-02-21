@@ -1,55 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 244D36B0003
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 05:01:10 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id v16so960717wrv.14
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 02:01:10 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BE1656B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 05:16:29 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 30so1003027wrw.6
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 02:16:29 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 94si2646611wrn.101.2018.02.21.02.01.08
+        by mx.google.com with ESMTPS id w11si15998281wra.89.2018.02.21.02.16.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Feb 2018 02:01:08 -0800 (PST)
-Date: Wed, 21 Feb 2018 11:01:07 +0100
+        Wed, 21 Feb 2018 02:16:28 -0800 (PST)
+Date: Wed, 21 Feb 2018 11:16:26 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 5/6] mm, hugetlb: further simplify hugetlb allocation API
-Message-ID: <20180221100107.GC2231@dhcp22.suse.cz>
-References: <20180103093213.26329-1-mhocko@kernel.org>
- <20180103093213.26329-6-mhocko@kernel.org>
- <20180221042457.uolmhlmv5je5dqx7@xps>
- <20180221095526.GB2231@dhcp22.suse.cz>
+Subject: Re: [PATCH] mm/page_poison: Make early_page_poison_param __init
+Message-ID: <20180221101626.GA14384@dhcp22.suse.cz>
+References: <20180117034757.27024-1-douly.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180221095526.GB2231@dhcp22.suse.cz>
+In-Reply-To: <20180117034757.27024-1-douly.fnst@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Rue <dan.rue@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
+To: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org
 
-On Wed 21-02-18 10:55:26, Michal Hocko wrote:
-> On Tue 20-02-18 22:24:57, Dan Rue wrote:
-[...]
-> > I bisected the failure to this commit. The problem is seen on multiple
-> > architectures (tested x86-64 and arm64).
+On Wed 17-01-18 11:47:57, Dou Liyang wrote:
+> The early_param() is only called during kernel initialization, So Linux
+> marks the function of it with __init macro to save memory.
 > 
-> The patch shouldn't have introduced any functional changes IIRC. But let
-> me have a look
+> But it forgot to mark the early_page_poison_param(). So, Make it __init
+> as well.
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Philippe Ombredanne <pombredanne@nexb.com>
+> Cc: Kate Stewart <kstewart@linuxfoundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Dou Liyang <douly.fnst@cn.fujitsu.com>
 
-Hmm, I guess I can see it. Does the following help?
----
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 7c204e3d132b..a963f2034dfc 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1583,7 +1583,7 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
- 		page = NULL;
- 	} else {
- 		h->surplus_huge_pages++;
--		h->nr_huge_pages_node[page_to_nid(page)]++;
-+		h->surplus_huge_pages_node[page_to_nid(page)]++;
- 	}
- 
- out_unlock:
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/page_poison.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_poison.c b/mm/page_poison.c
+> index e83fd44867de..aa2b3d34e8ea 100644
+> --- a/mm/page_poison.c
+> +++ b/mm/page_poison.c
+> @@ -9,7 +9,7 @@
+>  
+>  static bool want_page_poisoning __read_mostly;
+>  
+> -static int early_page_poison_param(char *buf)
+> +static int __init early_page_poison_param(char *buf)
+>  {
+>  	if (!buf)
+>  		return -EINVAL;
+> -- 
+> 2.14.3
+> 
+> 
+> 
+
 -- 
 Michal Hocko
 SUSE Labs
