@@ -1,56 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 45F9C6B0005
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 17:24:44 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id c40so1674321uae.18
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 14:24:44 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z187sor850412vkf.284.2018.02.21.14.24.43
+	by kanga.kvack.org (Postfix) with ESMTP id 6D8406B0003
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 17:28:05 -0500 (EST)
+Received: by mail-ua0-f197.google.com with SMTP id t31so1741203uad.4
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 14:28:05 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g7sor7889717uaa.198.2018.02.21.14.28.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 21 Feb 2018 14:24:43 -0800 (PST)
+        Wed, 21 Feb 2018 14:28:04 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <bd11826b-f3c1-be03-895c-85c08a149045@huawei.com>
+In-Reply-To: <f33112e4-608f-ae8c-bf88-80ef83b61398@huawei.com>
 References: <20180212165301.17933-1-igor.stoppa@huawei.com>
- <20180212165301.17933-6-igor.stoppa@huawei.com> <CAGXu5j+ZZkgLzsxcwAYgyu=A=11Fkeuj+F_8gCUAbXDmjWFdeg@mail.gmail.com>
- <bd11826b-f3c1-be03-895c-85c08a149045@huawei.com>
+ <20180212165301.17933-3-igor.stoppa@huawei.com> <CAGXu5jJNERp-yni1jdqJRYJ82xrP7=_O1vkxG1sJ-b8CxudP9g@mail.gmail.com>
+ <f33112e4-608f-ae8c-bf88-80ef83b61398@huawei.com>
 From: Kees Cook <keescook@chromium.org>
-Date: Wed, 21 Feb 2018 14:24:42 -0800
-Message-ID: <CAGXu5j+ivd0Ys++6hqCjkipx8RFKTAmWf+KbtxEwT3SECD5C6A@mail.gmail.com>
-Subject: Re: [PATCH 5/6] Pmalloc: self-test
+Date: Wed, 21 Feb 2018 14:28:03 -0800
+Message-ID: <CAGXu5jLeC285BGDW29aHgFZRV6CnqBmmkZULW2pzYmqd0pe9UQ@mail.gmail.com>
+Subject: Re: [PATCH 2/6] genalloc: selftest
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Igor Stoppa <igor.stoppa@huawei.com>
 Cc: Matthew Wilcox <willy@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-On Tue, Feb 20, 2018 at 8:40 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
+On Tue, Feb 20, 2018 at 8:59 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
 >
-> On 13/02/18 01:43, Kees Cook wrote:
->> On Mon, Feb 12, 2018 at 8:53 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
+>
+> On 13/02/18 01:50, Kees Cook wrote:
+>> On Mon, Feb 12, 2018 at 8:52 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
 >
 > [...]
 >
->>> +obj-$(CONFIG_PROTECTABLE_MEMORY_SELFTEST) += pmalloc-selftest.o
+>>>  lib/genalloc-selftest.c           | 400 ++++++++++++++++++++++++++++++++++++++
 >>
->> Nit: self-test modules are traditionally named "test_$thing.o"
->> (outside of the tools/ directory).
+>> Nit: make this test_genalloc.c instead.
 >
 > ok
 >
 > [...]
 >
->> I wonder if lkdtm should grow a test too, to validate the RO-ness of
->> the allocations at the right time in API usage?
+>>> +       genalloc_selftest();
+>>
+>> I wonder if it's possible to make this module-loadable instead? That
+>> way it could be built and tested separately.
 >
-> sorry for being dense ... are you proposing that I do something to
-> lkdtm_rodata.c ? An example would probably help me understand.
+> In my case modules are not an option.
+> Of course it could be still built in, but what is the real gain?
 
-It would likely live in lkdtm_perms.c (or maybe lkdtm_heap.c). Namely,
-use the pmalloc API and then attempt to write to a read-only variable
-in the pmalloc region (to prove that the permission adjustment
-actually happened). Likely a good example is
-lkdtm_WRITE_RO_AFTER_INIT().
+The gain for it being a module is that it can be loaded and tested
+separately from the final kernel image and module collection. For
+example, Chrome OS builds lots of debugging test modules but doesn't
+include them on the final image. They're only used for testing, and
+can be separate from the kernel and "production" modules.
+
+> [...]
+>
+>>> +       BUG_ON(compare_bitmaps(pool, action->pattern));
+>>
+>> There's been a lot recently on BUG vs WARN. It does seem crazy to not
+>> BUG for an allocator selftest, but if we can avoid it, we should.
+>
+> If this fails, I would expect that memory corruption is almost guaranteed.
+> Do we really want to allow the boot to continue, possibly mounting a
+> filesystem, only to corrupt it? It seems very dangerous.
+
+I would include the rationale in either a comment or the commit log.
+BUG() tends to need to be very well justified these days.
+
+>> Also, I wonder if it might make sense to split this series up a little
+>> more, as in:
+>>
+>> 1/n: add genalloc selftest
+>> 2/n: update bitmaps
+>> 3/n: add/change bitmap tests to selftest
+>>
+>> Maybe I'm over-thinking it, but the great thing about this self test
+>> is that it's checking much more than just the bitmap changes you're
+>> making, and that can be used to "prove" that genalloc continues to
+>> work after the changes (i.e. the selftest passes before the changes,
+>> and after, rather than just after).
+>
+> If I really have to ... but to me the evidence that the changes to the
+> bitmaps do really work is already provided by the bitmap patch itself.
+>
+> Since the patch doesn't remove the parameter indicating the space to be
+> freed, it can actually compare what the kernel passes to it vs. what it
+> thinks the space should be.
+>
+> If the values were different, it would complain, but it doesn't ...
+> Isn't that even stronger evidence that the bitmap changes work as expected?
+>
+> (eventually the parameter can be removed, but I intentionally left it,
+> for facilitating the merge)
+
+I'll leave it up to the -mm folks, but that was just my thought.
 
 -Kees
 
