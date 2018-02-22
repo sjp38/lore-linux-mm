@@ -1,44 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E1E286B0282
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 21:54:47 -0500 (EST)
-Received: by mail-vk0-f70.google.com with SMTP id v14so2021778vkd.10
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 18:54:47 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e1sor4857566uam.224.2018.02.21.18.54.46
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AEDFB6B0286
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 00:27:07 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id c76so3141099qke.19
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 21:27:07 -0800 (PST)
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id j22sor780017qkk.137.2018.02.21.21.27.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 21 Feb 2018 18:54:46 -0800 (PST)
+        Wed, 21 Feb 2018 21:27:06 -0800 (PST)
 MIME-Version: 1.0
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Thu, 22 Feb 2018 13:54:46 +1100
-Message-ID: <CAKTCnz=rS14Ry7pOC2qiX5wEbRZCKwP_0u7_ncanoV18Gz9=AQ@mail.gmail.com>
-Subject: [LSF/MM ATTEND] Attend mm summit 2018
+Date: Wed, 21 Feb 2018 21:26:57 -0800
+Message-Id: <20180222052659.106016-1-dancol@google.com>
+Subject: [PATCH 0/2] smaps bugfixes, new fields for locked memory
+From: Daniel Colascione <dancol@google.com>
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc <lsf-pc@lists.linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Daniel Colascione <dancol@google.com>
 
-I did not send out an official request to attend earlier, but I was
-invited by Jerome to attend. I was traveling for a big part of Jan and
-some part of Feb 2018 and hence the delay in sending out this email
-with my desire to attend
+This small patch series fixes a few bugs in smaps_rollup, then adds
+two new status fields that provide information about locked
+memory sizes.
 
-I did a proposal last year for N_COHERENT_MEMORY, but there was
-suggestions that for coherent memory we do ZONE_DEVICE and thus
-HMM/CDM came into the picture. I have good knowledge of the memory
-cgroups subsystem and have been looking at HMM and HMM/CDM for over a
-year now and playing with ZONE_DEVICE in general. I would like to
-attend to learn and discuss on the following topics
+Daniel Colascione (2):
+  Bug fixes for smaps_rollup
+  Add LockedRss/LockedPrivate to smaps and smaps_rollup
 
-1. HMM and HMM-CDM and arguments for whether NUMA makes sense or not.
-Experiences gained with both technologies.
-2. Memory cgroups - I don't see a pressing need for many new features,
-but I'd like to see if we can revive some old proposals around virtual
-memory limits
+ Documentation/filesystems/proc.txt |   7 +-
+ fs/proc/task_mmu.c                 | 118 +++++++++++++++++++----------
+ 2 files changed, 83 insertions(+), 42 deletions(-)
 
-Balbir Singh.
+-- 
+2.16.1.291.g4437f3f132-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
