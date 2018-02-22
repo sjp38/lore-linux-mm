@@ -1,85 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A40C6B0275
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 20:57:32 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id 41so2829755qtp.8
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 17:57:32 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y127sor847384qkc.117.2018.02.21.17.57.31
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F8446B0277
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 21:03:44 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id 78so2808079qky.17
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 18:03:44 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id u27si2812644qtj.190.2018.02.21.18.03.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Feb 2018 17:57:31 -0800 (PST)
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v12 22/22] selftests/vm: Fix deadlock in protection_keys.c
-Date: Wed, 21 Feb 2018 17:55:41 -0800
-Message-Id: <1519264541-7621-23-git-send-email-linuxram@us.ibm.com>
-In-Reply-To: <1519264541-7621-1-git-send-email-linuxram@us.ibm.com>
-References: <1519264541-7621-1-git-send-email-linuxram@us.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Feb 2018 18:03:43 -0800 (PST)
+From: Howard McLauchlan <hmclauchlan@fb.com>
+Subject: [PATCH] mm: make should_failslab always available for fault injection
+Date: Wed, 21 Feb 2018 18:03:20 -0800
+Message-ID: <20180222020320.6944-1-hmclauchlan@fb.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
-Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@redhat.com, akpm@linux-foundation.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, arnd@arndb.de
+To: linux-mm@kvack.org
+Cc: Akinobu Mita <akinobu.mita@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Josef Bacik <jbacik@fb.com>, Johannes Weiner <jweiner@fb.com>, Alexei Starovoitov <ast@fb.com>, kernel-team@fb.com, Howard McLauchlan <hmclauchlan@fb.com>
 
-From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
+should_failslab() is a convenient function to hook into for directed
+error injection into kmalloc(). However, it is only available if a
+config flag is set.
 
-The sig_chld() handler calls dprintf2() taking care of setting
-dprint_in_signal so that sigsafe_printf() won't call printf().
-Unfortunately, this precaution is is negated by dprintf_level(), which
-has a call to fflush().
+The following BCC script, for example, fails kmalloc() calls after a
+btrfs umount:
 
-This function acquires a lock, which means that if the signal interrupts an
-ongoing fflush() the process will deadlock. At least on powerpc this is
-easy to trigger, resulting in the following backtrace when attaching to the
-frozen process:
+from bcc import BPF
 
-  (gdb) bt
-  #0  0x00007fff9f96c7d8 in __lll_lock_wait_private () from /lib64/power8/libc.so.6
-  #1  0x00007fff9f8cba4c in _IO_flush_all_lockp () from /lib64/power8/libc.so.6
-  #2  0x00007fff9f8cbd1c in __GI__IO_flush_all () from /lib64/power8/libc.so.6
-  #3  0x00007fff9f8b7424 in fflush () from /lib64/power8/libc.so.6
-  #4  0x00000000100504f8 in sig_chld (x=17) at protection_keys.c:283
-  #5  <signal handler called>
-  #6  0x00007fff9f8cb8ac in _IO_flush_all_lockp () from /lib64/power8/libc.so.6
-  #7  0x00007fff9f8cbd1c in __GI__IO_flush_all () from /lib64/power8/libc.so.6
-  #8  0x00007fff9f8b7424 in fflush () from /lib64/power8/libc.so.6
-  #9  0x0000000010050b50 in pkey_get (pkey=7, flags=0) at protection_keys.c:379
-  #10 0x0000000010050dc0 in pkey_disable_set (pkey=7, flags=2) at protection_keys.c:423
-  #11 0x0000000010051414 in pkey_write_deny (pkey=7) at protection_keys.c:486
-  #12 0x00000000100556bc in test_ptrace_of_child (ptr=0x7fff9f7f0000, pkey=7) at protection_keys.c:1288
-  #13 0x0000000010055f60 in run_tests_once () at protection_keys.c:1414
-  #14 0x00000000100561a4 in main () at protection_keys.c:1459
+prog = r"""
+BPF_HASH(flag);
 
-The fix is to refrain from calling fflush() when inside a signal handler.
-The output may not be as pretty but at least the testcase will be able to
-move on.
+int kprobe__btrfs_close_devices(void *ctx) {
+        u64 key = 1;
+        flag.update(&key, &key);
+        return 0;
+}
 
-cc: Dave Hansen <dave.hansen@intel.com>
-cc: Florian Weimer <fweimer@redhat.com>
-Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-Signed-off-by: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
+int kprobe__should_failslab(struct pt_regs *ctx) {
+        u64 key = 1;
+        u64 *res;
+        res = flag.lookup(&key);
+        if (res != 0) {
+            bpf_override_return(ctx, -ENOMEM);
+        }
+        return 0;
+}
+"""
+b = BPF(text=prog)
 
- tools/testing/selftests/vm/pkey-helpers.h | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+while 1:
+    b.kprobe_poll()
+
+This patch refactors the should_failslab implementation so that the
+function is always available for error injection, independent of flags.
+
+This change would be similar in nature to commit f5490d3ec921 ("block:
+Add should_fail_bio() for bpf error injection").
+
+Signed-off-by: Howard McLauchlan <hmclauchlan@fb.com>
 ---
- tools/testing/selftests/vm/pkey-helpers.h |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+ include/linux/fault-inject.h | 5 +++--
+ mm/failslab.c                | 2 +-
+ mm/slab_common.c             | 8 ++++++++
+ 3 files changed, 12 insertions(+), 3 deletions(-)
 
-diff --git a/tools/testing/selftests/vm/pkey-helpers.h b/tools/testing/selftests/vm/pkey-helpers.h
-index 67f9b0f..7240598 100644
---- a/tools/testing/selftests/vm/pkey-helpers.h
-+++ b/tools/testing/selftests/vm/pkey-helpers.h
-@@ -128,7 +128,8 @@ static inline void sigsafe_printf(const char *format, ...)
- #define dprintf_level(level, args...) do {	\
- 	if (level <= DEBUG_LEVEL)		\
- 		sigsafe_printf(args);		\
--	fflush(NULL);				\
-+	if (!dprint_in_signal)			\
-+		fflush(NULL);			\
- } while (0)
- #define dprintf0(args...) dprintf_level(0, args)
- #define dprintf1(args...) dprintf_level(1, args)
+diff --git a/include/linux/fault-inject.h b/include/linux/fault-inject.h
+index c3c95d18bf43..7e6c77740413 100644
+--- a/include/linux/fault-inject.h
++++ b/include/linux/fault-inject.h
+@@ -64,10 +64,11 @@ static inline struct dentry *fault_create_debugfs_attr(const char *name,
+ 
+ struct kmem_cache;
+ 
++int should_failslab(struct kmem_cache *s, gfp_t gfpflags);
+ #ifdef CONFIG_FAILSLAB
+-extern bool should_failslab(struct kmem_cache *s, gfp_t gfpflags);
++extern bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags);
+ #else
+-static inline bool should_failslab(struct kmem_cache *s, gfp_t gfpflags)
++static inline bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
+ {
+ 	return false;
+ }
+diff --git a/mm/failslab.c b/mm/failslab.c
+index 8087d976a809..1f2f248e3601 100644
+--- a/mm/failslab.c
++++ b/mm/failslab.c
+@@ -14,7 +14,7 @@ static struct {
+ 	.cache_filter = false,
+ };
+ 
+-bool should_failslab(struct kmem_cache *s, gfp_t gfpflags)
++bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
+ {
+ 	/* No fault-injection for bootstrap cache */
+ 	if (unlikely(s == kmem_cache))
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 10f127b2de7c..e99884490f14 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1532,3 +1532,11 @@ EXPORT_TRACEPOINT_SYMBOL(kmalloc_node);
+ EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc_node);
+ EXPORT_TRACEPOINT_SYMBOL(kfree);
+ EXPORT_TRACEPOINT_SYMBOL(kmem_cache_free);
++
++int should_failslab(struct kmem_cache *s, gfp_t gfpflags)
++{
++	if (__should_failslab(s, gfpflags))
++		return -ENOMEM;
++	return 0;
++}
++ALLOW_ERROR_INJECTION(should_failslab, ERRNO);
 -- 
-1.7.1
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
