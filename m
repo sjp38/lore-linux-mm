@@ -1,94 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B89876B02F4
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 11:30:18 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 189so2397492pge.0
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:30:18 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v124si218630pgb.652.2018.02.22.08.30.17
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 69FB46B02F6
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 11:44:31 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id c135so4338589qkb.10
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:44:31 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id n29sor410025qtl.18.2018.02.22.08.44.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Feb 2018 08:30:17 -0800 (PST)
-Date: Thu, 22 Feb 2018 17:30:15 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 2/2] mm/memcontrol.c: Reduce reclaim retries in
- mem_cgroup_resize_limit()
-Message-ID: <20180222163015.GQ30681@dhcp22.suse.cz>
-References: <CALvZod7HS6P0OU6Rps8JeMJycaPd4dF5NjxV8k1y2-yosF2bdA@mail.gmail.com>
- <20180119151118.GE6584@dhcp22.suse.cz>
- <20180221121715.0233d34dda330c56e1a9db5f@linux-foundation.org>
- <f3893181-67a4-aec2-9514-f141fa78a6c0@virtuozzo.com>
- <20180222140932.GL30681@dhcp22.suse.cz>
- <e0705720-0909-e224-4bdd-481660e516f2@virtuozzo.com>
- <20180222153343.GN30681@dhcp22.suse.cz>
- <0927bcab-7e2c-c6f9-d16a-315ac436ba98@virtuozzo.com>
- <20180222154435.GO30681@dhcp22.suse.cz>
- <bf4a40fb-0a24-bfcb-124f-15e5e2f87b67@virtuozzo.com>
+        (Google Transport Security);
+        Thu, 22 Feb 2018 08:44:30 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <bf4a40fb-0a24-bfcb-124f-15e5e2f87b67@virtuozzo.com>
+In-Reply-To: <20180222144844.g4p2diu3cnbr7sx3@quack2.suse.cz>
+References: <20180221030101.221206-1-shakeelb@google.com> <20180221030101.221206-4-shakeelb@google.com>
+ <20180222134944.GK30681@dhcp22.suse.cz> <20180222144844.g4p2diu3cnbr7sx3@quack2.suse.cz>
+From: Yang Shi <shy828301@gmail.com>
+Date: Thu, 22 Feb 2018 08:44:29 -0800
+Message-ID: <CAHbLzkpdQxxHqiexyR5OYHKuZEq4uzthY4Of+APQqyE+dk3ZOg@mail.gmail.com>
+Subject: Re: [PATCH v2 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu 22-02-18 19:01:58, Andrey Ryabinin wrote:
-> 
-> 
-> On 02/22/2018 06:44 PM, Michal Hocko wrote:
-> > On Thu 22-02-18 18:38:11, Andrey Ryabinin wrote:
-> 
-> >>>>
-> >>>> with the patch:
-> >>>> best: 1.04  secs, 9.7G reclaimed
-> >>>> worst: 2.2 secs, 16G reclaimed.
-> >>>>
-> >>>> without:
-> >>>> best: 5.4 sec, 35G reclaimed
-> >>>> worst: 22.2 sec, 136G reclaimed
-> >>>
-> >>> Could you also compare how much memory do we reclaim with/without the
-> >>> patch?
-> >>>
-> >>
-> >> I did and I wrote the results. Please look again.
-> > 
-> > I must have forgotten. Care to point me to the message-id?
-> 
-> The results are quoted right above, literally above. Raise your eyes
-> up. message-id 0927bcab-7e2c-c6f9-d16a-315ac436ba98@virtuozzo.com
+On Thu, Feb 22, 2018 at 6:48 AM, Jan Kara <jack@suse.cz> wrote:
+> On Thu 22-02-18 14:49:44, Michal Hocko wrote:
+>> On Tue 20-02-18 19:01:01, Shakeel Butt wrote:
+>> > A lot of memory can be consumed by the events generated for the huge or
+>> > unlimited queues if there is either no or slow listener. This can cause
+>> > system level memory pressure or OOMs. So, it's better to account the
+>> > fsnotify kmem caches to the memcg of the listener.
+>>
+>> How much memory are we talking about here?
+>
+> 32 bytes per event (on 64-bit) which is small but the number of events is
+> not limited in any way (if the creator uses a special flag and has
+> CAP_SYS_ADMIN). In the thread [1] a guy from Alibaba wanted this feature so
+> among cloud people there is apparently some demand to have a way to limit
+> memory usage of such application...
 
-OK, I see. We were talking about 2 different things I guess.
+Yes, I'm the guy from Alibaba :-) We did run into such issue
+occasionally, then I proposed the patch to account fsnotify kmem in
+memcg although we fixed the bug in user space applications later.
+However, such accounting still sounds useful to me.
 
-> I write it here again:
-> 
-> with the patch:
->  best: 9.7G reclaimed
->  worst: 16G reclaimed
-> 
-> without:
->  best: 35G reclaimed
->  worst: 136G reclaimed
-> 
-> Or you asking about something else? If so, I don't understand what you
-> want.
+>
+>> > There are seven fsnotify kmem caches and among them allocations from
+>> > dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
+>> > inotify_inode_mark_cachep happens in the context of syscall from the
+>> > listener. So, SLAB_ACCOUNT is enough for these caches.
+>> >
+>> > The objects from fsnotify_mark_connector_cachep are not accounted as
+>> > they are small compared to the notification mark or events and it is
+>> > unclear whom to account connector to since it is shared by all events
+>> > attached to the inode.
+>> >
+>> > The allocations from the event caches happen in the context of the event
+>> > producer. For such caches we will need to remote charge the allocations
+>> > to the listener's memcg. Thus we save the memcg reference in the
+>> > fsnotify_group structure of the listener.
+>>
+>> Is it typical that the listener lives in a different memcg and if yes
+>> then cannot this cause one memcg to OOM/DoS the one with the listener?
+>
+> We have been through these discussions already in [1] back in November :).
+> I can understand the wish to limit memory usage of an application using
+> unlimited fanotify queues. And yes, it may mean that it will be easier for
+> an attacker to get it oom-killed (currently the malicious app would drive
+> the whole system oom which will presumably take a bit more effort as there
+> is more memory to consume). But then I expect this is what admin prefers
+> when he limits memory usage of fanotify listener.
+>
+> I cannot tell how common it is for producer and listener to be in different
+> memcgs. From Alibaba request it seems it happens...
 
-Well, those numbers do not tell us much, right? You have 4 concurrent
-readers each an own 1G file in a loop. The longer you keep running that
-the more pages you are reclaiming of course. But you are not comparing
-the same amount of work.
+For our usecase, we didn't have producers and listeners in the
+different memcgs (Please see the original discussion here
+https://lkml.org/lkml/2017/10/20/819). The different memcg accounting
+problem is raised by Amir since the accounting might be unfair if the
+listeners don't consume events and heuristic if producer and listener
+are in the different memcgs.
 
-My main concern about the patch is that it might over-reclaim a lot if
-we have workload which also frees memory rahther than constantly add
-more easily reclaimable page cache. I realize such a test is not easy
-to make.
+However, we don't have strong demand on this from our perspective for
+the time being. So, I didn't continue to move forward on this
+approach.
 
-I have already said that I will not block the patch but it should be at
-least explained why a larger batch makes a difference.
--- 
-Michal Hocko
-SUSE Labs
+Regards,
+Yang
+
+
+>
+>                                                                 Honza
+>
+> [1] https://lkml.org/lkml/2017/10/27/523
+> --
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
