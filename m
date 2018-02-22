@@ -1,287 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AEC9B6B02AD
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:39:43 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id s6so3634856qkh.12
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 02:39:43 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id h58si201039qta.468.2018.02.22.02.39.42
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 830436B02AC
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:42:52 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id o69so359740wmd.1
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 02:42:52 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m1sor52689edb.24.2018.02.22.02.42.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Feb 2018 02:39:42 -0800 (PST)
-Date: Thu, 22 Feb 2018 18:39:36 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCH v2 3/3] mm/sparse: Optimize memmap allocation during
- sparse_init()
-Message-ID: <20180222103936.GB693@localhost.localdomain>
-References: <20180222091130.32165-1-bhe@redhat.com>
- <20180222091130.32165-4-bhe@redhat.com>
- <1763048150.5490642.1519294078455.JavaMail.zimbra@redhat.com>
+        (Google Transport Security);
+        Thu, 22 Feb 2018 02:42:51 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1763048150.5490642.1519294078455.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20180222094844.GB9891@saruman>
+References: <20180221233825.10024-1-jhogan@kernel.org> <20180222092654.GN25201@hirez.programming.kicks-ass.net>
+ <20180222094844.GB9891@saruman>
+From: Graham Whaley <graham.whaley@gmail.com>
+Date: Thu, 22 Feb 2018 10:42:50 +0000
+Message-ID: <CAF9eJuk=UNOQMZpTXCNpXVYUsYonvfUt_sB-kh8yLJDfinZPLA@mail.gmail.com>
+Subject: Re: [PATCH 00/13] Remove metag architecture
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>
-Cc: linux-kernel@vger.kernel.org, dave hansen <dave.hansen@intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, kirill shutemov <kirill.shutemov@linux.intel.com>, mhocko@suse.com, tglx@linutronix.de
+To: James Hogan <jhogan@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-metag@vger.kernel.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, Jonathan Corbet <corbet@lwn.net>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Jason Cooper <jason@lakedaemon.net>, Marc Zyngier <marc.zyngier@arm.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Linus Walleij <linus.walleij@linaro.org>, Wim Van Sebroeck <wim@linux-watchdog.org>, Mauro Carvalho Chehab <mchehab@s-opensource.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Wolfram Sang <wsa@the-dreams.de>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-gpio@vger.kernel.org, linux-watchdog@vger.kernel.org, linux-media@vger.kernel.org, linux-i2c@vger.kernel.org
 
-Hi Pankaj,
+On 22 February 2018 at 09:48, James Hogan <jhogan@kernel.org> wrote:
+> On Thu, Feb 22, 2018 at 10:26:54AM +0100, Peter Zijlstra wrote:
+>> On Wed, Feb 21, 2018 at 11:38:12PM +0000, James Hogan wrote:
+>> > So lets call it a day and drop the Meta architecture port from the
+>> > kernel. RIP Meta.
+>>
+>> So long, and thanks for all the fish!
+>>
+>> Nice cleanup though, most welcome :-)
+>
+> I thought you might like it ;-)
+>
+>> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+>
+> Thanks
+> James
 
-On 02/22/18 at 05:07am, Pankaj Gupta wrote:
-> 
-> Hi Baoquan,
-> 
-> > 
-> > In sparse_init(), two temporary pointer arrays, usemap_map and map_map
-> > are allocated with the size of NR_MEM_SECTIONS. They are used to store
-> > each memory section's usemap and mem map if marked as present. With
-> > the help of these two arrays, continuous memory chunk is allocated for
-> > usemap and memmap for memory sections on one node. This avoids too many
-> > memory fragmentations. Like below diagram, '1' indicates the present
-> > memory section, '0' means absent one. The number 'n' could be much
-> > smaller than NR_MEM_SECTIONS on most of systems.
-> > 
-> > |1|1|1|1|0|0|0|0|1|1|0|0|...|1|0||1|0|...|1||0|1|...|0|
-> > -------------------------------------------------------
-> >  0 1 2 3         4 5         i   i+1     n-1   n
-> > 
-> > If fail to populate the page tables to map one section's memmap, its
-> > ->section_mem_map will be cleared finally to indicate that it's not present.
-> > After use, these two arrays will be released at the end of sparse_init().
-> > 
-> > In 4-level paging mode, each array costs 4M which can be ignorable. While
-> > in 5-level paging, they costs 256M each, 512M altogether. Kdump kernel
-> > Usually only reserves very few memory, e.g 256M. So, even thouth they are
-> > temporarily allocated, still not acceptable.
-> > 
-> > In fact, there's no need to allocate them with the size of NR_MEM_SECTIONS.
-> > Since the ->section_mem_map clearing has been deferred to the last, the
-> > number of present memory sections are kept the same during sparse_init()
-> > until we finally clear out the memory section's ->section_mem_map if its
-> > usemap or memmap is not correctly handled. Thus in the middle whenever
-> > for_each_present_section_nr() loop is taken, the i-th present memory
-> > section is always the same one.
-> > 
-> > Here only allocate usemap_map and map_map with the size of
-> > 'nr_present_sections'. For the i-th present memory section, install its
-> > usemap and memmap to usemap_map[i] and mam_map[i] during allocation. Then
-> > in the last for_each_present_section_nr() loop which clears the failed
-> > memory section's ->section_mem_map, fetch usemap and memmap from
-> > usemap_map[] and map_map[] array and set them into mem_section[]
-> > accordingly.
-> > 
-> > Signed-off-by: Baoquan He <bhe@redhat.com>
-> > 
-> > Signed-off-by: Baoquan He <bhe@redhat.com>
-> > ---
-> >  mm/sparse-vmemmap.c |  8 +++++---
-> >  mm/sparse.c         | 40 ++++++++++++++++++++++++++--------------
-> >  2 files changed, 31 insertions(+), 17 deletions(-)
-> > 
-> > diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-> > index 640e68f8324b..f83723a49e47 100644
-> > --- a/mm/sparse-vmemmap.c
-> > +++ b/mm/sparse-vmemmap.c
-> > @@ -281,6 +281,7 @@ void __init sparse_mem_maps_populate_node(struct page
-> > **map_map,
-> >  	unsigned long pnum;
-> >  	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
-> >  	void *vmemmap_buf_start;
-> > +	int i = 0;
-> >  
-> >  	size = ALIGN(size, PMD_SIZE);
-> >  	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size * map_count,
-> > @@ -291,14 +292,15 @@ void __init sparse_mem_maps_populate_node(struct page
-> > **map_map,
-> >  		vmemmap_buf_end = vmemmap_buf_start + size * map_count;
-> >  	}
-> >  
-> > -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> > +	for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
-> >  		struct mem_section *ms;
-> >  
-> >  		if (!present_section_nr(pnum))
-> >  			continue;
-> >  
-> > -		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
-> > -		if (map_map[pnum])
-> > +		i++;
-> > +		map_map[i-1] = sparse_mem_map_populate(pnum, nodeid, NULL);
-> > +		if (map_map[i-1])
-> >  			continue;
-> >  		ms = __nr_to_section(pnum);
-> >  		pr_err("%s: sparsemem memory map backing failed some memory will not be
-> >  		available\n",
-> > diff --git a/mm/sparse.c b/mm/sparse.c
-> > index e9311b44e28a..aafb6d838872 100644
-> > --- a/mm/sparse.c
-> > +++ b/mm/sparse.c
-> > @@ -405,6 +405,7 @@ static void __init sparse_early_usemaps_alloc_node(void
-> > *data,
-> >  	unsigned long pnum;
-> >  	unsigned long **usemap_map = (unsigned long **)data;
-> >  	int size = usemap_size();
-> > +	int i = 0;
-> >  
-> >  	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
-> >  							  size * usemap_count);
-> > @@ -413,12 +414,13 @@ static void __init sparse_early_usemaps_alloc_node(void
-> > *data,
-> >  		return;
-> >  	}
-> >  
-> > -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> > +	for (pnum = pnum_begin; pnum < pnum_end && i < usemap_count; pnum++) {
-> >  		if (!present_section_nr(pnum))
-> >  			continue;
-> > -		usemap_map[pnum] = usemap;
-> > +		usemap_map[i] = usemap;
-> >  		usemap += size;
-> > -		check_usemap_section_nr(nodeid, usemap_map[pnum]);
-> > +		check_usemap_section_nr(nodeid, usemap_map[i]);
-> > +		i++;
-> >  	}
-> >  }
-> >  
-> > @@ -447,14 +449,17 @@ void __init sparse_mem_maps_populate_node(struct page
-> > **map_map,
-> >  	void *map;
-> >  	unsigned long pnum;
-> >  	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
-> > +	int i;
-> >  
-> >  	map = alloc_remap(nodeid, size * map_count);
-> >  	if (map) {
-> > -		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> > +		i = 0;
-> > +		for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
-> >  			if (!present_section_nr(pnum))
-> >  				continue;
-> > -			map_map[pnum] = map;
-> > +			map_map[i] = map;
-> >  			map += size;
-> > +			i++;
-> >  		}
-> >  		return;
-> >  	}
-> > @@ -464,23 +469,27 @@ void __init sparse_mem_maps_populate_node(struct page
-> > **map_map,
-> >  					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
-> >  					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
-> >  	if (map) {
-> > -		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> > +		i = 0;
-> > +		for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
-> >  			if (!present_section_nr(pnum))
-> >  				continue;
-> > -			map_map[pnum] = map;
-> > +			map_map[i] = map;
-> >  			map += size;
-> > +			i++;
-> >  		}
-> >  		return;
-> >  	}
-> >  
-> >  	/* fallback */
-> > -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> > +	i = 0;
-> > +	for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
-> >  		struct mem_section *ms;
-> >  
-> >  		if (!present_section_nr(pnum))
-> >  			continue;
-> > -		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
-> > -		if (map_map[pnum])
-> > +		i++;
-> > +		map_map[i-1] = sparse_mem_map_populate(pnum, nodeid, NULL);
-> > +		if (map_map[i-1])
-> >  			continue;
-> 
-> Below statement will look better?
-> 
->                 map_map[i] = sparse_mem_map_populate(pnum, nodeid, NULL);
->                 if (map_map[i++])
->   			continue;
+RIP indeed. As I sit here listening to my META powered radio.... for
+the series in general:
 
-Thanks for reviewing.
-
-It looks similar trick as the used in patch. If no other input about
-this, I will update with your suggestion. And other places too.
-
-Thanks
-Baoquan
-
-> 
-> 
-> >  		ms = __nr_to_section(pnum);
-> >  		pr_err("%s: sparsemem memory map backing failed some memory will not be
-> >  		available\n",
-> > @@ -558,6 +567,7 @@ static void __init alloc_usemap_and_memmap(void
-> > (*alloc_func)
-> >  		/* new start, update count etc*/
-> >  		nodeid_begin = nodeid;
-> >  		pnum_begin = pnum;
-> > +		data += map_count;
-> >  		map_count = 1;
-> >  	}
-> >  	/* ok, last chunk */
-> > @@ -576,6 +586,7 @@ void __init sparse_init(void)
-> >  	unsigned long *usemap;
-> >  	unsigned long **usemap_map;
-> >  	int size;
-> > +	int i = 0;
-> >  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-> >  	int size2;
-> >  	struct page **map_map;
-> > @@ -598,7 +609,7 @@ void __init sparse_init(void)
-> >  	 * powerpc need to call sparse_init_one_section right after each
-> >  	 * sparse_early_mem_map_alloc, so allocate usemap_map at first.
-> >  	 */
-> > -	size = sizeof(unsigned long *) * NR_MEM_SECTIONS;
-> > +	size = sizeof(unsigned long *) * nr_present_sections;
-> >  	usemap_map = memblock_virt_alloc(size, 0);
-> >  	if (!usemap_map)
-> >  		panic("can not allocate usemap_map\n");
-> > @@ -606,7 +617,7 @@ void __init sparse_init(void)
-> >  							(void *)usemap_map);
-> >  
-> >  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-> > -	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
-> > +	size2 = sizeof(struct page *) * nr_present_sections;
-> >  	map_map = memblock_virt_alloc(size2, 0);
-> >  	if (!map_map)
-> >  		panic("can not allocate map_map\n");
-> > @@ -617,14 +628,15 @@ void __init sparse_init(void)
-> >  	for_each_present_section_nr(0, pnum) {
-> >  		struct mem_section *ms;
-> >  		ms = __nr_to_section(pnum);
-> > -		usemap = usemap_map[pnum];
-> > +		i++;
-> > +		usemap = usemap_map[i-1];
-> 
-> Can try same as above and other places where possible
-> 
-> >  		if (!usemap) {
-> >  			ms->section_mem_map = 0;
-> >  			continue;
-> >  		}
-> >  
-> >  #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-> > -		map = map_map[pnum];
-> > +		map = map_map[i-1];
-> >  #else
-> >  		map = sparse_early_mem_map_alloc(pnum);
-> >  #endif
-> > --
-> > 2.13.6
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
+Acked-by: Graham Whaley <graham.whaley@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
