@@ -1,66 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 643A56B0007
-	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 18:59:04 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id j21so2643805wre.20
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 15:59:04 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id t63si158316wrc.339.2018.02.21.15.59.01
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 65C2E6B0005
+	for <linux-mm@kvack.org>; Wed, 21 Feb 2018 19:16:43 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y25so1571639pfe.5
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 16:16:43 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x32-v6sor612140pld.18.2018.02.21.16.16.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 21 Feb 2018 15:59:01 -0800 (PST)
-Subject: Re: mmotm 2018-02-21-14-48 uploaded (mm/page_alloc.c on UML)
-References: <20180221224839.MqsDtkGCK%akpm@linux-foundation.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <7bcc52db-57eb-45b0-7f20-c93a968599cd@infradead.org>
-Date: Wed, 21 Feb 2018 15:58:41 -0800
+        (Google Transport Security);
+        Wed, 21 Feb 2018 16:16:40 -0800 (PST)
+Date: Thu, 22 Feb 2018 09:16:35 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] Synchronize task mm counters on context switch
+Message-ID: <20180222001635.GB27147@rodete-desktop-imager.corp.google.com>
+References: <20180205220325.197241-1-dancol@google.com>
+ <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180221224839.MqsDtkGCK%akpm@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org, sfr@canb.auug.org.au, richard -rw- weinberger <richard.weinberger@gmail.com>, Eugeniu Rosca <erosca@de.adit-jv.com>
+To: Daniel Colascione <dancol@google.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 02/21/2018 02:48 PM, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2018-02-21-14-48 has been uploaded to
-> 
->    http://www.ozlabs.org/~akpm/mmotm/
-> 
-> mmotm-readme.txt says
-> 
-> README for mm-of-the-moment:
-> 
-> http://www.ozlabs.org/~akpm/mmotm/
-> 
-> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> more than once a week.
-> 
-> You will need quilt to apply these patches to the latest Linus release (4.x
-> or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-> http://ozlabs.org/~akpm/mmotm/series
-> 
-> The file broken-out.tar.gz contains two datestamp files: .DATE and
-> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-> followed by the base kernel version against which this patch series is to
-> be applied.
+Hi Daniel,
 
-um (or uml) defconfig on i386 and/or x86_64:
+On Wed, Feb 21, 2018 at 11:05:04AM -0800, Daniel Colascione wrote:
+> On Mon, Feb 5, 2018 at 2:03 PM, Daniel Colascione <dancol@google.com> wrote:
+> 
+> > When SPLIT_RSS_COUNTING is in use (which it is on SMP systems,
+> > generally speaking), we buffer certain changes to mm-wide counters
+> > through counters local to the current struct task, flushing them to
+> > the mm after seeing 64 page faults, as well as on task exit and
+> > exec. This scheme can leave a large amount of memory unaccounted-for
+> > in process memory counters, especially for processes with many threads
+> > (each of which gets 64 "free" faults), and it produces an
+> > inconsistency with the same memory counters scanned VMA-by-VMA using
+> > smaps. This inconsistency can persist for an arbitrarily long time,
+> > since there is no way to force a task to flush its counters to its mm.
 
-../mm/page_alloc.c: In function 'memmap_init_zone':
-../mm/page_alloc.c:5450:5: error: implicit declaration of function 'memblock_next_valid_pfn' [-Werror=implicit-function-declaration]
-     pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
-     ^
+Nice catch. Incosistency is bad but we usually have done it for performance.
+So, FWIW, it would be much better to describe what you are suffering from
+for matainter to take it.
 
+> >
+> > This patch flushes counters on context switch. This way, we bound the
+> > amount of unaccounted memory without forcing tasks to flush to the
+> > mm-wide counters on each minor page fault. The flush operation should
+> > be cheap: we only have a few counters, adjacent in struct task, and we
+> > don't atomically write to the mm counters unless we've changed
+> > something since the last flush.
+> >
+> > Signed-off-by: Daniel Colascione <dancol@google.com>
+> > ---
+> >  kernel/sched/core.c | 3 +++
+> >  1 file changed, 3 insertions(+)
+> >
+> > diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> > index a7bf32aabfda..7f197a7698ee 100644
+> > --- a/kernel/sched/core.c
+> > +++ b/kernel/sched/core.c
+> > @@ -3429,6 +3429,9 @@ asmlinkage __visible void __sched schedule(void)
+> >         struct task_struct *tsk = current;
+> >
+> >         sched_submit_work(tsk);
+> > +       if (tsk->mm)
+> > +               sync_mm_rss(tsk->mm);
+> > +
+> >         do {
+> >                 preempt_disable();
+> >                 __schedule(false);
+> >
+> 
+> 
+> Ping? Is this approach just a bad idea? We could instead just manually sync
+> all mm-attached tasks at counter-retrieval time.
 
-probably (?):
-From: Eugeniu Rosca <erosca@de.adit-jv.com>
-Subject: mm: page_alloc: skip over regions of invalid pfns on UMA
+IMHO, yes, it should be done when user want to see which would be really
+cold path while this shecule function is hot.
 
-
--- 
-~Randy
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
