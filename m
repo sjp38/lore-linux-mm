@@ -1,96 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D0FB6B02FA
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 12:50:05 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id 5so2863625ote.9
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 09:50:05 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s9si164755oig.460.2018.02.22.09.50.03
-        for <linux-mm@kvack.org>;
-        Thu, 22 Feb 2018 09:50:03 -0800 (PST)
-Message-ID: <5A8F0230.1080007@arm.com>
-Date: Thu, 22 Feb 2018 17:47:28 +0000
-From: James Morse <james.morse@arm.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 306756B02FC
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 13:29:00 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id y11so30907wmd.5
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 10:29:00 -0800 (PST)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id j1si451879wrc.494.2018.02.22.10.28.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Feb 2018 10:28:58 -0800 (PST)
+Subject: Re: [PATCH 2/6] genalloc: selftest
+From: Igor Stoppa <igor.stoppa@huawei.com>
+References: <20180212165301.17933-1-igor.stoppa@huawei.com>
+ <20180212165301.17933-3-igor.stoppa@huawei.com>
+ <CAGXu5jJNERp-yni1jdqJRYJ82xrP7=_O1vkxG1sJ-b8CxudP9g@mail.gmail.com>
+ <f33112e4-608f-ae8c-bf88-80ef83b61398@huawei.com>
+ <CAGXu5jLeC285BGDW29aHgFZRV6CnqBmmkZULW2pzYmqd0pe9UQ@mail.gmail.com>
+ <fb001cd0-7f37-394f-f926-f5b98365b4b8@huawei.com>
+Message-ID: <81471cf6-5a27-6e8c-ac7c-e7c4cc35d410@huawei.com>
+Date: Thu, 22 Feb 2018 20:28:30 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/11] ACPI / APEI: Make the fixmap_idx per-ghes to allow
- multiple in_nmi() users
-References: <20180215185606.26736-1-james.morse@arm.com> <20180215185606.26736-7-james.morse@arm.com> <879ab426-c6a9-b881-e3d5-a605cfad5f97@codeaurora.org>
-In-Reply-To: <879ab426-c6a9-b881-e3d5-a605cfad5f97@codeaurora.org>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <fb001cd0-7f37-394f-f926-f5b98365b4b8@huawei.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tyler Baicar <tbaicar@codeaurora.org>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Christoph
+ Lameter <cl@linux.com>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-Hi Tyler
-
-Thanks for taking a look!
-
-
-On 20/02/18 21:18, Tyler Baicar wrote:
-> On 2/15/2018 1:56 PM, James Morse wrote:
->> Arm64 has multiple NMI-like notifications, but GHES only has one
->> in_nmi() path. The interactions between these multiple NMI-like
->> notifications is, unclear.
+On 22/02/18 11:14, Igor Stoppa wrote:
+> 
+> 
+> On 22/02/18 00:28, Kees Cook wrote:
+>> On Tue, Feb 20, 2018 at 8:59 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
+>>>
+>>>
+>>> On 13/02/18 01:50, Kees Cook wrote:
+>>>> On Mon, Feb 12, 2018 at 8:52 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
+> 
+> [...]
+> 
+>>>>> +       genalloc_selftest();
+>>>>
+>>>> I wonder if it's possible to make this module-loadable instead? That
+>>>> way it could be built and tested separately.
+>>>
+>>> In my case modules are not an option.
+>>> Of course it could be still built in, but what is the real gain?
 >>
->> Split this single path up by moving the fixmap idx and lock into
->> the struct ghes. Each notification's init function can consider
->> which other notifications it masks and can share a fixmap_idx with.
->> This lets us merge the two ghes_ioremap_pfn_* flavours.
->>
->> Two lock pointers are provided, but only one will be used by
->> ghes_copy_tofrom_phys(), depending on in_nmi(). This means any
->> notification that might arrive as an NMI must always be wrapped in
->> nmi_enter()/nmi_exit().
->>
->> The double-underscore version of fix_to_virt() is used because
->> the index to be mapped can't be tested against the end of the
->> enum at compile time.
+>> The gain for it being a module is that it can be loaded and tested
+>> separately from the final kernel image and module collection. For
+>> example, Chrome OS builds lots of debugging test modules but doesn't
+>> include them on the final image. They're only used for testing, and
+>> can be separate from the kernel and "production" modules.
+> 
+> ok
 
->> @@ -303,13 +278,11 @@ static void ghes_copy_tofrom_phys(void *buffer, u64
->> paddr, u32 len,
->>         while (len > 0) {
->>           offset = paddr - (paddr & PAGE_MASK);
->> -        if (in_nmi) {
->> -            raw_spin_lock(&ghes_ioremap_lock_nmi);
->> -            vaddr = ghes_ioremap_pfn_nmi(paddr >> PAGE_SHIFT);
->> -        } else {
->> -            spin_lock_irqsave(&ghes_ioremap_lock_irq, flags);
->> -            vaddr = ghes_ioremap_pfn_irq(paddr >> PAGE_SHIFT);
->> -        }
->> +        if (in_nmi)
->> +            raw_spin_lock(ghes->nmi_fixmap_lock);
->> +        else
->> +            spin_lock_irqsave(ghes->fixmap_lock, flags);
+I started to turn this into a module, but after all it doesn't seem like
+it would give any real advantage, compared to the current implementation.
 
-> This locking is resulting in a NULL pointer dereference for me during boot time.
-> I removed the ghes_proc() call
-> from ghes_probe() and then when triggering errors and going through ghes_proc()
-> the NULL pointer dereference
-> no longer happens. That makes me think that this is dependent on something that
-> is not setup before
-> ghes_probe() is happening. Any ideas?
+This testing is meant to catch bugs in memory management as early as
+possible in the boot phase, before users of genalloc start to fail in
+mysterious ways.
 
-Gah, One of the things I've tried to enforce is that notifications that happen
-in_nmi() always happen in_nmi(): but that isn't the case for this first
-ghes_proc() call, which always happens in process context.
+This includes, but is not limited to: MCE on x86, uncached pages
+provider on arm64, dma on arm.
 
-Why didn't this happen to me? I'm assuming your GHES has work to do prior to
-probing, but I waited for it to finish booting before generating test events.
+Should genalloc fail, it's highly unlikely that the test rig would even
+reach the point where it can load a module and run it, even if it is
+located in initrd.
 
-The smallest fix is to have an irq/nmi fixmap and lock. This probe time call
-would always use the irq fixmap and lock, and can be safely interrupted by an
-NMI. Its only the NMI notifications interacting that we need to worry about as
-they can't be masked.
+The test would not be run, precisely at the moment where its output
+would be needed the most, leaving a crash log that is hard to debug
+because of memory corruption.
 
+I do not know how Chrome OS builds are organized, but I imagine that
+probably there is a separate test build, where options like lockdep,
+ubsan, etc. are enabled.
 
-Thanks!
+All options that cannot be left enabled in a production kernel, but are
+very useful for sanity checks and require a separate build.
 
-James
+Genalloc testing should be added there, rather than in a module, imho.
 
-
-
+--
+igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
