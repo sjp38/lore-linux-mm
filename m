@@ -1,80 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DC396B02A4
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 04:40:15 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id 62so4112906iow.16
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 01:40:15 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id h184si1367923ioe.132.2018.02.22.01.40.14
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CC2526B02A6
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 04:49:13 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id u1so2265428pfi.20
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 01:49:13 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id m197si3577858pga.206.2018.02.22.01.49.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 22 Feb 2018 01:40:14 -0800 (PST)
-Date: Thu, 22 Feb 2018 10:40:09 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] Synchronize task mm counters on context switch
-Message-ID: <20180222094009.GO25201@hirez.programming.kicks-ass.net>
-References: <20180205220325.197241-1-dancol@google.com>
- <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
- <20180222001635.GB27147@rodete-desktop-imager.corp.google.com>
- <CAKOZuetc7DepPPO6DmMp9APNz5+8+KansNBr_ijuuyCTu=v1mg@mail.gmail.com>
- <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Feb 2018 01:49:12 -0800 (PST)
+Date: Thu, 22 Feb 2018 09:48:44 +0000
+From: James Hogan <jhogan@kernel.org>
+Subject: Re: [PATCH 00/13] Remove metag architecture
+Message-ID: <20180222094844.GB9891@saruman>
+References: <20180221233825.10024-1-jhogan@kernel.org>
+ <20180222092654.GN25201@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="SkvwRMAIpAhPCcCJ"
 Content-Disposition: inline
-In-Reply-To: <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
+In-Reply-To: <20180222092654.GN25201@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Michal Hocko <mhocko@suse.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-metag@vger.kernel.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, Jonathan Corbet <corbet@lwn.net>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Jason Cooper <jason@lakedaemon.net>, Marc Zyngier <marc.zyngier@arm.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Linus Walleij <linus.walleij@linaro.org>, Wim Van Sebroeck <wim@linux-watchdog.org>, Mauro Carvalho Chehab <mchehab@s-opensource.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Wolfram Sang <wsa@the-dreams.de>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-gpio@vger.kernel.org, linux-watchdog@vger.kernel.org, linux-media@vger.kernel.org, linux-i2c@vger.kernel.org
 
-On Thu, Feb 22, 2018 at 11:06:33AM +0900, Minchan Kim wrote:
-> On Wed, Feb 21, 2018 at 04:23:43PM -0800, Daniel Colascione wrote:
-> >  kernel/sched/core.c | 3 +++
-> >  1 file changed, 3 insertions(+)
-> >
-> > diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> > index a7bf32aabfda..7f197a7698ee 100644
-> > --- a/kernel/sched/core.c
-> > +++ b/kernel/sched/core.c
-> > @@ -3429,6 +3429,9 @@ asmlinkage __visible void __sched schedule(void)
-> >         struct task_struct *tsk = current;
-> >
-> >         sched_submit_work(tsk);
-> > +       if (tsk->mm)
-> > +               sync_mm_rss(tsk->mm);
-> > +
-> >         do {
-> >                 preempt_disable();
-> >                 __schedule(false);
-> >
 
-Obviously I completely hate that; and you really _should_ have Cc'ed me
-earlier ;-)
+--SkvwRMAIpAhPCcCJ
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-That it still well over 100 cycles in the case when all counters did
-change. Far _far_ more if the mm counters are contended (up to 150 times
-more is quite possible).
+On Thu, Feb 22, 2018 at 10:26:54AM +0100, Peter Zijlstra wrote:
+> On Wed, Feb 21, 2018 at 11:38:12PM +0000, James Hogan wrote:
+> > So lets call it a day and drop the Meta architecture port from the
+> > kernel. RIP Meta.
+>=20
+> So long, and thanks for all the fish!
+>=20
+> Nice cleanup though, most welcome :-)
 
-> > > > Ping? Is this approach just a bad idea? We could instead just manually sync
-> > > > all mm-attached tasks at counter-retrieval time.
-> > >
-> > > IMHO, yes, it should be done when user want to see which would be really
-> > > cold path while this shecule function is hot.
-> > >
-> > 
-> > The problem with doing it that way is that we need to look at each task
-> > attached to a particular mm. AFAIK (and please tell me if I'm wrong), the
-> > only way to do that is to iterate over all processes, and for each process
-> > attached to the mm we want, iterate over all its tasks (since each one has
-> > to have the same mm, I think). Does that sound right?
+I thought you might like it ;-)
 
-You could just iterate the thread group and call it a day. Yes strictly
-speaking its possible to have mm's shared outside the thread group,
-practically that 'never' happens.
+> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 
-CLONE_VM without CLONE_THREAD just isn't a popular thing afaik.
+Thanks
+James
 
-So while its not perfect, it might well be good enough.
+--SkvwRMAIpAhPCcCJ
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEd80NauSabkiESfLYbAtpk944dnoFAlqOkfYACgkQbAtpk944
+dnoHNw//araZkIz0fvrAT593YR6P+Sff9uhB2R9cOsuzBhV6cv3yci06pKrMLv3u
+d5dIurnPaZB1mhADAPXB4B0jrvqx0evAJ45CKS8rAKZSjZNKrAnrEpOAlkPgo1xp
+sFPCzh98J7qcYNkR2IRDtfWbC0ARAY8iuaN8Ejc7Y25t4POGh+6ZGloBisgZq6Af
+H1IwLvM4gRTT2qkxoRO/dEECFLor06EXSp2AdibvaTb8Z00kWM8Tig+NFCRkDvR+
+PAlL7D4Iv6GEZzU2Bac6caWFcWIfV4OzOHDiFcVUWgsWveuQGiX5F4q1dJSpGgRl
+IPErO/pUMDUubn6bAZAWW/5m3VrKiyjwOixADGmY1O+LjsEjMfpO/gnuJJiDCv9J
+7JgMmz4DnNtephmG2ZQYiaM4qL4ErNW+CunOaGl/tvHBJxgpzCrcaDHmBpw1Jpvc
+FBqqz5p8G+FM+qSPIrhrymF9dhVyO9VuO8qtuVekO5PzgoGm7Gb+1gr/3brKodSd
+BN7AdOCVKn0Zpj28KRkw7nL0GQKXsH4yCou68DQxWEx0gt+aaurAIMkPsPuM2lYC
+pLqgNbj93IEYmSj0TnTcmcfVAl0WvviGbVmMo57YuU8fpFW1FHDji4R9R/zulmtF
+MCUFugKKc61StB/kH95RHaehJ6Rly+yz7ioWI5JlrwZCbNmFJKM=
+=gZvt
+-----END PGP SIGNATURE-----
+
+--SkvwRMAIpAhPCcCJ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
