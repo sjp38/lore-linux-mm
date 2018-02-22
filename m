@@ -1,79 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E5406B02C9
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:06:31 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id x77so938082wmd.0
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:06:31 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 123si217856wmo.252.2018.02.22.05.06.29
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A63D6B02C8
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:08:27 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 63so3492757wrn.7
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:08:26 -0800 (PST)
+Received: from smtp1.de.adit-jv.com (smtp1.de.adit-jv.com. [62.225.105.245])
+        by mx.google.com with ESMTPS id o98si46480wrc.148.2018.02.22.05.08.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Feb 2018 05:06:29 -0800 (PST)
-Date: Thu, 22 Feb 2018 14:06:26 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,page_alloc: wait for oom_lock than back off
-Message-ID: <20180221145437.GI2231@dhcp22.suse.cz>
-References: <20180123124245.GK1526@dhcp22.suse.cz>
- <201801242228.FAD52671.SFFLQMOVOFHOtJ@I-love.SAKURA.ne.jp>
- <201802132058.HAG51540.QFtSLOJFOOFVMH@I-love.SAKURA.ne.jp>
- <201802202232.IEC26597.FOQtMFOFJHOSVL@I-love.SAKURA.ne.jp>
- <20180220144920.GB21134@dhcp22.suse.cz>
- <201802212327.CAB51013.FOStFVLHFJMOOQ@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Feb 2018 05:08:24 -0800 (PST)
+Date: Thu, 22 Feb 2018 14:08:14 +0100
+From: Eugeniu Rosca <erosca@de.adit-jv.com>
+Subject: Re: mmotm 2018-02-21-14-48 uploaded (mm/page_alloc.c on UML)
+Message-ID: <20180222130814.GA30385@vmlxhi-102.adit-jv.com>
+References: <20180221224839.MqsDtkGCK%akpm@linux-foundation.org>
+ <7bcc52db-57eb-45b0-7f20-c93a968599cd@infradead.org>
+ <20180222072037.GC30681@dhcp22.suse.cz>
+ <20180222103832.GA11623@vmlxhi-102.adit-jv.com>
+ <20180222125955.GD30681@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <201802212327.CAB51013.FOStFVLHFJMOOQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <20180222125955.GD30681@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mm-commits@vger.kernel.org, sfr@canb.auug.org.au, richard -rw- weinberger <richard.weinberger@gmail.com>, Eugeniu Rosca <erosca@de.adit-jv.com>
 
-On Wed 21-02-18 23:27:05, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Tue 20-02-18 22:32:56, Tetsuo Handa wrote:
-> > > >From c3b6616238fcd65d5a0fdabcb4577c7e6f40d35e Mon Sep 17 00:00:00 2001
-> > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > Date: Tue, 20 Feb 2018 11:07:23 +0900
-> > > Subject: [PATCH] mm,page_alloc: wait for oom_lock than back off
-> > > 
-> > > This patch fixes a bug which is essentially same with a bug fixed by
-> > > commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
-> > > too long").
-> > > 
-> > > Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
-> > > on an assumption that the owner of oom_lock is making progress for us. But
-> > > it is possible to trigger OOM lockup when many threads concurrently called
-> > > __alloc_pages_slowpath() because all CPU resources are wasted for pointless
-> > > direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
-> > > __alloc_pages_may_oom() does not always give enough CPU resource to the
-> > > owner of the oom_lock.
-> > > 
-> > > It is possible that the owner of oom_lock is preempted by other threads.
-> > > Preemption makes the OOM situation much worse. But the page allocator is
-> > > not responsible about wasting CPU resource for something other than memory
-> > > allocation request. Wasting CPU resource for memory allocation request
-> > > without allowing the owner of oom_lock to make forward progress is a page
-> > > allocator's bug.
-> > > 
-> > > Therefore, this patch changes to wait for oom_lock in order to guarantee
-> > > that no thread waiting for the owner of oom_lock to make forward progress
-> > > will not consume CPU resources for pointless direct reclaim efforts.
+On Thu, Feb 22, 2018 at 01:59:55PM +0100, Michal Hocko wrote:
+> On Thu 22-02-18 11:38:32, Eugeniu Rosca wrote:
+> > Hi Michal,
 > > 
-> > So instead we will have many tasks sleeping on the lock and prevent the
-> > oom reaper to make any forward progress. This is not a solution without
-> > further steps. Also I would like to see a real life workload that would
-> > benefit from this.
+> > Please, let me know if any action is expected from my end.
 > 
-> Of course I will propose follow-up patches.
+> I do not thing anything is really needed right now. If you have a strong
+> opinion about the solution (ifdef vs. noop stub) then speak up.
 
-The patch in its current form will cause a worse behavior than we have
-currently, because pending oom waiters simply block the oom reaper. So I
-do not really see any reason to push this forward without other changes.
+No different preference on my side. I was more thinking if you are going
+to amend the patch or create a fix on top of it. Since it didn't reach
+mainline, it makes sense to amend it. If you can do it without the
+intervention of the author, that's also fine for me.
 
-So NAK to this patch in its current form.
--- 
-Michal Hocko
-SUSE Labs
+> > Thank you for your support and sorry for the ifdef troubles.
+> 
+> No troubles at all. It was me who pushed you this direction...
+> -- 
+> Michal Hocko
+> SUSE Labs
+
+Thanks,
+Eugeniu.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
