@@ -1,82 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E9A376B02C3
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 07:15:58 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id w102so3459294wrb.21
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 04:15:58 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.19])
-        by mx.google.com with ESMTPS id 93si1758771wrh.194.2018.02.22.04.15.57
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 187CA6B02B6
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 07:23:01 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id o11so2128201pgp.14
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 04:23:01 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id h11si1375101pgp.297.2018.02.22.04.22.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Feb 2018 04:15:57 -0800 (PST)
-From: =?UTF-8?q?Jonathan=20Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>
-Subject: [PATCH 5/5] powerpc/mm/32: Remove the reserved memory hack
-Date: Thu, 22 Feb 2018 13:15:16 +0100
-Message-Id: <20180222121516.23415-6-j.neuschaefer@gmx.net>
-In-Reply-To: <20180222121516.23415-1-j.neuschaefer@gmx.net>
-References: <20180222121516.23415-1-j.neuschaefer@gmx.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 22 Feb 2018 04:22:59 -0800 (PST)
+Date: Thu, 22 Feb 2018 04:22:54 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: Use higher-order pages in vmalloc
+Message-ID: <20180222122254.GA22703@bombadil.infradead.org>
+References: <151670492223.658225.4605377710524021456.stgit@buzz>
+ <151670493255.658225.2881484505285363395.stgit@buzz>
+ <20180221154214.GA4167@bombadil.infradead.org>
+ <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
+ <20180221170129.GB27687@bombadil.infradead.org>
+ <20180222065943.GA30681@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180222065943.GA30681@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linuxppc-dev@lists.ozlabs.org
-Cc: linux-kernel@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, Joel Stanley <joel@jms.id.au>, Christophe LEROY <christophe.leroy@c-s.fr>, =?UTF-8?q?Jonathan=20Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Guenter Roeck <linux@roeck-us.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-This hack, introduced in commit c5df7f775148 ("powerpc: allow ioremap
-within reserved memory regions") is now unnecessary.
+On Thu, Feb 22, 2018 at 07:59:43AM +0100, Michal Hocko wrote:
+> On Wed 21-02-18 09:01:29, Matthew Wilcox wrote:
+> > Right.  It helps with fragmentation if we can keep higher-order
+> > allocations together.
+> 
+> Hmm, wouldn't it help if we made vmalloc pages migrateable instead? That
+> would help the compaction and get us to a lower fragmentation longterm
+> without playing tricks in the allocation path.
 
-Signed-off-by: Jonathan NeuschA?fer <j.neuschaefer@gmx.net>
----
- arch/powerpc/mm/init_32.c    | 5 -----
- arch/powerpc/mm/mmu_decl.h   | 1 -
- arch/powerpc/mm/pgtable_32.c | 3 +--
- 3 files changed, 1 insertion(+), 8 deletions(-)
+I was wondering about that possibility.  If we want to migrate a page
+then we have to shoot down the PTE across all CPUs, copy the data to the
+new page, and insert the new PTE.  Copying 4kB doesn't take long; if you
+have 12GB/s (current example on Wikipedia: dual-channel memory and one
+DDR2-800 module per channel gives a theoretical bandwidth of 12.8GB/s)
+then we should be able to copy a page in 666ns).  So there's no problem
+holding a spinlock for it.
 
-diff --git a/arch/powerpc/mm/init_32.c b/arch/powerpc/mm/init_32.c
-index 6419b33ca309..326240177fa6 100644
---- a/arch/powerpc/mm/init_32.c
-+++ b/arch/powerpc/mm/init_32.c
-@@ -88,11 +88,6 @@ void MMU_init(void);
- int __map_without_bats;
- int __map_without_ltlbs;
- 
--/*
-- * This tells the system to allow ioremapping memory marked as reserved.
-- */
--int __allow_ioremap_reserved;
--
- /* max amount of low RAM to map in */
- unsigned long __max_low_memory = MAX_LOW_MEM;
- 
-diff --git a/arch/powerpc/mm/mmu_decl.h b/arch/powerpc/mm/mmu_decl.h
-index 57fbc554c785..c4c0a09a7775 100644
---- a/arch/powerpc/mm/mmu_decl.h
-+++ b/arch/powerpc/mm/mmu_decl.h
-@@ -98,7 +98,6 @@ extern void setbat(int index, unsigned long virt, phys_addr_t phys,
- 		   unsigned int size, pgprot_t prot);
- 
- extern int __map_without_bats;
--extern int __allow_ioremap_reserved;
- extern unsigned int rtas_data, rtas_size;
- 
- struct hash_pte;
-diff --git a/arch/powerpc/mm/pgtable_32.c b/arch/powerpc/mm/pgtable_32.c
-index d54e1a9c1c99..a89eb3b898cd 100644
---- a/arch/powerpc/mm/pgtable_32.c
-+++ b/arch/powerpc/mm/pgtable_32.c
-@@ -146,8 +146,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
- 	/*
- 	 * Don't allow anybody to remap normal RAM that we're using.
- 	 */
--	if (page_is_ram(__phys_to_pfn(p)) &&
--	    !(__allow_ioremap_reserved && memblock_is_region_reserved(p, size))) {
-+	if (page_is_ram(__phys_to_pfn(p))) {
- 		printk("__ioremap(): phys addr 0x%llx is RAM lr %ps\n",
- 		       (unsigned long long)p, __builtin_return_address(0));
- 		return NULL;
--- 
-2.16.1
+But we can't handle a fault in vmalloc space today.  It's handled in
+arch-specific code, see vmalloc_fault() in arch/x86/mm/fault.c
+If we're going to do this, it'll have to be something arches opt into
+because I'm not taking on the job of fixing every architecture!
+
+> Maybe we should consider kvmalloc for the kernel stack?
+
+We'd lose the guard page, so it'd have to be something we let the
+sysadmin decide to do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
