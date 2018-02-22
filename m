@@ -1,68 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D08F6B02D1
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:36:47 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id j19so1593413pll.8
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:36:47 -0800 (PST)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4353B6B02D3
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:46:06 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id f4so2312429plo.11
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:46:06 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n59-v6si58009plb.690.2018.02.22.05.36.46
+        by mx.google.com with ESMTPS id f4si78913pfc.196.2018.02.22.05.46.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Feb 2018 05:36:46 -0800 (PST)
-Date: Thu, 22 Feb 2018 14:36:43 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Use higher-order pages in vmalloc
-Message-ID: <20180222133643.GJ30681@dhcp22.suse.cz>
-References: <151670492223.658225.4605377710524021456.stgit@buzz>
- <151670493255.658225.2881484505285363395.stgit@buzz>
- <20180221154214.GA4167@bombadil.infradead.org>
- <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
- <20180221170129.GB27687@bombadil.infradead.org>
- <20180222065943.GA30681@dhcp22.suse.cz>
- <20180222122254.GA22703@bombadil.infradead.org>
+        Thu, 22 Feb 2018 05:46:05 -0800 (PST)
+Date: Thu, 22 Feb 2018 14:46:00 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2 0/3] Directed kmem charging
+Message-ID: <20180222134600.5tvizxkroc4oisrd@quack2.suse.cz>
+References: <20180221030101.221206-1-shakeelb@google.com>
+ <alpine.DEB.2.20.1802211002200.12567@nuc-kabylake>
+ <CALvZod68LD-wnbm2+MQks=bd_D2zY64uScUBp28hyug_vaGyDA@mail.gmail.com>
+ <20180221125426.464f894d29a0b6e525b2e3be@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180222122254.GA22703@bombadil.infradead.org>
+In-Reply-To: <20180221125426.464f894d29a0b6e525b2e3be@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shakeel Butt <shakeelb@google.com>, Christopher Lameter <cl@linux.com>, Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 22-02-18 04:22:54, Matthew Wilcox wrote:
-> On Thu, Feb 22, 2018 at 07:59:43AM +0100, Michal Hocko wrote:
-> > On Wed 21-02-18 09:01:29, Matthew Wilcox wrote:
-> > > Right.  It helps with fragmentation if we can keep higher-order
-> > > allocations together.
+On Wed 21-02-18 12:54:26, Andrew Morton wrote:
+> On Wed, 21 Feb 2018 09:18:35 -0800 Shakeel Butt <shakeelb@google.com> wrote:
+> 
+> > On Wed, Feb 21, 2018 at 8:09 AM, Christopher Lameter <cl@linux.com> wrote:
+> > > Another way to solve this is to switch the user context right?
+> > >
+> > > Isnt it possible to avoid these patches if do the allocation in another
+> > > task context instead?
+> > >
 > > 
-> > Hmm, wouldn't it help if we made vmalloc pages migrateable instead? That
-> > would help the compaction and get us to a lower fragmentation longterm
-> > without playing tricks in the allocation path.
+> > Sorry, can you please explain what you mean by 'switch the user
+> > context'. Is there any example in kernel which does something similar?
+> > 
+> > Another way is by adding a field 'remote_memcg_to_charge' in
+> > task_struct and set it before the allocation and in memcontrol.c,
+> > first check if current->remote_memcg_to_charge is set otherwise use
+> > the memcg of current. Also if we provide a wrapper to do that for the
+> > user, there will be a lot less plumbing.
+> > 
+> > Please let me know if you prefer this approach.
 > 
-> I was wondering about that possibility.  If we want to migrate a page
-> then we have to shoot down the PTE across all CPUs, copy the data to the
-> new page, and insert the new PTE.  Copying 4kB doesn't take long; if you
-> have 12GB/s (current example on Wikipedia: dual-channel memory and one
-> DDR2-800 module per channel gives a theoretical bandwidth of 12.8GB/s)
-> then we should be able to copy a page in 666ns).  So there's no problem
-> holding a spinlock for it.
+> That would be a lot simpler.  Passing function arguments via
+> task_struct is a bit dirty but is sometimes sooo effective.  You
+> should've seen how much mess task_struct.journal_info avoided!  And
+> reclaim_state.
+
+Agreed, although from time to time people try to be too creative e.g. with
+journal_info and surprising bugs come out of that :).
+
+> And one always wonders whether we should do a local save/restore before
+> modifying the task_struct field, so it nests.
 > 
-> But we can't handle a fault in vmalloc space today.  It's handled in
-> arch-specific code, see vmalloc_fault() in arch/x86/mm/fault.c
-> If we're going to do this, it'll have to be something arches opt into
-> because I'm not taking on the job of fixing every architecture!
+> What do others think?
 
-yes.
+Sounds nice to me.
 
-> > Maybe we should consider kvmalloc for the kernel stack?
-> 
-> We'd lose the guard page, so it'd have to be something we let the
-> sysadmin decide to do.
+> Maybe we can rename task_struct.reclaim_state to `struct task_mm_state
+> *task_mm_state", add remote_memcg_to_charge to struct task_mm_state and
+> avoid bloating the task_struct?
 
-ohh, right, I forgot about the guard page.
+Yeah, even better, but then we really need to make sure these things stack
+properly.
+
+								Honza
+
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
