@@ -1,75 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7629E6B0005
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 14:00:37 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id r15so4016998wrr.16
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 11:00:37 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y2sor43515wmd.0.2018.02.22.11.00.33
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 79E7B6B0008
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 14:01:58 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id t2so2696333plr.15
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 11:01:58 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 33-v6si452451plt.429.2018.02.22.11.01.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 22 Feb 2018 11:00:33 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Feb 2018 11:01:57 -0800 (PST)
+Received: from mail-it0-f52.google.com (mail-it0-f52.google.com [209.85.214.52])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id CDB53217A0
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 19:01:56 +0000 (UTC)
+Received: by mail-it0-f52.google.com with SMTP id w63so222268ita.3
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 11:01:56 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180222144844.g4p2diu3cnbr7sx3@quack2.suse.cz>
-References: <20180221030101.221206-1-shakeelb@google.com> <20180221030101.221206-4-shakeelb@google.com>
- <20180222134944.GK30681@dhcp22.suse.cz> <20180222144844.g4p2diu3cnbr7sx3@quack2.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Thu, 22 Feb 2018 11:00:25 -0800
-Message-ID: <CALvZod4m7naivyVDtFrGmDKeqaWrWuXynVhw32DVLB935RQJYA@mail.gmail.com>
-Subject: Re: [PATCH v2 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
+In-Reply-To: <20180222133643.GJ30681@dhcp22.suse.cz>
+References: <151670492223.658225.4605377710524021456.stgit@buzz>
+ <151670493255.658225.2881484505285363395.stgit@buzz> <20180221154214.GA4167@bombadil.infradead.org>
+ <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com> <20180221170129.GB27687@bombadil.infradead.org>
+ <20180222065943.GA30681@dhcp22.suse.cz> <20180222122254.GA22703@bombadil.infradead.org>
+ <20180222133643.GJ30681@dhcp22.suse.cz>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Thu, 22 Feb 2018 19:01:35 +0000
+Message-ID: <CALCETrU2c=SzWJCwuqqFuBVkC=nN27_ce4GxweCQXEwPAqnz7A@mail.gmail.com>
+Subject: Re: Use higher-order pages in vmalloc
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Linux-MM <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Thu, Feb 22, 2018 at 6:48 AM, Jan Kara <jack@suse.cz> wrote:
-> On Thu 22-02-18 14:49:44, Michal Hocko wrote:
->> On Tue 20-02-18 19:01:01, Shakeel Butt wrote:
->> > A lot of memory can be consumed by the events generated for the huge or
->> > unlimited queues if there is either no or slow listener. This can cause
->> > system level memory pressure or OOMs. So, it's better to account the
->> > fsnotify kmem caches to the memcg of the listener.
->>
->> How much memory are we talking about here?
->
-> 32 bytes per event (on 64-bit) which is small but the number of events is
-> not limited in any way (if the creator uses a special flag and has
-> CAP_SYS_ADMIN). In the thread [1] a guy from Alibaba wanted this feature so
-> among cloud people there is apparently some demand to have a way to limit
-> memory usage of such application...
->
->> > There are seven fsnotify kmem caches and among them allocations from
->> > dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
->> > inotify_inode_mark_cachep happens in the context of syscall from the
->> > listener. So, SLAB_ACCOUNT is enough for these caches.
+On Thu, Feb 22, 2018 at 1:36 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Thu 22-02-18 04:22:54, Matthew Wilcox wrote:
+>> On Thu, Feb 22, 2018 at 07:59:43AM +0100, Michal Hocko wrote:
+>> > On Wed 21-02-18 09:01:29, Matthew Wilcox wrote:
+>> > > Right.  It helps with fragmentation if we can keep higher-order
+>> > > allocations together.
 >> >
->> > The objects from fsnotify_mark_connector_cachep are not accounted as
->> > they are small compared to the notification mark or events and it is
->> > unclear whom to account connector to since it is shared by all events
->> > attached to the inode.
->> >
->> > The allocations from the event caches happen in the context of the event
->> > producer. For such caches we will need to remote charge the allocations
->> > to the listener's memcg. Thus we save the memcg reference in the
->> > fsnotify_group structure of the listener.
+>> > Hmm, wouldn't it help if we made vmalloc pages migrateable instead? That
+>> > would help the compaction and get us to a lower fragmentation longterm
+>> > without playing tricks in the allocation path.
 >>
->> Is it typical that the listener lives in a different memcg and if yes
->> then cannot this cause one memcg to OOM/DoS the one with the listener?
+>> I was wondering about that possibility.  If we want to migrate a page
+>> then we have to shoot down the PTE across all CPUs, copy the data to the
+>> new page, and insert the new PTE.  Copying 4kB doesn't take long; if you
+>> have 12GB/s (current example on Wikipedia: dual-channel memory and one
+>> DDR2-800 module per channel gives a theoretical bandwidth of 12.8GB/s)
+>> then we should be able to copy a page in 666ns).  So there's no problem
+>> holding a spinlock for it.
+>>
+>> But we can't handle a fault in vmalloc space today.  It's handled in
+>> arch-specific code, see vmalloc_fault() in arch/x86/mm/fault.c
+>> If we're going to do this, it'll have to be something arches opt into
+>> because I'm not taking on the job of fixing every architecture!
 >
-> We have been through these discussions already in [1] back in November :).
-> I can understand the wish to limit memory usage of an application using
-> unlimited fanotify queues. And yes, it may mean that it will be easier for
-> an attacker to get it oom-killed (currently the malicious app would drive
-> the whole system oom which will presumably take a bit more effort as there
-> is more memory to consume). But then I expect this is what admin prefers
-> when he limits memory usage of fanotify listener.
->
+> yes.
 
-Just one clarification, currently the kernel does not trigger
-oom-killer for allocations hitting memcg limit in the context of
-syscalls but rather return an ENOMEM (after trying memcg reclaim). Jan
-has already posted a patch to handle those ENOMEMs.
+On x86, if you shoot down the PTE for the current stack, you're dead.
+vmalloc_fault() might not even be called.  Instead we hit
+do_double_fault(), and the manual warns extremely strongly against
+trying to recover, and, in this case, I agree with the SDM.  If you
+actually want this to work, there needs to be a special IPI broadcast
+to the task in question (with appropriate synchronization) that calls
+magic arch code that does the switcheroo.
+
+Didn't someone (Christoph?) have a patch to teach the page allocator
+to give high-order allocations if available and otherwise fall back to
+low order?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
