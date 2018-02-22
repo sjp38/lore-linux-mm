@@ -1,37 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EE8E76B029D
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 04:27:10 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id o23so3262923wrc.9
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 01:27:10 -0800 (PST)
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DC396B02A4
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 04:40:15 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id 62so4112906iow.16
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 01:40:15 -0800 (PST)
 Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id t193si17423769wmt.149.2018.02.22.01.27.09
+        by mx.google.com with ESMTPS id h184si1367923ioe.132.2018.02.22.01.40.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 22 Feb 2018 01:27:09 -0800 (PST)
-Date: Thu, 22 Feb 2018 10:26:54 +0100
+        Thu, 22 Feb 2018 01:40:14 -0800 (PST)
+Date: Thu, 22 Feb 2018 10:40:09 +0100
 From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 00/13] Remove metag architecture
-Message-ID: <20180222092654.GN25201@hirez.programming.kicks-ass.net>
-References: <20180221233825.10024-1-jhogan@kernel.org>
+Subject: Re: [PATCH] Synchronize task mm counters on context switch
+Message-ID: <20180222094009.GO25201@hirez.programming.kicks-ass.net>
+References: <20180205220325.197241-1-dancol@google.com>
+ <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
+ <20180222001635.GB27147@rodete-desktop-imager.corp.google.com>
+ <CAKOZuetc7DepPPO6DmMp9APNz5+8+KansNBr_ijuuyCTu=v1mg@mail.gmail.com>
+ <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180221233825.10024-1-jhogan@kernel.org>
+In-Reply-To: <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Hogan <jhogan@kernel.org>
-Cc: linux-metag@vger.kernel.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, Jonathan Corbet <corbet@lwn.net>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Jason Cooper <jason@lakedaemon.net>, Marc Zyngier <marc.zyngier@arm.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Linus Walleij <linus.walleij@linaro.org>, Wim Van Sebroeck <wim@linux-watchdog.org>, Mauro Carvalho Chehab <mchehab@s-opensource.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Wolfram Sang <wsa@the-dreams.de>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-gpio@vger.kernel.org, linux-watchdog@vger.kernel.org, linux-media@vger.kernel.org, linux-i2c@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Feb 21, 2018 at 11:38:12PM +0000, James Hogan wrote:
-> So lets call it a day and drop the Meta architecture port from the
-> kernel. RIP Meta.
+On Thu, Feb 22, 2018 at 11:06:33AM +0900, Minchan Kim wrote:
+> On Wed, Feb 21, 2018 at 04:23:43PM -0800, Daniel Colascione wrote:
+> >  kernel/sched/core.c | 3 +++
+> >  1 file changed, 3 insertions(+)
+> >
+> > diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> > index a7bf32aabfda..7f197a7698ee 100644
+> > --- a/kernel/sched/core.c
+> > +++ b/kernel/sched/core.c
+> > @@ -3429,6 +3429,9 @@ asmlinkage __visible void __sched schedule(void)
+> >         struct task_struct *tsk = current;
+> >
+> >         sched_submit_work(tsk);
+> > +       if (tsk->mm)
+> > +               sync_mm_rss(tsk->mm);
+> > +
+> >         do {
+> >                 preempt_disable();
+> >                 __schedule(false);
+> >
 
-So long, and thanks for all the fish!
+Obviously I completely hate that; and you really _should_ have Cc'ed me
+earlier ;-)
 
-Nice cleanup though, most welcome :-)
+That it still well over 100 cycles in the case when all counters did
+change. Far _far_ more if the mm counters are contended (up to 150 times
+more is quite possible).
 
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> > > > Ping? Is this approach just a bad idea? We could instead just manually sync
+> > > > all mm-attached tasks at counter-retrieval time.
+> > >
+> > > IMHO, yes, it should be done when user want to see which would be really
+> > > cold path while this shecule function is hot.
+> > >
+> > 
+> > The problem with doing it that way is that we need to look at each task
+> > attached to a particular mm. AFAIK (and please tell me if I'm wrong), the
+> > only way to do that is to iterate over all processes, and for each process
+> > attached to the mm we want, iterate over all its tasks (since each one has
+> > to have the same mm, I think). Does that sound right?
+
+You could just iterate the thread group and call it a day. Yes strictly
+speaking its possible to have mm's shared outside the thread group,
+practically that 'never' happens.
+
+CLONE_VM without CLONE_THREAD just isn't a popular thing afaik.
+
+So while its not perfect, it might well be good enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
