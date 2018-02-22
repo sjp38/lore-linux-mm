@@ -1,64 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CF1F56B02D6
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:49:48 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id b142so610217wma.4
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:49:48 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o205si278571wmb.102.2018.02.22.05.49.47
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B79776B02D8
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:50:08 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id d21so2308221pll.12
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:50:08 -0800 (PST)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00116.outbound.protection.outlook.com. [40.107.0.116])
+        by mx.google.com with ESMTPS id r2si57177pgv.485.2018.02.22.05.50.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Feb 2018 05:49:47 -0800 (PST)
-Date: Thu, 22 Feb 2018 14:49:44 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
-Message-ID: <20180222134944.GK30681@dhcp22.suse.cz>
-References: <20180221030101.221206-1-shakeelb@google.com>
- <20180221030101.221206-4-shakeelb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 22 Feb 2018 05:50:07 -0800 (PST)
+Subject: Re: [PATCH v5 2/2] mm/memcontrol.c: Reduce reclaim retries in
+ mem_cgroup_resize_limit()
+References: <20171220102429.31601-1-aryabinin@virtuozzo.com>
+ <20180119132544.19569-1-aryabinin@virtuozzo.com>
+ <20180119132544.19569-2-aryabinin@virtuozzo.com>
+ <20180119133510.GD6584@dhcp22.suse.cz>
+ <CALvZod7HS6P0OU6Rps8JeMJycaPd4dF5NjxV8k1y2-yosF2bdA@mail.gmail.com>
+ <20180119151118.GE6584@dhcp22.suse.cz>
+ <20180221121715.0233d34dda330c56e1a9db5f@linux-foundation.org>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <f3893181-67a4-aec2-9514-f141fa78a6c0@virtuozzo.com>
+Date: Thu, 22 Feb 2018 16:50:33 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180221030101.221206-4-shakeelb@google.com>
+In-Reply-To: <20180221121715.0233d34dda330c56e1a9db5f@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
+Cc: Shakeel Butt <shakeelb@google.com>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Tue 20-02-18 19:01:01, Shakeel Butt wrote:
-> A lot of memory can be consumed by the events generated for the huge or
-> unlimited queues if there is either no or slow listener. This can cause
-> system level memory pressure or OOMs. So, it's better to account the
-> fsnotify kmem caches to the memcg of the listener.
-
-How much memory are we talking about here?
-
-> There are seven fsnotify kmem caches and among them allocations from
-> dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
-> inotify_inode_mark_cachep happens in the context of syscall from the
-> listener. So, SLAB_ACCOUNT is enough for these caches.
+On 02/21/2018 11:17 PM, Andrew Morton wrote:
+> On Fri, 19 Jan 2018 16:11:18 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> The objects from fsnotify_mark_connector_cachep are not accounted as
-> they are small compared to the notification mark or events and it is
-> unclear whom to account connector to since it is shared by all events
-> attached to the inode.
+>> And to be honest, I do not really see why keeping retrying from
+>> mem_cgroup_resize_limit should be so much faster than keep retrying from
+>> the direct reclaim path. We are doing SWAP_CLUSTER_MAX batches anyway.
+>> mem_cgroup_resize_limit loop adds _some_ overhead but I am not really
+>> sure why it should be that large.
 > 
-> The allocations from the event caches happen in the context of the event
-> producer. For such caches we will need to remote charge the allocations
-> to the listener's memcg. Thus we save the memcg reference in the
-> fsnotify_group structure of the listener.
-
-Is it typical that the listener lives in a different memcg and if yes
-then cannot this cause one memcg to OOM/DoS the one with the listener?
-
-> This patch has also moved the members of fsnotify_group to keep the
-> size same, at least for 64 bit build, even with additional member by
-> filling the holes.
+> Maybe restarting the scan lots of times results in rescanning lots of
+> ineligible pages at the start of the list before doing useful work?
 > 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-[...]
--- 
-Michal Hocko
-SUSE Labs
+> Andrey, are you able to determine where all that CPU time is being spent?
+> 
+
+I should have been more specific about the test I did. The full script looks like this:
+
+mkdir -p /sys/fs/cgroup/memory/test
+echo $$ > /sys/fs/cgroup/memory/test/tasks
+cat 4G_file > /dev/null
+while true; do cat 4G_file > /dev/null; done &
+loop_pid=$!
+perf stat echo 50M > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+echo -1 > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+kill $loop_pid
+
+
+I think the additional loops add some overhead and it's not that big by itself, but
+this small overhead allows task to refill slightly more pages, increasing
+the total amount of pages that mem_cgroup_resize_limit() need to reclaim.
+
+By using the following commands to show the the amount of reclaimed pages:
+perf record -e vmscan:mm_vmscan_memcg_reclaim_end echo 50M > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+perf script|cut -d '=' -f 2| paste -sd+ |bc
+
+I've got 1259841 pages (4.9G) with the patch vs 1394312 pages (5.4G) without it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
