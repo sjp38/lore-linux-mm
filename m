@@ -1,115 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E3B5D6B0298
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 04:14:54 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id k19so2161479otj.6
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 01:14:54 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id k68si549166oiy.370.2018.02.22.01.14.53
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 081F26B02A2
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 04:15:51 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id b67so3511160qkh.5
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 01:15:51 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id q20si4672245qte.332.2018.02.22.01.15.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Feb 2018 01:14:53 -0800 (PST)
-Subject: Re: [PATCH 2/6] genalloc: selftest
-References: <20180212165301.17933-1-igor.stoppa@huawei.com>
- <20180212165301.17933-3-igor.stoppa@huawei.com>
- <CAGXu5jJNERp-yni1jdqJRYJ82xrP7=_O1vkxG1sJ-b8CxudP9g@mail.gmail.com>
- <f33112e4-608f-ae8c-bf88-80ef83b61398@huawei.com>
- <CAGXu5jLeC285BGDW29aHgFZRV6CnqBmmkZULW2pzYmqd0pe9UQ@mail.gmail.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <fb001cd0-7f37-394f-f926-f5b98365b4b8@huawei.com>
-Date: Thu, 22 Feb 2018 11:14:25 +0200
+        Thu, 22 Feb 2018 01:15:50 -0800 (PST)
+Date: Thu, 22 Feb 2018 17:15:46 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH v2 0/3] mm/sparse: Optimize memmap allocation during
+ sparse_init()
+Message-ID: <20180222091546.GA693@localhost.localdomain>
+References: <20180222091130.32165-1-bhe@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jLeC285BGDW29aHgFZRV6CnqBmmkZULW2pzYmqd0pe9UQ@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180222091130.32165-1-bhe@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@infradead.org>, Christoph
- Lameter <cl@linux.com>, linux-security-module <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: linux-kernel@vger.kernel.org, dave.hansen@intel.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, tglx@linutronix.de
 
-
-
-On 22/02/18 00:28, Kees Cook wrote:
-> On Tue, Feb 20, 2018 at 8:59 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
->>
->>
->> On 13/02/18 01:50, Kees Cook wrote:
->>> On Mon, Feb 12, 2018 at 8:52 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
-
-[...]
-
->>>> +       genalloc_selftest();
->>>
->>> I wonder if it's possible to make this module-loadable instead? That
->>> way it could be built and tested separately.
->>
->> In my case modules are not an option.
->> Of course it could be still built in, but what is the real gain?
+On 02/22/18 at 05:11pm, Baoquan He wrote:
+> This is v2 post. V1 can be found here:
+> https://www.spinics.net/lists/linux-mm/msg144486.html
 > 
-> The gain for it being a module is that it can be loaded and tested
-> separately from the final kernel image and module collection. For
-> example, Chrome OS builds lots of debugging test modules but doesn't
-> include them on the final image. They're only used for testing, and
-> can be separate from the kernel and "production" modules.
-
-ok
-
+> In sparse_init(), two temporary pointer arrays, usemap_map and map_map
+> are allocated with the size of NR_MEM_SECTIONS. They are used to store
+> each memory section's usemap and mem map if marked as present. In
+> 5-level paging mode, this will cost 512M memory though they will be
+> released at the end of sparse_init(). System with few memory, like
+> kdump kernel which usually only has about 256M, will fail to boot
+> because of allocation failure if CONFIG_X86_5LEVEL=y.
 > 
->> [...]
->>
->>>> +       BUG_ON(compare_bitmaps(pool, action->pattern));
->>>
->>> There's been a lot recently on BUG vs WARN. It does seem crazy to not
->>> BUG for an allocator selftest, but if we can avoid it, we should.
->>
->> If this fails, I would expect that memory corruption is almost guaranteed.
->> Do we really want to allow the boot to continue, possibly mounting a
->> filesystem, only to corrupt it? It seems very dangerous.
-> 
-> I would include the rationale in either a comment or the commit log.
-> BUG() tends to need to be very well justified these days.
+> In this patchset, optimize the memmap allocation code to only use
+> usemap_map and map_map with the size of nr_present_sections. This
+> makes kdump kernel boot up with normal crashkernel='' setting when
+> CONFIG_X86_5LEVEL=y.
 
-ok
+Sorry, forgot adding the change log.
+
+v1-v2:
+  Split out the nr_present_sections adding as a single patch for easier
+  reviewing.
+
+  Rewrite patch log according to Dave's suggestion.
+
+  Fix code bug in patch 0002 reported by test robot.
 
 > 
->>> Also, I wonder if it might make sense to split this series up a little
->>> more, as in:
->>>
->>> 1/n: add genalloc selftest
->>> 2/n: update bitmaps
->>> 3/n: add/change bitmap tests to selftest
-
-[...]
-
-> I'll leave it up to the -mm folks, but that was just my thought.
-
-The reasons why I have doubts about your proposal are:
-
-1) leaving 2/n and 3/n separate mean that the selftest could be broken,
-if one does bisections with selftest enabled
-
-2) since I would need to change the selftest, to make it work with the
-updated bitmap, it would not really prove that the change is correct.
-
-If there was a selftest that can work without changes, after the bitmap
-update, I would definitely agree to introduce it first.
-
-OTOH, as I wrote, the bitmap patch itself is already introducing
-verification of the calculated value (from the bitmap) against the
-provided value (from the call parameters).
-
-This, unfortunately, cannot be split, because it still relies on the
-"find end of the allocation" capability introduced by the very same patch.
-
-Anyway, putting aside concerns about the verification of the correctness
-of the patch, I still see point #1 as a problem: breaking bisectability.
-
-Or did I not understand correctly how this works?
-
---
-igor
+> Baoquan He (3):
+>   mm/sparse: Add a static variable nr_present_sections
+>   mm/sparsemem: Defer the ms->section_mem_map clearing
+>   mm/sparse: Optimize memmap allocation during sparse_init()
+> 
+>  mm/sparse-vmemmap.c |  9 +++++----
+>  mm/sparse.c         | 54 +++++++++++++++++++++++++++++++++++------------------
+>  2 files changed, 41 insertions(+), 22 deletions(-)
+> 
+> -- 
+> 2.13.6
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
