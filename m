@@ -1,144 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D72D06B028B
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 00:27:12 -0500 (EST)
-Received: by mail-yw0-f198.google.com with SMTP id v19so2427874ywg.3
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 21:27:12 -0800 (PST)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id k196sor134681ybk.115.2018.02.21.21.27.11
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F0696B028C
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 00:51:41 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id o23so3000509wrc.9
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 21:51:41 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w79sor5976620wrb.12.2018.02.21.21.51.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 21 Feb 2018 21:27:11 -0800 (PST)
+        Wed, 21 Feb 2018 21:51:40 -0800 (PST)
+Date: Thu, 22 Feb 2018 06:51:35 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v12 01/22] selftests/x86: Move protecton key selftest to
+ arch neutral directory
+Message-ID: <20180222055135.6m43xt3mt47sz37q@gmail.com>
+References: <1519264541-7621-1-git-send-email-linuxram@us.ibm.com>
+ <1519264541-7621-2-git-send-email-linuxram@us.ibm.com>
 MIME-Version: 1.0
-Date: Wed, 21 Feb 2018 21:26:59 -0800
-In-Reply-To: <20180222052659.106016-1-dancol@google.com>
-Message-Id: <20180222052659.106016-3-dancol@google.com>
-References: <20180222052659.106016-1-dancol@google.com>
-Subject: [PATCH 2/2] Add LockedRss/LockedPrivate to smaps and smaps_rollup
-From: Daniel Colascione <dancol@google.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1519264541-7621-2-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Daniel Colascione <dancol@google.com>
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@redhat.com, akpm@linux-foundation.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, arnd@arndb.de
 
-These additional fields in smaps make it easy to analyze a processes's
-contribution to locked memory without having to manually filter and
-sum entries from smaps. VmLck from /proc/pid/status isn't quite right,
-because it reflects the number of potentially locked pages in lockable
-VMAs, not the number of pages actually pinned.
 
-Signed-off-by: Daniel Colascione <dancol@google.com>
----
- Documentation/filesystems/proc.txt |  7 ++++++-
- fs/proc/task_mmu.c                 | 20 +++++++++++++++++---
- 2 files changed, 23 insertions(+), 4 deletions(-)
+* Ram Pai <linuxram@us.ibm.com> wrote:
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 2a84bb334894..e87350400cd9 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -425,6 +425,7 @@ SwapPss:               0 kB
- KernelPageSize:        4 kB
- MMUPageSize:           4 kB
- Locked:                0 kB
-+LockedRss:             0 kB
- VmFlags: rd ex mr mw me dw
- 
- the first of these lines shows the same information as is displayed for the
-@@ -461,7 +462,11 @@ For shmem mappings, "Swap" includes also the size of the mapped (and not
- replaced by copy-on-write) part of the underlying shmem object out on swap.
- "SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
- does not take into account swapped out page of underlying shmem objects.
--"Locked" indicates whether the mapping is locked in memory or not.
-+"Locked" contains the PSS for locked mappings; "LockedRss" contains the
-+amount resident and locked memory in the given mapping. That is, "Locked"
-+depends on other processes also potentially mapping the given memory, while
-+"LockedRss" is invariant. "LockedPrivate" is like "LockedRss", but counts only
-+the pages unique to the process.
- 
- "VmFlags" field deserves a separate description. This member represents the kernel
- flags associated with the particular virtual memory area in two letter encoded
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 5e95f7eaf145..598a7f855ad1 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -459,6 +459,8 @@ struct mem_size_stats {
- 	unsigned long shared_hugetlb;
- 	unsigned long private_hugetlb;
- 	unsigned long first_vma_start;
-+	unsigned long resident_locked;
-+	unsigned long private_locked;
- 	u64 pss;
- 	u64 pss_locked;
- 	u64 swap_pss;
-@@ -472,6 +474,7 @@ static void smaps_account(struct mem_size_stats *mss,
- 	int i, nr = compound ? 1 << compound_order(page) : 1;
- 	unsigned long size = nr * PAGE_SIZE;
- 	u64 pss_add = 0;
-+	bool locked = vma->vm_flags & VM_LOCKED;
- 
- 	if (PageAnon(page)) {
- 		mss->anonymous += size;
-@@ -480,6 +483,9 @@ static void smaps_account(struct mem_size_stats *mss,
- 	}
- 
- 	mss->resident += size;
-+	if (locked)
-+		mss->resident_locked += size;
-+
- 	/* Accumulate the size in pages that have been accessed. */
- 	if (young || page_is_young(page) || PageReferenced(page))
- 		mss->referenced += size;
-@@ -495,6 +501,8 @@ static void smaps_account(struct mem_size_stats *mss,
- 		else
- 			mss->private_clean += size;
- 		pss_add += (u64)size << PSS_SHIFT;
-+		if (locked)
-+			mss->private_locked += size;
- 		goto done;
- 	}
- 
-@@ -513,12 +521,14 @@ static void smaps_account(struct mem_size_stats *mss,
- 			else
- 				mss->private_clean += PAGE_SIZE;
- 			pss_add += PAGE_SIZE << PSS_SHIFT;
-+			if (locked)
-+				mss->private_locked += size;
- 		}
- 	}
- 
- done:
- 	mss->pss += pss_add;
--	if (vma->vm_flags & VM_LOCKED)
-+	if (locked)
- 		mss->pss_locked += pss_add;
- }
- 
-@@ -859,7 +869,9 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 			   "Private_Hugetlb: %7lu kB\n"
- 			   "Swap:           %8lu kB\n"
- 			   "SwapPss:        %8lu kB\n"
--			   "Locked:         %8lu kB\n",
-+			   "Locked:         %8lu kB\n"
-+			   "LockedRss:      %8lu kB\n"
-+			   "LockedPrivate:  %8lu kB\n",
- 			   mss->resident >> 10,
- 			   (unsigned long)(mss->pss >> (10 + PSS_SHIFT)),
- 			   mss->shared_clean  >> 10,
-@@ -875,7 +887,9 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 			   mss->private_hugetlb >> 10,
- 			   mss->swap >> 10,
- 			   (unsigned long)(mss->swap_pss >> (10 + PSS_SHIFT)),
--			   (unsigned long)(mss->pss_locked >> (10 + PSS_SHIFT)));
-+			   (unsigned long)(mss->pss_locked >> (10 + PSS_SHIFT)),
-+			   mss->resident_locked >> 10,
-+			   mss->private_locked >> 10);
- 
- 	if (!rollup_mode) {
- 		arch_show_smap(m, vma);
--- 
-2.16.1.291.g4437f3f132-goog
+> cc: Dave Hansen <dave.hansen@intel.com>
+> cc: Florian Weimer <fweimer@redhat.com>
+> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> ---
+>  tools/testing/selftests/vm/Makefile           |    1 +
+>  tools/testing/selftests/vm/pkey-helpers.h     |  223 ++++
+>  tools/testing/selftests/vm/protection_keys.c  | 1407 +++++++++++++++++++++++++
+>  tools/testing/selftests/x86/Makefile          |    2 +-
+>  tools/testing/selftests/x86/pkey-helpers.h    |  223 ----
+>  tools/testing/selftests/x86/protection_keys.c | 1407 -------------------------
+>  6 files changed, 1632 insertions(+), 1631 deletions(-)
+>  create mode 100644 tools/testing/selftests/vm/pkey-helpers.h
+>  create mode 100644 tools/testing/selftests/vm/protection_keys.c
+>  delete mode 100644 tools/testing/selftests/x86/pkey-helpers.h
+>  delete mode 100644 tools/testing/selftests/x86/protection_keys.c
+
+Acked-by: Ingo Molnar <mingo@kernel.org>
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
