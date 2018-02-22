@@ -1,69 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 081F26B02A2
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 04:15:51 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id b67so3511160qkh.5
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 01:15:51 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q20si4672245qte.332.2018.02.22.01.15.50
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EE8E76B029D
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 04:27:10 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id o23so3262923wrc.9
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 01:27:10 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id t193si17423769wmt.149.2018.02.22.01.27.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Feb 2018 01:15:50 -0800 (PST)
-Date: Thu, 22 Feb 2018 17:15:46 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCH v2 0/3] mm/sparse: Optimize memmap allocation during
- sparse_init()
-Message-ID: <20180222091546.GA693@localhost.localdomain>
-References: <20180222091130.32165-1-bhe@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 22 Feb 2018 01:27:09 -0800 (PST)
+Date: Thu, 22 Feb 2018 10:26:54 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 00/13] Remove metag architecture
+Message-ID: <20180222092654.GN25201@hirez.programming.kicks-ass.net>
+References: <20180221233825.10024-1-jhogan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180222091130.32165-1-bhe@redhat.com>
+In-Reply-To: <20180221233825.10024-1-jhogan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, dave.hansen@intel.com
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, tglx@linutronix.de
+To: James Hogan <jhogan@kernel.org>
+Cc: linux-metag@vger.kernel.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, Jonathan Corbet <corbet@lwn.net>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Jason Cooper <jason@lakedaemon.net>, Marc Zyngier <marc.zyngier@arm.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Linus Walleij <linus.walleij@linaro.org>, Wim Van Sebroeck <wim@linux-watchdog.org>, Mauro Carvalho Chehab <mchehab@s-opensource.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Wolfram Sang <wsa@the-dreams.de>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-gpio@vger.kernel.org, linux-watchdog@vger.kernel.org, linux-media@vger.kernel.org, linux-i2c@vger.kernel.org
 
-On 02/22/18 at 05:11pm, Baoquan He wrote:
-> This is v2 post. V1 can be found here:
-> https://www.spinics.net/lists/linux-mm/msg144486.html
-> 
-> In sparse_init(), two temporary pointer arrays, usemap_map and map_map
-> are allocated with the size of NR_MEM_SECTIONS. They are used to store
-> each memory section's usemap and mem map if marked as present. In
-> 5-level paging mode, this will cost 512M memory though they will be
-> released at the end of sparse_init(). System with few memory, like
-> kdump kernel which usually only has about 256M, will fail to boot
-> because of allocation failure if CONFIG_X86_5LEVEL=y.
-> 
-> In this patchset, optimize the memmap allocation code to only use
-> usemap_map and map_map with the size of nr_present_sections. This
-> makes kdump kernel boot up with normal crashkernel='' setting when
-> CONFIG_X86_5LEVEL=y.
+On Wed, Feb 21, 2018 at 11:38:12PM +0000, James Hogan wrote:
+> So lets call it a day and drop the Meta architecture port from the
+> kernel. RIP Meta.
 
-Sorry, forgot adding the change log.
+So long, and thanks for all the fish!
 
-v1-v2:
-  Split out the nr_present_sections adding as a single patch for easier
-  reviewing.
+Nice cleanup though, most welcome :-)
 
-  Rewrite patch log according to Dave's suggestion.
-
-  Fix code bug in patch 0002 reported by test robot.
-
-> 
-> Baoquan He (3):
->   mm/sparse: Add a static variable nr_present_sections
->   mm/sparsemem: Defer the ms->section_mem_map clearing
->   mm/sparse: Optimize memmap allocation during sparse_init()
-> 
->  mm/sparse-vmemmap.c |  9 +++++----
->  mm/sparse.c         | 54 +++++++++++++++++++++++++++++++++++------------------
->  2 files changed, 41 insertions(+), 22 deletions(-)
-> 
-> -- 
-> 2.13.6
-> 
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
