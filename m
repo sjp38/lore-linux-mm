@@ -1,52 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 590C46B02E2
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 09:20:55 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id g13so3540578wrh.23
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 06:20:55 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id 123si305101wmo.252.2018.02.22.06.20.53
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DE1A6B02E4
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 09:48:52 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id 4so2414961plb.1
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 06:48:52 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p1-v6si139469plb.760.2018.02.22.06.48.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Feb 2018 06:20:53 -0800 (PST)
-Subject: Re: [PATCH 3/6] struct page: add field for vm_struct
-From: Igor Stoppa <igor.stoppa@huawei.com>
-References: <20180211031920.3424-1-igor.stoppa@huawei.com>
- <20180211031920.3424-4-igor.stoppa@huawei.com>
- <20180211211646.GC4680@bombadil.infradead.org>
- <cef01110-dc23-4442-f277-88d1d3662e00@huawei.com>
- <b59546a4-5a5b-ca48-3b51-09440b6a5493@huawei.com>
- <20180220205442.GA15973@bombadil.infradead.org>
- <c4c805ed-5869-81c2-4c05-cf53bfbef168@huawei.com>
-Message-ID: <bc62d1e7-96ec-d8c5-3149-9dd1922555e4@huawei.com>
-Date: Thu, 22 Feb 2018 16:20:23 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Feb 2018 06:48:50 -0800 (PST)
+Date: Thu, 22 Feb 2018 15:48:44 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
+Message-ID: <20180222144844.g4p2diu3cnbr7sx3@quack2.suse.cz>
+References: <20180221030101.221206-1-shakeelb@google.com>
+ <20180221030101.221206-4-shakeelb@google.com>
+ <20180222134944.GK30681@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <c4c805ed-5869-81c2-4c05-cf53bfbef168@huawei.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180222134944.GK30681@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: rdunlap@infradead.org, corbet@lwn.net, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, jglisse@redhat.com, hch@infradead.org, cl@linux.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Shakeel Butt <shakeelb@google.com>, Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 21/02/18 14:01, Igor Stoppa wrote:
-
-> it seems to return garbage also without this patch, but I need to clean
-> up the code, try it again and possibly come up with a demo patch for
-> triggering the problem.
+On Thu 22-02-18 14:49:44, Michal Hocko wrote:
+> On Tue 20-02-18 19:01:01, Shakeel Butt wrote:
+> > A lot of memory can be consumed by the events generated for the huge or
+> > unlimited queues if there is either no or slow listener. This can cause
+> > system level memory pressure or OOMs. So, it's better to account the
+> > fsnotify kmem caches to the memcg of the listener.
 > 
-> I'll investigate it more. However it doesn't seem to be related to the
-> functionality I need. So I plan to treat it as separate issue and leave
-> find_vm_area untouched, at least in pmalloc scope.
+> How much memory are we talking about here?
 
+32 bytes per event (on 64-bit) which is small but the number of events is
+not limited in any way (if the creator uses a special flag and has
+CAP_SYS_ADMIN). In the thread [1] a guy from Alibaba wanted this feature so
+among cloud people there is apparently some demand to have a way to limit
+memory usage of such application...
 
-Follow-up:
+> > There are seven fsnotify kmem caches and among them allocations from
+> > dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
+> > inotify_inode_mark_cachep happens in the context of syscall from the
+> > listener. So, SLAB_ACCOUNT is enough for these caches.
+> > 
+> > The objects from fsnotify_mark_connector_cachep are not accounted as
+> > they are small compared to the notification mark or events and it is
+> > unclear whom to account connector to since it is shared by all events
+> > attached to the inode.
+> > 
+> > The allocations from the event caches happen in the context of the event
+> > producer. For such caches we will need to remote charge the allocations
+> > to the listener's memcg. Thus we save the memcg reference in the
+> > fsnotify_group structure of the listener.
+> 
+> Is it typical that the listener lives in a different memcg and if yes
+> then cannot this cause one memcg to OOM/DoS the one with the listener?
 
-https://lkml.org/lkml/2018/2/22/427
+We have been through these discussions already in [1] back in November :).
+I can understand the wish to limit memory usage of an application using
+unlimited fanotify queues. And yes, it may mean that it will be easier for
+an attacker to get it oom-killed (currently the malicious app would drive
+the whole system oom which will presumably take a bit more effort as there
+is more memory to consume). But then I expect this is what admin prefers
+when he limits memory usage of fanotify listener.
 
---
-igor
+I cannot tell how common it is for producer and listener to be in different
+memcgs. From Alibaba request it seems it happens...
+
+								Honza
+
+[1] https://lkml.org/lkml/2017/10/27/523
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
