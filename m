@@ -1,82 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 52C3B6B02EE
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 11:01:32 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id x6so2489193plr.7
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:01:32 -0800 (PST)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00098.outbound.protection.outlook.com. [40.107.0.98])
-        by mx.google.com with ESMTPS id g4-v6si240724plo.122.2018.02.22.08.01.30
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 728506B02F0
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 11:23:43 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id z2so5102640ite.5
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:23:43 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id t21sor262419ioa.127.2018.02.22.08.23.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 22 Feb 2018 08:01:31 -0800 (PST)
-Subject: Re: [PATCH v5 2/2] mm/memcontrol.c: Reduce reclaim retries in
- mem_cgroup_resize_limit()
-References: <20180119132544.19569-2-aryabinin@virtuozzo.com>
- <20180119133510.GD6584@dhcp22.suse.cz>
- <CALvZod7HS6P0OU6Rps8JeMJycaPd4dF5NjxV8k1y2-yosF2bdA@mail.gmail.com>
- <20180119151118.GE6584@dhcp22.suse.cz>
- <20180221121715.0233d34dda330c56e1a9db5f@linux-foundation.org>
- <f3893181-67a4-aec2-9514-f141fa78a6c0@virtuozzo.com>
- <20180222140932.GL30681@dhcp22.suse.cz>
- <e0705720-0909-e224-4bdd-481660e516f2@virtuozzo.com>
- <20180222153343.GN30681@dhcp22.suse.cz>
- <0927bcab-7e2c-c6f9-d16a-315ac436ba98@virtuozzo.com>
- <20180222154435.GO30681@dhcp22.suse.cz>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <bf4a40fb-0a24-bfcb-124f-15e5e2f87b67@virtuozzo.com>
-Date: Thu, 22 Feb 2018 19:01:58 +0300
+        (Google Transport Security);
+        Thu, 22 Feb 2018 08:23:42 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180222154435.GO30681@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180222094009.GO25201@hirez.programming.kicks-ass.net>
+References: <20180205220325.197241-1-dancol@google.com> <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
+ <20180222001635.GB27147@rodete-desktop-imager.corp.google.com>
+ <CAKOZuetc7DepPPO6DmMp9APNz5+8+KansNBr_ijuuyCTu=v1mg@mail.gmail.com>
+ <20180222020633.GC27147@rodete-desktop-imager.corp.google.com> <20180222094009.GO25201@hirez.programming.kicks-ass.net>
+From: Daniel Colascione <dancol@google.com>
+Date: Thu, 22 Feb 2018 08:23:40 -0800
+Message-ID: <CAKOZueuPh5OA_sBTNgHdx5+UYCGcUm_n3fwwVuYGXhi2C0jjqg@mail.gmail.com>
+Subject: Re: [PATCH] Synchronize task mm counters on context switch
+Content-Type: multipart/alternative; boundary="001a113fc1b8842faa0565cf7704"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Michal Hocko <mhocko@suse.com>
+
+--001a113fc1b8842faa0565cf7704
+Content-Type: text/plain; charset="UTF-8"
+
+On Feb 22, 2018 1:40 AM, "Peter Zijlstra" <peterz@infradead.org> wrote:
+
+On Thu, Feb 22, 2018 at 11:06:33AM +0900, Minchan Kim wrote:
+> On Wed, Feb 21, 2018 at 04:23:43PM -0800, Daniel Colascione wrote:
+> >  kernel/sched/core.c | 3 +++
+> >  1 file changed, 3 insertions(+)
+> >
+> > diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> > index a7bf32aabfda..7f197a7698ee 100644
+> > --- a/kernel/sched/core.c
+> > +++ b/kernel/sched/core.c
+> > @@ -3429,6 +3429,9 @@ asmlinkage __visible void __sched schedule(void)
+> >         struct task_struct *tsk = current;
+> >
+> >         sched_submit_work(tsk);
+> > +       if (tsk->mm)
+> > +               sync_mm_rss(tsk->mm);
+> > +
+> >         do {
+> >                 preempt_disable();
+> >                 __schedule(false);
+> >
+
+Obviously I completely hate that; and you really _should_ have Cc'ed me
+earlier ;-)
 
 
+I thought I might get a reaction like that. :-)
 
-On 02/22/2018 06:44 PM, Michal Hocko wrote:
-> On Thu 22-02-18 18:38:11, Andrey Ryabinin wrote:
 
->>>>
->>>> with the patch:
->>>> best: 1.04  secs, 9.7G reclaimed
->>>> worst: 2.2 secs, 16G reclaimed.
->>>>
->>>> without:
->>>> best: 5.4 sec, 35G reclaimed
->>>> worst: 22.2 sec, 136G reclaimed
->>>
->>> Could you also compare how much memory do we reclaim with/without the
->>> patch?
->>>
->>
->> I did and I wrote the results. Please look again.
-> 
-> I must have forgotten. Care to point me to the message-id?
+That it still well over 100 cycles in the case when all counters did
+change. Far _far_ more if the mm counters are contended (up to 150 times
+more is quite possible).
 
-The results are quoted right above, literally above. Raise your eyes up. message-id 0927bcab-7e2c-c6f9-d16a-315ac436ba98@virtuozzo.com
 
-I write it here again:
+I suppose it doesn't help to sync the counters only when dirty, detecting
+this situation with a task status flag or something?
 
-with the patch:
- best: 9.7G reclaimed
- worst: 16G reclaimed
+> > > > Ping? Is this approach just a bad idea? We could instead just
+manually sync
+> > > > all mm-attached tasks at counter-retrieval time.
+> > >
+> > > IMHO, yes, it should be done when user want to see which would be
+really
+> > > cold path while this shecule function is hot.
+> > >
+> >
+> > The problem with doing it that way is that we need to look at each task
+> > attached to a particular mm. AFAIK (and please tell me if I'm wrong),
+the
+> > only way to do that is to iterate over all processes, and for each
+process
+> > attached to the mm we want, iterate over all its tasks (since each one
+has
+> > to have the same mm, I think). Does that sound right?
 
-without:
- best: 35G reclaimed
- worst: 136G reclaimed
+You could just iterate the thread group and call it a day. Yes strictly
+speaking its possible to have mm's shared outside the thread group,
+practically that 'never' happens.
 
-Or you asking about something else? If so, I don't understand what you want.
+CLONE_VM without CLONE_THREAD just isn't a popular thing afaik.
 
-> 20180119132544.19569-2-aryabinin@virtuozzo.com doesn't contain this
-> information and a quick glance over the follow up thread doesn't have
-> anything as well. Ideally, this should be in the patch changelog, btw.
-> 
+So while its not perfect, it might well be good enough.
 
-Well, I did these measurements only today and I don't have time machine.
+
+Take a look at the other patch I posted. Seems to work.
+
+--001a113fc1b8842faa0565cf7704
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"auto"><div><div class=3D"gmail_extra"><div class=3D"gmail_quote=
+">On Feb 22, 2018 1:40 AM, &quot;Peter Zijlstra&quot; &lt;<a href=3D"mailto=
+:peterz@infradead.org">peterz@infradead.org</a>&gt; wrote:<br type=3D"attri=
+bution"><blockquote class=3D"quote" style=3D"margin:0 0 0 .8ex;border-left:=
+1px #ccc solid;padding-left:1ex"><div class=3D"quoted-text">On Thu, Feb 22,=
+ 2018 at 11:06:33AM +0900, Minchan Kim wrote:<br>
+&gt; On Wed, Feb 21, 2018 at 04:23:43PM -0800, Daniel Colascione wrote:<br>
+</div><div class=3D"quoted-text">&gt; &gt;=C2=A0 kernel/sched/core.c | 3 ++=
++<br>
+&gt; &gt;=C2=A0 1 file changed, 3 insertions(+)<br>
+&gt; &gt;<br>
+&gt; &gt; diff --git a/kernel/sched/core.c b/kernel/sched/core.c<br>
+&gt; &gt; index a7bf32aabfda..7f197a7698ee 100644<br>
+&gt; &gt; --- a/kernel/sched/core.c<br>
+&gt; &gt; +++ b/kernel/sched/core.c<br>
+&gt; &gt; @@ -3429,6 +3429,9 @@ asmlinkage __visible void __sched schedule(=
+void)<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct task_struct *tsk =3D curr=
+ent;<br>
+&gt; &gt;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0sched_submit_work(tsk);<br>
+&gt; &gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0if (tsk-&gt;mm)<br>
+&gt; &gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0sync_mm_r=
+ss(tsk-&gt;mm);<br>
+&gt; &gt; +<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0do {<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pree=
+mpt_disable();<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__sc=
+hedule(false);<br>
+&gt; &gt;<br>
+<br>
+</div>Obviously I completely hate that; and you really _should_ have Cc&#39=
+;ed me<br>
+earlier ;-)<br></blockquote></div></div></div><div dir=3D"auto"><br></div><=
+div dir=3D"auto">I thought I might get a reaction like that. :-)</div><div =
+dir=3D"auto"><div class=3D"gmail_extra"><div class=3D"gmail_quote"><blockqu=
+ote class=3D"quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;p=
+adding-left:1ex">
+<br>
+That it still well over 100 cycles in the case when all counters did<br>
+change. Far _far_ more if the mm counters are contended (up to 150 times<br=
+>
+more is quite possible).<br></blockquote></div></div></div><div dir=3D"auto=
+"><br></div><div dir=3D"auto">I suppose it doesn&#39;t help to sync the cou=
+nters only when dirty, detecting this situation with a task status flag or =
+something?</div><div dir=3D"auto"><br></div><div dir=3D"auto"><div class=3D=
+"gmail_extra"><div class=3D"gmail_quote"><blockquote class=3D"quote" style=
+=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div cla=
+ss=3D"quoted-text">
+&gt; &gt; &gt; &gt; Ping? Is this approach just a bad idea? We could instea=
+d just manually sync<br>
+&gt; &gt; &gt; &gt; all mm-attached tasks at counter-retrieval time.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; IMHO, yes, it should be done when user want to see which wou=
+ld be really<br>
+&gt; &gt; &gt; cold path while this shecule function is hot.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; The problem with doing it that way is that we need to look at eac=
+h task<br>
+&gt; &gt; attached to a particular mm. AFAIK (and please tell me if I&#39;m=
+ wrong), the<br>
+&gt; &gt; only way to do that is to iterate over all processes, and for eac=
+h process<br>
+&gt; &gt; attached to the mm we want, iterate over all its tasks (since eac=
+h one has<br>
+&gt; &gt; to have the same mm, I think). Does that sound right?<br>
+<br>
+</div>You could just iterate the thread group and call it a day. Yes strict=
+ly<br>
+speaking its possible to have mm&#39;s shared outside the thread group,<br>
+practically that &#39;never&#39; happens.=C2=A0<br>
+<br>
+CLONE_VM without CLONE_THREAD just isn&#39;t a popular thing afaik.<br>
+<br>
+So while its not perfect, it might well be good enough.<br></blockquote></d=
+iv></div></div><div dir=3D"auto"><br></div><div dir=3D"auto">Take a look at=
+ the other patch I posted. Seems to work.=C2=A0</div><div dir=3D"auto"><div=
+ class=3D"gmail_extra"><div class=3D"gmail_quote"><blockquote class=3D"quot=
+e" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+</blockquote></div><br></div></div></div>
+
+--001a113fc1b8842faa0565cf7704--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
