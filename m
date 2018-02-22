@@ -1,90 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7440B6B0006
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 17:01:39 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q15so2703379pgv.2
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 14:01:39 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u194sor249713pgc.31.2018.02.22.14.01.37
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B46546B0003
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 17:22:45 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y68so323143pfy.20
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 14:22:45 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id n68si587247pgn.336.2018.02.22.14.22.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 22 Feb 2018 14:01:37 -0800 (PST)
-Date: Fri, 23 Feb 2018 09:01:23 +1100
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: virtual memory limits control (was Re: [Lsf-pc] [LSF/MM ATTEND]
- Attend mm summit 2018)
-Message-ID: <20180223090123.74248146@balbir.ozlabs.ibm.com>
-In-Reply-To: <20180222133425.GI30681@dhcp22.suse.cz>
-References: <CAKTCnz=rS14Ry7pOC2qiX5wEbRZCKwP_0u7_ncanoV18Gz9=AQ@mail.gmail.com>
-	<20180222130341.GF30681@dhcp22.suse.cz>
-	<CAKTCnzmsEhMYnAOtN+BtN_6bEa=+fTRYSjB+OR9isfzRruwA_Q@mail.gmail.com>
-	<20180222133425.GI30681@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Feb 2018 14:22:44 -0800 (PST)
+Subject: Re: [PATCH v2 3/3] mm/sparse: Optimize memmap allocation during
+ sparse_init()
+References: <20180222091130.32165-1-bhe@redhat.com>
+ <20180222091130.32165-4-bhe@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <34593e3f-879b-cdf9-9dc4-a114e4bfab52@intel.com>
+Date: Thu, 22 Feb 2018 14:22:43 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180222091130.32165-4-bhe@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, lsf-pc <lsf-pc@lists.linux-foundation.org>
+To: Baoquan He <bhe@redhat.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, tglx@linutronix.de
 
-Changed the subject to reflect the discussion
+First of all, this is a much-improved changelog.  Thanks for that!
 
-On Thu, 22 Feb 2018 14:34:25 +0100
-Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Fri 23-02-18 00:23:53, Balbir Singh wrote:
-> > On Fri, Feb 23, 2018 at 12:03 AM, Michal Hocko <mhocko@kernel.org> wrote:  
-> > > On Thu 22-02-18 13:54:46, Balbir Singh wrote:
-> > > [...]  
-> > >> 2. Memory cgroups - I don't see a pressing need for many new features,
-> > >> but I'd like to see if we can revive some old proposals around virtual
-> > >> memory limits  
-> > >
-> > > Could you be more specific about usecase(s)?  
-> > 
-> > I had for a long time a virtual memory limit controller in -mm tree.
-> > The use case was to fail allocations as opposed to OOM'ing in the
-> > worst case as we do with the cgroup memory limits (actual page usage
-> > control). I did not push for it then since I got side-tracked. I'd
-> > like to pursue a use case for being able to fail allocations as
-> > opposed to OOM'ing on a per cgroup basis. I'd like to start the
-> > discussion again.  
+On 02/22/2018 01:11 AM, Baoquan He wrote:
+> In sparse_init(), two temporary pointer arrays, usemap_map and map_map
+> are allocated with the size of NR_MEM_SECTIONS. They are used to store
+> each memory section's usemap and mem map if marked as present. With
+> the help of these two arrays, continuous memory chunk is allocated for
+> usemap and memmap for memory sections on one node. This avoids too many
+> memory fragmentations. Like below diagram, '1' indicates the present
+> memory section, '0' means absent one. The number 'n' could be much
+> smaller than NR_MEM_SECTIONS on most of systems.
 > 
-> So you basically want the strict no overcommit on the per memcg level?
-
-I don't think it implies strict no overcommit, the value sets the
-overcommit ratio (independent of the global vm.overcommit_ratio, which
-we can discuss on the side, since I don't want it to impact the use
-case).
-
-The goal of the controller was  (and its optional, may not work well
-for sparse address spaces)
-
-1. set the vm limit
-2. If the limit is exceeded, fail at malloc()/mmap() as opposed to
-OOM'ing at page fault time
-3. Application handles the fault and decide not to proceed with the
-new task that needed more memory
-
-I think this leads to applications being able to deal with failures
-better. OOM is a big hammer
-
-> I am really skeptical, to be completely honest. The global behavior is
-> not very usable in most cases already. Making it per-memcg will just
-> amplify all the issues (application tend to overcommit their virtual
-> address space). Not to mention that you cannot really prevent from the
-> OOM killer because there are allocations outside of the address space.
+> |1|1|1|1|0|0|0|0|1|1|0|0|...|1|0||1|0|...|1||0|1|...|0|
+> -------------------------------------------------------
+>  0 1 2 3         4 5         i   i+1     n-1   n
 > 
+> If fail to populate the page tables to map one section's memmap, its
+> ->section_mem_map will be cleared finally to indicate that it's not present.
+> After use, these two arrays will be released at the end of sparse_init().
 
-Could you clarify on the outside address space -- as in shared
-allocations outside the cgroup?  kernel allocations as a side-effect?
+Let me see if I understand this.  tl;dr version of this changelog:
 
-> So if you want to push this forward you really need a very good existing
-> usecase to justifiy the change.
+Today, we allocate usemap and mem_map for all sections up front and then
+free them later if they are not needed.  With 5-level paging, this eats
+all memory and we fall over before we can free them.  Fix it by only
+allocating what we _need_ (nr_present_sections).
 
-I want to start the discussion again.
 
-Balbir Singh.
+> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+> index 640e68f8324b..f83723a49e47 100644
+> --- a/mm/sparse-vmemmap.c
+> +++ b/mm/sparse-vmemmap.c
+> @@ -281,6 +281,7 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  	unsigned long pnum;
+>  	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
+>  	void *vmemmap_buf_start;
+> +	int i = 0;
+
+'i' is a criminally negligent variable name for how it is used here.
+
+>  	size = ALIGN(size, PMD_SIZE);
+>  	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size * map_count,
+> @@ -291,14 +292,15 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  		vmemmap_buf_end = vmemmap_buf_start + size * map_count;
+>  	}
+>  
+> -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> +	for (pnum = pnum_begin; pnum < pnum_end && i < map_count; pnum++) {
+>  		struct mem_section *ms;
+>  
+>  		if (!present_section_nr(pnum))
+>  			continue;
+>  
+> -		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
+> -		if (map_map[pnum])
+> +		i++;
+> +		map_map[i-1] = sparse_mem_map_populate(pnum, nodeid, NULL);
+> +		if (map_map[i-1])
+>  			continue;
+
+The i-1 stuff here looks pretty funky.  Isn't this much more readable?
+
+	map_map[i] = sparse_mem_map_populate(pnum, nodeid, NULL);
+	if (map_map[i]) {
+		i++;
+		continue;
+	}
+
+
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index e9311b44e28a..aafb6d838872 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -405,6 +405,7 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
+>  	unsigned long pnum;
+>  	unsigned long **usemap_map = (unsigned long **)data;
+>  	int size = usemap_size();
+> +	int i = 0;
+
+Ditto on the naming.  Shouldn't it be nr_consumed_maps or something?
+
+>  	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
+>  							  size * usemap_count);
+> @@ -413,12 +414,13 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
+>  		return;
+>  	}
+>  
+> -	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> +	for (pnum = pnum_begin; pnum < pnum_end && i < usemap_count; pnum++) {
+>  		if (!present_section_nr(pnum))
+>  			continue;
+> -		usemap_map[pnum] = usemap;
+> +		usemap_map[i] = usemap;
+>  		usemap += size;
+> -		check_usemap_section_nr(nodeid, usemap_map[pnum]);
+> +		check_usemap_section_nr(nodeid, usemap_map[i]);
+> +		i++;
+>  	}
+>  }
+
+How would 'i' ever exceed usemap_count?
+
+Also, are there any other side-effects from changing map_map[] to be
+indexed by something other than the section number?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
