@@ -1,79 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EF7066B028E
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 01:59:48 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q2so1102182pgn.11
-        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 22:59:48 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E02236B0290
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 02:20:40 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id e127so324813wmg.7
+        for <linux-mm@kvack.org>; Wed, 21 Feb 2018 23:20:40 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t15si3255599pfg.333.2018.02.21.22.59.47
+        by mx.google.com with ESMTPS id i130si5557345wmf.209.2018.02.21.23.20.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Feb 2018 22:59:47 -0800 (PST)
-Date: Thu, 22 Feb 2018 07:59:43 +0100
+        Wed, 21 Feb 2018 23:20:39 -0800 (PST)
+Date: Thu, 22 Feb 2018 08:20:37 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Use higher-order pages in vmalloc
-Message-ID: <20180222065943.GA30681@dhcp22.suse.cz>
-References: <151670492223.658225.4605377710524021456.stgit@buzz>
- <151670493255.658225.2881484505285363395.stgit@buzz>
- <20180221154214.GA4167@bombadil.infradead.org>
- <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
- <20180221170129.GB27687@bombadil.infradead.org>
+Subject: Re: mmotm 2018-02-21-14-48 uploaded (mm/page_alloc.c on UML)
+Message-ID: <20180222072037.GC30681@dhcp22.suse.cz>
+References: <20180221224839.MqsDtkGCK%akpm@linux-foundation.org>
+ <7bcc52db-57eb-45b0-7f20-c93a968599cd@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180221170129.GB27687@bombadil.infradead.org>
+In-Reply-To: <7bcc52db-57eb-45b0-7f20-c93a968599cd@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: akpm@linux-foundation.org, broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mm-commits@vger.kernel.org, sfr@canb.auug.org.au, richard -rw- weinberger <richard.weinberger@gmail.com>, Eugeniu Rosca <erosca@de.adit-jv.com>
 
-On Wed 21-02-18 09:01:29, Matthew Wilcox wrote:
-> On Wed, Feb 21, 2018 at 08:16:22AM -0800, Dave Hansen wrote:
-> > On 02/21/2018 07:42 AM, Matthew Wilcox wrote:
-> > > This prompted me to write a patch I've been meaning to do for a while,
-> > > allocating large pages if they're available to satisfy vmalloc.  I thought
-> > > it would save on touching multiple struct pages, but it turns out that
-> > > the checking code we currently have in the free_pages path requires you
-> > > to have initialised all of the tail pages (maybe we can make that code
-> > > conditional ...)
+On Wed 21-02-18 15:58:41, Randy Dunlap wrote:
+> On 02/21/2018 02:48 PM, akpm@linux-foundation.org wrote:
+> > The mm-of-the-moment snapshot 2018-02-21-14-48 has been uploaded to
 > > 
-> > What the concept here?  If we can use high-order pages for vmalloc() at
-> > the moment, we *should* use them?
-> 
-> Right.  It helps with fragmentation if we can keep higher-order
-> allocations together.
-
-Hmm, wouldn't it help if we made vmalloc pages migrateable instead? That
-would help the compaction and get us to a lower fragmentation longterm
-without playing tricks in the allocation path.
-
-> > One of the coolest things about vmalloc() is that it can do large
-> > allocations without consuming large (high-order) pages, so it has very
-> > few side-effects compared to doing a bunch of order-0 allocations.  This
-> > patch seems to propose removing that cool thing.  Even trying the
-> > high-order allocation could kick off a bunch of reclaim and compaction
-> > that was not there previously.
-> 
-> Yes, that's one of the debatable things.  It'd be nice to have a GFP
-> flag that stopped after calling get_page_from_freelist() and didn't try
-> to do compaction or reclaim.
-
-GFP_NOWAIT, you mean?
-
-> > If you could take this an only _opportunistically_ allocate large pages,
-> > it could be a more universal win.  You could try to make sure that no
-> > compaction or reclaim is done for the large allocation.  Or, maybe you
-> > only try it if there are *only* high-order pages in the allocator that
-> > would have been broken down into order-0 *anyway*.
+> >    http://www.ozlabs.org/~akpm/mmotm/
 > > 
-> > I'm not sure it's worth it, though.  I don't see a lot of folks
-> > complaining about vmalloc()'s speed or TLB impact.
+> > mmotm-readme.txt says
+> > 
+> > README for mm-of-the-moment:
+> > 
+> > http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> > more than once a week.
+> > 
+> > You will need quilt to apply these patches to the latest Linus release (4.x
+> > or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> > http://ozlabs.org/~akpm/mmotm/series
+> > 
+> > The file broken-out.tar.gz contains two datestamp files: .DATE and
+> > .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+> > followed by the base kernel version against which this patch series is to
+> > be applied.
 > 
-> No, I'm not sure it's worth it either, although Konstantin's mail
-> suggesting improvements in fork speed were possible by avoiding vmalloc
-> reminded me that I'd been meaning to give this a try.
+> um (or uml) defconfig on i386 and/or x86_64:
+> 
+> ../mm/page_alloc.c: In function 'memmap_init_zone':
+> ../mm/page_alloc.c:5450:5: error: implicit declaration of function 'memblock_next_valid_pfn' [-Werror=implicit-function-declaration]
+>      pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
+>      ^
+> 
+> 
+> probably (?):
+> From: Eugeniu Rosca <erosca@de.adit-jv.com>
+> Subject: mm: page_alloc: skip over regions of invalid pfns on UMA
 
-Maybe we should consider kvmalloc for the kernel stack?
+Yes. Steven has already reported the same [1]. There are two possible
+ways around this. Either provide and empty stub or use ifdef around
+memblock_next_valid_pfn. I would use the later because it is less
+confusing. We really do not want memblock_next_valid_pfn to be used
+outside of memblock aware code.
+
+[1] http://lkml.kernel.org/r/20180222143057.3a1b3746@canb.auug.org.au
+
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4334d3a9c6a2..2836bc9e0999 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5446,8 +5446,9 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 			 * end_pfn), such that we hit a valid pfn (or end_pfn)
+ 			 * on our next iteration of the loop.
+ 			 */
+-			if (IS_ENABLED(CONFIG_HAVE_MEMBLOCK))
+-				pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
++#ifdef CONFIG_HAVE_MEMBLOCK
++			pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
++#endif
+ 			continue;
+ 		}
+ 		if (!early_pfn_in_nid(pfn, nid))
 -- 
 Michal Hocko
 SUSE Labs
