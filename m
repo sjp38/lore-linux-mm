@@ -1,51 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1459F6B02CD
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:26:34 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id z14so3592031wrh.1
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:26:34 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E1F6C6B02CF
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:34:29 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id e126so2510285pfh.4
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:34:29 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l2si243506wmi.210.2018.02.22.05.26.32
+        by mx.google.com with ESMTPS id l10si66048pfc.203.2018.02.22.05.34.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Feb 2018 05:26:32 -0800 (PST)
-Date: Thu, 22 Feb 2018 14:26:30 +0100
+        Thu, 22 Feb 2018 05:34:28 -0800 (PST)
+Date: Thu, 22 Feb 2018 14:34:25 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mmotm 2018-02-21-14-48 uploaded (mm/page_alloc.c on UML)
-Message-ID: <20180222132630.GH30681@dhcp22.suse.cz>
-References: <20180221224839.MqsDtkGCK%akpm@linux-foundation.org>
- <7bcc52db-57eb-45b0-7f20-c93a968599cd@infradead.org>
- <20180222072037.GC30681@dhcp22.suse.cz>
- <20180222103832.GA11623@vmlxhi-102.adit-jv.com>
- <20180222125955.GD30681@dhcp22.suse.cz>
- <20180222130814.GA30385@vmlxhi-102.adit-jv.com>
+Subject: Re: [Lsf-pc] [LSF/MM ATTEND] Attend mm summit 2018
+Message-ID: <20180222133425.GI30681@dhcp22.suse.cz>
+References: <CAKTCnz=rS14Ry7pOC2qiX5wEbRZCKwP_0u7_ncanoV18Gz9=AQ@mail.gmail.com>
+ <20180222130341.GF30681@dhcp22.suse.cz>
+ <CAKTCnzmsEhMYnAOtN+BtN_6bEa=+fTRYSjB+OR9isfzRruwA_Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180222130814.GA30385@vmlxhi-102.adit-jv.com>
+In-Reply-To: <CAKTCnzmsEhMYnAOtN+BtN_6bEa=+fTRYSjB+OR9isfzRruwA_Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eugeniu Rosca <erosca@de.adit-jv.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mm-commits@vger.kernel.org, sfr@canb.auug.org.au, richard -rw- weinberger <richard.weinberger@gmail.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, lsf-pc <lsf-pc@lists.linux-foundation.org>
 
-On Thu 22-02-18 14:08:14, Eugeniu Rosca wrote:
-> On Thu, Feb 22, 2018 at 01:59:55PM +0100, Michal Hocko wrote:
-> > On Thu 22-02-18 11:38:32, Eugeniu Rosca wrote:
-> > > Hi Michal,
-> > > 
-> > > Please, let me know if any action is expected from my end.
-> > 
-> > I do not thing anything is really needed right now. If you have a strong
-> > opinion about the solution (ifdef vs. noop stub) then speak up.
+On Fri 23-02-18 00:23:53, Balbir Singh wrote:
+> On Fri, Feb 23, 2018 at 12:03 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Thu 22-02-18 13:54:46, Balbir Singh wrote:
+> > [...]
+> >> 2. Memory cgroups - I don't see a pressing need for many new features,
+> >> but I'd like to see if we can revive some old proposals around virtual
+> >> memory limits
+> >
+> > Could you be more specific about usecase(s)?
 > 
-> No different preference on my side. I was more thinking if you are going
-> to amend the patch or create a fix on top of it. Since it didn't reach
-> mainline, it makes sense to amend it. If you can do it without the
-> intervention of the author, that's also fine for me.
+> I had for a long time a virtual memory limit controller in -mm tree.
+> The use case was to fail allocations as opposed to OOM'ing in the
+> worst case as we do with the cgroup memory limits (actual page usage
+> control). I did not push for it then since I got side-tracked. I'd
+> like to pursue a use case for being able to fail allocations as
+> opposed to OOM'ing on a per cgroup basis. I'd like to start the
+> discussion again.
 
-Andrew usually takes the incremental fix and then squash them when
-sending to Linus
+So you basically want the strict no overcommit on the per memcg level?
+I am really skeptical, to be completely honest. The global behavior is
+not very usable in most cases already. Making it per-memcg will just
+amplify all the issues (application tend to overcommit their virtual
+address space). Not to mention that you cannot really prevent from the
+OOM killer because there are allocations outside of the address space.
 
+So if you want to push this forward you really need a very good existing
+usecase to justifiy the change.
 -- 
 Michal Hocko
 SUSE Labs
