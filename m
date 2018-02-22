@@ -1,38 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D9D06B02C5
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:03:44 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id o69so520198wmd.1
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:03:44 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j5si39492wrd.190.2018.02.22.05.03.42
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EB3D36B02C2
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:06:21 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id w19so2170462pgv.4
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:06:21 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k18sor15072pfi.114.2018.02.22.05.06.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Feb 2018 05:03:43 -0800 (PST)
-Date: Thu, 22 Feb 2018 14:03:41 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM ATTEND] Attend mm summit 2018
-Message-ID: <20180222130341.GF30681@dhcp22.suse.cz>
-References: <CAKTCnz=rS14Ry7pOC2qiX5wEbRZCKwP_0u7_ncanoV18Gz9=AQ@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 22 Feb 2018 05:06:20 -0800 (PST)
+Date: Thu, 22 Feb 2018 22:06:14 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] Synchronize task mm counters on context switch
+Message-ID: <20180222130614.GA74788@rodete-desktop-imager.corp.google.com>
+References: <20180205220325.197241-1-dancol@google.com>
+ <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
+ <20180222001635.GB27147@rodete-desktop-imager.corp.google.com>
+ <CAKOZuetc7DepPPO6DmMp9APNz5+8+KansNBr_ijuuyCTu=v1mg@mail.gmail.com>
+ <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
+ <20180222094009.GO25201@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAKTCnz=rS14Ry7pOC2qiX5wEbRZCKwP_0u7_ncanoV18Gz9=AQ@mail.gmail.com>
+In-Reply-To: <20180222094009.GO25201@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: lsf-pc <lsf-pc@lists.linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Daniel Colascione <dancol@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Michal Hocko <mhocko@suse.com>
 
-On Thu 22-02-18 13:54:46, Balbir Singh wrote:
-[...]
-> 2. Memory cgroups - I don't see a pressing need for many new features,
-> but I'd like to see if we can revive some old proposals around virtual
-> memory limits
+On Thu, Feb 22, 2018 at 10:40:09AM +0100, Peter Zijlstra wrote:
+> On Thu, Feb 22, 2018 at 11:06:33AM +0900, Minchan Kim wrote:
+> > On Wed, Feb 21, 2018 at 04:23:43PM -0800, Daniel Colascione wrote:
+> > >  kernel/sched/core.c | 3 +++
+> > >  1 file changed, 3 insertions(+)
+> > >
+> > > diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> > > index a7bf32aabfda..7f197a7698ee 100644
+> > > --- a/kernel/sched/core.c
+> > > +++ b/kernel/sched/core.c
+> > > @@ -3429,6 +3429,9 @@ asmlinkage __visible void __sched schedule(void)
+> > >         struct task_struct *tsk = current;
+> > >
+> > >         sched_submit_work(tsk);
+> > > +       if (tsk->mm)
+> > > +               sync_mm_rss(tsk->mm);
+> > > +
+> > >         do {
+> > >                 preempt_disable();
+> > >                 __schedule(false);
+> > >
+> 
+> Obviously I completely hate that; and you really _should_ have Cc'ed me
+> earlier ;-)
+> 
+> That it still well over 100 cycles in the case when all counters did
+> change. Far _far_ more if the mm counters are contended (up to 150 times
+> more is quite possible).
+> 
+> > > > > Ping? Is this approach just a bad idea? We could instead just manually sync
+> > > > > all mm-attached tasks at counter-retrieval time.
+> > > >
+> > > > IMHO, yes, it should be done when user want to see which would be really
+> > > > cold path while this shecule function is hot.
+> > > >
+> > > 
+> > > The problem with doing it that way is that we need to look at each task
+> > > attached to a particular mm. AFAIK (and please tell me if I'm wrong), the
+> > > only way to do that is to iterate over all processes, and for each process
+> > > attached to the mm we want, iterate over all its tasks (since each one has
+> > > to have the same mm, I think). Does that sound right?
+> 
+> You could just iterate the thread group and call it a day. Yes strictly
+> speaking its possible to have mm's shared outside the thread group,
+> practically that 'never' happens.
+> 
+> CLONE_VM without CLONE_THREAD just isn't a popular thing afaik.
 
-Could you be more specific about usecase(s)?
--- 
-Michal Hocko
-SUSE Labs
+That was a part I was not sure. ;-)
+
+> 
+> So while its not perfect, it might well be good enough.
+
+If it's acceptable for everybody, yub, it's surely preferable, which sync
+stats through the thread group at counter-retrieval time.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
