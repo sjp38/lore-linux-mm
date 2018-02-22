@@ -1,79 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4353B6B02D3
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:46:06 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id f4so2312429plo.11
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:46:06 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CF1F56B02D6
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 08:49:48 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id b142so610217wma.4
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 05:49:48 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f4si78913pfc.196.2018.02.22.05.46.04
+        by mx.google.com with ESMTPS id o205si278571wmb.102.2018.02.22.05.49.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Feb 2018 05:46:05 -0800 (PST)
-Date: Thu, 22 Feb 2018 14:46:00 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 0/3] Directed kmem charging
-Message-ID: <20180222134600.5tvizxkroc4oisrd@quack2.suse.cz>
+        Thu, 22 Feb 2018 05:49:47 -0800 (PST)
+Date: Thu, 22 Feb 2018 14:49:44 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 3/3] fs: fsnotify: account fsnotify metadata to kmemcg
+Message-ID: <20180222134944.GK30681@dhcp22.suse.cz>
 References: <20180221030101.221206-1-shakeelb@google.com>
- <alpine.DEB.2.20.1802211002200.12567@nuc-kabylake>
- <CALvZod68LD-wnbm2+MQks=bd_D2zY64uScUBp28hyug_vaGyDA@mail.gmail.com>
- <20180221125426.464f894d29a0b6e525b2e3be@linux-foundation.org>
+ <20180221030101.221206-4-shakeelb@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180221125426.464f894d29a0b6e525b2e3be@linux-foundation.org>
+In-Reply-To: <20180221030101.221206-4-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shakeel Butt <shakeelb@google.com>, Christopher Lameter <cl@linux.com>, Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 21-02-18 12:54:26, Andrew Morton wrote:
-> On Wed, 21 Feb 2018 09:18:35 -0800 Shakeel Butt <shakeelb@google.com> wrote:
+On Tue 20-02-18 19:01:01, Shakeel Butt wrote:
+> A lot of memory can be consumed by the events generated for the huge or
+> unlimited queues if there is either no or slow listener. This can cause
+> system level memory pressure or OOMs. So, it's better to account the
+> fsnotify kmem caches to the memcg of the listener.
+
+How much memory are we talking about here?
+
+> There are seven fsnotify kmem caches and among them allocations from
+> dnotify_struct_cache, dnotify_mark_cache, fanotify_mark_cache and
+> inotify_inode_mark_cachep happens in the context of syscall from the
+> listener. So, SLAB_ACCOUNT is enough for these caches.
 > 
-> > On Wed, Feb 21, 2018 at 8:09 AM, Christopher Lameter <cl@linux.com> wrote:
-> > > Another way to solve this is to switch the user context right?
-> > >
-> > > Isnt it possible to avoid these patches if do the allocation in another
-> > > task context instead?
-> > >
-> > 
-> > Sorry, can you please explain what you mean by 'switch the user
-> > context'. Is there any example in kernel which does something similar?
-> > 
-> > Another way is by adding a field 'remote_memcg_to_charge' in
-> > task_struct and set it before the allocation and in memcontrol.c,
-> > first check if current->remote_memcg_to_charge is set otherwise use
-> > the memcg of current. Also if we provide a wrapper to do that for the
-> > user, there will be a lot less plumbing.
-> > 
-> > Please let me know if you prefer this approach.
+> The objects from fsnotify_mark_connector_cachep are not accounted as
+> they are small compared to the notification mark or events and it is
+> unclear whom to account connector to since it is shared by all events
+> attached to the inode.
 > 
-> That would be a lot simpler.  Passing function arguments via
-> task_struct is a bit dirty but is sometimes sooo effective.  You
-> should've seen how much mess task_struct.journal_info avoided!  And
-> reclaim_state.
+> The allocations from the event caches happen in the context of the event
+> producer. For such caches we will need to remote charge the allocations
+> to the listener's memcg. Thus we save the memcg reference in the
+> fsnotify_group structure of the listener.
 
-Agreed, although from time to time people try to be too creative e.g. with
-journal_info and surprising bugs come out of that :).
+Is it typical that the listener lives in a different memcg and if yes
+then cannot this cause one memcg to OOM/DoS the one with the listener?
 
-> And one always wonders whether we should do a local save/restore before
-> modifying the task_struct field, so it nests.
+> This patch has also moved the members of fsnotify_group to keep the
+> size same, at least for 64 bit build, even with additional member by
+> filling the holes.
 > 
-> What do others think?
-
-Sounds nice to me.
-
-> Maybe we can rename task_struct.reclaim_state to `struct task_mm_state
-> *task_mm_state", add remote_memcg_to_charge to struct task_mm_state and
-> avoid bloating the task_struct?
-
-Yeah, even better, but then we really need to make sure these things stack
-properly.
-
-								Honza
-
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+[...]
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
