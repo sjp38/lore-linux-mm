@@ -1,108 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AECB36B002A
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 21:43:57 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id w17so6264448iow.23
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 18:43:57 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t66sor869552ioe.46.2018.02.22.18.43.56
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AC7546B002B
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 21:45:28 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id h8so6380941iob.20
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 18:45:28 -0800 (PST)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id 73si564431itz.88.2018.02.22.18.45.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 22 Feb 2018 18:43:56 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Feb 2018 18:45:27 -0800 (PST)
+Date: Thu, 22 Feb 2018 20:45:24 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
+In-Reply-To: <1B85435E-A9FB-47E7-A2FE-FE21632778F0@cs.rutgers.edu>
+Message-ID: <alpine.DEB.2.20.1802222042290.2375@nuc-kabylake>
+References: <20180216160110.641666320@linux.com> <20180216160121.519788537@linux.com> <20180219101935.cb3gnkbjimn5hbud@techsingularity.net> <68050f0f-14ca-d974-9cf4-19694a2244b9@schoebel-theuer.de> <E4FA7972-B97C-4D63-8473-C6F1F4FAB7A0@cs.rutgers.edu>
+ <alpine.DEB.2.20.1802222000470.2221@nuc-kabylake> <1B85435E-A9FB-47E7-A2FE-FE21632778F0@cs.rutgers.edu>
 MIME-Version: 1.0
-In-Reply-To: <20180223022810.GB115990@rodete-desktop-imager.corp.google.com>
-References: <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
- <20180222024620.47691-1-dancol@google.com> <20180223020130.GA115990@rodete-desktop-imager.corp.google.com>
- <CAKOZuesZPy8rgo_pPy=cUtGcGhLzCq4X46ns7h7ta7ihrJSPWA@mail.gmail.com> <20180223022810.GB115990@rodete-desktop-imager.corp.google.com>
-From: Daniel Colascione <dancol@google.com>
-Date: Thu, 22 Feb 2018 18:43:55 -0800
-Message-ID: <CAKOZuetSpMMv7PP14cus=RrTcyNy3pOdAjCsww5X07N8Bt3U1g@mail.gmail.com>
-Subject: Re: [PATCH] Synchronize task mm counters on demand
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Thu, Feb 22, 2018 at 6:28 PM, Minchan Kim <minchan@kernel.org> wrote:
-> Plese don't include things not related to this patch.
+On Thu, 22 Feb 2018, Zi Yan wrote:
 
-Of course. The inclusion of the stray hunk was unintentional; I didn't
-mean to suggest that bundling unrelated changes was somehow a good
-thing.
-
-> Furthermore, please use plain-text mail client.
-> You mangled all of text. It makes communication hard in LKML.
-
-Sorry about that. I'll avoid using that email client in the future.
-
->> > diff --git a/include/linux/mm.h b/include/linux/mm.h
->> > index ad06d42adb1a..f8129afebbdd 100644
->> > --- a/include/linux/mm.h
->> > +++ b/include/linux/mm.h
->> > @@ -1507,14 +1507,28 @@ extern int mprotect_fixup(struct vm_area_struct
->> *vma,
->> >   */
->> >  int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
->> >                         struct page **pages);
->> > +
->> > +#ifdef SPLIT_RSS_COUNTING
->> > +/* Flush all task-buffered MM counters to the mm */
->> > +void sync_mm_rss_all_users(struct mm_struct *mm);
->>
->> Really heavy functioin iterates all of processes and threads.
->>
->>
->> Just all processes and the threads of each process attached to the mm.
->> Maybe that's not much better.
->>
->>
->> > +#endif
->> > +
->> >  /*
->> >   * per-process(per-mm_struct) statistics.
->> >   */
->> >  static inline unsigned long get_mm_counter(struct mm_struct *mm, int
->> member)
->> >  {
->> > -     long val = atomic_long_read(&mm->rss_stat.count[member]);
->> > +     long val;
->> >
->> >  #ifdef SPLIT_RSS_COUNTING
->> > +     if (atomic_xchg(&mm->rss_stat.dirty, 0))
->> > +             sync_mm_rss_all_users(mm);
->>
->> So, if we dirty _a_ page, should we iterate all of processes and threads?
->> Even, get_mm_counter would be used places without requiring accurate
->> numbers. I think you can sync stats on place you really need to rather
->> than adding this.
->>
->> I'd like to see all_threads_sync_mm_rss(mm_struct mm_struct *mm) which
->> iterates
->> just current's thread group(unless others are against) suggested by peterz.
->> And then let's put it on places where you really need(e.g.,
->> fs/proc/task_mmu.c
->> somewhere).
->>
->>
->> I thought about doing it that way, but it seemed odd that reading stats
->> from proc should have the side effect of updating counters that things like
->> the OOM killer and page scanning might use for their decisions.
+> Yes. I saw the attached patches. I am definitely going to apply them and see how they work out.
 >
-> I understand your concern but sync is not cheap if we should iterate all of
-> tasks. So each call site need to be reviewed which is more critical between
-> performance and accuracy. If we _really_ should be accurate in all of places,
-> then we should consider other way to avoid iterating of task_structs, IMO.
-> I guess it could make a long discussion thread about _it's really worth to do_.
+> In his last patch, there are a bunch of magic numbers used to reserve free page blocks
+> at different orders. I think that is the most interesting part. If Thomas can share how
+> to determine these numbers with his theory based on workloads, hardware/chipset, that would
+> be a great guideline for sysadmins to take advantage of the patches.
 
-I'm thinking that *in general*, stale values can have unforeseen
-undesired effects, especially if the values become up-to-date when you
-try to view them, making it hard to debug the source of the problem
---- so if it's at all possible to make everyone see up-to-date values,
-we should do that. If it's not possible, sure, we can tolerate stale
-values. Do you think my list-of-dirty-tasks proposal would be cheap
-enough? In that scheme, if you dirty one page, you look at only that
-one task.
+These numbers are specific to the loads encountered in his situation and
+the patches are specific to the machine configurations in his environment.
+
+I have tried to generalize his idea and produce a patchset that is
+reviewable and acceptable. I will update the patchset as needed.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
