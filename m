@@ -1,66 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B5186B0003
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 03:01:05 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id e74so899405wmg.0
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 00:01:05 -0800 (PST)
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id z30si714524wrc.139.2018.02.23.00.01.03
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 958126B0006
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 03:02:31 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id p13so3560522plr.10
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 00:02:31 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id u17si1427514pfm.190.2018.02.23.00.02.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Feb 2018 00:01:04 -0800 (PST)
-Subject: Re: [PATCH 0/5] PPC32/ioremap: Use memblock API to check for RAM
-References: <20180222121516.23415-1-j.neuschaefer@gmx.net>
-From: Christophe LEROY <christophe.leroy@c-s.fr>
-Message-ID: <ca471c17-d2a7-e8e6-2d5a-a5a534e7e6d9@c-s.fr>
-Date: Fri, 23 Feb 2018 09:01:17 +0100
+        Fri, 23 Feb 2018 00:02:30 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH RESEND 1/2] mm: swap: clean up swap readahead
+References: <20180220085249.151400-1-minchan@kernel.org>
+	<20180220085249.151400-2-minchan@kernel.org>
+Date: Fri, 23 Feb 2018 16:02:27 +0800
+In-Reply-To: <20180220085249.151400-2-minchan@kernel.org>
+	(minchan@kernel.org's message of "Tue, 20 Feb 2018 17:52:48 +0900")
+Message-ID: <874lm83zho.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180222121516.23415-1-j.neuschaefer@gmx.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>, linuxppc-dev@lists.ozlabs.org
-Cc: linux-kernel@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, Joel Stanley <joel@jms.id.au>
+To: minchan@kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
 
+<minchan@kernel.org> writes:
+[snip]
 
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 39ae7cfad90f..c56cce64b2c3 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -332,32 +332,38 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
+>  			       unsigned long addr)
+>  {
+>  	struct page *page;
+> -	unsigned long ra_info;
+> -	int win, hits, readahead;
+>  
+>  	page = find_get_page(swap_address_space(entry), swp_offset(entry));
+>  
+>  	INC_CACHE_INFO(find_total);
+>  	if (page) {
+> +		bool vma_ra = swap_use_vma_readahead();
+> +		bool readahead = TestClearPageReadahead(page);
+> +
 
-Le 22/02/2018 A  13:15, Jonathan NeuschA?fer a A(C)critA :
-> This patchset solves the same problem as my previous one[1] but follows
-> a rather different approach. Instead of implementing DISCONTIGMEM for
-> PowerPC32, I simply switched the "is this RAM" check in __ioremap_caller
-> to the existing page_is_ram function, and unified page_is_ram to search
-> memblock.memory on PPC64 and PPC32.
-> 
-> The intended result is, as before, that my Wii can allocate the MMIO
-> range of its GPIO controller, which was previously not possible, because
-> the reserved memory hack (__allow_ioremap_reserved) didn't affect the
-> API in kernel/resource.c.
-> 
-> Thanks to Christophe Leroy for reviewing the previous patchset.
+TestClearPageReadahead() cannot be called for compound page.  As in
 
-I tested your new serie, it doesn't break my 8xx so it is OK for me.
+PAGEFLAG(Readahead, reclaim, PF_NO_COMPOUND)
+	TESTCLEARFLAG(Readahead, reclaim, PF_NO_COMPOUND)
 
-Christophe
+>  		INC_CACHE_INFO(find_success);
+>  		if (unlikely(PageTransCompound(page)))
+>  			return page;
+> -		readahead = TestClearPageReadahead(page);
 
-> 
-> [1]: https://www.spinics.net/lists/kernel/msg2726786.html
-> 
-> Jonathan NeuschA?fer (5):
->    powerpc: mm: Simplify page_is_ram by using memblock_is_memory
->    powerpc: mm: Use memblock API for PPC32 page_is_ram
->    powerpc/mm/32: Use page_is_ram to check for RAM
->    powerpc: wii: Don't rely on the reserved memory hack
->    powerpc/mm/32: Remove the reserved memory hack
-> 
->   arch/powerpc/mm/init_32.c                |  5 -----
->   arch/powerpc/mm/mem.c                    | 12 +-----------
->   arch/powerpc/mm/mmu_decl.h               |  1 -
->   arch/powerpc/mm/pgtable_32.c             |  4 +---
->   arch/powerpc/platforms/embedded6xx/wii.c | 14 +-------------
->   5 files changed, 3 insertions(+), 33 deletions(-)
-> 
+So we can only call it here after checking whether page is compound.
+
+Best Regards,
+Huang, Ying
+
+> -		if (vma) {
+> -			ra_info = GET_SWAP_RA_VAL(vma);
+> -			win = SWAP_RA_WIN(ra_info);
+> -			hits = SWAP_RA_HITS(ra_info);
+> +
+> +		if (vma && vma_ra) {
+> +			unsigned long ra_val;
+> +			int win, hits;
+> +
+> +			ra_val = GET_SWAP_RA_VAL(vma);
+> +			win = SWAP_RA_WIN(ra_val);
+> +			hits = SWAP_RA_HITS(ra_val);
+>  			if (readahead)
+>  				hits = min_t(int, hits + 1, SWAP_RA_HITS_MAX);
+>  			atomic_long_set(&vma->swap_readahead_info,
+>  					SWAP_RA_VAL(addr, win, hits));
+>  		}
+> +
+>  		if (readahead) {
+>  			count_vm_event(SWAP_RA_HIT);
+> -			if (!vma)
+> +			if (!vma || !vma_ra)
+>  				atomic_inc(&swapin_readahead_hits);
+>  		}
+>  	}
+> +
+>  	return page;
+>  }
+>
+
+[snip]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
