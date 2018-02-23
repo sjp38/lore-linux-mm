@@ -1,136 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 806606B0003
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 10:53:09 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id 199so1544519wmi.6
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 07:53:09 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 73sor694106wmq.15.2018.02.23.07.53.07
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FD4A6B0003
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 11:34:22 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id p11so2720685itc.5
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 08:34:22 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v8sor759046itv.115.2018.02.23.08.34.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 23 Feb 2018 07:53:07 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH] kasan, slub: fix handling of kasan_slab_free hook
-Date: Fri, 23 Feb 2018 16:53:00 +0100
-Message-Id: <083f58501e54731203801d899632d76175868e97.1519400992.git.andreyknvl@google.com>
+        Fri, 23 Feb 2018 08:34:21 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20180223081147.GD30773@dhcp22.suse.cz>
+References: <20180205220325.197241-1-dancol@google.com> <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
+ <20180222001635.GB27147@rodete-desktop-imager.corp.google.com>
+ <CAKOZuetc7DepPPO6DmMp9APNz5+8+KansNBr_ijuuyCTu=v1mg@mail.gmail.com>
+ <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
+ <CAKOZuev67HPpK5x4zS88x0C2AysvSk5wcFS0DuT3A_04p1HpSQ@mail.gmail.com> <20180223081147.GD30773@dhcp22.suse.cz>
+From: Daniel Colascione <dancol@google.com>
+Date: Fri, 23 Feb 2018 08:34:19 -0800
+Message-ID: <CAKOZueurwrSZWbKKUTx+LOSKEWFnfMYbarDc++pEKHD3xyQbmA@mail.gmail.com>
+Subject: Re: [PATCH] Synchronize task mm counters on context switch
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com
-Cc: Kostya Serebryany <kcc@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-The kasan_slab_free hook's return value denotes whether the reuse of a
-slab object must be delayed (e.g. when the object is put into memory
-qurantine).
+On Fri, Feb 23, 2018 at 12:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Wed 21-02-18 18:49:35, Daniel Colascione wrote:
+> [...]
+>> For more context: on Android, we've historically scanned each processes's
+>> address space using /proc/pid/smaps (and /proc/pid/smaps_rollup more
+>> recently) to extract memory management statistics. We're looking at
+>> replacing this mechanism with the new /proc/pid/status per-memory-type
+>> (e.g., anonymous, file-backed) counters so that we can be even more
+>> efficient, but we'd like the counts we collect to be accurate.
+>
+> If you need the accuracy then why don't you simply make
+> SPLIT_RSS_COUNTING configurable and disable it in your setup?
 
-The current way SLUB handles this hook is by ignoring its return value
-and hardcoding checks similar (but not exactly the same) to the ones
-performed in kasan_slab_free, which is prone to making mistakes.
+I considered that option, but it feels like a last resort. I think
+agreement between /proc/pid/status and /proc/pid/smaps is a
+correctness issue, and I'd prefer to fix the correctness issue
+globally.
 
-This patch changes the way SLUB handles this by:
-1. taking into account the return value of kasan_slab_free for each of
-   the objects, that are being freed;
-2. reconstructing the freelist of objects to exclude the ones, whose
-   reuse must be delayed.
-
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- mm/slub.c | 52 ++++++++++++++++++++++++++++++----------------------
- 1 file changed, 30 insertions(+), 22 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index e381728a3751..f111c2a908b9 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1362,10 +1362,8 @@ static __always_inline void kfree_hook(void *x)
- 	kasan_kfree_large(x, _RET_IP_);
- }
- 
--static __always_inline void *slab_free_hook(struct kmem_cache *s, void *x)
-+static __always_inline bool slab_free_hook(struct kmem_cache *s, void *x)
- {
--	void *freeptr;
--
- 	kmemleak_free_recursive(x, s->flags);
- 
- 	/*
-@@ -1385,17 +1383,12 @@ static __always_inline void *slab_free_hook(struct kmem_cache *s, void *x)
- 	if (!(s->flags & SLAB_DEBUG_OBJECTS))
- 		debug_check_no_obj_freed(x, s->object_size);
- 
--	freeptr = get_freepointer(s, x);
--	/*
--	 * kasan_slab_free() may put x into memory quarantine, delaying its
--	 * reuse. In this case the object's freelist pointer is changed.
--	 */
--	kasan_slab_free(s, x, _RET_IP_);
--	return freeptr;
-+	/* KASAN might put x into memory quarantine, delaying its reuse */
-+	return kasan_slab_free(s, x, _RET_IP_);
- }
- 
- static inline void slab_free_freelist_hook(struct kmem_cache *s,
--					   void *head, void *tail)
-+					   void **head, void **tail)
- {
- /*
-  * Compiler cannot detect this function can be removed if slab_free_hook()
-@@ -1406,13 +1399,29 @@ static inline void slab_free_freelist_hook(struct kmem_cache *s,
- 	defined(CONFIG_DEBUG_OBJECTS_FREE) ||	\
- 	defined(CONFIG_KASAN)
- 
--	void *object = head;
--	void *tail_obj = tail ? : head;
--	void *freeptr;
-+	void *object;
-+	void *next = *head;
-+	void *old_tail = *tail ? *tail : *head;
-+
-+	/* Head and tail of the reconstructed freelist */
-+	*head = NULL;
-+	*tail = NULL;
- 
- 	do {
--		freeptr = slab_free_hook(s, object);
--	} while ((object != tail_obj) && (object = freeptr));
-+		object = next;
-+		next = get_freepointer(s, object);
-+		/* If object's reuse doesn't have to be delayed */
-+		if (!slab_free_hook(s, object)) {
-+			/* Move object to the new freelist */
-+			set_freepointer(s, object, *head);
-+			*head = object;
-+			if (!*tail)
-+				*tail = object;
-+		}
-+	} while (object != old_tail);
-+
-+	if (*head == *tail)
-+		*tail = NULL;
- #endif
- }
- 
-@@ -2965,14 +2974,13 @@ static __always_inline void slab_free(struct kmem_cache *s, struct page *page,
- 				      void *head, void *tail, int cnt,
- 				      unsigned long addr)
- {
--	slab_free_freelist_hook(s, head, tail);
- 	/*
--	 * slab_free_freelist_hook() could have put the items into quarantine.
--	 * If so, no need to free them.
-+	 * With KASAN enabled slab_free_freelist_hook modifies the freelist
-+	 * to remove objects, whose reuse must be delayed.
- 	 */
--	if (s->flags & SLAB_KASAN && !(s->flags & SLAB_TYPESAFE_BY_RCU))
--		return;
--	do_slab_free(s, page, head, tail, cnt, addr);
-+	slab_free_freelist_hook(s, &head, &tail);
-+	if (head != NULL)
-+		do_slab_free(s, page, head, tail, cnt, addr);
- }
- 
- #ifdef CONFIG_KASAN
--- 
-2.16.1.291.g4437f3f132-goog
+That said, *deleting* the SPLIT_RSS_COUNTING code would be nice and
+simple. How sure are we that the per-task accounting is really needed?
+Maybe I'm wrong, but I feel like taking page faults will touch per-mm
+data structures anyway, so one additional atomic update on the mm
+shouldn't hurt all that much.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
