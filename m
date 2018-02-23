@@ -1,108 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 10E466B000C
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 13:24:09 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id a32so4638648otj.5
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 10:24:09 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id o50si983343oth.501.2018.02.23.10.24.07
-        for <linux-mm@kvack.org>;
-        Fri, 23 Feb 2018 10:24:07 -0800 (PST)
-Message-ID: <5A905BAB.2060007@arm.com>
-Date: Fri, 23 Feb 2018 18:21:31 +0000
-From: James Morse <james.morse@arm.com>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5722F6B000E
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 13:32:10 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id y11so1755898wmd.5
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 10:32:10 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id w11si2311797wra.89.2018.02.23.10.32.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Feb 2018 10:32:08 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 3.18 53/58] mm/early_ioremap: Fix boot hang with earlyprintk=efi,keep
+Date: Fri, 23 Feb 2018 19:26:52 +0100
+Message-Id: <20180223170215.061838996@linuxfoundation.org>
+In-Reply-To: <20180223170206.724655284@linuxfoundation.org>
+References: <20180223170206.724655284@linuxfoundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's add/remove
- and notify code
-References: <20180215185606.26736-1-james.morse@arm.com>	<20180215185606.26736-3-james.morse@arm.com> <87sh9vzfdn.fsf@e105922-lin.cambridge.arm.com>
-In-Reply-To: <87sh9vzfdn.fsf@e105922-lin.cambridge.arm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, bp@suse.de, linux-efi@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
 
-Hi Punit,
+3.18-stable review patch.  If anyone has any objections, please let me know.
 
-On 20/02/18 18:26, Punit Agrawal wrote:
-> James Morse <james.morse@arm.com> writes:
-> 
->> To support asynchronous NMI-like notifications on arm64 we need to use
->> the estatus-queue. These patches refactor it to allow multiple APEI
->> notification types to use it.
->>
->> Refactor the estatus queue's pool grow/shrink code and notification
->> routine from NOTIFY_NMI's handlers. This will allow another notification
->> method to use the estatus queue without duplicating this code.
->>
->> This patch adds rcu_read_lock()/rcu_read_unlock() around the list
->> list_for_each_entry_rcu() walker. These aren't strictly necessary as
->> the whole nmi_enter/nmi_exit() window is a spooky RCU read-side
->> critical section.
->>
->> Keep the oops_begin() call for x86, arm64 doesn't have one of these,
->> and APEI is the only thing outside arch code calling this..
->>
->> The existing ghes_estatus_pool_shrink() is folded into the new
->> ghes_estatus_queue_shrink_pool() as only the queue uses it.
->>
->> _in_nmi_notify_one() is separate from the rcu-list walker for a later
->> caller that doesn't need to walk a list.
+------------------
 
->> diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
->> index e42b587c509b..d3cc5bd5b496 100644
->> --- a/drivers/acpi/apei/ghes.c
->> +++ b/drivers/acpi/apei/ghes.c
->> @@ -749,6 +749,54 @@ static void __process_error(struct ghes *ghes)
->>  #endif
->>  }
->>  
->> +static int _in_nmi_notify_one(struct ghes *ghes)
->> +{
->> +	int sev;
->> +	int ret = -ENOENT;
-> 
-> If ret is initialised to 0 ...
-> 
->> +
->> +	if (ghes_read_estatus(ghes, 1)) {
->> +		ghes_clear_estatus(ghes);
->> +		return ret;
-> 
-> and return -ENOENT here...
-> 
->> +	} else {
->> +		ret = 0;
->> +	}
-> 
-> ... then the else block can be dropped.
+From: Dave Young <dyoung@redhat.com>
 
 
-Good point, this happened because I was trying to keep the same shape as the
-existing notify_nmi() code as far as possible.
+[ Upstream commit 7f6f60a1ba52538c16f26930bfbcfe193d9d746a ]
 
+earlyprintk=efi,keep does not work any more with a warning
+in mm/early_ioremap.c: WARN_ON(system_state != SYSTEM_BOOTING):
+Boot just hangs because of the earlyprintk within the earlyprintk
+implementation code itself.
 
->> +
->> +	sev = ghes_severity(ghes->estatus->error_severity);
->> +	if (sev >= GHES_SEV_PANIC) {
->> +#ifdef CONFIG_X86
->> +		oops_begin();
->> +#endif
-> 
-> Can you use IS_ENABLED() here as well?
+This is caused by a new introduced middle state in:
 
-I didn't think that would build without an empty declaration for arm64, I
-assumed it would generate an implicit-declaration-of warning. But, I've tried
-it, and evidently today's toolchain does dead-code elimination before generating
-implicit-declaration-of warnings...
-I'd prefer to leave this (ugly as it is), to avoid warnings on a different
-version of the compiler.
+  69a78ff226fe ("init: Introduce SYSTEM_SCHEDULING state")
 
+early_ioremap() is fine in both SYSTEM_BOOTING and SYSTEM_SCHEDULING
+states, original condition should be updated accordingly.
 
-Thanks,
+Signed-off-by: Dave Young <dyoung@redhat.com>
+Acked-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: bp@suse.de
+Cc: linux-efi@vger.kernel.org
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/20171209041610.GA3249@dhcp-128-65.nay.redhat.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ mm/early_ioremap.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-James
+--- a/mm/early_ioremap.c
++++ b/mm/early_ioremap.c
+@@ -102,7 +102,7 @@ __early_ioremap(resource_size_t phys_add
+ 	enum fixed_addresses idx;
+ 	int i, slot;
+ 
+-	WARN_ON(system_state != SYSTEM_BOOTING);
++	WARN_ON(system_state >= SYSTEM_RUNNING);
+ 
+ 	slot = -1;
+ 	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
