@@ -1,88 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 57CB96B0022
-	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 21:16:53 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id e126so3444285pfh.4
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 18:16:53 -0800 (PST)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0124.outbound.protection.outlook.com. [104.47.38.124])
-        by mx.google.com with ESMTPS id m14si988011pff.156.2018.02.22.18.16.51
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BCD16B0024
+	for <linux-mm@kvack.org>; Thu, 22 Feb 2018 21:24:21 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id e186so6379279iof.9
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 18:24:21 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q133sor867298ioe.69.2018.02.22.18.24.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 22 Feb 2018 18:16:52 -0800 (PST)
-From: "Zi Yan" <zi.yan@cs.rutgers.edu>
-Subject: Re: [RFC 1/2] Protect larger order pages from breaking up
-Date: Thu, 22 Feb 2018 21:16:07 -0500
-Message-ID: <1B85435E-A9FB-47E7-A2FE-FE21632778F0@cs.rutgers.edu>
-In-Reply-To: <alpine.DEB.2.20.1802222000470.2221@nuc-kabylake>
-References: <20180216160110.641666320@linux.com>
- <20180216160121.519788537@linux.com>
- <20180219101935.cb3gnkbjimn5hbud@techsingularity.net>
- <68050f0f-14ca-d974-9cf4-19694a2244b9@schoebel-theuer.de>
- <E4FA7972-B97C-4D63-8473-C6F1F4FAB7A0@cs.rutgers.edu>
- <alpine.DEB.2.20.1802222000470.2221@nuc-kabylake>
+        (Google Transport Security);
+        Thu, 22 Feb 2018 18:24:20 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_25FC8291-A103-4243-9FB9-4D6E70C4853F_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+In-Reply-To: <CAKOZuesZPy8rgo_pPy=cUtGcGhLzCq4X46ns7h7ta7ihrJSPWA@mail.gmail.com>
+References: <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
+ <20180222024620.47691-1-dancol@google.com> <20180223020130.GA115990@rodete-desktop-imager.corp.google.com>
+ <CAKOZuesZPy8rgo_pPy=cUtGcGhLzCq4X46ns7h7ta7ihrJSPWA@mail.gmail.com>
+From: Daniel Colascione <dancol@google.com>
+Date: Thu, 22 Feb 2018 18:24:18 -0800
+Message-ID: <CAKOZues=wHgMu9vH7ixc-vzL7b7T7OK2jYecUKvnR45Fx=HDBw@mail.gmail.com>
+Subject: Re: [PATCH] Synchronize task mm counters on demand
+Content-Type: multipart/alternative; boundary="089e0826eb208f45710565d7dbea"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+--089e0826eb208f45710565d7dbea
+Content-Type: text/plain; charset="UTF-8"
 
---=_MailMate_25FC8291-A103-4243-9FB9-4D6E70C4853F_=
-Content-Type: text/plain; charset=utf-8
+On Thu, Feb 22, 2018 at 6:09 PM, Daniel Colascione <dancol@google.com>
+wrote:
+
+> Thanks for taking a look.
+>
+> On Feb 22, 2018 6:01 PM, "Minchan Kim" <minchan@kernel.org> wrote:
+>
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index ad06d42adb1a..f8129afebbdd 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1507,14 +1507,28 @@ extern int mprotect_fixup(struct vm_area_struct
+> *vma,
+> >   */
+> >  int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+> >                         struct page **pages);
+> > +
+> > +#ifdef SPLIT_RSS_COUNTING
+> > +/* Flush all task-buffered MM counters to the mm */
+> > +void sync_mm_rss_all_users(struct mm_struct *mm);
+>
+> Really heavy functioin iterates all of processes and threads.
+>
+>
+> Just all processes and the threads of each process attached to the mm.
+> Maybe that's not much better.
+>
+
+
+Another option would be to maintain a list (with the list_head in the mm)
+of all the tasks with unflushed counters. This way, we at least wouldn't
+have to scan the world.
+
+--089e0826eb208f45710565d7dbea
+Content-Type: text/html; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
-Yes. I saw the attached patches. I am definitely going to apply them and =
-see how they work out.
+<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On T=
+hu, Feb 22, 2018 at 6:09 PM, Daniel Colascione <span dir=3D"ltr">&lt;<a hre=
+f=3D"mailto:dancol@google.com" target=3D"_blank">dancol@google.com</a>&gt;<=
+/span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8=
+ex;border-left:1px #ccc solid;padding-left:1ex"><div dir=3D"auto"><div><div=
+ class=3D"gmail_extra"><div class=3D"gmail_quote" dir=3D"auto">Thanks for t=
+aking a look.</div><div><div class=3D"h5"><div class=3D"gmail_quote" dir=3D=
+"auto"><br></div><div class=3D"gmail_quote">On Feb 22, 2018 6:01 PM, &quot;=
+Minchan Kim&quot; &lt;<a href=3D"mailto:minchan@kernel.org" target=3D"_blan=
+k">minchan@kernel.org</a>&gt; wrote:<br type=3D"attribution"></div></div></=
+div></div></div><span class=3D""><div dir=3D"auto"><div class=3D"gmail_extr=
+a"><div class=3D"gmail_quote"><blockquote class=3D"m_-7744850135525327735qu=
+ote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex=
+"><div class=3D"m_-7744850135525327735quoted-text">&gt; diff --git a/includ=
+e/linux/mm.h b/include/linux/mm.h<br>
+&gt; index ad06d42adb1a..f8129afebbdd 100644<br>
+&gt; --- a/include/linux/mm.h<br>
+&gt; +++ b/include/linux/mm.h<br>
+&gt; @@ -1507,14 +1507,28 @@ extern int mprotect_fixup(struct vm_area_struc=
+t *vma,<br>
+&gt;=C2=A0 =C2=A0*/<br>
+&gt;=C2=A0 int __get_user_pages_fast(unsigned long start, int nr_pages, int=
+ write,<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0struct page **pages);<br>
+&gt; +<br>
+&gt; +#ifdef SPLIT_RSS_COUNTING<br>
+&gt; +/* Flush all task-buffered MM counters to the mm */<br>
+&gt; +void sync_mm_rss_all_users(struct mm_struct *mm);<br>
+<br>
+</div>Really heavy functioin iterates all of processes and threads.<br></bl=
+ockquote></div></div></div><div dir=3D"auto"><br></div></span><div dir=3D"a=
+uto">Just all processes and the threads of each process attached to the mm.=
+ Maybe that&#39;s not much better.</div></div></blockquote><div><br></div><=
+div><br></div><div>Another option would be to maintain a list (with the lis=
+t_head in the mm) of all the tasks with unflushed counters. This way, we at=
+ least wouldn&#39;t have to scan the world.</div></div></div></div>
 
-In his last patch, there are a bunch of magic numbers used to reserve fre=
-e page blocks
-at different orders. I think that is the most interesting part. If Thomas=
- can share how
-to determine these numbers with his theory based on workloads, hardware/c=
-hipset, that would
-be a great guideline for sysadmins to take advantage of the patches.
-
-=E2=80=94
-Best Regards,
-Yan Zi
-
-On 22 Feb 2018, at 21:01, Christopher Lameter wrote:
-
-> On Thu, 22 Feb 2018, Zi Yan wrote:
->
->> I am very interested in the theory behind your patch. Do you mind shar=
-ing it? Is there
->> any required math background before reading it? Is there any related p=
-apers/articles I could
->> also read?
->
-> His patches were attached to the email you responded to. Guess I should=
-
-> update the patchset with the suggested changes and repost.
-
---=_MailMate_25FC8291-A103-4243-9FB9-4D6E70C4853F_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAlqPeWcWHHppLnlhbkBj
-cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzLd4CACMKJTGTIMRbpnMwABt9NYEDXEu
-EaDO6Ugwp6H3Kb2xCCFHCW0+PTDKM+H9itRQuy3b4tqGmSSF0xFudf/lwC5ZItis
-SxtgDXzzeCxulHXQWffQHfvigxi0ZFyKPnv3ebFusohzMf2u/BXziMbxBLl8t9kT
-kZgLD2+steB5/kLj2MOXRG3CIttLzRVbqnLI80Goso43VIcIe2ZLpjDxXxuXFyxY
-FEOz+prDhT3gmrVURn8nQGvMJMqt27tnHSKetmfCYqxrEVcJglSGS8FNObL50w7d
-tkLnJCr3BryJ99Dvt4LM0UwICXGPCxRlhfxYKZU+j2272IRa+S85CNGzOn4h
-=0Pgj
------END PGP SIGNATURE-----
-
---=_MailMate_25FC8291-A103-4243-9FB9-4D6E70C4853F_=--
+--089e0826eb208f45710565d7dbea--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
