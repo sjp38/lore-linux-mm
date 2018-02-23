@@ -1,54 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FD4A6B0003
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 11:34:22 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id p11so2720685itc.5
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 08:34:22 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id v8sor759046itv.115.2018.02.23.08.34.21
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 464AC6B0006
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 11:48:58 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c188so1600016wma.7
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 08:48:58 -0800 (PST)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id d19si1578934wmh.18.2018.02.23.08.48.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 23 Feb 2018 08:34:21 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Feb 2018 08:48:57 -0800 (PST)
+From: Colin King <colin.king@canonical.com>
+Subject: [PATCH][mm-next] mm, swap: make bool enable_vma_readahead and function swap_vma_readahead static
+Date: Fri, 23 Feb 2018 16:48:52 +0000
+Message-Id: <20180223164852.5159-1-colin.king@canonical.com>
 MIME-Version: 1.0
-In-Reply-To: <20180223081147.GD30773@dhcp22.suse.cz>
-References: <20180205220325.197241-1-dancol@google.com> <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
- <20180222001635.GB27147@rodete-desktop-imager.corp.google.com>
- <CAKOZuetc7DepPPO6DmMp9APNz5+8+KansNBr_ijuuyCTu=v1mg@mail.gmail.com>
- <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
- <CAKOZuev67HPpK5x4zS88x0C2AysvSk5wcFS0DuT3A_04p1HpSQ@mail.gmail.com> <20180223081147.GD30773@dhcp22.suse.cz>
-From: Daniel Colascione <dancol@google.com>
-Date: Fri, 23 Feb 2018 08:34:19 -0800
-Message-ID: <CAKOZueurwrSZWbKKUTx+LOSKEWFnfMYbarDc++pEKHD3xyQbmA@mail.gmail.com>
-Subject: Re: [PATCH] Synchronize task mm counters on context switch
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org
+Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Feb 23, 2018 at 12:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Wed 21-02-18 18:49:35, Daniel Colascione wrote:
-> [...]
->> For more context: on Android, we've historically scanned each processes's
->> address space using /proc/pid/smaps (and /proc/pid/smaps_rollup more
->> recently) to extract memory management statistics. We're looking at
->> replacing this mechanism with the new /proc/pid/status per-memory-type
->> (e.g., anonymous, file-backed) counters so that we can be even more
->> efficient, but we'd like the counts we collect to be accurate.
->
-> If you need the accuracy then why don't you simply make
-> SPLIT_RSS_COUNTING configurable and disable it in your setup?
+From: Colin Ian King <colin.king@canonical.com>
 
-I considered that option, but it feels like a last resort. I think
-agreement between /proc/pid/status and /proc/pid/smaps is a
-correctness issue, and I'd prefer to fix the correctness issue
-globally.
+The bool enable_vma_readahead and function swap_vma_readahead are local
+to the source and do not need to be in global scope, so make them static.
 
-That said, *deleting* the SPLIT_RSS_COUNTING code would be nice and
-simple. How sure are we that the per-task accounting is really needed?
-Maybe I'm wrong, but I feel like taking page faults will touch per-mm
-data structures anyway, so one additional atomic update on the mm
-shouldn't hurt all that much.
+Cleans up sparse warnings:
+mm/swap_state.c:41:6: warning: symbol 'enable_vma_readahead' was not
+declared. Should it be static?
+mm/swap_state.c:742:13: warning: symbol 'swap_vma_readahead' was not
+declared. Should it be static?
+
+Signed-off-by: Colin Ian King <colin.king@canonical.com>
+---
+ mm/swap_state.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 8dde719e973c..f3952138f01d 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -38,7 +38,7 @@ static const struct address_space_operations swap_aops = {
+ 
+ struct address_space *swapper_spaces[MAX_SWAPFILES] __read_mostly;
+ static unsigned int nr_swapper_spaces[MAX_SWAPFILES] __read_mostly;
+-bool enable_vma_readahead __read_mostly = true;
++static bool enable_vma_readahead __read_mostly = true;
+ 
+ #define SWAP_RA_WIN_SHIFT	(PAGE_SHIFT / 2)
+ #define SWAP_RA_HITS_MASK	((1UL << SWAP_RA_WIN_SHIFT) - 1)
+@@ -739,8 +739,8 @@ static void swap_ra_info(struct vm_fault *vmf,
+ 	pte_unmap(orig_pte);
+ }
+ 
+-struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
+-				    struct vm_fault *vmf)
++static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
++				       struct vm_fault *vmf)
+ {
+ 	struct blk_plug plug;
+ 	struct vm_area_struct *vma = vmf->vma;
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
