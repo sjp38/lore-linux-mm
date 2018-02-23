@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5722F6B000E
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 13:32:10 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id y11so1755898wmd.5
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 10:32:10 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 090F96B0011
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 13:35:22 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id e143so1764764wma.2
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 10:35:21 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id w11si2311797wra.89.2018.02.23.10.32.08
+        by mx.google.com with ESMTPS id 40si2394239wrv.375.2018.02.23.10.35.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Feb 2018 10:32:08 -0800 (PST)
+        Fri, 23 Feb 2018 10:35:20 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 3.18 53/58] mm/early_ioremap: Fix boot hang with earlyprintk=efi,keep
-Date: Fri, 23 Feb 2018 19:26:52 +0100
-Message-Id: <20180223170215.061838996@linuxfoundation.org>
-In-Reply-To: <20180223170206.724655284@linuxfoundation.org>
-References: <20180223170206.724655284@linuxfoundation.org>
+Subject: [PATCH 4.4 058/193] mm/early_ioremap: Fix boot hang with earlyprintk=efi,keep
+Date: Fri, 23 Feb 2018 19:24:51 +0100
+Message-Id: <20180223170335.072376251@linuxfoundation.org>
+In-Reply-To: <20180223170325.997716448@linuxfoundation.org>
+References: <20180223170325.997716448@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, bp@suse.de, linux-efi@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
 
-3.18-stable review patch.  If anyone has any objections, please let me know.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -60,7 +60,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --- a/mm/early_ioremap.c
 +++ b/mm/early_ioremap.c
-@@ -102,7 +102,7 @@ __early_ioremap(resource_size_t phys_add
+@@ -103,7 +103,7 @@ __early_ioremap(resource_size_t phys_add
  	enum fixed_addresses idx;
  	int i, slot;
  
