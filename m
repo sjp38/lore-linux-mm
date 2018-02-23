@@ -1,217 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 28FD06B0006
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 05:54:14 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id r6so4081440pfk.9
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 02:54:14 -0800 (PST)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BF8C16B0003
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 06:02:17 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id f3so3755051plf.18
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 03:02:17 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b10-v6si1590953plr.656.2018.02.23.02.54.12
+        by mx.google.com with ESMTPS id r6si1388262pgt.268.2018.02.23.03.02.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Feb 2018 02:54:12 -0800 (PST)
+        Fri, 23 Feb 2018 03:02:16 -0800 (PST)
+Date: Fri, 23 Feb 2018 11:02:08 +0000
 From: James Hogan <jhogan@kernel.org>
-Subject: [PATCH v2 04/13] Drop a bunch of metag references
-Date: Fri, 23 Feb 2018 10:53:23 +0000
-Message-Id: <20180223105323.6356-1-jhogan@kernel.org>
-In-Reply-To: <20180221233825.10024-5-jhogan@kernel.org>
-References: <20180221233825.10024-5-jhogan@kernel.org>
+Subject: Re: [PATCH 00/13] Remove metag architecture
+Message-ID: <20180223110207.GA14446@saruman>
+References: <20180221233825.10024-1-jhogan@kernel.org>
+ <CAK8P3a3CuNn-dSE33mhEZ9-iM7NOE3Y4AiJzpmF6ob5wrMuZpg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="tThc/1wpZn/ma/RB"
+Content-Disposition: inline
+In-Reply-To: <CAK8P3a3CuNn-dSE33mhEZ9-iM7NOE3Y4AiJzpmF6ob5wrMuZpg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-metag@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, James Hogan <jhogan@kernel.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, Guenter Roeck <linux@roeck-us.net>, linux-mm@kvack.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-metag@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Guenter Roeck <linux@roeck-us.net>, Jonathan Corbet <corbet@lwn.net>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Jason Cooper <jason@lakedaemon.net>, Marc Zyngier <marc.zyngier@arm.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Linus Walleij <linus.walleij@linaro.org>, Wim Van Sebroeck <wim@linux-watchdog.org>, Mauro Carvalho Chehab <mchehab@s-opensource.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Wolfram Sang <wsa@the-dreams.de>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-gpio@vger.kernel.org, linux-watchdog@vger.kernel.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-i2c@vger.kernel.org
 
-Now that arch/metag/ has been removed, drop a bunch of metag references
-in various codes across the whole tree:
- - VM_GROWSUP and __VM_ARCH_PECIFIC_1.
- - MT_METAG_* ELF note types.
- - METAG Kconfig dependencies (FRAME_POINTER) and ranges
-   (MAX_STACK_SIZE_MB).
- - metag cases in tools (checkstack.pl, recordmcount.c, perf).
 
-Signed-off-by: James Hogan <jhogan@kernel.org>
-Acked-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
-Cc: Jiri Olsa <jolsa@redhat.com>
-Cc: Namhyung Kim <namhyung@kernel.org>
-Cc: Guenter Roeck <linux@roeck-us.net>
-Cc: linux-mm@kvack.org
-Cc: linux-metag@vger.kernel.org
----
-Changes in v2:
- - Drop CPUHP_AP_PERF_METAG_STARTING too (Guenter).
----
- include/linux/cpuhotplug.h     |  1 -
- include/linux/mm.h             |  2 --
- include/trace/events/mmflags.h |  2 +-
- include/uapi/linux/elf.h       |  3 ---
- lib/Kconfig.debug              |  2 +-
- mm/Kconfig                     |  7 +++----
- scripts/checkstack.pl          |  4 ----
- scripts/recordmcount.c         | 20 --------------------
- tools/perf/perf-sys.h          |  4 ----
- 9 files changed, 5 insertions(+), 40 deletions(-)
+--tThc/1wpZn/ma/RB
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-diff --git a/include/linux/cpuhotplug.h b/include/linux/cpuhotplug.h
-index 5172ad0daa7c..c7a950681f3a 100644
---- a/include/linux/cpuhotplug.h
-+++ b/include/linux/cpuhotplug.h
-@@ -108,7 +108,6 @@ enum cpuhp_state {
- 	CPUHP_AP_PERF_X86_CQM_STARTING,
- 	CPUHP_AP_PERF_X86_CSTATE_STARTING,
- 	CPUHP_AP_PERF_XTENSA_STARTING,
--	CPUHP_AP_PERF_METAG_STARTING,
- 	CPUHP_AP_MIPS_OP_LOONGSON3_STARTING,
- 	CPUHP_AP_ARM_SDEI_STARTING,
- 	CPUHP_AP_ARM_VFP_STARTING,
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ad06d42adb1a..ccac10682ce5 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -241,8 +241,6 @@ extern unsigned int kobjsize(const void *objp);
- # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
- #elif defined(CONFIG_PARISC)
- # define VM_GROWSUP	VM_ARCH_1
--#elif defined(CONFIG_METAG)
--# define VM_GROWSUP	VM_ARCH_1
- #elif defined(CONFIG_IA64)
- # define VM_GROWSUP	VM_ARCH_1
- #elif !defined(CONFIG_MMU)
-diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-index dbe1bb058c09..a81cffb76d89 100644
---- a/include/trace/events/mmflags.h
-+++ b/include/trace/events/mmflags.h
-@@ -115,7 +115,7 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
- #define __VM_ARCH_SPECIFIC_1 {VM_PAT,     "pat"           }
- #elif defined(CONFIG_PPC)
- #define __VM_ARCH_SPECIFIC_1 {VM_SAO,     "sao"           }
--#elif defined(CONFIG_PARISC) || defined(CONFIG_METAG) || defined(CONFIG_IA64)
-+#elif defined(CONFIG_PARISC) || defined(CONFIG_IA64)
- #define __VM_ARCH_SPECIFIC_1 {VM_GROWSUP,	"growsup"	}
- #elif !defined(CONFIG_MMU)
- #define __VM_ARCH_SPECIFIC_1 {VM_MAPPED_COPY,"mappedcopy"	}
-diff --git a/include/uapi/linux/elf.h b/include/uapi/linux/elf.h
-index 3bf73fb58045..e2535d6dcec7 100644
---- a/include/uapi/linux/elf.h
-+++ b/include/uapi/linux/elf.h
-@@ -420,9 +420,6 @@ typedef struct elf64_shdr {
- #define NT_ARM_HW_WATCH	0x403		/* ARM hardware watchpoint registers */
- #define NT_ARM_SYSTEM_CALL	0x404	/* ARM system call number */
- #define NT_ARM_SVE	0x405		/* ARM Scalable Vector Extension registers */
--#define NT_METAG_CBUF	0x500		/* Metag catch buffer registers */
--#define NT_METAG_RPIPE	0x501		/* Metag read pipeline state */
--#define NT_METAG_TLS	0x502		/* Metag TLS pointer */
- #define NT_ARC_V2	0x600		/* ARCv2 accumulator/extra registers */
- 
- /* Note header in a PT_NOTE section */
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 6088408ef26c..d1c523e408e9 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -356,7 +356,7 @@ config FRAME_POINTER
- 	bool "Compile the kernel with frame pointers"
- 	depends on DEBUG_KERNEL && \
- 		(CRIS || M68K || FRV || UML || \
--		 SUPERH || BLACKFIN || MN10300 || METAG) || \
-+		 SUPERH || BLACKFIN || MN10300) || \
- 		ARCH_WANT_FRAME_POINTERS
- 	default y if (DEBUG_INFO && UML) || ARCH_WANT_FRAME_POINTERS
- 	help
-diff --git a/mm/Kconfig b/mm/Kconfig
-index c782e8fb7235..abefa573bcd8 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -627,15 +627,14 @@ config GENERIC_EARLY_IOREMAP
- config MAX_STACK_SIZE_MB
- 	int "Maximum user stack size for 32-bit processes (MB)"
- 	default 80
--	range 8 256 if METAG
- 	range 8 2048
- 	depends on STACK_GROWSUP && (!64BIT || COMPAT)
- 	help
- 	  This is the maximum stack size in Megabytes in the VM layout of 32-bit
- 	  user processes when the stack grows upwards (currently only on parisc
--	  and metag arch). The stack will be located at the highest memory
--	  address minus the given value, unless the RLIMIT_STACK hard limit is
--	  changed to a smaller value in which case that is used.
-+	  arch). The stack will be located at the highest memory address minus
-+	  the given value, unless the RLIMIT_STACK hard limit is changed to a
-+	  smaller value in which case that is used.
- 
- 	  A sane initial value is 80 MB.
- 
-diff --git a/scripts/checkstack.pl b/scripts/checkstack.pl
-index cb993801e4b2..eeb9ac8dbcfb 100755
---- a/scripts/checkstack.pl
-+++ b/scripts/checkstack.pl
-@@ -64,10 +64,6 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
- 		#    2b6c:       4e56 fb70       linkw %fp,#-1168
- 		#  1df770:       defc ffe4       addaw #-28,%sp
- 		$re = qr/.*(?:linkw %fp,|addaw )#-([0-9]{1,4})(?:,%sp)?$/o;
--	} elsif ($arch eq 'metag') {
--		#400026fc:       40 00 00 82     ADD       A0StP,A0StP,#0x8
--		$re = qr/.*ADD.*A0StP,A0StP,\#(0x$x{1,8})/o;
--		$funcre = qr/^$x* <[^\$](.*)>:$/;
- 	} elsif ($arch eq 'mips64') {
- 		#8800402c:       67bdfff0        daddiu  sp,sp,-16
- 		$re = qr/.*daddiu.*sp,sp,-(([0-9]{2}|[3-9])[0-9]{2})/o;
-diff --git a/scripts/recordmcount.c b/scripts/recordmcount.c
-index 16e086dcc567..8c9691c3329e 100644
---- a/scripts/recordmcount.c
-+++ b/scripts/recordmcount.c
-@@ -33,20 +33,6 @@
- #include <string.h>
- #include <unistd.h>
- 
--/*
-- * glibc synced up and added the metag number but didn't add the relocations.
-- * Work around this in a crude manner for now.
-- */
--#ifndef EM_METAG
--#define EM_METAG      174
--#endif
--#ifndef R_METAG_ADDR32
--#define R_METAG_ADDR32                   2
--#endif
--#ifndef R_METAG_NONE
--#define R_METAG_NONE                     3
--#endif
--
- #ifndef EM_AARCH64
- #define EM_AARCH64	183
- #define R_AARCH64_NONE		0
-@@ -538,12 +524,6 @@ do_file(char const *const fname)
- 			gpfx = '_';
- 			break;
- 	case EM_IA_64:	 reltype = R_IA64_IMM64;   gpfx = '_'; break;
--	case EM_METAG:	 reltype = R_METAG_ADDR32;
--			 altmcount = "_mcount_wrapper";
--			 rel_type_nop = R_METAG_NONE;
--			 /* We happen to have the same requirement as MIPS */
--			 is_fake_mcount32 = MIPS32_is_fake_mcount;
--			 break;
- 	case EM_MIPS:	 /* reltype: e_class    */ gpfx = '_'; break;
- 	case EM_PPC:	 reltype = R_PPC_ADDR32;   gpfx = '_'; break;
- 	case EM_PPC64:	 reltype = R_PPC64_ADDR64; gpfx = '_'; break;
-diff --git a/tools/perf/perf-sys.h b/tools/perf/perf-sys.h
-index 36673f98d66b..3eb7a39169f6 100644
---- a/tools/perf/perf-sys.h
-+++ b/tools/perf/perf-sys.h
-@@ -46,10 +46,6 @@
- #define CPUINFO_PROC	{"Processor"}
- #endif
- 
--#ifdef __metag__
--#define CPUINFO_PROC	{"CPU"}
--#endif
--
- #ifdef __xtensa__
- #define CPUINFO_PROC	{"core ID"}
- #endif
--- 
-2.13.6
+On Fri, Feb 23, 2018 at 11:26:58AM +0100, Arnd Bergmann wrote:
+> On Thu, Feb 22, 2018 at 12:38 AM, James Hogan <jhogan@kernel.org> wrote:
+> > So lets call it a day and drop the Meta architecture port from the
+> > kernel. RIP Meta.
+>=20
+> Since I brought up the architecture removal independently, I could
+> pick this up into a git tree that also has the removal of some of the
+> other architectures.
+>=20
+> I see your tree is part of linux-next, so you could also just put it
+> in there and send a pull request at the merge window if you prefer.
+>=20
+> The only real reason I see for a shared git tree would be to avoid
+> conflicts when we touch the same Kconfig files or #ifdefs in driver,
+> but Meta only appears in
+>=20
+> config FRAME_POINTER
+>         bool "Compile the kernel with frame pointers"
+>         depends on DEBUG_KERNEL && \
+>                 (CRIS || M68K || FRV || UML || \
+>                  SUPERH || BLACKFIN || MN10300 || METAG) || \
+>                 ARCH_WANT_FRAME_POINTERS
+>=20
+> and
+>=20
+> include/trace/events/mmflags.h:#elif defined(CONFIG_PARISC) ||
+> defined(CONFIG_METAG) || defined(CONFIG_IA64)
+>=20
+> so there is little risk.
+
+I'm happy to put v2 in linux-next now (only patch 4 has changed, I just
+sent an updated version), and send you a pull request early next week so
+you can take it from there. The patches can't be directly applied with
+git-am anyway thanks to the -D option to make them more concise.
+
+Sound okay?
+
+Thanks
+James
+
+--tThc/1wpZn/ma/RB
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEd80NauSabkiESfLYbAtpk944dnoFAlqP9K8ACgkQbAtpk944
+dnqGqg//RwJWuqjtS6xKfuWgErALcEI5BIrgC7QevCr8kr37+YnzqVJM+Wmz/ROv
+xW5kdhL8v/ocuxe+YBECennMjzbbPPvHWq1WieTxXOgOB8nxGduvsNFQiUg8I99O
+ltjgj7sjnGp0R0GW4HflETXKGWjLn7NirFoCLjyTQT3Gwjpn8shDLx1trMPb8ujH
+N6DvyyrojnBJ0kACtzEyGBPphrtk/a0t+zySdIuRLXReU9Q2/5yW2Vof4irxL9Ov
+JQljE0/dTi4JgTvrieojAItgUsS3/D+XVe2HDTJw2PcwAX0AmExTtaT1ADh9Ujyr
+TOg0uFwmed74V/wUwBxW6KMOyu0d0ITmTghXnWl4jbJvpR0pNXjJG1JCtpjyYgmd
+3Lx7fzwDckUB+4ma2X2C7OAU4JaBU2tEKPo5a/b/pO0d7HqRGJIA0HApTaF8YQ4Z
+tREK4jme67OuLs3POFHgbPLVrORrk4dhiBZHarPERXIEXYYD/0kVA5S7npvSmzD0
+AmFh1T6b0VcQWak6aU9PoTmdIpPwmyhvOBsMAzOwounp2kmwObdgdgDB8yQkC5VK
+EQCcmCWImEf7hz1RyTc6bawPRFkCip1k4ucmOO7KLYhuFL6uYj/Mg5JaDZLNQRyn
+izvAzQ5AK0+VzznxZHkbKgISt54p1SuEMQuCvxYzpujBNY0Ti98=
+=BIkF
+-----END PGP SIGNATURE-----
+
+--tThc/1wpZn/ma/RB--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
