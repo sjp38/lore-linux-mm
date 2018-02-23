@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C6CFD6B0008
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 09:49:26 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 17so5647353wrm.10
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 06:49:26 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 450C76B000A
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 09:50:00 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id g13so5508354wrh.23
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 06:50:00 -0800 (PST)
 Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id o4si2165104wra.176.2018.02.23.06.49.23
+        by mx.google.com with ESMTPS id p12si1515442wrg.97.2018.02.23.06.49.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Feb 2018 06:49:23 -0800 (PST)
+        Fri, 23 Feb 2018 06:49:58 -0800 (PST)
 From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 1/7] genalloc: track beginning of allocations
-Date: Fri, 23 Feb 2018 16:48:01 +0200
-Message-ID: <20180223144807.1180-2-igor.stoppa@huawei.com>
+Subject: [PATCH 2/7] genalloc: selftest
+Date: Fri, 23 Feb 2018 16:48:02 +0200
+Message-ID: <20180223144807.1180-3-igor.stoppa@huawei.com>
 In-Reply-To: <20180223144807.1180-1-igor.stoppa@huawei.com>
 References: <20180223144807.1180-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
@@ -22,1081 +22,539 @@ List-ID: <linux-mm.kvack.org>
 To: david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
 Cc: labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-The genalloc library is only capable of tracking if a certain unit of
-allocation is in use or not.
+Introduce a set of macros for writing concise test cases for genalloc.
 
-It is not capable of discerning where the memory associated to an
-allocation request begins and where it ends.
+The test cases are meant to provide regression testing, when working on
+new functionality for genalloc.
 
-The reason is that units of allocations are tracked by using a bitmap,
-where each bit represents that the unit is either allocated (1) or
-available (0).
+Primarily they are meant to confirm that the various allocation strategy
+will continue to work as expected.
 
-The user of the API must keep track of how much space was requested, if
-it ever needs to be freed.
+The execution of the self testing is controlled through a Kconfig option.
 
-This can cause errors being undetected.
-Examples:
-* Only a subset of the memory provided to an allocation request is freed
-* The memory from a subsequent allocation is freed
-* The memory being freed doesn't start at the beginning of an
-  allocation.
+The testing takes place in the very early stages of main.c, to ensure
+that failures in genalloc are caught before they can cause unexplained
+erratic behavior in any of genalloc users.
 
-The bitmap is used because it allows to perform lockless read/write
-access, where this is supported by hw through cmpxchg.
-Similarly, it is possible to scan the bitmap for a sufficiently long
-sequence of zeros, to identify zones available for allocation.
-
-This patch doubles the space reserved in the bitmap for each allocation,
-to track their beginning.
-
-For details, see the documentation inside lib/genalloc.c
-
-The primary effect of this patch is that code using the gen_alloc
-library does not need anymore to keep track of the size of the
-allocations it makes.
-
-Prior to this patch, it was necessary to keep track of the size of the
-allocation, so that it would be possible, later on, to know how much
-space should be freed.
-
-Now, users of the api can choose to etiher still specify explicitly the
-size, or let the library determine it, by giving a value of 0.
-
-However, even when the value is specified, the library still uses its on
-understanding of the space associated with a certain allocation, to
-confirm that they are consistent.
-
-This verification provides also confirmation that the patch works correctly.
-
-Eventually, the extra parameter (and the corresponding verification) could
-be dropped, in favor of a simplified API.
+Therefore, it would not be advisable to implement it as module.
 
 Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 ---
- include/linux/genalloc.h |   4 +-
- lib/genalloc.c           | 631 ++++++++++++++++++++++++++++++++++-------------
- 2 files changed, 465 insertions(+), 170 deletions(-)
+ include/linux/test_genalloc.h |  26 +++
+ init/main.c                   |   2 +
+ lib/Kconfig                   |  15 ++
+ lib/Makefile                  |   1 +
+ lib/test_genalloc.c           | 410 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 454 insertions(+)
+ create mode 100644 include/linux/test_genalloc.h
+ create mode 100644 lib/test_genalloc.c
 
-diff --git a/include/linux/genalloc.h b/include/linux/genalloc.h
-index 872f930f1b06..dcaa33e74b1c 100644
---- a/include/linux/genalloc.h
-+++ b/include/linux/genalloc.h
-@@ -32,7 +32,7 @@
- 
- #include <linux/types.h>
- #include <linux/spinlock_types.h>
--#include <linux/atomic.h>
-+#include <linux/slab.h>
- 
- struct device;
- struct device_node;
-@@ -76,7 +76,7 @@ struct gen_pool_chunk {
- 	phys_addr_t phys_addr;		/* physical starting address of memory chunk */
- 	unsigned long start_addr;	/* start address of memory chunk */
- 	unsigned long end_addr;		/* end address of memory chunk (inclusive) */
--	unsigned long bits[0];		/* bitmap for allocating memory chunk */
-+	unsigned long entries[0];	/* bitmap for allocating memory chunk */
- };
- 
- /*
-diff --git a/lib/genalloc.c b/lib/genalloc.c
-index ca06adc4f445..87f62f31b52f 100644
---- a/lib/genalloc.c
-+++ b/lib/genalloc.c
-@@ -26,6 +26,74 @@
-  *
-  * This source code is licensed under the GNU General Public License,
-  * Version 2.  See the file COPYING for more details.
+diff --git a/include/linux/test_genalloc.h b/include/linux/test_genalloc.h
+new file mode 100644
+index 000000000000..cc45c6c859cf
+--- /dev/null
++++ b/include/linux/test_genalloc.h
+@@ -0,0 +1,26 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * test_genalloc.h
 + *
-+ *
-+ *
-+ * Encoding of the bitmap tracking the allocations
-+ * -----------------------------------------------
-+ *
-+ * The bitmap is composed of units of allocations.
-+ *
-+ * Each unit of allocation is represented using 2 consecutive bits.
-+ *
-+ * This makes it possible to encode, for each unit of allocation,
-+ * information about:
-+ *  - allocation status (busy/free)
-+ *  - beginning of a sequennce of allocation units (first / successive)
-+ *
-+ *
-+ * Dictionary of allocation units (msb to the left, lsb to the right):
-+ *
-+ * 11: first allocation unit in the allocation
-+ * 10: any subsequent allocation unit (if any) in the allocation
-+ * 00: available allocation unit
-+ * 01: invalid
-+ *
-+ * Example, using the same notation as above - MSb.......LSb:
-+ *
-+ *  ...000010111100000010101011   <-- Read in this direction.
-+ *     \__|\__|\|\____|\______|
-+ *        |   | |     |       \___ 4 used allocation units
-+ *        |   | |     \___________ 3 empty allocation units
-+ *        |   | \_________________ 1 used allocation unit
-+ *        |   \___________________ 2 used allocation units
-+ *        \_______________________ 2 empty allocation units
-+ *
-+ * The encoding allows for lockless operations, such as:
-+ * - search for a sufficiently large range of allocation units
-+ * - reservation of a selected range of allocation units
-+ * - release of a specific allocation
-+ *
-+ * The alignment at which to perform the research for sequence of empty
-+ * allocation units (marked as zeros in the bitmap) is 2^1.
-+ *
-+ * This means that an allocation can start only at even places
-+ * (bit 0, bit 2, etc.) in the bitmap.
-+ *
-+ * Therefore, the number of zeroes to look for must be twice the number
-+ * of desired allocation units.
-+ *
-+ * When it's time to free the memory associated to an allocation request,
-+ * it's a matter of checking if the corresponding allocation unit is
-+ * really the beginning of an allocation (both bits are set to 1).
-+ *
-+ * Looking for the ending can also be performed locklessly.
-+ * It's sufficient to identify the first mapped allocation unit
-+ * that is represented either as free (00) or busy (11).
-+ * Even if the allocation status should change in the meanwhile, it
-+ * doesn't matter, since it can only transition between free (00) and
-+ * first-allocated (11).
-+ *
-+ * The parameter indicating to the *_free() function the size of the
-+ * space that should be freed can be either set to 0, for automated
-+ * assessment, or it can be specified explicitly.
-+ *
-+ * In case it is specified explicitly, the value is verified agaisnt what
-+ * the library is tracking internally.
-+ *
-+ * If ever needed, the bitmap could be extended, assigning larger amounts
-+ * of bits to each allocation unit (the increase must follow powers of 2),
-+ * to track other properties of the allocations.
-  */
- 
- #include <linux/slab.h>
-@@ -36,118 +104,247 @@
- #include <linux/genalloc.h>
- #include <linux/of_device.h>
- 
-+#define ENTRY_ORDER 1UL
-+#define ENTRY_MASK ((1UL << ((ENTRY_ORDER) + 1UL)) - 1UL)
-+#define ENTRY_HEAD ENTRY_MASK
-+#define ENTRY_UNUSED 0UL
-+#define BITS_PER_ENTRY (1U << ENTRY_ORDER)
-+#define BITS_DIV_ENTRIES(x) ((x) >> ENTRY_ORDER)
-+#define ENTRIES_TO_BITS(x) ((x) << ENTRY_ORDER)
-+#define BITS_DIV_LONGS(x) ((x) / BITS_PER_LONG)
-+#define ENTRIES_DIV_LONGS(x) (BITS_DIV_LONGS(ENTRIES_TO_BITS(x)))
-+
-+#define ENTRIES_PER_LONG BITS_DIV_ENTRIES(BITS_PER_LONG)
-+
-+/* Binary pattern of 1010...1010 that spans one unsigned long. */
-+#define MASK (~0UL / 3 * 2)
-+
-+/**
-+ * get_bitmap_entry() - extracts the specified entry from the bitmap
-+ * @map: pointer to a bitmap
-+ * @entry_index: the index of the desired entry in the bitmap
-+ *
-+ * Return: The requested bitmap.
++ * (C) Copyright 2017 Huawei Technologies Co. Ltd.
++ * Author: Igor Stoppa <igor.stoppa@huawei.com>
 + */
-+static inline unsigned long get_bitmap_entry(unsigned long *map,
-+					    int entry_index)
++
++
++#ifndef __LINUX_TEST_GENALLOC_H
++#define __LINUX_TEST_GENALLOC_H
++
++
++#ifdef CONFIG_TEST_GENERIC_ALLOCATOR
++
++#include <linux/genalloc.h>
++
++void test_genalloc(void);
++
++#else
++
++static inline void test_genalloc(void){};
++
++#endif
++
++#endif
+diff --git a/init/main.c b/init/main.c
+index a8100b954839..bfccf1fd463c 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -89,6 +89,7 @@
+ #include <linux/io.h>
+ #include <linux/cache.h>
+ #include <linux/rodata_test.h>
++#include <linux/test_genalloc.h>
+ 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -660,6 +661,7 @@ asmlinkage __visible void __init start_kernel(void)
+ 	 */
+ 	mem_encrypt_init();
+ 
++	test_genalloc();
+ #ifdef CONFIG_BLK_DEV_INITRD
+ 	if (initrd_start && !initrd_below_start_ok &&
+ 	    page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
+diff --git a/lib/Kconfig b/lib/Kconfig
+index e96089499371..361514324d64 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -287,6 +287,21 @@ config DECOMPRESS_LZ4
+ config GENERIC_ALLOCATOR
+ 	bool
+ 
++config TEST_GENERIC_ALLOCATOR
++	bool "genalloc tester"
++	default n
++	select GENERIC_ALLOCATOR
++	help
++	  Enable automated testing of the generic allocator.
++	  The testing is primarily for the tracking of allocated space.
++
++config TEST_GENERIC_ALLOCATOR_VERBOSE
++	bool "make the genalloc tester more verbose"
++	default n
++	select TEST_GENERIC_ALLOCATOR
++	help
++	  More information will be displayed during the self-testing.
++
+ #
+ # reed solomon support is select'ed if needed
+ #
+diff --git a/lib/Makefile b/lib/Makefile
+index a90d4fcd748f..5b5ee8d8f6d6 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -108,6 +108,7 @@ obj-$(CONFIG_LIBCRC32C)	+= libcrc32c.o
+ obj-$(CONFIG_CRC8)	+= crc8.o
+ obj-$(CONFIG_XXHASH)	+= xxhash.o
+ obj-$(CONFIG_GENERIC_ALLOCATOR) += genalloc.o
++obj-$(CONFIG_TEST_GENERIC_ALLOCATOR) += test_genalloc.o
+ 
+ obj-$(CONFIG_842_COMPRESS) += 842/
+ obj-$(CONFIG_842_DECOMPRESS) += 842/
+diff --git a/lib/test_genalloc.c b/lib/test_genalloc.c
+new file mode 100644
+index 000000000000..12a61c9e7558
+--- /dev/null
++++ b/lib/test_genalloc.c
+@@ -0,0 +1,410 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * test_genalloc.c
++ *
++ * (C) Copyright 2017 Huawei Technologies Co. Ltd.
++ * Author: Igor Stoppa <igor.stoppa@huawei.com>
++ */
++
++#include <linux/module.h>
++#include <linux/printk.h>
++#include <linux/init.h>
++#include <linux/vmalloc.h>
++#include <linux/string.h>
++#include <linux/debugfs.h>
++#include <linux/atomic.h>
++#include <linux/genalloc.h>
++
++#include <linux/test_genalloc.h>
++
++
++/*
++ * In case of failure of any of these tests, memory corruption is almost
++ * guarranteed; allowing the boot to continue means risking to corrupt
++ * also any filesystem/block device accessed write mode.
++ * Therefore, BUG_ON() is used, when testing.
++ */
++
++
++/*
++ * Keep the bitmap small, while including case of cross-ulong mapping.
++ * For simplicity, the test cases use only 1 chunk of memory.
++ */
++#define BITMAP_SIZE_C 16
++#define ALLOC_ORDER 0
++
++#define ULONG_SIZE (sizeof(unsigned long))
++#define BITMAP_SIZE_UL (BITMAP_SIZE_C / ULONG_SIZE)
++#define MIN_ALLOC_SIZE (1 << ALLOC_ORDER)
++#define ENTRIES (BITMAP_SIZE_C * 8)
++#define CHUNK_SIZE  (MIN_ALLOC_SIZE * ENTRIES)
++
++#ifndef CONFIG_TEST_GENERIC_ALLOCATOR_VERBOSE
++
++static inline void print_first_chunk_bitmap(struct gen_pool *pool) {}
++
++#else
++
++static void print_first_chunk_bitmap(struct gen_pool *pool)
 +{
-+	return (map[ENTRIES_DIV_LONGS(entry_index)] >>
-+		ENTRIES_TO_BITS(entry_index % ENTRIES_PER_LONG)) &
-+		ENTRY_MASK;
++	struct gen_pool_chunk *chunk;
++	char bitmap[BITMAP_SIZE_C * 2 + 1];
++	unsigned long i;
++	char *bm = bitmap;
++	char *entry;
++
++	if (unlikely(pool == NULL || pool->chunks.next == NULL))
++		return;
++
++	chunk = container_of(pool->chunks.next, struct gen_pool_chunk,
++			     next_chunk);
++	entry = (void *)chunk->entries;
++	for (i = 1; i <= BITMAP_SIZE_C; i++)
++		bm += snprintf(bm, 3, "%02hhx", entry[BITMAP_SIZE_C - i]);
++	*bm = '\0';
++	pr_notice("chunk: %p    bitmap: 0x%s\n", chunk, bitmap);
++
 +}
 +
++#endif
 +
-+/**
-+ * mem_to_units() - convert references to memory into orders of allocation
-+ * @size: amount in bytes
-+ * @order: power of 2 represented by each entry in the bitmap
-+ *
-+ * Return: the number of units representing the size.
++enum test_commands {
++	CMD_ALLOCATOR,
++	CMD_ALLOCATE,
++	CMD_FLUSH,
++	CMD_FREE,
++	CMD_NUMBER,
++	CMD_END = CMD_NUMBER,
++};
++
++struct null_struct {
++	void *null;
++};
++
++struct test_allocator {
++	genpool_algo_t algo;
++	union {
++		struct genpool_data_align align;
++		struct genpool_data_fixed offset;
++		struct null_struct null;
++	} data;
++};
++
++struct test_action {
++	unsigned int location;
++	char pattern[BITMAP_SIZE_C];
++	unsigned int size;
++};
++
++
++struct test_command {
++	enum test_commands command;
++	union {
++		struct test_allocator allocator;
++		struct test_action action;
++	};
++};
++
++
++/*
++ * To pass an array literal as parameter to a macro, it must go through
++ * this one, first.
 + */
-+static inline unsigned long mem_to_units(unsigned long size,
-+					 unsigned long order)
-+{
-+	return (size + (1UL << order) - 1) >> order;
++#define ARR(...) __VA_ARGS__
++
++#define SET_DATA(parameter, value)	\
++	.parameter = {			\
++		.parameter = value,	\
++	}				\
++
++#define SET_ALLOCATOR(alloc, parameter, value)		\
++{							\
++	.command = CMD_ALLOCATOR,			\
++	.allocator = {					\
++		.algo = (alloc),			\
++		.data = {				\
++			SET_DATA(parameter, value),	\
++		},					\
++	}						\
 +}
 +
-+/**
-+ * chunk_size() - dimension of a chunk of memory, in bytes
-+ * @chunk: pointer to the struct describing the chunk
-+ *
-+ * Return: The size of the chunk, in bytes.
++#define ACTION_MEM(act, mem_size, mem_loc, match)	\
++{							\
++	.command = act,					\
++	.action = {					\
++		.size = (mem_size),			\
++		.location = (mem_loc),			\
++		.pattern = match,			\
++	},						\
++}
++
++#define ALLOCATE_MEM(mem_size, mem_loc, match)	\
++	ACTION_MEM(CMD_ALLOCATE, mem_size, mem_loc, ARR(match))
++
++#define FREE_MEM(mem_size, mem_loc, match)	\
++	ACTION_MEM(CMD_FREE, mem_size, mem_loc, ARR(match))
++
++#define FLUSH_MEM()		\
++{				\
++	.command = CMD_FLUSH,	\
++}
++
++#define END()			\
++{				\
++	.command = CMD_END,	\
++}
++
++static inline int compare_bitmaps(const struct gen_pool *pool,
++				   const char *reference)
++{
++	struct gen_pool_chunk *chunk;
++	char *bitmap;
++	unsigned int i;
++
++	chunk = container_of(pool->chunks.next, struct gen_pool_chunk,
++			     next_chunk);
++	bitmap = (char *)chunk->entries;
++
++	for (i = 0; i < BITMAP_SIZE_C; i++)
++		if (bitmap[i] != reference[i])
++			return -1;
++	return 0;
++}
++
++static void callback_set_allocator(struct gen_pool *pool,
++				   const struct test_command *cmd,
++				   unsigned long *locations)
++{
++	gen_pool_set_algo(pool, cmd->allocator.algo,
++			  (void *)&cmd->allocator.data);
++}
++
++static void callback_allocate(struct gen_pool *pool,
++			      const struct test_command *cmd,
++			      unsigned long *locations)
++{
++	const struct test_action *action = &cmd->action;
++
++	locations[action->location] = gen_pool_alloc(pool, action->size);
++	BUG_ON(!locations[action->location]);
++	print_first_chunk_bitmap(pool);
++	BUG_ON(compare_bitmaps(pool, action->pattern));
++}
++
++static void callback_flush(struct gen_pool *pool,
++			  const struct test_command *cmd,
++			  unsigned long *locations)
++{
++	unsigned int i;
++
++	for (i = 0; i < ENTRIES; i++)
++		if (locations[i]) {
++			gen_pool_free(pool, locations[i], 0);
++			locations[i] = 0;
++		}
++}
++
++static void callback_free(struct gen_pool *pool,
++			  const struct test_command *cmd,
++			  unsigned long *locations)
++{
++	const struct test_action *action = &cmd->action;
++
++	gen_pool_free(pool, locations[action->location], 0);
++	locations[action->location] = 0;
++	print_first_chunk_bitmap(pool);
++	BUG_ON(compare_bitmaps(pool, action->pattern));
++}
++
++static void (* const callbacks[CMD_NUMBER])(struct gen_pool *,
++					    const struct test_command *,
++					    unsigned long *) = {
++	[CMD_ALLOCATOR] = callback_set_allocator,
++	[CMD_ALLOCATE] = callback_allocate,
++	[CMD_FREE] = callback_free,
++	[CMD_FLUSH] = callback_flush,
++};
++
++static const struct test_command test_first_fit[] = {
++	SET_ALLOCATOR(gen_pool_first_fit, null, NULL),
++	ALLOCATE_MEM(3, 0, ARR({0x2b})),
++	ALLOCATE_MEM(2, 1, ARR({0xeb, 0x02})),
++	ALLOCATE_MEM(5, 2, ARR({0xeb, 0xae, 0x0a})),
++	FREE_MEM(2, 1,  ARR({0x2b, 0xac, 0x0a})),
++	ALLOCATE_MEM(1, 1, ARR({0xeb, 0xac, 0x0a})),
++	FREE_MEM(0, 2,  ARR({0xeb})),
++	FREE_MEM(0, 0,  ARR({0xc0})),
++	FREE_MEM(0, 1,	ARR({0x00})),
++	END(),
++};
++
++/*
++ * To make the test work for both 32bit and 64bit ulong sizes,
++ * allocate (8 / 2 * 4 - 1) = 15 bytes bytes, then 16, then 2.
++ * The first allocation prepares for the crossing of the 32bit ulong
++ * threshold. The following crosses the 32bit threshold and prepares for
++ * crossing the 64bit thresholds. The last is large enough (2 bytes) to
++ * cross the 64bit threshold.
++ * Then free the allocations in the order: 2nd, 1st, 3rd.
 + */
- static inline size_t chunk_size(const struct gen_pool_chunk *chunk)
- {
- 	return chunk->end_addr - chunk->start_addr + 1;
- }
- 
--static int set_bits_ll(unsigned long *addr, unsigned long mask_to_set)
++static const struct test_command test_ulong_span[] = {
++	SET_ALLOCATOR(gen_pool_first_fit, null, NULL),
++	ALLOCATE_MEM(15, 0, ARR({0xab, 0xaa, 0xaa, 0x2a})),
++	ALLOCATE_MEM(16, 1, ARR({0xab, 0xaa, 0xaa, 0xea,
++				0xaa, 0xaa, 0xaa, 0x2a})),
++	ALLOCATE_MEM(2, 2, ARR({0xab, 0xaa, 0xaa, 0xea,
++			       0xaa, 0xaa, 0xaa, 0xea,
++			       0x02})),
++	FREE_MEM(0, 1, ARR({0xab, 0xaa, 0xaa, 0x2a,
++			   0x00, 0x00, 0x00, 0xc0,
++			   0x02})),
++	FREE_MEM(0, 0, ARR({0x00, 0x00, 0x00, 0x00,
++			   0x00, 0x00, 0x00, 0xc0,
++			   0x02})),
++	FREE_MEM(0, 2, ARR({0x00})),
++	END(),
++};
 +
-+/**
-+ * set_bits_ll() - based on value and mask, sets bits at address
-+ * @addr: where to write
-+ * @mask: filter to apply for the bits to alter
-+ * @value: actual configuration of bits to store
-+ *
-+ * Return:
-+ * * 0		- success
-+ * * -EBUSY	- otherwise
++/*
++ * Create progressively smaller allocations A B C D E.
++ * then free B and D.
++ * Then create new allocation that would fit in both of the gaps left by
++ * B and D. Verify that it uses the gap from B.
 + */
-+static int set_bits_ll(unsigned long *addr,
-+		       unsigned long mask, unsigned long value)
- {
--	unsigned long val, nval;
-+	unsigned long nval;
-+	unsigned long present;
-+	unsigned long target;
- 
- 	nval = *addr;
- 	do {
--		val = nval;
--		if (val & mask_to_set)
-+		present = nval;
-+		if (present & mask)
- 			return -EBUSY;
-+		target =  present | value;
- 		cpu_relax();
--	} while ((nval = cmpxchg(addr, val, val | mask_to_set)) != val);
--
-+	} while ((nval = cmpxchg(addr, present, target)) != target);
- 	return 0;
- }
- 
--static int clear_bits_ll(unsigned long *addr, unsigned long mask_to_clear)
++static const struct test_command test_first_fit_gaps[] = {
++	SET_ALLOCATOR(gen_pool_first_fit, null, NULL),
++	ALLOCATE_MEM(10, 0, ARR({0xab, 0xaa, 0x0a})),
++	ALLOCATE_MEM(8, 1, ARR({0xab, 0xaa, 0xba, 0xaa,
++			       0x0a})),
++	ALLOCATE_MEM(6, 2, ARR({0xab, 0xaa, 0xba, 0xaa,
++			       0xba, 0xaa})),
++	ALLOCATE_MEM(4, 3, ARR({0xab, 0xaa, 0xba, 0xaa,
++			       0xba, 0xaa, 0xab})),
++	ALLOCATE_MEM(2, 4, ARR({0xab, 0xaa, 0xba, 0xaa,
++			       0xba, 0xaa, 0xab, 0x0b})),
++	FREE_MEM(0, 1, ARR({0xab, 0xaa, 0x0a, 0x00,
++			   0xb0, 0xaa, 0xab, 0x0b})),
++	FREE_MEM(0, 3, ARR({0xab, 0xaa, 0x0a, 0x00,
++			   0xb0, 0xaa, 0x00, 0x0b})),
++	ALLOCATE_MEM(3, 3, ARR({0xab, 0xaa, 0xba, 0x02,
++			       0xb0, 0xaa, 0x00, 0x0b})),
++	FLUSH_MEM(),
++	END(),
++};
 +
-+/**
-+ * clear_bits_ll() - based on value and mask, clears bits at address
-+ * @addr: where to write
-+ * @mask: filter to apply for the bits to alter
-+ * @value: actual configuration of bits to clear
-+ *
-+ * Return:
-+ * * 0		- success
-+ * * -EBUSY	- otherwise
-+ */
-+static int clear_bits_ll(unsigned long *addr,
-+			 unsigned long mask, unsigned long value)
- {
--	unsigned long val, nval;
-+	unsigned long nval;
-+	unsigned long present;
-+	unsigned long target;
- 
- 	nval = *addr;
-+	present = nval;
-+	if (unlikely((present & mask) ^ value))
-+		return -EBUSY;
- 	do {
--		val = nval;
--		if ((val & mask_to_clear) != mask_to_clear)
-+		present = nval;
-+		if (unlikely((present & mask) ^ value))
- 			return -EBUSY;
-+		target =  present & ~mask;
- 		cpu_relax();
--	} while ((nval = cmpxchg(addr, val, val & ~mask_to_clear)) != val);
--
-+	} while ((nval = cmpxchg(addr, present, target)) != target);
- 	return 0;
- }
- 
--/*
-- * bitmap_set_ll - set the specified number of bits at the specified position
++/* Test first fit align */
++static const struct test_command test_first_fit_align[] = {
++	SET_ALLOCATOR(gen_pool_first_fit_align, align, 4),
++	ALLOCATE_MEM(5, 0, ARR({0xab, 0x02})),
++	ALLOCATE_MEM(3, 1, ARR({0xab, 0x02, 0x2b})),
++	ALLOCATE_MEM(2, 2, ARR({0xab, 0x02, 0x2b, 0x0b})),
++	ALLOCATE_MEM(1, 3, ARR({0xab, 0x02, 0x2b, 0x0b, 0x03})),
++	FREE_MEM(0, 0, ARR({0x00, 0x00, 0x2b, 0x0b, 0x03})),
++	FREE_MEM(0, 2, ARR({0x00, 0x00, 0x2b, 0x00, 0x03})),
++	ALLOCATE_MEM(2, 0, ARR({0x0b, 0x00, 0x2b, 0x00, 0x03})),
++	FLUSH_MEM(),
++	END(),
++};
 +
-+/**
-+ * get_boundary() - verifies address, then measure length.
-  * @map: pointer to a bitmap
-- * @start: a bit position in @map
-- * @nr: number of bits to set
-+ * @start_entry: the index of the first entry in the bitmap
-+ * @nentries: number of entries to alter
-  *
-- * Set @nr bits start from @start in @map lock-lessly. Several users
-- * can set/clear the same bitmap simultaneously without lock. If two
-- * users set the same bit, one user will return remain bits, otherwise
-- * return 0.
-+ * Return:
-+ * * length of an allocation	- success
-+ * * -EINVAL			- invalid parameters
-  */
--static int bitmap_set_ll(unsigned long *map, int start, int nr)
-+static int get_boundary(unsigned long *map, int start_entry, int nentries)
- {
--	unsigned long *p = map + BIT_WORD(start);
--	const int size = start + nr;
--	int bits_to_set = BITS_PER_LONG - (start % BITS_PER_LONG);
--	unsigned long mask_to_set = BITMAP_FIRST_WORD_MASK(start);
--
--	while (nr - bits_to_set >= 0) {
--		if (set_bits_ll(p, mask_to_set))
--			return nr;
--		nr -= bits_to_set;
--		bits_to_set = BITS_PER_LONG;
--		mask_to_set = ~0UL;
--		p++;
--	}
--	if (nr) {
--		mask_to_set &= BITMAP_LAST_WORD_MASK(size);
--		if (set_bits_ll(p, mask_to_set))
--			return nr;
--	}
-+	int i;
-+	unsigned long bitmap_entry;
- 
--	return 0;
 +
-+	if (unlikely(get_bitmap_entry(map, start_entry) != ENTRY_HEAD))
-+		return -EINVAL;
-+	for (i = start_entry + 1; i < nentries; i++) {
-+		bitmap_entry = get_bitmap_entry(map, i);
-+		if (bitmap_entry == ENTRY_HEAD ||
-+		    bitmap_entry == ENTRY_UNUSED)
-+			return i;
++/* Test fixed alloc */
++static const struct test_command test_fixed_data[] = {
++	SET_ALLOCATOR(gen_pool_fixed_alloc, offset, 1),
++	ALLOCATE_MEM(5, 0, ARR({0xac, 0x0a})),
++	SET_ALLOCATOR(gen_pool_fixed_alloc, offset, 8),
++	ALLOCATE_MEM(3, 1, ARR({0xac, 0x0a, 0x2b})),
++	SET_ALLOCATOR(gen_pool_fixed_alloc, offset, 6),
++	ALLOCATE_MEM(2, 2, ARR({0xac, 0xba, 0x2b})),
++	SET_ALLOCATOR(gen_pool_fixed_alloc, offset, 30),
++	ALLOCATE_MEM(40, 3, ARR({0xac, 0xba, 0x2b, 0x00,
++				0x00, 0x00, 0x00, 0xb0,
++				0xaa, 0xaa, 0xaa, 0xaa,
++				0xaa, 0xaa, 0xaa, 0xaa})),
++	FLUSH_MEM(),
++	END(),
++};
++
++
++/* Test first fit order align */
++static const struct test_command test_first_fit_order_align[] = {
++	SET_ALLOCATOR(gen_pool_first_fit_order_align, null, NULL),
++	ALLOCATE_MEM(5, 0, ARR({0xab, 0x02})),
++	ALLOCATE_MEM(3, 1, ARR({0xab, 0x02, 0x2b})),
++	ALLOCATE_MEM(2, 2, ARR({0xab, 0xb2, 0x2b})),
++	ALLOCATE_MEM(1, 3, ARR({0xab, 0xbe, 0x2b})),
++	ALLOCATE_MEM(1, 4, ARR({0xab, 0xbe, 0xeb})),
++	ALLOCATE_MEM(2, 5, ARR({0xab, 0xbe, 0xeb, 0x0b})),
++	FLUSH_MEM(),
++	END(),
++};
++
++
++/* 007 Test best fit */
++static const struct test_command test_best_fit[] = {
++	SET_ALLOCATOR(gen_pool_best_fit, null, NULL),
++	ALLOCATE_MEM(5, 0, ARR({0xab, 0x02})),
++	ALLOCATE_MEM(3, 1, ARR({0xab, 0xae})),
++	ALLOCATE_MEM(3, 2, ARR({0xab, 0xae, 0x2b})),
++	ALLOCATE_MEM(1, 3, ARR({0xab, 0xae, 0xeb})),
++	FREE_MEM(0, 0, ARR({0x00, 0xac, 0xeb})),
++	FREE_MEM(0, 2, ARR({0x00, 0xac, 0xc0})),
++	ALLOCATE_MEM(2, 0, ARR({0x00, 0xac, 0xcb})),
++	FLUSH_MEM(),
++	END(),
++};
++
++
++enum test_cases_indexes {
++	TEST_CASE_FIRST_FIT,
++	TEST_CASE_ULONG_SPAN,
++	TEST_CASE_FIRST_FIT_GAPS,
++	TEST_CASE_FIRST_FIT_ALIGN,
++	TEST_CASE_FIXED_DATA,
++	TEST_CASE_FIRST_FIT_ORDER_ALIGN,
++	TEST_CASE_BEST_FIT,
++	TEST_CASES_NUM,
++};
++
++static const struct test_command *test_cases[TEST_CASES_NUM] = {
++	[TEST_CASE_FIRST_FIT] = test_first_fit,
++	[TEST_CASE_ULONG_SPAN] = test_ulong_span,
++	[TEST_CASE_FIRST_FIT_GAPS] = test_first_fit_gaps,
++	[TEST_CASE_FIRST_FIT_ALIGN] = test_first_fit_align,
++	[TEST_CASE_FIXED_DATA] = test_fixed_data,
++	[TEST_CASE_FIRST_FIT_ORDER_ALIGN] = test_first_fit_order_align,
++	[TEST_CASE_BEST_FIT] = test_best_fit,
++};
++
++
++void test_genalloc(void)
++{
++	static struct gen_pool *pool;
++	unsigned long locations[ENTRIES];
++	char chunk[CHUNK_SIZE];
++	int retval;
++	unsigned int i;
++	const struct test_command *cmd;
++
++	pool = gen_pool_create(ALLOC_ORDER, -1);
++	if (unlikely(!pool)) {
++		pr_err("genalloc-selftest: no memory for pool.");
++		return;
 +	}
-+	return nentries - start_entry;
- }
- 
 +
-+#define SET_BITS 1
-+#define CLEAR_BITS 0
-+
- /*
-- * bitmap_clear_ll - clear the specified number of bits at the specified position
-+ * alter_bitmap_ll() - set/clear the entries associated with an allocation
-+ * @alteration: indicates if the bits selected should be set or cleared
-  * @map: pointer to a bitmap
-- * @start: a bit position in @map
-- * @nr: number of bits to set
-+ * @start: the index of the first entry in the bitmap
-+ * @nentries: number of entries to alter
-+ *
-+ * The modification happens lock-lessly.
-+ * Several users can write to the same map simultaneously, without lock.
-+ * In case of mid-air conflict, when 2 or more writers try to alter the
-+ * same word in the bitmap, only one will succeed and continue, the others
-+ * will fail and receive as return value the amount of entries that were
-+ * not written. Each failed writer is responsible to revert the changes
-+ * it did to the bitmap.
-+ * The lockless conflict resolution is implemented through cmpxchg.
-+ * Success or failure is purely based on first come first served basis.
-+ * The first writer that manages to gain write access to the target word
-+ * of the bitmap wins. Whatever can affect the order and priority of execution
-+ * of the writers can and will affect the result of the race.
-  *
-- * Clear @nr bits start from @start in @map lock-lessly. Several users
-- * can set/clear the same bitmap simultaneously without lock. If two
-- * users clear the same bit, one user will return remain bits,
-- * otherwise return 0.
-+ * Return:
-+ * * 0			- success
-+ * * remaining entries	- failure
-  */
--static int bitmap_clear_ll(unsigned long *map, int start, int nr)
-+static int alter_bitmap_ll(bool alteration, unsigned long *map,
-+			   int start_entry, int nentries)
- {
--	unsigned long *p = map + BIT_WORD(start);
--	const int size = start + nr;
--	int bits_to_clear = BITS_PER_LONG - (start % BITS_PER_LONG);
--	unsigned long mask_to_clear = BITMAP_FIRST_WORD_MASK(start);
--
--	while (nr - bits_to_clear >= 0) {
--		if (clear_bits_ll(p, mask_to_clear))
--			return nr;
--		nr -= bits_to_clear;
--		bits_to_clear = BITS_PER_LONG;
--		mask_to_clear = ~0UL;
--		p++;
--	}
--	if (nr) {
--		mask_to_clear &= BITMAP_LAST_WORD_MASK(size);
--		if (clear_bits_ll(p, mask_to_clear))
--			return nr;
-+	unsigned long start_bit;
-+	unsigned long end_bit;
-+	unsigned long mask;
-+	unsigned long value;
-+	int nbits;
-+	int bits_to_write;
-+	int index;
-+	int (*action)(unsigned long *addr,
-+		      unsigned long mask, unsigned long value);
-+
-+	action = (alteration == SET_BITS) ? set_bits_ll : clear_bits_ll;
-+
-+	/*
-+	 * Prepare for writing the initial part of the allocation, from
-+	 * starting entry, to the end of the UL bitmap element which
-+	 * contains it. It might be larger than the actual allocation.
-+	 */
-+	start_bit = ENTRIES_TO_BITS(start_entry);
-+	end_bit = ENTRIES_TO_BITS(start_entry + nentries);
-+	nbits = ENTRIES_TO_BITS(nentries);
-+	bits_to_write = BITS_PER_LONG - start_bit % BITS_PER_LONG;
-+	mask = BITMAP_FIRST_WORD_MASK(start_bit);
-+	/* Mark the beginning of the allocation. */
-+	value = MASK | (1UL << (start_bit % BITS_PER_LONG));
-+	index = BITS_DIV_LONGS(start_bit);
-+
-+	/*
-+	 * Writes entries to the bitmap, as long as the reminder is
-+	 * positive or zero.
-+	 * Might be skipped if the entries to write do not reach the end
-+	 * of a bitmap UL unit.
-+	 */
-+	while (nbits >= bits_to_write) {
-+		if (action(map + index, mask, value & mask))
-+			return BITS_DIV_ENTRIES(nbits);
-+		nbits -= bits_to_write;
-+		bits_to_write = BITS_PER_LONG;
-+		mask = ~0UL;
-+		value = MASK;
-+		index++;
- 	}
- 
-+	/* Takes care of the ending part of the entries to mark. */
-+	if (nbits > 0) {
-+		mask ^= BITMAP_FIRST_WORD_MASK((end_bit) % BITS_PER_LONG);
-+		bits_to_write = nbits;
-+		if (action(map + index, mask, value & mask))
-+			return BITS_DIV_ENTRIES(nbits);
++	retval = gen_pool_add_virt(pool, (unsigned long)chunk, 0,
++				   CHUNK_SIZE, -1);
++	if (unlikely(retval)) {
++		pr_err("genalloc-selftest: could not register chunk.");
++		goto destroy_pool;
 +	}
- 	return 0;
- }
- 
 +
- /**
-- * gen_pool_create - create a new special memory pool
-- * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
-- * @nid: node id of the node the pool structure should be allocated on, or -1
-+ * gen_pool_create() - create a new special memory pool
-+ * @min_alloc_order: log base 2 of number of bytes each bitmap entry
-+ *		     represents
-+ * @nid: node id of the node the pool structure should be allocated on,
-+ *	 or -1
-  *
-- * Create a new special memory pool that can be used to manage special purpose
-- * memory not managed by the regular kmalloc/kfree interface.
-+ * Create a new special memory pool that can be used to manage special
-+ * purpose memory not managed by the regular kmalloc/kfree interface.
-+ *
-+ * Return:
-+ * * pointer to the pool	- success
-+ * * NULL			- otherwise
-  */
- struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
- {
-@@ -167,7 +364,7 @@ struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
- EXPORT_SYMBOL(gen_pool_create);
- 
- /**
-- * gen_pool_add_virt - add a new chunk of special memory to the pool
-+ * gen_pool_add_virt() - add a new chunk of special memory to the pool
-  * @pool: pool to add new memory chunk to
-  * @virt: virtual starting address of memory chunk to add to pool
-  * @phys: physical starting address of memory chunk to add to pool
-@@ -177,16 +374,20 @@ EXPORT_SYMBOL(gen_pool_create);
-  *
-  * Add a new chunk of special memory to the specified pool.
-  *
-- * Returns 0 on success or a -ve errno on failure.
-+ * Return:
-+ * * 0		- success
-+ * * -ve errno	- failure
-  */
--int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
--		 size_t size, int nid)
-+int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt,
-+		      phys_addr_t phys, size_t size, int nid)
- {
- 	struct gen_pool_chunk *chunk;
--	int nbits = size >> pool->min_alloc_order;
--	int nbytes = sizeof(struct gen_pool_chunk) +
--				BITS_TO_LONGS(nbits) * sizeof(long);
-+	int nentries;
-+	int nbytes;
- 
-+	nentries = size >> pool->min_alloc_order;
-+	nbytes = sizeof(struct gen_pool_chunk) +
-+		 ENTRIES_DIV_LONGS(nentries) * sizeof(long);
- 	chunk = kzalloc_node(nbytes, GFP_KERNEL, nid);
- 	if (unlikely(chunk == NULL))
- 		return -ENOMEM;
-@@ -205,11 +406,13 @@ int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phy
- EXPORT_SYMBOL(gen_pool_add_virt);
- 
- /**
-- * gen_pool_virt_to_phys - return the physical address of memory
-+ * gen_pool_virt_to_phys() - return the physical address of memory
-  * @pool: pool to allocate from
-  * @addr: starting address of memory
-  *
-- * Returns the physical address on success, or -1 on error.
-+ * Return:
-+ * * the physical address	- success
-+ * * \-1			- error
-  */
- phys_addr_t gen_pool_virt_to_phys(struct gen_pool *pool, unsigned long addr)
- {
-@@ -230,7 +433,7 @@ phys_addr_t gen_pool_virt_to_phys(struct gen_pool *pool, unsigned long addr)
- EXPORT_SYMBOL(gen_pool_virt_to_phys);
- 
- /**
-- * gen_pool_destroy - destroy a special memory pool
-+ * gen_pool_destroy() - destroy a special memory pool
-  * @pool: pool to destroy
-  *
-  * Destroy the specified special memory pool. Verifies that there are no
-@@ -248,7 +451,7 @@ void gen_pool_destroy(struct gen_pool *pool)
- 		list_del(&chunk->next_chunk);
- 
- 		end_bit = chunk_size(chunk) >> order;
--		bit = find_next_bit(chunk->bits, end_bit, 0);
-+		bit = find_next_bit(chunk->entries, end_bit, 0);
- 		BUG_ON(bit < end_bit);
- 
- 		kfree(chunk);
-@@ -259,7 +462,7 @@ void gen_pool_destroy(struct gen_pool *pool)
- EXPORT_SYMBOL(gen_pool_destroy);
- 
- /**
-- * gen_pool_alloc - allocate special memory from the pool
-+ * gen_pool_alloc() - allocate special memory from the pool
-  * @pool: pool to allocate from
-  * @size: number of bytes to allocate from the pool
-  *
-@@ -267,6 +470,10 @@ EXPORT_SYMBOL(gen_pool_destroy);
-  * Uses the pool allocation function (with first-fit algorithm by default).
-  * Can not be used in NMI handler on architectures without
-  * NMI-safe cmpxchg implementation.
-+ *
-+ * Return:
-+ * * address of the memory allocated	- success
-+ * * NULL				- error
-  */
- unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
- {
-@@ -275,7 +482,7 @@ unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
- EXPORT_SYMBOL(gen_pool_alloc);
- 
- /**
-- * gen_pool_alloc_algo - allocate special memory from the pool
-+ * gen_pool_alloc_algo() - allocate special memory from the pool
-  * @pool: pool to allocate from
-  * @size: number of bytes to allocate from the pool
-  * @algo: algorithm passed from caller
-@@ -285,6 +492,10 @@ EXPORT_SYMBOL(gen_pool_alloc);
-  * Uses the pool allocation function (with first-fit algorithm by default).
-  * Can not be used in NMI handler on architectures without
-  * NMI-safe cmpxchg implementation.
-+ *
-+ * Return:
-+ * * address of the memory allocated	- success
-+ * * NULL				- error
-  */
- unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
- 		genpool_algo_t algo, void *data)
-@@ -292,7 +503,7 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
- 	struct gen_pool_chunk *chunk;
- 	unsigned long addr = 0;
- 	int order = pool->min_alloc_order;
--	int nbits, start_bit, end_bit, remain;
-+	int nentries, start_entry, end_entry, remain;
- 
- #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
- 	BUG_ON(in_nmi());
-@@ -301,29 +512,32 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
- 	if (size == 0)
- 		return 0;
- 
--	nbits = (size + (1UL << order) - 1) >> order;
-+	nentries = mem_to_units(size, order);
- 	rcu_read_lock();
- 	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk) {
- 		if (size > atomic_long_read(&chunk->avail))
- 			continue;
- 
--		start_bit = 0;
--		end_bit = chunk_size(chunk) >> order;
-+		start_entry = 0;
-+		end_entry = chunk_size(chunk) >> order;
- retry:
--		start_bit = algo(chunk->bits, end_bit, start_bit,
--				 nbits, data, pool);
--		if (start_bit >= end_bit)
-+		start_entry = algo(chunk->entries, end_entry, start_entry,
-+				  nentries, data, pool);
-+		if (start_entry >= end_entry)
- 			continue;
--		remain = bitmap_set_ll(chunk->bits, start_bit, nbits);
-+		remain = alter_bitmap_ll(SET_BITS, chunk->entries,
-+					 start_entry, nentries);
- 		if (remain) {
--			remain = bitmap_clear_ll(chunk->bits, start_bit,
--						 nbits - remain);
--			BUG_ON(remain);
-+			remain = alter_bitmap_ll(CLEAR_BITS,
-+						 chunk->entries,
-+						 start_entry,
-+						 nentries - remain);
- 			goto retry;
- 		}
- 
--		addr = chunk->start_addr + ((unsigned long)start_bit << order);
--		size = nbits << order;
-+		addr = chunk->start_addr +
-+			((unsigned long)start_entry << order);
-+		size = nentries << order;
- 		atomic_long_sub(size, &chunk->avail);
- 		break;
- 	}
-@@ -333,7 +547,7 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
- EXPORT_SYMBOL(gen_pool_alloc_algo);
- 
- /**
-- * gen_pool_dma_alloc - allocate special memory from the pool for DMA usage
-+ * gen_pool_dma_alloc() - allocate special memory from the pool for DMA usage
-  * @pool: pool to allocate from
-  * @size: number of bytes to allocate from the pool
-  * @dma: dma-view physical address return value.  Use NULL if unneeded.
-@@ -342,6 +556,10 @@ EXPORT_SYMBOL(gen_pool_alloc_algo);
-  * Uses the pool allocation function (with first-fit algorithm by default).
-  * Can not be used in NMI handler on architectures without
-  * NMI-safe cmpxchg implementation.
-+ *
-+ * Return:
-+ * * address of the memory allocated	- success
-+ * * NULL				- error
-  */
- void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
- {
-@@ -362,10 +580,10 @@ void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
- EXPORT_SYMBOL(gen_pool_dma_alloc);
- 
- /**
-- * gen_pool_free - free allocated special memory back to the pool
-+ * gen_pool_free() - free allocated special memory back to the pool
-  * @pool: pool to free to
-  * @addr: starting address of memory to free back to pool
-- * @size: size in bytes of memory to free
-+ * @size: size in bytes of memory to free or 0, for auto-detection
-  *
-  * Free previously allocated special memory back to the specified
-  * pool.  Can not be used in NMI handler on architectures without
-@@ -375,22 +593,29 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
- {
- 	struct gen_pool_chunk *chunk;
- 	int order = pool->min_alloc_order;
--	int start_bit, nbits, remain;
-+	int start_entry, remaining_entries, nentries, remain;
-+	int boundary;
- 
- #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
- 	BUG_ON(in_nmi());
- #endif
- 
--	nbits = (size + (1UL << order) - 1) >> order;
- 	rcu_read_lock();
- 	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk) {
- 		if (addr >= chunk->start_addr && addr <= chunk->end_addr) {
- 			BUG_ON(addr + size - 1 > chunk->end_addr);
--			start_bit = (addr - chunk->start_addr) >> order;
--			remain = bitmap_clear_ll(chunk->bits, start_bit, nbits);
-+			start_entry = (addr - chunk->start_addr) >> order;
-+			remaining_entries = (chunk->end_addr - addr) >> order;
-+			boundary = get_boundary(chunk->entries, start_entry,
-+						remaining_entries);
-+			BUG_ON(boundary < 0);
-+			nentries = boundary - start_entry;
-+			BUG_ON(size &&
-+			       (nentries != mem_to_units(size, order)));
-+			remain = alter_bitmap_ll(CLEAR_BITS, chunk->entries,
-+						 start_entry, nentries);
- 			BUG_ON(remain);
--			size = nbits << order;
--			atomic_long_add(size, &chunk->avail);
-+			atomic_long_add(nentries << order, &chunk->avail);
- 			rcu_read_unlock();
- 			return;
- 		}
-@@ -401,7 +626,7 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
- EXPORT_SYMBOL(gen_pool_free);
- 
- /**
-- * gen_pool_for_each_chunk - call func for every chunk of generic memory pool
-+ * gen_pool_for_each_chunk() - call func for every chunk of generic memory pool
-  * @pool:	the generic memory pool
-  * @func:	func to call
-  * @data:	additional data used by @func
-@@ -423,13 +648,16 @@ void gen_pool_for_each_chunk(struct gen_pool *pool,
- EXPORT_SYMBOL(gen_pool_for_each_chunk);
- 
- /**
-- * addr_in_gen_pool - checks if an address falls within the range of a pool
-+ * addr_in_gen_pool() - checks if an address falls within the range of a pool
-  * @pool:	the generic memory pool
-  * @start:	start address
-  * @size:	size of the region
-  *
-- * Check if the range of addresses falls within the specified pool. Returns
-- * true if the entire range is contained in the pool and false otherwise.
-+ * Check if the range of addresses falls within the specified pool.
-+ *
-+ * Return:
-+ * * true	- the entire range is contained in the pool
-+ * * false	- otherwise
-  */
- bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
- 			size_t size)
-@@ -452,10 +680,10 @@ bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
- }
- 
- /**
-- * gen_pool_avail - get available free space of the pool
-+ * gen_pool_avail() - get available free space of the pool
-  * @pool: pool to get available free space
-  *
-- * Return available free space of the specified pool.
-+ * Return: available free space of the specified pool.
-  */
- size_t gen_pool_avail(struct gen_pool *pool)
- {
-@@ -471,10 +699,10 @@ size_t gen_pool_avail(struct gen_pool *pool)
- EXPORT_SYMBOL_GPL(gen_pool_avail);
- 
- /**
-- * gen_pool_size - get size in bytes of memory managed by the pool
-+ * gen_pool_size() - get size in bytes of memory managed by the pool
-  * @pool: pool to get size
-  *
-- * Return size in bytes of memory managed by the pool.
-+ * Return: size in bytes of memory managed by the pool.
-  */
- size_t gen_pool_size(struct gen_pool *pool)
- {
-@@ -490,7 +718,7 @@ size_t gen_pool_size(struct gen_pool *pool)
- EXPORT_SYMBOL_GPL(gen_pool_size);
- 
- /**
-- * gen_pool_set_algo - set the allocation algorithm
-+ * gen_pool_set_algo() - set the allocation algorithm
-  * @pool: pool to change allocation algorithm
-  * @algo: custom algorithm function
-  * @data: additional data used by @algo
-@@ -514,32 +742,48 @@ void gen_pool_set_algo(struct gen_pool *pool, genpool_algo_t algo, void *data)
- EXPORT_SYMBOL(gen_pool_set_algo);
- 
- /**
-- * gen_pool_first_fit - find the first available region
-+ * gen_pool_first_fit() - find the first available region
-  * of memory matching the size requirement (no alignment constraint)
-  * @map: The address to base the search on
-- * @size: The bitmap size in bits
-- * @start: The bitnumber to start searching at
-- * @nr: The number of zeroed bits we're looking for
-+ * @size: The number of allocation units in the bitmap
-+ * @start: The allocation unit to start searching at
-+ * @nr: The number of allocation units we're looking for
-  * @data: additional data - unused
-  * @pool: pool to find the fit region memory from
-+ *
-+ * Return:
-+ * * index of the memory allocated	- sufficient space available
-+ * * end of the range			- insufficient space
-  */
- unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
- 		unsigned long start, unsigned int nr, void *data,
- 		struct gen_pool *pool)
- {
--	return bitmap_find_next_zero_area(map, size, start, nr, 0);
-+	unsigned long align_mask;
-+	unsigned long bit_index;
++	memset(locations, 0, ENTRIES * sizeof(unsigned long));
++	for (i = 0; i < TEST_CASES_NUM; i++)
++		for (cmd = test_cases[i]; cmd->command < CMD_END; cmd++)
++			callbacks[cmd->command](pool, cmd, locations);
++	pr_notice("genalloc-selftest: executed successfully %d tests",
++		  TEST_CASES_NUM);
 +
-+	align_mask = roundup_pow_of_two(BITS_PER_ENTRY) - 1;
-+	bit_index = bitmap_find_next_zero_area(map, ENTRIES_TO_BITS(size),
-+					       ENTRIES_TO_BITS(start),
-+					       ENTRIES_TO_BITS(nr),
-+					       align_mask);
-+	return BITS_DIV_ENTRIES(bit_index);
- }
- EXPORT_SYMBOL(gen_pool_first_fit);
- 
- /**
-- * gen_pool_first_fit_align - find the first available region
-+ * gen_pool_first_fit_align() - find the first available region
-  * of memory matching the size requirement (alignment constraint)
-  * @map: The address to base the search on
-- * @size: The bitmap size in bits
-- * @start: The bitnumber to start searching at
-- * @nr: The number of zeroed bits we're looking for
-+ * @size: The number of allocation units in the bitmap
-+ * @start: The allocation unit to start searching at
-+ * @nr: The number of allocation units we're looking for
-  * @data: data for alignment
-  * @pool: pool to get order from
-+ *
-+ * Return:
-+ * * index of the memory allocated	- sufficient space available
-+ * * end of the range			- insufficient space
-  */
- unsigned long gen_pool_first_fit_align(unsigned long *map, unsigned long size,
- 		unsigned long start, unsigned int nr, void *data,
-@@ -547,23 +791,34 @@ unsigned long gen_pool_first_fit_align(unsigned long *map, unsigned long size,
- {
- 	struct genpool_data_align *alignment;
- 	unsigned long align_mask;
-+	unsigned long bit_index;
- 	int order;
- 
- 	alignment = data;
- 	order = pool->min_alloc_order;
--	align_mask = ((alignment->align + (1UL << order) - 1) >> order) - 1;
--	return bitmap_find_next_zero_area(map, size, start, nr, align_mask);
-+	align_mask = roundup_pow_of_two(
-+			ENTRIES_TO_BITS(mem_to_units(alignment->align,
-+						     order))) - 1;
-+	bit_index = bitmap_find_next_zero_area(map, ENTRIES_TO_BITS(size),
-+					       ENTRIES_TO_BITS(start),
-+					       ENTRIES_TO_BITS(nr),
-+					       align_mask);
-+	return BITS_DIV_ENTRIES(bit_index);
- }
- EXPORT_SYMBOL(gen_pool_first_fit_align);
- 
- /**
-- * gen_pool_fixed_alloc - reserve a specific region
-+ * gen_pool_fixed_alloc() - reserve a specific region
-  * @map: The address to base the search on
-- * @size: The bitmap size in bits
-- * @start: The bitnumber to start searching at
-- * @nr: The number of zeroed bits we're looking for
-+ * @size: The number of allocation units in the bitmap
-+ * @start: The allocation unit to start searching at
-+ * @nr: The number of allocation units we're looking for
-  * @data: data for alignment
-  * @pool: pool to get order from
-+ *
-+ * Return:
-+ * * index of the memory allocated	- sufficient space available
-+ * * end of the range			- insufficient space
-  */
- unsigned long gen_pool_fixed_alloc(unsigned long *map, unsigned long size,
- 		unsigned long start, unsigned int nr, void *data,
-@@ -571,82 +826,113 @@ unsigned long gen_pool_fixed_alloc(unsigned long *map, unsigned long size,
- {
- 	struct genpool_data_fixed *fixed_data;
- 	int order;
--	unsigned long offset_bit;
--	unsigned long start_bit;
-+	unsigned long offset;
-+	unsigned long align_mask;
-+	unsigned long bit_index;
- 
- 	fixed_data = data;
- 	order = pool->min_alloc_order;
--	offset_bit = fixed_data->offset >> order;
- 	if (WARN_ON(fixed_data->offset & ((1UL << order) - 1)))
- 		return size;
-+	offset = fixed_data->offset >> order;
-+	align_mask = roundup_pow_of_two(BITS_PER_ENTRY) - 1;
-+	bit_index = bitmap_find_next_zero_area(map, ENTRIES_TO_BITS(size),
-+					       ENTRIES_TO_BITS(start + offset),
-+					       ENTRIES_TO_BITS(nr), align_mask);
-+	if (bit_index != ENTRIES_TO_BITS(offset))
-+		return size;
- 
--	start_bit = bitmap_find_next_zero_area(map, size,
--			start + offset_bit, nr, 0);
--	if (start_bit != offset_bit)
--		start_bit = size;
--	return start_bit;
-+	return BITS_DIV_ENTRIES(bit_index);
- }
- EXPORT_SYMBOL(gen_pool_fixed_alloc);
- 
- /**
-- * gen_pool_first_fit_order_align - find the first available region
-+ * gen_pool_first_fit_order_align() - find the first available region
-  * of memory matching the size requirement. The region will be aligned
-  * to the order of the size specified.
-  * @map: The address to base the search on
-- * @size: The bitmap size in bits
-- * @start: The bitnumber to start searching at
-- * @nr: The number of zeroed bits we're looking for
-+ * @size: The number of allocation units in the bitmap
-+ * @start: The allocation unit to start searching at
-+ * @nr: The number of allocation units we're looking for
-  * @data: additional data - unused
-  * @pool: pool to find the fit region memory from
-+ *
-+ * Return:
-+ * * index of the memory allocated	- sufficient space available
-+ * * end of the range			- insufficient space
-  */
- unsigned long gen_pool_first_fit_order_align(unsigned long *map,
- 		unsigned long size, unsigned long start,
- 		unsigned int nr, void *data, struct gen_pool *pool)
- {
--	unsigned long align_mask = roundup_pow_of_two(nr) - 1;
--
--	return bitmap_find_next_zero_area(map, size, start, nr, align_mask);
-+	unsigned long align_mask;
-+	unsigned long bit_index;
-+
-+	align_mask = roundup_pow_of_two(ENTRIES_TO_BITS(nr)) - 1;
-+	bit_index = bitmap_find_next_zero_area(map, ENTRIES_TO_BITS(size),
-+					       ENTRIES_TO_BITS(start),
-+					       ENTRIES_TO_BITS(nr),
-+					       align_mask);
-+	return BITS_DIV_ENTRIES(bit_index);
- }
- EXPORT_SYMBOL(gen_pool_first_fit_order_align);
- 
- /**
-- * gen_pool_best_fit - find the best fitting region of memory
-- * macthing the size requirement (no alignment constraint)
-+ * gen_pool_best_fit() - find the best fitting region of memory
-+ * matching the size requirement (no alignment constraint)
-  * @map: The address to base the search on
-- * @size: The bitmap size in bits
-- * @start: The bitnumber to start searching at
-- * @nr: The number of zeroed bits we're looking for
-+ * @size: The number of allocation units in the bitmap
-+ * @start: The allocation unit to start searching at
-+ * @nr: The number of allocation units we're looking for
-  * @data: additional data - unused
-  * @pool: pool to find the fit region memory from
-  *
-  * Iterate over the bitmap to find the smallest free region
-  * which we can allocate the memory.
-+ *
-+ * Return:
-+ * * index of the memory allocated	- sufficient space available
-+ * * end of the range			- insufficient space
-  */
- unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
- 		unsigned long start, unsigned int nr, void *data,
- 		struct gen_pool *pool)
- {
--	unsigned long start_bit = size;
-+	unsigned long start_bit = ENTRIES_TO_BITS(size);
- 	unsigned long len = size + 1;
- 	unsigned long index;
-+	unsigned long align_mask;
-+	unsigned long bit_index;
- 
--	index = bitmap_find_next_zero_area(map, size, start, nr, 0);
-+	align_mask = roundup_pow_of_two(BITS_PER_ENTRY) - 1;
-+	bit_index = bitmap_find_next_zero_area(map, ENTRIES_TO_BITS(size),
-+					       ENTRIES_TO_BITS(start),
-+					       ENTRIES_TO_BITS(nr),
-+					       align_mask);
-+	index = BITS_DIV_ENTRIES(bit_index);
- 
- 	while (index < size) {
--		int next_bit = find_next_bit(map, size, index + nr);
--		if ((next_bit - index) < len) {
--			len = next_bit - index;
--			start_bit = index;
-+		int next_bit;
-+
-+		next_bit = find_next_bit(map, ENTRIES_TO_BITS(size),
-+					 ENTRIES_TO_BITS(index + nr));
-+		if ((BITS_DIV_ENTRIES(next_bit) - index) < len) {
-+			len = BITS_DIV_ENTRIES(next_bit) - index;
-+			start_bit = ENTRIES_TO_BITS(index);
- 			if (len == nr)
--				return start_bit;
-+				return BITS_DIV_ENTRIES(start_bit);
- 		}
--		index = bitmap_find_next_zero_area(map, size,
--						   next_bit + 1, nr, 0);
-+		bit_index =
-+			bitmap_find_next_zero_area(map,
-+						   ENTRIES_TO_BITS(size),
-+						   next_bit + 1,
-+						   ENTRIES_TO_BITS(nr),
-+						   align_mask);
-+		index = BITS_DIV_ENTRIES(bit_index);
- 	}
- 
--	return start_bit;
-+	return BITS_DIV_ENTRIES(start_bit);
- }
--EXPORT_SYMBOL(gen_pool_best_fit);
- 
- static void devm_gen_pool_release(struct device *dev, void *res)
- {
-@@ -668,11 +954,14 @@ static int devm_gen_pool_match(struct device *dev, void *res, void *data)
- }
- 
- /**
-- * gen_pool_get - Obtain the gen_pool (if any) for a device
-+ * gen_pool_get() - Obtain the gen_pool (if any) for a device
-  * @dev: device to retrieve the gen_pool from
-- * @name: name of a gen_pool or NULL, identifies a particular gen_pool on device
-+ * @name: name of a gen_pool or NULL, identifies a particular gen_pool
-+ *	  on device
-  *
-- * Returns the gen_pool for the device if one is present, or NULL.
-+ * Return:
-+ * * the gen_pool for the device	- if it exists
-+ * * NULL				- no pool exists for the device
-  */
- struct gen_pool *gen_pool_get(struct device *dev, const char *name)
- {
-@@ -687,7 +976,7 @@ struct gen_pool *gen_pool_get(struct device *dev, const char *name)
- EXPORT_SYMBOL_GPL(gen_pool_get);
- 
- /**
-- * devm_gen_pool_create - managed gen_pool_create
-+ * devm_gen_pool_create() - managed gen_pool_create
-  * @dev: device that provides the gen_pool
-  * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
-  * @nid: node selector for allocated gen_pool, %NUMA_NO_NODE for all nodes
-@@ -696,6 +985,10 @@ EXPORT_SYMBOL_GPL(gen_pool_get);
-  * Create a new special memory pool that can be used to manage special purpose
-  * memory not managed by the regular kmalloc/kfree interface. The pool will be
-  * automatically destroyed by the device management code.
-+ *
-+ * Return:
-+ * * address of the pool	- success
-+ * * NULL			- error
-  */
- struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
- 				      int nid, const char *name)
-@@ -738,14 +1031,16 @@ EXPORT_SYMBOL(devm_gen_pool_create);
- 
- #ifdef CONFIG_OF
- /**
-- * of_gen_pool_get - find a pool by phandle property
-+ * of_gen_pool_get() - find a pool by phandle property
-  * @np: device node
-  * @propname: property name containing phandle(s)
-  * @index: index into the phandle array
-  *
-- * Returns the pool that contains the chunk starting at the physical
-- * address of the device tree node pointed at by the phandle property,
-- * or NULL if not found.
-+ * Return:
-+ * * pool address	- it contains the chunk starting at the physical
-+ *			  address of the device tree node pointed at by
-+ *			  the phandle property
-+ * * NULL		- otherwise
-  */
- struct gen_pool *of_gen_pool_get(struct device_node *np,
- 	const char *propname, int index)
++destroy_pool:
++	gen_pool_destroy(pool);
++}
 -- 
 2.14.1
 
