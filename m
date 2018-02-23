@@ -1,349 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 67AAB6B0003
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 14:51:46 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id 73so4749314oth.20
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 11:51:46 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d9sor1411462otc.256.2018.02.23.11.51.44
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A4A66B0003
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 15:03:47 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id 6so4316379plf.6
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 12:03:47 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id g1-v6si2244410plk.422.2018.02.23.12.03.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 23 Feb 2018 11:51:44 -0800 (PST)
-From: Laura Abbott <labbott@redhat.com>
-Subject: Hangs in balance_dirty_pages with arm-32 LPAE + highmem
-Message-ID: <b77a6596-3b35-84fe-b65b-43d2e43950b3@redhat.com>
-Date: Fri, 23 Feb 2018 11:51:41 -0800
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 23 Feb 2018 12:03:45 -0800 (PST)
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH] mm: Report bad PTEs in lookup_swap_cache()
+Date: Fri, 23 Feb 2018 12:03:41 -0800
+Message-Id: <20180223200341.17627-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, linux-block@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Huang Ying <ying.huang@intel.com>
 
-Hi,
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The Fedora arm-32 build VMs have a somewhat long standing problem
-of hanging when running mkfs.ext4 with a bunch of processes stuck
-in D state. This has been seen as far back as 4.13 but is still
-present on 4.14:
+If we have garbage in the PTE, we can call the radix tree code with a
+NULL radix tree head which leads to an OOPS.  Detect the case where
+we've found a PTE that refers to a non-existent swap device and report
+the error correctly.
 
-sysrq: SysRq : Show Blocked State                                                [255/1885]
-   task                PC stack   pid father
-auditd          D    0   377      1 0x00000020
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c03ddf5c>] (vfs_write) from [<c03de12c>] (SyS_write+0x44/0x7c)
-[<c03de12c>] (SyS_write) from [<c0224ef0>] (__sys_trace_return+0x0/0x10)
-rs:main Q:Reg   D    0   441      1 0x00000000
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c03ddf5c>] (vfs_write) from [<c03de12c>] (SyS_write+0x44/0x7c)
-[<c03de12c>] (SyS_write) from [<c0224d40>] (ret_fast_syscall+0x0/0x4c)
-ntpd            D    0  1453      1 0x00000001
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)  [203/1885]
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c03ddf5c>] (vfs_write) from [<c03de12c>] (SyS_write+0x44/0x7c)
-[<c03de12c>] (SyS_write) from [<c0224d40>] (ret_fast_syscall+0x0/0x4c)
-kojid           D    0  4616      1 0x00000000
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c03ddf5c>] (vfs_write) from [<c03de12c>] (SyS_write+0x44/0x7c)
-[<c03de12c>] (SyS_write) from [<c0224d40>] (ret_fast_syscall+0x0/0x4c)
-kworker/u8:0    D    0 28525      2 0x00000000
-Workqueue: writeback wb_workfn (flush-7:0)
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c0281c34>] (io_schedule+0x1c/0x2c)
-[<c0281c34>] (io_schedule) from [<c055ff2c>] (wbt_wait+0x21c/0x300)
-[<c055ff2c>] (wbt_wait) from [<c053ba14>] (blk_mq_make_request+0xac/0x560)
-[<c053ba14>] (blk_mq_make_request) from [<c0530034>] (generic_make_request+0xd0/0x214)
-[<c0530034>] (generic_make_request) from [<c053028c>] (submit_bio+0x114/0x16c)
-[<c053028c>] (submit_bio) from [<c0412b98>] (submit_bh_wbc+0x190/0x1a0)
-[<c0412b98>] (submit_bh_wbc) from [<c0412e90>] (__block_write_full_page+0x2e8/0x43c)
-[<c0412e90>] (__block_write_full_page) from [<c0413150>] (block_write_full_page+0x80/0xec)
-[<c0413150>] (block_write_full_page) from [<c0370380>] (__writepage+0x1c/0x4c)
-[<c0370380>] (__writepage) from [<c0370d30>] (write_cache_pages+0x350/0x3f0)
-[<c0370d30>] (write_cache_pages) from [<c03715d8>] (generic_writepages+0x44/0x60)
-[<c03715d8>] (generic_writepages) from [<c0372eb4>] (do_writepages+0x3c/0x74)
-[<c0372eb4>] (do_writepages) from [<c04098a8>] (__writeback_single_inode+0xb4/0x404)
-[<c04098a8>] (__writeback_single_inode) from [<c040a118>] (writeback_sb_inodes+0x258/0x438)
-[<c040a118>] (writeback_sb_inodes) from [<c040a364>] (__writeback_inodes_wb+0x6c/0xa8)
-[<c040a364>] (__writeback_inodes_wb) from [<c040a564>] (wb_writeback+0x1c4/0x30c)
-[<c040a564>] (wb_writeback) from [<c040ae98>] (wb_workfn+0x130/0x450)
-[<c040ae98>] (wb_workfn) from [<c026f488>] (process_one_work+0x254/0x42c)
-[<c026f488>] (process_one_work) from [<c02705c4>] (worker_thread+0x2d0/0x450)
-[<c02705c4>] (worker_thread) from [<c02750cc>] (kthread+0x13c/0x154)
-[<c02750cc>] (kthread) from [<c0224e18>] (ret_from_fork+0x14/0x3c)
-kworker/u8:1    D    0 16594      2 0x00000000
-Workqueue: writeback wb_workfn (flush-252:0)
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c0281c34>] (io_schedule+0x1c/0x2c)
-[<c0281c34>] (io_schedule) from [<c055ff2c>] (wbt_wait+0x21c/0x300)
-[<c055ff2c>] (wbt_wait) from [<c053ba14>] (blk_mq_make_request+0xac/0x560)
-[<c053ba14>] (blk_mq_make_request) from [<c0530034>] (generic_make_request+0xd0/0x214)
-[<c0530034>] (generic_make_request) from [<c053028c>] (submit_bio+0x114/0x16c)
-[<c053ba14>] (blk_mq_make_request) from [<c0530034>] (generic_make_request+0xd0/0[151/1885]
-[<c0530034>] (generic_make_request) from [<c053028c>] (submit_bio+0x114/0x16c)
-[<c053028c>] (submit_bio) from [<c0412b98>] (submit_bh_wbc+0x190/0x1a0)
-[<c0412b98>] (submit_bh_wbc) from [<c0412e90>] (__block_write_full_page+0x2e8/0x43c)
-[<c0412e90>] (__block_write_full_page) from [<c0413150>] (block_write_full_page+0x80/0xec)
-[<c0413150>] (block_write_full_page) from [<c0370380>] (__writepage+0x1c/0x4c)
-[<c0370380>] (__writepage) from [<c0370d30>] (write_cache_pages+0x350/0x3f0)
-[<c0370d30>] (write_cache_pages) from [<c03715d8>] (generic_writepages+0x44/0x60)
-[<c03715d8>] (generic_writepages) from [<c0372eb4>] (do_writepages+0x3c/0x74)
-[<c0372eb4>] (do_writepages) from [<c04098a8>] (__writeback_single_inode+0xb4/0x404)
-[<c04098a8>] (__writeback_single_inode) from [<c040a118>] (writeback_sb_inodes+0x258/0x438)
-[<c040a118>] (writeback_sb_inodes) from [<c040a364>] (__writeback_inodes_wb+0x6c/0xa8)
-[<c040a364>] (__writeback_inodes_wb) from [<c040a564>] (wb_writeback+0x1c4/0x30c)
-[<c040a564>] (wb_writeback) from [<c040ae98>] (wb_workfn+0x130/0x450)
-[<c040ae98>] (wb_workfn) from [<c026f488>] (process_one_work+0x254/0x42c)
-[<c026f488>] (process_one_work) from [<c02705c4>] (worker_thread+0x2d0/0x450)
-[<c02705c4>] (worker_thread) from [<c02750cc>] (kthread+0x13c/0x154)
-[<c02750cc>] (kthread) from [<c0224e18>] (ret_from_fork+0x14/0x3c)
-loop0           D    0  9138      2 0x00000000
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03dbccc>] (do_iter_readv_writev+0x118/0x140)
-[<c03dbccc>] (do_iter_readv_writev) from [<c03dd024>] (do_iter_write+0x84/0xf8)
-[<c03dd024>] (do_iter_write) from [<bf38b19c>] (lo_write_bvec+0x70/0xec [loop])
-[<bf38b19c>] (lo_write_bvec [loop]) from [<bf38c04c>] (loop_queue_work+0x3b4/0x92c [loop])
-[<bf38c04c>] (loop_queue_work [loop]) from [<c0275234>] (kthread_worker_fn+0x114/0x1c8)
-[<c0275234>] (kthread_worker_fn) from [<c02750cc>] (kthread+0x13c/0x154)
-[<c02750cc>] (kthread) from [<c0224e18>] (ret_from_fork+0x14/0x3c)
-mkfs.ext4       D    0  9142   1535 0x00000000
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c0281c34>] (io_schedule+0x1c/0x2c)
-[<c0281c34>] (io_schedule) from [<c0362080>] (__lock_page+0x10c/0x144)
-[<c0362080>] (__lock_page) from [<c0370bb8>] (write_cache_pages+0x1d8/0x3f0)
-[<c0370bb8>] (write_cache_pages) from [<c03715d8>] (generic_writepages+0x44/0x60)
-[<c03715d8>] (generic_writepages) from [<c0372eb4>] (do_writepages+0x3c/0x74)
-[<c0372eb4>] (do_writepages) from [<c0364264>] (__filemap_fdatawrite_range+0xc0/0xe0)
-[<c0364264>] (__filemap_fdatawrite_range) from [<c0364454>] (file_write_and_wait_range+0x40
-/0x78)
-[<c0364454>] (file_write_and_wait_range) from [<c0415868>] (blkdev_fsync+0x20/0x50)
-[<c0415868>] (blkdev_fsync) from [<c040e26c>] (vfs_fsync+0x28/0x30)
-[<c040e26c>] (vfs_fsync) from [<c040e2a4>] (do_fsync+0x30/0x4c)
-[<c040e2a4>] (do_fsync) from [<c0224d40>] (ret_fast_syscall+0x0/0x4c)
-python          D    0  9167   9165 0x00000000
-Sun Feb 18 18:17:58 2018] [<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c0397724>] (fault_dirty_shared_page+0
-x9c/0xb4)
-[<c0397724>] (fault_dirty_shared_page) from [<c0399c48>] (do_wp_page+0x628/0x688)
-[<c0399c48>] (do_wp_page) from [<c039cd0c>] (handle_mm_fault+0xd5c/0xe08)
-[<c039cd0c>] (handle_mm_fault) from [<c095c7d8>] (do_page_fault+0x1f0/0x360)
-[<c095c7d8>] (do_page_fault) from [<c0201384>] (do_DataAbort+0x34/0xb4)
-[<c0201384>] (do_DataAbort) from [<c095c19c>] (__dabt_usr+0x3c/0x40)
-Exception stack(0xc69dbfb0 to 0xc69dbff8)
-bfa0:                                     019fec50 00000002 cc684d00 cc684d00
-bfc0: 00000001 b4214cf4 019fec50 00000002 000587b8 00000000 00000001 b4214cf0
-bfe0: b4f39584 bec32990 b4eee238 b4e799a0 600f0010 ffffffff
-python          D    0  9313   9304 0x00000000
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c03ddf5c>] (vfs_write) from [<c03de12c>] (SyS_write+0x44/0x7c)
-[<c03de12c>] (SyS_write) from [<c0224d40>] (ret_fast_syscall+0x0/0x4c)
-python          D    0  9326   9317 0x00000000
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c03ddf5c>] (vfs_write) from [<c03de12c>] (SyS_write+0x44/0x7c)
-[<c03de12c>] (SyS_write) from [<c0224d40>] (ret_fast_syscall+0x0/0x4c)
-python          D    0  9351   9342 0x00000000
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c03ddf5c>] (vfs_write) from [<c03de12c>] (SyS_write+0x44/0x7c)
-[<c03de12c>] (SyS_write) from [<c0224d40>] (ret_fast_syscall+0x0/0x4c)
-python          D    0  9361   9352 0x00000000
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c03ddf5c>] (vfs_write) from [<c03de12c>] (SyS_write+0x44/0x7c)
-[<c03de12c>] (SyS_write) from [<c0224d40>] (ret_fast_syscall+0x0/0x4c)
-python          D    0  9374   9365 0x00000000
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c03ddf5c>] (vfs_write) from [<c03de12c>] (SyS_write+0x44/0x7c)
-[<c03de12c>] (SyS_write) from [<c0224d40>] (ret_fast_syscall+0x0/0x4c)
-python          D    0  9385   9376 0x00000000
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c03637f8>] (generic_perform_write+0x1
-74/0x1a4)
-[<c03637f8>] (generic_perform_write) from [<c0365e98>] (__generic_file_write_iter+0x16c/0x1
-98)
-[<c0365e98>] (__generic_file_write_iter) from [<c046b398>] (ext4_file_write_iter+0x314/0x41
-4)
-[<c046b398>] (ext4_file_write_iter) from [<c03ddd68>] (__vfs_write+0x100/0x128)
-[<c03ddd68>] (__vfs_write) from [<c03ddf5c>] (vfs_write+0xc0/0x194)
-[<c03ddf5c>] (vfs_write) from [<c03de12c>] (SyS_write+0x44/0x7c)
-[<c03de12c>] (SyS_write) from [<c0224d40>] (ret_fast_syscall+0x0/0x4c)
-systemd-journal D    0  9678      1 0x00000080
-[<c0955e68>] (__schedule) from [<c0956070>] (schedule+0x98/0xbc)
-[<c0956070>] (schedule) from [<c09598e4>] (schedule_timeout+0x328/0x3ac)
-[<c09598e4>] (schedule_timeout) from [<c09564f8>] (io_schedule_timeout+0x24/0x38)
-[<c09564f8>] (io_schedule_timeout) from [<c03720bc>] (balance_dirty_pages.constprop.6+0xac8
-/0xc5c)
-[<c03720bc>] (balance_dirty_pages.constprop.6) from [<c0372508>] (balance_dirty_pages_ratel
-imited+0x2b8/0x43c)
-[<c0372508>] (balance_dirty_pages_ratelimited) from [<c0397724>] (fault_dirty_shared_page+0
-x9c/0xb4)
-[<c0397724>] (fault_dirty_shared_page) from [<c039cc34>] (handle_mm_fault+0xc84/0xe08)
-[<c039cc34>] (handle_mm_fault) from [<c095c7d8>] (do_page_fault+0x1f0/0x360)
-[<c095c7d8>] (do_page_fault) from [<c0201384>] (do_DataAbort+0x34/0xb4)
-[<c0201384>] (do_DataAbort) from [<c095c19c>] (__dabt_usr+0x3c/0x40)
-Exception stack(0xc40d9fb0 to 0xc40d9ff8)
-9fa0:                                     b5e605e0 00000000 001c2b28 b5e64000
-9fc0: 01b60ff0 00000000 be94e444 be94e448 001c6550 00000000 be94e660 be94e450
-9fe0: 00000000 be94e400 b6cfffcc b6e94a50 20000010 ffffffff
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+ include/linux/swap.h | 10 ++++------
+ mm/memory.c          |  4 +---
+ mm/shmem.c           |  2 +-
+ mm/swap_state.c      | 35 ++++++++++++++++++++++-------------
+ 4 files changed, 28 insertions(+), 23 deletions(-)
 
-This looks like everything is blocked on the writeback completing but
-the writeback has been throttled. According to the infra team, this problem
-is _not_ seen without LPAE (i.e. only 4G of RAM). I did see
-https://patchwork.kernel.org/patch/10201593/ but that doesn't seem to
-quite match since this seems to be completely stuck. Any suggestions to
-narrow the problem down?
-
-Thanks,
-Laura
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 7b6a59f722a3..045edb2ca8d0 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -415,9 +415,8 @@ extern void __delete_from_swap_cache(struct page *);
+ extern void delete_from_swap_cache(struct page *);
+ extern void free_page_and_swap_cache(struct page *);
+ extern void free_pages_and_swap_cache(struct page **, int);
+-extern struct page *lookup_swap_cache(swp_entry_t entry,
+-				      struct vm_area_struct *vma,
+-				      unsigned long addr);
++extern struct page *lookup_swap_cache(swp_entry_t entry, bool vma_ra,
++				      struct vm_fault *vmf);
+ extern struct page *read_swap_cache_async(swp_entry_t, gfp_t,
+ 			struct vm_area_struct *vma, unsigned long addr,
+ 			bool do_poll);
+@@ -568,9 +567,8 @@ static inline int swap_writepage(struct page *p, struct writeback_control *wbc)
+ 	return 0;
+ }
+ 
+-static inline struct page *lookup_swap_cache(swp_entry_t swp,
+-					     struct vm_area_struct *vma,
+-					     unsigned long addr)
++static inline struct page *lookup_swap_cache(swp_entry_t swp, bool vma_ra,
++						struct vm_fault *vmf)
+ {
+ 	return NULL;
+ }
+diff --git a/mm/memory.c b/mm/memory.c
+index 5fcfc24904d1..1cfc4699db42 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2926,11 +2926,9 @@ int do_swap_page(struct vm_fault *vmf)
+ 		goto out;
+ 	}
+ 
+-
+ 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+ 	if (!page) {
+-		page = lookup_swap_cache(entry, vma_readahead ? vma : NULL,
+-					 vmf->address);
++		page = lookup_swap_cache(entry, vma_readahead, vmf);
+ 		swapcache = page;
+ 	}
+ 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 1907688b75ee..8976f05823ba 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1650,7 +1650,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 
+ 	if (swap.val) {
+ 		/* Look it up and read it in.. */
+-		page = lookup_swap_cache(swap, NULL, 0);
++		page = lookup_swap_cache(swap, false, NULL);
+ 		if (!page) {
+ 			/* Or update major stats only when swapin succeeds?? */
+ 			if (fault_type) {
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 39ae7cfad90f..5a7755ecbb03 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -328,14 +328,22 @@ void free_pages_and_swap_cache(struct page **pages, int nr)
+  * lock getting page table operations atomic even if we drop the page
+  * lock before returning.
+  */
+-struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
+-			       unsigned long addr)
++struct page *lookup_swap_cache(swp_entry_t entry, bool vma_ra,
++			struct vm_fault *vmf)
+ {
+ 	struct page *page;
+-	unsigned long ra_info;
+-	int win, hits, readahead;
++	int readahead;
++	struct address_space *swapper_space = swap_address_space(entry);
+ 
+-	page = find_get_page(swap_address_space(entry), swp_offset(entry));
++	if (!swapper_space) {
++		if (vmf)
++			pte_ERROR(vmf->orig_pte);
++		else
++			pr_err("Bad swp_entry: %lx\n", entry.val);
++		return NULL;
++	}
++
++	page = find_get_page(swapper_space, swp_offset(entry));
+ 
+ 	INC_CACHE_INFO(find_total);
+ 	if (page) {
+@@ -343,18 +351,19 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
+ 		if (unlikely(PageTransCompound(page)))
+ 			return page;
+ 		readahead = TestClearPageReadahead(page);
+-		if (vma) {
+-			ra_info = GET_SWAP_RA_VAL(vma);
+-			win = SWAP_RA_WIN(ra_info);
+-			hits = SWAP_RA_HITS(ra_info);
++		if (vma_ra) {
++			unsigned long ra_info = GET_SWAP_RA_VAL(vmf->vma);
++			int win = SWAP_RA_WIN(ra_info);
++			int hits = SWAP_RA_HITS(ra_info);
++
+ 			if (readahead)
+ 				hits = min_t(int, hits + 1, SWAP_RA_HITS_MAX);
+-			atomic_long_set(&vma->swap_readahead_info,
+-					SWAP_RA_VAL(addr, win, hits));
++			atomic_long_set(&vmf->vma->swap_readahead_info,
++					SWAP_RA_VAL(vmf->address, win, hits));
+ 		}
+ 		if (readahead) {
+ 			count_vm_event(SWAP_RA_HIT);
+-			if (!vma)
++			if (!vma_ra)
+ 				atomic_inc(&swapin_readahead_hits);
+ 		}
+ 	}
+@@ -675,7 +684,7 @@ struct page *swap_readahead_detect(struct vm_fault *vmf,
+ 	entry = pte_to_swp_entry(vmf->orig_pte);
+ 	if ((unlikely(non_swap_entry(entry))))
+ 		return NULL;
+-	page = lookup_swap_cache(entry, vma, faddr);
++	page = lookup_swap_cache(entry, true, vmf);
+ 	if (page)
+ 		return page;
+ 
+-- 
+2.16.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
