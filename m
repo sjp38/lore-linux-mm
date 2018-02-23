@@ -1,98 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1380D6B000A
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 02:27:14 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id c18so3242112pgv.8
-        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 23:27:14 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id q9si1171077pgc.401.2018.02.22.23.27.12
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F9F66B0008
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 02:42:03 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id v16so4990085wrv.14
+        for <linux-mm@kvack.org>; Thu, 22 Feb 2018 23:42:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d5si1501187wrd.38.2018.02.22.23.42.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Feb 2018 23:27:12 -0800 (PST)
-Subject: [PATCH v2 5/5] vfio: disable filesystem-dax page pinning
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 22 Feb 2018 23:18:06 -0800
-Message-ID: <151937028640.18973.6759836444320779319.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <151937026001.18973.12034171121582300402.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <151937026001.18973.12034171121582300402.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Feb 2018 23:42:02 -0800 (PST)
+Date: Fri, 23 Feb 2018 08:42:01 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: virtual memory limits control (was Re: [Lsf-pc] [LSF/MM ATTEND]
+ Attend mm summit 2018)
+Message-ID: <20180223074201.GR30681@dhcp22.suse.cz>
+References: <CAKTCnz=rS14Ry7pOC2qiX5wEbRZCKwP_0u7_ncanoV18Gz9=AQ@mail.gmail.com>
+ <20180222130341.GF30681@dhcp22.suse.cz>
+ <CAKTCnzmsEhMYnAOtN+BtN_6bEa=+fTRYSjB+OR9isfzRruwA_Q@mail.gmail.com>
+ <20180222133425.GI30681@dhcp22.suse.cz>
+ <20180223090123.74248146@balbir.ozlabs.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180223090123.74248146@balbir.ozlabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: Haozhong Zhang <haozhong.zhang@intel.com>, Michal Hocko <mhocko@suse.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, lsf-pc <lsf-pc@lists.linux-foundation.org>
 
-Filesystem-DAX is incompatible with 'longterm' page pinning. Without
-page cache indirection a DAX mapping maps filesystem blocks directly.
-This means that the filesystem must not modify a file's block map while
-any page in a mapping is pinned. In order to prevent the situation of
-userspace holding of filesystem operations indefinitely, disallow
-'longterm' Filesystem-DAX mappings.
+On Fri 23-02-18 09:01:23, Balbir Singh wrote:
+> Changed the subject to reflect the discussion
+> 
+> On Thu, 22 Feb 2018 14:34:25 +0100
+> Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > On Fri 23-02-18 00:23:53, Balbir Singh wrote:
+> > > On Fri, Feb 23, 2018 at 12:03 AM, Michal Hocko <mhocko@kernel.org> wrote:  
+> > > > On Thu 22-02-18 13:54:46, Balbir Singh wrote:
+> > > > [...]  
+> > > >> 2. Memory cgroups - I don't see a pressing need for many new features,
+> > > >> but I'd like to see if we can revive some old proposals around virtual
+> > > >> memory limits  
+> > > >
+> > > > Could you be more specific about usecase(s)?  
+> > > 
+> > > I had for a long time a virtual memory limit controller in -mm tree.
+> > > The use case was to fail allocations as opposed to OOM'ing in the
+> > > worst case as we do with the cgroup memory limits (actual page usage
+> > > control). I did not push for it then since I got side-tracked. I'd
+> > > like to pursue a use case for being able to fail allocations as
+> > > opposed to OOM'ing on a per cgroup basis. I'd like to start the
+> > > discussion again.  
+> > 
+> > So you basically want the strict no overcommit on the per memcg level?
+> 
+> I don't think it implies strict no overcommit, the value sets the
+> overcommit ratio (independent of the global vm.overcommit_ratio, which
+> we can discuss on the side, since I don't want it to impact the use
+> case).
+> 
+> The goal of the controller was  (and its optional, may not work well
+> for sparse address spaces)
+> 
+> 1. set the vm limit
+> 2. If the limit is exceeded, fail at malloc()/mmap() as opposed to
+> OOM'ing at page fault time
 
-RDMA has the same conflict and the plan there is to add a 'with lease'
-mechanism to allow the kernel to notify userspace that the mapping is
-being torn down for block-map maintenance. Perhaps something similar can
-be put in place for vfio.
+this is basically strict no-overcommit
 
-Note that xfs and ext4 still report:
+> 3. Application handles the fault and decide not to proceed with the
+> new task that needed more memory
 
-   "DAX enabled. Warning: EXPERIMENTAL, use at your own risk"
+So you do not return ENOMEM but rather raise a signal? What that would
+be?
 
-...at mount time, and resolving the dax-dma-vs-truncate problem is one
-of the last hurdles to remove that designation.
+> I think this leads to applications being able to deal with failures
+> better. OOM is a big hammer
 
-Acked-by: Alex Williamson <alex.williamson@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: kvm@vger.kernel.org
-Cc: <stable@vger.kernel.org>
-Reported-by: Haozhong Zhang <haozhong.zhang@intel.com>
-Fixes: d475c6346a38 ("dax,ext2: replace XIP read and write with DAX I/O")
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/vfio/vfio_iommu_type1.c |   18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
-
-diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-index e30e29ae4819..45657e2b1ff7 100644
---- a/drivers/vfio/vfio_iommu_type1.c
-+++ b/drivers/vfio/vfio_iommu_type1.c
-@@ -338,11 +338,12 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
- {
- 	struct page *page[1];
- 	struct vm_area_struct *vma;
-+	struct vm_area_struct *vmas[1];
- 	int ret;
+Do you have any _specific_ usecase in mind?
  
- 	if (mm == current->mm) {
--		ret = get_user_pages_fast(vaddr, 1, !!(prot & IOMMU_WRITE),
--					  page);
-+		ret = get_user_pages_longterm(vaddr, 1, !!(prot & IOMMU_WRITE),
-+					      page, vmas);
- 	} else {
- 		unsigned int flags = 0;
- 
-@@ -351,7 +352,18 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
- 
- 		down_read(&mm->mmap_sem);
- 		ret = get_user_pages_remote(NULL, mm, vaddr, 1, flags, page,
--					    NULL, NULL);
-+					    vmas, NULL);
-+		/*
-+		 * The lifetime of a vaddr_get_pfn() page pin is
-+		 * userspace-controlled. In the fs-dax case this could
-+		 * lead to indefinite stalls in filesystem operations.
-+		 * Disallow attempts to pin fs-dax pages via this
-+		 * interface.
-+		 */
-+		if (ret > 0 && vma_is_fsdax(vmas[0])) {
-+			ret = -EOPNOTSUPP;
-+			put_page(page[0]);
-+		}
- 		up_read(&mm->mmap_sem);
- 	}
- 
+> > I am really skeptical, to be completely honest. The global behavior is
+> > not very usable in most cases already. Making it per-memcg will just
+> > amplify all the issues (application tend to overcommit their virtual
+> > address space). Not to mention that you cannot really prevent from the
+> > OOM killer because there are allocations outside of the address space.
+> > 
+> 
+> Could you clarify on the outside address space -- as in shared
+> allocations outside the cgroup?  kernel allocations as a side-effect?
+
+basically anything that can be triggered from userspace and doesn't map
+into the address space - page cache, fs metadata, drm buffers etc...
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
