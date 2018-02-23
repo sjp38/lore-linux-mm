@@ -1,72 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BA81A6B0006
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 12:50:54 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id i129so8238518ioi.1
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 09:50:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v23si2241515wmv.0.2018.02.23.09.50.53
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Feb 2018 09:50:53 -0800 (PST)
-Date: Fri, 23 Feb 2018 18:50:51 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Synchronize task mm counters on context switch
-Message-ID: <20180223175051.GX30681@dhcp22.suse.cz>
-References: <20180205220325.197241-1-dancol@google.com>
- <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
- <20180222001635.GB27147@rodete-desktop-imager.corp.google.com>
- <CAKOZuetc7DepPPO6DmMp9APNz5+8+KansNBr_ijuuyCTu=v1mg@mail.gmail.com>
- <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
- <CAKOZuev67HPpK5x4zS88x0C2AysvSk5wcFS0DuT3A_04p1HpSQ@mail.gmail.com>
- <20180223081147.GD30773@dhcp22.suse.cz>
- <CAKOZueurwrSZWbKKUTx+LOSKEWFnfMYbarDc++pEKHD3xyQbmA@mail.gmail.com>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DD7CE6B0006
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 13:04:56 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id t83so4349612oij.14
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 10:04:56 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id v62si865417oie.393.2018.02.23.10.04.55
+        for <linux-mm@kvack.org>;
+        Fri, 23 Feb 2018 10:04:55 -0800 (PST)
+Message-ID: <5A90572D.9010704@arm.com>
+Date: Fri, 23 Feb 2018 18:02:21 +0000
+From: James Morse <james.morse@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKOZueurwrSZWbKKUTx+LOSKEWFnfMYbarDc++pEKHD3xyQbmA@mail.gmail.com>
+Subject: Re: [PATCH 01/11] ACPI / APEI: Move the estatus queue code up, and
+ under its own ifdef
+References: <20180215185606.26736-1-james.morse@arm.com> <20180215185606.26736-2-james.morse@arm.com> <20180220192852.GB24320@pd.tnic>
+In-Reply-To: <20180220192852.GB24320@pd.tnic>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Colascione <dancol@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>
 
-On Fri 23-02-18 08:34:19, Daniel Colascione wrote:
-> On Fri, Feb 23, 2018 at 12:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Wed 21-02-18 18:49:35, Daniel Colascione wrote:
-> > [...]
-> >> For more context: on Android, we've historically scanned each processes's
-> >> address space using /proc/pid/smaps (and /proc/pid/smaps_rollup more
-> >> recently) to extract memory management statistics. We're looking at
-> >> replacing this mechanism with the new /proc/pid/status per-memory-type
-> >> (e.g., anonymous, file-backed) counters so that we can be even more
-> >> efficient, but we'd like the counts we collect to be accurate.
-> >
-> > If you need the accuracy then why don't you simply make
-> > SPLIT_RSS_COUNTING configurable and disable it in your setup?
+Hi Borislav,
+
+On 20/02/18 19:28, Borislav Petkov wrote:
+> On Thu, Feb 15, 2018 at 06:55:56PM +0000, James Morse wrote:
+>> +#ifdef CONFIG_HAVE_ACPI_APEI_NMI
+>> +/*
+>> + * While printk() now has an in_nmi() path, the handling for CPER records
+>> + * does not. For example, memory_failure_queue() takes spinlocks and calls
+>> + * schedule_work_on().
+>> + *
+>> + * So in any NMI-like handler, we allocate required memory from lock-less
+>> + * memory allocator (ghes_estatus_pool), save estatus into it, put them into
+>> + * lock-less list (ghes_estatus_llist), then delay printk into IRQ context via
+>> + * irq_work (ghes_proc_irq_work).  ghes_estatus_size_request record
+>> + * required pool size by all NMI error source.
 > 
-> I considered that option, but it feels like a last resort. I think
-> agreement between /proc/pid/status and /proc/pid/smaps is a
-> correctness issue, and I'd prefer to fix the correctness issue
-> globally.
+> Since you're touching this, pls correct the grammar too, while at it,
+> and correct them into proper sentences.
+> Also, end function names with "()".
+> Also the "we" pronoun and tense sounds funny - let's make it passive.
 
-But those counters are inherently out-of-sync because the data may be
-outdated as soon as you get the data back to the userspace (except for
-the trivial single threaded /proc/self/ case).
+Sure. I reckon your English grammar is better than mine, is this better?:
 
-> That said, *deleting* the SPLIT_RSS_COUNTING code would be nice and
-> simple. How sure are we that the per-task accounting is really needed?
+| In any NMI-like handler, memory from ghes_estatus_pool is used to save
+| estatus, and added to the ghes_estatus_llist. irq_work_queue() causes
+| ghes_proc_in_irq() to run in IRQ context where each estatus in
+| ghes_estatus_llist are processed. Each NMI-like error source must grow
+| the ghes_estatus_pool to ensure memory is available.
 
-I have never measured that. 34e55232e59f ("mm: avoid false sharing of
-mm_counter") has _some_ numbers.
 
-> Maybe I'm wrong, but I feel like taking page faults will touch per-mm
-> data structures anyway, so one additional atomic update on the mm
-> shouldn't hurt all that much.
 
-I wouldn't be oppposed to remove it completely if it is not measureable.
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+
+James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
