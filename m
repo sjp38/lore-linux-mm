@@ -1,83 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B4A046B0003
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 07:13:04 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 17so5399540wrm.10
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 04:13:04 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f192si1237508wmg.122.2018.02.23.04.13.02
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1EB6B0003
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 07:26:11 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id n25so6546157qtl.13
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 04:26:11 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k128sor1683655qke.106.2018.02.23.04.26.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Feb 2018 04:13:02 -0800 (PST)
-Date: Fri, 23 Feb 2018 13:13:00 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Use higher-order pages in vmalloc
-Message-ID: <20180223121300.GU30681@dhcp22.suse.cz>
-References: <151670492223.658225.4605377710524021456.stgit@buzz>
- <151670493255.658225.2881484505285363395.stgit@buzz>
- <20180221154214.GA4167@bombadil.infradead.org>
- <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
- <20180221170129.GB27687@bombadil.infradead.org>
- <20180222065943.GA30681@dhcp22.suse.cz>
- <20180222122254.GA22703@bombadil.infradead.org>
- <20180222133643.GJ30681@dhcp22.suse.cz>
- <CALCETrU2c=SzWJCwuqqFuBVkC=nN27_ce4GxweCQXEwPAqnz7A@mail.gmail.com>
+        (Google Transport Security);
+        Fri, 23 Feb 2018 04:26:10 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrU2c=SzWJCwuqqFuBVkC=nN27_ce4GxweCQXEwPAqnz7A@mail.gmail.com>
+In-Reply-To: <20180223110207.GA14446@saruman>
+References: <20180221233825.10024-1-jhogan@kernel.org> <CAK8P3a3CuNn-dSE33mhEZ9-iM7NOE3Y4AiJzpmF6ob5wrMuZpg@mail.gmail.com>
+ <20180223110207.GA14446@saruman>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Fri, 23 Feb 2018 13:26:09 +0100
+Message-ID: <CAK8P3a12RKQvcmnPRHcDkDKq+uMWP79SuRdDz3_vi9YRM==GVw@mail.gmail.com>
+Subject: Re: [PATCH 00/13] Remove metag architecture
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: James Hogan <jhogan@kernel.org>
+Cc: "open list:METAG ARCHITECTURE" <linux-metag@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Guenter Roeck <linux@roeck-us.net>, Jonathan Corbet <corbet@lwn.net>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Jason Cooper <jason@lakedaemon.net>, Marc Zyngier <marc.zyngier@arm.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Linus Walleij <linus.walleij@linaro.org>, Wim Van Sebroeck <wim@linux-watchdog.org>, Mauro Carvalho Chehab <mchehab@s-opensource.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Wolfram Sang <wsa@the-dreams.de>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-gpio@vger.kernel.org, linux-watchdog@vger.kernel.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-i2c@vger.kernel.org
 
-On Thu 22-02-18 19:01:35, Andy Lutomirski wrote:
-> On Thu, Feb 22, 2018 at 1:36 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Thu 22-02-18 04:22:54, Matthew Wilcox wrote:
-> >> On Thu, Feb 22, 2018 at 07:59:43AM +0100, Michal Hocko wrote:
-> >> > On Wed 21-02-18 09:01:29, Matthew Wilcox wrote:
-> >> > > Right.  It helps with fragmentation if we can keep higher-order
-> >> > > allocations together.
-> >> >
-> >> > Hmm, wouldn't it help if we made vmalloc pages migrateable instead? That
-> >> > would help the compaction and get us to a lower fragmentation longterm
-> >> > without playing tricks in the allocation path.
-> >>
-> >> I was wondering about that possibility.  If we want to migrate a page
-> >> then we have to shoot down the PTE across all CPUs, copy the data to the
-> >> new page, and insert the new PTE.  Copying 4kB doesn't take long; if you
-> >> have 12GB/s (current example on Wikipedia: dual-channel memory and one
-> >> DDR2-800 module per channel gives a theoretical bandwidth of 12.8GB/s)
-> >> then we should be able to copy a page in 666ns).  So there's no problem
-> >> holding a spinlock for it.
-> >>
-> >> But we can't handle a fault in vmalloc space today.  It's handled in
-> >> arch-specific code, see vmalloc_fault() in arch/x86/mm/fault.c
-> >> If we're going to do this, it'll have to be something arches opt into
-> >> because I'm not taking on the job of fixing every architecture!
-> >
-> > yes.
-> 
-> On x86, if you shoot down the PTE for the current stack, you're dead.
-> vmalloc_fault() might not even be called.  Instead we hit
-> do_double_fault(), and the manual warns extremely strongly against
-> trying to recover, and, in this case, I agree with the SDM.  If you
-> actually want this to work, there needs to be a special IPI broadcast
-> to the task in question (with appropriate synchronization) that calls
-> magic arch code that does the switcheroo.
+On Fri, Feb 23, 2018 at 12:02 PM, James Hogan <jhogan@kernel.org> wrote:
+> On Fri, Feb 23, 2018 at 11:26:58AM +0100, Arnd Bergmann wrote:
+>> On Thu, Feb 22, 2018 at 12:38 AM, James Hogan <jhogan@kernel.org> wrote:
+>> > So lets call it a day and drop the Meta architecture port from the
+>> > kernel. RIP Meta.
+>>
+>> Since I brought up the architecture removal independently, I could
+>> pick this up into a git tree that also has the removal of some of the
+>> other architectures.
+>>
+>> I see your tree is part of linux-next, so you could also just put it
+>> in there and send a pull request at the merge window if you prefer.
+>>
+>> The only real reason I see for a shared git tree would be to avoid
+>> conflicts when we touch the same Kconfig files or #ifdefs in driver,
+>> but Meta only appears in
+>>
+>> config FRAME_POINTER
+>>         bool "Compile the kernel with frame pointers"
+>>         depends on DEBUG_KERNEL && \
+>>                 (CRIS || M68K || FRV || UML || \
+>>                  SUPERH || BLACKFIN || MN10300 || METAG) || \
+>>                 ARCH_WANT_FRAME_POINTERS
+>>
+>> and
+>>
+>> include/trace/events/mmflags.h:#elif defined(CONFIG_PARISC) ||
+>> defined(CONFIG_METAG) || defined(CONFIG_IA64)
+>>
+>> so there is little risk.
+>
+> I'm happy to put v2 in linux-next now (only patch 4 has changed, I just
+> sent an updated version), and send you a pull request early next week so
+> you can take it from there. The patches can't be directly applied with
+> git-am anyway thanks to the -D option to make them more concise.
+>
+> Sound okay?
 
-Why cannot we use the pte swap entry trick also for vmalloc migration.
-I haven't explored this path at all, to be honest.
+Yes, sounds good, thanks!
 
-> Didn't someone (Christoph?) have a patch to teach the page allocator
-> to give high-order allocations if available and otherwise fall back to
-> low order?
-
-Do you mean kvmalloc?
-
--- 
-Michal Hocko
-SUSE Labs
+       Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
