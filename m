@@ -1,60 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A18656B0006
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 08:52:46 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id b2so3903716plm.23
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 05:52:46 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l4-v6si1909014pln.121.2018.02.23.05.52.45
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AFFB6B0003
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 09:28:26 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id d21so3953328pll.12
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 06:28:26 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i12-v6sor852533plk.60.2018.02.23.06.28.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Feb 2018 05:52:45 -0800 (PST)
-Date: Fri, 23 Feb 2018 14:52:39 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/1] mm, compaction: correct the bounds of
- __fragmentation_index()
-Message-ID: <20180223135239.GV30681@dhcp22.suse.cz>
-References: <1518972475-11340-1-git-send-email-robert.m.harris@oracle.com>
- <1518972475-11340-2-git-send-email-robert.m.harris@oracle.com>
- <20180219082649.GD21134@dhcp22.suse.cz>
- <E718672A-91A0-4A5A-91B5-A6CF1E9BD544@oracle.com>
- <20180219123932.GF21134@dhcp22.suse.cz>
- <90E01411-7511-4E6C-BDDF-74E0334E24FC@oracle.com>
- <20180223091020.GS30681@dhcp22.suse.cz>
- <2958E989-B084-4DA3-8350-CD20AD04392B@oracle.com>
+        (Google Transport Security);
+        Fri, 23 Feb 2018 06:28:24 -0800 (PST)
+Subject: Re: [PATCH v2 04/13] Drop a bunch of metag references
+References: <20180221233825.10024-5-jhogan@kernel.org>
+ <20180223105323.6356-1-jhogan@kernel.org>
+From: Guenter Roeck <linux@roeck-us.net>
+Message-ID: <95ed23da-960b-8507-3cf8-dfc05143f8ac@roeck-us.net>
+Date: Fri, 23 Feb 2018 06:28:20 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2958E989-B084-4DA3-8350-CD20AD04392B@oracle.com>
+In-Reply-To: <20180223105323.6356-1-jhogan@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Harris <robert.m.harris@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, David Rientjes <rientjes@google.com>, Yafang Shao <laoar.shao@gmail.com>, Kangmin Park <l4stpr0gr4m@gmail.com>, Mel Gorman <mgorman@suse.de>, Yisheng Xie <xieyisheng1@huawei.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Huang Ying <ying.huang@intel.com>, Vinayak Menon <vinmenon@codeaurora.org>
+To: James Hogan <jhogan@kernel.org>, linux-metag@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, linux-mm@kvack.org
 
-On Fri 23-02-18 13:40:09, Robert Harris wrote:
-> If you are asking me to prove whether modifying the tuneable in the
-> manner above, thereby preferring compaction for more fragmented systems,
-> is successful then I can't answer now.  I assume that the onus would
-> have been on Mel to show this at the time of the original commit.
-> However, I interpret his last comment on this patch as a request to
-> verify that changing the preference yields sane results.
+On 02/23/2018 02:53 AM, James Hogan wrote:
+> Now that arch/metag/ has been removed, drop a bunch of metag references
+> in various codes across the whole tree:
+>   - VM_GROWSUP and __VM_ARCH_PECIFIC_1.
+>   - MT_METAG_* ELF note types.
+>   - METAG Kconfig dependencies (FRAME_POINTER) and ranges
+>     (MAX_STACK_SIZE_MB).
+>   - metag cases in tools (checkstack.pl, recordmcount.c, perf).
+> 
+> Signed-off-by: James Hogan <jhogan@kernel.org>
+> Acked-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
+> Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
+> Cc: Jiri Olsa <jolsa@redhat.com>
+> Cc: Namhyung Kim <namhyung@kernel.org>
+> Cc: Guenter Roeck <linux@roeck-us.net>
+> Cc: linux-mm@kvack.org
+> Cc: linux-metag@vger.kernel.org
 
-Yes, this is exactly were I was aiming... This might have been useful
-during the initial compaction implementation but I am not aware of any
-real users and I am also quite skeptical it is very much useful. I do
-realize that this is hand waving because I do not have any numbers at
-hands. The bottom line is that the users should care, really. The
-compaction should be as automatic as possible. We can argue about
-tuning for certain allocation orders and make the compaction more
-pro-active to provide lower latencies for those requests but deciding
-whether to reclaim or compact sounds like a too low level decision for
-admin to make and kind of unstable interface for different kernels as
-the implementation of the compaction changes over time.
+Reviewed-by: Guenter Roeck <linux@roeck-us.net>
 
-So I would really prefer to kill the tuning than try to "fix" it.
--- 
-Michal Hocko
-SUSE Labs
+> ---
+> Changes in v2:
+>   - Drop CPUHP_AP_PERF_METAG_STARTING too (Guenter).
+> ---
+>   include/linux/cpuhotplug.h     |  1 -
+>   include/linux/mm.h             |  2 --
+>   include/trace/events/mmflags.h |  2 +-
+>   include/uapi/linux/elf.h       |  3 ---
+>   lib/Kconfig.debug              |  2 +-
+>   mm/Kconfig                     |  7 +++----
+>   scripts/checkstack.pl          |  4 ----
+>   scripts/recordmcount.c         | 20 --------------------
+>   tools/perf/perf-sys.h          |  4 ----
+>   9 files changed, 5 insertions(+), 40 deletions(-)
+> 
+> diff --git a/include/linux/cpuhotplug.h b/include/linux/cpuhotplug.h
+> index 5172ad0daa7c..c7a950681f3a 100644
+> --- a/include/linux/cpuhotplug.h
+> +++ b/include/linux/cpuhotplug.h
+> @@ -108,7 +108,6 @@ enum cpuhp_state {
+>   	CPUHP_AP_PERF_X86_CQM_STARTING,
+>   	CPUHP_AP_PERF_X86_CSTATE_STARTING,
+>   	CPUHP_AP_PERF_XTENSA_STARTING,
+> -	CPUHP_AP_PERF_METAG_STARTING,
+>   	CPUHP_AP_MIPS_OP_LOONGSON3_STARTING,
+>   	CPUHP_AP_ARM_SDEI_STARTING,
+>   	CPUHP_AP_ARM_VFP_STARTING,
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ad06d42adb1a..ccac10682ce5 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -241,8 +241,6 @@ extern unsigned int kobjsize(const void *objp);
+>   # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
+>   #elif defined(CONFIG_PARISC)
+>   # define VM_GROWSUP	VM_ARCH_1
+> -#elif defined(CONFIG_METAG)
+> -# define VM_GROWSUP	VM_ARCH_1
+>   #elif defined(CONFIG_IA64)
+>   # define VM_GROWSUP	VM_ARCH_1
+>   #elif !defined(CONFIG_MMU)
+> diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+> index dbe1bb058c09..a81cffb76d89 100644
+> --- a/include/trace/events/mmflags.h
+> +++ b/include/trace/events/mmflags.h
+> @@ -115,7 +115,7 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
+>   #define __VM_ARCH_SPECIFIC_1 {VM_PAT,     "pat"           }
+>   #elif defined(CONFIG_PPC)
+>   #define __VM_ARCH_SPECIFIC_1 {VM_SAO,     "sao"           }
+> -#elif defined(CONFIG_PARISC) || defined(CONFIG_METAG) || defined(CONFIG_IA64)
+> +#elif defined(CONFIG_PARISC) || defined(CONFIG_IA64)
+>   #define __VM_ARCH_SPECIFIC_1 {VM_GROWSUP,	"growsup"	}
+>   #elif !defined(CONFIG_MMU)
+>   #define __VM_ARCH_SPECIFIC_1 {VM_MAPPED_COPY,"mappedcopy"	}
+> diff --git a/include/uapi/linux/elf.h b/include/uapi/linux/elf.h
+> index 3bf73fb58045..e2535d6dcec7 100644
+> --- a/include/uapi/linux/elf.h
+> +++ b/include/uapi/linux/elf.h
+> @@ -420,9 +420,6 @@ typedef struct elf64_shdr {
+>   #define NT_ARM_HW_WATCH	0x403		/* ARM hardware watchpoint registers */
+>   #define NT_ARM_SYSTEM_CALL	0x404	/* ARM system call number */
+>   #define NT_ARM_SVE	0x405		/* ARM Scalable Vector Extension registers */
+> -#define NT_METAG_CBUF	0x500		/* Metag catch buffer registers */
+> -#define NT_METAG_RPIPE	0x501		/* Metag read pipeline state */
+> -#define NT_METAG_TLS	0x502		/* Metag TLS pointer */
+>   #define NT_ARC_V2	0x600		/* ARCv2 accumulator/extra registers */
+>   
+>   /* Note header in a PT_NOTE section */
+> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+> index 6088408ef26c..d1c523e408e9 100644
+> --- a/lib/Kconfig.debug
+> +++ b/lib/Kconfig.debug
+> @@ -356,7 +356,7 @@ config FRAME_POINTER
+>   	bool "Compile the kernel with frame pointers"
+>   	depends on DEBUG_KERNEL && \
+>   		(CRIS || M68K || FRV || UML || \
+> -		 SUPERH || BLACKFIN || MN10300 || METAG) || \
+> +		 SUPERH || BLACKFIN || MN10300) || \
+>   		ARCH_WANT_FRAME_POINTERS
+>   	default y if (DEBUG_INFO && UML) || ARCH_WANT_FRAME_POINTERS
+>   	help
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index c782e8fb7235..abefa573bcd8 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -627,15 +627,14 @@ config GENERIC_EARLY_IOREMAP
+>   config MAX_STACK_SIZE_MB
+>   	int "Maximum user stack size for 32-bit processes (MB)"
+>   	default 80
+> -	range 8 256 if METAG
+>   	range 8 2048
+>   	depends on STACK_GROWSUP && (!64BIT || COMPAT)
+>   	help
+>   	  This is the maximum stack size in Megabytes in the VM layout of 32-bit
+>   	  user processes when the stack grows upwards (currently only on parisc
+> -	  and metag arch). The stack will be located at the highest memory
+> -	  address minus the given value, unless the RLIMIT_STACK hard limit is
+> -	  changed to a smaller value in which case that is used.
+> +	  arch). The stack will be located at the highest memory address minus
+> +	  the given value, unless the RLIMIT_STACK hard limit is changed to a
+> +	  smaller value in which case that is used.
+>   
+>   	  A sane initial value is 80 MB.
+>   
+> diff --git a/scripts/checkstack.pl b/scripts/checkstack.pl
+> index cb993801e4b2..eeb9ac8dbcfb 100755
+> --- a/scripts/checkstack.pl
+> +++ b/scripts/checkstack.pl
+> @@ -64,10 +64,6 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
+>   		#    2b6c:       4e56 fb70       linkw %fp,#-1168
+>   		#  1df770:       defc ffe4       addaw #-28,%sp
+>   		$re = qr/.*(?:linkw %fp,|addaw )#-([0-9]{1,4})(?:,%sp)?$/o;
+> -	} elsif ($arch eq 'metag') {
+> -		#400026fc:       40 00 00 82     ADD       A0StP,A0StP,#0x8
+> -		$re = qr/.*ADD.*A0StP,A0StP,\#(0x$x{1,8})/o;
+> -		$funcre = qr/^$x* <[^\$](.*)>:$/;
+>   	} elsif ($arch eq 'mips64') {
+>   		#8800402c:       67bdfff0        daddiu  sp,sp,-16
+>   		$re = qr/.*daddiu.*sp,sp,-(([0-9]{2}|[3-9])[0-9]{2})/o;
+> diff --git a/scripts/recordmcount.c b/scripts/recordmcount.c
+> index 16e086dcc567..8c9691c3329e 100644
+> --- a/scripts/recordmcount.c
+> +++ b/scripts/recordmcount.c
+> @@ -33,20 +33,6 @@
+>   #include <string.h>
+>   #include <unistd.h>
+>   
+> -/*
+> - * glibc synced up and added the metag number but didn't add the relocations.
+> - * Work around this in a crude manner for now.
+> - */
+> -#ifndef EM_METAG
+> -#define EM_METAG      174
+> -#endif
+> -#ifndef R_METAG_ADDR32
+> -#define R_METAG_ADDR32                   2
+> -#endif
+> -#ifndef R_METAG_NONE
+> -#define R_METAG_NONE                     3
+> -#endif
+> -
+>   #ifndef EM_AARCH64
+>   #define EM_AARCH64	183
+>   #define R_AARCH64_NONE		0
+> @@ -538,12 +524,6 @@ do_file(char const *const fname)
+>   			gpfx = '_';
+>   			break;
+>   	case EM_IA_64:	 reltype = R_IA64_IMM64;   gpfx = '_'; break;
+> -	case EM_METAG:	 reltype = R_METAG_ADDR32;
+> -			 altmcount = "_mcount_wrapper";
+> -			 rel_type_nop = R_METAG_NONE;
+> -			 /* We happen to have the same requirement as MIPS */
+> -			 is_fake_mcount32 = MIPS32_is_fake_mcount;
+> -			 break;
+>   	case EM_MIPS:	 /* reltype: e_class    */ gpfx = '_'; break;
+>   	case EM_PPC:	 reltype = R_PPC_ADDR32;   gpfx = '_'; break;
+>   	case EM_PPC64:	 reltype = R_PPC64_ADDR64; gpfx = '_'; break;
+> diff --git a/tools/perf/perf-sys.h b/tools/perf/perf-sys.h
+> index 36673f98d66b..3eb7a39169f6 100644
+> --- a/tools/perf/perf-sys.h
+> +++ b/tools/perf/perf-sys.h
+> @@ -46,10 +46,6 @@
+>   #define CPUINFO_PROC	{"Processor"}
+>   #endif
+>   
+> -#ifdef __metag__
+> -#define CPUINFO_PROC	{"CPU"}
+> -#endif
+> -
+>   #ifdef __xtensa__
+>   #define CPUINFO_PROC	{"core ID"}
+>   #endif
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
