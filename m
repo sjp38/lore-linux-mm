@@ -1,98 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BF8C16B0003
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 06:02:17 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id f3so3755051plf.18
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 03:02:17 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r6si1388262pgt.268.2018.02.23.03.02.16
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B4A046B0003
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 07:13:04 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 17so5399540wrm.10
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 04:13:04 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f192si1237508wmg.122.2018.02.23.04.13.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Feb 2018 03:02:16 -0800 (PST)
-Date: Fri, 23 Feb 2018 11:02:08 +0000
-From: James Hogan <jhogan@kernel.org>
-Subject: Re: [PATCH 00/13] Remove metag architecture
-Message-ID: <20180223110207.GA14446@saruman>
-References: <20180221233825.10024-1-jhogan@kernel.org>
- <CAK8P3a3CuNn-dSE33mhEZ9-iM7NOE3Y4AiJzpmF6ob5wrMuZpg@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Feb 2018 04:13:02 -0800 (PST)
+Date: Fri, 23 Feb 2018 13:13:00 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Use higher-order pages in vmalloc
+Message-ID: <20180223121300.GU30681@dhcp22.suse.cz>
+References: <151670492223.658225.4605377710524021456.stgit@buzz>
+ <151670493255.658225.2881484505285363395.stgit@buzz>
+ <20180221154214.GA4167@bombadil.infradead.org>
+ <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
+ <20180221170129.GB27687@bombadil.infradead.org>
+ <20180222065943.GA30681@dhcp22.suse.cz>
+ <20180222122254.GA22703@bombadil.infradead.org>
+ <20180222133643.GJ30681@dhcp22.suse.cz>
+ <CALCETrU2c=SzWJCwuqqFuBVkC=nN27_ce4GxweCQXEwPAqnz7A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="tThc/1wpZn/ma/RB"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAK8P3a3CuNn-dSE33mhEZ9-iM7NOE3Y4AiJzpmF6ob5wrMuZpg@mail.gmail.com>
+In-Reply-To: <CALCETrU2c=SzWJCwuqqFuBVkC=nN27_ce4GxweCQXEwPAqnz7A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-metag@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Guenter Roeck <linux@roeck-us.net>, Jonathan Corbet <corbet@lwn.net>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Jason Cooper <jason@lakedaemon.net>, Marc Zyngier <marc.zyngier@arm.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Linus Walleij <linus.walleij@linaro.org>, Wim Van Sebroeck <wim@linux-watchdog.org>, Mauro Carvalho Chehab <mchehab@s-opensource.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Wolfram Sang <wsa@the-dreams.de>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-gpio@vger.kernel.org, linux-watchdog@vger.kernel.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-i2c@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
+On Thu 22-02-18 19:01:35, Andy Lutomirski wrote:
+> On Thu, Feb 22, 2018 at 1:36 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Thu 22-02-18 04:22:54, Matthew Wilcox wrote:
+> >> On Thu, Feb 22, 2018 at 07:59:43AM +0100, Michal Hocko wrote:
+> >> > On Wed 21-02-18 09:01:29, Matthew Wilcox wrote:
+> >> > > Right.  It helps with fragmentation if we can keep higher-order
+> >> > > allocations together.
+> >> >
+> >> > Hmm, wouldn't it help if we made vmalloc pages migrateable instead? That
+> >> > would help the compaction and get us to a lower fragmentation longterm
+> >> > without playing tricks in the allocation path.
+> >>
+> >> I was wondering about that possibility.  If we want to migrate a page
+> >> then we have to shoot down the PTE across all CPUs, copy the data to the
+> >> new page, and insert the new PTE.  Copying 4kB doesn't take long; if you
+> >> have 12GB/s (current example on Wikipedia: dual-channel memory and one
+> >> DDR2-800 module per channel gives a theoretical bandwidth of 12.8GB/s)
+> >> then we should be able to copy a page in 666ns).  So there's no problem
+> >> holding a spinlock for it.
+> >>
+> >> But we can't handle a fault in vmalloc space today.  It's handled in
+> >> arch-specific code, see vmalloc_fault() in arch/x86/mm/fault.c
+> >> If we're going to do this, it'll have to be something arches opt into
+> >> because I'm not taking on the job of fixing every architecture!
+> >
+> > yes.
+> 
+> On x86, if you shoot down the PTE for the current stack, you're dead.
+> vmalloc_fault() might not even be called.  Instead we hit
+> do_double_fault(), and the manual warns extremely strongly against
+> trying to recover, and, in this case, I agree with the SDM.  If you
+> actually want this to work, there needs to be a special IPI broadcast
+> to the task in question (with appropriate synchronization) that calls
+> magic arch code that does the switcheroo.
 
---tThc/1wpZn/ma/RB
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Why cannot we use the pte swap entry trick also for vmalloc migration.
+I haven't explored this path at all, to be honest.
 
-On Fri, Feb 23, 2018 at 11:26:58AM +0100, Arnd Bergmann wrote:
-> On Thu, Feb 22, 2018 at 12:38 AM, James Hogan <jhogan@kernel.org> wrote:
-> > So lets call it a day and drop the Meta architecture port from the
-> > kernel. RIP Meta.
->=20
-> Since I brought up the architecture removal independently, I could
-> pick this up into a git tree that also has the removal of some of the
-> other architectures.
->=20
-> I see your tree is part of linux-next, so you could also just put it
-> in there and send a pull request at the merge window if you prefer.
->=20
-> The only real reason I see for a shared git tree would be to avoid
-> conflicts when we touch the same Kconfig files or #ifdefs in driver,
-> but Meta only appears in
->=20
-> config FRAME_POINTER
->         bool "Compile the kernel with frame pointers"
->         depends on DEBUG_KERNEL && \
->                 (CRIS || M68K || FRV || UML || \
->                  SUPERH || BLACKFIN || MN10300 || METAG) || \
->                 ARCH_WANT_FRAME_POINTERS
->=20
-> and
->=20
-> include/trace/events/mmflags.h:#elif defined(CONFIG_PARISC) ||
-> defined(CONFIG_METAG) || defined(CONFIG_IA64)
->=20
-> so there is little risk.
+> Didn't someone (Christoph?) have a patch to teach the page allocator
+> to give high-order allocations if available and otherwise fall back to
+> low order?
 
-I'm happy to put v2 in linux-next now (only patch 4 has changed, I just
-sent an updated version), and send you a pull request early next week so
-you can take it from there. The patches can't be directly applied with
-git-am anyway thanks to the -D option to make them more concise.
+Do you mean kvmalloc?
 
-Sound okay?
-
-Thanks
-James
-
---tThc/1wpZn/ma/RB
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEd80NauSabkiESfLYbAtpk944dnoFAlqP9K8ACgkQbAtpk944
-dnqGqg//RwJWuqjtS6xKfuWgErALcEI5BIrgC7QevCr8kr37+YnzqVJM+Wmz/ROv
-xW5kdhL8v/ocuxe+YBECennMjzbbPPvHWq1WieTxXOgOB8nxGduvsNFQiUg8I99O
-ltjgj7sjnGp0R0GW4HflETXKGWjLn7NirFoCLjyTQT3Gwjpn8shDLx1trMPb8ujH
-N6DvyyrojnBJ0kACtzEyGBPphrtk/a0t+zySdIuRLXReU9Q2/5yW2Vof4irxL9Ov
-JQljE0/dTi4JgTvrieojAItgUsS3/D+XVe2HDTJw2PcwAX0AmExTtaT1ADh9Ujyr
-TOg0uFwmed74V/wUwBxW6KMOyu0d0ITmTghXnWl4jbJvpR0pNXjJG1JCtpjyYgmd
-3Lx7fzwDckUB+4ma2X2C7OAU4JaBU2tEKPo5a/b/pO0d7HqRGJIA0HApTaF8YQ4Z
-tREK4jme67OuLs3POFHgbPLVrORrk4dhiBZHarPERXIEXYYD/0kVA5S7npvSmzD0
-AmFh1T6b0VcQWak6aU9PoTmdIpPwmyhvOBsMAzOwounp2kmwObdgdgDB8yQkC5VK
-EQCcmCWImEf7hz1RyTc6bawPRFkCip1k4ucmOO7KLYhuFL6uYj/Mg5JaDZLNQRyn
-izvAzQ5AK0+VzznxZHkbKgISt54p1SuEMQuCvxYzpujBNY0Ti98=
-=BIkF
------END PGP SIGNATURE-----
-
---tThc/1wpZn/ma/RB--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
