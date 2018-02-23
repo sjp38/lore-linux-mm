@@ -1,77 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E83216B0007
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 11:56:09 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id t67so2573710lfe.21
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 08:56:09 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d20sor695445ljd.35.2018.02.23.08.56.07
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BA81A6B0006
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 12:50:54 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id i129so8238518ioi.1
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 09:50:54 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v23si2241515wmv.0.2018.02.23.09.50.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 23 Feb 2018 08:56:07 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Feb 2018 09:50:53 -0800 (PST)
+Date: Fri, 23 Feb 2018 18:50:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] Synchronize task mm counters on context switch
+Message-ID: <20180223175051.GX30681@dhcp22.suse.cz>
+References: <20180205220325.197241-1-dancol@google.com>
+ <CAKOZues_C1BUh82Qyd2AA1==JA8v+ahzVzJQsTDKVOJMSRVGRw@mail.gmail.com>
+ <20180222001635.GB27147@rodete-desktop-imager.corp.google.com>
+ <CAKOZuetc7DepPPO6DmMp9APNz5+8+KansNBr_ijuuyCTu=v1mg@mail.gmail.com>
+ <20180222020633.GC27147@rodete-desktop-imager.corp.google.com>
+ <CAKOZuev67HPpK5x4zS88x0C2AysvSk5wcFS0DuT3A_04p1HpSQ@mail.gmail.com>
+ <20180223081147.GD30773@dhcp22.suse.cz>
+ <CAKOZueurwrSZWbKKUTx+LOSKEWFnfMYbarDc++pEKHD3xyQbmA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180223085547.3kkbo5lbt3orkqqn@hz-desktop>
-References: <151937026001.18973.12034171121582300402.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180223085547.3kkbo5lbt3orkqqn@hz-desktop>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 23 Feb 2018 08:56:06 -0800
-Message-ID: <CAPcyv4hmzhY6paR+AayNMmbdM3Fg2Rg2dKwH7NoYAQA25GcgSg@mail.gmail.com>
-Subject: Re: [PATCH v2 0/5] vfio, dax: prevent long term filesystem-dax pins
- and other fixes
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKOZueurwrSZWbKKUTx+LOSKEWFnfMYbarDc++pEKHD3xyQbmA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Alex Williamson <alex.williamson@redhat.com>, Gerd Rausch <gerd.rausch@oracle.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, kbuild test robot <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>
+To: Daniel Colascione <dancol@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Fri, Feb 23, 2018 at 12:55 AM, Haozhong Zhang
-<haozhong.zhang@intel.com> wrote:
-> On 02/22/18 23:17 -0800, Dan Williams wrote:
->> Changes since v1 [1]:
->>
->> * Fix the detection of device-dax file instances in vma_is_fsdax().
->>   (Haozhong, Gerd)
->>
->> * Fix compile breakage in the FS_DAX=n and DEV_DAX=y case. (0day robot)
->>
->> [1]: https://lists.01.org/pipermail/linux-nvdimm/2018-February/014046.html
->>
->> ---
->>
->> The vfio interface, like RDMA, wants to setup long term (indefinite)
->> pins of the pages backing an address range so that a guest or userspace
->> driver can perform DMA to the with physical address. Given that this
->> pinning may lead to filesystem operations deadlocking in the
->> filesystem-dax case, the pinning request needs to be rejected.
->>
->> The longer term fix for vfio, RDMA, and any other long term pin user, is
->> to provide a 'pin with lease' mechanism. Similar to the leases that are
->> hold for pNFS RDMA layouts, this userspace lease gives the kernel a way
->> to notify userspace that the block layout of the file is changing and
->> the kernel is revoking access to pinned pages.
->>
->> ---
->>
->> Dan Williams (5):
->>       dax: fix vma_is_fsdax() helper
->>       dax: fix dax_mapping() definition in the FS_DAX=n + DEV_DAX=y case
->>       dax: fix S_DAX definition
->>       dax: short circuit vma_is_fsdax() in the CONFIG_FS_DAX=n case
->>       vfio: disable filesystem-dax page pinning
->>
->>
->>  drivers/vfio/vfio_iommu_type1.c |   18 +++++++++++++++---
->>  include/linux/dax.h             |    9 ++++++---
->>  include/linux/fs.h              |    6 ++++--
->>  3 files changed, 25 insertions(+), 8 deletions(-)
->
-> Tested on QEMU with fs-dax and device-dax as vNVDIMM backends
-> respectively with vfio passthrough. The fs-dax case fails QEMU as
-> expected, and the device-dax case works normally now.
->
-> Tested-by: Haozhong Zhang <haozhong.zhang@intel.com>
->
+On Fri 23-02-18 08:34:19, Daniel Colascione wrote:
+> On Fri, Feb 23, 2018 at 12:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Wed 21-02-18 18:49:35, Daniel Colascione wrote:
+> > [...]
+> >> For more context: on Android, we've historically scanned each processes's
+> >> address space using /proc/pid/smaps (and /proc/pid/smaps_rollup more
+> >> recently) to extract memory management statistics. We're looking at
+> >> replacing this mechanism with the new /proc/pid/status per-memory-type
+> >> (e.g., anonymous, file-backed) counters so that we can be even more
+> >> efficient, but we'd like the counts we collect to be accurate.
+> >
+> > If you need the accuracy then why don't you simply make
+> > SPLIT_RSS_COUNTING configurable and disable it in your setup?
+> 
+> I considered that option, but it feels like a last resort. I think
+> agreement between /proc/pid/status and /proc/pid/smaps is a
+> correctness issue, and I'd prefer to fix the correctness issue
+> globally.
 
-Thank you!
+But those counters are inherently out-of-sync because the data may be
+outdated as soon as you get the data back to the userspace (except for
+the trivial single threaded /proc/self/ case).
+
+> That said, *deleting* the SPLIT_RSS_COUNTING code would be nice and
+> simple. How sure are we that the per-task accounting is really needed?
+
+I have never measured that. 34e55232e59f ("mm: avoid false sharing of
+mm_counter") has _some_ numbers.
+
+> Maybe I'm wrong, but I feel like taking page faults will touch per-mm
+> data structures anyway, so one additional atomic update on the mm
+> shouldn't hurt all that much.
+
+I wouldn't be oppposed to remove it completely if it is not measureable.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
