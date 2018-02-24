@@ -1,98 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A57976B0010
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 19:52:50 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id r1so4113402pgq.7
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 16:52:50 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id f4-v6si2611675plt.765.2018.02.23.16.52.49
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BD1D6B0008
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 20:05:31 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id c26so304581qtj.14
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 17:05:31 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id x20si3921838qkg.89.2018.02.23.17.05.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Feb 2018 16:52:49 -0800 (PST)
-Subject: [PATCH v3 6/6] vfio: disable filesystem-dax page pinning
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 23 Feb 2018 16:43:43 -0800
-Message-ID: <151943302342.29249.273948227195246135.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <151943298533.29249.14597996053028346159.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <151943298533.29249.14597996053028346159.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Fri, 23 Feb 2018 17:05:30 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1O14WxQ011479
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 20:05:29 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2gatw5wtub-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 20:05:29 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Sat, 24 Feb 2018 01:05:26 -0000
+Date: Fri, 23 Feb 2018 17:05:11 -0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v12 1/3] mm, powerpc, x86: define VM_PKEY_BITx bits if
+ CONFIG_ARCH_HAS_PKEYS is enabled
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1519257138-23797-2-git-send-email-linuxram@us.ibm.com>
+ <201802231528.snWZIspR%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201802231528.snWZIspR%fengguang.wu@intel.com>
+Message-Id: <20180224010511.GK5559@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: Haozhong Zhang <haozhong.zhang@intel.com>, Michal Hocko <mhocko@suse.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com
 
-Filesystem-DAX is incompatible with 'longterm' page pinning. Without
-page cache indirection a DAX mapping maps filesystem blocks directly.
-This means that the filesystem must not modify a file's block map while
-any page in a mapping is pinned. In order to prevent the situation of
-userspace holding of filesystem operations indefinitely, disallow
-'longterm' Filesystem-DAX mappings.
+On Fri, Feb 23, 2018 at 03:11:45PM +0800, kbuild test robot wrote:
+> Hi Ram,
+> 
+> Thank you for the patch! Yet something to improve:
+> 
+> [auto build test ERROR on linus/master]
+> [also build test ERROR on v4.16-rc2 next-20180222]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> 
+>         chmod +x ~/bin/make.cross
+...snip..
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=powerpc 
+> 
+> Note: the linux-review/Ram-Pai/mm-x86-powerpc-Enhancements-to-Memory-Protection-Keys/20180223-042743 HEAD c5692bca45543c242ffca15c811923e4c548ed19 builds fine.
+>       It only hurts bisectibility.
 
-RDMA has the same conflict and the plan there is to add a 'with lease'
-mechanism to allow the kernel to notify userspace that the mapping is
-being torn down for block-map maintenance. Perhaps something similar can
-be put in place for vfio.
+oops, it broke git-bisect on powerpc :-(
+The following change will fix it. This should nail it down.
 
-Note that xfs and ext4 still report:
-
-   "DAX enabled. Warning: EXPERIMENTAL, use at your own risk"
-
-...at mount time, and resolving the dax-dma-vs-truncate problem is one
-of the last hurdles to remove that designation.
-
-Acked-by: Alex Williamson <alex.williamson@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: kvm@vger.kernel.org
-Cc: <stable@vger.kernel.org>
-Reported-by: Haozhong Zhang <haozhong.zhang@intel.com>
-Fixes: d475c6346a38 ("dax,ext2: replace XIP read and write with DAX I/O")
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/vfio/vfio_iommu_type1.c |   18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
-
-diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-index e30e29ae4819..45657e2b1ff7 100644
---- a/drivers/vfio/vfio_iommu_type1.c
-+++ b/drivers/vfio/vfio_iommu_type1.c
-@@ -338,11 +338,12 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
- {
- 	struct page *page[1];
- 	struct vm_area_struct *vma;
-+	struct vm_area_struct *vmas[1];
- 	int ret;
- 
- 	if (mm == current->mm) {
--		ret = get_user_pages_fast(vaddr, 1, !!(prot & IOMMU_WRITE),
--					  page);
-+		ret = get_user_pages_longterm(vaddr, 1, !!(prot & IOMMU_WRITE),
-+					      page, vmas);
- 	} else {
- 		unsigned int flags = 0;
- 
-@@ -351,7 +352,18 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
- 
- 		down_read(&mm->mmap_sem);
- 		ret = get_user_pages_remote(NULL, mm, vaddr, 1, flags, page,
--					    NULL, NULL);
-+					    vmas, NULL);
-+		/*
-+		 * The lifetime of a vaddr_get_pfn() page pin is
-+		 * userspace-controlled. In the fs-dax case this could
-+		 * lead to indefinite stalls in filesystem operations.
-+		 * Disallow attempts to pin fs-dax pages via this
-+		 * interface.
-+		 */
-+		if (ret > 0 && vma_is_fsdax(vmas[0])) {
-+			ret = -EOPNOTSUPP;
-+			put_page(page[0]);
-+		}
- 		up_read(&mm->mmap_sem);
- 	}
- 
+diff --git a/arch/powerpc/include/asm/pkeys.h
+b/arch/powerpc/include/asm/pkeys.h
+index 0409c80..0b3b669 100644
+--- a/arch/powerpc/include/asm/pkeys.h
++++ b/arch/powerpc/include/asm/pkeys.h
+@@ -25,6 +25,7 @@
+ # define VM_PKEY_BIT1  VM_HIGH_ARCH_1
+ # define VM_PKEY_BIT2  VM_HIGH_ARCH_2
+ # define VM_PKEY_BIT3  VM_HIGH_ARCH_3
+ # define VM_PKEY_BIT4  VM_HIGH_ARCH_4
++#elif !defined(VM_PKEY_BIT4)
++# define VM_PKEY_BIT4  VM_HIGH_ARCH_4
+#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
