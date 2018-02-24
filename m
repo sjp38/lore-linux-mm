@@ -1,87 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DAC086B0005
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 19:49:29 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id e1so4997938pfi.10
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 16:49:29 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id r3-v6si2653666plb.197.2018.02.23.16.49.28
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A9E66B0007
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 19:52:13 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id s17so4965882pfm.23
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 16:52:13 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id a34-v6si2634430pld.505.2018.02.23.16.52.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Feb 2018 16:49:28 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] mm: Report bad PTEs in lookup_swap_cache()
-References: <20180223200341.17627-1-willy@infradead.org>
-Date: Sat, 24 Feb 2018 08:49:26 +0800
-In-Reply-To: <20180223200341.17627-1-willy@infradead.org> (Matthew Wilcox's
-	message of "Fri, 23 Feb 2018 12:03:41 -0800")
-Message-ID: <87zi3z2ovd.fsf@yhuang-dev.intel.com>
+        Fri, 23 Feb 2018 16:52:12 -0800 (PST)
+Subject: [PATCH v3 0/6] vfio,
+ dax: prevent long term filesystem-dax pins and other fixes
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 23 Feb 2018 16:43:05 -0800
+Message-ID: <151943298533.29249.14597996053028346159.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>
+To: linux-nvdimm@lists.01.org
+Cc: Jane Chu <jane.chu@oracle.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, kvm@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, Gerd Rausch <gerd.rausch@oracle.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, kbuild test robot <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>
 
-Matthew Wilcox <willy@infradead.org> writes:
+Changes since v2 [1]:
 
-> From: Matthew Wilcox <mawilcox@microsoft.com>
->
-> If we have garbage in the PTE, we can call the radix tree code with a
-> NULL radix tree head which leads to an OOPS.  Detect the case where
-> we've found a PTE that refers to a non-existent swap device and report
-> the error correctly.
+* Fix yet more compile breakage in the FS_DAX=n and DEV_DAX=y case.
+  (0day robot)
 
-There is a patch in -mm tree which addresses this problem at least
-partially as follow.  Please take a look at it.
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2018-February/014046.html
 
-https://www.spinics.net/lists/linux-mm/msg145242.html
+---
 
-[snip]
+The vfio interface, like RDMA, wants to setup long term (indefinite)
+pins of the pages backing an address range so that a guest or userspace
+driver can perform DMA to the with physical address. Given that this
+pinning may lead to filesystem operations deadlocking in the
+filesystem-dax case, the pinning request needs to be rejected.
 
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 39ae7cfad90f..5a7755ecbb03 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -328,14 +328,22 @@ void free_pages_and_swap_cache(struct page **pages, int nr)
->   * lock getting page table operations atomic even if we drop the page
->   * lock before returning.
->   */
-> -struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
-> -			       unsigned long addr)
-> +struct page *lookup_swap_cache(swp_entry_t entry, bool vma_ra,
-> +			struct vm_fault *vmf)
->  {
->  	struct page *page;
-> -	unsigned long ra_info;
-> -	int win, hits, readahead;
-> +	int readahead;
-> +	struct address_space *swapper_space = swap_address_space(entry);
->  
-> -	page = find_get_page(swap_address_space(entry), swp_offset(entry));
-> +	if (!swapper_space) {
-> +		if (vmf)
-> +			pte_ERROR(vmf->orig_pte);
-> +		else
-> +			pr_err("Bad swp_entry: %lx\n", entry.val);
+The longer term fix for vfio, RDMA, and any other long term pin user, is
+to provide a 'pin with lease' mechanism. Similar to the leases that are
+hold for pNFS RDMA layouts, this userspace lease gives the kernel a way
+to notify userspace that the block layout of the file is changing and
+the kernel is revoking access to pinned pages.
 
->From we get swap_entry from PTE to lookup_swap_cache(), nothing prevent
-the swap device to be swapoff.  So, I think sometimes it is hard to
-distinguish between garbage PTEs and PTEs which become deprecated
-because of swapoff.
+---
 
-Best Regards,
-Huang, Ying
+Dan Williams (6):
+      dax: fix vma_is_fsdax() helper
+      dax: fix dax_mapping() definition in the FS_DAX=n + DEV_DAX=y case
+      xfs, dax: introduce IS_FSDAX()
+      dax: fix S_DAX definition
+      dax: short circuit vma_is_fsdax() in the CONFIG_FS_DAX=n case
+      vfio: disable filesystem-dax page pinning
 
-> +		return NULL;
-> +	}
-> +
-> +	page = find_get_page(swapper_space, swp_offset(entry));
->  
->  	INC_CACHE_INFO(find_total);
->  	if (page) {
 
-[snip]
+ drivers/vfio/vfio_iommu_type1.c |   18 +++++++++++++++---
+ fs/xfs/xfs_file.c               |   14 +++++++-------
+ fs/xfs/xfs_ioctl.c              |    4 ++--
+ fs/xfs/xfs_iomap.c              |    6 +++---
+ fs/xfs/xfs_reflink.c            |    2 +-
+ include/linux/dax.h             |    9 ++++++---
+ include/linux/fs.h              |    8 ++++++--
+ 7 files changed, 40 insertions(+), 21 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
