@@ -1,144 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ECB196B000E
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 19:26:55 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id x6so4569344plr.7
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 16:26:55 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i4sor876587pgo.431.2018.02.23.16.26.54
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DAC086B0005
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 19:49:29 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id e1so4997938pfi.10
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 16:49:29 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id r3-v6si2653666plb.197.2018.02.23.16.49.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 23 Feb 2018 16:26:54 -0800 (PST)
-Subject: Re: [PATCH 7/7] Documentation for Pmalloc
-References: <20180223144807.1180-1-igor.stoppa@huawei.com>
- <20180223144807.1180-8-igor.stoppa@huawei.com>
-From: J Freyensee <why2jjj.linux@gmail.com>
-Message-ID: <98b2fecf-c1b3-aa5e-ba70-2770940bb965@gmail.com>
-Date: Fri, 23 Feb 2018 16:26:49 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Feb 2018 16:49:28 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH] mm: Report bad PTEs in lookup_swap_cache()
+References: <20180223200341.17627-1-willy@infradead.org>
+Date: Sat, 24 Feb 2018 08:49:26 +0800
+In-Reply-To: <20180223200341.17627-1-willy@infradead.org> (Matthew Wilcox's
+	message of "Fri, 23 Feb 2018 12:03:41 -0800")
+Message-ID: <87zi3z2ovd.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180223144807.1180-8-igor.stoppa@huawei.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>, david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
-Cc: labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>
 
+Matthew Wilcox <willy@infradead.org> writes:
 
-
-On 2/23/18 6:48 AM, Igor Stoppa wrote:
-> Detailed documentation about the protectable memory allocator.
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 >
-> Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-> ---
->   Documentation/core-api/index.rst   |   1 +
->   Documentation/core-api/pmalloc.rst | 114 +++++++++++++++++++++++++++++++++++++
->   2 files changed, 115 insertions(+)
->   create mode 100644 Documentation/core-api/pmalloc.rst
->
-> diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-> index c670a8031786..8f5de42d6571 100644
-> --- a/Documentation/core-api/index.rst
-> +++ b/Documentation/core-api/index.rst
-> @@ -25,6 +25,7 @@ Core utilities
->      genalloc
->      errseq
->      printk-formats
-> +   pmalloc
->   
->   Interfaces for kernel debugging
->   ===============================
-> diff --git a/Documentation/core-api/pmalloc.rst b/Documentation/core-api/pmalloc.rst
-> new file mode 100644
-> index 000000000000..d9725870444e
-> --- /dev/null
-> +++ b/Documentation/core-api/pmalloc.rst
-> @@ -0,0 +1,114 @@
-> +.. SPDX-License-Identifier: GPL-2.0
-> +
-> +Protectable memory allocator
-> +============================
-> +
-> +Purpose
-> +-------
-> +
-> +The pmalloc library is meant to provide R/O status to data that, for some
-> +reason, could neither be declared as constant, nor could it take advantage
-> +of the qualifier __ro_after_init, but is write-once and read-only in spirit.
-> +It protects data from both accidental and malicious overwrites.
-> +
-> +Example: A policy that is loaded from userspace.
-> +
-> +
-> +Concept
-> +-------
-> +
-> +pmalloc builds on top of genalloc, using the same concept of memory pools.
-> +
-> +The value added by pmalloc is that now the memory contained in a pool can
-> +become R/O, for the rest of the life of the pool.
-> +
-> +Different kernel drivers and threads can use different pools, for finer
-> +control of what becomes R/O and when. And for improved lockless concurrency.
-> +
-> +
-> +Caveats
-> +-------
-> +
-> +- Memory freed while a pool is not yet protected will be reused.
-> +
-> +- Once a pool is protected, it's not possible to allocate any more memory
-> +  from it.
-> +
-> +- Memory "freed" from a protected pool indicates that such memory is not
-> +  in use anymore by the requester; however, it will not become available
-> +  for further use, until the pool is destroyed.
-> +
-> +- Before destroying a pool, all the memory allocated from it must be
-> +  released.
+> If we have garbage in the PTE, we can call the radix tree code with a
+> NULL radix tree head which leads to an OOPS.  Detect the case where
+> we've found a PTE that refers to a non-existent swap device and report
+> the error correctly.
 
-Is that true?A  pmalloc_destroy_pool() has:
+There is a patch in -mm tree which addresses this problem at least
+partially as follow.  Please take a look at it.
 
-.
-.
-+A A A  pmalloc_pool_set_protection(pool, false);
-+A A A  gen_pool_for_each_chunk(pool, pmalloc_chunk_free, NULL);
-+A A A  gen_pool_destroy(pool);
-+A A A  kfree(data);
+https://www.spinics.net/lists/linux-mm/msg145242.html
 
-which to me looks like is the opposite, the data (ie, "memory") is being 
-released first, then the pool is destroyed.
+[snip]
 
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 39ae7cfad90f..5a7755ecbb03 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -328,14 +328,22 @@ void free_pages_and_swap_cache(struct page **pages, int nr)
+>   * lock getting page table operations atomic even if we drop the page
+>   * lock before returning.
+>   */
+> -struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
+> -			       unsigned long addr)
+> +struct page *lookup_swap_cache(swp_entry_t entry, bool vma_ra,
+> +			struct vm_fault *vmf)
+>  {
+>  	struct page *page;
+> -	unsigned long ra_info;
+> -	int win, hits, readahead;
+> +	int readahead;
+> +	struct address_space *swapper_space = swap_address_space(entry);
+>  
+> -	page = find_get_page(swap_address_space(entry), swp_offset(entry));
+> +	if (!swapper_space) {
+> +		if (vmf)
+> +			pte_ERROR(vmf->orig_pte);
+> +		else
+> +			pr_err("Bad swp_entry: %lx\n", entry.val);
 
+>From we get swap_entry from PTE to lookup_swap_cache(), nothing prevent
+the swap device to be swapoff.  So, I think sometimes it is hard to
+distinguish between garbage PTEs and PTEs which become deprecated
+because of swapoff.
 
+Best Regards,
+Huang, Ying
+
+> +		return NULL;
+> +	}
 > +
-> +- pmalloc does not provide locking support with respect to allocating vs
-> +  protecting an individual pool, for performance reasons.
+> +	page = find_get_page(swapper_space, swp_offset(entry));
+>  
+>  	INC_CACHE_INFO(find_total);
+>  	if (page) {
 
-What is the recommendation to using locks then, as the computing 
-real-world mainly operates in multi-threaded/process world?A  Maybe show 
-an example of an issue that occur if locks aren't used and give a coding 
-example.
-
-> +  It is recommended not to share the same pool between unrelated functions.
-> +  Should sharing be a necessity, the user of the shared pool is expected
-> +  to implement locking for that pool.
-> +
-> +- pmalloc uses genalloc to optimize the use of the space it allocates
-> +  through vmalloc. Some more TLB entries will be used, however less than
-> +  in the case of using vmalloc directly. The exact number depends on the
-> +  size of each allocation request and possible slack.
-> +
-> +- Considering that not much data is supposed to be dynamically allocated
-> +  and then marked as read-only, it shouldn't be an issue that the address
-> +  range for pmalloc is limited, on 32-bit systems.
-
-Why is 32-bit systems mentioned and not 64-bit?A  Is there a problem with 
-64-bit here?
-
-Thanks,
-Jay
+[snip]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
