@@ -1,73 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 211296B000C
-	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 19:52:35 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id u65so5003472pfd.7
-        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 16:52:35 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id 3-v6si2602715plx.463.2018.02.23.16.52.33
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B943E6B000D
+	for <linux-mm@kvack.org>; Fri, 23 Feb 2018 19:52:39 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id h10so4125893pgf.3
+        for <linux-mm@kvack.org>; Fri, 23 Feb 2018 16:52:39 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id s1si2209645pgr.20.2018.02.23.16.52.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Feb 2018 16:52:34 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH][mm-next] mm, swap: make bool enable_vma_readahead and function swap_vma_readahead static
-References: <20180223164852.5159-1-colin.king@canonical.com>
-Date: Sat, 24 Feb 2018 08:52:32 +0800
-In-Reply-To: <20180223164852.5159-1-colin.king@canonical.com> (Colin King's
-	message of "Fri, 23 Feb 2018 16:48:52 +0000")
-Message-ID: <87vaen2oq7.fsf@yhuang-dev.intel.com>
+        Fri, 23 Feb 2018 16:52:38 -0800 (PST)
+Subject: [PATCH v3 4/6] dax: fix S_DAX definition
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 23 Feb 2018 16:43:32 -0800
+Message-ID: <151943301227.29249.5676061205812171925.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <151943298533.29249.14597996053028346159.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <151943298533.29249.14597996053028346159.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin King <colin.king@canonical.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-nvdimm@lists.01.org
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>
 
-Colin King <colin.king@canonical.com> writes:
+Make sure S_DAX is defined in the CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y
+case. Otherwise vma_is_dax() may incorrectly return false in the
+Device-DAX case.
 
-> From: Colin Ian King <colin.king@canonical.com>
->
-> The bool enable_vma_readahead and function swap_vma_readahead are local
-> to the source and do not need to be in global scope, so make them static.
->
-> Cleans up sparse warnings:
-> mm/swap_state.c:41:6: warning: symbol 'enable_vma_readahead' was not
-> declared. Should it be static?
-> mm/swap_state.c:742:13: warning: symbol 'swap_vma_readahead' was not
-> declared. Should it be static?
->
-> Signed-off-by: Colin Ian King <colin.king@canonical.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux-fsdevel@vger.kernel.org
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Jan Kara <jack@suse.cz>
+Cc: <stable@vger.kernel.org>
+Fixes: dee410792419 ("/dev/dax, core: file operations and dax-mmap")
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+ include/linux/fs.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Acked-by: "Huang, Ying" <ying.huang@intel.com>
-
-> ---
->  mm/swap_state.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
->
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 8dde719e973c..f3952138f01d 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -38,7 +38,7 @@ static const struct address_space_operations swap_aops = {
->  
->  struct address_space *swapper_spaces[MAX_SWAPFILES] __read_mostly;
->  static unsigned int nr_swapper_spaces[MAX_SWAPFILES] __read_mostly;
-> -bool enable_vma_readahead __read_mostly = true;
-> +static bool enable_vma_readahead __read_mostly = true;
->  
->  #define SWAP_RA_WIN_SHIFT	(PAGE_SHIFT / 2)
->  #define SWAP_RA_HITS_MASK	((1UL << SWAP_RA_WIN_SHIFT) - 1)
-> @@ -739,8 +739,8 @@ static void swap_ra_info(struct vm_fault *vmf,
->  	pte_unmap(orig_pte);
->  }
->  
-> -struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
-> -				    struct vm_fault *vmf)
-> +static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
-> +				       struct vm_fault *vmf)
->  {
->  	struct blk_plug plug;
->  	struct vm_area_struct *vma = vmf->vma;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index a4310a95011b..7418341578a3 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1859,7 +1859,7 @@ struct super_operations {
+ #define S_IMA		1024	/* Inode has an associated IMA struct */
+ #define S_AUTOMOUNT	2048	/* Automount/referral quasi-directory */
+ #define S_NOSEC		4096	/* no suid or xattr security attributes */
+-#ifdef CONFIG_FS_DAX
++#if IS_ENABLED(CONFIG_FS_DAX) || IS_ENABLED(CONFIG_DEV_DAX)
+ #define S_DAX		8192	/* Direct Access, avoiding the page cache */
+ #else
+ #define S_DAX		0	/* Make all the DAX code disappear */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
