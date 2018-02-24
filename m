@@ -1,47 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 644046B0003
-	for <linux-mm@kvack.org>; Sat, 24 Feb 2018 13:59:00 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id z11so5435302plo.21
-        for <linux-mm@kvack.org>; Sat, 24 Feb 2018 10:59:00 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z85sor1469443pfk.18.2018.02.24.10.58.58
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E9BC6B0006
+	for <linux-mm@kvack.org>; Sat, 24 Feb 2018 14:05:03 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id q2so4431155pgf.22
+        for <linux-mm@kvack.org>; Sat, 24 Feb 2018 11:05:03 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g27sor1471210pfg.47.2018.02.24.11.05.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 24 Feb 2018 10:58:59 -0800 (PST)
-Date: Sat, 24 Feb 2018 10:58:55 -0800
+        Sat, 24 Feb 2018 11:05:02 -0800 (PST)
 From: Stephen Hemminger <stephen@networkplumber.org>
-Subject: Re: tcp_bind_bucket is missing from slabinfo
-Message-ID: <20180224105855.5ff93c2f@xeon-e3>
-In-Reply-To: <20180224143520.GA22222@bombadil.infradead.org>
-References: <20180223225030.2e8ef122@shemminger-XPS-13-9360>
-	<20180224143520.GA22222@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH 0/2] mark some slabs as visible not mergeable
+Date: Sat, 24 Feb 2018 11:04:52 -0800
+Message-Id: <20180224190454.23716-1-sthemmin@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: netdev@vger.kernel.org, linux-mm@kvack.org
+To: davem@davemloft.net, willy@infradead.org
+Cc: netdev@vger.kernel.org, linux-mm@kvack.org, ikomyagin@gmail.com, Stephen Hemminger <sthemmin@microsoft.com>
 
-On Sat, 24 Feb 2018 06:35:20 -0800
-Matthew Wilcox <willy@infradead.org> wrote:
+This fixes an old bug in iproute2's ss command because it was
+reading slabinfo to get statistics. There isn't a better API
+to do this, and one can argue that /proc is a UAPI that must
+not change.
 
-> On Fri, Feb 23, 2018 at 10:50:30PM -0800, Stephen Hemminger wrote:
-> > Somewhere back around 3.17 the kmem cache "tcp_bind_bucket" dropped out
-> > of /proc/slabinfo. It turns out the ss command was dumpster diving
-> > in slabinfo to determine the number of bound sockets and now it always
-> > reports 0.
-> > 
-> > Not sure why, the cache is still created but it doesn't
-> > show in slabinfo. Could it be some part of making slab/slub common code
-> > (or network namespaces). The cache is created in tcp_init but not visible.
-> > 
-> > Any ideas?  
-> 
-> Try booting with slab_nomerge=1
+Therefore this patch set adds a flag to slab to give another
+reason to prevent merging, and then uses it in network code.
 
-Yes, thats it. 
+The patches are against davem's linux-net tree and should also
+goto stable as well.
+
+Stephen Hemminger (2):
+  slab: add flag to block merging of UAPI elements
+  net: mark slab's used by ss as UAPI
+
+ include/linux/slab.h | 6 ++++++
+ mm/slab_common.c     | 2 +-
+ net/ipv4/tcp.c       | 3 ++-
+ net/ipv4/tcp_ipv4.c  | 2 +-
+ net/ipv6/tcp_ipv6.c  | 2 +-
+ net/socket.c         | 6 +++---
+ 6 files changed, 14 insertions(+), 7 deletions(-)
+
+-- 
+2.16.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
