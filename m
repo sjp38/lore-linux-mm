@@ -1,108 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B9EEE6B0008
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 11:38:28 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id l14so5743199pgn.21
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 08:38:28 -0800 (PST)
-Received: from mr26p42im-ztdg06103201.me.com (mr26p42im-ztdg06103201.me.com. [17.111.243.30])
-        by mx.google.com with ESMTPS id s19si6964473pfk.260.2018.02.26.08.38.27
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D2256B0005
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 12:16:51 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id y187so9408975itc.8
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 09:16:51 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id s23si5849313ios.173.2018.02.26.09.16.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 08:38:27 -0800 (PST)
-Received: from process-dkim-sign-daemon.mr26p42im-ztdg06103201.me.com by
- mr26p42im-ztdg06103201.me.com
- (Oracle Communications Messaging Server 8.0.1.2.20170607 64bit (built Jun  7
- 2017)) id <0P4R00M00NJOOO00@mr26p42im-ztdg06103201.me.com> for
- linux-mm@kvack.org; Mon, 26 Feb 2018 16:38:24 +0000 (GMT)
-From: Nathan Hjelm <hjelmn@me.com>
-Message-id: <B9A6330F-48FE-4260-A505-3FF043874F0F@me.com>
-Content-type: multipart/signed;
- boundary="Apple-Mail=_6A54AC93-1F7E-43B9-A4A6-B8E2291C2347";
- protocol="application/pgp-signature"; micalg=pgp-sha512
-MIME-version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
-Subject: Re: [OMPI devel] [PATCH v5 0/4] vm: add a syscall to map a process
- memory into a pipe
-Date: Mon, 26 Feb 2018 09:38:19 -0700
-In-reply-to: <3122ec5a-7f73-f6b4-33ea-8c10ef32e5b0@virtuozzo.com>
-References: <1515479453-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180220164406.3ec34509376f16841dc66e34@linux-foundation.org>
- <3122ec5a-7f73-f6b4-33ea-8c10ef32e5b0@virtuozzo.com>
+        Mon, 26 Feb 2018 09:16:50 -0800 (PST)
+Subject: Re: [PATCH v8 18/24] mm: Provide speculative fault infrastructure
+References: <1518794738-4186-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1518794738-4186-19-git-send-email-ldufour@linux.vnet.ibm.com>
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Message-ID: <5b16d6ce-6b62-e4ca-2d78-c25bb008e27e@oracle.com>
+Date: Mon, 26 Feb 2018 12:16:09 -0500
+MIME-Version: 1.0
+In-Reply-To: <1518794738-4186-19-git-send-email-ldufour@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Open MPI Developers <devel@lists.open-mpi.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrei Vagin <avagin@openvz.org>, Arnd Bergmann <arnd@arndb.de>, Jann Horn <jannh@google.com>, rr-dev@mozilla.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Josh Triplett <josh@joshtriplett.org>, criu@openvz.org, linux-mm@kvack.org, Greg KH <gregkh@linuxfoundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, gdb@sourceware.org, linux-fsdevel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Michael Kerrisk <mtk.manpages@gmail.com>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+
+Hi Laurent,
+
+This series doesn't build for me[*] when CONFIG_TRANSPARENT_HUGEPAGE is unset.
+
+The problem seems to be that the BUILD_BUG() version of pmd_same is called in pte_map_lock:
+
+On 02/16/2018 10:25 AM, Laurent Dufour wrote:
+> +static bool pte_map_lock(struct vm_fault *vmf)
+> +{
+...snip...
+> +	if (!pmd_same(pmdval, vmf->orig_pmd))
+> +		goto out;
+
+Since SPF can now call pmd_same without THP, maybe the way to fix it is just
+
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 2cfa3075d148..e130692db24a 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -375,7 +375,8 @@ static inline int pte_unused(pte_t pte)
+  #endif
+  
+  #ifndef __HAVE_ARCH_PMD_SAME
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || \
++    defined(CONFIG_SPECULATIVE_PAGE_FAULT)
+  static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+  {
+         return pmd_val(pmd_a) == pmd_val(pmd_b);
+
+?
+
+Daniel
 
 
---Apple-Mail=_6A54AC93-1F7E-43B9-A4A6-B8E2291C2347
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
-	charset=us-ascii
+[*]  The errors are:
 
-All MPI implementations have support for using CMA to transfer data =
-between local processes. The performance is fairly good (not as good as =
-XPMEM) but the interface limits what we can do with to remote process =
-memory (no atomics). I have not heard about this new proposal. What is =
-the benefit of the proposed calls over the existing calls?
-
--Nathan
-
-> On Feb 26, 2018, at 2:02 AM, Pavel Emelyanov <xemul@virtuozzo.com> =
-wrote:
->=20
-> On 02/21/2018 03:44 AM, Andrew Morton wrote:
->> On Tue,  9 Jan 2018 08:30:49 +0200 Mike Rapoport =
-<rppt@linux.vnet.ibm.com> wrote:
->>=20
->>> This patches introduces new process_vmsplice system call that =
-combines
->>> functionality of process_vm_read and vmsplice.
->>=20
->> All seems fairly strightforward.  The big question is: do we know =
-that
->> people will actually use this, and get sufficient value from it to
->> justify its addition?
->=20
-> Yes, that's what bothers us a lot too :) I've tried to start with =
-finding out if anyone
-> used the sys_read/write_process_vm() calls, but failed :( Does anybody =
-know how popular
-> these syscalls are? If its users operate on big amount of memory, they =
-could benefit from
-> the proposed splice extension.
->=20
-> -- Pavel
-> _______________________________________________
-> devel mailing list
-> devel@lists.open-mpi.org
-> https://lists.open-mpi.org/mailman/listinfo/devel
-
-
---Apple-Mail=_6A54AC93-1F7E-43B9-A4A6-B8E2291C2347
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename=signature.asc
-Content-Type: application/pgp-signature;
-	name=signature.asc
-Content-Description: Message signed with OpenPGP
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCgAdFiEE2GIIdNgp/fA6+otZb+5NXWbsZioFAlqUN/sACgkQb+5NXWbs
-Ziqqvg//VVpRs73U8FH12mV10hzJmQEVssOgHVrroVBeg0oRjVFsUp8fJxxvV9iC
-DZ+yylG7T5K7V1ixlbv1Uw9nj79CB99HQuTtXARv7Rab2opcWWh2MktEV9+8iM7f
-xCXc+JCQfd6ncL/codqUTry+F++1K3fIanRj2/TtK0fr45uNODAPxS8FIxMl5NYg
-hym0BEmZkwKm5BKZbWqlDq3ES2HSrIHHXw33liTJcWQSnmsV1KLWMPvJwVWKF/s2
-eyrLBASiwbNw+BkZXY3LSqRRXU8pJM1HQo4PKsiMp+caBGypeSgq4WDn6i9vmfFW
-qUZmtNYzlnpFLNiFJBIfPYIoYrsondHCDD7U7V2tS+j70hG5/5apj3Mgu4mBBm5L
-DQpfyiCPLE6objfpt1qd+fqWTLNpbQAS1elctmxqDL1MgXQXrjMgOrbZJPLUzP5q
-6EfTw09wOUjtpl6dmB5g4UvnJztTRTHGTkS/DNl6UhSnGGK7EC442hAhkMjs8/Yh
-zbc6/LxXu8B7k5VBopKx8nxISbq00A1Y1loPlsOaKx581RsUaIrpl1bUx3t62QzC
-8MbuNZWqj4ogv2VIxJBP3h/YI8Hedzjckzy/aHVkwyj5N+iHjHmXGGPFm/7q9lm/
-os5LIAQQ/F5pE1wqZq3EE3XLSXMP8fU2q+YjaVYXr7a+IX4MVbM=
-=HLfy
------END PGP SIGNATURE-----
-
---Apple-Mail=_6A54AC93-1F7E-43B9-A4A6-B8E2291C2347--
+In file included from /home/dmjordan/src/linux/include/linux/kernel.h:10:0,
+                  from /home/dmjordan/src/linux/include/linux/list.h:9,
+                  from /home/dmjordan/src/linux/include/linux/smp.h:12,
+                  from /home/dmjordan/src/linux/include/linux/kernel_stat.h:5,
+                  from /home/dmjordan/src/linux/mm/memory.c:41:
+In function a??pmd_same.isra.104a??,
+     inlined from a??pte_map_locka?? at /home/dmjordan/src/linux/mm/memory.c:2380:7:
+/home/dmjordan/src/linux/include/linux/compiler.h:324:38: error: call to a??__compiletime_assert_391a?? declared with attribute error: BUILD_BUG failed
+   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+                                       ^
+/home/dmjordan/src/linux/include/linux/compiler.h:304:4: note: in definition of macro a??__compiletime_asserta??
+     prefix ## suffix();    \
+     ^~~~~~
+/home/dmjordan/src/linux/include/linux/compiler.h:324:2: note: in expansion of macro a??_compiletime_asserta??
+   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+   ^~~~~~~~~~~~~~~~~~~
+/home/dmjordan/src/linux/include/linux/build_bug.h:45:37: note: in expansion of macro a??compiletime_asserta??
+  #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
+                                      ^~~~~~~~~~~~~~~~~~
+/home/dmjordan/src/linux/include/linux/build_bug.h:79:21: note: in expansion of macro a??BUILD_BUG_ON_MSGa??
+  #define BUILD_BUG() BUILD_BUG_ON_MSG(1, "BUILD_BUG failed")
+                      ^~~~~~~~~~~~~~~~
+/home/dmjordan/src/linux/include/asm-generic/pgtable.h:391:2: note: in expansion of macro a??BUILD_BUGa??
+   BUILD_BUG();
+   ^~~~~~~~~
+   CC      block/elevator.o
+   CC      crypto/crypto_wq.o
+In function a??pmd_same.isra.104a??,
+     inlined from a??pte_spinlocka?? at /home/dmjordan/src/linux/mm/memory.c:2326:7,
+     inlined from a??handle_pte_faulta?? at /home/dmjordan/src/linux/mm/memory.c:4181:7:
+/home/dmjordan/src/linux/include/linux/compiler.h:324:38: error: call to a??__compiletime_assert_391a?? declared with attribute error: BUILD_BUG failed
+   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+                                       ^
+/home/dmjordan/src/linux/include/linux/compiler.h:304:4: note: in definition of macro a??__compiletime_asserta??
+     prefix ## suffix();    \
+     ^~~~~~
+/home/dmjordan/src/linux/include/linux/compiler.h:324:2: note: in expansion of macro a??_compiletime_asserta??
+   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+   ^~~~~~~~~~~~~~~~~~~
+/home/dmjordan/src/linux/include/linux/build_bug.h:45:37: note: in expansion of macro a??compiletime_asserta??
+  #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
+                                      ^~~~~~~~~~~~~~~~~~
+/home/dmjordan/src/linux/include/linux/build_bug.h:79:21: note: in expansion of macro a??BUILD_BUG_ON_MSGa??
+  #define BUILD_BUG() BUILD_BUG_ON_MSG(1, "BUILD_BUG failed")
+                      ^~~~~~~~~~~~~~~~
+/home/dmjordan/src/linux/include/asm-generic/pgtable.h:391:2: note: in expansion of macro a??BUILD_BUGa??
+   BUILD_BUG();
+   ^~~~~~~~~
+...
+make[2]: *** [/home/dmjordan/src/linux/scripts/Makefile.build:316: mm/memory.o] Error 1
+make[1]: *** [/home/dmjordan/src/linux/Makefile:1047: mm] Error 2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
