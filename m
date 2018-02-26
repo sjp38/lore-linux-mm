@@ -1,159 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 63D536B0005
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 00:41:11 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id j3so8022169itf.6
-        for <linux-mm@kvack.org>; Sun, 25 Feb 2018 21:41:11 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 93FC16B0005
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 00:49:33 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id i11so5174136pgq.10
+        for <linux-mm@kvack.org>; Sun, 25 Feb 2018 21:49:33 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j123sor813608ioe.289.2018.02.25.21.41.10
+        by mx.google.com with SMTPS id l19sor1505917pgc.199.2018.02.25.21.49.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 25 Feb 2018 21:41:10 -0800 (PST)
-Date: Mon, 26 Feb 2018 14:41:04 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH RESEND 1/2] mm: swap: clean up swap readahead
-Message-ID: <20180226054104.GC112402@rodete-desktop-imager.corp.google.com>
-References: <20180220085249.151400-1-minchan@kernel.org>
- <20180220085249.151400-2-minchan@kernel.org>
- <874lm83zho.fsf@yhuang-dev.intel.com>
- <20180226045617.GA112402@rodete-desktop-imager.corp.google.com>
- <87d10stjk5.fsf@yhuang-dev.intel.com>
+        Sun, 25 Feb 2018 21:49:32 -0800 (PST)
+Date: Mon, 26 Feb 2018 14:49:27 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCHv3 1/2] zsmalloc: introduce zs_huge_object() function
+Message-ID: <20180226054927.GA12539@jagdpanzerIV>
+References: <20180210082321.17798-1-sergey.senozhatsky@gmail.com>
+ <20180214055747.8420-1-sergey.senozhatsky@gmail.com>
+ <20180220012429.GA186771@rodete-desktop-imager.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87d10stjk5.fsf@yhuang-dev.intel.com>
+In-Reply-To: <20180220012429.GA186771@rodete-desktop-imager.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Mon, Feb 26, 2018 at 01:18:50PM +0800, Huang, Ying wrote:
-> Minchan Kim <minchan@kernel.org> writes:
+On (02/20/18 10:24), Minchan Kim wrote:
+> Hi Sergey,
+
+[..]
+
+> Sorry for the long delay. I was horribly busy for a few weeks. ;-(
+
+My turn to say "Sorry for the delay" :)
+
+[..]
+> I think it's simple enough. :)
+
+Right. The changes are pretty trivial, that's why I kept then in
+2 simple patches. Besides, I didn't want to mix zsmalloc and zram
+changes.
+
+> Can't zram ask to zsmalloc about what size is for hugeobject from?
+> With that, zram can save the wartermark in itself and use it.
+> What I mean is as follows,
 > 
-> > On Fri, Feb 23, 2018 at 04:02:27PM +0800, Huang, Ying wrote:
-> >> <minchan@kernel.org> writes:
-> >> [snip]
-> >> 
-> >> > diff --git a/mm/swap_state.c b/mm/swap_state.c
-> >> > index 39ae7cfad90f..c56cce64b2c3 100644
-> >> > --- a/mm/swap_state.c
-> >> > +++ b/mm/swap_state.c
-> >> > @@ -332,32 +332,38 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
-> >> >  			       unsigned long addr)
-> >> >  {
-> >> >  	struct page *page;
-> >> > -	unsigned long ra_info;
-> >> > -	int win, hits, readahead;
-> >> >  
-> >> >  	page = find_get_page(swap_address_space(entry), swp_offset(entry));
-> >> >  
-> >> >  	INC_CACHE_INFO(find_total);
-> >> >  	if (page) {
-> >> > +		bool vma_ra = swap_use_vma_readahead();
-> >> > +		bool readahead = TestClearPageReadahead(page);
-> >> > +
-> >> 
-> >> TestClearPageReadahead() cannot be called for compound page.  As in
-> >> 
-> >> PAGEFLAG(Readahead, reclaim, PF_NO_COMPOUND)
-> >> 	TESTCLEARFLAG(Readahead, reclaim, PF_NO_COMPOUND)
-> >> 
-> >> >  		INC_CACHE_INFO(find_success);
-> >> >  		if (unlikely(PageTransCompound(page)))
-> >> >  			return page;
-> >> > -		readahead = TestClearPageReadahead(page);
-> >> 
-> >> So we can only call it here after checking whether page is compound.
-> >
-> > Hi Huang,
-> >
-> > Thanks for cathing this.
-> > However, I don't see the reason we should rule out THP page for
-> > readahead marker. Could't we relax the rule?
-> >
-> > I hope we can do so that we could remove PageTransCompound check
-> > for readahead marker, which makes code ugly.
-> >
-> > From 748b084d5c3960ec2418d8c51a678aada30f1072 Mon Sep 17 00:00:00 2001
-> > From: Minchan Kim <minchan@kernel.org>
-> > Date: Mon, 26 Feb 2018 13:46:43 +0900
-> > Subject: [PATCH] mm: relax policy for PG_readahead
-> >
-> > This flag is in use for anon THP page so let's relax it.
-> >
-> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  include/linux/page-flags.h | 4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> >
-> > diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> > index e34a27727b9a..f12d4dfae580 100644
-> > --- a/include/linux/page-flags.h
-> > +++ b/include/linux/page-flags.h
-> > @@ -318,8 +318,8 @@ PAGEFLAG(MappedToDisk, mappedtodisk, PF_NO_TAIL)
-> >  /* PG_readahead is only used for reads; PG_reclaim is only for writes */
-> >  PAGEFLAG(Reclaim, reclaim, PF_NO_TAIL)
-> >  	TESTCLEARFLAG(Reclaim, reclaim, PF_NO_TAIL)
-> > -PAGEFLAG(Readahead, reclaim, PF_NO_COMPOUND)
-> > -	TESTCLEARFLAG(Readahead, reclaim, PF_NO_COMPOUND)
-> > +PAGEFLAG(Readahead, reclaim, PF_NO_TAIL)
-> > +	TESTCLEARFLAG(Readahead, reclaim, PF_NO_TAIL)
-> >  
-> >  #ifdef CONFIG_HIGHMEM
-> >  /*
-> 
-> We never set Readahead bit for THP in reality.  The original code acts
-> as document for this.  I don't think it is a good idea to change this
-> without a good reason.
+> zram:
+> 	size_t huge_size = _zs_huge_object(pool);
+> 	..
+> 	..
+> 	if (comp_size >= huge_size)
+> 		memcpy(dst, src, 4K);
 
-I don't like such divergence so that we don't need to care about whether
-the page is THP or not. However, there is pointless to confuse ra stat
-counters, too. How about this?
+Yes, can do. My plan was to keep it completely internally to zsmalloc.
+Who knows, it might become smart enough one day to do something more
+than just size comparison. Any reason you used that leading underscore
+in _zs_huge_object()?
 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 8dde719e973c..e169d137d27c 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -348,12 +348,17 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
- 	INC_CACHE_INFO(find_total);
- 	if (page) {
- 		bool vma_ra = swap_use_vma_readahead();
--		bool readahead = TestClearPageReadahead(page);
-+		bool readahead;
- 
- 		INC_CACHE_INFO(find_success);
-+		/*
-+		 * At the moment, we doesn't support PG_readahead for anon THP
-+		 * so let's bail out rather than confusing the readahead stat.
-+		 */
- 		if (unlikely(PageTransCompound(page)))
- 			return page;
- 
-+		readahead = TestClearPageReadahead(page);
- 		if (vma && vma_ra) {
- 			unsigned long ra_val;
- 			int win, hits;
-@@ -608,8 +613,7 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
- 			continue;
- 		if (page_allocated) {
- 			swap_readpage(page, false);
--			if (offset != entry_offset &&
--			    likely(!PageTransCompound(page))) {
-+			if (offset != entry_offset) {
- 				SetPageReadahead(page);
- 				count_vm_event(SWAP_RA);
- 			}
-@@ -772,8 +776,7 @@ struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
- 			continue;
- 		if (page_allocated) {
- 			swap_readpage(page, false);
--			if (i != ra_info.offset &&
--			    likely(!PageTransCompound(page))) {
-+			if (i != ra_info.offset) {
- 				SetPageReadahead(page);
- 				count_vm_event(SWAP_RA);
- 			}
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
