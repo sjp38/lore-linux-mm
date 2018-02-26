@@ -1,47 +1,256 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C48D6B0006
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 04:02:37 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id n11so7372261plp.13
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 01:02:37 -0800 (PST)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0130.outbound.protection.outlook.com. [104.47.2.130])
-        by mx.google.com with ESMTPS id v10-v6si6350704plz.406.2018.02.26.01.02.35
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BA166B0005
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 04:27:30 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id w102so11053759wrb.21
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 01:27:30 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b12si2116735wma.181.2018.02.26.01.27.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 26 Feb 2018 01:02:36 -0800 (PST)
-Subject: Re: [PATCH v5 0/4] vm: add a syscall to map a process memory into a
- pipe
-References: <1515479453-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180220164406.3ec34509376f16841dc66e34@linux-foundation.org>
-From: Pavel Emelyanov <xemul@virtuozzo.com>
-Message-ID: <3122ec5a-7f73-f6b4-33ea-8c10ef32e5b0@virtuozzo.com>
-Date: Mon, 26 Feb 2018 12:02:25 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Feb 2018 01:27:28 -0800 (PST)
+Date: Mon, 26 Feb 2018 10:27:25 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm,page_alloc: wait for oom_lock than back off
+Message-ID: <20180226092725.GB16269@dhcp22.suse.cz>
+References: <201802132058.HAG51540.QFtSLOJFOOFVMH@I-love.SAKURA.ne.jp>
+ <201802202232.IEC26597.FOQtMFOFJHOSVL@I-love.SAKURA.ne.jp>
+ <20180220144920.GB21134@dhcp22.suse.cz>
+ <201802212327.CAB51013.FOStFVLHFJMOOQ@I-love.SAKURA.ne.jp>
+ <20180221145437.GI2231@dhcp22.suse.cz>
+ <201802241700.JJB51016.FQOLFJHFOOSVMt@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20180220164406.3ec34509376f16841dc66e34@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201802241700.JJB51016.FQOLFJHFOOSVMt@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, criu@openvz.org, gdb@sourceware.org, devel@lists.open-mpi.org, rr-dev@mozilla.org, Arnd Bergmann <arnd@arndb.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Greg KH <gregkh@linuxfoundation.org>, Andrei Vagin <avagin@openvz.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
 
-On 02/21/2018 03:44 AM, Andrew Morton wrote:
-> On Tue,  9 Jan 2018 08:30:49 +0200 Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+On Sat 24-02-18 17:00:51, Tetsuo Handa wrote:
+> >From d922dd170c2bed01a775e8cca0871098aecc253d Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sat, 24 Feb 2018 16:49:21 +0900
+> Subject: [PATCH v2] mm,page_alloc: wait for oom_lock than back off
 > 
->> This patches introduces new process_vmsplice system call that combines
->> functionality of process_vm_read and vmsplice.
+> This patch fixes a bug which is essentially same with a bug fixed by
+> commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
+> too long").
 > 
-> All seems fairly strightforward.  The big question is: do we know that
-> people will actually use this, and get sufficient value from it to
-> justify its addition?
+> Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
+> on an assumption that the owner of oom_lock is making progress for us. But
+> it is possible to trigger OOM lockup when many threads concurrently called
+> __alloc_pages_slowpath() because all CPU resources are wasted for pointless
+> direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
+> __alloc_pages_may_oom() does not always give enough CPU resource to the
+> owner of the oom_lock.
+> 
+> It is possible that the owner of oom_lock is preempted by other threads.
+> Preemption makes the OOM situation much worse. But the page allocator is
+> not responsible about wasting CPU resource for something other than memory
+> allocation request. Wasting CPU resource for memory allocation request
+> without allowing the owner of oom_lock to make forward progress is a page
+> allocator's bug.
+> 
+> Therefore, this patch changes to wait for oom_lock in order to guarantee
+> that no thread waiting for the owner of oom_lock to make forward progress
+> will not consume CPU resources for pointless direct reclaim efforts.
+> 
+> We know printk() from OOM situation where a lot of threads are doing almost
+> busy-looping is a nightmare. As a side effect of this patch, printk() with
+> oom_lock held can start utilizing CPU resources saved by this patch (and
+> reduce preemption during printk(), making printk() complete faster).
+> 
+> By changing !mutex_trylock(&oom_lock) with mutex_lock_killable(&oom_lock),
+> it is possible that many threads prevent the OOM reaper from making forward
+> progress. Thus, this patch removes mutex_lock(&oom_lock) from the OOM
+> reaper.
+> 
+> Also, since nobody uses oom_lock serialization when setting MMF_OOM_SKIP
+> and we don't try last second allocation attempt after confirming that there
+> is no !MMF_OOM_SKIP OOM victim, the possibility of needlessly selecting
+> more OOM victims will be increased if we continue using ALLOC_WMARK_HIGH.
+> Thus, this patch changes to use ALLOC_MARK_MIN.
+> 
+> Also, since we don't want to sleep with oom_lock held so that we can allow
+> threads waiting at mutex_lock_killable(&oom_lock) to try last second
+> allocation attempt (because the OOM reaper starts reclaiming memory without
+> waiting for oom_lock) and start selecting next OOM victim if necessary,
+> this patch changes the location of the short sleep from inside of oom_lock
+> to outside of oom_lock.
 
-Yes, that's what bothers us a lot too :) I've tried to start with finding out if anyone 
-used the sys_read/write_process_vm() calls, but failed :( Does anybody know how popular
-these syscalls are? If its users operate on big amount of memory, they could benefit from
-the proposed splice extension.
+This patch does three different things mangled into one patch. All that
+with a patch description which talks a lot but doesn't really explain
+those changes.
 
--- Pavel
+Moreover, you are effectively tunning for an overloaded page allocator
+artifical test case and add a central lock where many tasks would
+block. I have already tried to explain that this is not an universal
+win and you should better have a real life example where this is really
+helpful.
+
+While I do agree that removing the oom_lock from __oom_reap_task_mm is a
+sensible thing, changing the last allocation attempt to ALLOC_WMARK_MIN
+is not all that straightforward and it would require much more detailed
+explaination.
+
+So the patch in its current form is not mergeable IMHO.
+ 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: David Rientjes <rientjes@google.com>
+> ---
+>  mm/oom_kill.c   | 35 +++--------------------------------
+>  mm/page_alloc.c | 30 ++++++++++++++++++------------
+>  2 files changed, 21 insertions(+), 44 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 8219001..802214f 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -491,22 +491,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  	struct vm_area_struct *vma;
+>  	bool ret = true;
+>  
+> -	/*
+> -	 * We have to make sure to not race with the victim exit path
+> -	 * and cause premature new oom victim selection:
+> -	 * __oom_reap_task_mm		exit_mm
+> -	 *   mmget_not_zero
+> -	 *				  mmput
+> -	 *				    atomic_dec_and_test
+> -	 *				  exit_oom_victim
+> -	 *				[...]
+> -	 *				out_of_memory
+> -	 *				  select_bad_process
+> -	 *				    # no TIF_MEMDIE task selects new victim
+> -	 *  unmap_page_range # frees some memory
+> -	 */
+> -	mutex_lock(&oom_lock);
+> -
+>  	if (!down_read_trylock(&mm->mmap_sem)) {
+>  		ret = false;
+>  		trace_skip_task_reaping(tsk->pid);
+> @@ -581,7 +565,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  
+>  	trace_finish_task_reaping(tsk->pid);
+>  unlock_oom:
+> -	mutex_unlock(&oom_lock);
+>  	return ret;
+>  }
+>  
+> @@ -1078,7 +1061,6 @@ bool out_of_memory(struct oom_control *oc)
+>  {
+>  	unsigned long freed = 0;
+>  	enum oom_constraint constraint = CONSTRAINT_NONE;
+> -	bool delay = false; /* if set, delay next allocation attempt */
+>  
+>  	if (oom_killer_disabled)
+>  		return false;
+> @@ -1128,10 +1110,8 @@ bool out_of_memory(struct oom_control *oc)
+>  		return true;
+>  	}
+>  
+> -	if (mem_cgroup_select_oom_victim(oc) && oom_kill_memcg_victim(oc)) {
+> -		delay = true;
+> +	if (mem_cgroup_select_oom_victim(oc) && oom_kill_memcg_victim(oc))
+>  		goto out;
+> -	}
+>  
+>  	select_bad_process(oc);
+>  	/* Found nothing?!?! Either we hang forever, or we panic. */
+> @@ -1139,20 +1119,10 @@ bool out_of_memory(struct oom_control *oc)
+>  		dump_header(oc, NULL);
+>  		panic("Out of memory and no killable processes...\n");
+>  	}
+> -	if (oc->chosen_task && oc->chosen_task != INFLIGHT_VICTIM) {
+> +	if (oc->chosen_task && oc->chosen_task != INFLIGHT_VICTIM)
+>  		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
+>  				 "Memory cgroup out of memory");
+> -		delay = true;
+> -	}
+> -
+>  out:
+> -	/*
+> -	 * Give the killed process a good chance to exit before trying
+> -	 * to allocate memory again.
+> -	 */
+> -	if (delay)
+> -		schedule_timeout_killable(1);
+> -
+>  	return !!oc->chosen_task;
+>  }
+>  
+> @@ -1178,4 +1148,5 @@ void pagefault_out_of_memory(void)
+>  		return;
+>  	out_of_memory(&oc);
+>  	mutex_unlock(&oom_lock);
+> +	schedule_timeout_killable(1);
+>  }
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 2836bc9..23d1769 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3438,26 +3438,26 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+>  
+>  	*did_some_progress = 0;
+>  
+> -	/*
+> -	 * Acquire the oom lock.  If that fails, somebody else is
+> -	 * making progress for us.
+> -	 */
+> -	if (!mutex_trylock(&oom_lock)) {
+> +	if (mutex_lock_killable(&oom_lock)) {
+>  		*did_some_progress = 1;
+> -		schedule_timeout_uninterruptible(1);
+>  		return NULL;
+>  	}
+>  
+>  	/*
+> -	 * Go through the zonelist yet one more time, keep very high watermark
+> -	 * here, this is only to catch a parallel oom killing, we must fail if
+> -	 * we're still under heavy pressure. But make sure that this reclaim
+> -	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
+> -	 * allocation which will never fail due to oom_lock already held.
+> +	 * This allocation attempt must not depend on __GFP_DIRECT_RECLAIM &&
+> +	 * !__GFP_NORETRY allocation which will never fail due to oom_lock
+> +	 * already held.
+> +	 *
+> +	 * Since neither the OOM reaper nor exit_mmap() waits for oom_lock when
+> +	 * setting MMF_OOM_SKIP on the OOM victim's mm, we might needlessly
+> +	 * select more OOM victims if we use ALLOC_WMARK_HIGH here. But since
+> +	 * this allocation attempt does not sleep, we will not fail to invoke
+> +	 * the OOM killer even if we choose ALLOC_WMARK_MIN here. Thus, we use
+> +	 * ALLOC_WMARK_MIN here.
+>  	 */
+>  	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &
+>  				      ~__GFP_DIRECT_RECLAIM, order,
+> -				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
+> +				      ALLOC_WMARK_MIN | ALLOC_CPUSET, ac);
+>  	if (page)
+>  		goto out;
+>  
+> @@ -4205,6 +4205,12 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+>  	/* Retry as long as the OOM killer is making progress */
+>  	if (did_some_progress) {
+>  		no_progress_loops = 0;
+> +		/*
+> +		 * This schedule_timeout_*() serves as a guaranteed sleep for
+> +		 * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
+> +		 */
+> +		if (!tsk_is_oom_victim(current))
+> +			schedule_timeout_uninterruptible(1);
+>  		goto retry;
+>  	}
+>  
+> -- 
+> 1.8.3.1
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
