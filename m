@@ -1,182 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 301996B0005
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 02:18:02 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 63so10667859wrn.7
-        for <linux-mm@kvack.org>; Sun, 25 Feb 2018 23:18:02 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y2si2228997wry.411.2018.02.25.23.18.00
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 828A26B0005
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 02:27:15 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id p11so12263009qtg.19
+        for <linux-mm@kvack.org>; Sun, 25 Feb 2018 23:27:15 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id p25si6714420qtb.186.2018.02.25.23.27.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 25 Feb 2018 23:18:00 -0800 (PST)
-Subject: Re: [v1 1/1] xen, mm: Allow deferred page initialization for xen pv
- domains
-References: <20180223232538.4314-1-pasha.tatashin@oracle.com>
- <20180223232538.4314-2-pasha.tatashin@oracle.com>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <dda0457a-c16a-3440-a547-15f49e52ec95@suse.com>
-Date: Mon, 26 Feb 2018 08:17:55 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 25 Feb 2018 23:27:14 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1Q7P2vp129944
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 02:27:13 -0500
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2gccudjahj-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 02:27:12 -0500
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Mon, 26 Feb 2018 07:27:00 -0000
+Date: Sun, 25 Feb 2018 23:26:45 -0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v12 1/3] mm, powerpc, x86: define VM_PKEY_BITx bits if
+ CONFIG_ARCH_HAS_PKEYS is enabled
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1519257138-23797-2-git-send-email-linuxram@us.ibm.com>
+ <201802231528.snWZIspR%fengguang.wu@intel.com>
+ <20180224010511.GK5559@ram.oc3035372033.ibm.com>
+ <43082fe4-a6e4-2468-0069-4fbc53418c79@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20180223232538.4314-2-pasha.tatashin@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <43082fe4-a6e4-2468-0069-4fbc53418c79@linux.vnet.ibm.com>
+Message-Id: <20180226072645.GA1060@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akataria@vmware.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, boris.ostrovsky@oracle.com, akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, luto@kernel.org, labbott@redhat.com, kirill.shutemov@linux.intel.com, bp@suse.de, minipli@googlemail.com, jinb.park7@gmail.com, dan.j.williams@intel.com, bhe@redhat.com, zhang.jia@linux.alibaba.com, mgorman@techsingularity.net, hannes@cmpxchg.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com
 
-On 24/02/18 00:25, Pavel Tatashin wrote:
-> Juergen Gross noticed that commit
-> f7f99100d8d ("mm: stop zeroing memory during allocation in vmemmap")
-> broke XEN PV domains when deferred struct page initialization is enabled.
+On Sun, Feb 25, 2018 at 05:27:11PM +0530, Aneesh Kumar K.V wrote:
 > 
-> This is because the xen's PagePinned() flag is getting erased from struct
-> pages when they are initialized later in boot.
 > 
-> Juergen fixed this problem by disabling deferred pages on xen pv domains.
-> However, it is desirable to have this feature available, as it reduces boot
-> time. This fix re-enables the feature for pv-dmains, and fixes the problem
-> the following way:
+> On 02/24/2018 06:35 AM, Ram Pai wrote:
+> >On Fri, Feb 23, 2018 at 03:11:45PM +0800, kbuild test robot wrote:
+> >>Hi Ram,
+> >>
+> >>Thank you for the patch! Yet something to improve:
+> >>
+> >>[auto build test ERROR on linus/master]
+> >>[also build test ERROR on v4.16-rc2 next-20180222]
+> >>[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> >>
+> >>         chmod +x ~/bin/make.cross
+> >...snip..
+> >>         # save the attached .config to linux build tree
+> >>         make.cross ARCH=powerpc
+> >>
+> >>Note: the linux-review/Ram-Pai/mm-x86-powerpc-Enhancements-to-Memory-Protection-Keys/20180223-042743 HEAD c5692bca45543c242ffca15c811923e4c548ed19 builds fine.
+> >>       It only hurts bisectibility.
+> >
+> >oops, it broke git-bisect on powerpc :-(
+> >The following change will fix it. This should nail it down.
+> >
+> >diff --git a/arch/powerpc/include/asm/pkeys.h
+> >b/arch/powerpc/include/asm/pkeys.h
+> >index 0409c80..0b3b669 100644
+> >--- a/arch/powerpc/include/asm/pkeys.h
+> >+++ b/arch/powerpc/include/asm/pkeys.h
+> >@@ -25,6 +25,7 @@
+> >  # define VM_PKEY_BIT1  VM_HIGH_ARCH_1
+> >  # define VM_PKEY_BIT2  VM_HIGH_ARCH_2
+> >  # define VM_PKEY_BIT3  VM_HIGH_ARCH_3
+> >  # define VM_PKEY_BIT4  VM_HIGH_ARCH_4
+> >+#elif !defined(VM_PKEY_BIT4)
+> >+# define VM_PKEY_BIT4  VM_HIGH_ARCH_4
+> >#endif
+> >
 > 
-> The fix is to delay setting PagePinned flag until struct pages for all
-> allocated memory are initialized (until free_all_bootmem()).
-> 
-> A new hypervisor op pv_init_ops.after_bootmem() is called to let xen know
-> that boot allocator is done, and hence struct pages for all the allocated
-> memory are now initialized. If deferred page initialization is enabled, the
-> rest of struct pages are going to be initialized later in boot once
-> page_alloc_init_late() is called.
-> 
-> xen_after_bootmem() is xen's implementation of pv_init_ops.after_bootmem(),
-> we walk page table and mark every page as pinned.
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> ---
->  arch/x86/include/asm/paravirt.h       |  9 +++++++++
->  arch/x86/include/asm/paravirt_types.h |  3 +++
->  arch/x86/kernel/paravirt.c            |  1 +
->  arch/x86/mm/init_32.c                 |  1 +
->  arch/x86/mm/init_64.c                 |  1 +
->  arch/x86/xen/mmu_pv.c                 | 38 ++++++++++++++++++++++++-----------
->  mm/page_alloc.c                       |  4 ----
->  7 files changed, 41 insertions(+), 16 deletions(-)
-> 
-> diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
-> index 9be2bf13825b..737e596a9836 100644
-> --- a/arch/x86/include/asm/paravirt.h
-> +++ b/arch/x86/include/asm/paravirt.h
-> @@ -820,6 +820,11 @@ static inline notrace unsigned long arch_local_irq_save(void)
->  
->  extern void default_banner(void);
->  
-> +static inline void paravirt_after_bootmem(void)
-> +{
-> +	pv_init_ops.after_bootmem();
-> +}
-> +
+> Why don't you remove this powerpc definition completely in this
+> patch? 
 
-Putting this in the paravirt framework is overkill IMO. There is no need
-to patch the callsites for optimal performance.
+That was my thought too, but refrained from sneaking in the changes into
+the patch, to maintain the integrity of all the reviewed-by.
 
-I'd put it into struct x86_hyper_init and pre-init it with x86_init_noop
+Was planning on sending a seperate patch to remove the
+powerpc definition entirely.
 
->  #else  /* __ASSEMBLY__ */
->  
->  #define _PVSITE(ptype, clobbers, ops, word, algn)	\
-> @@ -964,6 +969,10 @@ static inline void paravirt_arch_dup_mmap(struct mm_struct *oldmm,
->  static inline void paravirt_arch_exit_mmap(struct mm_struct *mm)
->  {
->  }
-> +
-> +static inline void paravirt_after_bootmem(void)
-> +{
-> +}
->  #endif /* __ASSEMBLY__ */
->  #endif /* !CONFIG_PARAVIRT */
->  #endif /* _ASM_X86_PARAVIRT_H */
-> diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
-> index 180bc0bff0fb..da78a3610168 100644
-> --- a/arch/x86/include/asm/paravirt_types.h
-> +++ b/arch/x86/include/asm/paravirt_types.h
-> @@ -86,6 +86,9 @@ struct pv_init_ops {
->  	 */
->  	unsigned (*patch)(u8 type, u16 clobber, void *insnbuf,
->  			  unsigned long addr, unsigned len);
-> +
-> +	/* called right after we finish boot allocator */
-> +	void (*after_bootmem)(void);
->  } __no_randomize_layout;
->  
->  
-> diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
-> index 99dc79e76bdc..7b5f931e2e3a 100644
-> --- a/arch/x86/kernel/paravirt.c
-> +++ b/arch/x86/kernel/paravirt.c
-> @@ -315,6 +315,7 @@ struct pv_info pv_info = {
->  
->  struct pv_init_ops pv_init_ops = {
->  	.patch = native_patch,
-> +	.after_bootmem = paravirt_nop,
->  };
->  
->  struct pv_time_ops pv_time_ops = {
-> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-> index 79cb066f40c0..6096d0d9ecbc 100644
-> --- a/arch/x86/mm/init_32.c
-> +++ b/arch/x86/mm/init_32.c
-> @@ -763,6 +763,7 @@ void __init mem_init(void)
->  	free_all_bootmem();
->  
->  	after_bootmem = 1;
-> +	paravirt_after_bootmem();
->  
->  	mem_init_print_info(NULL);
->  	printk(KERN_INFO "virtual kernel memory layout:\n"
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 332f6e25977a..70b7b5093d07 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -1189,6 +1189,7 @@ void __init mem_init(void)
->  	/* this will put all memory onto the freelists */
->  	free_all_bootmem();
->  	after_bootmem = 1;
-> +	paravirt_after_bootmem();
->  
->  	/*
->  	 * Must be done after boot memory is put on freelist, because here we
-> diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-> index d20763472920..603589809334 100644
-> --- a/arch/x86/xen/mmu_pv.c
-> +++ b/arch/x86/xen/mmu_pv.c
-> @@ -116,6 +116,8 @@ DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
->  
->  static phys_addr_t xen_pt_base, xen_pt_size __initdata;
->  
-> +static DEFINE_STATIC_KEY_FALSE(xen_struct_pages_ready);
-> +
->  /*
->   * Just beyond the highest usermode address.  STACK_TOP_MAX has a
->   * redzone above it, so round it up to a PGD boundary.
-> @@ -155,11 +157,18 @@ void make_lowmem_page_readwrite(void *vaddr)
->  }
->  
->  
-> +/*
-> + * During early boot all pages are pinned, but we do not have struct pages,
-> + * so return true until struct pages are ready.
-> + */
-
-Uuh, this comment is just not true.
-
-The "pinned" state for Xen means it is a pv pagetable known to Xen. Such
-pages are read-only for the guest and can be modified via hypercalls
-only.
-
-So either the "pinned" state will be tested for page tables only, in
-which case the comment needs adjustment, or the code is wrong.
-
-
-Juergen
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
