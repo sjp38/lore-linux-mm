@@ -1,88 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 27BBC6B0005
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 07:21:32 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id x6so7560158plr.7
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 04:21:32 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 136sor1761892pgc.248.2018.02.26.04.21.31
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BAAD6B0007
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 07:53:44 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id t1so8222072oth.21
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 04:53:44 -0800 (PST)
+Received: from huawei.com ([45.249.212.35])
+        by mx.google.com with ESMTPS id j142si2635595oih.373.2018.02.26.04.53.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Feb 2018 04:21:31 -0800 (PST)
-Date: Mon, 26 Feb 2018 02:21:26 -1000
-From: Joey Pabalinas <joeypabalinas@gmail.com>
-Subject: [PATCH] mm/zsmalloc: strength reduce zspage_size calculation
-Message-ID: <20180226122126.coxtwkv5bqifariz@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Feb 2018 04:53:43 -0800 (PST)
+Subject: =?UTF-8?Q?Re:_=e7=ad=94=e5=a4=8d:_[RFC_patch]_ioremap:_don't_set_up?=
+ =?UTF-8?Q?_huge_I/O_mappings_when_p4d/pud/pmd_is_zero?=
+References: <1514460261-65222-1-git-send-email-guohanjun@huawei.com>
+ <861128ce-966f-7006-45ba-6a7298918686@codeaurora.org>
+ <1519175992.16384.121.camel@hpe.com> <etPan.5a8d2180.1dbfd272.49b8@localhost>
+ <20180221115758.GA7614@arm.com>
+ <32c9b1c3-086b-ba54-f9e9-aefa50066730@huawei.com>
+ <20180226110422.GD8736@arm.com>
+From: Hanjun Guo <guohanjun@huawei.com>
+Message-ID: <a80e540f-f3bd-53da-185d-7fffe801f10c@huawei.com>
+Date: Mon, 26 Feb 2018 20:53:17 +0800
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="7mhpi7vsyt344z2b"
-Content-Disposition: inline
+In-Reply-To: <20180226110422.GD8736@arm.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org, Joey Pabalinas <joeypabalinas@gmail.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: "Wangxuefeng (E)" <wxf.wang@hisilicon.com>, "toshi.kani" <toshi.kani@hpe.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, cpandya <cpandya@codeaurora.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linuxarm <linuxarm@huawei.com>, linux-mm <linux-mm@kvack.org>, akpm <akpm@linux-foundation.org>, "mark.rutland" <mark.rutland@arm.com>, "catalin.marinas" <catalin.marinas@arm.com>, mhocko <mhocko@suse.com>, "hanjun.guo" <hanjun.guo@linaro.org>
 
+On 2018/2/26 19:04, Will Deacon wrote:
+> On Mon, Feb 26, 2018 at 06:57:20PM +0800, Hanjun Guo wrote:
+>> On 2018/2/21 19:57, Will Deacon wrote:
+>>> [sorry, trying to deal with top-posting here]
+>>>
+>>> On Wed, Feb 21, 2018 at 07:36:34AM +0000, Wangxuefeng (E) wrote:
+>>>>      The old flow of reuse the 4k page as 2M page does not follow the BBM flow
+>>>> for page table reconstructioni 1/4 ?not only the memory leak problems.  If BBM flow
+>>>> is not followedi 1/4 ?the speculative prefetch of tlb will made false tlb entries
+>>>> cached in MMU, the false address will be goti 1/4 ? panic will happen.
+>>>
+>>> If I understand Toshi's suggestion correctly, he's saying that the PMD can
+>>> be cleared when unmapping the last PTE (like try_to_free_pte_page). In this
+>>> case, there's no issue with the TLB because this is exactly BBM -- the PMD
+>>> is cleared and TLB invalidation is issued before the PTE table is freed. A
+>>> subsequent 2M map request will see an empty PMD and put down a block
+>>> mapping.
+>>>
+>>> The downside is that freeing becomes more expensive as the last level table
+>>> becomes more sparsely populated and you need to ensure you don't have any
+>>> concurrent maps going on for the same table when you're unmapping. I also
+>>> can't see a neat way to fit this into the current vunmap code. Perhaps we
+>>> need an iounmap_page_range.
+>>>
+>>> In the meantime, the code in lib/ioremap.c looks totally broken so I think
+>>> we should deselect CONFIG_HAVE_ARCH_HUGE_VMAP on arm64 until it's fixed.
+>>
+>> Simply do something below at now (before the broken code is fixed)?
+>>
+>> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+>> index b2b95f7..a86148c 100644
+>> --- a/arch/arm64/Kconfig
+>> +++ b/arch/arm64/Kconfig
+>> @@ -84,7 +84,6 @@ config ARM64
+>>         select HAVE_ALIGNED_STRUCT_PAGE if SLUB
+>>         select HAVE_ARCH_AUDITSYSCALL
+>>         select HAVE_ARCH_BITREVERSE
+>> -   select HAVE_ARCH_HUGE_VMAP
+>>         select HAVE_ARCH_JUMP_LABEL
+>>         select HAVE_ARCH_KASAN if !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
+>>         select HAVE_ARCH_KGDB
+> 
+> No, that actually breaks with the use of block mappings for the kernel
+> text. Anyway, see:
+> 
+> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=15122ee2c515a253b0c66a3e618bc7ebe35105eb
 
---7mhpi7vsyt344z2b
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Sorry, just back from holidays and didn't catch up with all the emails,
+thanks for taking care of this.
 
-Replace the repeated multiplication in the main loop
-body calculation of zspage_size with an equivalent
-(and cheaper) addition operation.
-
-Signed-off-by: Joey Pabalinas <joeypabalinas@gmail.com>
-
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index c3013505c30527dc42..647a1a2728634b5194 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -821,15 +821,15 @@ static enum fullness_group fix_fullness_group(struct =
-size_class *class,
-  */
- static int get_pages_per_zspage(int class_size)
- {
-+	int zspage_size =3D 0;
- 	int i, max_usedpc =3D 0;
- 	/* zspage order which gives maximum used size per KB */
- 	int max_usedpc_order =3D 1;
-=20
- 	for (i =3D 1; i <=3D ZS_MAX_PAGES_PER_ZSPAGE; i++) {
--		int zspage_size;
- 		int waste, usedpc;
-=20
--		zspage_size =3D i * PAGE_SIZE;
-+		zspage_size +=3D PAGE_SIZE;
- 		waste =3D zspage_size % class_size;
- 		usedpc =3D (zspage_size - waste) * 100 / zspage_size;
-=20
---=20
-2.16.2
-
---7mhpi7vsyt344z2b
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEKlZXrihdNOcUPZTNruvLfWhyVBkFAlqT+8YACgkQruvLfWhy
-VBknzhAAtnEwRKPM+ZxbJSgwy7J86qbCe+5kAPdN7Ipd4QO0aGQquBKkOaJD/v/3
-SsSd2oQaPtIAqukwO9b18SPrICUbysWxcK3WQVse0jx6qqw4amnUrlQDnKNf8ZII
-qwaqz2grd0GBO91N6WHFSB4lGNtCOObt8ZDT8rDtQ4wZlXg0Qr5Mc4zH7MbECWcE
-9UjTKqd/jbIxDawY8zzq0qyd/xVg3s4kJqkdpF9dXeUJetXjgvXtj99f507lFrgQ
-BK8fL2MT3uQsNax6Ay6D7pzDWMULj/bivvr8KxliJGAGTAVx2g4rkCcMaQBZtB+s
-WvH15FeUBtct2KMfpq8a9u6jOqpMaNVXSAtLW1aM3i0AIcONTYuSLXvsWjOta7SB
-+6M2is0HyOXfk6CBQbZPzVFdMGoPRO8VncT+sGrWnRVzjhRqDUvbfkYDiSSFLTbi
-1L4PjRJQOo2s+N297S7TRVVpuX3407FyUNalYD4/1PVs80H1q4oHMBvTJpWtJBnN
-sjsLnimhqMk7wwGRjgajnLxXCeBB9g+bd8j5tyHv8hZ+dXtqQMnAiQ5Q6reKGT9/
-CUGcDdH2ROA9w8ABYo8+8ebubUnj9OOWv2yaNz5KxrANuAv1OAQiob7S+aXwOya3
-UBP809gCQyAYp6mIM6s9t3kjq0arJoAKrwllOlg2IuJ9LVufW64=
-=3G7G
------END PGP SIGNATURE-----
-
---7mhpi7vsyt344z2b--
+Hanjun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
