@@ -1,72 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F39D6B0008
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 11:02:04 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id i129so14991041ioi.1
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 08:02:04 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id e89si5891507ioi.22.2018.02.26.08.02.03
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 12ED56B0005
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 11:16:58 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id j78so8618980itj.2
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 08:16:58 -0800 (PST)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
+        by mx.google.com with ESMTPS id y141si6634042ioy.306.2018.02.26.08.16.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 08:02:03 -0800 (PST)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v2 0/1] Allow deferred page initialization for xen pv domains
-Date: Mon, 26 Feb 2018 11:01:11 -0500
-Message-Id: <20180226160112.24724-1-pasha.tatashin@oracle.com>
+        Mon, 26 Feb 2018 08:16:56 -0800 (PST)
+Date: Mon, 26 Feb 2018 10:16:53 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/2] Protect larger order pages from breaking up
+In-Reply-To: <eedfbd6c-8316-67fe-af60-157d3ee44c34@suse.cz>
+Message-ID: <alpine.DEB.2.20.1802261009230.5389@nuc-kabylake>
+References: <20180223030346.707128614@linux.com> <20180223030357.048558407@linux.com> <eedfbd6c-8316-67fe-af60-157d3ee44c34@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, pasha.tatashin@oracle.com, jgross@suse.com, akataria@vmware.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, boris.ostrovsky@oracle.com, akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, luto@kernel.org, labbott@redhat.com, kirill.shutemov@linux.intel.com, bp@suse.de, minipli@googlemail.com, jinb.park7@gmail.com, dan.j.williams@intel.com, bhe@redhat.com, zhang.jia@linux.alibaba.com, mgorman@techsingularity.net, hannes@cmpxchg.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mel@skynet.ie>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, akpm@linux-foundation.org, Thomas Schoebel-Theuer <tst@schoebel-theuer.de>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Linux API <linux-api@vger.kernel.org>
 
-Changelog
-v1 - v2
-- Addressed coomment from Juergen Gross: fixed a comment, and moved
-  after_bootmem from PV framework to x86_init.hyper.
+On Mon, 26 Feb 2018, Vlastimil Babka wrote:
 
->From this discussion:
-https://www.spinics.net/lists/linux-mm/msg145604.html
+> > 	echo "3=2000" >/proc/zoneinfo
+>
+> Huh, that's rather weird interface to use. Writing to a general
+> statistics/info file for such specific functionality? Please no.
 
-I investigated whether it is feasible to re-enable deferred page
-initialization on xen's para-vitalized domains. After studying the
-code, I found non-intrusive way to do just that.
+Ok lets create /proc/sys/kernel/orders?\
 
-All we need to do is to assume that page-table's pages are pinned early in
-boot, which is always true, and add a new x86_init.hyper OP call to notify
-guests that boot allocator is finished, so we can set all the necessary
-fields in already initialized struct pages.
+Or put it into /sys/devices/syste/node/nodeX/orders
 
-I have tested this on my laptop with 64-bit kernel, but I would appreciate
-if someone could provide more xen testing.
+?
 
-Apply against: linux-next. Enable the following configs:
+> > First performance tests in a virtual enviroment show
+> > a hackbench improvement by 6% just by increasing
+> > the page size used by the page allocator.
+>
+> That's IMHO a rather weak justification for introducing a new userspace
+> API. What exactly has been set where? Could similar results be achieved
+> by tuning highatomic reservers and/or min_free_kbytes? I especially
+> wonder how much of the effects come from the associated watermarks
+> adjustment (which can be affected by min_free_kbytes) and what is due to
+> __rmqueue_smallest() changes. You changed the __rmqueue_smallest()
+> condition since RFC per Thomas suggestion, but report the same results?
 
-CONFIG_XEN_PV=y
-CONFIG_DEFERRED_STRUCT_PAGE_INIT=y
-The above two are needed to test deferred page initialization on PV Xen
-domains. If fix is applied correctly, dmesg should output line(s) like this
-during boot:
-[    0.266180] node 0 initialised, 717570 pages in 36ms
+The highatomic reserves are for temporary allocations for jumbo frames.
+The allocations here could be for numerous purposes.
 
-CONFIG_DEBUG_VM=y
-This is needed to poison struct page's memory, otherwise it would be all
-zero.
+The test demonstrates a performance gain by the user of higher order
+pages. It does not demonstrate long term fragmentation results. For that
+different benchmarks would have to be used. Maybe I can find something in
+Mel's tests to get that tested.
 
-CONFIG_DEBUG_VM_PGFLAGS=y
-Verifies that we do not access struct pages flags while memory is still
-poisoned (struct pages are not initialized yet).
+Such test would have to verify that the system holds up despite large
+order allocation. It would not demonstrate a performance benefit. However,
+what we want is the performance benefit throughout the operation of the
+system. So both tests are required.
 
-Pavel Tatashin (1):
-  xen, mm: Allow deferred page initialization for xen pv domains
 
- arch/x86/include/asm/x86_init.h |  2 ++
- arch/x86/kernel/x86_init.c      |  1 +
- arch/x86/mm/init_32.c           |  1 +
- arch/x86/mm/init_64.c           |  1 +
- arch/x86/xen/mmu_pv.c           | 38 ++++++++++++++++++++++++++------------
- mm/page_alloc.c                 |  4 ----
- 6 files changed, 31 insertions(+), 16 deletions(-)
+> Well, also not a fan of this patch, TBH. It's rather ad-hoc and not
+> backed up with results. Aside from the above points, I agree with the
+> objections of others for the RFC posting. It's also rather awkward that
+> watermarks are increased per the reservations, but when the reservations
+> are "consumed" (nr_free < min && current_order == order), the increased
+> watermarks are untouched. IMHO this further enlarges the effects of
+> purely adjusted watermarks by this patch.
 
--- 
-2.16.2
+This is an RFC to see where we could do with this. I am looking for ways
+to address the various shortcomings of this approach. There are others
+approaches that have similar effects and that may be more desirable but
+require more work (such as making dentries/inodes defragmentable via
+migration or targeted reclaim).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
