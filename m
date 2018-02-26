@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F0A2D6B0003
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 16:12:50 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id j6-v6so4393478pll.10
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 13:12:50 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id n10si2306386pgc.681.2018.02.26.13.12.49
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 32B166B0009
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 16:14:39 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id e10so2274874pff.3
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 13:14:39 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id m5si7379347pff.169.2018.02.26.13.14.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 13:12:49 -0800 (PST)
-Subject: Re: [PATCH v12 1/3] mm, powerpc, x86: define VM_PKEY_BITx bits if
- CONFIG_ARCH_HAS_PKEYS is enabled
+        Mon, 26 Feb 2018 13:14:38 -0800 (PST)
+Subject: Re: [PATCH v12 2/3] mm, powerpc, x86: introduce an additional vma bit
+ for powerpc pkey
 References: <1519257138-23797-1-git-send-email-linuxram@us.ibm.com>
- <1519257138-23797-2-git-send-email-linuxram@us.ibm.com>
+ <1519257138-23797-3-git-send-email-linuxram@us.ibm.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <a5481355-9630-7f63-15ce-2b12d1520979@intel.com>
-Date: Mon, 26 Feb 2018 13:12:46 -0800
+Message-ID: <d3f6b6a1-8319-449a-804e-bf9d1dedbb5f@intel.com>
+Date: Mon, 26 Feb 2018 13:14:34 -0800
 MIME-Version: 1.0
-In-Reply-To: <1519257138-23797-2-git-send-email-linuxram@us.ibm.com>
+In-Reply-To: <1519257138-23797-3-git-send-email-linuxram@us.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -27,15 +27,24 @@ To: Ram Pai <linuxram@us.ibm.com>, mpe@ellerman.id.au, mingo@redhat.com, akpm@li
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com
 
 On 02/21/2018 03:52 PM, Ram Pai wrote:
-> VM_PKEY_BITx are defined only if CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-> is enabled. Powerpc also needs these bits. Hence lets define the
-> VM_PKEY_BITx bits for any architecture that enables
-> CONFIG_ARCH_HAS_PKEYS.
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ad207ad..d534f46 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -231,9 +231,10 @@ extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
+>  #ifdef CONFIG_ARCH_HAS_PKEYS
+>  # define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
+>  # define VM_PKEY_BIT0	VM_HIGH_ARCH_0	/* A protection key is a 4-bit value */
+> -# define VM_PKEY_BIT1	VM_HIGH_ARCH_1
+> +# define VM_PKEY_BIT1	VM_HIGH_ARCH_1	/* on x86 and 5-bit value on ppc64   */
+>  # define VM_PKEY_BIT2	VM_HIGH_ARCH_2
+>  # define VM_PKEY_BIT3	VM_HIGH_ARCH_3
+> +# define VM_PKEY_BIT4	VM_HIGH_ARCH_4
+>  #endif /* CONFIG_ARCH_HAS_PKEYS */
 
-Your fixed version looks fine to me.
-
-Reviewed-by: Dave Hansen <dave.hansen@intel.com>
-
+I think I would prefer if VM_PKEY_BIT4 was unusable on x86, or #defined
+to 0.  We don't want folks using a bit that can not be programmed into
+the hardware.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
