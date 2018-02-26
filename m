@@ -1,122 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 553626B0009
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 07:19:38 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id r15so11397409wrr.16
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 04:19:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w7si3820959wre.515.2018.02.26.04.19.36
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 27BBC6B0005
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 07:21:32 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id x6so7560158plr.7
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 04:21:32 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 136sor1761892pgc.248.2018.02.26.04.21.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Feb 2018 04:19:37 -0800 (PST)
-Date: Mon, 26 Feb 2018 13:19:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm,page_alloc: wait for oom_lock than back off
-Message-ID: <20180226121933.GC16269@dhcp22.suse.cz>
-References: <20180220144920.GB21134@dhcp22.suse.cz>
- <201802212327.CAB51013.FOStFVLHFJMOOQ@I-love.SAKURA.ne.jp>
- <20180221145437.GI2231@dhcp22.suse.cz>
- <201802241700.JJB51016.FQOLFJHFOOSVMt@I-love.SAKURA.ne.jp>
- <20180226092725.GB16269@dhcp22.suse.cz>
- <201802261958.JDE18780.SFHOFOMOJFQVtL@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Mon, 26 Feb 2018 04:21:31 -0800 (PST)
+Date: Mon, 26 Feb 2018 02:21:26 -1000
+From: Joey Pabalinas <joeypabalinas@gmail.com>
+Subject: [PATCH] mm/zsmalloc: strength reduce zspage_size calculation
+Message-ID: <20180226122126.coxtwkv5bqifariz@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="7mhpi7vsyt344z2b"
 Content-Disposition: inline
-In-Reply-To: <201802261958.JDE18780.SFHOFOMOJFQVtL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
+To: linux-mm@kvack.org
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org, Joey Pabalinas <joeypabalinas@gmail.com>
 
-On Mon 26-02-18 19:58:19, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Sat 24-02-18 17:00:51, Tetsuo Handa wrote:
-> > > >From d922dd170c2bed01a775e8cca0871098aecc253d Mon Sep 17 00:00:00 2001
-> > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > Date: Sat, 24 Feb 2018 16:49:21 +0900
-> > > Subject: [PATCH v2] mm,page_alloc: wait for oom_lock than back off
-> > > 
-> > > This patch fixes a bug which is essentially same with a bug fixed by
-> > > commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
-> > > too long").
-> > > 
-> > > Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
-> > > on an assumption that the owner of oom_lock is making progress for us. But
-> > > it is possible to trigger OOM lockup when many threads concurrently called
-> > > __alloc_pages_slowpath() because all CPU resources are wasted for pointless
-> > > direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
-> > > __alloc_pages_may_oom() does not always give enough CPU resource to the
-> > > owner of the oom_lock.
-> > > 
-> > > It is possible that the owner of oom_lock is preempted by other threads.
-> > > Preemption makes the OOM situation much worse. But the page allocator is
-> > > not responsible about wasting CPU resource for something other than memory
-> > > allocation request. Wasting CPU resource for memory allocation request
-> > > without allowing the owner of oom_lock to make forward progress is a page
-> > > allocator's bug.
-> > > 
-> > > Therefore, this patch changes to wait for oom_lock in order to guarantee
-> > > that no thread waiting for the owner of oom_lock to make forward progress
-> > > will not consume CPU resources for pointless direct reclaim efforts.
-> > > 
-> > > We know printk() from OOM situation where a lot of threads are doing almost
-> > > busy-looping is a nightmare. As a side effect of this patch, printk() with
-> > > oom_lock held can start utilizing CPU resources saved by this patch (and
-> > > reduce preemption during printk(), making printk() complete faster).
-> > > 
-> > > By changing !mutex_trylock(&oom_lock) with mutex_lock_killable(&oom_lock),
-> > > it is possible that many threads prevent the OOM reaper from making forward
-> > > progress. Thus, this patch removes mutex_lock(&oom_lock) from the OOM
-> > > reaper.
-> > > 
-> > > Also, since nobody uses oom_lock serialization when setting MMF_OOM_SKIP
-> > > and we don't try last second allocation attempt after confirming that there
-> > > is no !MMF_OOM_SKIP OOM victim, the possibility of needlessly selecting
-> > > more OOM victims will be increased if we continue using ALLOC_WMARK_HIGH.
-> > > Thus, this patch changes to use ALLOC_MARK_MIN.
-> > > 
-> > > Also, since we don't want to sleep with oom_lock held so that we can allow
-> > > threads waiting at mutex_lock_killable(&oom_lock) to try last second
-> > > allocation attempt (because the OOM reaper starts reclaiming memory without
-> > > waiting for oom_lock) and start selecting next OOM victim if necessary,
-> > > this patch changes the location of the short sleep from inside of oom_lock
-> > > to outside of oom_lock.
-> > 
-> > This patch does three different things mangled into one patch. All that
-> > with a patch description which talks a lot but doesn't really explain
-> > those changes.
-> > 
-> > Moreover, you are effectively tunning for an overloaded page allocator
-> > artifical test case and add a central lock where many tasks would
-> > block. I have already tried to explain that this is not an universal
-> > win and you should better have a real life example where this is really
-> > helpful.
-> > 
-> > While I do agree that removing the oom_lock from __oom_reap_task_mm is a
-> > sensible thing, changing the last allocation attempt to ALLOC_WMARK_MIN
-> > is not all that straightforward and it would require much more detailed
-> > explaination.
-> > 
-> > So the patch in its current form is not mergeable IMHO.
-> 
-> Your comment is impossible to satisfy.
-> Please show me your version, for you are keeping me deadlocked.
-> 
-> I'm angry with MM people's attitude that MM people are not friendly to
-> users who are bothered by lockup / slowdown problems under memory pressure.
-> They just say "Your system is overloaded" and don't provide enough support
-> for checking whether they are hitting a real bug other than overloaded.
 
-You should listen much more and also try to understand concerns that we
-have. You are trying to touch a very subtle piece of code. That code
-is not perfect at all but it tends to work reasonably well under most
-workloads out there. Now you try to handle corner cases you are seeing
-and that is good thing in general. But the fix shouldn't introduce new
-risks and adding a single synchronization point into the oom path is
-simply not without its own risks.
--- 
-Michal Hocko
-SUSE Labs
+--7mhpi7vsyt344z2b
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+
+Replace the repeated multiplication in the main loop
+body calculation of zspage_size with an equivalent
+(and cheaper) addition operation.
+
+Signed-off-by: Joey Pabalinas <joeypabalinas@gmail.com>
+
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index c3013505c30527dc42..647a1a2728634b5194 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -821,15 +821,15 @@ static enum fullness_group fix_fullness_group(struct =
+size_class *class,
+  */
+ static int get_pages_per_zspage(int class_size)
+ {
++	int zspage_size =3D 0;
+ 	int i, max_usedpc =3D 0;
+ 	/* zspage order which gives maximum used size per KB */
+ 	int max_usedpc_order =3D 1;
+=20
+ 	for (i =3D 1; i <=3D ZS_MAX_PAGES_PER_ZSPAGE; i++) {
+-		int zspage_size;
+ 		int waste, usedpc;
+=20
+-		zspage_size =3D i * PAGE_SIZE;
++		zspage_size +=3D PAGE_SIZE;
+ 		waste =3D zspage_size % class_size;
+ 		usedpc =3D (zspage_size - waste) * 100 / zspage_size;
+=20
+--=20
+2.16.2
+
+--7mhpi7vsyt344z2b
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEKlZXrihdNOcUPZTNruvLfWhyVBkFAlqT+8YACgkQruvLfWhy
+VBknzhAAtnEwRKPM+ZxbJSgwy7J86qbCe+5kAPdN7Ipd4QO0aGQquBKkOaJD/v/3
+SsSd2oQaPtIAqukwO9b18SPrICUbysWxcK3WQVse0jx6qqw4amnUrlQDnKNf8ZII
+qwaqz2grd0GBO91N6WHFSB4lGNtCOObt8ZDT8rDtQ4wZlXg0Qr5Mc4zH7MbECWcE
+9UjTKqd/jbIxDawY8zzq0qyd/xVg3s4kJqkdpF9dXeUJetXjgvXtj99f507lFrgQ
+BK8fL2MT3uQsNax6Ay6D7pzDWMULj/bivvr8KxliJGAGTAVx2g4rkCcMaQBZtB+s
+WvH15FeUBtct2KMfpq8a9u6jOqpMaNVXSAtLW1aM3i0AIcONTYuSLXvsWjOta7SB
++6M2is0HyOXfk6CBQbZPzVFdMGoPRO8VncT+sGrWnRVzjhRqDUvbfkYDiSSFLTbi
+1L4PjRJQOo2s+N297S7TRVVpuX3407FyUNalYD4/1PVs80H1q4oHMBvTJpWtJBnN
+sjsLnimhqMk7wwGRjgajnLxXCeBB9g+bd8j5tyHv8hZ+dXtqQMnAiQ5Q6reKGT9/
+CUGcDdH2ROA9w8ABYo8+8ebubUnj9OOWv2yaNz5KxrANuAv1OAQiob7S+aXwOya3
+UBP809gCQyAYp6mIM6s9t3kjq0arJoAKrwllOlg2IuJ9LVufW64=
+=3G7G
+-----END PGP SIGNATURE-----
+
+--7mhpi7vsyt344z2b--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
