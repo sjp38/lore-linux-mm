@@ -1,60 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A8B16B0003
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 15:15:04 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id a143so13379492qkg.4
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 12:15:04 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id e9si10210986qkh.274.2018.02.26.12.15.03
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 46C726B0003
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 15:35:24 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id e74so6768896wmg.0
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 12:35:24 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r18sor2210359wmd.46.2018.02.26.12.35.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 12:15:03 -0800 (PST)
-Date: Mon, 26 Feb 2018 15:15:02 -0500 (EST)
-Message-Id: <20180226.151502.1181392845403505211.davem@redhat.com>
-Subject: Re: [PATCH 0/2] mark some slabs as visible not mergeable
-From: David Miller <davem@redhat.com>
-In-Reply-To: <20180224190454.23716-1-sthemmin@microsoft.com>
-References: <20180224190454.23716-1-sthemmin@microsoft.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Mon, 26 Feb 2018 12:35:22 -0800 (PST)
+Date: Mon, 26 Feb 2018 23:35:19 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: [PATCH] slab: mark kmalloc machinery as __ro_after_init
+Message-ID: <20180226203519.GA6886@avx2>
+References: <20180226203011.GA6510@avx2>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180226203011.GA6510@avx2>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stephen@networkplumber.org
-Cc: willy@infradead.org, netdev@vger.kernel.org, linux-mm@kvack.org, ikomyagin@gmail.com, sthemmin@microsoft.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 
-From: Stephen Hemminger <stephen@networkplumber.org>
-Date: Sat, 24 Feb 2018 11:04:52 -0800
+kmalloc caches aren't relocated after being set up neither does
+"size_index" array.
 
-> This fixes an old bug in iproute2's ss command because it was
-> reading slabinfo to get statistics. There isn't a better API
-> to do this, and one can argue that /proc is a UAPI that must
-> not change.
+Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
+---
 
-Please elaborate what kind of statistics are needed.
+ mm/slab_common.c |    7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-> Therefore this patch set adds a flag to slab to give another
-> reason to prevent merging, and then uses it in network code.
-> 
-> The patches are against davem's linux-net tree and should also
-> goto stable as well.
-
-Well, as has been pointed out this never worked with SLUB so
-in some sense this was always broken.
-
-And the "UAPI" of slabinfo is to show the state of the various
-slab caches.  And that's it.
-
-If the implementation does merging or whatever, the UAPI is expressing
-that and it's perfectly legitimate and not breaking UAPI in my
-opinion.
-
-I think the better solution is to grab the information from somewhere
-else, so let's move this conversation along with the answer to my
-question about asking for more details about what is needed by
-iproute2.
-
-Thank you.
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -10,6 +10,7 @@
+ #include <linux/poison.h>
+ #include <linux/interrupt.h>
+ #include <linux/memory.h>
++#include <linux/cache.h>
+ #include <linux/compiler.h>
+ #include <linux/module.h>
+ #include <linux/cpu.h>
+@@ -954,11 +955,11 @@ struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
+ 	return s;
+ }
+ 
+-struct kmem_cache *kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
++struct kmem_cache *kmalloc_caches[KMALLOC_SHIFT_HIGH + 1] __ro_after_init;
+ EXPORT_SYMBOL(kmalloc_caches);
+ 
+ #ifdef CONFIG_ZONE_DMA
+-struct kmem_cache *kmalloc_dma_caches[KMALLOC_SHIFT_HIGH + 1];
++struct kmem_cache *kmalloc_dma_caches[KMALLOC_SHIFT_HIGH + 1] __ro_after_init;
+ EXPORT_SYMBOL(kmalloc_dma_caches);
+ #endif
+ 
+@@ -968,7 +969,7 @@ EXPORT_SYMBOL(kmalloc_dma_caches);
+  * of two cache sizes there. The size of larger slabs can be determined using
+  * fls.
+  */
+-static s8 size_index[24] = {
++static s8 size_index[24] __ro_after_init = {
+ 	3,	/* 8 */
+ 	4,	/* 16 */
+ 	5,	/* 24 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
