@@ -1,124 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CA1EA6B0007
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 08:16:45 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id y64so5370867itd.4
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 05:16:45 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id d72si5801872ioe.202.2018.02.26.05.16.43
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 253C56B0007
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 08:41:09 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id v8so10678088iob.0
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 05:41:09 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id e81si5747975ioa.323.2018.02.26.05.41.07
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Feb 2018 05:16:44 -0800 (PST)
-Subject: Re: [PATCH v2] mm,page_alloc: wait for oom_lock than back off
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20180221145437.GI2231@dhcp22.suse.cz>
-	<201802241700.JJB51016.FQOLFJHFOOSVMt@I-love.SAKURA.ne.jp>
-	<20180226092725.GB16269@dhcp22.suse.cz>
-	<201802261958.JDE18780.SFHOFOMOJFQVtL@I-love.SAKURA.ne.jp>
-	<20180226121933.GC16269@dhcp22.suse.cz>
-In-Reply-To: <20180226121933.GC16269@dhcp22.suse.cz>
-Message-Id: <201802262216.ADH48949.FtQLFOHJOVSOMF@I-love.SAKURA.ne.jp>
-Date: Mon, 26 Feb 2018 22:16:25 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Feb 2018 05:41:08 -0800 (PST)
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w1QDf2k5138326
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 13:41:07 GMT
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by aserp2130.oracle.com with ESMTP id 2gcj9w09w4-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 13:41:04 +0000
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w1QDdub1028949
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL)
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 13:39:56 GMT
+Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w1QDdtxL005775
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 13:39:55 GMT
+Received: by mail-ot0-f173.google.com with SMTP id 95so13360664ote.5
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 05:39:55 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <dda0457a-c16a-3440-a547-15f49e52ec95@suse.com>
+References: <20180223232538.4314-1-pasha.tatashin@oracle.com>
+ <20180223232538.4314-2-pasha.tatashin@oracle.com> <dda0457a-c16a-3440-a547-15f49e52ec95@suse.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Mon, 26 Feb 2018 08:39:54 -0500
+Message-ID: <CAOAebxt6CtQYQ5MxOrpyrLdVapPnw3XePTWUAz1SGuRoukaNGA@mail.gmail.com>
+Subject: Re: [v1 1/1] xen, mm: Allow deferred page initialization for xen pv domains
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
+To: Juergen Gross <jgross@suse.com>
+Cc: Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, akataria@vmware.com, Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, boris.ostrovsky@oracle.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Andy Lutomirski <luto@kernel.org>, labbott@redhat.com, kirill.shutemov@linux.intel.com, bp@suse.de, minipli@googlemail.com, jinb.park7@gmail.com, dan.j.williams@intel.com, bhe@redhat.com, zhang.jia@linux.alibaba.com, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, virtualization@lists.linux-foundation.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, xen-devel@lists.xenproject.org, Linux Memory Management List <linux-mm@kvack.org>
 
-Michal Hocko wrote:
-> On Mon 26-02-18 19:58:19, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Sat 24-02-18 17:00:51, Tetsuo Handa wrote:
-> > > > >From d922dd170c2bed01a775e8cca0871098aecc253d Mon Sep 17 00:00:00 2001
-> > > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > > Date: Sat, 24 Feb 2018 16:49:21 +0900
-> > > > Subject: [PATCH v2] mm,page_alloc: wait for oom_lock than back off
-> > > > 
-> > > > This patch fixes a bug which is essentially same with a bug fixed by
-> > > > commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
-> > > > too long").
-> > > > 
-> > > > Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
-> > > > on an assumption that the owner of oom_lock is making progress for us. But
-> > > > it is possible to trigger OOM lockup when many threads concurrently called
-> > > > __alloc_pages_slowpath() because all CPU resources are wasted for pointless
-> > > > direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
-> > > > __alloc_pages_may_oom() does not always give enough CPU resource to the
-> > > > owner of the oom_lock.
-> > > > 
-> > > > It is possible that the owner of oom_lock is preempted by other threads.
-> > > > Preemption makes the OOM situation much worse. But the page allocator is
-> > > > not responsible about wasting CPU resource for something other than memory
-> > > > allocation request. Wasting CPU resource for memory allocation request
-> > > > without allowing the owner of oom_lock to make forward progress is a page
-> > > > allocator's bug.
-> > > > 
-> > > > Therefore, this patch changes to wait for oom_lock in order to guarantee
-> > > > that no thread waiting for the owner of oom_lock to make forward progress
-> > > > will not consume CPU resources for pointless direct reclaim efforts.
-> > > > 
-> > > > We know printk() from OOM situation where a lot of threads are doing almost
-> > > > busy-looping is a nightmare. As a side effect of this patch, printk() with
-> > > > oom_lock held can start utilizing CPU resources saved by this patch (and
-> > > > reduce preemption during printk(), making printk() complete faster).
-> > > > 
-> > > > By changing !mutex_trylock(&oom_lock) with mutex_lock_killable(&oom_lock),
-> > > > it is possible that many threads prevent the OOM reaper from making forward
-> > > > progress. Thus, this patch removes mutex_lock(&oom_lock) from the OOM
-> > > > reaper.
-> > > > 
-> > > > Also, since nobody uses oom_lock serialization when setting MMF_OOM_SKIP
-> > > > and we don't try last second allocation attempt after confirming that there
-> > > > is no !MMF_OOM_SKIP OOM victim, the possibility of needlessly selecting
-> > > > more OOM victims will be increased if we continue using ALLOC_WMARK_HIGH.
-> > > > Thus, this patch changes to use ALLOC_MARK_MIN.
-> > > > 
-> > > > Also, since we don't want to sleep with oom_lock held so that we can allow
-> > > > threads waiting at mutex_lock_killable(&oom_lock) to try last second
-> > > > allocation attempt (because the OOM reaper starts reclaiming memory without
-> > > > waiting for oom_lock) and start selecting next OOM victim if necessary,
-> > > > this patch changes the location of the short sleep from inside of oom_lock
-> > > > to outside of oom_lock.
-> > > 
-> > > This patch does three different things mangled into one patch. All that
-> > > with a patch description which talks a lot but doesn't really explain
-> > > those changes.
-> > > 
-> > > Moreover, you are effectively tunning for an overloaded page allocator
-> > > artifical test case and add a central lock where many tasks would
-> > > block. I have already tried to explain that this is not an universal
-> > > win and you should better have a real life example where this is really
-> > > helpful.
-> > > 
-> > > While I do agree that removing the oom_lock from __oom_reap_task_mm is a
-> > > sensible thing, changing the last allocation attempt to ALLOC_WMARK_MIN
-> > > is not all that straightforward and it would require much more detailed
-> > > explaination.
-> > > 
-> > > So the patch in its current form is not mergeable IMHO.
-> > 
-> > Your comment is impossible to satisfy.
-> > Please show me your version, for you are keeping me deadlocked.
-> > 
-> > I'm angry with MM people's attitude that MM people are not friendly to
-> > users who are bothered by lockup / slowdown problems under memory pressure.
-> > They just say "Your system is overloaded" and don't provide enough support
-> > for checking whether they are hitting a real bug other than overloaded.
-> 
-> You should listen much more and also try to understand concerns that we
-> have. You are trying to touch a very subtle piece of code. That code
-> is not perfect at all but it tends to work reasonably well under most
-> workloads out there. Now you try to handle corner cases you are seeing
-> and that is good thing in general. But the fix shouldn't introduce new
-> risks and adding a single synchronization point into the oom path is
-> simply not without its own risks.
+Hi Juergen,
 
-Then, please show me a real life example (by comparing trylock() versus
-lock_killable()) where lock_killable() hurts. If you proved it, I'm
-willing to make this optional (i.e. "use trylock() at the risk of lockup
-or use lock_killable() at the risk of latency"). Without testing this
-patch at real world, we won't be able to prove it though.
+Thank you for taking a look at this patch, I will address your
+comments, and send out an updated patch.
+
+>>  extern void default_banner(void);
+>>
+>> +static inline void paravirt_after_bootmem(void)
+>> +{
+>> +     pv_init_ops.after_bootmem();
+>> +}
+>> +
+>
+> Putting this in the paravirt framework is overkill IMO. There is no need
+> to patch the callsites for optimal performance.
+>
+> I'd put it into struct x86_hyper_init and pre-init it with x86_init_noop
+
+Sure, I will move it into x86_hyper_init.
+
+>>
+>> +/*
+>> + * During early boot all pages are pinned, but we do not have struct pages,
+>> + * so return true until struct pages are ready.
+>> + */
+>
+> Uuh, this comment is just not true.
+>
+> The "pinned" state for Xen means it is a pv pagetable known to Xen. Such
+> pages are read-only for the guest and can be modified via hypercalls
+> only.
+>
+> So either the "pinned" state will be tested for page tables only, in
+> which case the comment needs adjustment, or the code is wrong.
+
+The comment should state: During early boot all _page table_ pages are pinned
+
+Thank you,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
