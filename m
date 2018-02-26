@@ -1,63 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 93FC16B0005
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 00:49:33 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id i11so5174136pgq.10
-        for <linux-mm@kvack.org>; Sun, 25 Feb 2018 21:49:33 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l19sor1505917pgc.199.2018.02.25.21.49.32
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 83F836B0006
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 00:54:16 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id m22so7901730pfg.15
+        for <linux-mm@kvack.org>; Sun, 25 Feb 2018 21:54:16 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id b9-v6si2839935pll.117.2018.02.25.21.54.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 25 Feb 2018 21:49:32 -0800 (PST)
-Date: Mon, 26 Feb 2018 14:49:27 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCHv3 1/2] zsmalloc: introduce zs_huge_object() function
-Message-ID: <20180226054927.GA12539@jagdpanzerIV>
-References: <20180210082321.17798-1-sergey.senozhatsky@gmail.com>
- <20180214055747.8420-1-sergey.senozhatsky@gmail.com>
- <20180220012429.GA186771@rodete-desktop-imager.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 25 Feb 2018 21:54:15 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH v12 07/11] mm: Add address parameter to arch_validate_prot()
+In-Reply-To: <349751cbd54fda6f4a223f941aa71bbfe7be77ce.1519227112.git.khalid.aziz@oracle.com>
+References: <cover.1519227112.git.khalid.aziz@oracle.com> <349751cbd54fda6f4a223f941aa71bbfe7be77ce.1519227112.git.khalid.aziz@oracle.com>
+Date: Mon, 26 Feb 2018 16:54:12 +1100
+Message-ID: <87d10s9tyz.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180220012429.GA186771@rodete-desktop-imager.corp.google.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Khalid Aziz <khalid.aziz@oracle.com>, akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, davem@davemloft.net, dave.hansen@linux.intel.com
+Cc: bsingharora@gmail.com, nborisov@suse.com, aarcange@redhat.com, anthony.yznaga@oracle.com, mgorman@suse.de, linuxram@us.ibm.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, gregkh@linuxfoundation.org, tglx@linutronix.de, mhocko@suse.com, n-horiguchi@ah.jp.nec.com, jglisse@redhat.com, henry.willard@oracle.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
 
-On (02/20/18 10:24), Minchan Kim wrote:
-> Hi Sergey,
+Khalid Aziz <khalid.aziz@oracle.com> writes:
 
-[..]
+> A protection flag may not be valid across entire address space and
+> hence arch_validate_prot() might need the address a protection bit is
+> being set on to ensure it is a valid protection flag. For example, sparc
+> processors support memory corruption detection (as part of ADI feature)
+> flag on memory addresses mapped on to physical RAM but not on PFN mapped
+> pages or addresses mapped on to devices. This patch adds address to the
+> parameters being passed to arch_validate_prot() so protection bits can
+> be validated in the relevant context.
+>
+> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+> Cc: Khalid Aziz <khalid@gonehiking.org>
+> Reviewed-by: Anthony Yznaga <anthony.yznaga@oracle.com>
+> ---
+> v8:
+> 	- Added addr parameter to powerpc arch_validate_prot() (suggested
+> 	  by Michael Ellerman)
+> v9:
+> 	- new patch
+>
+>  arch/powerpc/include/asm/mman.h | 4 ++--
+>  arch/powerpc/kernel/syscalls.c  | 2 +-
 
-> Sorry for the long delay. I was horribly busy for a few weeks. ;-(
+These changes look fine to me:
 
-My turn to say "Sorry for the delay" :)
+Acked-by: Michael Ellerman <mpe@ellerman.id.au> (powerpc)
 
-[..]
-> I think it's simple enough. :)
-
-Right. The changes are pretty trivial, that's why I kept then in
-2 simple patches. Besides, I didn't want to mix zsmalloc and zram
-changes.
-
-> Can't zram ask to zsmalloc about what size is for hugeobject from?
-> With that, zram can save the wartermark in itself and use it.
-> What I mean is as follows,
-> 
-> zram:
-> 	size_t huge_size = _zs_huge_object(pool);
-> 	..
-> 	..
-> 	if (comp_size >= huge_size)
-> 		memcpy(dst, src, 4K);
-
-Yes, can do. My plan was to keep it completely internally to zsmalloc.
-Who knows, it might become smart enough one day to do something more
-than just size comparison. Any reason you used that leading underscore
-in _zs_huge_object()?
-
-	-ss
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
