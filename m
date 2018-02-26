@@ -1,55 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D4406B0005
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 17:31:03 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id h33so1136925wrh.10
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 14:31:03 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q22si5230096wmf.112.2018.02.26.14.31.01
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E9D7C6B0005
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 18:09:31 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id m6so8258853plt.14
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 15:09:31 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j15sor1899147pgs.78.2018.02.26.15.09.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Feb 2018 14:31:01 -0800 (PST)
-Date: Mon, 26 Feb 2018 23:30:38 +0100
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: [PATCH 2/5] x86/boot/compressed/64: Find a place for 32-bit
- trampoline
-Message-ID: <20180226223038.GI14140@pd.tnic>
-References: <20180226180451.86788-1-kirill.shutemov@linux.intel.com>
- <20180226180451.86788-3-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180226180451.86788-3-kirill.shutemov@linux.intel.com>
+        (Google Transport Security);
+        Mon, 26 Feb 2018 15:09:30 -0800 (PST)
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: [PATCH] mm: Provide consistent declaration for num_poisoned_pages
+Date: Mon, 26 Feb 2018 15:09:25 -0800
+Message-Id: <1519686565-8224-1-git-send-email-linux@roeck-us.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, Matthias Kaehlcke <mka@chromium.org>
 
-On Mon, Feb 26, 2018 at 09:04:48PM +0300, Kirill A. Shutemov wrote:
-> +++ b/arch/x86/boot/compressed/pgtable.h
-> @@ -0,0 +1,11 @@
-> +#ifndef BOOT_COMPRESSED_PAGETABLE_H
-> +#define BOOT_COMPRESSED_PAGETABLE_H
-> +
-> +#define TRAMPOLINE_32BIT_SIZE		(2 * PAGE_SIZE)
-> +
-> +#ifndef __ASSEMBLER__
+clang reports the following compile warning.
 
-x86 uses __ASSEMBLY__ everywhere and I see
+In file included from mm/vmscan.c:56:
+./include/linux/swapops.h:327:22: warning:
+	section attribute is specified on redeclared variable [-Wsection]
+extern atomic_long_t num_poisoned_pages __read_mostly;
+                     ^
+./include/linux/mm.h:2585:22: note: previous declaration is here
+extern atomic_long_t num_poisoned_pages;
+                     ^
 
-arch/x86/boot/compressed/Makefile:41:KBUILD_AFLAGS  := $(KBUILD_CFLAGS) -D__ASSEMBLY__
+Let's use __read_mostly everywhere.
 
-so it should work here too.
+Signed-off-by: Guenter Roeck <linux@roeck-us.net>
+Cc: Matthias Kaehlcke <mka@chromium.org>
+---
+ include/linux/mm.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Even though __ASSEMBLER__ is gcc predefined.
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ad06d42adb1a..bd4bd59f02c1 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2582,7 +2582,7 @@ extern int get_hwpoison_page(struct page *page);
+ extern int sysctl_memory_failure_early_kill;
+ extern int sysctl_memory_failure_recovery;
+ extern void shake_page(struct page *p, int access);
+-extern atomic_long_t num_poisoned_pages;
++extern atomic_long_t num_poisoned_pages __read_mostly;
+ extern int soft_offline_page(struct page *page, int flags);
+ 
+ 
 -- 
-Regards/Gruss,
-    Boris.
-
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
