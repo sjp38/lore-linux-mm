@@ -1,66 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 52E736B0007
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 08:09:37 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id y68so5607148pfy.20
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 05:09:37 -0800 (PST)
-Received: from huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id d5-v6si6743861plm.759.2018.02.26.05.09.35
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CA1EA6B0007
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 08:16:45 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id y64so5370867itd.4
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 05:16:45 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id d72si5801872ioe.202.2018.02.26.05.16.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 05:09:36 -0800 (PST)
-From: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
-Subject: =?gb2312?B?tPC4tDogW1BBVENIIDAxLzExXSBJbml0aWFsaXplIHRoZSBtYXBwaW5nIG9m?=
- =?gb2312?Q?_KASan_shadow_memory?=
-Date: Mon, 26 Feb 2018 13:09:26 +0000
-Message-ID: <B8AC3E80E903784988AB3003E3E97330C0072FE7@dggemm510-mbs.china.huawei.com>
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
- <20171011082227.20546-2-liuwenliang@huawei.com>
- <31b16c9d-48c7-bc0a-51d1-cc6cf892329b@gmail.com>
- <20171019120137.GT20805@n2100.armlinux.org.uk>
-In-Reply-To: <20171019120137.GT20805@n2100.armlinux.org.uk>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Feb 2018 05:16:44 -0800 (PST)
+Subject: Re: [PATCH v2] mm,page_alloc: wait for oom_lock than back off
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20180221145437.GI2231@dhcp22.suse.cz>
+	<201802241700.JJB51016.FQOLFJHFOOSVMt@I-love.SAKURA.ne.jp>
+	<20180226092725.GB16269@dhcp22.suse.cz>
+	<201802261958.JDE18780.SFHOFOMOJFQVtL@I-love.SAKURA.ne.jp>
+	<20180226121933.GC16269@dhcp22.suse.cz>
+In-Reply-To: <20180226121933.GC16269@dhcp22.suse.cz>
+Message-Id: <201802262216.ADH48949.FtQLFOHJOVSOMF@I-love.SAKURA.ne.jp>
+Date: Mon, 26 Feb 2018 22:16:25 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@armlinux.org.uk>, Dmitry Osipenko <digetx@gmail.com>
-Cc: "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "marc.zyngier@arm.com" <marc.zyngier@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
 
-T24gT2N0IDE5LCAyMDE3IGF0IDE5OjA5LCBSdXNzZWxsIEtpbmcgLSBBUk0gTGludXggW21haWx0
-bzpsaW51eEBhcm1saW51eC5vcmcudWtdIHdyb3RlOg0KPk9uIFRodSwgT2N0IDEyLCAyMDE3IGF0
-IDAyOjQyOjQ5QU0gKzAzMDAsIERtaXRyeSBPc2lwZW5rbyB3cm90ZToNCj4+IE9uIDExLjEwLjIw
-MTcgMTE6MjIsIEFiYm90dCBMaXUgd3JvdGU6DQo+PiA+ICt2b2lkIF9faW5pdCBrYXNhbl9tYXBf
-ZWFybHlfc2hhZG93KHBnZF90ICpwZ2RwKQ0KPj4gPiArew0KPj4gPiArCWludCBpOw0KPj4gPiAr
-CXVuc2lnbmVkIGxvbmcgc3RhcnQgPSBLQVNBTl9TSEFET1dfU1RBUlQ7DQo+PiA+ICsJdW5zaWdu
-ZWQgbG9uZyBlbmQgPSBLQVNBTl9TSEFET1dfRU5EOw0KPj4gPiArCXVuc2lnbmVkIGxvbmcgYWRk
-cjsNCj4+ID4gKwl1bnNpZ25lZCBsb25nIG5leHQ7DQo+PiA+ICsJcGdkX3QgKnBnZDsNCj4+ID4g
-Kw0KPj4gPiArCWZvciAoaSA9IDA7IGkgPCBQVFJTX1BFUl9QVEU7IGkrKykNCj4+ID4gKwkJc2V0
-X3B0ZV9hdCgmaW5pdF9tbSwgS0FTQU5fU0hBRE9XX1NUQVJUICsgaSpQQUdFX1NJWkUsDQo+PiA+
-ICsJCQkma2FzYW5femVyb19wdGVbaV0sIHBmbl9wdGUoDQo+PiA+ICsJCQkJdmlydF90b19wZm4o
-a2FzYW5femVyb19wYWdlKSwNCj4+ID4gKwkJCQlfX3BncHJvdChfTF9QVEVfREVGQVVMVCB8IExf
-UFRFX0RJUlRZIHwgTF9QVEVfWE4pKSk7DQo+PiANCj4+IFNob3VsZG4ndCBhbGwgX19wZ3Byb3Qn
-cyBjb250YWluIExfUFRFX01UX1dSSVRFVEhST1VHSCA/DQo+DQo+T25lIG9mIHRoZSBhcmNoaXRl
-Y3R1cmUgcmVzdHJpY3Rpb25zIGlzIHRoYXQgdGhlIGNhY2hlIGF0dHJpYnV0ZXMgb2YNCj5hbGwg
-YWxpYXNlcyBzaG91bGQgbWF0Y2ggKGJ1dCB0aGVyZSBpcyBhIHNwZWNpZmljIHdvcmthcm91bmQg
-dGhhdA0KPnBlcm1pdHMgdGhpcywgcHJvdmlkZWQgdGhhdCB0aGUgZGlzLXNpbWlsYXIgbWFwcGlu
-Z3MgYXJlbid0IGFjY2Vzc2VkDQo+d2l0aG91dCBjZXJ0YWluIGludGVydmVuaW5nIGluc3RydWN0
-aW9ucy4pDQo+DQo+V2h5IHNob3VsZCBpdCBiZSBMX1BURV9NVF9XUklURVRIUk9VR0gsIGFuZCBu
-b3QgdGhlIHNhbWUgY2FjaGUNCj5hdHRyaWJ1dGVzIGFzIHRoZSBsb3dtZW0gbWFwcGluZz8NCj4N
-Cg0KSGVyZSBpcyBtYXBwaW5nIHRoZSBrYXNhbiBzaGFkb3cgd2hpY2ggaXMgdXNlZCBhdCB0aGUg
-ZWFybHkgc3RhZ2Ugb2Yga2VybmVsIHN0YXJ0KGZyb20gc3RhcnQNCm9mIHN0YXJ0X2tlcm5lbCB0
-byBwYWdpbmdfaW5pdCkuIEF0IHRoaXMgc3RhZ2Ugd2Ugb25seSByZWFkIHRoZSBrYXNhbiBzaGFk
-b3dzLCBuZXZlciB3cml0ZSB0aGUNCmthc2FuIHNoYWRvd3Mgd2hpY2ggaXMgaW5pdGlhbGl6ZWQg
-dG8gYmUgemVyby4gDQoNCldlIHdpbGwgbWFwIHRoZSBrYXNhbiBzaGFkb3dzIGFnYWluIHdpdGgg
-ZmxhZ3MgUEFHRV9LRVJORUw6DQpwdGVfdCAqIF9fbWVtaW5pdCBrYXNhbl9wdGVfcG9wdWxhdGUo
-cG1kX3QgKnBtZCwgdW5zaWduZWQgbG9uZyBhZGRyLCBpbnQgbm9kZSkNCnsNCglwdGVfdCAqcHRl
-ID0gcHRlX29mZnNldF9rZXJuZWwocG1kLCBhZGRyKTsNCglpZiAocHRlX25vbmUoKnB0ZSkpIHsN
-CgkJcHRlX3QgZW50cnk7DQoJCXZvaWQgKnAgPSBrYXNhbl9hbGxvY19ibG9jayhQQUdFX1NJWkUs
-IG5vZGUpOw0KIAkJaWYgKCFwKQ0KCQkJcmV0dXJuIE5VTEw7DQoJCWVudHJ5ID0gcGZuX3B0ZSh2
-aXJ0X3RvX3BmbihwKSwgX19wZ3Byb3QocGdwcm90X3ZhbChQQUdFX0tFUk5FTCkpKTsNCgkJCXNl
-dF9wdGVfYXQoJmluaXRfbW0sIGFkZHIsIHB0ZSwgZW50cnkpOw0KCX0NCglyZXR1cm4gcHRlOw0K
-fQ0K
+Michal Hocko wrote:
+> On Mon 26-02-18 19:58:19, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Sat 24-02-18 17:00:51, Tetsuo Handa wrote:
+> > > > >From d922dd170c2bed01a775e8cca0871098aecc253d Mon Sep 17 00:00:00 2001
+> > > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > > Date: Sat, 24 Feb 2018 16:49:21 +0900
+> > > > Subject: [PATCH v2] mm,page_alloc: wait for oom_lock than back off
+> > > > 
+> > > > This patch fixes a bug which is essentially same with a bug fixed by
+> > > > commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
+> > > > too long").
+> > > > 
+> > > > Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
+> > > > on an assumption that the owner of oom_lock is making progress for us. But
+> > > > it is possible to trigger OOM lockup when many threads concurrently called
+> > > > __alloc_pages_slowpath() because all CPU resources are wasted for pointless
+> > > > direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
+> > > > __alloc_pages_may_oom() does not always give enough CPU resource to the
+> > > > owner of the oom_lock.
+> > > > 
+> > > > It is possible that the owner of oom_lock is preempted by other threads.
+> > > > Preemption makes the OOM situation much worse. But the page allocator is
+> > > > not responsible about wasting CPU resource for something other than memory
+> > > > allocation request. Wasting CPU resource for memory allocation request
+> > > > without allowing the owner of oom_lock to make forward progress is a page
+> > > > allocator's bug.
+> > > > 
+> > > > Therefore, this patch changes to wait for oom_lock in order to guarantee
+> > > > that no thread waiting for the owner of oom_lock to make forward progress
+> > > > will not consume CPU resources for pointless direct reclaim efforts.
+> > > > 
+> > > > We know printk() from OOM situation where a lot of threads are doing almost
+> > > > busy-looping is a nightmare. As a side effect of this patch, printk() with
+> > > > oom_lock held can start utilizing CPU resources saved by this patch (and
+> > > > reduce preemption during printk(), making printk() complete faster).
+> > > > 
+> > > > By changing !mutex_trylock(&oom_lock) with mutex_lock_killable(&oom_lock),
+> > > > it is possible that many threads prevent the OOM reaper from making forward
+> > > > progress. Thus, this patch removes mutex_lock(&oom_lock) from the OOM
+> > > > reaper.
+> > > > 
+> > > > Also, since nobody uses oom_lock serialization when setting MMF_OOM_SKIP
+> > > > and we don't try last second allocation attempt after confirming that there
+> > > > is no !MMF_OOM_SKIP OOM victim, the possibility of needlessly selecting
+> > > > more OOM victims will be increased if we continue using ALLOC_WMARK_HIGH.
+> > > > Thus, this patch changes to use ALLOC_MARK_MIN.
+> > > > 
+> > > > Also, since we don't want to sleep with oom_lock held so that we can allow
+> > > > threads waiting at mutex_lock_killable(&oom_lock) to try last second
+> > > > allocation attempt (because the OOM reaper starts reclaiming memory without
+> > > > waiting for oom_lock) and start selecting next OOM victim if necessary,
+> > > > this patch changes the location of the short sleep from inside of oom_lock
+> > > > to outside of oom_lock.
+> > > 
+> > > This patch does three different things mangled into one patch. All that
+> > > with a patch description which talks a lot but doesn't really explain
+> > > those changes.
+> > > 
+> > > Moreover, you are effectively tunning for an overloaded page allocator
+> > > artifical test case and add a central lock where many tasks would
+> > > block. I have already tried to explain that this is not an universal
+> > > win and you should better have a real life example where this is really
+> > > helpful.
+> > > 
+> > > While I do agree that removing the oom_lock from __oom_reap_task_mm is a
+> > > sensible thing, changing the last allocation attempt to ALLOC_WMARK_MIN
+> > > is not all that straightforward and it would require much more detailed
+> > > explaination.
+> > > 
+> > > So the patch in its current form is not mergeable IMHO.
+> > 
+> > Your comment is impossible to satisfy.
+> > Please show me your version, for you are keeping me deadlocked.
+> > 
+> > I'm angry with MM people's attitude that MM people are not friendly to
+> > users who are bothered by lockup / slowdown problems under memory pressure.
+> > They just say "Your system is overloaded" and don't provide enough support
+> > for checking whether they are hitting a real bug other than overloaded.
+> 
+> You should listen much more and also try to understand concerns that we
+> have. You are trying to touch a very subtle piece of code. That code
+> is not perfect at all but it tends to work reasonably well under most
+> workloads out there. Now you try to handle corner cases you are seeing
+> and that is good thing in general. But the fix shouldn't introduce new
+> risks and adding a single synchronization point into the oom path is
+> simply not without its own risks.
+
+Then, please show me a real life example (by comparing trylock() versus
+lock_killable()) where lock_killable() hurts. If you proved it, I'm
+willing to make this optional (i.e. "use trylock() at the risk of lockup
+or use lock_killable() at the risk of latency"). Without testing this
+patch at real world, we won't be able to prove it though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
