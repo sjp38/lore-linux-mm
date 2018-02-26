@@ -1,114 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ECDC66B0005
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 01:38:08 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id n12-v6so288079pls.12
-        for <linux-mm@kvack.org>; Sun, 25 Feb 2018 22:38:08 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id p75si6284875pfi.293.2018.02.25.22.38.07
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C4116B0007
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 01:50:42 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id x6so7210042plr.7
+        for <linux-mm@kvack.org>; Sun, 25 Feb 2018 22:50:42 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b73-v6sor2541161pli.109.2018.02.25.22.50.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Feb 2018 22:38:07 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] mm: Fix races between address_space dereference and free in page_evicatable
-References: <20180212081227.1940-1-ying.huang@intel.com>
-	<20180218092245.GA52741@rodete-laptop-imager.corp.google.com>
-	<20180219105735.32iplpsmnigwf75j@quack2.suse.cz>
-	<20180226052009.GB112402@rodete-desktop-imager.corp.google.com>
-Date: Mon, 26 Feb 2018 14:38:04 +0800
-In-Reply-To: <20180226052009.GB112402@rodete-desktop-imager.corp.google.com>
-	(Minchan Kim's message of "Mon, 26 Feb 2018 14:20:09 +0900")
-Message-ID: <874lm4tfw3.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Sun, 25 Feb 2018 22:50:40 -0800 (PST)
+Date: Mon, 26 Feb 2018 15:50:35 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCHv3 1/2] zsmalloc: introduce zs_huge_object() function
+Message-ID: <20180226065035.GD12539@jagdpanzerIV>
+References: <20180210082321.17798-1-sergey.senozhatsky@gmail.com>
+ <20180214055747.8420-1-sergey.senozhatsky@gmail.com>
+ <20180220012429.GA186771@rodete-desktop-imager.corp.google.com>
+ <20180226054927.GA12539@jagdpanzerIV>
+ <20180226055804.GD112402@rodete-desktop-imager.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180226055804.GD112402@rodete-desktop-imager.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Minchan Kim <minchan@kernel.org> writes:
+On (02/26/18 14:58), Minchan Kim wrote:
+[..]
+> > Right. The changes are pretty trivial, that's why I kept then in
+> > 2 simple patches. Besides, I didn't want to mix zsmalloc and zram
+> > changes.
+> 
+> As I said earlier, it's not thing we usually do, at least, MM.
+> Anyway, I don't want to insist on it because it depends each
+> person's point of view what's the better for review, git-bisect.
 
-> Hi Jan,
->
-> On Mon, Feb 19, 2018 at 11:57:35AM +0100, Jan Kara wrote:
->> Hi Minchan,
->> 
->> On Sun 18-02-18 18:22:45, Minchan Kim wrote:
->> > On Mon, Feb 12, 2018 at 04:12:27PM +0800, Huang, Ying wrote:
->> > > From: Huang Ying <ying.huang@intel.com>
->> > > 
->> > > When page_mapping() is called and the mapping is dereferenced in
->> > > page_evicatable() through shrink_active_list(), it is possible for the
->> > > inode to be truncated and the embedded address space to be freed at
->> > > the same time.  This may lead to the following race.
->> > > 
->> > > CPU1                                                CPU2
->> > > 
->> > > truncate(inode)                                     shrink_active_list()
->> > >   ...                                                 page_evictable(page)
->> > >   truncate_inode_page(mapping, page);
->> > >     delete_from_page_cache(page)
->> > >       spin_lock_irqsave(&mapping->tree_lock, flags);
->> > >         __delete_from_page_cache(page, NULL)
->> > >           page_cache_tree_delete(..)
->> > >             ...                                         mapping = page_mapping(page);
->> > >             page->mapping = NULL;
->> > >             ...
->> > >       spin_unlock_irqrestore(&mapping->tree_lock, flags);
->> > >       page_cache_free_page(mapping, page)
->> > >         put_page(page)
->> > >           if (put_page_testzero(page)) -> false
->> > > - inode now has no pages and can be freed including embedded address_space
->> > > 
->> > >                                                         mapping_unevictable(mapping)
->> > > 							  test_bit(AS_UNEVICTABLE, &mapping->flags);
->> > > - we've dereferenced mapping which is potentially already free.
->> > > 
->> > > Similar race exists between swap cache freeing and page_evicatable() too.
->> > > 
->> > > The address_space in inode and swap cache will be freed after a RCU
->> > > grace period.  So the races are fixed via enclosing the page_mapping()
->> > > and address_space usage in rcu_read_lock/unlock().  Some comments are
->> > > added in code to make it clear what is protected by the RCU read lock.
->> > 
->> > Is it always true for every FSes, even upcoming FSes?
->> > IOW, do we have any strict rule FS folks must use RCU(i.e., call_rcu)
->> > to destroy inode?
->> > 
->> > Let's cc linux-fs.
->> 
->> That's actually a good question. Pathname lookup relies on inodes being
->> protected by RCU so "normal" filesystems definitely need to use RCU freeing
->> of inodes. OTOH a filesystem could in theory refuse any attempt for RCU
->> pathname walk (in its .d_revalidate/.d_compare callback) and then get away
->> with freeing its inodes normally AFAICT. I don't see that happening
->> anywhere in the tree but in theory it is possible with some effort... But
->> frankly I don't see a good reason for that so all we should do is to
->> document that .destroy_inode needs to free the inode structure through RCU
->> if it uses page cache? Al?
->
-> Yub, it would be much better. However, how does this patch fix the problem?
-> Although it can make only page_evictable safe, we could go with the page
-> further and finally uses page->mapping, again.
-> For instance,
->
-> shrink_active_list
-> 	page_evictable();
-> 	..
-> 	page_referened()
-> 		page_rmapping
-> 			page->mapping
+Thanks :)
 
-This only checks the value of page->mapping, not deference
-page->mapping.  So it should be safe.
+> > > 	size_t huge_size = _zs_huge_object(pool);
+> > > 	..
+> > > 	..
+> > > 	if (comp_size >= huge_size)
+> > > 		memcpy(dst, src, 4K);
+> > 
+> > Yes, can do. My plan was to keep it completely internally to zsmalloc.
+> > Who knows, it might become smart enough one day to do something more
+> > than just size comparison. Any reason you used that leading underscore
+> 
+> Let's do that in future if someone want it. :)
 
-Best Regards,
-Huang, Ying
+OK.
 
-> I think caller should lock the page to protect entire operation, which
-> have been used more widely to pin a address_space.
->
-> Thanks.
+> > in _zs_huge_object()?
+> 
+> 
+> Nope. It's just typo. Let's think better name.
+> How about using zs_huge_size()?
+
+hm, I think `huge_size' on it's own is a bit general and cryptic.
+zs_huge_object_size() or zs_huge_class_size()?
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
