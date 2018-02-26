@@ -1,48 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D77E6B0009
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 07:12:31 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id y11so6011641wmd.5
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 04:12:31 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id u13si4322501wmd.165.2018.02.26.04.12.29
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 553626B0009
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 07:19:38 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id r15so11397409wrr.16
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 04:19:38 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w7si3820959wre.515.2018.02.26.04.19.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 04:12:29 -0800 (PST)
-Subject: Re: [PATCH 2/7] genalloc: selftest
-References: <20180223144807.1180-1-igor.stoppa@huawei.com>
- <20180223144807.1180-3-igor.stoppa@huawei.com>
- <76b3d858-b14e-b66d-d8ae-dbd0b307308a@gmail.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <a7b47f45-5929-ae07-1a10-46a02f6db078@huawei.com>
-Date: Mon, 26 Feb 2018 14:11:58 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Feb 2018 04:19:37 -0800 (PST)
+Date: Mon, 26 Feb 2018 13:19:33 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm,page_alloc: wait for oom_lock than back off
+Message-ID: <20180226121933.GC16269@dhcp22.suse.cz>
+References: <20180220144920.GB21134@dhcp22.suse.cz>
+ <201802212327.CAB51013.FOStFVLHFJMOOQ@I-love.SAKURA.ne.jp>
+ <20180221145437.GI2231@dhcp22.suse.cz>
+ <201802241700.JJB51016.FQOLFJHFOOSVMt@I-love.SAKURA.ne.jp>
+ <20180226092725.GB16269@dhcp22.suse.cz>
+ <201802261958.JDE18780.SFHOFOMOJFQVtL@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <76b3d858-b14e-b66d-d8ae-dbd0b307308a@gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201802261958.JDE18780.SFHOFOMOJFQVtL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: J Freyensee <why2jjj.linux@gmail.com>, david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
-Cc: labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
 
-
-
-On 24/02/18 00:42, J Freyensee wrote:
+On Mon 26-02-18 19:58:19, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Sat 24-02-18 17:00:51, Tetsuo Handa wrote:
+> > > >From d922dd170c2bed01a775e8cca0871098aecc253d Mon Sep 17 00:00:00 2001
+> > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > Date: Sat, 24 Feb 2018 16:49:21 +0900
+> > > Subject: [PATCH v2] mm,page_alloc: wait for oom_lock than back off
+> > > 
+> > > This patch fixes a bug which is essentially same with a bug fixed by
+> > > commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
+> > > too long").
+> > > 
+> > > Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
+> > > on an assumption that the owner of oom_lock is making progress for us. But
+> > > it is possible to trigger OOM lockup when many threads concurrently called
+> > > __alloc_pages_slowpath() because all CPU resources are wasted for pointless
+> > > direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
+> > > __alloc_pages_may_oom() does not always give enough CPU resource to the
+> > > owner of the oom_lock.
+> > > 
+> > > It is possible that the owner of oom_lock is preempted by other threads.
+> > > Preemption makes the OOM situation much worse. But the page allocator is
+> > > not responsible about wasting CPU resource for something other than memory
+> > > allocation request. Wasting CPU resource for memory allocation request
+> > > without allowing the owner of oom_lock to make forward progress is a page
+> > > allocator's bug.
+> > > 
+> > > Therefore, this patch changes to wait for oom_lock in order to guarantee
+> > > that no thread waiting for the owner of oom_lock to make forward progress
+> > > will not consume CPU resources for pointless direct reclaim efforts.
+> > > 
+> > > We know printk() from OOM situation where a lot of threads are doing almost
+> > > busy-looping is a nightmare. As a side effect of this patch, printk() with
+> > > oom_lock held can start utilizing CPU resources saved by this patch (and
+> > > reduce preemption during printk(), making printk() complete faster).
+> > > 
+> > > By changing !mutex_trylock(&oom_lock) with mutex_lock_killable(&oom_lock),
+> > > it is possible that many threads prevent the OOM reaper from making forward
+> > > progress. Thus, this patch removes mutex_lock(&oom_lock) from the OOM
+> > > reaper.
+> > > 
+> > > Also, since nobody uses oom_lock serialization when setting MMF_OOM_SKIP
+> > > and we don't try last second allocation attempt after confirming that there
+> > > is no !MMF_OOM_SKIP OOM victim, the possibility of needlessly selecting
+> > > more OOM victims will be increased if we continue using ALLOC_WMARK_HIGH.
+> > > Thus, this patch changes to use ALLOC_MARK_MIN.
+> > > 
+> > > Also, since we don't want to sleep with oom_lock held so that we can allow
+> > > threads waiting at mutex_lock_killable(&oom_lock) to try last second
+> > > allocation attempt (because the OOM reaper starts reclaiming memory without
+> > > waiting for oom_lock) and start selecting next OOM victim if necessary,
+> > > this patch changes the location of the short sleep from inside of oom_lock
+> > > to outside of oom_lock.
+> > 
+> > This patch does three different things mangled into one patch. All that
+> > with a patch description which talks a lot but doesn't really explain
+> > those changes.
+> > 
+> > Moreover, you are effectively tunning for an overloaded page allocator
+> > artifical test case and add a central lock where many tasks would
+> > block. I have already tried to explain that this is not an universal
+> > win and you should better have a real life example where this is really
+> > helpful.
+> > 
+> > While I do agree that removing the oom_lock from __oom_reap_task_mm is a
+> > sensible thing, changing the last allocation attempt to ALLOC_WMARK_MIN
+> > is not all that straightforward and it would require much more detailed
+> > explaination.
+> > 
+> > So the patch in its current form is not mergeable IMHO.
 > 
->> +	locations[action->location] = gen_pool_alloc(pool, action->size);
->> +	BUG_ON(!locations[action->location]);
+> Your comment is impossible to satisfy.
+> Please show me your version, for you are keeping me deadlocked.
 > 
-> Again, I'd think it through if you really want to use BUG_ON() or not:
-> 
-> https://lwn.net/Articles/13183/
-> https://lkml.org/lkml/2016/10/4/1
+> I'm angry with MM people's attitude that MM people are not friendly to
+> users who are bothered by lockup / slowdown problems under memory pressure.
+> They just say "Your system is overloaded" and don't provide enough support
+> for checking whether they are hitting a real bug other than overloaded.
 
-Is it acceptable to display only a WARNing, in case of risking damaging
-a mounted filesystem?
-
---
-igor
+You should listen much more and also try to understand concerns that we
+have. You are trying to touch a very subtle piece of code. That code
+is not perfect at all but it tends to work reasonably well under most
+workloads out there. Now you try to handle corner cases you are seeing
+and that is good thing in general. But the fix shouldn't introduce new
+risks and adding a single synchronization point into the oom path is
+simply not without its own risks.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
