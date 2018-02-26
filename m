@@ -1,70 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 46C726B0003
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 15:35:24 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id e74so6768896wmg.0
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 12:35:24 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 32EBB6B0007
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 15:55:38 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id c37so12435313wra.5
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 12:55:38 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r18sor2210359wmd.46.2018.02.26.12.35.22
+        by mx.google.com with SMTPS id m48sor4910240edd.4.2018.02.26.12.55.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 26 Feb 2018 12:35:22 -0800 (PST)
-Date: Mon, 26 Feb 2018 23:35:19 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: [PATCH] slab: mark kmalloc machinery as __ro_after_init
-Message-ID: <20180226203519.GA6886@avx2>
-References: <20180226203011.GA6510@avx2>
+        Mon, 26 Feb 2018 12:55:36 -0800 (PST)
+Date: Mon, 26 Feb 2018 23:55:27 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 0/5] x86/boot/compressed/64: Prepare trampoline memory
+Message-ID: <20180226205527.6m6h55h6r2cgh5hq@node.shutemov.name>
+References: <20180226180451.86788-1-kirill.shutemov@linux.intel.com>
+ <20180226193244.GH14140@pd.tnic>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180226203011.GA6510@avx2>
+In-Reply-To: <20180226193244.GH14140@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Borislav Petkov <bp@suse.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-kmalloc caches aren't relocated after being set up neither does
-"size_index" array.
+On Mon, Feb 26, 2018 at 08:32:44PM +0100, Borislav Petkov wrote:
+> On Mon, Feb 26, 2018 at 09:04:46PM +0300, Kirill A. Shutemov wrote:
+> > Borislav, could you check which patch breaks boot for you (if any)?
+> 
+> What is that ontop? tip/master from today or?
 
-Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
----
+I made it on top of tip/x86/mm, but tip/master should be fine too.
 
- mm/slab_common.c |    7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
-
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -10,6 +10,7 @@
- #include <linux/poison.h>
- #include <linux/interrupt.h>
- #include <linux/memory.h>
-+#include <linux/cache.h>
- #include <linux/compiler.h>
- #include <linux/module.h>
- #include <linux/cpu.h>
-@@ -954,11 +955,11 @@ struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
- 	return s;
- }
- 
--struct kmem_cache *kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
-+struct kmem_cache *kmalloc_caches[KMALLOC_SHIFT_HIGH + 1] __ro_after_init;
- EXPORT_SYMBOL(kmalloc_caches);
- 
- #ifdef CONFIG_ZONE_DMA
--struct kmem_cache *kmalloc_dma_caches[KMALLOC_SHIFT_HIGH + 1];
-+struct kmem_cache *kmalloc_dma_caches[KMALLOC_SHIFT_HIGH + 1] __ro_after_init;
- EXPORT_SYMBOL(kmalloc_dma_caches);
- #endif
- 
-@@ -968,7 +969,7 @@ EXPORT_SYMBOL(kmalloc_dma_caches);
-  * of two cache sizes there. The size of larger slabs can be determined using
-  * fls.
-  */
--static s8 size_index[24] = {
-+static s8 size_index[24] __ro_after_init = {
- 	3,	/* 8 */
- 	4,	/* 16 */
- 	5,	/* 24 */
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
