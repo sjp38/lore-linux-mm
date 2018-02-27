@@ -1,70 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D96236B0005
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 20:47:50 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id s21so5610320ioa.7
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 17:47:50 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l18sor1372804iog.133.2018.02.26.17.47.49
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A5A076B0006
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 20:55:17 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id l5-v6so3114035pli.8
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 17:55:17 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id t18si7718122pfg.246.2018.02.26.17.55.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Feb 2018 17:47:49 -0800 (PST)
-Date: Mon, 26 Feb 2018 17:47:47 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 0/4 v2] Define killable version for access_remote_vm()
- and use it in fs/proc
-In-Reply-To: <4ec32e5b-af63-f412-2213-e52bdbcc9585@linux.alibaba.com>
-Message-ID: <alpine.DEB.2.20.1802261742400.24072@chino.kir.corp.google.com>
-References: <1519691151-101999-1-git-send-email-yang.shi@linux.alibaba.com> <alpine.DEB.2.20.1802261656490.16999@chino.kir.corp.google.com> <4ec32e5b-af63-f412-2213-e52bdbcc9585@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Feb 2018 17:55:16 -0800 (PST)
+Date: Tue, 27 Feb 2018 09:56:13 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [PATCH v3 1/3] mm/free_pcppages_bulk: update pcp->count inside
+Message-ID: <20180227015613.GA9141@intel.com>
+References: <20180226135346.7208-1-aaron.lu@intel.com>
+ <20180226135346.7208-2-aaron.lu@intel.com>
+ <alpine.DEB.2.20.1802261345550.135844@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1802261345550.135844@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: akpm@linux-foundation.org, mingo@kernel.org, adobriyan@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>
 
-On Mon, 26 Feb 2018, Yang Shi wrote:
-
-> > Rather than killable, we have patches that introduce down_read_unfair()
-> > variants for the files you've modified (cmdline and environ) as well as
-> > others (maps, numa_maps, smaps).
+On Mon, Feb 26, 2018 at 01:48:14PM -0800, David Rientjes wrote:
+> On Mon, 26 Feb 2018, Aaron Lu wrote:
 > 
-> You mean you have such functionality used by google internally?
-> 
-
-Yup, see https://lwn.net/Articles/387720.
-
-> > When another thread is holding down_read() and there are queued
-> > down_write()'s, down_read_unfair() allows for grabbing the rwsem without
-> > queueing for it.  Additionally, when another thread is holding
-> > down_write(), down_read_unfair() allows for queueing in front of other
-> > threads trying to grab it for write as well.
-> 
-> It sounds the __unfair variant make the caller have chance to jump the gun to
-> grab the semaphore before other waiters, right? But when a process holds the
-> semaphore, i.e. mmap_sem, for a long time, it still has to sleep in
-> uninterruptible state, right?
-> 
-
-Right, it's solving two separate things which I think may be able to be 
-merged together.  Killable is solving an issue where the rwsem is blocking 
-for a long period of time in uninterruptible sleep, and unfair is solving 
-an issue where reading the procfs files gets stalled for a long period of 
-time.  We haven't run into an issue (yet) where killable would have solved 
-it; we just have the unfair variants to grab the rwsem asap and then, if 
-killable, gracefully return.
-
-> > Ingo would know more about whether a variant like that in upstream Linux
-> > would be acceptable.
+> > Matthew Wilcox found that all callers of free_pcppages_bulk() currently
+> > update pcp->count immediately after so it's natural to do it inside
+> > free_pcppages_bulk().
 > > 
-> > Would you be interested in unfair variants instead of only addressing
-> > killable?
+> > No functionality or performance change is expected from this patch.
+> > 
+> > Suggested-by: Matthew Wilcox <willy@infradead.org>
+> > Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+> > ---
+> >  mm/page_alloc.c | 10 +++-------
+> >  1 file changed, 3 insertions(+), 7 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index cb416723538f..3154859cccd6 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1117,6 +1117,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+> >  	int batch_free = 0;
+> >  	bool isolated_pageblocks;
+> >  
+> > +	pcp->count -= count;
+> >  	spin_lock(&zone->lock);
+> >  	isolated_pageblocks = has_isolate_pageblock(zone);
+> >  
 > 
-> Yes, I'm although it still looks overkilling to me for reading /proc.
-> 
+> Why modify pcp->count before the pages have actually been freed?
 
-We make certain inferences on the readablility of procfs files for other 
-threads to determine how much its mm's mmap_sem is contended.
+When count is still count and not zero after pages have actually been
+freed :-)
+
+> 
+> I doubt that it matters too much, but at least /proc/zoneinfo uses 
+> zone->lock.  I think it should be done after the lock is dropped.
+
+Agree that it looks a bit weird to do it beforehand and I just want to
+avoid adding one more local variable here.
+
+pcp->count is not protected by zone->lock though so even we do it after
+dropping the lock, it could still happen that zoneinfo shows a wrong
+value of pcp->count while it should be zero(this isn't a problem since
+zoneinfo doesn't need to be precise).
+
+Anyway, I'll follow your suggestion here to avoid confusion.
+ 
+> Otherwise, looks good.
+
+Thanks for taking a look at this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
