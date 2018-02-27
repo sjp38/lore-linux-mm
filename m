@@ -1,138 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E3BB76B000D
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 10:42:33 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id x2so9458307plv.16
-        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 07:42:33 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id d6si7171670pgu.400.2018.02.27.07.42.32
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 780746B0022
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 11:05:50 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id p13so4648254wmc.6
+        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 08:05:50 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e58si9682653wre.71.2018.02.27.08.05.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Feb 2018 07:42:32 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 5/5] x86/boot/compressed/64: Prepare new top-level page table for trampoline
-Date: Tue, 27 Feb 2018 18:42:17 +0300
-Message-Id: <20180227154217.69347-6-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20180227154217.69347-1-kirill.shutemov@linux.intel.com>
-References: <20180227154217.69347-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 27 Feb 2018 08:05:48 -0800 (PST)
+From: Nikolay Borisov <nborisov@suse.com>
+Subject: GPF in wb_congested due to null bdi_writeback
+Message-ID: <c4032fd5-ab49-1756-31bb-6e31088eac7b@suse.com>
+Date: Tue, 27 Feb 2018 18:05:46 +0200
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-mm@kvack.org, linux-block@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-If trampoline code would need to switch between 4- and 5-level paging
-modes, we have to use a page table in trampoline memory.
+Hello Tejun, 
 
-Having it in trampoline memory guarantees that it's below 4G and we can
-point CR3 to it from 32-bit trampoline code.
+So while running some fs tests I hit the following GPF. Btw the
+warning taint flag was due to a debugging WARN_ON in btrfs 100 or so 
+tests ago so is unrelated to this gpf: 
 
-We only use the page table if the desired paging mode doesn't match the
-mode we are in. Otherwise the page table is unused and trampoline code
-wouldn't touch CR3.
-
-For 4- to 5-level paging transition, we set up current (4-level paging)
-CR3 as the first and the only entry in a new top-level page table.
-
-For 5- to 4-level paging transition, copy page table pointed by first
-entry in the current top-level page table as our new top-level page
-table.
-
-If the page table is used by trampoline we would need to copy it to new
-page table outside trampoline and update CR3 before restoring trampoline
-memory.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Tested-by: Borislav Petkov <bp@suse.de>
----
- arch/x86/boot/compressed/pgtable_64.c | 61 +++++++++++++++++++++++++++++++++++
- 1 file changed, 61 insertions(+)
-
-diff --git a/arch/x86/boot/compressed/pgtable_64.c b/arch/x86/boot/compressed/pgtable_64.c
-index 810c2c32d98e..32af1cbcd903 100644
---- a/arch/x86/boot/compressed/pgtable_64.c
-+++ b/arch/x86/boot/compressed/pgtable_64.c
-@@ -22,6 +22,14 @@ struct paging_config {
- /* Buffer to preserve trampoline memory */
- static char trampoline_save[TRAMPOLINE_32BIT_SIZE];
+[ 4255.628110] general protection fault: 0000 [#1] SMP PTI
+[ 4255.628303] Modules linked in:
+[ 4255.628446] CPU: 4 PID: 58 Comm: kswapd0 Tainted: G        W        4.16.0-rc3-nbor #488
+[ 4255.628666] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
+[ 4255.628928] RIP: 0010:shrink_page_list+0x320/0x1180
+[ 4255.629072] RSP: 0018:ffffc90000b2fb38 EFLAGS: 00010287
+[ 4255.629220] RAX: 26c74ca226c74ca2 RBX: ffffea000444aea0 RCX: 0000000000000000
+[ 4255.629394] RDX: 0000000000000000 RSI: 00000000ffffffff RDI: ffff880136761450
+[ 4255.629568] RBP: ffffc90000b2fea0 R08: ffff880136761640 R09: 0000000000000000
+[ 4255.629742] R10: 0000000000000000 R11: 0000000000000000 R12: ffffc90000b2fc68
+[ 4255.629913] R13: ffffea000444ae80 R14: ffffc90000b2fba8 R15: 0000000000000001
+[ 4255.630125] FS:  0000000000000000(0000) GS:ffff88013fd00000(0000) knlGS:0000000000000000
+[ 4255.630339] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 4255.630494] CR2: 00007fb16b3955f8 CR3: 0000000135108000 CR4: 00000000000006a0
+[ 4255.630667] Call Trace:
+[ 4255.630790]  shrink_inactive_list+0x27b/0x800
+[ 4255.630951]  shrink_node_memcg+0x3b0/0x7e0
+[ 4255.631181]  ? mem_cgroup_iter+0xe3/0x730
+[ 4255.631374]  ? mem_cgroup_iter+0xe3/0x730
+[ 4255.631509]  ? shrink_node+0xcc/0x350
+[ 4255.631651]  shrink_node+0xcc/0x350
+[ 4255.631780]  kswapd+0x307/0x910
+[ 4255.631913]  kthread+0x103/0x140
+[ 4255.632033]  ? mem_cgroup_shrink_node+0x2f0/0x2f0
+[ 4255.632201]  ? kthread_create_on_node+0x40/0x40
+[ 4255.632348]  ret_from_fork+0x3a/0x50
+[ 4255.632499] Code: 85 c0 74 59 49 8b 38 48 c7 c0 60 2f 16 82 48 85 ff 74 18 48 8b 47 28 48 3b 05 75 b6 0f 01 0f 84 42 0a 00 00 48 8b 80 28 01 00 00 <48> 8b 48 58 48 8b 51 20 48 85 d2 0f 84 69 04 00 00 4c 89 04 24 
+[ 4255.633055] RIP: shrink_page_list+0x320/0x1180 RSP: ffffc90000b2fb38
+[ 4255.633456] ---[ end trace 5c1558c67347a58d ]---
  
-+/*
-+ * The page table is going to be used instead of page table in the trampoline
-+ * memory.
-+ *
-+ * It must not be in BSS as BSS is cleared after cleanup_trampoline().
-+ */
-+static char top_pgtable[PAGE_SIZE] __aligned(PAGE_SIZE) __section(.data);
-+
- /*
-  * Trampoline address will be printed by extract_kernel() for debugging
-  * purposes.
-@@ -83,11 +91,64 @@ struct paging_config paging_prepare(void)
- 	memcpy(trampoline_32bit + TRAMPOLINE_32BIT_CODE_OFFSET / sizeof(unsigned long),
- 			&trampoline_32bit_src, TRAMPOLINE_32BIT_CODE_SIZE);
- 
-+	/*
-+	 * The code below prepares page table in trampoline memory.
-+	 *
-+	 * The new page table will be used by trampoline code for switching
-+	 * from 4- to 5-level paging or vice versa.
-+	 *
-+	 * If switching is not required, the page table is unused: trampoline
-+	 * code wouldn't touch CR3.
-+	 */
-+
-+	/*
-+	 * We are not going to use the page table in trampoline memory if we
-+	 * are already in the desired paging mode.
-+	 */
-+	if (paging_config.l5_required == !!(native_read_cr4() & X86_CR4_LA57))
-+		goto out;
-+
-+	if (paging_config.l5_required) {
-+		/*
-+		 * For 4- to 5-level paging transition, set up current CR3 as
-+		 * the first and the only entry in a new top-level page table.
-+		 */
-+		trampoline_32bit[TRAMPOLINE_32BIT_PGTABLE_OFFSET] = __native_read_cr3() | _PAGE_TABLE_NOENC;
-+	} else {
-+		unsigned long src;
-+
-+		/*
-+		 * For 5- to 4-level paging transition, copy page table pointed
-+		 * by first entry in the current top-level page table as our
-+		 * new top-level page table.
-+		 *
-+		 * We cannot just point to the page table from trampoline as it
-+		 * may be above 4G.
-+		 */
-+		src = *(unsigned long *)__native_read_cr3() & PAGE_MASK;
-+		memcpy(trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET / sizeof(unsigned long),
-+		       (void *)src, PAGE_SIZE);
-+	}
-+
-+out:
- 	return paging_config;
- }
- 
- void cleanup_trampoline(void)
- {
-+	void *trampoline_pgtable;
-+
-+	trampoline_pgtable = trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET;
-+
-+	/*
-+	 * Move the top level page table out of trampoline memory,
-+	 * if it's there.
-+	 */
-+	if ((void *)__native_read_cr3() == trampoline_pgtable) {
-+		memcpy(top_pgtable, trampoline_pgtable, PAGE_SIZE);
-+		native_write_cr3((unsigned long)top_pgtable);
-+	}
-+
- 	/* Restore trampoline memory */
- 	memcpy(trampoline_32bit, trampoline_save, TRAMPOLINE_32BIT_SIZE);
- }
--- 
-2.16.1
+shrink_page_list+0x320/0x1180 is:
+wb_congested at include/linux/backing-dev.h:170
+ (inlined by) inode_congested at include/linux/backing-dev.h:456
+ (inlined by) inode_write_congested at include/linux/backing-dev.h:468
+ (inlined by) shrink_page_list at mm/vmscan.c:957
+
+So the actual faulting code is in wb_congested's first line: 
+
+struct backing_dev_info *bdi = wb->bdi;                                 
+
+So this means wb_congested is called with a null bdi_writeback. 
+This is the first time I've seen it so it's likely new. 
+I haven't tried bisecting. FWIW I triggered it with xfstest 
+generic/176 running on btrfs. But from the looks the filesystem 
+wasn't a play here. 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
