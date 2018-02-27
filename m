@@ -1,98 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C8B86B002F
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 23:30:05 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id 62so8683510ply.4
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 20:30:05 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id j125si6491236pgc.697.2018.02.26.20.30.04
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BF416B0005
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 01:59:28 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id p2so7262969wre.19
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 22:59:28 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 32sor4684052wrm.64.2018.02.26.22.59.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 20:30:04 -0800 (PST)
-Subject: [PATCH v4 12/12] vfio: disable filesystem-dax page pinning
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 26 Feb 2018 20:20:58 -0800
-Message-ID: <151970525871.26729.7716403687659267945.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <151970519370.26729.1011551137381425076.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <151970519370.26729.1011551137381425076.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (Google Transport Security);
+        Mon, 26 Feb 2018 22:59:26 -0800 (PST)
+Date: Tue, 27 Feb 2018 07:59:22 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [v2 1/1] xen, mm: Allow deferred page initialization for xen pv
+ domains
+Message-ID: <20180227065922.u6y7bcx3pwyags2u@gmail.com>
+References: <20180226160112.24724-1-pasha.tatashin@oracle.com>
+ <20180226160112.24724-2-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180226160112.24724-2-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: Haozhong Zhang <haozhong.zhang@intel.com>, Michal Hocko <mhocko@suse.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, jgross@suse.com, akataria@vmware.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, boris.ostrovsky@oracle.com, akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, luto@kernel.org, labbott@redhat.com, kirill.shutemov@linux.intel.com, bp@suse.de, minipli@googlemail.com, jinb.park7@gmail.com, dan.j.williams@intel.com, bhe@redhat.com, zhang.jia@linux.alibaba.com, mgorman@techsingularity.net, hannes@cmpxchg.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org
 
-Filesystem-DAX is incompatible with 'longterm' page pinning. Without
-page cache indirection a DAX mapping maps filesystem blocks directly.
-This means that the filesystem must not modify a file's block map while
-any page in a mapping is pinned. In order to prevent the situation of
-userspace holding of filesystem operations indefinitely, disallow
-'longterm' Filesystem-DAX mappings.
 
-RDMA has the same conflict and the plan there is to add a 'with lease'
-mechanism to allow the kernel to notify userspace that the mapping is
-being torn down for block-map maintenance. Perhaps something similar can
-be put in place for vfio.
+* Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
 
-Note that xfs and ext4 still report:
+> Juergen Gross noticed that commit
+> f7f99100d8d ("mm: stop zeroing memory during allocation in vmemmap")
+> broke XEN PV domains when deferred struct page initialization is enabled.
+> 
+> This is because the xen's PagePinned() flag is getting erased from struct
+> pages when they are initialized later in boot.
+> 
+> Juergen fixed this problem by disabling deferred pages on xen pv domains.
+> It is desirable, however, to have this feature available as it reduces boot
+> time. This fix re-enables the feature for pv-dmains, and fixes the problem
+> the following way:
+> 
+> The fix is to delay setting PagePinned flag until struct pages for all
+> allocated memory are initialized, i.e. until after free_all_bootmem().
+> 
+> A new x86_init.hyper op init_after_bootmem() is called to let xen know
+> that boot allocator is done, and hence struct pages for all the allocated
+> memory are now initialized. If deferred page initialization is enabled, the
+> rest of struct pages are going to be initialized later in boot once
+> page_alloc_init_late() is called.
+> 
+> xen_after_bootmem() walks page table's pages and marks them pinned.
+> 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> ---
+>  arch/x86/include/asm/x86_init.h |  2 ++
+>  arch/x86/kernel/x86_init.c      |  1 +
+>  arch/x86/mm/init_32.c           |  1 +
+>  arch/x86/mm/init_64.c           |  1 +
+>  arch/x86/xen/mmu_pv.c           | 38 ++++++++++++++++++++++++++------------
+>  mm/page_alloc.c                 |  4 ----
+>  6 files changed, 31 insertions(+), 16 deletions(-)
 
-   "DAX enabled. Warning: EXPERIMENTAL, use at your own risk"
+Acked-by: Ingo Molnar <mingo@kernel.org>
 
-...at mount time, and resolving the dax-dma-vs-truncate problem is one
-of the last hurdles to remove that designation.
+Thanks,
 
-Acked-by: Alex Williamson <alex.williamson@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: kvm@vger.kernel.org
-Cc: <stable@vger.kernel.org>
-Reported-by: Haozhong Zhang <haozhong.zhang@intel.com>
-Fixes: d475c6346a38 ("dax,ext2: replace XIP read and write with DAX I/O")
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/vfio/vfio_iommu_type1.c |   18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
-
-diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-index e30e29ae4819..45657e2b1ff7 100644
---- a/drivers/vfio/vfio_iommu_type1.c
-+++ b/drivers/vfio/vfio_iommu_type1.c
-@@ -338,11 +338,12 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
- {
- 	struct page *page[1];
- 	struct vm_area_struct *vma;
-+	struct vm_area_struct *vmas[1];
- 	int ret;
- 
- 	if (mm == current->mm) {
--		ret = get_user_pages_fast(vaddr, 1, !!(prot & IOMMU_WRITE),
--					  page);
-+		ret = get_user_pages_longterm(vaddr, 1, !!(prot & IOMMU_WRITE),
-+					      page, vmas);
- 	} else {
- 		unsigned int flags = 0;
- 
-@@ -351,7 +352,18 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
- 
- 		down_read(&mm->mmap_sem);
- 		ret = get_user_pages_remote(NULL, mm, vaddr, 1, flags, page,
--					    NULL, NULL);
-+					    vmas, NULL);
-+		/*
-+		 * The lifetime of a vaddr_get_pfn() page pin is
-+		 * userspace-controlled. In the fs-dax case this could
-+		 * lead to indefinite stalls in filesystem operations.
-+		 * Disallow attempts to pin fs-dax pages via this
-+		 * interface.
-+		 */
-+		if (ret > 0 && vma_is_fsdax(vmas[0])) {
-+			ret = -EOPNOTSUPP;
-+			put_page(page[0]);
-+		}
- 		up_read(&mm->mmap_sem);
- 	}
- 
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
