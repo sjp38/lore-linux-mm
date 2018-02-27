@@ -1,54 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 726B26B0005
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 03:14:48 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id f15so7592105wmd.1
-        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 00:14:48 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a17sor4847485eda.6.2018.02.27.00.14.46
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A0206B0006
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 03:20:04 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id g127so14748452qkc.14
+        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 00:20:04 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id w198si4758968qkw.123.2018.02.27.00.20.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Feb 2018 00:14:46 -0800 (PST)
-Date: Tue, 27 Feb 2018 11:14:37 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 2/5] x86/boot/compressed/64: Find a place for 32-bit
- trampoline
-Message-ID: <20180227081437.epg5tmhg7gfzunwp@node.shutemov.name>
-References: <20180226180451.86788-1-kirill.shutemov@linux.intel.com>
- <20180226180451.86788-3-kirill.shutemov@linux.intel.com>
- <20180226223038.GI14140@pd.tnic>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180226223038.GI14140@pd.tnic>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Feb 2018 00:20:03 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1R8JGMe144861
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 03:20:02 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2gd23c3xhb-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 03:20:02 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 27 Feb 2018 08:20:00 -0000
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH 0/3] userfaultfd: non-cooperative: syncronous events
+Date: Tue, 27 Feb 2018 10:19:49 +0200
+Message-Id: <1519719592-22668-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, linux-api <linux-api@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, crml <criu@openvz.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Mon, Feb 26, 2018 at 11:30:38PM +0100, Borislav Petkov wrote:
-> On Mon, Feb 26, 2018 at 09:04:48PM +0300, Kirill A. Shutemov wrote:
-> > +++ b/arch/x86/boot/compressed/pgtable.h
-> > @@ -0,0 +1,11 @@
-> > +#ifndef BOOT_COMPRESSED_PAGETABLE_H
-> > +#define BOOT_COMPRESSED_PAGETABLE_H
-> > +
-> > +#define TRAMPOLINE_32BIT_SIZE		(2 * PAGE_SIZE)
-> > +
-> > +#ifndef __ASSEMBLER__
-> 
-> x86 uses __ASSEMBLY__ everywhere and I see
-> 
-> arch/x86/boot/compressed/Makefile:41:KBUILD_AFLAGS  := $(KBUILD_CFLAGS) -D__ASSEMBLY__
-> 
-> so it should work here too.
-> 
-> Even though __ASSEMBLER__ is gcc predefined.
+Hi,
 
-Okay, I'll fix this.
+These patches add ability to generate userfaultfd events so that their
+processing will be synchronized with the non-cooperative thread that caused
+the event.
+
+In the non-cooperative case userfaultfd resumes execution of the thread
+that caused an event when the notification is read() by the uffd monitor.
+In some cases, like, for example, madvise(MADV_REMOVE), it might be
+desirable to keep the thread that caused the event suspended until the
+uffd monitor had the event handled to avoid races between the thread that
+caused the and userfaultfd ioctls.
+
+Theses patches extend the userfaultfd API with an implementation of
+UFFD_EVENT_REMOVE_SYNC that allows to keep the thread that triggered
+UFFD_EVENT_REMOVE until the uffd monitor would not wake it explicitly.
+
+Mike Rapoport (3):
+  userfaultfd: introduce userfaultfd_init_waitqueue helper
+  userfaultfd: non-cooperative: generalize wake key structure
+  userfaultfd: non-cooperative: allow synchronous EVENT_REMOVE
+
+ fs/userfaultfd.c                 | 191 +++++++++++++++++++++++++++++----------
+ include/uapi/linux/userfaultfd.h |  14 +++
+ 2 files changed, 158 insertions(+), 47 deletions(-)
 
 -- 
- Kirill A. Shutemov
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
