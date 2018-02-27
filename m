@@ -1,81 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CED46B0007
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 22:16:10 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id t2so8597745plr.15
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 19:16:10 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id u3si6371622pgr.447.2018.02.26.19.16.09
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EB836B0007
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 23:29:02 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id m6so8670350plt.14
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 20:29:02 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id c23-v6si3711208plz.794.2018.02.26.20.29.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 19:16:09 -0800 (PST)
-Date: Tue, 27 Feb 2018 11:17:07 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v3 2/3] mm/free_pcppages_bulk: do not hold lock when
- picking pages to free
-Message-ID: <20180227031707.GB28977@intel.com>
-References: <20180226135346.7208-1-aaron.lu@intel.com>
- <20180226135346.7208-3-aaron.lu@intel.com>
- <alpine.DEB.2.20.1802261352160.135844@chino.kir.corp.google.com>
- <20180227020058.GB9141@intel.com>
+        Mon, 26 Feb 2018 20:29:01 -0800 (PST)
+Subject: [PATCH v4 00/12] vfio,
+ dax: prevent long term filesystem-dax pins and other fixes
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 26 Feb 2018 20:19:54 -0800
+Message-ID: <151970519370.26729.1011551137381425076.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180227020058.GB9141@intel.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>
+To: linux-nvdimm@lists.01.org
+Cc: Jane Chu <jane.chu@oracle.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, kvm@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "supporter:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, Gerd Rausch <gerd.rausch@oracle.com>, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
-On Tue, Feb 27, 2018 at 10:00:58AM +0800, Aaron Lu wrote:
-> On Mon, Feb 26, 2018 at 01:53:10PM -0800, David Rientjes wrote:
-> > On Mon, 26 Feb 2018, Aaron Lu wrote:
-> > 
-> > > @@ -1144,26 +1142,31 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-> > >  			batch_free = count;
-> > >  
-> > >  		do {
-> > > -			int mt;	/* migratetype of the to-be-freed page */
-> > > -
-> > >  			page = list_last_entry(list, struct page, lru);
-> > >  			/* must delete as __free_one_page list manipulates */
-> > 
-> > Looks good in general, but I'm not sure how I reconcile this comment with 
-> > the new implementation that later links page->lru again.
-> 
-> Thanks for pointing this out.
-> 
-> I think the comment is useless now since there is a list_add_tail right
-> below so it's obvious we need to take the page off its original list.
-> I'll remove the comment in an update.
+The following series implements...
+Changes since v3 [1]:
 
-Thinking again, I think I'll change the comment to:
+* Kill IS_DAX() in favor of explicit IS_FSDAX() and IS_DEVDAX() helpers.
+  Jan noted, "having IS_DAX() and IS_FSDAX() doing almost the same, just
+  not exactly the same, is IMHO a recipe for confusion", and I agree. A
+  nice side effect of this elimination is a cleanup to remove occasions of
+  "#ifdef CONFIG_FS_DAX" in C files, it is all moved to header files
+  now. (Jan)
 
--			/* must delete as __free_one_page list manipulates */
-+			/* must delete to avoid corrupting pcp list */
- 			list_del(&page->lru);
- 			pcp->count--;
- 
-Meanwhile, I'll add one more comment about why list_for_each_entry_safe
-is used:
+---
 
-+	/*
-+	 * Use safe version since after __free_one_page(),
-+	 * page->lru.next will not point to original list.
-+	 */
-+	list_for_each_entry_safe(page, tmp, &head, lru) {
-+		int mt = get_pcppage_migratetype(page);
-+		/* MIGRATE_ISOLATE page should not go to pcplists */
-+		VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
-+		/* Pageblock could have been isolated meanwhile */
-+		if (unlikely(isolated_pageblocks))
-+			mt = get_pageblock_migratetype(page);
-+
-+		__free_one_page(page, page_to_pfn(page), zone, 0, mt);
-+		trace_mm_page_pcpu_drain(page, 0, mt);
-+	}
- 	spin_unlock(&zone->lock);
- }
+The vfio interface, like RDMA, wants to setup long term (indefinite)
+pins of the pages backing an address range so that a guest or userspace
+driver can perform DMA to the with physical address. Given that this
+pinning may lead to filesystem operations deadlocking in the
+filesystem-dax case, the pinning request needs to be rejected.
+
+The longer term fix for vfio, RDMA, and any other long term pin user, is
+to provide a 'pin with lease' mechanism. Similar to the leases that are
+hold for pNFS RDMA layouts, this userspace lease gives the kernel a way
+to notify userspace that the block layout of the file is changing and
+the kernel is revoking access to pinned pages.
+
+Related to this change is the discovery that vma_is_fsdax() was causing
+device-dax inode detection to fail. That lead to series of fixes and
+cleanups to make sure that S_DAX is defined correctly in the
+CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y case.
+
+---
+
+Dan Williams (12):
+      dax: fix vma_is_fsdax() helper
+      dax: introduce IS_DEVDAX() and IS_FSDAX()
+      ext2, dax: finish implementing dax_sem helpers
+      ext2, dax: define ext2_dax_*() infrastructure in all cases
+      ext4, dax: define ext4_dax_*() infrastructure in all cases
+      ext2, dax: replace IS_DAX() with IS_FSDAX()
+      ext4, dax: replace IS_DAX() with IS_FSDAX()
+      xfs, dax: replace IS_DAX() with IS_FSDAX()
+      mm, dax: replace IS_DAX() with IS_DEVDAX() or IS_FSDAX()
+      fs, dax: kill IS_DAX()
+      dax: fix S_DAX definition
+      vfio: disable filesystem-dax page pinning
+
+
+ drivers/vfio/vfio_iommu_type1.c |   18 ++++++++++++++--
+ fs/ext2/ext2.h                  |    6 +++++
+ fs/ext2/file.c                  |   19 +++++------------
+ fs/ext2/inode.c                 |   10 ++++-----
+ fs/ext4/file.c                  |   18 +++++-----------
+ fs/ext4/inode.c                 |    4 ++--
+ fs/ext4/ioctl.c                 |    2 +-
+ fs/ext4/super.c                 |    2 +-
+ fs/iomap.c                      |    2 +-
+ fs/xfs/xfs_file.c               |   14 ++++++-------
+ fs/xfs/xfs_ioctl.c              |    4 ++--
+ fs/xfs/xfs_iomap.c              |    6 +++--
+ fs/xfs/xfs_reflink.c            |    2 +-
+ include/linux/dax.h             |   12 ++++++++---
+ include/linux/fs.h              |   43 ++++++++++++++++++++++++++++-----------
+ mm/fadvise.c                    |    3 ++-
+ mm/filemap.c                    |    4 ++--
+ mm/huge_memory.c                |    4 +++-
+ mm/madvise.c                    |    3 ++-
+ 19 files changed, 102 insertions(+), 74 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
