@@ -1,71 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BF416B0005
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 01:59:28 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id p2so7262969wre.19
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 22:59:28 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 32sor4684052wrm.64.2018.02.26.22.59.26
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B16326B0007
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 02:10:32 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id x30so6776176qtm.0
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 23:10:32 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id s66si3263020qkf.380.2018.02.26.23.10.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Feb 2018 22:59:26 -0800 (PST)
-Date: Tue, 27 Feb 2018 07:59:22 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [v2 1/1] xen, mm: Allow deferred page initialization for xen pv
- domains
-Message-ID: <20180227065922.u6y7bcx3pwyags2u@gmail.com>
-References: <20180226160112.24724-1-pasha.tatashin@oracle.com>
- <20180226160112.24724-2-pasha.tatashin@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Feb 2018 23:10:31 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1R78rKY043139
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 02:10:31 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2gcwfe2k6m-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 02:10:31 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 27 Feb 2018 07:10:28 -0000
+Date: Tue, 27 Feb 2018 09:10:20 +0200
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [OMPI devel] [PATCH v5 0/4] vm: add a syscall to map a process
+ memory into a pipe
+References: <1515479453-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180220164406.3ec34509376f16841dc66e34@linux-foundation.org>
+ <3122ec5a-7f73-f6b4-33ea-8c10ef32e5b0@virtuozzo.com>
+ <B9A6330F-48FE-4260-A505-3FF043874F0F@me.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180226160112.24724-2-pasha.tatashin@oracle.com>
+In-Reply-To: <B9A6330F-48FE-4260-A505-3FF043874F0F@me.com>
+Message-Id: <20180227071020.GA24633@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, jgross@suse.com, akataria@vmware.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, boris.ostrovsky@oracle.com, akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, luto@kernel.org, labbott@redhat.com, kirill.shutemov@linux.intel.com, bp@suse.de, minipli@googlemail.com, jinb.park7@gmail.com, dan.j.williams@intel.com, bhe@redhat.com, zhang.jia@linux.alibaba.com, mgorman@techsingularity.net, hannes@cmpxchg.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org
+To: Nathan Hjelm <hjelmn@me.com>
+Cc: Open MPI Developers <devel@lists.open-mpi.org>, Andrei Vagin <avagin@openvz.org>, Arnd Bergmann <arnd@arndb.de>, Jann Horn <jannh@google.com>, rr-dev@mozilla.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Josh Triplett <josh@joshtriplett.org>, criu@openvz.org, linux-mm@kvack.org, gdb@sourceware.org, Alexander Viro <viro@zeniv.linux.org.uk>, Greg KH <gregkh@linuxfoundation.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Michael Kerrisk <mtk.manpages@gmail.com>
 
+On Mon, Feb 26, 2018 at 09:38:19AM -0700, Nathan Hjelm wrote:
+> All MPI implementations have support for using CMA to transfer data
+> between local processes. The performance is fairly good (not as good as
+> XPMEM) but the interface limits what we can do with to remote process
+> memory (no atomics). I have not heard about this new proposal. What is
+> the benefit of the proposed calls over the existing calls?
 
-* Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+The proposed system call call that combines functionality of
+process_vm_read and vmsplice [1] and it's particularly useful when one
+needs to read the remote process memory and then write it to a file
+descriptor. In this case a sequence of process_vm_read() + write() calls
+that involves two copies of data can be replaced with process_vm_splice() +
+splice() which does not involve copy at all.
 
-> Juergen Gross noticed that commit
-> f7f99100d8d ("mm: stop zeroing memory during allocation in vmemmap")
-> broke XEN PV domains when deferred struct page initialization is enabled.
+[1] https://lkml.org/lkml/2018/1/9/32
+ 
+> -Nathan
 > 
-> This is because the xen's PagePinned() flag is getting erased from struct
-> pages when they are initialized later in boot.
-> 
-> Juergen fixed this problem by disabling deferred pages on xen pv domains.
-> It is desirable, however, to have this feature available as it reduces boot
-> time. This fix re-enables the feature for pv-dmains, and fixes the problem
-> the following way:
-> 
-> The fix is to delay setting PagePinned flag until struct pages for all
-> allocated memory are initialized, i.e. until after free_all_bootmem().
-> 
-> A new x86_init.hyper op init_after_bootmem() is called to let xen know
-> that boot allocator is done, and hence struct pages for all the allocated
-> memory are now initialized. If deferred page initialization is enabled, the
-> rest of struct pages are going to be initialized later in boot once
-> page_alloc_init_late() is called.
-> 
-> xen_after_bootmem() walks page table's pages and marks them pinned.
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> ---
->  arch/x86/include/asm/x86_init.h |  2 ++
->  arch/x86/kernel/x86_init.c      |  1 +
->  arch/x86/mm/init_32.c           |  1 +
->  arch/x86/mm/init_64.c           |  1 +
->  arch/x86/xen/mmu_pv.c           | 38 ++++++++++++++++++++++++++------------
->  mm/page_alloc.c                 |  4 ----
->  6 files changed, 31 insertions(+), 16 deletions(-)
+> > On Feb 26, 2018, at 2:02 AM, Pavel Emelyanov <xemul@virtuozzo.com> wrote:
+> > 
+> > On 02/21/2018 03:44 AM, Andrew Morton wrote:
+> >> On Tue,  9 Jan 2018 08:30:49 +0200 Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> >> 
+> >>> This patches introduces new process_vmsplice system call that combines
+> >>> functionality of process_vm_read and vmsplice.
+> >> 
+> >> All seems fairly strightforward.  The big question is: do we know that
+> >> people will actually use this, and get sufficient value from it to
+> >> justify its addition?
+> > 
+> > Yes, that's what bothers us a lot too :) I've tried to start with finding out if anyone
+> > used the sys_read/write_process_vm() calls, but failed :( Does anybody know how popular
+> > these syscalls are? If its users operate on big amount of memory, they could benefit from
+> > the proposed splice extension.
+> > 
+> > -- Pavel
 
-Acked-by: Ingo Molnar <mingo@kernel.org>
-
-Thanks,
-
-	Ingo
+-- 
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
