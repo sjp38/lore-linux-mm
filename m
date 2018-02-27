@@ -1,44 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0019F6B0003
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 16:31:43 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id t123so339335wmt.2
-        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 13:31:43 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k9sor50482wrh.87.2018.02.27.13.31.42
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Feb 2018 13:31:42 -0800 (PST)
-Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
-References: <20180227131338.3699-1-blackzert@gmail.com>
- <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
-From: lazytyped <lazytyped@gmail.com>
-Message-ID: <089e9c52-f623-085a-4d8b-d91cfc6a3608@gmail.com>
-Date: Tue, 27 Feb 2018 22:31:38 +0100
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AAEE6B0003
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 17:23:51 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id 4-v6so206861plb.1
+        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 14:23:51 -0800 (PST)
+Received: from ipmail03.adl2.internode.on.net (ipmail03.adl2.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id l29-v6si169244pli.25.2018.02.27.14.23.48
+        for <linux-mm@kvack.org>;
+        Tue, 27 Feb 2018 14:23:49 -0800 (PST)
+Date: Wed, 28 Feb 2018 09:23:45 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v4 00/12] vfio, dax: prevent long term filesystem-dax
+ pins and other fixes
+Message-ID: <20180227222345.GK30854@dastard>
+References: <151970519370.26729.1011551137381425076.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <151970519370.26729.1011551137381425076.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Ilya Smith <blackzert@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, Jane Chu <jane.chu@oracle.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, kvm@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "supporter:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, linux-mm@kvack.org, Alex Williamson <alex.williamson@redhat.com>, Gerd Rausch <gerd.rausch@oracle.com>, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
+On Mon, Feb 26, 2018 at 08:19:54PM -0800, Dan Williams wrote:
+> The following series implements...
+> Changes since v3 [1]:
+> 
+> * Kill IS_DAX() in favor of explicit IS_FSDAX() and IS_DEVDAX() helpers.
+>   Jan noted, "having IS_DAX() and IS_FSDAX() doing almost the same, just
+>   not exactly the same, is IMHO a recipe for confusion", and I agree. A
+>   nice side effect of this elimination is a cleanup to remove occasions of
+>   "#ifdef CONFIG_FS_DAX" in C files, it is all moved to header files
+>   now. (Jan)
 
+Dan, can you please stop sending random patches in a patch set to
+random lists?  Your patchsets are hitting 4 or 5 different procmail
+filters here and so it gets split across several different mailing
+list buckets. It's really annoying to have to go reconstruct every
+patch set you send back into a single series in a single bucket....
 
-On 2/27/18 9:52 PM, Kees Cook wrote:
-> I'd like more details on the threat model here; if it's just a matter
-> of .so loading order, I wonder if load order randomization would get a
-> comparable level of uncertainty without the memory fragmentation,
+Can you please fix up your patch set sending again?
 
-This also seems to assume that leaking the address of one single library
-isn't enough to mount a ROP attack to either gain enough privileges or
-generate a primitive that can leak further information. Is this really
-the case? Do you have some further data around this?
-
-
-A A A A A A  -A  twiz
+-Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
