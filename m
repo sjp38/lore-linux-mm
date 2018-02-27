@@ -1,90 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B79656B0009
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 21:00:01 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id 6so8479659plf.6
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 18:00:01 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id c3-v6si2298918pld.466.2018.02.26.18.00.00
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 50EBB6B0009
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 21:14:01 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id b17so1415869otf.2
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 18:14:01 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w18sor4432123oti.36.2018.02.26.18.14.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 18:00:00 -0800 (PST)
-Date: Tue, 27 Feb 2018 10:00:58 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v3 2/3] mm/free_pcppages_bulk: do not hold lock when
- picking pages to free
-Message-ID: <20180227020058.GB9141@intel.com>
-References: <20180226135346.7208-1-aaron.lu@intel.com>
- <20180226135346.7208-3-aaron.lu@intel.com>
- <alpine.DEB.2.20.1802261352160.135844@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Mon, 26 Feb 2018 18:14:00 -0800 (PST)
+Subject: Re: [PATCH] mm: Provide consistent declaration for num_poisoned_pages
+References: <1519686565-8224-1-git-send-email-linux@roeck-us.net>
+ <alpine.DEB.2.20.1802261556420.236524@chino.kir.corp.google.com>
+From: Guenter Roeck <linux@roeck-us.net>
+Message-ID: <262450c2-778a-fb12-1af3-aa52d03121c8@roeck-us.net>
+Date: Mon, 26 Feb 2018 18:13:57 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1802261352160.135844@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.20.1802261556420.236524@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>
 
-On Mon, Feb 26, 2018 at 01:53:10PM -0800, David Rientjes wrote:
-> On Mon, 26 Feb 2018, Aaron Lu wrote:
+On 02/26/2018 03:57 PM, David Rientjes wrote:
+> On Mon, 26 Feb 2018, Guenter Roeck wrote:
 > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 3154859cccd6..35576da0a6c9 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1116,13 +1116,11 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-> >  	int migratetype = 0;
-> >  	int batch_free = 0;
-> >  	bool isolated_pageblocks;
-> > +	struct page *page, *tmp;
-> > +	LIST_HEAD(head);
-> >  
-> >  	pcp->count -= count;
-> > -	spin_lock(&zone->lock);
-> > -	isolated_pageblocks = has_isolate_pageblock(zone);
-> > -
-> >  	while (count) {
-> > -		struct page *page;
-> >  		struct list_head *list;
-> >  
-> >  		/*
-> > @@ -1144,26 +1142,31 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-> >  			batch_free = count;
-> >  
-> >  		do {
-> > -			int mt;	/* migratetype of the to-be-freed page */
-> > -
-> >  			page = list_last_entry(list, struct page, lru);
-> >  			/* must delete as __free_one_page list manipulates */
+>> clang reports the following compile warning.
+>>
+>> In file included from mm/vmscan.c:56:
+>> ./include/linux/swapops.h:327:22: warning:
+>> 	section attribute is specified on redeclared variable [-Wsection]
+>> extern atomic_long_t num_poisoned_pages __read_mostly;
+>>                       ^
+>> ./include/linux/mm.h:2585:22: note: previous declaration is here
+>> extern atomic_long_t num_poisoned_pages;
+>>                       ^
+>>
+>> Let's use __read_mostly everywhere.
+>>
+>> Signed-off-by: Guenter Roeck <linux@roeck-us.net>
+>> Cc: Matthias Kaehlcke <mka@chromium.org>
+>> ---
+>>   include/linux/mm.h | 2 +-
+>>   1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index ad06d42adb1a..bd4bd59f02c1 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -2582,7 +2582,7 @@ extern int get_hwpoison_page(struct page *page);
+>>   extern int sysctl_memory_failure_early_kill;
+>>   extern int sysctl_memory_failure_recovery;
+>>   extern void shake_page(struct page *p, int access);
+>> -extern atomic_long_t num_poisoned_pages;
+>> +extern atomic_long_t num_poisoned_pages __read_mostly;
+>>   extern int soft_offline_page(struct page *page, int flags);
+>>   
+>>   
 > 
-> Looks good in general, but I'm not sure how I reconcile this comment with 
-> the new implementation that later links page->lru again.
+> No objection to the patch, of course, but I'm wondering if it's (1) the
+> only such clang compile warning for mm/, and (2) if the re-declaration in
 
-Thanks for pointing this out.
+It is the only one I recall seeing in mm/ while testing the clang/retpoline
+changes with ToT clang 7.0.0, but then I didn't pay too close attention.
 
-I think the comment is useless now since there is a list_add_tail right
-below so it's obvious we need to take the page off its original list.
-I'll remove the comment in an update.
-
+> mm.h could be avoided by including swapops.h?
 > 
-> >  			list_del(&page->lru);
-> >  
-> > -			mt = get_pcppage_migratetype(page);
-> > -			/* MIGRATE_ISOLATE page should not go to pcplists */
-> > -			VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
-> > -			/* Pageblock could have been isolated meanwhile */
-> > -			if (unlikely(isolated_pageblocks))
-> > -				mt = get_pageblock_migratetype(page);
-> > -
-> >  			if (bulkfree_pcp_prepare(page))
-> >  				continue;
-> >  
-> > -			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
-> > -			trace_mm_page_pcpu_drain(page, 0, mt);
-> > +			list_add_tail(&page->lru, &head);
-> >  		} while (--count && --batch_free && !list_empty(list));
-> >  	}
+
+Another alternative would be to remove the extern fom swapops.h and have
+swapops.h include mm.h instead. I chose the least invasive change since
+I didn't want to risk breaking some other build (after all, maybe there
+was a reason for declaring num_poisoned_pages in two include files).
+
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
