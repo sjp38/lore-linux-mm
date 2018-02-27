@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CD086B0005
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 10:42:30 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id e1so10412840pfi.10
-        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 07:42:30 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id p18-v6si8608141plo.388.2018.02.27.07.42.28
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E3BB76B000D
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 10:42:33 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id x2so9458307plv.16
+        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 07:42:33 -0800 (PST)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id d6si7171670pgu.400.2018.02.27.07.42.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Feb 2018 07:42:28 -0800 (PST)
+        Tue, 27 Feb 2018 07:42:32 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 2/5] x86/boot/compressed/64: Find a place for 32-bit trampoline
-Date: Tue, 27 Feb 2018 18:42:14 +0300
-Message-Id: <20180227154217.69347-3-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 5/5] x86/boot/compressed/64: Prepare new top-level page table for trampoline
+Date: Tue, 27 Feb 2018 18:42:17 +0300
+Message-Id: <20180227154217.69347-6-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180227154217.69347-1-kirill.shutemov@linux.intel.com>
 References: <20180227154217.69347-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,136 +20,116 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-If a bootloader enables 64-bit mode with 4-level paging, we might need to
-switch over to 5-level paging. The switching requires the disabling of
-paging, which works fine if kernel itself is loaded below 4G.
+If trampoline code would need to switch between 4- and 5-level paging
+modes, we have to use a page table in trampoline memory.
 
-But if the bootloader puts the kernel above 4G (not sure if anybody does
-this), we would lose control as soon as paging is disabled, because the
-code becomes unreachable to the CPU.
+Having it in trampoline memory guarantees that it's below 4G and we can
+point CR3 to it from 32-bit trampoline code.
 
-To handle the situation, we need a trampoline in lower memory that would
-take care of switching on 5-level paging.
+We only use the page table if the desired paging mode doesn't match the
+mode we are in. Otherwise the page table is unused and trampoline code
+wouldn't touch CR3.
 
-This patch finds a spot in low memory for a trampoline.
+For 4- to 5-level paging transition, we set up current (4-level paging)
+CR3 as the first and the only entry in a new top-level page table.
 
-The heuristic is based on code in reserve_bios_regions().
+For 5- to 4-level paging transition, copy page table pointed by first
+entry in the current top-level page table as our new top-level page
+table.
 
-We find the end of low memory based on BIOS and EBDA start addresses.
-The trampoline is put just before end of low memory. It's mimic approach
-taken to allocate memory for realtime trampoline.
+If the page table is used by trampoline we would need to copy it to new
+page table outside trampoline and update CR3 before restoring trampoline
+memory.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Borislav Petkov <bp@suse.de>
 ---
- arch/x86/boot/compressed/misc.c       |  4 ++++
- arch/x86/boot/compressed/pgtable.h    | 11 +++++++++++
- arch/x86/boot/compressed/pgtable_64.c | 34 ++++++++++++++++++++++++++++++++++
- 3 files changed, 49 insertions(+)
- create mode 100644 arch/x86/boot/compressed/pgtable.h
+ arch/x86/boot/compressed/pgtable_64.c | 61 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)
 
-diff --git a/arch/x86/boot/compressed/misc.c b/arch/x86/boot/compressed/misc.c
-index b50c42455e25..e58409667b13 100644
---- a/arch/x86/boot/compressed/misc.c
-+++ b/arch/x86/boot/compressed/misc.c
-@@ -14,6 +14,7 @@
- 
- #include "misc.h"
- #include "error.h"
-+#include "pgtable.h"
- #include "../string.h"
- #include "../voffset.h"
- 
-@@ -372,6 +373,9 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
- 	debug_putaddr(output_len);
- 	debug_putaddr(kernel_total_size);
- 
-+	/* Report address of 32-bit trampoline */
-+	debug_putaddr(trampoline_32bit);
-+
- 	/*
- 	 * The memory hole needed for the kernel is the larger of either
- 	 * the entire decompressed kernel plus relocation table, or the
-diff --git a/arch/x86/boot/compressed/pgtable.h b/arch/x86/boot/compressed/pgtable.h
-new file mode 100644
-index 000000000000..1895f345eb73
---- /dev/null
-+++ b/arch/x86/boot/compressed/pgtable.h
-@@ -0,0 +1,11 @@
-+#ifndef BOOT_COMPRESSED_PAGETABLE_H
-+#define BOOT_COMPRESSED_PAGETABLE_H
-+
-+#define TRAMPOLINE_32BIT_SIZE		(2 * PAGE_SIZE)
-+
-+#ifndef __ASSEMBLY__
-+
-+extern unsigned long *trampoline_32bit;
-+
-+#endif /* __ASSEMBLY__ */
-+#endif /* BOOT_COMPRESSED_PAGETABLE_H */
 diff --git a/arch/x86/boot/compressed/pgtable_64.c b/arch/x86/boot/compressed/pgtable_64.c
-index 45c76eff2718..21d5cc1cd5fa 100644
+index 810c2c32d98e..32af1cbcd903 100644
 --- a/arch/x86/boot/compressed/pgtable_64.c
 +++ b/arch/x86/boot/compressed/pgtable_64.c
-@@ -1,4 +1,5 @@
- #include <asm/processor.h>
-+#include "pgtable.h"
- 
- /*
-  * __force_order is used by special_insns.h asm code to force instruction
-@@ -9,14 +10,27 @@
-  */
- unsigned long __force_order;
- 
-+#define BIOS_START_MIN		0x20000U	/* 128K, less than this is insane */
-+#define BIOS_START_MAX		0x9f000U	/* 640K, absolute maximum */
-+
- struct paging_config {
- 	unsigned long trampoline_start;
- 	unsigned long l5_required;
- };
+@@ -22,6 +22,14 @@ struct paging_config {
+ /* Buffer to preserve trampoline memory */
+ static char trampoline_save[TRAMPOLINE_32BIT_SIZE];
  
 +/*
-+ * Trampoline address will be printed by extract_kernel() for debugging
-+ * purposes.
++ * The page table is going to be used instead of page table in the trampoline
++ * memory.
 + *
-+ * Avoid putting the pointer into .bss as it will be cleared between
-+ * paging_prepare() and extract_kernel().
++ * It must not be in BSS as BSS is cleared after cleanup_trampoline().
 + */
-+unsigned long *trampoline_32bit __section(.data);
++static char top_pgtable[PAGE_SIZE] __aligned(PAGE_SIZE) __section(.data);
 +
- struct paging_config paging_prepare(void)
- {
- 	struct paging_config paging_config = {};
-+	unsigned long bios_start, ebda_start;
- 
- 	/*
- 	 * Check if LA57 is desired and supported.
-@@ -35,5 +49,25 @@ struct paging_config paging_prepare(void)
- 		paging_config.l5_required = 1;
- 	}
+ /*
+  * Trampoline address will be printed by extract_kernel() for debugging
+  * purposes.
+@@ -83,11 +91,64 @@ struct paging_config paging_prepare(void)
+ 	memcpy(trampoline_32bit + TRAMPOLINE_32BIT_CODE_OFFSET / sizeof(unsigned long),
+ 			&trampoline_32bit_src, TRAMPOLINE_32BIT_CODE_SIZE);
  
 +	/*
-+	 * Find a suitable spot for the trampoline.
-+	 * This code is based on reserve_bios_regions().
++	 * The code below prepares page table in trampoline memory.
++	 *
++	 * The new page table will be used by trampoline code for switching
++	 * from 4- to 5-level paging or vice versa.
++	 *
++	 * If switching is not required, the page table is unused: trampoline
++	 * code wouldn't touch CR3.
 +	 */
 +
-+	ebda_start = *(unsigned short *)0x40e << 4;
-+	bios_start = *(unsigned short *)0x413 << 10;
++	/*
++	 * We are not going to use the page table in trampoline memory if we
++	 * are already in the desired paging mode.
++	 */
++	if (paging_config.l5_required == !!(native_read_cr4() & X86_CR4_LA57))
++		goto out;
 +
-+	if (bios_start < BIOS_START_MIN || bios_start > BIOS_START_MAX)
-+		bios_start = BIOS_START_MAX;
++	if (paging_config.l5_required) {
++		/*
++		 * For 4- to 5-level paging transition, set up current CR3 as
++		 * the first and the only entry in a new top-level page table.
++		 */
++		trampoline_32bit[TRAMPOLINE_32BIT_PGTABLE_OFFSET] = __native_read_cr3() | _PAGE_TABLE_NOENC;
++	} else {
++		unsigned long src;
 +
-+	if (ebda_start > BIOS_START_MIN && ebda_start < bios_start)
-+		bios_start = ebda_start;
++		/*
++		 * For 5- to 4-level paging transition, copy page table pointed
++		 * by first entry in the current top-level page table as our
++		 * new top-level page table.
++		 *
++		 * We cannot just point to the page table from trampoline as it
++		 * may be above 4G.
++		 */
++		src = *(unsigned long *)__native_read_cr3() & PAGE_MASK;
++		memcpy(trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET / sizeof(unsigned long),
++		       (void *)src, PAGE_SIZE);
++	}
 +
-+	/* Place the trampoline just below the end of low memory, aligned to 4k */
-+	paging_config.trampoline_start = bios_start - TRAMPOLINE_32BIT_SIZE;
-+	paging_config.trampoline_start = round_down(paging_config.trampoline_start, PAGE_SIZE);
-+
-+	trampoline_32bit = (unsigned long *)paging_config.trampoline_start;
-+
++out:
  	return paging_config;
+ }
+ 
+ void cleanup_trampoline(void)
+ {
++	void *trampoline_pgtable;
++
++	trampoline_pgtable = trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET;
++
++	/*
++	 * Move the top level page table out of trampoline memory,
++	 * if it's there.
++	 */
++	if ((void *)__native_read_cr3() == trampoline_pgtable) {
++		memcpy(top_pgtable, trampoline_pgtable, PAGE_SIZE);
++		native_write_cr3((unsigned long)top_pgtable);
++	}
++
+ 	/* Restore trampoline memory */
+ 	memcpy(trampoline_32bit, trampoline_save, TRAMPOLINE_32BIT_SIZE);
  }
 -- 
 2.16.1
