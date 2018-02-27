@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 213E26B0005
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 40F3C6B000A
 	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 10:42:30 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id s17so10349455pfm.23
+Received: by mail-pl0-f71.google.com with SMTP id x6so9448326plr.7
         for <linux-mm@kvack.org>; Tue, 27 Feb 2018 07:42:30 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id k194si7173163pgc.662.2018.02.27.07.42.28
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id h19si4271872pgn.310.2018.02.27.07.42.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 27 Feb 2018 07:42:28 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 3/5] x86/boot/compressed/64: Save and restore trampoline memory
-Date: Tue, 27 Feb 2018 18:42:15 +0300
-Message-Id: <20180227154217.69347-4-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 4/5] x86/boot/compressed/64: Set up trampoline memory
+Date: Tue, 27 Feb 2018 18:42:16 +0300
+Message-Id: <20180227154217.69347-5-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180227154217.69347-1-kirill.shutemov@linux.intel.com>
 References: <20180227154217.69347-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,78 +20,73 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The memory area we found for trampoline shouldn't contain anything
-useful. But let's preserve the data anyway. Just to be on safe side.
-
-paging_prepare() would save the data into a buffer.
-
-cleanup_trampoline() would restore it back once we are done with the
-trampoline.
+This patch clears up trampoline memory and copies trampoline code in
+place. It's not yet used though.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Borislav Petkov <bp@suse.de>
 ---
- arch/x86/boot/compressed/head_64.S    | 10 ++++++++++
- arch/x86/boot/compressed/pgtable_64.c | 13 +++++++++++++
- 2 files changed, 23 insertions(+)
+ arch/x86/boot/compressed/head_64.S    | 3 ++-
+ arch/x86/boot/compressed/pgtable.h    | 9 +++++++++
+ arch/x86/boot/compressed/pgtable_64.c | 7 +++++++
+ 3 files changed, 18 insertions(+), 1 deletion(-)
 
 diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
-index d598d65db32c..8ba0582c65d5 100644
+index 8ba0582c65d5..c813cb004056 100644
 --- a/arch/x86/boot/compressed/head_64.S
 +++ b/arch/x86/boot/compressed/head_64.S
-@@ -355,6 +355,16 @@ ENTRY(startup_64)
- 	lretq
- lvl5:
+@@ -501,8 +501,9 @@ relocated:
+ 	jmp	*%rax
  
-+	/*
-+	 * cleanup_trampoline() would restore trampoline memory.
-+	 *
-+	 * RSI holds real mode data and needs to be preserved across
-+	 * this function call.
-+	 */
-+	pushq	%rsi
-+	call	cleanup_trampoline
-+	popq	%rsi
+ 	.code32
++ENTRY(trampoline_32bit_src)
+ compatible_mode:
+-	/* Setup data and stack segments */
++	/* Set up data and stack segments */
+ 	movl	$__KERNEL_DS, %eax
+ 	movl	%eax, %ds
+ 	movl	%eax, %ss
+diff --git a/arch/x86/boot/compressed/pgtable.h b/arch/x86/boot/compressed/pgtable.h
+index 1895f345eb73..cfcb8beeac8f 100644
+--- a/arch/x86/boot/compressed/pgtable.h
++++ b/arch/x86/boot/compressed/pgtable.h
+@@ -3,9 +3,18 @@
+ 
+ #define TRAMPOLINE_32BIT_SIZE		(2 * PAGE_SIZE)
+ 
++#define TRAMPOLINE_32BIT_PGTABLE_OFFSET	0
 +
- 	/* Zero EFLAGS */
- 	pushq	$0
- 	popfq
++#define TRAMPOLINE_32BIT_CODE_OFFSET	PAGE_SIZE
++#define TRAMPOLINE_32BIT_CODE_SIZE	0x60
++
++#define TRAMPOLINE_32BIT_STACK_END	TRAMPOLINE_32BIT_SIZE
++
+ #ifndef __ASSEMBLY__
+ 
+ extern unsigned long *trampoline_32bit;
+ 
++extern void trampoline_32bit_src(void *return_ptr);
++
+ #endif /* __ASSEMBLY__ */
+ #endif /* BOOT_COMPRESSED_PAGETABLE_H */
 diff --git a/arch/x86/boot/compressed/pgtable_64.c b/arch/x86/boot/compressed/pgtable_64.c
-index 21d5cc1cd5fa..01d08d3e3e43 100644
+index 01d08d3e3e43..810c2c32d98e 100644
 --- a/arch/x86/boot/compressed/pgtable_64.c
 +++ b/arch/x86/boot/compressed/pgtable_64.c
-@@ -1,5 +1,6 @@
- #include <asm/processor.h>
- #include "pgtable.h"
-+#include "../string.h"
+@@ -76,6 +76,13 @@ struct paging_config paging_prepare(void)
+ 	/* Preserve trampoline memory */
+ 	memcpy(trampoline_save, trampoline_32bit, TRAMPOLINE_32BIT_SIZE);
  
- /*
-  * __force_order is used by special_insns.h asm code to force instruction
-@@ -18,6 +19,9 @@ struct paging_config {
- 	unsigned long l5_required;
- };
- 
-+/* Buffer to preserve trampoline memory */
-+static char trampoline_save[TRAMPOLINE_32BIT_SIZE];
++	/* Clear trampoline memory first */
++	memset(trampoline_32bit, 0, TRAMPOLINE_32BIT_SIZE);
 +
- /*
-  * Trampoline address will be printed by extract_kernel() for debugging
-  * purposes.
-@@ -69,5 +73,14 @@ struct paging_config paging_prepare(void)
- 
- 	trampoline_32bit = (unsigned long *)paging_config.trampoline_start;
- 
-+	/* Preserve trampoline memory */
-+	memcpy(trampoline_save, trampoline_32bit, TRAMPOLINE_32BIT_SIZE);
++	/* Copy trampoline code in place */
++	memcpy(trampoline_32bit + TRAMPOLINE_32BIT_CODE_OFFSET / sizeof(unsigned long),
++			&trampoline_32bit_src, TRAMPOLINE_32BIT_CODE_SIZE);
 +
  	return paging_config;
  }
-+
-+void cleanup_trampoline(void)
-+{
-+	/* Restore trampoline memory */
-+	memcpy(trampoline_32bit, trampoline_save, TRAMPOLINE_32BIT_SIZE);
-+}
+ 
 -- 
 2.16.1
 
