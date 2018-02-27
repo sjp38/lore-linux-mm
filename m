@@ -1,86 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 341866B0005
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 21:18:21 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id h191so1937346lfg.18
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 18:18:21 -0800 (PST)
-Received: from vmicros1.altlinux.org (vmicros1.altlinux.org. [194.107.17.57])
-        by mx.google.com with ESMTP id t199si4539512lff.456.2018.02.26.18.18.19
-        for <linux-mm@kvack.org>;
-        Mon, 26 Feb 2018 18:18:19 -0800 (PST)
-Date: Tue, 27 Feb 2018 05:18:18 +0300
-From: "Dmitry V. Levin" <ldv@altlinux.org>
-Subject: Re: [PATCH v5 0/4] vm: add a syscall to map a process memory into a
- pipe
-Message-ID: <20180227021818.GA31386@altlinux.org>
-References: <1515479453-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180220164406.3ec34509376f16841dc66e34@linux-foundation.org>
- <3122ec5a-7f73-f6b4-33ea-8c10ef32e5b0@virtuozzo.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 01C686B0007
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 22:11:49 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id c83so2803441pfk.5
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 19:11:48 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 33-v6si7735941pls.710.2018.02.26.19.11.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Feb 2018 19:11:47 -0800 (PST)
+Date: Tue, 27 Feb 2018 11:12:44 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [PATCH v3 1/3] mm/free_pcppages_bulk: update pcp->count inside
+Message-ID: <20180227031244.GA28977@intel.com>
+References: <20180226135346.7208-1-aaron.lu@intel.com>
+ <20180226135346.7208-2-aaron.lu@intel.com>
+ <alpine.DEB.2.20.1802261345550.135844@chino.kir.corp.google.com>
+ <20180227015613.GA9141@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="Nq2Wo0NMKNjxTN9z"
-Content-Disposition: inline
-In-Reply-To: <3122ec5a-7f73-f6b4-33ea-8c10ef32e5b0@virtuozzo.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, criu@openvz.org, gdb@sourceware.org, devel@lists.open-mpi.org, rr-dev@mozilla.org, Arnd Bergmann <arnd@arndb.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Greg KH <gregkh@linuxfoundation.org>, Andrei Vagin <avagin@openvz.org>
-
-
---Nq2Wo0NMKNjxTN9z
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20180227015613.GA9141@intel.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>
 
-On Mon, Feb 26, 2018 at 12:02:25PM +0300, Pavel Emelyanov wrote:
-> On 02/21/2018 03:44 AM, Andrew Morton wrote:
-> > On Tue,  9 Jan 2018 08:30:49 +0200 Mike Rapoport <rppt@linux.vnet.ibm.c=
-om> wrote:
-> >=20
-> >> This patches introduces new process_vmsplice system call that combines
-> >> functionality of process_vm_read and vmsplice.
-> >=20
-> > All seems fairly strightforward.  The big question is: do we know that
-> > people will actually use this, and get sufficient value from it to
-> > justify its addition?
->=20
-> Yes, that's what bothers us a lot too :) I've tried to start with finding=
- out if anyone=20
-> used the sys_read/write_process_vm() calls, but failed :( Does anybody kn=
-ow how popular
-> these syscalls are?
+On Tue, Feb 27, 2018 at 09:56:13AM +0800, Aaron Lu wrote:
+> On Mon, Feb 26, 2018 at 01:48:14PM -0800, David Rientjes wrote:
+> > On Mon, 26 Feb 2018, Aaron Lu wrote:
+> > 
+> > > Matthew Wilcox found that all callers of free_pcppages_bulk() currently
+> > > update pcp->count immediately after so it's natural to do it inside
+> > > free_pcppages_bulk().
+> > > 
+> > > No functionality or performance change is expected from this patch.
+> > > 
+> > > Suggested-by: Matthew Wilcox <willy@infradead.org>
+> > > Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+> > > ---
+> > >  mm/page_alloc.c | 10 +++-------
+> > >  1 file changed, 3 insertions(+), 7 deletions(-)
+> > > 
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > index cb416723538f..3154859cccd6 100644
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -1117,6 +1117,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+> > >  	int batch_free = 0;
+> > >  	bool isolated_pageblocks;
+> > >  
+> > > +	pcp->count -= count;
+> > >  	spin_lock(&zone->lock);
+> > >  	isolated_pageblocks = has_isolate_pageblock(zone);
+> > >  
+> > 
+> > Why modify pcp->count before the pages have actually been freed?
+> 
+> When count is still count and not zero after pages have actually been
+> freed :-)
+> 
+> > 
+> > I doubt that it matters too much, but at least /proc/zoneinfo uses 
+> > zone->lock.  I think it should be done after the lock is dropped.
+> 
+> Agree that it looks a bit weird to do it beforehand and I just want to
+> avoid adding one more local variable here.
+> 
+> pcp->count is not protected by zone->lock though so even we do it after
+> dropping the lock, it could still happen that zoneinfo shows a wrong
+> value of pcp->count while it should be zero(this isn't a problem since
+> zoneinfo doesn't need to be precise).
+> 
+> Anyway, I'll follow your suggestion here to avoid confusion.
 
-Well, process_vm_readv itself is quite popular, it's used by debuggers nowa=
-days,
-see e.g.
-$ strace -qq -esignal=3Dnone -eprocess_vm_readv strace -qq -o/dev/null cat =
-/dev/null
+What about this: update pcp->count when page is dropped off pcp list.
 
-
---=20
-ldv
-
---Nq2Wo0NMKNjxTN9z
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBCAAGBQJalL/qAAoJEAVFT+BVnCUIrHEP/iq2COswEmrUt2Wrrcx4Mqug
-xxUPCKfBesxnYe660FjWAXJgy9bRGFCl2E8kz3tQ8w4oaDpGpGGfDhu3dwum7RWM
-0RGCkXrLNk4/yGj71DMC3UGp+ENkBaKc5Wu9sYh9E1TAZAaPYh5tfC/KYajN+h5h
-QXPINyoAxuWWxNUUHW2sCqql6+1UPGBfKxSkGInqnxg9D5wj6bdzH+n8FgqK+Ja7
-B2SUFwGw/WeTZ30p7awC/VYN6mNvPZRr7FauReHvx19wUmkOPmXngnzCp1SbgV1l
-5DFOIyHQGt4x5kVMHUutf3m073RQtqlJQ1DzmKWKgto6OMK8/+XQP+aa+R0erM7F
-ZDGny+5E9Af6Df0FdOfgvb+mo+AswotfXfYO0i5iTBcRz7VOitOgQZspo+cpQLRI
-U7kJ1jD+c/9ZEMXU5IpNpHgyyBks1oma0HNaTsUjiOPO1ulPCPoHFhloqtub/p7c
-s1glSej43y35Wj/E0RgkQ/aiULAn0les+BYD9TnpJzx/INo3V7FTMmhSJcV7LaWV
-aeTb5o8CW/AoiuHgYvy/4tejDnOvlCvmL0HwOfjhqkh9Ja1nSapFWEddCVK9csQK
-i2wFwtwyZXAO82qJns3/w63LfEK93KFPomNvwmuxyJLVQzBJ7U2oZ8ISrsnuLlvz
-LibEd0Tf9EiL/Ol4kDHY
-=M4cN
------END PGP SIGNATURE-----
-
---Nq2Wo0NMKNjxTN9z--
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index cb416723538f..faa33eac1635 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1148,6 +1148,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 			page = list_last_entry(list, struct page, lru);
+ 			/* must delete as __free_one_page list manipulates */
+ 			list_del(&page->lru);
++			pcp->count--;
+ 
+ 			mt = get_pcppage_migratetype(page);
+ 			/* MIGRATE_ISOLATE page should not go to pcplists */
+@@ -2416,10 +2417,8 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
+ 	local_irq_save(flags);
+ 	batch = READ_ONCE(pcp->batch);
+ 	to_drain = min(pcp->count, batch);
+-	if (to_drain > 0) {
++	if (to_drain > 0)
+ 		free_pcppages_bulk(zone, to_drain, pcp);
+-		pcp->count -= to_drain;
+-	}
+ 	local_irq_restore(flags);
+ }
+ #endif
+@@ -2441,10 +2440,8 @@ static void drain_pages_zone(unsigned int cpu, struct zone *zone)
+ 	pset = per_cpu_ptr(zone->pageset, cpu);
+ 
+ 	pcp = &pset->pcp;
+-	if (pcp->count) {
++	if (pcp->count)
+ 		free_pcppages_bulk(zone, pcp->count, pcp);
+-		pcp->count = 0;
+-	}
+ 	local_irq_restore(flags);
+ }
+ 
+@@ -2668,7 +2665,6 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
+ 	if (pcp->count >= pcp->high) {
+ 		unsigned long batch = READ_ONCE(pcp->batch);
+ 		free_pcppages_bulk(zone, batch, pcp);
+-		pcp->count -= batch;
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
