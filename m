@@ -1,56 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 48BB96B0006
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 20:13:59 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id c5so9277693pfn.17
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 17:13:59 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTPS id i11si2410811pfi.388.2018.02.26.17.13.57
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E6406B0006
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 20:26:01 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id v2so1569714pgv.23
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 17:26:01 -0800 (PST)
+Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
+        by mx.google.com with ESMTPS id 133si7657184pfy.347.2018.02.26.17.25.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 17:13:57 -0800 (PST)
-Date: Mon, 26 Feb 2018 20:13:55 -0500 (EST)
-Message-Id: <20180226.201355.1546591469388453458.davem@davemloft.net>
-Subject: Re: [PATCH 0/2] mark some slabs as visible not mergeable
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20180226134613.04edcc98@xeon-e3>
-References: <20180224190454.23716-1-sthemmin@microsoft.com>
-	<20180226.151502.1181392845403505211.davem@redhat.com>
-	<20180226134613.04edcc98@xeon-e3>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+        Mon, 26 Feb 2018 17:26:00 -0800 (PST)
+Subject: Re: [RFC PATCH 0/4 v2] Define killable version for access_remote_vm()
+ and use it in fs/proc
+References: <1519691151-101999-1-git-send-email-yang.shi@linux.alibaba.com>
+ <alpine.DEB.2.20.1802261656490.16999@chino.kir.corp.google.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <4ec32e5b-af63-f412-2213-e52bdbcc9585@linux.alibaba.com>
+Date: Mon, 26 Feb 2018 17:25:52 -0800
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.20.1802261656490.16999@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stephen@networkplumber.org
-Cc: willy@infradead.org, netdev@vger.kernel.org, linux-mm@kvack.org, ikomyagin@gmail.com, sthemmin@microsoft.com
+To: David Rientjes <rientjes@google.com>
+Cc: akpm@linux-foundation.org, mingo@kernel.org, adobriyan@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Stephen Hemminger <stephen@networkplumber.org>
-Date: Mon, 26 Feb 2018 13:46:13 -0800
 
-> This is ancient original iproute2 code that dumpster dives into
-> slabinfo to get summary statistics on active objects.
-> 
-> 	1) open sockets (sock_inode_cache)
 
-The sockets inuse counter from /proc/net/sockstat is really
-sufficient for this.
+On 2/26/18 5:02 PM, David Rientjes wrote:
+> On Tue, 27 Feb 2018, Yang Shi wrote:
+>
+>> Background:
+>> When running vm-scalability with large memory (> 300GB), the below hung
+>> task issue happens occasionally.
+>>
+>> INFO: task ps:14018 blocked for more than 120 seconds.
+>>         Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+>>   "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+>>   ps              D    0 14018      1 0x00000004
+>>    ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+>>    ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+>>    00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+>>   Call Trace:
+>>    [<ffffffff817154d0>] ? __schedule+0x250/0x730
+>>    [<ffffffff817159e6>] schedule+0x36/0x80
+>>    [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+>>    [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+>>    [<ffffffff81717db0>] down_read+0x20/0x40
+>>    [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+>>    [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
+>>    [<ffffffff81241d87>] __vfs_read+0x37/0x150
+>>    [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
+>>    [<ffffffff81242266>] vfs_read+0x96/0x130
+>>    [<ffffffff812437b5>] SyS_read+0x55/0xc0
+>>    [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+>>
+>> When manipulating a large mapping, the process may hold the mmap_sem for
+>> long time, so reading /proc/<pid>/cmdline may be blocked in
+>> uninterruptible state for long time.
+>> We already have killable version APIs for semaphore, here use down_read_killable()
+>> to improve the responsiveness.
+>>
+> Rather than killable, we have patches that introduce down_read_unfair()
+> variants for the files you've modified (cmdline and environ) as well as
+> others (maps, numa_maps, smaps).
 
-> 	2) TCP ports bound (tcp_bind_buckets) [*]
-> 	3) TCP time wait sockets (tw_sock_TCP) [*]
+You mean you have such functionality used by google internally?
 
-Time wait is provided by /proc/net/sockstat as well.
+>
+> When another thread is holding down_read() and there are queued
+> down_write()'s, down_read_unfair() allows for grabbing the rwsem without
+> queueing for it.  Additionally, when another thread is holding
+> down_write(), down_read_unfair() allows for queueing in front of other
+> threads trying to grab it for write as well.
 
-> 	4) TCP syn sockets (request_sock_TCP) [*]
+It sounds the __unfair variant make the caller have chance to jump the 
+gun to grab the semaphore before other waiters, right? But when a 
+process holds the semaphore, i.e. mmap_sem, for a long time, it still 
+has to sleep in uninterruptible state, right?
 
-It shouldn't be too hard to fill in the last two gaps, maintaining a
-counter for bind buckets and request socks, and exporting them in new
-/proc/net/sockstat field.
+But, it seems __unfair variant may not be very helpful in this usecase. 
+Reading /proc might be not that important to require any special care to 
+grab the semaphore before other waiters. I just hope it doesn't sleep in 
+uninterruptible state for a long time. If the user is not patient enough 
+due to some reason, they can have a chance to abort.
 
-That would be so much better than disabling a useful optimization
-in the SLAB allocator.
+>
+> Ingo would know more about whether a variant like that in upstream Linux
+> would be acceptable.
+>
+> Would you be interested in unfair variants instead of only addressing
+> killable?
 
-Thank you.
+Yes, I'm although it still looks overkilling to me for reading /proc.
+
+Thanks,
+Yang
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
