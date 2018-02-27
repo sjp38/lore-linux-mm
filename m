@@ -1,84 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B10D46B0005
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 12:00:34 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id e127so8364362wmg.7
-        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 09:00:34 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E5576B0006
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 12:01:19 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id v64so5186049wma.4
+        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 09:01:19 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v187si7940541wmf.27.2018.02.27.09.00.33
+        by mx.google.com with ESMTPS id r9si9932737wrr.538.2018.02.27.09.01.11
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Feb 2018 09:00:33 -0800 (PST)
-Date: Tue, 27 Feb 2018 18:00:31 +0100
+        Tue, 27 Feb 2018 09:01:11 -0800 (PST)
+Date: Tue, 27 Feb 2018 18:01:10 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 03/12] ext2, dax: finish implementing dax_sem helpers
-Message-ID: <20180227170031.lgf5tc3vt3umrwbb@quack2.suse.cz>
+Subject: Re: [PATCH v4 04/12] ext2, dax: define ext2_dax_*() infrastructure
+ in all cases
+Message-ID: <20180227170110.uymbsfbk33unpjid@quack2.suse.cz>
 References: <151970519370.26729.1011551137381425076.stgit@dwillia2-desk3.amr.corp.intel.com>
- <151970521121.26729.7741760690622342144.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151970521671.26729.14342103844044388890.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <151970521121.26729.7741760690622342144.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <151970521671.26729.14342103844044388890.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Jan Kara <jack@suse.com>
 
-On Mon 26-02-18 20:20:11, Dan Williams wrote:
-> dax_sem_{up,down}_write_sem() allow the ext2 dax semaphore to be compiled
-> out in the CONFIG_FS_DAX=n case. However there are still some open coded
-> uses of the semaphore. Add dax_sem_{up_read,down_read,_is_locked}()
-> helpers and convert all open-coded usages of the semaphore to the
-> helpers.
-
-Just one nit below. With that fixed you can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-
+On Mon 26-02-18 20:20:16, Dan Williams wrote:
+> In preparation for fixing S_DAX to be defined in the CONFIG_FS_DAX=n +
+> CONFIG_DEV_DAX=y case, move the definition of these routines outside of
+> the "#ifdef CONFIG_FS_DAX" guard. This is also a coding-style fix to
+> move all ifdef handling to header files rather than in the source. The
+> compiler will still be able to determine that all the related code can
+> be discarded in the CONFIG_FS_DAX=n case.
+> 
 > Cc: Jan Kara <jack@suse.com>
 > Cc: <stable@vger.kernel.org>
 > Fixes: dee410792419 ("/dev/dax, core: file operations and dax-mmap")
 > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  fs/ext2/ext2.h  |    6 ++++++
->  fs/ext2/file.c  |    5 ++---
->  fs/ext2/inode.c |    4 +---
->  3 files changed, 9 insertions(+), 6 deletions(-)
-> 
-> diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
-> index 032295e1d386..7ceb29733cdb 100644
-> --- a/fs/ext2/ext2.h
-> +++ b/fs/ext2/ext2.h
-> @@ -711,9 +711,15 @@ struct ext2_inode_info {
->  #ifdef CONFIG_FS_DAX
->  #define dax_sem_down_write(ext2_inode)	down_write(&(ext2_inode)->dax_sem)
->  #define dax_sem_up_write(ext2_inode)	up_write(&(ext2_inode)->dax_sem)
-> +#define dax_sem_is_locked(ext2_inode)	rwsem_is_locked(&(ext2_inode)->dax_sem)
-> +#define dax_sem_down_read(ext2_inode)	down_read(&(ext2_inode)->dax_sem)
-> +#define dax_sem_up_read(ext2_inode)	up_read(&(ext2_inode)->dax_sem)
->  #else
->  #define dax_sem_down_write(ext2_inode)
->  #define dax_sem_up_write(ext2_inode)
-> +#define dax_sem_is_locked(ext2_inode)	(true)
 
-This is a bit dangerous as depending on the use of dax_sem_is_locked()
-you'd need this to return true or false. E.g. assume we'd have a place
-where we'd like to do:
+Looks good. You can add:
 
-	WARN_ON(dax_sem_is_locked(inode));
-
-or just
-
-	if (dax_sem_is_locked(inode))
-		bail out due to congestion...
-
-How I'd solve this is that I'd define:
-
-#define assert_dax_sem_locked(ext2_inode) WARN_ON(rwsem_is_locked(&(ext2_inode)->dax_sem)
-
-and just as do {} while (0) for !CONFIG_FS_DAX.
+Reviewed-by: Jan Kara <jack@suse.cz>
 
 								Honza
+
+> ---
+>  fs/ext2/file.c      |    8 --------
+>  include/linux/dax.h |   10 ++++++++--
+>  2 files changed, 8 insertions(+), 10 deletions(-)
+> 
+> diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+> index 1c7ea1bcddde..5ac98d074323 100644
+> --- a/fs/ext2/file.c
+> +++ b/fs/ext2/file.c
+> @@ -29,7 +29,6 @@
+>  #include "xattr.h"
+>  #include "acl.h"
+>  
+> -#ifdef CONFIG_FS_DAX
+>  static ssize_t ext2_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
+>  {
+>  	struct inode *inode = iocb->ki_filp->f_mapping->host;
+> @@ -128,9 +127,6 @@ static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
+>  	vma->vm_flags |= VM_MIXEDMAP;
+>  	return 0;
+>  }
+> -#else
+> -#define ext2_file_mmap	generic_file_mmap
+> -#endif
+>  
+>  /*
+>   * Called when filp is released. This happens when all file descriptors
+> @@ -162,19 +158,15 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+>  
+>  static ssize_t ext2_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
+>  {
+> -#ifdef CONFIG_FS_DAX
+>  	if (IS_DAX(iocb->ki_filp->f_mapping->host))
+>  		return ext2_dax_read_iter(iocb, to);
+> -#endif
+>  	return generic_file_read_iter(iocb, to);
+>  }
+>  
+>  static ssize_t ext2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
+>  {
+> -#ifdef CONFIG_FS_DAX
+>  	if (IS_DAX(iocb->ki_filp->f_mapping->host))
+>  		return ext2_dax_write_iter(iocb, from);
+> -#endif
+>  	return generic_file_write_iter(iocb, from);
+>  }
+>  
+> diff --git a/include/linux/dax.h b/include/linux/dax.h
+> index 0185ecdae135..47edbce4fc52 100644
+> --- a/include/linux/dax.h
+> +++ b/include/linux/dax.h
+> @@ -93,8 +93,6 @@ void dax_flush(struct dax_device *dax_dev, void *addr, size_t size);
+>  void dax_write_cache(struct dax_device *dax_dev, bool wc);
+>  bool dax_write_cache_enabled(struct dax_device *dax_dev);
+>  
+> -ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
+> -		const struct iomap_ops *ops);
+>  int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+>  		    pfn_t *pfnp, int *errp, const struct iomap_ops *ops);
+>  int dax_finish_sync_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+> @@ -107,6 +105,8 @@ int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
+>  int __dax_zero_page_range(struct block_device *bdev,
+>  		struct dax_device *dax_dev, sector_t sector,
+>  		unsigned int offset, unsigned int length);
+> +ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
+> +		const struct iomap_ops *ops);
+>  #else
+>  static inline int __dax_zero_page_range(struct block_device *bdev,
+>  		struct dax_device *dax_dev, sector_t sector,
+> @@ -114,6 +114,12 @@ static inline int __dax_zero_page_range(struct block_device *bdev,
+>  {
+>  	return -ENXIO;
+>  }
+> +
+> +static inline ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
+> +		const struct iomap_ops *ops)
+> +{
+> +	return -ENXIO;
+> +}
+>  #endif
+>  
+>  static inline bool dax_mapping(struct address_space *mapping)
+> 
+> 
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
