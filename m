@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CCB46B000C
-	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 23:29:13 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id r6so9570850pfk.9
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 20:29:13 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id c9-v6si7930940plk.216.2018.02.26.20.29.11
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CA68A6B000E
+	for <linux-mm@kvack.org>; Mon, 26 Feb 2018 23:29:18 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id c83so2895892pfk.5
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 20:29:18 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id z188si7915332pfz.46.2018.02.26.20.29.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Feb 2018 20:29:12 -0800 (PST)
-Subject: [PATCH v4 02/12] dax: introduce IS_DEVDAX() and IS_FSDAX()
+        Mon, 26 Feb 2018 20:29:17 -0800 (PST)
+Subject: [PATCH v4 03/12] ext2, dax: finish implementing dax_sem helpers
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 26 Feb 2018 20:20:05 -0800
-Message-ID: <151970520551.26729.12707678649514382892.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Mon, 26 Feb 2018 20:20:11 -0800
+Message-ID: <151970521121.26729.7741760690622342144.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <151970519370.26729.1011551137381425076.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <151970519370.26729.1011551137381425076.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,62 +21,84 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Theodore Ts'o <tytso@mit.edu>, "Darrick J. Wong" <darrick.wong@oracle.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "supporter:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, linux-mm@kvack.org, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Jan Kara <jack@suse.com>
 
-The current IS_DAX() helper that checks the S_DAX inode flag is
-ambiguous, and currently has the broken assumption that the S_DAX flag
-is only non-zero in the CONFIG_FS_DAX=y case. In preparation for
-defining S_DAX to non-zero in the  CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y
-case, introduce two explicit helpers to replace IS_DAX().
+dax_sem_{up,down}_write_sem() allow the ext2 dax semaphore to be compiled
+out in the CONFIG_FS_DAX=n case. However there are still some open coded
+uses of the semaphore. Add dax_sem_{up_read,down_read,_is_locked}()
+helpers and convert all open-coded usages of the semaphore to the
+helpers.
 
-Cc: "Theodore Ts'o" <tytso@mit.edu>
-Cc: Andreas Dilger <adilger.kernel@dilger.ca>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: linux-xfs@vger.kernel.org (supporter:XFS FILESYSTEM)
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.com>
 Cc: <stable@vger.kernel.org>
 Fixes: dee410792419 ("/dev/dax, core: file operations and dax-mmap")
-Reported-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- include/linux/fs.h |   22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ fs/ext2/ext2.h  |    6 ++++++
+ fs/ext2/file.c  |    5 ++---
+ fs/ext2/inode.c |    4 +---
+ 3 files changed, 9 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 79c413985305..bd0c46880572 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1909,6 +1909,28 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags
- #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
- 				 (inode)->i_rdev == WHITEOUT_DEV)
+diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
+index 032295e1d386..7ceb29733cdb 100644
+--- a/fs/ext2/ext2.h
++++ b/fs/ext2/ext2.h
+@@ -711,9 +711,15 @@ struct ext2_inode_info {
+ #ifdef CONFIG_FS_DAX
+ #define dax_sem_down_write(ext2_inode)	down_write(&(ext2_inode)->dax_sem)
+ #define dax_sem_up_write(ext2_inode)	up_write(&(ext2_inode)->dax_sem)
++#define dax_sem_is_locked(ext2_inode)	rwsem_is_locked(&(ext2_inode)->dax_sem)
++#define dax_sem_down_read(ext2_inode)	down_read(&(ext2_inode)->dax_sem)
++#define dax_sem_up_read(ext2_inode)	up_read(&(ext2_inode)->dax_sem)
+ #else
+ #define dax_sem_down_write(ext2_inode)
+ #define dax_sem_up_write(ext2_inode)
++#define dax_sem_is_locked(ext2_inode)	(true)
++#define dax_sem_down_read(ext2_inode)
++#define dax_sem_up_read(ext2_inode)
+ #endif
  
-+static inline bool IS_DEVDAX(struct inode *inode)
-+{
-+	if (!IS_ENABLED(CONFIG_DEV_DAX))
-+		return false;
-+	if ((inode->i_flags & S_DAX) == 0)
-+		return false;
-+	if (!S_ISCHR(inode->i_mode))
-+		return false;
-+	return true;
-+}
-+
-+static inline bool IS_FSDAX(struct inode *inode)
-+{
-+	if (!IS_ENABLED(CONFIG_FS_DAX))
-+		return false;
-+	if ((inode->i_flags & S_DAX) == 0)
-+		return false;
-+	if (S_ISCHR(inode->i_mode))
-+		return false;
-+	return true;
-+}
-+
- static inline bool HAS_UNMAPPED_ID(struct inode *inode)
+ /*
+diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+index 09640220fda8..1c7ea1bcddde 100644
+--- a/fs/ext2/file.c
++++ b/fs/ext2/file.c
+@@ -91,18 +91,17 @@ static ssize_t ext2_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
+ static int ext2_dax_fault(struct vm_fault *vmf)
  {
- 	return !uid_valid(inode->i_uid) || !gid_valid(inode->i_gid);
+ 	struct inode *inode = file_inode(vmf->vma->vm_file);
+-	struct ext2_inode_info *ei = EXT2_I(inode);
+ 	int ret;
+ 
+ 	if (vmf->flags & FAULT_FLAG_WRITE) {
+ 		sb_start_pagefault(inode->i_sb);
+ 		file_update_time(vmf->vma->vm_file);
+ 	}
+-	down_read(&ei->dax_sem);
++	dax_sem_down_read(EXT2_I(inode));
+ 
+ 	ret = dax_iomap_fault(vmf, PE_SIZE_PTE, NULL, NULL, &ext2_iomap_ops);
+ 
+-	up_read(&ei->dax_sem);
++	dax_sem_up_read(EXT2_I(inode));
+ 	if (vmf->flags & FAULT_FLAG_WRITE)
+ 		sb_end_pagefault(inode->i_sb);
+ 	return ret;
+diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
+index 9b2ac55ac34f..e04295e99d90 100644
+--- a/fs/ext2/inode.c
++++ b/fs/ext2/inode.c
+@@ -1187,9 +1187,7 @@ static void __ext2_truncate_blocks(struct inode *inode, loff_t offset)
+ 	blocksize = inode->i_sb->s_blocksize;
+ 	iblock = (offset + blocksize-1) >> EXT2_BLOCK_SIZE_BITS(inode->i_sb);
+ 
+-#ifdef CONFIG_FS_DAX
+-	WARN_ON(!rwsem_is_locked(&ei->dax_sem));
+-#endif
++	WARN_ON(!dax_sem_is_locked(ei));
+ 
+ 	n = ext2_block_to_path(inode, iblock, offsets, NULL);
+ 	if (n == 0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
