@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E9016B0009
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 02:15:41 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id j4so13110896wrg.11
-        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 23:15:41 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p65sor2487544wmp.81.2018.02.26.23.15.39
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D68A6B0005
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 02:44:50 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id v64so4377736wma.4
+        for <linux-mm@kvack.org>; Mon, 26 Feb 2018 23:44:50 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l6si5220812wmc.64.2018.02.26.23.44.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Feb 2018 23:15:39 -0800 (PST)
-Date: Tue, 27 Feb 2018 10:15:36 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: [PATCH 3/4 v2] fs: proc: use down_read_killable() in
- environ_read()
-Message-ID: <20180227071536.GA5234@avx2>
-References: <1519691151-101999-1-git-send-email-yang.shi@linux.alibaba.com>
- <1519691151-101999-4-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Feb 2018 23:44:49 -0800 (PST)
+Subject: Re: [v2 1/1] xen, mm: Allow deferred page initialization for xen pv
+ domains
+References: <20180226160112.24724-1-pasha.tatashin@oracle.com>
+ <20180226160112.24724-2-pasha.tatashin@oracle.com>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <927f2a94-2ece-53f7-3be8-532f3be77dd4@suse.com>
+Date: Tue, 27 Feb 2018 08:44:44 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1519691151-101999-4-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <20180226160112.24724-2-pasha.tatashin@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: akpm@linux-foundation.org, mingo@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akataria@vmware.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, boris.ostrovsky@oracle.com, akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, luto@kernel.org, labbott@redhat.com, kirill.shutemov@linux.intel.com, bp@suse.de, minipli@googlemail.com, jinb.park7@gmail.com, dan.j.williams@intel.com, bhe@redhat.com, zhang.jia@linux.alibaba.com, mgorman@techsingularity.net, hannes@cmpxchg.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org
 
-On Tue, Feb 27, 2018 at 08:25:50AM +0800, Yang Shi wrote:
-> Like reading /proc/*/cmdline, it is possible to be blocked for long time
-> when reading /proc/*/environ when manipulating large mapping at the mean
-> time. The environ reading process will be waiting for mmap_sem become
-> available for a long time then it may cause the reading task hung.
+On 26/02/18 17:01, Pavel Tatashin wrote:
+> Juergen Gross noticed that commit
+> f7f99100d8d ("mm: stop zeroing memory during allocation in vmemmap")
+> broke XEN PV domains when deferred struct page initialization is enabled.
 > 
-> Convert down_read() and access_remote_vm() to killable version.
+> This is because the xen's PagePinned() flag is getting erased from struct
+> pages when they are initialized later in boot.
 > 
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Suggested-by: Alexey Dobriyan <adobriyan@gmail.com>
+> Juergen fixed this problem by disabling deferred pages on xen pv domains.
+> It is desirable, however, to have this feature available as it reduces boot
+> time. This fix re-enables the feature for pv-dmains, and fixes the problem
+> the following way:
+> 
+> The fix is to delay setting PagePinned flag until struct pages for all
+> allocated memory are initialized, i.e. until after free_all_bootmem().
+> 
+> A new x86_init.hyper op init_after_bootmem() is called to let xen know
+> that boot allocator is done, and hence struct pages for all the allocated
+> memory are now initialized. If deferred page initialization is enabled, the
+> rest of struct pages are going to be initialized later in boot once
+> page_alloc_init_late() is called.
+> 
+> xen_after_bootmem() walks page table's pages and marks them pinned.
+> 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 
-Ehh, bloody tags.
-I didn't suggest _killable() variants, they're quite ugly because API
-multiplies. access_remote_vm() could be converted to down_read_killable().
+Verified to work on a system where the original issue caused a crash.
 
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -933,7 +933,9 @@ static ssize_t environ_read(struct file *file, char __user *buf,
->  	if (!mmget_not_zero(mm))
->  		goto free;
->  
-> -	down_read(&mm->mmap_sem);
-> +	ret = down_read_killable(&mm->mmap_sem);
-> +	if (ret)
-> +		goto out_mmput;
->  	env_start = mm->env_start;
->  	env_end = mm->env_end;
->  	up_read(&mm->mmap_sem);
-> @@ -950,7 +952,8 @@ static ssize_t environ_read(struct file *file, char __user *buf,
->  		max_len = min_t(size_t, PAGE_SIZE, count);
->  		this_len = min(max_len, this_len);
->  
-> -		retval = access_remote_vm(mm, (env_start + src), page, this_len, 0);
-> +		retval = access_remote_vm_killable(mm, (env_start + src),
-> +						page, this_len, 0);
+Reviewed-by: Juergen Gross <jgross@suse.com>
+Tested-by: Juergen Gross <jgross@suse.com>
+
+
+Juergen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
