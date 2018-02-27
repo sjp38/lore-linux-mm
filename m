@@ -1,105 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 58FEB6B0006
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 11:54:54 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id v8so7162865pgs.9
-        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 08:54:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 9-v6si8742560ple.367.2018.02.27.08.54.52
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 79BEB6B0005
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 11:59:18 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id a26so5355747pgn.18
+        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 08:59:18 -0800 (PST)
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id o64si8812565pfb.346.2018.02.27.08.59.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Feb 2018 08:54:53 -0800 (PST)
-Date: Tue, 27 Feb 2018 17:54:49 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 02/12] dax: introduce IS_DEVDAX() and IS_FSDAX()
-Message-ID: <20180227165449.abbhpu7gwqpxcqst@quack2.suse.cz>
-References: <151970519370.26729.1011551137381425076.stgit@dwillia2-desk3.amr.corp.intel.com>
- <151970520551.26729.12707678649514382892.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Feb 2018 08:59:17 -0800 (PST)
+Subject: Re: [PATCH 3/4 v2] fs: proc: use down_read_killable() in
+ environ_read()
+References: <1519691151-101999-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1519691151-101999-4-git-send-email-yang.shi@linux.alibaba.com>
+ <20180227071536.GA5234@avx2>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <140f613b-0214-97bb-9823-0abac394e331@linux.alibaba.com>
+Date: Tue, 27 Feb 2018 08:59:06 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <151970520551.26729.12707678649514382892.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20180227071536.GA5234@avx2>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J. Wong" <darrick.wong@oracle.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "supporter:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, linux-mm@kvack.org, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: akpm@linux-foundation.org, mingo@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 26-02-18 20:20:05, Dan Williams wrote:
-> The current IS_DAX() helper that checks the S_DAX inode flag is
-> ambiguous, and currently has the broken assumption that the S_DAX flag
 
-I don't think S_DAX flag is really ambiguous. It is just that in
-CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y case, the compiler is not able to figure
-out some calls behind IS_DAX() are dead code and so the kernel won't
-compile / link. Or is there any other problem I'm missing?
 
-If I'm indeed right, then please tell this in the changelog and don't talk
-about abstract ambiguity of S_DAX flag.
+On 2/26/18 11:15 PM, Alexey Dobriyan wrote:
+> On Tue, Feb 27, 2018 at 08:25:50AM +0800, Yang Shi wrote:
+>> Like reading /proc/*/cmdline, it is possible to be blocked for long time
+>> when reading /proc/*/environ when manipulating large mapping at the mean
+>> time. The environ reading process will be waiting for mmap_sem become
+>> available for a long time then it may cause the reading task hung.
+>>
+>> Convert down_read() and access_remote_vm() to killable version.
+>>
+>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+>> Suggested-by: Alexey Dobriyan <adobriyan@gmail.com>
+> Ehh, bloody tags.
 
-As much as I'd prefer to solve link-time problems with stubs instead of
-relying on dead-code elimination, I can live with split macros so once the
-changelog is settled, feel free to add:
+I mean fix reading /proc/*/environ part.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+> I didn't suggest _killable() variants, they're quite ugly because API
+> multiplies. access_remote_vm() could be converted to down_read_killable().
 
-								Honza
+There might be other places that need non-killable access_remote_vm(), 
+like patch 4/4.
 
-> is only non-zero in the CONFIG_FS_DAX=y case. In preparation for
-> defining S_DAX to non-zero in the  CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y
-> case, introduce two explicit helpers to replace IS_DAX().
-> 
-> Cc: "Theodore Ts'o" <tytso@mit.edu>
-> Cc: Andreas Dilger <adilger.kernel@dilger.ca>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
-> Cc: linux-xfs@vger.kernel.org (supporter:XFS FILESYSTEM)
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Cc: <stable@vger.kernel.org>
-> Fixes: dee410792419 ("/dev/dax, core: file operations and dax-mmap")
-> Reported-by: Jan Kara <jack@suse.cz>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  include/linux/fs.h |   22 ++++++++++++++++++++++
->  1 file changed, 22 insertions(+)
-> 
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 79c413985305..bd0c46880572 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -1909,6 +1909,28 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags
->  #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
->  				 (inode)->i_rdev == WHITEOUT_DEV)
->  
-> +static inline bool IS_DEVDAX(struct inode *inode)
-> +{
-> +	if (!IS_ENABLED(CONFIG_DEV_DAX))
-> +		return false;
-> +	if ((inode->i_flags & S_DAX) == 0)
-> +		return false;
-> +	if (!S_ISCHR(inode->i_mode))
-> +		return false;
-> +	return true;
-> +}
-> +
-> +static inline bool IS_FSDAX(struct inode *inode)
-> +{
-> +	if (!IS_ENABLED(CONFIG_FS_DAX))
-> +		return false;
-> +	if ((inode->i_flags & S_DAX) == 0)
-> +		return false;
-> +	if (S_ISCHR(inode->i_mode))
-> +		return false;
-> +	return true;
-> +}
-> +
->  static inline bool HAS_UNMAPPED_ID(struct inode *inode)
->  {
->  	return !uid_valid(inode->i_uid) || !gid_valid(inode->i_gid);
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+And, it sounds keeping access_remote_vm() semantic intact may prevent 
+from confusion. The most people may get used to assume 
+access_remote_vm() behaves like access_process_vm() except not inc mm 
+reference count.
+
+Thanks,
+Yang
+
+>
+>> --- a/fs/proc/base.c
+>> +++ b/fs/proc/base.c
+>> @@ -933,7 +933,9 @@ static ssize_t environ_read(struct file *file, char __user *buf,
+>>   	if (!mmget_not_zero(mm))
+>>   		goto free;
+>>   
+>> -	down_read(&mm->mmap_sem);
+>> +	ret = down_read_killable(&mm->mmap_sem);
+>> +	if (ret)
+>> +		goto out_mmput;
+>>   	env_start = mm->env_start;
+>>   	env_end = mm->env_end;
+>>   	up_read(&mm->mmap_sem);
+>> @@ -950,7 +952,8 @@ static ssize_t environ_read(struct file *file, char __user *buf,
+>>   		max_len = min_t(size_t, PAGE_SIZE, count);
+>>   		this_len = min(max_len, this_len);
+>>   
+>> -		retval = access_remote_vm(mm, (env_start + src), page, this_len, 0);
+>> +		retval = access_remote_vm_killable(mm, (env_start + src),
+>> +						page, this_len, 0);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
