@@ -1,35 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D67EC6B0005
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 12:06:01 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id c37so14442941wra.5
-        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 09:06:01 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 15BD56B0006
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 12:06:32 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id v21so5959309wmh.9
+        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 09:06:32 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h9si8366659wrc.552.2018.02.27.09.06.00
+        by mx.google.com with ESMTPS id a5si9907539wra.143.2018.02.27.09.06.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Feb 2018 09:06:00 -0800 (PST)
-Date: Tue, 27 Feb 2018 18:05:59 +0100
+        Tue, 27 Feb 2018 09:06:30 -0800 (PST)
+Date: Tue, 27 Feb 2018 18:06:29 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 09/12] mm, dax: replace IS_DAX() with IS_DEVDAX() or
- IS_FSDAX()
-Message-ID: <20180227170559.o2uldn4t6wypfgic@quack2.suse.cz>
+Subject: Re: [PATCH v4 10/12] fs, dax: kill IS_DAX()
+Message-ID: <20180227170629.t54gjterrprylp3w@quack2.suse.cz>
 References: <151970519370.26729.1011551137381425076.stgit@dwillia2-desk3.amr.corp.intel.com>
- <151970524289.26729.18096955322602992171.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151970524837.26729.14336810163194275690.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <151970524289.26729.18096955322602992171.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <151970524837.26729.14336810163194275690.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: linux-nvdimm@lists.01.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Mon 26-02-18 20:20:42, Dan Williams wrote:
+On Mon 26-02-18 20:20:48, Dan Williams wrote:
 > In preparation for fixing the broken definition of S_DAX in the
-> CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y case, convert all IS_DAX() usages to
-> use explicit tests for the DEVDAX and FSDAX sub-cases of DAX
-> functionality.
+> CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y case, convert all the remaining
+> IS_DAX() usages to use explicit tests for FSDAX.
 > 
 > Cc: Jan Kara <jack@suse.com>
 > Cc: Matthew Wilcox <mawilcox@microsoft.com>
@@ -38,24 +36,67 @@ On Mon 26-02-18 20:20:42, Dan Williams wrote:
 > Fixes: dee410792419 ("/dev/dax, core: file operations and dax-mmap")
 > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Just one nit below. With that fixed you can add:
+Looks good. You can add:
 
 Reviewed-by: Jan Kara <jack@suse.cz>
 
-> @@ -3208,21 +3208,19 @@ static inline bool io_is_direct(struct file *filp)
+								Honza
+
+> ---
+>  fs/iomap.c          |    2 +-
+>  include/linux/dax.h |    2 +-
+>  include/linux/fs.h  |    3 +--
+>  3 files changed, 3 insertions(+), 4 deletions(-)
+> 
+> diff --git a/fs/iomap.c b/fs/iomap.c
+> index afd163586aa0..fe379d8949fd 100644
+> --- a/fs/iomap.c
+> +++ b/fs/iomap.c
+> @@ -377,7 +377,7 @@ iomap_zero_range_actor(struct inode *inode, loff_t pos, loff_t count,
+>  		offset = pos & (PAGE_SIZE - 1); /* Within page */
+>  		bytes = min_t(loff_t, PAGE_SIZE - offset, count);
+>  
+> -		if (IS_DAX(inode))
+> +		if (IS_FSDAX(inode))
+>  			status = iomap_dax_zero(pos, offset, bytes, iomap);
+>  		else
+>  			status = iomap_zero(inode, pos, offset, bytes, iomap);
+> diff --git a/include/linux/dax.h b/include/linux/dax.h
+> index 47edbce4fc52..ce520e932adc 100644
+> --- a/include/linux/dax.h
+> +++ b/include/linux/dax.h
+> @@ -124,7 +124,7 @@ static inline ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
+>  
+>  static inline bool dax_mapping(struct address_space *mapping)
+>  {
+> -	return mapping->host && IS_DAX(mapping->host);
+> +	return mapping->host && IS_FSDAX(mapping->host);
+>  }
+>  
+>  struct writeback_control;
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 4a5aa8761011..8021f10068d3 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -1903,7 +1903,6 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags
+>  #define IS_IMA(inode)		((inode)->i_flags & S_IMA)
+>  #define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
+>  #define IS_NOSEC(inode)		((inode)->i_flags & S_NOSEC)
+> -#define IS_DAX(inode)		((inode)->i_flags & S_DAX)
+>  #define IS_ENCRYPTED(inode)	((inode)->i_flags & S_ENCRYPTED)
+>  
+>  #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
+> @@ -3203,7 +3202,7 @@ extern int file_update_time(struct file *file);
+>  
+>  static inline bool io_is_direct(struct file *filp)
+>  {
+> -	return (filp->f_flags & O_DIRECT) || IS_DAX(filp->f_mapping->host);
+> +	return (filp->f_flags & O_DIRECT) || IS_FSDAX(filp->f_mapping->host);
+>  }
 >  
 >  static inline bool vma_is_dax(struct vm_area_struct *vma)
->  {
-> -	return vma->vm_file && IS_DAX(vma->vm_file->f_mapping->host);
-> +	struct inode *inode;
-> +
-> +	if (!vma->vm_file)
-> +		return false;
-> +	inode = vma->vm_file->f_mapping->host;
-
-When changing this, use file_inode() here as well?
-
-								Honza
+> 
+> 
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
