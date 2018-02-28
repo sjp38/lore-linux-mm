@@ -1,122 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DEF7C6B0009
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 22:03:22 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id m19so1340104iob.13
-        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 19:03:22 -0800 (PST)
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 72DD86B000C
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 22:03:26 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id r9so1314226ioa.11
+        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 19:03:26 -0800 (PST)
 Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id p123si623810ite.72.2018.02.27.19.03.21
+        by mx.google.com with ESMTPS id x25si420261ioi.92.2018.02.27.19.03.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Feb 2018 19:03:21 -0800 (PST)
+        Tue, 27 Feb 2018 19:03:25 -0800 (PST)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v5 3/6] mm: add uninitialized struct page poisoning sanity checking
-Date: Tue, 27 Feb 2018 22:03:05 -0500
-Message-Id: <20180228030308.1116-4-pasha.tatashin@oracle.com>
+Subject: [v5 4/6] mm/memory_hotplug: optimize probe routine
+Date: Tue, 27 Feb 2018 22:03:06 -0500
+Message-Id: <20180228030308.1116-5-pasha.tatashin@oracle.com>
 In-Reply-To: <20180228030308.1116-1-pasha.tatashin@oracle.com>
 References: <20180228030308.1116-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
-During boot we poison struct page memory in order to ensure that no one is
-accessing this memory until the struct pages are initialized in
-__init_single_page().
+When memory is hotplugged pages_correctly_reserved() is called to verify
+that the added memory is present, this routine traverses through every
+struct page and verifies that PageReserved() is set. This is a slow
+operation especially if a large amount of memory is added.
 
-This patch adds more scrutiny to this checking by making sure that flags
-do not equal the poison pattern when they are accessed.  The pattern is all
-ones.
+Instead of checking every page, it is enough to simply check that the
+section is present, has mapping (struct page array is allocated), and the
+mapping is online.
 
-Since node id is also stored in struct page, and may be accessed quite
-early, we add this enforcement into page_to_nid() function as well.
-Note, this is applicable only when NODE_NOT_IN_PAGE_FLAGS=n
+In addition, we should not excpect that probe routine sets flags in struct
+page, as the struct pages have not yet been initialized. The initialization
+should be done in __init_single_page(), the same as during boot.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Ingo Molnar <mingo@kernel.org>
 Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/mm.h         |  4 +++-
- include/linux/page-flags.h | 22 +++++++++++++++++-----
- mm/memblock.c              |  2 +-
- 3 files changed, 21 insertions(+), 7 deletions(-)
+ drivers/base/memory.c | 36 ++++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ad06d42adb1a..ad71136a6494 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -896,7 +896,9 @@ extern int page_to_nid(const struct page *page);
- #else
- static inline int page_to_nid(const struct page *page)
- {
--	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
-+	struct page *p = (struct page *)page;
-+
-+	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
- }
- #endif
- 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 50c2b8786831..e34a27727b9a 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -156,9 +156,18 @@ static __always_inline int PageCompound(struct page *page)
- 	return test_bit(PG_head, &page->flags) || PageTail(page);
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index fe4b24f05f6a..deb3f029b451 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -187,13 +187,14 @@ int memory_isolate_notify(unsigned long val, void *v)
  }
  
-+#define	PAGE_POISON_PATTERN	-1l
-+static inline int PagePoisoned(const struct page *page)
-+{
-+	return page->flags == PAGE_POISON_PATTERN;
-+}
-+
  /*
-  * Page flags policies wrt compound pages
-  *
-+ * PF_POISONED_CHECK
-+ *     check if this struct page poisoned/uninitialized
-+ *
-  * PF_ANY:
-  *     the page flag is relevant for small, head and tail pages.
-  *
-@@ -176,17 +185,20 @@ static __always_inline int PageCompound(struct page *page)
-  * PF_NO_COMPOUND:
-  *     the page flag is not relevant for compound pages.
+- * The probe routines leave the pages reserved, just as the bootmem code does.
+- * Make sure they're still that way.
++ * The probe routines leave the pages uninitialized, just as the bootmem code
++ * does. Make sure we do not access them, but instead use only information from
++ * within sections.
   */
--#define PF_ANY(page, enforce)	page
--#define PF_HEAD(page, enforce)	compound_head(page)
-+#define PF_POISONED_CHECK(page) ({					\
-+		VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);		\
-+		page; })
-+#define PF_ANY(page, enforce)	PF_POISONED_CHECK(page)
-+#define PF_HEAD(page, enforce)	PF_POISONED_CHECK(compound_head(page))
- #define PF_ONLY_HEAD(page, enforce) ({					\
- 		VM_BUG_ON_PGFLAGS(PageTail(page), page);		\
--		page;})
-+		PF_POISONED_CHECK(page); })
- #define PF_NO_TAIL(page, enforce) ({					\
- 		VM_BUG_ON_PGFLAGS(enforce && PageTail(page), page);	\
--		compound_head(page);})
-+		PF_POISONED_CHECK(compound_head(page)); })
- #define PF_NO_COMPOUND(page, enforce) ({				\
- 		VM_BUG_ON_PGFLAGS(enforce && PageCompound(page), page);	\
--		page;})
-+		PF_POISONED_CHECK(page); })
+-static bool pages_correctly_reserved(unsigned long start_pfn)
++static bool pages_correctly_probed(unsigned long start_pfn)
+ {
+-	int i, j;
+-	struct page *page;
++	unsigned long section_nr = pfn_to_section_nr(start_pfn);
++	unsigned long section_nr_end = section_nr + sections_per_block;
+ 	unsigned long pfn = start_pfn;
  
- /*
-  * Macros to create function definitions for page flags
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 5a9ca2a1751b..d85c8754e0ce 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1373,7 +1373,7 @@ void * __init memblock_virt_alloc_try_nid_raw(
- 					   min_addr, max_addr, nid);
- #ifdef CONFIG_DEBUG_VM
- 	if (ptr && size > 0)
--		memset(ptr, 0xff, size);
-+		memset(ptr, PAGE_POISON_PATTERN, size);
- #endif
- 	return ptr;
- }
+ 	/*
+@@ -201,21 +202,24 @@ static bool pages_correctly_reserved(unsigned long start_pfn)
+ 	 * SPARSEMEM_VMEMMAP. We lookup the page once per section
+ 	 * and assume memmap is contiguous within each section
+ 	 */
+-	for (i = 0; i < sections_per_block; i++, pfn += PAGES_PER_SECTION) {
++	for (; section_nr < section_nr_end; section_nr++) {
+ 		if (WARN_ON_ONCE(!pfn_valid(pfn)))
+ 			return false;
+-		page = pfn_to_page(pfn);
+-
+-		for (j = 0; j < PAGES_PER_SECTION; j++) {
+-			if (PageReserved(page + j))
+-				continue;
+-
+-			printk(KERN_WARNING "section number %ld page number %d "
+-				"not reserved, was it already online?\n",
+-				pfn_to_section_nr(pfn), j);
+ 
++		if (!present_section_nr(section_nr)) {
++			pr_warn("section %ld pfn[%lx, %lx) not present",
++				section_nr, pfn, pfn + PAGES_PER_SECTION);
++			return false;
++		} else if (!valid_section_nr(section_nr)) {
++			pr_warn("section %ld pfn[%lx, %lx) no valid memmap",
++				section_nr, pfn, pfn + PAGES_PER_SECTION);
++			return false;
++		} else if (online_section_nr(section_nr)) {
++			pr_warn("section %ld pfn[%lx, %lx) is already online",
++				section_nr, pfn, pfn + PAGES_PER_SECTION);
+ 			return false;
+ 		}
++		pfn += PAGES_PER_SECTION;
+ 	}
+ 
+ 	return true;
+@@ -237,7 +241,7 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
+ 
+ 	switch (action) {
+ 	case MEM_ONLINE:
+-		if (!pages_correctly_reserved(start_pfn))
++		if (!pages_correctly_probed(start_pfn))
+ 			return -EBUSY;
+ 
+ 		ret = online_pages(start_pfn, nr_pages, online_type);
 -- 
 2.16.2
 
