@@ -1,167 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B5F7C6B000A
-	for <linux-mm@kvack.org>; Wed, 28 Feb 2018 15:11:45 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id t123so2077958wmt.2
-        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 12:11:45 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id h89si912206edd.471.2018.02.28.12.11.44
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 827326B0003
+	for <linux-mm@kvack.org>; Wed, 28 Feb 2018 16:02:42 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id g13so3009964qtj.15
+        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 13:02:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e16sor1964800qtk.108.2018.02.28.13.02.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Feb 2018 12:11:44 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 7/7] Documentation for Pmalloc
-Date: Wed, 28 Feb 2018 22:06:20 +0200
-Message-ID: <20180228200620.30026-8-igor.stoppa@huawei.com>
-In-Reply-To: <20180228200620.30026-1-igor.stoppa@huawei.com>
-References: <20180228200620.30026-1-igor.stoppa@huawei.com>
+        (Google Transport Security);
+        Wed, 28 Feb 2018 13:02:41 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20180228183349.GA16336@bombadil.infradead.org>
+References: <20180227131338.3699-1-blackzert@gmail.com> <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
+ <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com> <20180228183349.GA16336@bombadil.infradead.org>
+From: Daniel Micay <danielmicay@gmail.com>
+Date: Wed, 28 Feb 2018 16:02:40 -0500
+Message-ID: <CA+DvKQKoo1U7T_iOOLhfEf9c+K1pzD068au+kGtx0RokFFNKHw@mail.gmail.com>
+Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
-Cc: labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Ilya Smith <blackzert@gmail.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-Detailed documentation about the protectable memory allocator.
+The option to add at least one guard page would be useful whether or
+not it's tied to randomization. It's not feasible to do that in
+userspace for mmap as a whole, only specific users of mmap like malloc
+and it adds significant overhead vs. a kernel implementation. It could
+optionally let you choose a minimum and maximum guard region size with
+it picking random sizes if they're not equal. It's important for it to
+be an enforced gap rather than something that can be filled in by
+another allocation. It will obviously help a lot more when it's being
+used with a hardened allocator designed to take advantage of this
+rather than glibc malloc or jemalloc.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
----
- Documentation/core-api/index.rst   |   1 +
- Documentation/core-api/pmalloc.rst | 111 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 112 insertions(+)
- create mode 100644 Documentation/core-api/pmalloc.rst
+I don't think it makes sense for the kernel to attempt mitigations to
+hide libraries. The best way to do that is in userspace, by having the
+linker reserve a large PROT_NONE region for mapping libraries (both at
+initialization and for dlopen) including a random gap to act as a
+separate ASLR base. If an attacker has library addresses, it's hard to
+see much point in hiding the other libraries from them. It does make
+sense to keep them from knowing the location of any executable code if
+they leak non-library addresses. An isolated library region + gap is a
+feature we implemented in CopperheadOS and it works well, although we
+haven't ported it to Android 7.x or 8.x. I don't think the kernel can
+bring much / anything to the table for it. It's inherently the
+responsibility of libc to randomize the lower bits for secondary
+stacks too.
 
-diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-index c670a8031786..8f5de42d6571 100644
---- a/Documentation/core-api/index.rst
-+++ b/Documentation/core-api/index.rst
-@@ -25,6 +25,7 @@ Core utilities
-    genalloc
-    errseq
-    printk-formats
-+   pmalloc
- 
- Interfaces for kernel debugging
- ===============================
-diff --git a/Documentation/core-api/pmalloc.rst b/Documentation/core-api/pmalloc.rst
-new file mode 100644
-index 000000000000..8fb9c9d3171b
---- /dev/null
-+++ b/Documentation/core-api/pmalloc.rst
-@@ -0,0 +1,111 @@
-+.. SPDX-License-Identifier: GPL-2.0
-+
-+Protectable memory allocator
-+============================
-+
-+Purpose
-+-------
-+
-+The pmalloc library is meant to provide R/O status to data that, for some
-+reason, could neither be declared as constant, nor could it take advantage
-+of the qualifier __ro_after_init, but is write-once and read-only in spirit.
-+It protects data from both accidental and malicious overwrites.
-+
-+Example: A policy that is loaded from userspace.
-+
-+
-+Concept
-+-------
-+
-+pmalloc builds on top of genalloc, using the same concept of memory pools.
-+
-+The value added by pmalloc is that now the memory contained in a pool can
-+become R/O, for the rest of the life of the pool.
-+
-+Different kernel drivers and threads can use different pools, for finer
-+control of what becomes R/O and when. And for improved lockless concurrency.
-+
-+
-+Caveats
-+-------
-+
-+- Memory freed while a pool is not yet protected will be reused.
-+
-+- Once a pool is protected, it's not possible to allocate any more memory
-+  from it.
-+
-+- Memory "freed" from a protected pool indicates that such memory is not
-+  in use anymore by the requester; however, it will not become available
-+  for further use, until the pool is destroyed.
-+
-+- pmalloc does not provide locking support with respect to allocating vs
-+  protecting an individual pool, for performance reasons.
-+  It is recommended not to share the same pool between unrelated functions.
-+  Should sharing be a necessity, the user of the shared pool is expected
-+  to implement locking for that pool.
-+
-+- pmalloc uses genalloc to optimize the use of the space it allocates
-+  through vmalloc. Some more TLB entries will be used, however less than
-+  in the case of using vmalloc directly. The exact number depends on the
-+  size of each allocation request and possible slack.
-+
-+- Considering that not much data is supposed to be dynamically allocated
-+  and then marked as read-only, it shouldn't be an issue that the address
-+  range for pmalloc is limited, on 32-bit systems.
-+
-+- Regarding SMP systems, the allocations are expected to happen mostly
-+  during an initial transient, after which there should be no more need to
-+  perform cross-processor synchronizations of page tables.
-+
-+- To facilitate the conversion of existing code to pmalloc pools, several
-+  helper functions are provided, mirroring their kmalloc counterparts.
-+
-+
-+Use
-+---
-+
-+The typical sequence, when using pmalloc, is:
-+
-+1. create a pool
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pmalloc_create_pool
-+
-+2. [optional] pre-allocate some memory in the pool
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pmalloc_prealloc
-+
-+3. issue one or more allocation requests to the pool with locking as needed
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pmalloc
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pzalloc
-+
-+4. initialize the memory obtained with desired values
-+
-+5. [optional] iterate over points 3 & 4 as needed
-+
-+6. write-protect the pool
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pmalloc_protect_pool
-+
-+7. use in read-only mode the handles obtained through the allocations
-+
-+8. [optional] release all the memory allocated
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pfree
-+
-+9. [optional, but depends on point 8] destroy the pool
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+   :functions: pmalloc_destroy_pool
-+
-+API
-+---
-+
-+.. kernel-doc:: include/linux/pmalloc.h
--- 
-2.14.1
+Fine-grained randomized mmap isn't going to be used if it causes
+unpredictable levels of fragmentation or has a high / unpredictable
+performance cost. I don't think it makes sense to approach it
+aggressively in a way that people can't use. The OpenBSD randomized
+mmap is a fairly conservative implementation to avoid causing
+excessive fragmentation. I think they do a bit more than adding random
+gaps by switching between different 'pivots' but that isn't very high
+benefit. The main benefit is having random bits of unmapped space all
+over the heap when combined with their hardened allocator which
+heavily uses small mmap mappings and has a fair bit of malloc-level
+randomization (it's a bitmap / hash table based slab allocator using
+4k regions with a page span cache and we use a port of it to Android
+with added hardening features but we're missing the fine-grained mmap
+rand it's meant to have underneath what it does itself).
+
+The default vm.max_map_count = 65530 is also a major problem for doing
+fine-grained mmap randomization of any kind and there's the 32-bit
+reference count overflow issue on high memory machines with
+max_map_count * pid_max which isn't resolved yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
