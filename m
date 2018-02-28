@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CC156B0009
-	for <linux-mm@kvack.org>; Wed, 28 Feb 2018 15:11:33 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id v8so1536284pgs.9
-        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 12:11:33 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B5F7C6B000A
+	for <linux-mm@kvack.org>; Wed, 28 Feb 2018 15:11:45 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id t123so2077958wmt.2
+        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 12:11:45 -0800 (PST)
 Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id 60-v6si1793816pld.65.2018.02.28.12.11.31
+        by mx.google.com with ESMTPS id h89si912206edd.471.2018.02.28.12.11.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Feb 2018 12:11:31 -0800 (PST)
+        Wed, 28 Feb 2018 12:11:44 -0800 (PST)
 From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 6/7] lkdtm: crash on overwriting protected pmalloc var
-Date: Wed, 28 Feb 2018 22:06:19 +0200
-Message-ID: <20180228200620.30026-7-igor.stoppa@huawei.com>
+Subject: [PATCH 7/7] Documentation for Pmalloc
+Date: Wed, 28 Feb 2018 22:06:20 +0200
+Message-ID: <20180228200620.30026-8-igor.stoppa@huawei.com>
 In-Reply-To: <20180228200620.30026-1-igor.stoppa@huawei.com>
 References: <20180228200620.30026-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
@@ -22,88 +22,144 @@ List-ID: <linux-mm.kvack.org>
 To: david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
 Cc: labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-Verify that pmalloc read-only protection is in place: trying to
-overwrite a protected variable will crash the kernel.
+Detailed documentation about the protectable memory allocator.
 
 Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 ---
- drivers/misc/lkdtm.h       |  1 +
- drivers/misc/lkdtm_core.c  |  3 +++
- drivers/misc/lkdtm_perms.c | 28 ++++++++++++++++++++++++++++
- 3 files changed, 32 insertions(+)
+ Documentation/core-api/index.rst   |   1 +
+ Documentation/core-api/pmalloc.rst | 111 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+)
+ create mode 100644 Documentation/core-api/pmalloc.rst
 
-diff --git a/drivers/misc/lkdtm.h b/drivers/misc/lkdtm.h
-index 9e513dcfd809..dcda3ae76ceb 100644
---- a/drivers/misc/lkdtm.h
-+++ b/drivers/misc/lkdtm.h
-@@ -38,6 +38,7 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void);
- void __init lkdtm_perms_init(void);
- void lkdtm_WRITE_RO(void);
- void lkdtm_WRITE_RO_AFTER_INIT(void);
-+void lkdtm_WRITE_RO_PMALLOC(void);
- void lkdtm_WRITE_KERN(void);
- void lkdtm_EXEC_DATA(void);
- void lkdtm_EXEC_STACK(void);
-diff --git a/drivers/misc/lkdtm_core.c b/drivers/misc/lkdtm_core.c
-index 2154d1bfd18b..c9fd42bda6ee 100644
---- a/drivers/misc/lkdtm_core.c
-+++ b/drivers/misc/lkdtm_core.c
-@@ -155,6 +155,9 @@ static const struct crashtype crashtypes[] = {
- 	CRASHTYPE(ACCESS_USERSPACE),
- 	CRASHTYPE(WRITE_RO),
- 	CRASHTYPE(WRITE_RO_AFTER_INIT),
-+#ifdef CONFIG_PROTECTABLE_MEMORY
-+	CRASHTYPE(WRITE_RO_PMALLOC),
-+#endif
- 	CRASHTYPE(WRITE_KERN),
- 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
- 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
-diff --git a/drivers/misc/lkdtm_perms.c b/drivers/misc/lkdtm_perms.c
-index 53b85c9d16b8..0ac9023fd2b0 100644
---- a/drivers/misc/lkdtm_perms.c
-+++ b/drivers/misc/lkdtm_perms.c
-@@ -9,6 +9,7 @@
- #include <linux/vmalloc.h>
- #include <linux/mman.h>
- #include <linux/uaccess.h>
-+#include <linux/pmalloc.h>
- #include <asm/cacheflush.h>
+diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
+index c670a8031786..8f5de42d6571 100644
+--- a/Documentation/core-api/index.rst
++++ b/Documentation/core-api/index.rst
+@@ -25,6 +25,7 @@ Core utilities
+    genalloc
+    errseq
+    printk-formats
++   pmalloc
  
- /* Whether or not to fill the target memory area with do_nothing(). */
-@@ -104,6 +105,33 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
- 	*ptr ^= 0xabcd1234;
- }
- 
-+#ifdef CONFIG_PROTECTABLE_MEMORY
-+void lkdtm_WRITE_RO_PMALLOC(void)
-+{
-+	struct gen_pool *pool;
-+	int *i;
+ Interfaces for kernel debugging
+ ===============================
+diff --git a/Documentation/core-api/pmalloc.rst b/Documentation/core-api/pmalloc.rst
+new file mode 100644
+index 000000000000..8fb9c9d3171b
+--- /dev/null
++++ b/Documentation/core-api/pmalloc.rst
+@@ -0,0 +1,111 @@
++.. SPDX-License-Identifier: GPL-2.0
 +
-+	pool = pmalloc_create_pool("pool", 0);
-+	if (unlikely(!pool)) {
-+		pr_info("Failed preparing pool for pmalloc test.");
-+		return;
-+	}
++Protectable memory allocator
++============================
 +
-+	i = (int *)pmalloc(pool, sizeof(int), GFP_KERNEL);
-+	if (unlikely(!i)) {
-+		pr_info("Failed allocating memory for pmalloc test.");
-+		pmalloc_destroy_pool(pool);
-+		return;
-+	}
++Purpose
++-------
 +
-+	*i = INT_MAX;
-+	pmalloc_protect_pool(pool);
++The pmalloc library is meant to provide R/O status to data that, for some
++reason, could neither be declared as constant, nor could it take advantage
++of the qualifier __ro_after_init, but is write-once and read-only in spirit.
++It protects data from both accidental and malicious overwrites.
 +
-+	pr_info("attempting bad pmalloc write at %p\n", i);
-+	*i = 0;
-+}
-+#endif
++Example: A policy that is loaded from userspace.
 +
- void lkdtm_WRITE_KERN(void)
- {
- 	size_t size;
++
++Concept
++-------
++
++pmalloc builds on top of genalloc, using the same concept of memory pools.
++
++The value added by pmalloc is that now the memory contained in a pool can
++become R/O, for the rest of the life of the pool.
++
++Different kernel drivers and threads can use different pools, for finer
++control of what becomes R/O and when. And for improved lockless concurrency.
++
++
++Caveats
++-------
++
++- Memory freed while a pool is not yet protected will be reused.
++
++- Once a pool is protected, it's not possible to allocate any more memory
++  from it.
++
++- Memory "freed" from a protected pool indicates that such memory is not
++  in use anymore by the requester; however, it will not become available
++  for further use, until the pool is destroyed.
++
++- pmalloc does not provide locking support with respect to allocating vs
++  protecting an individual pool, for performance reasons.
++  It is recommended not to share the same pool between unrelated functions.
++  Should sharing be a necessity, the user of the shared pool is expected
++  to implement locking for that pool.
++
++- pmalloc uses genalloc to optimize the use of the space it allocates
++  through vmalloc. Some more TLB entries will be used, however less than
++  in the case of using vmalloc directly. The exact number depends on the
++  size of each allocation request and possible slack.
++
++- Considering that not much data is supposed to be dynamically allocated
++  and then marked as read-only, it shouldn't be an issue that the address
++  range for pmalloc is limited, on 32-bit systems.
++
++- Regarding SMP systems, the allocations are expected to happen mostly
++  during an initial transient, after which there should be no more need to
++  perform cross-processor synchronizations of page tables.
++
++- To facilitate the conversion of existing code to pmalloc pools, several
++  helper functions are provided, mirroring their kmalloc counterparts.
++
++
++Use
++---
++
++The typical sequence, when using pmalloc, is:
++
++1. create a pool
++
++.. kernel-doc:: include/linux/pmalloc.h
++   :functions: pmalloc_create_pool
++
++2. [optional] pre-allocate some memory in the pool
++
++.. kernel-doc:: include/linux/pmalloc.h
++   :functions: pmalloc_prealloc
++
++3. issue one or more allocation requests to the pool with locking as needed
++
++.. kernel-doc:: include/linux/pmalloc.h
++   :functions: pmalloc
++
++.. kernel-doc:: include/linux/pmalloc.h
++   :functions: pzalloc
++
++4. initialize the memory obtained with desired values
++
++5. [optional] iterate over points 3 & 4 as needed
++
++6. write-protect the pool
++
++.. kernel-doc:: include/linux/pmalloc.h
++   :functions: pmalloc_protect_pool
++
++7. use in read-only mode the handles obtained through the allocations
++
++8. [optional] release all the memory allocated
++
++.. kernel-doc:: include/linux/pmalloc.h
++   :functions: pfree
++
++9. [optional, but depends on point 8] destroy the pool
++
++.. kernel-doc:: include/linux/pmalloc.h
++   :functions: pmalloc_destroy_pool
++
++API
++---
++
++.. kernel-doc:: include/linux/pmalloc.h
 -- 
 2.14.1
 
