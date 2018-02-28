@@ -1,67 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E00036B0003
-	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 20:27:03 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id c5so482870pfn.17
-        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 17:27:03 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r3-v6sor240834plb.68.2018.02.27.17.27.02
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B5E56B0003
+	for <linux-mm@kvack.org>; Tue, 27 Feb 2018 22:03:22 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id d18so1284243iob.23
+        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 19:03:22 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id b62si627770iti.5.2018.02.27.19.03.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Feb 2018 17:27:02 -0800 (PST)
-Date: Tue, 27 Feb 2018 15:26:58 -1000
-From: Joey Pabalinas <joeypabalinas@gmail.com>
-Subject: Re: [PATCH] mm/zsmalloc: strength reduce zspage_size calculation
-Message-ID: <20180228012658.t3z5uowdn24wxv6z@gmail.com>
-References: <20180226122126.coxtwkv5bqifariz@gmail.com>
- <20180228000319.GD168047@rodete-desktop-imager.corp.google.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="h4krtnu4bl2l2wvd"
-Content-Disposition: inline
-In-Reply-To: <20180228000319.GD168047@rodete-desktop-imager.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Feb 2018 19:03:20 -0800 (PST)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [v5 0/6] optimize memory hotplug
+Date: Tue, 27 Feb 2018 22:03:02 -0500
+Message-Id: <20180228030308.1116-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org
+To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
+Changelog:
+	v5 - v4
+	- Addressed more comments from Ingo Molnar and Michal Hocko.
+	- In the patch "optimize memory hotplug" we are now using
+	  struct memory_block to hold node id as suggested by Michal.
+	- In the patch "don't read nid from struct page during hotplug"
+	  renamed register_new_memory() to hotplug_memory_register() as
+	  suggested by Ingo. Also, in this patch replaced the
+	  description with the one provided by Michal.
+	- Fixed other spelling issues found by Ingo.
 
---h4krtnu4bl2l2wvd
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+	v3 - v4
+	Addressed comments from Ingo Molnar and from Michal Hocko
+	Split 4th patch into three patches
+	Instead of using section table to save node ids, saving node id in
+	the first page of every section.
 
-On Wed, Feb 28, 2018 at 09:03:19AM +0900, Minchan Kim wrote:
-> Thanks for the patch! However, it's used only zs_create_pool which
-> is really cold path so I don't feel it would improve for real practice.
+	v2 - v3
+	Fixed two issues found during testing
+	Addressed Kbuild warning reports
 
-Very true; in retrospect this this definitely isn't a very hot path at
-all, haha. Cheers :)
+	v1 - v2
+	Added struct page poisoning checking in order to verify that
+	struct pages are never accessed until initialized during memory
+	hotplug
 
---=20
-Joey Pabalinas
+This patchset:
+- Improves hotplug performance by eliminating a number of
+struct page traverses during memory hotplug.
 
---h4krtnu4bl2l2wvd
-Content-Type: application/pgp-signature; name="signature.asc"
+- Fixes some issues with hotplugging, where boundaries
+were not properly checked. And on x86 block size was not properly aligned
+with end of memory
 
------BEGIN PGP SIGNATURE-----
+- Also, potentially improves boot performance by eliminating condition from
+  __init_single_page().
 
-iQIzBAEBCAAdFiEEKlZXrihdNOcUPZTNruvLfWhyVBkFAlqWBWIACgkQruvLfWhy
-VBnRWw//RHfWVjVfAS7WBjdIKdL4pITqIm2qWHpL/L/RQw9g8RhtgP++gBtB2pVP
-HN7TZ3OW/+3qzCtzY1QLgjbGu5wA/gBuL6oz+xq4pihZozHhby5Qv1ndzvTl+MwL
-/8pIfjKKn4hTRQvGSkf31EXkehGyx60BLSx7qEMfSkmfFny2jEeG6LX8HmH8wCyp
-fOYC/8DoQcc943eOsVgZ450258qEBvCCDZ7Qk2yy+gqdsLYgtWKtFaagKbUSD6xv
-/tCsHD2LaOtD+iLcAG5zLkQioF6h/D7yCowLEfDCAmZnBVMxruRH7559R+8XN/xt
-5SB0hc4BVLx2rH/YWx0/sRGteJwCDNbGEC95wB5hiHJOQcEbjny86mv+IbRXpXs2
-nQs9FYBmpHHOUZlKtMguhjGd3NaP9G5MfKclXJsIIOn9ZVI2U4nCD8P+z99XsTMK
-JUDuxSfNrY+ylpHxPxmyYocx1w5sxjvG/3CvjVkZpKh1VKxQ3fYjbR8xPs8muqqe
-xSa/8Rh5y+/s7ZvOLeez0r9fAeBfoiyxDx1OKB4qJTpPYzc89N2hcghF6WZGqeKL
-3uV/LAvGv9JQzUUbFqsEZdcJsiwmKEd9m6CsbvFMEQfEGsZFLzcFYmeaPh0RQphL
-YameC05JCZ1zKc6TyaU1ZW5cgwrnN5lu83srrAnRN03tYwdyHyw=
-=JDEO
------END PGP SIGNATURE-----
+- Adds robustness by verifying that that struct pages are correctly
+  poisoned when flags are accessed.
 
---h4krtnu4bl2l2wvd--
+The following experiments were performed on Xeon(R)
+CPU E7-8895 v3 @ 2.60GHz with 1T RAM:
+
+booting in qemu with 960G of memory, time to initialize struct pages:
+
+no-kvm:
+	TRY1		TRY2
+BEFORE:	39.433668	39.39705
+AFTER:	36.903781	36.989329
+
+with-kvm:
+BEFORE:	10.977447	11.103164
+AFTER:	10.929072	10.751885
+
+Hotplug 896G memory:
+no-kvm:
+	TRY1		TRY2
+BEFORE: 848.740000	846.910000
+AFTER:  783.070000	786.560000
+
+with-kvm:
+	TRY1		TRY2
+BEFORE: 34.410000	33.57
+AFTER:	29.810000	29.580000
+
+Pavel Tatashin (6):
+  mm/memory_hotplug: enforce block size aligned range check
+  x86/mm/memory_hotplug: determine block size based on the end of boot
+    memory
+  mm: add uninitialized struct page poisoning sanity checking
+  mm/memory_hotplug: optimize probe routine
+  mm/memory_hotplug: don't read nid from struct page during hotplug
+  mm/memory_hotplug: optimize memory hotplug
+
+ arch/x86/mm/init_64.c      | 33 +++++++++++++++++++++++++++++----
+ drivers/base/memory.c      | 40 ++++++++++++++++++++++------------------
+ drivers/base/node.c        | 24 +++++++++++++++++-------
+ include/linux/memory.h     |  3 ++-
+ include/linux/mm.h         |  4 +++-
+ include/linux/node.h       |  4 ++--
+ include/linux/page-flags.h | 22 +++++++++++++++++-----
+ mm/memblock.c              |  2 +-
+ mm/memory_hotplug.c        | 44 +++++++++++++++++---------------------------
+ mm/page_alloc.c            | 28 ++++++++++------------------
+ mm/sparse.c                |  8 +++++++-
+ 11 files changed, 127 insertions(+), 85 deletions(-)
+
+-- 
+2.16.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
