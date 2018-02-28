@@ -1,63 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 80F0E6B0003
-	for <linux-mm@kvack.org>; Wed, 28 Feb 2018 12:50:53 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id v186so1835259pfb.8
-        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 09:50:53 -0800 (PST)
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40096.outbound.protection.outlook.com. [40.107.4.96])
-        by mx.google.com with ESMTPS id 126si1578858pfd.48.2018.02.28.09.50.51
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F1DAB6B0003
+	for <linux-mm@kvack.org>; Wed, 28 Feb 2018 13:33:59 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id q5-v6so1851019pll.17
+        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 10:33:59 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z3si1325828pgr.744.2018.02.28.10.33.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 28 Feb 2018 09:50:51 -0800 (PST)
-Date: Wed, 28 Feb 2018 09:50:36 -0800
-From: Andrei Vagin <avagin@virtuozzo.com>
-Subject: Re: [PATCH v5 0/4] vm: add a syscall to map a process memory into a
- pipe
-Message-ID: <20180228175035.GA20686@outlook.office365.com>
-References: <1515479453-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180220164406.3ec34509376f16841dc66e34@linux-foundation.org>
- <3122ec5a-7f73-f6b4-33ea-8c10ef32e5b0@virtuozzo.com>
- <20180227021818.GA31386@altlinux.org>
- <627ac4f8-a52d-0582-0c9e-e70ea667fa7e@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 28 Feb 2018 10:33:56 -0800 (PST)
+Date: Wed, 28 Feb 2018 10:33:49 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
+Message-ID: <20180228183349.GA16336@bombadil.infradead.org>
+References: <20180227131338.3699-1-blackzert@gmail.com>
+ <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
+ <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <627ac4f8-a52d-0582-0c9e-e70ea667fa7e@virtuozzo.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, criu@openvz.org, gdb@sourceware.org, devel@lists.open-mpi.org, rr-dev@mozilla.org, Arnd Bergmann <arnd@arndb.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Greg KH <gregkh@linuxfoundation.org>, Andrei Vagin <avagin@openvz.org>
+To: Ilya Smith <blackzert@gmail.com>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-On Wed, Feb 28, 2018 at 10:12:55AM +0300, Pavel Emelyanov wrote:
-> On 02/27/2018 05:18 AM, Dmitry V. Levin wrote:
-> > On Mon, Feb 26, 2018 at 12:02:25PM +0300, Pavel Emelyanov wrote:
-> >> On 02/21/2018 03:44 AM, Andrew Morton wrote:
-> >>> On Tue,  9 Jan 2018 08:30:49 +0200 Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
-> >>>
-> >>>> This patches introduces new process_vmsplice system call that combines
-> >>>> functionality of process_vm_read and vmsplice.
-> >>>
-> >>> All seems fairly strightforward.  The big question is: do we know that
-> >>> people will actually use this, and get sufficient value from it to
-> >>> justify its addition?
-> >>
-> >> Yes, that's what bothers us a lot too :) I've tried to start with finding out if anyone 
-> >> used the sys_read/write_process_vm() calls, but failed :( Does anybody know how popular
-> >> these syscalls are?
+On Wed, Feb 28, 2018 at 08:13:00PM +0300, Ilya Smith wrote:
+> > It would be worth spelling out the "not recommended" bit some more
+> > too: this fragments the mmap space, which has some serious issues on
+> > smaller address spaces if you get into a situation where you cannot
+> > allocate a hole large enough between the other allocations.
 > > 
-> > Well, process_vm_readv itself is quite popular, it's used by debuggers nowadays,
-> > see e.g.
-> > $ strace -qq -esignal=none -eprocess_vm_readv strace -qq -o/dev/null cat /dev/null
 > 
-> I see. Well, yes, this use-case will not benefit much from remote splice. How about more
-> interactive debug by, say, gdb? It may attach, then splice all the memory, then analyze
-> the victim code/data w/o copying it to its address space?
+> Ia??m agree, that's the point.
 
-Hmm, in this case, you probably will want to be able to map pipe pages
-into memory.
-
-> 
-> -- Pavel
+Would it be worth randomising the address returned just ever so slightly?
+ie instead of allocating exactly the next address, put in a guard hole
+of (configurable, by default maybe) 1-15 pages?  Is that enough extra
+entropy to foil an interesting number of attacks, or do we need the full
+randomise-the-address-space approach in order to be useful?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
