@@ -1,57 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B63FC6B0003
-	for <linux-mm@kvack.org>; Wed, 28 Feb 2018 02:13:08 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id o11so774609pgp.14
-        for <linux-mm@kvack.org>; Tue, 27 Feb 2018 23:13:08 -0800 (PST)
-Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30120.outbound.protection.outlook.com. [40.107.3.120])
-        by mx.google.com with ESMTPS id u62si657215pgd.579.2018.02.27.23.13.06
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 027156B0003
+	for <linux-mm@kvack.org>; Wed, 28 Feb 2018 03:08:15 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id h21so1378853qtm.22
+        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 00:08:14 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m84si447739qkh.179.2018.02.28.00.08.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 27 Feb 2018 23:13:07 -0800 (PST)
-Subject: Re: [PATCH v5 0/4] vm: add a syscall to map a process memory into a
- pipe
-References: <1515479453-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180220164406.3ec34509376f16841dc66e34@linux-foundation.org>
- <3122ec5a-7f73-f6b4-33ea-8c10ef32e5b0@virtuozzo.com>
- <20180227021818.GA31386@altlinux.org>
-From: Pavel Emelyanov <xemul@virtuozzo.com>
-Message-ID: <627ac4f8-a52d-0582-0c9e-e70ea667fa7e@virtuozzo.com>
-Date: Wed, 28 Feb 2018 10:12:55 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Feb 2018 00:08:14 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w1S7xgGK027615
+	for <linux-mm@kvack.org>; Wed, 28 Feb 2018 03:08:13 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2gdq1sbd58-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 28 Feb 2018 03:08:13 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 28 Feb 2018 08:08:11 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] selftests/vm: Update max va test to check for high address return.
+In-Reply-To: <20180228035830.10089-1-aneesh.kumar@linux.vnet.ibm.com>
+References: <20180228035830.10089-1-aneesh.kumar@linux.vnet.ibm.com>
+Date: Wed, 28 Feb 2018 13:38:05 +0530
 MIME-Version: 1.0
-In-Reply-To: <20180227021818.GA31386@altlinux.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Message-Id: <87vaeha656.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, criu@openvz.org, gdb@sourceware.org, devel@lists.open-mpi.org, rr-dev@mozilla.org, Arnd Bergmann <arnd@arndb.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Greg KH <gregkh@linuxfoundation.org>, Andrei Vagin <avagin@openvz.org>
+To: akpm@linux-foundation.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On 02/27/2018 05:18 AM, Dmitry V. Levin wrote:
-> On Mon, Feb 26, 2018 at 12:02:25PM +0300, Pavel Emelyanov wrote:
->> On 02/21/2018 03:44 AM, Andrew Morton wrote:
->>> On Tue,  9 Jan 2018 08:30:49 +0200 Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
->>>
->>>> This patches introduces new process_vmsplice system call that combines
->>>> functionality of process_vm_read and vmsplice.
->>>
->>> All seems fairly strightforward.  The big question is: do we know that
->>> people will actually use this, and get sufficient value from it to
->>> justify its addition?
->>
->> Yes, that's what bothers us a lot too :) I've tried to start with finding out if anyone 
->> used the sys_read/write_process_vm() calls, but failed :( Does anybody know how popular
->> these syscalls are?
-> 
-> Well, process_vm_readv itself is quite popular, it's used by debuggers nowadays,
-> see e.g.
-> $ strace -qq -esignal=none -eprocess_vm_readv strace -qq -o/dev/null cat /dev/null
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
 
-I see. Well, yes, this use-case will not benefit much from remote splice. How about more
-interactive debug by, say, gdb? It may attach, then splice all the memory, then analyze
-the victim code/data w/o copying it to its address space?
+> mmap(-1,..) is expected to search from max supported VA top down. It should find
+> an address above ADDR_SWITCH_HINT. Explicitly check for this.
+>
+> Also derefer the address even if we failed the addr check.
+>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
--- Pavel
+One issue I noticed is how to make this conditional so that we can still
+run the test on x86 with 4 level page table?
+
+> ---
+>  tools/testing/selftests/vm/va_128TBswitch.c | 27 ++++++++++++++++++++-------
+>  1 file changed, 20 insertions(+), 7 deletions(-)
+>
+> diff --git a/tools/testing/selftests/vm/va_128TBswitch.c b/tools/testing/selftests/vm/va_128TBswitch.c
+> index e7fe734c374f..f68fa4bd8179 100644
+> --- a/tools/testing/selftests/vm/va_128TBswitch.c
+> +++ b/tools/testing/selftests/vm/va_128TBswitch.c
+> @@ -44,6 +44,7 @@ struct testcase {
+>  	unsigned long flags;
+>  	const char *msg;
+>  	unsigned int low_addr_required:1;
+> +	unsigned int high_addr_required:1;
+>  	unsigned int keep_mapped:1;
+>  };
+>  
+> @@ -108,6 +109,7 @@ static struct testcase testcases[] = {
+>  		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+>  		.msg = "mmap(HIGH_ADDR)",
+>  		.keep_mapped = 1,
+> +		.high_addr_required = 1,
+>  	},
+>  	{
+>  		.addr = HIGH_ADDR,
+> @@ -115,12 +117,14 @@ static struct testcase testcases[] = {
+>  		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+>  		.msg = "mmap(HIGH_ADDR) again",
+>  		.keep_mapped = 1,
+> +		.high_addr_required = 1,
+>  	},
+>  	{
+>  		.addr = HIGH_ADDR,
+>  		.size = 2 * PAGE_SIZE,
+>  		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+>  		.msg = "mmap(HIGH_ADDR, MAP_FIXED)",
+> +		.high_addr_required = 1,
+>  	},
+>  	{
+>  		.addr = (void *) -1,
+> @@ -128,12 +132,14 @@ static struct testcase testcases[] = {
+>  		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+>  		.msg = "mmap(-1)",
+>  		.keep_mapped = 1,
+> +		.high_addr_required = 1,
+>  	},
+>  	{
+>  		.addr = (void *) -1,
+>  		.size = 2 * PAGE_SIZE,
+>  		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+>  		.msg = "mmap(-1) again",
+> +		.high_addr_required = 1,
+>  	},
+>  	{
+>  		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
+> @@ -193,6 +199,7 @@ static struct testcase hugetlb_testcases[] = {
+>  		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+>  		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB)",
+>  		.keep_mapped = 1,
+> +		.high_addr_required = 1,
+>  	},
+>  	{
+>  		.addr = HIGH_ADDR,
+> @@ -200,12 +207,14 @@ static struct testcase hugetlb_testcases[] = {
+>  		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+>  		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB) again",
+>  		.keep_mapped = 1,
+> +		.high_addr_required = 1,
+>  	},
+>  	{
+>  		.addr = HIGH_ADDR,
+>  		.size = HUGETLB_SIZE,
+>  		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+>  		.msg = "mmap(HIGH_ADDR, MAP_FIXED | MAP_HUGETLB)",
+> +		.high_addr_required = 1,
+>  	},
+>  	{
+>  		.addr = (void *) -1,
+> @@ -213,12 +222,14 @@ static struct testcase hugetlb_testcases[] = {
+>  		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+>  		.msg = "mmap(-1, MAP_HUGETLB)",
+>  		.keep_mapped = 1,
+> +		.high_addr_required = 1,
+>  	},
+>  	{
+>  		.addr = (void *) -1,
+>  		.size = HUGETLB_SIZE,
+>  		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+>  		.msg = "mmap(-1, MAP_HUGETLB) again",
+> +		.high_addr_required = 1,
+>  	},
+>  	{
+>  		.addr = (void *)(ADDR_SWITCH_HINT - PAGE_SIZE),
+> @@ -257,14 +268,16 @@ static int run_test(struct testcase *test, int count)
+>  		if (t->low_addr_required && p >= (void *)(ADDR_SWITCH_HINT)) {
+>  			printf("FAILED\n");
+>  			ret = 1;
+> -		} else {
+> -			/*
+> -			 * Do a dereference of the address returned so that we catch
+> -			 * bugs in page fault handling
+> -			 */
+> -			memset(p, 0, t->size);
+> +		} else if (t->high_addr_required && p < (void *)(ADDR_SWITCH_HINT)) {
+> +			printf("FAILED\n");
+> +			ret = 1;
+> +		} else
+>  			printf("OK\n");
+> -		}
+> +		/*
+> +		 * Do a dereference of the address returned so that we catch
+> +		 * bugs in page fault handling
+> +		 */
+> +		memset(p, 0, t->size);
+>  		if (!t->keep_mapped)
+>  			munmap(p, t->size);
+>  	}
+> -- 
+> 2.14.3
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
