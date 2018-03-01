@@ -1,67 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B9196B000D
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 10:03:11 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id f143so4893312qke.12
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 07:03:11 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id e56si4644433qtk.321.2018.03.01.07.03.10
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 149AE6B0011
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 10:09:38 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id x85so3177852oix.8
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 07:09:38 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l21sor1648605oii.227.2018.03.01.07.09.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Mar 2018 07:03:10 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w21F0qWg112602
-	for <linux-mm@kvack.org>; Thu, 1 Mar 2018 10:03:09 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2gek14th8e-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 01 Mar 2018 10:03:08 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Thu, 1 Mar 2018 15:03:03 -0000
-Date: Thu, 1 Mar 2018 16:02:58 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH v3 0/4] Split page_type out from mapcount
-In-Reply-To: <20180301145058.GA19662@bombadil.infradead.org>
-References: <20180228223157.9281-1-willy@infradead.org>
-	<20180301081750.42b135c3@mschwideX1>
-	<20180301124412.gm6jxwzyfskzxspa@node.shutemov.name>
-	<20180301145058.GA19662@bombadil.infradead.org>
+        (Google Transport Security);
+        Thu, 01 Mar 2018 07:09:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Message-Id: <20180301160258.6a619212@mschwideX1>
+In-Reply-To: <20180301131033.GH15057@dhcp22.suse.cz>
+References: <1519908465-12328-1-git-send-email-neelx@redhat.com> <20180301131033.GH15057@dhcp22.suse.cz>
+From: Daniel Vacek <neelx@redhat.com>
+Date: Thu, 1 Mar 2018 16:09:35 +0100
+Message-ID: <CACjP9X-S=OgmUw-WyyH971_GREn1WzrG3aeGkKLyR1bO4_pWPA@mail.gmail.com>
+Subject: Re: [PATCH] mm/page_alloc: fix memmap_init_zone pageblock alignment
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, stable@vger.kernel.org
 
-On Thu, 1 Mar 2018 06:50:58 -0800
-Matthew Wilcox <willy@infradead.org> wrote:
+ffffe31d01ed8000  7b600000                0        0  0 0
+On Thu, Mar 1, 2018 at 2:10 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Thu 01-03-18 13:47:45, Daniel Vacek wrote:
+>> In move_freepages() a BUG_ON() can be triggered on uninitialized page structures
+>> due to pageblock alignment. Aligning the skipped pfns in memmap_init_zone() the
+>> same way as in move_freepages_block() simply fixes those crashes.
+>
+> This changelog doesn't describe how the fix works. Why doesn't
+> memblock_next_valid_pfn return the first valid pfn as one would expect?
 
-> On Thu, Mar 01, 2018 at 03:44:12PM +0300, Kirill A. Shutemov wrote:
-> > On Thu, Mar 01, 2018 at 08:17:50AM +0100, Martin Schwidefsky wrote:  
-> > > Yeah, that is a nasty bit of code. On s390 we have 2K page tables (pte)
-> > > but 4K pages. If we use full pages for the pte tables we waste 2K of
-> > > memory for each of the tables. So we allocate 4K and split it into two
-> > > 2K pieces. Now we have to keep track of the pieces to be able to free
-> > > them again.  
-> > 
-> > Have you considered to use slab for page table allocation instead?
-> > IIRC some architectures practice this already.  
-> 
-> You're not allowed to do that any more.  Look at pgtable_page_ctor(),
-> or rather ptlock_init().
+Actually it does. The point is it is not guaranteed to be pageblock
+aligned. And we
+actually want to initialize even those page structures which are
+outside of the range.
+Hence the alignment here.
 
-Oh yes, I forgot about the ptl. This takes up some fields in struct page
-which the slab/slub cache want to use as well.
+For example from reproducer machine, memory map from e820/BIOS:
 
--- 
-blue skies,
-   Martin.
+$ grep 7b7ff000 /proc/iomem
+7b7ff000-7b7fffff : System RAM
 
-"Reality continues to ruin my life." - Calvin.
+Page structures before commit b92df1de5d28:
+
+crash> kmem -p 77fff000 78000000 7b5ff000 7b600000 7b7fe000 7b7ff000
+7b800000 7ffff000 80000000
+      PAGE        PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffff73941e00000  78000000                0        0  1 1fffff00000000
+fffff73941ed7fc0  7b5ff000                0        0  1 1fffff00000000
+fffff73941ed8000  7b600000                0        0  1 1fffff00000000
+fffff73941edff80  7b7fe000                0        0  1 1fffff00000000
+fffff73941edffc0  7b7ff000 ffff8e67e04d3ae0     ad84  1 1fffff00020068
+uptodate,lru,active,mappedtodisk    <<<< start of the range here
+fffff73941ee0000  7b800000                0        0  1 1fffff00000000
+fffff73941ffffc0  7ffff000                0        0  1 1fffff00000000
+
+So far so good.
+
+After commit b92df1de5d28 machine eventually crashes with:
+
+BUG at mm/page_alloc.c:1913
+
+>         VM_BUG_ON(page_zone(start_page) != page_zone(end_page));
+
+>From registers and stack I digged start_page points to
+ffffe31d01ed8000 (note that this is
+page ffffe31d01edffc0 aligned to pageblock) and I can see this in memory dump:
+
+crash> kmem -p 77fff000 78000000 7b5ff000 7b600000 7b7fe000 7b7ff000
+7b800000 7ffff000 80000000
+      PAGE        PHYSICAL      MAPPING       INDEX CNT FLAGS
+ffffe31d01e00000  78000000                0        0  0 0
+ffffe31d01ed7fc0  7b5ff000                0        0  0 0
+ffffe31d01ed8000  7b600000                0        0  0 0    <<<< note
+that nodeid and zonenr are encoded in top bits of page flags which are
+not initialized here, hence the crash :-(
+ffffe31d01edff80  7b7fe000                0        0  0 0
+ffffe31d01edffc0  7b7ff000                0        0  1 1fffff00000000
+ffffe31d01ee0000  7b800000                0        0  1 1fffff00000000
+ffffe31d01ffffc0  7ffff000                0        0  1 1fffff00000000
+
+With my fix applied:
+
+crash> kmem -p 77fff000 78000000 7b5ff000 7b600000 7b7fe000 7b7ff000
+7b800000 7ffff000 80000000
+      PAGE        PHYSICAL      MAPPING       INDEX CNT FLAGS
+ffffea0001e00000  78000000                0        0  0 0
+ffffea0001e00000  7b5ff000                0        0  0 0
+ffffea0001ed8000  7b600000                0        0  1 1fffff00000000
+   <<<< vital data filled in here this time \o/
+ffffea0001edff80  7b7fe000                0        0  1 1fffff00000000
+ffffea0001edffc0  7b7ff000 ffff88017fb13720        8  2 1fffff00020068
+uptodate,lru,active,mappedtodisk
+ffffea0001ee0000  7b800000                0        0  1 1fffff00000000
+ffffea0001ffffc0  7ffff000                0        0  1 1fffff00000000
+
+We are not interested in the beginning of whole section. Just the
+pages in the first
+populated block where the range begins are important (actually just
+the first one really, but...).
+
+
+> It would be also good put the panic info in the changelog.
+
+Of course I forgot to link the related bugzilla:
+
+https://bugzilla.kernel.org/show_bug.cgi?id=196443
+
+Though it is not very well explained there as well. I hope my notes
+above make it clear.
+
+
+>> Fixes: b92df1de5d28 ("[mm] page_alloc: skip over regions of invalid pfns where possible")
+>> Signed-off-by: Daniel Vacek <neelx@redhat.com>
+>> Cc: stable@vger.kernel.org
+>> ---
+>>  mm/page_alloc.c | 9 +++++++--
+>>  1 file changed, 7 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index cb416723538f..9edee36e6a74 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -5359,9 +5359,14 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>>                       /*
+>>                        * Skip to the pfn preceding the next valid one (or
+>>                        * end_pfn), such that we hit a valid pfn (or end_pfn)
+>> -                      * on our next iteration of the loop.
+>> +                      * on our next iteration of the loop. Note that it needs
+>> +                      * to be pageblock aligned even when the region itself
+>> +                      * is not as move_freepages_block() can shift ahead of
+>> +                      * the valid region but still depends on correct page
+>> +                      * metadata.
+>>                        */
+>> -                     pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
+>> +                     pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
+>> +                                             ~(pageblock_nr_pages-1)) - 1;
+>>  #endif
+>>                       continue;
+>>               }
+>> --
+>> 2.16.2
+>>
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
