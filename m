@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B256B6B0003
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 12:24:19 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id d142so3415646oih.4
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 09:24:19 -0800 (PST)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E36A6B0003
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 12:28:54 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id w194so6783603itc.1
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 09:28:54 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 4sor1536527oif.262.2018.03.01.09.24.18
+        by mx.google.com with SMTPS id x63sor3095016ite.70.2018.03.01.09.28.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Mar 2018 09:24:18 -0800 (PST)
+        Thu, 01 Mar 2018 09:28:53 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180301152729.GM15057@dhcp22.suse.cz>
-References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
- <20180301131033.GH15057@dhcp22.suse.cz> <CACjP9X-S=OgmUw-WyyH971_GREn1WzrG3aeGkKLyR1bO4_pWPA@mail.gmail.com>
- <20180301152729.GM15057@dhcp22.suse.cz>
-From: Daniel Vacek <neelx@redhat.com>
-Date: Thu, 1 Mar 2018 18:24:17 +0100
-Message-ID: <CACjP9X9E4d-ew9ZaHzhy2+R6DumYSny2_sRqoQa-n6cOZU3Y1w@mail.gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: fix memmap_init_zone pageblock alignment
+In-Reply-To: <286eaefc0a6c3fa9b83b87e7d6dc0fbb5b5c9926.1519924383.git.andreyknvl@google.com>
+References: <cover.1519924383.git.andreyknvl@google.com> <286eaefc0a6c3fa9b83b87e7d6dc0fbb5b5c9926.1519924383.git.andreyknvl@google.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Thu, 1 Mar 2018 18:28:52 +0100
+Message-ID: <CAAeHK+w86uMUrJjwV1Sei=N4udhfTmWab5e3FuT72=BEMcCu3A@mail.gmail.com>
+Subject: Re: [PATCH 1/2] kasan: fix invalid-free test crashing the kernel
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, stable@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Nick Terrell <terrelln@fb.com>, Chris Mason <clm@fb.com>, Yury Norov <ynorov@caviumnetworks.com>, Al Viro <viro@zeniv.linux.org.uk>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Palmer Dabbelt <palmer@dabbelt.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Jeff Layton <jlayton@redhat.com>, "Jason A . Donenfeld" <Jason@zx2c4.com>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Kostya Serebryany <kcc@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-On Thu, Mar 1, 2018 at 4:27 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Thu 01-03-18 16:09:35, Daniel Vacek wrote:
->> From registers and stack I digged start_page points to
->> ffffe31d01ed8000 (note that this is
->> page ffffe31d01edffc0 aligned to pageblock) and I can see this in memory dump:
->>
->> crash> kmem -p 77fff000 78000000 7b5ff000 7b600000 7b7fe000 7b7ff000
->> 7b800000 7ffff000 80000000
->>       PAGE        PHYSICAL      MAPPING       INDEX CNT FLAGS
->> ffffe31d01e00000  78000000                0        0  0 0
->> ffffe31d01ed7fc0  7b5ff000                0        0  0 0
->> ffffe31d01ed8000  7b600000                0        0  0 0    <<<< note
+On Thu, Mar 1, 2018 at 6:15 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+> When an invalid-free is triggered by one of the KASAN tests, the object
+> doesn't actually get freed. This later leads to a BUG failure in
+> kmem_cache_destroy that checks that there are no allocated objects in the
+> cache that is being destroyed. Fix this by calling kmem_cache_free with
+> the proper object address after the call that triggers invalid-free.
+
+Note, that for this patch to fix the issue, it is supposed to go on
+top of the "kasan, slub: fix handling of kasan_slab_free hook" patch I
+sent recently.
+
+https://patchwork.kernel.org/patch/10238179/
+
 >
-> Are those ranges covered by the System RAM as well?
-
-Sorry I forgot to answer this. If they were, the loop won't be
-skipping them, right? But it really does not matter here, kernel needs
-(some) page structures initialized anyways. And I do not feel
-comfortable with removing the VM_BUG_ON(). The initialization is what
-changed with commit b92df1de5d28, hence fixing this.
-
---nX
-
->> that nodeid and zonenr are encoded in top bits of page flags which are
->> not initialized here, hence the crash :-(
->> ffffe31d01edff80  7b7fe000                0        0  0 0
->> ffffe31d01edffc0  7b7ff000                0        0  1 1fffff00000000
->> ffffe31d01ee0000  7b800000                0        0  1 1fffff00000000
->> ffffe31d01ffffc0  7ffff000                0        0  1 1fffff00000000
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  lib/test_kasan.c | 8 ++++++++
+>  1 file changed, 8 insertions(+)
 >
-> It is still not clear why not to do the alignment in
-> memblock_next_valid_pfn rahter than its caller.
+> diff --git a/lib/test_kasan.c b/lib/test_kasan.c
+> index 98854a64b014..ec657105edbf 100644
+> --- a/lib/test_kasan.c
+> +++ b/lib/test_kasan.c
+> @@ -567,7 +567,15 @@ static noinline void __init kmem_cache_invalid_free(void)
+>                 return;
+>         }
+>
+> +       /* Trigger invalid free, the object doesn't get freed */
+>         kmem_cache_free(cache, p + 1);
+> +
+> +       /*
+> +        * Properly free the object to prevent the "Objects remaining in
+> +        * test_cache on __kmem_cache_shutdown" BUG failure.
+> +        */
+> +       kmem_cache_free(cache, p);
+> +
+>         kmem_cache_destroy(cache);
+>  }
+>
 > --
-> Michal Hocko
-> SUSE Labs
+> 2.16.2.395.g2e18187dfd-goog
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
