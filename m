@@ -1,81 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F328E6B0006
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 11:20:06 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id v63so3573521ota.12
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 08:20:06 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r52sor484235otc.57.2018.03.01.08.20.05
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B31096B0006
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 11:50:26 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id o11so2841038pgp.14
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 08:50:26 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k67si3255410pfj.298.2018.03.01.08.50.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 01 Mar 2018 08:20:05 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 01 Mar 2018 08:50:25 -0800 (PST)
+Date: Thu, 1 Mar 2018 17:50:19 +0100
+From: Joerg Roedel <jroedel@suse.de>
+Subject: Re: [PATCH 12/31] x86/entry/32: Add PTI cr3 switch to non-NMI
+ entry/exit points
+Message-ID: <20180301165019.kuynvb6fkcwdpxjx@suse.de>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <1518168340-9392-13-git-send-email-joro@8bytes.org>
+ <afd5bae9-f53e-a225-58f1-4ba2422044e3@redhat.com>
+ <20180301133430.wda4qesqhxnww7d6@8bytes.org>
+ <2ae8b01f-844b-b8b1-3198-5db70c3e083b@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180301152729.GM15057@dhcp22.suse.cz>
-References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
- <20180301131033.GH15057@dhcp22.suse.cz> <CACjP9X-S=OgmUw-WyyH971_GREn1WzrG3aeGkKLyR1bO4_pWPA@mail.gmail.com>
- <20180301152729.GM15057@dhcp22.suse.cz>
-From: Daniel Vacek <neelx@redhat.com>
-Date: Thu, 1 Mar 2018 17:20:04 +0100
-Message-ID: <CACjP9X8hFDhkKUHRu2K5WgEp9YFHh2=vMSyM6KkZ5UZtxs7k-w@mail.gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: fix memmap_init_zone pageblock alignment
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2ae8b01f-844b-b8b1-3198-5db70c3e083b@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, stable@vger.kernel.org
+To: Waiman Long <longman@redhat.com>
+Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
 
-On Thu, Mar 1, 2018 at 4:27 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Thu 01-03-18 16:09:35, Daniel Vacek wrote:
-> [...]
->> $ grep 7b7ff000 /proc/iomem
->> 7b7ff000-7b7fffff : System RAM
-> [...]
->> After commit b92df1de5d28 machine eventually crashes with:
->>
->> BUG at mm/page_alloc.c:1913
->>
->> >         VM_BUG_ON(page_zone(start_page) != page_zone(end_page));
->
-> This is an important information that should be in the changelog.
+On Thu, Mar 01, 2018 at 09:33:11AM -0500, Waiman Long wrote:
+> On 03/01/2018 08:34 AM, Joerg Roedel wrote:
+> I think that should fix the issue of debug exception from userspace.
+> 
+> One thing that I am not certain about is whether debug exception can
+> happen even if the IF flag is cleared. If it can, debug exception should
+> be handled like NMI as the state of the CR3 can be indeterminate if the
+> exception happens in the entry/exit code.
 
-And that's exactly what my seven very first words tried to express in
-human readable form instead of mechanically pasting the source code. I
-guess that's a matter of preference. Though I see grepping later can
-be an issue here.
+I am actually not 100% sure where it can happen, from the code it can
+happen from anywhere, except when we are running on an espfix stack.
 
->> >From registers and stack I digged start_page points to
->> ffffe31d01ed8000 (note that this is
->> page ffffe31d01edffc0 aligned to pageblock) and I can see this in memory dump:
->>
->> crash> kmem -p 77fff000 78000000 7b5ff000 7b600000 7b7fe000 7b7ff000
->> 7b800000 7ffff000 80000000
->>       PAGE        PHYSICAL      MAPPING       INDEX CNT FLAGS
->> ffffe31d01e00000  78000000                0        0  0 0
->> ffffe31d01ed7fc0  7b5ff000                0        0  0 0
->> ffffe31d01ed8000  7b600000                0        0  0 0    <<<< note
->
-> Are those ranges covered by the System RAM as well?
->
->> that nodeid and zonenr are encoded in top bits of page flags which are
->> not initialized here, hence the crash :-(
->> ffffe31d01edff80  7b7fe000                0        0  0 0
->> ffffe31d01edffc0  7b7ff000                0        0  1 1fffff00000000
->> ffffe31d01ee0000  7b800000                0        0  1 1fffff00000000
->> ffffe31d01ffffc0  7ffff000                0        0  1 1fffff00000000
->
-> It is still not clear why not to do the alignment in
-> memblock_next_valid_pfn rather than its caller.
+So I am not sure we need the same complex handling NMIs need wrt. to
+switching the cr3s.
 
-As it's the mem init which needs it to be aligned. Other callers may
-not, possibly?
-Not that there are any other callers at the moment so it really does
-not matter where it is placed. The only difference would be the end of
-the loop with end_pfn vs aligned end_pfn. And it looks like the pure
-(unaligned) end_pfn would be preferred here. Wanna me send a v2?
 
-> --
-> Michal Hocko
-> SUSE Labs
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
