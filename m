@@ -1,63 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CC59F6B0005
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 17:35:35 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id j3so4933689wrb.18
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 14:35:35 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id r67si3095814wma.264.2018.03.01.14.35.34
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0977C6B0003
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 17:55:54 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id u65so4967962wrc.8
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 14:55:53 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d83si3288946wmc.179.2018.03.01.14.55.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Mar 2018 14:35:34 -0800 (PST)
-Date: Thu, 1 Mar 2018 23:35:29 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's
- add/remove and notify code
-Message-ID: <20180301223529.GA28811@pd.tnic>
-References: <20180215185606.26736-1-james.morse@arm.com>
- <20180215185606.26736-3-james.morse@arm.com>
- <20180301150144.GA4215@pd.tnic>
- <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com>
+        Thu, 01 Mar 2018 14:55:52 -0800 (PST)
+Date: Thu, 1 Mar 2018 14:55:49 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] mm: indirectly reclaimable memory and dcache
+Message-Id: <20180301145549.8ff621a708ccd8fb59d924f7@linux-foundation.org>
+In-Reply-To: <20180301221713.25969-1-guro@fb.com>
+References: <20180301221713.25969-1-guro@fb.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: James Morse <james.morse@arm.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Mel Gorman <mgorman@techsingularity.net>
 
-On Thu, Mar 01, 2018 at 06:06:59PM +0000, Punit Agrawal wrote:
-> You're looking at support for the 32-bit ARM systems.
+On Thu, 1 Mar 2018 22:17:13 +0000 Roman Gushchin <guro@fb.com> wrote:
 
-I know. That's why I'm asking.
+> I was reported about suspicious growth of unreclaimable slabs
+> on some machines. I've found that it happens on machines
+> with low memory pressure, and these unreclaimable slabs
+> are external names attached to dentries.
+> 
+> External names are allocated using generic kmalloc() function,
+> so they are accounted as unreclaimable. But they are held
+> by dentries, which are reclaimable, and they will be reclaimed
+> under the memory pressure.
+> 
+> In particular, this breaks MemAvailable calculation, as it
+> doesn't take unreclaimable slabs into account.
+> This leads to a silly situation, when a machine is almost idle,
+> has no memory pressure and therefore has a big dentry cache.
+> And the resulting MemAvailable is too low to start a new workload.
+> 
+> To resolve this issue, a new mm counter is introduced:
+> NR_INDIRECTLY_RECLAIMABLE_BYTES .
+> Since it's not possible to count such objects on per-page basis,
+> let's make the unit obvious (by analogy to NR_KERNEL_STACK_KB).
+> 
+> The counter is increased in dentry allocation path, if an external
+> name structure is allocated; and it's decreased in dentry freeing
+> path. I believe, that it's not the only case in the kernel, when
+> we do have such indirectly reclaimable memory, so I expect more
+> use cases to be added.
+> 
+> This counter is used to adjust MemAvailable calculations:
+> indirectly reclaimable memory is considered as available.
+> 
+> To reproduce the problem I've used the following Python script:
+>   import os
+> 
+>   for iter in range (0, 10000000):
+>       try:
+>           name = ("/some_long_name_%d" % iter) + "_" * 220
+>           os.stat(name)
+>       except Exception:
+>           pass
+> 
+> Without this patch:
+>   $ cat /proc/meminfo | grep MemAvailable
+>   MemAvailable:    7811688 kB
+>   $ python indirect.py
+>   $ cat /proc/meminfo | grep MemAvailable
+>   MemAvailable:    2753052 kB
+> 
+> With the patch:
+>   $ cat /proc/meminfo | grep MemAvailable
+>   MemAvailable:    7809516 kB
+>   $ python indirect.py
+>   $ cat /proc/meminfo | grep MemAvailable
+>   MemAvailable:    7749144 kB
+> 
+> Also, this patch adds a corresponding entry to /proc/vmstat:
+> 
+>   $ cat /proc/vmstat | grep indirect
+>   nr_indirectly_reclaimable 5117499104
+> 
+>   $ echo 2 > /proc/sys/vm/drop_caches
+> 
+>   $ cat /proc/vmstat | grep indirect
+>   nr_indirectly_reclaimable 7104
 
-> The 64-bit support lives in arch/arm64 and the die() there doesn't
-> contain an oops_begin()/oops_end(). But the lack of oops_begin() on
-> arm64 doesn't really matter here.
+hm, I guess so...
 
-Yap.
+I wonder if it should be more general, as there are probably other
+potential users of NR_INDIRECTLY_RECLAIMABLE_BYTES.  And they might be
+using alloc_pages() or even vmalloc()?  Whereas
+NR_INDIRECTLY_RECLAIMABLE_BYTES is pretty closely tied to kmalloc, at
+least in the code comments.
 
-> One issue I see with calling die() is that it is defined in different
-> includes across various architectures, (e.g., include/asm/kdebug.h for
-> x86, include/asm/system_misc.h in arm64, etc.)
+If we're really OK with the "only for kmalloc" concept then why create
+NR_INDIRECTLY_RECLAIMABLE_BYTES at all?  Could we just use
+NR_SLAB_RECLAIMABLE to account the external names?  After all, kmalloc
+is slab.
 
-I don't think that's insurmountable.
-
-The more important question is, can we do the same set of calls when
-panic severity on all architectures which support APEI or should we have
-arch-specific ghes_panic() callbacks or so.
-
-As it is now, it would turn into a mess if we start with the ifdeffery
-and the different requirements architectures might have...
-
-Thx.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
