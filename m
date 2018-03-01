@@ -1,93 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8573C6B0005
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 08:34:33 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id j4so4045056wrg.11
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 05:34:33 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id v28si3538603edd.488.2018.03.01.05.34.32
+	by kanga.kvack.org (Postfix) with ESMTP id 6DC8B6B0005
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 08:45:15 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id r15so4113908wrr.16
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 05:45:15 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o13si2606262wmf.89.2018.03.01.05.45.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Mar 2018 05:34:32 -0800 (PST)
-Date: Thu, 1 Mar 2018 14:34:30 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 12/31] x86/entry/32: Add PTI cr3 switch to non-NMI
- entry/exit points
-Message-ID: <20180301133430.wda4qesqhxnww7d6@8bytes.org>
-References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
- <1518168340-9392-13-git-send-email-joro@8bytes.org>
- <afd5bae9-f53e-a225-58f1-4ba2422044e3@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 01 Mar 2018 05:45:13 -0800 (PST)
+Date: Thu, 1 Mar 2018 14:45:12 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v4 1/3] mm/free_pcppages_bulk: update pcp->count inside
+Message-ID: <20180301134512.GI15057@dhcp22.suse.cz>
+References: <20180301062845.26038-1-aaron.lu@intel.com>
+ <20180301062845.26038-2-aaron.lu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <afd5bae9-f53e-a225-58f1-4ba2422044e3@redhat.com>
+In-Reply-To: <20180301062845.26038-2-aaron.lu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
 
-On Tue, Feb 27, 2018 at 02:18:36PM -0500, Waiman Long wrote:
-> > +	/* Make sure we are running on kernel cr3 */
-> > +	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
-> > +
-> >  	xorl	%edx, %edx			# error code 0
-> >  	movl	%esp, %eax			# pt_regs pointer
-> >  
+On Thu 01-03-18 14:28:43, Aaron Lu wrote:
+> Matthew Wilcox found that all callers of free_pcppages_bulk() currently
+> update pcp->count immediately after so it's natural to do it inside
+> free_pcppages_bulk().
 > 
-> The debug exception calls ret_from_exception on exit. If coming from
-> userspace, the C function prepare_exit_to_usermode() will be called.
-> With the PTI-32 code, it means that function will be called with the
-> entry stack instead of the task stack. This can be problematic as macro
-> like current won't work anymore.
+> No functionality or performance change is expected from this patch.
+> 
+> Suggested-by: Matthew Wilcox <willy@infradead.org>
+> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
 
-Okay, I had another look at the debug handler. As I said before, it
-already handles the from-entry-stack case, but with these patches it
-gets more likely that we actually hit that path.
+Makes a lot of sense to me.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Also, with the special handling for from-kernel-with-entry-stack
-situations we can simplify the debug handler and make it more robust
-with the diff below. Thoughts?
+> ---
+>  mm/page_alloc.c | 10 +++-------
+>  1 file changed, 3 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index cb416723538f..faa33eac1635 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1148,6 +1148,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>  			page = list_last_entry(list, struct page, lru);
+>  			/* must delete as __free_one_page list manipulates */
+>  			list_del(&page->lru);
+> +			pcp->count--;
+>  
+>  			mt = get_pcppage_migratetype(page);
+>  			/* MIGRATE_ISOLATE page should not go to pcplists */
+> @@ -2416,10 +2417,8 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
+>  	local_irq_save(flags);
+>  	batch = READ_ONCE(pcp->batch);
+>  	to_drain = min(pcp->count, batch);
+> -	if (to_drain > 0) {
+> +	if (to_drain > 0)
+>  		free_pcppages_bulk(zone, to_drain, pcp);
+> -		pcp->count -= to_drain;
+> -	}
+>  	local_irq_restore(flags);
+>  }
+>  #endif
+> @@ -2441,10 +2440,8 @@ static void drain_pages_zone(unsigned int cpu, struct zone *zone)
+>  	pset = per_cpu_ptr(zone->pageset, cpu);
+>  
+>  	pcp = &pset->pcp;
+> -	if (pcp->count) {
+> +	if (pcp->count)
+>  		free_pcppages_bulk(zone, pcp->count, pcp);
+> -		pcp->count = 0;
+> -	}
+>  	local_irq_restore(flags);
+>  }
+>  
+> @@ -2668,7 +2665,6 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
+>  	if (pcp->count >= pcp->high) {
+>  		unsigned long batch = READ_ONCE(pcp->batch);
+>  		free_pcppages_bulk(zone, batch, pcp);
+> -		pcp->count -= batch;
+>  	}
+>  }
+>  
+> -- 
+> 2.14.3
+> 
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 8c149f5..844aff1 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -1318,33 +1318,14 @@ ENTRY(debug)
- 	ASM_CLAC
- 	pushl	$-1				# mark this as an int
- 
--	SAVE_ALL
-+	SAVE_ALL switch_stacks=1
- 	ENCODE_FRAME_POINTER
- 
--	/* Make sure we are running on kernel cr3 */
--	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
--
- 	xorl	%edx, %edx			# error code 0
- 	movl	%esp, %eax			# pt_regs pointer
- 
--	/* Are we currently on the SYSENTER stack? */
--	movl	PER_CPU_VAR(cpu_entry_area), %ecx
--	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
--	subl	%eax, %ecx	/* ecx = (end of entry_stack) - esp */
--	cmpl	$SIZEOF_entry_stack, %ecx
--	jb	.Ldebug_from_sysenter_stack
--
--	TRACE_IRQS_OFF
--	call	do_debug
--	jmp	ret_from_exception
--
--.Ldebug_from_sysenter_stack:
--	/* We're on the SYSENTER stack.  Switch off. */
--	movl	%esp, %ebx
--	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
- 	TRACE_IRQS_OFF
- 	call	do_debug
--	movl	%ebx, %esp
- 	jmp	ret_from_exception
- END(debug)
- 
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
