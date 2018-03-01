@@ -1,63 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 777C16B000C
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 09:29:08 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 5so4251073wrb.15
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 06:29:08 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e10sor2851327edj.56.2018.03.01.06.29.06
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EC8A6B0008
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 09:33:16 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id b84so979685qkj.14
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 06:33:16 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id w12si1273719qtb.199.2018.03.01.06.33.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 01 Mar 2018 06:29:06 -0800 (PST)
-Date: Thu, 1 Mar 2018 17:28:55 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3 1/4] s390: Use _refcount for pgtables
-Message-ID: <20180301142855.emaa5x65oj2hkwsm@node.shutemov.name>
-References: <20180228223157.9281-1-willy@infradead.org>
- <20180228223157.9281-2-willy@infradead.org>
- <20180301125310.jx6c5dypk5axrmum@node.shutemov.name>
- <20180301150420.19a14fd3@mschwideX1>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Mar 2018 06:33:15 -0800 (PST)
+Subject: Re: [PATCH 12/31] x86/entry/32: Add PTI cr3 switch to non-NMI
+ entry/exit points
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <1518168340-9392-13-git-send-email-joro@8bytes.org>
+ <afd5bae9-f53e-a225-58f1-4ba2422044e3@redhat.com>
+ <20180301133430.wda4qesqhxnww7d6@8bytes.org>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <2ae8b01f-844b-b8b1-3198-5db70c3e083b@redhat.com>
+Date: Thu, 1 Mar 2018 09:33:11 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180301150420.19a14fd3@mschwideX1>
+In-Reply-To: <20180301133430.wda4qesqhxnww7d6@8bytes.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de
 
-On Thu, Mar 01, 2018 at 03:04:20PM +0100, Martin Schwidefsky wrote:
-> On Thu, 1 Mar 2018 15:53:10 +0300
-> "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> 
-> > On Wed, Feb 28, 2018 at 02:31:54PM -0800, Matthew Wilcox wrote:
-> > > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > > 
-> > > s390 borrows the storage used for _mapcount in struct page in order to
-> > > account whether the bottom or top half is being used for 2kB page
-> > > tables.  I want to use that for something else, so use the top byte of
-> > > _refcount instead of the bottom byte of _mapcount.  _refcount may
-> > > temporarily be incremented by other CPUs that see a stale pointer to
-> > > this page in the page cache, but each CPU can only increment it by one,
-> > > and there are no systems with 2^24 CPUs today, so they will not change
-> > > the upper byte of _refcount.  We do have to be a little careful not to
-> > > lose any of their writes (as they will subsequently decrement the
-> > > counter).  
-> > 
-> > Hm. I'm more worried about false-negative put_page_testzero().
-> > Are you sure it won't lead to leaks. I cannot say from the code changes.
-> > 
-> > And for page-table pages should have planty space in other fields.
-> > IIRC page->mapping is unused there.
->  
-> 2^^24 put_page_testzero calls for page table pages? I don't think so.
+On 03/01/2018 08:34 AM, Joerg Roedel wrote:
+> On Tue, Feb 27, 2018 at 02:18:36PM -0500, Waiman Long wrote:
+>>> +	/* Make sure we are running on kernel cr3 */
+>>> +	SWITCH_TO_KERNEL_CR3 scratch_reg=3D%eax
+>>> +
+>>>  	xorl	%edx, %edx			# error code 0
+>>>  	movl	%esp, %eax			# pt_regs pointer
+>>> =20
+>> The debug exception calls ret_from_exception on exit. If coming from
+>> userspace, the C function prepare_exit_to_usermode() will be called.
+>> With the PTI-32 code, it means that function will be called with the
+>> entry stack instead of the task stack. This can be problematic as macr=
+o
+>> like current won't work anymore.
+> Okay, I had another look at the debug handler. As I said before, it
+> already handles the from-entry-stack case, but with these patches it
+> gets more likely that we actually hit that path.
+>
+> Also, with the special handling for from-kernel-with-entry-stack
+> situations we can simplify the debug handler and make it more robust
+> with the diff below. Thoughts?
+>
+> diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+> index 8c149f5..844aff1 100644
+> --- a/arch/x86/entry/entry_32.S
+> +++ b/arch/x86/entry/entry_32.S
+> @@ -1318,33 +1318,14 @@ ENTRY(debug)
+>  	ASM_CLAC
+>  	pushl	$-1				# mark this as an int
+> =20
+> -	SAVE_ALL
+> +	SAVE_ALL switch_stacks=3D1
+>  	ENCODE_FRAME_POINTER
+> =20
+> -	/* Make sure we are running on kernel cr3 */
+> -	SWITCH_TO_KERNEL_CR3 scratch_reg=3D%eax
+> -
+>  	xorl	%edx, %edx			# error code 0
+>  	movl	%esp, %eax			# pt_regs pointer
+> =20
+> -	/* Are we currently on the SYSENTER stack? */
+> -	movl	PER_CPU_VAR(cpu_entry_area), %ecx
+> -	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
+> -	subl	%eax, %ecx	/* ecx =3D (end of entry_stack) - esp */
+> -	cmpl	$SIZEOF_entry_stack, %ecx
+> -	jb	.Ldebug_from_sysenter_stack
+> -
+> -	TRACE_IRQS_OFF
+> -	call	do_debug
+> -	jmp	ret_from_exception
+> -
+> -.Ldebug_from_sysenter_stack:
+> -	/* We're on the SYSENTER stack.  Switch off. */
+> -	movl	%esp, %ebx
+> -	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+>  	TRACE_IRQS_OFF
+>  	call	do_debug
+> -	movl	%ebx, %esp
+>  	jmp	ret_from_exception
+>  END(debug)
+> =20
+>
+>
+I think that should fix the issue of debug exception from userspace.
 
-No, I mean oposite: we don't free the page when we should. 2^24 is not
-zero and page won't be freed if the acctual refcount (without the flag in
-upper bits) drops to zero.
+One thing that I am not certain about is whether debug exception can
+happen even if the IF flag is cleared. If it can, debug exception should
+be handled like NMI as the state of the CR3 can be indeterminate if the
+exception happens in the entry/exit code.
 
--- 
- Kirill A. Shutemov
+Cheers,
+Longman
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
