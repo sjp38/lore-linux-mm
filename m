@@ -1,210 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CE8B6B0003
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 17:17:56 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id v68so5938483qki.13
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 14:17:56 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id x6si4566775qke.188.2018.03.01.14.17.53
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CC59F6B0005
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 17:35:35 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id j3so4933689wrb.18
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 14:35:35 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTPS id r67si3095814wma.264.2018.03.01.14.35.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Mar 2018 14:17:54 -0800 (PST)
-From: Roman Gushchin <guro@fb.com>
-Subject: [RFC] mm: indirectly reclaimable memory and dcache
-Date: Thu, 1 Mar 2018 22:17:13 +0000
-Message-ID: <20180301221713.25969-1-guro@fb.com>
+        Thu, 01 Mar 2018 14:35:34 -0800 (PST)
+Date: Thu, 1 Mar 2018 23:35:29 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's
+ add/remove and notify code
+Message-ID: <20180301223529.GA28811@pd.tnic>
+References: <20180215185606.26736-1-james.morse@arm.com>
+ <20180215185606.26736-3-james.morse@arm.com>
+ <20180301150144.GA4215@pd.tnic>
+ <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: James Morse <james.morse@arm.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
 
-I was reported about suspicious growth of unreclaimable slabs
-on some machines. I've found that it happens on machines
-with low memory pressure, and these unreclaimable slabs
-are external names attached to dentries.
+On Thu, Mar 01, 2018 at 06:06:59PM +0000, Punit Agrawal wrote:
+> You're looking at support for the 32-bit ARM systems.
 
-External names are allocated using generic kmalloc() function,
-so they are accounted as unreclaimable. But they are held
-by dentries, which are reclaimable, and they will be reclaimed
-under the memory pressure.
+I know. That's why I'm asking.
 
-In particular, this breaks MemAvailable calculation, as it
-doesn't take unreclaimable slabs into account.
-This leads to a silly situation, when a machine is almost idle,
-has no memory pressure and therefore has a big dentry cache.
-And the resulting MemAvailable is too low to start a new workload.
+> The 64-bit support lives in arch/arm64 and the die() there doesn't
+> contain an oops_begin()/oops_end(). But the lack of oops_begin() on
+> arm64 doesn't really matter here.
 
-To resolve this issue, a new mm counter is introduced:
-NR_INDIRECTLY_RECLAIMABLE_BYTES .
-Since it's not possible to count such objects on per-page basis,
-let's make the unit obvious (by analogy to NR_KERNEL_STACK_KB).
+Yap.
 
-The counter is increased in dentry allocation path, if an external
-name structure is allocated; and it's decreased in dentry freeing
-path. I believe, that it's not the only case in the kernel, when
-we do have such indirectly reclaimable memory, so I expect more
-use cases to be added.
+> One issue I see with calling die() is that it is defined in different
+> includes across various architectures, (e.g., include/asm/kdebug.h for
+> x86, include/asm/system_misc.h in arm64, etc.)
 
-This counter is used to adjust MemAvailable calculations:
-indirectly reclaimable memory is considered as available.
+I don't think that's insurmountable.
 
-To reproduce the problem I've used the following Python script:
-  import os
+The more important question is, can we do the same set of calls when
+panic severity on all architectures which support APEI or should we have
+arch-specific ghes_panic() callbacks or so.
 
-  for iter in range (0, 10000000):
-      try:
-          name = ("/some_long_name_%d" % iter) + "_" * 220
-          os.stat(name)
-      except Exception:
-          pass
+As it is now, it would turn into a mess if we start with the ifdeffery
+and the different requirements architectures might have...
 
-Without this patch:
-  $ cat /proc/meminfo | grep MemAvailable
-  MemAvailable:    7811688 kB
-  $ python indirect.py
-  $ cat /proc/meminfo | grep MemAvailable
-  MemAvailable:    2753052 kB
+Thx.
 
-With the patch:
-  $ cat /proc/meminfo | grep MemAvailable
-  MemAvailable:    7809516 kB
-  $ python indirect.py
-  $ cat /proc/meminfo | grep MemAvailable
-  MemAvailable:    7749144 kB
-
-Also, this patch adds a corresponding entry to /proc/vmstat:
-
-  $ cat /proc/vmstat | grep indirect
-  nr_indirectly_reclaimable 5117499104
-
-  $ echo 2 > /proc/sys/vm/drop_caches
-
-  $ cat /proc/vmstat | grep indirect
-  nr_indirectly_reclaimable 7104
-
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-fsdevel@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: kernel-team@fb.com
----
- fs/dcache.c            | 29 ++++++++++++++++++++++++-----
- include/linux/mmzone.h |  1 +
- mm/page_alloc.c        |  7 +++++++
- mm/vmstat.c            |  1 +
- 4 files changed, 33 insertions(+), 5 deletions(-)
-
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 5c7df1df81ff..a0312d73f575 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -273,8 +273,16 @@ static void __d_free(struct rcu_head *head)
- static void __d_free_external(struct rcu_head *head)
- {
- 	struct dentry *dentry = container_of(head, struct dentry, d_u.d_rcu);
--	kfree(external_name(dentry));
--	kmem_cache_free(dentry_cache, dentry); 
-+	struct external_name *name = external_name(dentry);
-+	unsigned long bytes;
-+
-+	bytes = dentry->d_name.len + offsetof(struct external_name, name[1]);
-+	mod_node_page_state(page_pgdat(virt_to_page(name)),
-+			    NR_INDIRECTLY_RECLAIMABLE_BYTES,
-+			    -kmalloc_size(kmalloc_index(bytes)));
-+
-+	kfree(name);
-+	kmem_cache_free(dentry_cache, dentry);
- }
- 
- static inline int dname_external(const struct dentry *dentry)
-@@ -1598,6 +1606,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- 	struct dentry *dentry;
- 	char *dname;
- 	int err;
-+	size_t reclaimable = 0;
- 
- 	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL);
- 	if (!dentry)
-@@ -1614,9 +1623,11 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- 		name = &slash_name;
- 		dname = dentry->d_iname;
- 	} else if (name->len > DNAME_INLINE_LEN-1) {
--		size_t size = offsetof(struct external_name, name[1]);
--		struct external_name *p = kmalloc(size + name->len,
--						  GFP_KERNEL_ACCOUNT);
-+		struct external_name *p;
-+
-+		reclaimable = offsetof(struct external_name, name[1]) +
-+			name->len;
-+		p = kmalloc(reclaimable, GFP_KERNEL_ACCOUNT);
- 		if (!p) {
- 			kmem_cache_free(dentry_cache, dentry); 
- 			return NULL;
-@@ -1665,6 +1676,14 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- 		}
- 	}
- 
-+	if (unlikely(reclaimable)) {
-+		pg_data_t *pgdat;
-+
-+		pgdat = page_pgdat(virt_to_page(external_name(dentry)));
-+		mod_node_page_state(pgdat, NR_INDIRECTLY_RECLAIMABLE_BYTES,
-+				    kmalloc_size(kmalloc_index(reclaimable)));
-+	}
-+
- 	this_cpu_inc(nr_dentry);
- 
- 	return dentry;
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 67f2e3c38939..953af0232023 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -180,6 +180,7 @@ enum node_stat_item {
- 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
- 	NR_DIRTIED,		/* page dirtyings since bootup */
- 	NR_WRITTEN,		/* page writings since bootup */
-+	NR_INDIRECTLY_RECLAIMABLE_BYTES, /* measured in bytes */
- 	NR_VM_NODE_STAT_ITEMS
- };
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 76c9688b6a0a..03ff871ad73e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4599,6 +4599,13 @@ long si_mem_available(void)
- 		     min(global_node_page_state(NR_SLAB_RECLAIMABLE) / 2,
- 			 wmark_low);
- 
-+	/*
-+	 * Part of unreclaimable slab which is held by reclaimable object,
-+	 * and can be reclaimed under memory pressure.
-+	 */
-+	available += global_node_page_state(NR_INDIRECTLY_RECLAIMABLE_BYTES) >>
-+		PAGE_SHIFT;
-+
- 	if (available < 0)
- 		available = 0;
- 	return available;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 40b2db6db6b1..b6b5684f31fe 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1161,6 +1161,7 @@ const char * const vmstat_text[] = {
- 	"nr_vmscan_immediate_reclaim",
- 	"nr_dirtied",
- 	"nr_written",
-+	"nr_indirectly_reclaimable",
- 
- 	/* enum writeback_stat_item counters */
- 	"nr_dirty_threshold",
 -- 
-2.14.3
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
