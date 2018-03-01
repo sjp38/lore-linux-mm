@@ -1,69 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E36A6B0003
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 12:28:54 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id w194so6783603itc.1
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 09:28:54 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x63sor3095016ite.70.2018.03.01.09.28.53
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 01 Mar 2018 09:28:53 -0800 (PST)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 401EA6B0006
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 13:07:04 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id x85so3468103oix.8
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 10:07:04 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id w50si1421948ota.161.2018.03.01.10.07.02
+        for <linux-mm@kvack.org>;
+        Thu, 01 Mar 2018 10:07:02 -0800 (PST)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's add/remove and notify code
+References: <20180215185606.26736-1-james.morse@arm.com>
+	<20180215185606.26736-3-james.morse@arm.com>
+	<20180301150144.GA4215@pd.tnic>
+Date: Thu, 01 Mar 2018 18:06:59 +0000
+In-Reply-To: <20180301150144.GA4215@pd.tnic> (Borislav Petkov's message of
+	"Thu, 1 Mar 2018 16:01:44 +0100")
+Message-ID: <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <286eaefc0a6c3fa9b83b87e7d6dc0fbb5b5c9926.1519924383.git.andreyknvl@google.com>
-References: <cover.1519924383.git.andreyknvl@google.com> <286eaefc0a6c3fa9b83b87e7d6dc0fbb5b5c9926.1519924383.git.andreyknvl@google.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 1 Mar 2018 18:28:52 +0100
-Message-ID: <CAAeHK+w86uMUrJjwV1Sei=N4udhfTmWab5e3FuT72=BEMcCu3A@mail.gmail.com>
-Subject: Re: [PATCH 1/2] kasan: fix invalid-free test crashing the kernel
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Nick Terrell <terrelln@fb.com>, Chris Mason <clm@fb.com>, Yury Norov <ynorov@caviumnetworks.com>, Al Viro <viro@zeniv.linux.org.uk>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Palmer Dabbelt <palmer@dabbelt.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Jeff Layton <jlayton@redhat.com>, "Jason A . Donenfeld" <Jason@zx2c4.com>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>
-Cc: Kostya Serebryany <kcc@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: James Morse <james.morse@arm.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
 
-On Thu, Mar 1, 2018 at 6:15 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> When an invalid-free is triggered by one of the KASAN tests, the object
-> doesn't actually get freed. This later leads to a BUG failure in
-> kmem_cache_destroy that checks that there are no allocated objects in the
-> cache that is being destroyed. Fix this by calling kmem_cache_free with
-> the proper object address after the call that triggers invalid-free.
+Hi Borislav,
 
-Note, that for this patch to fix the issue, it is supposed to go on
-top of the "kasan, slub: fix handling of kasan_slab_free hook" patch I
-sent recently.
+Borislav Petkov <bp@alien8.de> writes:
 
-https://patchwork.kernel.org/patch/10238179/
+> On Thu, Feb 15, 2018 at 06:55:57PM +0000, James Morse wrote:
+>> Keep the oops_begin() call for x86,
+>
+> That oops_begin() in generic code is such a layering violation, grrr.
+>
+>> arm64 doesn't have one of these,
+>> and APEI is the only thing outside arch code calling this..
+>
+> So looking at:
+>
+> arch/arm/kernel/traps.c:die()
+>
+> it does call oops_begin() ... oops_end() just like the x86 version of
+> die().
+
+You're looking at support for the 32-bit ARM systems. The 64-bit support
+lives in arch/arm64 and the die() there doesn't contain an
+oops_begin()/oops_end(). But the lack of oops_begin() on arm64 doesn't
+really matter here.
 
 >
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
->  lib/test_kasan.c | 8 ++++++++
->  1 file changed, 8 insertions(+)
->
-> diff --git a/lib/test_kasan.c b/lib/test_kasan.c
-> index 98854a64b014..ec657105edbf 100644
-> --- a/lib/test_kasan.c
-> +++ b/lib/test_kasan.c
-> @@ -567,7 +567,15 @@ static noinline void __init kmem_cache_invalid_free(void)
->                 return;
->         }
->
-> +       /* Trigger invalid free, the object doesn't get freed */
->         kmem_cache_free(cache, p + 1);
-> +
-> +       /*
-> +        * Properly free the object to prevent the "Objects remaining in
-> +        * test_cache on __kmem_cache_shutdown" BUG failure.
-> +        */
-> +       kmem_cache_free(cache, p);
-> +
->         kmem_cache_destroy(cache);
->  }
->
-> --
-> 2.16.2.395.g2e18187dfd-goog
->
+> I'm wondering if we could move the code to do die() in a prepatch? My
+> assumption is that all the arches should have die()... A quick grep does
+> show a bunch of other arches having die()...
+
+One issue I see with calling die() is that it is defined in different
+includes across various architectures, (e.g., include/asm/kdebug.h for
+x86, include/asm/system_misc.h in arm64, etc.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
