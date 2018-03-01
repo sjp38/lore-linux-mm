@@ -1,61 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 401EA6B0006
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 13:07:04 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id x85so3468103oix.8
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 10:07:04 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w50si1421948ota.161.2018.03.01.10.07.02
-        for <linux-mm@kvack.org>;
-        Thu, 01 Mar 2018 10:07:02 -0800 (PST)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's add/remove and notify code
-References: <20180215185606.26736-1-james.morse@arm.com>
-	<20180215185606.26736-3-james.morse@arm.com>
-	<20180301150144.GA4215@pd.tnic>
-Date: Thu, 01 Mar 2018 18:06:59 +0000
-In-Reply-To: <20180301150144.GA4215@pd.tnic> (Borislav Petkov's message of
-	"Thu, 1 Mar 2018 16:01:44 +0100")
-Message-ID: <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B0676B0008
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 13:16:52 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id h11so3848659pfn.0
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 10:16:52 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v1-v6sor1685349ply.96.2018.03.01.10.16.51
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 01 Mar 2018 10:16:51 -0800 (PST)
+Message-ID: <1519928208.11375.3.camel@gmail.com>
+Subject: Re: Use higher-order pages in vmalloc
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Thu, 01 Mar 2018 10:16:48 -0800
+In-Reply-To: <20180223121300.GU30681@dhcp22.suse.cz>
+References: <151670492223.658225.4605377710524021456.stgit@buzz>
+	 <151670493255.658225.2881484505285363395.stgit@buzz>
+	 <20180221154214.GA4167@bombadil.infradead.org>
+	 <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
+	 <20180221170129.GB27687@bombadil.infradead.org>
+	 <20180222065943.GA30681@dhcp22.suse.cz>
+	 <20180222122254.GA22703@bombadil.infradead.org>
+	 <20180222133643.GJ30681@dhcp22.suse.cz>
+	 <CALCETrU2c=SzWJCwuqqFuBVkC=nN27_ce4GxweCQXEwPAqnz7A@mail.gmail.com>
+	 <20180223121300.GU30681@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: James Morse <james.morse@arm.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
+To: Michal Hocko <mhocko@kernel.org>, Andy Lutomirski <luto@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-Hi Borislav,
+On Fri, 2018-02-23 at 13:13 +0100, Michal Hocko wrote:
+> On Thu 22-02-18 19:01:35, Andy Lutomirski wrote:
+> > On Thu, Feb 22, 2018 at 1:36 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> > > On Thu 22-02-18 04:22:54, Matthew Wilcox wrote:
+> > > > On Thu, Feb 22, 2018 at 07:59:43AM +0100, Michal Hocko wrote:
+> > > > > On Wed 21-02-18 09:01:29, Matthew Wilcox wrote:
+> > > > > > Right.  It helps with fragmentation if we can keep higher-order
+> > > > > > allocations together.
+> > > > > 
+> > > > > Hmm, wouldn't it help if we made vmalloc pages migrateable instead? That
+> > > > > would help the compaction and get us to a lower fragmentation longterm
+> > > > > without playing tricks in the allocation path.
+> > > > 
+> > > > I was wondering about that possibility.  If we want to migrate a page
+> > > > then we have to shoot down the PTE across all CPUs, copy the data to the
+> > > > new page, and insert the new PTE.  Copying 4kB doesn't take long; if you
+> > > > have 12GB/s (current example on Wikipedia: dual-channel memory and one
+> > > > DDR2-800 module per channel gives a theoretical bandwidth of 12.8GB/s)
+> > > > then we should be able to copy a page in 666ns).  So there's no problem
+> > > > holding a spinlock for it.
+> > > > 
+> > > > But we can't handle a fault in vmalloc space today.  It's handled in
+> > > > arch-specific code, see vmalloc_fault() in arch/x86/mm/fault.c
+> > > > If we're going to do this, it'll have to be something arches opt into
+> > > > because I'm not taking on the job of fixing every architecture!
+> > > 
+> > > yes.
+> > 
+> > On x86, if you shoot down the PTE for the current stack, you're dead.
+> > vmalloc_fault() might not even be called.  Instead we hit
+> > do_double_fault(), and the manual warns extremely strongly against
+> > trying to recover, and, in this case, I agree with the SDM.  If you
+> > actually want this to work, there needs to be a special IPI broadcast
+> > to the task in question (with appropriate synchronization) that calls
+> > magic arch code that does the switcheroo.
+> 
+> Why cannot we use the pte swap entry trick also for vmalloc migration.
+> I haven't explored this path at all, to be honest.
+> 
+> > Didn't someone (Christoph?) have a patch to teach the page allocator
+> > to give high-order allocations if available and otherwise fall back to
+> > low order?
+> 
+> Do you mean kvmalloc?
 
-Borislav Petkov <bp@alien8.de> writes:
 
-> On Thu, Feb 15, 2018 at 06:55:57PM +0000, James Morse wrote:
->> Keep the oops_begin() call for x86,
->
-> That oops_begin() in generic code is such a layering violation, grrr.
->
->> arm64 doesn't have one of these,
->> and APEI is the only thing outside arch code calling this..
->
-> So looking at:
->
-> arch/arm/kernel/traps.c:die()
->
-> it does call oops_begin() ... oops_end() just like the x86 version of
-> die().
+I sent something last year but had not finished the patch series :/
 
-You're looking at support for the 32-bit ARM systems. The 64-bit support
-lives in arch/arm64 and the die() there doesn't contain an
-oops_begin()/oops_end(). But the lack of oops_begin() on arm64 doesn't
-really matter here.
+https://marc.info/?l=linux-kernel&m=148233423610544&w=2
 
->
-> I'm wondering if we could move the code to do die() in a prepatch? My
-> assumption is that all the arches should have die()... A quick grep does
-> show a bunch of other arches having die()...
-
-One issue I see with calling die() is that it is defined in different
-includes across various architectures, (e.g., include/asm/kdebug.h for
-x86, include/asm/system_misc.h in arm64, etc.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
