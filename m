@@ -1,43 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A2426B000D
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 09:51:01 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q2so2713431pgn.22
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 06:51:01 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id i11si3113929pfi.388.2018.03.01.06.51.00
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8602F6B000D
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 10:02:00 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id d18so4325846wre.6
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 07:02:00 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id z84si2705575wmc.68.2018.03.01.07.01.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 01 Mar 2018 06:51:00 -0800 (PST)
-Date: Thu, 1 Mar 2018 06:50:58 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v3 0/4] Split page_type out from mapcount
-Message-ID: <20180301145058.GA19662@bombadil.infradead.org>
-References: <20180228223157.9281-1-willy@infradead.org>
- <20180301081750.42b135c3@mschwideX1>
- <20180301124412.gm6jxwzyfskzxspa@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Mar 2018 07:01:48 -0800 (PST)
+Date: Thu, 1 Mar 2018 16:01:44 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's
+ add/remove and notify code
+Message-ID: <20180301150144.GA4215@pd.tnic>
+References: <20180215185606.26736-1-james.morse@arm.com>
+ <20180215185606.26736-3-james.morse@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20180301124412.gm6jxwzyfskzxspa@node.shutemov.name>
+In-Reply-To: <20180215185606.26736-3-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>
 
-On Thu, Mar 01, 2018 at 03:44:12PM +0300, Kirill A. Shutemov wrote:
-> On Thu, Mar 01, 2018 at 08:17:50AM +0100, Martin Schwidefsky wrote:
-> > Yeah, that is a nasty bit of code. On s390 we have 2K page tables (pte)
-> > but 4K pages. If we use full pages for the pte tables we waste 2K of
-> > memory for each of the tables. So we allocate 4K and split it into two
-> > 2K pieces. Now we have to keep track of the pieces to be able to free
-> > them again.
-> 
-> Have you considered to use slab for page table allocation instead?
-> IIRC some architectures practice this already.
+On Thu, Feb 15, 2018 at 06:55:57PM +0000, James Morse wrote:
+> Keep the oops_begin() call for x86,
 
-You're not allowed to do that any more.  Look at pgtable_page_ctor(),
-or rather ptlock_init().
+That oops_begin() in generic code is such a layering violation, grrr.
+
+> arm64 doesn't have one of these,
+> and APEI is the only thing outside arch code calling this..
+
+So looking at:
+
+arch/arm/kernel/traps.c:die()
+
+it does call oops_begin() ... oops_end() just like the x86 version of
+die().
+
+I'm wondering if we could move the code to do die() in a prepatch? My
+assumption is that all the arches should have die()... A quick grep does
+show a bunch of other arches having die()...
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
