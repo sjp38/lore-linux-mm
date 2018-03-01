@@ -1,59 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 912506B0009
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 12:07:25 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id p13so3884238wmc.6
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 09:07:25 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 499526B000C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 12:15:49 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id v64so3661799wma.4
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 09:15:49 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n191sor1473267wmd.57.2018.03.01.09.07.23
+        by mx.google.com with SMTPS id v7sor1128279wmc.51.2018.03.01.09.15.47
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Mar 2018 09:07:24 -0800 (PST)
+        Thu, 01 Mar 2018 09:15:48 -0800 (PST)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH] kasan, arm64: clean up KASAN_SHADOW_SCALE_SHIFT usage
-Date: Thu,  1 Mar 2018 18:07:12 +0100
-Message-Id: <44281e784702443f06edb837ec672984783a9621.1519923749.git.andreyknvl@google.com>
+Subject: [PATCH 0/2] kasan: a couple of test fixes
+Date: Thu,  1 Mar 2018 18:15:41 +0100
+Message-Id: <cover.1519924383.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Nick Terrell <terrelln@fb.com>, Chris Mason <clm@fb.com>, Yury Norov <ynorov@caviumnetworks.com>, Al Viro <viro@zeniv.linux.org.uk>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Palmer Dabbelt <palmer@dabbelt.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Jeff Layton <jlayton@redhat.com>, "Jason A . Donenfeld" <Jason@zx2c4.com>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
 Cc: Kostya Serebryany <kcc@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-This is a follow up patch to the series I sent recently that cleans up
-KASAN_SHADOW_SCALE_SHIFT usage (which value was hardcoded and scattered
-all over the code). This fixes the one place that I forgot to fix.
+The first one fixes the invalid-free test crashing the kernel, and the
+second one fixes the memset tests working incorrectly due to compiler
+optimizations.
 
-The change is purely aesthetical, instead of hardcoding the value for
-KASAN_SHADOW_SCALE_SHIFT in arch/arm64/Makefile, an appropriate variable
-is declared and used.
+Andrey Konovalov (2):
+  kasan: fix invalid-free test crashing the kernel
+  kasan: disallow compiler to optimize away memset in tests
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- arch/arm64/Makefile | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ lib/Makefile     | 1 +
+ lib/test_kasan.c | 8 ++++++++
+ 2 files changed, 9 insertions(+)
 
-diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index b481b4a7c011..4bb18aee4846 100644
---- a/arch/arm64/Makefile
-+++ b/arch/arm64/Makefile
-@@ -97,12 +97,14 @@ else
- TEXT_OFFSET := 0x00080000
- endif
- 
--# KASAN_SHADOW_OFFSET = VA_START + (1 << (VA_BITS - 3)) - (1 << 61)
-+# KASAN_SHADOW_OFFSET = VA_START + (1 << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
-+#				 - (1 << (64 - KASAN_SHADOW_SCALE_SHIFT))
- # in 32-bit arithmetic
-+KASAN_SHADOW_SCALE_SHIFT := 3
- KASAN_SHADOW_OFFSET := $(shell printf "0x%08x00000000\n" $$(( \
--			(0xffffffff & (-1 << ($(CONFIG_ARM64_VA_BITS) - 32))) \
--			+ (1 << ($(CONFIG_ARM64_VA_BITS) - 32 - 3)) \
--			- (1 << (64 - 32 - 3)) )) )
-+	(0xffffffff & (-1 << ($(CONFIG_ARM64_VA_BITS) - 32))) \
-+	+ (1 << ($(CONFIG_ARM64_VA_BITS) - 32 - $(KASAN_SHADOW_SCALE_SHIFT))) \
-+	- (1 << (64 - 32 - $(KASAN_SHADOW_SCALE_SHIFT))) )) )
- 
- export	TEXT_OFFSET GZFLAGS
- 
 -- 
 2.16.2.395.g2e18187dfd-goog
 
