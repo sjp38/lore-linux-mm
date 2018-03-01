@@ -1,57 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DF2E6B0008
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 07:48:54 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id c26so4821372qtj.14
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 04:48:54 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id c197si122582qkb.295.2018.03.01.04.48.53
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D8AB46B000C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 07:53:23 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id e74so3445295wmg.0
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 04:53:23 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k23sor2509102edb.7.2018.03.01.04.53.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Mar 2018 04:48:53 -0800 (PST)
-From: Daniel Vacek <neelx@redhat.com>
-Subject: [PATCH] mm/page_alloc: fix memmap_init_zone pageblock alignment
-Date: Thu,  1 Mar 2018 13:47:45 +0100
-Message-Id: <1519908465-12328-1-git-send-email-neelx@redhat.com>
+        (Google Transport Security);
+        Thu, 01 Mar 2018 04:53:22 -0800 (PST)
+Date: Thu, 1 Mar 2018 15:53:10 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v3 1/4] s390: Use _refcount for pgtables
+Message-ID: <20180301125310.jx6c5dypk5axrmum@node.shutemov.name>
+References: <20180228223157.9281-1-willy@infradead.org>
+ <20180228223157.9281-2-willy@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180228223157.9281-2-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, Daniel Vacek <neelx@redhat.com>, stable@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org
 
-In move_freepages() a BUG_ON() can be triggered on uninitialized page structures
-due to pageblock alignment. Aligning the skipped pfns in memmap_init_zone() the
-same way as in move_freepages_block() simply fixes those crashes.
+On Wed, Feb 28, 2018 at 02:31:54PM -0800, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> s390 borrows the storage used for _mapcount in struct page in order to
+> account whether the bottom or top half is being used for 2kB page
+> tables.  I want to use that for something else, so use the top byte of
+> _refcount instead of the bottom byte of _mapcount.  _refcount may
+> temporarily be incremented by other CPUs that see a stale pointer to
+> this page in the page cache, but each CPU can only increment it by one,
+> and there are no systems with 2^24 CPUs today, so they will not change
+> the upper byte of _refcount.  We do have to be a little careful not to
+> lose any of their writes (as they will subsequently decrement the
+> counter).
 
-Fixes: b92df1de5d28 ("[mm] page_alloc: skip over regions of invalid pfns where possible")
-Signed-off-by: Daniel Vacek <neelx@redhat.com>
-Cc: stable@vger.kernel.org
----
- mm/page_alloc.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+Hm. I'm more worried about false-negative put_page_testzero().
+Are you sure it won't lead to leaks. I cannot say from the code changes.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index cb416723538f..9edee36e6a74 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5359,9 +5359,14 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			/*
- 			 * Skip to the pfn preceding the next valid one (or
- 			 * end_pfn), such that we hit a valid pfn (or end_pfn)
--			 * on our next iteration of the loop.
-+			 * on our next iteration of the loop. Note that it needs
-+			 * to be pageblock aligned even when the region itself
-+			 * is not as move_freepages_block() can shift ahead of
-+			 * the valid region but still depends on correct page
-+			 * metadata.
- 			 */
--			pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
-+			pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
-+						~(pageblock_nr_pages-1)) - 1;
- #endif
- 			continue;
- 		}
+And for page-table pages should have planty space in other fields.
+IIRC page->mapping is unused there.
+
 -- 
-2.16.2
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
