@@ -1,53 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 072E96B0010
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 12:15:52 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id o23so4623998wrc.9
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 09:15:51 -0800 (PST)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B256B6B0003
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 12:24:19 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id d142so3415646oih.4
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 09:24:19 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p14sor1591086wmh.14.2018.03.01.09.15.50
+        by mx.google.com with SMTPS id 4sor1536527oif.262.2018.03.01.09.24.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Mar 2018 09:15:50 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH 2/2] kasan: disallow compiler to optimize away memset in tests
-Date: Thu,  1 Mar 2018 18:15:43 +0100
-Message-Id: <105ec9a308b2abedb1a0d1fdced0c22d765e4732.1519924383.git.andreyknvl@google.com>
-In-Reply-To: <cover.1519924383.git.andreyknvl@google.com>
-References: <cover.1519924383.git.andreyknvl@google.com>
-In-Reply-To: <cover.1519924383.git.andreyknvl@google.com>
-References: <cover.1519924383.git.andreyknvl@google.com>
+        Thu, 01 Mar 2018 09:24:18 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20180301152729.GM15057@dhcp22.suse.cz>
+References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
+ <20180301131033.GH15057@dhcp22.suse.cz> <CACjP9X-S=OgmUw-WyyH971_GREn1WzrG3aeGkKLyR1bO4_pWPA@mail.gmail.com>
+ <20180301152729.GM15057@dhcp22.suse.cz>
+From: Daniel Vacek <neelx@redhat.com>
+Date: Thu, 1 Mar 2018 18:24:17 +0100
+Message-ID: <CACjP9X9E4d-ew9ZaHzhy2+R6DumYSny2_sRqoQa-n6cOZU3Y1w@mail.gmail.com>
+Subject: Re: [PATCH] mm/page_alloc: fix memmap_init_zone pageblock alignment
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Nick Terrell <terrelln@fb.com>, Chris Mason <clm@fb.com>, Yury Norov <ynorov@caviumnetworks.com>, Al Viro <viro@zeniv.linux.org.uk>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Palmer Dabbelt <palmer@dabbelt.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Jeff Layton <jlayton@redhat.com>, "Jason A . Donenfeld" <Jason@zx2c4.com>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Cc: Kostya Serebryany <kcc@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, stable@vger.kernel.org
 
-A compiler can optimize away memset calls by replacing them with mov
-instructions. There are KASAN tests, that specifically test that KASAN
-correctly handles memset calls, we don't want this optimization to
-happen.
+On Thu, Mar 1, 2018 at 4:27 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Thu 01-03-18 16:09:35, Daniel Vacek wrote:
+>> From registers and stack I digged start_page points to
+>> ffffe31d01ed8000 (note that this is
+>> page ffffe31d01edffc0 aligned to pageblock) and I can see this in memory dump:
+>>
+>> crash> kmem -p 77fff000 78000000 7b5ff000 7b600000 7b7fe000 7b7ff000
+>> 7b800000 7ffff000 80000000
+>>       PAGE        PHYSICAL      MAPPING       INDEX CNT FLAGS
+>> ffffe31d01e00000  78000000                0        0  0 0
+>> ffffe31d01ed7fc0  7b5ff000                0        0  0 0
+>> ffffe31d01ed8000  7b600000                0        0  0 0    <<<< note
+>
+> Are those ranges covered by the System RAM as well?
 
-The solution is to add -fno-builtin flag to test_kasan.ko
+Sorry I forgot to answer this. If they were, the loop won't be
+skipping them, right? But it really does not matter here, kernel needs
+(some) page structures initialized anyways. And I do not feel
+comfortable with removing the VM_BUG_ON(). The initialization is what
+changed with commit b92df1de5d28, hence fixing this.
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- lib/Makefile | 1 +
- 1 file changed, 1 insertion(+)
+--nX
 
-diff --git a/lib/Makefile b/lib/Makefile
-index a90d4fcd748f..9c940c4c0593 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -52,6 +52,7 @@ obj-$(CONFIG_TEST_FIRMWARE) += test_firmware.o
- obj-$(CONFIG_TEST_SYSCTL) += test_sysctl.o
- obj-$(CONFIG_TEST_HASH) += test_hash.o test_siphash.o
- obj-$(CONFIG_TEST_KASAN) += test_kasan.o
-+CFLAGS_test_kasan.o += -fno-builtin
- obj-$(CONFIG_TEST_KSTRTOX) += test-kstrtox.o
- obj-$(CONFIG_TEST_LIST_SORT) += test_list_sort.o
- obj-$(CONFIG_TEST_LKM) += test_module.o
--- 
-2.16.2.395.g2e18187dfd-goog
+>> that nodeid and zonenr are encoded in top bits of page flags which are
+>> not initialized here, hence the crash :-(
+>> ffffe31d01edff80  7b7fe000                0        0  0 0
+>> ffffe31d01edffc0  7b7ff000                0        0  1 1fffff00000000
+>> ffffe31d01ee0000  7b800000                0        0  1 1fffff00000000
+>> ffffe31d01ffffc0  7ffff000                0        0  1 1fffff00000000
+>
+> It is still not clear why not to do the alignment in
+> memblock_next_valid_pfn rahter than its caller.
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
