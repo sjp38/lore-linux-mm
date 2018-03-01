@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 035BB6B0006
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 01:27:56 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id g66so2897523pfj.11
-        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 22:27:55 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DBB696B0007
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 01:27:57 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id l14so2198177pgn.21
+        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 22:27:57 -0800 (PST)
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id b60-v6si2536498plc.830.2018.02.28.22.27.54
+        by mx.google.com with ESMTPS id b60-v6si2536498plc.830.2018.02.28.22.27.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Feb 2018 22:27:54 -0800 (PST)
+        Wed, 28 Feb 2018 22:27:56 -0800 (PST)
 From: Aaron Lu <aaron.lu@intel.com>
-Subject: [PATCH v4 2/3] mm/free_pcppages_bulk: do not hold lock when picking pages to free
-Date: Thu,  1 Mar 2018 14:28:44 +0800
-Message-Id: <20180301062845.26038-3-aaron.lu@intel.com>
+Subject: [PATCH v4 3/3] mm/free_pcppages_bulk: prefetch buddy while not holding lock
+Date: Thu,  1 Mar 2018 14:28:45 +0800
+Message-Id: <20180301062845.26038-4-aaron.lu@intel.com>
 In-Reply-To: <20180301062845.26038-1-aaron.lu@intel.com>
 References: <20180301062845.26038-1-aaron.lu@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,101 +20,80 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
 
-When freeing a batch of pages from Per-CPU-Pages(PCP) back to buddy,
-the zone->lock is held and then pages are chosen from PCP's migratetype
-list. While there is actually no need to do this 'choose part' under
-lock since it's PCP pages, the only CPU that can touch them is us and
-irq is also disabled.
+When a page is freed back to the global pool, its buddy will be checked
+to see if it's possible to do a merge. This requires accessing buddy's
+page structure and that access could take a long time if it's cache cold.
 
-Moving this part outside could reduce lock held time and improve
-performance. Test with will-it-scale/page_fault1 full load:
+This patch adds a prefetch to the to-be-freed page's buddy outside of
+zone->lock in hope of accessing buddy's page structure later under
+zone->lock will be faster. Since we *always* do buddy merging and check
+an order-0 page's buddy to try to merge it when it goes into the main
+allocator, the cacheline will always come in, i.e. the prefetched data
+will never be unused.
+
+In the meantime, there are two concerns:
+1 the prefetch could potentially evict existing cachelines, especially
+  for L1D cache since it is not huge;
+2 there is some additional instruction overhead, namely calculating
+  buddy pfn twice.
+
+For 1, it's hard to say, this microbenchmark though shows good result but
+the actual benefit of this patch will be workload/CPU dependant;
+For 2, since the calculation is a XOR on two local variables, it's expected
+in many cases that cycles spent will be offset by reduced memory latency
+later. This is especially true for NUMA machines where multiple CPUs are
+contending on zone->lock and the most time consuming part under zone->lock
+is the wait of 'struct page' cacheline of the to-be-freed pages and their
+buddies.
+
+Test with will-it-scale/page_fault1 full load:
 
 kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
 v4.16-rc2+  9034215        7971818       13667135       15677465
-this patch  9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
+patch2/3    9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
+this patch 10338868 +8.4%  8544477 +2.8% 14839808 +5.5% 17155464 +2.9%
+Note: this patch's performance improvement percent is against patch2/3.
 
-What the test does is: starts $nr_cpu processes and each will repeatedly
-do the following for 5 minutes:
-1 mmap 128M anonymouse space;
-2 write access to that space;
-3 munmap.
-The score is the aggregated iteration.
-
-https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault1.c
-
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+[changelog stole from Dave Hansen and Mel Gorman's comments]
+https://lkml.org/lkml/2018/1/24/551
+Suggested-by: Ying Huang <ying.huang@intel.com>
 Signed-off-by: Aaron Lu <aaron.lu@intel.com>
 ---
- mm/page_alloc.c | 39 +++++++++++++++++++++++----------------
- 1 file changed, 23 insertions(+), 16 deletions(-)
+ mm/page_alloc.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index faa33eac1635..dafdcdec9c1f 100644
+index dafdcdec9c1f..1d838041931e 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1116,12 +1116,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 	int migratetype = 0;
- 	int batch_free = 0;
- 	bool isolated_pageblocks;
--
--	spin_lock(&zone->lock);
--	isolated_pageblocks = has_isolate_pageblock(zone);
-+	struct page *page, *tmp;
-+	LIST_HEAD(head);
- 
- 	while (count) {
--		struct page *page;
- 		struct list_head *list;
- 
- 		/*
-@@ -1143,27 +1141,36 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+@@ -1141,6 +1141,9 @@ static void free_pcppages_bulk(struct zone *zone, int count,
  			batch_free = count;
  
  		do {
--			int mt;	/* migratetype of the to-be-freed page */
--
++			unsigned long pfn, buddy_pfn;
++			struct page *buddy;
++
  			page = list_last_entry(list, struct page, lru);
--			/* must delete as __free_one_page list manipulates */
-+			/* must delete to avoid corrupting pcp list */
+ 			/* must delete to avoid corrupting pcp list */
  			list_del(&page->lru);
- 			pcp->count--;
- 
--			mt = get_pcppage_migratetype(page);
--			/* MIGRATE_ISOLATE page should not go to pcplists */
--			VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
--			/* Pageblock could have been isolated meanwhile */
--			if (unlikely(isolated_pageblocks))
--				mt = get_pageblock_migratetype(page);
--
- 			if (bulkfree_pcp_prepare(page))
+@@ -1150,6 +1153,18 @@ static void free_pcppages_bulk(struct zone *zone, int count,
  				continue;
  
--			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
--			trace_mm_page_pcpu_drain(page, 0, mt);
-+			list_add_tail(&page->lru, &head);
+ 			list_add_tail(&page->lru, &head);
++
++			/*
++			 * We are going to put the page back to the global
++			 * pool, prefetch its buddy to speed up later access
++			 * under zone->lock. It is believed the overhead of
++			 * calculating buddy_pfn here can be offset by reduced
++			 * memory latency later.
++			 */
++			pfn = page_to_pfn(page);
++			buddy_pfn = __find_buddy_pfn(pfn, 0);
++			buddy = page + (buddy_pfn - pfn);
++			prefetch(buddy);
  		} while (--count && --batch_free && !list_empty(list));
  	}
-+
-+	spin_lock(&zone->lock);
-+	isolated_pageblocks = has_isolate_pageblock(zone);
-+
-+	/*
-+	 * Use safe version since after __free_one_page(),
-+	 * page->lru.next will not point to original list.
-+	 */
-+	list_for_each_entry_safe(page, tmp, &head, lru) {
-+		int mt = get_pcppage_migratetype(page);
-+		/* MIGRATE_ISOLATE page should not go to pcplists */
-+		VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
-+		/* Pageblock could have been isolated meanwhile */
-+		if (unlikely(isolated_pageblocks))
-+			mt = get_pageblock_migratetype(page);
-+
-+		__free_one_page(page, page_to_pfn(page), zone, 0, mt);
-+		trace_mm_page_pcpu_drain(page, 0, mt);
-+	}
- 	spin_unlock(&zone->lock);
- }
  
 -- 
 2.14.3
