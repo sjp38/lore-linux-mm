@@ -1,102 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DBB696B0007
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 01:27:57 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id l14so2198177pgn.21
-        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 22:27:57 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id b60-v6si2536498plc.830.2018.02.28.22.27.56
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 24F406B0005
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 02:17:58 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id r18so2744777qtn.17
+        for <linux-mm@kvack.org>; Wed, 28 Feb 2018 23:17:58 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id w10si4014522qkg.351.2018.02.28.23.17.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Feb 2018 22:27:56 -0800 (PST)
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [PATCH v4 3/3] mm/free_pcppages_bulk: prefetch buddy while not holding lock
-Date: Thu,  1 Mar 2018 14:28:45 +0800
-Message-Id: <20180301062845.26038-4-aaron.lu@intel.com>
-In-Reply-To: <20180301062845.26038-1-aaron.lu@intel.com>
-References: <20180301062845.26038-1-aaron.lu@intel.com>
+        Wed, 28 Feb 2018 23:17:57 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2179UCS064022
+	for <linux-mm@kvack.org>; Thu, 1 Mar 2018 02:17:56 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2gec4sswjv-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 01 Mar 2018 02:17:56 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Thu, 1 Mar 2018 07:17:54 -0000
+Date: Thu, 1 Mar 2018 08:17:50 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH v3 0/4] Split page_type out from mapcount
+In-Reply-To: <20180228223157.9281-1-willy@infradead.org>
+References: <20180228223157.9281-1-willy@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Message-Id: <20180301081750.42b135c3@mschwideX1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org
 
-When a page is freed back to the global pool, its buddy will be checked
-to see if it's possible to do a merge. This requires accessing buddy's
-page structure and that access could take a long time if it's cache cold.
+On Wed, 28 Feb 2018 14:31:53 -0800
+Matthew Wilcox <willy@infradead.org> wrote:
 
-This patch adds a prefetch to the to-be-freed page's buddy outside of
-zone->lock in hope of accessing buddy's page structure later under
-zone->lock will be faster. Since we *always* do buddy merging and check
-an order-0 page's buddy to try to merge it when it goes into the main
-allocator, the cacheline will always come in, i.e. the prefetched data
-will never be unused.
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> I want to use the _mapcount field to record what a page is in use as.
+> This can help with debugging and we can also expose that information to
+> userspace through /proc/kpageflags to help diagnose memory usage (not
+> included as part of this patch set).
+> 
+> First, we need s390 to stop using _mapcount for its own purposes;
+> Martin, I hope you have time to look at this patch.  I must confess I
+> don't quite understand what the different bits are used for in the upper
+> nybble of the _mapcount, but I tried to replicate what you were doing
+> faithfully.
 
-In the meantime, there are two concerns:
-1 the prefetch could potentially evict existing cachelines, especially
-  for L1D cache since it is not huge;
-2 there is some additional instruction overhead, namely calculating
-  buddy pfn twice.
+Yeah, that is a nasty bit of code. On s390 we have 2K page tables (pte)
+but 4K pages. If we use full pages for the pte tables we waste 2K of
+memory for each of the tables. So we allocate 4K and split it into two
+2K pieces. Now we have to keep track of the pieces to be able to free
+them again.
 
-For 1, it's hard to say, this microbenchmark though shows good result but
-the actual benefit of this patch will be workload/CPU dependant;
-For 2, since the calculation is a XOR on two local variables, it's expected
-in many cases that cycles spent will be offset by reduced memory latency
-later. This is especially true for NUMA machines where multiple CPUs are
-contending on zone->lock and the most time consuming part under zone->lock
-is the wait of 'struct page' cacheline of the to-be-freed pages and their
-buddies.
+I try to give your patch a spin today. It should be stand-alone, no ?
 
-Test with will-it-scale/page_fault1 full load:
-
-kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
-v4.16-rc2+  9034215        7971818       13667135       15677465
-patch2/3    9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
-this patch 10338868 +8.4%  8544477 +2.8% 14839808 +5.5% 17155464 +2.9%
-Note: this patch's performance improvement percent is against patch2/3.
-
-[changelog stole from Dave Hansen and Mel Gorman's comments]
-https://lkml.org/lkml/2018/1/24/551
-Suggested-by: Ying Huang <ying.huang@intel.com>
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
- mm/page_alloc.c | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index dafdcdec9c1f..1d838041931e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1141,6 +1141,9 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 			batch_free = count;
- 
- 		do {
-+			unsigned long pfn, buddy_pfn;
-+			struct page *buddy;
-+
- 			page = list_last_entry(list, struct page, lru);
- 			/* must delete to avoid corrupting pcp list */
- 			list_del(&page->lru);
-@@ -1150,6 +1153,18 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 				continue;
- 
- 			list_add_tail(&page->lru, &head);
-+
-+			/*
-+			 * We are going to put the page back to the global
-+			 * pool, prefetch its buddy to speed up later access
-+			 * under zone->lock. It is believed the overhead of
-+			 * calculating buddy_pfn here can be offset by reduced
-+			 * memory latency later.
-+			 */
-+			pfn = page_to_pfn(page);
-+			buddy_pfn = __find_buddy_pfn(pfn, 0);
-+			buddy = page + (buddy_pfn - pfn);
-+			prefetch(buddy);
- 		} while (--count && --batch_free && !list_empty(list));
- 	}
- 
 -- 
-2.14.3
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
