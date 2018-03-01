@@ -1,50 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B31096B0006
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 11:50:26 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id o11so2841038pgp.14
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 08:50:26 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k67si3255410pfj.298.2018.03.01.08.50.25
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 912506B0009
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 12:07:25 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id p13so3884238wmc.6
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 09:07:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n191sor1473267wmd.57.2018.03.01.09.07.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Mar 2018 08:50:25 -0800 (PST)
-Date: Thu, 1 Mar 2018 17:50:19 +0100
-From: Joerg Roedel <jroedel@suse.de>
-Subject: Re: [PATCH 12/31] x86/entry/32: Add PTI cr3 switch to non-NMI
- entry/exit points
-Message-ID: <20180301165019.kuynvb6fkcwdpxjx@suse.de>
-References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
- <1518168340-9392-13-git-send-email-joro@8bytes.org>
- <afd5bae9-f53e-a225-58f1-4ba2422044e3@redhat.com>
- <20180301133430.wda4qesqhxnww7d6@8bytes.org>
- <2ae8b01f-844b-b8b1-3198-5db70c3e083b@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2ae8b01f-844b-b8b1-3198-5db70c3e083b@redhat.com>
+        (Google Transport Security);
+        Thu, 01 Mar 2018 09:07:24 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH] kasan, arm64: clean up KASAN_SHADOW_SCALE_SHIFT usage
+Date: Thu,  1 Mar 2018 18:07:12 +0100
+Message-Id: <44281e784702443f06edb837ec672984783a9621.1519923749.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
+Cc: Kostya Serebryany <kcc@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-On Thu, Mar 01, 2018 at 09:33:11AM -0500, Waiman Long wrote:
-> On 03/01/2018 08:34 AM, Joerg Roedel wrote:
-> I think that should fix the issue of debug exception from userspace.
-> 
-> One thing that I am not certain about is whether debug exception can
-> happen even if the IF flag is cleared. If it can, debug exception should
-> be handled like NMI as the state of the CR3 can be indeterminate if the
-> exception happens in the entry/exit code.
+This is a follow up patch to the series I sent recently that cleans up
+KASAN_SHADOW_SCALE_SHIFT usage (which value was hardcoded and scattered
+all over the code). This fixes the one place that I forgot to fix.
 
-I am actually not 100% sure where it can happen, from the code it can
-happen from anywhere, except when we are running on an espfix stack.
+The change is purely aesthetical, instead of hardcoding the value for
+KASAN_SHADOW_SCALE_SHIFT in arch/arm64/Makefile, an appropriate variable
+is declared and used.
 
-So I am not sure we need the same complex handling NMIs need wrt. to
-switching the cr3s.
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
+ arch/arm64/Makefile | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-
-	Joerg
+diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
+index b481b4a7c011..4bb18aee4846 100644
+--- a/arch/arm64/Makefile
++++ b/arch/arm64/Makefile
+@@ -97,12 +97,14 @@ else
+ TEXT_OFFSET := 0x00080000
+ endif
+ 
+-# KASAN_SHADOW_OFFSET = VA_START + (1 << (VA_BITS - 3)) - (1 << 61)
++# KASAN_SHADOW_OFFSET = VA_START + (1 << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
++#				 - (1 << (64 - KASAN_SHADOW_SCALE_SHIFT))
+ # in 32-bit arithmetic
++KASAN_SHADOW_SCALE_SHIFT := 3
+ KASAN_SHADOW_OFFSET := $(shell printf "0x%08x00000000\n" $$(( \
+-			(0xffffffff & (-1 << ($(CONFIG_ARM64_VA_BITS) - 32))) \
+-			+ (1 << ($(CONFIG_ARM64_VA_BITS) - 32 - 3)) \
+-			- (1 << (64 - 32 - 3)) )) )
++	(0xffffffff & (-1 << ($(CONFIG_ARM64_VA_BITS) - 32))) \
++	+ (1 << ($(CONFIG_ARM64_VA_BITS) - 32 - $(KASAN_SHADOW_SCALE_SHIFT))) \
++	- (1 << (64 - 32 - $(KASAN_SHADOW_SCALE_SHIFT))) )) )
+ 
+ export	TEXT_OFFSET GZFLAGS
+ 
+-- 
+2.16.2.395.g2e18187dfd-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
