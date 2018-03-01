@@ -1,78 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B7216B0009
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 09:00:51 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id v16so4186783wrv.14
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 06:00:51 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r123si2774930wmf.51.2018.03.01.06.00.49
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EC3A16B000C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 09:06:21 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id w71so3092832oia.20
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 06:06:21 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id y8si2673045qtn.162.2018.03.01.06.06.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Mar 2018 06:00:49 -0800 (PST)
-Date: Thu, 1 Mar 2018 15:00:44 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4 3/3] mm/free_pcppages_bulk: prefetch buddy while not
- holding lock
-Message-ID: <20180301140044.GK15057@dhcp22.suse.cz>
-References: <20180301062845.26038-1-aaron.lu@intel.com>
- <20180301062845.26038-4-aaron.lu@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Mar 2018 06:06:20 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w21E5qv3040713
+	for <linux-mm@kvack.org>; Thu, 1 Mar 2018 09:06:20 -0500
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2gejr2gn8g-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 01 Mar 2018 09:06:07 -0500
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Thu, 1 Mar 2018 14:04:27 -0000
+Date: Thu, 1 Mar 2018 15:04:20 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH v3 1/4] s390: Use _refcount for pgtables
+In-Reply-To: <20180301125310.jx6c5dypk5axrmum@node.shutemov.name>
+References: <20180228223157.9281-1-willy@infradead.org>
+	<20180228223157.9281-2-willy@infradead.org>
+	<20180301125310.jx6c5dypk5axrmum@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180301062845.26038-4-aaron.lu@intel.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Message-Id: <20180301150420.19a14fd3@mschwideX1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org
 
-On Thu 01-03-18 14:28:45, Aaron Lu wrote:
-> When a page is freed back to the global pool, its buddy will be checked
-> to see if it's possible to do a merge. This requires accessing buddy's
-> page structure and that access could take a long time if it's cache cold.
-> 
-> This patch adds a prefetch to the to-be-freed page's buddy outside of
-> zone->lock in hope of accessing buddy's page structure later under
-> zone->lock will be faster. Since we *always* do buddy merging and check
-> an order-0 page's buddy to try to merge it when it goes into the main
-> allocator, the cacheline will always come in, i.e. the prefetched data
-> will never be unused.
-> 
-> In the meantime, there are two concerns:
-> 1 the prefetch could potentially evict existing cachelines, especially
->   for L1D cache since it is not huge;
-> 2 there is some additional instruction overhead, namely calculating
->   buddy pfn twice.
-> 
-> For 1, it's hard to say, this microbenchmark though shows good result but
-> the actual benefit of this patch will be workload/CPU dependant;
-> For 2, since the calculation is a XOR on two local variables, it's expected
-> in many cases that cycles spent will be offset by reduced memory latency
-> later. This is especially true for NUMA machines where multiple CPUs are
-> contending on zone->lock and the most time consuming part under zone->lock
-> is the wait of 'struct page' cacheline of the to-be-freed pages and their
-> buddies.
-> 
-> Test with will-it-scale/page_fault1 full load:
-> 
-> kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
-> v4.16-rc2+  9034215        7971818       13667135       15677465
-> patch2/3    9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
-> this patch 10338868 +8.4%  8544477 +2.8% 14839808 +5.5% 17155464 +2.9%
-> Note: this patch's performance improvement percent is against patch2/3.
+On Thu, 1 Mar 2018 15:53:10 +0300
+"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-I am really surprised that this has such a big impact.  Is this a win on
-other architectures as well?
+> On Wed, Feb 28, 2018 at 02:31:54PM -0800, Matthew Wilcox wrote:
+> > From: Matthew Wilcox <mawilcox@microsoft.com>
+> > 
+> > s390 borrows the storage used for _mapcount in struct page in order to
+> > account whether the bottom or top half is being used for 2kB page
+> > tables.  I want to use that for something else, so use the top byte of
+> > _refcount instead of the bottom byte of _mapcount.  _refcount may
+> > temporarily be incremented by other CPUs that see a stale pointer to
+> > this page in the page cache, but each CPU can only increment it by one,
+> > and there are no systems with 2^24 CPUs today, so they will not change
+> > the upper byte of _refcount.  We do have to be a little careful not to
+> > lose any of their writes (as they will subsequently decrement the
+> > counter).  
+> 
+> Hm. I'm more worried about false-negative put_page_testzero().
+> Are you sure it won't lead to leaks. I cannot say from the code changes.
+> 
+> And for page-table pages should have planty space in other fields.
+> IIRC page->mapping is unused there.
  
-> [changelog stole from Dave Hansen and Mel Gorman's comments]
-> https://lkml.org/lkml/2018/1/24/551
+2^^24 put_page_testzero calls for page table pages? I don't think so.
 
-Please use http://lkml.kernel.org/r/<msg-id> for references because
-lkml.org is quite unstable. It would be
-http://lkml.kernel.org/r/148a42d8-8306-2f2f-7f7c-86bc118f8ccd@intel.com
-here.
 -- 
-Michal Hocko
-SUSE Labs
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
