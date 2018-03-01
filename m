@@ -1,96 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B2406B0003
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 06:42:08 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id j3so5592091itf.6
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 03:42:08 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p82sor2243531ioo.88.2018.03.01.03.42.06
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BABA6B0006
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 07:03:32 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id u83so3373323wmb.3
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 04:03:32 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id h93si477742edc.283.2018.03.01.04.03.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 01 Mar 2018 03:42:06 -0800 (PST)
-Date: Thu, 1 Mar 2018 03:42:04 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, compaction: drain pcps for zone when kcompactd fails
-Message-ID: <alpine.DEB.2.20.1803010340100.88270@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Mar 2018 04:03:27 -0800 (PST)
+Date: Thu, 1 Mar 2018 13:03:26 +0100
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [PATCH 12/31] x86/entry/32: Add PTI cr3 switch to non-NMI
+ entry/exit points
+Message-ID: <20180301120326.GN16484@8bytes.org>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <1518168340-9392-13-git-send-email-joro@8bytes.org>
+ <afd5bae9-f53e-a225-58f1-4ba2422044e3@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <afd5bae9-f53e-a225-58f1-4ba2422044e3@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Waiman Long <longman@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de
 
-It's possible for buddy pages to become stranded on pcps that, if drained,
-could be merged with other buddy pages on the zone's free area to form
-large order pages, including up to MAX_ORDER.
+On Tue, Feb 27, 2018 at 02:18:36PM -0500, Waiman Long wrote:
+> On 02/09/2018 04:25 AM, Joerg Roedel wrote:
+> >  	SAVE_ALL
+> >  	ENCODE_FRAME_POINTER
+> > +
+> > +	/* Make sure we are running on kernel cr3 */
+> > +	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
+> > +
+> >  	xorl	%edx, %edx			# error code 0
+> >  	movl	%esp, %eax			# pt_regs pointer
+> >  
+> 
+> The debug exception calls ret_from_exception on exit. If coming from
+> userspace, the C function prepare_exit_to_usermode() will be called.
+> With the PTI-32 code, it means that function will be called with the
+> entry stack instead of the task stack. This can be problematic as macro
+> like current won't work anymore.
 
-Consider a verbose example using the tools/vm/page-types tool at the
-beginning of a ZONE_NORMAL, where 'B' indicates a buddy page and 'S'
-indicates a slab page, which the migration scanner is attempting to
-defragment (and doing it well, absent coalescing up to cc.order):
+This is not different from before, no? The debug handler already can be
+entered on entry stack before this patch-set.
 
-109954  1       _______S________________________________________________________
-109955  2       __________B_____________________________________________________
-109957  1       ________________________________________________________________
-109958  1       __________B_____________________________________________________
-109959  7       ________________________________________________________________
-109960  1       __________B_____________________________________________________
-109961  9       ________________________________________________________________
-10996a  1       __________B_____________________________________________________
-10996b  3       ________________________________________________________________
-10996e  1       __________B_____________________________________________________
-10996f  1       ________________________________________________________________
-109970  1       __________B_____________________________________________________
-109971  f       ________________________________________________________________
-...
-109f88  1       __________B_____________________________________________________
-109f89  3       ________________________________________________________________
-109f8c  1       __________B_____________________________________________________
-109f8d  2       ________________________________________________________________
-109f8f  2       __________B_____________________________________________________
-109f91  f       ________________________________________________________________
-109fa0  1       __________B_____________________________________________________
-109fa1  7       ________________________________________________________________
-109fa8  1       __________B_____________________________________________________
-109fa9  1       ________________________________________________________________
-109faa  1       __________B_____________________________________________________
-109fab  1       _______S________________________________________________________
 
-These buddy pages, spanning 1,621 pages, could be coalesced and allow for
-three transparent hugepages to be dynamically allocated.  Totaling all
-hugepage length spans that could be coalesced, this could yield over 400
-hugepages on the zone's free area when at the time this /proc/kpageflags
-was collected, there was _no_ order-9 or order-10 pages available for
-allocation even after triggering compaction through procfs.
-
-When kcompactd fails to defragment memory such that a cc.order page can
-be allocated, drain all pcps for the zone back to the buddy allocator so
-this stranding cannot occur.  Compaction for that order will subsequently
-be deferred, which acts as a ratelimit on this drain.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/compaction.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1987,6 +1987,14 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 		if (status == COMPACT_SUCCESS) {
- 			compaction_defer_reset(zone, cc.order, false);
- 		} else if (status == COMPACT_PARTIAL_SKIPPED || status == COMPACT_COMPLETE) {
-+			/*
-+			 * Buddy pages may become stranded on pcps that could
-+			 * otherwise coalesce on the zone's free area for
-+			 * order >= cc.order.  This is ratelimited by the
-+			 * upcoming deferral.
-+			 */
-+			drain_all_pages(zone);
-+
- 			/*
- 			 * We use sync migration mode here, so we defer like
- 			 * sync direct compaction does.
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
