@@ -1,87 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B0676B0008
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 13:16:52 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id h11so3848659pfn.0
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 10:16:52 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id v1-v6sor1685349ply.96.2018.03.01.10.16.51
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A20C6B0008
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 13:24:42 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id g69so6618120ita.9
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 10:24:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j73sor2462032itb.80.2018.03.01.10.24.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Mar 2018 10:16:51 -0800 (PST)
-Message-ID: <1519928208.11375.3.camel@gmail.com>
-Subject: Re: Use higher-order pages in vmalloc
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Thu, 01 Mar 2018 10:16:48 -0800
-In-Reply-To: <20180223121300.GU30681@dhcp22.suse.cz>
-References: <151670492223.658225.4605377710524021456.stgit@buzz>
-	 <151670493255.658225.2881484505285363395.stgit@buzz>
-	 <20180221154214.GA4167@bombadil.infradead.org>
-	 <fff58819-d39d-3a8a-f314-690bcb2f95d7@intel.com>
-	 <20180221170129.GB27687@bombadil.infradead.org>
-	 <20180222065943.GA30681@dhcp22.suse.cz>
-	 <20180222122254.GA22703@bombadil.infradead.org>
-	 <20180222133643.GJ30681@dhcp22.suse.cz>
-	 <CALCETrU2c=SzWJCwuqqFuBVkC=nN27_ce4GxweCQXEwPAqnz7A@mail.gmail.com>
-	 <20180223121300.GU30681@dhcp22.suse.cz>
+        Thu, 01 Mar 2018 10:24:41 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20180301165019.kuynvb6fkcwdpxjx@suse.de>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <1518168340-9392-13-git-send-email-joro@8bytes.org> <afd5bae9-f53e-a225-58f1-4ba2422044e3@redhat.com>
+ <20180301133430.wda4qesqhxnww7d6@8bytes.org> <2ae8b01f-844b-b8b1-3198-5db70c3e083b@redhat.com>
+ <20180301165019.kuynvb6fkcwdpxjx@suse.de>
+From: Brian Gerst <brgerst@gmail.com>
+Date: Thu, 1 Mar 2018 13:24:39 -0500
+Message-ID: <CAMzpN2gxVnb65LHXbBioM4LAMN2d-d1-xx3QyQrmsHECBXC29g@mail.gmail.com>
+Subject: Re: [PATCH 12/31] x86/entry/32: Add PTI cr3 switch to non-NMI
+ entry/exit points
 Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andy Lutomirski <luto@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Joerg Roedel <jroedel@suse.de>
+Cc: Waiman Long <longman@redhat.com>, Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
 
-On Fri, 2018-02-23 at 13:13 +0100, Michal Hocko wrote:
-> On Thu 22-02-18 19:01:35, Andy Lutomirski wrote:
-> > On Thu, Feb 22, 2018 at 1:36 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > > On Thu 22-02-18 04:22:54, Matthew Wilcox wrote:
-> > > > On Thu, Feb 22, 2018 at 07:59:43AM +0100, Michal Hocko wrote:
-> > > > > On Wed 21-02-18 09:01:29, Matthew Wilcox wrote:
-> > > > > > Right.  It helps with fragmentation if we can keep higher-order
-> > > > > > allocations together.
-> > > > > 
-> > > > > Hmm, wouldn't it help if we made vmalloc pages migrateable instead? That
-> > > > > would help the compaction and get us to a lower fragmentation longterm
-> > > > > without playing tricks in the allocation path.
-> > > > 
-> > > > I was wondering about that possibility.  If we want to migrate a page
-> > > > then we have to shoot down the PTE across all CPUs, copy the data to the
-> > > > new page, and insert the new PTE.  Copying 4kB doesn't take long; if you
-> > > > have 12GB/s (current example on Wikipedia: dual-channel memory and one
-> > > > DDR2-800 module per channel gives a theoretical bandwidth of 12.8GB/s)
-> > > > then we should be able to copy a page in 666ns).  So there's no problem
-> > > > holding a spinlock for it.
-> > > > 
-> > > > But we can't handle a fault in vmalloc space today.  It's handled in
-> > > > arch-specific code, see vmalloc_fault() in arch/x86/mm/fault.c
-> > > > If we're going to do this, it'll have to be something arches opt into
-> > > > because I'm not taking on the job of fixing every architecture!
-> > > 
-> > > yes.
-> > 
-> > On x86, if you shoot down the PTE for the current stack, you're dead.
-> > vmalloc_fault() might not even be called.  Instead we hit
-> > do_double_fault(), and the manual warns extremely strongly against
-> > trying to recover, and, in this case, I agree with the SDM.  If you
-> > actually want this to work, there needs to be a special IPI broadcast
-> > to the task in question (with appropriate synchronization) that calls
-> > magic arch code that does the switcheroo.
-> 
-> Why cannot we use the pte swap entry trick also for vmalloc migration.
-> I haven't explored this path at all, to be honest.
-> 
-> > Didn't someone (Christoph?) have a patch to teach the page allocator
-> > to give high-order allocations if available and otherwise fall back to
-> > low order?
-> 
-> Do you mean kvmalloc?
+On Thu, Mar 1, 2018 at 11:50 AM, Joerg Roedel <jroedel@suse.de> wrote:
+> On Thu, Mar 01, 2018 at 09:33:11AM -0500, Waiman Long wrote:
+>> On 03/01/2018 08:34 AM, Joerg Roedel wrote:
+>> I think that should fix the issue of debug exception from userspace.
+>>
+>> One thing that I am not certain about is whether debug exception can
+>> happen even if the IF flag is cleared. If it can, debug exception should
+>> be handled like NMI as the state of the CR3 can be indeterminate if the
+>> exception happens in the entry/exit code.
+>
+> I am actually not 100% sure where it can happen, from the code it can
+> happen from anywhere, except when we are running on an espfix stack.
+>
+> So I am not sure we need the same complex handling NMIs need wrt. to
+> switching the cr3s.
 
+The IF flag only affects external maskable interrupts, not traps or
+faults.  You do need to check CR3 because SYSENTER does not clear TF
+and will immediately cause a debug trap on kernel entry (with user
+CR3) if set.  That is why the code existed before to check for the
+entry stack for debug/NMI.
 
-I sent something last year but had not finished the patch series :/
-
-https://marc.info/?l=linux-kernel&m=148233423610544&w=2
-
+--
+Brian Gerst
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
