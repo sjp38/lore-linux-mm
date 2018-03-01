@@ -1,133 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 58A966B0003
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 05:22:32 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id j13so3040904wmh.3
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 02:22:32 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f19si2307967wme.246.2018.03.01.02.22.30
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B2406B0003
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 06:42:08 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id j3so5592091itf.6
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 03:42:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p82sor2243531ioo.88.2018.03.01.03.42.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Mar 2018 02:22:30 -0800 (PST)
-Subject: Re: [UNTESTED RFC PATCH 0/8] compaction scanners rework
-References: <20171213085915.9278-1-vbabka@suse.cz>
- <20180123200539.GA27770@cmpxchg.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <3d8269c7-8a09-83ac-622f-771862e12fc3@suse.cz>
-Date: Thu, 1 Mar 2018 11:22:25 +0100
+        (Google Transport Security);
+        Thu, 01 Mar 2018 03:42:06 -0800 (PST)
+Date: Thu, 1 Mar 2018 03:42:04 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, compaction: drain pcps for zone when kcompactd fails
+Message-ID: <alpine.DEB.2.20.1803010340100.88270@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20180123200539.GA27770@cmpxchg.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 01/23/2018 09:05 PM, Johannes Weiner wrote:
-> Hi Vlastimil,
+It's possible for buddy pages to become stranded on pcps that, if drained,
+could be merged with other buddy pages on the zone's free area to form
+large order pages, including up to MAX_ORDER.
 
-Hi, sorry for the long delay!
+Consider a verbose example using the tools/vm/page-types tool at the
+beginning of a ZONE_NORMAL, where 'B' indicates a buddy page and 'S'
+indicates a slab page, which the migration scanner is attempting to
+defragment (and doing it well, absent coalescing up to cc.order):
 
-> On Wed, Dec 13, 2017 at 09:59:07AM +0100, Vlastimil Babka wrote:
->> Hi,
->>
->> I have been working on this in the past weeks, but probably won't have time to
->> finish and test properly this year. So here's an UNTESTED RFC for those brave
->> enough to test, and also for review comments. I've been focusing on 1-7, and
->> patch 8 is unchanged since the last posting,  so Mel's suggestions (wrt
->> fallbacks and scanning pageblock where we get the free page from) from are not
->> included yet.
->>
->> For context, please see the recent threads [1] [2]. The main goal is to
->> eliminate the reported huge free scanner activity by replacing the scanner with
->> allocation from free lists. This has some dangers of excessive migrations as
->> described in Patch 8 commit log, so the earlier patches try to eliminate most
->> of them by making the migration scanner decide to actually migrate pages only
->> if it looks like it can succeed. This should be benefical even in the current
->> scheme.
-> 
-> I'm interested in helping to push this along, since we suffer from the
-> current compaction free scanner.
-> 
-> On paper the patches make sense to me and the code looks reasonable as
-> well. However, testing them with our workload would probably not add
-> much to this series, since the new patches 1-7 are supposed to address
-> issues we didn't observe in practice.
+109954  1       _______S________________________________________________________
+109955  2       __________B_____________________________________________________
+109957  1       ________________________________________________________________
+109958  1       __________B_____________________________________________________
+109959  7       ________________________________________________________________
+109960  1       __________B_____________________________________________________
+109961  9       ________________________________________________________________
+10996a  1       __________B_____________________________________________________
+10996b  3       ________________________________________________________________
+10996e  1       __________B_____________________________________________________
+10996f  1       ________________________________________________________________
+109970  1       __________B_____________________________________________________
+109971  f       ________________________________________________________________
+...
+109f88  1       __________B_____________________________________________________
+109f89  3       ________________________________________________________________
+109f8c  1       __________B_____________________________________________________
+109f8d  2       ________________________________________________________________
+109f8f  2       __________B_____________________________________________________
+109f91  f       ________________________________________________________________
+109fa0  1       __________B_____________________________________________________
+109fa1  7       ________________________________________________________________
+109fa8  1       __________B_____________________________________________________
+109fa9  1       ________________________________________________________________
+109faa  1       __________B_____________________________________________________
+109fab  1       _______S________________________________________________________
 
-Well, the main purpose of 1-7 was to minimize issues expected due to 8 :)
+These buddy pages, spanning 1,621 pages, could be coalesced and allow for
+three transparent hugepages to be dynamically allocated.  Totaling all
+hugepage length spans that could be coalesced, this could yield over 400
+hugepages on the zone's free area when at the time this /proc/kpageflags
+was collected, there was _no_ order-9 or order-10 pages available for
+allocation even after triggering compaction through procfs.
 
-> Since Mel isn't comfortable with replacing the scanner with freelist
-> allocations - and I have to admit I also find the freelist allocations
+When kcompactd fails to defragment memory such that a cc.order page can
+be allocated, drain all pcps for the zone back to the buddy allocator so
+this stranding cannot occur.  Compaction for that order will subsequently
+be deferred, which acts as a ratelimit on this drain.
 
-Hm IIRC he said in the end that it would be OK, especially if freelist
-was used as a pointer to pageblock which would be scanned. I don't think
-it's a fundamental difference from purely freelist allocations.
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/compaction.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-> harder to reason about - I wonder if a different approach to this is
-> workable.
-> 
-> The crux here is that this problem gets worse as memory sizes get
-> bigger. We don't have an issue on 16G machines. But the page orders we
-> want to allocate do not scale up the same way: THPs are still the same
-> size, MAX_ORDER is still the same. So why, on a 256G machine, do we
-> have to find matching used/free page candidates across the entire 256G
-> memory range? We allocate THPs on 8G machines all the time - cheaper.
-> 
-> Yes, we always have to compact all of memory. But we don't have to aim
-> for perfect defragmentation, with all used pages to the left and all
-> free pages to the right. Currently, on a 256G machine, we essentially
-> try to - although never getting there - compact a single order-25 free
-> page. That seems like an insane goal.
-> 
-> So I wonder if instead we could split large memory ranges into smaller
-> compaction chunks, each with their own pairs of migration and free
-> scanners.
-
-At first sight that would mean the same number of pages would still be
-scanned, just in different order...
-
-> We could then cheaply skip over entire chunks for which
-> reclaim didn't produce any free pages.
-
-OK this could mean less scanning in theory, but now we also have
-skipping of pageblocks where compaction failed to isolate anything, so I
-don't immediately see if this scheme would mean more efficient skipping.
-
-> And we could compact all these
-> sub chunks in parallel.
-
-That could reduce allocation latency, but then multiple CPU's would be
-burning time in compaction, and people would be still unhappy I guess.
-Also compaction needs lru and zone locks for isolation, so those would
-get contended and it wouldn't scale?
-
-> Splitting the "matchmaking pool" like this would of course cause us to
-> miss compaction opportunities between sources and targets in disjunct
-> subranges. But we only need compaction to produce the largest common
-> allocation requests; there has to be a maximum pool size on which a
-> migrate & free scanner pair operates beyond which the rising scan cost
-> yields diminishing returns, and beyond which divide and conquer would
-> scale much better for the potentially increased allocation frequencies
-> on larger machines.
-
-I wonder if there's some other non-obvious underlying reason why
-compaction works worse one 256G systems than on 8G. Could it be because
-min_free_kbytes scales sub-linearly (IIRC?) with zone size? Compaction
-performs better with more free memory.
-Or higher zone/lru lock contention because there are also more cpus?
-That would make terminating async compaction more likely, thus retrying
-with the more expensive sync compaction.
-
-Could some kind of experiments with fake numa splitting to smaller nodes
-shed some more light here?
-
-Vlastimil
-
-> Does this make sense? Am I missing something in the way the allocator
-> works that would make this impractical?
-> 
+diff --git a/mm/compaction.c b/mm/compaction.c
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1987,6 +1987,14 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 		if (status == COMPACT_SUCCESS) {
+ 			compaction_defer_reset(zone, cc.order, false);
+ 		} else if (status == COMPACT_PARTIAL_SKIPPED || status == COMPACT_COMPLETE) {
++			/*
++			 * Buddy pages may become stranded on pcps that could
++			 * otherwise coalesce on the zone's free area for
++			 * order >= cc.order.  This is ratelimited by the
++			 * upcoming deferral.
++			 */
++			drain_all_pages(zone);
++
+ 			/*
+ 			 * We use sync migration mode here, so we defer like
+ 			 * sync direct compaction does.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
