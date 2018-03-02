@@ -1,91 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D4226B0003
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 19:09:56 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id j28so5113679wrd.17
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 16:09:56 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z4si3385701wrh.1.2018.03.01.16.09.54
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F25616B0003
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 22:58:03 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id c83so4574165pfk.5
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 19:58:03 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id l2si3422927pgs.276.2018.03.01.19.58.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Mar 2018 16:09:54 -0800 (PST)
-Date: Thu, 1 Mar 2018 16:09:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 3/3] mm/free_pcppages_bulk: prefetch buddy while not
- holding lock
-Message-Id: <20180301160950.b561d6b8b561217bad511229@linux-foundation.org>
-In-Reply-To: <20180301062845.26038-4-aaron.lu@intel.com>
-References: <20180301062845.26038-1-aaron.lu@intel.com>
-	<20180301062845.26038-4-aaron.lu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Thu, 01 Mar 2018 19:58:02 -0800 (PST)
+Subject: [PATCH v3 0/3] mm, smaps: MMUPageSize for device-dax
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 01 Mar 2018 19:48:56 -0800
+Message-ID: <151996253609.27922.9983044853291257359.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
+To: akpm@linux-foundation.org
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jane Chu <jane.chu@oracle.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Thu,  1 Mar 2018 14:28:45 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
+Changes since v2:
+* Split the fix of the definition vma_mmu_pagesize() on powerpc to its
+  own patch.
 
-> When a page is freed back to the global pool, its buddy will be checked
-> to see if it's possible to do a merge. This requires accessing buddy's
-> page structure and that access could take a long time if it's cache cold.
-> 
-> This patch adds a prefetch to the to-be-freed page's buddy outside of
-> zone->lock in hope of accessing buddy's page structure later under
-> zone->lock will be faster. Since we *always* do buddy merging and check
-> an order-0 page's buddy to try to merge it when it goes into the main
-> allocator, the cacheline will always come in, i.e. the prefetched data
-> will never be unused.
-> 
-> In the meantime, there are two concerns:
-> 1 the prefetch could potentially evict existing cachelines, especially
->   for L1D cache since it is not huge;
-> 2 there is some additional instruction overhead, namely calculating
->   buddy pfn twice.
-> 
-> For 1, it's hard to say, this microbenchmark though shows good result but
-> the actual benefit of this patch will be workload/CPU dependant;
-> For 2, since the calculation is a XOR on two local variables, it's expected
-> in many cases that cycles spent will be offset by reduced memory latency
-> later. This is especially true for NUMA machines where multiple CPUs are
-> contending on zone->lock and the most time consuming part under zone->lock
-> is the wait of 'struct page' cacheline of the to-be-freed pages and their
-> buddies.
-> 
-> Test with will-it-scale/page_fault1 full load:
-> 
-> kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
-> v4.16-rc2+  9034215        7971818       13667135       15677465
-> patch2/3    9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
-> this patch 10338868 +8.4%  8544477 +2.8% 14839808 +5.5% 17155464 +2.9%
-> Note: this patch's performance improvement percent is against patch2/3.
-> 
-> ...
->
-> @@ -1150,6 +1153,18 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  				continue;
->  
->  			list_add_tail(&page->lru, &head);
-> +
-> +			/*
-> +			 * We are going to put the page back to the global
-> +			 * pool, prefetch its buddy to speed up later access
-> +			 * under zone->lock. It is believed the overhead of
-> +			 * calculating buddy_pfn here can be offset by reduced
-> +			 * memory latency later.
-> +			 */
-> +			pfn = page_to_pfn(page);
-> +			buddy_pfn = __find_buddy_pfn(pfn, 0);
-> +			buddy = page + (buddy_pfn - pfn);
-> +			prefetch(buddy);
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2018-February/014101.html
 
-What is the typical list length here?  Maybe it's approximately the pcp
-batch size which is typically 128 pages?
+---
 
-If so, I'm a bit surprised that it is effective to prefetch 128 page
-frames before using any them for real.  I guess they'll fit in the L2
-cache.   Thoughts?
+Andrew,
+
+Similar to commit 31383c6865a5 "mm, hugetlbfs: introduce ->split() to
+vm_operations_struct" here is another occasion where we want
+special-case hugetlbfs/hstate enabling to also apply to device-dax.
+
+This begs the question what other hstate conversions we might do beyond
+->split() and ->pagesize(), but this appears to be the last of the
+usages of hstate_vma() in generic/non-hugetlbfs specific code paths.
+
+---
+
+Dan Williams (3):
+      mm, powerpc: use vma_kernel_pagesize() in vma_mmu_pagesize()
+      mm, hugetlbfs: introduce ->pagesize() to vm_operations_struct
+      device-dax: implement ->pagesize() for smaps to report MMUPageSize
+
+
+ arch/powerpc/include/asm/hugetlb.h |    6 ------
+ arch/powerpc/mm/hugetlbpage.c      |    5 +----
+ drivers/dax/device.c               |   10 ++++++++++
+ include/linux/mm.h                 |    1 +
+ mm/hugetlb.c                       |   27 ++++++++++++++-------------
+ 5 files changed, 26 insertions(+), 23 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
