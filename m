@@ -1,124 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DD1A06B000C
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 12:45:40 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id v3so2189425pfm.21
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 09:45:40 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id t8-v6si5030586plz.780.2018.03.02.09.45.39
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E4A2A6B000C
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 12:46:12 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id q5-v6so5393548pll.17
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 09:46:12 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id t85si5217112pfj.296.2018.03.02.09.46.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Mar 2018 09:45:39 -0800 (PST)
-Date: Fri, 2 Mar 2018 09:45:30 -0800
+        Fri, 02 Mar 2018 09:46:11 -0800 (PST)
+Date: Fri, 2 Mar 2018 09:46:07 -0800
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH v5 02/12] dax: introduce IS_DEVDAX() and IS_FSDAX()
-Message-ID: <20180302174530.GV19312@magnolia>
+Subject: Re: [PATCH v5 08/12] xfs, dax: replace IS_DAX() with IS_FSDAX()
+Message-ID: <20180302174607.GW19312@magnolia>
 References: <151996281307.28483.12343847096989509127.stgit@dwillia2-desk3.amr.corp.intel.com>
- <151996282448.28483.10415125852182473579.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151996285683.28483.13394624369523668388.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <151996282448.28483.10415125852182473579.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <151996285683.28483.13394624369523668388.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-xfs@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, stable@vger.kernel.org, Jan Kara <jack@suse.cz>, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, stable@vger.kernel.org, Jan Kara <jack@suse.cz>, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 01, 2018 at 07:53:44PM -0800, Dan Williams wrote:
-> The current IS_DAX() helper that checks if a file is in DAX mode serves
-> two purposes. It is a control flow branch condition for DAX vs
-> non-DAX paths and it is a mechanism to perform dead code elimination. The
-> dead code elimination is required in the CONFIG_FS_DAX=n case since
-> there are symbols in fs/dax.c that will be elided. While the
-> dead code elimination can be addressed with nop stubs for the fs/dax.c
-> symbols that does not address the need for a DAX control flow helper
-> where fs/dax.c symbols are not involved.
+On Thu, Mar 01, 2018 at 07:54:16PM -0800, Dan Williams wrote:
+> In preparation for fixing the broken definition of S_DAX in the
+> CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y case, convert all IS_DAX() usages to
+> use explicit tests for FSDAX since DAX is ambiguous.
 > 
-> Moreover, the control flow changes, in some cases, need to be cognizant
-> of whether the DAX file is a typical file or a Device-DAX special file.
-> Introduce IS_DEVDAX() and IS_FSDAX() to simultaneously address the
-> file-type control flow and dead-code elimination use cases. IS_DAX()
-> will be deleted after all sites are converted to use the file-type
-> specific helper.
-> 
-> Note, this change is also a pre-requisite for fixing the definition of
-> the S_DAX inode flag in the CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y case.
-> The flag needs to be defined, non-zero, if either DAX facility is
-> enabled.
-> 
-> Cc: "Theodore Ts'o" <tytso@mit.edu>
-> Cc: Andreas Dilger <adilger.kernel@dilger.ca>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 > Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
 > Cc: linux-xfs@vger.kernel.org
 > Cc: Matthew Wilcox <mawilcox@microsoft.com>
 > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 > Cc: <stable@vger.kernel.org>
 > Fixes: dee410792419 ("/dev/dax, core: file operations and dax-mmap")
-> Reported-by: Jan Kara <jack@suse.cz>
 > Reviewed-by: Jan Kara <jack@suse.cz>
 > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  include/linux/fs.h |   22 ++++++++++++++++++++++
->  1 file changed, 22 insertions(+)
-> 
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 79c413985305..bd0c46880572 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -1909,6 +1909,28 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags
->  #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
->  				 (inode)->i_rdev == WHITEOUT_DEV)
->  
-> +static inline bool IS_DEVDAX(struct inode *inode)
-> +{
-> +	if (!IS_ENABLED(CONFIG_DEV_DAX))
-> +		return false;
-> +	if ((inode->i_flags & S_DAX) == 0)
-> +		return false;
-> +	if (!S_ISCHR(inode->i_mode))
-> +		return false;
-> +	return true;
-> +}
-> +
-> +static inline bool IS_FSDAX(struct inode *inode)
-> +{
-> +	if (!IS_ENABLED(CONFIG_FS_DAX))
-> +		return false;
 
-I echo Jan's complaint from the last round that the dead code
-elimination here is subtle, as compared to:
-
-#if IS_ENABLED(CONFIG_FS_DAX)
-static inline bool IS_FSDAX(struct inode *inode) { ... }
-#else
-# define IS_FSDAX(inode) (false)
-#endif
-
-But I guess even with that we're relying on dead code elimination higher
-up in the call stack...
-
-> +	if ((inode->i_flags & S_DAX) == 0)
-> +		return false;
-> +	if (S_ISCHR(inode->i_mode))
-> +		return false;
-
-I'm curious, do we have character devices with S_DAX set?
-
-I /think/ we're expecting that only block/char devices and files will
-ever have S_DAX set, so IS_FSDAX is only true for block devices and
-files.  Right?
-
-(A comment here about why S_ISCHR->false here would be helpful.)
+Looks ok,
+Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
 
 --D
 
-> +	return true;
-> +}
-> +
->  static inline bool HAS_UNMAPPED_ID(struct inode *inode)
+> ---
+>  fs/xfs/xfs_file.c    |   14 +++++++-------
+>  fs/xfs/xfs_ioctl.c   |    4 ++--
+>  fs/xfs/xfs_iomap.c   |    6 +++---
+>  fs/xfs/xfs_reflink.c |    2 +-
+>  4 files changed, 13 insertions(+), 13 deletions(-)
+> 
+> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+> index 9ea08326f876..46a098b90fd0 100644
+> --- a/fs/xfs/xfs_file.c
+> +++ b/fs/xfs/xfs_file.c
+> @@ -288,7 +288,7 @@ xfs_file_read_iter(
+>  	if (XFS_FORCED_SHUTDOWN(mp))
+>  		return -EIO;
+>  
+> -	if (IS_DAX(inode))
+> +	if (IS_FSDAX(inode))
+>  		ret = xfs_file_dax_read(iocb, to);
+>  	else if (iocb->ki_flags & IOCB_DIRECT)
+>  		ret = xfs_file_dio_aio_read(iocb, to);
+> @@ -726,7 +726,7 @@ xfs_file_write_iter(
+>  	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+>  		return -EIO;
+>  
+> -	if (IS_DAX(inode))
+> +	if (IS_FSDAX(inode))
+>  		ret = xfs_file_dax_write(iocb, from);
+>  	else if (iocb->ki_flags & IOCB_DIRECT) {
+>  		/*
+> @@ -1045,7 +1045,7 @@ __xfs_filemap_fault(
+>  	}
+>  
+>  	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+> -	if (IS_DAX(inode)) {
+> +	if (IS_FSDAX(inode)) {
+>  		pfn_t pfn;
+>  
+>  		ret = dax_iomap_fault(vmf, pe_size, &pfn, NULL, &xfs_iomap_ops);
+> @@ -1070,7 +1070,7 @@ xfs_filemap_fault(
 >  {
->  	return !uid_valid(inode->i_uid) || !gid_valid(inode->i_gid);
+>  	/* DAX can shortcut the normal fault path on write faults! */
+>  	return __xfs_filemap_fault(vmf, PE_SIZE_PTE,
+> -			IS_DAX(file_inode(vmf->vma->vm_file)) &&
+> +			IS_FSDAX(file_inode(vmf->vma->vm_file)) &&
+>  			(vmf->flags & FAULT_FLAG_WRITE));
+>  }
+>  
+> @@ -1079,7 +1079,7 @@ xfs_filemap_huge_fault(
+>  	struct vm_fault		*vmf,
+>  	enum page_entry_size	pe_size)
+>  {
+> -	if (!IS_DAX(file_inode(vmf->vma->vm_file)))
+> +	if (!IS_FSDAX(file_inode(vmf->vma->vm_file)))
+>  		return VM_FAULT_FALLBACK;
+>  
+>  	/* DAX can shortcut the normal fault path on write faults! */
+> @@ -1124,12 +1124,12 @@ xfs_file_mmap(
+>  	 * We don't support synchronous mappings for non-DAX files. At least
+>  	 * until someone comes with a sensible use case.
+>  	 */
+> -	if (!IS_DAX(file_inode(filp)) && (vma->vm_flags & VM_SYNC))
+> +	if (!IS_FSDAX(file_inode(filp)) && (vma->vm_flags & VM_SYNC))
+>  		return -EOPNOTSUPP;
+>  
+>  	file_accessed(filp);
+>  	vma->vm_ops = &xfs_file_vm_ops;
+> -	if (IS_DAX(file_inode(filp)))
+> +	if (IS_FSDAX(file_inode(filp)))
+>  		vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
+>  	return 0;
+>  }
+> diff --git a/fs/xfs/xfs_ioctl.c b/fs/xfs/xfs_ioctl.c
+> index 89fb1eb80aae..234279ff66ce 100644
+> --- a/fs/xfs/xfs_ioctl.c
+> +++ b/fs/xfs/xfs_ioctl.c
+> @@ -1108,9 +1108,9 @@ xfs_ioctl_setattr_dax_invalidate(
+>  	}
+>  
+>  	/* If the DAX state is not changing, we have nothing to do here. */
+> -	if ((fa->fsx_xflags & FS_XFLAG_DAX) && IS_DAX(inode))
+> +	if ((fa->fsx_xflags & FS_XFLAG_DAX) && IS_FSDAX(inode))
+>  		return 0;
+> -	if (!(fa->fsx_xflags & FS_XFLAG_DAX) && !IS_DAX(inode))
+> +	if (!(fa->fsx_xflags & FS_XFLAG_DAX) && !IS_FSDAX(inode))
+>  		return 0;
+>  
+>  	/* lock, flush and invalidate mapping in preparation for flag change */
+> diff --git a/fs/xfs/xfs_iomap.c b/fs/xfs/xfs_iomap.c
+> index 66e1edbfb2b2..cf794d429aec 100644
+> --- a/fs/xfs/xfs_iomap.c
+> +++ b/fs/xfs/xfs_iomap.c
+> @@ -241,7 +241,7 @@ xfs_iomap_write_direct(
+>  	 * the reserve block pool for bmbt block allocation if there is no space
+>  	 * left but we need to do unwritten extent conversion.
+>  	 */
+> -	if (IS_DAX(VFS_I(ip))) {
+> +	if (IS_FSDAX(VFS_I(ip))) {
+>  		bmapi_flags = XFS_BMAPI_CONVERT | XFS_BMAPI_ZERO;
+>  		if (imap->br_state == XFS_EXT_UNWRITTEN) {
+>  			tflags |= XFS_TRANS_RESERVE;
+> @@ -952,7 +952,7 @@ static inline bool imap_needs_alloc(struct inode *inode,
+>  	return !nimaps ||
+>  		imap->br_startblock == HOLESTARTBLOCK ||
+>  		imap->br_startblock == DELAYSTARTBLOCK ||
+> -		(IS_DAX(inode) && imap->br_state == XFS_EXT_UNWRITTEN);
+> +		(IS_FSDAX(inode) && imap->br_state == XFS_EXT_UNWRITTEN);
+>  }
+>  
+>  static inline bool need_excl_ilock(struct xfs_inode *ip, unsigned flags)
+> @@ -988,7 +988,7 @@ xfs_file_iomap_begin(
+>  		return -EIO;
+>  
+>  	if (((flags & (IOMAP_WRITE | IOMAP_DIRECT)) == IOMAP_WRITE) &&
+> -			!IS_DAX(inode) && !xfs_get_extsz_hint(ip)) {
+> +			!IS_FSDAX(inode) && !xfs_get_extsz_hint(ip)) {
+>  		/* Reserve delalloc blocks for regular writeback. */
+>  		return xfs_file_iomap_begin_delay(inode, offset, length, iomap);
+>  	}
+> diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
+> index 270246943a06..a126e00e05e3 100644
+> --- a/fs/xfs/xfs_reflink.c
+> +++ b/fs/xfs/xfs_reflink.c
+> @@ -1351,7 +1351,7 @@ xfs_reflink_remap_range(
+>  		goto out_unlock;
+>  
+>  	/* Don't share DAX file data for now. */
+> -	if (IS_DAX(inode_in) || IS_DAX(inode_out))
+> +	if (IS_FSDAX(inode_in) || IS_FSDAX(inode_out))
+>  		goto out_unlock;
+>  
+>  	ret = vfs_clone_file_prep_inodes(inode_in, pos_in, inode_out, pos_out,
 > 
 > --
 > To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
