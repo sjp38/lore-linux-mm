@@ -1,34 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A6E16B0007
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 03:26:58 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id x7so4958051pfd.19
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 00:26:58 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id l3si3684015pgp.141.2018.03.02.00.26.56
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DB92D6B0007
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 03:30:20 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id m19so3859733pgv.5
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 00:30:20 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id u25si4479139pfm.164.2018.03.02.00.30.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Mar 2018 00:26:56 -0800 (PST)
-Date: Fri, 2 Mar 2018 16:27:56 +0800
+        Fri, 02 Mar 2018 00:30:19 -0800 (PST)
+Date: Fri, 2 Mar 2018 16:31:19 +0800
 From: Aaron Lu <aaron.lu@intel.com>
 Subject: Re: [PATCH v4 3/3] mm/free_pcppages_bulk: prefetch buddy while not
  holding lock
-Message-ID: <20180302082756.GC6356@intel.com>
+Message-ID: <20180302083119.GD6356@intel.com>
 References: <20180301062845.26038-1-aaron.lu@intel.com>
  <20180301062845.26038-4-aaron.lu@intel.com>
- <20180301160950.b561d6b8b561217bad511229@linux-foundation.org>
+ <20180301140044.GK15057@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180301160950.b561d6b8b561217bad511229@linux-foundation.org>
+In-Reply-To: <20180301140044.GK15057@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
 
-On Thu, Mar 01, 2018 at 04:09:50PM -0800, Andrew Morton wrote:
-> On Thu,  1 Mar 2018 14:28:45 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
-> 
+On Thu, Mar 01, 2018 at 03:00:44PM +0100, Michal Hocko wrote:
+> On Thu 01-03-18 14:28:45, Aaron Lu wrote:
 > > When a page is freed back to the global pool, its buddy will be checked
 > > to see if it's possible to do a merge. This requires accessing buddy's
 > > page structure and that access could take a long time if it's cache cold.
@@ -62,49 +61,23 @@ On Thu, Mar 01, 2018 at 04:09:50PM -0800, Andrew Morton wrote:
 > > patch2/3    9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
 > > this patch 10338868 +8.4%  8544477 +2.8% 14839808 +5.5% 17155464 +2.9%
 > > Note: this patch's performance improvement percent is against patch2/3.
-> > 
-> > ...
-> >
-> > @@ -1150,6 +1153,18 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-> >  				continue;
-> >  
-> >  			list_add_tail(&page->lru, &head);
-> > +
-> > +			/*
-> > +			 * We are going to put the page back to the global
-> > +			 * pool, prefetch its buddy to speed up later access
-> > +			 * under zone->lock. It is believed the overhead of
-> > +			 * calculating buddy_pfn here can be offset by reduced
-> > +			 * memory latency later.
-> > +			 */
-> > +			pfn = page_to_pfn(page);
-> > +			buddy_pfn = __find_buddy_pfn(pfn, 0);
-> > +			buddy = page + (buddy_pfn - pfn);
-> > +			prefetch(buddy);
 > 
-> What is the typical list length here?  Maybe it's approximately the pcp
-> batch size which is typically 128 pages?
+> I am really surprised that this has such a big impact.  Is this a win on
+> other architectures as well?
 
-Most of time it is pcp->batch, unless when pcp's pages need to be
-all drained like in drain_local_pages(zone).
+For NUMA machines, I guess so. But I didn't test other archs so can't
+say for sure.
 
-The pcp->batch has a default value of 31 and its upper limit is 96 for
-x86_64. For this test, it is 31 here, I didn't manipulate
-/proc/sys/vm/percpu_pagelist_fraction to change it.
-
-With this said, the count here could be pcp->count when pcp's pages
-need to be all drained and though pcp->count's default value is
-(6*pcp->batch)=186, user can increase that value through the above
-mentioned procfs interface and the resulting pcp->count could be too
-big for prefetch. Ying also mentioned this today and suggested adding
-an upper limit here to avoid prefetching too much. Perhaps just prefetch
-the last pcp->batch pages if count here > pcp->batch? Since pcp->batch
-has an upper limit, we won't need to worry prefetching too much.
-
+>  
+> > [changelog stole from Dave Hansen and Mel Gorman's comments]
+> > https://lkml.org/lkml/2018/1/24/551
 > 
-> If so, I'm a bit surprised that it is effective to prefetch 128 page
-> frames before using any them for real.  I guess they'll fit in the L2
-> cache.   Thoughts?
+> Please use http://lkml.kernel.org/r/<msg-id> for references because
+> lkml.org is quite unstable. It would be
+> http://lkml.kernel.org/r/148a42d8-8306-2f2f-7f7c-86bc118f8ccd@intel.com
+> here.
+
+Good to know this, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
