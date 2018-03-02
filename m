@@ -1,83 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DB92D6B0007
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 03:30:20 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id m19so3859733pgv.5
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 00:30:20 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id u25si4479139pfm.164.2018.03.02.00.30.19
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E345E6B0003
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 04:07:43 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id z14so5972798wrh.1
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 01:07:43 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id l28si4251881eda.206.2018.03.02.01.07.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Mar 2018 00:30:19 -0800 (PST)
-Date: Fri, 2 Mar 2018 16:31:19 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v4 3/3] mm/free_pcppages_bulk: prefetch buddy while not
- holding lock
-Message-ID: <20180302083119.GD6356@intel.com>
-References: <20180301062845.26038-1-aaron.lu@intel.com>
- <20180301062845.26038-4-aaron.lu@intel.com>
- <20180301140044.GK15057@dhcp22.suse.cz>
+        Fri, 02 Mar 2018 01:07:39 -0800 (PST)
+Date: Fri, 2 Mar 2018 10:07:37 +0100
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [PATCH 12/31] x86/entry/32: Add PTI cr3 switch to non-NMI
+ entry/exit points
+Message-ID: <20180302090737.GO16484@8bytes.org>
+References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
+ <1518168340-9392-13-git-send-email-joro@8bytes.org>
+ <afd5bae9-f53e-a225-58f1-4ba2422044e3@redhat.com>
+ <20180301133430.wda4qesqhxnww7d6@8bytes.org>
+ <2ae8b01f-844b-b8b1-3198-5db70c3e083b@redhat.com>
+ <20180301165019.kuynvb6fkcwdpxjx@suse.de>
+ <CAMzpN2gxVnb65LHXbBioM4LAMN2d-d1-xx3QyQrmsHECBXC29g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180301140044.GK15057@dhcp22.suse.cz>
+In-Reply-To: <CAMzpN2gxVnb65LHXbBioM4LAMN2d-d1-xx3QyQrmsHECBXC29g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
+To: Brian Gerst <brgerst@gmail.com>
+Cc: Joerg Roedel <jroedel@suse.de>, Waiman Long <longman@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
 
-On Thu, Mar 01, 2018 at 03:00:44PM +0100, Michal Hocko wrote:
-> On Thu 01-03-18 14:28:45, Aaron Lu wrote:
-> > When a page is freed back to the global pool, its buddy will be checked
-> > to see if it's possible to do a merge. This requires accessing buddy's
-> > page structure and that access could take a long time if it's cache cold.
-> > 
-> > This patch adds a prefetch to the to-be-freed page's buddy outside of
-> > zone->lock in hope of accessing buddy's page structure later under
-> > zone->lock will be faster. Since we *always* do buddy merging and check
-> > an order-0 page's buddy to try to merge it when it goes into the main
-> > allocator, the cacheline will always come in, i.e. the prefetched data
-> > will never be unused.
-> > 
-> > In the meantime, there are two concerns:
-> > 1 the prefetch could potentially evict existing cachelines, especially
-> >   for L1D cache since it is not huge;
-> > 2 there is some additional instruction overhead, namely calculating
-> >   buddy pfn twice.
-> > 
-> > For 1, it's hard to say, this microbenchmark though shows good result but
-> > the actual benefit of this patch will be workload/CPU dependant;
-> > For 2, since the calculation is a XOR on two local variables, it's expected
-> > in many cases that cycles spent will be offset by reduced memory latency
-> > later. This is especially true for NUMA machines where multiple CPUs are
-> > contending on zone->lock and the most time consuming part under zone->lock
-> > is the wait of 'struct page' cacheline of the to-be-freed pages and their
-> > buddies.
-> > 
-> > Test with will-it-scale/page_fault1 full load:
-> > 
-> > kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
-> > v4.16-rc2+  9034215        7971818       13667135       15677465
-> > patch2/3    9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
-> > this patch 10338868 +8.4%  8544477 +2.8% 14839808 +5.5% 17155464 +2.9%
-> > Note: this patch's performance improvement percent is against patch2/3.
-> 
-> I am really surprised that this has such a big impact.  Is this a win on
-> other architectures as well?
+On Thu, Mar 01, 2018 at 01:24:39PM -0500, Brian Gerst wrote:
+> The IF flag only affects external maskable interrupts, not traps or
+> faults.  You do need to check CR3 because SYSENTER does not clear TF
+> and will immediately cause a debug trap on kernel entry (with user
+> CR3) if set.  That is why the code existed before to check for the
+> entry stack for debug/NMI.
 
-For NUMA machines, I guess so. But I didn't test other archs so can't
-say for sure.
+Yeah, okay, thanks for the clarification. This also means the #DB
+handler needs to leave with the same cr3 as it entered. I'll work that
+into my patches.
 
->  
-> > [changelog stole from Dave Hansen and Mel Gorman's comments]
-> > https://lkml.org/lkml/2018/1/24/551
-> 
-> Please use http://lkml.kernel.org/r/<msg-id> for references because
-> lkml.org is quite unstable. It would be
-> http://lkml.kernel.org/r/148a42d8-8306-2f2f-7f7c-86bc118f8ccd@intel.com
-> here.
+Thanks,
 
-Good to know this, thanks!
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
