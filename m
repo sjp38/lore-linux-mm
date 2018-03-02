@@ -1,45 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EEDCE6B0005
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 15:48:25 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id y20so5852549pfm.1
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 12:48:25 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d67si5437696pfe.49.2018.03.02.12.48.24
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 70B0C6B0005
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 15:57:42 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id u36so7074576wrf.21
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 12:57:42 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m15sor3712071wrb.35.2018.03.02.12.57.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 02 Mar 2018 12:48:24 -0800 (PST)
-Date: Fri, 2 Mar 2018 12:48:08 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
-Message-ID: <20180302204808.GA671@bombadil.infradead.org>
-References: <20180227131338.3699-1-blackzert@gmail.com>
- <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
- <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com>
- <20180228183349.GA16336@bombadil.infradead.org>
- <C9D0E3BA-3AB9-4F0E-BDA5-32378E440986@gmail.com>
+        (Google Transport Security);
+        Fri, 02 Mar 2018 12:57:41 -0800 (PST)
+From: Heiner Kallweit <hkallweit1@gmail.com>
+Subject: "x86/boot/compressed/64: Prepare trampoline memory" breaks boot on
+ Zotac CI-321
+Message-ID: <12357ee3-0276-906a-0e7c-2c3055675af3@gmail.com>
+Date: Fri, 2 Mar 2018 21:57:32 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <C9D0E3BA-3AB9-4F0E-BDA5-32378E440986@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ilya Smith <blackzert@gmail.com>
-Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@kernel.org>
+Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri, Mar 02, 2018 at 11:30:28PM +0300, Ilya Smith wrote:
-> This is a really good question. Lets think we choose address with random-length 
-> guard hole. This length is limited by some configuration as you described. For 
-> instance let it be 1MB. Now according to current implementation, we still may 
-> fill this gap with small allocations with size less than 1MB. Attacker will 
-> going to build attack base on this predictable behaviour - he jus need to spray 
-> with 1 MB chunks (or less, with some expectation). This attack harder but not 
-> impossible.
+Recently my Mini PC Zotac CI-321 started to reboot immediately before
+anything was written to the console.
 
-Ah, I didn't mean that.  I was thinking that we can change the
-implementation to reserve 1-N pages after the end of the mapping.
-So you can't map anything else in there, and any load/store into that
-region will segfault.
+Bisecting lead to b91993a87aff "x86/boot/compressed/64: Prepare
+trampoline memory" being the change breaking boot.
+
+If you need any more information, please let me know.
+
+Rgds, Heiner
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
