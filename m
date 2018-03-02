@@ -1,49 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BBD146B0003
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 08:42:04 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id 19so8824105ios.12
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 05:42:04 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id d7si1140269ith.12.2018.03.02.05.42.03
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D91396B0007
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 09:10:13 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id j21so6463061wre.20
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 06:10:13 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v1si4818310wrg.261.2018.03.02.06.10.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Mar 2018 05:42:03 -0800 (PST)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w22Dfalu037212
-	for <linux-mm@kvack.org>; Fri, 2 Mar 2018 13:42:03 GMT
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by userp2130.oracle.com with ESMTP id 2gf7an03r6-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 02 Mar 2018 13:42:02 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w22Dg2rm028522
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL)
-	for <linux-mm@kvack.org>; Fri, 2 Mar 2018 13:42:02 GMT
-Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w22Dg2DP003860
-	for <linux-mm@kvack.org>; Fri, 2 Mar 2018 13:42:02 GMT
-Received: by mail-ot0-f172.google.com with SMTP id g97so8715835otg.13
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 05:42:01 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 02 Mar 2018 06:10:12 -0800 (PST)
+Date: Fri, 2 Mar 2018 15:10:00 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm,page_alloc: wait for oom_lock than back off
+Message-ID: <20180302141000.GB12772@dhcp22.suse.cz>
+References: <201802241700.JJB51016.FQOLFJHFOOSVMt@I-love.SAKURA.ne.jp>
+ <20180226092725.GB16269@dhcp22.suse.cz>
+ <201802261958.JDE18780.SFHOFOMOJFQVtL@I-love.SAKURA.ne.jp>
+ <20180226121933.GC16269@dhcp22.suse.cz>
+ <201802262216.ADH48949.FtQLFOHJOVSOMF@I-love.SAKURA.ne.jp>
+ <201803022010.BJE26043.LtSOOVFQOMJFHF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20180302130541.GO15057@dhcp22.suse.cz>
-References: <20180228030308.1116-1-pasha.tatashin@oracle.com> <20180302130541.GO15057@dhcp22.suse.cz>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Fri, 2 Mar 2018 08:42:01 -0500
-Message-ID: <CAOAebxvs0Nh6AkyPJS7e-B-cfeRqUZsQ23AOecOzH8YbneDOOg@mail.gmail.com>
-Subject: Re: [v5 0/6] optimize memory hotplug
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201803022010.BJE26043.LtSOOVFQOMJFHF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
 
-Hi Michal,
+On Fri 02-03-18 20:10:19, Tetsuo Handa wrote:
+> >From e80aeb994a03c3ae108107ea4d4489bbd7d868e9 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Fri, 2 Mar 2018 19:56:50 +0900
+> Subject: [PATCH v3] mm,page_alloc: wait for oom_lock than back off
+> 
+> This patch fixes a bug which is essentially same with a bug fixed by
+> commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
+> too long").
+> 
+> Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
+> on an assumption that the owner of oom_lock is making progress for us. But
+> it is possible to trigger OOM lockup when many threads concurrently called
+> __alloc_pages_slowpath() because all CPU resources are wasted for pointless
+> direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
+> __alloc_pages_may_oom() does not always give enough CPU resource to the
+> owner of the oom_lock.
+> 
+> It is possible that the owner of oom_lock is preempted by other threads.
+> Preemption makes the OOM situation much worse. But the page allocator is
+> not responsible about wasting CPU resource for something other than memory
+> allocation request. Wasting CPU resource for memory allocation request
+> without allowing the owner of oom_lock to make forward progress is a page
+> allocator's bug.
+> 
+> Therefore, this patch changes to wait for oom_lock in order to guarantee
+> that no thread waiting for the owner of oom_lock to make forward progress
+> will not consume CPU resources for pointless direct reclaim efforts.
+> 
+> We know printk() from OOM situation where a lot of threads are doing almost
+> busy-looping is a nightmare. As a side effect of this patch, printk() with
+> oom_lock held can start utilizing CPU resources saved by this patch (and
+> reduce preemption during printk(), making printk() complete faster).
+> 
+> By changing !mutex_trylock(&oom_lock) with mutex_lock_killable(&oom_lock),
+> it is possible that many threads prevent the OOM reaper from making forward
+> progress. Thus, this patch removes mutex_lock(&oom_lock) from the OOM
+> reaper.
+> 
+> Also, since nobody uses oom_lock serialization when setting MMF_OOM_SKIP
+> and we don't try last second allocation attempt after confirming that there
+> is no !MMF_OOM_SKIP OOM victim, the possibility of needlessly selecting
+> more OOM victims will be increased if we continue using ALLOC_WMARK_HIGH.
+> Thus, this patch changes to use ALLOC_MARK_MIN.
+> 
+> Also, since we don't want to sleep with oom_lock held so that we can allow
+> threads waiting at mutex_lock_killable(&oom_lock) to try last second
+> allocation attempt (because the OOM reaper starts reclaiming memory without
+> waiting for oom_lock) and start selecting next OOM victim if necessary,
+> this patch changes the location of the short sleep from inside of oom_lock
+> to outside of oom_lock.
+> 
+> But since Michal is still worrying that adding a single synchronization
+> point into the OOM path is risky (without showing a real life example
+> where lock_killable() in the coldest OOM path hurts), changes made by
+> this patch will be enabled only when oom_compat_mode=0 kernel command line
+> parameter is specified so that users can test whether their workloads get
+> hurt by this patch.
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: David Rientjes <rientjes@google.com>
 
-Thank you for letting me know, its OK, the patches are in mm-tree, so
-they are getting tested, and there is no rush.
-
-Pavel
+Nacked with passion. This is absolutely hideous. First of all there is
+absolutely no need for the kernel command line. That is just trying to
+dance around the fact that you are not able to argue for the change
+and bring reasonable arguments on the table. We definitely do not want
+two subtly different modes for the oom handling. Secondly, and repeatedly,
+you are squashing multiple changes into a single patch. And finally this
+is too big of a hammer for something that even doesn't solve the problem
+for PREEMPTIVE kernels which are free to schedule regardless of the
+sleep or the reclaim retry you are so passion about.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
