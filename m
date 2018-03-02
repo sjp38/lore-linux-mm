@@ -1,59 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 046FB6B0003
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 17:21:42 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id x21so5597060oie.5
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 14:21:42 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q131sor2918826oia.255.2018.03.02.14.21.40
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D70D6B0005
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 17:39:52 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id j3so7063566wrb.18
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 14:39:52 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i4si5218859wri.345.2018.03.02.14.39.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 02 Mar 2018 14:21:40 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20180302221020.GA30722@lst.de>
-References: <151996281307.28483.12343847096989509127.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180302221020.GA30722@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 2 Mar 2018 14:21:40 -0800
-Message-ID: <CAPcyv4gKyvkHY_qQTYvd8wrLpaXXciJyWZY+9T7Q_Eg-Zuxpgw@mail.gmail.com>
-Subject: Re: [PATCH v5 00/12] vfio, dax: prevent long term filesystem-dax pins
- and other fixes
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Mar 2018 14:39:50 -0800 (PST)
+Date: Fri, 2 Mar 2018 14:39:47 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 2/3] mm, hugetlbfs: introduce ->pagesize() to
+ vm_operations_struct
+Message-Id: <20180302143947.ed00df85530df46ec98dbd3e@linux-foundation.org>
+In-Reply-To: <151996254734.27922.15813097401404359642.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <151996253609.27922.9983044853291257359.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<151996254734.27922.15813097401404359642.stgit@dwillia2-desk3.amr.corp.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, linux-xfs <linux-xfs@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, KVM list <kvm@vger.kernel.org>, Haozhong Zhang <haozhong.zhang@intel.com>, Jane Chu <jane.chu@oracle.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Gerd Rausch <gerd.rausch@oracle.com>, stable <stable@vger.kernel.org>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Andreas Dilger <adilger.kernel@dilger.ca>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Alex Williamson <alex.williamson@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jane Chu <jane.chu@oracle.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Fri, Mar 2, 2018 at 2:10 PM, Christoph Hellwig <hch@lst.de> wrote:
-> I really don't like these IS_DEVDAX and IS_FSDAX flags.  We should
-> stop pretending DAX is a global per-inode choice and get rid of these
-> magic flags entirely.  So please convert the instances inside the
-> various file systems to checking the file system mount options instead.
->
-> For the core ones we'll need to differentiate:
->
->  - the checks in generic_file_read_iter and __generic_file_write_iter
->    seem to not be needed anymore at all since we stopped abusing the
->    direct I/O code for DAX, so they should probably be removed.
->  - io_is_direct is a weird check and should probably just go away,
->    as there is not point in always setting IOCB_DIRECT for DAX I/O
->  - fadvise should either become a file op, or a flag on the inode that
->    fadvice is supported instead of the nasty noop_backing_dev_info or
->    DAX check.
->  - Ditto for madvise
->  - vma_is_dax should probably be replaced with a VMA flag.
->  - thp_get_unmapped_area I don't really understand why we have a dax
->    check there.
->  - dax_mapping will be much harder to sort out.
->
-> But all these DAX flags certainly look like a major hodge podge to me.
+On Thu, 01 Mar 2018 19:49:07 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
 
-They are indeed a hodge-podge. The problem is that the current
-IS_DAX() is broken. So I'd like to propose fixing IS_DAX() with
-IS_FSDAX() + IS_DEVDAX() for 4.16-rc4 and queue up these wider reworks
-you propose for the next merge window.
+> When device-dax is operating in huge-page mode we want it to behave like
+> hugetlbfs and report the MMU page mapping size that is being enforced by
+> the vma. Similar to commit 31383c6865a5 "mm, hugetlbfs: introduce
+> ->split() to vm_operations_struct" it would be messy to teach
+> vma_mmu_pagesize() about device-dax page mapping sizes in the same
+> (hstate) way that hugetlbfs communicates this attribute.  Instead, these
+> patches introduce a new ->pagesize() vm operation.
+> 
+> ...
+>
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -383,6 +383,7 @@ struct vm_operations_struct {
+>  	int (*huge_fault)(struct vm_fault *vmf, enum page_entry_size pe_size);
+>  	void (*map_pages)(struct vm_fault *vmf,
+>  			pgoff_t start_pgoff, pgoff_t end_pgoff);
+> +	unsigned long (*pagesize)(struct vm_area_struct * area);
 
-Acceptable?
+fwiw, vm_operations_struct is documented in
+Documentation/filesystems/Locking.  Some bitrotting has occurred :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
