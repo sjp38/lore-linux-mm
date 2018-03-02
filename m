@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BC0F86B0007
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 07:10:49 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id u65so5216586pfd.7
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 04:10:49 -0800 (PST)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00115.outbound.protection.outlook.com. [40.107.0.115])
-        by mx.google.com with ESMTPS id c10si3930966pgq.535.2018.03.02.04.10.48
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 213A86B0008
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 07:11:25 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id t12-v6so5081806plo.9
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 04:11:25 -0800 (PST)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50093.outbound.protection.outlook.com. [40.107.5.93])
+        by mx.google.com with ESMTPS id i12si3952017pgp.7.2018.03.02.04.11.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 02 Mar 2018 04:10:48 -0800 (PST)
-Subject: Re: [PATCH 1/2] kasan: fix invalid-free test crashing the kernel
+        Fri, 02 Mar 2018 04:11:24 -0800 (PST)
+Subject: Re: [PATCH 2/2] kasan: disallow compiler to optimize away memset in
+ tests
 References: <cover.1519924383.git.andreyknvl@google.com>
- <286eaefc0a6c3fa9b83b87e7d6dc0fbb5b5c9926.1519924383.git.andreyknvl@google.com>
+ <105ec9a308b2abedb1a0d1fdced0c22d765e4732.1519924383.git.andreyknvl@google.com>
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <818fe418-01cd-4664-9844-46455b06842d@virtuozzo.com>
-Date: Fri, 2 Mar 2018 15:11:21 +0300
+Message-ID: <41d0e9bd-9102-6a50-e0d6-c193696381c9@virtuozzo.com>
+Date: Fri, 2 Mar 2018 15:11:56 +0300
 MIME-Version: 1.0
-In-Reply-To: <286eaefc0a6c3fa9b83b87e7d6dc0fbb5b5c9926.1519924383.git.andreyknvl@google.com>
+In-Reply-To: <105ec9a308b2abedb1a0d1fdced0c22d765e4732.1519924383.git.andreyknvl@google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -28,11 +29,12 @@ Cc: Kostya Serebryany <kcc@google.com>
 
 
 On 03/01/2018 08:15 PM, Andrey Konovalov wrote:
-> When an invalid-free is triggered by one of the KASAN tests, the object
-> doesn't actually get freed. This later leads to a BUG failure in
-> kmem_cache_destroy that checks that there are no allocated objects in the
-> cache that is being destroyed. Fix this by calling kmem_cache_free with
-> the proper object address after the call that triggers invalid-free.
+> A compiler can optimize away memset calls by replacing them with mov
+> instructions. There are KASAN tests, that specifically test that KASAN
+> correctly handles memset calls, we don't want this optimization to
+> happen.
+> 
+> The solution is to add -fno-builtin flag to test_kasan.ko
 > 
 > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 
