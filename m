@@ -1,109 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D91396B0007
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 09:10:13 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id j21so6463061wre.20
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 06:10:13 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v1si4818310wrg.261.2018.03.02.06.10.12
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 58D906B0005
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 10:23:56 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id b84so3971485qkj.14
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 07:23:56 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id u55si1711065qtk.439.2018.03.02.07.23.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Mar 2018 06:10:12 -0800 (PST)
-Date: Fri, 2 Mar 2018 15:10:00 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm,page_alloc: wait for oom_lock than back off
-Message-ID: <20180302141000.GB12772@dhcp22.suse.cz>
-References: <201802241700.JJB51016.FQOLFJHFOOSVMt@I-love.SAKURA.ne.jp>
- <20180226092725.GB16269@dhcp22.suse.cz>
- <201802261958.JDE18780.SFHOFOMOJFQVtL@I-love.SAKURA.ne.jp>
- <20180226121933.GC16269@dhcp22.suse.cz>
- <201802262216.ADH48949.FtQLFOHJOVSOMF@I-love.SAKURA.ne.jp>
- <201803022010.BJE26043.LtSOOVFQOMJFHF@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Mar 2018 07:23:55 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: Question: Using online_pages/offline_pages() with granularity < mem
+ section size
+Message-ID: <32e2bbbe-fe71-6607-fdbb-04767bec9bbb@redhat.com>
+Date: Fri, 2 Mar 2018 16:23:52 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201803022010.BJE26043.LtSOOVFQOMJFHF@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri 02-03-18 20:10:19, Tetsuo Handa wrote:
-> >From e80aeb994a03c3ae108107ea4d4489bbd7d868e9 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Fri, 2 Mar 2018 19:56:50 +0900
-> Subject: [PATCH v3] mm,page_alloc: wait for oom_lock than back off
-> 
-> This patch fixes a bug which is essentially same with a bug fixed by
-> commit 400e22499dd92613 ("mm: don't warn about allocations which stall for
-> too long").
-> 
-> Currently __alloc_pages_may_oom() is using mutex_trylock(&oom_lock) based
-> on an assumption that the owner of oom_lock is making progress for us. But
-> it is possible to trigger OOM lockup when many threads concurrently called
-> __alloc_pages_slowpath() because all CPU resources are wasted for pointless
-> direct reclaim efforts. That is, schedule_timeout_uninterruptible(1) in
-> __alloc_pages_may_oom() does not always give enough CPU resource to the
-> owner of the oom_lock.
-> 
-> It is possible that the owner of oom_lock is preempted by other threads.
-> Preemption makes the OOM situation much worse. But the page allocator is
-> not responsible about wasting CPU resource for something other than memory
-> allocation request. Wasting CPU resource for memory allocation request
-> without allowing the owner of oom_lock to make forward progress is a page
-> allocator's bug.
-> 
-> Therefore, this patch changes to wait for oom_lock in order to guarantee
-> that no thread waiting for the owner of oom_lock to make forward progress
-> will not consume CPU resources for pointless direct reclaim efforts.
-> 
-> We know printk() from OOM situation where a lot of threads are doing almost
-> busy-looping is a nightmare. As a side effect of this patch, printk() with
-> oom_lock held can start utilizing CPU resources saved by this patch (and
-> reduce preemption during printk(), making printk() complete faster).
-> 
-> By changing !mutex_trylock(&oom_lock) with mutex_lock_killable(&oom_lock),
-> it is possible that many threads prevent the OOM reaper from making forward
-> progress. Thus, this patch removes mutex_lock(&oom_lock) from the OOM
-> reaper.
-> 
-> Also, since nobody uses oom_lock serialization when setting MMF_OOM_SKIP
-> and we don't try last second allocation attempt after confirming that there
-> is no !MMF_OOM_SKIP OOM victim, the possibility of needlessly selecting
-> more OOM victims will be increased if we continue using ALLOC_WMARK_HIGH.
-> Thus, this patch changes to use ALLOC_MARK_MIN.
-> 
-> Also, since we don't want to sleep with oom_lock held so that we can allow
-> threads waiting at mutex_lock_killable(&oom_lock) to try last second
-> allocation attempt (because the OOM reaper starts reclaiming memory without
-> waiting for oom_lock) and start selecting next OOM victim if necessary,
-> this patch changes the location of the short sleep from inside of oom_lock
-> to outside of oom_lock.
-> 
-> But since Michal is still worrying that adding a single synchronization
-> point into the OOM path is risky (without showing a real life example
-> where lock_killable() in the coldest OOM path hurts), changes made by
-> this patch will be enabled only when oom_compat_mode=0 kernel command line
-> parameter is specified so that users can test whether their workloads get
-> hurt by this patch.
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: David Rientjes <rientjes@google.com>
+Hi,
 
-Nacked with passion. This is absolutely hideous. First of all there is
-absolutely no need for the kernel command line. That is just trying to
-dance around the fact that you are not able to argue for the change
-and bring reasonable arguments on the table. We definitely do not want
-two subtly different modes for the oom handling. Secondly, and repeatedly,
-you are squashing multiple changes into a single patch. And finally this
-is too big of a hammer for something that even doesn't solve the problem
-for PREEMPTIVE kernels which are free to schedule regardless of the
-sleep or the reclaim retry you are so passion about.
+in the context of virtualization, I am experimenting right now with an
+approach to plug/unplug memory using a paravirtualized interface(not
+ACPI). And I stumbled over certain things, looking at the memory hot/un
+plug code.
+
+The big picture:
+
+A paravirtualized device provides a physical memory region to the guest.
+We could have multiple such devices. Each device is assigned to a NUMA
+node. We want to control how much memory in such a region the guest is
+allowed to use. We can dynamically add/remove memory to NUMA nodes this
+way and make sure a guest cannot make use of more memory than requested.
+
+Especially: We decide in the kernel which memory block to online/offline.
+
+
+The basic mechanism:
+
+The hypervisor provides a physical memory region to the guest. This
+memory region can be used by the guest to plug/unplug memory. The
+hypervisor asks for a certain amount of used memory and the guest should
+try to reach that goal, by plugging/unplugging memory. Whenever the
+guest wants to plug/unplug a block, it has to communicate that to the
+hypervisor.
+
+The hypervisor can grant/deny requests to plug/unplug a block of memory.
+Especially, the guest must not take more memory than requested. Trying
+to read unplugged memory succeeds (e.g. for kdump), writing to that
+memory is prohibited.
+
+Memory blocks can be of any granularity, but 1-4MB looks like a sane
+amount to not fragment memory too much. If the guest can't find free
+memory blocks, no unplug is possible.
+
+
+In the guest, I add_memory() new memory blocks to the NORMAL zone. The
+NORMAL zone makes it harder to remove memory but we don't run into any
+problems (e.g. too little NORMAL memory e.g. for page tables). Now,
+these chunks are fairly big (>= 128MB) and there seems to be no way to
+plug/unplug smaller chunks to Linux using official interfaces ("memory
+segments"). Trying to remove >=128MB of NORMAL memory will usually not
+succeed. So I thought about manually removing parts of a memory section.
+
+Yes, this sounds similar to a balloon, but it is different: I have to
+offline memory in a certain memory range, not just any memory in the
+system. So I cannot simply use kmalloc() - there is no allocator that
+guarantees that.
+
+So instead I want ahead and thought about simply manually
+offlining/onlining parts of a memory segment - especially "page blocks".
+I do my own bookkeeping about which parts of a memory segment are
+online/offline and use that information for finding blocks to
+plug/unplug. The offline_pages() interface made me assume that this
+should work with blocks in the size of pageblock_nr_pages.
+
+
+I stumbled over the following two problems:
+
+1. __offline_isolated_pages() doesn't care about page blocks, it simply
+calls offline_mem_sections(), which marks the whole section as offline,
+although it has to remain online until all pages in that section were
+offlined. Now this can be handled by moving the offline_mem_sections()
+logic further outside to the caller of offline_pages().
+
+2. While offlining 2MB blocks (page block size), I discovered that more
+memory was marked as reserved. Especially, a page block contains pages
+with an order 10 (4MB), which implies that two page blocks are "bound
+together". This is also done in __offline_isolated_pages(). Offlining
+2MB will result in 4MB being marked as reserved.
+
+Now, when I switch to 4MB, my manual online_pages/offline_pages seems so
+far to work fine.
+
+So my questions are:
+
+Can I assume that online_pages/offline_pages() works with "MAX_ORDER -
+1" sizes reliably? Should the checks in these functions be updated? page
+blocks does not seem to be the real deal.
+
+Any better approach to allocate memory in a specific memory range
+(without fake numa nodes)? So I could avoid using
+online_pages/offline_pages and instead do it similar to a balloon
+driver? (mark the page as reserved myself)
+
+
+Thanks a lot!
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
