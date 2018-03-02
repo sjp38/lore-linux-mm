@@ -1,144 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ED826B0005
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 17:03:43 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id r1so4655652pgq.7
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 14:03:43 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id k6si4522822pgo.818.2018.03.02.14.03.42
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B30826B0005
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 17:10:22 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id j28so7108555wrd.17
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 14:10:22 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id q138si1384302wmb.233.2018.03.02.14.10.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 02 Mar 2018 14:03:42 -0800 (PST)
-Date: Fri, 2 Mar 2018 14:03:40 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC] Handle mapcount overflows
-Message-ID: <20180302220340.GC671@bombadil.infradead.org>
-References: <20180208021112.GB14918@bombadil.infradead.org>
- <20180302212637.GB671@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Mar 2018 14:10:21 -0800 (PST)
+Date: Fri, 2 Mar 2018 23:10:20 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v5 00/12] vfio, dax: prevent long term filesystem-dax
+	pins and other fixes
+Message-ID: <20180302221020.GA30722@lst.de>
+References: <151996281307.28483.12343847096989509127.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180302212637.GB671@bombadil.infradead.org>
+In-Reply-To: <151996281307.28483.12343847096989509127.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, kvm@vger.kernel.org, Haozhong Zhang <haozhong.zhang@intel.com>, Jane Chu <jane.chu@oracle.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Gerd Rausch <gerd.rausch@oracle.com>, stable@vger.kernel.org, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-fsdevel@vger.kernel.org, Alex Williamson <alex.williamson@redhat.com>, Theodore Ts'o <tytso@mit.edu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Mar 02, 2018 at 01:26:37PM -0800, Matthew Wilcox wrote:
-> Here's my third effort to handle page->_mapcount overflows.
+I really don't like these IS_DEVDAX and IS_FSDAX flags.  We should
+stop pretending DAX is a global per-inode choice and get rid of these
+magic flags entirely.  So please convert the instances inside the
+various file systems to checking the file system mount options instead.
 
-If you like this approach, but wonder if it works, here's a little forkbomb
-of a program and a patch to add instrumentation.
+For the core ones we'll need to differentiate:
 
-In my dmesg, I never see the max mapcount getting above 65539.  I see a mix
-of unlucky, it him! and it me! messages.
+ - the checks in generic_file_read_iter and __generic_file_write_iter
+   seem to not be needed anymore at all since we stopped abusing the
+   direct I/O code for DAX, so they should probably be removed.
+ - io_is_direct is a weird check and should probably just go away,
+   as there is not point in always setting IOCB_DIRECT for DAX I/O
+ - fadvise should either become a file op, or a flag on the inode that
+   fadvice is supported instead of the nasty noop_backing_dev_info or
+   DAX check.
+ - Ditto for madvise
+ - vma_is_dax should probably be replaced with a VMA flag.
+ - thp_get_unmapped_area I don't really understand why we have a dax
+   check there.
+ - dax_mapping will be much harder to sort out.
 
-#define _GNU_SOURCE
-
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-
-int dummy;
-
-int main(int argc, char **argv)
-{
-	int fd = open(argv[1], O_RDWR);
-	int i;
-
-	if (fd < 0) {
-		perror(argv[1]);
-		return 1;
-	}
-
-	// Spawn 511 children
-	for (i = 0; i < 9; i++)
-		fork();
-
-	for (i = 0; i < 5000; i++)
-		dummy = *(int *)mmap(NULL, 4096, PROT_READ, MAP_SHARED, fd, 0);
-}
-
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 575766ec02f8..2b6187156db0 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1325,7 +1325,7 @@ static inline int mlock_future_check(struct mm_struct *mm,
-  * Experimentally determined.  gnome-shell currently uses fewer than
-  * 3000 mappings, so should have zero effect on desktop users.
-  */
--#define mm_track_threshold	5000
-+#define mm_track_threshold	50
- static DEFINE_SPINLOCK(heavy_users_lock);
- static DEFINE_IDR(heavy_users);
- 
-@@ -1377,9 +1377,11 @@ static void kill_abuser(struct mm_struct *mm)
- 			break;
- 
- 	if (down_write_trylock(&mm->mmap_sem)) {
-+		printk_ratelimited("it him!\n");
- 		kill_mm(tsk);
- 		up_write(&mm->mmap_sem);
- 	} else {
-+		printk_ratelimited("unlucky!\n");
- 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, tsk, true);
- 	}
- }
-@@ -1396,8 +1398,10 @@ void mm_mapcount_overflow(struct page *page)
- 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff + 1) {
- 		if (vma->vm_mm == entry)
- 			count++;
--		if (count > 1000)
-+		if (count > 1000) {
-+			printk_ratelimited("it me!\n");
- 			kill_mm(current);
-+		}
- 	}
- 
- 	rcu_read_lock();
-@@ -1408,7 +1412,7 @@ void mm_mapcount_overflow(struct page *page)
- 				pgoff, pgoff + 1) {
- 			if (vma->vm_mm == entry)
- 				count++;
--			if (count > 1000) {
-+			if (count > 10) {
- 				kill_abuser(entry);
- 				goto out;
- 			}
-diff --git a/mm/rmap.c b/mm/rmap.c
-index d88acf5c98e9..3f0509f6f011 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1190,6 +1190,7 @@ void page_add_file_rmap(struct page *page, bool compound)
- 		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
- 		__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
- 	} else {
-+		static int max = 0;
- 		int v;
- 		if (PageTransCompound(page) && page_mapping(page)) {
- 			VM_WARN_ON_ONCE(!PageLocked(page));
-@@ -1199,12 +1200,14 @@ void page_add_file_rmap(struct page *page, bool compound)
- 				clear_page_mlock(compound_head(page));
- 		}
- 		v = atomic_inc_return(&page->_mapcount);
--		if (likely(v > 0))
--			goto out;
--		if (unlikely(v < 0)) {
-+		if (unlikely(v > 65535)) {
-+			if (max < v) max = v;
-+			printk_ratelimited("overflow %d max %d\n", v, max);
- 			mm_mapcount_overflow(page);
- 			goto out;
- 		}
-+		if (likely(v > 0))
-+			goto out;
- 	}
- 	__mod_lruvec_page_state(page, NR_FILE_MAPPED, nr);
- out:
+But all these DAX flags certainly look like a major hodge podge to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
