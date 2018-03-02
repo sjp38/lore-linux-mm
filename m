@@ -1,107 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 38A9E6B0005
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 16:18:34 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id i201so1485879wmf.6
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 13:18:34 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DF906B0005
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 16:23:37 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 96so4770130wrk.12
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 13:23:37 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r200si1379207wmb.149.2018.03.02.13.18.32
+        by mx.google.com with ESMTPS id j12si1338612wmc.98.2018.03.02.13.23.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Mar 2018 13:18:32 -0800 (PST)
-Date: Fri, 2 Mar 2018 13:18:29 -0800
+        Fri, 02 Mar 2018 13:23:35 -0800 (PST)
+Date: Fri, 2 Mar 2018 13:23:32 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm] mm: Fix races between swapoff and flush dcache
-Message-Id: <20180302131829.7009e1e19f478d55159928de@linux-foundation.org>
-In-Reply-To: <20180302080426.14588-1-ying.huang@intel.com>
-References: <20180302080426.14588-1-ying.huang@intel.com>
+Subject: Re: [PATCH v4 2/3] mm/free_pcppages_bulk: do not hold lock when
+ picking pages to free
+Message-Id: <20180302132332.2c69559686ff24d15ff44ae8@linux-foundation.org>
+In-Reply-To: <20180302080125.GB6356@intel.com>
+References: <20180301062845.26038-1-aaron.lu@intel.com>
+	<20180301062845.26038-3-aaron.lu@intel.com>
+	<20180301160105.aca958fac871998d582307d4@linux-foundation.org>
+	<20180302080125.GB6356@intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@intel.com>, Arnd Bergmann <arnd@arndb.de>, Chen Liqin <liqin.linux@gmail.com>, Russell King <linux@armlinux.org.uk>, Yoshinori Sato <ysato@users.sourceforge.jp>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "David S. Miller" <davem@davemloft.net>, Chris Zankel <chris@zankel.net>, Vineet Gupta <vgupta@synopsys.com>, Ley Foon Tan <lftan@altera.com>, Ralf Baechle <ralf@linux-mips.org>, Andi Kleen <ak@linux.intel.com>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
 
-On Fri,  2 Mar 2018 16:04:26 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+On Fri, 2 Mar 2018 16:01:25 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
 
-> From: Huang Ying <ying.huang@intel.com>
+> On Thu, Mar 01, 2018 at 04:01:05PM -0800, Andrew Morton wrote:
+> > On Thu,  1 Mar 2018 14:28:44 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
+> > 
+> > > When freeing a batch of pages from Per-CPU-Pages(PCP) back to buddy,
+> > > the zone->lock is held and then pages are chosen from PCP's migratetype
+> > > list. While there is actually no need to do this 'choose part' under
+> > > lock since it's PCP pages, the only CPU that can touch them is us and
+> > > irq is also disabled.
+> > > 
+> > > Moving this part outside could reduce lock held time and improve
+> > > performance. Test with will-it-scale/page_fault1 full load:
+> > > 
+> > > kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
+> > > v4.16-rc2+  9034215        7971818       13667135       15677465
+> > > this patch  9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
+> > > 
+> > > What the test does is: starts $nr_cpu processes and each will repeatedly
+> > > do the following for 5 minutes:
+> > > 1 mmap 128M anonymouse space;
+> > > 2 write access to that space;
+> > > 3 munmap.
+> > > The score is the aggregated iteration.
+> > 
+> > But it's a loss for uniprocessor systems: it adds more code and adds an
+> > additional pass across a list.
 > 
-> >From commit 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB
-> trunks") on, after swapoff, the address_space associated with the swap
-> device will be freed.  So page_mapping() users which may touch the
-> address_space need some kind of mechanism to prevent the address_space
-> from being freed during accessing.
+> Performance wise, I assume the loss is pretty small and can not
+> be measured.
 > 
-> The dcache flushing functions (flush_dcache_page(), etc) in
-> architecture specific code may access the address_space of swap device
-> for anonymous pages in swap cache via page_mapping() function.  But in
-> some cases there are no mechanisms to prevent the swap device from
-> being swapoff, for example,
+> On my Sandybridge desktop, with will-it-scale/page_fault1/single process
+> run to emulate uniprocessor system, the score is(average of 3 runs):
 > 
-> CPU1					CPU2
-> __get_user_pages()			swapoff()
->   flush_dcache_page()
->     mapping = page_mapping()
->       ...				  exit_swap_address_space()
->       ...				    kvfree(spaces)
->       mapping_mapped(mapping)
-> 
-> The address space may be accessed after being freed.
-> 
-> But from cachetlb.txt and Russell King, flush_dcache_page() only care
-> about file cache pages, for anonymous pages, flush_anon_page() should
-> be used.  The implementation of flush_dcache_page() in all
-> architectures follows this too.  They will check whether
-> page_mapping() is NULL and whether mapping_mapped() is true to
-> determine whether to flush the dcache immediately.  And they will use
-> interval tree (mapping->i_mmap) to find all user space mappings.
-> While mapping_mapped() and mapping->i_mmap isn't used by anonymous
-> pages in swap cache at all.
-> 
-> So, to fix the race between swapoff and flush dcache, __page_mapping()
-> is add to return the address_space for file cache pages and NULL
-> otherwise.  All page_mapping() invoking in flush dcache functions are
-> replaced with __page_mapping().
-> 
-> The patch is only build tested, because I have no machine with
-> architecture other than x86.
-> 
-> ...
->
-> +/*
-> + * For file cache pages, return the address_space, otherwise return NULL
-> + */
-> +struct address_space *__page_mapping(struct page *page)
-> +{
-> +	struct address_space *mapping;
-> +
-> +	page = compound_head(page);
-> +
-> +	/* This happens if someone calls flush_dcache_page on slab page */
-> +	if (unlikely(PageSlab(page)))
-> +		return NULL;
-> +
-> +	mapping = page->mapping;
-> +	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
-> +		return NULL;
-> +
-> +	return (void *)((unsigned long)mapping & ~PAGE_MAPPING_FLAGS);
-> +}
-> +
+> base(patch 1/3):	649710 
+> this patch:		653554 +0.6%
 
-I think page_mapping_file() would be a better name.
+Does that mean we got faster or slower?
 
-And do we really need to duplicate page_mapping()?  Could it be
+> prefetch(patch 3/3):	650336 (in noise range compared to base)
+> 
+> On 4 sockets Intel Broadwell with will-it-scale/page_fault1/single
+> process run:
+> 
+> base(patch 1/3):	498649
+> this patch:		504171 +1.1%
+> prefetch(patch 3/3): 	506334 +1.5% (compared to base)
+> 
+> It looks like we don't need to worry too much about performance for
+> uniprocessor system.
 
-struct address_space *page_mapping_file(struct page *page)
-{
-	if (PageSwapCache(page))
-		return NULL;
-	return page_mapping(page);
-}
+Well.  We can say that of hundreds of patches.  And we end up with a
+fatter and slower kernel than we otherwise would.
 
-(We don't need to run compound_head() here, do we?)
+Please take a look, see if there's a tidy way of avoiding this. 
+Probably there isn't, in which case oh well.  But let's at least try.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
