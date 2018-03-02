@@ -1,103 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D0E596B0006
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 14:15:45 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id y20so5748975pfm.1
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 11:15:45 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id f1-v6si5234888plb.73.2018.03.02.11.15.43
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6925F6B0006
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 14:40:00 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id c37so7035382wra.5
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 11:40:00 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a8si4815837wri.214.2018.03.02.11.39.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Mar 2018 11:15:43 -0800 (PST)
-Subject: [PATCH v6] dax: introduce IS_DEVDAX() and IS_FSDAX()
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 02 Mar 2018 11:06:36 -0800
-Message-ID: <152001757529.22146.17936438768625217740.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <CAPcyv4iu32ja_vPiN=E0DP7_PFaj887XQ48EOMupE0Q4p1dCkQ@mail.gmail.com>
-References: <CAPcyv4iu32ja_vPiN=E0DP7_PFaj887XQ48EOMupE0Q4p1dCkQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+        Fri, 02 Mar 2018 11:39:59 -0800 (PST)
+Date: Fri, 2 Mar 2018 11:39:56 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] mm: gup: teach get_user_pages_unlocked to handle
+ FOLL_NOWAIT
+Message-Id: <20180302113956.0c0763f6c7cd47e104a59118@linux-foundation.org>
+In-Reply-To: <20180302174343.5421-2-aarcange@redhat.com>
+References: <20180302174343.5421-1-aarcange@redhat.com>
+	<20180302174343.5421-2-aarcange@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, stable@vger.kernel.org, Jan Kara <jack@suse.cz>Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.orglinux-xfs@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, qemu-devel@nongnu.org, linux-mm@kvack.org
 
-The current IS_DAX() helper that checks if a file is in DAX mode serves
-two purposes. It is a control flow branch condition for DAX vs
-non-DAX paths and it is a mechanism to perform dead code elimination. The
-dead code elimination is required in the CONFIG_FS_DAX=n case since
-there are symbols in fs/dax.c that will be elided. While the
-dead code elimination can be addressed with nop stubs for the fs/dax.c
-symbols that does not address the need for a DAX control flow helper
-where fs/dax.c symbols are not involved.
+On Fri,  2 Mar 2018 18:43:43 +0100 Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-Moreover, the control flow changes, in some cases, need to be cognizant
-of whether the DAX file is a typical file or a Device-DAX special file.
-Introduce IS_DEVDAX() and IS_FSDAX() to simultaneously address the
-file-type control flow and dead-code elimination use cases. IS_DAX()
-will be deleted after all sites are converted to use the file-type
-specific helper.
+> KVM is hanging during postcopy live migration with userfaultfd because
+> get_user_pages_unlocked is not capable to handle FOLL_NOWAIT.
+> 
+> Earlier FOLL_NOWAIT was only ever passed to get_user_pages.
+> 
+> Specifically faultin_page (the callee of get_user_pages_unlocked
+> caller) doesn't know that if FAULT_FLAG_RETRY_NOWAIT was set in the
+> page fault flags, when VM_FAULT_RETRY is returned, the mmap_sem wasn't
+> actually released (even if nonblocking is not NULL). So it sets
+> *nonblocking to zero and the caller won't release the mmap_sem
+> thinking it was already released, but it wasn't because of
+> FOLL_NOWAIT.
+> 
+> Reported-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+> Tested-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Note, this change is also a pre-requisite for fixing the definition of
-the S_DAX inode flag in the CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y case.
-The flag needs to be defined, non-zero, if either DAX facility is
-enabled.
+I added
 
-Cc: "Theodore Ts'o" <tytso@mit.edu>
-Cc: Andreas Dilger <adilger.kernel@dilger.ca>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: linux-xfs@vger.kernel.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Fixes: ce53053ce378c ("kvm: switch get_user_page_nowait() to get_user_pages_unlocked()")
 Cc: <stable@vger.kernel.org>
-Fixes: dee410792419 ("/dev/dax, core: file operations and dax-mmap")
-Reported-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
-Changes since v5:
-* add comments to clarify the S_ISCHR() checks (Darrick)
-
- include/linux/fs.h |   24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
-
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 79c413985305..751975b8b29b 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1909,6 +1909,30 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags
- #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
- 				 (inode)->i_rdev == WHITEOUT_DEV)
- 
-+static inline bool IS_DEVDAX(struct inode *inode)
-+{
-+	if (!IS_ENABLED(CONFIG_DEV_DAX))
-+		return false;
-+	if ((inode->i_flags & S_DAX) == 0)
-+		return false;
-+	/* regular files with S_DAX are filesystem-dax instances */
-+	if (!S_ISCHR(inode->i_mode))
-+		return false;
-+	return true;
-+}
-+
-+static inline bool IS_FSDAX(struct inode *inode)
-+{
-+	if (!IS_ENABLED(CONFIG_FS_DAX))
-+		return false;
-+	if ((inode->i_flags & S_DAX) == 0)
-+		return false;
-+	/* character devices with S_DAX are device-dax instances */
-+	if (S_ISCHR(inode->i_mode))
-+		return false;
-+	return true;
-+}
-+
- static inline bool HAS_UNMAPPED_ID(struct inode *inode)
- {
- 	return !uid_valid(inode->i_uid) || !gid_valid(inode->i_gid);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
