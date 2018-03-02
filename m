@@ -1,57 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D3286B0030
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 14:45:27 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id o23so7033436wrc.9
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 11:45:27 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c14sor214288wmi.67.2018.03.02.11.45.25
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5286D6B0006
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 14:58:19 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id g2so9726638ioj.18
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 11:58:19 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id b73si1363771iob.51.2018.03.02.11.58.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 02 Mar 2018 11:45:25 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [RFC PATCH 14/14] khwasan: default the instrumentation mode to inline
-Date: Fri,  2 Mar 2018 20:44:33 +0100
-Message-Id: <1943a345f4fb7e8e8f19b4ece2457bccd772f0dc.1520017438.git.andreyknvl@google.com>
-In-Reply-To: <cover.1520017438.git.andreyknvl@google.com>
-References: <cover.1520017438.git.andreyknvl@google.com>
-In-Reply-To: <cover.1520017438.git.andreyknvl@google.com>
-References: <cover.1520017438.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Mar 2018 11:58:18 -0800 (PST)
+Date: Fri, 2 Mar 2018 11:58:11 -0800
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH v6] dax: introduce IS_DEVDAX() and IS_FSDAX()
+Message-ID: <20180302195811.GA18989@magnolia>
+References: <CAPcyv4iu32ja_vPiN=E0DP7_PFaj887XQ48EOMupE0Q4p1dCkQ@mail.gmail.com>
+ <152001757529.22146.17936438768625217740.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <152001757529.22146.17936438768625217740.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-xfs@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, stable@vger.kernel.org, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-There are two reasons to use outline instrumentation:
-1. Outline instrumentation reduces the size of the kernel text, and should
-   be used where this size matters.
-2. Outline instrumentation is less invasive and can be used for debugging
-   for KASAN developers, when it's not clear whether some issue is caused
-   by KASAN or by something else.
+On Fri, Mar 02, 2018 at 11:06:36AM -0800, Dan Williams wrote:
+> The current IS_DAX() helper that checks if a file is in DAX mode serves
+> two purposes. It is a control flow branch condition for DAX vs
+> non-DAX paths and it is a mechanism to perform dead code elimination. The
+> dead code elimination is required in the CONFIG_FS_DAX=n case since
+> there are symbols in fs/dax.c that will be elided. While the
+> dead code elimination can be addressed with nop stubs for the fs/dax.c
+> symbols that does not address the need for a DAX control flow helper
+> where fs/dax.c symbols are not involved.
+> 
+> Moreover, the control flow changes, in some cases, need to be cognizant
+> of whether the DAX file is a typical file or a Device-DAX special file.
+> Introduce IS_DEVDAX() and IS_FSDAX() to simultaneously address the
+> file-type control flow and dead-code elimination use cases. IS_DAX()
+> will be deleted after all sites are converted to use the file-type
+> specific helper.
+> 
+> Note, this change is also a pre-requisite for fixing the definition of
+> the S_DAX inode flag in the CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y case.
+> The flag needs to be defined, non-zero, if either DAX facility is
+> enabled.
+> 
+> Cc: "Theodore Ts'o" <tytso@mit.edu>
+> Cc: Andreas Dilger <adilger.kernel@dilger.ca>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+> Cc: linux-xfs@vger.kernel.org
+> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: <stable@vger.kernel.org>
+> Fixes: dee410792419 ("/dev/dax, core: file operations and dax-mmap")
+> Reported-by: Jan Kara <jack@suse.cz>
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+> Changes since v5:
+> * add comments to clarify the S_ISCHR() checks (Darrick)
 
-For the rest cases inline instrumentation is preferrable, since it's
-faster.
+Looks ok,
+Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
 
-This patch changes the default instrumentation mode to inline.
----
- lib/Kconfig.kasan | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+--D
 
-diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-index ab34e7d7d3a7..8ea6ae26b4a3 100644
---- a/lib/Kconfig.kasan
-+++ b/lib/Kconfig.kasan
-@@ -70,7 +70,7 @@ config KASAN_EXTRA
- choice
- 	prompt "Instrumentation type"
- 	depends on KASAN
--	default KASAN_OUTLINE
-+	default KASAN_INLINE
- 
- config KASAN_OUTLINE
- 	bool "Outline instrumentation"
--- 
-2.16.2.395.g2e18187dfd-goog
+> 
+>  include/linux/fs.h |   24 ++++++++++++++++++++++++
+>  1 file changed, 24 insertions(+)
+> 
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 79c413985305..751975b8b29b 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -1909,6 +1909,30 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags
+>  #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
+>  				 (inode)->i_rdev == WHITEOUT_DEV)
+>  
+> +static inline bool IS_DEVDAX(struct inode *inode)
+> +{
+> +	if (!IS_ENABLED(CONFIG_DEV_DAX))
+> +		return false;
+> +	if ((inode->i_flags & S_DAX) == 0)
+> +		return false;
+> +	/* regular files with S_DAX are filesystem-dax instances */
+> +	if (!S_ISCHR(inode->i_mode))
+> +		return false;
+> +	return true;
+> +}
+> +
+> +static inline bool IS_FSDAX(struct inode *inode)
+> +{
+> +	if (!IS_ENABLED(CONFIG_FS_DAX))
+> +		return false;
+> +	if ((inode->i_flags & S_DAX) == 0)
+> +		return false;
+> +	/* character devices with S_DAX are device-dax instances */
+> +	if (S_ISCHR(inode->i_mode))
+> +		return false;
+> +	return true;
+> +}
+> +
+>  static inline bool HAS_UNMAPPED_ID(struct inode *inode)
+>  {
+>  	return !uid_valid(inode->i_uid) || !gid_valid(inode->i_gid);
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
