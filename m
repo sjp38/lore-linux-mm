@@ -1,52 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D70D6B0005
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 17:39:52 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id j3so7063566wrb.18
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 14:39:52 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i4si5218859wri.345.2018.03.02.14.39.50
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EC4FB6B0005
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 17:52:12 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id v191so1655554wmf.2
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 14:52:12 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id f127si1477802wmf.132.2018.03.02.14.52.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Mar 2018 14:39:50 -0800 (PST)
-Date: Fri, 2 Mar 2018 14:39:47 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 2/3] mm, hugetlbfs: introduce ->pagesize() to
- vm_operations_struct
-Message-Id: <20180302143947.ed00df85530df46ec98dbd3e@linux-foundation.org>
-In-Reply-To: <151996254734.27922.15813097401404359642.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <151996253609.27922.9983044853291257359.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<151996254734.27922.15813097401404359642.stgit@dwillia2-desk3.amr.corp.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 02 Mar 2018 14:52:11 -0800 (PST)
+Date: Fri, 2 Mar 2018 23:52:10 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v5 01/12] dax: fix vma_is_fsdax() helper
+Message-ID: <20180302225210.GB31240@lst.de>
+References: <151996281307.28483.12343847096989509127.stgit@dwillia2-desk3.amr.corp.intel.com> <151996281881.28483.2616406435517031167.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <151996281881.28483.2616406435517031167.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jane Chu <jane.chu@oracle.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+Cc: linux-nvdimm@lists.01.org, stable@vger.kernel.org, Gerd Rausch <gerd.rausch@oracle.com>, Jane Chu <jane.chu@oracle.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Jan Kara <jack@suse.cz>, linux-xfs@vger.kernel.org, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 01 Mar 2018 19:49:07 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+Looks good,
 
-> When device-dax is operating in huge-page mode we want it to behave like
-> hugetlbfs and report the MMU page mapping size that is being enforced by
-> the vma. Similar to commit 31383c6865a5 "mm, hugetlbfs: introduce
-> ->split() to vm_operations_struct" it would be messy to teach
-> vma_mmu_pagesize() about device-dax page mapping sizes in the same
-> (hstate) way that hugetlbfs communicates this attribute.  Instead, these
-> patches introduce a new ->pagesize() vm operation.
-> 
-> ...
->
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -383,6 +383,7 @@ struct vm_operations_struct {
->  	int (*huge_fault)(struct vm_fault *vmf, enum page_entry_size pe_size);
->  	void (*map_pages)(struct vm_fault *vmf,
->  			pgoff_t start_pgoff, pgoff_t end_pgoff);
-> +	unsigned long (*pagesize)(struct vm_area_struct * area);
-
-fwiw, vm_operations_struct is documented in
-Documentation/filesystems/Locking.  Some bitrotting has occurred :(
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
