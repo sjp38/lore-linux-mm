@@ -1,47 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EABD6B0003
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 04:10:51 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id n14so603673wmc.0
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 01:10:51 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id o11si3680987edc.29.2018.03.02.01.10.50
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A6C36B0003
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 04:36:35 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id c5so5037015pfn.17
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 01:36:35 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id o1-v6si4556811pld.259.2018.03.02.01.36.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Mar 2018 01:10:50 -0800 (PST)
-Date: Fri, 2 Mar 2018 10:10:49 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 12/31] x86/entry/32: Add PTI cr3 switch to non-NMI
- entry/exit points
-Message-ID: <20180302091049.GP16484@8bytes.org>
-References: <1518168340-9392-1-git-send-email-joro@8bytes.org>
- <1518168340-9392-13-git-send-email-joro@8bytes.org>
- <afd5bae9-f53e-a225-58f1-4ba2422044e3@redhat.com>
- <20180301133430.wda4qesqhxnww7d6@8bytes.org>
- <2ae8b01f-844b-b8b1-3198-5db70c3e083b@redhat.com>
- <20180301165019.kuynvb6fkcwdpxjx@suse.de>
- <CAMzpN2gxVnb65LHXbBioM4LAMN2d-d1-xx3QyQrmsHECBXC29g@mail.gmail.com>
- <CA+55aFynSZgf1wnWrweODJiRw5hLkUPzFF7T8QJ7vBo=zWTfqw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 02 Mar 2018 01:36:33 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH v3 1/3] mm, powerpc: use vma_kernel_pagesize() in vma_mmu_pagesize()
+In-Reply-To: <151996254179.27922.2213728278535578744.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <151996253609.27922.9983044853291257359.stgit@dwillia2-desk3.amr.corp.intel.com> <151996254179.27922.2213728278535578744.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 02 Mar 2018 20:36:26 +1100
+Message-ID: <87lgfa95ut.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFynSZgf1wnWrweODJiRw5hLkUPzFF7T8QJ7vBo=zWTfqw@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Brian Gerst <brgerst@gmail.com>, Joerg Roedel <jroedel@suse.de>, Waiman Long <longman@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Thu, Mar 01, 2018 at 10:38:21AM -0800, Linus Torvalds wrote:
-> Note that debug traps can happen regardless of TF, Think kgdb etc.
-> Arguably kgdb users get what they deserve, but still.. I think root
-> can set kernel breakpoints too.
+Dan Williams <dan.j.williams@intel.com> writes:
 
-But that seems to be broken right now at least wrt. to the espfix code
-where there is no handling for in the #DB handler. Can userspace really
-set arbitrary kernel breakpoints?
+> The current powerpc definition of vma_mmu_pagesize() open codes looking
+> up the page size via hstate. It is identical to the generic
+> vma_kernel_pagesize() implementation.
+>
+> Now, vma_kernel_pagesize() is growing support for determining the
+> page size of Device-DAX vmas in addition to the existing Hugetlbfs page
+> size determination.
+>
+> Ideally, if the powerpc vma_mmu_pagesize() used vma_kernel_pagesize() it
+> would automatically benefit from any new vma-type support that is added
+> to vma_kernel_pagesize(). However, the powerpc vma_mmu_pagesize() is
+> prevented from calling vma_kernel_pagesize() due to a circular header
+> dependency that requires vma_mmu_pagesize() to be defined before
+> including <linux/hugetlb.h>.
+>
+> Break this circular dependency by defining the default
+> vma_mmu_pagesize() as a __weak symbol to be overridden by the powerpc
+> version.
+>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  arch/powerpc/include/asm/hugetlb.h |    6 ------
+>  arch/powerpc/mm/hugetlbpage.c      |    5 +----
+>  mm/hugetlb.c                       |    8 +++-----
+>  3 files changed, 4 insertions(+), 15 deletions(-)
 
+This looks OK to me. I was worried switching to a weak symbol would mean
+it doesn't get inlined, but it's not inlined today anyway!
 
-	Joerg
+Acked-by: Michael Ellerman <mpe@ellerman.id.au> (powerpc)
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
