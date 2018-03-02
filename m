@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 55C9D6B0007
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 22:58:09 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 73so3748304pfz.22
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 19:58:09 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id a2si3401776pgd.452.2018.03.01.19.58.08
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CE8896B0009
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2018 22:58:14 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id j12so1295588pff.18
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2018 19:58:14 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id a6-v6si4013805plz.497.2018.03.01.19.58.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Mar 2018 19:58:08 -0800 (PST)
-Subject: [PATCH v3 1/3] mm,
- powerpc: use vma_kernel_pagesize() in vma_mmu_pagesize()
+        Thu, 01 Mar 2018 19:58:13 -0800 (PST)
+Subject: [PATCH v3 2/3] mm,
+ hugetlbfs: introduce ->pagesize() to vm_operations_struct
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 01 Mar 2018 19:49:01 -0800
-Message-ID: <151996254179.27922.2213728278535578744.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Thu, 01 Mar 2018 19:49:07 -0800
+Message-ID: <151996254734.27922.15813097401404359642.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <151996253609.27922.9983044853291257359.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <151996253609.27922.9983044853291257359.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,93 +22,79 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+Cc: Jane Chu <jane.chu@oracle.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-The current powerpc definition of vma_mmu_pagesize() open codes looking
-up the page size via hstate. It is identical to the generic
-vma_kernel_pagesize() implementation.
+When device-dax is operating in huge-page mode we want it to behave like
+hugetlbfs and report the MMU page mapping size that is being enforced by
+the vma. Similar to commit 31383c6865a5 "mm, hugetlbfs: introduce
+->split() to vm_operations_struct" it would be messy to teach
+vma_mmu_pagesize() about device-dax page mapping sizes in the same
+(hstate) way that hugetlbfs communicates this attribute.  Instead, these
+patches introduce a new ->pagesize() vm operation.
 
-Now, vma_kernel_pagesize() is growing support for determining the
-page size of Device-DAX vmas in addition to the existing Hugetlbfs page
-size determination.
-
-Ideally, if the powerpc vma_mmu_pagesize() used vma_kernel_pagesize() it
-would automatically benefit from any new vma-type support that is added
-to vma_kernel_pagesize(). However, the powerpc vma_mmu_pagesize() is
-prevented from calling vma_kernel_pagesize() due to a circular header
-dependency that requires vma_mmu_pagesize() to be defined before
-including <linux/hugetlb.h>.
-
-Break this circular dependency by defining the default
-vma_mmu_pagesize() as a __weak symbol to be overridden by the powerpc
-version.
-
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
+Reported-by: Jane Chu <jane.chu@oracle.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/powerpc/include/asm/hugetlb.h |    6 ------
- arch/powerpc/mm/hugetlbpage.c      |    5 +----
- mm/hugetlb.c                       |    8 +++-----
- 3 files changed, 4 insertions(+), 15 deletions(-)
+ include/linux/mm.h |    1 +
+ mm/hugetlb.c       |   19 +++++++++++--------
+ 2 files changed, 12 insertions(+), 8 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
-index 1a4847f67ea8..6f6751d3eba9 100644
---- a/arch/powerpc/include/asm/hugetlb.h
-+++ b/arch/powerpc/include/asm/hugetlb.h
-@@ -118,12 +118,6 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
- 			    unsigned long ceiling);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ad06d42adb1a..be0040c9f81b 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -383,6 +383,7 @@ struct vm_operations_struct {
+ 	int (*huge_fault)(struct vm_fault *vmf, enum page_entry_size pe_size);
+ 	void (*map_pages)(struct vm_fault *vmf,
+ 			pgoff_t start_pgoff, pgoff_t end_pgoff);
++	unsigned long (*pagesize)(struct vm_area_struct * area);
  
- /*
-- * The version of vma_mmu_pagesize() in arch/powerpc/mm/hugetlbpage.c needs
-- * to override the version in mm/hugetlb.c
-- */
--#define vma_mmu_pagesize vma_mmu_pagesize
--
--/*
-  * If the arch doesn't supply something else, assume that hugepage
-  * size aligned regions are ok without further preparation.
+ 	/* notification that a previously read-only page is about to become
+ 	 * writable, if an error is returned it will cause a SIGBUS */
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index f9c4ea42b04a..aaafe5ebaa3e 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -636,14 +636,9 @@ EXPORT_SYMBOL_GPL(linear_hugepage_index);
   */
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 876da2bc1796..3a08d211d2ee 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -568,10 +568,7 @@ unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
- 	if (!radix_enabled())
- 		return 1UL << mmu_psize_to_shift(psize);
- #endif
+ unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
+ {
+-	struct hstate *hstate;
+-
 -	if (!is_vm_hugetlb_page(vma))
 -		return PAGE_SIZE;
 -
--	return huge_page_size(hstate_vma(vma));
-+	return vma_kernel_pagesize(vma);
+-	hstate = hstate_vma(vma);
+-
+-	return 1UL << huge_page_shift(hstate);
++	if (vma->vm_ops && vma->vm_ops->pagesize)
++		return vma->vm_ops->pagesize(vma);
++	return PAGE_SIZE;
+ }
+ EXPORT_SYMBOL_GPL(vma_kernel_pagesize);
+ 
+@@ -3150,6 +3145,13 @@ static int hugetlb_vm_op_split(struct vm_area_struct *vma, unsigned long addr)
+ 	return 0;
  }
  
- static inline bool is_power_of_4(unsigned long x)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 7c204e3d132b..f9c4ea42b04a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -650,15 +650,13 @@ EXPORT_SYMBOL_GPL(vma_kernel_pagesize);
++static unsigned long hugetlb_vm_op_pagesize(struct vm_area_struct *vma)
++{
++	struct hstate *hstate = hstate_vma(vma);
++
++	return 1UL << huge_page_shift(hstate);
++}
++
  /*
-  * Return the page size being used by the MMU to back a VMA. In the majority
-  * of cases, the page size used by the kernel matches the MMU size. On
-- * architectures where it differs, an architecture-specific version of this
-- * function is required.
-+ * architectures where it differs, an architecture-specific 'strong'
-+ * version of this symbol is required.
-  */
--#ifndef vma_mmu_pagesize
--unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
-+__weak unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
- {
- 	return vma_kernel_pagesize(vma);
- }
--#endif
+  * We cannot handle pagefaults against hugetlb pages at all.  They cause
+  * handle_mm_fault() to try to instantiate regular-sized pages in the
+@@ -3167,6 +3169,7 @@ const struct vm_operations_struct hugetlb_vm_ops = {
+ 	.open = hugetlb_vm_op_open,
+ 	.close = hugetlb_vm_op_close,
+ 	.split = hugetlb_vm_op_split,
++	.pagesize = hugetlb_vm_op_pagesize,
+ };
  
- /*
-  * Flags for MAP_PRIVATE reservations.  These are stored in the bottom
+ static pte_t make_huge_pte(struct vm_area_struct *vma, struct page *page,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
