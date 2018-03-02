@@ -1,48 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C82016B0005
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 13:09:48 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id 5so6878404wrb.15
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 10:09:48 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r4si5088006wrg.527.2018.03.02.10.09.47
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C1AD6B0008
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 13:37:42 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id m50so5738553otb.0
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 10:37:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e15sor2680999oic.138.2018.03.02.10.37.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Mar 2018 10:09:47 -0800 (PST)
-Subject: Re: [PATCH v4 3/3] mm/free_pcppages_bulk: prefetch buddy while not
- holding lock
-References: <20180301062845.26038-1-aaron.lu@intel.com>
- <20180301062845.26038-4-aaron.lu@intel.com>
- <20180301140044.GK15057@dhcp22.suse.cz>
- <cb158b3d-c992-6679-24df-b37d2bb170e0@suse.cz>
- <2433e857-fea7-9af4-d124-538ad17de454@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <787e53b9-20d3-a2df-44fc-ea8c31a6ced3@suse.cz>
-Date: Fri, 2 Mar 2018 19:08:00 +0100
+        (Google Transport Security);
+        Fri, 02 Mar 2018 10:37:41 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <2433e857-fea7-9af4-d124-538ad17de454@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180302174530.GV19312@magnolia>
+References: <151996281307.28483.12343847096989509127.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151996282448.28483.10415125852182473579.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180302174530.GV19312@magnolia>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 2 Mar 2018 10:37:40 -0800
+Message-ID: <CAPcyv4iu32ja_vPiN=E0DP7_PFaj887XQ48EOMupE0Q4p1dCkQ@mail.gmail.com>
+Subject: Re: [PATCH v5 02/12] dax: introduce IS_DEVDAX() and IS_FSDAX()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>, Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-xfs <linux-xfs@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, stable <stable@vger.kernel.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 03/02/2018 07:00 PM, Dave Hansen wrote:
-> On 03/02/2018 09:55 AM, Vlastimil Babka wrote:
->> It's even stranger to me. Struct page is 64 bytes these days, exactly a
->> a cache line. Unless that changed, Intel CPUs prefetched a "buddy" cache
->> line (that forms an aligned 128 bytes block with the one we touch).
-> 
-> I believe that was a behavior that was specific to the Pentium 4
-> "Netburst" era.  I don't think the 128-byte line behavior exists on
-> modern Intel cpus.
+On Fri, Mar 2, 2018 at 9:45 AM, Darrick J. Wong <darrick.wong@oracle.com> wrote:
+> On Thu, Mar 01, 2018 at 07:53:44PM -0800, Dan Williams wrote:
+>> The current IS_DAX() helper that checks if a file is in DAX mode serves
+>> two purposes. It is a control flow branch condition for DAX vs
+>> non-DAX paths and it is a mechanism to perform dead code elimination. The
+>> dead code elimination is required in the CONFIG_FS_DAX=n case since
+>> there are symbols in fs/dax.c that will be elided. While the
+>> dead code elimination can be addressed with nop stubs for the fs/dax.c
+>> symbols that does not address the need for a DAX control flow helper
+>> where fs/dax.c symbols are not involved.
+>>
+>> Moreover, the control flow changes, in some cases, need to be cognizant
+>> of whether the DAX file is a typical file or a Device-DAX special file.
+>> Introduce IS_DEVDAX() and IS_FSDAX() to simultaneously address the
+>> file-type control flow and dead-code elimination use cases. IS_DAX()
+>> will be deleted after all sites are converted to use the file-type
+>> specific helper.
+>>
+>> Note, this change is also a pre-requisite for fixing the definition of
+>> the S_DAX inode flag in the CONFIG_FS_DAX=n + CONFIG_DEV_DAX=y case.
+>> The flag needs to be defined, non-zero, if either DAX facility is
+>> enabled.
+>>
+>> Cc: "Theodore Ts'o" <tytso@mit.edu>
+>> Cc: Andreas Dilger <adilger.kernel@dilger.ca>
+>> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+>> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+>> Cc: linux-xfs@vger.kernel.org
+>> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+>> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+>> Cc: <stable@vger.kernel.org>
+>> Fixes: dee410792419 ("/dev/dax, core: file operations and dax-mmap")
+>> Reported-by: Jan Kara <jack@suse.cz>
+>> Reviewed-by: Jan Kara <jack@suse.cz>
+>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>> ---
+>>  include/linux/fs.h |   22 ++++++++++++++++++++++
+>>  1 file changed, 22 insertions(+)
+>>
+>> diff --git a/include/linux/fs.h b/include/linux/fs.h
+>> index 79c413985305..bd0c46880572 100644
+>> --- a/include/linux/fs.h
+>> +++ b/include/linux/fs.h
+>> @@ -1909,6 +1909,28 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags
+>>  #define IS_WHITEOUT(inode)   (S_ISCHR(inode->i_mode) && \
+>>                                (inode)->i_rdev == WHITEOUT_DEV)
+>>
+>> +static inline bool IS_DEVDAX(struct inode *inode)
+>> +{
+>> +     if (!IS_ENABLED(CONFIG_DEV_DAX))
+>> +             return false;
+>> +     if ((inode->i_flags & S_DAX) == 0)
+>> +             return false;
+>> +     if (!S_ISCHR(inode->i_mode))
+>> +             return false;
+>> +     return true;
+>> +}
+>> +
+>> +static inline bool IS_FSDAX(struct inode *inode)
+>> +{
+>> +     if (!IS_ENABLED(CONFIG_FS_DAX))
+>> +             return false;
+>
+> I echo Jan's complaint from the last round that the dead code
+> elimination here is subtle, as compared to:
+>
+> #if IS_ENABLED(CONFIG_FS_DAX)
+> static inline bool IS_FSDAX(struct inode *inode) { ... }
+> #else
+> # define IS_FSDAX(inode) (false)
+> #endif
+>
+> But I guess even with that we're relying on dead code elimination higher
+> up in the call stack...
 
-I remember it on Core 2 something (Nehalem IIRC). And this page suggests
-up to Broadwell, and it can be disabled. And it's an L2 prefetcher indeed.
-https://software.intel.com/en-us/articles/disclosure-of-hw-prefetcher-control-on-some-intel-processors
+If IS_FSDAX() was only a dead-code elimination mechanism rather than a
+runtime branch condition then I agree. Otherwise I think IS_ENABLED()
+is suitable and not subtle, especially when used in a header file.
 
+>> +     if ((inode->i_flags & S_DAX) == 0)
+>> +             return false;
+>> +     if (S_ISCHR(inode->i_mode))
+>> +             return false;
+>
+> I'm curious, do we have character devices with S_DAX set?
+
+Yes, Device-DAX, see:
+
+    ab68f2622136 /dev/dax, pmem: direct access to persistent memory
+
+> I /think/ we're expecting that only block/char devices and files will
+> ever have S_DAX set, so IS_FSDAX is only true for block devices and
+> files.  Right?
+
+We had S_DAX on block-devices for a short while, but deleted it and
+went with the Device-DAX interface instead. So it's only regular files
+and /dev/daxX.Y nodes these days.
+
+> (A comment here about why S_ISCHR->false here would be helpful.)
+
+Ok.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
