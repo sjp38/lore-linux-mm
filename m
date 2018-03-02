@@ -1,63 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E99E86B0003
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 05:54:52 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id m133so4614654oig.12
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 02:54:52 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n57sor2690685otd.155.2018.03.02.02.54.51
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 348CB6B0003
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 06:01:50 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id s82so7324199qke.1
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 03:01:50 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id x13si59696qta.408.2018.03.02.03.01.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 02 Mar 2018 02:54:52 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CACjP9X8hFDhkKUHRu2K5WgEp9YFHh2=vMSyM6KkZ5UZtxs7k-w@mail.gmail.com>
-References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
- <20180301131033.GH15057@dhcp22.suse.cz> <CACjP9X-S=OgmUw-WyyH971_GREn1WzrG3aeGkKLyR1bO4_pWPA@mail.gmail.com>
- <20180301152729.GM15057@dhcp22.suse.cz> <CACjP9X8hFDhkKUHRu2K5WgEp9YFHh2=vMSyM6KkZ5UZtxs7k-w@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Mar 2018 03:01:49 -0800 (PST)
 From: Daniel Vacek <neelx@redhat.com>
-Date: Fri, 2 Mar 2018 11:54:51 +0100
-Message-ID: <CACjP9X9BVmr0wkrS5=oruQJFEs0ip7VFvD8rdWSZFcoYyiYB5A@mail.gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: fix memmap_init_zone pageblock alignment
-Content-Type: text/plain; charset="UTF-8"
+Subject: [PATCH v2] mm/page_alloc: fix memmap_init_zone pageblock alignment
+Date: Fri,  2 Mar 2018 12:01:37 +0100
+Message-Id: <1519988497-28941-1-git-send-email-neelx@redhat.com>
+In-Reply-To: <1519908465-12328-1-git-send-email-neelx@redhat.com>
+References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Paul Burton <paul.burton@imgtec.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, stable@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, Daniel Vacek <neelx@redhat.com>, stable@vger.kernel.org
 
-On Thu, Mar 1, 2018 at 5:20 PM, Daniel Vacek <neelx@redhat.com> wrote:
-> On Thu, Mar 1, 2018 at 4:27 PM, Michal Hocko <mhocko@kernel.org> wrote:
->> It is still not clear why not to do the alignment in
->> memblock_next_valid_pfn rather than its caller.
->
-> As it's the mem init which needs it to be aligned. Other callers may
-> not, possibly?
-> Not that there are any other callers at the moment so it really does
-> not matter where it is placed. The only difference would be the end of
-> the loop with end_pfn vs aligned end_pfn. And it looks like the pure
-> (unaligned) end_pfn would be preferred here. Wanna me send a v2?
+BUG at mm/page_alloc.c:1913
 
-Thinking about it again memblock has nothing to do with pageblock. And
-the function name suggests one shall get a next valid pfn, not
-something totally unrelated to memblock. So that's what it returns.
-It's the mem init which needs to align this and hence mem init aligns
-it for it's purposes. I'd call this the correct design.
+>	VM_BUG_ON(page_zone(start_page) != page_zone(end_page));
 
-To deal with the end_pfn special case I'd actually get rid of it
-completely and hardcode -1UL as max pfn instead (rather than 0).
-Caller should handle max pfn as an error or end of the loop as here in
-this case.
+Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+where possible") introduced a bug where move_freepages() triggers a
+VM_BUG_ON() on uninitialized page structure due to pageblock alignment.
+To fix this, simply align the skipped pfns in memmap_init_zone()
+the same way as in move_freepages_block().
 
-I'll send a v2 with this implemented.
+Fixes: b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns where possible")
+Signed-off-by: Daniel Vacek <neelx@redhat.com>
+Cc: stable@vger.kernel.org
+---
+ mm/memblock.c   | 13 ++++++-------
+ mm/page_alloc.c |  9 +++++++--
+ 2 files changed, 13 insertions(+), 9 deletions(-)
 
-Paul> Why is it based on memblock actually? Wouldn't a generic
-mem_section solution work satisfiable for you? That would be natively
-aligned with whole section (doing a bit more work as a result in the
-end) and also independent of CONFIG_HAVE_MEMBLOCK_NODE_MAP
-availability.
-
->> --
->> Michal Hocko
->> SUSE Labs
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 5a9ca2a1751b..2a5facd236bb 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1101,13 +1101,12 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
+ 		*out_nid = r->nid;
+ }
+ 
+-unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
+-						      unsigned long max_pfn)
++unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn)
+ {
+ 	struct memblock_type *type = &memblock.memory;
+ 	unsigned int right = type->cnt;
+ 	unsigned int mid, left = 0;
+-	phys_addr_t addr = PFN_PHYS(pfn + 1);
++	phys_addr_t addr = PFN_PHYS(++pfn);
+ 
+ 	do {
+ 		mid = (right + left) / 2;
+@@ -1118,15 +1117,15 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
+ 				  type->regions[mid].size))
+ 			left = mid + 1;
+ 		else {
+-			/* addr is within the region, so pfn + 1 is valid */
+-			return min(pfn + 1, max_pfn);
++			/* addr is within the region, so pfn is valid */
++			return pfn;
+ 		}
+ 	} while (left < right);
+ 
+ 	if (right == type->cnt)
+-		return max_pfn;
++		return -1UL;
+ 	else
+-		return min(PHYS_PFN(type->regions[right].base), max_pfn);
++		return PHYS_PFN(type->regions[right].base);
+ }
+ 
+ /**
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index cb416723538f..eb27ccb50928 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5359,9 +5359,14 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 			/*
+ 			 * Skip to the pfn preceding the next valid one (or
+ 			 * end_pfn), such that we hit a valid pfn (or end_pfn)
+-			 * on our next iteration of the loop.
++			 * on our next iteration of the loop. Note that it needs
++			 * to be pageblock aligned even when the region itself
++			 * is not as move_freepages_block() can shift ahead of
++			 * the valid region but still depends on correct page
++			 * metadata.
+ 			 */
+-			pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
++			pfn = (memblock_next_valid_pfn(pfn) &
++					~(pageblock_nr_pages-1)) - 1;
+ #endif
+ 			continue;
+ 		}
+-- 
+2.16.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
