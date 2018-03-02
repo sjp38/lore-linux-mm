@@ -1,76 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C8D106B0003
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 08:01:25 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id o19so4100491pgn.12
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 05:01:25 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id EA60C6B0006
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 08:05:44 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id l1so4137041pga.1
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 05:05:44 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d9si2013729pga.789.2018.03.02.05.01.23
+        by mx.google.com with ESMTPS id l5-v6si4975869pls.438.2018.03.02.05.05.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Mar 2018 05:01:24 -0800 (PST)
-Date: Fri, 2 Mar 2018 14:01:20 +0100
+        Fri, 02 Mar 2018 05:05:43 -0800 (PST)
+Date: Fri, 2 Mar 2018 14:05:41 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/page_alloc: fix memmap_init_zone pageblock alignment
-Message-ID: <20180302130052.GN15057@dhcp22.suse.cz>
-References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
- <20180301131033.GH15057@dhcp22.suse.cz>
- <CACjP9X-S=OgmUw-WyyH971_GREn1WzrG3aeGkKLyR1bO4_pWPA@mail.gmail.com>
- <20180301152729.GM15057@dhcp22.suse.cz>
- <CACjP9X8hFDhkKUHRu2K5WgEp9YFHh2=vMSyM6KkZ5UZtxs7k-w@mail.gmail.com>
+Subject: Re: [v5 0/6] optimize memory hotplug
+Message-ID: <20180302130541.GO15057@dhcp22.suse.cz>
+References: <20180228030308.1116-1-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACjP9X8hFDhkKUHRu2K5WgEp9YFHh2=vMSyM6KkZ5UZtxs7k-w@mail.gmail.com>
+In-Reply-To: <20180228030308.1116-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vacek <neelx@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, stable@vger.kernel.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, vbabka@suse.cz, bharata@linux.vnet.ibm.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, bhe@redhat.com
 
-On Thu 01-03-18 17:20:04, Daniel Vacek wrote:
-> On Thu, Mar 1, 2018 at 4:27 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Thu 01-03-18 16:09:35, Daniel Vacek wrote:
-> > [...]
-> >> $ grep 7b7ff000 /proc/iomem
-> >> 7b7ff000-7b7fffff : System RAM
-> > [...]
-> >> After commit b92df1de5d28 machine eventually crashes with:
-> >>
-> >> BUG at mm/page_alloc.c:1913
-> >>
-> >> >         VM_BUG_ON(page_zone(start_page) != page_zone(end_page));
-> >
-> > This is an important information that should be in the changelog.
+Hi,
+I will not get to review this version before Mar 12 because I am moving
+and will be without access to my email and I am pretty sure the time
+will not work well for me either.
+
+Sorry about that.
+
+On Tue 27-02-18 22:03:02, Pavel Tatashin wrote:
+> Changelog:
+> 	v5 - v4
+> 	- Addressed more comments from Ingo Molnar and Michal Hocko.
+> 	- In the patch "optimize memory hotplug" we are now using
+> 	  struct memory_block to hold node id as suggested by Michal.
+> 	- In the patch "don't read nid from struct page during hotplug"
+> 	  renamed register_new_memory() to hotplug_memory_register() as
+> 	  suggested by Ingo. Also, in this patch replaced the
+> 	  description with the one provided by Michal.
+> 	- Fixed other spelling issues found by Ingo.
 > 
-> And that's exactly what my seven very first words tried to express in
-> human readable form instead of mechanically pasting the source code. I
-> guess that's a matter of preference. Though I see grepping later can
-> be an issue here.
+> 	v3 - v4
+> 	Addressed comments from Ingo Molnar and from Michal Hocko
+> 	Split 4th patch into three patches
+> 	Instead of using section table to save node ids, saving node id in
+> 	the first page of every section.
+> 
+> 	v2 - v3
+> 	Fixed two issues found during testing
+> 	Addressed Kbuild warning reports
+> 
+> 	v1 - v2
+> 	Added struct page poisoning checking in order to verify that
+> 	struct pages are never accessed until initialized during memory
+> 	hotplug
+> 
+> This patchset:
+> - Improves hotplug performance by eliminating a number of
+> struct page traverses during memory hotplug.
+> 
+> - Fixes some issues with hotplugging, where boundaries
+> were not properly checked. And on x86 block size was not properly aligned
+> with end of memory
+> 
+> - Also, potentially improves boot performance by eliminating condition from
+>   __init_single_page().
+> 
+> - Adds robustness by verifying that that struct pages are correctly
+>   poisoned when flags are accessed.
+> 
+> The following experiments were performed on Xeon(R)
+> CPU E7-8895 v3 @ 2.60GHz with 1T RAM:
+> 
+> booting in qemu with 960G of memory, time to initialize struct pages:
+> 
+> no-kvm:
+> 	TRY1		TRY2
+> BEFORE:	39.433668	39.39705
+> AFTER:	36.903781	36.989329
+> 
+> with-kvm:
+> BEFORE:	10.977447	11.103164
+> AFTER:	10.929072	10.751885
+> 
+> Hotplug 896G memory:
+> no-kvm:
+> 	TRY1		TRY2
+> BEFORE: 848.740000	846.910000
+> AFTER:  783.070000	786.560000
+> 
+> with-kvm:
+> 	TRY1		TRY2
+> BEFORE: 34.410000	33.57
+> AFTER:	29.810000	29.580000
+> 
+> Pavel Tatashin (6):
+>   mm/memory_hotplug: enforce block size aligned range check
+>   x86/mm/memory_hotplug: determine block size based on the end of boot
+>     memory
+>   mm: add uninitialized struct page poisoning sanity checking
+>   mm/memory_hotplug: optimize probe routine
+>   mm/memory_hotplug: don't read nid from struct page during hotplug
+>   mm/memory_hotplug: optimize memory hotplug
+> 
+>  arch/x86/mm/init_64.c      | 33 +++++++++++++++++++++++++++++----
+>  drivers/base/memory.c      | 40 ++++++++++++++++++++++------------------
+>  drivers/base/node.c        | 24 +++++++++++++++++-------
+>  include/linux/memory.h     |  3 ++-
+>  include/linux/mm.h         |  4 +++-
+>  include/linux/node.h       |  4 ++--
+>  include/linux/page-flags.h | 22 +++++++++++++++++-----
+>  mm/memblock.c              |  2 +-
+>  mm/memory_hotplug.c        | 44 +++++++++++++++++---------------------------
+>  mm/page_alloc.c            | 28 ++++++++++------------------
+>  mm/sparse.c                |  8 +++++++-
+>  11 files changed, 127 insertions(+), 85 deletions(-)
+> 
+> -- 
+> 2.16.2
+> 
 
-Do not get me wrong I do not want to nag just for fun of it. The
-changelog should be really clear about the problem. What might be clear
-to you based on the debugging might not be so clear to others. And the
-struct page initialization code is far from trivial especially when we
-have different alignment requirements by the memory model and the page
-allocator.
-
-Therefore being as clear as possible is really valuable. So I would
-really love to see the changelog to contain.
-- What is going on - VM_BUG_ON in move_freepages along with the crash
-  report
-- memory ranges exported by BIOS/FW
-- explain why is the pageblock alignment the proper one. How does the
-  range look from the memory section POV (with SPARSEMEM).
-- What about those unaligned pages which are not backed by any memory?
-  Are they reserved so that they will never get used?
-
-And just to be clear. I am not saying your patch is wrong. It just
-raises more questions than answers and I suspect it just papers over
-some more fundamental problem. I might be clearly wrong and I cannot
-deserve this more time for the next week because I will be offline
-but I would _really_ appreciate if this all got explained.
-
-Thanks!
 -- 
 Michal Hocko
 SUSE Labs
