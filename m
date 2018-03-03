@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D3A306B0006
-	for <linux-mm@kvack.org>; Sat,  3 Mar 2018 17:33:08 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id x7so7463787pfd.19
-        for <linux-mm@kvack.org>; Sat, 03 Mar 2018 14:33:08 -0800 (PST)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0129.outbound.protection.outlook.com. [104.47.34.129])
-        by mx.google.com with ESMTPS id p61-v6si6847590plb.584.2018.03.03.14.33.07
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AA676B0008
+	for <linux-mm@kvack.org>; Sat,  3 Mar 2018 17:39:08 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id c5so7438082pfn.17
+        for <linux-mm@kvack.org>; Sat, 03 Mar 2018 14:39:08 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0110.outbound.protection.outlook.com. [104.47.34.110])
+        by mx.google.com with ESMTPS id v1si7357895pfg.288.2018.03.03.14.39.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 03 Mar 2018 14:33:07 -0800 (PST)
+        Sat, 03 Mar 2018 14:39:07 -0800 (PST)
 From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL for 4.9 077/219] mm: Fix false-positive VM_BUG_ON() in
+Subject: [PATCH AUTOSEL for 4.4 037/115] mm: Fix false-positive VM_BUG_ON() in
  page_cache_{get,add}_speculative()
-Date: Sat, 3 Mar 2018 22:28:40 +0000
-Message-ID: <20180303222716.26640-77-alexander.levin@microsoft.com>
-References: <20180303222716.26640-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180303222716.26640-1-alexander.levin@microsoft.com>
+Date: Sat, 3 Mar 2018 22:31:10 +0000
+Message-ID: <20180303223010.27106-37-alexander.levin@microsoft.com>
+References: <20180303223010.27106-1-alexander.levin@microsoft.com>
+In-Reply-To: <20180303223010.27106-1-alexander.levin@microsoft.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
@@ -74,10 +74,10 @@ Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 7dbe9148b2f8..35f4c4d9c405 100644
+index fbfadba81c5a..771774e13f10 100644
 --- a/include/linux/pagemap.h
 +++ b/include/linux/pagemap.h
-@@ -148,7 +148,7 @@ static inline int page_cache_get_speculative(struct pag=
+@@ -153,7 +153,7 @@ static inline int page_cache_get_speculative(struct pag=
 e *page)
 =20
  #ifdef CONFIG_TINY_RCU
@@ -87,7 +87,7 @@ e *page)
  # endif
  	/*
  	 * Preempt must be disabled here - we rely on rcu_read_lock doing
-@@ -186,7 +186,7 @@ static inline int page_cache_add_speculative(struct pag=
+@@ -191,7 +191,7 @@ static inline int page_cache_add_speculative(struct pag=
 e *page, int count)
 =20
  #if !defined(CONFIG_SMP) && defined(CONFIG_TREE_RCU)
@@ -96,7 +96,7 @@ e *page, int count)
 +	VM_BUG_ON(!in_atomic() && !irqs_disabled());
  # endif
  	VM_BUG_ON_PAGE(page_count(page) =3D=3D 0, page);
- 	page_ref_add(page, count);
+ 	atomic_add(count, &page->_count);
 --=20
 2.14.1
 
