@@ -1,92 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BA3EA6B0006
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 18:50:15 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id v2so4718432pgv.23
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 15:50:15 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q11-v6sor2686762plk.98.2018.03.02.15.50.14
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EADD16B0005
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 19:06:11 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id n12so1721770wmc.5
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 16:06:11 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x8si5156183wrd.69.2018.03.02.16.06.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 02 Mar 2018 15:50:14 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <12357ee3-0276-906a-0e7c-2c3055675af3@gmail.com>
-References: <12357ee3-0276-906a-0e7c-2c3055675af3@gmail.com>
-From: Dexuan-Linux Cui <dexuan.linux@gmail.com>
-Date: Fri, 2 Mar 2018 15:50:13 -0800
-Message-ID: <CAA42JLZRxCGSsW5FKpH3AjZGbaUyrcRPdVBtMQcc4ZcxKNuDQw@mail.gmail.com>
-Subject: Re: "x86/boot/compressed/64: Prepare trampoline memory" breaks boot
- on Zotac CI-321
-Content-Type: multipart/alternative; boundary="0000000000003c5541056676a325"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Mar 2018 16:06:10 -0800 (PST)
+Date: Fri, 2 Mar 2018 16:06:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] mm: make start_isolate_page_range() fail if already
+ isolated
+Message-Id: <20180302160607.570e13f2157f56503fe1bdaa@linux-foundation.org>
+In-Reply-To: <20180226191054.14025-2-mike.kravetz@oracle.com>
+References: <20180226191054.14025-1-mike.kravetz@oracle.com>
+	<20180226191054.14025-2-mike.kravetz@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiner Kallweit <hkallweit1@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dexuan Cui <decui@microsoft.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Luiz Capitulino <lcapitulino@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
 
---0000000000003c5541056676a325
-Content-Type: text/plain; charset="UTF-8"
+On Mon, 26 Feb 2018 11:10:54 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-On Fri, Mar 2, 2018 at 12:57 PM, Heiner Kallweit <hkallweit1@gmail.com>
-wrote:
-
-> Recently my Mini PC Zotac CI-321 started to reboot immediately before
-> anything was written to the console.
+> start_isolate_page_range() is used to set the migrate type of a
+> set of page blocks to MIGRATE_ISOLATE while attempting to start
+> a migration operation.  It assumes that only one thread is
+> calling it for the specified range.  This routine is used by
+> CMA, memory hotplug and gigantic huge pages.  Each of these users
+> synchronize access to the range within their subsystem.  However,
+> two subsystems (CMA and gigantic huge pages for example) could
+> attempt operations on the same range.  If this happens, page
+> blocks may be incorrectly left marked as MIGRATE_ISOLATE and
+> therefore not available for page allocation.
+> 
+> Without 'locking code' there is no easy way to synchronize access
+> to the range of page blocks passed to start_isolate_page_range.
+> However, if two threads are working on the same set of page blocks
+> one will stumble upon blocks set to MIGRATE_ISOLATE by the other.
+> In such conditions, make the thread noticing MIGRATE_ISOLATE
+> clean up as normal and return -EBUSY to the caller.
+> 
+> This will allow start_isolate_page_range to serve as a
+> synchronization mechanism and will allow for more general use
+> of callers making use of these interfaces.  So, update comments
+> in alloc_contig_range to reflect this new functionality.
+> 
+> ...
 >
-> Bisecting lead to b91993a87aff "x86/boot/compressed/64: Prepare
-> trampoline memory" being the change breaking boot.
->
-> If you need any more information, please let me know.
->
-> Rgds, Heiner
->
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -28,6 +28,13 @@ static int set_migratetype_isolate(struct page *page, int migratetype,
+>  
+>  	spin_lock_irqsave(&zone->lock, flags);
+>  
+> +	/*
+> +	 * We assume we are the only ones trying to isolate this block.
+> +	 * If MIGRATE_ISOLATE already set, return -EBUSY
+> +	 */
+> +	if (is_migrate_isolate_page(page))
+> +		goto out;
+> +
+>  	pfn = page_to_pfn(page);
+>  	arg.start_pfn = pfn;
+>  	arg.nr_pages = pageblock_nr_pages;
 
-This may fix the issue: https://lkml.org/lkml/2018/2/13/668
+Seems a bit ugly and I'm not sure that it's correct.  If the loop in
+start_isolate_page_range() gets partway through a number of pages then
+we hit the race, start_isolate_page_range() will then go and "undo" the
+work being done by the thread which it is racing against?
 
-Kirill posted a v2 patchset 3 days ago and I suppose the patchset should
-include the fix.
+Even if that can't happen, blundering through a whole bunch of pages
+then saying whoops then undoing everything is unpleasing.
 
--- Dexuan
-
---0000000000003c5541056676a325
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On F=
-ri, Mar 2, 2018 at 12:57 PM, Heiner Kallweit <span dir=3D"ltr">&lt;<a href=
-=3D"mailto:hkallweit1@gmail.com" target=3D"_blank">hkallweit1@gmail.com</a>=
-&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0px=
- 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">Rec=
-ently my Mini PC Zotac CI-321 started to reboot immediately before<br>
-anything was written to the console.<br>
-<br>
-Bisecting lead to b91993a87aff &quot;x86/boot/compressed/64: Prepare<br>
-trampoline memory&quot; being the change breaking boot.<br>
-<br>
-If you need any more information, please let me know.<br>
-<br>
-Rgds, Heiner<br>
-</blockquote></div><br></div><div class=3D"gmail_extra">This may fix the is=
-sue: <a href=3D"https://lkml.org/lkml/2018/2/13/668">https://lkml.org/lkml/=
-2018/2/13/668</a></div><div class=3D"gmail_extra"><br></div><div class=3D"g=
-mail_extra">
-
-<span style=3D"color:rgb(119,119,119);font-family:arial,sans-serif;font-siz=
-e:12.8px;font-style:normal;font-variant-ligatures:normal;font-variant-caps:=
-normal;font-weight:400;letter-spacing:normal;text-align:start;text-indent:0=
-px;text-transform:none;white-space:nowrap;word-spacing:0px;background-color=
-:rgb(255,255,255);text-decoration-style:initial;text-decoration-color:initi=
-al;float:none;display:inline">Kirill posted a v2 patchset 3 days ago and I =
-suppose the patchset should include the fix.</span></div><div class=3D"gmai=
-l_extra"><span style=3D"color:rgb(119,119,119);font-family:arial,sans-serif=
-;font-size:12.8px;font-style:normal;font-variant-ligatures:normal;font-vari=
-ant-caps:normal;font-weight:400;letter-spacing:normal;text-align:start;text=
--indent:0px;text-transform:none;white-space:nowrap;word-spacing:0px;backgro=
-und-color:rgb(255,255,255);text-decoration-style:initial;text-decoration-co=
-lor:initial;float:none;display:inline"><br></span></div><div class=3D"gmail=
-_extra"><span style=3D"color:rgb(119,119,119);font-size:12.8px;white-space:=
-nowrap">-- Dexuan</span><br></div></div>
-
---0000000000003c5541056676a325--
+Should we be looking at preventing these races at a higher level?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
