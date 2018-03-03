@@ -1,83 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EADD16B0005
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 19:06:11 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id n12so1721770wmc.5
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 16:06:11 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x8si5156183wrd.69.2018.03.02.16.06.10
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 45F336B0005
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2018 19:12:46 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id f143so8917111qke.12
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2018 16:12:46 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id r34si3518706qtd.411.2018.03.02.16.12.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Mar 2018 16:06:10 -0800 (PST)
-Date: Fri, 2 Mar 2018 16:06:07 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/1] mm: make start_isolate_page_range() fail if already
- isolated
-Message-Id: <20180302160607.570e13f2157f56503fe1bdaa@linux-foundation.org>
-In-Reply-To: <20180226191054.14025-2-mike.kravetz@oracle.com>
-References: <20180226191054.14025-1-mike.kravetz@oracle.com>
-	<20180226191054.14025-2-mike.kravetz@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 02 Mar 2018 16:12:45 -0800 (PST)
+From: Daniel Vacek <neelx@redhat.com>
+Subject: [PATCH v3 0/2] mm/page_alloc: fix kernel BUG at mm/page_alloc.c:1913! crash in move_freepages()
+Date: Sat,  3 Mar 2018 01:12:24 +0100
+Message-Id: <cover.1520011944.git.neelx@redhat.com>
+In-Reply-To: <1519908465-12328-1-git-send-email-neelx@redhat.com>
+References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
+In-Reply-To: <1519908465-12328-1-git-send-email-neelx@redhat.com>
+References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Luiz Capitulino <lcapitulino@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, Daniel Vacek <neelx@redhat.com>, stable@vger.kernel.org
 
-On Mon, 26 Feb 2018 11:10:54 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+Kernel can crash on failed VM_BUG_ON assertion in function move_freepages()
+on some rare physical memory mappings (with huge range(s) of memory
+reserved by BIOS followed by usable memory not aligned to pageblock).
 
-> start_isolate_page_range() is used to set the migrate type of a
-> set of page blocks to MIGRATE_ISOLATE while attempting to start
-> a migration operation.  It assumes that only one thread is
-> calling it for the specified range.  This routine is used by
-> CMA, memory hotplug and gigantic huge pages.  Each of these users
-> synchronize access to the range within their subsystem.  However,
-> two subsystems (CMA and gigantic huge pages for example) could
-> attempt operations on the same range.  If this happens, page
-> blocks may be incorrectly left marked as MIGRATE_ISOLATE and
-> therefore not available for page allocation.
-> 
-> Without 'locking code' there is no easy way to synchronize access
-> to the range of page blocks passed to start_isolate_page_range.
-> However, if two threads are working on the same set of page blocks
-> one will stumble upon blocks set to MIGRATE_ISOLATE by the other.
-> In such conditions, make the thread noticing MIGRATE_ISOLATE
-> clean up as normal and return -EBUSY to the caller.
-> 
-> This will allow start_isolate_page_range to serve as a
-> synchronization mechanism and will allow for more general use
-> of callers making use of these interfaces.  So, update comments
-> in alloc_contig_range to reflect this new functionality.
-> 
-> ...
->
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -28,6 +28,13 @@ static int set_migratetype_isolate(struct page *page, int migratetype,
->  
->  	spin_lock_irqsave(&zone->lock, flags);
->  
-> +	/*
-> +	 * We assume we are the only ones trying to isolate this block.
-> +	 * If MIGRATE_ISOLATE already set, return -EBUSY
-> +	 */
-> +	if (is_migrate_isolate_page(page))
-> +		goto out;
-> +
->  	pfn = page_to_pfn(page);
->  	arg.start_pfn = pfn;
->  	arg.nr_pages = pageblock_nr_pages;
+crash> page_init_bug -v | grep resource | sed '/RAM .3/,/RAM .4/!d'
+<struct resource 0xffff88067fffd480>      4bfac000 -     646b1fff	System RAM (391.02 MiB = 400408.00 KiB)
+<struct resource 0xffff88067fffd4b8>      646b2000 -     793fefff	reserved (333.30 MiB = 341300.00 KiB)
+<struct resource 0xffff88067fffd4f0>      793ff000 -     7b3fefff	ACPI Non-volatile Storage ( 32.00 MiB)
+<struct resource 0xffff88067fffd528>      7b3ff000 -     7b787fff	ACPI Tables (  3.54 MiB = 3620.00 KiB)
+<struct resource 0xffff88067fffd560>      7b788000 -     7b7fffff	System RAM (480.00 KiB)
 
-Seems a bit ugly and I'm not sure that it's correct.  If the loop in
-start_isolate_page_range() gets partway through a number of pages then
-we hit the race, start_isolate_page_range() will then go and "undo" the
-work being done by the thread which it is racing against?
+More details in second patch.
 
-Even if that can't happen, blundering through a whole bunch of pages
-then saying whoops then undoing everything is unpleasing.
+v2: Use -1 constant for max_pfn and remove the parameter. That's
+    mostly just a cosmetics.
+v3: Split to two patches series to make clear what is the actual fix
+    and what is just a clean up. No code changes compared to v2 and
+    second patch is identical to original v1.
 
-Should we be looking at preventing these races at a higher level?
+Cc: stable@vger.kernel.org
+
+Daniel Vacek (2):
+  mm/memblock: hardcode the max_pfn being -1
+  mm/page_alloc: fix memmap_init_zone pageblock alignment
+
+ mm/memblock.c   | 13 ++++++-------
+ mm/page_alloc.c |  9 +++++++--
+ 2 files changed, 13 insertions(+), 9 deletions(-)
+
+-- 
+2.16.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
