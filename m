@@ -1,78 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E31566B0007
-	for <linux-mm@kvack.org>; Sat,  3 Mar 2018 04:09:42 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id v21so9654269qka.6
-        for <linux-mm@kvack.org>; Sat, 03 Mar 2018 01:09:42 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s72si945545qka.460.2018.03.03.01.09.41
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 988EA6B0003
+	for <linux-mm@kvack.org>; Sat,  3 Mar 2018 05:03:02 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id k2so2048804wmf.9
+        for <linux-mm@kvack.org>; Sat, 03 Mar 2018 02:03:02 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r15sor3092220wrc.60.2018.03.03.02.03.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Mar 2018 01:09:41 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2399fXP129377
-	for <linux-mm@kvack.org>; Sat, 3 Mar 2018 04:09:41 -0500
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2gfqw6haqd-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 03 Mar 2018 04:09:40 -0500
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Sat, 3 Mar 2018 09:09:38 -0000
-Date: Sat, 3 Mar 2018 11:09:28 +0200
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/3] userfaultfd: non-cooperative: syncronous events
-References: <1519719592-22668-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20180302153849.d9d7b9a873755c6f5e883d0d@linux-foundation.org>
+        (Google Transport Security);
+        Sat, 03 Mar 2018 02:03:01 -0800 (PST)
+Date: Sat, 3 Mar 2018 11:02:57 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: "x86/boot/compressed/64: Prepare trampoline memory" breaks boot
+ on Zotac CI-321
+Message-ID: <20180303100257.hzrqtshcnhzy5spl@gmail.com>
+References: <12357ee3-0276-906a-0e7c-2c3055675af3@gmail.com>
+ <CAA42JLZRxCGSsW5FKpH3AjZGbaUyrcRPdVBtMQcc4ZcxKNuDQw@mail.gmail.com>
+ <8c6c0f9d-0f47-2fc9-5cb5-6335ef1152cd@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180302153849.d9d7b9a873755c6f5e883d0d@linux-foundation.org>
-Message-Id: <20180303090926.GA14011@rapoport-lnx>
+In-Reply-To: <8c6c0f9d-0f47-2fc9-5cb5-6335ef1152cd@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, linux-api <linux-api@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, crml <criu@openvz.org>
+To: Heiner Kallweit <hkallweit1@gmail.com>
+Cc: Dexuan-Linux Cui <dexuan.linux@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dexuan Cui <decui@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Fri, Mar 02, 2018 at 03:38:49PM -0800, Andrew Morton wrote:
-> On Tue, 27 Feb 2018 10:19:49 +0200 Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
-> 
-> > Hi,
+
+* Heiner Kallweit <hkallweit1@gmail.com> wrote:
+
+> Am 03.03.2018 um 00:50 schrieb Dexuan-Linux Cui:
+> > On Fri, Mar 2, 2018 at 12:57 PM, Heiner Kallweit <hkallweit1@gmail.com <mailto:hkallweit1@gmail.com>> wrote:
 > > 
-> > These patches add ability to generate userfaultfd events so that their
-> > processing will be synchronized with the non-cooperative thread that caused
-> > the event.
+> >     Recently my Mini PC Zotac CI-321 started to reboot immediately before
+> >     anything was written to the console.
 > > 
-> > In the non-cooperative case userfaultfd resumes execution of the thread
-> > that caused an event when the notification is read() by the uffd monitor.
-> > In some cases, like, for example, madvise(MADV_REMOVE), it might be
-> > desirable to keep the thread that caused the event suspended until the
-> > uffd monitor had the event handled to avoid races between the thread that
-> > caused the and userfaultfd ioctls.
+> >     Bisecting lead to b91993a87aff "x86/boot/compressed/64: Prepare
+> >     trampoline memory" being the change breaking boot.
 > > 
-> > Theses patches extend the userfaultfd API with an implementation of
-> > UFFD_EVENT_REMOVE_SYNC that allows to keep the thread that triggered
-> > UFFD_EVENT_REMOVE until the uffd monitor would not wake it explicitly.
-> 
-> "might be desirable" is a bit weak.  It might not be desirable, too ;)
-> 
-> _Is_ it desirable?  What are the use-cases and what is the end-user
-> benefit?
+> >     If you need any more information, please let me know.
+> > 
+> >     Rgds, Heiner
+> > 
+> > 
+> > This may fix the issue: https://lkml.org/lkml/2018/2/13/668
+> > 
+> > Kirill posted a v2 patchset 3 days ago and I suppose the patchset should include the fix.
+> > 
+> Thanks for the link. I bisected based on the latest next kernel including
+> v2 of the patchset (IOW - the potential fix is included already).
 
-It _is_ desirable :)
-With asynchronous UFFD_EVENT_REMOVE, the faulting thread continues before
-the uffd monitor had chance to process the event and the memory accesses or
-layout modifications of faulting thread race with the monitor processing of
-the UFFD_EVENT_REMOVE.  Moreover, for multithreaded uffd monitor there
-could be also uffdio_{copy,zeropage} in flight that will also race with
-those memory accesses.
+Are you sure? b91993a87aff is the old patch-set - which I just removed from -next 
+and which should thus be gone in the Monday iteration of -next.
 
-I have elaborate description of the patch 3 in this series.
+I have not merged v2 in -tip yet, did it get applied via some other tree?
 
--- 
-Sincerely yours,
-Mike.
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
