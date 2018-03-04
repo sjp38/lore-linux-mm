@@ -1,207 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A9756B0003
-	for <linux-mm@kvack.org>; Sat,  3 Mar 2018 22:47:24 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id s17so7659785pfm.23
-        for <linux-mm@kvack.org>; Sat, 03 Mar 2018 19:47:24 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id k9-v6si7245420plt.293.2018.03.03.19.47.22
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F044F6B0003
+	for <linux-mm@kvack.org>; Sun,  4 Mar 2018 00:57:18 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id y20so7838260pfm.1
+        for <linux-mm@kvack.org>; Sat, 03 Mar 2018 21:57:18 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id m39-v6si7357942plg.151.2018.03.03.21.57.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 03 Mar 2018 19:47:22 -0800 (PST)
-Date: Sat, 3 Mar 2018 19:47:04 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
-Message-ID: <20180304034704.GB20725@bombadil.infradead.org>
-References: <20180227131338.3699-1-blackzert@gmail.com>
- <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
- <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com>
- <20180228183349.GA16336@bombadil.infradead.org>
- <CA+DvKQKoo1U7T_iOOLhfEf9c+K1pzD068au+kGtx0RokFFNKHw@mail.gmail.com>
- <2CF957C6-53F2-4B00-920F-245BEF3CA1F6@gmail.com>
- <CA+DvKQ+mrnm4WX+3cBPuoSLFHmx2Zwz8=FsEx51fH-7yQMAd9w@mail.gmail.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 03 Mar 2018 21:57:17 -0800 (PST)
+Subject: Re: WARNING: refcount bug in should_fail
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <001a113f6736499d1c0566363863@google.com>
+In-Reply-To: <001a113f6736499d1c0566363863@google.com>
+Message-Id: <201803041457.GBJ69774.OVOSOLFHQMJFFt@I-love.SAKURA.ne.jp>
+Date: Sun, 4 Mar 2018 14:57:12 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+DvKQ+mrnm4WX+3cBPuoSLFHmx2Zwz8=FsEx51fH-7yQMAd9w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Micay <danielmicay@gmail.com>
-Cc: Ilya Smith <blackzert@gmail.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: viro@zeniv.linux.org.uk, ebiederm@xmission.com
+Cc: linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-On Sat, Mar 03, 2018 at 04:00:45PM -0500, Daniel Micay wrote:
-> The main thing I'd like to see is just the option to get a guarantee
-> of enforced gaps around mappings, without necessarily even having
-> randomization of the gap size. It's possible to add guard pages in
-> userspace but it adds overhead by doubling the number of system calls
-> to map memory (mmap PROT_NONE region, mprotect the inner portion to
-> PROT_READ|PROT_WRITE) and *everything* using mmap would need to
-> cooperate which is unrealistic.
+Switching from mm to fsdevel, for this report says that put_net(net) in
+rpc_kill_sb() made net->count < 0 when mount_ns() failed due to
+register_shrinker() failure.
 
-So something like this?
+Relevant commits will be
+commit 9ee332d99e4d5a97 ("sget(): handle failures of register_shrinker()") and
+commit d91ee87d8d85a080 ("vfs: Pass data, ns, and ns->userns to mount_ns.").
 
-To use it, OR in PROT_GUARD(n) to the PROT flags of mmap, and it should
-pad the map by n pages.  I haven't tested it, so I'm sure it's buggy,
-but it seems like a fairly cheap way to give us padding after every
-mapping.
+When sget_userns() in mount_ns() failed, mount_ns() returns an error code to
+the caller without calling fill_super(). That is, get_net(sb->s_fs_info) was
+not called by rpc_fill_super() (via fill_super callback passed to mount_ns())
+but put_net(sb->s_fs_info) is called by rpc_kill_sb() (via fs->kill_sb() from
+deactivate_locked_super()).
 
-Running it on an old kernel will result in no padding, so to see if it
-worked or not, try mapping something immediately after it.
+----------
+static struct dentry *
+rpc_mount(struct file_system_type *fs_type,
+                int flags, const char *dev_name, void *data)
+{
+        struct net *net = current->nsproxy->net_ns;
+        return mount_ns(fs_type, flags, data, net, net->user_ns, rpc_fill_super);
+}
+----------
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 4ef7fb1726ab..9da6df7f62fc 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2183,8 +2183,8 @@ extern int install_special_mapping(struct mm_struct *mm,
- extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
- 
- extern unsigned long mmap_region(struct file *file, unsigned long addr,
--	unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
--	struct list_head *uf);
-+	unsigned long len, unsigned long pad_len, vm_flags_t vm_flags,
-+	unsigned long pgoff, struct list_head *uf);
- extern unsigned long do_mmap(struct file *file, unsigned long addr,
- 	unsigned long len, unsigned long prot, unsigned long flags,
- 	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate,
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 1c5dea402501..9c2b66fa0561 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -299,6 +299,7 @@ struct vm_area_struct {
- 	struct mm_struct *vm_mm;	/* The address space we belong to. */
- 	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
- 	unsigned long vm_flags;		/* Flags, see mm.h. */
-+	unsigned int vm_guard;		/* Number of trailing guard pages */
- 
- 	/*
- 	 * For areas with an address space and backing store,
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index f8b134f5608f..d88babdf97f9 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -12,6 +12,7 @@
- #define PROT_EXEC	0x4		/* page can be executed */
- #define PROT_SEM	0x8		/* page may be used for atomic ops */
- #define PROT_NONE	0x0		/* page can not be accessed */
-+#define PROT_GUARD(x)	((x) & 0xffff) << 4	/* guard pages */
- #define PROT_GROWSDOWN	0x01000000	/* mprotect flag: extend change to start of growsdown vma */
- #define PROT_GROWSUP	0x02000000	/* mprotect flag: extend change to end of growsup vma */
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 1cfc4699db42..5b0f87afa0af 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4125,6 +4125,9 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 					    flags & FAULT_FLAG_REMOTE))
- 		return VM_FAULT_SIGSEGV;
- 
-+	if (DIV_ROUND_UP(vma->vm_end - address, PAGE_SIZE) < vma->vm_guard)
-+		return VM_FAULT_SIGSEGV;
-+
- 	/*
- 	 * Enable the memcg OOM handling for faults triggered in user
- 	 * space.  Kernel faults are handled more gracefully.
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 575766ec02f8..b9844b810ee7 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1433,6 +1433,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 			unsigned long pgoff, unsigned long *populate,
- 			struct list_head *uf)
- {
-+	unsigned int guard_len = ((prot >> 4) & 0xffff) << PAGE_SHIFT;
- 	struct mm_struct *mm = current->mm;
- 	int pkey = 0;
- 
-@@ -1458,6 +1459,8 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 	len = PAGE_ALIGN(len);
- 	if (!len)
- 		return -ENOMEM;
-+	if (len + guard_len < len)
-+		return -ENOMEM;
- 
- 	/* offset overflow? */
- 	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-@@ -1472,7 +1475,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 	/* Obtain the address to map to. we verify (or select) it and ensure
- 	 * that it represents a valid section of the address space.
- 	 */
--	addr = get_unmapped_area(file, addr, len, pgoff, flags);
-+	addr = get_unmapped_area(file, addr, len + guard_len, pgoff, flags);
- 	if (offset_in_page(addr))
- 		return addr;
- 
-@@ -1591,7 +1594,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 			vm_flags |= VM_NORESERVE;
- 	}
- 
--	addr = mmap_region(file, addr, len, vm_flags, pgoff, uf);
-+	addr = mmap_region(file, addr, len, len + guard_len, vm_flags, pgoff, uf);
- 	if (!IS_ERR_VALUE(addr) &&
- 	    ((vm_flags & VM_LOCKED) ||
- 	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
-@@ -1727,8 +1730,8 @@ static inline int accountable_mapping(struct file *file, vm_flags_t vm_flags)
- }
- 
- unsigned long mmap_region(struct file *file, unsigned long addr,
--		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
--		struct list_head *uf)
-+		unsigned long len, unsigned long pad_len, vm_flags_t vm_flags,
-+		unsigned long pgoff, struct list_head *uf)
- {
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma, *prev;
-@@ -1737,24 +1740,24 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 	unsigned long charged = 0;
- 
- 	/* Check against address space limit. */
--	if (!may_expand_vm(mm, vm_flags, len >> PAGE_SHIFT)) {
-+	if (!may_expand_vm(mm, vm_flags, pad_len >> PAGE_SHIFT)) {
- 		unsigned long nr_pages;
- 
- 		/*
- 		 * MAP_FIXED may remove pages of mappings that intersects with
- 		 * requested mapping. Account for the pages it would unmap.
- 		 */
--		nr_pages = count_vma_pages_range(mm, addr, addr + len);
-+		nr_pages = count_vma_pages_range(mm, addr, addr + pad_len);
- 
- 		if (!may_expand_vm(mm, vm_flags,
--					(len >> PAGE_SHIFT) - nr_pages))
-+					(pad_len >> PAGE_SHIFT) - nr_pages))
- 			return -ENOMEM;
- 	}
- 
- 	/* Clear old maps */
--	while (find_vma_links(mm, addr, addr + len, &prev, &rb_link,
-+	while (find_vma_links(mm, addr, addr + pad_len, &prev, &rb_link,
- 			      &rb_parent)) {
--		if (do_munmap(mm, addr, len, uf))
-+		if (do_munmap(mm, addr, pad_len, uf))
- 			return -ENOMEM;
- 	}
- 
-@@ -1771,7 +1774,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 	/*
- 	 * Can we just expand an old mapping?
- 	 */
--	vma = vma_merge(mm, prev, addr, addr + len, vm_flags,
-+	vma = vma_merge(mm, prev, addr, addr + pad_len, vm_flags,
- 			NULL, file, pgoff, NULL, NULL_VM_UFFD_CTX);
- 	if (vma)
- 		goto out;
-@@ -1789,9 +1792,10 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 
- 	vma->vm_mm = mm;
- 	vma->vm_start = addr;
--	vma->vm_end = addr + len;
-+	vma->vm_end = addr + pad_len;
- 	vma->vm_flags = vm_flags;
- 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
-+	vma->vm_guard = (pad_len - len) >> PAGE_SHIFT;
- 	vma->vm_pgoff = pgoff;
- 	INIT_LIST_HEAD(&vma->anon_vma_chain);
- 
+syzbot wrote:
+> Hello,
+> 
+> syzbot hit the following crash on bpf-next commit
+> 6f1b5a2b58d8470e5a8b25ab29f5fdb4616ffff8 (Tue Feb 27 04:11:23 2018 +0000)
+> Merge branch 'bpf-kselftest-improvements'
+> 
+> C reproducer is attached.
+> syzkaller reproducer is attached.
+> Raw console output is attached.
+> compiler: gcc (GCC) 7.1.1 20170620
+> .config is attached.
+> 
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+84371b6062cb639d797e@syzkaller.appspotmail.com
+> It will help syzbot understand when the bug is fixed. See footer for  
+> details.
+> If you forward the report, please keep this part and the footer.
+> 
+> ------------[ cut here ]------------
+> FAULT_INJECTION: forcing a failure.
+> name failslab, interval 1, probability 0, space 0, times 0
+> refcount_t: underflow; use-after-free.
+> CPU: 1 PID: 4239 Comm: syzkaller149381 Not tainted 4.16.0-rc2+ #20
+> WARNING: CPU: 0 PID: 4237 at lib/refcount.c:187  
+> refcount_sub_and_test+0x167/0x1b0 lib/refcount.c:187
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+> Google 01/01/2011
+> Call Trace:
+> Kernel panic - not syncing: panic_on_warn set ...
+> 
+>   __dump_stack lib/dump_stack.c:17 [inline]
+>   dump_stack+0x194/0x24d lib/dump_stack.c:53
+>   fail_dump lib/fault-inject.c:51 [inline]
+>   should_fail+0x8c0/0xa40 lib/fault-inject.c:149
+>   should_failslab+0xec/0x120 mm/failslab.c:32
+>   slab_pre_alloc_hook mm/slab.h:422 [inline]
+>   slab_alloc mm/slab.c:3365 [inline]
+>   __do_kmalloc mm/slab.c:3703 [inline]
+>   __kmalloc+0x63/0x760 mm/slab.c:3714
+>   kmalloc include/linux/slab.h:517 [inline]
+>   kzalloc include/linux/slab.h:701 [inline]
+>   register_shrinker+0x10e/0x2d0 mm/vmscan.c:268
+>   sget_userns+0xbbf/0xe40 fs/super.c:520
+>   mount_ns+0x6d/0x190 fs/super.c:1029
+>   rpc_mount+0x9e/0xd0 net/sunrpc/rpc_pipe.c:1451
+>   mount_fs+0x66/0x2d0 fs/super.c:1222
+>   vfs_kern_mount.part.26+0xc6/0x4a0 fs/namespace.c:1037
+>   vfs_kern_mount fs/namespace.c:2509 [inline]
+>   do_new_mount fs/namespace.c:2512 [inline]
+>   do_mount+0xea4/0x2bb0 fs/namespace.c:2842
+>   SYSC_mount fs/namespace.c:3058 [inline]
+>   SyS_mount+0xab/0x120 fs/namespace.c:3035
+>   do_syscall_64+0x280/0x940 arch/x86/entry/common.c:287
+>   entry_SYSCALL_64_after_hwframe+0x42/0xb7
+> RIP: 0033:0x4460f9
+> RSP: 002b:00007fbcd769ad78 EFLAGS: 00000246 ORIG_RAX: 00000000000000a5
+> RAX: ffffffffffffffda RBX: 00000000006dcc6c RCX: 00000000004460f9
+> RDX: 0000000020000080 RSI: 0000000020000040 RDI: 0000000020000000
+> RBP: 00007fbcd769ad80 R08: 00000000200000c0 R09: 0000000000003131
+> R10: 0000000000000000 R11: 0000000000000246 R12: 00000000006dcc68
+> R13: ffffffffffffffff R14: 0000000000000037 R15: 0030656c69662f2e
+> CPU: 0 PID: 4237 Comm: syzkaller149381 Not tainted 4.16.0-rc2+ #20
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+> Google 01/01/2011
+> Call Trace:
+>   __dump_stack lib/dump_stack.c:17 [inline]
+>   dump_stack+0x194/0x24d lib/dump_stack.c:53
+>   panic+0x1e4/0x41c kernel/panic.c:183
+>   __warn+0x1dc/0x200 kernel/panic.c:547
+>   report_bug+0x211/0x2d0 lib/bug.c:184
+>   fixup_bug.part.11+0x37/0x80 arch/x86/kernel/traps.c:178
+>   fixup_bug arch/x86/kernel/traps.c:247 [inline]
+>   do_error_trap+0x2d7/0x3e0 arch/x86/kernel/traps.c:296
+>   do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:315
+>   invalid_op+0x58/0x80 arch/x86/entry/entry_64.S:957
+> RIP: 0010:refcount_sub_and_test+0x167/0x1b0 lib/refcount.c:187
+> RSP: 0018:ffff8801b164f6d8 EFLAGS: 00010286
+> RAX: dffffc0000000008 RBX: 0000000000000000 RCX: ffffffff815ac30e
+> RDX: 0000000000000000 RSI: 1ffff100362c9e8b RDI: 1ffff100362c9e60
+> RBP: ffff8801b164f768 R08: 0000000000000000 R09: 0000000000000000
+> R10: ffff8801b164f610 R11: 0000000000000000 R12: 1ffff100362c9edc
+> R13: 00000000ffffffff R14: 0000000000000001 R15: ffff8801ae924044
+>   refcount_dec_and_test+0x1a/0x20 lib/refcount.c:212
+>   put_net include/net/net_namespace.h:220 [inline]
+>   rpc_kill_sb+0x253/0x3c0 net/sunrpc/rpc_pipe.c:1473
+>   deactivate_locked_super+0x88/0xd0 fs/super.c:312
+>   sget_userns+0xbda/0xe40 fs/super.c:522
+>   mount_ns+0x6d/0x190 fs/super.c:1029
+>   rpc_mount+0x9e/0xd0 net/sunrpc/rpc_pipe.c:1451
+>   mount_fs+0x66/0x2d0 fs/super.c:1222
+>   vfs_kern_mount.part.26+0xc6/0x4a0 fs/namespace.c:1037
+>   vfs_kern_mount fs/namespace.c:2509 [inline]
+>   do_new_mount fs/namespace.c:2512 [inline]
+>   do_mount+0xea4/0x2bb0 fs/namespace.c:2842
+>   SYSC_mount fs/namespace.c:3058 [inline]
+>   SyS_mount+0xab/0x120 fs/namespace.c:3035
+>   do_syscall_64+0x280/0x940 arch/x86/entry/common.c:287
+>   entry_SYSCALL_64_after_hwframe+0x42/0xb7
+> RIP: 0033:0x4460f9
+> RSP: 002b:00007fbcd76dcd78 EFLAGS: 00000246 ORIG_RAX: 00000000000000a5
+> RAX: ffffffffffffffda RBX: 00000000006dcc3c RCX: 00000000004460f9
+> RDX: 0000000020000080 RSI: 0000000020000040 RDI: 0000000020000000
+> RBP: 00007fbcd76dcd80 R08: 00000000200000c0 R09: 0000000000003131
+> R10: 0000000000000000 R11: 0000000000000246 R12: 00000000006dcc38
+> R13: ffffffffffffffff R14: 0000000000000028 R15: 0030656c69662f2e
+> Dumping ftrace buffer:
+>     (ftrace buffer empty)
+> Kernel Offset: disabled
+> Rebooting in 86400 seconds..
+> 
+> 
+> ---
+> This bug is generated by a dumb bot. It may contain errors.
+> See https://goo.gl/tpsmEJ for details.
+> Direct all questions to syzkaller@googlegroups.com.
+> 
+> syzbot will keep track of this bug report.
+> If you forgot to add the Reported-by tag, once the fix for this bug is  
+> merged
+> into any tree, please reply to this email with:
+> #syz fix: exact-commit-title
+> If you want to test a patch for this bug, please reply with:
+> #syz test: git://repo/address.git branch
+> and provide the patch inline or as an attachment.
+> To mark this as a duplicate of another syzbot report, please reply with:
+> #syz dup: exact-subject-of-another-report
+> If it's a one-off invalid bug report, please reply with:
+> #syz invalid
+> Note: if the crash happens again, it will cause creation of a new bug  
+> report.
+> Note: all commands must start from beginning of the line in the email body.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
