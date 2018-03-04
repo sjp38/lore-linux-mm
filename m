@@ -1,87 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BB7E6B0005
-	for <linux-mm@kvack.org>; Sun,  4 Mar 2018 15:18:50 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id t67so4454782lfe.21
-        for <linux-mm@kvack.org>; Sun, 04 Mar 2018 12:18:50 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i18sor2423829ljd.31.2018.03.04.12.18.48
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 547526B0005
+	for <linux-mm@kvack.org>; Sun,  4 Mar 2018 15:56:34 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id v3so5178968pfm.21
+        for <linux-mm@kvack.org>; Sun, 04 Mar 2018 12:56:34 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id u8-v6si8293532plh.219.2018.03.04.12.56.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 04 Mar 2018 12:18:48 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 04 Mar 2018 12:56:33 -0800 (PST)
+Date: Sun, 4 Mar 2018 12:56:14 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
+Message-ID: <20180304205614.GC23816@bombadil.infradead.org>
+References: <20180227131338.3699-1-blackzert@gmail.com>
+ <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
+ <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com>
+ <20180228183349.GA16336@bombadil.infradead.org>
+ <CA+DvKQKoo1U7T_iOOLhfEf9c+K1pzD068au+kGtx0RokFFNKHw@mail.gmail.com>
+ <2CF957C6-53F2-4B00-920F-245BEF3CA1F6@gmail.com>
+ <CA+DvKQ+mrnm4WX+3cBPuoSLFHmx2Zwz8=FsEx51fH-7yQMAd9w@mail.gmail.com>
+ <20180304034704.GB20725@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180216162809.30b2278f0cacefa66c95c1aa@linux-foundation.org>
-References: <47ab51e7-e9c1-d30e-ab17-f734dbc3abce@gmail.com> <20180216162809.30b2278f0cacefa66c95c1aa@linux-foundation.org>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Sun, 4 Mar 2018 12:18:47 -0800
-Message-ID: <CAMJBoFNLF6__MnHEqOqPQpRucsp3hrSba6qSSjorEVttGx=LyA@mail.gmail.com>
-Subject: Re: [PATCH] z3fold: limit use of stale list for allocation
-Content-Type: multipart/alternative; boundary="001a11471dfebce4fb05669bea24"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180304034704.GB20725@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleksiy.Avramchenko@sony.com
+To: Daniel Micay <danielmicay@gmail.com>
+Cc: Ilya Smith <blackzert@gmail.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
---001a11471dfebce4fb05669bea24
-Content-Type: text/plain; charset="UTF-8"
+On Sat, Mar 03, 2018 at 07:47:04PM -0800, Matthew Wilcox wrote:
+> On Sat, Mar 03, 2018 at 04:00:45PM -0500, Daniel Micay wrote:
+> > The main thing I'd like to see is just the option to get a guarantee
+> > of enforced gaps around mappings, without necessarily even having
+> > randomization of the gap size. It's possible to add guard pages in
+> > userspace but it adds overhead by doubling the number of system calls
+> > to map memory (mmap PROT_NONE region, mprotect the inner portion to
+> > PROT_READ|PROT_WRITE) and *everything* using mmap would need to
+> > cooperate which is unrealistic.
+> 
+> So something like this?
+> 
+> To use it, OR in PROT_GUARD(n) to the PROT flags of mmap, and it should
+> pad the map by n pages.  I haven't tested it, so I'm sure it's buggy,
+> but it seems like a fairly cheap way to give us padding after every
+> mapping.
+> 
+> Running it on an old kernel will result in no padding, so to see if it
+> worked or not, try mapping something immediately after it.
 
-[sorry for answering only now, this email slipped through somehow]
+Thinking about this more ...
 
-2018-02-16 16:28 GMT-08:00 Andrew Morton <akpm@linux-foundation.org>:
+ - When you call munmap, if you pass in the same (addr, length) that were
+   used for mmap, then it should unmap the guard pages as well (that
+   wasn't part of the patch, so it would have to be added)
+ - If 'addr' is higher than the mapped address, and length at least
+   reaches the end of the mapping, then I would expect the guard pages to
+   "move down" and be after the end of the newly-shortened mapping.
+ - If 'addr' is higher than the mapped address, and the length doesn't
+   reach the end of the old mapping, we split the old mapping into two.
+   I would expect the guard pages to apply to both mappings, insofar as
+   they'll fit.  For an example, suppose we have a five-page mapping with
+   two guard pages (MMMMMGG), and then we unmap the fourth page.  Now we
+   have a three-page mapping with one guard page followed immediately
+   by a one-page mapping with two guard pages (MMMGMGG).
 
-> On Sat, 10 Feb 2018 12:02:52 +0100 Vitaly Wool <vitalywool@gmail.com>
-> wrote:
->
-> > Currently if z3fold couldn't find an unbuddied page it would first
-> > try to pull a page off the stale list. The problem with this
-> > approach is that we can't 100% guarantee that the page is not
-> > processed by the workqueue thread at the same time unless we run
-> > cancel_work_sync() on it, which we can't do if we're in an atomic
-> > context. So let's just limit stale list usage to non-atomic
-> > contexts only.
->
-> This smells like a bugfix.  What are the end-user visible effects of
-> the bug?
->
->
-I have only seen this happening in real life once, and then z3fold ended up
-using a page which had been already freed and got blocked on a spinlock.
-
-~Vitaly
-
---001a11471dfebce4fb05669bea24
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr">[sorry for answering only now, this email slipped through =
-somehow]<br><div class=3D"gmail_extra"><br><div class=3D"gmail_quote">2018-=
-02-16 16:28 GMT-08:00 Andrew Morton <span dir=3D"ltr">&lt;<a href=3D"mailto=
-:akpm@linux-foundation.org" target=3D"_blank">akpm@linux-foundation.org</a>=
-&gt;</span>:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8e=
-x;border-left:1px #ccc solid;padding-left:1ex"><span class=3D"">On Sat, 10 =
-Feb 2018 12:02:52 +0100 Vitaly Wool &lt;<a href=3D"mailto:vitalywool@gmail.=
-com">vitalywool@gmail.com</a>&gt; wrote:<br>
-<br>
-&gt; Currently if z3fold couldn&#39;t find an unbuddied page it would first=
-<br>
-&gt; try to pull a page off the stale list. The problem with this<br>
-&gt; approach is that we can&#39;t 100% guarantee that the page is not<br>
-&gt; processed by the workqueue thread at the same time unless we run<br>
-&gt; cancel_work_sync() on it, which we can&#39;t do if we&#39;re in an ato=
-mic<br>
-&gt; context. So let&#39;s just limit stale list usage to non-atomic<br>
-&gt; contexts only.<br>
-<br>
-</span>This smells like a bugfix.=C2=A0 What are the end-user visible effec=
-ts of<br>
-the bug?<br>
-<br>
-</blockquote></div><br></div><div class=3D"gmail_extra">I have only seen th=
-is happening in real life once, and then z3fold ended up using a page which=
- had been already freed and got blocked on a spinlock.</div><div class=3D"g=
-mail_extra"><br></div><div class=3D"gmail_extra">~Vitaly</div></div>
-
---001a11471dfebce4fb05669bea24--
+I would say that mremap cannot change the number of guard pages.
+Although I'm a little tempted to add an mremap flag to permit the mapping
+to expand into the guard pages.  That would give us a nice way to reserve
+address space for a mapping we think is going to expand.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
