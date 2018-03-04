@@ -1,83 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C40F06B0005
-	for <linux-mm@kvack.org>; Sun,  4 Mar 2018 10:49:54 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id d128so864559qkb.6
-        for <linux-mm@kvack.org>; Sun, 04 Mar 2018 07:49:54 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v11sor8194855qtj.28.2018.03.04.07.49.53
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BB7E6B0005
+	for <linux-mm@kvack.org>; Sun,  4 Mar 2018 15:18:50 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id t67so4454782lfe.21
+        for <linux-mm@kvack.org>; Sun, 04 Mar 2018 12:18:50 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id i18sor2423829ljd.31.2018.03.04.12.18.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 04 Mar 2018 07:49:53 -0800 (PST)
+        Sun, 04 Mar 2018 12:18:48 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180304114439.zxksut65mefrpc7w@gmail.com>
-References: <cover.1520017438.git.andreyknvl@google.com> <CAMuHMdX-3uFCagtnR5fuuU9wPJZ41D45pGi-gst7vtc0VT7zmA@mail.gmail.com>
- <20180304114439.zxksut65mefrpc7w@gmail.com>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Sun, 4 Mar 2018 16:49:52 +0100
-Message-ID: <CAMuHMdWoocn5pOvjx880CxUJL0LsPKd_UYs2fcWfHTF3cwFZBQ@mail.gmail.com>
-Subject: Re: [RFC PATCH 00/14] khwasan: kernel hardware assisted address sanitizer
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180216162809.30b2278f0cacefa66c95c1aa@linux-foundation.org>
+References: <47ab51e7-e9c1-d30e-ab17-f734dbc3abce@gmail.com> <20180216162809.30b2278f0cacefa66c95c1aa@linux-foundation.org>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Sun, 4 Mar 2018 12:18:47 -0800
+Message-ID: <CAMJBoFNLF6__MnHEqOqPQpRucsp3hrSba6qSSjorEVttGx=LyA@mail.gmail.com>
+Subject: Re: [PATCH] z3fold: limit use of stale list for allocation
+Content-Type: multipart/alternative; boundary="001a11471dfebce4fb05669bea24"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux MM <linux-mm@kvack.org>, linux-kbuild <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleksiy.Avramchenko@sony.com
 
-Hi Ingo,
+--001a11471dfebce4fb05669bea24
+Content-Type: text/plain; charset="UTF-8"
 
-On Sun, Mar 4, 2018 at 12:44 PM, Ingo Molnar <mingo@kernel.org> wrote:
-> * Geert Uytterhoeven <geert@linux-m68k.org> wrote:
->> On Fri, Mar 2, 2018 at 8:44 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
->> > This patchset adds a new mode to KASAN, which is called KHWASAN (Kernel
->> > HardWare assisted Address SANitizer). There's still some work to do and
->> > there are a few TODOs in the code, so I'm publishing this as a RFC to
->> > collect some initial feedback.
->> >
->> > The plan is to implement HWASan [1] for the kernel with the incentive,
->> > that it's going to have comparable performance, but in the same time
->> > consume much less memory, trading that off for somewhat imprecise bug
->> > detection and being supported only for arm64.
->> >
->> > The overall idea of the approach used by KHWASAN is the following:
->> >
->> > 1. By using the Top Byte Ignore arm64 CPU feature, we can store pointer
->> >    tags in the top byte of each kernel pointer.
->>
->> And for how long will this be OK?
+[sorry for answering only now, this email slipped through somehow]
+
+2018-02-16 16:28 GMT-08:00 Andrew Morton <akpm@linux-foundation.org>:
+
+> On Sat, 10 Feb 2018 12:02:52 +0100 Vitaly Wool <vitalywool@gmail.com>
+> wrote:
 >
-> Firstly it's not for production kernels, it's a hardware accelerator for an
-> intrusive debug feature, so it shouldn't really matter, right?
-
-Sorry, I didn't know it was a debug feature.
-
-> Secondly, if the top byte is lost and the other 56 bits can still be used that
-> gives a virtual memory space of up to 65,536 TB, which should be enough for a few
-> years in the arm64 space, right?
+> > Currently if z3fold couldn't find an unbuddied page it would first
+> > try to pull a page off the stale list. The problem with this
+> > approach is that we can't 100% guarantee that the page is not
+> > processed by the workqueue thread at the same time unless we run
+> > cancel_work_sync() on it, which we can't do if we're in an atomic
+> > context. So let's just limit stale list usage to non-atomic
+> > contexts only.
 >
->> Remembering:
->>   - AmigaBasic,
->>   - MacOS,
->>   - Emacs,
->>   - ...
->> They all tried to use the same trick, and did regret...
->> (AmigaBasic never survived this failure).
+> This smells like a bugfix.  What are the end-user visible effects of
+> the bug?
 >
-> The 64-bit address space is really a lot larger, and it's a debug-info feature in
-> any case.
+>
+I have only seen this happening in real life once, and then z3fold ended up
+using a page which had been already freed and got blocked on a spinlock.
 
-So that gives up ca. 25 years, less when considering address randomization.
-But as long as it stays a debug feature...
+~Vitaly
 
-Gr{oetje,eeting}s,
+--001a11471dfebce4fb05669bea24
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-                        Geert
+<div dir=3D"ltr">[sorry for answering only now, this email slipped through =
+somehow]<br><div class=3D"gmail_extra"><br><div class=3D"gmail_quote">2018-=
+02-16 16:28 GMT-08:00 Andrew Morton <span dir=3D"ltr">&lt;<a href=3D"mailto=
+:akpm@linux-foundation.org" target=3D"_blank">akpm@linux-foundation.org</a>=
+&gt;</span>:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8e=
+x;border-left:1px #ccc solid;padding-left:1ex"><span class=3D"">On Sat, 10 =
+Feb 2018 12:02:52 +0100 Vitaly Wool &lt;<a href=3D"mailto:vitalywool@gmail.=
+com">vitalywool@gmail.com</a>&gt; wrote:<br>
+<br>
+&gt; Currently if z3fold couldn&#39;t find an unbuddied page it would first=
+<br>
+&gt; try to pull a page off the stale list. The problem with this<br>
+&gt; approach is that we can&#39;t 100% guarantee that the page is not<br>
+&gt; processed by the workqueue thread at the same time unless we run<br>
+&gt; cancel_work_sync() on it, which we can&#39;t do if we&#39;re in an ato=
+mic<br>
+&gt; context. So let&#39;s just limit stale list usage to non-atomic<br>
+&gt; contexts only.<br>
+<br>
+</span>This smells like a bugfix.=C2=A0 What are the end-user visible effec=
+ts of<br>
+the bug?<br>
+<br>
+</blockquote></div><br></div><div class=3D"gmail_extra">I have only seen th=
+is happening in real life once, and then z3fold ended up using a page which=
+ had been already freed and got blocked on a spinlock.</div><div class=3D"g=
+mail_extra"><br></div><div class=3D"gmail_extra">~Vitaly</div></div>
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+--001a11471dfebce4fb05669bea24--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
