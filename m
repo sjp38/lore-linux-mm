@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B0F2B6B000E
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:26:21 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id g13so10764028wrh.23
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:26:21 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id u9si857178edk.399.2018.03.05.02.26.12
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E8DB6B000E
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:26:22 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id u65so10775044wrc.8
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:26:22 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id p90si2416019edd.128.2018.03.05.02.26.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 02:26:12 -0800 (PST)
+        Mon, 05 Mar 2018 02:26:21 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 07/34] x86/entry/32: Restore segments before int registers
-Date: Mon,  5 Mar 2018 11:25:36 +0100
-Message-Id: <1520245563-8444-8-git-send-email-joro@8bytes.org>
+Subject: [PATCH 27/34] x86/mm/dump_pagetables: Define INIT_PGD
+Date: Mon,  5 Mar 2018 11:25:56 +0100
+Message-Id: <1520245563-8444-28-git-send-email-joro@8bytes.org>
 In-Reply-To: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,109 +22,59 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Restoring the segments can cause exceptions that need to be
-handled. With PTI enabled, we still need to be on kernel cr3
-when the exception happens. For the cr3-switch we need
-at least one integer scratch register, so we can't switch
-with the user integer registers already loaded.
-
-Avoid a push/pop cycle to free a register for the cr3 switch
-by restoring the segments first. That way the integer
-registers are not live yet and we can use them for the cr3
-switch.
-
-This also helps in the NMI path, where we need to leave with
-the same cr3 as we entered. There we still have the
-callee-saved registers live when switching cr3s.
+Define INIT_PGD to point to the correct initial page-table
+for 32 and 64 bit and use it where needed. This fixes the
+build on 32 bit with CONFIG_PAGE_TABLE_ISOLATION enabled.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 50 ++++++++++++++++++++---------------------------
- 1 file changed, 21 insertions(+), 29 deletions(-)
+ arch/x86/mm/dump_pagetables.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 9bd7718..b39c5e2 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -92,11 +92,6 @@
- .macro PUSH_GS
- 	pushl	$0
- .endm
--.macro POP_GS pop=0
--	addl	$(4 + \pop), %esp
--.endm
--.macro POP_GS_EX
--.endm
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index 2a4849e..2151ebb 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -105,6 +105,8 @@ static struct addr_marker address_markers[] = {
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+ };
  
-  /* all the rest are no-op */
- .macro PTGS_TO_GS
-@@ -116,20 +111,6 @@
- 	pushl	%gs
- .endm
- 
--.macro POP_GS pop=0
--98:	popl	%gs
--  .if \pop <> 0
--	add	$\pop, %esp
--  .endif
--.endm
--.macro POP_GS_EX
--.pushsection .fixup, "ax"
--99:	movl	$0, (%esp)
--	jmp	98b
--.popsection
--	_ASM_EXTABLE(98b, 99b)
--.endm
--
- .macro PTGS_TO_GS
- 98:	mov	PT_GS(%esp), %gs
- .endm
-@@ -201,24 +182,35 @@
- 	popl	%eax
- .endm
- 
--.macro RESTORE_REGS pop=0
--	RESTORE_INT_REGS
--1:	popl	%ds
--2:	popl	%es
--3:	popl	%fs
--	POP_GS \pop
-+.macro RESTORE_SEGMENTS
-+1:	mov	PT_DS(%esp), %ds
-+2:	mov	PT_ES(%esp), %es
-+3:	mov	PT_FS(%esp), %fs
-+	PTGS_TO_GS
- .pushsection .fixup, "ax"
--4:	movl	$0, (%esp)
-+4:	movl	$0, PT_DS(%esp)
- 	jmp	1b
--5:	movl	$0, (%esp)
-+5:	movl	$0, PT_ES(%esp)
- 	jmp	2b
--6:	movl	$0, (%esp)
-+6:	movl	$0, PT_FS(%esp)
- 	jmp	3b
- .popsection
- 	_ASM_EXTABLE(1b, 4b)
- 	_ASM_EXTABLE(2b, 5b)
- 	_ASM_EXTABLE(3b, 6b)
--	POP_GS_EX
-+	PTGS_TO_GS_EX
-+.endm
++#define INIT_PGD	((pgd_t *) &init_top_pgt)
 +
-+.macro RESTORE_SKIP_SEGMENTS pop=0
-+	/* Jump over the segments stored on stack */
-+	addl	$((4 * 4) + \pop), %esp
-+.endm
-+
-+.macro RESTORE_REGS pop=0
-+	RESTORE_SEGMENTS
-+	RESTORE_INT_REGS
-+	/* Skip over already restored segment registers */
-+	RESTORE_SKIP_SEGMENTS \pop
- .endm
+ #else /* CONFIG_X86_64 */
  
- .macro CHECK_AND_APPLY_ESPFIX
+ enum address_markers_idx {
+@@ -133,6 +135,8 @@ static struct addr_marker address_markers[] = {
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+ };
+ 
++#define INIT_PGD	(swapper_pg_dir)
++
+ #endif /* !CONFIG_X86_64 */
+ 
+ /* Multipliers for offsets within the PTEs */
+@@ -478,11 +482,7 @@ static inline bool is_hypervisor_range(int idx)
+ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
+ 				       bool checkwx, bool dmesg)
+ {
+-#ifdef CONFIG_X86_64
+-	pgd_t *start = (pgd_t *) &init_top_pgt;
+-#else
+-	pgd_t *start = swapper_pg_dir;
+-#endif
++	pgd_t *start = INIT_PGD;
+ 	pgprotval_t prot;
+ 	int i;
+ 	struct pg_state st = {};
+@@ -543,7 +543,7 @@ EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
+ static void ptdump_walk_user_pgd_level_checkwx(void)
+ {
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+-	pgd_t *pgd = (pgd_t *) &init_top_pgt;
++	pgd_t *pgd = INIT_PGD;
+ 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return;
 -- 
 2.7.4
 
