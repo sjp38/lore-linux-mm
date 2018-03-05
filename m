@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 83D196B0007
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 15:07:54 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id r29so11988832wra.13
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 12:07:54 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E0B76B0008
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 15:07:55 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id i201so4617606wmf.6
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 12:07:55 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a63sor683116wmf.82.2018.03.05.12.07.53
+        by mx.google.com with SMTPS id u125sor2412199wmd.7.2018.03.05.12.07.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 05 Mar 2018 12:07:53 -0800 (PST)
+        Mon, 05 Mar 2018 12:07:54 -0800 (PST)
 From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: [PATCH 03/25] slab: make kmalloc_size() return "unsigned int"
-Date: Mon,  5 Mar 2018 23:07:08 +0300
-Message-Id: <20180305200730.15812-3-adobriyan@gmail.com>
+Subject: [PATCH 04/25] slab: make create_kmalloc_cache() work with 32-bit sizes
+Date: Mon,  5 Mar 2018 23:07:09 +0300
+Message-Id: <20180305200730.15812-4-adobriyan@gmail.com>
 In-Reply-To: <20180305200730.15812-1-adobriyan@gmail.com>
 References: <20180305200730.15812-1-adobriyan@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,51 +20,57 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, adobriyan@gmail.com
 
-kmalloc_size() derives size of kmalloc cache from internal index,
-which can't be negative.
-
-Propagate unsignedness a bit.
+KMALLOC_MAX_CACHE_SIZE is 32-bit so is the largest kmalloc cache size.
 
 Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
 ---
- include/linux/slab.h | 4 ++--
- mm/slab_common.c     | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ mm/slab.h        | 8 ++++----
+ mm/slab_common.c | 6 +++---
+ 2 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 296f33a512eb..ad157fbf3886 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -522,11 +522,11 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
-  * return size or 0 if a kmalloc cache for that
-  * size does not exist
-  */
--static __always_inline int kmalloc_size(int n)
-+static __always_inline unsigned int kmalloc_size(unsigned int n)
- {
- #ifndef CONFIG_SLOB
- 	if (n > 2)
--		return 1 << n;
-+		return 1U << n;
+diff --git a/mm/slab.h b/mm/slab.h
+index 51813236e773..c8887965491b 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -77,7 +77,7 @@ extern struct kmem_cache *kmem_cache;
+ /* A table of kmalloc cache names and sizes */
+ extern const struct kmalloc_info_struct {
+ 	const char *name;
+-	unsigned long size;
++	unsigned int size;
+ } kmalloc_info[];
  
- 	if (n == 1 && KMALLOC_MIN_SIZE <= 32)
- 		return 96;
+ #ifndef CONFIG_SLOB
+@@ -93,9 +93,9 @@ struct kmem_cache *kmalloc_slab(size_t, gfp_t);
+ /* Functions provided by the slab allocators */
+ int __kmem_cache_create(struct kmem_cache *, slab_flags_t flags);
+ 
+-extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
+-			slab_flags_t flags, size_t useroffset,
+-			size_t usersize);
++struct kmem_cache *create_kmalloc_cache(const char *name, unsigned int size,
++			slab_flags_t flags, unsigned int useroffset,
++			unsigned int usersize);
+ extern void create_boot_cache(struct kmem_cache *, const char *name,
+ 			size_t size, slab_flags_t flags, size_t useroffset,
+ 			size_t usersize);
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 7626a64b8f14..d3f4209c297d 100644
+index d3f4209c297d..f9afca292858 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -1138,9 +1138,9 @@ void __init create_kmalloc_caches(slab_flags_t flags)
- 		struct kmem_cache *s = kmalloc_caches[i];
+@@ -939,9 +939,9 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t siz
+ 	s->refcount = -1;	/* Exempt from merging for now */
+ }
  
- 		if (s) {
--			int size = kmalloc_size(i);
-+			unsigned int size = kmalloc_size(i);
- 			char *n = kasprintf(GFP_NOWAIT,
--				 "dma-kmalloc-%d", size);
-+				 "dma-kmalloc-%u", size);
+-struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
+-				slab_flags_t flags, size_t useroffset,
+-				size_t usersize)
++struct kmem_cache *__init create_kmalloc_cache(const char *name,
++		unsigned int size, slab_flags_t flags,
++		unsigned int useroffset, unsigned int usersize)
+ {
+ 	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
  
- 			BUG_ON(!n);
- 			kmalloc_dma_caches[i] = create_kmalloc_cache(n,
 -- 
 2.16.1
 
