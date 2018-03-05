@@ -1,74 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 748B46B0006
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 13:36:49 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id m78so2010549wma.7
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 10:36:49 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id g62si1399069edd.23.2018.03.05.10.36.48
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 541466B0007
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 13:57:15 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id i64so5027629wmd.8
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 10:57:15 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k62sor2299992wmi.36.2018.03.05.10.57.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 10:36:48 -0800 (PST)
-Date: Mon, 5 Mar 2018 19:36:47 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 07/34] x86/entry/32: Restore segments before int registers
-Message-ID: <20180305183647.GU16484@8bytes.org>
-References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
- <1520245563-8444-8-git-send-email-joro@8bytes.org>
- <CA+55aFym-18UbD5K3n1Ki=mvpuLqa7E6E=qG0aE-dctzTap_WQ@mail.gmail.com>
- <20180305131231.GR16484@8bytes.org>
- <CA+55aFwn5EkHTfrUFww54CDWovoUornv6rSrao43agbLBQD6-Q@mail.gmail.com>
+        (Google Transport Security);
+        Mon, 05 Mar 2018 10:57:13 -0800 (PST)
+Subject: Re: "x86/boot/compressed/64: Prepare trampoline memory" breaks boot
+ on Zotac CI-321
+References: <12357ee3-0276-906a-0e7c-2c3055675af3@gmail.com>
+ <CAA42JLZRxCGSsW5FKpH3AjZGbaUyrcRPdVBtMQcc4ZcxKNuDQw@mail.gmail.com>
+ <8c6c0f9d-0f47-2fc9-5cb5-6335ef1152cd@gmail.com>
+ <20180303100257.hzrqtshcnhzy5spl@gmail.com>
+ <f399b62f-984e-c693-81f0-9abe3c49d8f1@gmail.com>
+ <20180305081906.t33mocscprsrlvzp@node.shutemov.name>
+From: Heiner Kallweit <hkallweit1@gmail.com>
+Message-ID: <a2898317-18d0-d542-a767-ee9cf256ced9@gmail.com>
+Date: Mon, 5 Mar 2018 19:57:06 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFwn5EkHTfrUFww54CDWovoUornv6rSrao43agbLBQD6-Q@mail.gmail.com>
+In-Reply-To: <20180305081906.t33mocscprsrlvzp@node.shutemov.name>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?iso-8859-1?Q?J=FCrgen_Gro=DF?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Ingo Molnar <mingo@kernel.org>, Dexuan-Linux Cui <dexuan.linux@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dexuan Cui <decui@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Mon, Mar 05, 2018 at 10:23:59AM -0800, Linus Torvalds wrote:
-> On Mon, Mar 5, 2018 at 5:12 AM, Joerg Roedel <joro@8bytes.org> wrote:
-> >
-> >> The things is, we *know* that we will restore two segment registers with the
-> >> user cr3 already loaded: CS and SS get restored with the final iret.
-> >
-> > Yeah, I know, but the iret-exception path is fine because it will
-> > deliver a SIGILL and doesn't return to the faulting iret.
+Am 05.03.2018 um 09:19 schrieb Kirill A. Shutemov:
+> On Sat, Mar 03, 2018 at 12:46:28PM +0100, Heiner Kallweit wrote:
+>> Am 03.03.2018 um 11:02 schrieb Ingo Molnar:
+>>>
+>>> * Heiner Kallweit <hkallweit1@gmail.com> wrote:
+>>>
+>>>> Am 03.03.2018 um 00:50 schrieb Dexuan-Linux Cui:
+>>>>> On Fri, Mar 2, 2018 at 12:57 PM, Heiner Kallweit <hkallweit1@gmail.com <mailto:hkallweit1@gmail.com>> wrote:
+>>>>>
+>>>>>     Recently my Mini PC Zotac CI-321 started to reboot immediately before
+>>>>>     anything was written to the console.
+>>>>>
+>>>>>     Bisecting lead to b91993a87aff "x86/boot/compressed/64: Prepare
+>>>>>     trampoline memory" being the change breaking boot.
+>>>>>
+>>>>>     If you need any more information, please let me know.
+>>>>>
+>>>>>     Rgds, Heiner
+>>>>>
+>>>>>
+>>>>> This may fix the issue: https://lkml.org/lkml/2018/2/13/668
+>>>>>
+>>>>> Kirill posted a v2 patchset 3 days ago and I suppose the patchset should include the fix.
+>>>>>
+>>>> Thanks for the link. I bisected based on the latest next kernel including
+>>>> v2 of the patchset (IOW - the potential fix is included already).
+>>>
+>>> Are you sure? b91993a87aff is the old patch-set - which I just removed from -next 
+>>> and which should thus be gone in the Monday iteration of -next.
+>>>
+>>> I have not merged v2 in -tip yet, did it get applied via some other tree?
+>>>
+>>> Thanks,
+>>>
+>>> 	Ingo
+>>>
+>> I wanted to apply the fix mentioned in the link but found that the statement was movq already.
+>> Therefore my (most likely false) understanding that it's v2.
+>> I'll re-test once v2 is out and let you know.
 > 
-> That's not so much my worry, as just getting %cr3 wrong. The fact is,
-> we still take the exception, and we still have to handle it, and that
-> still needs to get the user<->kernel cr3 right.
-
-Right, as I said, up to v2 of this series I thought I could avoid the
-whole from-kernel-with-user-cr3 game, but that turned out to be wrong.
-Now I added the necessary check and handling for it, as at least the
-#DB handler needs it.
-
-> So then the whole "restore segments early" must be wrong, because
-> *that* path must get it all right too, no?
+> movq fix is unrelated to the problem.
 > 
-> And it appears that the code *does* get it right, and you can just
-> avoid this patch entirely?
-
-Right, I will drop this patch.
-
+> Please check if current linux-next plus this patchset causes a problem for
+> you:
 > 
-> > The iret-exception case is tested by the ldt_gdt selftest (the
-> > do_multicpu_tests subtest). But I didn't actually tested single-stepping
-> > through sysenter yet. I just re-ran the same tests I did with v2 on this
-> > patch-set.
+> http://lkml.kernel.org/r/20180227154217.69347-1-kirill.shutemov@linux.intel.com
 > 
-> Ok. Maybe we should have a test for the "take DB on first instruction
-> of sysenter".
 
-I put a selftest for that on my list of things to look into. I'll have
-no idea how difficult this will be, but I certainly find out :)
+linux-next from today boots fine with the patchset applied.
 
-
-Regards,
-
-	Joerg
+Rgds, Heiner
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
