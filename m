@@ -1,77 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 29E346B0005
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 11:09:51 -0500 (EST)
-Received: by mail-yb0-f200.google.com with SMTP id r3-v6so7723839ybg.7
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 08:09:51 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id t141si2178044ywf.332.2018.03.05.08.09.49
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E90946B0005
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 11:23:50 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id u188so9962233pfb.6
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 08:23:50 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id l61-v6si9535519plb.95.2018.03.05.08.23.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 08:09:50 -0800 (PST)
-Subject: Re: [PATCH 34/34] x86/mm/pti: Add Warning when booting on a PCIE
- capable CPU
-References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
- <1520245563-8444-35-git-send-email-joro@8bytes.org>
-From: Denys Vlasenko <dvlasenk@redhat.com>
-Message-ID: <c024f4d3-4780-5d62-a36a-8ccd79bc6299@redhat.com>
-Date: Mon, 5 Mar 2018 17:09:44 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 05 Mar 2018 08:23:49 -0800 (PST)
+Date: Mon, 5 Mar 2018 08:23:43 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
+Message-ID: <20180305162343.GA8230@bombadil.infradead.org>
+References: <20180227131338.3699-1-blackzert@gmail.com>
+ <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
+ <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com>
+ <20180228183349.GA16336@bombadil.infradead.org>
+ <CA+DvKQKoo1U7T_iOOLhfEf9c+K1pzD068au+kGtx0RokFFNKHw@mail.gmail.com>
+ <2CF957C6-53F2-4B00-920F-245BEF3CA1F6@gmail.com>
+ <CA+DvKQ+mrnm4WX+3cBPuoSLFHmx2Zwz8=FsEx51fH-7yQMAd9w@mail.gmail.com>
+ <20180304034704.GB20725@bombadil.infradead.org>
+ <20180304205614.GC23816@bombadil.infradead.org>
+ <7FA6631B-951F-42F4-A7BF-8E5BB734D709@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1520245563-8444-35-git-send-email-joro@8bytes.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <7FA6631B-951F-42F4-A7BF-8E5BB734D709@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de
+To: Ilya Smith <blackzert@gmail.com>
+Cc: Daniel Micay <danielmicay@gmail.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-On 03/05/2018 11:26 AM, Joerg Roedel wrote:
-> From: Joerg Roedel <jroedel@suse.de>
+On Mon, Mar 05, 2018 at 04:09:31PM +0300, Ilya Smith wrote:
+> > On 4 Mar 2018, at 23:56, Matthew Wilcox <willy@infradead.org> wrote:
+> > Thinking about this more ...
+> > 
+> > - When you call munmap, if you pass in the same (addr, length) that were
+> >   used for mmap, then it should unmap the guard pages as well (that
+> >   wasn't part of the patch, so it would have to be added)
+> > - If 'addr' is higher than the mapped address, and length at least
+> >   reaches the end of the mapping, then I would expect the guard pages to
+> >   "move down" and be after the end of the newly-shortened mapping.
+> > - If 'addr' is higher than the mapped address, and the length doesn't
+> >   reach the end of the old mapping, we split the old mapping into two.
+> >   I would expect the guard pages to apply to both mappings, insofar as
+> >   they'll fit.  For an example, suppose we have a five-page mapping with
+> >   two guard pages (MMMMMGG), and then we unmap the fourth page.  Now we
+> >   have a three-page mapping with one guard page followed immediately
+> >   by a one-page mapping with two guard pages (MMMGMGG).
 > 
-> Warn the user in case the performance can be significantly
-> improved by switching to a 64-bit kernel.
-> 
-> Suggested-by: Andy Lutomirski <luto@kernel.org>
-> Signed-off-by: Joerg Roedel <jroedel@suse.de>
-> ---
->   arch/x86/mm/pti.c | 16 ++++++++++++++++
->   1 file changed, 16 insertions(+)
-> 
-> diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-> index 3ffd923..8f5aa0d 100644
-> --- a/arch/x86/mm/pti.c
-> +++ b/arch/x86/mm/pti.c
-> @@ -385,6 +385,22 @@ void __init pti_init(void)
->   
->   	pr_info("enabled\n");
->   
-> +#ifdef CONFIG_X86_32
-> +	if (boot_cpu_has(X86_FEATURE_PCID)) {
-> +		/* Use printk to work around pr_fmt() */
-> +		printk(KERN_WARNING "\n");
-> +		printk(KERN_WARNING "************************************************************\n");
-> +		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
-> +		printk(KERN_WARNING "**                                                        **\n");
-> +		printk(KERN_WARNING "** You are using 32-bit PTI on a 64-bit PCID-capable CPU. **\n");
-> +		printk(KERN_WARNING "** Your performance will increase dramatically if you     **\n");
-> +		printk(KERN_WARNING "** switch to a 64-bit kernel!                             **\n");
-> +		printk(KERN_WARNING "**                                                        **\n");
-> +		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
-> +		printk(KERN_WARNING "************************************************************\n");
+> Ia??m analysing that approach and see much more problems:
+> - each time you call mmap like this, you still  increase count of vmas as my 
+> patch did
 
-Isn't it a bit too dramatic? Not one, but two lines of big fat warnings?
+Umm ... yes, each time you call mmap, you get a VMA.  I'm not sure why
+that's a problem with my patch.  I was trying to solve the problem Daniel
+pointed out, that mapping a guard region after each mmap cost twice as
+many VMAs, and it solves that problem.
 
-There are people who run 32-bit kernels on purpose, not because they
-did not yet realize 64 bits are upon us.
+> - now feature vma_merge shouldna??t work at all, until MAP_FIXED is set or
+> PROT_GUARD(0)
 
-E.g. industrial setups with strict regulations and licensing requirements.
-In many such cases they already are more than satisfied with CPU speeds,
-thus not interested in 64-bit migration for performance reasons,
-and avoid it because it would incur mountains of paperwork
-with no tangible gains.
+That's true.
 
-The big fat warning on every boot would be irritating.
+> - the entropy you provide is like 16 bit, that is really not so hard to brute
+
+It's 16 bits per mapping.  I think that'll make enough attacks harder
+to be worthwhile.
+
+> - in your patch you dona??t use vm_guard at address searching, I see many roots 
+> of bugs here
+
+Don't need to.  vm_end includes the guard pages.
+
+> - if you unmap/remap one page inside region, field vma_guard will show head 
+> or tail pages for vma, not both; kernel dona??t know how to handle it
+
+There are no head pages.  The guard pages are only placed after the real end.
+
+> - user mode now choose entropy with PROT_GUARD macro, where did he gets it? 
+> User mode shouldna??t be responsible for entropy at all
+
+I can't agree with that.  The user has plenty of opportunities to get
+randomness; from /dev/random is the easiest, but you could also do timing
+attacks on your own cachelines, for example.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
