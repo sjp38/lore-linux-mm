@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D32C6B0273
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:27:52 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id t123so3922898wmt.2
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:27:52 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id q54si1379830eda.48.2018.03.05.02.26.16
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 244386B0275
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:27:54 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id z14so11100125wrh.1
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:27:54 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id i10si1989841edl.454.2018.03.05.02.26.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 02:26:16 -0800 (PST)
+        Mon, 05 Mar 2018 02:26:20 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 19/34] x86/pgtable: Move pti_set_user_pgtbl() to pgtable.h
-Date: Mon,  5 Mar 2018 11:25:48 +0100
-Message-Id: <1520245563-8444-20-git-send-email-joro@8bytes.org>
+Subject: [PATCH 24/34] x86/mm/pti: Add an overflow check to pti_clone_pmds()
+Date: Mon,  5 Mar 2018 11:25:53 +0100
+Message-Id: <1520245563-8444-25-git-send-email-joro@8bytes.org>
 In-Reply-To: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,82 +22,31 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-There it is also usable from 32 bit code.
+The addr counter will overflow if we clone the last PMD of
+the address space, resulting in an endless loop.
+
+Check for that and bail out of the loop when it happens.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable.h    | 23 +++++++++++++++++++++++
- arch/x86/include/asm/pgtable_64.h | 21 ---------------------
- 2 files changed, 23 insertions(+), 21 deletions(-)
+ arch/x86/mm/pti.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 0a9f746..1e900c1 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -618,8 +618,31 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index 8f53d21..96a690e 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -282,6 +282,10 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
+ 		p4d_t *p4d;
+ 		pud_t *pud;
  
- pmd_t *populate_extra_pmd(unsigned long vaddr);
- pte_t *populate_extra_pte(unsigned long vaddr);
++		/* Overflow check */
++		if (addr < start)
++			break;
 +
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
-+
-+/*
-+ * Take a PGD location (pgdp) and a pgd value that needs to be set there.
-+ * Populates the user and returns the resulting PGD that must be set in
-+ * the kernel copy of the page tables.
-+ */
-+static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
-+{
-+	if (!static_cpu_has(X86_FEATURE_PTI))
-+		return pgd;
-+	return __pti_set_user_pgtbl(pgdp, pgd);
-+}
-+#else   /* CONFIG_PAGE_TABLE_ISOLATION */
-+static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
-+{
-+	return pgd;
-+}
-+#endif  /* CONFIG_PAGE_TABLE_ISOLATION */
-+
- #endif	/* __ASSEMBLY__ */
- 
-+
- #ifdef CONFIG_X86_32
- # include <asm/pgtable_32.h>
- #else
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 5e68083..4cbf517 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -145,27 +145,6 @@ static inline bool pgdp_maps_userspace(void *__ptr)
- 	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
- }
- 
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
--
--/*
-- * Take a PGD location (pgdp) and a pgd value that needs to be set there.
-- * Populates the user and returns the resulting PGD that must be set in
-- * the kernel copy of the page tables.
-- */
--static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
--{
--	if (!static_cpu_has(X86_FEATURE_PTI))
--		return pgd;
--	return __pti_set_user_pgtbl(pgdp, pgd);
--}
--#else
--static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
--{
--	return pgd;
--}
--#endif
--
- static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
- {
- #if defined(CONFIG_PAGE_TABLE_ISOLATION) && !defined(CONFIG_X86_5LEVEL)
+ 		pgd = pgd_offset_k(addr);
+ 		if (WARN_ON(pgd_none(*pgd)))
+ 			return;
 -- 
 2.7.4
 
