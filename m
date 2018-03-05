@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 089656B0009
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:38:21 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id g13so11049984wrh.23
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:38:20 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id l14si161235edd.252.2018.03.05.05.38.19
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B2126B000D
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:38:24 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id e127so4135874wmg.7
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:38:24 -0800 (PST)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id r1si10065470edk.552.2018.03.05.05.38.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 05:38:19 -0800 (PST)
+        Mon, 05 Mar 2018 05:38:23 -0800 (PST)
 From: Roman Gushchin <guro@fb.com>
-Subject: [PATCH 2/3] mm: add indirectly reclaimable memory to MemAvailable
-Date: Mon, 5 Mar 2018 13:37:41 +0000
-Message-ID: <20180305133743.12746-3-guro@fb.com>
+Subject: [PATCH 2/3] mm: treat indirectly reclaimable memory as available in MemAvailable
+Date: Mon, 5 Mar 2018 13:37:42 +0000
+Message-ID: <20180305133743.12746-4-guro@fb.com>
 In-Reply-To: <20180305133743.12746-1-guro@fb.com>
 References: <20180305133743.12746-1-guro@fb.com>
 MIME-Version: 1.0
