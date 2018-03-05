@@ -1,64 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DED316B0005
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 15:45:09 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id p203so9974414itc.1
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 12:45:09 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id f185si6653429ith.19.2018.03.05.12.45.08
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ECC006B0003
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 15:50:34 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id l7so17048782iog.10
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 12:50:34 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v65sor4360490itf.89.2018.03.05.12.50.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 12:45:08 -0800 (PST)
-Subject: Re: [PATCH v12 09/11] mm: Allow arch code to override copy_highpage()
-References: <cover.1519227112.git.khalid.aziz@oracle.com>
- <ecbafa2bfcc05f22183be2e7784ed11943b1d5b2.1519227112.git.khalid.aziz@oracle.com>
- <68ee1cbc-8e21-e693-7878-777e0d5b0f0c@linux.intel.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <8b441f99-ee41-e113-f52d-dbe0573bf267@oracle.com>
-Date: Mon, 5 Mar 2018 13:42:25 -0700
+        (Google Transport Security);
+        Mon, 05 Mar 2018 12:50:34 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <68ee1cbc-8e21-e693-7878-777e0d5b0f0c@linux.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAMzpN2hscOXJFzm07Hk=2Ttr3wQFSisxP=EZhRMtAU6xSm8zSw@mail.gmail.com>
+References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
+ <1520245563-8444-8-git-send-email-joro@8bytes.org> <CA+55aFym-18UbD5K3n1Ki=mvpuLqa7E6E=qG0aE-dctzTap_WQ@mail.gmail.com>
+ <20180305131231.GR16484@8bytes.org> <CA+55aFwn5EkHTfrUFww54CDWovoUornv6rSrao43agbLBQD6-Q@mail.gmail.com>
+ <CAMzpN2hscOXJFzm07Hk=2Ttr3wQFSisxP=EZhRMtAU6xSm8zSw@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 5 Mar 2018 12:50:33 -0800
+Message-ID: <CA+55aFwxiZ9bD2Zu5xV0idz_dDctPvrrWA2r54+NL4aj9oeN8Q@mail.gmail.com>
+Subject: Re: [PATCH 07/34] x86/entry/32: Restore segments before int registers
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, akpm@linux-foundation.org, davem@davemloft.net
-Cc: kstewart@linuxfoundation.org, pombredanne@nexb.com, tglx@linutronix.de, anthony.yznaga@oracle.com, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
+To: Brian Gerst <brgerst@gmail.com>
+Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
 
-On 03/05/2018 12:24 PM, Dave Hansen wrote:
-> On 02/21/2018 09:15 AM, Khalid Aziz wrote:
->> +#ifndef __HAVE_ARCH_COPY_HIGHPAGE
->> +
->>   static inline void copy_highpage(struct page *to, struct page *from)
->>   {
->>   	char *vfrom, *vto;
->> @@ -248,4 +250,6 @@ static inline void copy_highpage(struct page *to, struct page *from)
->>   	kunmap_atomic(vfrom);
->>   }
->>   
->> +#endif
-> 
-> I think we prefer that these are CONFIG_* options.
+On Mon, Mar 5, 2018 at 12:38 PM, Brian Gerst <brgerst@gmail.com> wrote:
+>
+> There already is a test: single_step_syscall.c
 
-I added this mechanism to be same as what we have for copy_user_highpage():
+Ahh, good. So presumably Joerg actually did check it, just didn't even notice ;)
 
----------------
-#ifndef __HAVE_ARCH_COPY_USER_HIGHPAGE
-
-static inline void copy_user_highpage(struct page *to, struct page *from,
-         unsigned long vaddr, struct vm_area_struct *vma)
-{
-----------------
-
-There isn't a CONFIG_* option for copy_user_highpage() so I don't see a 
-reason to add one for copy_highpage().
-
-Do you see it differently? In that case, should there be a CONFIG_* 
-option for copy_user_highpage() as well?
-
-Thanks,
-Khalid
+            Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
