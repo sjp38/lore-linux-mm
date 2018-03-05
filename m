@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7301B6B000C
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 14:07:57 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id 1-v6so8490351plv.6
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 11:07:57 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id j2si8707724pgp.759.2018.03.05.11.07.56
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B1F526B0008
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 14:09:25 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id a5-v6so8517229plp.0
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 11:09:25 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id x4-v6si9645491plw.297.2018.03.05.11.09.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 11:07:56 -0800 (PST)
-Subject: Re: [RFC, PATCH 18/22] x86/mm: Handle allocation of encrypted pages
+        Mon, 05 Mar 2018 11:09:24 -0800 (PST)
+Subject: Re: [RFC, PATCH 16/22] x86/mm: Preserve KeyID on pte_modify() and
+ pgprot_modify()
 References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
- <20180305162610.37510-19-kirill.shutemov@linux.intel.com>
+ <20180305162610.37510-17-kirill.shutemov@linux.intel.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <6551765a-5926-8445-d867-8f7c6bf343b4@intel.com>
-Date: Mon, 5 Mar 2018 11:07:55 -0800
+Message-ID: <774c1251-46d9-534e-24c2-ca04f1e0a8bb@intel.com>
+Date: Mon, 5 Mar 2018 11:09:23 -0800
 MIME-Version: 1.0
-In-Reply-To: <20180305162610.37510-19-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180305162610.37510-17-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -26,11 +27,21 @@ To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@r
 Cc: Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On 03/05/2018 08:26 AM, Kirill A. Shutemov wrote:
-> kmap_atomic_keyid() would map the page with the specified KeyID.
-> For now it's dummy implementation that would be replaced later.
+> + * It includes full range of PFN bits regardless if they were claimed for KeyID
+> + * or not: we want to preserve KeyID on pte_modify() and pgprot_modify().
+>   */
+> -#define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
+> +#define PTE_PFN_MASK_MAX \
+> +	(((signed long)PAGE_MASK) & ((1UL << __PHYSICAL_MASK_SHIFT) - 1))
+> +#define _PAGE_CHG_MASK	(PTE_PFN_MASK_MAX | _PAGE_PCD | _PAGE_PWT |		\
+>  			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
+>  			 _PAGE_SOFT_DIRTY)
 
-I think you need to explain the tradeoffs here.  We could just change
-the linear map around, but you don't.  Why?
+Is there a way to make this:
+
+#define _PAGE_CHG_MASK	(PTE_PFN_MASK | PTE_KEY_MASK...? | _PAGE_PCD |
+
+That would be a lot more understandable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
