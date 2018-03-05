@@ -1,78 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FB006B0023
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:12:34 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id p13so4605187wmc.6
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:12:34 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id n1si554767edc.511.2018.03.05.05.12.32
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 25F536B0007
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:38:19 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id q15so11170136wra.22
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:38:19 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id r66si4735833wmf.22.2018.03.05.05.38.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 05:12:33 -0800 (PST)
-Date: Mon, 5 Mar 2018 14:12:31 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 07/34] x86/entry/32: Restore segments before int registers
-Message-ID: <20180305131231.GR16484@8bytes.org>
-References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
- <1520245563-8444-8-git-send-email-joro@8bytes.org>
- <CA+55aFym-18UbD5K3n1Ki=mvpuLqa7E6E=qG0aE-dctzTap_WQ@mail.gmail.com>
+        Mon, 05 Mar 2018 05:38:17 -0800 (PST)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH 0/3] indirectly reclaimable memory
+Date: Mon, 5 Mar 2018 13:37:39 +0000
+Message-ID: <20180305133743.12746-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CA+55aFym-18UbD5K3n1Ki=mvpuLqa7E6E=qG0aE-dctzTap_WQ@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?iso-8859-1?Q?J=FCrgen_Gro=DF?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
+To: linux-mm@kvack.org
+Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Mar 05, 2018 at 04:17:45AM -0800, Linus Torvalds wrote:
->     Restoring the segments can cause exceptions that need to be
->     handled. With PTI enabled, we still need to be on kernel cr3
->     when the exception happens. For the cr3-switch we need
->     at least one integer scratch register, so we can't switch
->     with the user integer registers already loaded.
-> 
-> 
-> This fundamentally seems wrong.
+This patch set introduces the concept of indirectly reclaimable
+memory and applies it to fix the issue, when a big number
+of dentries with external names can significantly affect
+the MemAvailable value.
 
-Okay, right, with v3 it is wrong, in v2 I still thought I could get away
-without remembering the entry-cr3, but didn't think about the #DB case
-then.
+v2:
+1) removed comments specific to unreclaimable slabs
+2) splitted into 3 patches
 
-In v3 I added code which remembers the entry-cr3 and handles the
-entry-from-kernel-mode-with-user-cr3 case for all exceptions including
-#DB.
+v1:
+https://lkml.org/lkml/2018/3/1/961
 
-> The things is, we *know* that we will restore two segment registers with the
-> user cr3 already loaded: CS and SS get restored with the final iret.
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-fsdevel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: kernel-team@fb.com
 
-Yeah, I know, but the iret-exception path is fine because it will
-deliver a SIGILL and doesn't return to the faulting iret.
+Roman Gushchin (3):
+  mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
+  mm: treat indirectly reclaimable memory as available in MemAvailable
+  dcache: account external names as indirectly reclaimable memory
 
-Anyway, I will remove these restore-reorderings, they are not needed
-anymore.
+ fs/dcache.c            | 29 ++++++++++++++++++++++++-----
+ include/linux/mmzone.h |  1 +
+ mm/page_alloc.c        |  7 +++++++
+ mm/vmstat.c            |  1 +
+ 4 files changed, 33 insertions(+), 5 deletions(-)
 
-> So has this been tested with
-> 
->  - single-stepping through sysenter
-> 
->    This takes a DB fault in the first kernel instruction. We're in kernel mode,
-> but with user cr3.
-> 
->  - ptracing and setting CS/SS to something bad
-> 
->    That should test the "exception on iret" case - again in kernel mode, but
-> with user cr3 restored for the return.
-
-The iret-exception case is tested by the ldt_gdt selftest (the
-do_multicpu_tests subtest). But I didn't actually tested single-stepping
-through sysenter yet. I just re-ran the same tests I did with v2 on this
-patch-set.
-
-Regards,
-
-	Joerg
+-- 
+2.14.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
