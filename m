@@ -1,120 +1,280 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B08AF6B0006
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 14:47:41 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id m18so743295pgu.14
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 11:47:41 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m1-v6si9673403plb.777.2018.03.05.11.47.40
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C40276B0006
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 14:52:44 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id t123so4617129wmt.2
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 11:52:44 -0800 (PST)
+Received: from smtp.smtpout.orange.fr (smtp13.smtpout.orange.fr. [80.12.242.135])
+        by mx.google.com with ESMTPS id 195si5035140wml.95.2018.03.05.11.52.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 05 Mar 2018 11:47:40 -0800 (PST)
-Date: Mon, 5 Mar 2018 11:47:28 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
-Message-ID: <20180305194728.GB10418@bombadil.infradead.org>
-References: <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com>
- <20180228183349.GA16336@bombadil.infradead.org>
- <CA+DvKQKoo1U7T_iOOLhfEf9c+K1pzD068au+kGtx0RokFFNKHw@mail.gmail.com>
- <2CF957C6-53F2-4B00-920F-245BEF3CA1F6@gmail.com>
- <CA+DvKQ+mrnm4WX+3cBPuoSLFHmx2Zwz8=FsEx51fH-7yQMAd9w@mail.gmail.com>
- <20180304034704.GB20725@bombadil.infradead.org>
- <20180304205614.GC23816@bombadil.infradead.org>
- <7FA6631B-951F-42F4-A7BF-8E5BB734D709@gmail.com>
- <20180305162343.GA8230@bombadil.infradead.org>
- <EC4E37F1-C2B8-4112-8EAD-FF072602DD08@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <EC4E37F1-C2B8-4112-8EAD-FF072602DD08@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 05 Mar 2018 11:52:43 -0800 (PST)
+From: micky387 <mickaelsaibi@free.fr>
+Subject: [PATCH 003/103] sched, treewide: Replace hardcoded nice values with MIN_NICE/MAX_NICE
+Date: Mon,  5 Mar 2018 20:50:55 +0100
+Message-Id: <1520279555-24656-3-git-send-email-mickaelsaibi@free.fr>
+In-Reply-To: <1520279555-24656-1-git-send-email-mickaelsaibi@free.fr>
+References: <commits for binder>
+ <1520279555-24656-1-git-send-email-mickaelsaibi@free.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ilya Smith <blackzert@gmail.com>
-Cc: Daniel Micay <danielmicay@gmail.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: xda@vinschen.de
+Cc: Dongsheng Yang <yangds.fnst@cn.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, devel@driverdev.osuosl.org, devicetree@vger.kernel.org, fcoe-devel@open-fcoe.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, linux-scsi@vger.kernel.org, nbd-general@lists.sourceforge.net, ocfs2-devel@oss.oracle.com, openipmi-developer@lists.sourceforge.net, qla2xxx-upstream@qlogic.com, linux-arch@vger.kernel.org, Ingo Molnar <mingo@kernel.org>
 
-On Mon, Mar 05, 2018 at 10:27:32PM +0300, Ilya Smith wrote:
-> > On 5 Mar 2018, at 19:23, Matthew Wilcox <willy@infradead.org> wrote:
-> > On Mon, Mar 05, 2018 at 04:09:31PM +0300, Ilya Smith wrote:
-> >> Ia??m analysing that approach and see much more problems:
-> >> - each time you call mmap like this, you still  increase count of vmas as my 
-> >> patch did
-> > 
-> > Umm ... yes, each time you call mmap, you get a VMA.  I'm not sure why
-> > that's a problem with my patch.  I was trying to solve the problem Daniel
-> > pointed out, that mapping a guard region after each mmap cost twice as
-> > many VMAs, and it solves that problem.
-> > 
-> The issue was in VMAs count as Daniel mentioned. 
-> The more count, the harder walk tree. I think this is fine
+From: Dongsheng Yang <yangds.fnst@cn.fujitsu.com>
 
-The performance problem Daniel was mentioning with your patch was not
-with the number of VMAs but with the scattering of addresses across the
-page table tree.
+Replace various -20/+19 hardcoded nice values with MIN_NICE/MAX_NICE.
 
-> >> - the entropy you provide is like 16 bit, that is really not so hard to brute
-> > 
-> > It's 16 bits per mapping.  I think that'll make enough attacks harder
-> > to be worthwhile.
-> 
-> Well yes, its ok, sorry. I just would like to have 32 bit entropy maximum some day :)
+Signed-off-by: Dongsheng Yang <yangds.fnst@cn.fujitsu.com>
+Acked-by: Tejun Heo <tj@kernel.org>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+Link: http://lkml.kernel.org/r/ff13819fd09b7a5dba5ab5ae797f2e7019bdfa17.1394532288.git.yangds.fnst@cn.fujitsu.com
+Cc: devel@driverdev.osuosl.org
+Cc: devicetree@vger.kernel.org
+Cc: fcoe-devel@open-fcoe.org
+Cc: linux390@de.ibm.com
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: linux-s390@vger.kernel.org
+Cc: linux-scsi@vger.kernel.org
+Cc: nbd-general@lists.sourceforge.net
+Cc: ocfs2-devel@oss.oracle.com
+Cc: openipmi-developer@lists.sourceforge.net
+Cc: qla2xxx-upstream@qlogic.com
+Cc: linux-arch@vger.kernel.org
+[ Consolidated the patches, twiddled the changelog. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
 
-We could put 32 bits of padding into the prot argument on 64-bit systems
-(and obviously you need a 64-bit address space to use that many bits).  The
-thing is that you can't then put anything else into those pages (without
-using MAP_FIXED).
+Change-Id: I00a4ccd66fcc206211f462245d98d35a853f8264
+---
+ drivers/block/loop.c              | 2 +-
+ drivers/block/nbd.c               | 2 +-
+ drivers/block/pktcdvd.c           | 2 +-
+ drivers/char/ipmi/ipmi_si_intf.c  | 2 +-
+ drivers/s390/crypto/ap_bus.c      | 2 +-
+ drivers/scsi/bnx2fc/bnx2fc_fcoe.c | 4 ++--
+ drivers/scsi/bnx2i/bnx2i_hwi.c    | 2 +-
+ drivers/scsi/fcoe/fcoe.c          | 2 +-
+ drivers/scsi/ibmvscsi/ibmvfc.c    | 2 +-
+ drivers/scsi/ibmvscsi/ibmvscsi.c  | 2 +-
+ drivers/scsi/lpfc/lpfc_hbadisc.c  | 2 +-
+ drivers/scsi/qla2xxx/qla_os.c     | 2 +-
+ fs/ocfs2/cluster/heartbeat.c      | 2 +-
+ kernel/workqueue.c                | 6 +++---
+ mm/huge_memory.c                  | 2 +-
+ 15 files changed, 18 insertions(+), 18 deletions(-)
 
-> >> - if you unmap/remap one page inside region, field vma_guard will show head 
-> >> or tail pages for vma, not both; kernel dona??t know how to handle it
-> > 
-> > There are no head pages.  The guard pages are only placed after the real end.
-> 
-> Ok, we have MG where G = vm_guard, right? so when you do vm_split, 
-> you may come to situation - m1g1m2G, how to handle it? I mean when M is 
-> split with only one page inside this region. How to handle it?
-
-I thought I covered that in my earlier email.  Using one letter per page,
-and a five-page mapping with two guard pages: MMMMMGG.  Now unmap the
-fourth page, and the VMA gets split into two.  You get: MMMGMGG.
-
-> > I can't agree with that.  The user has plenty of opportunities to get
-> > randomness; from /dev/random is the easiest, but you could also do timing
-> > attacks on your own cachelines, for example.
-> 
-> I think the usual case to use randomization for any mmap or not use it at all 
-> for whole process. So here I think would be nice to have some variable 
-> changeable with sysctl (root only) and ioctl (for greedy processes).
-
-I think this functionality can just as well live inside libc as in
-the kernel.
-
-> Well, let me summary:
-> My approach chose random gap inside gap range with following strings:
-> 
-> +	addr = get_random_long() % ((high - low) >> PAGE_SHIFT);
-> +	addr = low + (addr << PAGE_SHIFT);
-> 
-> Could be improved limiting maximum possible entropy in this shift.
-> To prevent situation when attacker may massage allocations and 
-> predict chosen address, I randomly choose memory region. Ia??m still
-> like my idea, but not going to push it anymore, since you have yours now.
-> 
-> Your idea just provide random non-mappable and non-accessable offset
-> from best-fit region. This consumes memory (1GB gap if random value 
-> is 0xffff). But it works and should work faster and should resolve the issue.
-
-umm ... 64k * 4k is a 256MB gap, not 1GB.  And it consumes address space,
-not memory.
-
-> My point was that current implementation need to be changed and you
-> have your own approach for that. :)
-> Lets keep mine in the mind till better times (or worse?) ;)
-> Will you finish your approach and upstream it?
-
-I'm just putting it out there for discussion.  If people think this is
-the right approach, then I'm happy to finish it off.  If the consensus
-is that we should randomly pick addresses instead, I'm happy if your
-approach gets merged.
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index 333458c..029e43c 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -547,7 +547,7 @@ static int loop_thread(void *data)
+ 	struct loop_device *lo = data;
+ 	struct bio *bio;
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 
+ 	while (!kthread_should_stop() || !bio_list_empty(&lo->lo_bio_list)) {
+ 
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index d593fa5..f1a2da8 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -533,7 +533,7 @@ static int nbd_thread(void *data)
+ 	struct nbd_device *nbd = data;
+ 	struct request *req;
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 	while (!kthread_should_stop() || !list_empty(&nbd->waiting_queue)) {
+ 		/* wait for something to do */
+ 		wait_event_interruptible(nbd->waiting_wq,
+diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
+index caddb5d..14a8075 100644
+--- a/drivers/block/pktcdvd.c
++++ b/drivers/block/pktcdvd.c
+@@ -1471,7 +1471,7 @@ static int kcdrwd(void *foobar)
+ 	struct packet_data *pkt;
+ 	long min_sleep_time, residue;
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 	set_freezable();
+ 
+ 	for (;;) {
+diff --git a/drivers/char/ipmi/ipmi_si_intf.c b/drivers/char/ipmi/ipmi_si_intf.c
+index a67ac2a..fc22dec 100644
+--- a/drivers/char/ipmi/ipmi_si_intf.c
++++ b/drivers/char/ipmi/ipmi_si_intf.c
+@@ -992,7 +992,7 @@ static int ipmi_thread(void *data)
+ 	struct timespec busy_until;
+ 
+ 	ipmi_si_set_not_busy(&busy_until);
+-	set_user_nice(current, 19);
++	set_user_nice(current, MAX_NICE);
+ 	while (!kthread_should_stop()) {
+ 		int busy_wait;
+ 
+diff --git a/drivers/s390/crypto/ap_bus.c b/drivers/s390/crypto/ap_bus.c
+index 6f512fa..b30ffb8 100644
+--- a/drivers/s390/crypto/ap_bus.c
++++ b/drivers/s390/crypto/ap_bus.c
+@@ -1755,7 +1755,7 @@ static int ap_poll_thread(void *data)
+ 	int requests;
+ 	struct ap_device *ap_dev;
+ 
+-	set_user_nice(current, 19);
++	set_user_nice(current, MAX_NICE);
+ 	while (1) {
+ 		if (ap_suspend_flag)
+ 			return 0;
+diff --git a/drivers/scsi/bnx2fc/bnx2fc_fcoe.c b/drivers/scsi/bnx2fc/bnx2fc_fcoe.c
+index aad5535..ff08516 100644
+--- a/drivers/scsi/bnx2fc/bnx2fc_fcoe.c
++++ b/drivers/scsi/bnx2fc/bnx2fc_fcoe.c
+@@ -471,7 +471,7 @@ static int bnx2fc_l2_rcv_thread(void *arg)
+ 	struct fcoe_percpu_s *bg = arg;
+ 	struct sk_buff *skb;
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 	set_current_state(TASK_INTERRUPTIBLE);
+ 	while (!kthread_should_stop()) {
+ 		schedule();
+@@ -610,7 +610,7 @@ int bnx2fc_percpu_io_thread(void *arg)
+ 	struct bnx2fc_work *work, *tmp;
+ 	LIST_HEAD(work_list);
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 	set_current_state(TASK_INTERRUPTIBLE);
+ 	while (!kthread_should_stop()) {
+ 		schedule();
+diff --git a/drivers/scsi/bnx2i/bnx2i_hwi.c b/drivers/scsi/bnx2i/bnx2i_hwi.c
+index a28b03e..a95ea80 100644
+--- a/drivers/scsi/bnx2i/bnx2i_hwi.c
++++ b/drivers/scsi/bnx2i/bnx2i_hwi.c
+@@ -1870,7 +1870,7 @@ int bnx2i_percpu_io_thread(void *arg)
+ 	struct bnx2i_work *work, *tmp;
+ 	LIST_HEAD(work_list);
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 
+ 	while (!kthread_should_stop()) {
+ 		spin_lock_bh(&p->p_work_lock);
+diff --git a/drivers/scsi/fcoe/fcoe.c b/drivers/scsi/fcoe/fcoe.c
+index 32ae6c6..7399981 100644
+--- a/drivers/scsi/fcoe/fcoe.c
++++ b/drivers/scsi/fcoe/fcoe.c
+@@ -1861,7 +1861,7 @@ static int fcoe_percpu_receive_thread(void *arg)
+ 
+ 	skb_queue_head_init(&tmp);
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 
+ retry:
+ 	while (!kthread_should_stop()) {
+diff --git a/drivers/scsi/ibmvscsi/ibmvfc.c b/drivers/scsi/ibmvscsi/ibmvfc.c
+index 9206861..ae1d783 100644
+--- a/drivers/scsi/ibmvscsi/ibmvfc.c
++++ b/drivers/scsi/ibmvscsi/ibmvfc.c
+@@ -4503,7 +4503,7 @@ static int ibmvfc_work(void *data)
+ 	struct ibmvfc_host *vhost = data;
+ 	int rc;
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 
+ 	while (1) {
+ 		rc = wait_event_interruptible(vhost->work_wait_q,
+diff --git a/drivers/scsi/ibmvscsi/ibmvscsi.c b/drivers/scsi/ibmvscsi/ibmvscsi.c
+index c62b3e5..67d840f 100644
+--- a/drivers/scsi/ibmvscsi/ibmvscsi.c
++++ b/drivers/scsi/ibmvscsi/ibmvscsi.c
+@@ -2206,7 +2206,7 @@ static int ibmvscsi_work(void *data)
+ 	struct ibmvscsi_host_data *hostdata = data;
+ 	int rc;
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 
+ 	while (1) {
+ 		rc = wait_event_interruptible(hostdata->work_wait_q,
+diff --git a/drivers/scsi/lpfc/lpfc_hbadisc.c b/drivers/scsi/lpfc/lpfc_hbadisc.c
+index 0f6e254..45aafeb 100644
+--- a/drivers/scsi/lpfc/lpfc_hbadisc.c
++++ b/drivers/scsi/lpfc/lpfc_hbadisc.c
+@@ -733,7 +733,7 @@ lpfc_do_work(void *p)
+ 	struct lpfc_hba *phba = p;
+ 	int rc;
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 	current->flags |= PF_NOFREEZE;
+ 	phba->data_flags = 0;
+ 
+diff --git a/drivers/scsi/qla2xxx/qla_os.c b/drivers/scsi/qla2xxx/qla_os.c
+index c11b82e..8a83cfc 100644
+--- a/drivers/scsi/qla2xxx/qla_os.c
++++ b/drivers/scsi/qla2xxx/qla_os.c
+@@ -4684,7 +4684,7 @@ qla2x00_do_dpc(void *data)
+ 	ha = (struct qla_hw_data *)data;
+ 	base_vha = pci_get_drvdata(ha->pdev);
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 
+ 	set_current_state(TASK_INTERRUPTIBLE);
+ 	while (!kthread_should_stop()) {
+diff --git a/fs/ocfs2/cluster/heartbeat.c b/fs/ocfs2/cluster/heartbeat.c
+index 42252bf..3a62a21 100644
+--- a/fs/ocfs2/cluster/heartbeat.c
++++ b/fs/ocfs2/cluster/heartbeat.c
+@@ -1131,7 +1131,7 @@ static int o2hb_thread(void *data)
+ 
+ 	mlog(ML_HEARTBEAT|ML_KTHREAD, "hb thread running\n");
+ 
+-	set_user_nice(current, -20);
++	set_user_nice(current, MIN_NICE);
+ 
+ 	/* Pin node */
+ 	o2nm_depend_this_node();
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index 483f5cd..1bc95c8 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -103,10 +103,10 @@ enum {
+ 
+ 	/*
+ 	 * Rescue workers are used only on emergencies and shared by
+-	 * all cpus.  Give -20.
++	 * all cpus.  Give MIN_NICE.
+ 	 */
+-	RESCUER_NICE_LEVEL	= -20,
+-	HIGHPRI_NICE_LEVEL	= -20,
++	RESCUER_NICE_LEVEL	= MIN_NICE,
++	HIGHPRI_NICE_LEVEL	= MIN_NICE,
+ 
+ 	WQ_NAME_LEN		= 24,
+ };
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 3877483..2353231 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2698,7 +2698,7 @@ static int khugepaged(void *none)
+ 	struct mm_slot *mm_slot;
+ 
+ 	set_freezable();
+-	set_user_nice(current, 19);
++	set_user_nice(current, MAX_NICE);
+ 
+ 	while (!kthread_should_stop()) {
+ 		khugepaged_do_scan();
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
