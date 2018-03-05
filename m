@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 09ADE6B0023
+	by kanga.kvack.org (Postfix) with ESMTP id 07A956B0011
 	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 11:26:29 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id x6-v6so8289140plr.7
+Received: by mail-pl0-f72.google.com with SMTP id 101-v6so8310933ple.19
         for <linux-mm@kvack.org>; Mon, 05 Mar 2018 08:26:29 -0800 (PST)
 Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id p12-v6si7098404plk.295.2018.03.05.08.26.27
+        by mx.google.com with ESMTPS id k4-v6si9469678pls.277.2018.03.05.08.26.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 05 Mar 2018 08:26:27 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCH 06/22] x86/mm: Decouple dynamic __PHYSICAL_MASK from AMD SME
-Date: Mon,  5 Mar 2018 19:25:54 +0300
-Message-Id: <20180305162610.37510-7-kirill.shutemov@linux.intel.com>
+Subject: [RFC, PATCH 13/22] mm, rmap: Free encrypted pages once mapcount drops to zero
+Date: Mon,  5 Mar 2018 19:26:01 +0300
+Message-Id: <20180305162610.37510-14-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
 References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,129 +20,104 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-AMD SME claims one bit from physical address to indicate whether the
-page is encrypted or not. To achieve that we clear out the bit from
-__PHYSICAL_MASK.
+Freeing encrypted pages may require special treatment such as flush
+cache to avoid aliasing.
 
-The capability to adjust __PHYSICAL_MASK is required beyond AMD SME.
-For instance for upcoming Intel Multi-Key Total Memory Encryption.
-
-Let's factor it out into separate feature with own Kconfig handle.
-
-It also helps with overhead of AMD SME. It saves more than 3k in .text
-on defconfig + AMD_MEM_ENCRYPT:
-
-	add/remove: 3/2 grow/shrink: 5/110 up/down: 189/-3753 (-3564)
-
-We would need to return to this once we have infrastructure to patch
-constants in code. That's good candidate for it.
+Anonymous pages cannot be mapped back once the last mapcount is gone.
+That's a good place to add hook to free encrypted page. At later point
+we may not have valid anon_vma around to get KeyID.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/Kconfig                    | 4 ++++
- arch/x86/boot/compressed/kaslr_64.c | 3 +++
- arch/x86/include/asm/page_types.h   | 8 +++++++-
- arch/x86/mm/mem_encrypt_identity.c  | 3 +++
- arch/x86/mm/pgtable.c               | 5 +++++
- 5 files changed, 22 insertions(+), 1 deletion(-)
+ include/linux/mm.h |  1 +
+ mm/rmap.c          | 34 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 33 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index bdfd503065d3..99aecb2caed3 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -332,6 +332,9 @@ config ARCH_SUPPORTS_UPROBES
- config FIX_EARLYCON_MEM
- 	def_bool y
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7a4285f09c99..7ab5e39e3195 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1981,6 +1981,7 @@ extern void mem_init_print_info(const char *str);
+ extern void reserve_bootmem_region(phys_addr_t start, phys_addr_t end);
  
-+config DYNAMIC_PHYSICAL_MASK
-+	bool
-+
- config PGTABLE_LEVELS
- 	int
- 	default 5 if X86_5LEVEL
-@@ -1513,6 +1516,7 @@ config ARCH_HAS_MEM_ENCRYPT
- config AMD_MEM_ENCRYPT
- 	bool "AMD Secure Memory Encryption (SME) support"
- 	depends on X86_64 && CPU_SUP_AMD
-+	select DYNAMIC_PHYSICAL_MASK
- 	---help---
- 	  Say yes to enable support for the encryption of system memory.
- 	  This requires an AMD processor that supports Secure Memory
-diff --git a/arch/x86/boot/compressed/kaslr_64.c b/arch/x86/boot/compressed/kaslr_64.c
-index b5e5e02f8cde..4318ac0af815 100644
---- a/arch/x86/boot/compressed/kaslr_64.c
-+++ b/arch/x86/boot/compressed/kaslr_64.c
-@@ -16,6 +16,9 @@
- #define __pa(x)  ((unsigned long)(x))
- #define __va(x)  ((void *)((unsigned long)(x)))
+ extern void prep_encrypt_page(struct page *page, gfp_t gfp, unsigned int order);
++extern void free_encrypt_page(struct page *page, int keyid, unsigned int order);
  
-+/* No need in adjustable __PHYSICAL_MASK during decompresssion phase */
-+#undef CONFIG_DYNAMIC_PHYSICAL_MASK
-+
- /*
-  * The pgtable.h and mm/ident_map.c includes make use of the SME related
-  * information which is not used in the compressed image support. Un-define
-diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
-index 1e53560a84bb..c85e15010f48 100644
---- a/arch/x86/include/asm/page_types.h
-+++ b/arch/x86/include/asm/page_types.h
-@@ -17,7 +17,6 @@
- #define PUD_PAGE_SIZE		(_AC(1, UL) << PUD_SHIFT)
- #define PUD_PAGE_MASK		(~(PUD_PAGE_SIZE-1))
- 
--#define __PHYSICAL_MASK		((phys_addr_t)(__sme_clr((1ULL << __PHYSICAL_MASK_SHIFT) - 1)))
- #define __VIRTUAL_MASK		((1UL << __VIRTUAL_MASK_SHIFT) - 1)
- 
- /* Cast *PAGE_MASK to a signed type so that it is sign-extended if
-@@ -55,6 +54,13 @@
- 
- #ifndef __ASSEMBLY__
- 
-+#ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
-+extern phys_addr_t physical_mask;
-+#define __PHYSICAL_MASK		physical_mask
-+#else
-+#define __PHYSICAL_MASK		((phys_addr_t)((1ULL << __PHYSICAL_MASK_SHIFT) - 1))
-+#endif
-+
- extern int devmem_is_allowed(unsigned long pagenr);
- 
- extern unsigned long max_low_pfn_mapped;
-diff --git a/arch/x86/mm/mem_encrypt_identity.c b/arch/x86/mm/mem_encrypt_identity.c
-index 1b2197d13832..7ae36868aed2 100644
---- a/arch/x86/mm/mem_encrypt_identity.c
-+++ b/arch/x86/mm/mem_encrypt_identity.c
-@@ -527,6 +527,7 @@ void __init sme_enable(struct boot_params *bp)
- 		/* SEV state cannot be controlled by a command line option */
- 		sme_me_mask = me_mask;
- 		sev_enabled = true;
-+		physical_mask &= ~sme_me_mask;
- 		return;
- 	}
- 
-@@ -561,4 +562,6 @@ void __init sme_enable(struct boot_params *bp)
- 		sme_me_mask = 0;
- 	else
- 		sme_me_mask = active_by_default ? me_mask : 0;
-+
-+	physical_mask &= ~sme_me_mask;
+ /* Free the reserved page into the buddy system, so it gets managed. */
+ static inline void __free_reserved_page(struct page *page)
+diff --git a/mm/rmap.c b/mm/rmap.c
+index c0470a69a4c9..4bff992fc106 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -81,6 +81,21 @@ static inline void arch_anon_vma_init(struct anon_vma *anon_vma,
  }
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 004abf9ebf12..a4dfe85f2fd8 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -7,6 +7,11 @@
- #include <asm/fixmap.h>
- #include <asm/mtrr.h>
+ #endif
  
-+#ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
-+phys_addr_t physical_mask __ro_after_init = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
-+EXPORT_SYMBOL(physical_mask);
++#ifndef anon_vma_encrypted
++static inline bool anon_vma_encrypted(struct anon_vma *anon_vma)
++{
++	return false;
++}
 +#endif
 +
- #define PGALLOC_GFP (GFP_KERNEL_ACCOUNT | __GFP_ZERO)
++#ifndef anon_vma_keyid
++static inline int anon_vma_keyid(struct anon_vma *anon_vma)
++{
++	BUILD_BUG();
++	return 0;
++}
++#endif
++
+ static inline struct anon_vma *anon_vma_alloc(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma *anon_vma;
+@@ -1258,6 +1273,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
  
- #ifdef CONFIG_HIGHPTE
+ static void page_remove_anon_compound_rmap(struct page *page)
+ {
++	struct anon_vma *anon_vma;
+ 	int i, nr;
+ 
+ 	if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
+@@ -1292,6 +1308,12 @@ static void page_remove_anon_compound_rmap(struct page *page)
+ 		__mod_node_page_state(page_pgdat(page), NR_ANON_MAPPED, -nr);
+ 		deferred_split_huge_page(page);
+ 	}
++
++	anon_vma = page_anon_vma(page);
++	if (anon_vma_encrypted(anon_vma)) {
++		int keyid = anon_vma_keyid(anon_vma);
++		free_encrypt_page(page, keyid, compound_order(page));
++	}
+ }
+ 
+ /**
+@@ -1303,6 +1325,9 @@ static void page_remove_anon_compound_rmap(struct page *page)
+  */
+ void page_remove_rmap(struct page *page, bool compound)
+ {
++	struct page *head;
++	struct anon_vma *anon_vma;
++
+ 	if (!PageAnon(page))
+ 		return page_remove_file_rmap(page, compound);
+ 
+@@ -1323,8 +1348,13 @@ void page_remove_rmap(struct page *page, bool compound)
+ 	if (unlikely(PageMlocked(page)))
+ 		clear_page_mlock(page);
+ 
+-	if (PageTransCompound(page))
+-		deferred_split_huge_page(compound_head(page));
++	head = compound_head(page);
++	if (PageTransHuge(head))
++		deferred_split_huge_page(head);
++
++	anon_vma = page_anon_vma(head);
++	if (anon_vma_encrypted(anon_vma))
++		free_encrypt_page(page, anon_vma_keyid(anon_vma), 0);
+ 
+ 	/*
+ 	 * It would be tidy to reset the PageAnon mapping here,
 -- 
 2.16.1
 
