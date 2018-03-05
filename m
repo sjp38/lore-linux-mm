@@ -1,57 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E9F216B0003
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 12:21:38 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id y64so9472283itd.4
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 09:21:38 -0800 (PST)
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 925B06B0009
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 13:24:01 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id r79so16882093iod.19
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 10:24:01 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k194sor5104947itb.54.2018.03.05.09.21.37
+        by mx.google.com with SMTPS id f20sor5072410itb.129.2018.03.05.10.24.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 05 Mar 2018 09:21:37 -0800 (PST)
+        Mon, 05 Mar 2018 10:24:00 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180305164448.GS16484@8bytes.org>
+In-Reply-To: <20180305131231.GR16484@8bytes.org>
 References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
  <1520245563-8444-8-git-send-email-joro@8bytes.org> <CA+55aFym-18UbD5K3n1Ki=mvpuLqa7E6E=qG0aE-dctzTap_WQ@mail.gmail.com>
- <20180305131231.GR16484@8bytes.org> <CAMzpN2gQ0pfSZES_cnNJSzvvGxbzuHdP0iAjx5GG5kJ6FGudbw@mail.gmail.com>
- <20180305164448.GS16484@8bytes.org>
-From: Brian Gerst <brgerst@gmail.com>
-Date: Mon, 5 Mar 2018 12:21:36 -0500
-Message-ID: <CAMzpN2jnaYSqEwuad5jsi=FJc_BNd_NyKWcjXf7QGq1ugLLrNw@mail.gmail.com>
+ <20180305131231.GR16484@8bytes.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 5 Mar 2018 10:23:59 -0800
+Message-ID: <CA+55aFwn5EkHTfrUFww54CDWovoUornv6rSrao43agbLBQD6-Q@mail.gmail.com>
 Subject: Re: [PATCH 07/34] x86/entry/32: Restore segments before int registers
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joerg Roedel <joro@8bytes.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
 
-On Mon, Mar 5, 2018 at 11:44 AM, Joerg Roedel <joro@8bytes.org> wrote:
-> On Mon, Mar 05, 2018 at 09:51:29AM -0500, Brian Gerst wrote:
->> For the IRET fault case you will still need to catch it in the
->> exception code.  See the 64-bit code (.Lerror_bad_iret) for example.
->> For 32-bit, you could just expand that check to cover the whole exit
->> prologue after the CR3 switch, including the data segment loads.
+On Mon, Mar 5, 2018 at 5:12 AM, Joerg Roedel <joro@8bytes.org> wrote:
 >
-> I had a look at the 64 bit code and the exception-in-kernel case seems
-> to be handled differently than on 32 bit. The 64 bit entry code has
-> checks for certain kinds of errors like iret exceptions.
+>> The things is, we *know* that we will restore two segment registers with the
+>> user cr3 already loaded: CS and SS get restored with the final iret.
 >
-> On 32 bit this is implemented via the standard exception tables which
-> get an entry for every EIP that might fault (usually segment loading
-> operations, but also iret).
->
-> So, unless I am missing something, all the exception entry code has to
-> do is to remember the stack and the cr3 with which it was entered (if
-> entered from kernel mode) and restore those before iret. And this is
-> what I implemented in v3 of this patch-set.
+> Yeah, I know, but the iret-exception path is fine because it will
+> deliver a SIGILL and doesn't return to the faulting iret.
 
-I also noticed that 32-bit will raise SIGILL for all IRET faults,
-while 64-bit will raise SIGBUS (#NP/#SS) or SIGSEGV (#GP).  The 64-bit
-code is better since it doesn't lose the original fault type, whereas
-SIGILL is wrong for this case (illegal opcode).
+That's not so much my worry, as just getting %cr3 wrong. The fact is,
+we still take the exception, and we still have to handle it, and that
+still needs to get the user<->kernel cr3 right.
 
---
-Brian Gerst
+So then the whole "restore segments early" must be wrong, because
+*that* path must get it all right too, no?
+
+And it appears that the code *does* get it right, and you can just
+avoid this patch entirely?
+
+> The iret-exception case is tested by the ldt_gdt selftest (the
+> do_multicpu_tests subtest). But I didn't actually tested single-stepping
+> through sysenter yet. I just re-ran the same tests I did with v2 on this
+> patch-set.
+
+Ok. Maybe we should have a test for the "take DB on first instruction
+of sysenter".
+
+           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
