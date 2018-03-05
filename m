@@ -1,81 +1,459 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E47E6B0003
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 03:19:23 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id d23so3756790wmd.1
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 00:19:23 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t30sor6895218edt.19.2018.03.05.00.19.21
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ED7EE6B0003
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 03:37:04 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id x6-v6so7762927plr.7
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 00:37:04 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id bc6-v6si1162772plb.357.2018.03.05.00.37.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Mar 2018 00:19:21 -0800 (PST)
-Date: Mon, 5 Mar 2018 11:19:06 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: "x86/boot/compressed/64: Prepare trampoline memory" breaks boot
- on Zotac CI-321
-Message-ID: <20180305081906.t33mocscprsrlvzp@node.shutemov.name>
-References: <12357ee3-0276-906a-0e7c-2c3055675af3@gmail.com>
- <CAA42JLZRxCGSsW5FKpH3AjZGbaUyrcRPdVBtMQcc4ZcxKNuDQw@mail.gmail.com>
- <8c6c0f9d-0f47-2fc9-5cb5-6335ef1152cd@gmail.com>
- <20180303100257.hzrqtshcnhzy5spl@gmail.com>
- <f399b62f-984e-c693-81f0-9abe3c49d8f1@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f399b62f-984e-c693-81f0-9abe3c49d8f1@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Mar 2018 00:37:03 -0800 (PST)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -V2 -mm] mm: Fix races between swapoff and flush dcache
+Date: Mon,  5 Mar 2018 16:36:34 +0800
+Message-Id: <20180305083634.15174-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiner Kallweit <hkallweit1@gmail.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Dexuan-Linux Cui <dexuan.linux@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dexuan Cui <decui@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@intel.com>, Chen Liqin <liqin.linux@gmail.com>, Russell King <linux@armlinux.org.uk>, Yoshinori Sato <ysato@users.sourceforge.jp>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "David S. Miller" <davem@davemloft.net>, Chris Zankel <chris@zankel.net>, Vineet Gupta <vgupta@synopsys.com>, Ley Foon Tan <lftan@altera.com>, Ralf Baechle <ralf@linux-mips.org>, Andi Kleen <ak@linux.intel.com>
 
-On Sat, Mar 03, 2018 at 12:46:28PM +0100, Heiner Kallweit wrote:
-> Am 03.03.2018 um 11:02 schrieb Ingo Molnar:
-> > 
-> > * Heiner Kallweit <hkallweit1@gmail.com> wrote:
-> > 
-> >> Am 03.03.2018 um 00:50 schrieb Dexuan-Linux Cui:
-> >>> On Fri, Mar 2, 2018 at 12:57 PM, Heiner Kallweit <hkallweit1@gmail.com <mailto:hkallweit1@gmail.com>> wrote:
-> >>>
-> >>>     Recently my Mini PC Zotac CI-321 started to reboot immediately before
-> >>>     anything was written to the console.
-> >>>
-> >>>     Bisecting lead to b91993a87aff "x86/boot/compressed/64: Prepare
-> >>>     trampoline memory" being the change breaking boot.
-> >>>
-> >>>     If you need any more information, please let me know.
-> >>>
-> >>>     Rgds, Heiner
-> >>>
-> >>>
-> >>> This may fix the issue: https://lkml.org/lkml/2018/2/13/668
-> >>>
-> >>> Kirill posted a v2 patchset 3 days ago and I suppose the patchset should include the fix.
-> >>>
-> >> Thanks for the link. I bisected based on the latest next kernel including
-> >> v2 of the patchset (IOW - the potential fix is included already).
-> > 
-> > Are you sure? b91993a87aff is the old patch-set - which I just removed from -next 
-> > and which should thus be gone in the Monday iteration of -next.
-> > 
-> > I have not merged v2 in -tip yet, did it get applied via some other tree?
-> > 
-> > Thanks,
-> > 
-> > 	Ingo
-> > 
-> I wanted to apply the fix mentioned in the link but found that the statement was movq already.
-> Therefore my (most likely false) understanding that it's v2.
-> I'll re-test once v2 is out and let you know.
+From: Huang Ying <ying.huang@intel.com>
 
-movq fix is unrelated to the problem.
+>From commit 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB
+trunks") on, after swapoff, the address_space associated with the swap
+device will be freed.  So page_mapping() users which may touch the
+address_space need some kind of mechanism to prevent the address_space
+from being freed during accessing.
 
-Please check if current linux-next plus this patchset causes a problem for
-you:
+The dcache flushing functions (flush_dcache_page(), etc) in
+architecture specific code may access the address_space of swap device
+for anonymous pages in swap cache via page_mapping() function.  But in
+some cases there are no mechanisms to prevent the swap device from
+being swapoff, for example,
 
-http://lkml.kernel.org/r/20180227154217.69347-1-kirill.shutemov@linux.intel.com
+CPU1					CPU2
+__get_user_pages()			swapoff()
+  flush_dcache_page()
+    mapping = page_mapping()
+      ...				  exit_swap_address_space()
+      ...				    kvfree(spaces)
+      mapping_mapped(mapping)
 
+The address space may be accessed after being freed.
+
+But from cachetlb.txt and Russell King, flush_dcache_page() only care
+about file cache pages, for anonymous pages, flush_anon_page() should
+be used.  The implementation of flush_dcache_page() in all
+architectures follows this too.  They will check whether
+page_mapping() is NULL and whether mapping_mapped() is true to
+determine whether to flush the dcache immediately.  And they will use
+interval tree (mapping->i_mmap) to find all user space mappings.
+While mapping_mapped() and mapping->i_mmap isn't used by anonymous
+pages in swap cache at all.
+
+So, to fix the race between swapoff and flush dcache, __page_mapping()
+is add to return the address_space for file cache pages and NULL
+otherwise.  All page_mapping() invoking in flush dcache functions are
+replaced with __page_mapping().
+
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Chen Liqin <liqin.linux@gmail.com>
+Cc: Russell King <linux@armlinux.org.uk>
+Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
+Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
+Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Chris Zankel <chris@zankel.net>
+Cc: Vineet Gupta <vgupta@synopsys.com>
+Cc: Ley Foon Tan <lftan@altera.com>
+Cc: Ralf Baechle <ralf@linux-mips.org>
+Cc: Andi Kleen <ak@linux.intel.com>
+
+Changes:
+
+v2:
+
+- Rename __page_mapping() to page_mapping_file() and simplified
+  implementation as suggested by Andrew Morton.
+---
+ arch/arc/mm/cache.c           |  2 +-
+ arch/arm/mm/copypage-v4mc.c   |  2 +-
+ arch/arm/mm/copypage-v6.c     |  2 +-
+ arch/arm/mm/copypage-xscale.c |  2 +-
+ arch/arm/mm/fault-armv.c      |  2 +-
+ arch/arm/mm/flush.c           |  6 +++---
+ arch/mips/mm/cache.c          |  2 +-
+ arch/nios2/mm/cacheflush.c    |  4 ++--
+ arch/parisc/kernel/cache.c    |  5 +++--
+ arch/score/mm/cache.c         |  5 +++--
+ arch/sh/mm/cache-sh4.c        |  2 +-
+ arch/sh/mm/cache-sh7705.c     |  2 +-
+ arch/sparc/kernel/smp_64.c    |  8 ++++----
+ arch/sparc/mm/init_64.c       |  6 +++---
+ arch/sparc/mm/tlb.c           |  2 +-
+ arch/unicore32/mm/flush.c     |  2 +-
+ arch/unicore32/mm/mmu.c       |  2 +-
+ arch/xtensa/mm/cache.c        |  2 +-
+ include/linux/mm.h            |  1 +
+ mm/util.c                     | 11 +++++++++++
+ 20 files changed, 42 insertions(+), 28 deletions(-)
+
+diff --git a/arch/arc/mm/cache.c b/arch/arc/mm/cache.c
+index 2072f3451e9c..9dbe645ee127 100644
+--- a/arch/arc/mm/cache.c
++++ b/arch/arc/mm/cache.c
+@@ -833,7 +833,7 @@ void flush_dcache_page(struct page *page)
+ 	}
+ 
+ 	/* don't handle anon pages here */
+-	mapping = page_mapping(page);
++	mapping = page_mapping_file(page);
+ 	if (!mapping)
+ 		return;
+ 
+diff --git a/arch/arm/mm/copypage-v4mc.c b/arch/arm/mm/copypage-v4mc.c
+index 1267e64133b9..0224416cba3c 100644
+--- a/arch/arm/mm/copypage-v4mc.c
++++ b/arch/arm/mm/copypage-v4mc.c
+@@ -70,7 +70,7 @@ void v4_mc_copy_user_highpage(struct page *to, struct page *from,
+ 	void *kto = kmap_atomic(to);
+ 
+ 	if (!test_and_set_bit(PG_dcache_clean, &from->flags))
+-		__flush_dcache_page(page_mapping(from), from);
++		__flush_dcache_page(page_mapping_file(from), from);
+ 
+ 	raw_spin_lock(&minicache_lock);
+ 
+diff --git a/arch/arm/mm/copypage-v6.c b/arch/arm/mm/copypage-v6.c
+index 70423345da26..a698e575e321 100644
+--- a/arch/arm/mm/copypage-v6.c
++++ b/arch/arm/mm/copypage-v6.c
+@@ -76,7 +76,7 @@ static void v6_copy_user_highpage_aliasing(struct page *to,
+ 	unsigned long kfrom, kto;
+ 
+ 	if (!test_and_set_bit(PG_dcache_clean, &from->flags))
+-		__flush_dcache_page(page_mapping(from), from);
++		__flush_dcache_page(page_mapping_file(from), from);
+ 
+ 	/* FIXME: not highmem safe */
+ 	discard_old_kernel_data(page_address(to));
+diff --git a/arch/arm/mm/copypage-xscale.c b/arch/arm/mm/copypage-xscale.c
+index 0fb85025344d..97972379f4d6 100644
+--- a/arch/arm/mm/copypage-xscale.c
++++ b/arch/arm/mm/copypage-xscale.c
+@@ -90,7 +90,7 @@ void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
+ 	void *kto = kmap_atomic(to);
+ 
+ 	if (!test_and_set_bit(PG_dcache_clean, &from->flags))
+-		__flush_dcache_page(page_mapping(from), from);
++		__flush_dcache_page(page_mapping_file(from), from);
+ 
+ 	raw_spin_lock(&minicache_lock);
+ 
+diff --git a/arch/arm/mm/fault-armv.c b/arch/arm/mm/fault-armv.c
+index d9e0d00a6699..4d75dae5ac96 100644
+--- a/arch/arm/mm/fault-armv.c
++++ b/arch/arm/mm/fault-armv.c
+@@ -195,7 +195,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
+ 	if (page == ZERO_PAGE(0))
+ 		return;
+ 
+-	mapping = page_mapping(page);
++	mapping = page_mapping_file(page);
+ 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
+ 		__flush_dcache_page(mapping, page);
+ 	if (mapping) {
+diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
+index f1e6190aa7ea..58469623b015 100644
+--- a/arch/arm/mm/flush.c
++++ b/arch/arm/mm/flush.c
+@@ -285,7 +285,7 @@ void __sync_icache_dcache(pte_t pteval)
+ 
+ 	page = pfn_to_page(pfn);
+ 	if (cache_is_vipt_aliasing())
+-		mapping = page_mapping(page);
++		mapping = page_mapping_file(page);
+ 	else
+ 		mapping = NULL;
+ 
+@@ -333,7 +333,7 @@ void flush_dcache_page(struct page *page)
+ 		return;
+ 	}
+ 
+-	mapping = page_mapping(page);
++	mapping = page_mapping_file(page);
+ 
+ 	if (!cache_ops_need_broadcast() &&
+ 	    mapping && !page_mapcount(page))
+@@ -363,7 +363,7 @@ void flush_kernel_dcache_page(struct page *page)
+ 	if (cache_is_vivt() || cache_is_vipt_aliasing()) {
+ 		struct address_space *mapping;
+ 
+-		mapping = page_mapping(page);
++		mapping = page_mapping_file(page);
+ 
+ 		if (!mapping || mapping_mapped(mapping)) {
+ 			void *addr;
+diff --git a/arch/mips/mm/cache.c b/arch/mips/mm/cache.c
+index 44ac64d51827..0d3c656feba0 100644
+--- a/arch/mips/mm/cache.c
++++ b/arch/mips/mm/cache.c
+@@ -86,7 +86,7 @@ SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, bytes,
+ 
+ void __flush_dcache_page(struct page *page)
+ {
+-	struct address_space *mapping = page_mapping(page);
++	struct address_space *mapping = page_mapping_file(page);
+ 	unsigned long addr;
+ 
+ 	if (mapping && !mapping_mapped(mapping)) {
+diff --git a/arch/nios2/mm/cacheflush.c b/arch/nios2/mm/cacheflush.c
+index 87bf88ed04c6..506f6e1c86d5 100644
+--- a/arch/nios2/mm/cacheflush.c
++++ b/arch/nios2/mm/cacheflush.c
+@@ -180,7 +180,7 @@ void flush_dcache_page(struct page *page)
+ 	if (page == ZERO_PAGE(0))
+ 		return;
+ 
+-	mapping = page_mapping(page);
++	mapping = page_mapping_file(page);
+ 
+ 	/* Flush this page if there are aliases. */
+ 	if (mapping && !mapping_mapped(mapping)) {
+@@ -215,7 +215,7 @@ void update_mmu_cache(struct vm_area_struct *vma,
+ 	if (page == ZERO_PAGE(0))
+ 		return;
+ 
+-	mapping = page_mapping(page);
++	mapping = page_mapping_file(page);
+ 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
+ 		__flush_dcache_page(mapping, page);
+ 
+diff --git a/arch/parisc/kernel/cache.c b/arch/parisc/kernel/cache.c
+index 7c1bde80ada4..d3a0f139a6e9 100644
+--- a/arch/parisc/kernel/cache.c
++++ b/arch/parisc/kernel/cache.c
+@@ -88,7 +88,8 @@ update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
+ 		return;
+ 
+ 	page = pfn_to_page(pfn);
+-	if (page_mapping(page) && test_bit(PG_dcache_dirty, &page->flags)) {
++	if (page_mapping_file(page) &&
++	    test_bit(PG_dcache_dirty, &page->flags)) {
+ 		flush_kernel_dcache_page_addr(pfn_va(pfn));
+ 		clear_bit(PG_dcache_dirty, &page->flags);
+ 	} else if (parisc_requires_coherency())
+@@ -304,7 +305,7 @@ __flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
+ 
+ void flush_dcache_page(struct page *page)
+ {
+-	struct address_space *mapping = page_mapping(page);
++	struct address_space *mapping = page_mapping_file(page);
+ 	struct vm_area_struct *mpnt;
+ 	unsigned long offset;
+ 	unsigned long addr, old_addr = 0;
+diff --git a/arch/score/mm/cache.c b/arch/score/mm/cache.c
+index b4bcfd3e8393..1ddbd3bc9b57 100644
+--- a/arch/score/mm/cache.c
++++ b/arch/score/mm/cache.c
+@@ -54,7 +54,7 @@ static void flush_data_cache_page(unsigned long addr)
+ 
+ void flush_dcache_page(struct page *page)
+ {
+-	struct address_space *mapping = page_mapping(page);
++	struct address_space *mapping = page_mapping_file(page);
+ 	unsigned long addr;
+ 
+ 	if (PageHighMem(page))
+@@ -86,7 +86,8 @@ void __update_cache(struct vm_area_struct *vma, unsigned long address,
+ 	if (unlikely(!pfn_valid(pfn)))
+ 		return;
+ 	page = pfn_to_page(pfn);
+-	if (page_mapping(page) && test_bit(PG_dcache_dirty, &(page)->flags)) {
++	if (page_mapping_file(page) &&
++	    test_bit(PG_dcache_dirty, &(page)->flags)) {
+ 		addr = (unsigned long) page_address(page);
+ 		if (exec)
+ 			flush_data_cache_page(addr);
+diff --git a/arch/sh/mm/cache-sh4.c b/arch/sh/mm/cache-sh4.c
+index 58aaa4f33b81..eee911422cf9 100644
+--- a/arch/sh/mm/cache-sh4.c
++++ b/arch/sh/mm/cache-sh4.c
+@@ -112,7 +112,7 @@ static void sh4_flush_dcache_page(void *arg)
+ 	struct page *page = arg;
+ 	unsigned long addr = (unsigned long)page_address(page);
+ #ifndef CONFIG_SMP
+-	struct address_space *mapping = page_mapping(page);
++	struct address_space *mapping = page_mapping_file(page);
+ 
+ 	if (mapping && !mapping_mapped(mapping))
+ 		clear_bit(PG_dcache_clean, &page->flags);
+diff --git a/arch/sh/mm/cache-sh7705.c b/arch/sh/mm/cache-sh7705.c
+index 6cd2aa395817..ed25eba80667 100644
+--- a/arch/sh/mm/cache-sh7705.c
++++ b/arch/sh/mm/cache-sh7705.c
+@@ -136,7 +136,7 @@ static void __flush_dcache_page(unsigned long phys)
+ static void sh7705_flush_dcache_page(void *arg)
+ {
+ 	struct page *page = arg;
+-	struct address_space *mapping = page_mapping(page);
++	struct address_space *mapping = page_mapping_file(page);
+ 
+ 	if (mapping && !mapping_mapped(mapping))
+ 		clear_bit(PG_dcache_clean, &page->flags);
+diff --git a/arch/sparc/kernel/smp_64.c b/arch/sparc/kernel/smp_64.c
+index c50182cd2f64..d3ea1f3c06a0 100644
+--- a/arch/sparc/kernel/smp_64.c
++++ b/arch/sparc/kernel/smp_64.c
+@@ -929,9 +929,9 @@ static inline void __local_flush_dcache_page(struct page *page)
+ #ifdef DCACHE_ALIASING_POSSIBLE
+ 	__flush_dcache_page(page_address(page),
+ 			    ((tlb_type == spitfire) &&
+-			     page_mapping(page) != NULL));
++			     page_mapping_file(page) != NULL));
+ #else
+-	if (page_mapping(page) != NULL &&
++	if (page_mapping_file(page) != NULL &&
+ 	    tlb_type == spitfire)
+ 		__flush_icache_page(__pa(page_address(page)));
+ #endif
+@@ -958,7 +958,7 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
+ 
+ 		if (tlb_type == spitfire) {
+ 			data0 = ((u64)&xcall_flush_dcache_page_spitfire);
+-			if (page_mapping(page) != NULL)
++			if (page_mapping_file(page) != NULL)
+ 				data0 |= ((u64)1 << 32);
+ 		} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+ #ifdef DCACHE_ALIASING_POSSIBLE
+@@ -994,7 +994,7 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
+ 	pg_addr = page_address(page);
+ 	if (tlb_type == spitfire) {
+ 		data0 = ((u64)&xcall_flush_dcache_page_spitfire);
+-		if (page_mapping(page) != NULL)
++		if (page_mapping_file(page) != NULL)
+ 			data0 |= ((u64)1 << 32);
+ 	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+ #ifdef DCACHE_ALIASING_POSSIBLE
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index a9f94e911e0a..a977901d4f9d 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -206,9 +206,9 @@ inline void flush_dcache_page_impl(struct page *page)
+ #ifdef DCACHE_ALIASING_POSSIBLE
+ 	__flush_dcache_page(page_address(page),
+ 			    ((tlb_type == spitfire) &&
+-			     page_mapping(page) != NULL));
++			     page_mapping_file(page) != NULL));
+ #else
+-	if (page_mapping(page) != NULL &&
++	if (page_mapping_file(page) != NULL &&
+ 	    tlb_type == spitfire)
+ 		__flush_icache_page(__pa(page_address(page)));
+ #endif
+@@ -490,7 +490,7 @@ void flush_dcache_page(struct page *page)
+ 
+ 	this_cpu = get_cpu();
+ 
+-	mapping = page_mapping(page);
++	mapping = page_mapping_file(page);
+ 	if (mapping && !mapping_mapped(mapping)) {
+ 		int dirty = test_bit(PG_dcache_dirty, &page->flags);
+ 		if (dirty) {
+diff --git a/arch/sparc/mm/tlb.c b/arch/sparc/mm/tlb.c
+index 847ddffbf38a..8cfb6aac8fb8 100644
+--- a/arch/sparc/mm/tlb.c
++++ b/arch/sparc/mm/tlb.c
+@@ -128,7 +128,7 @@ void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
+ 			goto no_cache_flush;
+ 
+ 		/* A real file page? */
+-		mapping = page_mapping(page);
++		mapping = page_mapping_file(page);
+ 		if (!mapping)
+ 			goto no_cache_flush;
+ 
+diff --git a/arch/unicore32/mm/flush.c b/arch/unicore32/mm/flush.c
+index 6d4c096ffa2a..74f4d636df2d 100644
+--- a/arch/unicore32/mm/flush.c
++++ b/arch/unicore32/mm/flush.c
+@@ -83,7 +83,7 @@ void flush_dcache_page(struct page *page)
+ 	if (page == ZERO_PAGE(0))
+ 		return;
+ 
+-	mapping = page_mapping(page);
++	mapping = page_mapping_file(page);
+ 
+ 	if (mapping && !mapping_mapped(mapping))
+ 		clear_bit(PG_dcache_clean, &page->flags);
+diff --git a/arch/unicore32/mm/mmu.c b/arch/unicore32/mm/mmu.c
+index 4f5a532bee13..0c94b7b4514d 100644
+--- a/arch/unicore32/mm/mmu.c
++++ b/arch/unicore32/mm/mmu.c
+@@ -503,7 +503,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
+ 	if (page == ZERO_PAGE(0))
+ 		return;
+ 
+-	mapping = page_mapping(page);
++	mapping = page_mapping_file(page);
+ 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
+ 		__flush_dcache_page(mapping, page);
+ 	if (mapping)
+diff --git a/arch/xtensa/mm/cache.c b/arch/xtensa/mm/cache.c
+index 57dc231a0709..9220dcde7520 100644
+--- a/arch/xtensa/mm/cache.c
++++ b/arch/xtensa/mm/cache.c
+@@ -127,7 +127,7 @@ EXPORT_SYMBOL(copy_user_highpage);
+ 
+ void flush_dcache_page(struct page *page)
+ {
+-	struct address_space *mapping = page_mapping(page);
++	struct address_space *mapping = page_mapping_file(page);
+ 
+ 	/*
+ 	 * If we have a mapping but the page is not mapped to user-space
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index c500bdfadf79..0ed3ae922af0 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1147,6 +1147,7 @@ static inline pgoff_t page_index(struct page *page)
+ 
+ bool page_mapped(struct page *page);
+ struct address_space *page_mapping(struct page *page);
++struct address_space *page_mapping_file(struct page *page);
+ 
+ /*
+  * Return true only if the page has been allocated with
+diff --git a/mm/util.c b/mm/util.c
+index d800ce40816c..252f4748f00b 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -515,6 +515,17 @@ struct address_space *page_mapping(struct page *page)
+ }
+ EXPORT_SYMBOL(page_mapping);
+ 
++/*
++ * For file cache pages, return the address_space, otherwise return NULL
++ */
++struct address_space *page_mapping_file(struct page *page)
++{
++	if (unlikely(PageSwapCache(page)))
++		return NULL;
++	else
++		return page_mapping(page);
++}
++
+ /* Slow path of page_mapcount() for compound pages */
+ int __page_mapcount(struct page *page)
+ {
 -- 
- Kirill A. Shutemov
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
