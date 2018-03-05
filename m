@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1D76B026E
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:27:45 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id p2so11079485wre.19
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:27:45 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id a25si151058eda.163.2018.03.05.02.26.18
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CB216B0271
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:27:51 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c142so4407481wmh.4
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:27:51 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id o4si1048635edd.392.2018.03.05.02.26.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 02:26:18 -0800 (PST)
+        Mon, 05 Mar 2018 02:26:14 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 22/34] x86/mm/pae: Populate the user page-table with user pgd's
-Date: Mon,  5 Mar 2018 11:25:51 +0100
-Message-Id: <1520245563-8444-23-git-send-email-joro@8bytes.org>
+Subject: [PATCH 13/34] x86/entry/32: Add PTI cr3 switches to NMI handler code
+Date: Mon,  5 Mar 2018 11:25:42 +0100
+Message-Id: <1520245563-8444-14-git-send-email-joro@8bytes.org>
 In-Reply-To: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,39 +22,125 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-When we populate a PGD entry, make sure we populate it in
-the user page-table too.
+The NMI handler is special, as it needs to leave with the
+same cr3 as it was entered with. We need to do this because
+we could enter the NMI handler from kernel code with
+user-cr3 already loaded.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable-3level.h | 7 +++++++
- 1 file changed, 7 insertions(+)
+ arch/x86/entry/entry_32.S | 52 +++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 46 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
-index bc4af54..ab2aa44 100644
---- a/arch/x86/include/asm/pgtable-3level.h
-+++ b/arch/x86/include/asm/pgtable-3level.h
-@@ -98,6 +98,9 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index b1a5f34ee..35379e5 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -77,6 +77,8 @@
+ #endif
+ .endm
  
- static inline void native_set_pud(pud_t *pudp, pud_t pud)
- {
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pud.p4d.pgd = pti_set_user_pgtbl(&pudp->p4d.pgd, pud.p4d.pgd);
-+#endif
- 	set_64bit((unsigned long long *)(pudp), native_pud_val(pud));
- }
- 
-@@ -194,6 +197,10 @@ static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
- {
- 	union split_pud res, *orig = (union split_pud *)pudp;
- 
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pti_set_user_pgtbl(&pudp->p4d.pgd, __pgd(0));
-+#endif
++#define PTI_SWITCH_MASK         (1 << PAGE_SHIFT)
 +
- 	/* xchg acts as a barrier before setting of the high bits */
- 	res.pud_low = xchg(&orig->pud_low, 0);
- 	res.pud_high = orig->pud_high;
+ /*
+  * User gs save/restore
+  *
+@@ -167,8 +169,30 @@
+ 
+ .endm
+ 
+-.macro SAVE_ALL_NMI
++.macro SAVE_ALL_NMI cr3_reg:req
+ 	SAVE_ALL
++
++	/*
++	 * Now switch the CR3 when PTI is enabled.
++	 *
++	 * We can enter with either user or kernel cr3, the code will
++	 * store the old cr3 in \cr3_reg and switches to the kernel cr3
++	 * if necessary.
++	 */
++	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
++
++	movl	%cr3, \cr3_reg
++	testl	$PTI_SWITCH_MASK, \cr3_reg
++	jz	.Lend_\@	/* Already on kernel cr3 */
++
++	/* On user cr3 - write new kernel cr3 */
++	andl	$(~PTI_SWITCH_MASK), \cr3_reg
++	movl	\cr3_reg, %cr3
++
++	/* Restore user cr3 value */
++	orl	$PTI_SWITCH_MASK, \cr3_reg
++
++.Lend_\@:
+ .endm
+ /*
+  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
+@@ -227,13 +251,29 @@
+ 	RESTORE_SKIP_SEGMENTS \pop
+ .endm
+ 
+-.macro RESTORE_ALL_NMI pop=0
++.macro RESTORE_ALL_NMI cr3_reg:req pop=0
+ 	/*
+ 	 * Restore segments - might cause exceptions when loading
+ 	 * user-space segments
+ 	 */
+ 	RESTORE_SEGMENTS
+ 
++	/*
++	 * Now switch the CR3 when PTI is enabled.
++	 *
++	 * We enter with kernel cr3 and switch the cr3 to the value
++	 * stored on \cr3_reg, which is either a user or a kernel cr3.
++	 */
++	ALTERNATIVE "jmp .Lswitched_\@", "", X86_FEATURE_PTI
++
++	testl	$PTI_SWITCH_MASK, \cr3_reg
++	jz	.Lswitched_\@
++
++	/* User cr3 in \cr3_reg - write it to hardware cr3 */
++	movl	\cr3_reg, %cr3
++
++.Lswitched_\@:
++
+ 	/* Restore integer registers and unwind stack to iret frame */
+ 	RESTORE_INT_REGS
+ 	RESTORE_SKIP_SEGMENTS \pop
+@@ -1242,7 +1282,7 @@ ENTRY(nmi)
+ #endif
+ 
+ 	pushl	%eax				# pt_regs->orig_ax
+-	SAVE_ALL_NMI
++	SAVE_ALL_NMI cr3_reg=%edi
+ 	ENCODE_FRAME_POINTER
+ 	xorl	%edx, %edx			# zero error code
+ 	movl	%esp, %eax			# pt_regs pointer
+@@ -1270,7 +1310,7 @@ ENTRY(nmi)
+ 
+ .Lnmi_return:
+ 	CHECK_AND_APPLY_ESPFIX
+-	RESTORE_ALL_NMI pop=4
++	RESTORE_ALL_NMI cr3_reg=%edi pop=4
+ 	jmp	.Lirq_return
+ 
+ #ifdef CONFIG_X86_ESPFIX32
+@@ -1286,12 +1326,12 @@ ENTRY(nmi)
+ 	pushl	16(%esp)
+ 	.endr
+ 	pushl	%eax
+-	SAVE_ALL_NMI
++	SAVE_ALL_NMI cr3_reg=%edi
+ 	ENCODE_FRAME_POINTER
+ 	FIXUP_ESPFIX_STACK			# %eax == %esp
+ 	xorl	%edx, %edx			# zero error code
+ 	call	do_nmi
+-	RESTORE_ALL_NMI
++	RESTORE_ALL_NMI cr3_reg=%edi
+ 	lss	12+4(%esp), %esp		# back to espfix stack
+ 	jmp	.Lirq_return
+ #endif
 -- 
 2.7.4
 
