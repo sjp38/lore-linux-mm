@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B2126B000D
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:38:24 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id e127so4135874wmg.7
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:38:24 -0800 (PST)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id r1si10065470edk.552.2018.03.05.05.38.22
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EE226B0012
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:38:29 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id c142so4637955wmh.4
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:38:29 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id x84si4588209wmg.34.2018.03.05.05.38.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 05:38:23 -0800 (PST)
+        Mon, 05 Mar 2018 05:38:27 -0800 (PST)
 From: Roman Gushchin <guro@fb.com>
-Subject: [PATCH 2/3] mm: treat indirectly reclaimable memory as available in MemAvailable
-Date: Mon, 5 Mar 2018 13:37:42 +0000
-Message-ID: <20180305133743.12746-4-guro@fb.com>
+Subject: [PATCH 3/3] dcache: account external names as indirectly reclaimable memory
+Date: Mon, 5 Mar 2018 13:37:43 +0000
+Message-ID: <20180305133743.12746-5-guro@fb.com>
 In-Reply-To: <20180305133743.12746-1-guro@fb.com>
 References: <20180305133743.12746-1-guro@fb.com>
 MIME-Version: 1.0
@@ -22,9 +22,51 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-This patch adjusts /proc/meminfo MemAvailable calculation
-by adding the amount of indirectly reclaimable memory
-(rounded to the PAGE_SIZE).
+I was reported about suspicious growth of unreclaimable slabs
+on some machines. I've found that it happens on machines
+with low memory pressure, and these unreclaimable slabs
+are external names attached to dentries.
+
+External names are allocated using generic kmalloc() function,
+so they are accounted as unreclaimable. But they are held
+by dentries, which are reclaimable, and they will be reclaimed
+under the memory pressure.
+
+In particular, this breaks MemAvailable calculation, as it
+doesn't take unreclaimable slabs into account.
+This leads to a silly situation, when a machine is almost idle,
+has no memory pressure and therefore has a big dentry cache.
+And the resulting MemAvailable is too low to start a new workload.
+
+To address the issue, the NR_INDIRECTLY_RECLAIMABLE_BYTES counter
+is used to track the amount of memory, consumed by external names.
+The counter is increased in the dentry allocation path, if an external
+name structure is allocated; and it's decreased in the dentry freeing
+path.
+
+To reproduce the problem I've used the following Python script:
+  import os
+
+  for iter in range (0, 10000000):
+      try:
+          name = ("/some_long_name_%d" % iter) + "_" * 220
+          os.stat(name)
+      except Exception:
+          pass
+
+Without this patch:
+  $ cat /proc/meminfo | grep MemAvailable
+  MemAvailable:    7811688 kB
+  $ python indirect.py
+  $ cat /proc/meminfo | grep MemAvailable
+  MemAvailable:    2753052 kB
+
+With the patch:
+  $ cat /proc/meminfo | grep MemAvailable
+  MemAvailable:    7809516 kB
+  $ python indirect.py
+  $ cat /proc/meminfo | grep MemAvailable
+  MemAvailable:    7749144 kB
 
 Signed-off-by: Roman Gushchin <guro@fb.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -36,27 +78,70 @@ Cc: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 Cc: kernel-team@fb.com
 ---
- mm/page_alloc.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ fs/dcache.c | 29 ++++++++++++++++++++++++-----
+ 1 file changed, 24 insertions(+), 5 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2836bc9e0999..2247cda9e94e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4695,6 +4695,13 @@ long si_mem_available(void)
- 		     min(global_node_page_state(NR_SLAB_RECLAIMABLE) / 2,
- 			 wmark_low);
- 
-+	/*
-+	 * Part of the kernel memory, which can be released under memory
-+	 * pressure.
-+	 */
-+	available += global_node_page_state(NR_INDIRECTLY_RECLAIMABLE_BYTES) >>
-+		PAGE_SHIFT;
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 5c7df1df81ff..a0312d73f575 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -273,8 +273,16 @@ static void __d_free(struct rcu_head *head)
+ static void __d_free_external(struct rcu_head *head)
+ {
+ 	struct dentry *dentry = container_of(head, struct dentry, d_u.d_rcu);
+-	kfree(external_name(dentry));
+-	kmem_cache_free(dentry_cache, dentry); 
++	struct external_name *name = external_name(dentry);
++	unsigned long bytes;
 +
- 	if (available < 0)
- 		available = 0;
- 	return available;
++	bytes = dentry->d_name.len + offsetof(struct external_name, name[1]);
++	mod_node_page_state(page_pgdat(virt_to_page(name)),
++			    NR_INDIRECTLY_RECLAIMABLE_BYTES,
++			    -kmalloc_size(kmalloc_index(bytes)));
++
++	kfree(name);
++	kmem_cache_free(dentry_cache, dentry);
+ }
+ 
+ static inline int dname_external(const struct dentry *dentry)
+@@ -1598,6 +1606,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+ 	struct dentry *dentry;
+ 	char *dname;
+ 	int err;
++	size_t reclaimable = 0;
+ 
+ 	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL);
+ 	if (!dentry)
+@@ -1614,9 +1623,11 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+ 		name = &slash_name;
+ 		dname = dentry->d_iname;
+ 	} else if (name->len > DNAME_INLINE_LEN-1) {
+-		size_t size = offsetof(struct external_name, name[1]);
+-		struct external_name *p = kmalloc(size + name->len,
+-						  GFP_KERNEL_ACCOUNT);
++		struct external_name *p;
++
++		reclaimable = offsetof(struct external_name, name[1]) +
++			name->len;
++		p = kmalloc(reclaimable, GFP_KERNEL_ACCOUNT);
+ 		if (!p) {
+ 			kmem_cache_free(dentry_cache, dentry); 
+ 			return NULL;
+@@ -1665,6 +1676,14 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+ 		}
+ 	}
+ 
++	if (unlikely(reclaimable)) {
++		pg_data_t *pgdat;
++
++		pgdat = page_pgdat(virt_to_page(external_name(dentry)));
++		mod_node_page_state(pgdat, NR_INDIRECTLY_RECLAIMABLE_BYTES,
++				    kmalloc_size(kmalloc_index(reclaimable)));
++	}
++
+ 	this_cpu_inc(nr_dentry);
+ 
+ 	return dentry;
 -- 
 2.14.3
 
