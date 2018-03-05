@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D83066B000D
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 15:07:59 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id e127so4614564wmg.7
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 12:07:59 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FD916B000E
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 15:08:01 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id h33so11906527wrh.10
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 12:08:01 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u128sor2368892wmu.50.2018.03.05.12.07.58
+        by mx.google.com with SMTPS id 7sor3370315wrn.74.2018.03.05.12.07.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 05 Mar 2018 12:07:58 -0800 (PST)
+        Mon, 05 Mar 2018 12:07:59 -0800 (PST)
 From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: [PATCH 08/25] slab: make size_index_elem() unsigned int
-Date: Mon,  5 Mar 2018 23:07:13 +0300
-Message-Id: <20180305200730.15812-8-adobriyan@gmail.com>
+Subject: [PATCH 09/25] slub: make ->remote_node_defrag_ratio unsigned int
+Date: Mon,  5 Mar 2018 23:07:14 +0300
+Message-Id: <20180305200730.15812-9-adobriyan@gmail.com>
 In-Reply-To: <20180305200730.15812-1-adobriyan@gmail.com>
 References: <20180305200730.15812-1-adobriyan@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,43 +20,59 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, adobriyan@gmail.com
 
-size_index_elem() always works with small sizes (kmalloc caches are 32-bit)
-and returns small indexes.
+->remote_node_defrag_ratio is in range 0..1000.
 
 Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
 ---
- mm/slab_common.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ include/linux/slub_def.h |  2 +-
+ mm/slub.c                | 11 ++++++-----
+ 2 files changed, 7 insertions(+), 6 deletions(-)
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index dda966e6bc58..8abb2a46ae85 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -998,7 +998,7 @@ static u8 size_index[24] __ro_after_init = {
- 	2	/* 192 */
- };
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 8ad99c47b19c..f6548083fe0f 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -124,7 +124,7 @@ struct kmem_cache {
+ 	/*
+ 	 * Defragmentation by allocating from a remote node.
+ 	 */
+-	int remote_node_defrag_ratio;
++	unsigned int remote_node_defrag_ratio;
+ #endif
  
--static inline int size_index_elem(size_t bytes)
-+static inline unsigned int size_index_elem(unsigned int bytes)
+ #ifdef CONFIG_SLAB_FREELIST_RANDOM
+diff --git a/mm/slub.c b/mm/slub.c
+index b2f529a33400..d9db1d184549 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -5288,21 +5288,22 @@ SLAB_ATTR(shrink);
+ #ifdef CONFIG_NUMA
+ static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
  {
- 	return (bytes - 1) / 8;
+-	return sprintf(buf, "%d\n", s->remote_node_defrag_ratio / 10);
++	return sprintf(buf, "%u\n", s->remote_node_defrag_ratio / 10);
  }
-@@ -1067,13 +1067,13 @@ const struct kmalloc_info_struct kmalloc_info[] __initconst = {
-  */
- void __init setup_kmalloc_cache_index_table(void)
+ 
+ static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
+ 				const char *buf, size_t length)
  {
--	int i;
-+	unsigned int i;
+-	unsigned long ratio;
++	unsigned int ratio;
+ 	int err;
  
- 	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
- 		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
+-	err = kstrtoul(buf, 10, &ratio);
++	err = kstrtouint(buf, 10, &ratio);
+ 	if (err)
+ 		return err;
++	if (ratio > 100)
++		return -ERANGE;
  
- 	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8) {
--		int elem = size_index_elem(i);
-+		unsigned int elem = size_index_elem(i);
+-	if (ratio <= 100)
+-		s->remote_node_defrag_ratio = ratio * 10;
++	s->remote_node_defrag_ratio = ratio * 10;
  
- 		if (elem >= ARRAY_SIZE(size_index))
- 			break;
+ 	return length;
+ }
 -- 
 2.16.1
 
