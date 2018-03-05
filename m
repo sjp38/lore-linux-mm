@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B1F526B0008
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 14:09:25 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id a5-v6so8517229plp.0
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 11:09:25 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id x4-v6si9645491plw.297.2018.03.05.11.09.24
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AD8C06B0008
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 14:12:17 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id q2so7668652pgn.22
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 11:12:17 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id y12-v6si9665141plt.453.2018.03.05.11.12.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 11:09:24 -0800 (PST)
-Subject: Re: [RFC, PATCH 16/22] x86/mm: Preserve KeyID on pte_modify() and
- pgprot_modify()
+        Mon, 05 Mar 2018 11:12:16 -0800 (PST)
+Subject: Re: [RFC, PATCH 13/22] mm, rmap: Free encrypted pages once mapcount
+ drops to zero
 References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
- <20180305162610.37510-17-kirill.shutemov@linux.intel.com>
+ <20180305162610.37510-14-kirill.shutemov@linux.intel.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <774c1251-46d9-534e-24c2-ca04f1e0a8bb@intel.com>
-Date: Mon, 5 Mar 2018 11:09:23 -0800
+Message-ID: <eb2cc1cf-1be1-4535-f71b-fa33272a6f71@intel.com>
+Date: Mon, 5 Mar 2018 11:12:15 -0800
 MIME-Version: 1.0
-In-Reply-To: <20180305162610.37510-17-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180305162610.37510-14-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -27,21 +27,12 @@ To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@r
 Cc: Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On 03/05/2018 08:26 AM, Kirill A. Shutemov wrote:
-> + * It includes full range of PFN bits regardless if they were claimed for KeyID
-> + * or not: we want to preserve KeyID on pte_modify() and pgprot_modify().
->   */
-> -#define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
-> +#define PTE_PFN_MASK_MAX \
-> +	(((signed long)PAGE_MASK) & ((1UL << __PHYSICAL_MASK_SHIFT) - 1))
-> +#define _PAGE_CHG_MASK	(PTE_PFN_MASK_MAX | _PAGE_PCD | _PAGE_PWT |		\
->  			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
->  			 _PAGE_SOFT_DIRTY)
+>  extern void prep_encrypt_page(struct page *page, gfp_t gfp, unsigned int order);
+> +extern void free_encrypt_page(struct page *page, int keyid, unsigned int order);
 
-Is there a way to make this:
+The grammar here is weird, I think.
 
-#define _PAGE_CHG_MASK	(PTE_PFN_MASK | PTE_KEY_MASK...? | _PAGE_PCD |
-
-That would be a lot more understandable.
+Why not free_encrypted_page()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
