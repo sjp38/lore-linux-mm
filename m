@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C97D06B0026
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:26:26 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id e127so3903371wmg.7
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:26:26 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 506056B0026
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:26:34 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id g13so10764309wrh.23
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:26:34 -0800 (PST)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id y28si1075939edi.524.2018.03.05.02.26.25
+        by mx.google.com with ESMTPS id r12si728614edk.456.2018.03.05.02.26.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 02:26:25 -0800 (PST)
+        Mon, 05 Mar 2018 02:26:12 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 31/34] x86/ldt: Split out sanity check in map_ldt_struct()
-Date: Mon,  5 Mar 2018 11:26:00 +0100
-Message-Id: <1520245563-8444-32-git-send-email-joro@8bytes.org>
+Subject: [PATCH 09/34] x86/entry/32: Leave the kernel via trampoline stack
+Date: Mon,  5 Mar 2018 11:25:38 +0100
+Message-Id: <1520245563-8444-10-git-send-email-joro@8bytes.org>
 In-Reply-To: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,144 +22,135 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-This splits out the mapping sanity check and the actual
-mapping of the LDT to user-space from the map_ldt_struct()
-function in a way so that it is re-usable for PAE paging.
+Switch back to the trampoline stack before returning to
+userspace.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/kernel/ldt.c | 82 ++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 58 insertions(+), 24 deletions(-)
+ arch/x86/entry/entry_32.S | 79 +++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 77 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index f3c2fbf..8ab7df9 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -100,6 +100,49 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- 	return new_ldt;
- }
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 1737da2..1b5656d 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -339,6 +339,60 @@
+ .endm
  
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+
-+static void do_sanity_check(struct mm_struct *mm,
-+			    bool had_kernel_mapping,
-+			    bool had_user_mapping)
-+{
-+	if (mm->context.ldt) {
-+		/*
-+		 * We already had an LDT.  The top-level entry should already
-+		 * have been allocated and synchronized with the usermode
-+		 * tables.
-+		 */
-+		WARN_ON(!had_kernel_mapping);
-+		if (static_cpu_has(X86_FEATURE_PTI))
-+			WARN_ON(!had_user_mapping);
-+	} else {
-+		/*
-+		 * This is the first time we're mapping an LDT for this process.
-+		 * Sync the pgd to the usermode tables.
-+		 */
-+		WARN_ON(had_kernel_mapping);
-+		if (static_cpu_has(X86_FEATURE_PTI))
-+			WARN_ON(had_user_mapping);
-+	}
-+}
-+
-+static void map_ldt_struct_to_user(struct mm_struct *mm)
-+{
-+	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
-+
-+	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
-+		set_pgd(kernel_to_user_pgdp(pgd), *pgd);
-+}
-+
-+static void sanity_check_ldt_mapping(struct mm_struct *mm)
-+{
-+	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
-+	bool had_kernel = (pgd->pgd != 0);
-+	bool had_user   = (kernel_to_user_pgdp(pgd)->pgd != 0);
-+
-+	do_sanity_check(mm, had_kernel, had_user);
-+}
-+
  /*
-  * If PTI is enabled, this maps the LDT into the kernelmode and
-  * usermode tables for the given mm.
-@@ -115,9 +158,8 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- static int
- map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- {
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--	bool is_vmalloc, had_top_level_entry;
- 	unsigned long va;
-+	bool is_vmalloc;
- 	spinlock_t *ptl;
- 	pgd_t *pgd;
- 	int i;
-@@ -131,13 +173,15 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 	 */
- 	WARN_ON(ldt->slot != -1);
- 
-+	/* Check if the current mappings are sane */
-+	sanity_check_ldt_mapping(mm);
++ * Switch back from the kernel stack to the entry stack.
++ *
++ * The %esp register must point to pt_regs on the task stack. It will
++ * first calculate the size of the stack-frame to copy, depending on
++ * whether we return to VM86 mode or not. With that it uses 'rep movsl'
++ * to copy the contents of the stack over to the entry stack.
++ *
++ * We must be very careful here, as we can't trust the contents of the
++ * task-stack once we switched to the entry-stack. When an NMI happens
++ * while on the entry-stack, the NMI handler will switch back to the top
++ * of the task stack, overwriting our stack-frame we are about to copy.
++ * Therefore we switch the stack only after everything is copied over.
++ */
++.macro SWITCH_TO_ENTRY_STACK
 +
++	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
++
++	/* Bytes to copy */
++	movl	$PTREGS_SIZE, %ecx
++
++#ifdef CONFIG_VM86
++	testl	$(X86_EFLAGS_VM), PT_EFLAGS(%esp)
++	jz	.Lcopy_pt_regs_\@
++
++	/* Additional 4 registers to copy when returning to VM86 mode */
++	addl    $(4 * 4), %ecx
++
++.Lcopy_pt_regs_\@:
++#endif
++
++	/* Initialize source and destination for movsb */
++	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %edi
++	subl	%ecx, %edi
++	movl	%esp, %esi
++
++	/* Save future stack pointer in %ebx */
++	movl	%edi, %ebx
++
++	/* Copy over the stack-frame */
++	shrl	$2, %ecx
++	cld
++	rep movsl
++
++	/*
++	 * Switch to entry-stack - needs to happen after everything is
++	 * copied because the NMI handler will overwrite the task-stack
++	 * when on entry-stack
++	 */
++	movl	%ebx, %esp
++
++.Lend_\@:
++.endm
++
++/*
+  * %eax: prev task
+  * %edx: next task
+  */
+@@ -579,25 +633,45 @@ ENTRY(entry_SYSENTER_32)
+ 
+ /* Opportunistic SYSEXIT */
+ 	TRACE_IRQS_ON			/* User mode traces as IRQs on. */
++
++	/*
++	 * Setup entry stack - we keep the pointer in %eax and do the
++	 * switch after almost all user-state is restored.
++	 */
++
++	/* Load entry stack pointer and allocate frame for eflags/eax */ 
++	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %eax
++	subl	$(2*4), %eax
++
++	/* Copy eflags and eax to entry stack */
++	movl	PT_EFLAGS(%esp), %edi
++	movl	PT_EAX(%esp), %esi
++	movl	%edi, (%eax)
++	movl	%esi, 4(%eax)
++
++	/* Restore user registers and segments */
+ 	movl	PT_EIP(%esp), %edx	/* pt_regs->ip */
+ 	movl	PT_OLDESP(%esp), %ecx	/* pt_regs->sp */
+ 1:	mov	PT_FS(%esp), %fs
+ 	PTGS_TO_GS
++
+ 	popl	%ebx			/* pt_regs->bx */
+ 	addl	$2*4, %esp		/* skip pt_regs->cx and pt_regs->dx */
+ 	popl	%esi			/* pt_regs->si */
+ 	popl	%edi			/* pt_regs->di */
+ 	popl	%ebp			/* pt_regs->bp */
+-	popl	%eax			/* pt_regs->ax */
++
++	/* Switch to entry stack */
++	movl	%eax, %esp
+ 
  	/*
- 	 * Did we already have the top level entry allocated?  We can't
- 	 * use pgd_none() for this because it doens't do anything on
- 	 * 4-level page table kernels.
+ 	 * Restore all flags except IF. (We restore IF separately because
+ 	 * STI gives a one-instruction window in which we won't be interrupted,
+ 	 * whereas POPF does not.)
  	 */
- 	pgd = pgd_offset(mm, LDT_BASE_ADDR);
--	had_top_level_entry = (pgd->pgd != 0);
+-	addl	$PT_EFLAGS-PT_DS, %esp	/* point esp at pt_regs->flags */
+ 	btr	$X86_EFLAGS_IF_BIT, (%esp)
+ 	popfl
++	popl	%eax
  
- 	is_vmalloc = is_vmalloc_addr(ldt->entries);
+ 	/*
+ 	 * Return back to the vDSO, which will pop ecx and edx.
+@@ -666,6 +740,7 @@ ENTRY(entry_INT80_32)
  
-@@ -168,35 +212,25 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 		pte_unmap_unlock(ptep, ptl);
- 	}
- 
--	if (mm->context.ldt) {
--		/*
--		 * We already had an LDT.  The top-level entry should already
--		 * have been allocated and synchronized with the usermode
--		 * tables.
--		 */
--		WARN_ON(!had_top_level_entry);
--		if (static_cpu_has(X86_FEATURE_PTI))
--			WARN_ON(!kernel_to_user_pgdp(pgd)->pgd);
--	} else {
--		/*
--		 * This is the first time we're mapping an LDT for this process.
--		 * Sync the pgd to the usermode tables.
--		 */
--		WARN_ON(had_top_level_entry);
--		if (static_cpu_has(X86_FEATURE_PTI)) {
--			WARN_ON(kernel_to_user_pgdp(pgd)->pgd);
--			set_pgd(kernel_to_user_pgdp(pgd), *pgd);
--		}
--	}
-+	/* Propagate LDT mapping to the user page-table */
-+	map_ldt_struct_to_user(mm);
- 
- 	va = (unsigned long)ldt_slot_va(slot);
- 	flush_tlb_mm_range(mm, va, va + LDT_SLOT_STRIDE, 0);
- 
- 	ldt->slot = slot;
--#endif
- 	return 0;
- }
- 
-+#else /* !CONFIG_PAGE_TABLE_ISOLATION */
-+
-+static int
-+map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
-+{
-+	return 0;
-+}
-+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
-+
- static void free_ldt_pgtables(struct mm_struct *mm)
- {
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ restore_all:
+ 	TRACE_IRQS_IRET
++	SWITCH_TO_ENTRY_STACK
+ .Lrestore_all_notrace:
+ 	CHECK_AND_APPLY_ESPFIX
+ .Lrestore_nocheck:
 -- 
 2.7.4
 
