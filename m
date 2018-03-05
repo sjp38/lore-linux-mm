@@ -1,120 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 782CC6B0023
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 07:17:47 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id q195so15945293ioe.5
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 04:17:47 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c5sor4606094iti.117.2018.03.05.04.17.46
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EA0396B0023
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:09:36 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id 102so5175638lft.15
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:09:36 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b86sor2874395lfl.32.2018.03.05.05.09.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 05 Mar 2018 04:17:46 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1520245563-8444-8-git-send-email-joro@8bytes.org>
-References: <1520245563-8444-1-git-send-email-joro@8bytes.org> <1520245563-8444-8-git-send-email-joro@8bytes.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 5 Mar 2018 04:17:45 -0800
-Message-ID: <CA+55aFym-18UbD5K3n1Ki=mvpuLqa7E6E=qG0aE-dctzTap_WQ@mail.gmail.com>
-Subject: Re: [PATCH 07/34] x86/entry/32: Restore segments before int registers
-Content-Type: multipart/alternative; boundary="001a113a427e4596020566a950bb"
+        Mon, 05 Mar 2018 05:09:34 -0800 (PST)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
+Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
+From: Ilya Smith <blackzert@gmail.com>
+In-Reply-To: <20180304205614.GC23816@bombadil.infradead.org>
+Date: Mon, 5 Mar 2018 16:09:31 +0300
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <7FA6631B-951F-42F4-A7BF-8E5BB734D709@gmail.com>
+References: <20180227131338.3699-1-blackzert@gmail.com>
+ <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
+ <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com>
+ <20180228183349.GA16336@bombadil.infradead.org>
+ <CA+DvKQKoo1U7T_iOOLhfEf9c+K1pzD068au+kGtx0RokFFNKHw@mail.gmail.com>
+ <2CF957C6-53F2-4B00-920F-245BEF3CA1F6@gmail.com>
+ <CA+DvKQ+mrnm4WX+3cBPuoSLFHmx2Zwz8=FsEx51fH-7yQMAd9w@mail.gmail.com>
+ <20180304034704.GB20725@bombadil.infradead.org>
+ <20180304205614.GC23816@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
-
---001a113a427e4596020566a950bb
-Content-Type: text/plain; charset="UTF-8"
-
-[ On mobile, sorry for html ]
-
-On Mar 5, 2018 02:26, "Joerg Roedel" <joro@8bytes.org> wrote:
-
-From: Joerg Roedel <jroedel@suse.de>
-
-Restoring the segments can cause exceptions that need to be
-handled. With PTI enabled, we still need to be on kernel cr3
-when the exception happens. For the cr3-switch we need
-at least one integer scratch register, so we can't switch
-with the user integer registers already loaded.
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Daniel Micay <danielmicay@gmail.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
 
-This fundamentally seems wrong.
+> On 4 Mar 2018, at 23:56, Matthew Wilcox <willy@infradead.org> wrote:
+> Thinking about this more ...
+>=20
+> - When you call munmap, if you pass in the same (addr, length) that =
+were
+>   used for mmap, then it should unmap the guard pages as well (that
+>   wasn't part of the patch, so it would have to be added)
+> - If 'addr' is higher than the mapped address, and length at least
+>   reaches the end of the mapping, then I would expect the guard pages =
+to
+>   "move down" and be after the end of the newly-shortened mapping.
+> - If 'addr' is higher than the mapped address, and the length doesn't
+>   reach the end of the old mapping, we split the old mapping into two.
+>   I would expect the guard pages to apply to both mappings, insofar as
+>   they'll fit.  For an example, suppose we have a five-page mapping =
+with
+>   two guard pages (MMMMMGG), and then we unmap the fourth page.  Now =
+we
+>   have a three-page mapping with one guard page followed immediately
+>   by a one-page mapping with two guard pages (MMMGMGG).
 
-The things is, we *know* that we will restore two segment registers with
-the user cr3 already loaded: CS and SS get restored with the final iret.
+I=E2=80=99m analysing that approach and see much more problems:
+- each time you call mmap like this, you still  increase count of vmas =
+as my=20
+patch did
+- now feature vma_merge shouldn=E2=80=99t work at all, until MAP_FIXED =
+is set or
+PROT_GUARD(0)
+- the entropy you provide is like 16 bit, that is really not so hard to =
+brute
+- in your patch you don=E2=80=99t use vm_guard at address searching, I =
+see many roots=20
+of bugs here
+- if you unmap/remap one page inside region, field vma_guard will show =
+head=20
+or tail pages for vma, not both; kernel don=E2=80=99t know how to handle =
+it
+- user mode now choose entropy with PROT_GUARD macro, where did he gets =
+it?=20
+User mode shouldn=E2=80=99t be responsible for entropy at all
 
-And yes, the final iret can fault due to CS/SS no longer being valid,
-either because of ptrace or because the ldt was changed.
+I can=E2=80=99t understand what direction this conversation is going to. =
+I was talking=20
+about weak implementation in Linux kernel but got many comments about =
+ASLR=20
+should be implemented in user mode what is really weird to me.
 
-So making it be a "rule" that segment registers be restored with the kernel
-cr3 active seems bogus. It just means that you're making a rule that cannot
-possibly be generic.
+I think it is possible  to add GUARD pages into my implementations, but =
+initially=20
+problem was about entropy of address choosing. I would like to resolve =
+it step by
+step.
 
-So has this been tested with
-
- - single-stepping through sysenter
-
-   This takes a DB fault in the first kernel instruction. We're in kernel
-mode, but with user cr3.
-
- - ptracing and setting CS/SS to something bad
-
-   That should test the "exception on iret" case - again in kernel mode,
-but with user cr3 restored for the return.
-
-I didn't look closely at the whole series, so maybe this is all fine. I
-mainly reacted to the "With PTI enabled, we still need to be on kernel cr3
-when the exception happens" part of the explanation..
-
-      Linus
-
---001a113a427e4596020566a950bb
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"auto">[ On mobile, sorry for html ]<br><div class=3D"gmail_extr=
-a" dir=3D"auto"><br><div class=3D"gmail_quote">On Mar 5, 2018 02:26, &quot;=
-Joerg Roedel&quot; &lt;<a href=3D"mailto:joro@8bytes.org">joro@8bytes.org</=
-a>&gt; wrote:<br type=3D"attribution"><blockquote class=3D"quote" style=3D"=
-margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">From: Joerg =
-Roedel &lt;<a href=3D"mailto:jroedel@suse.de">jroedel@suse.de</a>&gt;<br>
-<br>
-Restoring the segments can cause exceptions that need to be<br>
-handled. With PTI enabled, we still need to be on kernel cr3<br>
-when the exception happens. For the cr3-switch we need<br>
-at least one integer scratch register, so we can&#39;t switch<br>
-with the user integer registers already loaded.<br></blockquote></div></div=
-><div dir=3D"auto"><br></div><div dir=3D"auto">This fundamentally seems wro=
-ng.</div><div dir=3D"auto"><br></div><div dir=3D"auto">The things is, we *k=
-now* that we will restore two segment registers with the user cr3 already l=
-oaded: CS and SS get restored with the final iret.</div><div dir=3D"auto"><=
-br></div><div dir=3D"auto">And yes, the final iret can fault due to CS/SS n=
-o longer being valid, either because of ptrace or because the ldt was chang=
-ed.</div><div dir=3D"auto"><br></div><div dir=3D"auto">So making it be a &q=
-uot;rule&quot; that segment registers be restored with the kernel cr3 activ=
-e seems bogus. It just means that you&#39;re making a rule that cannot poss=
-ibly be generic.</div><div dir=3D"auto"><br></div><div dir=3D"auto">So has =
-this been tested with</div><div dir=3D"auto"><br></div><div dir=3D"auto">=
-=C2=A0- single-stepping through sysenter</div><div dir=3D"auto"><br></div><=
-div dir=3D"auto">=C2=A0 =C2=A0This takes a DB fault in the first kernel ins=
-truction. We&#39;re in kernel mode, but with user cr3.</div><div dir=3D"aut=
-o"><br></div><div dir=3D"auto">=C2=A0- ptracing and setting CS/SS to someth=
-ing bad</div><div dir=3D"auto"><br></div><div dir=3D"auto">=C2=A0 =C2=A0Tha=
-t should test the &quot;exception on iret&quot; case - again in kernel mode=
-, but with user cr3 restored for the return.</div><div dir=3D"auto"><br></d=
-iv><div dir=3D"auto">I didn&#39;t look closely at the whole series, so mayb=
-e this is all fine. I mainly reacted to the &quot;<span style=3D"font-famil=
-y:sans-serif">With PTI enabled, we still need to be on kernel cr3</span></d=
-iv><div dir=3D"auto"><span style=3D"font-family:sans-serif">when the except=
-ion happens&quot; part of the explanation..</span><br></div><div dir=3D"aut=
-o"><span style=3D"font-family:sans-serif"><br></span></div><div dir=3D"auto=
-"><span style=3D"font-family:sans-serif">=C2=A0 =C2=A0 =C2=A0 Linus</span><=
-/div><div dir=3D"auto"><br></div><div class=3D"gmail_extra" dir=3D"auto"><d=
-iv class=3D"gmail_quote"><blockquote class=3D"quote" style=3D"margin:0 0 0 =
-.8ex;border-left:1px #ccc solid;padding-left:1ex"></blockquote></div></div>=
-</div>
-
---001a113a427e4596020566a950bb--
+Thanks,
+Ilya=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
