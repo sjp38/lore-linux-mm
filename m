@@ -1,90 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EAE46B0011
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 09:51:31 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id g69so9075635ita.9
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 06:51:31 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m32sor4789236iti.7.2018.03.05.06.51.30
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Mar 2018 06:51:30 -0800 (PST)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B4BBB6B0006
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 09:54:48 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id a9so8393472oia.1
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 06:54:48 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id s91si3874798otb.271.2018.03.05.06.54.47
+        for <linux-mm@kvack.org>;
+        Mon, 05 Mar 2018 06:54:47 -0800 (PST)
+Date: Mon, 5 Mar 2018 14:54:36 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [RFC PATCH 14/14] khwasan: default the instrumentation mode to
+ inline
+Message-ID: <20180305145435.tfaldb334lp4obhi@lakrids.cambridge.arm.com>
+References: <cover.1520017438.git.andreyknvl@google.com>
+ <1943a345f4fb7e8e8f19b4ece2457bccd772f0dc.1520017438.git.andreyknvl@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20180305131231.GR16484@8bytes.org>
-References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
- <1520245563-8444-8-git-send-email-joro@8bytes.org> <CA+55aFym-18UbD5K3n1Ki=mvpuLqa7E6E=qG0aE-dctzTap_WQ@mail.gmail.com>
- <20180305131231.GR16484@8bytes.org>
-From: Brian Gerst <brgerst@gmail.com>
-Date: Mon, 5 Mar 2018 09:51:29 -0500
-Message-ID: <CAMzpN2gQ0pfSZES_cnNJSzvvGxbzuHdP0iAjx5GG5kJ6FGudbw@mail.gmail.com>
-Subject: Re: [PATCH 07/34] x86/entry/32: Restore segments before int registers
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1943a345f4fb7e8e8f19b4ece2457bccd772f0dc.1520017438.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-On Mon, Mar 5, 2018 at 8:12 AM, Joerg Roedel <joro@8bytes.org> wrote:
-> On Mon, Mar 05, 2018 at 04:17:45AM -0800, Linus Torvalds wrote:
->>     Restoring the segments can cause exceptions that need to be
->>     handled. With PTI enabled, we still need to be on kernel cr3
->>     when the exception happens. For the cr3-switch we need
->>     at least one integer scratch register, so we can't switch
->>     with the user integer registers already loaded.
->>
->>
->> This fundamentally seems wrong.
->
-> Okay, right, with v3 it is wrong, in v2 I still thought I could get away
-> without remembering the entry-cr3, but didn't think about the #DB case
-> then.
->
-> In v3 I added code which remembers the entry-cr3 and handles the
-> entry-from-kernel-mode-with-user-cr3 case for all exceptions including
-> #DB.
->
->> The things is, we *know* that we will restore two segment registers with the
->> user cr3 already loaded: CS and SS get restored with the final iret.
->
-> Yeah, I know, but the iret-exception path is fine because it will
-> deliver a SIGILL and doesn't return to the faulting iret.
->
-> Anyway, I will remove these restore-reorderings, they are not needed
-> anymore.
->
->> So has this been tested with
->>
->>  - single-stepping through sysenter
->>
->>    This takes a DB fault in the first kernel instruction. We're in kernel mode,
->> but with user cr3.
->>
->>  - ptracing and setting CS/SS to something bad
->>
->>    That should test the "exception on iret" case - again in kernel mode, but
->> with user cr3 restored for the return.
->
-> The iret-exception case is tested by the ldt_gdt selftest (the
-> do_multicpu_tests subtest). But I didn't actually tested single-stepping
-> through sysenter yet. I just re-ran the same tests I did with v2 on this
-> patch-set.
->
-> Regards,
->
->         Joerg
->
+On Fri, Mar 02, 2018 at 08:44:33PM +0100, Andrey Konovalov wrote:
+> There are two reasons to use outline instrumentation:
+> 1. Outline instrumentation reduces the size of the kernel text, and should
+>    be used where this size matters.
+> 2. Outline instrumentation is less invasive and can be used for debugging
+>    for KASAN developers, when it's not clear whether some issue is caused
+>    by KASAN or by something else.
+> 
+> For the rest cases inline instrumentation is preferrable, since it's
+> faster.
+> 
+> This patch changes the default instrumentation mode to inline.
+> ---
+>  lib/Kconfig.kasan | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+> index ab34e7d7d3a7..8ea6ae26b4a3 100644
+> --- a/lib/Kconfig.kasan
+> +++ b/lib/Kconfig.kasan
+> @@ -70,7 +70,7 @@ config KASAN_EXTRA
+>  choice
+>  	prompt "Instrumentation type"
+>  	depends on KASAN
+> -	default KASAN_OUTLINE
+> +	default KASAN_INLINE
 
-For the IRET fault case you will still need to catch it in the
-exception code.  See the 64-bit code (.Lerror_bad_iret) for example.
-For 32-bit, you could just expand that check to cover the whole exit
-prologue after the CR3 switch, including the data segment loads.
+Some compilers don't support KASAN_INLINE, but do support KASAN_OUTLINE.
+IIRC that includes the latest clang release, but I could be wrong.
 
-I do wonder though, how expensive is a CR3 read?  The SDM implies that
-only writes are serializing.  It may be simpler to just
-unconditionally check it.
+If that's the case, changing the default here does not seem ideal.
 
---
-Brian Gerst
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
