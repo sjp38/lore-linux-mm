@@ -1,149 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EE226B0012
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:38:29 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id c142so4637955wmh.4
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:38:29 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id x84si4588209wmg.34.2018.03.05.05.38.27
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AD416B0024
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:39:36 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id g13so14147968qtj.15
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:39:36 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id r129si4377490qkd.206.2018.03.05.05.39.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 05:38:27 -0800 (PST)
-From: Roman Gushchin <guro@fb.com>
-Subject: [PATCH 3/3] dcache: account external names as indirectly reclaimable memory
-Date: Mon, 5 Mar 2018 13:37:43 +0000
-Message-ID: <20180305133743.12746-5-guro@fb.com>
-In-Reply-To: <20180305133743.12746-1-guro@fb.com>
-References: <20180305133743.12746-1-guro@fb.com>
+        Mon, 05 Mar 2018 05:39:34 -0800 (PST)
+Subject: Re: [PATCH 34/34] x86/mm/pti: Add Warning when booting on a PCIE
+ capable CPU
+References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
+ <1520245563-8444-35-git-send-email-joro@8bytes.org>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <d879496a-887d-9077-3a7d-ee878a691bdc@redhat.com>
+Date: Mon, 5 Mar 2018 08:39:28 -0500
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1520245563-8444-35-git-send-email-joro@8bytes.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de
 
-I was reported about suspicious growth of unreclaimable slabs
-on some machines. I've found that it happens on machines
-with low memory pressure, and these unreclaimable slabs
-are external names attached to dentries.
+On 03/05/2018 05:26 AM, Joerg Roedel wrote:
+> From: Joerg Roedel <jroedel@suse.de>
+>
+> Warn the user in case the performance can be significantly
+> improved by switching to a 64-bit kernel.
+>
+> Suggested-by: Andy Lutomirski <luto@kernel.org>
+> Signed-off-by: Joerg Roedel <jroedel@suse.de>
+> ---
+>  arch/x86/mm/pti.c | 16 ++++++++++++++++
+>  1 file changed, 16 insertions(+)
+>
+> diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+> index 3ffd923..8f5aa0d 100644
+> --- a/arch/x86/mm/pti.c
+> +++ b/arch/x86/mm/pti.c
+> @@ -385,6 +385,22 @@ void __init pti_init(void)
+>  
+>  	pr_info("enabled\n");
+>  
+> +#ifdef CONFIG_X86_32
+> +	if (boot_cpu_has(X86_FEATURE_PCID)) {
+> +		/* Use printk to work around pr_fmt() */
+> +		printk(KERN_WARNING "\n");
+> +		printk(KERN_WARNING "************************************************************\n");
+> +		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
+> +		printk(KERN_WARNING "**                                                        **\n");
+> +		printk(KERN_WARNING "** You are using 32-bit PTI on a 64-bit PCID-capable CPU. **\n");
+> +		printk(KERN_WARNING "** Your performance will increase dramatically if you     **\n");
+> +		printk(KERN_WARNING "** switch to a 64-bit kernel!                             **\n");
+> +		printk(KERN_WARNING "**                                                        **\n");
+> +		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
+> +		printk(KERN_WARNING "************************************************************\n");
+> +	}
+> +#endif
+> +
+>  	pti_clone_user_shared();
+>  	pti_clone_entry_text();
+>  	pti_setup_espfix64();
 
-External names are allocated using generic kmalloc() function,
-so they are accounted as unreclaimable. But they are held
-by dentries, which are reclaimable, and they will be reclaimed
-under the memory pressure.
+Typo in the patch title: PCIE => PCID.
 
-In particular, this breaks MemAvailable calculation, as it
-doesn't take unreclaimable slabs into account.
-This leads to a silly situation, when a machine is almost idle,
-has no memory pressure and therefore has a big dentry cache.
-And the resulting MemAvailable is too low to start a new workload.
-
-To address the issue, the NR_INDIRECTLY_RECLAIMABLE_BYTES counter
-is used to track the amount of memory, consumed by external names.
-The counter is increased in the dentry allocation path, if an external
-name structure is allocated; and it's decreased in the dentry freeing
-path.
-
-To reproduce the problem I've used the following Python script:
-  import os
-
-  for iter in range (0, 10000000):
-      try:
-          name = ("/some_long_name_%d" % iter) + "_" * 220
-          os.stat(name)
-      except Exception:
-          pass
-
-Without this patch:
-  $ cat /proc/meminfo | grep MemAvailable
-  MemAvailable:    7811688 kB
-  $ python indirect.py
-  $ cat /proc/meminfo | grep MemAvailable
-  MemAvailable:    2753052 kB
-
-With the patch:
-  $ cat /proc/meminfo | grep MemAvailable
-  MemAvailable:    7809516 kB
-  $ python indirect.py
-  $ cat /proc/meminfo | grep MemAvailable
-  MemAvailable:    7749144 kB
-
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-fsdevel@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: kernel-team@fb.com
----
- fs/dcache.c | 29 ++++++++++++++++++++++++-----
- 1 file changed, 24 insertions(+), 5 deletions(-)
-
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 5c7df1df81ff..a0312d73f575 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -273,8 +273,16 @@ static void __d_free(struct rcu_head *head)
- static void __d_free_external(struct rcu_head *head)
- {
- 	struct dentry *dentry = container_of(head, struct dentry, d_u.d_rcu);
--	kfree(external_name(dentry));
--	kmem_cache_free(dentry_cache, dentry); 
-+	struct external_name *name = external_name(dentry);
-+	unsigned long bytes;
-+
-+	bytes = dentry->d_name.len + offsetof(struct external_name, name[1]);
-+	mod_node_page_state(page_pgdat(virt_to_page(name)),
-+			    NR_INDIRECTLY_RECLAIMABLE_BYTES,
-+			    -kmalloc_size(kmalloc_index(bytes)));
-+
-+	kfree(name);
-+	kmem_cache_free(dentry_cache, dentry);
- }
- 
- static inline int dname_external(const struct dentry *dentry)
-@@ -1598,6 +1606,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- 	struct dentry *dentry;
- 	char *dname;
- 	int err;
-+	size_t reclaimable = 0;
- 
- 	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL);
- 	if (!dentry)
-@@ -1614,9 +1623,11 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- 		name = &slash_name;
- 		dname = dentry->d_iname;
- 	} else if (name->len > DNAME_INLINE_LEN-1) {
--		size_t size = offsetof(struct external_name, name[1]);
--		struct external_name *p = kmalloc(size + name->len,
--						  GFP_KERNEL_ACCOUNT);
-+		struct external_name *p;
-+
-+		reclaimable = offsetof(struct external_name, name[1]) +
-+			name->len;
-+		p = kmalloc(reclaimable, GFP_KERNEL_ACCOUNT);
- 		if (!p) {
- 			kmem_cache_free(dentry_cache, dentry); 
- 			return NULL;
-@@ -1665,6 +1676,14 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- 		}
- 	}
- 
-+	if (unlikely(reclaimable)) {
-+		pg_data_t *pgdat;
-+
-+		pgdat = page_pgdat(virt_to_page(external_name(dentry)));
-+		mod_node_page_state(pgdat, NR_INDIRECTLY_RECLAIMABLE_BYTES,
-+				    kmalloc_size(kmalloc_index(reclaimable)));
-+	}
-+
- 	this_cpu_inc(nr_dentry);
- 
- 	return dentry;
--- 
-2.14.3
+-Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
