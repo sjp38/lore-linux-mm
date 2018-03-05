@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 244386B0275
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:27:54 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id z14so11100125wrh.1
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:27:54 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 70B786B0277
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:27:56 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id u65so10777035wrc.8
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:27:56 -0800 (PST)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id i10si1989841edl.454.2018.03.05.02.26.20
+        by mx.google.com with ESMTPS id v19si445451edd.415.2018.03.05.02.26.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 02:26:20 -0800 (PST)
+        Mon, 05 Mar 2018 02:26:17 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 24/34] x86/mm/pti: Add an overflow check to pti_clone_pmds()
-Date: Mon,  5 Mar 2018 11:25:53 +0100
-Message-Id: <1520245563-8444-25-git-send-email-joro@8bytes.org>
+Subject: [PATCH 18/34] x86/pgtable: Move pgdp kernel/user conversion functions to pgtable.h
+Date: Mon,  5 Mar 2018 11:25:47 +0100
+Message-Id: <1520245563-8444-19-git-send-email-joro@8bytes.org>
 In-Reply-To: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,31 +22,134 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The addr counter will overflow if we clone the last PMD of
-the address space, resulting in an endless loop.
-
-Check for that and bail out of the loop when it happens.
+Make them available on 32 bit and clone_pgd_range() happy.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ arch/x86/include/asm/pgtable.h    | 49 +++++++++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h | 49 ---------------------------------------
+ 2 files changed, 49 insertions(+), 49 deletions(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index 8f53d21..96a690e 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -282,6 +282,10 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
- 		p4d_t *p4d;
- 		pud_t *pud;
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index e42b894..0a9f746 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1109,6 +1109,55 @@ static inline int pud_write(pud_t pud)
+ 	return pud_flags(pud) & _PAGE_RW;
+ }
  
-+		/* Overflow check */
-+		if (addr < start)
-+			break;
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++/*
++ * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
++ * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
++ * the user one is in the last 4k.  To switch between them, you
++ * just need to flip the 12th bit in their addresses.
++ */
++#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
 +
- 		pgd = pgd_offset_k(addr);
- 		if (WARN_ON(pgd_none(*pgd)))
- 			return;
++/*
++ * This generates better code than the inline assembly in
++ * __set_bit().
++ */
++static inline void *ptr_set_bit(void *ptr, int bit)
++{
++	unsigned long __ptr = (unsigned long)ptr;
++
++	__ptr |= BIT(bit);
++	return (void *)__ptr;
++}
++static inline void *ptr_clear_bit(void *ptr, int bit)
++{
++	unsigned long __ptr = (unsigned long)ptr;
++
++	__ptr &= ~BIT(bit);
++	return (void *)__ptr;
++}
++
++static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
++{
++	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
++}
++
++static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
++{
++	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
++}
++
++static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
++{
++	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
++}
++
++static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
++{
++	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
++}
++#endif /* CONFIG_PAGE_TABLE_ISOLATION */
++
+ /*
+  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
+  *
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index b68bda5..5e68083 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -131,55 +131,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ #endif
+ }
+ 
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-/*
+- * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
+- * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
+- * the user one is in the last 4k.  To switch between them, you
+- * just need to flip the 12th bit in their addresses.
+- */
+-#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
+-
+-/*
+- * This generates better code than the inline assembly in
+- * __set_bit().
+- */
+-static inline void *ptr_set_bit(void *ptr, int bit)
+-{
+-	unsigned long __ptr = (unsigned long)ptr;
+-
+-	__ptr |= BIT(bit);
+-	return (void *)__ptr;
+-}
+-static inline void *ptr_clear_bit(void *ptr, int bit)
+-{
+-	unsigned long __ptr = (unsigned long)ptr;
+-
+-	__ptr &= ~BIT(bit);
+-	return (void *)__ptr;
+-}
+-
+-static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
+-{
+-	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-
+-static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
+-{
+-	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-
+-static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
+-{
+-	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-
+-static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
+-{
+-	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-#endif /* CONFIG_PAGE_TABLE_ISOLATION */
+-
+ /*
+  * Page table pages are page-aligned.  The lower half of the top
+  * level is used for userspace and the top half for the kernel.
 -- 
 2.7.4
 
