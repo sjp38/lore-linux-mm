@@ -1,50 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BD0286B000D
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 16:35:53 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id q15so11862675wra.22
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 13:35:53 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id u7si1575029edb.449.2018.03.05.13.35.51
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5828C6B000D
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 16:42:58 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id m3so9046037iti.1
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 13:42:58 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id b71si6560835itd.17.2018.03.05.13.42.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 13:35:51 -0800 (PST)
-Date: Mon, 5 Mar 2018 22:35:50 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 07/34] x86/entry/32: Restore segments before int registers
-Message-ID: <20180305213550.GV16484@8bytes.org>
-References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
- <1520245563-8444-8-git-send-email-joro@8bytes.org>
- <CA+55aFym-18UbD5K3n1Ki=mvpuLqa7E6E=qG0aE-dctzTap_WQ@mail.gmail.com>
- <20180305131231.GR16484@8bytes.org>
- <CA+55aFwn5EkHTfrUFww54CDWovoUornv6rSrao43agbLBQD6-Q@mail.gmail.com>
- <CAMzpN2hscOXJFzm07Hk=2Ttr3wQFSisxP=EZhRMtAU6xSm8zSw@mail.gmail.com>
- <CA+55aFwxiZ9bD2Zu5xV0idz_dDctPvrrWA2r54+NL4aj9oeN8Q@mail.gmail.com>
+        Mon, 05 Mar 2018 13:42:57 -0800 (PST)
+Subject: Re: [PATCH v12 10/11] sparc64: Add support for ADI (Application Data
+ Integrity)
+References: <cover.1519227112.git.khalid.aziz@oracle.com>
+ <d8602e35e65c8bf6df1a85166bf181536a6f3664.1519227112.git.khalid.aziz@oracle.com>
+ <08ef65c1-16b3-44e7-5cc3-7b6bde7bd5a4@linux.intel.com>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <b241c894-7751-bd01-2658-4cb6b89f7454@oracle.com>
+Date: Mon, 5 Mar 2018 14:37:24 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFwxiZ9bD2Zu5xV0idz_dDctPvrrWA2r54+NL4aj9oeN8Q@mail.gmail.com>
+In-Reply-To: <08ef65c1-16b3-44e7-5cc3-7b6bde7bd5a4@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Brian Gerst <brgerst@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?iso-8859-1?Q?J=FCrgen_Gro=DF?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
+To: Dave Hansen <dave.hansen@linux.intel.com>, davem@davemloft.net, akpm@linux-foundation.org
+Cc: corbet@lwn.net, bob.picco@oracle.com, steven.sistare@oracle.com, pasha.tatashin@oracle.com, mike.kravetz@oracle.com, rob.gardner@oracle.com, mingo@kernel.org, nitin.m.gupta@oracle.com, anthony.yznaga@oracle.com, kirill.shutemov@linux.intel.com, tom.hromatka@oracle.com, allen.pais@oracle.com, tklauser@distanz.ch, shannon.nelson@oracle.com, vijay.ac.kumar@oracle.com, mhocko@suse.com, jack@suse.cz, punit.agrawal@arm.com, hughd@google.com, thomas.tai@oracle.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, minchan@kernel.org, imbrenda@linux.vnet.ibm.com, aarcange@redhat.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, tglx@linutronix.de, gregkh@linuxfoundation.org, nagarathnam.muthusamy@oracle.com, linux@roeck-us.net, jane.chu@oracle.com, dan.j.williams@intel.com, jglisse@redhat.com, ktkhai@virtuozzo.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
 
-On Mon, Mar 05, 2018 at 12:50:33PM -0800, Linus Torvalds wrote:
-> On Mon, Mar 5, 2018 at 12:38 PM, Brian Gerst <brgerst@gmail.com> wrote:
-> >
-> > There already is a test: single_step_syscall.c
+On 03/05/2018 02:26 PM, Dave Hansen wrote:
+> On 02/21/2018 09:15 AM, Khalid Aziz wrote:
+>> +tag_storage_desc_t *alloc_tag_store(struct mm_struct *mm,
+>> +				    struct vm_area_struct *vma,
+>> +				    unsigned long addr)
+> ...
+>> +	tags = kzalloc(size, GFP_NOWAIT|__GFP_NOWARN);
+>> +	if (tags == NULL) {
+>> +		tag_desc->tag_users = 0;
+>> +		tag_desc = NULL;
+>> +		goto out;
+>> +	}
+>> +	tag_desc->start = addr;
+>> +	tag_desc->tags = tags;
+>> +	tag_desc->end = end_addr;
+>> +
+>> +out:
+>> +	spin_unlock_irqrestore(&mm->context.tag_lock, flags);
+>> +	return tag_desc;
+>> +}
 > 
-> Ahh, good. So presumably Joerg actually did check it, just didn't even notice ;)
+> OK, sorry, I missed this.  I do see that you now have per-ADI-block tag
+> storage and it is not per-page.
+> 
+> How big can this storage get, btw?  Superficially it seems like it might
+> be able to be gigantic for a large, sparse VMA.
+> 
 
-Yeah, sort of. I ran the test, but it didn't catch the failure case in
-previous versions which was return to user with kernel-cr3 :)
+Tags are stored only for the pages being swapped out, not for the pages 
+in entire vma. Each tag storage page can hold tags for 128 pages (each 
+page has 128 4-bit tags, hence 64 bytes are needed to store tags for an 
+entire page allowing each page to store tags for 128 pages). Sparse VMA 
+does not cause any problems since holes do not have corresponding pages 
+that will be swapped out. Tag storage pages are freed once all the pages 
+they store tags for have been swapped back in, except for a small number 
+of pages (maximum of 8) marked for emergency tag storage.
 
-I could probably add some debug instrumentation to check for that in my
-future testing, as there is no NX protection in the user address-range
-for the kernel-cr3.
-
-
-	Joerg
+--
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
