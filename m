@@ -1,116 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 964826B0007
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 09:24:01 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id a144so14364235qkb.3
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 06:24:01 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t45sor5466759qtg.11.2018.03.05.06.24.00
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Mar 2018 06:24:00 -0800 (PST)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BC4D6B0008
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 09:29:31 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id a9so8359996oia.1
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 06:29:31 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e23si3958799otc.391.2018.03.05.06.29.30
+        for <linux-mm@kvack.org>;
+        Mon, 05 Mar 2018 06:29:30 -0800 (PST)
+Date: Mon, 5 Mar 2018 14:29:07 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [RFC PATCH 06/14] khwasan: enable top byte ignore for the kernel
+Message-ID: <20180305142907.uvrvwmtfl7o45myf@lakrids.cambridge.arm.com>
+References: <cover.1520017438.git.andreyknvl@google.com>
+ <739eecf573b6342fc41c4f89d7f64eb8c183e312.1520017438.git.andreyknvl@google.com>
 MIME-Version: 1.0
-In-Reply-To: <7FA6631B-951F-42F4-A7BF-8E5BB734D709@gmail.com>
-References: <20180227131338.3699-1-blackzert@gmail.com> <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
- <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com> <20180228183349.GA16336@bombadil.infradead.org>
- <CA+DvKQKoo1U7T_iOOLhfEf9c+K1pzD068au+kGtx0RokFFNKHw@mail.gmail.com>
- <2CF957C6-53F2-4B00-920F-245BEF3CA1F6@gmail.com> <CA+DvKQ+mrnm4WX+3cBPuoSLFHmx2Zwz8=FsEx51fH-7yQMAd9w@mail.gmail.com>
- <20180304034704.GB20725@bombadil.infradead.org> <20180304205614.GC23816@bombadil.infradead.org>
- <7FA6631B-951F-42F4-A7BF-8E5BB734D709@gmail.com>
-From: Daniel Micay <danielmicay@gmail.com>
-Date: Mon, 5 Mar 2018 09:23:59 -0500
-Message-ID: <CA+DvKQKHqVzk9u2GwSC+F2vF938DY4Heb+JexwOSZhfcFkuqcw@mail.gmail.com>
-Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <739eecf573b6342fc41c4f89d7f64eb8c183e312.1520017438.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ilya Smith <blackzert@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-On 5 March 2018 at 08:09, Ilya Smith <blackzert@gmail.com> wrote:
->
->> On 4 Mar 2018, at 23:56, Matthew Wilcox <willy@infradead.org> wrote:
->> Thinking about this more ...
->>
->> - When you call munmap, if you pass in the same (addr, length) that were
->>   used for mmap, then it should unmap the guard pages as well (that
->>   wasn't part of the patch, so it would have to be added)
->> - If 'addr' is higher than the mapped address, and length at least
->>   reaches the end of the mapping, then I would expect the guard pages to
->>   "move down" and be after the end of the newly-shortened mapping.
->> - If 'addr' is higher than the mapped address, and the length doesn't
->>   reach the end of the old mapping, we split the old mapping into two.
->>   I would expect the guard pages to apply to both mappings, insofar as
->>   they'll fit.  For an example, suppose we have a five-page mapping with
->>   two guard pages (MMMMMGG), and then we unmap the fourth page.  Now we
->>   have a three-page mapping with one guard page followed immediately
->>   by a one-page mapping with two guard pages (MMMGMGG).
->
-> I=E2=80=99m analysing that approach and see much more problems:
-> - each time you call mmap like this, you still  increase count of vmas as=
- my
-> patch did
-> - now feature vma_merge shouldn=E2=80=99t work at all, until MAP_FIXED is=
- set or
-> PROT_GUARD(0)
-> - the entropy you provide is like 16 bit, that is really not so hard to b=
-rute
-> - in your patch you don=E2=80=99t use vm_guard at address searching, I se=
-e many roots
-> of bugs here
-> - if you unmap/remap one page inside region, field vma_guard will show he=
-ad
-> or tail pages for vma, not both; kernel don=E2=80=99t know how to handle =
-it
-> - user mode now choose entropy with PROT_GUARD macro, where did he gets i=
-t?
-> User mode shouldn=E2=80=99t be responsible for entropy at all
+On Fri, Mar 02, 2018 at 08:44:25PM +0100, Andrey Konovalov wrote:
+> +#ifdef CONFIG_KASAN_TAGS
+> +#define TCR_TBI_FLAGS (TCR_TBI0 | TCR_TBI1)
+> +#else
+> +#define TCR_TBI_FLAGS TCR_TBI0
+> +#endif
 
-I didn't suggest this as the way of implementing fine-grained
-randomization but rather a small starting point for hardening address
-space layout further. I don't think it should be tied to a mmap flag
-but rather something like a personality flag or a global sysctl. It
-doesn't need to be random at all to be valuable, and it's just a first
-step. It doesn't mean there can't be switches between random pivots
-like OpenBSD mmap, etc. I'm not so sure that randomly switching around
-is going to result in isolating things very well though.
+Rather than pulling TBI0 into this, I think it'd make more sense to
+have:
 
-The VMA count issue is at least something very predictable with a
-performance cost only for kernel operations.
+#ifdef CONFIG_KASAN_TAGS
+#define KASAN_TCR_FLAGS	TCR_TBI1
+#else
+#define KASAN_TCR_FLAGS
+#endif
 
-> I can=E2=80=99t understand what direction this conversation is going to. =
-I was talking
-> about weak implementation in Linux kernel but got many comments about ASL=
-R
-> should be implemented in user mode what is really weird to me.
+> +
+>  #define MAIR(attr, mt)	((attr) << ((mt) * 8))
+>  
+>  /*
+> @@ -432,7 +438,7 @@ ENTRY(__cpu_setup)
+>  	 * both user and kernel.
+>  	 */
+>  	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
+> -			TCR_TG_FLAGS | TCR_ASID16 | TCR_TBI0 | TCR_A1
+> +			TCR_TG_FLAGS | TCR_ASID16 | TCR_TBI_FLAGS | TCR_A1
 
-That's not what I said. I was saying that splitting things into
-regions based on the type of allocation works really well and allows
-for high entropy bases, but that the kernel can't really do that right
-now. It could split up code that starts as PROT_EXEC into a region but
-that's generally not how libraries are mapped in so it won't know
-until mprotect which is obviously too late. Unless it had some kind of
-type key passed from userspace, it can't really do that.
+... and just append KASAN_TCR_FLAGS to the flags here.
 
-> I think it is possible  to add GUARD pages into my implementations, but i=
-nitially
-> problem was about entropy of address choosing. I would like to resolve it=
- step by
-> step.
+That's roughtly what we do with ENDIAN_SET_EL1 for SCTLR_EL1.
 
-Starting with fairly aggressive fragmentation of the address space is
-going to be a really hard sell. The costs of a very spread out address
-space in terms of TLB misses, etc. are unclear. Starting with enforced
-gaps (1 page) and randomization for those wouldn't rule out having
-finer-grained randomization, like randomly switching between different
-regions. This needs to be cheap enough that people want to enable it,
-and the goals need to be clearly spelled out. The goal needs to be
-clearer than "more randomization =3D=3D good" and then accepting a high
-performance cost for that.
-
-I'm not dictating how things should be done, I don't have any say
-about that. I'm just trying to discuss it.
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
