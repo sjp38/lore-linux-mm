@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C2D3C6B0008
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 14:13:38 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id m18so716337pgu.14
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 11:13:38 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id b90-v6si6211863pli.261.2018.03.05.11.13.37
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 896A16B0008
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 14:20:12 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id n12-v6so8464792pls.12
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 11:20:12 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id s190si8717429pgc.510.2018.03.05.11.20.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 11:13:37 -0800 (PST)
-Subject: Re: [RFC, PATCH 13/22] mm, rmap: Free encrypted pages once mapcount
- drops to zero
-References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
- <20180305162610.37510-14-kirill.shutemov@linux.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <e04536bc-77e9-84d0-3c23-1dfea8542da5@intel.com>
-Date: Mon, 5 Mar 2018 11:13:36 -0800
+        Mon, 05 Mar 2018 11:20:11 -0800 (PST)
+Subject: Re: [PATCH v12 02/11] mm, swap: Add infrastructure for saving page
+ metadata on swap
+References: <cover.1519227112.git.khalid.aziz@oracle.com>
+ <f5316c71e645d99ffdd52963f1e9675de3fc6386.1519227112.git.khalid.aziz@oracle.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <0d77dc3c-1454-a689-a0fb-f07e8973c29e@linux.intel.com>
+Date: Mon, 5 Mar 2018 11:20:09 -0800
 MIME-Version: 1.0
-In-Reply-To: <20180305162610.37510-14-kirill.shutemov@linux.intel.com>
+In-Reply-To: <f5316c71e645d99ffdd52963f1e9675de3fc6386.1519227112.git.khalid.aziz@oracle.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Khalid Aziz <khalid.aziz@oracle.com>, akpm@linux-foundation.org, davem@davemloft.net, arnd@arndb.de
+Cc: kirill.shutemov@linux.intel.com, mhocko@suse.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, mgorman@techsingularity.net, willy@infradead.org, hughd@google.com, minchan@kernel.org, hannes@cmpxchg.org, shli@fb.com, mingo@kernel.org, jglisse@redhat.com, me@tobin.cc, anthony.yznaga@oracle.com, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
 
-On 03/05/2018 08:26 AM, Kirill A. Shutemov wrote:
-> @@ -1292,6 +1308,12 @@ static void page_remove_anon_compound_rmap(struct page *page)
->  		__mod_node_page_state(page_pgdat(page), NR_ANON_MAPPED, -nr);
->  		deferred_split_huge_page(page);
->  	}
-> +
-> +	anon_vma = page_anon_vma(page);
-> +	if (anon_vma_encrypted(anon_vma)) {
-> +		int keyid = anon_vma_keyid(anon_vma);
-> +		free_encrypt_page(page, keyid, compound_order(page));
-> +	}
->  }
+On 02/21/2018 09:15 AM, Khalid Aziz wrote:
+> If a processor supports special metadata for a page, for example ADI
+> version tags on SPARC M7, this metadata must be saved when the page is
+> swapped out. The same metadata must be restored when the page is swapped
+> back in. This patch adds two new architecture specific functions -
+> arch_do_swap_page() to be called when a page is swapped in, and
+> arch_unmap_one() to be called when a page is being unmapped for swap
+> out. These architecture hooks allow page metadata to be saved if the
+> architecture supports it.
 
-It's not covered in the description and I'm to lazy to dig into it, so:
-Without this code, where do they get freed?  Why does it not cause any
-problems to free them here?
+I still think silently squishing cacheline-level hardware data into
+page-level software data structures is dangerous.
+
+But, you seem rather determined to do it this way.  I don't think this
+will _hurt_ anyone else, though other than needlessly cluttering up the
+code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
