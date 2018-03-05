@@ -1,207 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CEE306B027F
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:27:57 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id u65so10777072wrc.8
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:27:57 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id 20si5485524edt.82.2018.03.05.02.26.15
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FB896B0280
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:50:37 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id a143so14014335qkg.4
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:50:37 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id g60si6527675qtd.280.2018.03.05.02.50.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 02:26:15 -0800 (PST)
-From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 14/34] x86/entry/32: Add PTI cr3 switch to non-NMI entry/exit points
-Date: Mon,  5 Mar 2018 11:25:43 +0100
-Message-Id: <1520245563-8444-15-git-send-email-joro@8bytes.org>
-In-Reply-To: <1520245563-8444-1-git-send-email-joro@8bytes.org>
-References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
+        Mon, 05 Mar 2018 02:50:36 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w25Anhvx018164
+	for <linux-mm@kvack.org>; Mon, 5 Mar 2018 05:50:35 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2gh3t49p0f-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:50:35 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 5 Mar 2018 10:50:32 -0000
+Subject: Re: [PATCH v8 18/24] mm: Provide speculative fault infrastructure
+References: <1518794738-4186-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1518794738-4186-19-git-send-email-ldufour@linux.vnet.ibm.com>
+ <5b16d6ce-6b62-e4ca-2d78-c25bb008e27e@oracle.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Mon, 5 Mar 2018 11:50:21 +0100
+MIME-Version: 1.0
+In-Reply-To: <5b16d6ce-6b62-e4ca-2d78-c25bb008e27e@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+Message-Id: <1d6c1ea9-6488-5e25-68b7-6f4aa07d1945@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de, joro@8bytes.org
+To: Daniel Jordan <daniel.m.jordan@oracle.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-From: Joerg Roedel <jroedel@suse.de>
+Hi Jordan,
 
-Add unconditional cr3 switches between user and kernel cr3
-to all non-NMI entry and exit points.
+Thanks for reporting this.
 
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
----
- arch/x86/entry/entry_32.S | 91 +++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 88 insertions(+), 3 deletions(-)
+On 26/02/2018 18:16, Daniel Jordan wrote:
+> Hi Laurent,
+> 
+> This series doesn't build for me[*] when CONFIG_TRANSPARENT_HUGEPAGE is unset.
+> 
+> The problem seems to be that the BUILD_BUG() version of pmd_same is called in
+> pte_map_lock:
+> 
+> On 02/16/2018 10:25 AM, Laurent Dufour wrote:
+>> +static bool pte_map_lock(struct vm_fault *vmf)
+>> +{
+> ...snip...
+>> +A A A  if (!pmd_same(pmdval, vmf->orig_pmd))
+>> +A A A A A A A  goto out;
+> 
+> Since SPF can now call pmd_same without THP, maybe the way to fix it is just
+> 
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+> index 2cfa3075d148..e130692db24a 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -375,7 +375,8 @@ static inline int pte_unused(pte_t pte)
+> A #endif
+> A 
+> A #ifndef __HAVE_ARCH_PMD_SAME
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || \
+> +A A A  defined(CONFIG_SPECULATIVE_PAGE_FAULT)
+> A static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+> A {
+> A A A A A A A  return pmd_val(pmd_a) == pmd_val(pmd_b);
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 35379e5..8f78abc 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -328,6 +328,30 @@
- #endif /* CONFIG_X86_ESPFIX32 */
- .endm
- 
-+/* Unconditionally switch to user cr3 */
-+.macro SWITCH_TO_USER_CR3 scratch_reg:req
-+	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
-+
-+	movl	%cr3, \scratch_reg
-+	orl	$PTI_SWITCH_MASK, \scratch_reg
-+	movl	\scratch_reg, %cr3
-+.Lend_\@:
-+.endm
-+
-+/* Unconditionally switch to kernel cr3 */
-+.macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
-+	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
-+	movl	%cr3, \scratch_reg
-+	/* Test if we are already on kernel CR3 */
-+	testl	$PTI_SWITCH_MASK, \scratch_reg
-+	jz	.Lend_\@
-+	andl	$(~PTI_SWITCH_MASK), \scratch_reg
-+	movl	\scratch_reg, %cr3
-+	/* Return original CR3 in \scratch_reg */
-+	orl	$PTI_SWITCH_MASK, \scratch_reg
-+.Lend_\@:
-+.endm
-+
- 
- /*
-  * Called with pt_regs fully populated and kernel segments loaded,
-@@ -341,11 +365,19 @@
-  */
- 
- #define CS_FROM_ENTRY_STACK	(1 << 31)
-+#define CS_FROM_USER_CR3	(1 << 30)
- 
- .macro SWITCH_TO_KERNEL_STACK
- 
- 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
- 
-+	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
-+
-+	/*
-+	 * %eax now contains the entry cr3 and we carry it forward in
-+	 * that register for the time this macro runs
-+	 */
-+
- 	/* Are we on the entry stack? Bail out if not! */
- 	movl	PER_CPU_VAR(cpu_entry_area), %edi
- 	addl	$CPU_ENTRY_AREA_entry_stack, %edi
-@@ -408,7 +440,8 @@
- 	 * but switch back to the entry-stack again when we approach
- 	 * iret and return to the interrupted code-path. This usually
- 	 * happens when we hit an exception while restoring user-space
--	 * segment registers on the way back to user-space.
-+	 * segment registers on the way back to user-space or when the
-+	 * sysenter handler runs with eflags.tf set.
- 	 *
- 	 * When we switch to the task-stack here, we can't trust the
- 	 * contents of the entry-stack anymore, as the exception handler
-@@ -425,6 +458,7 @@
- 	 *
- 	 * %esi: Entry-Stack pointer (same as %esp)
- 	 * %edi: Top of the task stack
-+	 * %eax: CR3 on kernel entry
- 	 */
- 
- 	/* Calculate number of bytes on the entry stack in %ecx */
-@@ -441,6 +475,14 @@
- 	orl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
- 
- 	/*
-+	 * Test the cr3 used to enter the kernel and add a marker
-+	 * so that we can switch back to it before iret.
-+	 */
-+	testl	$PTI_SWITCH_MASK, %eax
-+	jz	.Lcopy_pt_regs_\@
-+	orl	$CS_FROM_USER_CR3, PT_CS(%esp)
-+
-+	/*
- 	 * %esi and %edi are unchanged, %ecx contains the number of
- 	 * bytes to copy. The code at .Lcopy_pt_regs_\@ will allocate
- 	 * the stack-frame on task-stack and copy everything over
-@@ -506,7 +548,7 @@
- 
- /*
-  * This macro handles the case when we return to kernel-mode on the iret
-- * path and have to switch back to the entry stack.
-+ * path and have to switch back to the entry stack and/or user-cr3
-  *
-  * See the comments below the .Lentry_from_kernel_\@ label in the
-  * SWITCH_TO_KERNEL_STACK macro for more details.
-@@ -552,6 +594,18 @@
- 	/* Safe to switch to entry-stack now */
- 	movl	%ebx, %esp
- 
-+	/*
-+	 * We came from entry-stack and need to check if we also need to
-+	 * switch back to user cr3.
-+	 */
-+	testl	$CS_FROM_USER_CR3, PT_CS(%esp)
-+	jz	.Lend_\@
-+
-+	/* Clear marker from stack-frame */
-+	andl	$(~CS_FROM_USER_CR3), PT_CS(%esp)
-+
-+	SWITCH_TO_USER_CR3 scratch_reg=%eax
-+
- .Lend_\@:
- .endm
- /*
-@@ -746,6 +800,18 @@ ENTRY(xen_sysenter_target)
-  * 0(%ebp) arg6
-  */
- ENTRY(entry_SYSENTER_32)
-+	/*
-+	 * On entry-stack with all userspace-regs live - save and
-+	 * restore eflags and %eax to use it as scratch-reg for the cr3
-+	 * switch.
-+	 */
-+	pushfl
-+	pushl	%eax
-+	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
-+	popl	%eax
-+	popfl
-+
-+	/* Stack empty again, switch to task stack */
- 	movl	TSS_entry_stack(%esp), %esp
- 
- .Lsysenter_past_esp:
-@@ -826,6 +892,9 @@ ENTRY(entry_SYSENTER_32)
- 	/* Switch to entry stack */
- 	movl	%eax, %esp
- 
-+	/* Now ready to switch the cr3 */
-+	SWITCH_TO_USER_CR3 scratch_reg=%eax
-+
- 	/*
- 	 * Restore all flags except IF. (We restore IF separately because
- 	 * STI gives a one-instruction window in which we won't be interrupted,
-@@ -906,7 +975,23 @@ restore_all:
- .Lrestore_all_notrace:
- 	CHECK_AND_APPLY_ESPFIX
- .Lrestore_nocheck:
--	RESTORE_REGS 4				# skip orig_eax/error_code
-+	/*
-+	 * First restore user segments. This can cause exceptions, so we
-+	 * run it with kernel cr3.
-+	 */
-+	RESTORE_SEGMENTS
-+
-+	/*
-+	 * Segments are restored - no more exceptions from here on except on
-+	 * iret, but that handled safely.
-+	 */
-+	SWITCH_TO_USER_CR3 scratch_reg=%eax
-+
-+	/* Restore rest */
-+	RESTORE_INT_REGS
-+
-+	/* Unwind stack to the iret frame */
-+	RESTORE_SKIP_SEGMENTS 4			# skip orig_eax/error_code
- .Lirq_return:
- 	INTERRUPT_RETURN
- 
--- 
-2.7.4
+We can't fix that this way because some architectures define their own
+pmd_same() function (like ppc64), thus forcing the define here will be useless
+since __HAVE_ARCH_PMD_SAME is set in that case.
+
+The right way to fix that is to _not check_ for the PMD value in pte_spinlock()
+when CONFIG_TRANSPARENT_HUGEPAGE is not set since there is no risk of
+collapsing operation in our back if THP are disabled.
+
+I'll fix that in the next version.
+
+Laurent.
+
+> ?
+> 
+> Daniel
+> 
+> 
+> [*]A  The errors are:
+> 
+> In file included from /home/dmjordan/src/linux/include/linux/kernel.h:10:0,
+> A A A A A A A A A A A A A A A A  from /home/dmjordan/src/linux/include/linux/list.h:9,
+> A A A A A A A A A A A A A A A A  from /home/dmjordan/src/linux/include/linux/smp.h:12,
+> A A A A A A A A A A A A A A A A  from /home/dmjordan/src/linux/include/linux/kernel_stat.h:5,
+> A A A A A A A A A A A A A A A A  from /home/dmjordan/src/linux/mm/memory.c:41:
+> In function a??pmd_same.isra.104a??,
+> A A A  inlined from a??pte_map_locka?? at /home/dmjordan/src/linux/mm/memory.c:2380:7:
+> /home/dmjordan/src/linux/include/linux/compiler.h:324:38: error: call to
+> a??__compiletime_assert_391a?? declared with attribute error: BUILD_BUG failed
+> A  _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+> A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  ^
+> /home/dmjordan/src/linux/include/linux/compiler.h:304:4: note: in definition of
+> macro a??__compiletime_asserta??
+> A A A  prefix ## suffix();A A A  \
+> A A A  ^~~~~~
+> /home/dmjordan/src/linux/include/linux/compiler.h:324:2: note: in expansion of
+> macro a??_compiletime_asserta??
+> A  _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+> A  ^~~~~~~~~~~~~~~~~~~
+> /home/dmjordan/src/linux/include/linux/build_bug.h:45:37: note: in expansion of
+> macro a??compiletime_asserta??
+> A #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
+> A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  ^~~~~~~~~~~~~~~~~~
+> /home/dmjordan/src/linux/include/linux/build_bug.h:79:21: note: in expansion of
+> macro a??BUILD_BUG_ON_MSGa??
+> A #define BUILD_BUG() BUILD_BUG_ON_MSG(1, "BUILD_BUG failed")
+> A A A A A A A A A A A A A A A A A A A A  ^~~~~~~~~~~~~~~~
+> /home/dmjordan/src/linux/include/asm-generic/pgtable.h:391:2: note: in
+> expansion of macro a??BUILD_BUGa??
+> A  BUILD_BUG();
+> A  ^~~~~~~~~
+> A  CCA A A A A  block/elevator.o
+> A  CCA A A A A  crypto/crypto_wq.o
+> In function a??pmd_same.isra.104a??,
+> A A A  inlined from a??pte_spinlocka?? at /home/dmjordan/src/linux/mm/memory.c:2326:7,
+> A A A  inlined from a??handle_pte_faulta?? at
+> /home/dmjordan/src/linux/mm/memory.c:4181:7:
+> /home/dmjordan/src/linux/include/linux/compiler.h:324:38: error: call to
+> a??__compiletime_assert_391a?? declared with attribute error: BUILD_BUG failed
+> A  _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+> A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  ^
+> /home/dmjordan/src/linux/include/linux/compiler.h:304:4: note: in definition of
+> macro a??__compiletime_asserta??
+> A A A  prefix ## suffix();A A A  \
+> A A A  ^~~~~~
+> /home/dmjordan/src/linux/include/linux/compiler.h:324:2: note: in expansion of
+> macro a??_compiletime_asserta??
+> A  _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+> A  ^~~~~~~~~~~~~~~~~~~
+> /home/dmjordan/src/linux/include/linux/build_bug.h:45:37: note: in expansion of
+> macro a??compiletime_asserta??
+> A #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
+> A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  ^~~~~~~~~~~~~~~~~~
+> /home/dmjordan/src/linux/include/linux/build_bug.h:79:21: note: in expansion of
+> macro a??BUILD_BUG_ON_MSGa??
+> A #define BUILD_BUG() BUILD_BUG_ON_MSG(1, "BUILD_BUG failed")
+> A A A A A A A A A A A A A A A A A A A A  ^~~~~~~~~~~~~~~~
+> /home/dmjordan/src/linux/include/asm-generic/pgtable.h:391:2: note: in
+> expansion of macro a??BUILD_BUGa??
+> A  BUILD_BUG();
+> A  ^~~~~~~~~
+> ...
+> make[2]: *** [/home/dmjordan/src/linux/scripts/Makefile.build:316: mm/memory.o]
+> Error 1
+> make[1]: *** [/home/dmjordan/src/linux/Makefile:1047: mm] Error 2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
