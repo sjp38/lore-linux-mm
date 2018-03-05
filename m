@@ -1,160 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 487EC6B000A
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FF2E6B0008
 	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 11:26:25 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id j12so6671173pff.18
+Received: by mail-pg0-f70.google.com with SMTP id q13so7505752pgt.17
         for <linux-mm@kvack.org>; Mon, 05 Mar 2018 08:26:25 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id z21si10604935pfa.33.2018.03.05.08.26.23
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id p12-v6si7098404plk.295.2018.03.05.08.26.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 08:26:23 -0800 (PST)
+        Mon, 05 Mar 2018 08:26:24 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCH 04/22] x86/pconfig: Detect PCONFIG targets
-Date: Mon,  5 Mar 2018 19:25:52 +0300
-Message-Id: <20180305162610.37510-5-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
-References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
+Subject: [RFC, PATCH 00/22] Partial MKTME enabling
+Date: Mon,  5 Mar 2018 19:25:48 +0300
+Message-Id: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Intel PCONFIG targets are enumerated via new CPUID leaf 0x1b. This patch
-detects all supported targets of PCONFIG and implements helper to check
-if the target is supported.
+Hi everybody,
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/include/asm/intel_pconfig.h | 15 +++++++
- arch/x86/kernel/cpu/Makefile         |  2 +-
- arch/x86/kernel/cpu/intel_pconfig.c  | 82 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 98 insertions(+), 1 deletion(-)
+Here's updated version of my patchset that brings support of MKTME.
+It's not yet complete, but I think it worth sharing to get early feedback.
+
+Things that are missing:
+
+ - kmap() is not yet wired up to support tempoprary mappings of encrypted
+   pages. It's requried to allow kernel to access encrypted memory.
+
+ - Interface to manipulate encryption keys.
+
+ - Interface to create encrypted userspace mappings.
+
+ - IOMMU support.
+
+What has been done:
+
+ - PCONFIG, TME and MKTME enumeration.
+
+ - In-kernel helper that allows to program encryption keys into CPU.
+
+ - Allocation and freeing encrypted pages.
+
+ - Helpers to find out if a VMA/anon_vma/page is encrypted and with what
+   KeyID.
+
+Any feedback is welcome.
+
+------------------------------------------------------------------------------
+
+Multikey Total Memory Encryption (MKTME)[1] is a technology that allows
+transparent memory encryption in upcoming Intel platforms.
+
+MKTME is built on top of TME. TME allows encryption of the entirety of
+system memory using a single key. MKTME allows to have multiple encryption
+domains, each having own key -- different memory pages can be encrypted
+with different keys.
+
+Key design points of Intel MKTME:
+
+ - Initial HW implementation would support upto 63 keys (plus one default
+   TME key). But the number of keys may be as low as 3, depending to SKU
+   and BIOS settings
+
+ - To access encrypted memory you need to use mapping with proper KeyID
+   int the page table entry. KeyID is encoded in upper bits of PFN in page
+   table entry.
+
+   This means we cannot use direct map to access encrypted memory from
+   kernel side. My idea is to re-use kmap() interface to get proper
+   temporary mapping on kernel side.
+
+ - CPU does not enforce coherency between mappings of the same physical
+   page with different KeyIDs or encryption keys. We wound need to take
+   care about flushing cache on allocation of encrypted page and on
+   returning it back to free pool.
+
+ - For managing keys, there's MKTME_KEY_PROGRAM leaf of the new PCONFIG
+   (platform configuration) instruction. It allows load and clear keys
+   associated with a KeyID. You can also ask CPU to generate a key for
+   you or disable memory encryption when a KeyID is used.
+
+[1] https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf
+
+Kirill A. Shutemov (22):
+  x86/cpufeatures: Add Intel Total Memory Encryption cpufeature
+  x86/tme: Detect if TME and MKTME is activated by BIOS
+  x86/cpufeatures: Add Intel PCONFIG cpufeature
+  x86/pconfig: Detect PCONFIG targets
+  x86/pconfig: Provide defines and helper to run MKTME_KEY_PROG leaf
+  x86/mm: Decouple dynamic __PHYSICAL_MASK from AMD SME
+  x86/mm: Mask out KeyID bits from page table entry pfn
+  mm: Introduce __GFP_ENCRYPT
+  mm, rmap: Add arch-specific field into anon_vma
+  mm/shmem: Zero out unused vma fields in shmem_pseudo_vma_init()
+  mm: Use __GFP_ENCRYPT for pages in encrypted VMAs
+  mm: Do no merge vma with different encryption KeyIDs
+  mm, rmap: Free encrypted pages once mapcount drops to zero
+  mm, khugepaged: Do not collapse pages in encrypted VMAs
+  x86/mm: Introduce variables to store number, shift and mask of KeyIDs
+  x86/mm: Preserve KeyID on pte_modify() and pgprot_modify()
+  x86/mm: Implement vma_is_encrypted() and vma_keyid()
+  x86/mm: Handle allocation of encrypted pages
+  x86/mm: Implement free_encrypt_page()
+  x86/mm: Implement anon_vma_encrypted() and anon_vma_keyid()
+  x86/mm: Introduce page_keyid() and page_encrypted()
+  x86: Introduce CONFIG_X86_INTEL_MKTME
+
+ arch/x86/Kconfig                     |  21 +++++++
+ arch/x86/boot/compressed/kaslr_64.c  |   3 +
+ arch/x86/include/asm/cpufeatures.h   |   2 +
+ arch/x86/include/asm/intel_pconfig.h |  65 +++++++++++++++++++
+ arch/x86/include/asm/mktme.h         |  56 +++++++++++++++++
+ arch/x86/include/asm/page.h          |  13 +++-
+ arch/x86/include/asm/page_types.h    |   8 ++-
+ arch/x86/include/asm/pgtable_types.h |   7 ++-
+ arch/x86/kernel/cpu/Makefile         |   2 +-
+ arch/x86/kernel/cpu/intel.c          | 119 +++++++++++++++++++++++++++++++++++
+ arch/x86/kernel/cpu/intel_pconfig.c  |  82 ++++++++++++++++++++++++
+ arch/x86/mm/Makefile                 |   2 +
+ arch/x86/mm/mem_encrypt_identity.c   |   3 +
+ arch/x86/mm/mktme.c                  | 101 +++++++++++++++++++++++++++++
+ arch/x86/mm/pgtable.c                |   5 ++
+ include/linux/gfp.h                  |  29 +++++++--
+ include/linux/mm.h                   |  17 +++++
+ include/linux/rmap.h                 |   6 ++
+ include/trace/events/mmflags.h       |   1 +
+ mm/Kconfig                           |   3 +
+ mm/khugepaged.c                      |   2 +
+ mm/mempolicy.c                       |   3 +
+ mm/mmap.c                            |   3 +-
+ mm/page_alloc.c                      |   3 +
+ mm/rmap.c                            |  49 +++++++++++++--
+ mm/shmem.c                           |   3 +-
+ tools/perf/builtin-kmem.c            |   1 +
+ 27 files changed, 590 insertions(+), 19 deletions(-)
  create mode 100644 arch/x86/include/asm/intel_pconfig.h
+ create mode 100644 arch/x86/include/asm/mktme.h
  create mode 100644 arch/x86/kernel/cpu/intel_pconfig.c
+ create mode 100644 arch/x86/mm/mktme.c
 
-diff --git a/arch/x86/include/asm/intel_pconfig.h b/arch/x86/include/asm/intel_pconfig.h
-new file mode 100644
-index 000000000000..fb7a37c3798b
---- /dev/null
-+++ b/arch/x86/include/asm/intel_pconfig.h
-@@ -0,0 +1,15 @@
-+#ifndef	_ASM_X86_INTEL_PCONFIG_H
-+#define	_ASM_X86_INTEL_PCONFIG_H
-+
-+#include <asm/asm.h>
-+#include <asm/processor.h>
-+
-+enum pconfig_target {
-+	INVALID_TARGET	= 0,
-+	MKTME_TARGET	= 1,
-+	PCONFIG_TARGET_NR
-+};
-+
-+int pconfig_target_supported(enum pconfig_target target);
-+
-+#endif	/* _ASM_X86_INTEL_PCONFIG_H */
-diff --git a/arch/x86/kernel/cpu/Makefile b/arch/x86/kernel/cpu/Makefile
-index 570e8bb1f386..a66229f51b12 100644
---- a/arch/x86/kernel/cpu/Makefile
-+++ b/arch/x86/kernel/cpu/Makefile
-@@ -28,7 +28,7 @@ obj-y			+= cpuid-deps.o
- obj-$(CONFIG_PROC_FS)	+= proc.o
- obj-$(CONFIG_X86_FEATURE_NAMES) += capflags.o powerflags.o
- 
--obj-$(CONFIG_CPU_SUP_INTEL)		+= intel.o
-+obj-$(CONFIG_CPU_SUP_INTEL)		+= intel.o intel_pconfig.o
- obj-$(CONFIG_CPU_SUP_AMD)		+= amd.o
- obj-$(CONFIG_CPU_SUP_CYRIX_32)		+= cyrix.o
- obj-$(CONFIG_CPU_SUP_CENTAUR)		+= centaur.o
-diff --git a/arch/x86/kernel/cpu/intel_pconfig.c b/arch/x86/kernel/cpu/intel_pconfig.c
-new file mode 100644
-index 000000000000..0771a905b286
---- /dev/null
-+++ b/arch/x86/kernel/cpu/intel_pconfig.c
-@@ -0,0 +1,82 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Intel PCONFIG instruction support.
-+ *
-+ * Copyright (C) 2017 Intel Corporation
-+ *
-+ * Author:
-+ *	Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-+ */
-+
-+#include <asm/cpufeature.h>
-+#include <asm/intel_pconfig.h>
-+
-+#define	PCONFIG_CPUID			0x1b
-+
-+#define PCONFIG_CPUID_SUBLEAF_MASK	((1 << 12) - 1)
-+
-+/* Subleaf type (EAX) for PCONFIG CPUID leaf (0x1B) */
-+enum {
-+	PCONFIG_CPUID_SUBLEAF_INVALID	= 0,
-+	PCONFIG_CPUID_SUBLEAF_TARGETID	= 1,
-+};
-+
-+/* Bitmask of supported targets */
-+static u64 targets_supported __read_mostly;
-+
-+int pconfig_target_supported(enum pconfig_target target)
-+{
-+	/*
-+	 * We would need to re-think the implementation once we get > 64
-+	 * PCONFIG targets. Spec allows up to 2^32 targets.
-+	 */
-+	BUILD_BUG_ON(PCONFIG_TARGET_NR >= 64);
-+
-+	if (WARN_ON_ONCE(target >= 64))
-+		return 0;
-+	return targets_supported & (1ULL << target);
-+}
-+
-+static int __init intel_pconfig_init(void)
-+{
-+	int subleaf;
-+
-+	if (!boot_cpu_has(X86_FEATURE_PCONFIG))
-+		return 0;
-+
-+	/*
-+	 * Scan subleafs of PCONFIG CPUID leaf.
-+	 *
-+	 * Subleafs of the same type need not to be consecutive.
-+	 *
-+	 * Stop on the first invalid subleaf type. All subleafs after the first
-+	 * invalid are invalid too.
-+	 */
-+	for (subleaf = 0; subleaf < INT_MAX; subleaf++) {
-+		struct cpuid_regs regs;
-+
-+		cpuid_count(PCONFIG_CPUID, subleaf,
-+				&regs.eax, &regs.ebx, &regs.ecx, &regs.edx);
-+
-+		switch (regs.eax & PCONFIG_CPUID_SUBLEAF_MASK) {
-+		case PCONFIG_CPUID_SUBLEAF_INVALID:
-+			/* Stop on the first invalid subleaf */
-+			goto out;
-+		case PCONFIG_CPUID_SUBLEAF_TARGETID:
-+			/* Mark supported PCONFIG targets */
-+			if (regs.ebx < 64)
-+				targets_supported |= (1ULL << regs.ebx);
-+			if (regs.ecx < 64)
-+				targets_supported |= (1ULL << regs.ecx);
-+			if (regs.edx < 64)
-+				targets_supported |= (1ULL << regs.edx);
-+			break;
-+		default:
-+			/* Unknown CPUID.PCONFIG subleaf: ignore */
-+			break;
-+		}
-+	}
-+out:
-+	return 0;
-+}
-+arch_initcall(intel_pconfig_init);
 -- 
 2.16.1
 
