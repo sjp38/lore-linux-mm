@@ -1,145 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FF2E6B0008
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 11:26:25 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q13so7505752pgt.17
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 08:26:25 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id p12-v6si7098404plk.295.2018.03.05.08.26.24
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 29C076B0009
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 11:26:26 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id d19so7514853pgn.20
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 08:26:26 -0800 (PST)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id v4-v6si9487921plo.55.2018.03.05.08.26.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 08:26:24 -0800 (PST)
+        Mon, 05 Mar 2018 08:26:25 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCH 00/22] Partial MKTME enabling
-Date: Mon,  5 Mar 2018 19:25:48 +0300
-Message-Id: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
+Subject: [RFC, PATCH 02/22] x86/tme: Detect if TME and MKTME is activated by BIOS
+Date: Mon,  5 Mar 2018 19:25:50 +0300
+Message-Id: <20180305162610.37510-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
+References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi everybody,
+IA32_TME_ACTIVATE MSR (0x982) can be used to check if BIOS has enabled
+TME and MKTME. It includes which encryption policy/algorithm is selected
+for TME or available for MKTME. For MKTME, the MSR also enumerates how
+many KeyIDs are available.
 
-Here's updated version of my patchset that brings support of MKTME.
-It's not yet complete, but I think it worth sharing to get early feedback.
+We would need to exclude KeyID bits from physical address bits.
+detect_tme() would adjust cpuinfo_x86::x86_phys_bits accordingly.
 
-Things that are missing:
+We have to do this even if we are not going to use KeyID bits
+ourself. VM guests still have to know that these bits are not usable
+for physical address.
 
- - kmap() is not yet wired up to support tempoprary mappings of encrypted
-   pages. It's requried to allow kernel to access encrypted memory.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/kernel/cpu/intel.c | 90 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 90 insertions(+)
 
- - Interface to manipulate encryption keys.
-
- - Interface to create encrypted userspace mappings.
-
- - IOMMU support.
-
-What has been done:
-
- - PCONFIG, TME and MKTME enumeration.
-
- - In-kernel helper that allows to program encryption keys into CPU.
-
- - Allocation and freeing encrypted pages.
-
- - Helpers to find out if a VMA/anon_vma/page is encrypted and with what
-   KeyID.
-
-Any feedback is welcome.
-
-------------------------------------------------------------------------------
-
-Multikey Total Memory Encryption (MKTME)[1] is a technology that allows
-transparent memory encryption in upcoming Intel platforms.
-
-MKTME is built on top of TME. TME allows encryption of the entirety of
-system memory using a single key. MKTME allows to have multiple encryption
-domains, each having own key -- different memory pages can be encrypted
-with different keys.
-
-Key design points of Intel MKTME:
-
- - Initial HW implementation would support upto 63 keys (plus one default
-   TME key). But the number of keys may be as low as 3, depending to SKU
-   and BIOS settings
-
- - To access encrypted memory you need to use mapping with proper KeyID
-   int the page table entry. KeyID is encoded in upper bits of PFN in page
-   table entry.
-
-   This means we cannot use direct map to access encrypted memory from
-   kernel side. My idea is to re-use kmap() interface to get proper
-   temporary mapping on kernel side.
-
- - CPU does not enforce coherency between mappings of the same physical
-   page with different KeyIDs or encryption keys. We wound need to take
-   care about flushing cache on allocation of encrypted page and on
-   returning it back to free pool.
-
- - For managing keys, there's MKTME_KEY_PROGRAM leaf of the new PCONFIG
-   (platform configuration) instruction. It allows load and clear keys
-   associated with a KeyID. You can also ask CPU to generate a key for
-   you or disable memory encryption when a KeyID is used.
-
-[1] https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf
-
-Kirill A. Shutemov (22):
-  x86/cpufeatures: Add Intel Total Memory Encryption cpufeature
-  x86/tme: Detect if TME and MKTME is activated by BIOS
-  x86/cpufeatures: Add Intel PCONFIG cpufeature
-  x86/pconfig: Detect PCONFIG targets
-  x86/pconfig: Provide defines and helper to run MKTME_KEY_PROG leaf
-  x86/mm: Decouple dynamic __PHYSICAL_MASK from AMD SME
-  x86/mm: Mask out KeyID bits from page table entry pfn
-  mm: Introduce __GFP_ENCRYPT
-  mm, rmap: Add arch-specific field into anon_vma
-  mm/shmem: Zero out unused vma fields in shmem_pseudo_vma_init()
-  mm: Use __GFP_ENCRYPT for pages in encrypted VMAs
-  mm: Do no merge vma with different encryption KeyIDs
-  mm, rmap: Free encrypted pages once mapcount drops to zero
-  mm, khugepaged: Do not collapse pages in encrypted VMAs
-  x86/mm: Introduce variables to store number, shift and mask of KeyIDs
-  x86/mm: Preserve KeyID on pte_modify() and pgprot_modify()
-  x86/mm: Implement vma_is_encrypted() and vma_keyid()
-  x86/mm: Handle allocation of encrypted pages
-  x86/mm: Implement free_encrypt_page()
-  x86/mm: Implement anon_vma_encrypted() and anon_vma_keyid()
-  x86/mm: Introduce page_keyid() and page_encrypted()
-  x86: Introduce CONFIG_X86_INTEL_MKTME
-
- arch/x86/Kconfig                     |  21 +++++++
- arch/x86/boot/compressed/kaslr_64.c  |   3 +
- arch/x86/include/asm/cpufeatures.h   |   2 +
- arch/x86/include/asm/intel_pconfig.h |  65 +++++++++++++++++++
- arch/x86/include/asm/mktme.h         |  56 +++++++++++++++++
- arch/x86/include/asm/page.h          |  13 +++-
- arch/x86/include/asm/page_types.h    |   8 ++-
- arch/x86/include/asm/pgtable_types.h |   7 ++-
- arch/x86/kernel/cpu/Makefile         |   2 +-
- arch/x86/kernel/cpu/intel.c          | 119 +++++++++++++++++++++++++++++++++++
- arch/x86/kernel/cpu/intel_pconfig.c  |  82 ++++++++++++++++++++++++
- arch/x86/mm/Makefile                 |   2 +
- arch/x86/mm/mem_encrypt_identity.c   |   3 +
- arch/x86/mm/mktme.c                  | 101 +++++++++++++++++++++++++++++
- arch/x86/mm/pgtable.c                |   5 ++
- include/linux/gfp.h                  |  29 +++++++--
- include/linux/mm.h                   |  17 +++++
- include/linux/rmap.h                 |   6 ++
- include/trace/events/mmflags.h       |   1 +
- mm/Kconfig                           |   3 +
- mm/khugepaged.c                      |   2 +
- mm/mempolicy.c                       |   3 +
- mm/mmap.c                            |   3 +-
- mm/page_alloc.c                      |   3 +
- mm/rmap.c                            |  49 +++++++++++++--
- mm/shmem.c                           |   3 +-
- tools/perf/builtin-kmem.c            |   1 +
- 27 files changed, 590 insertions(+), 19 deletions(-)
- create mode 100644 arch/x86/include/asm/intel_pconfig.h
- create mode 100644 arch/x86/include/asm/mktme.h
- create mode 100644 arch/x86/kernel/cpu/intel_pconfig.c
- create mode 100644 arch/x86/mm/mktme.c
-
+diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
+index d19e903214b4..c770689490b5 100644
+--- a/arch/x86/kernel/cpu/intel.c
++++ b/arch/x86/kernel/cpu/intel.c
+@@ -503,6 +503,93 @@ static void detect_vmx_virtcap(struct cpuinfo_x86 *c)
+ 	}
+ }
+ 
++#define MSR_IA32_TME_ACTIVATE		0x982
++
++/* Helpers to access TME_ACTIVATE MSR */
++#define TME_ACTIVATE_LOCKED(x)		(x & 0x1)
++#define TME_ACTIVATE_ENABLED(x)		(x & 0x2)
++
++#define TME_ACTIVATE_POLICY(x)		((x >> 4) & 0xf)	/* Bits 7:4 */
++#define TME_ACTIVATE_POLICY_AES_XTS_128	0
++
++#define TME_ACTIVATE_KEYID_BITS(x)	((x >> 32) & 0xf)	/* Bits 35:32 */
++
++#define TME_ACTIVATE_CRYPTO_ALGS(x)	((x >> 48) & 0xffff)	/* Bits 63:48 */
++#define TME_ACTIVATE_CRYPTO_AES_XTS_128	1
++
++/* Values for mktme_status (SW only construct) */
++#define MKTME_ENABLED			0
++#define MKTME_DISABLED			1
++#define MKTME_UNINITIALIZED		2
++static int mktme_status = MKTME_UNINITIALIZED;
++
++static void detect_tme(struct cpuinfo_x86 *c)
++{
++	u64 tme_activate, tme_policy, tme_crypto_algs;
++	int keyid_bits = 0, nr_keyids = 0;
++	static u64 tme_activate_cpu0 = 0;
++
++	rdmsrl(MSR_IA32_TME_ACTIVATE, tme_activate);
++
++	if (mktme_status != MKTME_UNINITIALIZED) {
++		if (tme_activate != tme_activate_cpu0) {
++			/* Broken BIOS? */
++			pr_err_once("x86/tme: configuation is inconsistent between CPUs\n");
++			pr_err_once("x86/tme: MKTME is not usable\n");
++			mktme_status = MKTME_DISABLED;
++
++			/* Proceed. We may need to exclude bits from x86_phys_bits. */
++		}
++	} else {
++		tme_activate_cpu0 = tme_activate;
++	}
++
++	if (!TME_ACTIVATE_LOCKED(tme_activate) || !TME_ACTIVATE_ENABLED(tme_activate)) {
++		pr_info_once("x86/tme: not enabled by BIOS\n");
++		mktme_status = MKTME_DISABLED;
++		return;
++	}
++
++	if (mktme_status != MKTME_UNINITIALIZED)
++		goto detect_keyid_bits;
++
++	pr_info("x86/tme: enabled by BIOS\n");
++
++	tme_policy = TME_ACTIVATE_POLICY(tme_activate);
++	if (tme_policy != TME_ACTIVATE_POLICY_AES_XTS_128)
++		pr_warn("x86/tme: Unknown policy is active: %#llx\n", tme_policy);
++
++	tme_crypto_algs = TME_ACTIVATE_CRYPTO_ALGS(tme_activate);
++	if (!(tme_crypto_algs & TME_ACTIVATE_CRYPTO_AES_XTS_128)) {
++		pr_err("x86/mktme: No known encryption algorithm is supported: %#llx\n",
++				tme_crypto_algs);
++		mktme_status = MKTME_DISABLED;
++	}
++detect_keyid_bits:
++	keyid_bits = TME_ACTIVATE_KEYID_BITS(tme_activate);
++	nr_keyids = (1UL << keyid_bits) - 1;
++	if (nr_keyids) {
++		pr_info_once("x86/mktme: enabled by BIOS\n");
++		pr_info_once("x86/mktme: %d KeyIDs available\n", nr_keyids);
++	} else {
++		pr_info_once("x86/mktme: disabled by BIOS\n");
++	}
++
++	if (mktme_status == MKTME_UNINITIALIZED) {
++		/* MKTME is usable */
++		mktme_status = MKTME_ENABLED;
++	}
++
++	/*
++	 * Exclude KeyID bits from physical address bits.
++	 *
++	 * We have to do this even if we are not going to use KeyID bits
++	 * ourself. VM guests still have to know that these bits are not usable
++	 * for physical address.
++	 */
++	c->x86_phys_bits -= keyid_bits;
++}
++
+ static void init_intel_energy_perf(struct cpuinfo_x86 *c)
+ {
+ 	u64 epb;
+@@ -673,6 +760,9 @@ static void init_intel(struct cpuinfo_x86 *c)
+ 	if (cpu_has(c, X86_FEATURE_VMX))
+ 		detect_vmx_virtcap(c);
+ 
++	if (cpu_has(c, X86_FEATURE_TME))
++		detect_tme(c);
++
+ 	init_intel_energy_perf(c);
+ 
+ 	init_intel_misc_features(c);
 -- 
 2.16.1
 
