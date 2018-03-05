@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 481E56B0024
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C97D06B0026
 	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:26:26 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id r15so11001714wrr.16
+Received: by mail-wm0-f71.google.com with SMTP id e127so3903371wmg.7
         for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:26:26 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id a1si2186916edb.370.2018.03.05.02.26.24
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id y28si1075939edi.524.2018.03.05.02.26.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 05 Mar 2018 02:26:25 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 28/34] x86/pgtable/pae: Use separate kernel PMDs for user page-table
-Date: Mon,  5 Mar 2018 11:25:57 +0100
-Message-Id: <1520245563-8444-29-git-send-email-joro@8bytes.org>
+Subject: [PATCH 31/34] x86/ldt: Split out sanity check in map_ldt_struct()
+Date: Mon,  5 Mar 2018 11:26:00 +0100
+Message-Id: <1520245563-8444-32-git-send-email-joro@8bytes.org>
 In-Reply-To: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,210 +22,144 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-We need separate kernel PMDs in the user page-table when PTI
-is enabled to map the per-process LDT for user-space.
+This splits out the mapping sanity check and the actual
+mapping of the LDT to user-space from the map_ldt_struct()
+function in a way so that it is re-usable for PAE paging.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pgtable.c | 100 ++++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 81 insertions(+), 19 deletions(-)
+ arch/x86/kernel/ldt.c | 82 ++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 58 insertions(+), 24 deletions(-)
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index a81d42e..d95bc7b 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -177,6 +177,14 @@ static void pgd_dtor(pgd_t *pgd)
-  */
- #define PREALLOCATED_PMDS	UNSHARED_PTRS_PER_PGD
- 
-+/*
-+ * We allocate separate PMDs for the kernel part of the user page-table
-+ * when PTI is enabled. We need them to map the per-process LDT into the
-+ * user-space page-table.
-+ */
-+#define PREALLOCATED_USER_PMDS	 (static_cpu_has(X86_FEATURE_PTI) ? \
-+					KERNEL_PGD_PTRS : 0)
-+
- void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
- {
- 	paravirt_alloc_pmd(mm, __pa(pmd) >> PAGE_SHIFT);
-@@ -197,14 +205,14 @@ void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
- 
- /* No need to prepopulate any pagetable entries in non-PAE modes. */
- #define PREALLOCATED_PMDS	0
--
-+#define PREALLOCATED_USER_PMDS	 0
- #endif	/* CONFIG_X86_PAE */
- 
--static void free_pmds(struct mm_struct *mm, pmd_t *pmds[])
-+static void free_pmds(struct mm_struct *mm, pmd_t *pmds[], int count)
- {
- 	int i;
- 
--	for(i = 0; i < PREALLOCATED_PMDS; i++)
-+	for(i = 0; i < count; i++)
- 		if (pmds[i]) {
- 			pgtable_pmd_page_dtor(virt_to_page(pmds[i]));
- 			free_page((unsigned long)pmds[i]);
-@@ -212,7 +220,7 @@ static void free_pmds(struct mm_struct *mm, pmd_t *pmds[])
- 		}
- }
- 
--static int preallocate_pmds(struct mm_struct *mm, pmd_t *pmds[])
-+static int preallocate_pmds(struct mm_struct *mm, pmd_t *pmds[], int count)
- {
- 	int i;
- 	bool failed = false;
-@@ -221,7 +229,7 @@ static int preallocate_pmds(struct mm_struct *mm, pmd_t *pmds[])
- 	if (mm == &init_mm)
- 		gfp &= ~__GFP_ACCOUNT;
- 
--	for(i = 0; i < PREALLOCATED_PMDS; i++) {
-+	for(i = 0; i < count; i++) {
- 		pmd_t *pmd = (pmd_t *)__get_free_page(gfp);
- 		if (!pmd)
- 			failed = true;
-@@ -236,7 +244,7 @@ static int preallocate_pmds(struct mm_struct *mm, pmd_t *pmds[])
- 	}
- 
- 	if (failed) {
--		free_pmds(mm, pmds);
-+		free_pmds(mm, pmds, count);
- 		return -ENOMEM;
- 	}
- 
-@@ -249,23 +257,38 @@ static int preallocate_pmds(struct mm_struct *mm, pmd_t *pmds[])
-  * preallocate which never got a corresponding vma will need to be
-  * freed manually.
-  */
-+static void mop_up_one_pmd(struct mm_struct *mm, pgd_t *pgdp)
-+{
-+	pgd_t pgd = *pgdp;
-+
-+	if (pgd_val(pgd) != 0) {
-+		pmd_t *pmd = (pmd_t *)pgd_page_vaddr(pgd);
-+
-+		*pgdp = native_make_pgd(0);
-+
-+		paravirt_release_pmd(pgd_val(pgd) >> PAGE_SHIFT);
-+		pmd_free(mm, pmd);
-+		mm_dec_nr_pmds(mm);
-+	}
-+}
-+
- static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
- {
- 	int i;
- 
--	for(i = 0; i < PREALLOCATED_PMDS; i++) {
--		pgd_t pgd = pgdp[i];
-+	for(i = 0; i < PREALLOCATED_PMDS; i++)
-+		mop_up_one_pmd(mm, &pgdp[i]);
- 
--		if (pgd_val(pgd) != 0) {
--			pmd_t *pmd = (pmd_t *)pgd_page_vaddr(pgd);
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
- 
--			pgdp[i] = native_make_pgd(0);
-+	if (!static_cpu_has(X86_FEATURE_PTI))
-+		return;
- 
--			paravirt_release_pmd(pgd_val(pgd) >> PAGE_SHIFT);
--			pmd_free(mm, pmd);
--			mm_dec_nr_pmds(mm);
--		}
--	}
-+	pgdp = kernel_to_user_pgdp(pgdp);
-+
-+	for (i = 0; i < PREALLOCATED_USER_PMDS; i++)
-+		mop_up_one_pmd(mm, &pgdp[i + KERNEL_PGD_BOUNDARY]);
-+#endif
- }
- 
- static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
-@@ -291,6 +314,38 @@ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
- 	}
+diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
+index f3c2fbf..8ab7df9 100644
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -100,6 +100,49 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
+ 	return new_ldt;
  }
  
 +#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+static void pgd_prepopulate_user_pmd(struct mm_struct *mm,
-+				     pgd_t *k_pgd, pmd_t *pmds[])
++
++static void do_sanity_check(struct mm_struct *mm,
++			    bool had_kernel_mapping,
++			    bool had_user_mapping)
 +{
-+	pgd_t *s_pgd = kernel_to_user_pgdp(swapper_pg_dir);
-+	pgd_t *u_pgd = kernel_to_user_pgdp(k_pgd);
-+	p4d_t *u_p4d;
-+	pud_t *u_pud;
-+	int i;
-+
-+	u_p4d = p4d_offset(u_pgd, 0);
-+	u_pud = pud_offset(u_p4d, 0);
-+
-+	s_pgd += KERNEL_PGD_BOUNDARY;
-+	u_pud += KERNEL_PGD_BOUNDARY;
-+
-+	for (i = 0; i < PREALLOCATED_USER_PMDS; i++, u_pud++, s_pgd++) {
-+		pmd_t *pmd = pmds[i];
-+
-+		memcpy(pmd, (pmd_t *)pgd_page_vaddr(*s_pgd),
-+		       sizeof(pmd_t) * PTRS_PER_PMD);
-+
-+		pud_populate(mm, u_pud, pmd);
++	if (mm->context.ldt) {
++		/*
++		 * We already had an LDT.  The top-level entry should already
++		 * have been allocated and synchronized with the usermode
++		 * tables.
++		 */
++		WARN_ON(!had_kernel_mapping);
++		if (static_cpu_has(X86_FEATURE_PTI))
++			WARN_ON(!had_user_mapping);
++	} else {
++		/*
++		 * This is the first time we're mapping an LDT for this process.
++		 * Sync the pgd to the usermode tables.
++		 */
++		WARN_ON(had_kernel_mapping);
++		if (static_cpu_has(X86_FEATURE_PTI))
++			WARN_ON(had_user_mapping);
 +	}
++}
 +
-+}
-+#else
-+static void pgd_prepopulate_user_pmd(struct mm_struct *mm,
-+				     pgd_t *k_pgd, pmd_t *pmds[])
++static void map_ldt_struct_to_user(struct mm_struct *mm)
 +{
++	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
++
++	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
++		set_pgd(kernel_to_user_pgdp(pgd), *pgd);
 +}
-+#endif
++
++static void sanity_check_ldt_mapping(struct mm_struct *mm)
++{
++	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
++	bool had_kernel = (pgd->pgd != 0);
++	bool had_user   = (kernel_to_user_pgdp(pgd)->pgd != 0);
++
++	do_sanity_check(mm, had_kernel, had_user);
++}
++
  /*
-  * Xen paravirt assumes pgd table should be in one page. 64 bit kernel also
-  * assumes that pgd should be in one page.
-@@ -371,6 +426,7 @@ static inline void _pgd_free(pgd_t *pgd)
- pgd_t *pgd_alloc(struct mm_struct *mm)
+  * If PTI is enabled, this maps the LDT into the kernelmode and
+  * usermode tables for the given mm.
+@@ -115,9 +158,8 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
+ static int
+ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
  {
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-	bool is_vmalloc, had_top_level_entry;
+ 	unsigned long va;
++	bool is_vmalloc;
+ 	spinlock_t *ptl;
  	pgd_t *pgd;
-+	pmd_t *u_pmds[PREALLOCATED_USER_PMDS];
- 	pmd_t *pmds[PREALLOCATED_PMDS];
+ 	int i;
+@@ -131,13 +173,15 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+ 	 */
+ 	WARN_ON(ldt->slot != -1);
  
- 	pgd = _pgd_alloc();
-@@ -380,12 +436,15 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
- 
- 	mm->pgd = pgd;
- 
--	if (preallocate_pmds(mm, pmds) != 0)
-+	if (preallocate_pmds(mm, pmds, PREALLOCATED_PMDS) != 0)
- 		goto out_free_pgd;
- 
--	if (paravirt_pgd_alloc(mm) != 0)
-+	if (preallocate_pmds(mm, u_pmds, PREALLOCATED_USER_PMDS) != 0)
- 		goto out_free_pmds;
- 
-+	if (paravirt_pgd_alloc(mm) != 0)
-+		goto out_free_user_pmds;
++	/* Check if the current mappings are sane */
++	sanity_check_ldt_mapping(mm);
 +
  	/*
- 	 * Make sure that pre-populating the pmds is atomic with
- 	 * respect to anything walking the pgd_list, so that they
-@@ -395,13 +454,16 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
+ 	 * Did we already have the top level entry allocated?  We can't
+ 	 * use pgd_none() for this because it doens't do anything on
+ 	 * 4-level page table kernels.
+ 	 */
+ 	pgd = pgd_offset(mm, LDT_BASE_ADDR);
+-	had_top_level_entry = (pgd->pgd != 0);
  
- 	pgd_ctor(mm, pgd);
- 	pgd_prepopulate_pmd(mm, pgd, pmds);
-+	pgd_prepopulate_user_pmd(mm, pgd, u_pmds);
+ 	is_vmalloc = is_vmalloc_addr(ldt->entries);
  
- 	spin_unlock(&pgd_lock);
+@@ -168,35 +212,25 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+ 		pte_unmap_unlock(ptep, ptl);
+ 	}
  
- 	return pgd;
+-	if (mm->context.ldt) {
+-		/*
+-		 * We already had an LDT.  The top-level entry should already
+-		 * have been allocated and synchronized with the usermode
+-		 * tables.
+-		 */
+-		WARN_ON(!had_top_level_entry);
+-		if (static_cpu_has(X86_FEATURE_PTI))
+-			WARN_ON(!kernel_to_user_pgdp(pgd)->pgd);
+-	} else {
+-		/*
+-		 * This is the first time we're mapping an LDT for this process.
+-		 * Sync the pgd to the usermode tables.
+-		 */
+-		WARN_ON(had_top_level_entry);
+-		if (static_cpu_has(X86_FEATURE_PTI)) {
+-			WARN_ON(kernel_to_user_pgdp(pgd)->pgd);
+-			set_pgd(kernel_to_user_pgdp(pgd), *pgd);
+-		}
+-	}
++	/* Propagate LDT mapping to the user page-table */
++	map_ldt_struct_to_user(mm);
  
-+out_free_user_pmds:
-+	free_pmds(mm, u_pmds, PREALLOCATED_USER_PMDS);
- out_free_pmds:
--	free_pmds(mm, pmds);
-+	free_pmds(mm, pmds, PREALLOCATED_PMDS);
- out_free_pgd:
- 	_pgd_free(pgd);
- out:
+ 	va = (unsigned long)ldt_slot_va(slot);
+ 	flush_tlb_mm_range(mm, va, va + LDT_SLOT_STRIDE, 0);
+ 
+ 	ldt->slot = slot;
+-#endif
+ 	return 0;
+ }
+ 
++#else /* !CONFIG_PAGE_TABLE_ISOLATION */
++
++static int
++map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
++{
++	return 0;
++}
++#endif /* CONFIG_PAGE_TABLE_ISOLATION */
++
+ static void free_ldt_pgtables(struct mm_struct *mm)
+ {
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
 -- 
 2.7.4
 
