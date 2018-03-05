@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D5FFD6B0253
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:27:35 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id x97so11086301wrb.3
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:27:35 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A4BC6B025F
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 05:27:40 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id a3so4414214wme.1
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 02:27:40 -0800 (PST)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id j10si3806510edj.1.2018.03.05.02.26.13
+        by mx.google.com with ESMTPS id a1si2186793edb.370.2018.03.05.02.26.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 02:26:13 -0800 (PST)
+        Mon, 05 Mar 2018 02:26:17 -0800 (PST)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 10/34] x86/entry/32: Introduce SAVE_ALL_NMI and RESTORE_ALL_NMI
-Date: Mon,  5 Mar 2018 11:25:39 +0100
-Message-Id: <1520245563-8444-11-git-send-email-joro@8bytes.org>
+Subject: [PATCH 20/34] x86/pgtable: Move two more functions from pgtable_64.h to pgtable.h
+Date: Mon,  5 Mar 2018 11:25:49 +0100
+Message-Id: <1520245563-8444-21-git-send-email-joro@8bytes.org>
 In-Reply-To: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,81 +22,117 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-These macros will be used in the NMI handler code and
-replace plain SAVE_ALL and RESTORE_REGS there. We will add
-the NMI-specific CR3-switch to these macros later.
+These two functions are required for PTI on 32 bit:
+
+	* pgdp_maps_userspace()
+	* pgd_large()
+
+Also re-implement pgdp_maps_userspace() so that it will work
+on 64 and 32 bit kernels.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 23 +++++++++++++++++++----
- 1 file changed, 19 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/pgtable-2level_types.h |  3 +++
+ arch/x86/include/asm/pgtable-3level_types.h |  1 +
+ arch/x86/include/asm/pgtable.h              | 16 ++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h           | 15 ---------------
+ arch/x86/include/asm/pgtable_64_types.h     |  2 ++
+ 5 files changed, 22 insertions(+), 15 deletions(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 1b5656d..bb0bd896 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -167,6 +167,9 @@
+diff --git a/arch/x86/include/asm/pgtable-2level_types.h b/arch/x86/include/asm/pgtable-2level_types.h
+index f982ef8..6deb6cd 100644
+--- a/arch/x86/include/asm/pgtable-2level_types.h
++++ b/arch/x86/include/asm/pgtable-2level_types.h
+@@ -35,4 +35,7 @@ typedef union {
  
- .endm
+ #define PTRS_PER_PTE	1024
  
-+.macro SAVE_ALL_NMI
-+	SAVE_ALL
-+.endm
++/* This covers all VMSPLIT_* and VMSPLIT_*_OPT variants */
++#define PGD_KERNEL_START	(CONFIG_PAGE_OFFSET >> PGDIR_SHIFT)
++
+ #endif /* _ASM_X86_PGTABLE_2LEVEL_DEFS_H */
+diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
+index ed8a200..925ac1b 100644
+--- a/arch/x86/include/asm/pgtable-3level_types.h
++++ b/arch/x86/include/asm/pgtable-3level_types.h
+@@ -45,5 +45,6 @@ typedef union {
+  */
+ #define PTRS_PER_PTE	512
+ 
++#define PGD_KERNEL_START	(CONFIG_PAGE_OFFSET >> PGDIR_SHIFT)
+ 
+ #endif /* _ASM_X86_PGTABLE_3LEVEL_DEFS_H */
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 1e900c1..981e49a 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1132,6 +1132,22 @@ static inline int pud_write(pud_t pud)
+ 	return pud_flags(pud) & _PAGE_RW;
+ }
+ 
++/*
++ * Page table pages are page-aligned.  The lower half of the top
++ * level is used for userspace and the top half for the kernel.
++ *
++ * Returns true for parts of the PGD that map userspace and
++ * false for the parts that map the kernel.
++ */
++static inline bool pgdp_maps_userspace(void *__ptr)
++{
++	unsigned long ptr = (unsigned long)__ptr;
++
++	return (((ptr & ~PAGE_MASK) / sizeof(pgd_t)) < PGD_KERNEL_START);
++}
++
++static inline int pgd_large(pgd_t pgd) { return 0; }
++
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
  /*
-  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
-  * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
-@@ -224,6 +227,18 @@
- 	RESTORE_SKIP_SEGMENTS \pop
- .endm
- 
-+.macro RESTORE_ALL_NMI pop=0
-+	/*
-+	 * Restore segments - might cause exceptions when loading
-+	 * user-space segments
-+	 */
-+	RESTORE_SEGMENTS
-+
-+	/* Restore integer registers and unwind stack to iret frame */
-+	RESTORE_INT_REGS
-+	RESTORE_SKIP_SEGMENTS \pop
-+.endm
-+
- .macro CHECK_AND_APPLY_ESPFIX
- #ifdef CONFIG_X86_ESPFIX32
- #define GDT_ESPFIX_SS PER_CPU_VAR(gdt_page) + (GDT_ENTRY_ESPFIX_SS * 8)
-@@ -1148,7 +1163,7 @@ ENTRY(nmi)
+  * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 4cbf517..e11b925 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -131,20 +131,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
  #endif
+ }
  
- 	pushl	%eax				# pt_regs->orig_ax
--	SAVE_ALL
-+	SAVE_ALL_NMI
- 	ENCODE_FRAME_POINTER
- 	xorl	%edx, %edx			# zero error code
- 	movl	%esp, %eax			# pt_regs pointer
-@@ -1176,7 +1191,7 @@ ENTRY(nmi)
+-/*
+- * Page table pages are page-aligned.  The lower half of the top
+- * level is used for userspace and the top half for the kernel.
+- *
+- * Returns true for parts of the PGD that map userspace and
+- * false for the parts that map the kernel.
+- */
+-static inline bool pgdp_maps_userspace(void *__ptr)
+-{
+-	unsigned long ptr = (unsigned long)__ptr;
+-
+-	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
+-}
+-
+ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ {
+ #if defined(CONFIG_PAGE_TABLE_ISOLATION) && !defined(CONFIG_X86_5LEVEL)
+@@ -187,7 +173,6 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
+ /*
+  * Level 4 access.
+  */
+-static inline int pgd_large(pgd_t pgd) { return 0; }
+ #define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
  
- .Lnmi_return:
- 	CHECK_AND_APPLY_ESPFIX
--	RESTORE_REGS 4
-+	RESTORE_ALL_NMI pop=4
- 	jmp	.Lirq_return
+ /* PUD - Level3 access */
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 6b8f73d..e57003a 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -124,4 +124,6 @@ typedef struct { pteval_t pte; } pte_t;
  
- #ifdef CONFIG_X86_ESPFIX32
-@@ -1192,12 +1207,12 @@ ENTRY(nmi)
- 	pushl	16(%esp)
- 	.endr
- 	pushl	%eax
--	SAVE_ALL
-+	SAVE_ALL_NMI
- 	ENCODE_FRAME_POINTER
- 	FIXUP_ESPFIX_STACK			# %eax == %esp
- 	xorl	%edx, %edx			# zero error code
- 	call	do_nmi
--	RESTORE_REGS
-+	RESTORE_ALL_NMI
- 	lss	12+4(%esp), %esp		# back to espfix stack
- 	jmp	.Lirq_return
- #endif
+ #define EARLY_DYNAMIC_PAGE_TABLES	64
+ 
++#define PGD_KERNEL_START	((PAGE_SIZE / 2) / sizeof(pgd_t))
++
+ #endif /* _ASM_X86_PGTABLE_64_DEFS_H */
 -- 
 2.7.4
 
