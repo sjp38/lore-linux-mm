@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DBDE76B002B
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 11:26:31 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 73so9153957pfz.22
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 08:26:31 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 63DFC6B0031
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 11:26:40 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id v186so9930477pfb.8
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 08:26:40 -0800 (PST)
 Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id v77si4239219pfa.108.2018.03.05.08.26.30
+        by mx.google.com with ESMTPS id v77si4239219pfa.108.2018.03.05.08.26.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 08:26:30 -0800 (PST)
+        Mon, 05 Mar 2018 08:26:27 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCH 21/22] x86/mm: Introduce page_keyid() and page_encrypted()
-Date: Mon,  5 Mar 2018 19:26:09 +0300
-Message-Id: <20180305162610.37510-22-kirill.shutemov@linux.intel.com>
+Subject: [RFC, PATCH 05/22] x86/pconfig: Provide defines and helper to run MKTME_KEY_PROG leaf
+Date: Mon,  5 Mar 2018 19:25:53 +0300
+Message-Id: <20180305162610.37510-6-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
 References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,72 +20,72 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The new helpers checks if page is encrypted and with which keyid.
-They use anon_vma get the information.
+MKTME_KEY_PROG allows to manipulate MKTME keys in the CPU.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/mktme.h | 14 ++++++++++++++
- arch/x86/mm/mktme.c          | 17 +++++++++++++++++
- 2 files changed, 31 insertions(+)
+ arch/x86/include/asm/intel_pconfig.h | 50 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)
 
-diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-index 56c7e9b14ab6..dd81fe167e25 100644
---- a/arch/x86/include/asm/mktme.h
-+++ b/arch/x86/include/asm/mktme.h
-@@ -33,10 +33,24 @@ bool anon_vma_encrypted(struct anon_vma *anon_vma);
+diff --git a/arch/x86/include/asm/intel_pconfig.h b/arch/x86/include/asm/intel_pconfig.h
+index fb7a37c3798b..3cb002b1d0f9 100644
+--- a/arch/x86/include/asm/intel_pconfig.h
++++ b/arch/x86/include/asm/intel_pconfig.h
+@@ -12,4 +12,54 @@ enum pconfig_target {
  
- #define anon_vma_keyid anon_vma_keyid
- int anon_vma_keyid(struct anon_vma *anon_vma);
-+
-+int page_keyid(struct page *page);
- #else
-+
- #define mktme_keyid_mask	((phys_addr_t)0)
- #define mktme_nr_keyids		0
- #define mktme_keyid_shift	0
-+
-+static inline int page_keyid(struct page *page)
-+{
-+	return 0;
-+}
- #endif
+ int pconfig_target_supported(enum pconfig_target target);
  
-+static inline bool page_encrypted(struct page *page)
++enum pconfig_leaf {
++	MKTME_KEY_PROGRAM	= 0,
++	PCONFIG_LEAF_INVALID,
++};
++
++#define PCONFIG ".byte 0x0f, 0x01, 0xc5"
++
++/* Defines and structure for MKTME_KEY_PROGRAM of PCONFIG instruction */
++
++/* mktme_key_program::keyid_ctrl COMMAND, bits [7:0] */
++#define MKTME_KEYID_SET_KEY_DIRECT	0
++#define MKTME_KEYID_SET_KEY_RANDOM	1
++#define MKTME_KEYID_CLEAR_KEY		2
++#define MKTME_KEYID_NO_ENCRYPT		3
++
++/* mktme_key_program::keyid_ctrl ENC_ALG, bits [23:8] */
++#define MKTME_AES_XTS_128	(1 << 8)
++
++/* Return codes from the PCONFIG MKTME_KEY_PROGRAM */
++#define MKTME_PROG_SUCCESS	0
++#define MKTME_INVALID_PROG_CMD	1
++#define MKTME_ENTROPY_ERROR	2
++#define MKTME_INVALID_KEYID	3
++#define MKTME_INVALID_ENC_ALG	4
++#define MKTME_DEVICE_BUSY	5
++
++/* Hardware requires the structure to be 256 byte alinged. Otherwise #GP(0). */
++struct mktme_key_program {
++	u16 keyid;
++	u32 keyid_ctrl;
++	u8 __rsvd[58];
++	u8 key_field_1[64];
++	u8 key_field_2[64];
++} __packed __aligned(256);
++
++static inline int mktme_key_program(struct mktme_key_program *key_program)
 +{
-+	/* All pages with non-zero KeyID are encrypted */
-+	return page_keyid(page) != 0;
++	unsigned long rax = MKTME_KEY_PROGRAM;
++
++	if (!pconfig_target_supported(MKTME_TARGET))
++		return -ENXIO;
++
++	asm volatile(PCONFIG
++		: "=a" (rax), "=b" (key_program)
++		: "0" (rax), "1" (key_program)
++		: "memory", "cc");
++
++	return rax;
 +}
 +
- #endif
-diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-index 69172aabc07c..0ab795dfb1a4 100644
---- a/arch/x86/mm/mktme.c
-+++ b/arch/x86/mm/mktme.c
-@@ -39,6 +39,23 @@ int anon_vma_keyid(struct anon_vma *anon_vma)
- 	return anon_vma->arch_anon_vma.keyid;
- }
- 
-+int page_keyid(struct page *page)
-+{
-+	struct anon_vma *anon_vma;
-+	int keyid = 0;
-+
-+	if (!PageAnon(page))
-+		return 0;
-+
-+	anon_vma = page_get_anon_vma(page);
-+	if (anon_vma) {
-+		keyid = anon_vma_keyid(anon_vma);
-+		put_anon_vma(anon_vma);
-+	}
-+
-+	return keyid;
-+}
-+
- void prep_encrypt_page(struct page *page, gfp_t gfp, unsigned int order)
- {
- 	void *v = page_to_virt(page);
+ #endif	/* _ASM_X86_INTEL_PCONFIG_H */
 -- 
 2.16.1
 
