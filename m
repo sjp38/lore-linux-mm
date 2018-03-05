@@ -1,68 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 94AB16B0003
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 17:05:30 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id 1-v6so8694596plv.6
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 14:05:30 -0800 (PST)
-Received: from mail.zytor.com (terminus.zytor.com. [198.137.202.136])
-        by mx.google.com with ESMTPS id o1-v6si9981323pld.259.2018.03.05.14.05.29
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AD1766B0003
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 17:55:58 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id k79so2384453ioi.6
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 14:55:58 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id k1si6519796iti.36.2018.03.05.14.55.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 05 Mar 2018 14:05:29 -0800 (PST)
-Subject: Re: [PATCH 07/34] x86/entry/32: Restore segments before int registers
-References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
- <1520245563-8444-8-git-send-email-joro@8bytes.org>
- <CA+55aFym-18UbD5K3n1Ki=mvpuLqa7E6E=qG0aE-dctzTap_WQ@mail.gmail.com>
- <20180305131231.GR16484@8bytes.org>
- <CA+55aFwn5EkHTfrUFww54CDWovoUornv6rSrao43agbLBQD6-Q@mail.gmail.com>
- <CAMzpN2hscOXJFzm07Hk=2Ttr3wQFSisxP=EZhRMtAU6xSm8zSw@mail.gmail.com>
- <CA+55aFwxiZ9bD2Zu5xV0idz_dDctPvrrWA2r54+NL4aj9oeN8Q@mail.gmail.com>
- <20180305213550.GV16484@8bytes.org>
- <CA+55aFx2dxZmL487CnhV6rWRiqmJwZNAspyPqCD4Hwqxwncs6Q@mail.gmail.com>
-From: "H. Peter Anvin" <hpa@zytor.com>
-Message-ID: <12c11262-5e0f-2987-0a74-3bde4b66c352@zytor.com>
-Date: Mon, 5 Mar 2018 14:03:49 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Mar 2018 14:55:57 -0800 (PST)
+Subject: Re: [PATCH v12 10/11] sparc64: Add support for ADI (Application Data
+ Integrity)
+References: <cover.1519227112.git.khalid.aziz@oracle.com>
+ <d8602e35e65c8bf6df1a85166bf181536a6f3664.1519227112.git.khalid.aziz@oracle.com>
+ <a59ece97-ba1f-dfb1-bfc8-b44ffd8edbca@linux.intel.com>
+ <84931753-9a84-8624-adb8-95bd05d87d56@oracle.com>
+ <8b0edd2e-3e9b-1148-6309-38b61307a523@linux.intel.com>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <fabf221c-02e2-f968-d107-b028701dd837@oracle.com>
+Date: Mon, 5 Mar 2018 15:55:23 -0700
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFx2dxZmL487CnhV6rWRiqmJwZNAspyPqCD4Hwqxwncs6Q@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <8b0edd2e-3e9b-1148-6309-38b61307a523@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <joro@8bytes.org>
-Cc: Brian Gerst <brgerst@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
+To: Dave Hansen <dave.hansen@linux.intel.com>, davem@davemloft.net, akpm@linux-foundation.org
+Cc: corbet@lwn.net, steven.sistare@oracle.com, pasha.tatashin@oracle.com, mike.kravetz@oracle.com, rob.gardner@oracle.com, mingo@kernel.org, nitin.m.gupta@oracle.com, anthony.yznaga@oracle.com, kirill.shutemov@linux.intel.com, tom.hromatka@oracle.com, allen.pais@oracle.com, tklauser@distanz.ch, shannon.nelson@oracle.com, vijay.ac.kumar@oracle.com, mhocko@suse.com, jack@suse.cz, punit.agrawal@arm.com, hughd@google.com, thomas.tai@oracle.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, minchan@kernel.org, imbrenda@linux.vnet.ibm.com, aarcange@redhat.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, tglx@linutronix.de, gregkh@linuxfoundation.org, nagarathnam.muthusamy@oracle.com, linux@roeck-us.net, jane.chu@oracle.com, dan.j.williams@intel.com, jglisse@redhat.com, ktkhai@virtuozzo.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
 
-On 03/05/18 13:58, Linus Torvalds wrote:
-> On Mon, Mar 5, 2018 at 1:35 PM, Joerg Roedel <joro@8bytes.org> wrote:
->> On Mon, Mar 05, 2018 at 12:50:33PM -0800, Linus Torvalds wrote:
->>>
->>> Ahh, good. So presumably Joerg actually did check it, just didn't even notice ;)
->>
->> Yeah, sort of. I ran the test, but it didn't catch the failure case in
->> previous versions which was return to user with kernel-cr3 :)
+On 03/05/2018 02:31 PM, Dave Hansen wrote:
+> On 03/05/2018 01:14 PM, Khalid Aziz wrote:
+>> Are you suggesting that vma returned by find_vma() could be split or
+>> merged underneath me if I do not hold mmap_sem and thus make the flag
+>> check invalid? If so, that is a good point.
 > 
-> Ahh. Yes, that's bad. The NX protection to guarantee that you don't
-> return to user mode was really good on x86-64.
-> 
-> So some other case could slip through, because user code can happily
-> run with the kernel page tables.
-> 
->> I could probably add some debug instrumentation to check for that in my
->> future testing, as there is no NX protection in the user address-range
->> for the kernel-cr3.
-> 
-> Does not NX work with PAE?
-> 
-> Oh, it looks like the NX bit is marked as "RSVD (must be 0)" in the
-> PDPDT. Oh well.
-> 
+> This part does make me think that this code hasn't been tested very
+> thoroughly.  Could you describe the testing that you have done?  For MPX
+> and protection keys, I added something to tools/testing/selftests/x86,
+> for instance.
 
-On NX-enabled hardware NX works with PDE, but the PDPDT in general
-doesn't have permission bits (it's really more of a set of four CR3s
-than a page table level.)
+This code was tested by a QA team and I ran a number of tests myself. I 
+wrote tests to exercise all of the API, induce exceptions for 
+invalid/illegal accesses and swapping was tested by allocating memory 
+2-4 times of the system RAM available across 4-8 threads and 
+reading/writing to this memory with ADI enabled. QA team wrote unit 
+tests to test each API with valid and invalid combinations of arguments 
+to the API. Stress tests that allocate and free ADI tagged memory were 
+also run. A version of database server was created that uses ADI tagged 
+memory for in-memory copy of database to test database workload. 100's 
+of hours of tests were run across these tests over the last 1+ year 
+these patches have been under review for. Cover letter includes 
+description of most of these tests. This code has held up through all of 
+these tests. It is entirely feasible some race conditions have not been 
+uncovered yet, just like any other piece of software. Pulling this code 
+into mainline kernel and having lot more people exercise this code will 
+help shake out any remaining issues.
 
-	-hpa
-
+Thanks,
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
