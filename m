@@ -1,97 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 84FF76B0009
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 14:00:13 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q13so7657218pgt.17
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 11:00:13 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u12-v6sor4431144plm.10.2018.03.05.11.00.12
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AC63C6B0008
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 14:03:57 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id f3-v6so8444154plf.18
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 11:03:57 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id l6si8769480pgs.288.2018.03.05.11.03.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Mar 2018 11:00:12 -0800 (PST)
-Subject: Re: [PATCH 1/7] genalloc: track beginning of allocations
-References: <20180228200620.30026-1-igor.stoppa@huawei.com>
- <20180228200620.30026-2-igor.stoppa@huawei.com>
-From: J Freyensee <why2jjj.linux@gmail.com>
-Message-ID: <6a31164a-af3f-91ea-d385-7c6d1888b28c@gmail.com>
-Date: Mon, 5 Mar 2018 11:00:08 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Mar 2018 11:03:56 -0800 (PST)
+Subject: Re: [RFC, PATCH 18/22] x86/mm: Handle allocation of encrypted pages
+References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
+ <20180305162610.37510-19-kirill.shutemov@linux.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <e2fed2a7-88db-96f0-56f5-b20b624eb665@intel.com>
+Date: Mon, 5 Mar 2018 11:03:55 -0800
 MIME-Version: 1.0
-In-Reply-To: <20180228200620.30026-2-igor.stoppa@huawei.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180305162610.37510-19-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>, david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
-Cc: labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-.
-.
+On 03/05/2018 08:26 AM, Kirill A. Shutemov wrote:
+> -#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
+> -	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
+>  #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+> +#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr)			\
+> +({										\
+> +	struct page *page;							\
+> +	gfp_t gfp = movableflags | GFP_HIGHUSER;				\
+> +	if (vma_is_encrypted(vma))						\
+> +		page = __alloc_zeroed_encrypted_user_highpage(gfp, vma, vaddr);	\
+> +	else									\
+> +		page = alloc_page_vma(gfp | __GFP_ZERO, vma, vaddr);		\
+> +	page;									\
+> +})
 
+This is pretty darn ugly and also adds a big old branch into the hottest
+path in the page allocator.
 
-On 2/28/18 12:06 PM, Igor Stoppa wrote:
-> +
-> +/**
-> + * gen_pool_dma_alloc() - allocate special memory from the pool for DMA usage
-> + * @pool: pool to allocate from
-> + * @size: number of bytes to allocate from the pool
-> + * @dma: dma-view physical address return value.  Use NULL if unneeded.
-> + *
-> + * Allocate the requested number of bytes from the specified pool.
-> + * Uses the pool allocation function (with first-fit algorithm by default).
-> + * Can not be used in NMI handler on architectures without
-> + * NMI-safe cmpxchg implementation.
-> + *
-> + * Return:
-> + * * address of the memory allocated	- success
-> + * * NULL				- error
-> + */
-> +void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma);
-> +
+It's also really odd that you strip __GFP_ZERO and then go ahead and
+zero the encrypted page unconditionally.  It really makes me wonder if
+this is the right spot to be doing this.
 
-OK, so gen_pool_dma_alloc() is defined here, which believe is the API 
-line being drawn for this series.
-
-so,
-.
-.
-.
->
->   
->   /**
-> - * gen_pool_dma_alloc - allocate special memory from the pool for DMA usage
-> + * gen_pool_dma_alloc() - allocate special memory from the pool for DMA usage
->    * @pool: pool to allocate from
->    * @size: number of bytes to allocate from the pool
->    * @dma: dma-view physical address return value.  Use NULL if unneeded.
-> @@ -342,14 +566,15 @@ EXPORT_SYMBOL(gen_pool_alloc_algo);
->    * Uses the pool allocation function (with first-fit algorithm by default).
->    * Can not be used in NMI handler on architectures without
->    * NMI-safe cmpxchg implementation.
-> + *
-> + * Return:
-> + * * address of the memory allocated	- success
-> + * * NULL				- error
->    */
->   void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
->   {
->   	unsigned long vaddr;
->   
-> -	if (!pool)
-> -		return NULL;
-> -
-why is this being removed?A  I don't believe this code was getting 
-removed from your v17 series patches.
->   	vaddr = gen_pool_alloc(pool, size);
->   	if (!vaddr)
->   		return NULL;
-> @@ -362,10 +587,10 @@ void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
->   EXPORT_SYMBOL(gen_pool_dma_alloc);
->   
->
-Otherwise, looks good,
-
-Reviewed-by: Jay Freyensee <why2jjj.linux@gmail.com>
+Can we not, for instance do it inside alloc_page_vma()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
