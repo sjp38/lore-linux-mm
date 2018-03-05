@@ -1,123 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 74BB46B0003
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 01:17:30 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id v3-v6so7603963ply.20
-        for <linux-mm@kvack.org>; Sun, 04 Mar 2018 22:17:30 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 38-v6sor3699178pln.118.2018.03.04.22.17.29
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E47E6B0003
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 03:19:23 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id d23so3756790wmd.1
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 00:19:23 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id t30sor6895218edt.19.2018.03.05.00.19.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 04 Mar 2018 22:17:29 -0800 (PST)
-From: Huacai Chen <chenhc@lemote.com>
-Subject: [PATCH] ZBOOT: fix stack protector in compressed boot phase
-Date: Mon,  5 Mar 2018 14:18:41 +0800
-Message-Id: <1520230721-1839-1-git-send-email-chenhc@lemote.com>
+        Mon, 05 Mar 2018 00:19:21 -0800 (PST)
+Date: Mon, 5 Mar 2018 11:19:06 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: "x86/boot/compressed/64: Prepare trampoline memory" breaks boot
+ on Zotac CI-321
+Message-ID: <20180305081906.t33mocscprsrlvzp@node.shutemov.name>
+References: <12357ee3-0276-906a-0e7c-2c3055675af3@gmail.com>
+ <CAA42JLZRxCGSsW5FKpH3AjZGbaUyrcRPdVBtMQcc4ZcxKNuDQw@mail.gmail.com>
+ <8c6c0f9d-0f47-2fc9-5cb5-6335ef1152cd@gmail.com>
+ <20180303100257.hzrqtshcnhzy5spl@gmail.com>
+ <f399b62f-984e-c693-81f0-9abe3c49d8f1@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f399b62f-984e-c693-81f0-9abe3c49d8f1@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, James Hogan <james.hogan@mips.com>, linux-mips@linux-mips.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, Huacai Chen <chenhc@lemote.com>, stable@vger.kernel.org
+To: Heiner Kallweit <hkallweit1@gmail.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Dexuan-Linux Cui <dexuan.linux@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dexuan Cui <decui@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>
 
-Call __stack_chk_guard_setup() in decompress_kernel() is too late that
-stack checking always fails for decompress_kernel() itself. So remove
-__stack_chk_guard_setup() and initialize __stack_chk_guard at where we
-define it.
+On Sat, Mar 03, 2018 at 12:46:28PM +0100, Heiner Kallweit wrote:
+> Am 03.03.2018 um 11:02 schrieb Ingo Molnar:
+> > 
+> > * Heiner Kallweit <hkallweit1@gmail.com> wrote:
+> > 
+> >> Am 03.03.2018 um 00:50 schrieb Dexuan-Linux Cui:
+> >>> On Fri, Mar 2, 2018 at 12:57 PM, Heiner Kallweit <hkallweit1@gmail.com <mailto:hkallweit1@gmail.com>> wrote:
+> >>>
+> >>>     Recently my Mini PC Zotac CI-321 started to reboot immediately before
+> >>>     anything was written to the console.
+> >>>
+> >>>     Bisecting lead to b91993a87aff "x86/boot/compressed/64: Prepare
+> >>>     trampoline memory" being the change breaking boot.
+> >>>
+> >>>     If you need any more information, please let me know.
+> >>>
+> >>>     Rgds, Heiner
+> >>>
+> >>>
+> >>> This may fix the issue: https://lkml.org/lkml/2018/2/13/668
+> >>>
+> >>> Kirill posted a v2 patchset 3 days ago and I suppose the patchset should include the fix.
+> >>>
+> >> Thanks for the link. I bisected based on the latest next kernel including
+> >> v2 of the patchset (IOW - the potential fix is included already).
+> > 
+> > Are you sure? b91993a87aff is the old patch-set - which I just removed from -next 
+> > and which should thus be gone in the Monday iteration of -next.
+> > 
+> > I have not merged v2 in -tip yet, did it get applied via some other tree?
+> > 
+> > Thanks,
+> > 
+> > 	Ingo
+> > 
+> I wanted to apply the fix mentioned in the link but found that the statement was movq already.
+> Therefore my (most likely false) understanding that it's v2.
+> I'll re-test once v2 is out and let you know.
 
-Original code comes from ARM but also used for MIPS and SH, so fix them
-together. If without this fix, compressed booting of these archs will
-fail because stack checking is enabled by default (>=4.16).
+movq fix is unrelated to the problem.
 
-Cc: stable@vger.kernel.org
-Signed-off-by: Huacai Chen <chenhc@lemote.com>
----
- arch/arm/boot/compressed/misc.c        | 9 +--------
- arch/mips/boot/compressed/decompress.c | 9 +--------
- arch/sh/boot/compressed/misc.c         | 9 +--------
- 3 files changed, 3 insertions(+), 24 deletions(-)
+Please check if current linux-next plus this patchset causes a problem for
+you:
 
-diff --git a/arch/arm/boot/compressed/misc.c b/arch/arm/boot/compressed/misc.c
-index 16a8a80..43aca75 100644
---- a/arch/arm/boot/compressed/misc.c
-+++ b/arch/arm/boot/compressed/misc.c
-@@ -128,12 +128,7 @@ asmlinkage void __div0(void)
- 	error("Attempting division by 0!");
- }
- 
--unsigned long __stack_chk_guard;
--
--void __stack_chk_guard_setup(void)
--{
--	__stack_chk_guard = 0x000a0dff;
--}
-+unsigned long __stack_chk_guard = 0x000a0dff;
- 
- void __stack_chk_fail(void)
- {
-@@ -150,8 +145,6 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
- {
- 	int ret;
- 
--	__stack_chk_guard_setup();
--
- 	output_data		= (unsigned char *)output_start;
- 	free_mem_ptr		= free_mem_ptr_p;
- 	free_mem_end_ptr	= free_mem_ptr_end_p;
-diff --git a/arch/mips/boot/compressed/decompress.c b/arch/mips/boot/compressed/decompress.c
-index fdf99e9..0694b3f 100644
---- a/arch/mips/boot/compressed/decompress.c
-+++ b/arch/mips/boot/compressed/decompress.c
-@@ -76,12 +76,7 @@ void error(char *x)
- #include "../../../../lib/decompress_unxz.c"
- #endif
- 
--unsigned long __stack_chk_guard;
--
--void __stack_chk_guard_setup(void)
--{
--	__stack_chk_guard = 0x000a0dff;
--}
-+unsigned long __stack_chk_guard = 0x000a0dff;
- 
- void __stack_chk_fail(void)
- {
-@@ -92,8 +87,6 @@ void decompress_kernel(unsigned long boot_heap_start)
- {
- 	unsigned long zimage_start, zimage_size;
- 
--	__stack_chk_guard_setup();
--
- 	zimage_start = (unsigned long)(&__image_begin);
- 	zimage_size = (unsigned long)(&__image_end) -
- 	    (unsigned long)(&__image_begin);
-diff --git a/arch/sh/boot/compressed/misc.c b/arch/sh/boot/compressed/misc.c
-index 627ce8e..2c564c2 100644
---- a/arch/sh/boot/compressed/misc.c
-+++ b/arch/sh/boot/compressed/misc.c
-@@ -104,12 +104,7 @@ static void error(char *x)
- 	while(1);	/* Halt */
- }
- 
--unsigned long __stack_chk_guard;
--
--void __stack_chk_guard_setup(void)
--{
--	__stack_chk_guard = 0x000a0dff;
--}
-+unsigned long __stack_chk_guard = 0x000a0dff;
- 
- void __stack_chk_fail(void)
- {
-@@ -130,8 +125,6 @@ void decompress_kernel(void)
- {
- 	unsigned long output_addr;
- 
--	__stack_chk_guard_setup();
--
- #ifdef CONFIG_SUPERH64
- 	output_addr = (CONFIG_MEMORY_START + 0x2000);
- #else
+http://lkml.kernel.org/r/20180227154217.69347-1-kirill.shutemov@linux.intel.com
+
 -- 
-2.7.0
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
