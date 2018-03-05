@@ -1,75 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 547526B0005
-	for <linux-mm@kvack.org>; Sun,  4 Mar 2018 15:56:34 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id v3so5178968pfm.21
-        for <linux-mm@kvack.org>; Sun, 04 Mar 2018 12:56:34 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id u8-v6si8293532plh.219.2018.03.04.12.56.32
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BB9CC6B0003
+	for <linux-mm@kvack.org>; Sun,  4 Mar 2018 20:07:23 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id f4-v6so6238558plr.11
+        for <linux-mm@kvack.org>; Sun, 04 Mar 2018 17:07:23 -0800 (PST)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id e6si7617294pgp.492.2018.03.04.17.07.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 04 Mar 2018 12:56:33 -0800 (PST)
-Date: Sun, 4 Mar 2018 12:56:14 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH] Randomization of address chosen by mmap.
-Message-ID: <20180304205614.GC23816@bombadil.infradead.org>
-References: <20180227131338.3699-1-blackzert@gmail.com>
- <CAGXu5jKF7ysJqj57ZktrcVL4G2NWOFHCud8dtXFHLs=tvVLXnQ@mail.gmail.com>
- <55C92196-5398-4C19-B7A7-6C122CD78F32@gmail.com>
- <20180228183349.GA16336@bombadil.infradead.org>
- <CA+DvKQKoo1U7T_iOOLhfEf9c+K1pzD068au+kGtx0RokFFNKHw@mail.gmail.com>
- <2CF957C6-53F2-4B00-920F-245BEF3CA1F6@gmail.com>
- <CA+DvKQ+mrnm4WX+3cBPuoSLFHmx2Zwz8=FsEx51fH-7yQMAd9w@mail.gmail.com>
- <20180304034704.GB20725@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 04 Mar 2018 17:07:22 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm] mm: Fix races between swapoff and flush dcache
+References: <20180302080426.14588-1-ying.huang@intel.com>
+	<20180302131829.7009e1e19f478d55159928de@linux-foundation.org>
+Date: Mon, 05 Mar 2018 09:07:17 +0800
+In-Reply-To: <20180302131829.7009e1e19f478d55159928de@linux-foundation.org>
+	(Andrew Morton's message of "Fri, 2 Mar 2018 13:18:29 -0800")
+Message-ID: <877eqr49fe.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180304034704.GB20725@bombadil.infradead.org>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Micay <danielmicay@gmail.com>
-Cc: Ilya Smith <blackzert@gmail.com>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Helge Deller <deller@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@intel.com>, Arnd Bergmann <arnd@arndb.de>, Chen Liqin <liqin.linux@gmail.com>, Russell King <linux@armlinux.org.uk>, Yoshinori Sato <ysato@users.sourceforge.jp>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "David S. Miller" <davem@davemloft.net>, Chris Zankel <chris@zankel.net>, Vineet Gupta <vgupta@synopsys.com>, Ley Foon Tan <lftan@altera.com>, Ralf Baechle <ralf@linux-mips.org>, Andi Kleen <ak@linux.intel.com>
 
-On Sat, Mar 03, 2018 at 07:47:04PM -0800, Matthew Wilcox wrote:
-> On Sat, Mar 03, 2018 at 04:00:45PM -0500, Daniel Micay wrote:
-> > The main thing I'd like to see is just the option to get a guarantee
-> > of enforced gaps around mappings, without necessarily even having
-> > randomization of the gap size. It's possible to add guard pages in
-> > userspace but it adds overhead by doubling the number of system calls
-> > to map memory (mmap PROT_NONE region, mprotect the inner portion to
-> > PROT_READ|PROT_WRITE) and *everything* using mmap would need to
-> > cooperate which is unrealistic.
-> 
-> So something like this?
-> 
-> To use it, OR in PROT_GUARD(n) to the PROT flags of mmap, and it should
-> pad the map by n pages.  I haven't tested it, so I'm sure it's buggy,
-> but it seems like a fairly cheap way to give us padding after every
-> mapping.
-> 
-> Running it on an old kernel will result in no padding, so to see if it
-> worked or not, try mapping something immediately after it.
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Thinking about this more ...
+> On Fri,  2 Mar 2018 16:04:26 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+>
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> >From commit 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB
+>> trunks") on, after swapoff, the address_space associated with the swap
+>> device will be freed.  So page_mapping() users which may touch the
+>> address_space need some kind of mechanism to prevent the address_space
+>> from being freed during accessing.
+>> 
+>> The dcache flushing functions (flush_dcache_page(), etc) in
+>> architecture specific code may access the address_space of swap device
+>> for anonymous pages in swap cache via page_mapping() function.  But in
+>> some cases there are no mechanisms to prevent the swap device from
+>> being swapoff, for example,
+>> 
+>> CPU1					CPU2
+>> __get_user_pages()			swapoff()
+>>   flush_dcache_page()
+>>     mapping = page_mapping()
+>>       ...				  exit_swap_address_space()
+>>       ...				    kvfree(spaces)
+>>       mapping_mapped(mapping)
+>> 
+>> The address space may be accessed after being freed.
+>> 
+>> But from cachetlb.txt and Russell King, flush_dcache_page() only care
+>> about file cache pages, for anonymous pages, flush_anon_page() should
+>> be used.  The implementation of flush_dcache_page() in all
+>> architectures follows this too.  They will check whether
+>> page_mapping() is NULL and whether mapping_mapped() is true to
+>> determine whether to flush the dcache immediately.  And they will use
+>> interval tree (mapping->i_mmap) to find all user space mappings.
+>> While mapping_mapped() and mapping->i_mmap isn't used by anonymous
+>> pages in swap cache at all.
+>> 
+>> So, to fix the race between swapoff and flush dcache, __page_mapping()
+>> is add to return the address_space for file cache pages and NULL
+>> otherwise.  All page_mapping() invoking in flush dcache functions are
+>> replaced with __page_mapping().
+>> 
+>> The patch is only build tested, because I have no machine with
+>> architecture other than x86.
+>> 
+>> ...
+>>
+>> +/*
+>> + * For file cache pages, return the address_space, otherwise return NULL
+>> + */
+>> +struct address_space *__page_mapping(struct page *page)
+>> +{
+>> +	struct address_space *mapping;
+>> +
+>> +	page = compound_head(page);
+>> +
+>> +	/* This happens if someone calls flush_dcache_page on slab page */
+>> +	if (unlikely(PageSlab(page)))
+>> +		return NULL;
+>> +
+>> +	mapping = page->mapping;
+>> +	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+>> +		return NULL;
+>> +
+>> +	return (void *)((unsigned long)mapping & ~PAGE_MAPPING_FLAGS);
+>> +}
+>> +
+>
+> I think page_mapping_file() would be a better name.
 
- - When you call munmap, if you pass in the same (addr, length) that were
-   used for mmap, then it should unmap the guard pages as well (that
-   wasn't part of the patch, so it would have to be added)
- - If 'addr' is higher than the mapped address, and length at least
-   reaches the end of the mapping, then I would expect the guard pages to
-   "move down" and be after the end of the newly-shortened mapping.
- - If 'addr' is higher than the mapped address, and the length doesn't
-   reach the end of the old mapping, we split the old mapping into two.
-   I would expect the guard pages to apply to both mappings, insofar as
-   they'll fit.  For an example, suppose we have a five-page mapping with
-   two guard pages (MMMMMGG), and then we unmap the fourth page.  Now we
-   have a three-page mapping with one guard page followed immediately
-   by a one-page mapping with two guard pages (MMMGMGG).
+Thanks!  I will use that name.
 
-I would say that mremap cannot change the number of guard pages.
-Although I'm a little tempted to add an mremap flag to permit the mapping
-to expand into the guard pages.  That would give us a nice way to reserve
-address space for a mapping we think is going to expand.
+> And do we really need to duplicate page_mapping()?  Could it be
+>
+> struct address_space *page_mapping_file(struct page *page)
+> {
+> 	if (PageSwapCache(page))
+> 		return NULL;
+> 	return page_mapping(page);
+> }
+
+Yes.  This looks better.
+
+> (We don't need to run compound_head() here, do we?)
+
+Yes.  I think so.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
