@@ -1,74 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AD416B0024
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:39:36 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id g13so14147968qtj.15
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:39:36 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id r129si4377490qkd.206.2018.03.05.05.39.33
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EA486B0007
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 08:48:02 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id p14so3822776wmc.0
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 05:48:02 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id i2si9526026wrc.120.2018.03.05.05.48.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 05:39:34 -0800 (PST)
-Subject: Re: [PATCH 34/34] x86/mm/pti: Add Warning when booting on a PCIE
- capable CPU
-References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
- <1520245563-8444-35-git-send-email-joro@8bytes.org>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <d879496a-887d-9077-3a7d-ee878a691bdc@redhat.com>
-Date: Mon, 5 Mar 2018 08:39:28 -0500
+        Mon, 05 Mar 2018 05:48:01 -0800 (PST)
+Date: Mon, 5 Mar 2018 13:47:00 +0000
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 2/3] mm: add indirectly reclaimable memory to MemAvailable
+Message-ID: <20180305134655.GA13118@castle.DHCP.thefacebook.com>
+References: <20180305133743.12746-1-guro@fb.com>
+ <20180305133743.12746-3-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <1520245563-8444-35-git-send-email-joro@8bytes.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180305133743.12746-3-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 03/05/2018 05:26 AM, Joerg Roedel wrote:
-> From: Joerg Roedel <jroedel@suse.de>
->
-> Warn the user in case the performance can be significantly
-> improved by switching to a 64-bit kernel.
->
-> Suggested-by: Andy Lutomirski <luto@kernel.org>
-> Signed-off-by: Joerg Roedel <jroedel@suse.de>
+Please, ignore this particular patch, it was sent by mistake.
+
+On Mon, Mar 05, 2018 at 01:37:41PM +0000, Roman Gushchin wrote:
+> This patch adjusts /proc/meminfo MemAvailable calculation
+> by adding the amount of indirectly reclaimable memory
+> (rounded to the PAGE_SIZE).
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: linux-fsdevel@vger.kernel.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: kernel-team@fb.com
 > ---
->  arch/x86/mm/pti.c | 16 ++++++++++++++++
->  1 file changed, 16 insertions(+)
->
-> diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-> index 3ffd923..8f5aa0d 100644
-> --- a/arch/x86/mm/pti.c
-> +++ b/arch/x86/mm/pti.c
-> @@ -385,6 +385,22 @@ void __init pti_init(void)
+>  mm/page_alloc.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 2836bc9e0999..2247cda9e94e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4695,6 +4695,13 @@ long si_mem_available(void)
+>  		     min(global_node_page_state(NR_SLAB_RECLAIMABLE) / 2,
+>  			 wmark_low);
 >  
->  	pr_info("enabled\n");
->  
-> +#ifdef CONFIG_X86_32
-> +	if (boot_cpu_has(X86_FEATURE_PCID)) {
-> +		/* Use printk to work around pr_fmt() */
-> +		printk(KERN_WARNING "\n");
-> +		printk(KERN_WARNING "************************************************************\n");
-> +		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
-> +		printk(KERN_WARNING "**                                                        **\n");
-> +		printk(KERN_WARNING "** You are using 32-bit PTI on a 64-bit PCID-capable CPU. **\n");
-> +		printk(KERN_WARNING "** Your performance will increase dramatically if you     **\n");
-> +		printk(KERN_WARNING "** switch to a 64-bit kernel!                             **\n");
-> +		printk(KERN_WARNING "**                                                        **\n");
-> +		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
-> +		printk(KERN_WARNING "************************************************************\n");
-> +	}
-> +#endif
+> +	/*
+> +	 * Part of the kernel memory, which can be released under memory
+> +	 * pressure.
+> +	 */
+> +	available += global_node_page_state(NR_INDIRECTLY_RECLAIMABLE_BYTES) >>
+> +		PAGE_SHIFT;
 > +
->  	pti_clone_user_shared();
->  	pti_clone_entry_text();
->  	pti_setup_espfix64();
-
-Typo in the patch title: PCIE => PCID.
-
--Longman
+>  	if (available < 0)
+>  		available = 0;
+>  	return available;
+> -- 
+> 2.14.3
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
