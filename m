@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 63DFC6B0031
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F97A6B0033
 	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 11:26:40 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id v186so9930477pfb.8
+Received: by mail-pg0-f72.google.com with SMTP id c16so7472279pgv.8
         for <linux-mm@kvack.org>; Mon, 05 Mar 2018 08:26:40 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id v77si4239219pfa.108.2018.03.05.08.26.27
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id q24si10299553pff.301.2018.03.05.08.26.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 08:26:27 -0800 (PST)
+        Mon, 05 Mar 2018 08:26:30 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCH 05/22] x86/pconfig: Provide defines and helper to run MKTME_KEY_PROG leaf
-Date: Mon,  5 Mar 2018 19:25:53 +0300
-Message-Id: <20180305162610.37510-6-kirill.shutemov@linux.intel.com>
+Subject: [RFC, PATCH 17/22] x86/mm: Implement vma_is_encrypted() and vma_keyid()
+Date: Mon,  5 Mar 2018 19:26:05 +0300
+Message-Id: <20180305162610.37510-18-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
 References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,72 +20,68 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-MKTME_KEY_PROG allows to manipulate MKTME keys in the CPU.
+We store KeyID in upper bits for vm_page_prot that match position of
+KeyID in PTE. vma_keyid() extracts KeyID from vm_page_prot.
+
+VMA is encrypted if KeyID is non-zero. vma_is_encrypted() checks that.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/intel_pconfig.h | 50 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 50 insertions(+)
+ arch/x86/include/asm/mktme.h |  9 +++++++++
+ arch/x86/mm/mktme.c          | 17 +++++++++++++++++
+ 2 files changed, 26 insertions(+)
 
-diff --git a/arch/x86/include/asm/intel_pconfig.h b/arch/x86/include/asm/intel_pconfig.h
-index fb7a37c3798b..3cb002b1d0f9 100644
---- a/arch/x86/include/asm/intel_pconfig.h
-+++ b/arch/x86/include/asm/intel_pconfig.h
-@@ -12,4 +12,54 @@ enum pconfig_target {
+diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
+index df31876ec48c..08f613953207 100644
+--- a/arch/x86/include/asm/mktme.h
++++ b/arch/x86/include/asm/mktme.h
+@@ -3,10 +3,19 @@
  
- int pconfig_target_supported(enum pconfig_target target);
+ #include <linux/types.h>
  
-+enum pconfig_leaf {
-+	MKTME_KEY_PROGRAM	= 0,
-+	PCONFIG_LEAF_INVALID,
-+};
++struct vm_area_struct;
 +
-+#define PCONFIG ".byte 0x0f, 0x01, 0xc5"
+ #ifdef CONFIG_X86_INTEL_MKTME
+ extern phys_addr_t mktme_keyid_mask;
+ extern int mktme_nr_keyids;
+ extern int mktme_keyid_shift;
 +
-+/* Defines and structure for MKTME_KEY_PROGRAM of PCONFIG instruction */
++#define vma_is_encrypted vma_is_encrypted
++bool vma_is_encrypted(struct vm_area_struct *vma);
 +
-+/* mktme_key_program::keyid_ctrl COMMAND, bits [7:0] */
-+#define MKTME_KEYID_SET_KEY_DIRECT	0
-+#define MKTME_KEYID_SET_KEY_RANDOM	1
-+#define MKTME_KEYID_CLEAR_KEY		2
-+#define MKTME_KEYID_NO_ENCRYPT		3
++#define vma_keyid vma_keyid
++int vma_keyid(struct vm_area_struct *vma);
 +
-+/* mktme_key_program::keyid_ctrl ENC_ALG, bits [23:8] */
-+#define MKTME_AES_XTS_128	(1 << 8)
+ #else
+ #define mktme_keyid_mask	((phys_addr_t)0)
+ #define mktme_nr_keyids		0
+diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
+index 467f1b26c737..3b2f28a21d99 100644
+--- a/arch/x86/mm/mktme.c
++++ b/arch/x86/mm/mktme.c
+@@ -1,5 +1,22 @@
++#include <linux/mm.h>
+ #include <asm/mktme.h>
+ 
+ phys_addr_t mktme_keyid_mask;
+ int mktme_nr_keyids;
+ int mktme_keyid_shift;
 +
-+/* Return codes from the PCONFIG MKTME_KEY_PROGRAM */
-+#define MKTME_PROG_SUCCESS	0
-+#define MKTME_INVALID_PROG_CMD	1
-+#define MKTME_ENTROPY_ERROR	2
-+#define MKTME_INVALID_KEYID	3
-+#define MKTME_INVALID_ENC_ALG	4
-+#define MKTME_DEVICE_BUSY	5
-+
-+/* Hardware requires the structure to be 256 byte alinged. Otherwise #GP(0). */
-+struct mktme_key_program {
-+	u16 keyid;
-+	u32 keyid_ctrl;
-+	u8 __rsvd[58];
-+	u8 key_field_1[64];
-+	u8 key_field_2[64];
-+} __packed __aligned(256);
-+
-+static inline int mktme_key_program(struct mktme_key_program *key_program)
++bool vma_is_encrypted(struct vm_area_struct *vma)
 +{
-+	unsigned long rax = MKTME_KEY_PROGRAM;
-+
-+	if (!pconfig_target_supported(MKTME_TARGET))
-+		return -ENXIO;
-+
-+	asm volatile(PCONFIG
-+		: "=a" (rax), "=b" (key_program)
-+		: "0" (rax), "1" (key_program)
-+		: "memory", "cc");
-+
-+	return rax;
++	return pgprot_val(vma->vm_page_prot) & mktme_keyid_mask;
 +}
 +
- #endif	/* _ASM_X86_INTEL_PCONFIG_H */
++int vma_keyid(struct vm_area_struct *vma)
++{
++	pgprotval_t prot;
++
++	if (!vma_is_anonymous(vma))
++		return 0;
++
++	prot = pgprot_val(vma->vm_page_prot);
++	return (prot & mktme_keyid_mask) >> mktme_keyid_shift;
++}
 -- 
 2.16.1
 
