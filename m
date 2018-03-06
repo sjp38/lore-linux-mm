@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B3F1F6B0006
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 07:27:03 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id u83so6078747wmb.3
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 04:27:03 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id n8si3599829edd.444.2018.03.06.04.27.02
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CBB836B0005
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 07:53:07 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id l5-v6so9740115pli.8
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 04:53:07 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id l11-v6si11541906pln.323.2018.03.06.04.53.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Mar 2018 04:27:02 -0800 (PST)
-Date: Tue, 6 Mar 2018 13:27:01 +0100
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 11/34] x86/entry/32: Handle Entry from Kernel-Mode on
- Entry-Stack
-Message-ID: <20180306122701.GX16484@8bytes.org>
-References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
- <1520245563-8444-12-git-send-email-joro@8bytes.org>
- <CAMzpN2h3xkhw_A4VeeA47=oykKgxXeumHM-q0QpaA8+fwFVRjw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 06 Mar 2018 04:53:06 -0800 (PST)
+Date: Tue, 6 Mar 2018 04:53:04 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v4 3/3] mm/free_pcppages_bulk: prefetch buddy while not
+ holding lock
+Message-ID: <20180306125303.GA13722@bombadil.infradead.org>
+References: <20180301062845.26038-1-aaron.lu@intel.com>
+ <20180301062845.26038-4-aaron.lu@intel.com>
+ <20180301140044.GK15057@dhcp22.suse.cz>
+ <cb158b3d-c992-6679-24df-b37d2bb170e0@suse.cz>
+ <20180305114159.GA32573@intel.com>
+ <bdec481f-b402-64b6-75b0-350b370f3eac@suse.cz>
+ <20180306122733.GA9664@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAMzpN2h3xkhw_A4VeeA47=oykKgxXeumHM-q0QpaA8+fwFVRjw@mail.gmail.com>
+In-Reply-To: <20180306122733.GA9664@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Gerst <brgerst@gmail.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>
 
-Hi Brian,
+On Tue, Mar 06, 2018 at 08:27:33PM +0800, Aaron Lu wrote:
+> On Tue, Mar 06, 2018 at 08:55:57AM +0100, Vlastimil Babka wrote:
+> > So the adjacent line prefetch might be disabled? Could you check bios or
+> > the MSR mentioned in
+> > https://software.intel.com/en-us/articles/disclosure-of-hw-prefetcher-control-on-some-intel-processors
+> 
+> root@lkp-bdw-ep2 ~# rdmsr 0x1a4
+> 0
 
-On Mon, Mar 05, 2018 at 11:41:01AM -0500, Brian Gerst wrote:
-> We can keep the same process as the existing debug/NMI handlers -
-> leave the current exception pt_regs on the entry stack and just switch
-> to the task stack for the call to the handler.  Then switch back to
-> the entry stack and continue.  No copying needed.
+Technically 0x1a4 is per-core, so you should run rdmsr -a 0x1a4 in order to
+check all the cores.  But I can't imagine they're being set differently on
+each core.
 
-I looked into this and things are a bit more complicated than in the NMI
-and debug handlers. The current code after pt_regs is set up relies on
-%esp pointing to the pt_regs structure. But if pt_regs could be on
-another stack we need to carry the pt_regs pointer in another register
-through the whole ret_from_exception code-path until we actually switch
-back the stack.
+> > instructions (calculated from itlb misses and insns-per-itlb-miss) shows
+> > less than 1% increase, so dunno. And the improvement comes from reduced
+> > dTLB-load-misses? That makes no sense for order-0 buddy struct pages
+> > which always share a page. And the memmap mapping should use huge pages.
+> 
+> THP is disabled to stress order 0 pages(should have mentioned this in
+> patch's description, sorry about this).
 
-Since the code-path is used for all stack/cr3 entry/exit cases we need
-to setup the extra pt_regs pointer unconditionally and update all places
-that reference it through %esp.
-
-It can certainly be done but it looks like another major surgery in the
-entry code to optimize a slow-path for handling unlikely segment-loading
-exceptions and debug traps. I am not sure if it's worth it.
-
-Regards,
-
-	Joerg
+THP isn't related to memmap; the kernel uses huge pages (usually the 1G
+pages) in order to map its own memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
