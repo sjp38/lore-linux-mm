@@ -1,67 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 605DF6B0007
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 13:31:19 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id 204so10302itu.6
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 10:31:19 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q192sor6272580itc.131.2018.03.06.10.31.18
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DF70C6B000C
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 13:32:03 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id g2so10732ioj.18
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 10:32:03 -0800 (PST)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id 98si10830480ioq.332.2018.03.06.10.32.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Mar 2018 10:31:18 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Mar 2018 10:32:02 -0800 (PST)
+Date: Tue, 6 Mar 2018 12:32:01 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH 04/25] slab: make create_kmalloc_cache() work with 32-bit
+ sizes
+In-Reply-To: <20180305200730.15812-4-adobriyan@gmail.com>
+Message-ID: <alpine.DEB.2.20.1803061226250.29393@nuc-kabylake>
+References: <20180305200730.15812-1-adobriyan@gmail.com> <20180305200730.15812-4-adobriyan@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180305143246.o7bass2rhbksneqb@lakrids.cambridge.arm.com>
-References: <cover.1520017438.git.andreyknvl@google.com> <226055ec7c1a01dd8211ca9a8b34c07162be37fa.1520017438.git.andreyknvl@google.com>
- <20180305143246.o7bass2rhbksneqb@lakrids.cambridge.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 6 Mar 2018 19:31:16 +0100
-Message-ID: <CAAeHK+w3Sm=NF+gWasJ8XdcmsWP_Kx6_B5ECbqLHFPvUxMzDCA@mail.gmail.com>
-Subject: Re: [RFC PATCH 07/14] khwasan: add tag related helper functions
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: akpm@linux-foundation.org, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org
 
-On Mon, Mar 5, 2018 at 3:32 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> On Fri, Mar 02, 2018 at 08:44:26PM +0100, Andrey Konovalov wrote:
->> +static DEFINE_PER_CPU(u32, prng_state);
->> +
->> +void khwasan_init(void)
->> +{
->> +     int cpu;
->> +
->> +     for_each_possible_cpu(cpu) {
->> +             per_cpu(prng_state, cpu) = get_random_u32();
->> +     }
->> +     WRITE_ONCE(khwasan_enabled, 1);
->> +}
->> +
->> +static inline u8 khwasan_random_tag(void)
->> +{
->> +     u32 state = this_cpu_read(prng_state);
->> +
->> +     state = 1664525 * state + 1013904223;
->> +     this_cpu_write(prng_state, state);
->> +
->> +     return (u8)state;
->> +}
->
-> Have you considered preemption here? Is the assumption that it happens
-> sufficiently rarely that cross-contaminating the prng state isn't a
-> problem?
+On Mon, 5 Mar 2018, Alexey Dobriyan wrote:
 
-Hi Mark!
+> KMALLOC_MAX_CACHE_SIZE is 32-bit so is the largest kmalloc cache size.
 
-Yes, I have. If a preemption happens between this_cpu_read and
-this_cpu_write, the only side effect is that we'll give a few
-allocated in different contexts objects the same tag. Sine KHWASAN is
-meant to be used a probabilistic bug-detection debug feature, this
-doesn't seem to have serious negative impact.
+Ok SLABs maximum allocation size is limited to 32M (see
+include/linux/slab.h:
 
-I'll add a comment about this though.
+#define KMALLOC_SHIFT_HIGH      ((MAX_ORDER + PAGE_SHIFT - 1) <= 25 ? \
+                                (MAX_ORDER + PAGE_SHIFT - 1) : 25)
 
-Thanks!
+And SLUB/SLOB pass all larger requests to the page allocator anyways.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
