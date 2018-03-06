@@ -1,85 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 80AE16B002D
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 15:37:00 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id o23so14005232wrc.9
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 12:37:00 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F17B56B002F
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 15:45:43 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 96so11417914wrk.12
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 12:45:43 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p38si11639490wrc.266.2018.03.06.12.36.58
+        by mx.google.com with ESMTPS id x127si6710058wmb.92.2018.03.06.12.45.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Mar 2018 12:36:59 -0800 (PST)
-Date: Tue, 6 Mar 2018 12:36:55 -0800
+        Tue, 06 Mar 2018 12:45:42 -0800 (PST)
+Date: Tue, 6 Mar 2018 12:45:40 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: might_sleep warning
-Message-Id: <20180306123655.957e5b6b20b200505544ea7a@linux-foundation.org>
-In-Reply-To: <20180306192022.28289-1-pasha.tatashin@oracle.com>
-References: <20180306192022.28289-1-pasha.tatashin@oracle.com>
+Subject: Re: [RFC PATCH 0/4 v2] Define killable version for
+ access_remote_vm() and use it in fs/proc
+Message-Id: <20180306124540.d8b5f6da97ab69a49566f950@linux-foundation.org>
+In-Reply-To: <1519691151-101999-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1519691151-101999-1-git-send-email-yang.shi@linux.alibaba.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, m.mizuma@jp.fujitsu.com, mhocko@suse.com, catalin.marinas@arm.com, takahiro.akashi@linaro.org, gi-oh.kim@profitbricks.com, heiko.carstens@de.ibm.com, baiyaowei@cmss.chinamobile.com, richard.weiyang@gmail.com, paul.burton@mips.com, miles.chen@mediatek.com, vbabka@suse.cz, mgorman@suse.de, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mingo@kernel.org, adobriyan@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 
-On Tue,  6 Mar 2018 14:20:22 -0500 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+On Tue, 27 Feb 2018 08:25:47 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
 
-> Robot reported this issue:
-> https://lkml.org/lkml/2018/2/27/851
 > 
-> That is introduced by:
-> mm: initialize pages on demand during boot
+> Background:
+> When running vm-scalability with large memory (> 300GB), the below hung
+> task issue happens occasionally.
 > 
-> The problem is caused by changing static branch value within spin lock.
-> Spin lock disables preemption, and changing static branch value takes
-> mutex lock in its path, and thus may sleep.
+> INFO: task ps:14018 blocked for more than 120 seconds.
+>        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+>  "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+>  ps              D    0 14018      1 0x00000004
+>   ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+>   ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+>   00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+>  Call Trace:
+>   [<ffffffff817154d0>] ? __schedule+0x250/0x730
+>   [<ffffffff817159e6>] schedule+0x36/0x80
+>   [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+>   [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+>   [<ffffffff81717db0>] down_read+0x20/0x40
+>   [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+>   [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
+>   [<ffffffff81241d87>] __vfs_read+0x37/0x150
+>   [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
+>   [<ffffffff81242266>] vfs_read+0x96/0x130
+>   [<ffffffff812437b5>] SyS_read+0x55/0xc0
+>   [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
 > 
-> The fix is to add another boolean variable to avoid the need to change
-> static branch within spinlock.
+> When manipulating a large mapping, the process may hold the mmap_sem for
+> long time, so reading /proc/<pid>/cmdline may be blocked in
+> uninterruptible state for long time.
+> We already have killable version APIs for semaphore, here use down_read_killable()
+> to improve the responsiveness.
 > 
-> ...
->
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1579,6 +1579,7 @@ static int __init deferred_init_memmap(void *data)
->   * page_alloc_init_late() soon after smp_init() is complete.
->   */
->  static __initdata DEFINE_SPINLOCK(deferred_zone_grow_lock);
-> +static bool deferred_zone_grow __initdata = true;
->  static DEFINE_STATIC_KEY_TRUE(deferred_pages);
->  
->  /*
-> @@ -1616,7 +1617,7 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
->  	 * Bail if we raced with another thread that disabled on demand
->  	 * initialization.
->  	 */
-> -	if (!static_branch_unlikely(&deferred_pages)) {
-> +	if (!static_branch_unlikely(&deferred_pages) || !deferred_zone_grow) {
->  		spin_unlock_irqrestore(&deferred_zone_grow_lock, flags);
->  		return false;
->  	}
-> @@ -1683,10 +1684,15 @@ void __init page_alloc_init_late(void)
->  	/*
->  	 * We are about to initialize the rest of deferred pages, permanently
->  	 * disable on-demand struct page initialization.
-> +	 *
-> +	 * Note: it is prohibited to modify static branches in non-preemptible
-> +	 * context. Since, spin_lock() disables preemption, we must use an
-> +	 * extra boolean deferred_zone_grow.
->  	 */
->  	spin_lock(&deferred_zone_grow_lock);
-> -	static_branch_disable(&deferred_pages);
-> +	deferred_zone_grow = false;
->  	spin_unlock(&deferred_zone_grow_lock);
-> +	static_branch_disable(&deferred_pages);
->  
->  	/* There will be num_node_state(N_MEMORY) threads */
->  	atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
 
-Kinda ugly, but I can see the logic behind the decisions.
+Maybe I'm missing something, but I don't see how this solves the
+problem.  Yes, the read of /proc/pid/cmdline will be abandoned if
+someone interrupts that process.  But if nobody does that, the read
+will still just sit there for 2 minutes and the watchdog warning will
+still come out?
 
-Can we instead turn deferred_zone_grow_lock into a mutex?
+Where the heck are we holding mmap_sem for so long?  Can that be fixed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
