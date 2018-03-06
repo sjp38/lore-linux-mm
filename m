@@ -1,64 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AD1766B0003
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 17:55:58 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id k79so2384453ioi.6
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 14:55:58 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id k1si6519796iti.36.2018.03.05.14.55.57
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 91FAC6B0005
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2018 19:47:43 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id h193so10585858pfe.14
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 16:47:43 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id y7si8079481pgy.161.2018.03.05.16.47.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Mar 2018 14:55:57 -0800 (PST)
-Subject: Re: [PATCH v12 10/11] sparc64: Add support for ADI (Application Data
- Integrity)
-References: <cover.1519227112.git.khalid.aziz@oracle.com>
- <d8602e35e65c8bf6df1a85166bf181536a6f3664.1519227112.git.khalid.aziz@oracle.com>
- <a59ece97-ba1f-dfb1-bfc8-b44ffd8edbca@linux.intel.com>
- <84931753-9a84-8624-adb8-95bd05d87d56@oracle.com>
- <8b0edd2e-3e9b-1148-6309-38b61307a523@linux.intel.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <fabf221c-02e2-f968-d107-b028701dd837@oracle.com>
-Date: Mon, 5 Mar 2018 15:55:23 -0700
+        Mon, 05 Mar 2018 16:47:42 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -V2 -mm] mm: Fix races between swapoff and flush dcache
+References: <20180305083634.15174-1-ying.huang@intel.com>
+Date: Tue, 06 Mar 2018 08:47:37 +0800
+In-Reply-To: <20180305083634.15174-1-ying.huang@intel.com> (Ying Huang's
+	message of "Mon, 5 Mar 2018 16:36:34 +0800")
+Message-ID: <871sgy2fo6.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <8b0edd2e-3e9b-1148-6309-38b61307a523@linux.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, davem@davemloft.net, akpm@linux-foundation.org
-Cc: corbet@lwn.net, steven.sistare@oracle.com, pasha.tatashin@oracle.com, mike.kravetz@oracle.com, rob.gardner@oracle.com, mingo@kernel.org, nitin.m.gupta@oracle.com, anthony.yznaga@oracle.com, kirill.shutemov@linux.intel.com, tom.hromatka@oracle.com, allen.pais@oracle.com, tklauser@distanz.ch, shannon.nelson@oracle.com, vijay.ac.kumar@oracle.com, mhocko@suse.com, jack@suse.cz, punit.agrawal@arm.com, hughd@google.com, thomas.tai@oracle.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, minchan@kernel.org, imbrenda@linux.vnet.ibm.com, aarcange@redhat.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, tglx@linutronix.de, gregkh@linuxfoundation.org, nagarathnam.muthusamy@oracle.com, linux@roeck-us.net, jane.chu@oracle.com, dan.j.williams@intel.com, jglisse@redhat.com, ktkhai@virtuozzo.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@intel.com>, Chen Liqin <liqin.linux@gmail.com>, Russell King <linux@armlinux.org.uk>, Yoshinori Sato <ysato@users.sourceforge.jp>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "David S. Miller" <davem@davemloft.net>, Chris Zankel <chris@zankel.net>, Vineet Gupta <vgupta@synopsys.com>, Ley Foon Tan <lftan@altera.com>, Ralf Baechle <ralf@linux-mips.org>, Andi Kleen <ak@linux.intel.com>
 
-On 03/05/2018 02:31 PM, Dave Hansen wrote:
-> On 03/05/2018 01:14 PM, Khalid Aziz wrote:
->> Are you suggesting that vma returned by find_vma() could be split or
->> merged underneath me if I do not hold mmap_sem and thus make the flag
->> check invalid? If so, that is a good point.
-> 
-> This part does make me think that this code hasn't been tested very
-> thoroughly.  Could you describe the testing that you have done?  For MPX
-> and protection keys, I added something to tools/testing/selftests/x86,
-> for instance.
+"Huang, Ying" <ying.huang@intel.com> writes:
 
-This code was tested by a QA team and I ran a number of tests myself. I 
-wrote tests to exercise all of the API, induce exceptions for 
-invalid/illegal accesses and swapping was tested by allocating memory 
-2-4 times of the system RAM available across 4-8 threads and 
-reading/writing to this memory with ADI enabled. QA team wrote unit 
-tests to test each API with valid and invalid combinations of arguments 
-to the API. Stress tests that allocate and free ADI tagged memory were 
-also run. A version of database server was created that uses ADI tagged 
-memory for in-memory copy of database to test database workload. 100's 
-of hours of tests were run across these tests over the last 1+ year 
-these patches have been under review for. Cover letter includes 
-description of most of these tests. This code has held up through all of 
-these tests. It is entirely feasible some race conditions have not been 
-uncovered yet, just like any other piece of software. Pulling this code 
-into mainline kernel and having lot more people exercise this code will 
-help shake out any remaining issues.
+> From: Huang Ying <ying.huang@intel.com>
+>
+> From commit 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB
+> trunks") on, after swapoff, the address_space associated with the swap
+> device will be freed.  So page_mapping() users which may touch the
+> address_space need some kind of mechanism to prevent the address_space
+> from being freed during accessing.
+>
+> The dcache flushing functions (flush_dcache_page(), etc) in
+> architecture specific code may access the address_space of swap device
+> for anonymous pages in swap cache via page_mapping() function.  But in
+> some cases there are no mechanisms to prevent the swap device from
+> being swapoff, for example,
+>
+> CPU1					CPU2
+> __get_user_pages()			swapoff()
+>   flush_dcache_page()
+>     mapping = page_mapping()
+>       ...				  exit_swap_address_space()
+>       ...				    kvfree(spaces)
+>       mapping_mapped(mapping)
+>
+> The address space may be accessed after being freed.
+>
+> But from cachetlb.txt and Russell King, flush_dcache_page() only care
+> about file cache pages, for anonymous pages, flush_anon_page() should
+> be used.  The implementation of flush_dcache_page() in all
+> architectures follows this too.  They will check whether
+> page_mapping() is NULL and whether mapping_mapped() is true to
+> determine whether to flush the dcache immediately.  And they will use
+> interval tree (mapping->i_mmap) to find all user space mappings.
+> While mapping_mapped() and mapping->i_mmap isn't used by anonymous
+> pages in swap cache at all.
+>
+> So, to fix the race between swapoff and flush dcache, __page_mapping()
+> is add to return the address_space for file cache pages and NULL
+> otherwise.  All page_mapping() invoking in flush dcache functions are
+> replaced with __page_mapping().
 
-Thanks,
-Khalid
+Sorry, I just found I forgot replacing __page_mapping() to
+page_mapping_file() in the above paragraph.  Could you help me to change
+it in place?  Or I should resend the patch with the updated description?
+
+Best Regards,
+Huang, Ying
+
+[snip]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
