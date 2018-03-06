@@ -1,72 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E2686B000A
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 16:31:41 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id r29so42387wra.13
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 13:31:41 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C5CE6B000A
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 16:41:43 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id q15so43882wra.22
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 13:41:43 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r75si6944992wmb.210.2018.03.06.13.31.39
+        by mx.google.com with ESMTPS id c7si1656821wmc.61.2018.03.06.13.41.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Mar 2018 13:31:39 -0800 (PST)
-Date: Tue, 6 Mar 2018 13:31:35 -0800
+        Tue, 06 Mar 2018 13:41:42 -0800 (PST)
+Date: Tue, 6 Mar 2018 13:41:39 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 199037] New: Kernel bug at mm/hugetlb.c:741
-Message-Id: <20180306133135.4dc344e478d98f0e29f47698@linux-foundation.org>
-In-Reply-To: <bug-199037-27@https.bugzilla.kernel.org/>
-References: <bug-199037-27@https.bugzilla.kernel.org/>
+Subject: Re: [RFC PATCH 0/4 v2] Define killable version for
+ access_remote_vm() and use it in fs/proc
+Message-Id: <20180306134139.375e15abab173329962f7d5a@linux-foundation.org>
+In-Reply-To: <b576e32b-9c47-ee67-a576-b5a0c05c2864@linux.alibaba.com>
+References: <1519691151-101999-1-git-send-email-yang.shi@linux.alibaba.com>
+	<20180306124540.d8b5f6da97ab69a49566f950@linux-foundation.org>
+	<b576e32b-9c47-ee67-a576-b5a0c05c2864@linux.alibaba.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Mike Kravetz <mike.kravetz@oracle.com>, Michal Hocko <mhocko@kernel.org>
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, blurbdust@gmail.com
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mingo@kernel.org, adobriyan@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 
+On Tue, 6 Mar 2018 13:17:37 -0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
-
-On Tue, 06 Mar 2018 21:11:50 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=199037
 > 
->             Bug ID: 199037
->            Summary: Kernel bug at mm/hugetlb.c:741
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 4.16.0-rc3
->           Hardware: All
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Page Allocator
->           Assignee: akpm@linux-foundation.org
->           Reporter: blurbdust@gmail.com
->         Regression: No
 > 
-> Created attachment 274595
->   --> https://bugzilla.kernel.org/attachment.cgi?id=274595&action=edit
-> crash.c
+> It just mitigates the hung task warning, can't resolve the mmap_sem 
+> scalability issue. Furthermore, waiting on pure uninterruptible state 
+> for reading /proc sounds unnecessary. It doesn't wait for I/O completion.
+
+OK.
+
+> >
+> > Where the heck are we holding mmap_sem for so long?  Can that be fixed?
 > 
-> Hello,
-> I apologize as this is my first time reporting a bug. When I compile and run
-> the attached file it crashes the latest kernel running in QEMU. Call trace
-> here: https://pastebin.com/1mMQvH0E
+> The mmap_sem is held for unmapping a large map which has every single 
+> page mapped. This is not a issue in real production code. Just found it 
+> by running vm-scalability on a machine with ~600GB memory.
 > 
-> Let me know if you have any questions.
-> 
+> AFAIK, I don't see any easy fix for the mmap_sem scalability issue. I 
+> saw range locking patches (https://lwn.net/Articles/723648/) were 
+> floating around. But, it may not help too much on the case that a large 
+> map with every single page mapped.
 
-Thanks for the report.
+Well it sounds fairly simple to mitigate?  Simplistically: don't unmap
+600G in a single hit; do it 1G at a time, dropping mmap_sem each time. 
+A smarter version might only come up for air if there are mmap_sem
+waiters and if it has already done some work.  I don't think we have
+any particular atomicity requirements when unmapping?
 
-That's VM_BUG_ON(resv_map->adds_in_progress) in resv_map_release().
-
-Do you know if earlier kernel versions are affected?
-
-It looks quite bisectable.  Does the crash happen every time the test
-program is run?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
