@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 902726B0009
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 14:24:21 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id c5so11946181pfn.17
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 11:24:21 -0800 (PST)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D30D6B0009
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 14:24:22 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id l5-v6so10164308pli.8
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 11:24:22 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id u17si12308866pfm.190.2018.03.06.11.24.20
+        by mx.google.com with ESMTPS id g4si12358831pfh.98.2018.03.06.11.24.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 06 Mar 2018 11:24:20 -0800 (PST)
+        Tue, 06 Mar 2018 11:24:21 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v8 05/63] Export __set_page_dirty
-Date: Tue,  6 Mar 2018 11:23:15 -0800
-Message-Id: <20180306192413.5499-6-willy@infradead.org>
+Subject: [PATCH v8 06/63] btrfs: Use filemap_range_has_page()
+Date: Tue,  6 Mar 2018 11:23:16 -0800
+Message-Id: <20180306192413.5499-7-willy@infradead.org>
 In-Reply-To: <20180306192413.5499-1-willy@infradead.org>
 References: <20180306192413.5499-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,76 +22,114 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-XFS currently contains a copy-and-paste of __set_page_dirty().  Export
-it from buffer.c instead.
+The current implementation of btrfs_page_exists_in_range() gives the
+wrong answer if the workingset code has stored a shadow entry in the
+page cache.  The filemap_range_has_page() function does not have this
+problem, and it's shared code, so use it instead.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-Acked-by: Jeff Layton <jlayton@kernel.org>
 ---
- fs/buffer.c        |  3 ++-
- fs/xfs/xfs_aops.c  | 15 ++-------------
- include/linux/mm.h |  1 +
- 3 files changed, 5 insertions(+), 14 deletions(-)
+ fs/btrfs/btrfs_inode.h |  6 ++++-
+ fs/btrfs/inode.c       | 70 --------------------------------------------------
+ 2 files changed, 5 insertions(+), 71 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 3b2b415f1fcd..a17d47b55de1 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -594,7 +594,7 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
-  *
-  * The caller must hold lock_page_memcg().
-  */
--static void __set_page_dirty(struct page *page, struct address_space *mapping,
-+void __set_page_dirty(struct page *page, struct address_space *mapping,
- 			     int warn)
- {
- 	unsigned long flags;
-@@ -608,6 +608,7 @@ static void __set_page_dirty(struct page *page, struct address_space *mapping,
- 	}
- 	spin_unlock_irqrestore(&mapping->tree_lock, flags);
+diff --git a/fs/btrfs/btrfs_inode.h b/fs/btrfs/btrfs_inode.h
+index f527e99c9f8d..078a53e01ece 100644
+--- a/fs/btrfs/btrfs_inode.h
++++ b/fs/btrfs/btrfs_inode.h
+@@ -364,6 +364,10 @@ static inline void btrfs_print_data_csum_error(struct btrfs_inode *inode,
+ 			logical_start, csum, csum_expected, mirror_num);
  }
-+EXPORT_SYMBOL_GPL(__set_page_dirty);
  
- /*
-  * Add a page to the dirty page list.
-diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-index 9c6a830da0ee..31f2c4895a46 100644
---- a/fs/xfs/xfs_aops.c
-+++ b/fs/xfs/xfs_aops.c
-@@ -1472,19 +1472,8 @@ xfs_vm_set_page_dirty(
- 	newly_dirty = !TestSetPageDirty(page);
- 	spin_unlock(&mapping->private_lock);
+-bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end);
++static inline bool btrfs_page_exists_in_range(struct inode *inode,
++						loff_t start, loff_t end)
++{
++	return filemap_range_has_page(inode->i_mapping, start, end);
++}
  
--	if (newly_dirty) {
--		/* sigh - __set_page_dirty() is static, so copy it here, too */
--		unsigned long flags;
+ #endif
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index 1f5b93ecffca..3340de232944 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -7476,76 +7476,6 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
+ 	return ret;
+ }
+ 
+-bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
+-{
+-	struct radix_tree_root *root = &inode->i_mapping->page_tree;
+-	bool found = false;
+-	void **pagep = NULL;
+-	struct page *page = NULL;
+-	unsigned long start_idx;
+-	unsigned long end_idx;
 -
--		spin_lock_irqsave(&mapping->tree_lock, flags);
--		if (page->mapping) {	/* Race with truncate? */
--			WARN_ON_ONCE(!PageUptodate(page));
--			account_page_dirtied(page, mapping);
--			radix_tree_tag_set(&mapping->page_tree,
--					page_index(page), PAGECACHE_TAG_DIRTY);
+-	start_idx = start >> PAGE_SHIFT;
+-
+-	/*
+-	 * end is the last byte in the last page.  end == start is legal
+-	 */
+-	end_idx = end >> PAGE_SHIFT;
+-
+-	rcu_read_lock();
+-
+-	/* Most of the code in this while loop is lifted from
+-	 * find_get_page.  It's been modified to begin searching from a
+-	 * page and return just the first page found in that range.  If the
+-	 * found idx is less than or equal to the end idx then we know that
+-	 * a page exists.  If no pages are found or if those pages are
+-	 * outside of the range then we're fine (yay!) */
+-	while (page == NULL &&
+-	       radix_tree_gang_lookup_slot(root, &pagep, NULL, start_idx, 1)) {
+-		page = radix_tree_deref_slot(pagep);
+-		if (unlikely(!page))
+-			break;
+-
+-		if (radix_tree_exception(page)) {
+-			if (radix_tree_deref_retry(page)) {
+-				page = NULL;
+-				continue;
+-			}
+-			/*
+-			 * Otherwise, shmem/tmpfs must be storing a swap entry
+-			 * here as an exceptional entry: so return it without
+-			 * attempting to raise page count.
+-			 */
+-			page = NULL;
+-			break; /* TODO: Is this relevant for this use case? */
 -		}
--		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+-
+-		if (!page_cache_get_speculative(page)) {
+-			page = NULL;
+-			continue;
+-		}
+-
+-		/*
+-		 * Has the page moved?
+-		 * This is part of the lockless pagecache protocol. See
+-		 * include/linux/pagemap.h for details.
+-		 */
+-		if (unlikely(page != *pagep)) {
+-			put_page(page);
+-			page = NULL;
+-		}
 -	}
-+	if (newly_dirty)
-+		__set_page_dirty(page, mapping, 1);
- 	unlock_page_memcg(page);
- 	if (newly_dirty)
- 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 9f1270360983..8cf4714bfec8 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1454,6 +1454,7 @@ extern int try_to_release_page(struct page * page, gfp_t gfp_mask);
- extern void do_invalidatepage(struct page *page, unsigned int offset,
- 			      unsigned int length);
- 
-+void __set_page_dirty(struct page *, struct address_space *, int warn);
- int __set_page_dirty_nobuffers(struct page *page);
- int __set_page_dirty_no_writeback(struct page *page);
- int redirty_page_for_writepage(struct writeback_control *wbc,
+-
+-	if (page) {
+-		if (page->index <= end_idx)
+-			found = true;
+-		put_page(page);
+-	}
+-
+-	rcu_read_unlock();
+-	return found;
+-}
+-
+ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
+ 			      struct extent_state **cached_state, int writing)
+ {
 -- 
 2.16.1
 
