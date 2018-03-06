@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D37D6B0010
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 13:38:43 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id y64so36850itd.4
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 10:38:43 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id q71si10912246ioi.245.2018.03.06.10.38.42
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0646B6B000A
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 13:40:41 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id d18so21224iob.23
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 10:40:41 -0800 (PST)
+Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [69.252.207.37])
+        by mx.google.com with ESMTPS id e26si10501377ioc.42.2018.03.06.10.40.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Mar 2018 10:38:42 -0800 (PST)
-Date: Tue, 6 Mar 2018 12:38:40 -0600 (CST)
+        Tue, 06 Mar 2018 10:40:40 -0800 (PST)
+Date: Tue, 6 Mar 2018 12:39:39 -0600 (CST)
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 07/25] slab: make size_index[] array u8
-In-Reply-To: <20180305200730.15812-7-adobriyan@gmail.com>
-Message-ID: <alpine.DEB.2.20.1803061238250.29393@nuc-kabylake>
-References: <20180305200730.15812-1-adobriyan@gmail.com> <20180305200730.15812-7-adobriyan@gmail.com>
+Subject: Re: [PATCH 08/25] slab: make size_index_elem() unsigned int
+In-Reply-To: <20180305200730.15812-8-adobriyan@gmail.com>
+Message-ID: <alpine.DEB.2.20.1803061239230.29393@nuc-kabylake>
+References: <20180305200730.15812-1-adobriyan@gmail.com> <20180305200730.15812-8-adobriyan@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
