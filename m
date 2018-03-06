@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8335C6B0270
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A1EEC6B0273
 	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 14:24:44 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id x7so11996615pfd.19
+Received: by mail-pg0-f69.google.com with SMTP id o19so9050350pgn.12
         for <linux-mm@kvack.org>; Tue, 06 Mar 2018 11:24:44 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 5-v6si11533742plf.396.2018.03.06.11.24.43
+        by mx.google.com with ESMTPS id g23si6172746pfb.87.2018.03.06.11.24.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Tue, 06 Mar 2018 11:24:43 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v8 54/63] shmem: Comment fixups
-Date: Tue,  6 Mar 2018 11:24:04 -0800
-Message-Id: <20180306192413.5499-55-willy@infradead.org>
+Subject: [PATCH v8 56/63] fs: Convert buffer to XArray
+Date: Tue,  6 Mar 2018 11:24:06 -0800
+Message-Id: <20180306192413.5499-57-willy@infradead.org>
 In-Reply-To: <20180306192413.5499-1-willy@infradead.org>
 References: <20180306192413.5499-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,66 +22,59 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Remove the last mentions of radix tree from various comments.
+Mostly comment fixes, but one use of __xa_set_tag.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ fs/buffer.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 707430003ec7..6b044cb6c8b5 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -743,7 +743,7 @@ void shmem_unlock_mapping(struct address_space *mapping)
- }
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 3ee82c056d85..70af8fbc64cf 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -585,7 +585,7 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
+ EXPORT_SYMBOL(mark_buffer_dirty_inode);
  
  /*
-- * Remove range of pages and swap entries from radix tree, and free them.
-+ * Remove range of pages and swap entries from page cache, and free them.
-  * If !unfalloc, truncate or punch hole; if unfalloc, undo failed fallocate.
-  */
- static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
-@@ -1118,10 +1118,10 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
- 		 * We needed to drop mutex to make that restrictive page
- 		 * allocation, but the inode might have been freed while we
- 		 * dropped it: although a racing shmem_evict_inode() cannot
--		 * complete without emptying the radix_tree, our page lock
-+		 * complete without emptying the page cache, our page lock
- 		 * on this swapcache page is not enough to prevent that -
- 		 * free_swap_and_cache() of our swap entry will only
--		 * trylock_page(), removing swap from radix_tree whatever.
-+		 * trylock_page(), removing swap from page cache whatever.
- 		 *
- 		 * We must not proceed to shmem_add_to_page_cache() if the
- 		 * inode has been freed, but of course we cannot rely on
-@@ -1187,7 +1187,7 @@ int shmem_unuse(swp_entry_t swap, struct page *page)
- 			false);
- 	if (error)
- 		goto out;
--	/* No radix_tree_preload: swap entry keeps a place for page in tree */
-+	/* No memory allocation: swap entry occupies the slot for the page */
- 	error = -EAGAIN;
- 
- 	mutex_lock(&shmem_swaplist_mutex);
-@@ -1866,7 +1866,7 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, inode,
- 		spin_unlock_irq(&info->lock);
- 		goto repeat;
+- * Mark the page dirty, and set it dirty in the radix tree, and mark the inode
++ * Mark the page dirty, and set it dirty in the page cache, and mark the inode
+  * dirty.
+  *
+  * If warn is true, then emit a warning if the page is not uptodate and has
+@@ -602,8 +602,8 @@ void __set_page_dirty(struct page *page, struct address_space *mapping,
+ 	if (page->mapping) {	/* Race with truncate? */
+ 		WARN_ON_ONCE(warn && !PageUptodate(page));
+ 		account_page_dirtied(page, mapping);
+-		radix_tree_tag_set(&mapping->i_pages,
+-				page_index(page), PAGECACHE_TAG_DIRTY);
++		__xa_set_tag(&mapping->i_pages, page_index(page),
++				PAGECACHE_TAG_DIRTY);
  	}
--	if (error == -EEXIST)	/* from above or from radix_tree_insert */
-+	if (error == -EEXIST)
- 		goto repeat;
- 	return error;
+ 	xa_unlock_irqrestore(&mapping->i_pages, flags);
  }
-@@ -2478,7 +2478,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
- }
- 
- /*
-- * llseek SEEK_DATA or SEEK_HOLE through the radix_tree.
-+ * llseek SEEK_DATA or SEEK_HOLE through the page cache.
-  */
- static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
- 				    pgoff_t index, pgoff_t end, int whence)
+@@ -1066,7 +1066,7 @@ __getblk_slow(struct block_device *bdev, sector_t block,
+  * The relationship between dirty buffers and dirty pages:
+  *
+  * Whenever a page has any dirty buffers, the page's dirty bit is set, and
+- * the page is tagged dirty in its radix tree.
++ * the page is tagged dirty in the page cache.
+  *
+  * At all times, the dirtiness of the buffers represents the dirtiness of
+  * subsections of the page.  If the page has buffers, the page dirty bit is
+@@ -1089,9 +1089,9 @@ __getblk_slow(struct block_device *bdev, sector_t block,
+  * mark_buffer_dirty - mark a buffer_head as needing writeout
+  * @bh: the buffer_head to mark dirty
+  *
+- * mark_buffer_dirty() will set the dirty bit against the buffer, then set its
+- * backing page dirty, then tag the page as dirty in its address_space's radix
+- * tree and then attach the address_space's inode to its superblock's dirty
++ * mark_buffer_dirty() will set the dirty bit against the buffer, then set
++ * its backing page dirty, then tag the page as dirty in the page cache
++ * and then attach the address_space's inode to its superblock's dirty
+  * inode list.
+  *
+  * mark_buffer_dirty() is atomic.  It takes bh->b_page->mapping->private_lock,
 -- 
 2.16.1
 
