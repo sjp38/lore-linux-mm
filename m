@@ -1,83 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 14B436B0007
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 12:34:56 -0500 (EST)
-Received: by mail-yw0-f199.google.com with SMTP id q40so1701719ywa.8
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 09:34:56 -0800 (PST)
-From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 4/7] HMM: Remove superflous RCU protection around radix tree lookup
-Date: Tue,  6 Mar 2018 09:33:13 -0800
-Message-Id: <20180306173316.3088458-4-tj@kernel.org>
-In-Reply-To: <20180306173316.3088458-1-tj@kernel.org>
-References: <20180306172657.3060270-1-tj@kernel.org>
- <20180306173316.3088458-1-tj@kernel.org>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EA316B0003
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 12:39:45 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id a3so6487660wme.1
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 09:39:45 -0800 (PST)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id 26si495786edw.197.2018.03.06.09.39.44
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Mar 2018 09:39:44 -0800 (PST)
+Subject: Re: [PATCH 1/7] genalloc: track beginning of allocations
+References: <20180228200620.30026-1-igor.stoppa@huawei.com>
+ <20180228200620.30026-2-igor.stoppa@huawei.com>
+ <6a31164a-af3f-91ea-d385-7c6d1888b28c@gmail.com>
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Message-ID: <05bde73d-6c0a-8309-4150-7225862c28e0@huawei.com>
+Date: Tue, 6 Mar 2018 19:39:41 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <6a31164a-af3f-91ea-d385-7c6d1888b28c@gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org, jannh@google.com, paulmck@linux.vnet.ibm.com, bcrl@kvack.org, viro@zeniv.linux.org.uk, kent.overstreet@gmail.com
-Cc: security@kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Tejun Heo <tj@kernel.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, linux-mm@kvack.org
+To: J Freyensee <why2jjj.linux@gmail.com>, david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
+Cc: labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-hmm_devmem_find() requires rcu_read_lock_held() but there's nothing
-which actually uses the RCU protection.  The only caller is
-hmm_devmem_pages_create() which already grabs the mutex and does
-superflous rcu_read_lock/unlock() around the function.
 
-This doesn't add anything and just adds to confusion.  Remove the RCU
-protection and open-code the radix tree lookup.  If this needs to
-become more sophisticated in the future, let's add them back when
-necessary.
 
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
----
-Hello, JA(C)rA'me.
+On 05/03/2018 21:00, J Freyensee wrote:
+> .
+> .
+> 
+> 
+> On 2/28/18 12:06 PM, Igor Stoppa wrote:
+>> +
+>> +/**
+>> + * gen_pool_dma_alloc() - allocate special memory from the pool for DMA usage
+>> + * @pool: pool to allocate from
+>> + * @size: number of bytes to allocate from the pool
+>> + * @dma: dma-view physical address return value.  Use NULL if unneeded.
+>> + *
+>> + * Allocate the requested number of bytes from the specified pool.
+>> + * Uses the pool allocation function (with first-fit algorithm by default).
+>> + * Can not be used in NMI handler on architectures without
+>> + * NMI-safe cmpxchg implementation.
+>> + *
+>> + * Return:
+>> + * * address of the memory allocated	- success
+>> + * * NULL				- error
+>> + */
+>> +void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma);
+>> +
+> 
+> OK, so gen_pool_dma_alloc() is defined here, which believe is the API 
+> line being drawn for this series.
+> 
+> so,
+> .
+> .
+> .
+>>
+>>   
+>>   /**
+>> - * gen_pool_dma_alloc - allocate special memory from the pool for DMA usage
+>> + * gen_pool_dma_alloc() - allocate special memory from the pool for DMA usage
+>>    * @pool: pool to allocate from
+>>    * @size: number of bytes to allocate from the pool
+>>    * @dma: dma-view physical address return value.  Use NULL if unneeded.
+>> @@ -342,14 +566,15 @@ EXPORT_SYMBOL(gen_pool_alloc_algo);
+>>    * Uses the pool allocation function (with first-fit algorithm by default).
+>>    * Can not be used in NMI handler on architectures without
+>>    * NMI-safe cmpxchg implementation.
+>> + *
+>> + * Return:
+>> + * * address of the memory allocated	- success
+>> + * * NULL				- error
+>>    */
+>>   void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
+>>   {
+>>   	unsigned long vaddr;
+>>   
+>> -	if (!pool)
+>> -		return NULL;
+>> -
+> why is this being removed?A  I don't believe this code was getting 
+> removed from your v17 series patches.
 
-This came up while auditing percpu_ref users for missing explicit RCU
-grace periods.  HMM doesn't seem to depend on RCU protection at all,
-so I thought it'd be better to remove it for now.  It's only compile
-tested.
+Because, as Matthew Wilcox pointed out [1] (well, that's how I
+understood it) de-referencing a NULL pointer will cause the kernel to
+complain loudly.
 
-Thanks.
+Where is the NULL pointer coming from?
 
- mm/hmm.c | 12 ++----------
- 1 file changed, 2 insertions(+), 10 deletions(-)
+a) from a bug in the user of the API - in that case it will be noticed,
+reported and fixed, that is how also other in-kernel APIs work
 
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 320545b98..d4627c5 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -845,13 +845,6 @@ static void hmm_devmem_release(struct device *dev, void *data)
- 	hmm_devmem_radix_release(resource);
- }
- 
--static struct hmm_devmem *hmm_devmem_find(resource_size_t phys)
--{
--	WARN_ON_ONCE(!rcu_read_lock_held());
--
--	return radix_tree_lookup(&hmm_devmem_radix, phys >> PA_SECTION_SHIFT);
--}
--
- static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
- {
- 	resource_size_t key, align_start, align_size, align_end;
-@@ -892,9 +885,8 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
- 	for (key = align_start; key <= align_end; key += PA_SECTION_SIZE) {
- 		struct hmm_devmem *dup;
- 
--		rcu_read_lock();
--		dup = hmm_devmem_find(key);
--		rcu_read_unlock();
-+		dup = radix_tree_lookup(&hmm_devmem_radix,
-+					key >> PA_SECTION_SHIFT);
- 		if (dup) {
- 			dev_err(device, "%s: collides with mapping for %s\n",
- 				__func__, dev_name(dup->device));
--- 
-2.9.5
+b) from an attacker - it will still trigger an error from the kernel,
+but it cannot really do much else, besides crashing repeatedly and
+causing a DOS. However, there are so many other places that could be
+under similar attack, that it doesn't seem to make a difference having a
+check here only.
+
+If the value was coming from userspace, that would be a completely
+different case and some sort of sanitation would be mandatory.
+
+> Otherwise, looks good,
+> 
+> Reviewed-by: Jay Freyensee <why2jjj.linux@gmail.com>
+
+thanks
+
+
+[1] http://www.openwall.com/lists/kernel-hardening/2018/02/26/16
+
+
+--
+igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
