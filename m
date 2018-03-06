@@ -1,150 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 307A36B000A
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 02:07:01 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id t24so9724703pfe.20
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 23:07:01 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c10sor2868073pgn.268.2018.03.05.23.06.59
+	by kanga.kvack.org (Postfix) with ESMTP id AF4B46B0005
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 02:56:01 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id d5so8240657pfn.12
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2018 23:56:01 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m12-v6si7641055pls.74.2018.03.05.23.55.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Mar 2018 23:06:59 -0800 (PST)
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: [PATCHv2 2/2] zram: drop max_zpage_size and use zs_huge_class_size()
-Date: Tue,  6 Mar 2018 16:06:39 +0900
-Message-Id: <20180306070639.7389-3-sergey.senozhatsky@gmail.com>
-In-Reply-To: <20180306070639.7389-1-sergey.senozhatsky@gmail.com>
-References: <20180306070639.7389-1-sergey.senozhatsky@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 05 Mar 2018 23:55:59 -0800 (PST)
+Subject: Re: [PATCH v4 3/3] mm/free_pcppages_bulk: prefetch buddy while not
+ holding lock
+References: <20180301062845.26038-1-aaron.lu@intel.com>
+ <20180301062845.26038-4-aaron.lu@intel.com>
+ <20180301140044.GK15057@dhcp22.suse.cz>
+ <cb158b3d-c992-6679-24df-b37d2bb170e0@suse.cz>
+ <20180305114159.GA32573@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <bdec481f-b402-64b6-75b0-350b370f3eac@suse.cz>
+Date: Tue, 6 Mar 2018 08:55:57 +0100
+MIME-Version: 1.0
+In-Reply-To: <20180305114159.GA32573@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
 
-This patch removes ZRAM's enforced "huge object" value and uses
-zsmalloc huge-class watermark instead, which makes more sense.
+On 03/05/2018 12:41 PM, Aaron Lu wrote:
+> On Fri, Mar 02, 2018 at 06:55:25PM +0100, Vlastimil Babka wrote:
+>> On 03/01/2018 03:00 PM, Michal Hocko wrote:
+>>>
+>>> I am really surprised that this has such a big impact.
+>>
+>> It's even stranger to me. Struct page is 64 bytes these days, exactly a
+>> a cache line. Unless that changed, Intel CPUs prefetched a "buddy" cache
+>> line (that forms an aligned 128 bytes block with the one we touch).
+>> Which is exactly a order-0 buddy struct page! Maybe that implicit
+>> prefetching stopped at L2 and explicit goes all the way to L1, can't
+> 
+> The Intel Architecture Optimization Manual section 7.3.2 says:
+> 
+> prefetchT0 - fetch data into all cache levels
+> Intel Xeon Processors based on Nehalem, Westmere, Sandy Bridge and newer
+> microarchitectures: 1st, 2nd and 3rd level cache.
+> 
+> prefetchT2 - fetch data into 2nd and 3rd level caches (identical to
+> prefetchT1)
+> Intel Xeon Processors based on Nehalem, Westmere, Sandy Bridge and newer
+> microarchitectures: 2nd and 3rd level cache.
+> 
+> prefetchNTA - fetch data into non-temporal cache close to the processor,
+> minimizing cache pollution
+> Intel Xeon Processors based on Nehalem, Westmere, Sandy Bridge and newer
+> microarchitectures: must fetch into 3rd level cache with fast replacement.
+> 
+> I tried 'prefetcht0' and 'prefetcht2' instead of the default
+> 'prefetchNTA' on a 2 sockets Intel Skylake, the two ended up with about
+> the same performance number as prefetchNTA. I had expected prefetchT0 to
+> deliver a better score if it was indeed due to L1D since prefetchT2 will
+> not place data into L1 while prefetchT0 will, but looks like it is not
+> the case here.
+> 
+> It feels more like the buddy cacheline isn't in any level of the caches
+> without prefetch for some reason.
 
-TEST
-- I used a 1G zram device, LZO compression back-end, original
-  data set size was 444MB. Looking at zsmalloc classes stats the
-  test ended up to be pretty fair.
+So the adjacent line prefetch might be disabled? Could you check bios or
+the MSR mentioned in
+https://software.intel.com/en-us/articles/disclosure-of-hw-prefetcher-control-on-some-intel-processors
 
-BASE ZRAM/ZSMALLOC
-=====================
-zram mm_stat
+>> remember. Would that make such a difference? It would be nice to do some
+>> perf tests with cache counters to see what is really going on...
+> 
+> Compare prefetchT2 to no-prefetch, I saw these metrics change:
+> 
+> no-prefetch          change  prefetchT2       metrics
+>             \                          \
+> 	   stddev                     stddev
+> ------------------------------------------------------------------------
+>       0.18            +0.0        0.18        perf-stat.branch-miss-rate%                                       
+>  8.268e+09            +3.8%  8.585e+09        perf-stat.branch-misses                               
+>  2.333e+10            +4.7%  2.443e+10        perf-stat.cache-misses                                            
+>  2.402e+11            +5.0%  2.522e+11        perf-stat.cache-references                                    
+>       3.52            -1.1%       3.48        perf-stat.cpi                                                     
+>       0.02            -0.0        0.01 A+-3%    perf-stat.dTLB-load-miss-rate%                           
+>  8.677e+08            -7.3%  8.048e+08 A+-3%    perf-stat.dTLB-load-misses                                        
+>       1.18            +0.0        1.19        perf-stat.dTLB-store-miss-rate%             
+>  2.359e+10            +6.0%  2.502e+10        perf-stat.dTLB-store-misses                                       
+>  1.979e+12            +5.0%  2.078e+12        perf-stat.dTLB-stores                     
+>  6.126e+09           +10.1%  6.745e+09 A+-3%    perf-stat.iTLB-load-misses                                        
+>       3464            -8.4%       3172 A+-3%    perf-stat.instructions-per-iTLB-miss            
+>       0.28            +1.1%       0.29        perf-stat.ipc                                                     
+>  2.929e+09            +5.1%  3.077e+09        perf-stat.minor-faults                         
+>  9.244e+09            +4.7%  9.681e+09        perf-stat.node-loads                                              
+>  2.491e+08            +5.8%  2.634e+08        perf-stat.node-store-misses               
+>  6.472e+09            +6.1%  6.869e+09        perf-stat.node-stores                                             
+>  2.929e+09            +5.1%  3.077e+09        perf-stat.page-faults                          
+>    2182469            -4.2%    2090977        perf-stat.path-length
+> 
+> Not sure if this is useful though...
 
-498978816 191482495 199831552        0 199831552    15634        0
-
-zsmalloc classes
-
- class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage freeable
-...
-   151  2448           0            0          1240       1240        744                3        0
-   168  2720           0            0          4200       4200       2800                2        0
-   190  3072           0            0         10100      10100       7575                3        0
-   202  3264           0            0           380        380        304                4        0
-   254  4096           0            0         10620      10620      10620                1        0
-
- Total                 7           46        106982     106187      48787                         0
-
-PATCHED ZRAM/ZSMALLOC
-=====================
-
-zram mm_stat
-
-498978816 182579184 194248704        0 194248704    15628        0
-
-zsmalloc classes
-
- class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage freeable
-...
-   151  2448           0            0          1240       1240        744                3        0
-   168  2720           0            0          4200       4200       2800                2        0
-   190  3072           0            0         10100      10100       7575                3        0
-   202  3264           0            0          7180       7180       5744                4        0
-   254  4096           0            0          3820       3820       3820                1        0
-
- Total                 8           45        106959     106193      47424                         0
-
-As we can see, we reduced the number of objects stored in class-4096,
-because a huge number of objects which we previously forcibly stored
-in class-4096 now stored in non-huge class-3264. This results in lower
-memory consumption:
- - zsmalloc now uses 47424 physical pages, which is less than 48787
-   pages zsmalloc used before.
-
- - objects that we store in class-3264 share zspages. That's why overall
-   the number of pages that both class-4096 and class-3264 consumed went
-   down from 10924 to 9564.
-
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
----
- drivers/block/zram/zram_drv.c |  9 ++++++++-
- drivers/block/zram/zram_drv.h | 16 ----------------
- 2 files changed, 8 insertions(+), 17 deletions(-)
-
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 85110e7931e5..1b8082e6d2f5 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -44,6 +44,11 @@ static const char *default_compressor = "lzo";
- 
- /* Module params (documentation at end) */
- static unsigned int num_devices = 1;
-+/*
-+ * Pages that compress to sizes equals or greater than this are stored
-+ * uncompressed in memory.
-+ */
-+static size_t huge_class_size;
- 
- static void zram_free_page(struct zram *zram, size_t index);
- 
-@@ -786,6 +791,8 @@ static bool zram_meta_alloc(struct zram *zram, u64 disksize)
- 		return false;
- 	}
- 
-+	if (!huge_class_size)
-+		huge_class_size = zs_huge_class_size();
- 	return true;
- }
- 
-@@ -965,7 +972,7 @@ static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
- 		return ret;
- 	}
- 
--	if (unlikely(comp_len > max_zpage_size)) {
-+	if (unlikely(comp_len >= huge_class_size)) {
- 		if (zram_wb_enabled(zram) && allow_wb) {
- 			zcomp_stream_put(zram->comp);
- 			ret = write_to_bdev(zram, bvec, index, bio, &element);
-diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index 31762db861e3..d71c8000a964 100644
---- a/drivers/block/zram/zram_drv.h
-+++ b/drivers/block/zram/zram_drv.h
-@@ -21,22 +21,6 @@
- 
- #include "zcomp.h"
- 
--/*-- Configurable parameters */
--
--/*
-- * Pages that compress to size greater than this are stored
-- * uncompressed in memory.
-- */
--static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
--
--/*
-- * NOTE: max_zpage_size must be less than or equal to:
-- *   ZS_MAX_ALLOC_SIZE. Otherwise, zs_malloc() would
-- * always return failure.
-- */
--
--/*-- End of configurable params */
--
- #define SECTOR_SHIFT		9
- #define SECTORS_PER_PAGE_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
- #define SECTORS_PER_PAGE	(1 << SECTORS_PER_PAGE_SHIFT)
--- 
-2.16.2
+Looks like most stats increased in absolute values as the work done
+increased and this is a time-limited benchmark? Although number of
+instructions (calculated from itlb misses and insns-per-itlb-miss) shows
+less than 1% increase, so dunno. And the improvement comes from reduced
+dTLB-load-misses? That makes no sense for order-0 buddy struct pages
+which always share a page. And the memmap mapping should use huge pages.
+BTW what is path-length?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
