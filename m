@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 358866B005C
+	by kanga.kvack.org (Postfix) with ESMTP id 610B96B005D
 	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 14:24:36 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id f3-v6so10161304plf.18
+Received: by mail-pl0-f69.google.com with SMTP id a5-v6so10236115plp.0
         for <linux-mm@kvack.org>; Tue, 06 Mar 2018 11:24:36 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v3si10267682pgq.608.2018.03.06.11.24.32
+        by mx.google.com with ESMTPS id v5-v6si11525457plp.156.2018.03.06.11.24.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 06 Mar 2018 11:24:32 -0800 (PST)
+        Tue, 06 Mar 2018 11:24:34 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v8 33/63] page cache: Convert filemap_range_has_page to XArray
-Date: Tue,  6 Mar 2018 11:23:43 -0800
-Message-Id: <20180306192413.5499-34-willy@infradead.org>
+Subject: [PATCH v8 32/63] page cache: Remove stray radix comment
+Date: Tue,  6 Mar 2018 11:23:42 -0800
+Message-Id: <20180306192413.5499-33-willy@infradead.org>
 In-Reply-To: <20180306192413.5499-1-willy@infradead.org>
 References: <20180306192413.5499-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,57 +22,23 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Instead of calling find_get_pages_range() and putting any reference,
-use xas_find() to iterate over any entries in the range, skipping the
-shadow/swap entries.
-
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/filemap.c | 26 ++++++++++++++++++--------
- 1 file changed, 18 insertions(+), 8 deletions(-)
+ mm/filemap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 86c83014c909..9bc417913269 100644
+index 0635e9cdbc06..86c83014c909 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -458,20 +458,30 @@ EXPORT_SYMBOL(filemap_flush);
- bool filemap_range_has_page(struct address_space *mapping,
- 			   loff_t start_byte, loff_t end_byte)
- {
--	pgoff_t index = start_byte >> PAGE_SHIFT;
--	pgoff_t end = end_byte >> PAGE_SHIFT;
- 	struct page *page;
-+	XA_STATE(xas, &mapping->i_pages, start_byte >> PAGE_SHIFT);
-+	pgoff_t max = end_byte >> PAGE_SHIFT;
- 
- 	if (end_byte < start_byte)
- 		return false;
- 
--	if (mapping->nrpages == 0)
--		return false;
-+	rcu_read_lock();
-+	do {
-+		page = xas_find(&xas, max);
-+		if (xas_retry(&xas, page))
-+			continue;
-+		/* Shadow entries don't count */
-+		if (xa_is_value(page))
-+			continue;
-+		/*
-+		 * We don't need to try to pin this page; we're about to
-+		 * release the RCU lock anyway.  It is enough to know that
-+		 * there was a page here recently.
-+		 */
-+	} while (0);
-+	rcu_read_unlock();
- 
--	if (!find_get_pages_range(mapping, &index, end, 1, &page))
--		return false;
--	put_page(page);
--	return true;
-+	return page != NULL;
- }
- EXPORT_SYMBOL(filemap_range_has_page);
+@@ -2579,7 +2579,7 @@ static struct page *do_read_cache_page(struct address_space *mapping,
+ 			put_page(page);
+ 			if (err == -EEXIST)
+ 				goto repeat;
+-			/* Presumably ENOMEM for radix tree node */
++			/* Presumably ENOMEM for xarray node */
+ 			return ERR_PTR(err);
+ 		}
  
 -- 
 2.16.1
