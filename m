@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C98256B0005
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 13:42:10 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id t27so30584iob.20
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 10:42:10 -0800 (PST)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id f202si7776959itf.30.2018.03.06.10.42.09
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A12856B0008
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 13:42:38 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id y1so27832iti.7
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 10:42:38 -0800 (PST)
+Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
+        by mx.google.com with ESMTPS id t124si7898518itf.146.2018.03.06.10.42.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Mar 2018 10:42:10 -0800 (PST)
-Date: Tue, 6 Mar 2018 12:42:09 -0600 (CST)
+        Tue, 06 Mar 2018 10:42:37 -0800 (PST)
+Date: Tue, 6 Mar 2018 12:42:36 -0600 (CST)
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 10/25] slub: make ->max_attr_size unsigned int
-In-Reply-To: <20180305200730.15812-10-adobriyan@gmail.com>
-Message-ID: <alpine.DEB.2.20.1803061241560.29393@nuc-kabylake>
-References: <20180305200730.15812-1-adobriyan@gmail.com> <20180305200730.15812-10-adobriyan@gmail.com>
+Subject: Re: [PATCH 11/25] slub: make ->red_left_pad unsigned int
+In-Reply-To: <20180305200730.15812-11-adobriyan@gmail.com>
+Message-ID: <alpine.DEB.2.20.1803061242250.29393@nuc-kabylake>
+References: <20180305200730.15812-1-adobriyan@gmail.com> <20180305200730.15812-11-adobriyan@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
