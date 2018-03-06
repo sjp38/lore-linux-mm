@@ -1,69 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 34F0D6B0005
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 14:14:45 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id c16so9043620pgv.8
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 11:14:45 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n27si12525339pfg.102.2018.03.06.11.14.42
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F4CB6B0005
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 14:20:46 -0500 (EST)
+Received: by mail-yb0-f200.google.com with SMTP id w79-v6so4051632ybe.19
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 11:20:46 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id x8-v6si2636553ybm.130.2018.03.06.11.20.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 06 Mar 2018 11:14:42 -0800 (PST)
-Date: Tue, 6 Mar 2018 11:14:39 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 05/25] slab: make create_boot_cache() work with 32-bit
- sizes
-Message-ID: <20180306191439.GB11216@bombadil.infradead.org>
-References: <20180305200730.15812-1-adobriyan@gmail.com>
- <20180305200730.15812-5-adobriyan@gmail.com>
- <alpine.DEB.2.20.1803061232190.29393@nuc-kabylake>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1803061232190.29393@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Mar 2018 11:20:44 -0800 (PST)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH] mm: might_sleep warning
+Date: Tue,  6 Mar 2018 14:20:22 -0500
+Message-Id: <20180306192022.28289-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Alexey Dobriyan <adobriyan@gmail.com>, akpm@linux-foundation.org, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org
+To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, pasha.tatashin@oracle.com, m.mizuma@jp.fujitsu.com, akpm@linux-foundation.org, mhocko@suse.com, catalin.marinas@arm.com, takahiro.akashi@linaro.org, gi-oh.kim@profitbricks.com, heiko.carstens@de.ibm.com, baiyaowei@cmss.chinamobile.com, richard.weiyang@gmail.com, paul.burton@mips.com, miles.chen@mediatek.com, vbabka@suse.cz, mgorman@suse.de, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 06, 2018 at 12:34:05PM -0600, Christopher Lameter wrote:
-> On Mon, 5 Mar 2018, Alexey Dobriyan wrote:
-> 
-> > struct kmem_cache::size has always been "int", all those
-> > "size_t size" are fake.
-> 
-> They are useful since you typically pass sizeof( < whatever > ) as a
-> parameter to kmem_cache_create(). Passing those values onto other
-> functions internal to slab could use int.
+Robot reported this issue:
+https://lkml.org/lkml/2018/2/27/851
 
-Sure, but:
+That is introduced by:
+mm: initialize pages on demand during boot
 
-struct foo {
-	int n;
-	char *p;
-};
-int f(unsigned int x);
+The problem is caused by changing static branch value within spin lock.
+Spin lock disables preemption, and changing static branch value takes
+mutex lock in its path, and thus may sleep.
 
-int g(void)
-{
-	return f(sizeof(struct foo));
-}
+The fix is to add another boolean variable to avoid the need to change
+static branch within spinlock.
 
-gives:
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+---
+ mm/page_alloc.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
-   0:   bf 10 00 00 00          mov    $0x10,%edi
-   5:   e9 00 00 00 00          jmpq   a <g+0xa>
-
-Changing the prototype to "int f(unsigned long x)" produces _exactly the
-same assembly_.  Why?  Because mov to %edi will zero out the upper 32-bits
-of %rdi.  I consider it one of the flaws in the x86 instruction set that
-mov %di doesn't zero out the upper 16 bits of %edi (and correspondingly
-the upper 48 bits of %rdi), as it'd save an awful lot of bytes in the
-instruction stream by replacing 32-bit constants with 16-bit constants.
-
-There's just no difference between these two.  Unless you want to talk
-about a structure exceeding 4GB in size, and then I'm afraid we have
-bigger problems.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b337a026007c..52edc6695b2b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1579,6 +1579,7 @@ static int __init deferred_init_memmap(void *data)
+  * page_alloc_init_late() soon after smp_init() is complete.
+  */
+ static __initdata DEFINE_SPINLOCK(deferred_zone_grow_lock);
++static bool deferred_zone_grow __initdata = true;
+ static DEFINE_STATIC_KEY_TRUE(deferred_pages);
+ 
+ /*
+@@ -1616,7 +1617,7 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
+ 	 * Bail if we raced with another thread that disabled on demand
+ 	 * initialization.
+ 	 */
+-	if (!static_branch_unlikely(&deferred_pages)) {
++	if (!static_branch_unlikely(&deferred_pages) || !deferred_zone_grow) {
+ 		spin_unlock_irqrestore(&deferred_zone_grow_lock, flags);
+ 		return false;
+ 	}
+@@ -1683,10 +1684,15 @@ void __init page_alloc_init_late(void)
+ 	/*
+ 	 * We are about to initialize the rest of deferred pages, permanently
+ 	 * disable on-demand struct page initialization.
++	 *
++	 * Note: it is prohibited to modify static branches in non-preemptible
++	 * context. Since, spin_lock() disables preemption, we must use an
++	 * extra boolean deferred_zone_grow.
+ 	 */
+ 	spin_lock(&deferred_zone_grow_lock);
+-	static_branch_disable(&deferred_pages);
++	deferred_zone_grow = false;
+ 	spin_unlock(&deferred_zone_grow_lock);
++	static_branch_disable(&deferred_pages);
+ 
+ 	/* There will be num_node_state(N_MEMORY) threads */
+ 	atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
+-- 
+2.16.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
