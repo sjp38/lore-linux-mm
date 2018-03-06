@@ -1,37 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 910B86B000E
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 17:48:35 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id j21so134884wre.20
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 14:48:35 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 680366B0010
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 17:48:44 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id j21so135101wre.20
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 14:48:44 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i195si2482987wmd.142.2018.03.06.14.48.34
+        by mx.google.com with ESMTPS id c22si1463164wme.230.2018.03.06.14.48.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Mar 2018 14:48:34 -0800 (PST)
-Date: Tue, 6 Mar 2018 14:48:14 -0800
+        Tue, 06 Mar 2018 14:48:43 -0800 (PST)
+Date: Tue, 6 Mar 2018 14:48:07 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v12 08/11] mm: Clear arch specific VM flags on
- protection change
-Message-Id: <20180306144814.86eac0c28e98b50d550fc2fd@linux-foundation.org>
-In-Reply-To: <f0bfc4b7ce6c8563bf0d5ef74af20b5d1edea66f.1519227112.git.khalid.aziz@oracle.com>
+Subject: Re: [PATCH v12 07/11] mm: Add address parameter to
+ arch_validate_prot()
+Message-Id: <20180306144807.30915bcffe6e640c3ad6279c@linux-foundation.org>
+In-Reply-To: <349751cbd54fda6f4a223f941aa71bbfe7be77ce.1519227112.git.khalid.aziz@oracle.com>
 References: <cover.1519227112.git.khalid.aziz@oracle.com>
-	<f0bfc4b7ce6c8563bf0d5ef74af20b5d1edea66f.1519227112.git.khalid.aziz@oracle.com>
+	<349751cbd54fda6f4a223f941aa71bbfe7be77ce.1519227112.git.khalid.aziz@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: davem@davemloft.net, dave.hansen@linux.intel.com, mhocko@suse.com, jack@suse.cz, kirill.shutemov@linux.intel.com, ross.zwisler@linux.intel.com, willy@infradead.org, hughd@google.com, n-horiguchi@ah.jp.nec.com, mgorman@suse.de, jglisse@redhat.com, dave.jiang@intel.com, dan.j.williams@intel.com, anthony.yznaga@oracle.com, nadav.amit@gmail.com, zi.yan@cs.rutgers.edu, aarcange@redhat.com, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, henry.willard@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
+Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, davem@davemloft.net, dave.hansen@linux.intel.com, bsingharora@gmail.com, nborisov@suse.com, aarcange@redhat.com, anthony.yznaga@oracle.com, mgorman@suse.de, linuxram@us.ibm.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, gregkh@linuxfoundation.org, tglx@linutronix.de, mhocko@suse.com, n-horiguchi@ah.jp.nec.com, jglisse@redhat.com, henry.willard@oracle.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
 
-On Wed, 21 Feb 2018 10:15:50 -0700 Khalid Aziz <khalid.aziz@oracle.com> wrote:
+On Wed, 21 Feb 2018 10:15:49 -0700 Khalid Aziz <khalid.aziz@oracle.com> wrote:
 
-> When protection bits are changed on a VMA, some of the architecture
-> specific flags should be cleared as well. An examples of this are the
-> PKEY flags on x86. This patch expands the current code that clears
-> PKEY flags for x86, to support similar functionality for other
-> architectures as well.
+> A protection flag may not be valid across entire address space and
+> hence arch_validate_prot() might need the address a protection bit is
+> being set on to ensure it is a valid protection flag. For example, sparc
+> processors support memory corruption detection (as part of ADI feature)
+> flag on memory addresses mapped on to physical RAM but not on PFN mapped
+> pages or addresses mapped on to devices. This patch adds address to the
+> parameters being passed to arch_validate_prot() so protection bits can
+> be validated in the relevant context.
 > 
 > Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 > Cc: Khalid Aziz <khalid@gonehiking.org>
