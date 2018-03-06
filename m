@@ -1,106 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BD48E6B0031
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 16:04:10 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id t27so386336iob.20
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 13:04:10 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id 4si8184265ity.18.2018.03.06.13.04.09
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 29CED6B002D
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 16:17:46 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id s6so30518pgn.3
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 13:17:46 -0800 (PST)
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id u16si10566353pgn.488.2018.03.06.13.17.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Mar 2018 13:04:09 -0800 (PST)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w26L1rmL011325
-	for <linux-mm@kvack.org>; Tue, 6 Mar 2018 21:04:09 GMT
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2120.oracle.com with ESMTP id 2gj234g5xk-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 06 Mar 2018 21:04:08 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w26L47Hi001698
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 6 Mar 2018 21:04:07 GMT
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w26L47ng012009
-	for <linux-mm@kvack.org>; Tue, 6 Mar 2018 21:04:07 GMT
-Received: by mail-oi0-f41.google.com with SMTP id g5so16589oiy.8
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 13:04:07 -0800 (PST)
+        Tue, 06 Mar 2018 13:17:44 -0800 (PST)
+Subject: Re: [RFC PATCH 0/4 v2] Define killable version for access_remote_vm()
+ and use it in fs/proc
+References: <1519691151-101999-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180306124540.d8b5f6da97ab69a49566f950@linux-foundation.org>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <b576e32b-9c47-ee67-a576-b5a0c05c2864@linux.alibaba.com>
+Date: Tue, 6 Mar 2018 13:17:37 -0800
 MIME-Version: 1.0
-In-Reply-To: <20180306125604.c394a25a50cae0e36c546855@linux-foundation.org>
-References: <20180306192022.28289-1-pasha.tatashin@oracle.com>
- <20180306123655.957e5b6b20b200505544ea7a@linux-foundation.org>
- <CAGM2rea1raxsXDkqZgmmdBiuywp1M3y1p++=J893VJDgGDWLnQ@mail.gmail.com> <20180306125604.c394a25a50cae0e36c546855@linux-foundation.org>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Tue, 6 Mar 2018 16:04:06 -0500
-Message-ID: <CAGM2rebb9FdceEBO2GfJ7BKf=fEf8p86Yc1vCq4eZyyB0Me+DA@mail.gmail.com>
-Subject: Re: [PATCH] mm: might_sleep warning
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180306124540.d8b5f6da97ab69a49566f950@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Wei Yang <richard.weiyang@gmail.com>, Paul Burton <paul.burton@mips.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-
-> > > >       spin_lock(&deferred_zone_grow_lock);
-> > > > -     static_branch_disable(&deferred_pages);
-> > > > +     deferred_zone_grow = false;
-> > > >       spin_unlock(&deferred_zone_grow_lock);
-> > > > +     static_branch_disable(&deferred_pages);
-> > > >
-> > > >       /* There will be num_node_state(N_MEMORY) threads */
-> > > >       atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
-> > >
-> > > Kinda ugly, but I can see the logic behind the decisions.
-> > >
-> > > Can we instead turn deferred_zone_grow_lock into a mutex?
->
-> (top-posting repaired.  Please don't top-post).
->
-> > [CCed everyone]
-> >
-> > Hi Andrew,
-> >
-> > I afraid we cannot change this spinlock to mutex
-> > because deferred_grow_zone() might be called from an interrupt context if
-> > interrupt thread needs to allocate memory.
-> >
->
-> OK.  But if deferred_grow_zone() can be called from interrupt then
-> page_alloc_init_late() should be using spin_lock_irq(), shouldn't it?
-> I'm surprised that lockdep didn't detect that.
-
-No, page_alloc_init_late()  cannot be called from interrupt, it is
-called straight from:
-kernel_init_freeable(). But, I believe deferred_grow_zone(): can be called:
-
-get_page_from_freelist()
- _deferred_grow_zone()
-   deferred_grow_zone()
+Cc: mingo@kernel.org, adobriyan@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 
 
+
+On 3/6/18 12:45 PM, Andrew Morton wrote:
+> On Tue, 27 Feb 2018 08:25:47 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
 >
+>> Background:
+>> When running vm-scalability with large memory (> 300GB), the below hung
+>> task issue happens occasionally.
+>>
+>> INFO: task ps:14018 blocked for more than 120 seconds.
+>>         Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+>>   "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+>>   ps              D    0 14018      1 0x00000004
+>>    ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+>>    ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+>>    00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+>>   Call Trace:
+>>    [<ffffffff817154d0>] ? __schedule+0x250/0x730
+>>    [<ffffffff817159e6>] schedule+0x36/0x80
+>>    [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+>>    [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+>>    [<ffffffff81717db0>] down_read+0x20/0x40
+>>    [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+>>    [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
+>>    [<ffffffff81241d87>] __vfs_read+0x37/0x150
+>>    [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
+>>    [<ffffffff81242266>] vfs_read+0x96/0x130
+>>    [<ffffffff812437b5>] SyS_read+0x55/0xc0
+>>    [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+>>
+>> When manipulating a large mapping, the process may hold the mmap_sem for
+>> long time, so reading /proc/<pid>/cmdline may be blocked in
+>> uninterruptible state for long time.
+>> We already have killable version APIs for semaphore, here use down_read_killable()
+>> to improve the responsiveness.
+>>
+> Maybe I'm missing something, but I don't see how this solves the
+> problem.  Yes, the read of /proc/pid/cmdline will be abandoned if
+> someone interrupts that process.  But if nobody does that, the read
+> will still just sit there for 2 minutes and the watchdog warning will
+> still come out?
+
+No, the warning will not come out since down_read_killable() puts the 
+task into TASK_KILLABLE state instead of TASK_UNINTERRUPTIBLE state. The 
+hung task check will skip TASK_KILLABLE tasks, please see the below code 
+in (kernel/hung_task.c):
+
+                 /* use "==" to skip the TASK_KILLABLE tasks waiting on 
+NFS */
+                 if (t->state == TASK_UNINTERRUPTIBLE)
+                         check_hung_task(t, timeout);
+
+It just mitigates the hung task warning, can't resolve the mmap_sem 
+scalability issue. Furthermore, waiting on pure uninterruptible state 
+for reading /proc sounds unnecessary. It doesn't wait for I/O completion.
+
 >
->
-> --- a/mm/page_alloc.c~mm-initialize-pages-on-demand-during-boot-fix-4-fix
-> +++ a/mm/page_alloc.c
-> @@ -1689,9 +1689,9 @@ void __init page_alloc_init_late(void)
->          * context. Since, spin_lock() disables preemption, we must use an
->          * extra boolean deferred_zone_grow.
->          */
-> -       spin_lock(&deferred_zone_grow_lock);
-> +       spin_lock_irq(&deferred_zone_grow_lock);
->         deferred_zone_grow = false;
-> -       spin_unlock(&deferred_zone_grow_lock);
-> +       spin_unlock_irq(&deferred_zone_grow_lock);
->         static_branch_disable(&deferred_pages);
->
->         /* There will be num_node_state(N_MEMORY) threads */
-> _
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Where the heck are we holding mmap_sem for so long?  Can that be fixed?
+
+The mmap_sem is held for unmapping a large map which has every single 
+page mapped. This is not a issue in real production code. Just found it 
+by running vm-scalability on a machine with ~600GB memory.
+
+AFAIK, I don't see any easy fix for the mmap_sem scalability issue. I 
+saw range locking patches (https://lwn.net/Articles/723648/) were 
+floating around. But, it may not help too much on the case that a large 
+map with every single page mapped.
+
+Thanks,
+Yang
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
