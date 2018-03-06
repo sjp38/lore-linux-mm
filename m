@@ -1,96 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 225936B0003
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 12:59:52 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id n141so1208339qke.20
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 09:59:52 -0800 (PST)
-Date: Tue, 6 Mar 2018 12:59:48 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 4/7] HMM: Remove superflous RCU protection around radix
- tree lookup
-Message-ID: <20180306175948.GA4791@redhat.com>
-References: <20180306172657.3060270-1-tj@kernel.org>
- <20180306173316.3088458-1-tj@kernel.org>
- <20180306173316.3088458-4-tj@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180306173316.3088458-4-tj@kernel.org>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A09C26B0003
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 13:18:27 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id c37so13843769wra.5
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 10:18:27 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f128sor3159007wmg.32.2018.03.06.10.18.25
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 06 Mar 2018 10:18:25 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v2] kasan, slub: fix handling of kasan_slab_free hook
+Date: Tue,  6 Mar 2018 19:18:17 +0100
+Message-Id: <a62759a2545fddf69b0c034547212ca1eb1b3ce2.1520359686.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: torvalds@linux-foundation.org, jannh@google.com, paulmck@linux.vnet.ibm.com, bcrl@kvack.org, viro@zeniv.linux.org.uk, kent.overstreet@gmail.com, security@kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, linux-mm@kvack.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Konovalov <andreyknvl@google.com>
 
-On Tue, Mar 06, 2018 at 09:33:13AM -0800, Tejun Heo wrote:
-> hmm_devmem_find() requires rcu_read_lock_held() but there's nothing
-> which actually uses the RCU protection.  The only caller is
-> hmm_devmem_pages_create() which already grabs the mutex and does
-> superflous rcu_read_lock/unlock() around the function.
-> 
-> This doesn't add anything and just adds to confusion.  Remove the RCU
-> protection and open-code the radix tree lookup.  If this needs to
-> become more sophisticated in the future, let's add them back when
-> necessary.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
+The kasan_slab_free hook's return value denotes whether the reuse of a
+slab object must be delayed (e.g. when the object is put into memory
+qurantine).
 
-Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+The current way SLUB handles this hook is by ignoring its return value
+and hardcoding checks similar (but not exactly the same) to the ones
+performed in kasan_slab_free, which is prone to making mistakes.
 
-> Cc: linux-mm@kvack.org
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+The main difference between the hardcoded checks and the ones in
+kasan_slab_free is whether we want to perform a free in case when an
+invalid-free or a double-free was detected (we don't).
 
-> ---
-> Hello, Jerome.
-> 
-> This came up while auditing percpu_ref users for missing explicit RCU
-> grace periods.  HMM doesn't seem to depend on RCU protection at all,
-> so I thought it'd be better to remove it for now.  It's only compile
-> tested.
+This patch changes the way SLUB handles this by:
+1. taking into account the return value of kasan_slab_free for each of
+   the objects, that are being freed;
+2. reconstructing the freelist of objects to exclude the ones, whose
+   reuse must be delayed.
 
-Good catch some left over of old logic. I have more cleanup queued up
-now that i am about to post nouveau patches to use all this. Thanks for
-fixing this.
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
 
-> 
-> Thanks.
-> 
->  mm/hmm.c | 12 ++----------
->  1 file changed, 2 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 320545b98..d4627c5 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -845,13 +845,6 @@ static void hmm_devmem_release(struct device *dev, void *data)
->  	hmm_devmem_radix_release(resource);
->  }
->  
-> -static struct hmm_devmem *hmm_devmem_find(resource_size_t phys)
-> -{
-> -	WARN_ON_ONCE(!rcu_read_lock_held());
-> -
-> -	return radix_tree_lookup(&hmm_devmem_radix, phys >> PA_SECTION_SHIFT);
-> -}
-> -
->  static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
->  {
->  	resource_size_t key, align_start, align_size, align_end;
-> @@ -892,9 +885,8 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
->  	for (key = align_start; key <= align_end; key += PA_SECTION_SIZE) {
->  		struct hmm_devmem *dup;
->  
-> -		rcu_read_lock();
-> -		dup = hmm_devmem_find(key);
-> -		rcu_read_unlock();
-> +		dup = radix_tree_lookup(&hmm_devmem_radix,
-> +					key >> PA_SECTION_SHIFT);
->  		if (dup) {
->  			dev_err(device, "%s: collides with mapping for %s\n",
->  				__func__, dev_name(dup->device));
-> -- 
-> 2.9.5
-> 
+Changes in v2:
+- Made slab_free_freelist_hook return bool and return true when KASAN is
+  disabled. That should eliminate unnecessary branch in slab_free.
+
+ mm/slub.c | 57 +++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 34 insertions(+), 23 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index e381728a3751..8442b3c54870 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1362,10 +1362,8 @@ static __always_inline void kfree_hook(void *x)
+ 	kasan_kfree_large(x, _RET_IP_);
+ }
+ 
+-static __always_inline void *slab_free_hook(struct kmem_cache *s, void *x)
++static __always_inline bool slab_free_hook(struct kmem_cache *s, void *x)
+ {
+-	void *freeptr;
+-
+ 	kmemleak_free_recursive(x, s->flags);
+ 
+ 	/*
+@@ -1385,17 +1383,12 @@ static __always_inline void *slab_free_hook(struct kmem_cache *s, void *x)
+ 	if (!(s->flags & SLAB_DEBUG_OBJECTS))
+ 		debug_check_no_obj_freed(x, s->object_size);
+ 
+-	freeptr = get_freepointer(s, x);
+-	/*
+-	 * kasan_slab_free() may put x into memory quarantine, delaying its
+-	 * reuse. In this case the object's freelist pointer is changed.
+-	 */
+-	kasan_slab_free(s, x, _RET_IP_);
+-	return freeptr;
++	/* KASAN might put x into memory quarantine, delaying its reuse */
++	return kasan_slab_free(s, x, _RET_IP_);
+ }
+ 
+-static inline void slab_free_freelist_hook(struct kmem_cache *s,
+-					   void *head, void *tail)
++static inline bool slab_free_freelist_hook(struct kmem_cache *s,
++					   void **head, void **tail)
+ {
+ /*
+  * Compiler cannot detect this function can be removed if slab_free_hook()
+@@ -1406,13 +1399,33 @@ static inline void slab_free_freelist_hook(struct kmem_cache *s,
+ 	defined(CONFIG_DEBUG_OBJECTS_FREE) ||	\
+ 	defined(CONFIG_KASAN)
+ 
+-	void *object = head;
+-	void *tail_obj = tail ? : head;
+-	void *freeptr;
++	void *object;
++	void *next = *head;
++	void *old_tail = *tail ? *tail : *head;
++
++	/* Head and tail of the reconstructed freelist */
++	*head = NULL;
++	*tail = NULL;
+ 
+ 	do {
+-		freeptr = slab_free_hook(s, object);
+-	} while ((object != tail_obj) && (object = freeptr));
++		object = next;
++		next = get_freepointer(s, object);
++		/* If object's reuse doesn't have to be delayed */
++		if (!slab_free_hook(s, object)) {
++			/* Move object to the new freelist */
++			set_freepointer(s, object, *head);
++			*head = object;
++			if (!*tail)
++				*tail = object;
++		}
++	} while (object != old_tail);
++
++	if (*head == *tail)
++		*tail = NULL;
++
++	return *head != NULL;
++#else
++	return true;
+ #endif
+ }
+ 
+@@ -2965,14 +2978,12 @@ static __always_inline void slab_free(struct kmem_cache *s, struct page *page,
+ 				      void *head, void *tail, int cnt,
+ 				      unsigned long addr)
+ {
+-	slab_free_freelist_hook(s, head, tail);
+ 	/*
+-	 * slab_free_freelist_hook() could have put the items into quarantine.
+-	 * If so, no need to free them.
++	 * With KASAN enabled slab_free_freelist_hook modifies the freelist
++	 * to remove objects, whose reuse must be delayed.
+ 	 */
+-	if (s->flags & SLAB_KASAN && !(s->flags & SLAB_TYPESAFE_BY_RCU))
+-		return;
+-	do_slab_free(s, page, head, tail, cnt, addr);
++	if (slab_free_freelist_hook(s, &head, &tail))
++		do_slab_free(s, page, head, tail, cnt, addr);
+ }
+ 
+ #ifdef CONFIG_KASAN
+-- 
+2.16.2.395.g2e18187dfd-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
