@@ -1,49 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 69DA96B0005
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 03:58:08 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id p14so4840974wmc.0
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 00:58:08 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u16sor6952697edb.42.2018.03.06.00.58.07
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 37AF96B0006
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 03:58:30 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id r15so12807750wrr.16
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 00:58:30 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s13sor3584368edc.28.2018.03.06.00.58.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 06 Mar 2018 00:58:07 -0800 (PST)
-Date: Tue, 6 Mar 2018 11:57:51 +0300
+        Tue, 06 Mar 2018 00:58:29 -0800 (PST)
+Date: Tue, 6 Mar 2018 11:58:13 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC, PATCH 21/22] x86/mm: Introduce page_keyid() and
- page_encrypted()
-Message-ID: <20180306085751.tvozsfe6hogh37pd@node.shutemov.name>
+Subject: Re: [RFC, PATCH 00/22] Partial MKTME enabling
+Message-ID: <20180306085813.d22slphcsrtzrtaq@node.shutemov.name>
 References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
- <20180305162610.37510-22-kirill.shutemov@linux.intel.com>
- <61041640-435e-1a67-177f-a75791130514@intel.com>
+ <20180305183050.GA22743@infradead.org>
+ <20180305190549.GA10418@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <61041640-435e-1a67-177f-a75791130514@intel.com>
+In-Reply-To: <20180305190549.GA10418@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Christoph Hellwig <hch@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 05, 2018 at 09:08:53AM -0800, Dave Hansen wrote:
-> On 03/05/2018 08:26 AM, Kirill A. Shutemov wrote:
-> > +static inline bool page_encrypted(struct page *page)
-> > +{
-> > +	/* All pages with non-zero KeyID are encrypted */
-> > +	return page_keyid(page) != 0;
-> > +}
+On Mon, Mar 05, 2018 at 11:05:50AM -0800, Matthew Wilcox wrote:
+> On Mon, Mar 05, 2018 at 10:30:50AM -0800, Christoph Hellwig wrote:
+> > On Mon, Mar 05, 2018 at 07:25:48PM +0300, Kirill A. Shutemov wrote:
+> > > Hi everybody,
+> > > 
+> > > Here's updated version of my patchset that brings support of MKTME.
+> > 
+> > It would really help if you'd explain what "MKTME" is..
 > 
-> Is this true?  I thought there was a KEYID_NO_ENCRYPT "Do not encrypt
-> memory when this KeyID is in use."  Is that really only limited to key 0.
+> You needed to keep reading, to below the -------------- line.
+> 
+> I agree though, that should have been up top.
 
-Well, it depends on what we mean by "encrypted". For memory management
-pruposes we care if the page is encrypted with KeyID different from
-default one. All pages with non-default KeyID threated the same by memory
-management.
-
-So far we don't have users for the interface. We may reconsider
-the meaning once we get users.
+My bad. Will update it for future postings.
 
 -- 
  Kirill A. Shutemov
