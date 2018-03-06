@@ -1,220 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B43396B0005
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 08:31:09 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id z17so16854365qti.1
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 05:31:09 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z15si15059043qth.434.2018.03.06.05.31.08
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 470D26B0005
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2018 08:46:00 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id 62-v6so9860655ply.4
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 05:46:00 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id e89si12013320pfm.198.2018.03.06.05.45.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Mar 2018 05:31:08 -0800 (PST)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w26DTgLY044154
-	for <linux-mm@kvack.org>; Tue, 6 Mar 2018 08:31:07 -0500
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ghsuppbfq-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 06 Mar 2018 08:31:06 -0500
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 6 Mar 2018 13:31:04 -0000
-Date: Tue, 6 Mar 2018 14:30:52 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 7/7] Documentation for Pmalloc
-References: <20180228200620.30026-1-igor.stoppa@huawei.com>
- <20180228200620.30026-8-igor.stoppa@huawei.com>
+        Tue, 06 Mar 2018 05:45:58 -0800 (PST)
+Subject: Re: [PATCH 07/34] x86/entry/32: Restore segments before int registers
+References: <1520245563-8444-1-git-send-email-joro@8bytes.org>
+ <1520245563-8444-8-git-send-email-joro@8bytes.org>
+ <CA+55aFym-18UbD5K3n1Ki=mvpuLqa7E6E=qG0aE-dctzTap_WQ@mail.gmail.com>
+ <20180305131231.GR16484@8bytes.org>
+ <CA+55aFwn5EkHTfrUFww54CDWovoUornv6rSrao43agbLBQD6-Q@mail.gmail.com>
+ <CAMzpN2hscOXJFzm07Hk=2Ttr3wQFSisxP=EZhRMtAU6xSm8zSw@mail.gmail.com>
+ <CA+55aFwxiZ9bD2Zu5xV0idz_dDctPvrrWA2r54+NL4aj9oeN8Q@mail.gmail.com>
+ <20180305213550.GV16484@8bytes.org>
+ <CA+55aFx2dxZmL487CnhV6rWRiqmJwZNAspyPqCD4Hwqxwncs6Q@mail.gmail.com>
+ <12c11262-5e0f-2987-0a74-3bde4b66c352@zytor.com>
+ <20180306070437.kf3fkevqj6cuxptz@gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <6224cf9e-4c13-58e5-4541-c06074a20191@intel.com>
+Date: Tue, 6 Mar 2018 05:45:56 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180228200620.30026-8-igor.stoppa@huawei.com>
-Message-Id: <20180306133051.GE19349@rapoport-lnx>
+In-Reply-To: <20180306070437.kf3fkevqj6cuxptz@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Joerg Roedel <joro@8bytes.org>, Brian Gerst <brgerst@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, Joerg Roedel <jroedel@suse.de>
 
-On Wed, Feb 28, 2018 at 10:06:20PM +0200, Igor Stoppa wrote:
-> Detailed documentation about the protectable memory allocator.
-> 
-> Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-> ---
->  Documentation/core-api/index.rst   |   1 +
->  Documentation/core-api/pmalloc.rst | 111 +++++++++++++++++++++++++++++++++++++
->  2 files changed, 112 insertions(+)
->  create mode 100644 Documentation/core-api/pmalloc.rst
-> 
-> diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-> index c670a8031786..8f5de42d6571 100644
-> --- a/Documentation/core-api/index.rst
-> +++ b/Documentation/core-api/index.rst
-> @@ -25,6 +25,7 @@ Core utilities
->     genalloc
->     errseq
->     printk-formats
-> +   pmalloc
-> 
->  Interfaces for kernel debugging
->  ===============================
-> diff --git a/Documentation/core-api/pmalloc.rst b/Documentation/core-api/pmalloc.rst
-> new file mode 100644
-> index 000000000000..8fb9c9d3171b
-> --- /dev/null
-> +++ b/Documentation/core-api/pmalloc.rst
-> @@ -0,0 +1,111 @@
-> +.. SPDX-License-Identifier: GPL-2.0
+On 03/05/2018 11:04 PM, Ingo Molnar wrote:
+> * H. Peter Anvin <hpa@zytor.com> wrote:
+>> On NX-enabled hardware NX works with PDE, but the PDPDT in general doesn't
+>> have permission bits (it's really more of a set of four CR3s than a page
+>> table level.)
+> The 4 PDPDT entries are also shadowed in the CPU and are only refreshed
+> on CR3 loads, not spontaneously reloaded from memory during TLB walk
+> like regular page table entries, right?
 
-Please add a label to allow cross-referencing
+Yes.  The SDM even calls them non-architectural "PDPTE Registers" and
+talks about them only being loaded at CR3 write time.
 
-> +
-> +Protectable memory allocator
-> +============================
-> +
-> +Purpose
-> +-------
-> +
-> +The pmalloc library is meant to provide R/O status to data that, for some
-> +reason, could neither be declared as constant, nor could it take advantage
-> +of the qualifier __ro_after_init, but is write-once and read-only in spirit.
-> +It protects data from both accidental and malicious overwrites.
-> +
-> +Example: A policy that is loaded from userspace.
-> +
-> +
-> +Concept
-> +-------
-> +
-> +pmalloc builds on top of genalloc, using the same concept of memory pools.
+~5 years ago we even had a bug directly related to this feature:
 
-It would be nice to add a label to genalloc.rst and reference it here:
-
-diff --git a/Documentation/core-api/genalloc.rst b/Documentation/core-api/genalloc.rst
-index 6b38a39fab24..983fa94f999c 100644
---- a/Documentation/core-api/genalloc.rst
-+++ b/Documentation/core-api/genalloc.rst
-@@ -1,3 +1,5 @@
-+.. _genalloc:
-+
- The genalloc/genpool subsystem
- ==============================
- 
-> +
-> +The value added by pmalloc is that now the memory contained in a pool can
-> +become R/O, for the rest of the life of the pool.
-> +
-
-IMHO, "read only" looks better than R/O
-
-> +Different kernel drivers and threads can use different pools, for finer
-> +control of what becomes R/O and when. And for improved lockless concurrency.
-> +
-> +
-> +Caveats
-> +-------
-> +
-> +- Memory freed while a pool is not yet protected will be reused.
-> +
-> +- Once a pool is protected, it's not possible to allocate any more memory
-> +  from it.
-> +
-> +- Memory "freed" from a protected pool indicates that such memory is not
-> +  in use anymore by the requester; however, it will not become available
-> +  for further use, until the pool is destroyed.
-> +
-> +- pmalloc does not provide locking support with respect to allocating vs
-> +  protecting an individual pool, for performance reasons.
-> +  It is recommended not to share the same pool between unrelated functions.
-> +  Should sharing be a necessity, the user of the shared pool is expected
-> +  to implement locking for that pool.
-> +
-> +- pmalloc uses genalloc to optimize the use of the space it allocates
-> +  through vmalloc. Some more TLB entries will be used, however less than
-> +  in the case of using vmalloc directly. The exact number depends on the
-> +  size of each allocation request and possible slack.
-> +
-> +- Considering that not much data is supposed to be dynamically allocated
-> +  and then marked as read-only, it shouldn't be an issue that the address
-> +  range for pmalloc is limited, on 32-bit systems.
-> +
-> +- Regarding SMP systems, the allocations are expected to happen mostly
-> +  during an initial transient, after which there should be no more need to
-> +  perform cross-processor synchronizations of page tables.
-> +
-> +- To facilitate the conversion of existing code to pmalloc pools, several
-> +  helper functions are provided, mirroring their kmalloc counterparts.
-> +
-> +
-> +Use
-> +---
-> +
-> +The typical sequence, when using pmalloc, is:
-> +
-> +1. create a pool
-
-Can we use #. instead of numbers for the numbered list items?
-
-> +.. kernel-doc:: include/linux/pmalloc.h
-> +   :functions: pmalloc_create_pool
-> +
-> +2. [optional] pre-allocate some memory in the pool
-> +
-> +.. kernel-doc:: include/linux/pmalloc.h
-> +   :functions: pmalloc_prealloc
-
-Maybe it's better to have a short reference to the function and keep all
-the elaborate descriptions in the API section?
-For instance, something like
-
-diff --git a/Documentation/core-api/pmalloc.rst b/Documentation/core-api/pmalloc.rst
-@@ -68,8 +70,7 @@ The typical sequence, when using pmalloc, is:
- 
- 1. create a pool
- 
--.. kernel-doc:: include/linux/pmalloc.h
--   :functions: pmalloc_create_pool
-+     :c:func:`pmalloc_create_pool`
- 
-> +3. issue one or more allocation requests to the pool with locking as needed
-> +
-> +.. kernel-doc:: include/linux/pmalloc.h
-> +   :functions: pmalloc
-> +
-> +.. kernel-doc:: include/linux/pmalloc.h
-> +   :functions: pzalloc
-> +
-> +4. initialize the memory obtained with desired values
-> +
-> +5. [optional] iterate over points 3 & 4 as needed
-> +
-> +6. write-protect the pool
-> +
-> +.. kernel-doc:: include/linux/pmalloc.h
-> +   :functions: pmalloc_protect_pool
-> +
-> +7. use in read-only mode the handles obtained through the allocations
-> +
-> +8. [optional] release all the memory allocated
-> +
-> +.. kernel-doc:: include/linux/pmalloc.h
-> +   :functions: pfree
-> +
-> +9. [optional, but depends on point 8] destroy the pool
-> +
-> +.. kernel-doc:: include/linux/pmalloc.h
-> +   :functions: pmalloc_destroy_pool
-> +
-> +API
-> +---
-> +
-> +.. kernel-doc:: include/linux/pmalloc.h
-> -- 
-> 2.14.1
-> 
-
--- 
-Sincerely yours,
-Mike.
+> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git/commit/?id=324cdc3f7e6a752fe0e95fa7b5c9664171a34ded
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
