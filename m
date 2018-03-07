@@ -1,78 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B29306B0005
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 08:19:01 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id u36so1247882wrf.21
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 05:19:01 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id p2si6575951edb.312.2018.03.07.05.19.00
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 704906B0005
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 08:44:48 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id w22-v6so1157545pll.2
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 05:44:48 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id n3si11473208pgc.12.2018.03.07.05.44.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Mar 2018 05:19:00 -0800 (PST)
-Subject: Re: [PATCH 6/7] lkdtm: crash on overwriting protected pmalloc var
-References: <20180228200620.30026-1-igor.stoppa@huawei.com>
- <20180228200620.30026-7-igor.stoppa@huawei.com>
- <1723ee8d-c89e-0704-c2c3-254eda39dc8b@gmail.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <6378e63e-174f-642e-d319-1d121b74d3d7@huawei.com>
-Date: Wed, 7 Mar 2018 15:18:16 +0200
-MIME-Version: 1.0
-In-Reply-To: <1723ee8d-c89e-0704-c2c3-254eda39dc8b@gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 07 Mar 2018 05:44:47 -0800 (PST)
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH v5 0/4] Mark vmalloc and page-table pages
+Date: Wed,  7 Mar 2018 05:44:39 -0800
+Message-Id: <20180307134443.32646-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: J Freyensee <why2jjj.linux@gmail.com>, david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
-Cc: labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: linux-mm@kvack.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org
 
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
+This patch set changes how we use the _mapcount field in struct page
+so that we can store an extra 20+ bits of information about why the
+page was allocated.  We expose that information to userspace through
+/proc/kpageflags to help diagnose memory usage.  It can also help
+debugging if we know what a page was most recently allocated for.
 
-On 06/03/18 19:20, J Freyensee wrote:
+Changes since v4:
+ - Added Kirill's acks
+ - Fixed spelling (Kirill)
+ - Allow a few extra bits to be used in page_type.
 
-> On 2/28/18 12:06 PM, Igor Stoppa wrote:
+Matthew Wilcox (4):
+  s390: Use _refcount for pgtables
+  mm: Split page_type out from _mapcount
+  mm: Mark pages allocated through vmalloc
+  mm: Mark pages in use for page tables
 
-[...]
+ arch/s390/mm/pgalloc.c                 | 21 +++++++------
+ arch/tile/mm/pgtable.c                 |  3 ++
+ fs/proc/page.c                         |  4 +++
+ include/linux/mm.h                     |  2 ++
+ include/linux/mm_types.h               | 13 +++++---
+ include/linux/page-flags.h             | 57 ++++++++++++++++++++++------------
+ include/uapi/linux/kernel-page-flags.h |  3 +-
+ kernel/crash_core.c                    |  1 +
+ mm/page_alloc.c                        | 13 +++-----
+ mm/vmalloc.c                           |  2 ++
+ scripts/tags.sh                        |  6 ++--
+ tools/vm/page-types.c                  |  2 ++
+ 12 files changed, 82 insertions(+), 45 deletions(-)
 
->>   void __init lkdtm_perms_init(void);
->>   void lkdtm_WRITE_RO(void);
->>   void lkdtm_WRITE_RO_AFTER_INIT(void);
->> +void lkdtm_WRITE_RO_PMALLOC(void);
-> 
-> Does this need some sort of #ifdef too?
-
-Not strictly. It's just a function declaration.
-As long as it is not used, the linker will not complain.
-The #ifdef placed around the use and definition is sufficient, from a
-correctness perspective.
-
-But it's a different question if there is any standard in linux about
-hiding also the declaration.
-
-I am not very fond of #ifdefs, so when I can I try to avoid them.
-
->> +	pr_info("attempting bad pmalloc write at %p\n", i);
->> +	*i = 0;
-> 
-> OK, now I'm on the right version of this patch series, same comment 
-> applies.A  I don't get the local *i assignment at the end of the 
-> function, but seems harmless.
-
-
-Because that's the whole point of the function: prove that pmalloc
-protection works (see the message in the pr_info one line above).
-
-The function is supposed to do:
-
-* create a pool
-* allocate memory from it
-* protect it
-* try to alter it (and crash)
-
-*i = 0; performs the last step
-
---
-igor
+-- 
+2.16.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
