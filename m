@@ -1,158 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7280B6B0003
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 12:44:48 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id u200so2291540qka.21
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 09:44:48 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i4si1270914qtc.272.2018.03.07.09.44.47
+	by kanga.kvack.org (Postfix) with ESMTP id B08916B0003
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 12:47:34 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id a144so2337042qkb.3
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 09:47:34 -0800 (PST)
+Received: from g2t2354.austin.hpe.com (g2t2354.austin.hpe.com. [15.233.44.27])
+        by mx.google.com with ESMTPS id 21si3789379qkk.313.2018.03.07.09.47.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Mar 2018 09:44:47 -0800 (PST)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w27Hihr3124095
-	for <linux-mm@kvack.org>; Wed, 7 Mar 2018 12:44:46 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2gjhk8h606-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 07 Mar 2018 12:44:45 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 7 Mar 2018 17:44:34 -0000
-Date: Wed, 07 Mar 2018 19:44:28 +0200
-In-Reply-To: <54e95716-9d61-51a3-9ae8-196e60625b76@huawei.com>
-References: <20180228200620.30026-1-igor.stoppa@huawei.com> <20180228200620.30026-2-igor.stoppa@huawei.com> <20180306131856.GD19349@rapoport-lnx> <54e95716-9d61-51a3-9ae8-196e60625b76@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [PATCH 1/7] genalloc: track beginning of allocations
-From: Mike Rapoprt <rppt@linux.vnet.ibm.com>
-Message-Id: <E69B22D6-8E5F-44EB-8C2B-C93960C08510@linux.vnet.ibm.com>
+        Wed, 07 Mar 2018 09:47:33 -0800 (PST)
+From: Toshi Kani <toshi.kani@hpe.com>
+Subject: [PATCH 0/2] fix memory leak / panic in ioremap huge pages
+Date: Wed,  7 Mar 2018 11:32:25 -0700
+Message-Id: <20180307183227.17983-1-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, catalin.marinas@arm.com
+Cc: guohanjun@huawei.com, will.deacon@arm.com, wxf.wang@hisilicon.com, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
 
+On architectures with CONFIG_HAVE_ARCH_HUGE_VMAP set, ioremap()
+may create pud/pmd mappings.  Kernel panic was observed on arm64
+systems with Cortex-A75 in the following steps as described by
+Hanjun Guo. [1]
 
+1. ioremap a 4K size, valid page table will build,
+2. iounmap it, pte0 will set to 0;
+3. ioremap the same address with 2M size, pgd/pmd is unchanged,
+   then set the a new value for pmd;
+4. pte0 is leaked;
+5. CPU may meet exception because the old pmd is still in TLB,
+   which will lead to kernel panic.
 
-On March 7, 2018 4:48:25 PM GMT+02:00, Igor Stoppa <igor=2Estoppa@huawei=
-=2Ecom> wrote:
->
->
->On 06/03/18 15:19, Mike Rapoport wrote:
->> On Wed, Feb 28, 2018 at 10:06:14PM +0200, Igor Stoppa wrote:
->
->[=2E=2E=2E]
->
->> If I'm not mistaken, several kernel-doc descriptions are duplicated
->now=2E
->> Can you please keep a single copy? ;-)
->
->What's the preferred approach?
->Document the functions that are API in the =2Eh file and leave in the =2E=
-c
->those which are not API?
+This panic is not reproducible on x86.  INVLPG, called from iounmap,
+purges all levels of entries associated with purged address on x86.
+x86 still has memory leak.
 
-I aggree with Matthew: "we usually recommend putting it with the definitio=
-n so it's more likely to be updated=2E"
+Patch 01 adds new interfaces as stubs, which work as workaround of
+this issue.  This patch 01 was leveraged from Hanjun's patch. [1]
+Patch 02 fixes the issue on x86 by implementing the interfaces.
 
-I couldn't find the doc with this recommendation, though :)
+[1] https://patchwork.kernel.org/patch/10134581/
 
+---
+Toshi Kani (2):
+ 1/2 mm/vmalloc: Add interfaces to free unused page table
+ 2/2 x86/mm: implement free pmd/pte page interfaces
 
->[=2E=2E=2E]
->
->>> + * The alignment at which to perform the research for sequence of
->empty
->>=20
->>                                            ^ search?
->
->yes
->
->>> + * get_boundary() - verifies address, then measure length=2E
->>=20
->> There's some lack of consistency between the name and implementation
->and
->> the description=2E
->> It seems that it would be simpler to actually make it get_length()
->and
->> return the length of the allocation or nentries if the latter is
->smaller=2E
->> Then in gen_pool_free() there will be no need to recalculate nentries
->> again=2E
->
->There is an error in the documentation=2E I'll explain below=2E
->
->>=20
->>>   * @map: pointer to a bitmap
->>> - * @start: a bit position in @map
->>> - * @nr: number of bits to set
->>> + * @start_entry: the index of the first entry in the bitmap
->>> + * @nentries: number of entries to alter
->>=20
->> Maybe: "maximal number of entries to check"?
->
->No, it's actually the total number of entries in the chunk=2E
->
->[=2E=2E=2E]
->
->>> +	return nentries - start_entry;
->>=20
->> Shouldn't it be "nentries + start_entry"?
->
->And in the light of the correct comment, also what I am doing should be
->now more clear:
->
->* start_entry is the index of the initial entry
->* nentries is the number of entries in the chunk
->
->If I iterate over the rest of the chunk:
->
->(i =3D start_entry + 1; i < nentries; i++)
->
->without finding either another HEAD or an empty slot, then it means I
->was measuring the length of the last allocation in the chunk, which was
->taking up all the space, to the end=2E
->
->Simple example:
->
->- chunk with 7 entries -> nentries is 7
->- start_entry is 2, meaning that the last allocation starts from the
->3rd
->element, iow it occupies indexes from 2 to 6, for a total of 5 entries
->- so the length is (nentries - start_entry) =3D (7 - 2) =3D 5
->
->
->But yeah, the kerneldoc was wrong=2E
->
->[=2E=2E=2E]
->
->>> - * gen_pool_alloc_algo - allocate special memory from the pool
->>> + * gen_pool_alloc_algo() - allocate special memory from the pool
->>=20
->> + using specified algorithm
->
->ok
->
->>=20
->>>   * @pool: pool to allocate from
->>>   * @size: number of bytes to allocate from the pool
->>>   * @algo: algorithm passed from caller
->>> @@ -285,14 +502,18 @@ EXPORT_SYMBOL(gen_pool_alloc);
->>>   * Uses the pool allocation function (with first-fit algorithm by
->default)=2E
->>=20
->> "uses the provided @algo function to find room for the allocation"
->
->ok
->
->--
->igor
-
---=20
-Sincerely yours,
-Mike=2E
+---
+ arch/arm64/mm/mmu.c           | 10 ++++++++++
+ arch/x86/mm/pgtable.c         | 44 +++++++++++++++++++++++++++++++++++++++++++
+ include/asm-generic/pgtable.h | 10 ++++++++++
+ lib/ioremap.c                 |  6 ++++--
+ 4 files changed, 68 insertions(+), 2 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
