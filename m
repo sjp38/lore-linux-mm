@@ -1,82 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FB9E6B0003
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 09:08:25 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id p13so1199647wmc.6
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 06:08:25 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id c33si5086648edf.167.2018.03.07.06.08.23
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0901A6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 09:19:43 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 5so1350657wrb.15
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 06:19:42 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t5si1657456wrb.165.2018.03.07.06.19.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Mar 2018 06:08:23 -0800 (PST)
-Subject: Re: [PATCH 4/7] Protectable Memory
-References: <20180228200620.30026-1-igor.stoppa@huawei.com>
- <20180228200620.30026-5-igor.stoppa@huawei.com>
- <1b0aff92-bc6c-c815-f129-95720ec80778@gmail.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <a21118be-a066-6ad7-4188-f50585a6f06d@huawei.com>
-Date: Wed, 7 Mar 2018 16:07:42 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 07 Mar 2018 06:19:41 -0800 (PST)
+Date: Wed, 7 Mar 2018 15:17:20 +0100
+From: David Sterba <dsterba@suse.cz>
+Subject: Re: [PATCH v8 06/63] btrfs: Use filemap_range_has_page()
+Message-ID: <20180307141720.GA23693@twin.jikos.cz>
+Reply-To: dsterba@suse.cz
+References: <20180306192413.5499-1-willy@infradead.org>
+ <20180306192413.5499-7-willy@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <1b0aff92-bc6c-c815-f129-95720ec80778@gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180306192413.5499-7-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: J Freyensee <why2jjj.linux@gmail.com>, david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
-Cc: labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org
 
-On 06/03/18 05:59, J Freyensee wrote:
-
-[...]
-
->> +config PROTECTABLE_MEMORY
->> +    bool
->> +    depends on MMU
+On Tue, Mar 06, 2018 at 11:23:16AM -0800, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> 
-> Curious, would you also want to depend on "SECURITY" as well, as this is 
-> being advertised as a compliment to __read_only_after_init, per the file 
-> header comments, as I'm assuming ro_after_init would be disabled if the 
-> SECURITY Kconfig selection is *NOT* selected?
+> The current implementation of btrfs_page_exists_in_range() gives the
+> wrong answer if the workingset code has stored a shadow entry in the
+> page cache.  The filemap_range_has_page() function does not have this
+> problem, and it's shared code, so use it instead.
 
-__ro_after_init is configured like this:
-
-#if defined(CONFIG_STRICT_KERNEL_RWX) || defined(CONFIG_STRICT_MODULE_RWX)
-bool rodata_enabled __ro_after_init = true;
-
-But even if __ro_after_init and pmalloc are conceptually similar, in
-practice they have - potentially - different constraints.
-
-1) the __ro_after_init segment belongs to linear kernel memory
-2) the pmalloc pools belong to vmalloc memory
-
-There is one extra layer of indirection in pmalloc.
-I am not an expert of MMUs but I suppose there might be types where it
-is possible to mark pages as RO but it's not possible to have virtual
-memory.
-
-If (and this is a big "if") such MMUs exist and are supported by linux,
-then __ro_after_init would be possible, while pmalloc would not be.
-
-So it seemed more correct to focus specifically on hte enablers required
-by pmalloc to perform correctly.
-
-Open Question:
-
-Is it ok that the API disappears in case the enablers are missing?
-Or should it fall back to something else?
-
-Dealing with lack of ReadOnly support would be pretty simple, it would
-be enough to make the write-Protection conditional.
-
-But what to do if virtual mapping is not supported?
-
-kmalloc might not have the ability to support large requests made toward
-pmalloc and this would possibly cause runtime failures.
-
---
-igor
+I'm going to merge this patch. btrfs_page_exists_in_range was full of
+bugs from the beginning so I'm more than happy to use the shared one.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
