@@ -1,104 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9004F6B0005
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 04:07:05 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id v8so763942pgs.9
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 01:07:05 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h8si13313697pfi.117.2018.03.07.01.07.03
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CABD6B0005
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 04:17:17 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id u2so764385pgn.19
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 01:17:17 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id w3-v6si12548948plb.441.2018.03.07.01.17.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 07 Mar 2018 01:07:03 -0800 (PST)
-Subject: Re: [PATCH v2] mm: might_sleep warning
-References: <20180306224004.25150-1-pasha.tatashin@oracle.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <33e3a3ff-0318-1a07-3c57-6be638046c87@suse.cz>
-Date: Wed, 7 Mar 2018 10:06:59 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Mar 2018 01:17:16 -0800 (PST)
+Subject: Re: [RFC] kswapd aggressiveness with watermark_scale_factor
+References: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
+ <20180215124016.hn64v57istrfwz7p@techsingularity.net>
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Message-ID: <0467b068-4627-e49f-77e8-c785a38a0d74@codeaurora.org>
+Date: Wed, 7 Mar 2018 14:47:09 +0530
 MIME-Version: 1.0
-In-Reply-To: <20180306224004.25150-1-pasha.tatashin@oracle.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20180215124016.hn64v57istrfwz7p@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: 8bit
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, m.mizuma@jp.fujitsu.com, akpm@linux-foundation.org, mhocko@suse.com, catalin.marinas@arm.com, takahiro.akashi@linaro.org, gi-oh.kim@profitbricks.com, heiko.carstens@de.ibm.com, baiyaowei@cmss.chinamobile.com, richard.weiyang@gmail.com, paul.burton@mips.com, miles.chen@mediatek.com, mgorman@suse.de, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Linux-MM <linux-mm@kvack.org>, hannes@cmpxchg.org, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "vbabka@suse.cz" <vbabka@suse.cz>
 
-On 03/06/2018 11:40 PM, Pavel Tatashin wrote:
-> Robot reported this issue:
-> https://lkml.org/lkml/2018/2/27/851
-> 
-> That is introduced by:
-> mm: initialize pages on demand during boot
-> 
-> The problem is caused by changing static branch value within spin lock.
-> Spin lock disables preemption, and changing static branch value takes
-> mutex lock in its path, and thus may sleep.
-> 
-> The fix is to add another boolean variable to avoid the need to change
-> static branch within spinlock.
-> 
-> Also, as noticed by Andrew, change spin_lock to spin_lock_irq, in order
-> to disable interrupts and avoid possible deadlock with
-> deferred_grow_zone().
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> ---
->  mm/page_alloc.c | 12 +++++++++---
->  1 file changed, 9 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b337a026007c..5df1ca40a2ff 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1579,6 +1579,7 @@ static int __init deferred_init_memmap(void *data)
->   * page_alloc_init_late() soon after smp_init() is complete.
->   */
->  static __initdata DEFINE_SPINLOCK(deferred_zone_grow_lock);
-> +static bool deferred_zone_grow __initdata = true;
->  static DEFINE_STATIC_KEY_TRUE(deferred_pages);
->  
->  /*
-> @@ -1616,7 +1617,7 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
->  	 * Bail if we raced with another thread that disabled on demand
->  	 * initialization.
->  	 */
-> -	if (!static_branch_unlikely(&deferred_pages)) {
-> +	if (!static_branch_unlikely(&deferred_pages) || !deferred_zone_grow) {
->  		spin_unlock_irqrestore(&deferred_zone_grow_lock, flags);
->  		return false;
->  	}
-> @@ -1683,10 +1684,15 @@ void __init page_alloc_init_late(void)
->  	/*
->  	 * We are about to initialize the rest of deferred pages, permanently
->  	 * disable on-demand struct page initialization.
+On 2/15/2018 6:10 PM, Mel Gorman wrote:
+> On Wed, Jan 24, 2018 at 09:25:37PM +0530, Vinayak Menon wrote:
+>> Hi,
+>>
+>> It is observed that watermark_scale_factor when used to reduce thundering herds
+>> in direct reclaim, reduces the direct reclaims, but results in unnecessary reclaim
+>> due to kswapd running for long after being woken up. The tests are done with 4 GB
+>> of RAM and the tests done are multibuild and another which opens a set of apps
+>> sequentially on Android and repeating the sequence N times. The tests are done on
+>> 4.9 kernel.
+>>
+>> The issue seems to be because of watermark_scale_factor creating larger gap between
+>> low and high watermarks. The following results are with watermark_scale_factor of 120
+>> and the other with watermark_scale_factor 120 with a reduced gap between low and
+>> high watermarks. The patch used to reduce the gap is given below. The min-low gap is
+>> untouched. It can be seen that with the reduced low-high gap, the direct reclaims are
+>> almost same as base, but with 45% less pgpgin. Reduced low-high gap improves the
+>> latency by around 11% in the sequential app test due to lesser IO and kswapd activity.
+>>
+>>                        wsf-120-default      wsf-120-reduced-low-high-gap
+>> workingset_activate    15120206             8319182
+>> pgpgin                 269795482            147928581
+>> allocstall             1406                 1498
+>> pgsteal_kswapd         68676960             38105142
+>> slabs_scanned          94181738             49085755
+>>
+>> This is the diff of wsf-120-reduced-low-high-gap for comments. The patch considers
+>> low-high gap as a fraction of min-low gap, and the fraction a function of managed pages,
+>> increasing non-linearly. The multiplier 4 is was chosen as a reasonable value which does
+>> not alter the low-high gap much from the base for large machines.
+>>
+> This needs a proper changelog, signed-offs and a comment on the reasoning
+> behind the new min value for the gap between low and high and how it
+> was derived.  It appears the equation was designed such at the gap, as
+> a percentage of the zone size, would shrink according as the zone size
+> increases but I'm not 100% certain that was the intent. That should be
+> explained and why not just using "tmp >> 2" would have problems.
+>
+> It would also need review/testing by Johannes to ensure that there is no
+> reintroduction of the problems that watermark_scale_factor was designed
+> to solve.
 
-Hi,
+Sorry for the delayed response. I will send a patch with the details. The equation was designed so that the
+low-high gap is small for smaller RAM sizes and tends towards min-low gap as the RAM size increases. This
+was done considering that it should not have a bad effect on for 140G configuration which Johannes had taken
+taken as example when watermark_scale_factor was introduced, also assuming that the thrashing seen due to
+low-high gap would be visible only on low RAM devices.
 
-I've noticed that this function first disables the on-demand
-initialization, and then runs the kthreads. Doesn't that leave a window
-where allocations can fail? The chances are probably small, but I think
-it would be better to avoid it completely, rare failures suck.
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 3a11a50..749d1eb 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -6898,7 +6898,11 @@ static void __setup_per_zone_wmarks(void)
+>>                                       watermark_scale_factor, 10000));
+>>
+>>                 zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
+>> -               zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
+>> +
+>> +               tmp = clamp_t(u64, mult_frac(tmp, int_sqrt(4 * zone->managed_pages),
+>> +                               10000), min_wmark_pages(zone) >> 2 , tmp);
+>> +
+>> +               zone->watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
+>>
+>>                 spin_unlock_irqrestore(&zone->lock, flags);
+>>         }
+>>
+>> With the patch,
+>> With watermark_scale_factor as default 10, the low-high gap:
+>> unchanged for 140G at 143M,
+>> for 65G, reduces from 65M to 53M
+>> for 4GB, reduces from 4M to 1M
+>>
+>> With watermark_scale_factor 120, the low-high gap:
+>> unchanged for 140G
+>> for 65G, reduces from 786M to 644M
+>> for 4GB, reduces from 49M to 10M
+>>
+> This information should also be in the changelog.
 
-Fixing that probably means rethinking the whole synchronization more
-dramatically though :/
+Sure.
 
-Vlastimil
-
-> +	 *
-> +	 * Note: it is prohibited to modify static branches in non-preemptible
-> +	 * context. Since, spin_lock() disables preemption, we must use an
-> +	 * extra boolean deferred_zone_grow.
->  	 */
-> -	spin_lock(&deferred_zone_grow_lock);
-> +	spin_lock_irq(&deferred_zone_grow_lock);
-> +	deferred_zone_grow = false;
-> +	spin_unlock_irq(&deferred_zone_grow_lock);
->  	static_branch_disable(&deferred_pages);
-> -	spin_unlock(&deferred_zone_grow_lock);
->  
->  	/* There will be num_node_state(N_MEMORY) threads */
->  	atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
-> 
+Thanks,
+Vinayak
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
