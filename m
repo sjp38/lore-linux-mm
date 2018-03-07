@@ -1,109 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 479386B0005
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 02:02:03 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u68so678369wmd.5
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2018 23:02:03 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d23sor232233wmh.60.2018.03.06.23.02.01
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0710A6B0005
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 03:09:09 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id y43so954165uac.16
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 00:09:09 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l128sor7493680vkb.127.2018.03.07.00.09.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 06 Mar 2018 23:02:01 -0800 (PST)
-Date: Wed, 7 Mar 2018 08:01:57 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv2 2/5] x86/boot/compressed/64: Find a place for 32-bit
- trampoline
-Message-ID: <20180307070157.jgf2omu4hs2xh7pd@gmail.com>
-References: <20180227154217.69347-1-kirill.shutemov@linux.intel.com>
- <20180227154217.69347-3-kirill.shutemov@linux.intel.com>
- <20180228131905.ypzjmaqg3zjke2ud@node.shutemov.name>
+        Wed, 07 Mar 2018 00:09:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180228131905.ypzjmaqg3zjke2ud@node.shutemov.name>
+From: Li Wang <liwang@redhat.com>
+Date: Wed, 7 Mar 2018 16:09:06 +0800
+Message-ID: <CAEemH2f0LDqyR5AmUYv17OuBc5-UycckDPWgk46XU_ghQo4diw@mail.gmail.com>
+Subject: [bug?] Access was denied by memory protection keys in execute-only address
+Content-Type: multipart/alternative; boundary="001a114268ecc061540566ce12b4"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linuxram@us.ibm.com, mpe@ellerman.id.au
+Cc: Jan Stancek <jstancek@redhat.com>, ltp@lists.linux.it, linux-mm@kvack.org
+
+--001a114268ecc061540566ce12b4
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+Hi,
+
+ltp/mprotect04[1] crashed by SEGV_PKUERR on ppc64(LPAR on P730, Power 8
+8247-22L) with kernel-v4.16.0-rc4.
+
+10000000-10020000 r-xp 00000000 fd:00 167223           mprotect04
+10020000-10030000 r--p 00010000 fd:00 167223           mprotect04
+10030000-10040000 rw-p 00020000 fd:00 167223           mprotect04
+1001a380000-1001a3b0000 rw-p 00000000 00:00 0          [heap]
+7fffa6c60000-7fffa6c80000 --xp 00000000 00:00 0 =E2=80=8B
+
+=E2=80=8B&exec_func =3D 0x10030170=E2=80=8B
+
+=E2=80=8B&func =3D 0x7fffa6c60170=E2=80=8B
+
+=E2=80=8BWhile perform =E2=80=8B
+"(*func)();" we get the
+=E2=80=8Bsegmentation fault.
+=E2=80=8B
+
+=E2=80=8Bstrace log:=E2=80=8B
+
+-------------------
+=E2=80=8Bmprotect(0x7fffaed00000, 131072, PROT_EXEC) =3D 0
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8)  =3D 0
+--- SIGSEGV {si_signo=3DSIGSEGV, si_code=3DSEGV_PKUERR, si_addr=3D0x7fffaed=
+00170}
+---=E2=80=8B
 
 
-* Kirill A. Shutemov <kirill@shutemov.name> wrote:
 
-> On Tue, Feb 27, 2018 at 06:42:14PM +0300, Kirill A. Shutemov wrote:
-> > If a bootloader enables 64-bit mode with 4-level paging, we might need to
-> > switch over to 5-level paging. The switching requires the disabling of
-> > paging, which works fine if kernel itself is loaded below 4G.
-> > 
-> > But if the bootloader puts the kernel above 4G (not sure if anybody does
-> > this), we would lose control as soon as paging is disabled, because the
-> > code becomes unreachable to the CPU.
-> > 
-> > To handle the situation, we need a trampoline in lower memory that would
-> > take care of switching on 5-level paging.
-> > 
-> > This patch finds a spot in low memory for a trampoline.
-> > 
-> > The heuristic is based on code in reserve_bios_regions().
-> > 
-> > We find the end of low memory based on BIOS and EBDA start addresses.
-> > The trampoline is put just before end of low memory. It's mimic approach
-> > taken to allocate memory for realtime trampoline.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Tested-by: Borislav Petkov <bp@suse.de>
-> > ---
-> >  arch/x86/boot/compressed/misc.c       |  4 ++++
-> >  arch/x86/boot/compressed/pgtable.h    | 11 +++++++++++
-> >  arch/x86/boot/compressed/pgtable_64.c | 34 ++++++++++++++++++++++++++++++++++
-> >  3 files changed, 49 insertions(+)
-> >  create mode 100644 arch/x86/boot/compressed/pgtable.h
-> > 
-> > diff --git a/arch/x86/boot/compressed/misc.c b/arch/x86/boot/compressed/misc.c
-> > index b50c42455e25..e58409667b13 100644
-> > --- a/arch/x86/boot/compressed/misc.c
-> > +++ b/arch/x86/boot/compressed/misc.c
-> > @@ -14,6 +14,7 @@
-> >  
-> >  #include "misc.h"
-> >  #include "error.h"
-> > +#include "pgtable.h"
-> >  #include "../string.h"
-> >  #include "../voffset.h"
-> >  
-> > @@ -372,6 +373,9 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
-> >  	debug_putaddr(output_len);
-> >  	debug_putaddr(kernel_total_size);
-> >  
-> > +	/* Report address of 32-bit trampoline */
-> > +	debug_putaddr(trampoline_32bit);
-> > +
-> >  	/*
-> >  	 * The memory hole needed for the kernel is the larger of either
-> >  	 * the entire decompressed kernel plus relocation table, or the
-> 
-> 0-day found problem with the patch on 32-bit config.
-> 
-> Here's fixup:
-> 
-> diff --git a/arch/x86/boot/compressed/misc.c b/arch/x86/boot/compressed/misc.c
-> index e58409667b13..8e4b55dd5df9 100644
-> --- a/arch/x86/boot/compressed/misc.c
-> +++ b/arch/x86/boot/compressed/misc.c
-> @@ -373,8 +373,10 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
->  	debug_putaddr(output_len);
->  	debug_putaddr(kernel_total_size);
->  
-> +#ifdef CONFIG_X86_64
->  	/* Report address of 32-bit trampoline */
->  	debug_putaddr(trampoline_32bit);
-> +#endif
+[1]
+https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/sysc=
+alls/mprotect/mprotect04.c
+=E2=80=8B
 
-The prototype of trampoline_32bit should be in an #ifdef as well, as the variable 
-only exists on 64-bit kernels.
+--=20
+Li Wang
+liwang@redhat.com
 
-Thanks,
+--001a114268ecc061540566ce12b4
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-	Ingo
+<div dir=3D"ltr"><div style=3D"font-family:monospace,monospace" class=3D"gm=
+ail_default">Hi,<br><br>ltp/mprotect04[1] crashed by SEGV_PKUERR on ppc64(L=
+PAR on P730, Power 8 8247-22L) with kernel-v4.16.0-rc4.<br></div><div class=
+=3D"gmail_default"><span style=3D"font-family:monospace,monospace"><br>1000=
+0000-10020000 r-xp 00000000 fd:00 167223=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0 mprotect04<br>10020000-10030000 r--p 00010000 f=
+d:00 167223=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 mpr=
+otect04<br>10030000-10040000 rw-p 00020000 fd:00 167223=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 mprotect04<br>1001a380000-1001a3=
+b0000 rw-p 00000000 00:00 0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0 [heap]<br>7fffa6c60000-7fffa6c80000 --xp 00000000 00:00 0 =E2=80=8B<=
+/span></div><span style=3D"font-family:monospace,monospace"><br><div style=
+=3D"font-family:monospace,monospace;display:inline" class=3D"gmail_default"=
+>=E2=80=8B&amp;exec_func =3D 0x10030170=E2=80=8B</div><br></span><div class=
+=3D"gmail_default"><span style=3D"font-family:monospace,monospace">=E2=80=
+=8B&amp;func =3D 0x7fffa6c60170=E2=80=8B<br><br></span></div><span style=3D=
+"font-family:arial,helvetica,sans-serif"><div style=3D"display:inline" clas=
+s=3D"gmail_default"><span style=3D"font-family:monospace,monospace">=E2=80=
+=8BWhile perform =E2=80=8B</span></div><span style=3D"font-family:monospace=
+,monospace">&quot;(*func)();&quot; we get the </span><div style=3D"font-fam=
+ily:monospace,monospace;display:inline" class=3D"gmail_default">=E2=80=8Bse=
+gmentation fault.<br>=E2=80=8B</div><br><div style=3D"font-family:monospace=
+,monospace;display:inline" class=3D"gmail_default">=E2=80=8Bstrace log:=E2=
+=80=8B</div><br>-------------------<br></span><div class=3D"gmail_default" =
+style=3D"font-family:monospace,monospace;display:inline">=E2=80=8Bmprotect(=
+0x7fffaed00000, 131072, PROT_EXEC) =3D 0<br>rt_sigprocmask(SIG_BLOCK, NULL,=
+ [], 8) =C2=A0=3D 0<br>--- SIGSEGV {si_signo=3DSIGSEGV, si_code=3DSEGV_PKUE=
+RR, si_addr=3D0x7fffaed00170} ---=E2=80=8B</div><br><br><br><span style=3D"=
+font-family:monospace,monospace">[1] <a href=3D"https://github.com/linux-te=
+st-project/ltp/blob/master/testcases/kernel/syscalls/mprotect/mprotect04.c"=
+>https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/sys=
+calls/mprotect/mprotect04.c</a>=E2=80=8B</span><br><br>-- <br><div class=3D=
+"gmail_signature">Li Wang<br><a target=3D"_blank" href=3D"mailto:liwang@red=
+hat.com">liwang@redhat.com</a></div>
+</div>
+
+--001a114268ecc061540566ce12b4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
