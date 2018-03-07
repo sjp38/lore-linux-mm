@@ -1,62 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C22E06B0003
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 10:47:37 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id x97so1505027wrb.3
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 07:47:37 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id y2si7107015ede.315.2018.03.07.07.47.35
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 52C716B0003
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 11:40:02 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id d1so2129738qtn.12
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 08:40:02 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id f62si1653929qkj.162.2018.03.07.08.39.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Mar 2018 07:47:35 -0800 (PST)
-Subject: Re: [PATCH 1/7] genalloc: track beginning of allocations
-From: Igor Stoppa <igor.stoppa@huawei.com>
-References: <20180228200620.30026-1-igor.stoppa@huawei.com>
- <20180228200620.30026-2-igor.stoppa@huawei.com>
- <20180306131856.GD19349@rapoport-lnx>
- <54e95716-9d61-51a3-9ae8-196e60625b76@huawei.com>
-Message-ID: <98df3380-a142-871e-5a18-b356088e33ea@huawei.com>
-Date: Wed, 7 Mar 2018 17:46:53 +0200
+        Wed, 07 Mar 2018 08:39:57 -0800 (PST)
+Subject: Re: [Bug 199037] New: Kernel bug at mm/hugetlb.c:741
+From: Mike Kravetz <mike.kravetz@oracle.com>
+References: <bug-199037-27@https.bugzilla.kernel.org/>
+ <20180306133135.4dc344e478d98f0e29f47698@linux-foundation.org>
+ <7ffa77c8-8624-9c69-d1f5-058ef22c460c@oracle.com>
+ <ecc197fa-ae01-8be8-55ec-e82eb1050f57@oracle.com>
+ <f91575ec-d158-8876-0096-63a19f0289e0@oracle.com>
+Message-ID: <0d893023-11c0-f3be-94d4-f17bf3f30195@oracle.com>
+Date: Wed, 7 Mar 2018 08:39:45 -0800
 MIME-Version: 1.0
-In-Reply-To: <54e95716-9d61-51a3-9ae8-196e60625b76@huawei.com>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <f91575ec-d158-8876-0096-63a19f0289e0@oracle.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: david@fromorbit.com, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, blurbdust@gmail.com
 
-
-
-On 07/03/18 16:48, Igor Stoppa wrote:
-> 
-> 
-> On 06/03/18 15:19, Mike Rapoport wrote:
->> On Wed, Feb 28, 2018 at 10:06:14PM +0200, Igor Stoppa wrote:
-
-[...]
-
->>> + * get_boundary() - verifies address, then measure length.
+On 03/06/2018 08:19 PM, Mike Kravetz wrote:
+> On 03/06/2018 04:31 PM, Mike Kravetz wrote:
+>> On 03/06/2018 01:46 PM, Mike Kravetz wrote:
+>>> On 03/06/2018 01:31 PM, Andrew Morton wrote:
+>>>>
+>>>> That's VM_BUG_ON(resv_map->adds_in_progress) in resv_map_release().
+>>>>
+>>>> Do you know if earlier kernel versions are affected?
+>>>>
+>>>> It looks quite bisectable.  Does the crash happen every time the test
+>>>> program is run?
+>>>
+>>> I'll take a look.  There was a previous bug in this area:
+>>> ff8c0c53: mm/hugetlb.c: don't call region_abort if region_chg fails
 >>
->> There's some lack of consistency between the name and implementation and
->> the description.
->> It seems that it would be simpler to actually make it get_length() and
->> return the length of the allocation or nentries if the latter is smaller.
->> Then in gen_pool_free() there will be no need to recalculate nentries
->> again.
+>> This is similar to the issue addressed in 045c7a3f ("fix offset overflow
+>> in hugetlbfs mmap").  The problem here is that the pgoff argument passed
+>> to remap_file_pages() is 0x20000000000000.  In the process of converting
+>> this to a page offset and putting it in vm_pgoff, and then converting back
+>> to bytes to compute mapping length we end up with 0.  We ultimately end
+>> up passing (from,to) page offsets into hugetlbfs where from is greater
+>> than to. :( This confuses the heck out the the huge page reservation code
+>> as the 'negative' range looks like an error and we never complete the
+>> reservation process and leave the 'adds_in_progress'.
+>>
+>> This issue has existed for a long time.  The VM_BUG_ON just happens to
+>> catch the situation which was previously not reported or had some other
+>> side effect.  Commit 045c7a3f tried to catch these overflow issues when
+>> converting types, but obviously missed this one.  I can easily add a test
+>> for this specific value/condition, but want to think about it a little
+>> more and see if there is a better way to catch all of these.
 > 
-> There is an error in the documentation. I'll explain below.
+> Well, I instrumented hugetlbfs_file_mmap when called via the remap_file_pages
+> system call path.  Upon entry, vma->vm_pgoff is 0x20000000000000 which is
+> the same as the value of the argument pgoff passed to the system call.
+> vm_pgoff really should be a page offset (i.e. 0x20000000000000 >> PAGE_SHIFT).
+> So, there is also an issue earlier in the remap_file_pages system call
+> sequence.
 
-Argh, I do not know why I came out with that.
+My mistake.  The pgoff argument to remap_file_pages is a page offset in page
+size units.  So, there should be no '>> PAGE_SHIFT' of the argument.
 
-Yes, your comment is correct. I've modified the function accordingly and
-it is simpler.
+The hugetlbfs code wants to convert vm_pgoff to a byte offset by
+'<< PAGE_SHIFT'.  This is what overflows and gets us into trouble.
 
-I will post it in the next revision.
+My first thought is to simply check for this overflow in remap_file_pages.
+Other code within the kernel converts vm_pgoff to a byte offset and I am
+not sure they could handle/expect an overflow.
 
---
-igor
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
