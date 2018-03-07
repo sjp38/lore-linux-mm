@@ -1,54 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 270DE6B0003
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 13:22:17 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id k4-v6so1491068pls.15
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 10:22:17 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v11-v6si11520455plz.386.2018.03.07.10.22.16
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B7BEC6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 15:56:25 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id q197so3472202iod.17
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 12:56:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q4sor9399788ioe.228.2018.03.07.12.56.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 07 Mar 2018 10:22:16 -0800 (PST)
-Date: Wed, 7 Mar 2018 10:22:12 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] slub: Fix misleading 'age' in verbose slub prints
-Message-ID: <20180307182212.GA23411@bombadil.infradead.org>
-References: <1520423266-28830-1-git-send-email-cpandya@codeaurora.org>
- <alpine.DEB.2.20.1803071212150.6373@nuc-kabylake>
+        (Google Transport Security);
+        Wed, 07 Mar 2018 12:56:24 -0800 (PST)
+Date: Wed, 7 Mar 2018 12:56:21 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: oom: Fix race condition between oom_badness and
+ do_exit of task
+In-Reply-To: <1520427454-22813-1-git-send-email-gkohli@codeaurora.org>
+Message-ID: <alpine.DEB.2.20.1803071254410.165297@chino.kir.corp.google.com>
+References: <1520427454-22813-1-git-send-email-gkohli@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1803071212150.6373@nuc-kabylake>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Chintan Pandya <cpandya@codeaurora.org>, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Gaurav Kohli <gkohli@codeaurora.org>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org
 
-On Wed, Mar 07, 2018 at 12:13:56PM -0600, Christopher Lameter wrote:
-> On Wed, 7 Mar 2018, Chintan Pandya wrote:
-> > In this case, object got freed later but 'age' shows
-> > otherwise. This could be because, while printing
-> > this info, we print allocation traces first and
-> > free traces thereafter. In between, if we get schedule
-> > out, (jiffies - t->when) could become meaningless.
-> 
-> Ok then get the jiffies earlier?
-> 
-> > So, simply print when the object was allocated/freed.
-> 
-> The tick value may not related to anything in the logs that is why the
-> "age" is there. How do I know how long ago the allocation was if I look at
-> the log and only see long and large number of ticks since bootup?
+On Wed, 7 Mar 2018, Gaurav Kohli wrote:
 
-I missed that the first read-through too.  The trick is that there are two printks:
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 6fd9773..5f4cc4b 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -114,9 +114,11 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
+>  
+>  	for_each_thread(p, t) {
+>  		task_lock(t);
+> +		get_task_struct(t);
+>  		if (likely(t->mm))
+>  			goto found;
+>  		task_unlock(t);
+> +		put_task_struct(t);
+>  	}
+>  	t = NULL;
+>  found:
 
-[ 6044.170804] INFO: Allocated in binder_transaction+0x4b0/0x2448 age=731 cpu=3 pid=5314
-...
-[ 6044.216696] INFO: Freed in binder_free_transaction+0x2c/0x58 age=735 cpu=6 pid=2079
+We hold rcu_read_lock() here, so perhaps only do get_task_struct() before 
+doing rcu_read_unlock() and we have a non-NULL t?
 
-If you print the raw value, then you can do the subtraction yourself;
-if you've subtracted it from jiffies each time, you've at least introduced
-jitter, and possibly enough jitter to confuse and mislead.
+> @@ -191,6 +193,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+>  			test_bit(MMF_OOM_SKIP, &p->mm->flags) ||
+>  			in_vfork(p)) {
+>  		task_unlock(p);
+> +		put_task_struct(p);
+>  		return 0;
+>  	}
+>  
+> @@ -208,7 +211,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+>  	 */
+>  	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
+>  		points -= (points * 3) / 100;
+> -
+> +	put_task_struct(p);
+>  	/* Normalize to oom_score_adj units */
+>  	adj *= totalpages / 1000;
+>  	points += adj;
+
+This fixes up oom_badness(), but there are other users of 
+find_lock_task_mm() in the oom killer as well as other subsystems.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
