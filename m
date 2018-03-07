@@ -1,113 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CABD6B0005
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 04:17:17 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id u2so764385pgn.19
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 01:17:17 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id w3-v6si12548948plb.441.2018.03.07.01.17.15
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 855FF6B0005
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 04:36:22 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y10so797914pge.2
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 01:36:22 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id q22si11178560pgn.210.2018.03.07.01.36.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Mar 2018 01:17:16 -0800 (PST)
-Subject: Re: [RFC] kswapd aggressiveness with watermark_scale_factor
-References: <7d57222b-42f5-06a2-2f91-75384e0c0bd9@codeaurora.org>
- <20180215124016.hn64v57istrfwz7p@techsingularity.net>
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Message-ID: <0467b068-4627-e49f-77e8-c785a38a0d74@codeaurora.org>
-Date: Wed, 7 Mar 2018 14:47:09 +0530
-MIME-Version: 1.0
-In-Reply-To: <20180215124016.hn64v57istrfwz7p@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+        Wed, 07 Mar 2018 01:36:20 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 2/5] x86/boot/compressed/64: Find a place for 32-bit trampoline
+Date: Wed,  7 Mar 2018 12:36:10 +0300
+Message-Id: <20180307093610.49121-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180227154217.69347-1-kirill.shutemov@linux.intel.com>
+References: <20180227154217.69347-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Linux-MM <linux-mm@kvack.org>, hannes@cmpxchg.org, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "vbabka@suse.cz" <vbabka@suse.cz>
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 2/15/2018 6:10 PM, Mel Gorman wrote:
-> On Wed, Jan 24, 2018 at 09:25:37PM +0530, Vinayak Menon wrote:
->> Hi,
->>
->> It is observed that watermark_scale_factor when used to reduce thundering herds
->> in direct reclaim, reduces the direct reclaims, but results in unnecessary reclaim
->> due to kswapd running for long after being woken up. The tests are done with 4 GB
->> of RAM and the tests done are multibuild and another which opens a set of apps
->> sequentially on Android and repeating the sequence N times. The tests are done on
->> 4.9 kernel.
->>
->> The issue seems to be because of watermark_scale_factor creating larger gap between
->> low and high watermarks. The following results are with watermark_scale_factor of 120
->> and the other with watermark_scale_factor 120 with a reduced gap between low and
->> high watermarks. The patch used to reduce the gap is given below. The min-low gap is
->> untouched. It can be seen that with the reduced low-high gap, the direct reclaims are
->> almost same as base, but with 45% less pgpgin. Reduced low-high gap improves the
->> latency by around 11% in the sequential app test due to lesser IO and kswapd activity.
->>
->>                        wsf-120-default      wsf-120-reduced-low-high-gap
->> workingset_activate    15120206             8319182
->> pgpgin                 269795482            147928581
->> allocstall             1406                 1498
->> pgsteal_kswapd         68676960             38105142
->> slabs_scanned          94181738             49085755
->>
->> This is the diff of wsf-120-reduced-low-high-gap for comments. The patch considers
->> low-high gap as a fraction of min-low gap, and the fraction a function of managed pages,
->> increasing non-linearly. The multiplier 4 is was chosen as a reasonable value which does
->> not alter the low-high gap much from the base for large machines.
->>
-> This needs a proper changelog, signed-offs and a comment on the reasoning
-> behind the new min value for the gap between low and high and how it
-> was derived.  It appears the equation was designed such at the gap, as
-> a percentage of the zone size, would shrink according as the zone size
-> increases but I'm not 100% certain that was the intent. That should be
-> explained and why not just using "tmp >> 2" would have problems.
->
-> It would also need review/testing by Johannes to ensure that there is no
-> reintroduction of the problems that watermark_scale_factor was designed
-> to solve.
+If a bootloader enables 64-bit mode with 4-level paging, we might need to
+switch over to 5-level paging. The switching requires the disabling of
+paging, which works fine if kernel itself is loaded below 4G.
 
-Sorry for the delayed response. I will send a patch with the details. The equation was designed so that the
-low-high gap is small for smaller RAM sizes and tends towards min-low gap as the RAM size increases. This
-was done considering that it should not have a bad effect on for 140G configuration which Johannes had taken
-taken as example when watermark_scale_factor was introduced, also assuming that the thrashing seen due to
-low-high gap would be visible only on low RAM devices.
+But if the bootloader puts the kernel above 4G (not sure if anybody does
+this), we would lose control as soon as paging is disabled, because the
+code becomes unreachable to the CPU.
 
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 3a11a50..749d1eb 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -6898,7 +6898,11 @@ static void __setup_per_zone_wmarks(void)
->>                                       watermark_scale_factor, 10000));
->>
->>                 zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
->> -               zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
->> +
->> +               tmp = clamp_t(u64, mult_frac(tmp, int_sqrt(4 * zone->managed_pages),
->> +                               10000), min_wmark_pages(zone) >> 2 , tmp);
->> +
->> +               zone->watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
->>
->>                 spin_unlock_irqrestore(&zone->lock, flags);
->>         }
->>
->> With the patch,
->> With watermark_scale_factor as default 10, the low-high gap:
->> unchanged for 140G at 143M,
->> for 65G, reduces from 65M to 53M
->> for 4GB, reduces from 4M to 1M
->>
->> With watermark_scale_factor 120, the low-high gap:
->> unchanged for 140G
->> for 65G, reduces from 786M to 644M
->> for 4GB, reduces from 49M to 10M
->>
-> This information should also be in the changelog.
+To handle the situation, we need a trampoline in lower memory that would
+take care of switching on 5-level paging.
 
-Sure.
+This patch finds a spot in low memory for a trampoline.
 
-Thanks,
-Vinayak
+The heuristic is based on code in reserve_bios_regions().
+
+We find the end of low memory based on BIOS and EBDA start addresses.
+The trampoline is put just before end of low memory. It's mimic approach
+taken to allocate memory for realtime trampoline.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Borislav Petkov <bp@suse.de>
+---
+ arch/x86/boot/compressed/misc.c       |  6 ++++++
+ arch/x86/boot/compressed/pgtable.h    | 13 +++++++++++++
+ arch/x86/boot/compressed/pgtable_64.c | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 53 insertions(+)
+ create mode 100644 arch/x86/boot/compressed/pgtable.h
+
+diff --git a/arch/x86/boot/compressed/misc.c b/arch/x86/boot/compressed/misc.c
+index b50c42455e25..8e4b55dd5df9 100644
+--- a/arch/x86/boot/compressed/misc.c
++++ b/arch/x86/boot/compressed/misc.c
+@@ -14,6 +14,7 @@
+ 
+ #include "misc.h"
+ #include "error.h"
++#include "pgtable.h"
+ #include "../string.h"
+ #include "../voffset.h"
+ 
+@@ -372,6 +373,11 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
+ 	debug_putaddr(output_len);
+ 	debug_putaddr(kernel_total_size);
+ 
++#ifdef CONFIG_X86_64
++	/* Report address of 32-bit trampoline */
++	debug_putaddr(trampoline_32bit);
++#endif
++
+ 	/*
+ 	 * The memory hole needed for the kernel is the larger of either
+ 	 * the entire decompressed kernel plus relocation table, or the
+diff --git a/arch/x86/boot/compressed/pgtable.h b/arch/x86/boot/compressed/pgtable.h
+new file mode 100644
+index 000000000000..58e654431e2a
+--- /dev/null
++++ b/arch/x86/boot/compressed/pgtable.h
+@@ -0,0 +1,13 @@
++#ifndef BOOT_COMPRESSED_PAGETABLE_H
++#define BOOT_COMPRESSED_PAGETABLE_H
++
++#define TRAMPOLINE_32BIT_SIZE		(2 * PAGE_SIZE)
++
++#ifndef __ASSEMBLY__
++
++#ifdef CONFIG_X86_64
++extern unsigned long *trampoline_32bit;
++#endif
++
++#endif /* __ASSEMBLY__ */
++#endif /* BOOT_COMPRESSED_PAGETABLE_H */
+diff --git a/arch/x86/boot/compressed/pgtable_64.c b/arch/x86/boot/compressed/pgtable_64.c
+index 45c76eff2718..21d5cc1cd5fa 100644
+--- a/arch/x86/boot/compressed/pgtable_64.c
++++ b/arch/x86/boot/compressed/pgtable_64.c
+@@ -1,4 +1,5 @@
+ #include <asm/processor.h>
++#include "pgtable.h"
+ 
+ /*
+  * __force_order is used by special_insns.h asm code to force instruction
+@@ -9,14 +10,27 @@
+  */
+ unsigned long __force_order;
+ 
++#define BIOS_START_MIN		0x20000U	/* 128K, less than this is insane */
++#define BIOS_START_MAX		0x9f000U	/* 640K, absolute maximum */
++
+ struct paging_config {
+ 	unsigned long trampoline_start;
+ 	unsigned long l5_required;
+ };
+ 
++/*
++ * Trampoline address will be printed by extract_kernel() for debugging
++ * purposes.
++ *
++ * Avoid putting the pointer into .bss as it will be cleared between
++ * paging_prepare() and extract_kernel().
++ */
++unsigned long *trampoline_32bit __section(.data);
++
+ struct paging_config paging_prepare(void)
+ {
+ 	struct paging_config paging_config = {};
++	unsigned long bios_start, ebda_start;
+ 
+ 	/*
+ 	 * Check if LA57 is desired and supported.
+@@ -35,5 +49,25 @@ struct paging_config paging_prepare(void)
+ 		paging_config.l5_required = 1;
+ 	}
+ 
++	/*
++	 * Find a suitable spot for the trampoline.
++	 * This code is based on reserve_bios_regions().
++	 */
++
++	ebda_start = *(unsigned short *)0x40e << 4;
++	bios_start = *(unsigned short *)0x413 << 10;
++
++	if (bios_start < BIOS_START_MIN || bios_start > BIOS_START_MAX)
++		bios_start = BIOS_START_MAX;
++
++	if (ebda_start > BIOS_START_MIN && ebda_start < bios_start)
++		bios_start = ebda_start;
++
++	/* Place the trampoline just below the end of low memory, aligned to 4k */
++	paging_config.trampoline_start = bios_start - TRAMPOLINE_32BIT_SIZE;
++	paging_config.trampoline_start = round_down(paging_config.trampoline_start, PAGE_SIZE);
++
++	trampoline_32bit = (unsigned long *)paging_config.trampoline_start;
++
+ 	return paging_config;
+ }
+-- 
+2.16.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
