@@ -1,78 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 33E2E6B0003
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 13:17:43 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id n2so1590777oig.22
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 10:17:43 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v62si5342300otb.416.2018.03.07.10.17.42
-        for <linux-mm@kvack.org>;
-        Wed, 07 Mar 2018 10:17:42 -0800 (PST)
-Message-ID: <5AA02C26.10803@arm.com>
-Date: Wed, 07 Mar 2018 18:15:02 +0000
-From: James Morse <james.morse@arm.com>
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 270DE6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 13:22:17 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id k4-v6so1491068pls.15
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 10:22:17 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id v11-v6si11520455plz.386.2018.03.07.10.22.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 07 Mar 2018 10:22:16 -0800 (PST)
+Date: Wed, 7 Mar 2018 10:22:12 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] slub: Fix misleading 'age' in verbose slub prints
+Message-ID: <20180307182212.GA23411@bombadil.infradead.org>
+References: <1520423266-28830-1-git-send-email-cpandya@codeaurora.org>
+ <alpine.DEB.2.20.1803071212150.6373@nuc-kabylake>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's add/remove
- and notify code
-References: <20180215185606.26736-1-james.morse@arm.com> <20180215185606.26736-3-james.morse@arm.com> <20180301150144.GA4215@pd.tnic> <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com> <20180301223529.GA28811@pd.tnic>
-In-Reply-To: <20180301223529.GA28811@pd.tnic>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1803071212150.6373@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, Punit Agrawal <punit.agrawal@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
+To: Christopher Lameter <cl@linux.com>
+Cc: Chintan Pandya <cpandya@codeaurora.org>, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Borislav, Punit,
-
-On 01/03/18 22:35, Borislav Petkov wrote:
-> On Thu, Mar 01, 2018 at 06:06:59PM +0000, Punit Agrawal wrote:
->> The 64-bit support lives in arch/arm64 and the die() there doesn't
->> contain an oops_begin()/oops_end(). But the lack of oops_begin() on
->> arm64 doesn't really matter here.
-
->> One issue I see with calling die() is that it is defined in different
->> includes across various architectures, (e.g., include/asm/kdebug.h for
->> x86, include/asm/system_misc.h in arm64, etc.)
+On Wed, Mar 07, 2018 at 12:13:56PM -0600, Christopher Lameter wrote:
+> On Wed, 7 Mar 2018, Chintan Pandya wrote:
+> > In this case, object got freed later but 'age' shows
+> > otherwise. This could be because, while printing
+> > this info, we print allocation traces first and
+> > free traces thereafter. In between, if we get schedule
+> > out, (jiffies - t->when) could become meaningless.
 > 
-> I don't think that's insurmountable.
+> Ok then get the jiffies earlier?
+> 
+> > So, simply print when the object was allocated/freed.
+> 
+> The tick value may not related to anything in the logs that is why the
+> "age" is there. How do I know how long ago the allocation was if I look at
+> the log and only see long and large number of ticks since bootup?
 
-I don't think die() helps us, its not quite the same as oops_begin()/panic(),
-which means we're interpreting the APEI notification's severity differently,
-depending on when we took it.
+I missed that the first read-through too.  The trick is that there are two printks:
 
+[ 6044.170804] INFO: Allocated in binder_transaction+0x4b0/0x2448 age=731 cpu=3 pid=5314
+...
+[ 6044.216696] INFO: Freed in binder_free_transaction+0x2c/0x58 age=735 cpu=6 pid=2079
 
-> The more important question is, can we do the same set of calls when
-> panic severity on all architectures which support APEI or should we have
-> arch-specific ghes_panic() callbacks or so.
-
-I think the purpose of this oops_begin() is to ensure two CPUs calling
-oops_begin() at the same time don't have their traces interleaved, unblanks the
-screen and 'busts' any spinlocks printk() may need (console etc).
-
-This code is called in_nmi(), printk() now supports this so it doesn't need its
-locks busting.
-When called in_nmi(), printk batches the messages into its per-cpu
-printk_safe_seq_buf, which in our case is dumped by panic() using
-printk_safe_flush_on_panic(). So provided we call panic(), the in_nmi() messages
-from ghes.c are already batched, and printed behind panic()'s atomic_cmpxchg()
-exclusion thing.
-
-If your arm64 system has one of these futuristic 'screens', they get unblanked
-when panic() calls console_verbose() and bust_spinlocks(1).
-
-
-> As it is now, it would turn into a mess if we start with the ifdeffery
-> and the different requirements architectures might have...
-
-Today its just x86 and arm64. arm64 doesn't have a hook to do this. I'm happy to
-add an empty declaration or leave it under an ifdef until someone complains
-about any behaviour I missed!
-
-
-Thanks,
-
-James
+If you print the raw value, then you can do the subtraction yourself;
+if you've subtracted it from jiffies each time, you've at least introduced
+jitter, and possibly enough jitter to confuse and mislead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
