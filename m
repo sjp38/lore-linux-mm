@@ -1,52 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 635BE6B0005
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 07:44:17 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id c41-v6so317559plj.10
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 04:44:17 -0800 (PST)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50106.outbound.protection.outlook.com. [40.107.5.106])
-        by mx.google.com with ESMTPS id 62si11357012pgd.45.2018.03.07.04.44.15
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BFFF6B0005
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 07:57:55 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 73so1166079pfz.22
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 04:57:55 -0800 (PST)
+Received: from alexa-out-tai-02.qualcomm.com (alexa-out-tai-02.qualcomm.com. [103.229.16.227])
+        by mx.google.com with ESMTPS id k80si13911177pfh.260.2018.03.07.04.57.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 07 Mar 2018 04:44:16 -0800 (PST)
-Subject: Re: [PATCH] kasan, slub: fix handling of kasan_slab_free hook
-References: <083f58501e54731203801d899632d76175868e97.1519400992.git.andreyknvl@google.com>
- <26dd94c5-19ca-dca6-07b8-7103f53c0130@virtuozzo.com>
- <CAAeHK+y4hze8CUDMJ_G6W+diBO88+WYu892SK9QAt36y8nbZYQ@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <c7249bc3-8488-00c9-666a-8d31fb3feb83@virtuozzo.com>
-Date: Wed, 7 Mar 2018 15:43:51 +0300
-MIME-Version: 1.0
-In-Reply-To: <CAAeHK+y4hze8CUDMJ_G6W+diBO88+WYu892SK9QAt36y8nbZYQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Mar 2018 04:57:54 -0800 (PST)
+From: Gaurav Kohli <gkohli@codeaurora.org>
+Subject: [PATCH] mm: oom: Fix race condition between oom_badness and do_exit of task
+Date: Wed,  7 Mar 2018 18:27:34 +0530
+Message-Id: <1520427454-22813-1-git-send-email-gkohli@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Kostya Serebryany <kcc@google.com>
+To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, Gaurav Kohli <gkohli@codeaurora.org>
 
+oom_badness access real_cred of task for calculation without increasing
+the usage counter of task struct. This may create a race if do_exit of
+same task runs and free the real_cred. So using get_task_struct which
+blocks the freeing until oom_badness is executing.
 
+el1_da+0x24/0x84
+security_capable_noaudit+0x64/0x94
+has_capability_noaudit+0x38/0x58
+oom_badness.part.21+0x114/0x1c0
+oom_badness+0x50/0x5c
+proc_oom_score+0x48/0x80
+proc_single_show+0x5c/0xb8
 
-On 03/06/2018 08:42 PM, Andrey Konovalov wrote:
+Signed-off-by: Gaurav Kohli <gkohli@codeaurora.org>
 
->>> -     if (s->flags & SLAB_KASAN && !(s->flags & SLAB_TYPESAFE_BY_RCU))
->>> -             return;
->>> -     do_slab_free(s, page, head, tail, cnt, addr);
->>> +     slab_free_freelist_hook(s, &head, &tail);
->>> +     if (head != NULL)
->>
->> That's an additional branch in non-debug fast-path. Find a way to avoid this.
-> 
-> Hm, there supposed to be a branch here. We either have objects that we
-> need to free, or we don't, and we need to do different things in those
-> cases. Previously this was done with a hardcoded "if (s->flags &
-> SLAB_KASAN && ..." statement, not it's a different "if (head !=
-> NULL)".
-> 
-
-They are different. "if (s->flags & SLAB_KASAN && ..." can be optimized away by compiler when CONFIG_KASAN=n,
-"if (head != NULL)" - can not.
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 6fd9773..5f4cc4b 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -114,9 +114,11 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
+ 
+ 	for_each_thread(p, t) {
+ 		task_lock(t);
++		get_task_struct(t);
+ 		if (likely(t->mm))
+ 			goto found;
+ 		task_unlock(t);
++		put_task_struct(t);
+ 	}
+ 	t = NULL;
+ found:
+@@ -191,6 +193,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 			test_bit(MMF_OOM_SKIP, &p->mm->flags) ||
+ 			in_vfork(p)) {
+ 		task_unlock(p);
++		put_task_struct(p);
+ 		return 0;
+ 	}
+ 
+@@ -208,7 +211,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	 */
+ 	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
+ 		points -= (points * 3) / 100;
+-
++	put_task_struct(p);
+ 	/* Normalize to oom_score_adj units */
+ 	adj *= totalpages / 1000;
+ 	points += adj;
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
