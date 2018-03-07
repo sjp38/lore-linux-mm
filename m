@@ -1,53 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 548806B0005
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 05:52:30 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id p13so970877wmc.6
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 02:52:30 -0800 (PST)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id e16si4737413edb.427.2018.03.07.02.52.28
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B496C6B0005
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 06:48:15 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id f59-v6so1029230plb.7
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 03:48:15 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id n12-v6si12730441pls.292.2018.03.07.03.48.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Mar 2018 02:52:28 -0800 (PST)
-Subject: Re: [PATCH 1/7] genalloc: track beginning of allocations
-From: Igor Stoppa <igor.stoppa@huawei.com>
-References: <20180228200620.30026-1-igor.stoppa@huawei.com>
- <20180228200620.30026-2-igor.stoppa@huawei.com>
- <20180306141047.GB13722@bombadil.infradead.org>
- <6d27845d-a8f3-607b-1b6b-8464de65162c@huawei.com>
-Message-ID: <a667773c-59fa-33d1-9621-16e702c1859f@huawei.com>
-Date: Wed, 7 Mar 2018 12:51:46 +0200
-MIME-Version: 1.0
-In-Reply-To: <6d27845d-a8f3-607b-1b6b-8464de65162c@huawei.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Wed, 07 Mar 2018 03:48:14 -0800 (PST)
+From: Chintan Pandya <cpandya@codeaurora.org>
+Subject: [PATCH] slub: Fix misleading 'age' in verbose slub prints
+Date: Wed,  7 Mar 2018 17:17:46 +0530
+Message-Id: <1520423266-28830-1-git-send-email-cpandya@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: david@fromorbit.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>
 
+When SLUB_DEBUG catches the some issues, it prints
+all the required debug info being verbose. However,
+in few cases where allocation and free of the object
+has have happened in a very short time, 'age' might
+mislead. See the example below,
 
+[ 6044.137581] =============================================================================
+[ 6044.145863] BUG kmalloc-256 (Tainted: G        W  O   ): Poison overwritten
+[ 6044.152889] -----------------------------------------------------------------------------
+[ 6044.152889]
+[ 6044.162618] INFO: 0xfffffff14956a878-0xfffffff14956a878. First byte 0x67 instead of 0x6b
+[ 6044.170804] INFO: Allocated in binder_transaction+0x4b0/0x2448 age=731 cpu=3 pid=5314
+[ 6044.178711] __slab_alloc.isra.68.constprop.71+0x58/0x98
+[ 6044.184070] kmem_cache_alloc_trace+0x198/0x2c4
+[ 6044.188642] binder_transaction+0x4b0/0x2448
+[ 6044.192953] binder_thread_write+0x998/0x1410
+[ 6044.197350] binder_ioctl_write_read+0x130/0x370
+[ 6044.202016] binder_ioctl+0x550/0x7dc
+[ 6044.205726] do_vfs_ioctl+0xcc/0x888
+[ 6044.209510] SyS_ioctl+0x90/0xa4
+[ 6044.212821] __sys_trace_return+0x0/0x4
+[ 6044.216696] INFO: Freed in binder_free_transaction+0x2c/0x58 age=735 cpu=6 pid=2079
+[ 6044.224415] kfree+0x28c/0x290
+[ 6044.227505] binder_free_transaction+0x2c/0x58
+[ 6044.231991] binder_transaction+0x1f78/0x2448
+[ 6044.236392] binder_thread_write+0x998/0x1410
+[ 6044.240789] binder_ioctl_write_read+0x130/0x370
+[ 6044.245455] binder_ioctl+0x550/0x7dc
+[ 6044.249152] do_vfs_ioctl+0xcc/0x888
+[ 6044.252772] SyS_ioctl+0x90/0xa4
+[ 6044.256041] __sys_trace_return+0x0/0x4
+[ 6044.259924] INFO: Slab 0xffffffbfc5255a00 objects=21 used=20 fp=0xfffffff14956a480 flags=0x4080
+[ 6044.268695] INFO: Object 0xfffffff14956a780 @offset=10112 fp=0xfffffff149568680
+...
+[ 6044.494293] Object fffffff14956a870: 6b 6b 6b 6b 6b 6b 6b 6b 67 6b 6b 6b 6b 6b 6b a5  kkkkkkkkgkkkkkk.
 
-On 06/03/18 18:05, Igor Stoppa wrote:
-> On 06/03/2018 16:10, Matthew Wilcox wrote:
+In this case, object got freed later but 'age' shows
+otherwise. This could be because, while printing
+this info, we print allocation traces first and
+free traces thereafter. In between, if we get schedule
+out, (jiffies - t->when) could become meaningless.
 
-[...]
+So, simply print when the object was allocated/freed.
 
->> This seems unnecessarily complicated.
-> 
-> TBH it seemed to me a natural extension of the existing encoding :-)
+Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
+---
+ mm/slub.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-BTW, to provide some background, this is where it begun:
-
-http://www.openwall.com/lists/kernel-hardening/2017/08/18/4
-
-Probably that comment about "keeping existing behavior and managing two
-bitmaps locklessly" is what made me think of growing the 1-bit-per-unit
-into a 1-word-per-unit.
-
---
-igor
+diff --git a/mm/slub.c b/mm/slub.c
+index e381728..b173f85 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -603,8 +603,8 @@ static void print_track(const char *s, struct track *t)
+ 	if (!t->addr)
+ 		return;
+ 
+-	pr_err("INFO: %s in %pS age=%lu cpu=%u pid=%d\n",
+-	       s, (void *)t->addr, jiffies - t->when, t->cpu, t->pid);
++	pr_err("INFO: %s in %pS when=%lu cpu=%u pid=%d\n",
++	       s, (void *)t->addr, t->when, t->cpu, t->pid);
+ #ifdef CONFIG_STACKTRACE
+ 	{
+ 		int i;
+-- 
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation
+Center, Inc., is a member of Code Aurora Forum, a Linux Foundation
+Collaborative Project
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
