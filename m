@@ -1,61 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D77056B0003
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 16:24:24 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id j23so2692354qtn.23
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 13:24:24 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q2sor5325144qti.141.2018.03.07.13.24.23
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C1866B0003
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 17:54:59 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id u36so2059887wrf.21
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 14:54:59 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id l194si143706wmg.274.2018.03.07.14.54.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Mar 2018 13:24:23 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20180221233825.10024-1-jhogan@kernel.org>
-References: <20180221233825.10024-1-jhogan@kernel.org>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Wed, 7 Mar 2018 22:24:23 +0100
-Message-ID: <CAK8P3a2qV5n57f7=FC0nYZWfeXCVaOaK4R_7Wr74p3ZMyuwJNQ@mail.gmail.com>
-Subject: Re: [PATCH 00/13] Remove metag architecture
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Mar 2018 14:54:57 -0800 (PST)
+Date: Wed, 7 Mar 2018 14:54:54 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm/vmalloc: Add interfaces to free unused page
+ table
+Message-Id: <20180307145454.d3df4bed6d6431c52bcf271e@linux-foundation.org>
+In-Reply-To: <20180307183227.17983-2-toshi.kani@hpe.com>
+References: <20180307183227.17983-1-toshi.kani@hpe.com>
+	<20180307183227.17983-2-toshi.kani@hpe.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Hogan <jhogan@kernel.org>
-Cc: "open list:METAG ARCHITECTURE" <linux-metag@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Guenter Roeck <linux@roeck-us.net>, Jonathan Corbet <corbet@lwn.net>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Jason Cooper <jason@lakedaemon.net>, Marc Zyngier <marc.zyngier@arm.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Linus Walleij <linus.walleij@linaro.org>, Wim Van Sebroeck <wim@linux-watchdog.org>, Mauro Carvalho Chehab <mchehab@s-opensource.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Wolfram Sang <wsa@the-dreams.de>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-gpio@vger.kernel.org, linux-watchdog@vger.kernel.org, Linux Media Mailing List <linux-media@vger.kernel.org>, linux-i2c@vger.kernel.org
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: mhocko@suse.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, catalin.marinas@arm.com, guohanjun@huawei.com, will.deacon@arm.com, wxf.wang@hisilicon.com, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 22, 2018 at 12:38 AM, James Hogan <jhogan@kernel.org> wrote:
-> These patches remove the metag architecture and tightly dependent
-> drivers from the kernel. With the 4.16 kernel the ancient gcc 4.2.4
-> based metag toolchain we have been using is hitting compiler bugs, so
-> now seems a good time to drop it altogether.
->
-> Quoting from patch 1:
->
-> The earliest Meta architecture port of Linux I have a record of was an
-> import of a Meta port of Linux v2.4.1 in February 2004, which was worked
-> on significantly over the next few years by Graham Whaley, Will Newton,
-> Matt Fleming, myself and others.
->
-> Eventually the port was merged into mainline in v3.9 in March 2013, not
-> long after Imagination Technologies bought MIPS Technologies and shifted
-> its CPU focus over to the MIPS architecture.
->
-> As a result, though the port was maintained for a while, kept on life
-> support for a while longer, and useful for testing a few specific
-> drivers for which I don't have ready access to the equivalent MIPS
-> hardware, it is now essentially dead with no users.
->
-> It is also stuck using an out-of-tree toolchain based on GCC 4.2.4 which
-> is no longer maintained, now struggles to build modern kernels due to
-> toolchain bugs, and doesn't itself build with a modern GCC. The latest
-> buildroot port is still using an old uClibc snapshot which is no longer
-> served, and the latest uClibc doesn't build with GCC 4.2.4.
->
-> So lets call it a day and drop the Meta architecture port from the
-> kernel. RIP Meta.
+On Wed,  7 Mar 2018 11:32:26 -0700 Toshi Kani <toshi.kani@hpe.com> wrote:
 
-I've pulled it into my asm-generic tree now, which is also part of linux-next,
-and followed up with patches removing frv, m32r, score, unicore32
-and blackfin. I have not removed the device drivers yet, but I'm working
-on that.
+> On architectures with CONFIG_HAVE_ARCH_HUGE_VMAP set, ioremap()
+> may create pud/pmd mappings.  Kernel panic was observed on arm64
+> systems with Cortex-A75 in the following steps as described by
+> Hanjun Guo.
+> 
+> 1. ioremap a 4K size, valid page table will build,
+> 2. iounmap it, pte0 will set to 0;
+> 3. ioremap the same address with 2M size, pgd/pmd is unchanged,
+>    then set the a new value for pmd;
+> 4. pte0 is leaked;
+> 5. CPU may meet exception because the old pmd is still in TLB,
+>    which will lead to kernel panic.
+> 
+> This panic is not reproducible on x86.  INVLPG, called from iounmap,
+> purges all levels of entries associated with purged address on x86.
+> x86 still has memory leak.
+> 
+> Add two interfaces, pud_free_pmd_page() and pmd_free_pte_page(),
+> which clear a given pud/pmd entry and free up a page for the lower
+> level entries.
+> 
+> This patch implements their stub functions on x86 and arm64, which
+> work as workaround.
+> 
+> index 004abf9ebf12..942f4fa341f1 100644
+> --- a/arch/x86/mm/pgtable.c
+> +++ b/arch/x86/mm/pgtable.c
+> @@ -702,4 +702,24 @@ int pmd_clear_huge(pmd_t *pmd)
+>  
+>  	return 0;
+>  }
+> +
+> +/**
+> + * pud_free_pmd_page - clear pud entry and free pmd page
+> + *
+> + * Returns 1 on success and 0 on failure (pud not cleared).
+> + */
+> +int pud_free_pmd_page(pud_t *pud)
+> +{
+> +	return pud_none(*pud);
+> +}
+> +
+> +/**
+> + * pmd_free_pte_page - clear pmd entry and free pte page
+> + *
+> + * Returns 1 on success and 0 on failure (pmd not cleared).
+> + */
+> +int pmd_free_pte_page(pmd_t *pmd)
+> +{
+> +	return pmd_none(*pmd);
+> +}
 
-       Arnd
+Are these functions well named?  I mean, the comment says "clear pud
+entry and free pmd page" but the implementatin does neither of those
+things.  The name implies that the function frees a pmd_page but the
+callsites use the function as a way of querying state.
