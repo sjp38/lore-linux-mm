@@ -1,86 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 904ED6B000D
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 12:47:39 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id p189so2328645qkc.5
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 09:47:39 -0800 (PST)
-Received: from g2t2352.austin.hpe.com (g2t2352.austin.hpe.com. [15.233.44.25])
-        by mx.google.com with ESMTPS id d5si7127335qth.299.2018.03.07.09.47.38
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D4E336B0003
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 13:01:40 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id o10so3036140iod.21
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 10:01:40 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id c18si9864019itd.48.2018.03.07.10.01.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Mar 2018 09:47:38 -0800 (PST)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH 2/2] x86/mm: implement free pmd/pte page interfaces
-Date: Wed,  7 Mar 2018 11:32:27 -0700
-Message-Id: <20180307183227.17983-3-toshi.kani@hpe.com>
-In-Reply-To: <20180307183227.17983-1-toshi.kani@hpe.com>
-References: <20180307183227.17983-1-toshi.kani@hpe.com>
+        Wed, 07 Mar 2018 10:01:38 -0800 (PST)
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w27HucqW100711
+	for <linux-mm@kvack.org>; Wed, 7 Mar 2018 18:01:37 GMT
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by aserp2120.oracle.com with ESMTP id 2gjkk5gfcu-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 07 Mar 2018 18:01:37 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w27I1YCU010772
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 7 Mar 2018 18:01:34 GMT
+Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w27I1YL5013785
+	for <linux-mm@kvack.org>; Wed, 7 Mar 2018 18:01:34 GMT
+Received: by mail-ot0-f174.google.com with SMTP id t2so2889426otj.4
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 10:01:34 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <33e3a3ff-0318-1a07-3c57-6be638046c87@suse.cz>
+References: <20180306224004.25150-1-pasha.tatashin@oracle.com> <33e3a3ff-0318-1a07-3c57-6be638046c87@suse.cz>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Wed, 7 Mar 2018 13:01:32 -0500
+Message-ID: <CAOAebxty1EfEvd++BJq3zBOy81+LFV-WF=ERtoqprbsWZpm3HA@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: might_sleep warning
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, catalin.marinas@arm.com
-Cc: guohanjun@huawei.com, will.deacon@arm.com, wxf.wang@hisilicon.com, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Steve Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, m.mizuma@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, baiyaowei@cmss.chinamobile.com, Wei Yang <richard.weiyang@gmail.com>, Paul Burton <paul.burton@mips.com>, Miles Chen <miles.chen@mediatek.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Implement pud_free_pmd_page() and pmd_free_pte_page() on x86, which
-clear a given pud/pmd entry and free up lower level page table(s).
-Address range associated with the pud/pmd entry must have been purged
-by INVLPG.
+> Hi,
+>
+> I've noticed that this function first disables the on-demand
+> initialization, and then runs the kthreads. Doesn't that leave a window
+> where allocations can fail? The chances are probably small, but I think
+> it would be better to avoid it completely, rare failures suck.
+>
+> Fixing that probably means rethinking the whole synchronization more
+> dramatically though :/
+>
+> Vlastimil
 
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Borislav Petkov <bp@suse.de>
----
- arch/x86/mm/pgtable.c |   28 ++++++++++++++++++++++++++--
- 1 file changed, 26 insertions(+), 2 deletions(-)
+Hi Vlastimil,
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 942f4fa341f1..121c0114439e 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -710,7 +710,22 @@ int pmd_clear_huge(pmd_t *pmd)
-  */
- int pud_free_pmd_page(pud_t *pud)
- {
--	return pud_none(*pud);
-+	pmd_t *pmd;
-+	int i;
-+
-+	if (pud_none(*pud))
-+		return 1;
-+
-+	pmd = (pmd_t *)pud_page_vaddr(*pud);
-+
-+	for (i = 0; i < PTRS_PER_PMD; i++)
-+		if (!pmd_free_pte_page(&pmd[i]))
-+			return 0;
-+
-+	pud_clear(pud);
-+	free_page((unsigned long)pmd);
-+
-+	return 1;
- }
- 
- /**
-@@ -720,6 +735,15 @@ int pud_free_pmd_page(pud_t *pud)
-  */
- int pmd_free_pte_page(pmd_t *pmd)
- {
--	return pmd_none(*pmd);
-+	pte_t *pte;
-+
-+	if (pmd_none(*pmd))
-+		return 1;
-+
-+	pte = (pte_t *)pmd_page_vaddr(*pmd);
-+	pmd_clear(pmd);
-+	free_page((unsigned long)pte);
-+
-+	return 1;
- }
- #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+You are right, there is a window, it is short, and probably not
+possible to reproduce, as it happens before user threads are started,
+and after init calls done by smp_init() are finished. The only way it
+can happen, as far as I can see, is if some device fires an interrupt,
+and interrupt handler decides to allocate a large chunk of memory. The
+small allocations will succeed, as zone grow function growth more than
+strictly requested, and also there are zones without deferred pages.
+
+I will, however, think some more how to solve this problem to be future proof.
+
+Thank you,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
