@@ -1,51 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E36F6B0007
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 17:22:03 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id az5-v6so3415057plb.14
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 14:22:03 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id s11si13632233pgf.196.2018.03.08.14.22.02
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 472AD6B0009
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 17:27:02 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id o23so4053028wrc.9
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 14:27:02 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id c11si13351277wri.508.2018.03.08.14.27.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 08 Mar 2018 14:22:02 -0800 (PST)
-Date: Thu, 8 Mar 2018 14:22:01 -0800
-From: Matthew Wilcox <willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Mar 2018 14:27:01 -0800 (PST)
+Date: Thu, 8 Mar 2018 14:26:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mm: Change return type to vm_fault_t
-Message-ID: <20180308222201.GB29073@bombadil.infradead.org>
-References: <20180308130523.GA30642@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <20180308142658.285e0b2ab50b81449783cd4a@linux-foundation.org>
 In-Reply-To: <20180308130523.GA30642@jordon-HP-15-Notebook-PC>
+References: <20180308130523.GA30642@jordon-HP-15-Notebook-PC>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: willy@infradead.org, linux-mm@kvack.org
 
-On Thu, Mar 08, 2018 at 06:35:23PM +0530, Souptick Joarder wrote:
+On Thu, 8 Mar 2018 18:35:23 +0530 Souptick Joarder <jrdr.linux@gmail.com> wrote:
+
 > Use new return type vm_fault_t for fault handler
 > in struct vm_operations_struct.
-> 
+
+I can't find vm_fault_t?
+
 > vmf_insert_mixed(), vmf_insert_pfn() and vmf_insert_page()
 > are newly added inline wrapper functions.
-> 
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 
-Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+Why?
 
-Andrew, the plan for these patches is to introduce the typedef, initially
-just as documentation ("This function should return a VM_FAULT_ status").
-We'll trickle the patches to individual drivers/filesystems in through
-the maintainers, as far as possible.  In a few months, we'll probably
-dump a pile of patches to unloved drivers on you for merging.  Then we'll
-change the typedef to an unsigned int and break the compilation of any
-unconverted driver.
+> index ad06d42..a4d8853 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -379,17 +379,18 @@ struct vm_operations_struct {
+>  	void (*close)(struct vm_area_struct * area);
+>  	int (*split)(struct vm_area_struct * area, unsigned long addr);
+>  	int (*mremap)(struct vm_area_struct * area);
+> -	int (*fault)(struct vm_fault *vmf);
+> -	int (*huge_fault)(struct vm_fault *vmf, enum page_entry_size pe_size);
+> +	vm_fault_t (*fault)(struct vm_fault *vmf);
+> +	vm_fault_t (*huge_fault)(struct vm_fault *vmf,
+> +			enum page_entry_size pe_size);
 
-Souptick has done a few dozen drivers already, and I've been doing my best
-to keep up with reviewing the patches submitted.  There's some interesting
-patterns and commonalities between drivers (not to mention a few outright
-bugs) that we've noticed, and this'll be a good time to clean them up.
-
-It'd be great to get this into Linus' tree sooner so we can start
-submitting the patches to the driver maintainers.
+Well if we're going to do this then we should convert all the
+.page_mkwrite() instances and a bunch of other stuff to use vm_fault_t.
+It's a lot of work.  Perhaps we should just keep using "int".
