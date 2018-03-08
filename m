@@ -1,93 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B7746B0005
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 13:04:45 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id d142so3365709oih.4
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 10:04:45 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l7si6101669otk.351.2018.03.08.10.04.43
-        for <linux-mm@kvack.org>;
-        Thu, 08 Mar 2018 10:04:43 -0800 (PST)
-Date: Thu, 8 Mar 2018 18:04:47 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 1/2] mm/vmalloc: Add interfaces to free unused page table
-Message-ID: <20180308180446.GF14918@arm.com>
-References: <20180307183227.17983-1-toshi.kani@hpe.com>
- <20180307183227.17983-2-toshi.kani@hpe.com>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 491E46B0007
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 13:09:52 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id q197so429221iod.17
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 10:09:52 -0800 (PST)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
+        by mx.google.com with ESMTPS id z7si12054134itd.151.2018.03.08.10.09.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Mar 2018 10:09:51 -0800 (PST)
+Date: Thu, 8 Mar 2018 12:09:49 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: Fix misleading 'age' in verbose slub prints
+In-Reply-To: <da1be252-403f-6725-a1b8-223222f7f946@codeaurora.org>
+Message-ID: <alpine.DEB.2.20.1803081204230.14628@nuc-kabylake>
+References: <1520423266-28830-1-git-send-email-cpandya@codeaurora.org> <alpine.DEB.2.20.1803071212150.6373@nuc-kabylake> <20180307182212.GA23411@bombadil.infradead.org> <da1be252-403f-6725-a1b8-223222f7f946@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180307183227.17983-2-toshi.kani@hpe.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, catalin.marinas@arm.com, guohanjun@huawei.com, wxf.wang@hisilicon.com, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+To: Chintan Pandya <cpandya@codeaurora.org>
+Cc: Matthew Wilcox <willy@infradead.org>, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Toshi,
+On Thu, 8 Mar 2018, Chintan Pandya wrote:
 
-Thanks for the patches!
+> > If you print the raw value, then you can do the subtraction yourself;
+> > if you've subtracted it from jiffies each time, you've at least introduced
+> > jitter, and possibly enough jitter to confuse and mislead.
+> >
+> This is exactly what I was thinking. But looking up 'age' is easy compared to
+> 'when' and this seems required as from Christopher's
+> reply. So, will raise new patch cleaning commit message a bit.
 
-On Wed, Mar 07, 2018 at 11:32:26AM -0700, Toshi Kani wrote:
-> On architectures with CONFIG_HAVE_ARCH_HUGE_VMAP set, ioremap()
-> may create pud/pmd mappings.  Kernel panic was observed on arm64
-> systems with Cortex-A75 in the following steps as described by
-> Hanjun Guo.
-> 
-> 1. ioremap a 4K size, valid page table will build,
-> 2. iounmap it, pte0 will set to 0;
-> 3. ioremap the same address with 2M size, pgd/pmd is unchanged,
->    then set the a new value for pmd;
-> 4. pte0 is leaked;
-> 5. CPU may meet exception because the old pmd is still in TLB,
->    which will lead to kernel panic.
-> 
-> This panic is not reproducible on x86.  INVLPG, called from iounmap,
-> purges all levels of entries associated with purged address on x86.
-> x86 still has memory leak.
-> 
-> Add two interfaces, pud_free_pmd_page() and pmd_free_pte_page(),
-> which clear a given pud/pmd entry and free up a page for the lower
-> level entries.
-> 
-> This patch implements their stub functions on x86 and arm64, which
-> work as workaround.
-> 
-> Reported-by: Lei Li <lious.lilei@hisilicon.com>
-> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Wang Xuefeng <wxf.wang@hisilicon.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Hanjun Guo <guohanjun@huawei.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Borislav Petkov <bp@suse.de>
-> ---
->  arch/arm64/mm/mmu.c           |   10 ++++++++++
->  arch/x86/mm/pgtable.c         |   20 ++++++++++++++++++++
->  include/asm-generic/pgtable.h |   10 ++++++++++
->  lib/ioremap.c                 |    6 ++++--
->  4 files changed, 44 insertions(+), 2 deletions(-)
+Well then you need to provide some sort of log text processor I think.
+Otherwise you need to get the object address from the log message, then
+scan back through the log to find the correct allocation entry, retrieve
+both jiffy values and subtract them. If the age is there then you can
+simply see how far in the past the object was allocated.
 
-[...]
+One advantage in favor of jiffies would be the ability to correlate
+multiple events if each log line would have a jiffies like timestamps.
 
-> diff --git a/lib/ioremap.c b/lib/ioremap.c
-> index b808a390e4c3..54e5bbaa3200 100644
-> --- a/lib/ioremap.c
-> +++ b/lib/ioremap.c
-> @@ -91,7 +91,8 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
->  
->  		if (ioremap_pmd_enabled() &&
->  		    ((next - addr) == PMD_SIZE) &&
-> -		    IS_ALIGNED(phys_addr + addr, PMD_SIZE)) {
-> +		    IS_ALIGNED(phys_addr + addr, PMD_SIZE) &&
-> +		    pmd_free_pte_page(pmd)) {
-
-I find it a bit weird that we're postponing this to the subsequent map. If
-we want to address the break-before-make issue that was causing a panic on
-arm64, then I think it would be better to do this on the unmap path to avoid
-duplicating TLB invalidation.
-
-Will
+But it does not. So I think outputting jiffies there is causing more
+problems that benefits.
