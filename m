@@ -1,57 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CFC46B0003
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 21:48:58 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id 101-v6so2099212ple.19
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 18:48:58 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e29-v6sor6108592plj.14.2018.03.07.18.48.57
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FBD56B0006
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 21:58:25 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id v8so1834506pgs.9
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 18:58:25 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j14si1764730pfn.150.2018.03.07.18.58.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Mar 2018 18:48:57 -0800 (PST)
-From: Shakeel Butt <shakeelb@google.com>
-Subject: [PATCH] mm: memcg: expose mem_cgroup_put API
-Date: Wed,  7 Mar 2018 18:48:50 -0800
-Message-Id: <20180308024850.39737-1-shakeelb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 07 Mar 2018 18:58:23 -0800 (PST)
+Date: Wed, 7 Mar 2018 18:58:12 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 2/2] mm: Add kvmalloc_ab_c and kvzalloc_struct
+Message-ID: <20180308025812.GA9082@bombadil.infradead.org>
+References: <20180214182618.14627-1-willy@infradead.org>
+ <20180214182618.14627-3-willy@infradead.org>
+ <CAGXu5jL9hqQGe672CmvFwqNbtTr=qu7WRwHuS4Vy7o5sX_UTgg@mail.gmail.com>
+ <alpine.DEB.2.20.1803072212160.2814@hadrien>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1803072212160.2814@hadrien>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: Julia Lawall <julia.lawall@lip6.fr>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, cocci@systeme.lip6.fr, Himanshu Jha <himanshujha199640@gmail.com>
 
-This patch exports mem_cgroup_put API to put the refcnt of the memory
-cgroup.
+On Wed, Mar 07, 2018 at 10:18:21PM +0100, Julia Lawall wrote:
+> > Otherwise, yes, please. We could build a coccinelle rule for
+> > additional replacements...
+> 
+> A potential semantic patch and the changes it generates are attached
+> below.  Himanshu Jha helped with its development.  Working on this
+> uncovered one bug, where the allocated array is too large, because the
+> size provided for it was a structure size, but actually only pointers to
+> that structure were to be stored in it.
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- include/linux/memcontrol.h | 9 +++++++++
- 1 file changed, 9 insertions(+)
+This is cool!  Thanks for doing the coccinelle patch!  Diffstat:
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index c46016bb25eb..0da79e116a07 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -344,6 +344,11 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
- 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
- }
- 
-+static inline void mem_cgroup_put(struct mem_cgroup *memcg)
-+{
-+	css_put(&memcg->css);
-+}
-+
- #define mem_cgroup_from_counter(counter, member)	\
- 	container_of(counter, struct mem_cgroup, member)
- 
-@@ -789,6 +794,10 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
- 	return true;
- }
- 
-+static inline void mem_cgroup_put(struct mem_cgroup *memcg)
-+{
-+}
-+
- static inline struct mem_cgroup *
- mem_cgroup_iter(struct mem_cgroup *root,
- 		struct mem_cgroup *prev,
--- 
-2.16.2.395.g2e18187dfd-goog
+ 50 files changed, 81 insertions(+), 124 deletions(-)
+
+I find that pretty compelling.  I'll repost the kvmalloc_struct patch
+imminently.
