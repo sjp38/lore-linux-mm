@@ -1,89 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CA006B0006
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 21:41:46 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id j4so2282853wrg.11
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 18:41:46 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 93si14087165wrj.382.2018.03.07.18.41.44
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CFC46B0003
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2018 21:48:58 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id 101-v6so2099212ple.19
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2018 18:48:58 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e29-v6sor6108592plj.14.2018.03.07.18.48.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Mar 2018 18:41:44 -0800 (PST)
-Date: Wed, 7 Mar 2018 18:41:41 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2018-03-07-16-19 uploaded (UML & memcg)
-Message-Id: <20180307184141.3dff2f6c0f7d415912e50030@linux-foundation.org>
-In-Reply-To: <41ec9eeb-f0bf-e26d-e3ae-4a684c314360@infradead.org>
-References: <20180308002016.L3JwBaNZ9%akpm@linux-foundation.org>
-	<41ec9eeb-f0bf-e26d-e3ae-4a684c314360@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 07 Mar 2018 18:48:57 -0800 (PST)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH] mm: memcg: expose mem_cgroup_put API
+Date: Wed,  7 Mar 2018 18:48:50 -0800
+Message-Id: <20180308024850.39737-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org, sfr@canb.auug.org.au, Shakeel Butt <shakeelb@google.com>
+To: Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-On Wed, 7 Mar 2018 18:20:12 -0800 Randy Dunlap <rdunlap@infradead.org> wrote:
+This patch exports mem_cgroup_put API to put the refcnt of the memory
+cgroup.
 
-> On 03/07/2018 04:20 PM, akpm@linux-foundation.org wrote:
-> > The mm-of-the-moment snapshot 2018-03-07-16-19 has been uploaded to
-> > 
-> >    http://www.ozlabs.org/~akpm/mmotm/
-> > 
-> > mmotm-readme.txt says
-> > 
-> > README for mm-of-the-moment:
-> > 
-> > http://www.ozlabs.org/~akpm/mmotm/
-> > 
-> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> > more than once a week.
-> 
-> UML on i386 and/or x86_64:
-> 
-> defconfig, CONFIG_MEMCG is not set:
-> 
-> ../fs/notify/group.c: In function 'fsnotify_final_destroy_group':
-> ../fs/notify/group.c:41:24: error: dereferencing pointer to incomplete type
->    css_put(&group->memcg->css);
-
-oops.
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: fs-fsnotify-account-fsnotify-metadata-to-kmemcg-fix
-
-fix CONFIG_MEMCG=n build
-
-Reported-by: Randy Dunlap <rdunlap@infradead.org>
-Cc: Amir Goldstein <amir73il@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Greg Thelen <gthelen@google.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Shakeel Butt <shakeelb@google.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
 ---
+ include/linux/memcontrol.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
- fs/notify/group.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
---- a/fs/notify/group.c~fs-fsnotify-account-fsnotify-metadata-to-kmemcg-fix
-+++ a/fs/notify/group.c
-@@ -38,7 +38,7 @@ static void fsnotify_final_destroy_group
- 		group->ops->free_group_priv(group);
- 
- 	if (group->memcg)
--		css_put(&group->memcg->css);
-+		mem_cgroup_put(group->memcg);
- 
- 	kfree(group);
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index c46016bb25eb..0da79e116a07 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -344,6 +344,11 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
+ 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
  }
-_
+ 
++static inline void mem_cgroup_put(struct mem_cgroup *memcg)
++{
++	css_put(&memcg->css);
++}
++
+ #define mem_cgroup_from_counter(counter, member)	\
+ 	container_of(counter, struct mem_cgroup, member)
+ 
+@@ -789,6 +794,10 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
+ 	return true;
+ }
+ 
++static inline void mem_cgroup_put(struct mem_cgroup *memcg)
++{
++}
++
+ static inline struct mem_cgroup *
+ mem_cgroup_iter(struct mem_cgroup *root,
+ 		struct mem_cgroup *prev,
+-- 
+2.16.2.395.g2e18187dfd-goog
