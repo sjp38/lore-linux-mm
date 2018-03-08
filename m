@@ -1,71 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C7326B0005
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 16:08:35 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id l49so5265348qtf.4
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 13:08:35 -0800 (PST)
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A0C66B0005
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 16:10:18 -0500 (EST)
+Received: by mail-yb0-f198.google.com with SMTP id a17-v6so4031741ybm.2
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 13:10:18 -0800 (PST)
 Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id h187si1991686qka.13.2018.03.08.13.08.33
+        by mx.google.com with ESMTPS id v71-v6si3577161ybv.84.2018.03.08.13.10.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Mar 2018 13:08:34 -0800 (PST)
-Subject: Re: [PATCH] hugetlbfs: check for pgoff value overflow
+        Thu, 08 Mar 2018 13:10:17 -0800 (PST)
 From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH v2] hugetlbfs: check for pgoff value overflow
+Date: Thu,  8 Mar 2018 13:05:02 -0800
+Message-Id: <20180308210502.15952-1-mike.kravetz@oracle.com>
+In-Reply-To: <20180306133135.4dc344e478d98f0e29f47698@linux-foundation.org>
 References: <20180306133135.4dc344e478d98f0e29f47698@linux-foundation.org>
- <20180307235923.12469-1-mike.kravetz@oracle.com>
- <8a0863a2-1890-11e0-1fc2-c96e1794e809@huawei.com>
- <c41368dd-1566-c69f-ee98-8e89fdc16eeb@oracle.com>
-Message-ID: <91e7b7af-a9b5-3a13-74d4-34868e7befd9@oracle.com>
-Date: Thu, 8 Mar 2018 13:03:21 -0800
-MIME-Version: 1.0
-In-Reply-To: <c41368dd-1566-c69f-ee98-8e89fdc16eeb@oracle.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Nic Losby <blurbdust@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
+Cc: Michal Hocko <mhocko@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Nic Losby <blurbdust@gmail.com>, Yisheng Xie <xieyisheng1@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, stable@vger.kernel.org
 
-On 03/07/2018 08:25 PM, Mike Kravetz wrote:
-> On 03/07/2018 05:35 PM, Yisheng Xie wrote:
->> However, region_chg makes me a litter puzzle that when its return value < 0, sometime
->> adds_in_progress is added like this case, while sometime it is not. so why not just
->> change at the beginning of region_chg ?
->> 	if (f > t)
->> 		return -EINVAL;
-> 
-> If region_chg returns a value < 0, this indicates an error and adds_in_progress
-> should not be incremented.  In the case of this bug, region_chg was passed
-> values where f > t.  Of course, this should never happen.  But, because it
-> assumed f <= t, it returned a negative count needed huge page reservations.
-> The calling code interpreted the negative value as an error and a subsequent
-> region_add or region_abort.
-> 
-> I am not opposed to adding the suggested "if (f > t)".  However, the
-> region tracking routines are simple helpers only used by the hugetlbfs
-> code and the assumption is that they are being called correctly.  As
-> such, I would prefer to leave off the check.  But, this is the second
-> time they have been called incorrectly due to insufficient argument
-> checking.  If we do add this to region_chg, I would also add the check
-> to all region_* routines for consistency.
+A vma with vm_pgoff large enough to overflow a loff_t type when
+converted to a byte offset can be passed via the remap_file_pages
+system call.  The hugetlbfs mmap routine uses the byte offset to
+calculate reservations and file size.
 
-I really did not want to add the (f > t) check to the region_* routines.
-As mentioned we should never encounter this condition.  Adding the check
-here says that we missed discovering an error at higher levels.  Therefore,
-I went back and examined the callers of region_chg.  There are only 2:
-hugetlb_reserve_pages and __vma_reservation_common.  hugetlb_reserve_pages
-is called to set up a reservation for a mapping.  __vma_reservation_common
-is called to check on an existing reservation, and only operates on a
-single huge page.  With this in mind, a check in hugetlb_reserve_pages
-would be sufficient.  Therefore, I added an explicit check to that routine
-and printed a warning if ever encountered.
+A sequence such as:
+  mmap(0x20a00000, 0x600000, 0, 0x66033, -1, 0);
+  remap_file_pages(0x20a00000, 0x600000, 0, 0x20000000000000, 0);
+will result in the following when task exits/file closed,
+  kernel BUG at mm/hugetlb.c:749!
+Call Trace:
+  hugetlbfs_evict_inode+0x2f/0x40
+  evict+0xcb/0x190
+  __dentry_kill+0xcb/0x150
+  __fput+0x164/0x1e0
+  task_work_run+0x84/0xa0
+  exit_to_usermode_loop+0x7d/0x80
+  do_syscall_64+0x18b/0x190
+  entry_SYSCALL_64_after_hwframe+0x3d/0xa2
 
-> I will send out a V2 of this patch tomorrow with the corrected overflow
-> checking and possibly checks added to the region_* routines.
+The overflowed pgoff value causes hugetlbfs to try to set up a
+mapping with a negative range (end < start) that leaves invalid
+state which causes the BUG.
 
-v2 will be sent shortly.  In v2 I Cc stable as this is an issue for
-stable branches as well.
+The previous overflow fix to this code was incomplete and did not
+take the remap_file_pages system call into account.
 
+Fixes: 045c7a3f53d9 ("hugetlbfs: fix offset overflow in hugetlbfs mmap")
+Cc: <stable@vger.kernel.org>
+Reported-by: Nic Losby <blurbdust@gmail.com>
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+Changes in v2
+  * Use bitmask for overflow check as suggested by Yisheng Xie
+  * Add explicit (from > to) check when setting up reservations
+  * Cc stable
+
+ fs/hugetlbfs/inode.c | 11 ++++++++---
+ mm/hugetlb.c         |  6 ++++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 8fe1b0aa2896..dafffa6affae 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -111,6 +111,7 @@ static void huge_pagevec_release(struct pagevec *pvec)
+ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+ {
+ 	struct inode *inode = file_inode(file);
++	unsigned long ovfl_mask;
+ 	loff_t len, vma_len;
+ 	int ret;
+ 	struct hstate *h = hstate_file(file);
+@@ -127,12 +128,16 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+ 	vma->vm_ops = &hugetlb_vm_ops;
+ 
+ 	/*
+-	 * Offset passed to mmap (before page shift) could have been
+-	 * negative when represented as a (l)off_t.
++	 * page based offset in vm_pgoff could be sufficiently large to
++	 * overflow a (l)off_t when converted to byte offset.
+ 	 */
+-	if (((loff_t)vma->vm_pgoff << PAGE_SHIFT) < 0)
++	ovfl_mask = (1UL << (PAGE_SHIFT + 1)) - 1;
++	ovfl_mask <<= ((sizeof(unsigned long) * BITS_PER_BYTE) -
++		       (PAGE_SHIFT + 1));
++	if (vma->vm_pgoff & ovfl_mask)
+ 		return -EINVAL;
+ 
++	/* must be huge page aligned */
+ 	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
+ 		return -EINVAL;
+ 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 7c204e3d132b..8eeade0a0b7a 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4374,6 +4374,12 @@ int hugetlb_reserve_pages(struct inode *inode,
+ 	struct resv_map *resv_map;
+ 	long gbl_reserve;
+ 
++	/* This should never happen */
++	if (from > to) {
++		VM_WARN(1, "%s called with a negative range\n", __func__);
++		return -EINVAL;
++	}
++
+ 	/*
+ 	 * Only apply hugepage reservation if asked. At fault time, an
+ 	 * attempt will be made for VM_NORESERVE to allocate a page
 -- 
-Mike Kravetz
+2.13.6
