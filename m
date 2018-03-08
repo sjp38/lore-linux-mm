@@ -1,93 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ACDDD6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 11:45:58 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id l5so4652112qth.18
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 08:45:58 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id r11si9738721qkk.187.2018.03.08.08.45.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Mar 2018 08:45:57 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w28GjUsU140100
-	for <linux-mm@kvack.org>; Thu, 8 Mar 2018 11:45:56 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2gk8hvh8y3-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 08 Mar 2018 11:45:55 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Thu, 8 Mar 2018 16:45:53 -0000
-Date: Thu, 8 Mar 2018 08:45:45 -0800
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [bug?] Access was denied by memory protection keys in
- execute-only address
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <CAEemH2f0LDqyR5AmUYv17OuBc5-UycckDPWgk46XU_ghQo4diw@mail.gmail.com>
- <871sguep4v.fsf@concordia.ellerman.id.au>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B7746B0005
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 13:04:45 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id d142so3365709oih.4
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 10:04:45 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l7si6101669otk.351.2018.03.08.10.04.43
+        for <linux-mm@kvack.org>;
+        Thu, 08 Mar 2018 10:04:43 -0800 (PST)
+Date: Thu, 8 Mar 2018 18:04:47 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 1/2] mm/vmalloc: Add interfaces to free unused page table
+Message-ID: <20180308180446.GF14918@arm.com>
+References: <20180307183227.17983-1-toshi.kani@hpe.com>
+ <20180307183227.17983-2-toshi.kani@hpe.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <871sguep4v.fsf@concordia.ellerman.id.au>
-Message-Id: <20180308164545.GM1060@ram.oc3035372033.ibm.com>
+In-Reply-To: <20180307183227.17983-2-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Li Wang <liwang@redhat.com>, Jan Stancek <jstancek@redhat.com>, ltp@lists.linux.it, linux-mm@kvack.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, catalin.marinas@arm.com, guohanjun@huawei.com, wxf.wang@hisilicon.com, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 08, 2018 at 11:19:12PM +1100, Michael Ellerman wrote:
-> Li Wang <liwang@redhat.com> writes:
-> > Hi,
-> >
-> > ltp/mprotect04[1] crashed by SEGV_PKUERR on ppc64(LPAR on P730, Power 8
-> > 8247-22L) with kernel-v4.16.0-rc4.
-> >
-> > 10000000-10020000 r-xp 00000000 fd:00 167223           mprotect04
-> > 10020000-10030000 r--p 00010000 fd:00 167223           mprotect04
-> > 10030000-10040000 rw-p 00020000 fd:00 167223           mprotect04
-> > 1001a380000-1001a3b0000 rw-p 00000000 00:00 0          [heap]
-> > 7fffa6c60000-7fffa6c80000 --xp 00000000 00:00 0 a??
-> >
-> > a??&exec_func = 0x10030170a??
-> >
-> > a??&func = 0x7fffa6c60170a??
-> >
-> > a??While perform a??
-> > "(*func)();" we get the
-> > a??segmentation fault.
-> > a??
-> >
-> > a??strace log:a??
-> >
-> > -------------------
-> > a??mprotect(0x7fffaed00000, 131072, PROT_EXEC) = 0
-> > rt_sigprocmask(SIG_BLOCK, NULL, [], 8)  = 0
-> > --- SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_PKUERR, si_addr=0x7fffaed00170}
-> > ---a??
+Hi Toshi,
+
+Thanks for the patches!
+
+On Wed, Mar 07, 2018 at 11:32:26AM -0700, Toshi Kani wrote:
+> On architectures with CONFIG_HAVE_ARCH_HUGE_VMAP set, ioremap()
+> may create pud/pmd mappings.  Kernel panic was observed on arm64
+> systems with Cortex-A75 in the following steps as described by
+> Hanjun Guo.
 > 
-> Looks like a bug to me.
+> 1. ioremap a 4K size, valid page table will build,
+> 2. iounmap it, pte0 will set to 0;
+> 3. ioremap the same address with 2M size, pgd/pmd is unchanged,
+>    then set the a new value for pmd;
+> 4. pte0 is leaked;
+> 5. CPU may meet exception because the old pmd is still in TLB,
+>    which will lead to kernel panic.
 > 
-> Please Cc linuxppc-dev on powerpc bugs.
+> This panic is not reproducible on x86.  INVLPG, called from iounmap,
+> purges all levels of entries associated with purged address on x86.
+> x86 still has memory leak.
 > 
-> I also can't reproduce this failure on my machine.
-> Not sure what's going on?
+> Add two interfaces, pud_free_pmd_page() and pmd_free_pte_page(),
+> which clear a given pud/pmd entry and free up a page for the lower
+> level entries.
+> 
+> This patch implements their stub functions on x86 and arm64, which
+> work as workaround.
+> 
+> Reported-by: Lei Li <lious.lilei@hisilicon.com>
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Wang Xuefeng <wxf.wang@hisilicon.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Hanjun Guo <guohanjun@huawei.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Borislav Petkov <bp@suse.de>
+> ---
+>  arch/arm64/mm/mmu.c           |   10 ++++++++++
+>  arch/x86/mm/pgtable.c         |   20 ++++++++++++++++++++
+>  include/asm-generic/pgtable.h |   10 ++++++++++
+>  lib/ioremap.c                 |    6 ++++--
+>  4 files changed, 44 insertions(+), 2 deletions(-)
 
-I could reproduce it on a power7 lpar.  But not on a power8 lpar.
+[...]
 
-The problem seems to be that the cpu generates a key exception if
-the page with Read/Write-disable-but-execute-enable key is executed
-on power7. If I enable read on that key, the exception disappears.
+> diff --git a/lib/ioremap.c b/lib/ioremap.c
+> index b808a390e4c3..54e5bbaa3200 100644
+> --- a/lib/ioremap.c
+> +++ b/lib/ioremap.c
+> @@ -91,7 +91,8 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+>  
+>  		if (ioremap_pmd_enabled() &&
+>  		    ((next - addr) == PMD_SIZE) &&
+> -		    IS_ALIGNED(phys_addr + addr, PMD_SIZE)) {
+> +		    IS_ALIGNED(phys_addr + addr, PMD_SIZE) &&
+> +		    pmd_free_pte_page(pmd)) {
 
-BTW: the testcase executes mprotect(..,PROT_EXEC).
-The mprotect(, PROT_EXEC) system call internally generates a
-execute-only key and associates it with the pages in the address-range.
+I find it a bit weird that we're postponing this to the subsequent map. If
+we want to address the break-before-make issue that was causing a panic on
+arm64, then I think it would be better to do this on the unmap path to avoid
+duplicating TLB invalidation.
 
-Now since Li Wang claims that he can reproduce it on power8 as well, i
-am wondering if the slightly different cpu behavior is dependent on the
-version of the firmware/microcode?
-
-
-RP
+Will
