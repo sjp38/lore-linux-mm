@@ -1,53 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CD81A6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 06:25:44 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id x85so2797926oix.8
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 03:25:44 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g8si6060038otc.319.2018.03.08.03.25.43
-        for <linux-mm@kvack.org>;
-        Thu, 08 Mar 2018 03:25:43 -0800 (PST)
-Date: Thu, 8 Mar 2018 11:25:32 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [RFC PATCH 09/14] khwasan: add hooks implementation
-Message-ID: <20180308112532.4ijhy4dyb6u72nvl@lakrids.cambridge.arm.com>
-References: <cover.1520017438.git.andreyknvl@google.com>
- <06a4d0c483fba8babd01fe23727fe4a79482d309.1520017438.git.andreyknvl@google.com>
- <20180305144405.jhrftj56hnlfl4ko@lakrids.cambridge.arm.com>
- <CAAeHK+x0gjQT95Suq-xqpbSUVo4Z3r8j48vOOG+NCgGS+cnAGA@mail.gmail.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FEA96B0003
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 07:19:29 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id o19so2381210pgn.12
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 04:19:29 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id p1-v6si14820799plb.760.2018.03.08.04.19.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 08 Mar 2018 04:19:27 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [bug?] Access was denied by memory protection keys in execute-only address
+In-Reply-To: <CAEemH2f0LDqyR5AmUYv17OuBc5-UycckDPWgk46XU_ghQo4diw@mail.gmail.com>
+References: <CAEemH2f0LDqyR5AmUYv17OuBc5-UycckDPWgk46XU_ghQo4diw@mail.gmail.com>
+Date: Thu, 08 Mar 2018 23:19:12 +1100
+Message-ID: <871sguep4v.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAeHK+x0gjQT95Suq-xqpbSUVo4Z3r8j48vOOG+NCgGS+cnAGA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Li Wang <liwang@redhat.com>, linuxram@us.ibm.com
+Cc: Jan Stancek <jstancek@redhat.com>, ltp@lists.linux.it, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.orglinuxppc-dev@lists.ozlabs.org
 
-On Tue, Mar 06, 2018 at 07:38:08PM +0100, Andrey Konovalov wrote:
-> On Mon, Mar 5, 2018 at 3:44 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> > On Fri, Mar 02, 2018 at 08:44:28PM +0100, Andrey Konovalov wrote:
-> >> +
-> >> +     for (shadow = shadow_first; shadow <= shadow_last; shadow++) {
-> >> +             if (*shadow != tag) {
-> >> +                     /* Report invalid-access bug here */
-> >> +                     return;
-> >
-> > Huh? Should that be a TODO?
-> 
-> This is fixed in one of the next commits. I decided to split the main
-> runtime logic and the reporting parts, so this comment is a
-> placeholder, which is replaced with the proper error reporting
-> function call later in the patch series. I can make it a /* TODO:
-> comment */, if you think that looks better.
+Li Wang <liwang@redhat.com> writes:
+> Hi,
+>
+> ltp/mprotect04[1] crashed by SEGV_PKUERR on ppc64(LPAR on P730, Power 8
+> 8247-22L) with kernel-v4.16.0-rc4.
+>
+> 10000000-10020000 r-xp 00000000 fd:00 167223           mprotect04
+> 10020000-10030000 r--p 00010000 fd:00 167223           mprotect04
+> 10030000-10040000 rw-p 00020000 fd:00 167223           mprotect04
+> 1001a380000-1001a3b0000 rw-p 00000000 00:00 0          [heap]
+> 7fffa6c60000-7fffa6c80000 --xp 00000000 00:00 0 =E2=80=8B
+>
+> =E2=80=8B&exec_func =3D 0x10030170=E2=80=8B
+>
+> =E2=80=8B&func =3D 0x7fffa6c60170=E2=80=8B
+>
+> =E2=80=8BWhile perform =E2=80=8B
+> "(*func)();" we get the
+> =E2=80=8Bsegmentation fault.
+> =E2=80=8B
+>
+> =E2=80=8Bstrace log:=E2=80=8B
+>
+> -------------------
+> =E2=80=8Bmprotect(0x7fffaed00000, 131072, PROT_EXEC) =3D 0
+> rt_sigprocmask(SIG_BLOCK, NULL, [], 8)  =3D 0
+> --- SIGSEGV {si_signo=3DSIGSEGV, si_code=3DSEGV_PKUERR, si_addr=3D0x7fffa=
+ed00170}
+> ---=E2=80=8B
 
-It might be preferable to introdcue the report functions first (i.e.
-swap this patch with the next one).
+Looks like a bug to me.
 
-Those will be unused, but since they're not static, you shouldn't get
-any build warnings. Then the hooks can call the report functions as soon
-as they're introduced.
+Please Cc linuxppc-dev on powerpc bugs.
 
-Thanks,
-Mark.
+I also can't reproduce this failure on my machine.
+Not sure what's going on?
+
+cheers
