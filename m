@@ -1,114 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A0C66B0005
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 16:10:18 -0500 (EST)
-Received: by mail-yb0-f198.google.com with SMTP id a17-v6so4031741ybm.2
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 13:10:18 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id v71-v6si3577161ybv.84.2018.03.08.13.10.17
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E2D8F6B0005
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 16:43:33 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id s8so2968552pgf.16
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 13:43:33 -0800 (PST)
+Received: from g2t2352.austin.hpe.com (g2t2352.austin.hpe.com. [15.233.44.25])
+        by mx.google.com with ESMTPS id h67si16539541pfj.11.2018.03.08.13.43.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Mar 2018 13:10:17 -0800 (PST)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v2] hugetlbfs: check for pgoff value overflow
-Date: Thu,  8 Mar 2018 13:05:02 -0800
-Message-Id: <20180308210502.15952-1-mike.kravetz@oracle.com>
-In-Reply-To: <20180306133135.4dc344e478d98f0e29f47698@linux-foundation.org>
-References: <20180306133135.4dc344e478d98f0e29f47698@linux-foundation.org>
+        Thu, 08 Mar 2018 13:43:32 -0800 (PST)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: Kernel page fault in vmalloc_fault() after a preempted ioremap
+Date: Thu, 8 Mar 2018 21:43:25 +0000
+Message-ID: <1520548101.2693.106.camel@hpe.com>
+References: <87a7vi1f3h.fsf@kerf.amer.corp.natinst.com>
+In-Reply-To: <87a7vi1f3h.fsf@kerf.amer.corp.natinst.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <3EBA0F41A309834582FD857C62A122CA@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Nic Losby <blurbdust@gmail.com>, Yisheng Xie <xieyisheng1@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, stable@vger.kernel.org
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "gratian.crisan@ni.com" <gratian.crisan@ni.com>
+Cc: "mingo@kernel.org" <mingo@kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "julia.cartwright@ni.com" <julia.cartwright@ni.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "bp@suse.de" <bp@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "brgerst@gmail.com" <brgerst@gmail.com>, "luto@kernel.org" <luto@kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "dvlasenk@redhat.com" <dvlasenk@redhat.com>, "gratian@gmail.com" <gratian@gmail.com>
 
-A vma with vm_pgoff large enough to overflow a loff_t type when
-converted to a byte offset can be passed via the remap_file_pages
-system call.  The hugetlbfs mmap routine uses the byte offset to
-calculate reservations and file size.
-
-A sequence such as:
-  mmap(0x20a00000, 0x600000, 0, 0x66033, -1, 0);
-  remap_file_pages(0x20a00000, 0x600000, 0, 0x20000000000000, 0);
-will result in the following when task exits/file closed,
-  kernel BUG at mm/hugetlb.c:749!
-Call Trace:
-  hugetlbfs_evict_inode+0x2f/0x40
-  evict+0xcb/0x190
-  __dentry_kill+0xcb/0x150
-  __fput+0x164/0x1e0
-  task_work_run+0x84/0xa0
-  exit_to_usermode_loop+0x7d/0x80
-  do_syscall_64+0x18b/0x190
-  entry_SYSCALL_64_after_hwframe+0x3d/0xa2
-
-The overflowed pgoff value causes hugetlbfs to try to set up a
-mapping with a negative range (end < start) that leaves invalid
-state which causes the BUG.
-
-The previous overflow fix to this code was incomplete and did not
-take the remap_file_pages system call into account.
-
-Fixes: 045c7a3f53d9 ("hugetlbfs: fix offset overflow in hugetlbfs mmap")
-Cc: <stable@vger.kernel.org>
-Reported-by: Nic Losby <blurbdust@gmail.com>
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
-Changes in v2
-  * Use bitmask for overflow check as suggested by Yisheng Xie
-  * Add explicit (from > to) check when setting up reservations
-  * Cc stable
-
- fs/hugetlbfs/inode.c | 11 ++++++++---
- mm/hugetlb.c         |  6 ++++++
- 2 files changed, 14 insertions(+), 3 deletions(-)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 8fe1b0aa2896..dafffa6affae 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -111,6 +111,7 @@ static void huge_pagevec_release(struct pagevec *pvec)
- static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
- {
- 	struct inode *inode = file_inode(file);
-+	unsigned long ovfl_mask;
- 	loff_t len, vma_len;
- 	int ret;
- 	struct hstate *h = hstate_file(file);
-@@ -127,12 +128,16 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
- 	vma->vm_ops = &hugetlb_vm_ops;
- 
- 	/*
--	 * Offset passed to mmap (before page shift) could have been
--	 * negative when represented as a (l)off_t.
-+	 * page based offset in vm_pgoff could be sufficiently large to
-+	 * overflow a (l)off_t when converted to byte offset.
- 	 */
--	if (((loff_t)vma->vm_pgoff << PAGE_SHIFT) < 0)
-+	ovfl_mask = (1UL << (PAGE_SHIFT + 1)) - 1;
-+	ovfl_mask <<= ((sizeof(unsigned long) * BITS_PER_BYTE) -
-+		       (PAGE_SHIFT + 1));
-+	if (vma->vm_pgoff & ovfl_mask)
- 		return -EINVAL;
- 
-+	/* must be huge page aligned */
- 	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
- 		return -EINVAL;
- 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 7c204e3d132b..8eeade0a0b7a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4374,6 +4374,12 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	struct resv_map *resv_map;
- 	long gbl_reserve;
- 
-+	/* This should never happen */
-+	if (from > to) {
-+		VM_WARN(1, "%s called with a negative range\n", __func__);
-+		return -EINVAL;
-+	}
-+
- 	/*
- 	 * Only apply hugepage reservation if asked. At fault time, an
- 	 * attempt will be made for VM_NORESERVE to allocate a page
--- 
-2.13.6
+T24gVGh1LCAyMDE4LTAzLTA4IGF0IDE0OjM0IC0wNjAwLCBHcmF0aWFuIENyaXNhbiB3cm90ZToN
+Cj4gSGkgYWxsLA0KPiANCj4gV2UgYXJlIHNlZWluZyBrZXJuZWwgcGFnZSBmYXVsdHMgaGFwcGVu
+aW5nIG9uIG1vZHVsZSBsb2FkcyB3aXRoIGNlcnRhaW4NCj4gZHJpdmVycyBsaWtlIHRoZSBpOTE1
+IHZpZGVvIGRyaXZlclsxXS4gVGhpcyB3YXMgaW5pdGlhbGx5IGRpc2NvdmVyZWQgb24NCj4gYSA0
+LjkgUFJFRU1QVF9SVCBrZXJuZWwuIEl0IHRha2VzIDUgZGF5cyBvbiBhdmVyYWdlIHRvIHJlcHJv
+ZHVjZSB1c2luZyBhDQo+IHNpbXBsZSByZWJvb3QgbG9vcCB0ZXN0LiBMb29raW5nIGF0IHRoZSBj
+b2RlIHBhdGhzIGludm9sdmVkIEkgYmVsaWV2ZQ0KPiB0aGUgaXNzdWUgaXMgc3RpbGwgcHJlc2Vu
+dCBpbiB0aGUgbGF0ZXN0IHZhbmlsbGEga2VybmVsLg0KPiANCj4gU29tZSByZWxldmFudCBwb2lu
+dHMgYXJlOg0KPiANCj4gICAqIHg4Nl82NCBDUFU6IEludGVsIEF0b20gRTM5NDANCj4gDQo+ICAg
+KiBDT05GSUdfSFVHRVRMQkZTIGlzIG5vdCBzZXQgKHdoaWNoIGFsc28gZ2F0ZXMgQ09ORklHX0hV
+R0VUTEJfUEFHRSkNCj4gDQo+IEJhc2VkIG9uIGZ1bmN0aW9uIHRyYWNlcyBJIHdhcyBhYmxlIHRv
+IGdhdGhlciB0aGUgc2VxdWVuY2Ugb2YgZXZlbnRzIGlzOg0KPiANCj4gICAxLiBEcml2ZXIgc3Rh
+cnRzIGEgaW9yZW1hcCBvcGVyYXRpb24gZm9yIGEgcmVnaW9uIHRoYXQgaXMgUE1EX1NJWkUgaW4N
+Cj4gICBzaXplIChvciBQVURfU0laRSkuDQo+IA0KPiAgIDIuIFRoZSBpb3JlbWFwKCkgb3BlcmF0
+aW9uIGlzIHByZWVtcHRlZCB3aGlsZSBpdCdzIGluIHRoZSBtaWRkbGUgb2YNCj4gICBzZXR0aW5n
+IHVwIHRoZSBwYWdlIG1hcHBpbmdzOg0KPiAgIGlvcmVtYXBfcGFnZV9yYW5nZS0+Li4uLT5pb3Jl
+bWFwX3BtZF9yYW5nZS0+cG1kX3NldF9odWdlIDw8cHJlZW1wdGVkPj4NCj4gDQo+ICAgMy4gVW5y
+ZWxhdGVkIHRhc2tzIHJ1bi4gVHJhY2VzIGFsc28gaW5jbHVkZSBzb21lIGNyb3NzIGNvcmUgc2No
+ZWR1bGluZw0KPiAgIElQSSBjYWxscy4NCj4gDQo+ICAgNC4gRHJpdmVyIHJlc3VtZXMgZXhlY3V0
+aW9uIGZpbmlzaGVzIHRoZSBpb3JlbWFwIG9wZXJhdGlvbiBhbmQgdHJpZXMgdG8NCj4gICBhY2Nl
+c3MgdGhlIG5ld2x5IG1hcHBlZCBJTyByZWdpb24uIFRoaXMgdHJpZ2dlcnMgYSB2bWFsbG9jIGZh
+dWx0Lg0KPiANCj4gICA1LiBUaGUgdm1hbGxvY19mYXVsdCgpIGZ1bmN0aW9uIGhpdHMgYSBrZXJu
+ZWwgcGFnZSBmYXVsdCB3aGVuIHRyeWluZyB0bw0KPiAgIGRlcmVmZXJlbmNlIGEgbm9uLWV4aXN0
+ZW50ICpwdGVfcmVmLg0KPiANCj4gVGhlIHJlYXNvbiB0aGlzIGhhcHBlbnMgaXMgdGhlIGNvZGUg
+cGF0aHMgY2FsbGVkIGZyb20gaW9yZW1hcF9wYWdlX3JhbmdlKCkNCj4gbWFrZSBkaWZmZXJlbnQg
+YXNzdW1wdGlvbnMgYWJvdXQgd2hlbiBhIGxhcmdlIHBhZ2UgKHB1ZC9wbWQpIG1hcHBpbmcgY2Fu
+IGJlDQo+IHVzZWQgdmVyc3VzIHRoZSBjb2RlIHBhdGhzIGluIHZtYWxsb2NfZmF1bHQoKS4NCj4g
+DQo+IFVzaW5nIHRoZSBQTUQgc2l6ZWQgaW9yZW1hcCBjYXNlIGFzIGFuIGV4YW1wbGUgKHRoZSBQ
+VUQgY2FzZSBpcyBzaW1pbGFyKToNCj4gaW9yZW1hcF9wbWRfcmFuZ2UoKSBjYWxscyBpb3JlbWFw
+X3BtZF9lbmFibGVkKCkgd2hpY2ggaXMgZ2F0ZWQgYnkNCj4gQ09ORklHX0hBVkVfQVJDSF9IVUdF
+X1ZNQVAuIE9uIHg4Nl82NCB0aGlzIHdpbGwgcmV0dXJuIHRydWUgdW5sZXNzIHRoZQ0KPiAibm9o
+dWdlaW9tYXAiIGtlcm5lbCBib290IHBhcmFtZXRlciBpcyBwYXNzZWQgaW4uDQo+IA0KPiBPbiB0
+aGUgb3RoZXIgaGFuZCwgaW4gdGhlIHJhcmUgY2FzZSB3aGVuIGEgcGFnZSBmYXVsdCBoYXBwZW5z
+IGluIHRoZQ0KPiBpb3JlbWFwJ2VkIHJlZ2lvbiwgdm1hbGxvY19mYXVsdCgpIGNhbGxzIHRoZSBw
+bWRfaHVnZSgpIGZ1bmN0aW9uIHRvIGNoZWNrDQo+IGlmIGEgUE1EIHBhZ2UgaXMgbWFya2VkIGh1
+Z2Ugb3IgaWYgaXQgc2hvdWxkIGdvIG9uIGFuZCBnZXQgYSByZWZlcmVuY2UgdG8NCj4gdGhlIFBU
+RS4gSG93ZXZlciBwbWRfaHVnZSgpIGlzIGNvbmRpdGlvbmFsbHkgY29tcGlsZWQgYmFzZWQgb24g
+dGhlIHVzZXINCj4gY29uZmlndXJlZCBDT05GSUdfSFVHRVRMQl9QQUdFIHNlbGVjdGVkIGJ5IENP
+TkZJR19IVUdFVExCRlMuIElmIHRoZQ0KPiBDT05GSUdfSFVHRVRMQkZTIG9wdGlvbiBpcyBub3Qg
+ZW5hYmxlZCBwbWRfaHVnZSgpIGlzIGFsd2F5cyBkZWZpbmVkIHRvIGJlDQo+IDAuDQo+IA0KPiBU
+aGUgZW5kIHJlc3VsdCBpcyBhbiBPT1BTIGluIHZtYWxsb2NfZmF1bHQoKSB3aGVuIHRoZSBub24t
+ZXhpc3RlbnQgcHRlX3JlZg0KPiBpcyBkZXJlZmVyZW5jZWQgYmVjYXVzZSB0aGUgdGVzdCBmb3Ig
+cG1kX2h1Z2UoKSBmYWlsZWQuDQo+IA0KPiBDb21taXQgZjRlYWZkOGJjZDUyICgieDg2L21tOiBG
+aXggdm1hbGxvY19mYXVsdCgpIHRvIGhhbmRsZSBsYXJnZSBwYWdlcw0KPiBwcm9wZXJseSIpIGF0
+dGVtcHRlZCB0byBmaXggdGhlIG1pc21hdGNoIGJldHdlZW4gaW9yZW1hcCgpIGFuZA0KPiB2bWFs
+bG9jX2ZhdWx0KCkgd2l0aCByZWdhcmRzIHRvIGh1Z2UgcGFnZSBoYW5kbGluZyBidXQgaXQgbWlz
+c2VkIHRoaXMgdXNlDQo+IGNhc2UuDQo+IA0KPiBJIGFtIHdvcmtpbmcgb24gYSBzaW1wbGVyIHJl
+cHJvZHVjaW5nIGNhc2UgaG93ZXZlciBzbyBmYXIgSSd2ZSBiZWVuDQo+IHVuc3VjY2Vzc2Z1bCBp
+biByZS1jcmVhdGluZyB0aGUgY29uZGl0aW9ucyB0aGF0IHRyaWdnZXIgdGhlIHZtYWxsb2MgZmF1
+bHQNCj4gaW4gdGhlIGZpcnN0IHBsYWNlLiBBZGRpbmcgZXhwbGljaXQgc2NoZWR1bGluZyBwb2lu
+dHMgaW4NCj4gaW9yZW1hcF9wbWRfcmFuZ2UvcG1kX3NldF9odWdlIGRvZXNuJ3Qgc2VlbSB0byBi
+ZSBzdWZmaWNpZW50LiBJZGVhcw0KPiBhcHByZWNpYXRlZC4NCj4gDQo+IEFueSB0aG91Z2h0cyBv
+biB3aGF0IGEgY29ycmVjdCBmaXggd291bGQgbG9vayBsaWtlPyBTaG91bGQgdGhlIGlvcmVtYXAN
+Cj4gY29kZSBwYXRocyByZXNwZWN0IHRoZSBIVUdFVExCRlMgY29uZmlnIG9yIHdvdWxkIGl0IGJl
+IGJldHRlciBmb3IgdGhlDQo+IHZtYWxsb2MgZmF1bHQgY29kZSBwYXRocyB0byBtYXRjaCB0aGUg
+dGVzdHMgdXNlZCBpbiBpb3JlbWFwIGFuZCBub3QgcmVseQ0KPiBvbiB0aGUgSFVHRVRMQkZTIG9w
+dGlvbiBiZWluZyBlbmFibGVkPw0KDQpUaGFua3MgZm9yIHRoZSByZXBvcnQgYW5kIGFuYWx5c2lz
+ISAgSSBiZWxpZXZlIHB1ZF9sYXJnZSgpIGFuZA0KcG1kX2xhcmdlKCkgc2hvdWxkIGhhdmUgYmVl
+biB1c2VkIGhlcmUuICBJIHdpbGwgdHJ5IHRvIHJlcHJvZHVjZSB0aGUNCmlzc3VlIGFuZCB2ZXJp
+ZnkgdGhlIGZpeC4NCg0KLVRvc2hpDQo=
