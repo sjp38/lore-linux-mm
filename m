@@ -1,80 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C3796B0009
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 10:51:09 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id u68so1226034wmd.5
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 07:51:08 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 37sor684272wrb.33.2018.03.09.07.51.07
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Mar 2018 07:51:07 -0800 (PST)
-Date: Fri, 9 Mar 2018 18:51:04 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: [PATCH 12/25] slub: make ->reserved unsigned int
-Message-ID: <20180309155103.GA11093@avx2>
-References: <20180305200730.15812-1-adobriyan@gmail.com>
- <20180305200730.15812-12-adobriyan@gmail.com>
- <alpine.DEB.2.20.1803061242530.29393@nuc-kabylake>
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 477E26B0007
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 10:58:36 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id y8so5204609ote.15
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 07:58:36 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f2si373176oth.315.2018.03.09.07.58.35
+        for <linux-mm@kvack.org>;
+        Fri, 09 Mar 2018 07:58:35 -0800 (PST)
+Date: Fri, 9 Mar 2018 15:58:29 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC PATCH 2/6] arm64: untag user addresses in copy_from_user
+ and others
+Message-ID: <20180309155829.2fzgevhsxj3gnyly@armageddon.cambridge.arm.com>
+References: <cover.1520600533.git.andreyknvl@google.com>
+ <d681c0dee907ee5cc55d313e2f843237c6087bf0.1520600533.git.andreyknvl@google.com>
+ <20180309150309.4sue2zj6teehx6e3@lakrids.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1803061242530.29393@nuc-kabylake>
+In-Reply-To: <20180309150309.4sue2zj6teehx6e3@lakrids.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Will Deacon <will.deacon@arm.com>, Robin Murphy <robin.murphy@arm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>
 
-On Tue, Mar 06, 2018 at 12:43:26PM -0600, Christopher Lameter wrote:
-> On Mon, 5 Mar 2018, Alexey Dobriyan wrote:
+On Fri, Mar 09, 2018 at 03:03:09PM +0000, Mark Rutland wrote:
+> On Fri, Mar 09, 2018 at 03:02:00PM +0100, Andrey Konovalov wrote:
+> > copy_from_user (and a few other similar functions) are used to copy data
+> > from user memory into the kernel memory or vice versa. Since a user can
+> > provided a tagged pointer to one of the syscalls that use copy_from_user,
+> > we need to correctly handle such pointers.
 > 
-> > ->reserved is either 0 or sizeof(struct rcu_head), can't be negative.
+> I don't think it makes sense to do this in the low-level uaccess
+> primitives, given we're going to have to untag pointers before common
+> code can use them, e.g. for comparisons against TASK_SIZE or
+> user_addr_max().
 > 
-> Thus it should be size_t? ;-)
+> I think we'll end up with subtle bugs unless we consistently untag
+> pointers before we get to uaccess primitives. If core code does untag
+> pointers, then it's redundant to do so here.
 
-:-)
+A quick "hack" below clears the tag on syscall entry (where the argument
+is a __user pointer). However, we still have cases in core code where
+the pointer is read from a structure or even passed as an unsigned long
+as part of a command + argument (like in ptrace).
 
-Christoph, using "unsigned int" should be default for kernel really.
+The "hack":
 
-As was noted earlier it doesn't matter for constants as x86_64 clears
-upper half of a register. But it matters for sizes which aren't known
-at compile time.
-
-I've looked at a lot of places where size_t is used.
-There is a certain degree of "type correctness" when people try to keep
-type as much as possible. It works until first multiplication.
-
-	int n;
-	size_t len = sizeof(struct foo0) + n * sizeof(struct foo);
-
-Most likely MOVSX or CDQE will be generated which is not the case
-if everything is "unsigned int".
-
-Generally, on x86_64,
-
-	uint32_t > uint64_t > uint16_t
-	uint8_t	 >
-
-uint64_t adds REX prefix.
-uint16_t additionally adds 66 prefix
-
-uint8_t doesn't add anything but it is suboptimal on embedded archs
-which emit "& 0xff" and thus should be used only for trimming memory
-usage.
-
-Additionally,
-
-	unsigned int > int
-
-as it is easy for compiler to lose track of value range and generate
-size extensions.
-
-There is only one exception, namely, when pointers are mixed with
-integers:
-
-	int n;
-	void *p = p0 + n;
-
-Quite often, gcc generates bigger code when types are made unsigned.
-I don't quite understand how it thinks, but overall code will be smaller
-if every signed type is made into unsigned.
+---------------------------------8<--------------------------
