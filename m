@@ -1,83 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1540C6B0005
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 14:18:37 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id w23so723854otj.6
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 11:18:37 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id a25si498483otj.335.2018.03.09.11.18.35
-        for <linux-mm@kvack.org>;
-        Fri, 09 Mar 2018 11:18:36 -0800 (PST)
-Date: Fri, 9 Mar 2018 19:18:24 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [RFC PATCH 14/14] khwasan: default the instrumentation mode to
- inline
-Message-ID: <20180309191823.p6r7f5dlxhifxokh@lakrids.cambridge.arm.com>
-References: <cover.1520017438.git.andreyknvl@google.com>
- <1943a345f4fb7e8e8f19b4ece2457bccd772f0dc.1520017438.git.andreyknvl@google.com>
- <20180305145435.tfaldb334lp4obhi@lakrids.cambridge.arm.com>
- <CAAeHK+y+sAGYSsfUHk4De2QiAPEN_+_ACxCoQ7XMSkvpseoFVQ@mail.gmail.com>
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C38366B0005
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 14:54:56 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id h21so7515923qtm.22
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 11:54:56 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id v4si1394078qka.230.2018.03.09.11.54.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Mar 2018 11:54:55 -0800 (PST)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w29Jsq5v055070
+	for <linux-mm@kvack.org>; Fri, 9 Mar 2018 14:54:54 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2gm0t8023p-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 09 Mar 2018 14:54:53 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Fri, 9 Mar 2018 19:54:48 -0000
+Date: Fri, 9 Mar 2018 11:54:35 -0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH] x86, powerpc : pkey-mprotect must allow pkey-0
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1520583161-11741-1-git-send-email-linuxram@us.ibm.com>
+ <CAKTCnz=QrNoG0wdTZRJqmYfFOZmq2czZ4x8v1e=ouNx2Y8D6wg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAAeHK+y+sAGYSsfUHk4De2QiAPEN_+_ACxCoQ7XMSkvpseoFVQ@mail.gmail.com>
+In-Reply-To: <CAKTCnz=QrNoG0wdTZRJqmYfFOZmq2czZ4x8v1e=ouNx2Y8D6wg@mail.gmail.com>
+Message-Id: <20180309195435.GQ1060@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Aneesh Kumar KV <aneesh.kumar@linux.vnet.ibm.com>, Haren Myneni/Beaverton/IBM <hbabu@us.ibm.com>, Michal Hocko <mhocko@kernel.org>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Jonathan Corbet <corbet@lwn.net>, Arnd Bergmann <arnd@arndb.de>, fweimer@redhat.com, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
 
-On Fri, Mar 09, 2018 at 07:06:59PM +0100, Andrey Konovalov wrote:
-> On Mon, Mar 5, 2018 at 3:54 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> > On Fri, Mar 02, 2018 at 08:44:33PM +0100, Andrey Konovalov wrote:
-> >> There are two reasons to use outline instrumentation:
-> >> 1. Outline instrumentation reduces the size of the kernel text, and should
-> >>    be used where this size matters.
-> >> 2. Outline instrumentation is less invasive and can be used for debugging
-> >>    for KASAN developers, when it's not clear whether some issue is caused
-> >>    by KASAN or by something else.
-> >>
-> >> For the rest cases inline instrumentation is preferrable, since it's
-> >> faster.
-> >>
-> >> This patch changes the default instrumentation mode to inline.
-> >> ---
-> >>  lib/Kconfig.kasan | 2 +-
-> >>  1 file changed, 1 insertion(+), 1 deletion(-)
-> >>
-> >> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-> >> index ab34e7d7d3a7..8ea6ae26b4a3 100644
-> >> --- a/lib/Kconfig.kasan
-> >> +++ b/lib/Kconfig.kasan
-> >> @@ -70,7 +70,7 @@ config KASAN_EXTRA
-> >>  choice
-> >>       prompt "Instrumentation type"
-> >>       depends on KASAN
-> >> -     default KASAN_OUTLINE
-> >> +     default KASAN_INLINE
+On Fri, Mar 09, 2018 at 07:37:04PM +1100, Balbir Singh wrote:
+> On Fri, Mar 9, 2018 at 7:12 PM, Ram Pai <linuxram@us.ibm.com> wrote:
+> > Once an address range is associated with an allocated pkey, it cannot be
+> > reverted back to key-0. There is no valid reason for the above behavior.  On
+> > the contrary applications need the ability to do so.
 > >
-> > Some compilers don't support KASAN_INLINE, but do support KASAN_OUTLINE.
-> > IIRC that includes the latest clang release, but I could be wrong.
-> >
-> > If that's the case, changing the default here does not seem ideal.
-> >
+> > The patch relaxes the restriction.
 > 
-> Hi Mark!
-> 
-> GCC before 5.0 doesn't support KASAN_INLINE, but AFAIU will fallback
-> to outline instrumentation in this case.
-> 
-> Latest Clang Release doesn't support KASAN_INLINE (although current
-> trunk does) and falls back to outline instrumentation.
-> 
-> So nothing should break, but people with newer compilers should get
-> the benefits of using the inline instrumentation by default.
+> I looked at the code and my observation was going to be that we need
+> to change mm_pkey_is_allocated. I still fail to understand what
+> happens if pkey 0 is reserved? What is the default key is it the first
+> available key? Assuming 0 is the default key may work and seems to
+> work, but I am sure its mostly by accident. It would be nice, if we
+> could have  a notion of the default key. I don't like the special
+> meaning given to key 0 here. Remember on powerpc if 0 is reserved and
+> UAMOR/AMOR does not allow modification because it's reserved, setting
+> 0 will still fail
 
-Ah, ok. I had assumed that they were separate compiler options, and this
-would result in a build failure.
+The linux pkey API, assumes pkey-0 is the default key. If no key is
+explicitly associated with a page, the default key gets associated.
+When a default key gets associated with a page, the permissions on the
+page are not dictated by the permissions of the default key, but by the
+permission of other bits in the pte; i.e _PAGE_RWX.
 
-I have no strong feelings either way as to the default. I typically use
-inline today unless I'm trying to debug particularly weird cases and
-want to hack the shadow accesses.
+On powerpc, and AFAICT on x86, neither the hardware nor the hypervisor
+reserves key-0. Hence the OS is free to use the key value, the
+way it chooses. On Linux we choose to associate key-0 the special status
+called default-key.
 
-Thanks,
-Mark.
+However I see your point. If some cpu architecture takes away key-0 from
+Linux, than implementing the special status for key-0 on that
+architecture can become challenging, though not impossible. That
+architecture implementation can internally map key-0 value to some other
+available key, and associate that key to the page. And offcourse make
+sure that the hardware/MMU uses the pte's RWX bits to enforce
+permissions, for that key.
+
+
+-- 
+Ram Pai
