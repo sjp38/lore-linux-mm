@@ -1,73 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 938316B0005
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 14:17:09 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id u46so5461483otg.16
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 11:17:09 -0800 (PST)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1540C6B0005
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 14:18:37 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id w23so723854otj.6
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 11:18:37 -0800 (PST)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p140si459545oic.292.2018.03.09.11.17.08
+        by mx.google.com with ESMTP id a25si498483otj.335.2018.03.09.11.18.35
         for <linux-mm@kvack.org>;
-        Fri, 09 Mar 2018 11:17:08 -0800 (PST)
-Date: Fri, 9 Mar 2018 19:16:57 +0000
+        Fri, 09 Mar 2018 11:18:36 -0800 (PST)
+Date: Fri, 9 Mar 2018 19:18:24 +0000
 From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [RFC PATCH 06/14] khwasan: enable top byte ignore for the kernel
-Message-ID: <20180309191656.cfy72gsjcf42yipi@lakrids.cambridge.arm.com>
+Subject: Re: [RFC PATCH 14/14] khwasan: default the instrumentation mode to
+ inline
+Message-ID: <20180309191823.p6r7f5dlxhifxokh@lakrids.cambridge.arm.com>
 References: <cover.1520017438.git.andreyknvl@google.com>
- <739eecf573b6342fc41c4f89d7f64eb8c183e312.1520017438.git.andreyknvl@google.com>
- <20180305143625.vtrfvsbw7loxngaj@lakrids.cambridge.arm.com>
- <b5f203ba-1f2f-d56e-9acf-6f269677f175@arm.com>
- <CAAeHK+yvG8Xc3PXBNM6Q6bqg8iNYJTRw+kx=R1Pqj6JG0ZkAkw@mail.gmail.com>
- <0377a2e1-ccc2-51bf-26b9-978eb685cdce@arm.com>
- <CAAeHK+zyGQtNxap6N5s11MWrQS-Y_uA7TRQnh5oP=HWZjPytsw@mail.gmail.com>
- <cd5c305a-407d-3dcd-7c4e-7a3bc13b0da9@arm.com>
+ <1943a345f4fb7e8e8f19b4ece2457bccd772f0dc.1520017438.git.andreyknvl@google.com>
+ <20180305145435.tfaldb334lp4obhi@lakrids.cambridge.arm.com>
+ <CAAeHK+y+sAGYSsfUHk4De2QiAPEN_+_ACxCoQ7XMSkvpseoFVQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cd5c305a-407d-3dcd-7c4e-7a3bc13b0da9@arm.com>
+In-Reply-To: <CAAeHK+y+sAGYSsfUHk4De2QiAPEN_+_ACxCoQ7XMSkvpseoFVQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Zyngier <marc.zyngier@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-On Fri, Mar 09, 2018 at 07:06:01PM +0000, Marc Zyngier wrote:
-> On 09/03/18 18:42, Andrey Konovalov wrote:
-> > On Fri, Mar 9, 2018 at 7:32 PM, Marc Zyngier <marc.zyngier@arm.com> wrote:
-> >> Well, that's not quite how it works. KVM is an integral part of the
-> >> kernel, and I don't really want to have to deal with regression (not to
-> >> mention that KVM is an essential tool in our testing infrastructure).
+On Fri, Mar 09, 2018 at 07:06:59PM +0100, Andrey Konovalov wrote:
+> On Mon, Mar 5, 2018 at 3:54 PM, Mark Rutland <mark.rutland@arm.com> wrote:
+> > On Fri, Mar 02, 2018 at 08:44:33PM +0100, Andrey Konovalov wrote:
+> >> There are two reasons to use outline instrumentation:
+> >> 1. Outline instrumentation reduces the size of the kernel text, and should
+> >>    be used where this size matters.
+> >> 2. Outline instrumentation is less invasive and can be used for debugging
+> >>    for KASAN developers, when it's not clear whether some issue is caused
+> >>    by KASAN or by something else.
 > >>
-> >> You could try and exclude KVM from the instrumentation (which we already
-> >> have for invasive things such as KASAN), but I'm afraid that having a
-> >> debugging option that conflicts with another essential part of the
-> >> kernel is not an option.
+> >> For the rest cases inline instrumentation is preferrable, since it's
+> >> faster.
 > >>
-> >> I'm happy to help you with that though.
+> >> This patch changes the default instrumentation mode to inline.
+> >> ---
+> >>  lib/Kconfig.kasan | 2 +-
+> >>  1 file changed, 1 insertion(+), 1 deletion(-)
 > >>
-> > 
-> > Hm, KHWASAN instruments the very same parts of the kernel that KASAN
-> > does (it reuses the same flag). I've checked, I actually have
-> > CONFIG_KVM enabled in my test build, however I haven't tried to test
-> > KVM yet. I'm planning to perform extensive fuzzing of the kernel with
-> > syzkaller, so if there's any crashes caused by KHWASAN in kvm code
-> > I'll see them. However if some bugs don't manifest as crashes, that
-> > would be a difficult thing to detect for me.
+> >> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+> >> index ab34e7d7d3a7..8ea6ae26b4a3 100644
+> >> --- a/lib/Kconfig.kasan
+> >> +++ b/lib/Kconfig.kasan
+> >> @@ -70,7 +70,7 @@ config KASAN_EXTRA
+> >>  choice
+> >>       prompt "Instrumentation type"
+> >>       depends on KASAN
+> >> -     default KASAN_OUTLINE
+> >> +     default KASAN_INLINE
+> >
+> > Some compilers don't support KASAN_INLINE, but do support KASAN_OUTLINE.
+> > IIRC that includes the latest clang release, but I could be wrong.
+> >
+> > If that's the case, changing the default here does not seem ideal.
+> >
 > 
-> Well, if something is wrong in KVM, it usually manifests itself
-> extremely quickly, and takes the whole box with it. I have the ugly
-> feeling that feeding coloured pointers to KVM is going to be a fun ride
-> though.
+> Hi Mark!
 > 
-> Also, last time I checked Clang couldn't even compile KVM correctly.
-> Hopefully, things have changed...
+> GCC before 5.0 doesn't support KASAN_INLINE, but AFAIU will fallback
+> to outline instrumentation in this case.
+> 
+> Latest Clang Release doesn't support KASAN_INLINE (although current
+> trunk does) and falls back to outline instrumentation.
+> 
+> So nothing should break, but people with newer compilers should get
+> the benefits of using the inline instrumentation by default.
 
-It compiles; it's just not as position independent as it needs to be.
+Ah, ok. I had assumed that they were separate compiler options, and this
+would result in a build failure.
 
-IIRC -fno-jump-tables is sufficient to get a clang-compiled KVM booting.
-
-It would be much nicer if there was a flag to enforce the use of
-pc-relative addressing, and forbid absolute addressing, so that we don't
-have to disable each and every compiler feature that decides to use the
-latter.
+I have no strong feelings either way as to the default. I typically use
+inline today unless I'm trying to debug particularly weird cases and
+want to hack the shadow accesses.
 
 Thanks,
 Mark.
