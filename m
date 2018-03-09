@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A43CB6B0005
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 03:43:37 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u83so721669wmb.3
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 00:43:37 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p19sor249279wrb.42.2018.03.09.00.43.36
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 611956B0005
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 05:20:02 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id 62-v6so4324016ply.4
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 02:20:02 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id v10-v6si583919ply.700.2018.03.09.02.20.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Mar 2018 00:43:36 -0800 (PST)
-Date: Fri, 9 Mar 2018 09:43:32 +0100
-From: Ingo Molnar <mingo@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 09 Mar 2018 02:20:00 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
 Subject: Re: [PATCH] x86, powerpc : pkey-mprotect must allow pkey-0
-Message-ID: <20180309084332.hk6xt6obghoqokbc@gmail.com>
-References: <1520583161-11741-1-git-send-email-linuxram@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <1520583161-11741-1-git-send-email-linuxram@us.ibm.com>
+References: <1520583161-11741-1-git-send-email-linuxram@us.ibm.com>
+Date: Fri, 09 Mar 2018 21:19:53 +1100
+Message-ID: <87lgf1v9di.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
+To: Ram Pai <linuxram@us.ibm.com>, mingo@redhat.com, akpm@linux-foundation.org
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
 
-
-* Ram Pai <linuxram@us.ibm.com> wrote:
+Ram Pai <linuxram@us.ibm.com> writes:
 
 > Once an address range is associated with an allocated pkey, it cannot be
 > reverted back to key-0. There is no valid reason for the above behavior.  On
 > the contrary applications need the ability to do so.
-> 
+
+Please explain this in much more detail. Is it an ABI change?
+
+And why did we just notice this?
+
 > The patch relaxes the restriction.
-> 
+>
 > Tested on powerpc and x86_64.
-> 
-> cc: Dave Hansen <dave.hansen@intel.com>
-> cc: Michael Ellermen <mpe@ellerman.id.au>
-> cc: Ingo Molnar <mingo@kernel.org>
-> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-> ---
->  arch/powerpc/include/asm/pkeys.h | 19 ++++++++++++++-----
->  arch/x86/include/asm/pkeys.h     |  5 +++--
->  2 files changed, 17 insertions(+), 7 deletions(-)
-> 
+
+Thanks, but please split the patch, one for each arch.
+
+cheers
+
 > diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
 > index 0409c80..3e8abe4 100644
 > --- a/arch/powerpc/include/asm/pkeys.h
@@ -65,16 +62,43 @@ Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, linuxppc-de
 > +	/* reserved keys are never allocated. */
 > +	if (__mm_pkey_is_reserved(pkey))
 > +	       return false;
-
-Please capitalize in comments consistently, i.e.:
-
-	/* Reserved keys are never allocated: */
-
 > +
 > +	return(__mm_pkey_is_allocated(mm, pkey));
-
-'return' is not a function.
-
-Thanks,
-
-	Ingo
+>  }
+>  
+>  extern void __arch_activate_pkey(int pkey);
+> @@ -150,7 +158,8 @@ static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
+>  	if (static_branch_likely(&pkey_disabled))
+>  		return -1;
+>  
+> -	if (!mm_pkey_is_allocated(mm, pkey))
+> +	/* pkey 0 cannot be freed */
+> +	if (!pkey || !mm_pkey_is_allocated(mm, pkey))
+>  		return -EINVAL;
+>  
+>  	/*
+> diff --git a/arch/x86/include/asm/pkeys.h b/arch/x86/include/asm/pkeys.h
+> index a0ba1ff..6ea7486 100644
+> --- a/arch/x86/include/asm/pkeys.h
+> +++ b/arch/x86/include/asm/pkeys.h
+> @@ -52,7 +52,7 @@ bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
+>  	 * from pkey_alloc().  pkey 0 is special, and never
+>  	 * returned from pkey_alloc().
+>  	 */
+> -	if (pkey <= 0)
+> +	if (pkey < 0)
+>  		return false;
+>  	if (pkey >= arch_max_pkey())
+>  		return false;
+> @@ -92,7 +92,8 @@ int mm_pkey_alloc(struct mm_struct *mm)
+>  static inline
+>  int mm_pkey_free(struct mm_struct *mm, int pkey)
+>  {
+> -	if (!mm_pkey_is_allocated(mm, pkey))
+> +	/* pkey 0 is special and can never be freed */
+> +	if (!pkey || !mm_pkey_is_allocated(mm, pkey))
+>  		return -EINVAL;
+>  
+>  	mm_set_pkey_free(mm, pkey);
+> -- 
+> 1.8.3.1
