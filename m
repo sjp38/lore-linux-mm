@@ -1,54 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DC946B0005
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 00:18:34 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id f3-v6so3910382plf.18
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 21:18:34 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id v8si212551pgs.356.2018.03.08.21.18.30
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D5D16B0007
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 00:22:13 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id p128so579502pga.19
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 21:22:13 -0800 (PST)
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id u145si225046pgb.180.2018.03.08.21.22.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Mar 2018 21:18:31 -0800 (PST)
-Subject: Re: [PATCH v2] slub: use jitter-free reference while printing age
-References: <1520492010-19389-1-git-send-email-cpandya@codeaurora.org>
- <alpine.DEB.2.20.1803081211230.14668@nuc-kabylake>
-From: Chintan Pandya <cpandya@codeaurora.org>
-Message-ID: <2e02a8f9-8a28-1db4-3dde-8490ee294e5f@codeaurora.org>
-Date: Fri, 9 Mar 2018 10:48:24 +0530
+        Thu, 08 Mar 2018 21:22:12 -0800 (PST)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [PATCH] mm/mempolicy: Avoid use uninitialized preferred_node
+References: <CAG_fn=VW5tfzT6cHJd+jF=t3WO6XS3HqSF_TYnKdycX_M_48vw@mail.gmail.com>
+Message-ID: <4ebee1c2-57f6-bcb8-0e2d-1833d1ee0bb7@huawei.com>
+Date: Fri, 9 Mar 2018 13:21:08 +0800
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1803081211230.14668@nuc-kabylake>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+In-Reply-To: <CAG_fn=VW5tfzT6cHJd+jF=t3WO6XS3HqSF_TYnKdycX_M_48vw@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexander Potapenko <glider@google.com>, akpm@linux-foundation.org
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Dmitriy Vyukov <dvyukov@google.com>, vbabka@suse.cz, "mhocko@suse.com" <mhocko@suse.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
+Alexander reported an use of uninitialized memory in __mpol_equal(),
+which is caused by incorrect use of preferred_node.
 
+When mempolicy in mode MPOL_PREFERRED with flags MPOL_F_LOCAL, it use
+numa_node_id() instead of preferred_node, however, __mpol_equeue() use
+preferred_node without check whether it is MPOL_F_LOCAL or not.
 
-On 3/8/2018 11:42 PM, Christopher Lameter wrote:
-> On Thu, 8 Mar 2018, Chintan Pandya wrote:
-> 
->> In this case, object got freed later but 'age'
->> shows otherwise. This could be because, while
->> printing this info, we print allocation traces
->> first and free traces thereafter. In between,
->> if we get schedule out or jiffies increment,
->> (jiffies - t->when) could become meaningless.
-> 
-> Could you show the new output style too?
+Reported-by: Alexander Potapenko <glider@google.com>
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+---
+ mm/mempolicy.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-New output will exactly be same. 'age' is still
-staying with single jiffies ref in both prints.
-
-> 
-> Acked-by: Christoph Lameter <cl@linux.com>
-Thanks
-
-
-Chintan
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index d879f1d..641545e 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2124,6 +2124,9 @@ bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
+ 	case MPOL_INTERLEAVE:
+ 		return !!nodes_equal(a->v.nodes, b->v.nodes);
+ 	case MPOL_PREFERRED:
++		/* a's flags is the same as b's */
++		if (a->flags & MPOL_F_LOCAL)
++			return true;
+ 		return a->v.preferred_node == b->v.preferred_node;
+ 	default:
+ 		BUG();
 -- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, a Linux Foundation
-Collaborative Project
+1.8.3.1
