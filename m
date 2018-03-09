@@ -1,71 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 234746B0005
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 23:12:42 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q65so3416804pga.15
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 20:12:42 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id m189si157960pfc.410.2018.03.08.20.12.39
-        for <linux-mm@kvack.org>;
-        Thu, 08 Mar 2018 20:12:40 -0800 (PST)
-Date: Fri, 9 Mar 2018 15:06:50 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Removing GFP_NOFS
-Message-ID: <20180309040650.GV7000@dastard>
-References: <20180308234618.GE29073@bombadil.infradead.org>
- <20180309013535.GU7000@dastard>
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DC946B0005
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 00:18:34 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id f3-v6so3910382plf.18
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 21:18:34 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id v8si212551pgs.356.2018.03.08.21.18.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Mar 2018 21:18:31 -0800 (PST)
+Subject: Re: [PATCH v2] slub: use jitter-free reference while printing age
+References: <1520492010-19389-1-git-send-email-cpandya@codeaurora.org>
+ <alpine.DEB.2.20.1803081211230.14668@nuc-kabylake>
+From: Chintan Pandya <cpandya@codeaurora.org>
+Message-ID: <2e02a8f9-8a28-1db4-3dde-8490ee294e5f@codeaurora.org>
+Date: Fri, 9 Mar 2018 10:48:24 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180309013535.GU7000@dastard>
+In-Reply-To: <alpine.DEB.2.20.1803081211230.14668@nuc-kabylake>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Christopher Lameter <cl@linux.com>
+Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Mar 09, 2018 at 12:35:35PM +1100, Dave Chinner wrote:
-> On Thu, Mar 08, 2018 at 03:46:18PM -0800, Matthew Wilcox wrote:
-> > 
-> > Do we have a strategy for eliminating GFP_NOFS?
-> > 
-> > As I understand it, our intent is to mark the areas in individual
-> > filesystems that can't be reentered with memalloc_nofs_save()/restore()
-> > pairs.  Once they're all done, then we can replace all the GFP_NOFS
-> > users with GFP_KERNEL.
+
+
+On 3/8/2018 11:42 PM, Christopher Lameter wrote:
+> On Thu, 8 Mar 2018, Chintan Pandya wrote:
 > 
-> Won't be that easy, I think.  We recently came across user-reported
-> allocation deadlocks in XFS where we were doing allocation with
-> pages held in the writeback state that lockdep has never triggered
-> on.
+>> In this case, object got freed later but 'age'
+>> shows otherwise. This could be because, while
+>> printing this info, we print allocation traces
+>> first and free traces thereafter. In between,
+>> if we get schedule out or jiffies increment,
+>> (jiffies - t->when) could become meaningless.
 > 
-> https://www.spinics.net/lists/linux-xfs/msg16154.html
+> Could you show the new output style too?
+
+New output will exactly be same. 'age' is still
+staying with single jiffies ref in both prints.
+
 > 
-> IOWs, GFP_NOFS isn't a solid guide to where
-> memalloc_nofs_save/restore need to cover in the filesystems because
-> there's a surprising amount of code that isn't covered by existing
-> lockdep annotations to warning us about un-intended recursion
-> problems.
-> 
-> I think we need to start with some documentation of all the generic
-> rules for where these will need to be set, then the per-filesystem
-> rules can be added on top of that...
+> Acked-by: Christoph Lameter <cl@linux.com>
+Thanks
 
-So thinking a bit further here:
 
-* page writeback state gets set and held:
-	->writepage should be under memalloc_nofs_save
-	->writepages should be under memalloc_nofs_save
-* page cache write path is often under AOP_FLAG_NOFS
-	- should probably be under memalloc_nofs_save
-* metadata writeback that uses page cache and page writeback flags
-  should probably be under memalloc_nofs_save
-
-What other generic code paths are susceptible to allocation
-deadlocks?
-
-Cheers,
-
-Dave.
+Chintan
 -- 
-Dave Chinner
-david@fromorbit.com
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
+Inc. is a member of the Code Aurora Forum, a Linux Foundation
+Collaborative Project
