@@ -1,82 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 25EA06B0007
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 06:15:02 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c5so1505636pfn.17
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 03:15:02 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 424CD6B0005
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 06:42:12 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id s25so1540139pfh.9
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 03:42:12 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id b9-v6si738777pll.117.2018.03.09.03.15.00
+        by mx.google.com with ESMTPS id g6si612896pgu.737.2018.03.09.03.42.10
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Mar 2018 03:15:01 -0800 (PST)
-Subject: Re: Removing GFP_NOFS
-References: <20180308234618.GE29073@bombadil.infradead.org>
- <20180309013535.GU7000@dastard> <20180309040650.GV7000@dastard>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <5340fdd1-a6ea-0464-84a0-27b4dd1460c9@i-love.sakura.ne.jp>
-Date: Fri, 9 Mar 2018 20:14:13 +0900
-MIME-Version: 1.0
-In-Reply-To: <20180309040650.GV7000@dastard>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+        Fri, 09 Mar 2018 03:42:11 -0800 (PST)
+Subject: Re: [PATCH] mm: oom: Fix race condition between oom_badness and do_exit of task
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1520427454-22813-1-git-send-email-gkohli@codeaurora.org>
+	<alpine.DEB.2.20.1803071254410.165297@chino.kir.corp.google.com>
+	<22ebd655-ece4-37e5-5a98-e9750cb20665@codeaurora.org>
+	<d73682f9-f214-64c4-ce09-fd1ff3ffe252@I-love.SAKURA.ne.jp>
+	<14ba6c44-d444-bd0a-0bac-0c6851b19344@codeaurora.org>
+In-Reply-To: <14ba6c44-d444-bd0a-0bac-0c6851b19344@codeaurora.org>
+Message-Id: <201803091948.FBC21396.LHOMSFFOVFtQJO@I-love.SAKURA.ne.jp>
+Date: Fri, 9 Mar 2018 19:48:46 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, rgoldwyn@suse.de, neilb@suse.com, James.Bottomley@HansenPartnership.com, Michal Hocko <mhocko@kernel.org>
+To: gkohli@codeaurora.org, rientjes@google.com
+Cc: akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org
 
-On 2018/03/09 13:06, Dave Chinner wrote:
-> On Fri, Mar 09, 2018 at 12:35:35PM +1100, Dave Chinner wrote:
->> On Thu, Mar 08, 2018 at 03:46:18PM -0800, Matthew Wilcox wrote:
->>>
->>> Do we have a strategy for eliminating GFP_NOFS?
->>>
->>> As I understand it, our intent is to mark the areas in individual
->>> filesystems that can't be reentered with memalloc_nofs_save()/restore()
->>> pairs.A  Once they're all done, then we can replace all the GFP_NOFS
->>> users with GFP_KERNEL.
->>
->> Won't be that easy, I think.A  We recently came across user-reported
->> allocation deadlocks in XFS where we were doing allocation with
->> pages held in the writeback state that lockdep has never triggered
->> on.
->>
->> https://www.spinics.net/lists/linux-xfs/msg16154.html
->>
->> IOWs, GFP_NOFS isn't a solid guide to where
->> memalloc_nofs_save/restore need to cover in the filesystems because
->> there's a surprising amount of code that isn't covered by existing
->> lockdep annotations to warning us about un-intended recursion
->> problems.
->>
->> I think we need to start with some documentation of all the generic
->> rules for where these will need to be set, then the per-filesystem
->> rules can be added on top of that...
->
-> So thinking a bit further here:
->
-> * page writeback state gets set and held:
-> A A A  ->writepage should be under memalloc_nofs_save
-> A A A  ->writepages should be under memalloc_nofs_save
-> * page cache write path is often under AOP_FLAG_NOFS
-> A A A  - should probably be under memalloc_nofs_save
-> * metadata writeback that uses page cache and page writeback flags
->A A  should probably be under memalloc_nofs_save
->
-> What other generic code paths are susceptible to allocation
-> deadlocks?
->
-> Cheers,
->
-> Dave.
+Kohli, Gaurav wrote:
+> > t->alloc_lock is still held when leaving find_lock_task_mm(), which means
+> > that t->mm != NULL. But nothing prevents t from setting t->mm = NULL at
+> > exit_mm() from do_exit() and calling exit_creds() from __put_task_struct(t)
+> > after task_unlock(t) is called. Seems difficult to trigger race window. Maybe
+> > something has preempted because oom_badness() becomes outside of RCU grace
+> > period upon leaving find_lock_task_mm() when called from proc_oom_score().
+> 
+> Hi Tetsuo,
+> 
+> Yes it is not easy to reproduce seen twice till now and i agree with
+> your analysis. But David has already fixing this in different way,
+> So that also looks better to me:
+> 
+> https://patchwork.kernel.org/patch/10265641/
+> 
 
-Goldwyn Rodrigues is thinking "[LSF/MM ATTEND] memory allocation scope".
-But I think that getting rid of direct reclaim, assigning dedicated kernel
-thread for each reclaim routine, and using multiple watermark levels based
-on purpose of memory allocation request is the better. OOM situation is
-wasting CPU resources by unthrottled direct reclaim attempts without making
-progress, and we are loosing performance when memory allocation for memory
-reclaim activities are failing, and happily diving into the lockdep
-labyrinth which is too hard to test, and we are unable to give up upon
-SIGKILL (i.e. unable to implement __GFP_KILLABLE) due to unkillable locks
-within direct reclaim attempts.
+Yes, I'm aware of that patch.
+
+> But if need to keep that code, So we have to bump up the task
+> reference that's only i can think of now.
+
+I don't think so, for I think it is safe to call
+has_capability_noaudit(p) with p->alloc_lock held.
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f2e7dfb..4efcfb8 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -222,7 +222,6 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	 */
+ 	points = get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS) +
+ 		mm_pgtables_bytes(p->mm) / PAGE_SIZE;
+-	task_unlock(p);
+ 
+ 	/*
+ 	 * Root processes get 3% bonus, just like the __vm_enough_memory()
+@@ -230,6 +229,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	 */
+ 	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
+ 		points -= (points * 3) / 100;
++	task_unlock(p);
+ 
+ 	/* Normalize to oom_score_adj units */
+ 	adj *= totalpages / 1000;
