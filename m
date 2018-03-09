@@ -1,104 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 611956B0005
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 05:20:02 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id 62-v6so4324016ply.4
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 02:20:02 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id v10-v6si583919ply.700.2018.03.09.02.20.00
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F2006B0007
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 05:49:50 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id p30so754573uap.19
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 02:49:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e10sor306735uab.19.2018.03.09.02.49.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 09 Mar 2018 02:20:00 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH] x86, powerpc : pkey-mprotect must allow pkey-0
-In-Reply-To: <1520583161-11741-1-git-send-email-linuxram@us.ibm.com>
-References: <1520583161-11741-1-git-send-email-linuxram@us.ibm.com>
-Date: Fri, 09 Mar 2018 21:19:53 +1100
-Message-ID: <87lgf1v9di.fsf@concordia.ellerman.id.au>
+        (Google Transport Security);
+        Fri, 09 Mar 2018 02:49:46 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <4ebee1c2-57f6-bcb8-0e2d-1833d1ee0bb7@huawei.com>
+References: <CAG_fn=VW5tfzT6cHJd+jF=t3WO6XS3HqSF_TYnKdycX_M_48vw@mail.gmail.com>
+ <4ebee1c2-57f6-bcb8-0e2d-1833d1ee0bb7@huawei.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Fri, 9 Mar 2018 11:49:43 +0100
+Message-ID: <CAG_fn=XP6X5rqRVBameyU-F2UOc4hpbowUBNxZENf2ZHpMSmfQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/mempolicy: Avoid use uninitialized preferred_node
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>, mingo@redhat.com, akpm@linux-foundation.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Dmitriy Vyukov <dvyukov@google.com>, Vlastimil Babka <vbabka@suse.cz>, "mhocko@suse.com" <mhocko@suse.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Ram Pai <linuxram@us.ibm.com> writes:
-
-> Once an address range is associated with an allocated pkey, it cannot be
-> reverted back to key-0. There is no valid reason for the above behavior.  On
-> the contrary applications need the ability to do so.
-
-Please explain this in much more detail. Is it an ABI change?
-
-And why did we just notice this?
-
-> The patch relaxes the restriction.
+On Fri, Mar 9, 2018 at 6:21 AM, Yisheng Xie <xieyisheng1@huawei.com> wrote:
+> Alexander reported an use of uninitialized memory in __mpol_equal(),
+> which is caused by incorrect use of preferred_node.
 >
-> Tested on powerpc and x86_64.
+> When mempolicy in mode MPOL_PREFERRED with flags MPOL_F_LOCAL, it use
+> numa_node_id() instead of preferred_node, however, __mpol_equeue() use
+> preferred_node without check whether it is MPOL_F_LOCAL or not.
+>
+> Reported-by: Alexander Potapenko <glider@google.com>
+> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+Tested-by: Alexander Potapenko <glider@google.com>
 
-Thanks, but please split the patch, one for each arch.
-
-cheers
-
-> diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
-> index 0409c80..3e8abe4 100644
-> --- a/arch/powerpc/include/asm/pkeys.h
-> +++ b/arch/powerpc/include/asm/pkeys.h
-> @@ -101,10 +101,18 @@ static inline u16 pte_to_pkey_bits(u64 pteflags)
->  
->  static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
->  {
-> -	/* A reserved key is never considered as 'explicitly allocated' */
-> -	return ((pkey < arch_max_pkey()) &&
-> -		!__mm_pkey_is_reserved(pkey) &&
-> -		__mm_pkey_is_allocated(mm, pkey));
-> +	/* pkey 0 is allocated by default. */
-> +	if (!pkey)
-> +	       return true;
-> +
-> +	if (pkey < 0 || pkey >= arch_max_pkey())
-> +	       return false;
-> +
-> +	/* reserved keys are never allocated. */
-> +	if (__mm_pkey_is_reserved(pkey))
-> +	       return false;
-> +
-> +	return(__mm_pkey_is_allocated(mm, pkey));
->  }
->  
->  extern void __arch_activate_pkey(int pkey);
-> @@ -150,7 +158,8 @@ static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
->  	if (static_branch_likely(&pkey_disabled))
->  		return -1;
->  
-> -	if (!mm_pkey_is_allocated(mm, pkey))
-> +	/* pkey 0 cannot be freed */
-> +	if (!pkey || !mm_pkey_is_allocated(mm, pkey))
->  		return -EINVAL;
->  
->  	/*
-> diff --git a/arch/x86/include/asm/pkeys.h b/arch/x86/include/asm/pkeys.h
-> index a0ba1ff..6ea7486 100644
-> --- a/arch/x86/include/asm/pkeys.h
-> +++ b/arch/x86/include/asm/pkeys.h
-> @@ -52,7 +52,7 @@ bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
->  	 * from pkey_alloc().  pkey 0 is special, and never
->  	 * returned from pkey_alloc().
->  	 */
-> -	if (pkey <= 0)
-> +	if (pkey < 0)
->  		return false;
->  	if (pkey >= arch_max_pkey())
->  		return false;
-> @@ -92,7 +92,8 @@ int mm_pkey_alloc(struct mm_struct *mm)
->  static inline
->  int mm_pkey_free(struct mm_struct *mm, int pkey)
->  {
-> -	if (!mm_pkey_is_allocated(mm, pkey))
-> +	/* pkey 0 is special and can never be freed */
-> +	if (!pkey || !mm_pkey_is_allocated(mm, pkey))
->  		return -EINVAL;
->  
->  	mm_set_pkey_free(mm, pkey);
-> -- 
+I confirm that the patch fixes the problem. Thanks for the quick turnaround=
+!
+Any idea which commit had introduced the bug in the first place?
+> ---
+>  mm/mempolicy.c | 3 +++
+>  1 file changed, 3 insertions(+)
+>
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index d879f1d..641545e 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -2124,6 +2124,9 @@ bool __mpol_equal(struct mempolicy *a, struct mempo=
+licy *b)
+>         case MPOL_INTERLEAVE:
+>                 return !!nodes_equal(a->v.nodes, b->v.nodes);
+>         case MPOL_PREFERRED:
+> +               /* a's flags is the same as b's */
+> +               if (a->flags & MPOL_F_LOCAL)
+> +                       return true;
+>                 return a->v.preferred_node =3D=3D b->v.preferred_node;
+>         default:
+>                 BUG();
+> --
 > 1.8.3.1
+>
+
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
