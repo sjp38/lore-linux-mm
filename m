@@ -1,94 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8874A6B0005
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 20:05:16 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id t123so292458wmt.2
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 17:05:16 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n31si14070726wrf.204.2018.03.08.17.05.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Mar 2018 17:05:15 -0800 (PST)
-Date: Thu, 8 Mar 2018 17:05:11 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] hugetlbfs: check for pgoff value overflow
-Message-Id: <20180308170511.c16fc731523ff49f1981f89d@linux-foundation.org>
-In-Reply-To: <20180309002726.7248-1-mike.kravetz@oracle.com>
-References: <20180306133135.4dc344e478d98f0e29f47698@linux-foundation.org>
-	<20180309002726.7248-1-mike.kravetz@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E11FC6B0005
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2018 20:36:28 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id h193so791749pfe.14
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2018 17:36:28 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id b33-v6si15634606plb.184.2018.03.08.17.36.26
+        for <linux-mm@kvack.org>;
+        Thu, 08 Mar 2018 17:36:27 -0800 (PST)
+Date: Fri, 9 Mar 2018 12:35:35 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Removing GFP_NOFS
+Message-ID: <20180309013535.GU7000@dastard>
+References: <20180308234618.GE29073@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180308234618.GE29073@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, Michal Hocko <mhocko@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Nic Losby <blurbdust@gmail.com>, Yisheng Xie <xieyisheng1@huawei.com>, stable@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Thu,  8 Mar 2018 16:27:26 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On Thu, Mar 08, 2018 at 03:46:18PM -0800, Matthew Wilcox wrote:
+> 
+> Do we have a strategy for eliminating GFP_NOFS?
+> 
+> As I understand it, our intent is to mark the areas in individual
+> filesystems that can't be reentered with memalloc_nofs_save()/restore()
+> pairs.  Once they're all done, then we can replace all the GFP_NOFS
+> users with GFP_KERNEL.
 
-> A vma with vm_pgoff large enough to overflow a loff_t type when
-> converted to a byte offset can be passed via the remap_file_pages
-> system call.  The hugetlbfs mmap routine uses the byte offset to
-> calculate reservations and file size.
-> 
-> A sequence such as:
->   mmap(0x20a00000, 0x600000, 0, 0x66033, -1, 0);
->   remap_file_pages(0x20a00000, 0x600000, 0, 0x20000000000000, 0);
-> will result in the following when task exits/file closed,
->   kernel BUG at mm/hugetlb.c:749!
-> Call Trace:
->   hugetlbfs_evict_inode+0x2f/0x40
->   evict+0xcb/0x190
->   __dentry_kill+0xcb/0x150
->   __fput+0x164/0x1e0
->   task_work_run+0x84/0xa0
->   exit_to_usermode_loop+0x7d/0x80
->   do_syscall_64+0x18b/0x190
->   entry_SYSCALL_64_after_hwframe+0x3d/0xa2
-> 
-> The overflowed pgoff value causes hugetlbfs to try to set up a
-> mapping with a negative range (end < start) that leaves invalid
-> state which causes the BUG.
-> 
-> The previous overflow fix to this code was incomplete and did not
-> take the remap_file_pages system call into account.
-> 
-> ...
->
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4374,6 +4374,12 @@ int hugetlb_reserve_pages(struct inode *inode,
->  	struct resv_map *resv_map;
->  	long gbl_reserve;
->  
-> +	/* This should never happen */
-> +	if (from > to) {
-> +		VM_WARN(1, "%s called with a negative range\n", __func__);
-> +		return -EINVAL;
-> +	}
+Won't be that easy, I think.  We recently came across user-reported
+allocation deadlocks in XFS where we were doing allocation with
+pages held in the writeback state that lockdep has never triggered
+on.
 
-This is tidier, and that comment is a bit too obvious to live ;)
+https://www.spinics.net/lists/linux-xfs/msg16154.html
 
---- a/mm/hugetlb.c~hugetlbfs-check-for-pgoff-value-overflow-v3-fix
-+++ a/mm/hugetlb.c
-@@ -18,6 +18,7 @@
- #include <linux/bootmem.h>
- #include <linux/sysfs.h>
- #include <linux/slab.h>
-+#include <linux/mmdebug.h>
- #include <linux/sched/signal.h>
- #include <linux/rmap.h>
- #include <linux/string_helpers.h>
-@@ -4374,11 +4375,8 @@ int hugetlb_reserve_pages(struct inode *
- 	struct resv_map *resv_map;
- 	long gbl_reserve;
- 
--	/* This should never happen */
--	if (from > to) {
--		VM_WARN(1, "%s called with a negative range\n", __func__);
-+	if (VM_WARN(from > to, "%s called with a negative range\n", __func__))
- 		return -EINVAL;
--	}
- 
- 	/*
- 	 * Only apply hugepage reservation if asked. At fault time, an
+IOWs, GFP_NOFS isn't a solid guide to where
+memalloc_nofs_save/restore need to cover in the filesystems because
+there's a surprising amount of code that isn't covered by existing
+lockdep annotations to warning us about un-intended recursion
+problems.
+
+I think we need to start with some documentation of all the generic
+rules for where these will need to be set, then the per-filesystem
+rules can be added on top of that...
+
+> How will we know when we're done and can kill GFP_NOFS?  I was thinking
+> that we could put a warning in slab/page_alloc that fires when __GFP_IO
+> is set, __GFP_FS is clear and PF_MEMALLOC_NOFS is clear.  That would
+> catch every place that uses GFP_NOFS without using memalloc_nofs_save().
+> 
+> Unfortunately (and this is sort of the point), there's a lot of places
+> which use GFP_NOFS as a precaution; that is, they can be called from
+> places which both are and aren't in a nofs path.  So we'd have to pass
+> in GFP flags.  Which would be a lot of stupid churn.
+
+Yup, GFP_NOFS has been used as a "go away, lockdep, your drunk" flag
+for handling false positives for quite a long time because some
+calls are already under memalloc_nofs_save/restore protection paths.
+THese would need to be converted to GFP_NOLOCKDEP instead of
+memalloc_nofs_save/restore() which they are already covered by in
+the cases taht matter...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
