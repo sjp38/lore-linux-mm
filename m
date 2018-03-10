@@ -1,536 +1,356 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 67D656B000A
+	by kanga.kvack.org (Postfix) with ESMTP id 7DD236B000C
 	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 22:22:00 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id d128so3607273qkb.6
+Received: by mail-qk0-f200.google.com with SMTP id h16so2555065qke.8
         for <linux-mm@kvack.org>; Fri, 09 Mar 2018 19:22:00 -0800 (PST)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 90si920010qkv.430.2018.03.09.19.21.58
+        by mx.google.com with ESMTPS id l35si2241512qtl.174.2018.03.09.19.21.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Mar 2018 19:21:58 -0800 (PST)
+        Fri, 09 Mar 2018 19:21:59 -0800 (PST)
 From: jglisse@redhat.com
-Subject: [RFC PATCH 06/13] drm/nouveau/fault/gp100: initial implementation of MaxwellFaultBufferA
-Date: Fri,  9 Mar 2018 22:21:34 -0500
-Message-Id: <20180310032141.6096-7-jglisse@redhat.com>
+Subject: [RFC PATCH 07/13] drm/nouveau: special mapping method for HMM
+Date: Fri,  9 Mar 2018 22:21:35 -0500
+Message-Id: <20180310032141.6096-8-jglisse@redhat.com>
 In-Reply-To: <20180310032141.6096-1-jglisse@redhat.com>
 References: <20180310032141.6096-1-jglisse@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org
-Cc: Ben Skeggs <bskeggs@redhat.com>, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>
+Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Ben Skeggs <bskeggs@redhat.com>
 
-From: Ben Skeggs <bskeggs@redhat.com>
+From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-Signed-off-by: Ben Skeggs <bskeggs@redhat.com>
+HMM does not have any of the usual memory object properties. For HMM
+inside any range the following is true:
+    - not all page in a range are valid
+    - not all page have same permission (read only, read and write)
+    - not all page are in same memory (system memory, GPU memory)
+
+Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: Ben Skeggs <bskeggs@redhat.com>
 ---
- drivers/gpu/drm/nouveau/include/nvif/class.h       |   2 +
- drivers/gpu/drm/nouveau/include/nvif/clb069.h      |   8 ++
- .../gpu/drm/nouveau/include/nvkm/engine/fault.h    |   1 +
- drivers/gpu/drm/nouveau/nvkm/engine/device/base.c  |   6 +
- drivers/gpu/drm/nouveau/nvkm/engine/device/user.c  |   1 +
- drivers/gpu/drm/nouveau/nvkm/engine/fault/Kbuild   |   4 +
- drivers/gpu/drm/nouveau/nvkm/engine/fault/base.c   | 116 ++++++++++++++++++
- drivers/gpu/drm/nouveau/nvkm/engine/fault/gp100.c  |  61 +++++++++
- drivers/gpu/drm/nouveau/nvkm/engine/fault/priv.h   |  29 +++++
- drivers/gpu/drm/nouveau/nvkm/engine/fault/user.c   | 136 +++++++++++++++++++++
- drivers/gpu/drm/nouveau/nvkm/engine/fault/user.h   |   7 ++
- 11 files changed, 371 insertions(+)
- create mode 100644 drivers/gpu/drm/nouveau/include/nvif/clb069.h
- create mode 100644 drivers/gpu/drm/nouveau/nvkm/engine/fault/base.c
- create mode 100644 drivers/gpu/drm/nouveau/nvkm/engine/fault/gp100.c
- create mode 100644 drivers/gpu/drm/nouveau/nvkm/engine/fault/priv.h
- create mode 100644 drivers/gpu/drm/nouveau/nvkm/engine/fault/user.c
- create mode 100644 drivers/gpu/drm/nouveau/nvkm/engine/fault/user.h
+ drivers/gpu/drm/nouveau/include/nvkm/subdev/mmu.h  |  21 +++++
+ drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.c      | 105 ++++++++++++++++++++-
+ drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.h      |   6 ++
+ drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmmgp100.c |  73 ++++++++++++++
+ 4 files changed, 204 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/gpu/drm/nouveau/include/nvif/class.h b/drivers/gpu/drm/nouveau/include/nvif/class.h
-index a7c5bf572788..98ac250670b7 100644
---- a/drivers/gpu/drm/nouveau/include/nvif/class.h
-+++ b/drivers/gpu/drm/nouveau/include/nvif/class.h
-@@ -52,6 +52,8 @@
+diff --git a/drivers/gpu/drm/nouveau/include/nvkm/subdev/mmu.h b/drivers/gpu/drm/nouveau/include/nvkm/subdev/mmu.h
+index baab93398e54..719d50e6296f 100644
+--- a/drivers/gpu/drm/nouveau/include/nvkm/subdev/mmu.h
++++ b/drivers/gpu/drm/nouveau/include/nvkm/subdev/mmu.h
+@@ -2,6 +2,21 @@
+ #ifndef __NVKM_MMU_H__
+ #define __NVKM_MMU_H__
+ #include <core/subdev.h>
++#include <linux/hmm.h>
++
++/* Need to change HMM to be more driver friendly */
++#if IS_ENABLED(CONFIG_HMM)
++#else
++typedef unsigned long hmm_pfn_t;
++#define HMM_PFN_VALID (1 << 0)
++#define HMM_PFN_READ (1 << 1)
++#define HMM_PFN_WRITE (1 << 2)
++#define HMM_PFN_ERROR (1 << 3)
++#define HMM_PFN_EMPTY (1 << 4)
++#define HMM_PFN_SPECIAL (1 << 5)
++#define HMM_PFN_DEVICE_UNADDRESSABLE (1 << 6)
++#define HMM_PFN_SHIFT 7
++#endif
  
- #define NV04_DISP                                     /* cl0046.h */ 0x00000046
+ struct nvkm_vma {
+ 	struct list_head head;
+@@ -56,6 +71,7 @@ void nvkm_vmm_part(struct nvkm_vmm *, struct nvkm_memory *inst);
+ int nvkm_vmm_get(struct nvkm_vmm *, u8 page, u64 size, struct nvkm_vma **);
+ void nvkm_vmm_put(struct nvkm_vmm *, struct nvkm_vma **);
  
-+#define MAXWELL_FAULT_BUFFER_A                        /* clb069.h */ 0x0000b069
 +
- #define NV03_CHANNEL_DMA                              /* cl506b.h */ 0x0000006b
- #define NV10_CHANNEL_DMA                              /* cl506b.h */ 0x0000006e
- #define NV17_CHANNEL_DMA                              /* cl506b.h */ 0x0000176e
-diff --git a/drivers/gpu/drm/nouveau/include/nvif/clb069.h b/drivers/gpu/drm/nouveau/include/nvif/clb069.h
-new file mode 100644
-index 000000000000..b0d509fd8631
---- /dev/null
-+++ b/drivers/gpu/drm/nouveau/include/nvif/clb069.h
-@@ -0,0 +1,8 @@
-+#ifndef __NVIF_CLB069_H__
-+#define __NVIF_CLB069_H__
-+
-+struct nvb069_vn {
-+};
-+
-+#define NVB069_VN_NTFY_FAULT                                               0x00
-+#endif
-diff --git a/drivers/gpu/drm/nouveau/include/nvkm/engine/fault.h b/drivers/gpu/drm/nouveau/include/nvkm/engine/fault.h
-index 398ca5a02eee..08893f13e2f9 100644
---- a/drivers/gpu/drm/nouveau/include/nvkm/engine/fault.h
-+++ b/drivers/gpu/drm/nouveau/include/nvkm/engine/fault.h
-@@ -1,4 +1,5 @@
- #ifndef __NVKM_FAULT_H__
- #define __NVKM_FAULT_H__
- #include <core/engine.h>
-+int gp100_fault_new(struct nvkm_device *, int, struct nvkm_engine **);
- #endif
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/device/base.c b/drivers/gpu/drm/nouveau/nvkm/engine/device/base.c
-index 2fe862ac0d95..ee67caf95a4e 100644
---- a/drivers/gpu/drm/nouveau/nvkm/engine/device/base.c
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/device/base.c
-@@ -2184,6 +2184,7 @@ nv130_chipset = {
- 	.ce[5] = gp100_ce_new,
- 	.dma = gf119_dma_new,
- 	.disp = gp100_disp_new,
-+	.fault = gp100_fault_new,
- 	.fifo = gp100_fifo_new,
- 	.gr = gp100_gr_new,
- 	.sw = gf100_sw_new,
-@@ -2217,6 +2218,7 @@ nv132_chipset = {
- 	.ce[3] = gp102_ce_new,
- 	.disp = gp102_disp_new,
- 	.dma = gf119_dma_new,
-+	.fault = gp100_fault_new,
- 	.fifo = gp100_fifo_new,
- 	.gr = gp102_gr_new,
- 	.nvdec = gp102_nvdec_new,
-@@ -2252,6 +2254,7 @@ nv134_chipset = {
- 	.ce[3] = gp102_ce_new,
- 	.disp = gp102_disp_new,
- 	.dma = gf119_dma_new,
-+	.fault = gp100_fault_new,
- 	.fifo = gp100_fifo_new,
- 	.gr = gp102_gr_new,
- 	.nvdec = gp102_nvdec_new,
-@@ -2287,6 +2290,7 @@ nv136_chipset = {
- 	.ce[3] = gp102_ce_new,
- 	.disp = gp102_disp_new,
- 	.dma = gf119_dma_new,
-+	.fault = gp100_fault_new,
- 	.fifo = gp100_fifo_new,
- 	.gr = gp102_gr_new,
- 	.nvdec = gp102_nvdec_new,
-@@ -2322,6 +2326,7 @@ nv137_chipset = {
- 	.ce[3] = gp102_ce_new,
- 	.disp = gp102_disp_new,
- 	.dma = gf119_dma_new,
-+	.fault = gp100_fault_new,
- 	.fifo = gp100_fifo_new,
- 	.gr = gp107_gr_new,
- 	.nvdec = gp102_nvdec_new,
-@@ -2382,6 +2387,7 @@ nv13b_chipset = {
- 	.top = gk104_top_new,
- 	.ce[2] = gp102_ce_new,
- 	.dma = gf119_dma_new,
-+	.fault = gp100_fault_new,
- 	.fifo = gp10b_fifo_new,
- 	.gr = gp10b_gr_new,
- 	.sw = gf100_sw_new,
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/device/user.c b/drivers/gpu/drm/nouveau/nvkm/engine/device/user.c
-index 17adcb4e8854..5eee439f615c 100644
---- a/drivers/gpu/drm/nouveau/nvkm/engine/device/user.c
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/device/user.c
-@@ -276,6 +276,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
- 	struct nvkm_device *device = udev->device;
- 	struct nvkm_engine *engine;
- 	u64 mask = (1ULL << NVKM_ENGINE_DMAOBJ) |
-+		   (1ULL << NVKM_ENGINE_FAULT) |
- 		   (1ULL << NVKM_ENGINE_FIFO) |
- 		   (1ULL << NVKM_ENGINE_DISP) |
- 		   (1ULL << NVKM_ENGINE_PM);
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/fault/Kbuild b/drivers/gpu/drm/nouveau/nvkm/engine/fault/Kbuild
-index e69de29bb2d1..627d74eaba1d 100644
---- a/drivers/gpu/drm/nouveau/nvkm/engine/fault/Kbuild
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/fault/Kbuild
-@@ -0,0 +1,4 @@
-+nvkm-y += nvkm/engine/fault/base.o
-+nvkm-y += nvkm/engine/fault/gp100.o
-+
-+nvkm-y += nvkm/engine/fault/user.o
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/fault/base.c b/drivers/gpu/drm/nouveau/nvkm/engine/fault/base.c
-new file mode 100644
-index 000000000000..a970012e84c8
---- /dev/null
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/fault/base.c
-@@ -0,0 +1,116 @@
-+/*
-+ * Copyright 2017 Red Hat Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the "Software"),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom the
-+ * Software is furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
-+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-+ * OTHER DEALINGS IN THE SOFTWARE.
-+ */
-+#include "priv.h"
-+#include "user.h"
-+
-+#include <core/client.h>
-+#include <core/notify.h>
-+
-+static int
-+nvkm_fault_ntfy_ctor(struct nvkm_object *object, void *data, u32 size,
-+		     struct nvkm_notify *notify)
+ struct nvkm_vmm_map {
+ 	struct nvkm_memory *memory;
+ 	u64 offset;
+@@ -63,6 +79,11 @@ struct nvkm_vmm_map {
+ 	struct nvkm_mm_node *mem;
+ 	struct scatterlist *sgl;
+ 	dma_addr_t *dma;
++#define NV_HMM_PAGE_FLAG_V HMM_PFN_VALID
++#define NV_HMM_PAGE_FLAG_W HMM_PFN_WRITE
++#define NV_HMM_PAGE_FLAG_E HMM_PFN_ERROR
++#define NV_HMM_PAGE_PFN_SHIFT HMM_PFN_SHIFT
++	u64 *pages;
+ 	u64 off;
+ 
+ 	const struct nvkm_vmm_page *page;
+diff --git a/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.c b/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.c
+index 20d31526ba8f..96671987ce53 100644
+--- a/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.c
++++ b/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.c
+@@ -75,7 +75,7 @@ struct nvkm_vmm_iter {
+ 	struct nvkm_vmm *vmm;
+ 	u64 cnt;
+ 	u16 max, lvl;
+-	u64 start, addr;
++	u64 start, addr, *pages;
+ 	u32 pte[NVKM_VMM_LEVELS_MAX];
+ 	struct nvkm_vmm_pt *pt[NVKM_VMM_LEVELS_MAX];
+ 	int flush;
+@@ -281,6 +281,59 @@ nvkm_vmm_unref_ptes(struct nvkm_vmm_iter *it, u32 ptei, u32 ptes)
+ 	return true;
+ }
+ 
++static bool
++nvkm_vmm_unref_hmm_ptes(struct nvkm_vmm_iter *it, u32 ptei, u32 ptes)
 +{
-+	if (size == 0) {
-+		notify->size  = 0;
-+		notify->types = 1;
-+		notify->index = 0;
-+		return 0;
++	const struct nvkm_vmm_desc *desc = it->desc;
++	const int type = desc->type == SPT;
++	struct nvkm_vmm_pt *pgt = it->pt[0];
++	struct nvkm_mmu_pt *pt;
++	int mapped;
++
++	pt = pgt->pt[type];
++	mapped = desc->func->hmm_unmap(it->vmm, pt, ptei, ptes, NULL);
++	if (mapped <= 0)
++		return false;
++	ptes = mapped;
++
++	/* Dual-PTs need special handling, unless PDE becoming invalid. */
++	if (desc->type == SPT && (pgt->refs[0] || pgt->refs[1]))
++		nvkm_vmm_unref_sptes(it, pgt, desc, ptei, ptes);
++
++	/* GPU may have cached the PTs, flush before freeing. */
++	nvkm_vmm_flush_mark(it);
++	nvkm_vmm_flush(it);
++
++	nvkm_kmap(pt->memory);
++	while (mapped--) {
++		u64 data = nvkm_ro64(pt->memory, pt->base + ptei * 8);
++		dma_addr_t dma = (data >> 8) << 12;
++
++		if (!data) {
++			ptei++;
++			continue;
++		}
++		dma_unmap_page(it->vmm->mmu->subdev.device->dev, dma,
++			       PAGE_SIZE, DMA_BIDIRECTIONAL);
++		VMM_WO064(pt, it->vmm, ptei++ * 8, 0UL);
 +	}
-+	return -ENOSYS;
-+}
++	nvkm_done(pt->memory);
 +
-+static const struct nvkm_event_func
-+nvkm_fault_ntfy = {
-+	.ctor = nvkm_fault_ntfy_ctor,
-+};
++	/* Drop PTE references. */
++	pgt->refs[type] -= ptes;
 +
-+static int
-+nvkm_fault_class_new(struct nvkm_device *device,
-+		     const struct nvkm_oclass *oclass, void *data, u32 size,
-+		     struct nvkm_object **pobject)
-+{
-+	struct nvkm_fault *fault = nvkm_fault(device->fault);
-+	if (!oclass->client->super)
-+		return -EACCES;
-+	return nvkm_ufault_new(fault, oclass, data, size, pobject);
-+}
-+
-+static const struct nvkm_device_oclass
-+nvkm_fault_class = {
-+	.ctor = nvkm_fault_class_new,
-+};
-+
-+static int
-+nvkm_fault_class_get(struct nvkm_oclass *oclass, int index,
-+		     const struct nvkm_device_oclass **class)
-+{
-+	struct nvkm_fault *fault = nvkm_fault(oclass->engine);
-+	if (index == 0) {
-+		oclass->base.oclass = fault->func->oclass;
-+		oclass->base.minver = -1;
-+		oclass->base.maxver = -1;
-+		*class = &nvkm_fault_class;
++	/* PT no longer neeed?  Destroy it. */
++	if (!pgt->refs[type]) {
++		it->lvl++;
++		TRA(it, "%s empty", nvkm_vmm_desc_type(desc));
++		it->lvl--;
++		nvkm_vmm_unref_pdes(it);
++		return false; /* PTE writes for unmap() not necessary. */
 +	}
-+	return 1;
++
++	return true;
 +}
 +
-+static void
-+nvkm_fault_intr(struct nvkm_engine *engine)
+ static void
+ nvkm_vmm_ref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
+ 		   const struct nvkm_vmm_desc *desc, u32 ptei, u32 ptes)
+@@ -349,6 +402,32 @@ nvkm_vmm_ref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
+ 	}
+ }
+ 
++static bool
++nvkm_vmm_ref_hmm_ptes(struct nvkm_vmm_iter *it, u32 ptei, u32 ptes)
 +{
-+	struct nvkm_fault *fault = nvkm_fault(engine);
-+	nvkm_event_send(&fault->event, 1, 0, NULL, 0);
++	const struct nvkm_vmm_desc *desc = it->desc;
++	const int type = desc->type == SPT;
++	struct nvkm_vmm_pt *pgt = it->pt[0];
++	struct nvkm_mmu_pt *pt;
++	int mapped;
++
++	pt = pgt->pt[type];
++	mapped = desc->func->hmm_map(it->vmm, pt, ptei, ptes,
++			&it->pages[(it->addr - it->start) >> PAGE_SHIFT]);
++	if (mapped <= 0)
++		return false;
++	ptes = mapped;
++
++	/* Take PTE references. */
++	pgt->refs[type] += ptes;
++
++	/* Dual-PTs need special handling. */
++	if (desc->type == SPT)
++		nvkm_vmm_ref_sptes(it, pgt, desc, ptei, ptes);
++
++	return true;
 +}
 +
-+static void *
-+nvkm_fault_dtor(struct nvkm_engine *engine)
+ static bool
+ nvkm_vmm_ref_ptes(struct nvkm_vmm_iter *it, u32 ptei, u32 ptes)
+ {
+@@ -520,6 +599,7 @@ nvkm_vmm_iter(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
+ 	it.cnt = size >> page->shift;
+ 	it.flush = NVKM_VMM_LEVELS_MAX;
+ 	it.start = it.addr = addr;
++	it.pages = map ? map->pages : NULL;
+ 
+ 	/* Deconstruct address into PTE indices for each mapping level. */
+ 	for (it.lvl = 0; desc[it.lvl].bits; it.lvl++) {
+@@ -1184,6 +1264,29 @@ nvkm_vmm_map(struct nvkm_vmm *vmm, struct nvkm_vma *vma, void *argv, u32 argc,
+ 	return ret;
+ }
+ 
++void
++nvkm_vmm_hmm_map(struct nvkm_vmm *vmm, u64 addr, u64 npages, u64 *pages)
 +{
-+	struct nvkm_fault *fault = nvkm_fault(engine);
-+	nvkm_event_fini(&fault->event);
-+	return fault;
++	struct nvkm_vmm_map map = {0};
++
++	for (map.page = vmm->func->page; map.page->shift != 12; map.page++);
++	map.pages = pages;
++
++	nvkm_vmm_iter(vmm, map.page, addr, npages << PAGE_SHIFT, "ref + map",
++		      true, nvkm_vmm_ref_hmm_ptes, NULL, &map, NULL);
 +}
 +
-+static const struct nvkm_engine_func
-+nvkm_fault = {
-+	.dtor = nvkm_fault_dtor,
-+	.intr = nvkm_fault_intr,
-+	.base.sclass = nvkm_fault_class_get,
-+};
-+
-+int
-+nvkm_fault_new_(const struct nvkm_fault_func *func, struct nvkm_device *device,
-+		int index, struct nvkm_engine **pengine)
++void
++nvkm_vmm_hmm_unmap(struct nvkm_vmm *vmm, u64 addr, u64 npages)
 +{
-+	struct nvkm_fault *fault;
-+	int ret;
++	struct nvkm_vmm_map map = {0};
 +
-+	if (!(fault = kzalloc(sizeof(*fault), GFP_KERNEL)))
-+		return -ENOMEM;
-+	*pengine = &fault->engine;
-+	fault->func = func;
++	for (map.page = vmm->func->page; map.page->shift != 12; map.page++);
 +
-+	ret = nvkm_engine_ctor(&nvkm_fault, device, index, true,
-+			       &fault->engine);
-+	if (ret)
-+		return ret;
-+
-+	return nvkm_event_init(&nvkm_fault_ntfy, 1, 1, &fault->event);
-+}
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/fault/gp100.c b/drivers/gpu/drm/nouveau/nvkm/engine/fault/gp100.c
-new file mode 100644
-index 000000000000..4120bc043a3d
---- /dev/null
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/fault/gp100.c
-@@ -0,0 +1,61 @@
-+/*
-+ * Copyright 2017 Red Hat Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the "Software"),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom the
-+ * Software is furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
-+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-+ * OTHER DEALINGS IN THE SOFTWARE.
-+ */
-+#include "priv.h"
-+
-+#include <nvif/class.h>
-+
-+static void
-+gp100_fault_fini(struct nvkm_fault *fault)
-+{
-+	struct nvkm_device *device = fault->engine.subdev.device;
-+	nvkm_mask(device, 0x002a70, 0x00000001, 0x00000000);
++	nvkm_vmm_iter(vmm, map.page, addr, npages << PAGE_SHIFT, "unmap + unref",
++		      false, nvkm_vmm_unref_hmm_ptes, NULL, NULL, NULL);
 +}
 +
-+static void
-+gp100_fault_init(struct nvkm_fault *fault)
-+{
-+	struct nvkm_device *device = fault->engine.subdev.device;
-+	nvkm_wr32(device, 0x002a74, upper_32_bits(fault->vma->addr));
-+	nvkm_wr32(device, 0x002a70, lower_32_bits(fault->vma->addr));
-+	nvkm_mask(device, 0x002a70, 0x00000001, 0x00000001);
-+}
-+
-+static u32
-+gp100_fault_size(struct nvkm_fault *fault)
-+{
-+	return nvkm_rd32(fault->engine.subdev.device, 0x002a78) * 32;
-+}
-+
-+static const struct nvkm_fault_func
-+gp100_fault = {
-+	.size = gp100_fault_size,
-+	.init = gp100_fault_init,
-+	.fini = gp100_fault_fini,
-+	.oclass = MAXWELL_FAULT_BUFFER_A,
-+};
-+
-+int
-+gp100_fault_new(struct nvkm_device *device, int index,
-+		struct nvkm_engine **pengine)
-+{
-+	return nvkm_fault_new_(&gp100_fault, device, index, pengine);
-+}
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/fault/priv.h b/drivers/gpu/drm/nouveau/nvkm/engine/fault/priv.h
-new file mode 100644
-index 000000000000..5e3e6366b0fb
---- /dev/null
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/fault/priv.h
-@@ -0,0 +1,29 @@
-+#ifndef __NVKM_FAULT_PRIV_H__
-+#define __NVKM_FAULT_PRIV_H__
-+#define nvkm_fault(p) container_of((p), struct nvkm_fault, engine)
-+#include <engine/fault.h>
-+
-+#include <core/event.h>
-+#include <subdev/mmu.h>
-+
-+struct nvkm_fault {
-+	const struct nvkm_fault_func *func;
-+	struct nvkm_engine engine;
-+
-+	struct nvkm_event event;
-+
-+	struct nvkm_object *user;
-+	struct nvkm_memory *mem;
-+	struct nvkm_vma *vma;
-+};
-+
-+struct nvkm_fault_func {
-+	u32 (*size)(struct nvkm_fault *);
-+	void (*init)(struct nvkm_fault *);
-+	void (*fini)(struct nvkm_fault *);
-+	s32 oclass;
-+};
-+
-+int nvkm_fault_new_(const struct nvkm_fault_func *, struct nvkm_device *,
-+		    int, struct nvkm_engine **);
-+#endif
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/fault/user.c b/drivers/gpu/drm/nouveau/nvkm/engine/fault/user.c
-new file mode 100644
-index 000000000000..5cc1c4b989bb
---- /dev/null
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/fault/user.c
-@@ -0,0 +1,136 @@
-+/*
-+ * Copyright 2017 Red Hat Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the "Software"),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom the
-+ * Software is furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
-+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-+ * OTHER DEALINGS IN THE SOFTWARE.
-+ */
-+#include "user.h"
-+
-+#include <core/object.h>
-+#include <core/memory.h>
-+#include <subdev/bar.h>
-+
-+#include <nvif/clb069.h>
-+#include <nvif/unpack.h>
-+
+ static void
+ nvkm_vmm_put_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+ {
+diff --git a/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.h b/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.h
+index da06e64d8a7d..a630aa2a77e4 100644
+--- a/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.h
++++ b/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.h
+@@ -56,6 +56,8 @@ typedef void (*nvkm_vmm_pde_func)(struct nvkm_vmm *,
+ 				  struct nvkm_vmm_pt *, u32 pdei);
+ typedef void (*nvkm_vmm_pte_func)(struct nvkm_vmm *, struct nvkm_mmu_pt *,
+ 				  u32 ptei, u32 ptes, struct nvkm_vmm_map *);
++typedef int (*nvkm_vmm_hmm_func)(struct nvkm_vmm *, struct nvkm_mmu_pt *,
++				 u32 ptei, u32 ptes, u64 *pages);
+ 
+ struct nvkm_vmm_desc_func {
+ 	nvkm_vmm_pxe_func invalid;
+@@ -67,6 +69,8 @@ struct nvkm_vmm_desc_func {
+ 	nvkm_vmm_pte_func mem;
+ 	nvkm_vmm_pte_func dma;
+ 	nvkm_vmm_pte_func sgl;
++	nvkm_vmm_hmm_func hmm_map;
++	nvkm_vmm_hmm_func hmm_unmap;
+ };
+ 
+ extern const struct nvkm_vmm_desc_func gf100_vmm_pgd;
+@@ -163,6 +167,8 @@ int nvkm_vmm_get_locked(struct nvkm_vmm *, bool getref, bool mapref,
+ void nvkm_vmm_put_locked(struct nvkm_vmm *, struct nvkm_vma *);
+ void nvkm_vmm_unmap_locked(struct nvkm_vmm *, struct nvkm_vma *);
+ void nvkm_vmm_unmap_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma);
++void nvkm_vmm_hmm_map(struct nvkm_vmm *vmm, u64 addr, u64 npages, u64 *pages);
++void nvkm_vmm_hmm_unmap(struct nvkm_vmm *vmm, u64 addr, u64 npages);
+ 
+ struct nvkm_vma *nvkm_vma_tail(struct nvkm_vma *, u64 tail);
+ void nvkm_vmm_node_insert(struct nvkm_vmm *, struct nvkm_vma *);
+diff --git a/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmmgp100.c b/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmmgp100.c
+index 8752d9ce4af0..bae32fc28289 100644
+--- a/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmmgp100.c
++++ b/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmmgp100.c
+@@ -67,6 +67,77 @@ gp100_vmm_pgt_dma(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
+ 	VMM_MAP_ITER_DMA(vmm, pt, ptei, ptes, map, gp100_vmm_pgt_pte);
+ }
+ 
 +static int
-+nvkm_ufault_map(struct nvkm_object *object, void *argv, u32 argc,
-+		enum nvkm_object_map *type, u64 *addr, u64 *size)
++gp100_vmm_pgt_hmm_map(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
++		      u32 ptei, u32 ptes, u64 *pages)
 +{
-+	struct nvkm_fault *fault = nvkm_fault(object->engine);
-+	struct nvkm_device *device = fault->engine.subdev.device;
-+	*type = NVKM_OBJECT_MAP_IO;
-+	*addr = device->func->resource_addr(device, 3) + fault->vma->addr;
-+	*size = nvkm_memory_size(fault->mem);
-+	return 0;
-+}
++	int mapped = 0;
 +
-+static int
-+nvkm_ufault_ntfy(struct nvkm_object *object, u32 type,
-+		 struct nvkm_event **pevent)
-+{
-+	struct nvkm_fault *fault = nvkm_fault(object->engine);
-+	if (type == NVB069_VN_NTFY_FAULT) {
-+		*pevent = &fault->event;
-+		return 0;
++	nvkm_kmap(pt->memory);
++	while (ptes--) {
++		u64 data = nvkm_ro64(pt->memory, pt->base + ptei * 8);
++		u64 page = *pages;
++		struct page *tmp;
++		dma_addr_t dma;
++
++		if (!(page & NV_HMM_PAGE_FLAG_V)) {
++			pages++; ptei++;
++			continue;
++		}
++
++		if ((data & 1)) {
++			*pages |= NV_HMM_PAGE_FLAG_V;
++			pages++; ptei++;
++			continue;
++		}
++
++		tmp = pfn_to_page(page >> NV_HMM_PAGE_PFN_SHIFT);
++		dma = dma_map_page(vmm->mmu->subdev.device->dev, tmp,
++				   0, PAGE_SIZE, DMA_BIDIRECTIONAL);
++		if (dma_mapping_error(vmm->mmu->subdev.device->dev, dma)) {
++			*pages |= NV_HMM_PAGE_FLAG_E;
++			pages++; ptei++;
++			continue;
++		}
++
++		data = (2 << 1);
++		data |= ((dma >> PAGE_SHIFT) << 8);
++		data |= page & NV_HMM_PAGE_FLAG_V ? (1 << 0) : 0;
++		data |= page & NV_HMM_PAGE_FLAG_W ? 0 : (1 << 6);
++
++		VMM_WO064(pt, vmm, ptei++ * 8, data);
++		mapped++;
++		pages++;
 +	}
-+	return -EINVAL;
++	nvkm_done(pt->memory);
++
++	return mapped;
 +}
 +
 +static int
-+nvkm_ufault_fini(struct nvkm_object *object, bool suspend)
++gp100_vmm_pgt_hmm_unmap(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
++			u32 ptei, u32 ptes, u64 *pages)
 +{
-+	struct nvkm_fault *fault = nvkm_fault(object->engine);
-+	fault->func->fini(fault);
-+	return 0;
++	int unmapped = 0;
++
++	nvkm_kmap(pt->memory);
++	while (ptes--) {
++		u64 data = nvkm_ro64(pt->memory, pt->base + ptei * 8);
++
++		if (!(data & 1)) {
++			VMM_WO064(pt, vmm, ptei++ * 8, 0UL);
++			continue;
++		}
++
++		/* Clear valid but keep pte value so we can dma_unmap() */
++		VMM_WO064(pt, vmm, ptei++ * 8, data ^ 1);
++		unmapped++;
++	}
++	nvkm_done(pt->memory);
++
++	return unmapped;
 +}
 +
-+static int
-+nvkm_ufault_init(struct nvkm_object *object)
-+{
-+	struct nvkm_fault *fault = nvkm_fault(object->engine);
-+	fault->func->init(fault);
-+	return 0;
-+}
-+
-+static void *
-+nvkm_ufault_dtor(struct nvkm_object *object)
-+{
-+	struct nvkm_fault *fault = nvkm_fault(object->engine);
-+	struct nvkm_vmm *bar2 = nvkm_bar_bar2_vmm(fault->engine.subdev.device);
-+
-+	mutex_lock(&fault->engine.subdev.mutex);
-+	if (fault->user == object)
-+		fault->user = NULL;
-+	mutex_unlock(&fault->engine.subdev.mutex);
-+
-+	nvkm_vmm_put(bar2, &fault->vma);
-+	nvkm_memory_unref(&fault->mem);
-+	return object;
-+}
-+
-+static const struct nvkm_object_func
-+nvkm_ufault = {
-+	.dtor = nvkm_ufault_dtor,
-+	.init = nvkm_ufault_init,
-+	.fini = nvkm_ufault_fini,
-+	.ntfy = nvkm_ufault_ntfy,
-+	.map = nvkm_ufault_map,
-+};
-+
-+int
-+nvkm_ufault_new(struct nvkm_fault *fault, const struct nvkm_oclass *oclass,
-+		void *argv, u32 argc, struct nvkm_object **pobject)
-+{
-+	union {
-+		struct nvb069_vn vn;
-+	} *args = argv;
-+	struct nvkm_subdev *subdev = &fault->engine.subdev;
-+	struct nvkm_device *device = subdev->device;
-+	struct nvkm_vmm *bar2 = nvkm_bar_bar2_vmm(device);
-+	u32 size = fault->func->size(fault);
-+	int ret = -ENOSYS;
-+
-+	if ((ret = nvif_unvers(ret, &argv, &argc, args->vn)))
-+		return ret;
-+
-+	ret = nvkm_object_new_(&nvkm_ufault, oclass, NULL, 0, pobject);
-+	if (ret)
-+		return ret;
-+
-+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, size,
-+			      0x1000, false, &fault->mem);
-+	if (ret)
-+		return ret;
-+
-+	ret = nvkm_vmm_get(bar2, 12, nvkm_memory_size(fault->mem), &fault->vma);
-+	if (ret)
-+		return ret;
-+
-+	ret = nvkm_memory_map(fault->mem, 0, bar2, fault->vma, NULL, 0);
-+	if (ret)
-+		return ret;
-+
-+	mutex_lock(&subdev->mutex);
-+	if (!fault->user)
-+		fault->user = *pobject;
-+	else
-+		ret = -EBUSY;
-+	mutex_unlock(&subdev->mutex);
-+	return 0;
-+}
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/fault/user.h b/drivers/gpu/drm/nouveau/nvkm/engine/fault/user.h
-new file mode 100644
-index 000000000000..70c03bbbc0b2
---- /dev/null
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/fault/user.h
-@@ -0,0 +1,7 @@
-+#ifndef __NVKM_FAULT_USER_H__
-+#define __NVKM_FAULT_USER_H__
-+#include "priv.h"
-+
-+int nvkm_ufault_new(struct nvkm_fault *, const struct nvkm_oclass *,
-+		    void *, u32, struct nvkm_object **);
-+#endif
+ static void
+ gp100_vmm_pgt_mem(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
+ 		  u32 ptei, u32 ptes, struct nvkm_vmm_map *map)
+@@ -89,6 +160,8 @@ gp100_vmm_desc_spt = {
+ 	.mem = gp100_vmm_pgt_mem,
+ 	.dma = gp100_vmm_pgt_dma,
+ 	.sgl = gp100_vmm_pgt_sgl,
++	.hmm_map = gp100_vmm_pgt_hmm_map,
++	.hmm_unmap = gp100_vmm_pgt_hmm_unmap,
+ };
+ 
+ static void
 -- 
 2.14.3
