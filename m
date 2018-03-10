@@ -1,178 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E07B6B0007
-	for <linux-mm@kvack.org>; Sat, 10 Mar 2018 09:45:38 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id 4-v6so5921792plb.1
-        for <linux-mm@kvack.org>; Sat, 10 Mar 2018 06:45:38 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id y66si2776061pff.331.2018.03.10.06.45.36
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BF6046B0009
+	for <linux-mm@kvack.org>; Sat, 10 Mar 2018 10:02:02 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id n12so2250860wmc.5
+        for <linux-mm@kvack.org>; Sat, 10 Mar 2018 07:02:02 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h14sor1549374wrb.30.2018.03.10.07.02.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 10 Mar 2018 06:45:36 -0800 (PST)
-Date: Sat, 10 Mar 2018 22:46:27 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v4 3/3 update] mm/free_pcppages_bulk: prefetch buddy
- while not holding lock
-Message-ID: <20180310144627.GA12254@intel.com>
-References: <20180301062845.26038-1-aaron.lu@intel.com>
- <20180301062845.26038-4-aaron.lu@intel.com>
- <20180301160950.b561d6b8b561217bad511229@linux-foundation.org>
- <20180302082756.GC6356@intel.com>
- <20180309082431.GB30868@intel.com>
- <20180309135832.988ab6d3d986658d531a79ef@linux-foundation.org>
+        (Google Transport Security);
+        Sat, 10 Mar 2018 07:02:01 -0800 (PST)
+Reply-To: christian.koenig@amd.com
+Subject: Re: [RFC PATCH 00/13] SVM (share virtual memory) with HMM in nouveau
+References: <20180310032141.6096-1-jglisse@redhat.com>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <ckoenig.leichtzumerken@gmail.com>
+Message-ID: <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
+Date: Sat, 10 Mar 2018 16:01:58 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180309135832.988ab6d3d986658d531a79ef@linux-foundation.org>
+In-Reply-To: <20180310032141.6096-1-jglisse@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
+To: jglisse@redhat.com, dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org
+Cc: Evgeny Baskakov <ebaskakov@nvidia.com>, linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Felix Kuehling <felix.kuehling@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>
 
-On Fri, Mar 09, 2018 at 01:58:32PM -0800, Andrew Morton wrote:
-> >
-> > When a page is freed back to the global pool, its buddy will be checked
-> > to see if it's possible to do a merge. This requires accessing buddy's
-> > page structure and that access could take a long time if it's cache cold.
-> > 
-> > This patch adds a prefetch to the to-be-freed page's buddy outside of
-> > zone->lock in hope of accessing buddy's page structure later under
-> > zone->lock will be faster. Since we *always* do buddy merging and check
-> > an order-0 page's buddy to try to merge it when it goes into the main
-> > allocator, the cacheline will always come in, i.e. the prefetched data
-> > will never be unused.
-> > 
-> > Normally, the number of to-be-freed pages(i.e. count) equals to
-> > pcp->batch (default=31 and has an upper limit of (PAGE_SHIFT * 8)=96 on
-> > x86_64) but in the case of pcp's pages getting all drained, it will be
-> > pcp->count which has an upper limit of pcp->high. pcp->high, although
-> > has a default value of 186 (pcp->batch=31 * 6), can be changed by user
-> > through /proc/sys/vm/percpu_pagelist_fraction and there is no software
-> > upper limit so could be large, like several thousand. For this reason,
-> > only the last pcp->batch number of page's buddy structure is prefetched
-> > to avoid excessive prefetching. pcp-batch is used because:
-> > 1 most often, count == pcp->batch;
-> > 2 it has an upper limit itself so we won't prefetch excessively.
-> > 
-> > Considering the possible large value of pcp->high, it also makes
-> > sense to free the last added page first for cache hot's reason.
-> > That's where the change of list_add_tail() to list_add() comes in
-> > as we will free them from head to tail one by one.
-> > 
-> > In the meantime, there are two concerns:
-> > 1 the prefetch could potentially evict existing cachelines, especially
-> >   for L1D cache since it is not huge;
-> > 2 there is some additional instruction overhead, namely calculating
-> >   buddy pfn twice.
-> > 
-> > For 1, it's hard to say, this microbenchmark though shows good result but
-> > the actual benefit of this patch will be workload/CPU dependant;
-> > For 2, since the calculation is a XOR on two local variables, it's expected
-> > in many cases that cycles spent will be offset by reduced memory latency
-> > later. This is especially true for NUMA machines where multiple CPUs are
-> > contending on zone->lock and the most time consuming part under zone->lock
-> > is the wait of 'struct page' cacheline of the to-be-freed pages and their
-> > buddies.
-> > 
-> > Test with will-it-scale/page_fault1 full load:
-> > 
-> > kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
-> > v4.16-rc2+  9034215        7971818       13667135       15677465
-> > patch2/3    9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
-> > this patch 10180856 +6.8%  8506369 +2.3% 14756865 +4.9% 17325324 +3.9%
-> > Note: this patch's performance improvement percent is against patch2/3.
-> > 
-> > (Changelog stolen from Dave Hansen and Mel Gorman's comments at
-> > http://lkml.kernel.org/r/148a42d8-8306-2f2f-7f7c-86bc118f8ccd@intel.com)
-> > 
-> > Link: http://lkml.kernel.org/r/20180301062845.26038-4-aaron.lu@intel.com
-> >
-> > ...
-> >
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1141,6 +1141,9 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-> >  			batch_free = count;
-> >  
-> >  		do {
-> > +			unsigned long pfn, buddy_pfn;
-> > +			struct page *buddy;
-> > +
-> >  			page = list_last_entry(list, struct page, lru);
-> >  			/* must delete to avoid corrupting pcp list */
-> >  			list_del(&page->lru);
-> > @@ -1149,7 +1152,23 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-> >  			if (bulkfree_pcp_prepare(page))
-> >  				continue;
-> >  
-> > -			list_add_tail(&page->lru, &head);
-> > +			list_add(&page->lru, &head);
-> 
-> The result here will be that free_pcppages_bulk() frees the pages in
-> the reverse order?
+Good to have an example how to use HMM with an upstream driver.
 
-Yes, so that the last touched page will be freed first as the list of
-pages will be freed from head to tail later.
+Am 10.03.2018 um 04:21 schrieb jglisse@redhat.com:
+> This patchset adds SVM (Share Virtual Memory) using HMM (Heterogeneous
+> Memory Management) to the nouveau driver. SVM means that GPU threads
+> spawn by GPU driver for a specific user process can access any valid
+> CPU address in that process. A valid pointer is a pointer inside an
+> area coming from mmap of private, share or regular file. Pointer to
+> a mmap of a device file or special file are not supported.
 
-This change is for the case when count is large(which is a rare case):
-since the last touched pages and their buddies are more likely to be
-still cache hot when later these pages are freed under lock, it seems
-natural to free them first.
+BTW: The recent IOMMU patches which generalized the PASID handling calls 
+this SVA for shared virtual address space.
 
-We can revert this change if it causes any trouble without affecting
-performance much as count is not a large value most of the time.
+We should probably sync up with those guys at some point what naming to use.
 
-> 
-> I don't immediately see a downside to that.  In the (distant) past we
-> had issues when successive alloc_page() calls would return pages in
-> descending address order - that totally screwed up scatter-gather page
-> merging.  But this is the page-freeing path.  Still, something to be
-> thought about and monitored.
+> This is an RFC for few reasons technical reasons listed below and also
+> because we are still working on a proper open source userspace (namely
+> a OpenCL 2.0 for nouveau inside mesa). Open source userspace being a
+> requirement for the DRM subsystem. I pushed in [1] a simple standalone
+> program that can be use to test SVM through HMM with nouveau. I expect
+> we will have a somewhat working userspace in the coming weeks, work
+> being well underway and some patches have already been posted on mesa
+> mailing list.
 
-OK.
+You could use the OpenGL extensions to import arbitrary user pointers as 
+bringup use case for this.
 
-> 
-> > +
-> > +			/*
-> > +			 * We are going to put the page back to the global
-> > +			 * pool, prefetch its buddy to speed up later access
-> > +			 * under zone->lock. It is believed the overhead of
-> > +			 * an additional test and calculating buddy_pfn here
-> > +			 * can be offset by reduced memory latency later. To
-> > +			 * avoid excessive prefetching due to large count, only
-> > +			 * prefetch buddy for the last pcp->batch nr of pages.
-> > +			 */
-> > +			if (count > pcp->batch)
-> > +				continue;
-> > +			pfn = page_to_pfn(page);
-> > +			buddy_pfn = __find_buddy_pfn(pfn, 0);
-> > +			buddy = page + (buddy_pfn - pfn);
-> > +			prefetch(buddy);
-> >  		} while (--count && --batch_free && !list_empty(list));
-> 
-> This loop hurts my brain, mainly the handling of `count':
-> 
-> 	while (count) {
-> 		do {
-> 			batch_free++;
-> 		} while (list_empty(list));
-> 
-> 		/* This is the only non-empty list. Free them all. */
-> 		if (batch_free == MIGRATE_PCPTYPES)
-> 			batch_free = count;
-> 
-> 		do {
-> 		} while (--count && --batch_free && !list_empty(list));
-> 	}
-> 
-> I guess it kinda makes sense - both loops terminate on count==0.  But
-> still.  Can it be clarified?
+I was hoping to do the same for my ATC/HMM work on radeonsi and as far 
+as I know there are even piglit tests for that.
 
-That's right, count == 0 is the final termination condition.
-count is decremented when a page is to be freed so:
+> They are work underway to revamp nouveau channel creation with a new
+> userspace API. So we might want to delay upstreaming until this lands.
+> We can stil discuss one aspect specific to HMM here namely the issue
+> around GEM objects used for some specific part of the GPU. Some engine
+> inside the GPU (engine are a GPU block like the display block which
+> is responsible of scaning memory to send out a picture through some
+> connector for instance HDMI or DisplayPort) can only access memory
+> with virtual address below (1 << 40). To accomodate those we need to
+> create a "hole" inside the process address space. This patchset have
+> a hack for that (patch 13 HACK FOR HMM AREA), it reserves a range of
+> device file offset so that process can mmap this range with PROT_NONE
+> to create a hole (process must make sure the hole is below 1 << 40).
+> I feel un-easy of doing it this way but maybe it is ok with other
+> folks.
 
-	if (count > pcp->batch)
-		continue;
-	prefetch();
+Well we have essentially the same problem with pre gfx9 AMD hardware. 
+Felix might have some advise how it was solved for HSA.
 
-means to only prefetch for the last pcp->batch pages.
+Regards,
+Christian.
