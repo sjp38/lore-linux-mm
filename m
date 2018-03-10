@@ -1,142 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CA6576B000C
-	for <linux-mm@kvack.org>; Sat, 10 Mar 2018 11:22:21 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id v2so5055423pgv.23
-        for <linux-mm@kvack.org>; Sat, 10 Mar 2018 08:22:21 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b5sor204263pge.300.2018.03.10.08.22.20
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DB666B0005
+	for <linux-mm@kvack.org>; Sat, 10 Mar 2018 12:55:32 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id d85so4051665qke.11
+        for <linux-mm@kvack.org>; Sat, 10 Mar 2018 09:55:32 -0800 (PST)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id v10si3418561qth.127.2018.03.10.09.55.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 10 Mar 2018 08:22:20 -0800 (PST)
-Date: Sat, 10 Mar 2018 21:53:52 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v2] mm: Change return type to vm_fault_t
-Message-ID: <20180310162351.GA7422@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 10 Mar 2018 09:55:31 -0800 (PST)
+Date: Sat, 10 Mar 2018 12:55:28 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [RFC PATCH 00/13] SVM (share virtual memory) with HMM in nouveau
+Message-ID: <20180310175528.GA3394@redhat.com>
+References: <20180310032141.6096-1-jglisse@redhat.com>
+ <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: christian.koenig@amd.com
+Cc: dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org, Evgeny Baskakov <ebaskakov@nvidia.com>, linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Felix Kuehling <felix.kuehling@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>
 
-The plan for these patches is to introduce the typedef, initially
-just as documentation ("These functions should return a VM_FAULT_ status").
-We'll trickle the patches to individual drivers/filesystems in through
-the maintainers, as far as possible. Then we'll change the typedef
-to an unsigned int and break the compilation of any unconverted
-drivers/filesystems.
+On Sat, Mar 10, 2018 at 04:01:58PM +0100, Christian Konig wrote:
+> Good to have an example how to use HMM with an upstream driver.
 
-vmf_insert_page(), vmf_insert_mixed() and vmf_insert_pfn() are three
-newly added functions. The various drivers/filesystems where return value
-of fault(), huge_fault(), page_mkwrite() and pfn_mkwrite() get converted,
-will need them. These functions will return correct VM_FAULT_ code based
-on err value.
+I have tried to keep hardware specific bits and overal HMM logic separated
+so people can use it as an example without needing to understand NVidia GPU.
+I think i can still split patches a bit some more along that line.
 
-We've had bugs before where drivers returned -EFOO.  And we have this
-silly inefficiency where vm_insert_xxx() return an errno which (afaict)
-every driver then converts into a VM_FAULT code. In many cases drivers
-failed to return correct VM_FAULT code value despite of vm_insert_xxx()
-fails. We have indentified and clean up all those existing bugs and silly
-inefficiencies in driver/filesystems by adding these three new inline
-wrappers. As mentioned above, we will trickle those patches to individual
-drivers/filesystems in through maintainers after these three wrapper
-functions are merged.
+> Am 10.03.2018 um 04:21 schrieb jglisse@redhat.com:
+> > This patchset adds SVM (Share Virtual Memory) using HMM (Heterogeneous
+> > Memory Management) to the nouveau driver. SVM means that GPU threads
+> > spawn by GPU driver for a specific user process can access any valid
+> > CPU address in that process. A valid pointer is a pointer inside an
+> > area coming from mmap of private, share or regular file. Pointer to
+> > a mmap of a device file or special file are not supported.
+> 
+> BTW: The recent IOMMU patches which generalized the PASID handling calls
+> this SVA for shared virtual address space.
+> 
+> We should probably sync up with those guys at some point what naming to use.
 
-Eventually we can convert vm_insert_xxx() into vmf_insert_xxx() and
-remove these inline wrappers, but these are a good intermediate step.
+Let's create a committee to decide on the name ;)
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
- include/linux/mm.h       | 47 +++++++++++++++++++++++++++++++++++++++++++----
- include/linux/mm_types.h |  2 ++
- 2 files changed, 45 insertions(+), 4 deletions(-)
+> 
+> > This is an RFC for few reasons technical reasons listed below and also
+> > because we are still working on a proper open source userspace (namely
+> > a OpenCL 2.0 for nouveau inside mesa). Open source userspace being a
+> > requirement for the DRM subsystem. I pushed in [1] a simple standalone
+> > program that can be use to test SVM through HMM with nouveau. I expect
+> > we will have a somewhat working userspace in the coming weeks, work
+> > being well underway and some patches have already been posted on mesa
+> > mailing list.
+> 
+> You could use the OpenGL extensions to import arbitrary user pointers as
+> bringup use case for this.
+> 
+> I was hoping to do the same for my ATC/HMM work on radeonsi and as far
+> as I know there are even piglit tests for that.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ad06d42..a4d8853 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -379,17 +379,18 @@ struct vm_operations_struct {
- 	void (*close)(struct vm_area_struct * area);
- 	int (*split)(struct vm_area_struct * area, unsigned long addr);
- 	int (*mremap)(struct vm_area_struct * area);
--	int (*fault)(struct vm_fault *vmf);
--	int (*huge_fault)(struct vm_fault *vmf, enum page_entry_size pe_size);
-+	vm_fault_t (*fault)(struct vm_fault *vmf);
-+	vm_fault_t (*huge_fault)(struct vm_fault *vmf,
-+			enum page_entry_size pe_size);
- 	void (*map_pages)(struct vm_fault *vmf,
- 			pgoff_t start_pgoff, pgoff_t end_pgoff);
+OpenGL extensions are bit too limited when i checked them long time ago.
+I think we rather have something like OpenCL ready so that it is easier
+to justify some of the more compute only features. My timeline is 4.18
+for HMM inside nouveau upstream (roughly) as first some other changes to
+nouveau need to land. So i am thinking (hoping :)) that all the stars
+will be properly align by then.
 
- 	/* notification that a previously read-only page is about to become
- 	 * writable, if an error is returned it will cause a SIGBUS */
--	int (*page_mkwrite)(struct vm_fault *vmf);
-+	vm_fault_t (*page_mkwrite)(struct vm_fault *vmf);
 
- 	/* same as page_mkwrite when using VM_PFNMAP|VM_MIXEDMAP */
--	int (*pfn_mkwrite)(struct vm_fault *vmf);
-+	vm_fault_t (*pfn_mkwrite)(struct vm_fault *vmf);
+> > They are work underway to revamp nouveau channel creation with a new
+> > userspace API. So we might want to delay upstreaming until this lands.
+> > We can stil discuss one aspect specific to HMM here namely the issue
+> > around GEM objects used for some specific part of the GPU. Some engine
+> > inside the GPU (engine are a GPU block like the display block which
+> > is responsible of scaning memory to send out a picture through some
+> > connector for instance HDMI or DisplayPort) can only access memory
+> > with virtual address below (1 << 40). To accomodate those we need to
+> > create a "hole" inside the process address space. This patchset have
+> > a hack for that (patch 13 HACK FOR HMM AREA), it reserves a range of
+> > device file offset so that process can mmap this range with PROT_NONE
+> > to create a hole (process must make sure the hole is below 1 << 40).
+> > I feel un-easy of doing it this way but maybe it is ok with other
+> > folks.
+> 
+> Well we have essentially the same problem with pre gfx9 AMD hardware.
+> Felix might have some advise how it was solved for HSA.
 
- 	/* called by access_process_vm when get_user_pages() fails, typically
- 	 * for use by special VMAs that can switch between memory and hardware
-@@ -2413,6 +2414,44 @@ int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
- 			pfn_t pfn);
- int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
+Here my concern is around API expose to userspace for this "hole"/reserved
+area. I considered several options:
+  - Have userspace allocate all object needed by GPU and mmap them
+    at proper VA (Virtual Address) this need kernel to do special
+    handling for those like blocking userspace access for sensitive
+    object (page table, command buffer, ...) so a lot of kernel
+    changes. This somewhat make sense with some of the nouveau API
+    rework that have not landed yet.
+  - Have kernel directly create a PROT_NONE vma against device file. Nice
+    thing is that it is easier in kernel to find a hole of proper size
+    in proper range. But this is ugly and i think i would be stone to
+    death if i were to propose that.
+  - just pick a range and cross finger that userspace never got any of
+    its allocation in it (at least any allocation it want to use on the
+    GPU).
+  - Have userspace mmap with PROT_NONE a specific region of the device
+    file to create this hole (this is what this patchset does). Note
+    that PROT_NONE is not strictly needed but this is what it would get
+    as device driver block any access to it.
 
-+static inline vm_fault_t vmf_insert_page(struct vm_area_struct *vma,
-+				unsigned long addr, struct page *page)
-+{
-+	int err = vm_insert_page(vma, addr, page);
-+
-+	if (err == -ENOMEM)
-+		return VM_FAULT_OOM;
-+	if (err < 0 && err != -EBUSY)
-+		return VM_FAULT_SIGBUS;
-+
-+	return VM_FAULT_NOPAGE;
-+}
-+
-+static inline vm_fault_t vmf_insert_mixed(struct vm_area_struct *vma,
-+				unsigned long addr, pfn_t pfn)
-+{
-+	int err = vm_insert_mixed(vma, addr, pfn);
-+
-+	if (err == -ENOMEM)
-+		return VM_FAULT_OOM;
-+	if (err < 0 && err != -EBUSY)
-+		return VM_FAULT_SIGBUS;
-+
-+	return VM_FAULT_NOPAGE;
-+}
-+
-+static inline vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma,
-+			unsigned long addr, unsigned long pfn)
-+{
-+	int err = vm_insert_pfn(vma, addr, pfn);
-+
-+	if (err == -ENOMEM)
-+		return VM_FAULT_OOM;
-+	if (err < 0 && err != -EBUSY)
-+		return VM_FAULT_SIGBUS;
-+
-+	return VM_FAULT_NOPAGE;
-+}
+Any other solution i missed ?
 
- struct page *follow_page_mask(struct vm_area_struct *vma,
- 			      unsigned long address, unsigned int foll_flags,
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index fd1af6b..2161234 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -22,6 +22,8 @@
- #endif
- #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
+I don't like any of the above ... but this is more of a taste thing. The
+last option is the least ugly in my view. Also in this patchset if user-
+space munmap() the hole or any part of it, it does kill HMM for the
+process. This is an important details for security and consistant result
+in front of buggy/rogue applications.
 
-+typedef int vm_fault_t;
-+
- struct address_space;
- struct mem_cgroup;
- struct hmm;
---
-1.9.1
+Other aspect bother me too, like should i create a region in device file
+so that mmap need to happen in the region, or should i just pick a single
+offset that would trigger the special mmap path. Nowadays i think none
+of the drm driver properly handle mmap that cross the DRM_FILE_OFFSET
+boundary, but we don't expect those to happen either. So latter option
+(single offset) would make sense.
+
+Cheers,
+Jerome
