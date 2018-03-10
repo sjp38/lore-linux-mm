@@ -1,102 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 00DD56B0005
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 19:58:55 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id s8so4594728pgf.16
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 16:58:54 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id d23si1539569pgn.683.2018.03.09.16.58.52
-        for <linux-mm@kvack.org>;
-        Fri, 09 Mar 2018 16:58:53 -0800 (PST)
-Date: Sat, 10 Mar 2018 11:58:50 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: fallocate on XFS for swap
-Message-ID: <20180310005850.GW18129@dastard>
-References: <8C28C1CB-47F1-48D1-85C9-5373D29EA13E@amazon.com>
- <20180309234422.GA4860@magnolia>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 613786B0007
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2018 20:04:42 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id l14so4593648pgn.21
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2018 17:04:42 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id o23-v6si1745557pll.433.2018.03.09.17.04.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Mar 2018 17:04:40 -0800 (PST)
+Subject: Re: [PATCH 1/2] x86/mm: Give each mm a unique ID
+From: Tim Chen <tim.c.chen@linux.intel.com>
+References: <cover.1520026221.git.tim.c.chen@linux.intel.com>
+ <3351ba53a3b570ba08f2a0f5a59d01b7d80a8955.1520026221.git.tim.c.chen@linux.intel.com>
+ <20180307173036.GJ7097@kroah.com>
+ <9b0d1195-23bd-5bf9-0dd8-b2ca29165bbb@linux.intel.com>
+Message-ID: <8322b21f-5ee7-41a6-7897-d73faa0ece27@linux.intel.com>
+Date: Fri, 9 Mar 2018 17:04:39 -0800
 MIME-Version: 1.0
+In-Reply-To: <9b0d1195-23bd-5bf9-0dd8-b2ca29165bbb@linux.intel.com>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180309234422.GA4860@magnolia>
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: "Besogonov, Aleksei" <cyberax@amazon.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, xfs <linux-xfs@vger.kernel.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: stable@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, David Woodhouse <dwmw@amazon.co.uk>, ak@linux.intel.com, karahmed@amazon.de, pbonzini@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Mar 09, 2018 at 03:44:22PM -0800, Darrick J. Wong wrote:
-> [you really ought to cc the xfs list]
+On 03/08/2018 10:23 AM, Tim Chen wrote:
+> On 03/07/2018 09:30 AM, Greg Kroah-Hartman wrote:
+>> On Fri, Mar 02, 2018 at 01:32:09PM -0800, Tim Chen wrote:
+>>> From: Andy Lutomirski <luto@kernel.org>
+>>> commit: f39681ed0f48498b80455095376f11535feea332
+>>>
+>>> This adds a new variable to mmu_context_t: ctx_id.
+>>> ctx_id uniquely identifies the mm_struct and will never be reused.
+>>>
+>>> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+>>> Reviewed-by: Nadav Amit <nadav.amit@gmail.com>
+>>> Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+>>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>>> Cc: Arjan van de Ven <arjan@linux.intel.com>
+>>> Cc: Borislav Petkov <bp@alien8.de>
+>>> Cc: Dave Hansen <dave.hansen@intel.com>
+>>> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+>>> Cc: Mel Gorman <mgorman@suse.de>
+>>> Cc: Peter Zijlstra <peterz@infradead.org>
+>>> Cc: Rik van Riel <riel@redhat.com>
+>>> Cc: linux-mm@kvack.org
+>>> Link: http://lkml.kernel.org/r/413a91c24dab3ed0caa5f4e4d017d87b0857f920.1498751203.git.luto@kernel.org
+>>> Signed-off-by: Ingo Molnar <mingo@kernel.org>
+>>> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+>>> ---
+>>>  arch/x86/include/asm/mmu.h         | 15 +++++++++++++--
+>>>  arch/x86/include/asm/mmu_context.h |  5 +++++
+>>>  arch/x86/mm/tlb.c                  |  2 ++
+>>>  3 files changed, 20 insertions(+), 2 deletions(-)
+>>>
+>>
+>> Does not apply to 4.4.y :(
+>>
+>> Can you provide a working backport for that tree?
+>>
 > 
-> On Fri, Mar 09, 2018 at 10:05:24PM +0000, Besogonov, Aleksei wrote:
-> > Hi!
-> > 
-> > Wea??re working at Amazon on making XFS our default root filesystem for
-> > the upcoming Amazon Linux 2 (now in prod preview). One of the problems
-> > that wea??ve encountered is inability to use fallocated files for swap
-> > on XFS. This is really important for us, since wea??re shipping our
-> > current Amazon Linux with hibernation support .
+> Okay. Will do.  Thanks.
 > 
-> <shudder>
-> 
-> > Ia??ve traced the problem to bmap(), used in generic_swapfile_activate
-> > call, which returns 0 for blocks inside holes created by fallocate and
-> > Dave Chinner confirmed it in a private email. Ia??m thinking about ways
-> > to fix it, so far I see the following possibilities:
-> > 
-> > 1. Change bmap() to not return zeroes for blocks inside holes. But
-> > this is an ABI change and it likely will break some obscure userspace
-> > utility somewhere.
-> 
-> bmap is a horrible interface, let's leave it to wither and eventually go
-> away.
-> 
-> > 2. Change generic_swap_activate to use a more modern interface, by
-> > adding fiemap-like operation to address_space_operations with fallback
-> > on bmap().
-> 
-> Probably the best idea, but see fs/iomap.c since we're basically leasing
-> a chunk of file space to the kernel.  Leasing space to a user that wants
-> direct access is becoming rather common (rdma, map_sync, etc.)
 
-thing is, we don't want in-kernel users of fiemap. We've got other
-block mapping interfaces that can be used, such as iomap...
 
-> > 3. Add an XFS-specific implementation of swapfile_activate.
-> 
-> Ugh no.
+Greg,
 
-What we want is an iomap-based re-implementation of
-generic_swap_activate(). One of the ways to plumb that in is to
-use ->swapfile_activate() like so:
+I actually found that there are a number of dependent IBPB related patches that haven't been
+backported yet to 4.4:
 
-iomap_swapfile_activate()
-{
-	return iomap_apply(... iomap_swapfile_add_extent, ...)
-}
+    x86/cpufeatures: Add AMD feature bits for Speculation Control
+    (cherry picked from commit 5d10cbc91d9eb5537998b65608441b592eec65e7)
 
-xfs_vm_swapfile_activate()
-{
-	return iomap_swapfile_activate(xfs_iomap_ops);
-}
+    x86/msr: Add definitions for new speculation control MSRs
+    (cherry picked from commit 1e340c60d0dd3ae07b5bedc16a0469c14b9f3410)
 
-	.swapfile_activate = xfs_vm_swapfile_activate()
+    x86/speculation: Add basic IBPB (Indirect Branch Prediction Barrier) support
+    (cherry picked from commit 20ffa1caecca4db8f79fe665acdeaa5af815a24d)
 
-And massage the swapfile_activate callout be friendly to fragmented
-files. i.e. change the nfs caller to run a
-"add_single_swap_extent()" caller rather than have to do it in the
-generic code on return....
+    x86/cpufeatures: Clean up Spectre v2 related CPUID flags
+    (cherry picked from commit 2961298efe1ea1b6fc0d7ee8b76018fa6c0bcef2)
 
-IOWs, I think the choices we have are to either re-implement
-generic_swapfile_activate() and then be stuck with using get_block
-style interfaces forever in XFS, or we use the filesystem specific
-callout to implement more advanced generic support using the
-filesystem supplied get_block/iomap interfaces for block mapping
-like we do for everything else that the VM needs the filesystem to
-do....
+And probably and a few more.
+You have plans to backport these patches?
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Tim
