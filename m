@@ -1,128 +1,299 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DB666B0005
-	for <linux-mm@kvack.org>; Sat, 10 Mar 2018 12:55:32 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id d85so4051665qke.11
-        for <linux-mm@kvack.org>; Sat, 10 Mar 2018 09:55:32 -0800 (PST)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id v10si3418561qth.127.2018.03.10.09.55.31
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 443626B0005
+	for <linux-mm@kvack.org>; Sun, 11 Mar 2018 06:56:50 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id m78so2893783wma.7
+        for <linux-mm@kvack.org>; Sun, 11 Mar 2018 03:56:50 -0700 (PDT)
+Received: from isilmar-4.linta.de (isilmar-4.linta.de. [136.243.71.142])
+        by mx.google.com with ESMTPS id c142si1886277wmh.238.2018.03.11.03.56.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 10 Mar 2018 09:55:31 -0800 (PST)
-Date: Sat, 10 Mar 2018 12:55:28 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH 00/13] SVM (share virtual memory) with HMM in nouveau
-Message-ID: <20180310175528.GA3394@redhat.com>
-References: <20180310032141.6096-1-jglisse@redhat.com>
- <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
+        Sun, 11 Mar 2018 03:56:48 -0700 (PDT)
+From: Dominik Brodowski <linux@dominikbrodowski.net>
+Subject: [RFC PATCH 20/35] syscalls: do not call sys_fadvise64{,_64}() within the kernel
+Date: Sun, 11 Mar 2018 11:55:42 +0100
+Message-Id: <20180311105557.20807-21-linux@dominikbrodowski.net>
+In-Reply-To: <20180311105557.20807-1-linux@dominikbrodowski.net>
+References: <20180311105557.20807-1-linux@dominikbrodowski.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: christian.koenig@amd.com
-Cc: dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org, Evgeny Baskakov <ebaskakov@nvidia.com>, linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Felix Kuehling <felix.kuehling@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>
+To: linux-kernel@vger.kernel.org, luto@kernel.org, torvalds@linux-foundation.org, mingo@kernel.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On Sat, Mar 10, 2018 at 04:01:58PM +0100, Christian Konig wrote:
-> Good to have an example how to use HMM with an upstream driver.
+Some compat stubs called sys_fadvise64(), which then just passed
+through the arguments to sys_fadvise64_64(). Get rid of this
+indirection.
 
-I have tried to keep hardware specific bits and overal HMM logic separated
-so people can use it as an example without needing to understand NVidia GPU.
-I think i can still split patches a bit some more along that line.
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: linux-mm@kvack.org
+Signed-off-by: Dominik Brodowski <linux@dominikbrodowski.net>
+---
+ arch/arm/kernel/sys_arm.c       |  2 +-
+ arch/metag/kernel/sys_metag.c   |  2 +-
+ arch/mips/kernel/linux32.c      |  2 +-
+ arch/parisc/kernel/sys_parisc.c |  2 +-
+ arch/powerpc/kernel/sys_ppc32.c |  4 ++--
+ arch/powerpc/kernel/syscalls.c  |  4 ++--
+ arch/s390/kernel/compat_linux.c |  5 +++--
+ arch/sh/kernel/sys_sh32.c       |  8 ++++----
+ arch/sparc/kernel/sys_sparc32.c | 10 +++++-----
+ arch/tile/kernel/sys.c          |  4 ++--
+ arch/x86/ia32/sys_ia32.c        | 12 ++++++------
+ arch/xtensa/kernel/syscall.c    |  2 +-
+ include/linux/syscalls.h        |  1 +
+ mm/fadvise.c                    | 10 ++++++++--
+ 14 files changed, 38 insertions(+), 30 deletions(-)
 
-> Am 10.03.2018 um 04:21 schrieb jglisse@redhat.com:
-> > This patchset adds SVM (Share Virtual Memory) using HMM (Heterogeneous
-> > Memory Management) to the nouveau driver. SVM means that GPU threads
-> > spawn by GPU driver for a specific user process can access any valid
-> > CPU address in that process. A valid pointer is a pointer inside an
-> > area coming from mmap of private, share or regular file. Pointer to
-> > a mmap of a device file or special file are not supported.
-> 
-> BTW: The recent IOMMU patches which generalized the PASID handling calls
-> this SVA for shared virtual address space.
-> 
-> We should probably sync up with those guys at some point what naming to use.
-
-Let's create a committee to decide on the name ;)
-
-> 
-> > This is an RFC for few reasons technical reasons listed below and also
-> > because we are still working on a proper open source userspace (namely
-> > a OpenCL 2.0 for nouveau inside mesa). Open source userspace being a
-> > requirement for the DRM subsystem. I pushed in [1] a simple standalone
-> > program that can be use to test SVM through HMM with nouveau. I expect
-> > we will have a somewhat working userspace in the coming weeks, work
-> > being well underway and some patches have already been posted on mesa
-> > mailing list.
-> 
-> You could use the OpenGL extensions to import arbitrary user pointers as
-> bringup use case for this.
-> 
-> I was hoping to do the same for my ATC/HMM work on radeonsi and as far
-> as I know there are even piglit tests for that.
-
-OpenGL extensions are bit too limited when i checked them long time ago.
-I think we rather have something like OpenCL ready so that it is easier
-to justify some of the more compute only features. My timeline is 4.18
-for HMM inside nouveau upstream (roughly) as first some other changes to
-nouveau need to land. So i am thinking (hoping :)) that all the stars
-will be properly align by then.
-
-
-> > They are work underway to revamp nouveau channel creation with a new
-> > userspace API. So we might want to delay upstreaming until this lands.
-> > We can stil discuss one aspect specific to HMM here namely the issue
-> > around GEM objects used for some specific part of the GPU. Some engine
-> > inside the GPU (engine are a GPU block like the display block which
-> > is responsible of scaning memory to send out a picture through some
-> > connector for instance HDMI or DisplayPort) can only access memory
-> > with virtual address below (1 << 40). To accomodate those we need to
-> > create a "hole" inside the process address space. This patchset have
-> > a hack for that (patch 13 HACK FOR HMM AREA), it reserves a range of
-> > device file offset so that process can mmap this range with PROT_NONE
-> > to create a hole (process must make sure the hole is below 1 << 40).
-> > I feel un-easy of doing it this way but maybe it is ok with other
-> > folks.
-> 
-> Well we have essentially the same problem with pre gfx9 AMD hardware.
-> Felix might have some advise how it was solved for HSA.
-
-Here my concern is around API expose to userspace for this "hole"/reserved
-area. I considered several options:
-  - Have userspace allocate all object needed by GPU and mmap them
-    at proper VA (Virtual Address) this need kernel to do special
-    handling for those like blocking userspace access for sensitive
-    object (page table, command buffer, ...) so a lot of kernel
-    changes. This somewhat make sense with some of the nouveau API
-    rework that have not landed yet.
-  - Have kernel directly create a PROT_NONE vma against device file. Nice
-    thing is that it is easier in kernel to find a hole of proper size
-    in proper range. But this is ugly and i think i would be stone to
-    death if i were to propose that.
-  - just pick a range and cross finger that userspace never got any of
-    its allocation in it (at least any allocation it want to use on the
-    GPU).
-  - Have userspace mmap with PROT_NONE a specific region of the device
-    file to create this hole (this is what this patchset does). Note
-    that PROT_NONE is not strictly needed but this is what it would get
-    as device driver block any access to it.
-
-Any other solution i missed ?
-
-I don't like any of the above ... but this is more of a taste thing. The
-last option is the least ugly in my view. Also in this patchset if user-
-space munmap() the hole or any part of it, it does kill HMM for the
-process. This is an important details for security and consistant result
-in front of buggy/rogue applications.
-
-Other aspect bother me too, like should i create a region in device file
-so that mmap need to happen in the region, or should i just pick a single
-offset that would trigger the special mmap path. Nowadays i think none
-of the drm driver properly handle mmap that cross the DRM_FILE_OFFSET
-boundary, but we don't expect those to happen either. So latter option
-(single offset) would make sense.
-
-Cheers,
-Jerome
+diff --git a/arch/arm/kernel/sys_arm.c b/arch/arm/kernel/sys_arm.c
+index 3151f5623d0e..bdf7514204ab 100644
+--- a/arch/arm/kernel/sys_arm.c
++++ b/arch/arm/kernel/sys_arm.c
+@@ -35,5 +35,5 @@
+ asmlinkage long sys_arm_fadvise64_64(int fd, int advice,
+ 				     loff_t offset, loff_t len)
+ {
+-	return sys_fadvise64_64(fd, offset, len, advice);
++	return ksys_fadvise64_64(fd, offset, len, advice);
+ }
+diff --git a/arch/metag/kernel/sys_metag.c b/arch/metag/kernel/sys_metag.c
+index 27d96499dd38..b949f917ab8b 100644
+--- a/arch/metag/kernel/sys_metag.c
++++ b/arch/metag/kernel/sys_metag.c
+@@ -122,7 +122,7 @@ asmlinkage long sys_fadvise64_64_metag(int fd, unsigned long offs_lo,
+ 				       unsigned long len_lo,
+ 				       unsigned long len_hi, int advice)
+ {
+-	return sys_fadvise64_64(fd, merge_64(offs_hi, offs_lo),
++	return ksys_fadvise64_64(fd, merge_64(offs_hi, offs_lo),
+ 				merge_64(len_hi, len_lo), advice);
+ }
+ 
+diff --git a/arch/mips/kernel/linux32.c b/arch/mips/kernel/linux32.c
+index b332f6fc1e72..b8a3cf5d5950 100644
+--- a/arch/mips/kernel/linux32.c
++++ b/arch/mips/kernel/linux32.c
+@@ -149,7 +149,7 @@ asmlinkage long sys32_fadvise64_64(int fd, int __pad,
+ 	unsigned long a4, unsigned long a5,
+ 	int flags)
+ {
+-	return sys_fadvise64_64(fd,
++	return ksys_fadvise64_64(fd,
+ 			merge_64(a2, a3), merge_64(a4, a5),
+ 			flags);
+ }
+diff --git a/arch/parisc/kernel/sys_parisc.c b/arch/parisc/kernel/sys_parisc.c
+index 378a754ca186..da1c27ea8e1a 100644
+--- a/arch/parisc/kernel/sys_parisc.c
++++ b/arch/parisc/kernel/sys_parisc.c
+@@ -352,7 +352,7 @@ asmlinkage long parisc_fadvise64_64(int fd,
+ 			unsigned int high_off, unsigned int low_off,
+ 			unsigned int high_len, unsigned int low_len, int advice)
+ {
+-	return sys_fadvise64_64(fd, (loff_t)high_off << 32 | low_off,
++	return ksys_fadvise64_64(fd, (loff_t)high_off << 32 | low_off,
+ 			(loff_t)high_len << 32 | low_len, advice);
+ }
+ 
+diff --git a/arch/powerpc/kernel/sys_ppc32.c b/arch/powerpc/kernel/sys_ppc32.c
+index 15f216d022e2..93df264ab76c 100644
+--- a/arch/powerpc/kernel/sys_ppc32.c
++++ b/arch/powerpc/kernel/sys_ppc32.c
+@@ -113,8 +113,8 @@ asmlinkage int compat_sys_ftruncate64(unsigned int fd, u32 reg4, unsigned long h
+ long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,
+ 		     size_t len, int advice)
+ {
+-	return sys_fadvise64(fd, (u64)offset_high << 32 | offset_low, len,
+-			     advice);
++	return ksys_fadvise64_64(fd, (u64)offset_high << 32 | offset_low, len,
++				 advice);
+ }
+ 
+ asmlinkage long compat_sys_sync_file_range2(int fd, unsigned int flags,
+diff --git a/arch/powerpc/kernel/syscalls.c b/arch/powerpc/kernel/syscalls.c
+index a877bf8269fe..ecb981eea74b 100644
+--- a/arch/powerpc/kernel/syscalls.c
++++ b/arch/powerpc/kernel/syscalls.c
+@@ -119,8 +119,8 @@ long ppc64_personality(unsigned long personality)
+ long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
+ 		      u32 len_high, u32 len_low)
+ {
+-	return sys_fadvise64(fd, (u64)offset_high << 32 | offset_low,
+-			     (u64)len_high << 32 | len_low, advice);
++	return ksys_fadvise64_64(fd, (u64)offset_high << 32 | offset_low,
++				 (u64)len_high << 32 | len_low, advice);
+ }
+ 
+ long sys_switch_endian(void)
+diff --git a/arch/s390/kernel/compat_linux.c b/arch/s390/kernel/compat_linux.c
+index 5a9cfde5fc28..357a66934a98 100644
+--- a/arch/s390/kernel/compat_linux.c
++++ b/arch/s390/kernel/compat_linux.c
+@@ -483,7 +483,8 @@ COMPAT_SYSCALL_DEFINE5(s390_fadvise64, int, fd, u32, high, u32, low, compat_size
+ 		advise = POSIX_FADV_DONTNEED;
+ 	else if (advise == 5)
+ 		advise = POSIX_FADV_NOREUSE;
+-	return sys_fadvise64(fd, (unsigned long)high << 32 | low, len, advise);
++	return ksys_fadvise64_64(fd, (unsigned long)high << 32 | low, len,
++				 advise);
+ }
+ 
+ struct fadvise64_64_args {
+@@ -503,7 +504,7 @@ COMPAT_SYSCALL_DEFINE1(s390_fadvise64_64, struct fadvise64_64_args __user *, arg
+ 		a.advice = POSIX_FADV_DONTNEED;
+ 	else if (a.advice == 5)
+ 		a.advice = POSIX_FADV_NOREUSE;
+-	return sys_fadvise64_64(a.fd, a.offset, a.len, a.advice);
++	return ksys_fadvise64_64(a.fd, a.offset, a.len, a.advice);
+ }
+ 
+ COMPAT_SYSCALL_DEFINE6(s390_sync_file_range, int, fd, u32, offhigh, u32, offlow,
+diff --git a/arch/sh/kernel/sys_sh32.c b/arch/sh/kernel/sys_sh32.c
+index f8dc8bfd4606..4d55318e0899 100644
+--- a/arch/sh/kernel/sys_sh32.c
++++ b/arch/sh/kernel/sys_sh32.c
+@@ -52,10 +52,10 @@ asmlinkage int sys_fadvise64_64_wrapper(int fd, u32 offset0, u32 offset1,
+ 				u32 len0, u32 len1, int advice)
+ {
+ #ifdef  __LITTLE_ENDIAN__
+-	return sys_fadvise64_64(fd, (u64)offset1 << 32 | offset0,
+-				(u64)len1 << 32 | len0,	advice);
++	return ksys_fadvise64_64(fd, (u64)offset1 << 32 | offset0,
++				 (u64)len1 << 32 | len0, advice);
+ #else
+-	return sys_fadvise64_64(fd, (u64)offset0 << 32 | offset1,
+-				(u64)len0 << 32 | len1,	advice);
++	return ksys_fadvise64_64(fd, (u64)offset0 << 32 | offset1,
++				 (u64)len0 << 32 | len1, advice);
+ #endif
+ }
+diff --git a/arch/sparc/kernel/sys_sparc32.c b/arch/sparc/kernel/sys_sparc32.c
+index 6d964bdefbaa..08261bc15d30 100644
+--- a/arch/sparc/kernel/sys_sparc32.c
++++ b/arch/sparc/kernel/sys_sparc32.c
+@@ -225,7 +225,7 @@ long compat_sys_fadvise64(int fd,
+ 			  unsigned long offlo,
+ 			  compat_size_t len, int advice)
+ {
+-	return sys_fadvise64_64(fd, (offhi << 32) | offlo, len, advice);
++	return ksys_fadvise64_64(fd, (offhi << 32) | offlo, len, advice);
+ }
+ 
+ long compat_sys_fadvise64_64(int fd,
+@@ -233,10 +233,10 @@ long compat_sys_fadvise64_64(int fd,
+ 			     unsigned long lenhi, unsigned long lenlo,
+ 			     int advice)
+ {
+-	return sys_fadvise64_64(fd,
+-				(offhi << 32) | offlo,
+-				(lenhi << 32) | lenlo,
+-				advice);
++	return ksys_fadvise64_64(fd,
++				 (offhi << 32) | offlo,
++				 (lenhi << 32) | lenlo,
++				 advice);
+ }
+ 
+ long sys32_sync_file_range(unsigned int fd, unsigned long off_high, unsigned long off_low, unsigned long nb_high, unsigned long nb_low, unsigned int flags)
+diff --git a/arch/tile/kernel/sys.c b/arch/tile/kernel/sys.c
+index c7418dcbbb08..9e74b736b5f7 100644
+--- a/arch/tile/kernel/sys.c
++++ b/arch/tile/kernel/sys.c
+@@ -74,8 +74,8 @@ ssize_t sys32_readahead(int fd, SYSCALL_PAIR(offset), u32 count)
+ int sys32_fadvise64_64(int fd, SYSCALL_PAIR(offset),
+ 		       SYSCALL_PAIR(len), int advice)
+ {
+-	return sys_fadvise64_64(fd, ((loff_t)offset_hi << 32) | offset_lo,
+-				((loff_t)len_hi << 32) | len_lo, advice);
++	return ksys_fadvise64_64(fd, ((loff_t)offset_hi << 32) | offset_lo,
++				 ((loff_t)len_hi << 32) | len_lo, advice);
+ }
+ 
+ #endif /* 32-bit syscall wrappers */
+diff --git a/arch/x86/ia32/sys_ia32.c b/arch/x86/ia32/sys_ia32.c
+index 96cd33bbfc85..c412b14ed385 100644
+--- a/arch/x86/ia32/sys_ia32.c
++++ b/arch/x86/ia32/sys_ia32.c
+@@ -196,10 +196,10 @@ asmlinkage long sys32_pwrite(unsigned int fd, const char __user *ubuf,
+ long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high,
+ 			__u32 len_low, __u32 len_high, int advice)
+ {
+-	return sys_fadvise64_64(fd,
+-			       (((u64)offset_high)<<32) | offset_low,
+-			       (((u64)len_high)<<32) | len_low,
+-				advice);
++	return ksys_fadvise64_64(fd,
++				 (((u64)offset_high)<<32) | offset_low,
++				 (((u64)len_high)<<32) | len_low,
++				 advice);
+ }
+ 
+ asmlinkage ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi,
+@@ -219,8 +219,8 @@ asmlinkage long sys32_sync_file_range(int fd, unsigned off_low, unsigned off_hi,
+ asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo, unsigned offset_hi,
+ 				size_t len, int advice)
+ {
+-	return sys_fadvise64_64(fd, ((u64)offset_hi << 32) | offset_lo,
+-				len, advice);
++	return ksys_fadvise64_64(fd, ((u64)offset_hi << 32) | offset_lo,
++				 len, advice);
+ }
+ 
+ asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_lo,
+diff --git a/arch/xtensa/kernel/syscall.c b/arch/xtensa/kernel/syscall.c
+index 74afbf02d07e..8201748da05b 100644
+--- a/arch/xtensa/kernel/syscall.c
++++ b/arch/xtensa/kernel/syscall.c
+@@ -55,7 +55,7 @@ asmlinkage long xtensa_shmat(int shmid, char __user *shmaddr, int shmflg)
+ asmlinkage long xtensa_fadvise64_64(int fd, int advice,
+ 		unsigned long long offset, unsigned long long len)
+ {
+-	return sys_fadvise64_64(fd, offset, len, advice);
++	return ksys_fadvise64_64(fd, offset, len, advice);
+ }
+ 
+ #ifdef CONFIG_MMU
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 1a17128394b7..bf489173ddc2 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -955,5 +955,6 @@ int ksys_dup(unsigned int fildes);
+ int ksys_chroot(const char __user *filename);
+ ssize_t ksys_write(unsigned int fd, const char __user *buf, size_t count);
+ int ksys_unshare(unsigned long unshare_flags);
++int ksys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice);
+ 
+ #endif
+diff --git a/mm/fadvise.c b/mm/fadvise.c
+index 767887f5f3bf..afa41491d324 100644
+--- a/mm/fadvise.c
++++ b/mm/fadvise.c
+@@ -26,7 +26,8 @@
+  * POSIX_FADV_WILLNEED could set PG_Referenced, and POSIX_FADV_NOREUSE could
+  * deactivate the pages and clear PG_Referenced.
+  */
+-SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
++
++int ksys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
+ {
+ 	struct fd f = fdget(fd);
+ 	struct inode *inode;
+@@ -185,11 +186,16 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
+ 	return ret;
+ }
+ 
++SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
++{
++	return ksys_fadvise64_64(fd, offset, len, advice);
++}
++
+ #ifdef __ARCH_WANT_SYS_FADVISE64
+ 
+ SYSCALL_DEFINE4(fadvise64, int, fd, loff_t, offset, size_t, len, int, advice)
+ {
+-	return sys_fadvise64_64(fd, offset, len, advice);
++	return ksys_fadvise64_64(fd, offset, len, advice);
+ }
+ 
+ #endif
+-- 
+2.16.2
