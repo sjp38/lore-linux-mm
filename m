@@ -1,73 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 479F46B0005
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 13:11:24 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id i9so9793515oth.3
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 10:11:24 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t16si2047009oih.278.2018.03.12.10.11.23
-        for <linux-mm@kvack.org>;
-        Mon, 12 Mar 2018 10:11:23 -0700 (PDT)
-Subject: Re: [PATCH v3 2/2] mm/page_alloc: fix memmap_init_zone pageblock
- alignment
-References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
- <cover.1520011944.git.neelx@redhat.com>
- <0485727b2e82da7efbce5f6ba42524b429d0391a.1520011945.git.neelx@redhat.com>
- <20180302164052.5eea1b896e3a7125d1e1f23a@linux-foundation.org>
- <CACjP9X_tpVVDPUvyc-B2QU=2J5MXbuFsDcG90d7L0KuwEEuR-g@mail.gmail.com>
- <CAPKp9ubzXBMeV6Oi=KW1HaPOrv_P78HOXcdQeZ5e1=bqY97tkA@mail.gmail.com>
- <CA+G9fYvWm5NYX64POULrdGB1c3Ar3WfZAsBTEKw4+NYQ_mmddA@mail.gmail.com>
- <CACjP9X96_Wtj3WOXgkjfijN-ZXB9pS=K547-JerRq4QKkrYkfQ@mail.gmail.com>
-From: Sudeep Holla <sudeep.holla@arm.com>
-Message-ID: <461ae12b-bdff-0987-3b4e-0d7dbc09b2eb@arm.com>
-Date: Mon, 12 Mar 2018 17:11:16 +0000
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C3E66B000C
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 13:30:17 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p2so9710127wre.19
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 10:30:17 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q5sor3748784edj.54.2018.03.12.10.30.15
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 12 Mar 2018 10:30:15 -0700 (PDT)
+Date: Mon, 12 Mar 2018 18:30:09 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [RFC PATCH 00/13] SVM (share virtual memory) with HMM in nouveau
+Message-ID: <20180312173009.GN8589@phenom.ffwll.local>
+References: <20180310032141.6096-1-jglisse@redhat.com>
+ <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CACjP9X96_Wtj3WOXgkjfijN-ZXB9pS=K547-JerRq4QKkrYkfQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vacek <neelx@redhat.com>, Naresh Kamboju <naresh.kamboju@linaro.org>
-Cc: Sudeep Holla <sudeep.holla@arm.com>, Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, linux- stable <stable@vger.kernel.org>
+To: christian.koenig@amd.com
+Cc: jglisse@redhat.com, dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org, Evgeny Baskakov <ebaskakov@nvidia.com>, linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Felix Kuehling <felix.kuehling@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>
 
-
-
-On 12/03/18 16:51, Daniel Vacek wrote:
-[...]
-
+On Sat, Mar 10, 2018 at 04:01:58PM +0100, Christian K??nig wrote:
+> Good to have an example how to use HMM with an upstream driver.
 > 
-> Hmm, does it step back perhaps?
+> Am 10.03.2018 um 04:21 schrieb jglisse@redhat.com:
+> > This patchset adds SVM (Share Virtual Memory) using HMM (Heterogeneous
+> > Memory Management) to the nouveau driver. SVM means that GPU threads
+> > spawn by GPU driver for a specific user process can access any valid
+> > CPU address in that process. A valid pointer is a pointer inside an
+> > area coming from mmap of private, share or regular file. Pointer to
+> > a mmap of a device file or special file are not supported.
 > 
-> Can you check if below cures the boot hang?
+> BTW: The recent IOMMU patches which generalized the PASID handling calls
+> this SVA for shared virtual address space.
 > 
+> We should probably sync up with those guys at some point what naming to use.
+> 
+> > This is an RFC for few reasons technical reasons listed below and also
+> > because we are still working on a proper open source userspace (namely
+> > a OpenCL 2.0 for nouveau inside mesa). Open source userspace being a
+> > requirement for the DRM subsystem. I pushed in [1] a simple standalone
+> > program that can be use to test SVM through HMM with nouveau. I expect
+> > we will have a somewhat working userspace in the coming weeks, work
+> > being well underway and some patches have already been posted on mesa
+> > mailing list.
+> 
+> You could use the OpenGL extensions to import arbitrary user pointers as
+> bringup use case for this.
+> 
+> I was hoping to do the same for my ATC/HMM work on radeonsi and as far as I
+> know there are even piglit tests for that.
 
-Yes it does fix the boot hang.
+Yeah userptr seems like a reasonable bring-up use-case for stuff like
+this, makes it all a bit more manageable. I suggested the same for the
+i915 efforts. Definitely has my ack for upstream HMM/SVM uapi extensions.
 
-> --nX
+> > They are work underway to revamp nouveau channel creation with a new
+> > userspace API. So we might want to delay upstreaming until this lands.
+> > We can stil discuss one aspect specific to HMM here namely the issue
+> > around GEM objects used for some specific part of the GPU. Some engine
+> > inside the GPU (engine are a GPU block like the display block which
+> > is responsible of scaning memory to send out a picture through some
+> > connector for instance HDMI or DisplayPort) can only access memory
+> > with virtual address below (1 << 40). To accomodate those we need to
+> > create a "hole" inside the process address space. This patchset have
+> > a hack for that (patch 13 HACK FOR HMM AREA), it reserves a range of
+> > device file offset so that process can mmap this range with PROT_NONE
+> > to create a hole (process must make sure the hole is below 1 << 40).
+> > I feel un-easy of doing it this way but maybe it is ok with other
+> > folks.
 > 
-> ~~~~
-> neelx@metal:~/nX/src/linux$ git diff
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3d974cb2a1a1..415571120bbd 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5365,8 +5365,10 @@ void __meminit memmap_init_zone(unsigned long
-> size, int nid, unsigned long zone,
->                          * the valid region but still depends on correct page
->                          * metadata.
->                          */
-> -                       pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
-> +                       unsigned long next_pfn;
-> +                       next_pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
->                                         ~(pageblock_nr_pages-1)) - 1;
-> +                       pfn = max(next_pfn, pfn);
->  #endif
->                         continue;
->                 }
-> ~~~~
-> 
+> Well we have essentially the same problem with pre gfx9 AMD hardware. Felix
+> might have some advise how it was solved for HSA.
 
+Couldn't we do an in-kernel address space for those special gpu blocks? As
+long as it's display the kernel needs to manage it anyway, and adding a
+2nd mapping when you pin/unpin for scanout usage shouldn't really matter
+(as long as you cache the mapping until the buffer gets thrown out of
+vram). More-or-less what we do for i915 (where we have an entirely
+separate address space for these things which is 4G on the latest chips).
+-Daniel
 -- 
-Regards,
-Sudeep
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
