@@ -1,102 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C6C8F6B0006
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 17:26:44 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id k18so10051162otj.10
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 14:26:44 -0700 (PDT)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id i2si2306505ote.527.2018.03.12.14.26.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Mar 2018 14:26:43 -0700 (PDT)
-Subject: Re: [PATCH 4/7] Protectable Memory
-References: <20180228200620.30026-1-igor.stoppa@huawei.com>
- <20180228200620.30026-5-igor.stoppa@huawei.com>
- <20180312191314.GA29191@bombadil.infradead.org>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <b481f817-dad4-6bed-15bb-1bda4396b6b6@huawei.com>
-Date: Mon, 12 Mar 2018 23:25:54 +0200
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A1BB86B0003
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 17:46:30 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y19so2716645pgv.18
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 14:46:30 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id t11-v6si3331969ply.226.2018.03.12.14.46.28
+        for <linux-mm@kvack.org>;
+        Mon, 12 Mar 2018 14:46:29 -0700 (PDT)
+Date: Tue, 13 Mar 2018 08:46:26 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: fallocate on XFS for swap
+Message-ID: <20180312214626.GZ18129@dastard>
+References: <8C28C1CB-47F1-48D1-85C9-5373D29EA13E@amazon.com>
+ <20180309234422.GA4860@magnolia>
+ <20180310005850.GW18129@dastard>
+ <20180310093844.GA23306@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180312191314.GA29191@bombadil.infradead.org>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180310093844.GA23306@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: david@fromorbit.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, "Besogonov, Aleksei" <cyberax@amazon.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, xfs <linux-xfs@vger.kernel.org>
 
-
-
-On 12/03/18 21:13, Matthew Wilcox wrote:
-> On Wed, Feb 28, 2018 at 10:06:17PM +0200, Igor Stoppa wrote:
->> struct gen_pool *pmalloc_create_pool(const char *name,
->> 					 int min_alloc_order);
->> int is_pmalloc_object(const void *ptr, const unsigned long n);
->> bool pmalloc_prealloc(struct gen_pool *pool, size_t size);
->> void *pmalloc(struct gen_pool *pool, size_t size, gfp_t gfp);
->> static inline void *pzalloc(struct gen_pool *pool, size_t size, gfp_t gfp)
->> static inline void *pmalloc_array(struct gen_pool *pool, size_t n,
->> 				  size_t size, gfp_t flags)
->> static inline void *pcalloc(struct gen_pool *pool, size_t n,
->> 			    size_t size, gfp_t flags)
->> static inline char *pstrdup(struct gen_pool *pool, const char *s, gfp_t gfp)
->> int pmalloc_protect_pool(struct gen_pool *pool);
->> static inline void pfree(struct gen_pool *pool, const void *addr)
->> int pmalloc_destroy_pool(struct gen_pool *pool);
+On Sat, Mar 10, 2018 at 01:38:44AM -0800, Christoph Hellwig wrote:
+> On Sat, Mar 10, 2018 at 11:58:50AM +1100, Dave Chinner wrote:
+> > > > 3. Add an XFS-specific implementation of swapfile_activate.
+> > > 
+> > > Ugh no.
+> > 
+> > What we want is an iomap-based re-implementation of
+> > generic_swap_activate(). One of the ways to plumb that in is to
+> > use ->swapfile_activate() like so:
 > 
-> Do you have users for all these functions?  I'm particularly sceptical of
-> pfree().
+> Hmm.  Fundamentally swap is the same problem as the pNFS block layout
+> or get_user_pages on DAX mappings - we want to get a 'lease' on the
+> current block mapping, and make sure it stays that way as the external
+> user (the swap code in this case) uses it.  The twist for the swap code
+> is mostly that it never wants to break the least but instead disallow
+> any external operation, but that's not really such a big difference.
 
-The typical case is when rolling back allocations, on an error path.
-For example, with SELinux, the userspace provides the policy, which gets
-processed and converted into a policyDB, where every policy maps to
-several structures allocated dynamically.
+True.
 
-The allocation is not transactional. In case a policy turns out to be
-bad/broken, while being interpreted, those structures that were
-initially allocated for that policy, must be freed.
+> So maybe we want a layout based swap code instead of reinventing it,
+> with the slight twist to the layout break code to never try a lease
+> break and just return an error for the IS_SWAPFILE case.
 
-Since pmalloc is meant to be a drop in replacement for k/vmalloc, it
-needs to provide also pfree.
+Hmmm - won't that change user visible behaviour on swapfiles? Not
+that it would be a bad thing to reject read/write from root on swap
+files, but it would make XFS different to everything else.
 
->  To my mind, a user wants to:
-> 
-> pmalloc_create();
-> pmalloc(); * N
-> pmalloc_protect();
-> ...
-> pmalloc_destroy();
+Speaking of which - we probably need to spend some time at LSFMM in
+the fs track talking about the iomap infrastructure and long term
+plans to migrate the major filesystems to it....
 
-This is the simplest case, but also the error path must be supported.
+Cheers,
 
-> I don't mind the pstrdup, pcalloc, pmalloc_array, pzalloc variations, but
-
-All those functions turned out to be necessary when converting SELinux
-to pmalloc.
-Yes, I haven't published this code yet, but I was hoping to first be
-done with pmalloc and then move on to SELinux, which I suspect will be
-harder to chew :-/
-
-> I don't know why you need is_pmalloc_object().
-
-Because of hardened usercopy [1]:
-
-
-On 23/05/17 00:38, Kees Cook wrote:
-
-[...]
-
-> I'd like hardened usercopy to grow knowledge of these
-> allocations so we can bounds-check objects. Right now, mm/usercopy.c
-> just looks at PageSlab(page) to decide if it should do slab checks. I
-> think adding a check for this type of object would be very important
-> there.
-
-
-
-[1] http://www.openwall.com/lists/kernel-hardening/2017/05/23/17
-
-
---
-igor
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
