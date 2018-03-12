@@ -1,50 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A2C536B0022
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 14:28:51 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m198so7037018pga.4
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 11:28:51 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0047.outbound.protection.outlook.com. [104.47.40.47])
-        by mx.google.com with ESMTPS id s13si3996121pgs.179.2018.03.12.11.28.50
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C6C96B0024
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 14:40:23 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id r5so8599325qkb.22
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 11:40:23 -0700 (PDT)
+Received: from smtp-fw-6002.amazon.com (smtp-fw-6002.amazon.com. [52.95.49.90])
+        by mx.google.com with ESMTPS id s8si2399016qta.133.2018.03.12.11.40.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 12 Mar 2018 11:28:50 -0700 (PDT)
-Subject: Re: [RFC PATCH 00/13] SVM (share virtual memory) with HMM in nouveau
-References: <20180310032141.6096-1-jglisse@redhat.com>
- <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
-From: Felix Kuehling <felix.kuehling@amd.com>
-Message-ID: <ef3d82cd-6c39-a50a-c4cb-d9d9ba13e31b@amd.com>
-Date: Mon, 12 Mar 2018 14:28:42 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Mar 2018 11:40:11 -0700 (PDT)
+From: "Besogonov, Aleksei" <cyberax@amazon.com>
+Subject: Re: fallocate on XFS for swap
+Date: Mon, 12 Mar 2018 18:40:08 +0000
+Message-ID: <E355A5CE-5C2D-4625-924A-3F86D6426DF1@amazon.com>
+References: <8C28C1CB-47F1-48D1-85C9-5373D29EA13E@amazon.com>
+ <20180309234422.GA4860@magnolia> <20180310005850.GW18129@dastard>
+In-Reply-To: <20180310005850.GW18129@dastard>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <C67DF4F24C96E44FB13E025EA60F69D8@amazon.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-CA
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: christian.koenig@amd.com, jglisse@redhat.com, dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org
-Cc: Evgeny Baskakov <ebaskakov@nvidia.com>, linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, "Bridgman, John" <John.Bridgman@amd.com>
+To: Dave Chinner <david@fromorbit.com>, "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, xfs <linux-xfs@vger.kernel.org>
 
-On 2018-03-10 10:01 AM, Christian KA?nig wrote:
->> To accomodate those we need to
->> create a "hole" inside the process address space. This patchset have
->> a hack for that (patch 13 HACK FOR HMM AREA), it reserves a range of
->> device file offset so that process can mmap this range with PROT_NONE
->> to create a hole (process must make sure the hole is below 1 << 40).
->> I feel un-easy of doing it this way but maybe it is ok with other
->> folks.
->
-> Well we have essentially the same problem with pre gfx9 AMD hardware.
-> Felix might have some advise how it was solved for HSA. 
-
-For pre-gfx9 hardware we reserve address space in user mode using a big
-mmap PROT_NONE call at application start. Then we manage the address
-space in user mode and use MAP_FIXED to map buffers at specific
-addresses within the reserved range.
-
-The big address space reservation causes issues for some debugging tools
-(clang-sanitizer was mentioned to me), so with gfx9 we're going to get
-rid of this address space reservation.
-
-Regards,
-A  Felix
+T24gMy85LzE4LCAxNjo1OCwgIkRhdmUgQ2hpbm5lciIgPGRhdmlkQGZyb21vcmJpdC5jb20+IHdy
+b3RlOg0KICAgIE9uIEZyaSwgTWFyIDA5LCAyMDE4IGF0IDAzOjQ0OjIyUE0gLTA4MDAsIERhcnJp
+Y2sgSi4gV29uZyB3cm90ZToNCiAgICA+IFt5b3UgcmVhbGx5IG91Z2h0IHRvIGNjIHRoZSB4ZnMg
+bGlzdF0NCiAgICA+IA0KICAgID4gT24gRnJpLCBNYXIgMDksIDIwMTggYXQgMTA6MDU6MjRQTSAr
+MDAwMCwgQmVzb2dvbm92LCBBbGVrc2VpIHdyb3RlOg0KICAgID4gPiBIaSENCiAgICA+ID4gDQog
+ICAgPiA+IFdl4oCZcmUgd29ya2luZyBhdCBBbWF6b24gb24gbWFraW5nIFhGUyBvdXIgZGVmYXVs
+dCByb290IGZpbGVzeXN0ZW0gZm9yDQogICAgPiA+IHRoZSB1cGNvbWluZyBBbWF6b24gTGludXgg
+MiAobm93IGluIHByb2QgcHJldmlldykuIE9uZSBvZiB0aGUgcHJvYmxlbXMNCiAgICA+ID4gdGhh
+dCB3ZeKAmXZlIGVuY291bnRlcmVkIGlzIGluYWJpbGl0eSB0byB1c2UgZmFsbG9jYXRlZCBmaWxl
+cyBmb3Igc3dhcA0KICAgID4gPiBvbiBYRlMuIFRoaXMgaXMgcmVhbGx5IGltcG9ydGFudCBmb3Ig
+dXMsIHNpbmNlIHdl4oCZcmUgc2hpcHBpbmcgb3VyDQogICAgPiA+IGN1cnJlbnQgQW1hem9uIExp
+bnV4IHdpdGggaGliZXJuYXRpb24gc3VwcG9ydCAuDQogICAgPiANCiAgICA+IDxzaHVkZGVyPg0K
+ICAgID4gDQogICAgPiA+IEnigJl2ZSB0cmFjZWQgdGhlIHByb2JsZW0gdG8gYm1hcCgpLCB1c2Vk
+IGluIGdlbmVyaWNfc3dhcGZpbGVfYWN0aXZhdGUNCiAgICA+ID4gY2FsbCwgd2hpY2ggcmV0dXJu
+cyAwIGZvciBibG9ja3MgaW5zaWRlIGhvbGVzIGNyZWF0ZWQgYnkgZmFsbG9jYXRlIGFuZA0KICAg
+ID4gPiBEYXZlIENoaW5uZXIgY29uZmlybWVkIGl0IGluIGEgcHJpdmF0ZSBlbWFpbC4gSeKAmW0g
+dGhpbmtpbmcgYWJvdXQgd2F5cw0KICAgID4gPiB0byBmaXggaXQsIHNvIGZhciBJIHNlZSB0aGUg
+Zm9sbG93aW5nIHBvc3NpYmlsaXRpZXM6DQogICAgPiA+IA0KICAgID4gPiAxLiBDaGFuZ2UgYm1h
+cCgpIHRvIG5vdCByZXR1cm4gemVyb2VzIGZvciBibG9ja3MgaW5zaWRlIGhvbGVzLiBCdXQNCiAg
+ICA+ID4gdGhpcyBpcyBhbiBBQkkgY2hhbmdlIGFuZCBpdCBsaWtlbHkgd2lsbCBicmVhayBzb21l
+IG9ic2N1cmUgdXNlcnNwYWNlDQogICAgPiA+IHV0aWxpdHkgc29tZXdoZXJlLg0KICAgID4gDQog
+ICAgPiBibWFwIGlzIGEgaG9ycmlibGUgaW50ZXJmYWNlLCBsZXQncyBsZWF2ZSBpdCB0byB3aXRo
+ZXIgYW5kIGV2ZW50dWFsbHkgZ28NCiAgICA+IGF3YXkuDQogICAgPiANCiAgICA+ID4gMi4gQ2hh
+bmdlIGdlbmVyaWNfc3dhcF9hY3RpdmF0ZSB0byB1c2UgYSBtb3JlIG1vZGVybiBpbnRlcmZhY2Us
+IGJ5DQogICAgPiA+IGFkZGluZyBmaWVtYXAtbGlrZSBvcGVyYXRpb24gdG8gYWRkcmVzc19zcGFj
+ZV9vcGVyYXRpb25zIHdpdGggZmFsbGJhY2sNCiAgICA+ID4gb24gYm1hcCgpLg0KICAgID4gDQog
+ICAgPiBQcm9iYWJseSB0aGUgYmVzdCBpZGVhLCBidXQgc2VlIGZzL2lvbWFwLmMgc2luY2Ugd2Un
+cmUgYmFzaWNhbGx5IGxlYXNpbmcNCiAgICA+IGEgY2h1bmsgb2YgZmlsZSBzcGFjZSB0byB0aGUg
+a2VybmVsLiAgTGVhc2luZyBzcGFjZSB0byBhIHVzZXIgdGhhdCB3YW50cw0KICAgID4gZGlyZWN0
+IGFjY2VzcyBpcyBiZWNvbWluZyByYXRoZXIgY29tbW9uIChyZG1hLCBtYXBfc3luYywgZXRjLikN
+CiAgICANCiAgICB0aGluZyBpcywgd2UgZG9uJ3Qgd2FudCBpbi1rZXJuZWwgdXNlcnMgb2YgZmll
+bWFwLiBXZSd2ZSBnb3Qgb3RoZXINCiAgICBibG9jayBtYXBwaW5nIGludGVyZmFjZXMgdGhhdCBj
+YW4gYmUgdXNlZCwgc3VjaCBhcyBpb21hcC4uLg0KICAgIA0KICAgID4gPiAzLiBBZGQgYW4gWEZT
+LXNwZWNpZmljIGltcGxlbWVudGF0aW9uIG9mIHN3YXBmaWxlX2FjdGl2YXRlLg0KICAgID4gDQog
+ICAgPiBVZ2ggbm8uDQogICAgDQogICAgV2hhdCB3ZSB3YW50IGlzIGFuIGlvbWFwLWJhc2VkIHJl
+LWltcGxlbWVudGF0aW9uIG9mDQogICAgZ2VuZXJpY19zd2FwX2FjdGl2YXRlKCkuIE9uZSBvZiB0
+aGUgd2F5cyB0byBwbHVtYiB0aGF0IGluIGlzIHRvDQogICAgdXNlIC0+c3dhcGZpbGVfYWN0aXZh
+dGUoKSBsaWtlIHNvOg0KICAgIA0KICAgIGlvbWFwX3N3YXBmaWxlX2FjdGl2YXRlKCkNCiAgICB7
+DQogICAgCXJldHVybiBpb21hcF9hcHBseSguLi4gaW9tYXBfc3dhcGZpbGVfYWRkX2V4dGVudCwg
+Li4uKQ0KICAgIH0NCiAgICANCiAgICB4ZnNfdm1fc3dhcGZpbGVfYWN0aXZhdGUoKQ0KICAgIHsN
+CiAgICAJcmV0dXJuIGlvbWFwX3N3YXBmaWxlX2FjdGl2YXRlKHhmc19pb21hcF9vcHMpOw0KICAg
+IH0NCiAgICANCiAgICAJLnN3YXBmaWxlX2FjdGl2YXRlID0geGZzX3ZtX3N3YXBmaWxlX2FjdGl2
+YXRlKCkNCiAgICANCiAgICBBbmQgbWFzc2FnZSB0aGUgc3dhcGZpbGVfYWN0aXZhdGUgY2FsbG91
+dCBiZSBmcmllbmRseSB0byBmcmFnbWVudGVkDQogICAgZmlsZXMuIGkuZS4gY2hhbmdlIHRoZSBu
+ZnMgY2FsbGVyIHRvIHJ1biBhDQogICAgImFkZF9zaW5nbGVfc3dhcF9leHRlbnQoKSIgY2FsbGVy
+IHJhdGhlciB0aGFuIGhhdmUgdG8gZG8gaXQgaW4gdGhlDQogICAgZ2VuZXJpYyBjb2RlIG9uIHJl
+dHVybi4uLi4NCg0KVGhpcyBzb3VuZHMgcmVhc29uYWJsZSwgSSdsbCB0cnkgdG8gaW1wbGVtZW50
+IGl0IHRoaXMgd2VlayBvciBzbyBmb3IgWEZTLg0KTm8gZ3VhcmFudGVlcyBhYm91dCBORlMsIHRo
+b3VnaC4gDQoNCg==
