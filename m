@@ -1,45 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 720D56B0003
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 18:01:57 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id 29so13515000qto.10
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 15:01:57 -0700 (PDT)
-Received: from smtp-fw-6001.amazon.com (smtp-fw-6001.amazon.com. [52.95.48.154])
-        by mx.google.com with ESMTPS id a57si2180044qta.315.2018.03.12.15.01.56
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CEC726B0003
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 18:06:47 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id r32so10089266ota.18
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 15:06:47 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k47si2447149otb.13.2018.03.12.15.06.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Mar 2018 15:01:56 -0700 (PDT)
-From: "Besogonov, Aleksei" <cyberax@amazon.com>
-Subject: Re: fallocate on XFS for swap
-Date: Mon, 12 Mar 2018 22:01:54 +0000
-Message-ID: <A59B9E63-29A2-4C40-960B-E09809DE501F@amazon.com>
-References: <8C28C1CB-47F1-48D1-85C9-5373D29EA13E@amazon.com>
- <20180309234422.GA4860@magnolia> <20180310005850.GW18129@dastard>
- <20180310011707.GA4875@magnolia> <20180310013646.GX18129@dastard>
-In-Reply-To: <20180310013646.GX18129@dastard>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <B59FA8D4D21F7249A44E5111592E9D71@amazon.com>
-Content-Transfer-Encoding: base64
+        Mon, 12 Mar 2018 15:06:46 -0700 (PDT)
+Date: Mon, 12 Mar 2018 16:06:44 -0600
+From: Alex Williamson <alex.williamson@redhat.com>
+Subject: Re: [RFC v2] vfio iommu type1: improve memory pinning process for
+ raw PFN mapping
+Message-ID: <20180312160644.0de6f96b@w520.home>
+In-Reply-To: <25959294-E232-43EB-9CE2-E558A8D62F57@linux.alibaba.com>
+References: <7090CB2E-8D63-44B1-A739-932FFA649BC9@linux.alibaba.com>
+	<20180226121930.5e1f6300@w520.home>
+	<25959294-E232-43EB-9CE2-E558A8D62F57@linux.alibaba.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, xfs <linux-xfs@vger.kernel.org>
+To: "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com>
+Cc: pbonzini@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, gnehzuil@linux.alibaba.com
 
-W3NuaXAgdW5yZWxhdGVkXQ0KDQpTbyBJJ20gbG9va2luZyBhdCB0aGUgWEZTIGNvZGUgYW5kIGl0
-IGFwcGVhcnMgdGhhdCB0aGUgaW9tYXAgaXMgbGltaXRlZCB0byAxMDI0KlBBR0VfU0laRSBibG9j
-a3MgYXQgYSB0aW1lLCB3aGljaCBpcyB0b28gc21hbGwgZm9yIG1vc3Qgb2Ygc3dhcCB1c2UtY2Fz
-ZXMuIEkgY2FuIG9mIGNvdXJzZSBqdXN0IGxvb3AgdGhyb3VnaCB0aGUgZmlsZSBpbiA0TWIgaW5j
-cmVtZW50cyBhbmQsIGp1c3QgbGlrZSB0aGUgYm1hcCgpIGNvZGUgZG9lcyB0b2RheS4gQnV0IHRo
-aXMganVzdCBkb2Vzbid0IGxvb2sgcmlnaHQgYW5kIGl0J3Mgbm90IGF0b21pYy4gQW5kIGl0IGxv
-b2tzIGxpa2UgaW9tYXAgaW4gZXh0MiBkb2Vzbid0IGhhdmUgdGhpcyBsaW1pdGF0aW9uLiANCg0K
-VGhlIHN0YXRlZCByYXRpb25hbGUgZm9yIHRoZSBYRlMgbGltaXQgaXM6DQo+LyoNCj4gKiBXZSBj
-YXAgdGhlIG1heGltdW0gbGVuZ3RoIHdlIG1hcCBoZXJlIHRvIE1BWF9XUklURUJBQ0tfUEFHRVMg
-cGFnZXMNCj4gKiB0byBrZWVwIHRoZSBjaHVua3Mgb2Ygd29yayBkb25lIHdoZXJlIHNvbWV3aGF0
-IHN5bW1ldHJpYyB3aXRoIHRoZQ0KPiAqIHdvcmsgd3JpdGViYWNrIGRvZXMuIFRoaXMgaXMgYSBj
-b21wbGV0ZWx5IGFyYml0cmFyeSBudW1iZXIgcHVsbGVkDQo+ICogb3V0IG9mIHRoaW4gYWlyIGFz
-IGEgYmVzdCBndWVzcyBmb3IgaW5pdGlhbCB0ZXN0aW5nLg0KPiAqDQo+ICogTm90ZSB0aGF0IHRo
-ZSB2YWx1ZXMgbmVlZHMgdG8gYmUgbGVzcyB0aGFuIDMyLWJpdHMgd2lkZSB1bnRpbA0KPiAqIHRo
-ZSBsb3dlciBsZXZlbCBmdW5jdGlvbnMgYXJlIHVwZGF0ZWQuDQo+ICovDQoNClNvIGNhbiBpdCBi
-ZSBsaWZ0ZWQgdG9kYXk/DQoNCg==
+On Sat, 3 Mar 2018 20:10:33 +0800
+"Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com> wrote:
+
+> When using vfio to pass through a PCIe device (e.g. a GPU card) that
+> has a huge BAR (e.g. 16GB), a lot of cycles are wasted on memory
+> pinning because PFNs of PCI BAR are not backed by struct page, and
+> the corresponding VMA has flag VM_PFNMAP.
+> 
+> With this change, when pinning a region which is a raw PFN mapping,
+> it can skip unnecessary user memory pinning process. Thus, it can
+> significantly improve VM's boot up time when passing through devices
+> via VFIO.
+> 
+> Signed-off-by: Jason Cai (Xiang Feng) <jason.cai@linux.alibaba.com>
+> ---
+>  drivers/vfio/vfio_iommu_type1.c | 24 ++++++++++++++----------
+>  1 file changed, 14 insertions(+), 10 deletions(-)
+
+
+It looks reasonable to me, is this still really an RFC?  It would also
+be interesting to include performance data in the commit log, how much
+faster is it to map that 16GB BAR with this change?  Thanks,
+
+Alex
+
+ 
+> diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
+> index e30e29ae4819..82ccfa350315 100644
+> --- a/drivers/vfio/vfio_iommu_type1.c
+> +++ b/drivers/vfio/vfio_iommu_type1.c
+> @@ -385,7 +385,6 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+>  {
+>         unsigned long pfn = 0;
+>         long ret, pinned = 0, lock_acct = 0;
+> -       bool rsvd;
+>         dma_addr_t iova = vaddr - dma->vaddr + dma->iova;
+> 
+>         /* This code path is only user initiated */
+> @@ -396,14 +395,22 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+>         if (ret)
+>                 return ret;
+> 
+> +       if (is_invalid_reserved_pfn(*pfn_base)) {
+> +               struct vm_area_struct *vma;
+> +               down_read(&current->mm->mmap_sem);
+> +               vma = find_vma_intersection(current->mm, vaddr, vaddr + 1);
+> +               pinned = min(npage, (long)vma_pages(vma));
+> +               up_read(&current->mm->mmap_sem);
+> +               return pinned;
+> +       }
+> +
+>         pinned++;
+> -       rsvd = is_invalid_reserved_pfn(*pfn_base);
+> 
+>         /*
+>          * Reserved pages aren't counted against the user, externally pinned
+>          * pages are already counted against the user.
+>          */
+> -       if (!rsvd && !vfio_find_vpfn(dma, iova)) {
+> +       if (!vfio_find_vpfn(dma, iova)) {
+>                 if (!lock_cap && current->mm->locked_vm + 1 > limit) {
+>                         put_pfn(*pfn_base, dma->prot);
+>                         pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
+> @@ -423,13 +430,12 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+>                 if (ret)
+>                         break;
+> 
+> -               if (pfn != *pfn_base + pinned ||
+> -                   rsvd != is_invalid_reserved_pfn(pfn)) {
+> +               if (pfn != *pfn_base + pinned) {
+>                         put_pfn(pfn, dma->prot);
+>                         break;
+>                 }
+> 
+> -               if (!rsvd && !vfio_find_vpfn(dma, iova)) {
+> +               if (!vfio_find_vpfn(dma, iova)) {
+>                         if (!lock_cap &&
+>                             current->mm->locked_vm + lock_acct + 1 > limit) {
+>                                 put_pfn(pfn, dma->prot);
+> @@ -447,10 +453,8 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+> 
+>  unpin_out:
+>         if (ret) {
+> -               if (!rsvd) {
+> -                       for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
+> -                               put_pfn(pfn, dma->prot);
+> -               }
+> +               for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
+> +                       put_pfn(pfn, dma->prot);
+> 
+>                 return ret;
+>         }
+> --
+> 2.13.6
