@@ -1,65 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E5A96B0003
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 05:47:19 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p202-v6so5146856lfe.3
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 02:47:19 -0700 (PDT)
-Received: from mail.kapsi.fi (mail.kapsi.fi. [2001:67c:1be8::25])
-        by mx.google.com with ESMTPS id r68si2587893ljb.247.2018.03.12.02.47.17
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 71E096B0003
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 06:02:58 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j12so5519617pff.18
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 03:02:58 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id b66si3050064pgc.148.2018.03.12.03.02.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Mar 2018 02:47:17 -0700 (PDT)
-Date: Mon, 12 Mar 2018 11:46:44 +0200 (EET)
-From: Otto Ebeling <otto.ebeling@iki.fi>
-In-Reply-To: <20180129135747.GG21609@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.11.1803121143440.19708@lakka.kapsi.fi>
-References: <1394749328.5225281.1515598510696.JavaMail.zimbra@redhat.com> <87d12hbs6s.fsf@xmission.com> <20180129133151.GF21609@dhcp22.suse.cz> <20180129135747.GG21609@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
-Subject: Re: migrate_pages() of process with same UID in 4.15-rcX
+        Mon, 12 Mar 2018 03:02:57 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 0/4] x86/boot/compressed/64: Switch between paging modes using trampoline
+Date: Mon, 12 Mar 2018 13:02:42 +0300
+Message-Id: <20180312100246.89175-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Jan Stancek <jstancek@redhat.com>, otto ebeling <otto.ebeling@iki.fi>, mtk manpages <mtk.manpages@gmail.com>, linux-mm@kvack.org, w@1wt.eu, keescook@chromium.org, ltp@lists.linux.it, Linus Torvalds <torvalds@linux-foundation.org>, Cristopher Lameter <cl@linux.com>
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+This patchset changes kernel decompression code to use trampoline to
+switch between paging modes.
 
-Hi,
+The patchset is replacement for previously reverted patch "Handle 5-level
+paging boot if kernel is above 4G".
 
-[sorry for the even later reply]
+Please review and consider applying.
 
-I don't have a strong preference either way (between fs creds or real 
-creds), having the same behavior as proc_mem_open sounds like a sensible 
-option too. Whether moving pages between NUMA nodes is a read-only 
-(PTRACE_MODE_READ) activity is debatable, but I'm no NUMA expert.
+Kirill A. Shutemov (4):
+  x86/boot/compressed/64: Make sure we have 32-bit code segment
+  x86/boot/compressed/64: Use stack from trampoline memory
+  x86/boot/compressed/64: Use page table in trampoline memory
+  x86/boot/compressed/64: Handle 5-level paging boot if kernel is above 4G
 
-My concern here was mainly about a) preventing layout discovery and b) 
-consistency between move_pages and migrate_pages.
+ arch/x86/boot/compressed/head_64.S | 128 ++++++++++++++++++++++++++-----------
+ 1 file changed, 90 insertions(+), 38 deletions(-)
 
-Otto
-
-
-
-On Mon, 29 Jan 2018, Michal Hocko wrote:
-
-> [Fixup Christoph email - the thread starts here
-> http://lkml.kernel.org/r/1394749328.5225281.1515598510696.JavaMail.zimbra@redhat.com]
->
-> On Mon 29-01-18 14:31:51, Michal Hocko wrote:
->> [Sorry for a very late reply]
->>
->> On Wed 10-01-18 10:21:31, Eric W. Biederman wrote:
->> [...]
->>> All of that said.  I am wondering if we should have used
->>> PTRACE_MODE_READ_FSCREDS on these permission checks.
->>
->> If this is really about preventing the layout discovery then we should
->> be in sync with proc_mem_open and that uses PTRACE_MODE_FSCREDS|PTRACE_MODE_READ
->> Should we do the same thing here?
->> --
->> Michal Hocko
->> SUSE Labs
->
-> -- 
-> Michal Hocko
-> SUSE Labs
->
+-- 
+2.16.1
