@@ -1,101 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A15736B0006
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 10:49:15 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id f194-v6so5327082lff.6
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 07:49:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e21sor1449497ljg.38.2018.03.12.07.49.13
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 784CB6B0006
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 11:05:52 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id y145so4325977wmd.4
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 08:05:52 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 19si3396467wmq.208.2018.03.12.08.05.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 12 Mar 2018 07:49:13 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 12 Mar 2018 08:05:50 -0700 (PDT)
+Subject: Re: [PATCH v4 3/3 update] mm/free_pcppages_bulk: prefetch buddy while
+ not holding lock
+References: <20180301062845.26038-1-aaron.lu@intel.com>
+ <20180301062845.26038-4-aaron.lu@intel.com>
+ <20180301160950.b561d6b8b561217bad511229@linux-foundation.org>
+ <20180302082756.GC6356@intel.com> <20180309082431.GB30868@intel.com>
+ <20180309135832.988ab6d3d986658d531a79ef@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8818156a-f4a9-ac8a-7179-e0b5e4225e38@suse.cz>
+Date: Mon, 12 Mar 2018 16:05:47 +0100
 MIME-Version: 1.0
-In-Reply-To: <CAPKp9ubzXBMeV6Oi=KW1HaPOrv_P78HOXcdQeZ5e1=bqY97tkA@mail.gmail.com>
-References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
- <cover.1520011944.git.neelx@redhat.com> <0485727b2e82da7efbce5f6ba42524b429d0391a.1520011945.git.neelx@redhat.com>
- <20180302164052.5eea1b896e3a7125d1e1f23a@linux-foundation.org>
- <CACjP9X_tpVVDPUvyc-B2QU=2J5MXbuFsDcG90d7L0KuwEEuR-g@mail.gmail.com> <CAPKp9ubzXBMeV6Oi=KW1HaPOrv_P78HOXcdQeZ5e1=bqY97tkA@mail.gmail.com>
-From: Naresh Kamboju <naresh.kamboju@linaro.org>
-Date: Mon, 12 Mar 2018 20:19:11 +0530
-Message-ID: <CA+G9fYvWm5NYX64POULrdGB1c3Ar3WfZAsBTEKw4+NYQ_mmddA@mail.gmail.com>
-Subject: Re: [PATCH v3 2/2] mm/page_alloc: fix memmap_init_zone pageblock alignment
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180309135832.988ab6d3d986658d531a79ef@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sudeep Holla <sudeep.holla@arm.com>
-Cc: Daniel Vacek <neelx@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, linux- stable <stable@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
 
-On 12 March 2018 at 17:56, Sudeep Holla <sudeep.holla@arm.com> wrote:
-> Hi,
->
-> I couldn't find the exact mail corresponding to the patch merged in v4.16-rc5
-> but commit 864b75f9d6b01 "mm/page_alloc: fix memmap_init_zone
-> pageblock alignment"
-> cause boot hang on my ARM64 platform.
+On 03/09/2018 10:58 PM, Andrew Morton wrote:
+>>
+>> When a page is freed back to the global pool, its buddy will be checked
+>> to see if it's possible to do a merge. This requires accessing buddy's
+>> page structure and that access could take a long time if it's cache cold.
+>>
+>> This patch adds a prefetch to the to-be-freed page's buddy outside of
+>> zone->lock in hope of accessing buddy's page structure later under
+>> zone->lock will be faster. Since we *always* do buddy merging and check
+>> an order-0 page's buddy to try to merge it when it goes into the main
+>> allocator, the cacheline will always come in, i.e. the prefetched data
+>> will never be unused.
+>>
+>> Normally, the number of to-be-freed pages(i.e. count) equals to
+>> pcp->batch (default=31 and has an upper limit of (PAGE_SHIFT * 8)=96 on
+>> x86_64) but in the case of pcp's pages getting all drained, it will be
+>> pcp->count which has an upper limit of pcp->high. pcp->high, although
+>> has a default value of 186 (pcp->batch=31 * 6), can be changed by user
+>> through /proc/sys/vm/percpu_pagelist_fraction and there is no software
+>> upper limit so could be large, like several thousand. For this reason,
+>> only the last pcp->batch number of page's buddy structure is prefetched
+>> to avoid excessive prefetching. pcp-batch is used because:
+>> 1 most often, count == pcp->batch;
+>> 2 it has an upper limit itself so we won't prefetch excessively.
+>>
+>> Considering the possible large value of pcp->high, it also makes
+>> sense to free the last added page first for cache hot's reason.
+>> That's where the change of list_add_tail() to list_add() comes in
+>> as we will free them from head to tail one by one.
+>>
+>> In the meantime, there are two concerns:
+>> 1 the prefetch could potentially evict existing cachelines, especially
+>>   for L1D cache since it is not huge;
+>> 2 there is some additional instruction overhead, namely calculating
+>>   buddy pfn twice.
+>>
+>> For 1, it's hard to say, this microbenchmark though shows good result but
+>> the actual benefit of this patch will be workload/CPU dependant;
+>> For 2, since the calculation is a XOR on two local variables, it's expected
+>> in many cases that cycles spent will be offset by reduced memory latency
+>> later. This is especially true for NUMA machines where multiple CPUs are
+>> contending on zone->lock and the most time consuming part under zone->lock
+>> is the wait of 'struct page' cacheline of the to-be-freed pages and their
+>> buddies.
+>>
+>> Test with will-it-scale/page_fault1 full load:
+>>
+>> kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
+>> v4.16-rc2+  9034215        7971818       13667135       15677465
+>> patch2/3    9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
+>> this patch 10180856 +6.8%  8506369 +2.3% 14756865 +4.9% 17325324 +3.9%
+>> Note: this patch's performance improvement percent is against patch2/3.
+>>
+>> (Changelog stolen from Dave Hansen and Mel Gorman's comments at
+>> http://lkml.kernel.org/r/148a42d8-8306-2f2f-7f7c-86bc118f8ccd@intel.com)
+>>
+>> Link: http://lkml.kernel.org/r/20180301062845.26038-4-aaron.lu@intel.com
+>>
+>> ...
+>>
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -1141,6 +1141,9 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>>  			batch_free = count;
+>>  
+>>  		do {
+>> +			unsigned long pfn, buddy_pfn;
+>> +			struct page *buddy;
+>> +
+>>  			page = list_last_entry(list, struct page, lru);
+>>  			/* must delete to avoid corrupting pcp list */
+>>  			list_del(&page->lru);
+>> @@ -1149,7 +1152,23 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>>  			if (bulkfree_pcp_prepare(page))
+>>  				continue;
+>>  
+>> -			list_add_tail(&page->lru, &head);
+>> +			list_add(&page->lru, &head);
+> 
+> The result here will be that free_pcppages_bulk() frees the pages in
+> the reverse order?
 
-I have also noticed this problem on hi6220 Hikey - arm64.
+I actually think it restores the order, compared to the previous version
+(see my earlier reply).
 
-LKFT: linux-next: Hikey boot failed linux-next-20180308
-https://bugs.linaro.org/show_bug.cgi?id=3676
+> I don't immediately see a downside to that.  In the (distant) past we
+> had issues when successive alloc_page() calls would return pages in
+> descending address order - that totally screwed up scatter-gather page
+> merging.  But this is the page-freeing path.  Still, something to be
+> thought about and monitored.
+> 
+>> +
+>> +			/*
+>> +			 * We are going to put the page back to the global
+>> +			 * pool, prefetch its buddy to speed up later access
+>> +			 * under zone->lock. It is believed the overhead of
+>> +			 * an additional test and calculating buddy_pfn here
+>> +			 * can be offset by reduced memory latency later. To
+>> +			 * avoid excessive prefetching due to large count, only
+>> +			 * prefetch buddy for the last pcp->batch nr of pages.
+>> +			 */
+>> +			if (count > pcp->batch)
+>> +				continue;
 
-- Naresh
+You could also go to the locked part after pcp->batch pages and then
+return back, but maybe let's not complicate it further for corner cases :)
 
->
-> Log:
-> [    0.000000] NUMA: No NUMA configuration found
-> [    0.000000] NUMA: Faking a node at [mem
-> 0x0000000000000000-0x00000009ffffffff]
-> [    0.000000] NUMA: NODE_DATA [mem 0x9fffcb480-0x9fffccf7f]
-> [    0.000000] Zone ranges:
-> [    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000ffffffff]
-> [    0.000000]   Normal   [mem 0x0000000100000000-0x00000009ffffffff]
-> [    0.000000] Movable zone start for each node
-> [    0.000000] Early memory node ranges
-> [    0.000000]   node   0: [mem 0x0000000080000000-0x00000000f8f9afff]
-> [    0.000000]   node   0: [mem 0x00000000f8f9b000-0x00000000f908ffff]
-> [    0.000000]   node   0: [mem 0x00000000f9090000-0x00000000f914ffff]
-> [    0.000000]   node   0: [mem 0x00000000f9150000-0x00000000f920ffff]
-> [    0.000000]   node   0: [mem 0x00000000f9210000-0x00000000f922ffff]
-> [    0.000000]   node   0: [mem 0x00000000f9230000-0x00000000f95bffff]
-> [    0.000000]   node   0: [mem 0x00000000f95c0000-0x00000000fe58ffff]
-> [    0.000000]   node   0: [mem 0x00000000fe590000-0x00000000fe5cffff]
-> [    0.000000]   node   0: [mem 0x00000000fe5d0000-0x00000000fe5dffff]
-> [    0.000000]   node   0: [mem 0x00000000fe5e0000-0x00000000fe62ffff]
-> [    0.000000]   node   0: [mem 0x00000000fe630000-0x00000000feffffff]
-> [    0.000000]   node   0: [mem 0x0000000880000000-0x00000009ffffffff]
-> [    0.000000]  Initmem setup node 0 [mem 0x0000000080000000-0x00000009ffffffff]
->
-> On Sat, Mar 3, 2018 at 1:08 AM, Daniel Vacek <neelx@redhat.com> wrote:
->> On Sat, Mar 3, 2018 at 1:40 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
->>> On Sat,  3 Mar 2018 01:12:26 +0100 Daniel Vacek <neelx@redhat.com> wrote:
->>>
->>>> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
->>>> where possible") introduced a bug where move_freepages() triggers a
->>>> VM_BUG_ON() on uninitialized page structure due to pageblock alignment.
->>>
->>> b92df1de5d28 was merged a year ago.  Can you suggest why this hasn't
->>> been reported before now?
->>
->> Yeah. I was surprised myself I couldn't find a fix to backport to
->> RHEL. But actually customers started to report this as soon as 7.4
->> (where b92df1de5d28 was merged in RHEL) was released. I remember
->> reports from September/October-ish times. It's not easily reproduced
->> and happens on a handful of machines only. I guess that's why. But
->> that does not make it less serious, I think.
->>
->> Though there actually is a report here:
->> https://bugzilla.kernel.org/show_bug.cgi?id=196443
->>
->> And there are reports for Fedora from July:
->> https://bugzilla.redhat.com/show_bug.cgi?id=1473242
->> and CentOS: https://bugs.centos.org/view.php?id=13964
->> and we internally track several dozens reports for RHEL bug
->> https://bugzilla.redhat.com/show_bug.cgi?id=1525121
->>
->> Enough? ;-)
->>
->>> This makes me wonder whether a -stable backport is really needed...
->>
->> For some machines it definitely is. Won't hurt either, IMHO.
->>
->> --nX
+>> +			pfn = page_to_pfn(page);
+>> +			buddy_pfn = __find_buddy_pfn(pfn, 0);
+>> +			buddy = page + (buddy_pfn - pfn);
+>> +			prefetch(buddy);
+>>  		} while (--count && --batch_free && !list_empty(list));
+> 
+> This loop hurts my brain, mainly the handling of `count':
+> 
+> 	while (count) {
+> 		do {
+> 			batch_free++;
+> 		} while (list_empty(list));
+> 
+> 		/* This is the only non-empty list. Free them all. */
+> 		if (batch_free == MIGRATE_PCPTYPES)
+> 			batch_free = count;
+> 
+> 		do {
+> 		} while (--count && --batch_free && !list_empty(list));
+> 	}
+> 
+> I guess it kinda makes sense - both loops terminate on count==0.  But
+> still.  Can it be clarified?
+
+Yeah this is rather far from straightforward :(
