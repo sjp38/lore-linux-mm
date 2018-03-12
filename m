@@ -1,122 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CEC726B0003
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 18:06:47 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id r32so10089266ota.18
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 15:06:47 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k47si2447149otb.13.2018.03.12.15.06.46
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 18FE76B0007
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 18:37:09 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id p2so10068973wre.19
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 15:37:09 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id v15si1597031eda.425.2018.03.12.15.37.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Mar 2018 15:06:46 -0700 (PDT)
-Date: Mon, 12 Mar 2018 16:06:44 -0600
-From: Alex Williamson <alex.williamson@redhat.com>
-Subject: Re: [RFC v2] vfio iommu type1: improve memory pinning process for
- raw PFN mapping
-Message-ID: <20180312160644.0de6f96b@w520.home>
-In-Reply-To: <25959294-E232-43EB-9CE2-E558A8D62F57@linux.alibaba.com>
-References: <7090CB2E-8D63-44B1-A739-932FFA649BC9@linux.alibaba.com>
-	<20180226121930.5e1f6300@w520.home>
-	<25959294-E232-43EB-9CE2-E558A8D62F57@linux.alibaba.com>
+        Mon, 12 Mar 2018 15:37:07 -0700 (PDT)
+Date: Mon, 12 Mar 2018 22:36:38 +0000
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 3/3] dcache: account external names as indirectly
+ reclaimable memory
+Message-ID: <20180312223632.GA6124@castle>
+References: <20180305133743.12746-1-guro@fb.com>
+ <20180305133743.12746-5-guro@fb.com>
+ <20180312211742.GR30522@ZenIV.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180312211742.GR30522@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com>
-Cc: pbonzini@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, gnehzuil@linux.alibaba.com
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Sat, 3 Mar 2018 20:10:33 +0800
-"Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com> wrote:
+On Mon, Mar 12, 2018 at 09:17:42PM +0000, Al Viro wrote:
+> On Mon, Mar 05, 2018 at 01:37:43PM +0000, Roman Gushchin wrote:
+> > diff --git a/fs/dcache.c b/fs/dcache.c
+> > index 5c7df1df81ff..a0312d73f575 100644
+> > --- a/fs/dcache.c
+> > +++ b/fs/dcache.c
+> > @@ -273,8 +273,16 @@ static void __d_free(struct rcu_head *head)
+> >  static void __d_free_external(struct rcu_head *head)
+> >  {
+> >  	struct dentry *dentry = container_of(head, struct dentry, d_u.d_rcu);
+> > -	kfree(external_name(dentry));
+> > -	kmem_cache_free(dentry_cache, dentry); 
+> > +	struct external_name *name = external_name(dentry);
+> > +	unsigned long bytes;
+> > +
+> > +	bytes = dentry->d_name.len + offsetof(struct external_name, name[1]);
+> > +	mod_node_page_state(page_pgdat(virt_to_page(name)),
+> > +			    NR_INDIRECTLY_RECLAIMABLE_BYTES,
+> > +			    -kmalloc_size(kmalloc_index(bytes)));
+> > +
+> > +	kfree(name);
+> > +	kmem_cache_free(dentry_cache, dentry);
+> >  }
+> 
+> That can't be right - external names can be freed in release_dentry_name_snapshot()
+> and copy_name() as well.  When do you want kfree_rcu() paths accounted for, BTW?
+> At the point where we are freeing them, or where we are scheduling their freeing?
 
-> When using vfio to pass through a PCIe device (e.g. a GPU card) that
-> has a huge BAR (e.g. 16GB), a lot of cycles are wasted on memory
-> pinning because PFNs of PCI BAR are not backed by struct page, and
-> the corresponding VMA has flag VM_PFNMAP.
-> 
-> With this change, when pinning a region which is a raw PFN mapping,
-> it can skip unnecessary user memory pinning process. Thus, it can
-> significantly improve VM's boot up time when passing through devices
-> via VFIO.
-> 
-> Signed-off-by: Jason Cai (Xiang Feng) <jason.cai@linux.alibaba.com>
-> ---
->  drivers/vfio/vfio_iommu_type1.c | 24 ++++++++++++++----------
->  1 file changed, 14 insertions(+), 10 deletions(-)
+Ah, I see...
 
+I think, it's better to account them when we're actually freeing,
+otherwise we will have strange path:
+(indirectly) reclaimable -> unreclaimable -> free
 
-It looks reasonable to me, is this still really an RFC?  It would also
-be interesting to include performance data in the commit log, how much
-faster is it to map that 16GB BAR with this change?  Thanks,
+Do you agree?
 
-Alex
+Although it shouldn't be that important in practice.
 
- 
-> diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-> index e30e29ae4819..82ccfa350315 100644
-> --- a/drivers/vfio/vfio_iommu_type1.c
-> +++ b/drivers/vfio/vfio_iommu_type1.c
-> @@ -385,7 +385,6 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
->  {
->         unsigned long pfn = 0;
->         long ret, pinned = 0, lock_acct = 0;
-> -       bool rsvd;
->         dma_addr_t iova = vaddr - dma->vaddr + dma->iova;
-> 
->         /* This code path is only user initiated */
-> @@ -396,14 +395,22 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
->         if (ret)
->                 return ret;
-> 
-> +       if (is_invalid_reserved_pfn(*pfn_base)) {
-> +               struct vm_area_struct *vma;
-> +               down_read(&current->mm->mmap_sem);
-> +               vma = find_vma_intersection(current->mm, vaddr, vaddr + 1);
-> +               pinned = min(npage, (long)vma_pages(vma));
-> +               up_read(&current->mm->mmap_sem);
-> +               return pinned;
-> +       }
-> +
->         pinned++;
-> -       rsvd = is_invalid_reserved_pfn(*pfn_base);
-> 
->         /*
->          * Reserved pages aren't counted against the user, externally pinned
->          * pages are already counted against the user.
->          */
-> -       if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-> +       if (!vfio_find_vpfn(dma, iova)) {
->                 if (!lock_cap && current->mm->locked_vm + 1 > limit) {
->                         put_pfn(*pfn_base, dma->prot);
->                         pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
-> @@ -423,13 +430,12 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
->                 if (ret)
->                         break;
-> 
-> -               if (pfn != *pfn_base + pinned ||
-> -                   rsvd != is_invalid_reserved_pfn(pfn)) {
-> +               if (pfn != *pfn_base + pinned) {
->                         put_pfn(pfn, dma->prot);
->                         break;
->                 }
-> 
-> -               if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-> +               if (!vfio_find_vpfn(dma, iova)) {
->                         if (!lock_cap &&
->                             current->mm->locked_vm + lock_acct + 1 > limit) {
->                                 put_pfn(pfn, dma->prot);
-> @@ -447,10 +453,8 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
-> 
->  unpin_out:
->         if (ret) {
-> -               if (!rsvd) {
-> -                       for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
-> -                               put_pfn(pfn, dma->prot);
-> -               }
-> +               for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
-> +                       put_pfn(pfn, dma->prot);
-> 
->                 return ret;
->         }
-> --
-> 2.13.6
+Thank you!
+
+--
