@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E2066B0006
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 04:13:53 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id d18so8489859iob.23
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 01:13:53 -0700 (PDT)
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DD7786B0006
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 04:26:54 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id i205so8415438ita.3
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 01:26:54 -0700 (PDT)
 Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id o11si5346702iob.232.2018.03.12.01.13.51
+        by mx.google.com with ESMTPS id 36si917134ioh.299.2018.03.12.01.26.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Mar 2018 01:13:52 -0700 (PDT)
+        Mon, 12 Mar 2018 01:26:53 -0700 (PDT)
 From: Honglei Wang <honglei.wang@oracle.com>
-Subject: [PATCH] mm/memcontrol.c: fix parameter description mismatch
-Date: Mon, 12 Mar 2018 16:17:46 +0800
-Message-Id: <1520842666-17056-1-git-send-email-honglei.wang@oracle.com>
+Subject: [PATCH V2] mm/memcontrol.c: fix parameter description mismatch
+Date: Mon, 12 Mar 2018 16:30:48 +0800
+Message-Id: <1520843448-17347-1-git-send-email-honglei.wang@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, cgroups@vger.kernel.org
 Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com
 
-There are a couple of places where parameter description and function name do not
-match the actual code. Fix it.
+There are a couple of places where parameter description and function name
+do not match the actual code. Fix it.
 
 Signed-off-by: Honglei Wang <honglei.wang@oracle.com>
 ---
