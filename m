@@ -1,222 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EE6516B0003
-	for <linux-mm@kvack.org>; Sun, 11 Mar 2018 20:00:19 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id v8so8019007iob.0
-        for <linux-mm@kvack.org>; Sun, 11 Mar 2018 17:00:19 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 247926B0003
+	for <linux-mm@kvack.org>; Sun, 11 Mar 2018 22:02:35 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id w9so4974982pfl.2
+        for <linux-mm@kvack.org>; Sun, 11 Mar 2018 19:02:35 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 133sor1297676ioo.119.2018.03.11.17.00.18
+        by mx.google.com with SMTPS id s1-v6sor2339248plr.79.2018.03.11.19.02.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 11 Mar 2018 17:00:18 -0700 (PDT)
-Date: Sun, 11 Mar 2018 17:00:16 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, page_alloc: wakeup kcompactd even if kswapd cannot free
- more memory
-Message-ID: <alpine.DEB.2.20.1803111659420.209721@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Sun, 11 Mar 2018 19:02:31 -0700 (PDT)
+From: Huacai Chen <chenhc@lemote.com>
+Subject: [PATCH V2] ZBOOT: fix stack protector in compressed boot phase
+Date: Mon, 12 Mar 2018 10:04:17 +0800
+Message-Id: <1520820258-19225-1-git-send-email-chenhc@lemote.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, James Hogan <james.hogan@mips.com>, linux-mips@linux-mips.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, Huacai Chen <chenhc@lemote.com>, stable@vger.kernel.org
 
-Kswapd will not wakeup if per-zone watermarks are not failing or if too
-many previous attempts at background reclaim have failed.
+Call __stack_chk_guard_setup() in decompress_kernel() is too late that
+stack checking always fails for decompress_kernel() itself. So remove
+__stack_chk_guard_setup() and initialize __stack_chk_guard before we
+call decompress_kernel().
 
-This can be true if there is a lot of free memory available.  For high-
-order allocations, kswapd is responsible for waking up kcompactd for
-background compaction.  If the zone is now below its watermarks or
-reclaim has recently failed (lots of free memory, nothing left to
-reclaim), kcompactd does not get woken up.
+Original code comes from ARM but also used for MIPS and SH, so fix them
+together. If without this fix, compressed booting of these archs will
+fail because stack checking is enabled by default (>=4.16).
 
-When __GFP_DIRECT_RECLAIM is not allowed, allow kcompactd to still be
-woken up even if kswapd will not reclaim.  This allows high-order
-allocations, such as thp, to still trigger background compaction even
-when the zone has an abundance of free memory.
+V2: Fix build on ARM.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
+Cc: stable@vger.kernel.org
+Signed-off-by: Huacai Chen <chenhc@lemote.com>
 ---
- .../postprocess/trace-vmscan-postprocess.pl   |  4 +--
- include/linux/mmzone.h                        |  3 +-
- include/trace/events/vmscan.h                 | 17 ++++++----
- mm/page_alloc.c                               | 14 ++++----
- mm/vmscan.c                                   | 32 +++++++++++++------
- 5 files changed, 45 insertions(+), 25 deletions(-)
+ arch/arm/boot/compressed/head.S        | 4 ++++
+ arch/arm/boot/compressed/misc.c        | 7 -------
+ arch/mips/boot/compressed/decompress.c | 7 -------
+ arch/mips/boot/compressed/head.S       | 4 ++++
+ arch/sh/boot/compressed/head_32.S      | 4 ++++
+ arch/sh/boot/compressed/head_64.S      | 4 ++++
+ arch/sh/boot/compressed/misc.c         | 7 -------
+ 7 files changed, 16 insertions(+), 21 deletions(-)
 
-diff --git a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
---- a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-+++ b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-@@ -111,7 +111,7 @@ my $regex_direct_begin_default = 'order=([0-9]*) may_writepage=([0-9]*) gfp_flag
- my $regex_direct_end_default = 'nr_reclaimed=([0-9]*)';
- my $regex_kswapd_wake_default = 'nid=([0-9]*) order=([0-9]*)';
- my $regex_kswapd_sleep_default = 'nid=([0-9]*)';
--my $regex_wakeup_kswapd_default = 'nid=([0-9]*) zid=([0-9]*) order=([0-9]*)';
-+my $regex_wakeup_kswapd_default = 'nid=([0-9]*) zid=([0-9]*) order=([0-9]*) gfp_flags=([A-Z_|]*)';
- my $regex_lru_isolate_default = 'isolate_mode=([0-9]*) classzone_idx=([0-9]*) order=([0-9]*) nr_requested=([0-9]*) nr_scanned=([0-9]*) nr_skipped=([0-9]*) nr_taken=([0-9]*) lru=([a-z_]*)';
- my $regex_lru_shrink_inactive_default = 'nid=([0-9]*) nr_scanned=([0-9]*) nr_reclaimed=([0-9]*) nr_dirty=([0-9]*) nr_writeback=([0-9]*) nr_congested=([0-9]*) nr_immediate=([0-9]*) nr_activate=([0-9]*) nr_ref_keep=([0-9]*) nr_unmap_fail=([0-9]*) priority=([0-9]*) flags=([A-Z_|]*)';
- my $regex_lru_shrink_active_default = 'lru=([A-Z_]*) nr_scanned=([0-9]*) nr_rotated=([0-9]*) priority=([0-9]*)';
-@@ -201,7 +201,7 @@ $regex_kswapd_sleep = generate_traceevent_regex(
- $regex_wakeup_kswapd = generate_traceevent_regex(
- 			"vmscan/mm_vmscan_wakeup_kswapd",
- 			$regex_wakeup_kswapd_default,
--			"nid", "zid", "order");
-+			"nid", "zid", "order", "gfp_flags");
- $regex_lru_isolate = generate_traceevent_regex(
- 			"vmscan/mm_vmscan_lru_isolate",
- 			$regex_lru_isolate_default,
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -775,7 +775,8 @@ static inline bool is_dev_zone(const struct zone *zone)
- #include <linux/memory_hotplug.h>
+diff --git a/arch/arm/boot/compressed/head.S b/arch/arm/boot/compressed/head.S
+index 45c8823..bae1fc6 100644
+--- a/arch/arm/boot/compressed/head.S
++++ b/arch/arm/boot/compressed/head.S
+@@ -547,6 +547,10 @@ not_relocated:	mov	r0, #0
+ 		bic	r4, r4, #1
+ 		blne	cache_on
  
- void build_all_zonelists(pg_data_t *pgdat);
--void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
-+void wakeup_kswapd(struct zone *zone, gfp_t gfp_mask, int order,
-+		   enum zone_type classzone_idx);
- bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
- 			 int classzone_idx, unsigned int alloc_flags,
- 			 long free_pages);
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -78,26 +78,29 @@ TRACE_EVENT(mm_vmscan_kswapd_wake,
- 
- TRACE_EVENT(mm_vmscan_wakeup_kswapd,
- 
--	TP_PROTO(int nid, int zid, int order),
-+	TP_PROTO(int nid, int zid, int order, gfp_t gfp_flags),
- 
--	TP_ARGS(nid, zid, order),
-+	TP_ARGS(nid, zid, order, gfp_flags),
- 
- 	TP_STRUCT__entry(
--		__field(	int,		nid	)
--		__field(	int,		zid	)
--		__field(	int,		order	)
-+		__field(	int,	nid		)
-+		__field(	int,	zid		)
-+		__field(	int,	order		)
-+		__field(	gfp_t,	gfp_flags	)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->nid		= nid;
- 		__entry->zid		= zid;
- 		__entry->order		= order;
-+		__entry->gfp_flags	= gfp_flags;
- 	),
- 
--	TP_printk("nid=%d zid=%d order=%d",
-+	TP_printk("nid=%d zid=%d order=%d gfp_flags=%s",
- 		__entry->nid,
- 		__entry->zid,
--		__entry->order)
-+		__entry->order,
-+		show_gfp_flags(__entry->gfp_flags))
- );
- 
- DECLARE_EVENT_CLASS(mm_vmscan_direct_reclaim_begin_template,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3683,16 +3683,18 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 	return page;
- }
- 
--static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
-+static void wake_all_kswapds(unsigned int order, gfp_t gfp_mask,
-+			     const struct alloc_context *ac)
- {
- 	struct zoneref *z;
- 	struct zone *zone;
- 	pg_data_t *last_pgdat = NULL;
-+	enum zone_type high_zoneidx = ac->high_zoneidx;
- 
--	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist,
--					ac->high_zoneidx, ac->nodemask) {
-+	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, high_zoneidx,
-+					ac->nodemask) {
- 		if (last_pgdat != zone->zone_pgdat)
--			wakeup_kswapd(zone, order, ac->high_zoneidx);
-+			wakeup_kswapd(zone, gfp_mask, order, high_zoneidx);
- 		last_pgdat = zone->zone_pgdat;
- 	}
- }
-@@ -3971,7 +3973,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto nopage;
- 
- 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
--		wake_all_kswapds(order, ac);
-+		wake_all_kswapds(order, gfp_mask, ac);
- 
- 	/*
- 	 * The adjusted alloc_flags might result in immediate success, so try
-@@ -4029,7 +4031,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- retry:
- 	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
- 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
--		wake_all_kswapds(order, ac);
-+		wake_all_kswapds(order, gfp_mask, ac);
- 
- 	reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
- 	if (reserve_flags)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3546,16 +3546,21 @@ static int kswapd(void *p)
- }
- 
++		ldr	r0, =__stack_chk_guard
++		ldr	r1, =0x000a0dff
++		str	r1, [r0]
++
  /*
-- * A zone is low on free memory, so wake its kswapd task to service it.
-+ * A zone is low on free memory or too fragmented for high-order memory.  If
-+ * kswapd should reclaim (direct reclaim is deferred), wake it up for the zone's
-+ * pgdat.  It will wake up kcompactd after reclaiming memory.  If kswapd reclaim
-+ * has failed or is not needed, still wake up kcompactd if only compaction is
-+ * needed.
-  */
--void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
-+void wakeup_kswapd(struct zone *zone, gfp_t gfp_flags, int order,
-+		   enum zone_type classzone_idx)
- {
- 	pg_data_t *pgdat;
+  * The C runtime environment should now be setup sufficiently.
+  * Set up some pointers, and start decompressing.
+diff --git a/arch/arm/boot/compressed/misc.c b/arch/arm/boot/compressed/misc.c
+index 16a8a80..e518ef5 100644
+--- a/arch/arm/boot/compressed/misc.c
++++ b/arch/arm/boot/compressed/misc.c
+@@ -130,11 +130,6 @@ asmlinkage void __div0(void)
  
- 	if (!managed_zone(zone))
- 		return;
+ unsigned long __stack_chk_guard;
  
--	if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
-+	if (!cpuset_zone_allowed(zone, gfp_flags))
- 		return;
- 	pgdat = zone->zone_pgdat;
- 	pgdat->kswapd_classzone_idx = kswapd_classzone_idx(pgdat,
-@@ -3564,14 +3569,23 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 	if (!waitqueue_active(&pgdat->kswapd_wait))
- 		return;
- 
--	/* Hopeless node, leave it to direct reclaim */
--	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES)
--		return;
+-void __stack_chk_guard_setup(void)
+-{
+-	__stack_chk_guard = 0x000a0dff;
+-}
 -
--	if (pgdat_balanced(pgdat, order, classzone_idx))
-+	/* Hopeless node, leave it to direct reclaim if possible */
-+	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES ||
-+	    pgdat_balanced(pgdat, order, classzone_idx)) {
-+		/*
-+		 * There may be plenty of free memory available, but it's too
-+		 * fragmented for high-order allocations.  Wake up kcompactd
-+		 * and rely on compaction_suitable() to determine if it's
-+		 * needed.  If it fails, it will defer subsequent attempts to
-+		 * ratelimit its work.
-+		 */
-+		if (!(gfp_flags & __GFP_DIRECT_RECLAIM))
-+			wakeup_kcompactd(pgdat, order, classzone_idx);
- 		return;
-+	}
+ void __stack_chk_fail(void)
+ {
+ 	error("stack-protector: Kernel stack is corrupted\n");
+@@ -150,8 +145,6 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
+ {
+ 	int ret;
  
--	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, classzone_idx, order);
-+	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, classzone_idx, order,
-+				      gfp_flags);
- 	wake_up_interruptible(&pgdat->kswapd_wait);
- }
+-	__stack_chk_guard_setup();
+-
+ 	output_data		= (unsigned char *)output_start;
+ 	free_mem_ptr		= free_mem_ptr_p;
+ 	free_mem_end_ptr	= free_mem_ptr_end_p;
+diff --git a/arch/mips/boot/compressed/decompress.c b/arch/mips/boot/compressed/decompress.c
+index fdf99e9..5ba431c 100644
+--- a/arch/mips/boot/compressed/decompress.c
++++ b/arch/mips/boot/compressed/decompress.c
+@@ -78,11 +78,6 @@ void error(char *x)
  
+ unsigned long __stack_chk_guard;
+ 
+-void __stack_chk_guard_setup(void)
+-{
+-	__stack_chk_guard = 0x000a0dff;
+-}
+-
+ void __stack_chk_fail(void)
+ {
+ 	error("stack-protector: Kernel stack is corrupted\n");
+@@ -92,8 +87,6 @@ void decompress_kernel(unsigned long boot_heap_start)
+ {
+ 	unsigned long zimage_start, zimage_size;
+ 
+-	__stack_chk_guard_setup();
+-
+ 	zimage_start = (unsigned long)(&__image_begin);
+ 	zimage_size = (unsigned long)(&__image_end) -
+ 	    (unsigned long)(&__image_begin);
+diff --git a/arch/mips/boot/compressed/head.S b/arch/mips/boot/compressed/head.S
+index 409cb48..00d0ee0 100644
+--- a/arch/mips/boot/compressed/head.S
++++ b/arch/mips/boot/compressed/head.S
+@@ -32,6 +32,10 @@ start:
+ 	bne	a2, a0, 1b
+ 	 addiu	a0, a0, 4
+ 
++	PTR_LA	a0, __stack_chk_guard
++	PTR_LI	a1, 0x000a0dff
++	sw	a1, 0(a0)
++
+ 	PTR_LA	a0, (.heap)	     /* heap address */
+ 	PTR_LA	sp, (.stack + 8192)  /* stack address */
+ 
+diff --git a/arch/sh/boot/compressed/head_32.S b/arch/sh/boot/compressed/head_32.S
+index 7bb1681..a3fdb05 100644
+--- a/arch/sh/boot/compressed/head_32.S
++++ b/arch/sh/boot/compressed/head_32.S
+@@ -76,6 +76,10 @@ l1:
+ 	mov.l	init_stack_addr, r0
+ 	mov.l	@r0, r15
+ 
++	mov.l	__stack_chk_guard, r0
++	mov	#0x000a0dff, r1
++	mov.l	r1, @r0
++
+ 	/* Decompress the kernel */
+ 	mov.l	decompress_kernel_addr, r0
+ 	jsr	@r0
+diff --git a/arch/sh/boot/compressed/head_64.S b/arch/sh/boot/compressed/head_64.S
+index 9993113..8b4d540 100644
+--- a/arch/sh/boot/compressed/head_64.S
++++ b/arch/sh/boot/compressed/head_64.S
+@@ -132,6 +132,10 @@ startup:
+ 	addi	r22, 4, r22
+ 	bne	r22, r23, tr1
+ 
++	movi	datalabel __stack_chk_guard, r0
++	movi	0x000a0dff, r1
++	st.l	r0, 0, r1
++
+ 	/*
+ 	 * Decompress the kernel.
+ 	 */
+diff --git a/arch/sh/boot/compressed/misc.c b/arch/sh/boot/compressed/misc.c
+index 627ce8e..fe4c079 100644
+--- a/arch/sh/boot/compressed/misc.c
++++ b/arch/sh/boot/compressed/misc.c
+@@ -106,11 +106,6 @@ static void error(char *x)
+ 
+ unsigned long __stack_chk_guard;
+ 
+-void __stack_chk_guard_setup(void)
+-{
+-	__stack_chk_guard = 0x000a0dff;
+-}
+-
+ void __stack_chk_fail(void)
+ {
+ 	error("stack-protector: Kernel stack is corrupted\n");
+@@ -130,8 +125,6 @@ void decompress_kernel(void)
+ {
+ 	unsigned long output_addr;
+ 
+-	__stack_chk_guard_setup();
+-
+ #ifdef CONFIG_SUPERH64
+ 	output_addr = (CONFIG_MEMORY_START + 0x2000);
+ #else
+-- 
+2.7.0
