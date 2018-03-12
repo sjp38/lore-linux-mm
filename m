@@ -1,138 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 32D746B000C
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 10:22:58 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id d12so9449284wri.4
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 07:22:58 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r9si3317909wme.195.2018.03.12.07.22.55
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A15736B0006
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 10:49:15 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id f194-v6so5327082lff.6
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 07:49:15 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e21sor1449497ljg.38.2018.03.12.07.49.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Mar 2018 07:22:56 -0700 (PDT)
-Subject: Re: [PATCH v4 2/3] mm/free_pcppages_bulk: do not hold lock when
- picking pages to free
-References: <20180301062845.26038-1-aaron.lu@intel.com>
- <20180301062845.26038-3-aaron.lu@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <9cad642d-9fe5-b2c3-456c-279065c32337@suse.cz>
-Date: Mon, 12 Mar 2018 15:22:53 +0100
+        (Google Transport Security);
+        Mon, 12 Mar 2018 07:49:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180301062845.26038-3-aaron.lu@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAPKp9ubzXBMeV6Oi=KW1HaPOrv_P78HOXcdQeZ5e1=bqY97tkA@mail.gmail.com>
+References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
+ <cover.1520011944.git.neelx@redhat.com> <0485727b2e82da7efbce5f6ba42524b429d0391a.1520011945.git.neelx@redhat.com>
+ <20180302164052.5eea1b896e3a7125d1e1f23a@linux-foundation.org>
+ <CACjP9X_tpVVDPUvyc-B2QU=2J5MXbuFsDcG90d7L0KuwEEuR-g@mail.gmail.com> <CAPKp9ubzXBMeV6Oi=KW1HaPOrv_P78HOXcdQeZ5e1=bqY97tkA@mail.gmail.com>
+From: Naresh Kamboju <naresh.kamboju@linaro.org>
+Date: Mon, 12 Mar 2018 20:19:11 +0530
+Message-ID: <CA+G9fYvWm5NYX64POULrdGB1c3Ar3WfZAsBTEKw4+NYQ_mmddA@mail.gmail.com>
+Subject: Re: [PATCH v3 2/2] mm/page_alloc: fix memmap_init_zone pageblock alignment
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
+To: Sudeep Holla <sudeep.holla@arm.com>
+Cc: Daniel Vacek <neelx@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, linux- stable <stable@vger.kernel.org>
 
-On 03/01/2018 07:28 AM, Aaron Lu wrote:
-> When freeing a batch of pages from Per-CPU-Pages(PCP) back to buddy,
-> the zone->lock is held and then pages are chosen from PCP's migratetype
-> list. While there is actually no need to do this 'choose part' under
-> lock since it's PCP pages, the only CPU that can touch them is us and
-> irq is also disabled.
-> 
-> Moving this part outside could reduce lock held time and improve
-> performance. Test with will-it-scale/page_fault1 full load:
-> 
-> kernel      Broadwell(2S)  Skylake(2S)   Broadwell(4S)  Skylake(4S)
-> v4.16-rc2+  9034215        7971818       13667135       15677465
-> this patch  9536374 +5.6%  8314710 +4.3% 14070408 +3.0% 16675866 +6.4%
-> 
-> What the test does is: starts $nr_cpu processes and each will repeatedly
-> do the following for 5 minutes:
-> 1 mmap 128M anonymouse space;
-> 2 write access to that space;
-> 3 munmap.
-> The score is the aggregated iteration.
-> 
-> https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault1.c
-> 
-> Acked-by: Mel Gorman <mgorman@techsingularity.net>
-> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
-> ---
->  mm/page_alloc.c | 39 +++++++++++++++++++++++----------------
->  1 file changed, 23 insertions(+), 16 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index faa33eac1635..dafdcdec9c1f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1116,12 +1116,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  	int migratetype = 0;
->  	int batch_free = 0;
->  	bool isolated_pageblocks;
-> -
-> -	spin_lock(&zone->lock);
-> -	isolated_pageblocks = has_isolate_pageblock(zone);
-> +	struct page *page, *tmp;
-> +	LIST_HEAD(head);
->  
->  	while (count) {
-> -		struct page *page;
->  		struct list_head *list;
->  
->  		/*
-> @@ -1143,27 +1141,36 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  			batch_free = count;
->  
->  		do {
-> -			int mt;	/* migratetype of the to-be-freed page */
-> -
->  			page = list_last_entry(list, struct page, lru);
-> -			/* must delete as __free_one_page list manipulates */
-> +			/* must delete to avoid corrupting pcp list */
->  			list_del(&page->lru);
+On 12 March 2018 at 17:56, Sudeep Holla <sudeep.holla@arm.com> wrote:
+> Hi,
+>
+> I couldn't find the exact mail corresponding to the patch merged in v4.16-rc5
+> but commit 864b75f9d6b01 "mm/page_alloc: fix memmap_init_zone
+> pageblock alignment"
+> cause boot hang on my ARM64 platform.
 
-Well, since bulkfree_pcp_prepare() doesn't care about page->lru, you
-could maybe use list_move_tail() instead of list_del() +
-list_add_tail()? That avoids temporarily writing poison values.
+I have also noticed this problem on hi6220 Hikey - arm64.
 
-Hm actually, you are reversing the list in the process, because page is
-obtained by list_last_entry and you use list_add_tail. That could have
-unintended performance consequences?
+LKFT: linux-next: Hikey boot failed linux-next-20180308
+https://bugs.linaro.org/show_bug.cgi?id=3676
 
-Also maybe list_cut_position() could be faster than shuffling pages one
-by one? I guess not really, because batch_free will be generally low?
+- Naresh
 
->  			pcp->count--;
->  
-> -			mt = get_pcppage_migratetype(page);
-> -			/* MIGRATE_ISOLATE page should not go to pcplists */
-> -			VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
-> -			/* Pageblock could have been isolated meanwhile */
-> -			if (unlikely(isolated_pageblocks))
-> -				mt = get_pageblock_migratetype(page);
-> -
->  			if (bulkfree_pcp_prepare(page))
->  				continue;
->  
-> -			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
-> -			trace_mm_page_pcpu_drain(page, 0, mt);
-> +			list_add_tail(&page->lru, &head);
->  		} while (--count && --batch_free && !list_empty(list));
->  	}
-> +
-> +	spin_lock(&zone->lock);
-> +	isolated_pageblocks = has_isolate_pageblock(zone);
-> +
-> +	/*
-> +	 * Use safe version since after __free_one_page(),
-> +	 * page->lru.next will not point to original list.
-> +	 */
-> +	list_for_each_entry_safe(page, tmp, &head, lru) {
-> +		int mt = get_pcppage_migratetype(page);
-> +		/* MIGRATE_ISOLATE page should not go to pcplists */
-> +		VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
-> +		/* Pageblock could have been isolated meanwhile */
-> +		if (unlikely(isolated_pageblocks))
-> +			mt = get_pageblock_migratetype(page);
-> +
-> +		__free_one_page(page, page_to_pfn(page), zone, 0, mt);
-> +		trace_mm_page_pcpu_drain(page, 0, mt);
-> +	}
->  	spin_unlock(&zone->lock);
->  }
->  
-> 
+>
+> Log:
+> [    0.000000] NUMA: No NUMA configuration found
+> [    0.000000] NUMA: Faking a node at [mem
+> 0x0000000000000000-0x00000009ffffffff]
+> [    0.000000] NUMA: NODE_DATA [mem 0x9fffcb480-0x9fffccf7f]
+> [    0.000000] Zone ranges:
+> [    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000ffffffff]
+> [    0.000000]   Normal   [mem 0x0000000100000000-0x00000009ffffffff]
+> [    0.000000] Movable zone start for each node
+> [    0.000000] Early memory node ranges
+> [    0.000000]   node   0: [mem 0x0000000080000000-0x00000000f8f9afff]
+> [    0.000000]   node   0: [mem 0x00000000f8f9b000-0x00000000f908ffff]
+> [    0.000000]   node   0: [mem 0x00000000f9090000-0x00000000f914ffff]
+> [    0.000000]   node   0: [mem 0x00000000f9150000-0x00000000f920ffff]
+> [    0.000000]   node   0: [mem 0x00000000f9210000-0x00000000f922ffff]
+> [    0.000000]   node   0: [mem 0x00000000f9230000-0x00000000f95bffff]
+> [    0.000000]   node   0: [mem 0x00000000f95c0000-0x00000000fe58ffff]
+> [    0.000000]   node   0: [mem 0x00000000fe590000-0x00000000fe5cffff]
+> [    0.000000]   node   0: [mem 0x00000000fe5d0000-0x00000000fe5dffff]
+> [    0.000000]   node   0: [mem 0x00000000fe5e0000-0x00000000fe62ffff]
+> [    0.000000]   node   0: [mem 0x00000000fe630000-0x00000000feffffff]
+> [    0.000000]   node   0: [mem 0x0000000880000000-0x00000009ffffffff]
+> [    0.000000]  Initmem setup node 0 [mem 0x0000000080000000-0x00000009ffffffff]
+>
+> On Sat, Mar 3, 2018 at 1:08 AM, Daniel Vacek <neelx@redhat.com> wrote:
+>> On Sat, Mar 3, 2018 at 1:40 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+>>> On Sat,  3 Mar 2018 01:12:26 +0100 Daniel Vacek <neelx@redhat.com> wrote:
+>>>
+>>>> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+>>>> where possible") introduced a bug where move_freepages() triggers a
+>>>> VM_BUG_ON() on uninitialized page structure due to pageblock alignment.
+>>>
+>>> b92df1de5d28 was merged a year ago.  Can you suggest why this hasn't
+>>> been reported before now?
+>>
+>> Yeah. I was surprised myself I couldn't find a fix to backport to
+>> RHEL. But actually customers started to report this as soon as 7.4
+>> (where b92df1de5d28 was merged in RHEL) was released. I remember
+>> reports from September/October-ish times. It's not easily reproduced
+>> and happens on a handful of machines only. I guess that's why. But
+>> that does not make it less serious, I think.
+>>
+>> Though there actually is a report here:
+>> https://bugzilla.kernel.org/show_bug.cgi?id=196443
+>>
+>> And there are reports for Fedora from July:
+>> https://bugzilla.redhat.com/show_bug.cgi?id=1473242
+>> and CentOS: https://bugs.centos.org/view.php?id=13964
+>> and we internally track several dozens reports for RHEL bug
+>> https://bugzilla.redhat.com/show_bug.cgi?id=1525121
+>>
+>> Enough? ;-)
+>>
+>>> This makes me wonder whether a -stable backport is really needed...
+>>
+>> For some machines it definitely is. Won't hurt either, IMHO.
+>>
+>> --nX
