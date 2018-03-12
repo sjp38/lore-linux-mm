@@ -1,104 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 895C66B0003
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 12:42:26 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id y7so8404249qkd.10
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 09:42:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id w5si65328qte.262.2018.03.12.09.42.25
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E8386B0006
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 12:51:09 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id r32so9602325ota.18
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 09:51:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f11sor3051087otj.319.2018.03.12.09.51.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Mar 2018 09:42:25 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2CGdYfg009415
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 12:42:24 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2gnvfxjnt1-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 12:42:24 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <imbrenda@linux.vnet.ibm.com>;
-	Mon, 12 Mar 2018 16:42:22 -0000
-From: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
-Subject: [PATCH v1 1/1] mm/ksm: fix interaction with THP
-Date: Mon, 12 Mar 2018 17:42:17 +0100
-Message-Id: <1520872937-15351-1-git-send-email-imbrenda@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Mon, 12 Mar 2018 09:51:08 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CA+G9fYvWm5NYX64POULrdGB1c3Ar3WfZAsBTEKw4+NYQ_mmddA@mail.gmail.com>
+References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
+ <cover.1520011944.git.neelx@redhat.com> <0485727b2e82da7efbce5f6ba42524b429d0391a.1520011945.git.neelx@redhat.com>
+ <20180302164052.5eea1b896e3a7125d1e1f23a@linux-foundation.org>
+ <CACjP9X_tpVVDPUvyc-B2QU=2J5MXbuFsDcG90d7L0KuwEEuR-g@mail.gmail.com>
+ <CAPKp9ubzXBMeV6Oi=KW1HaPOrv_P78HOXcdQeZ5e1=bqY97tkA@mail.gmail.com> <CA+G9fYvWm5NYX64POULrdGB1c3Ar3WfZAsBTEKw4+NYQ_mmddA@mail.gmail.com>
+From: Daniel Vacek <neelx@redhat.com>
+Date: Mon, 12 Mar 2018 17:51:07 +0100
+Message-ID: <CACjP9X96_Wtj3WOXgkjfijN-ZXB9pS=K547-JerRq4QKkrYkfQ@mail.gmail.com>
+Subject: Re: [PATCH v3 2/2] mm/page_alloc: fix memmap_init_zone pageblock alignment
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, minchan@kernel.org, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, hughd@google.com, pholasek@redhat.com, borntraeger@de.ibm.com, gerald.schaefer@de.ibm.com
+To: Sudeep Holla <sudeep.holla@arm.com>, Naresh Kamboju <naresh.kamboju@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, linux- stable <stable@vger.kernel.org>
 
-This patch fixes a corner case for KSM. When two pages belong or
-belonged to the same transparent hugepage, and they should be merged,
-KSM fails to split the page, and therefore no merging happens.
+On Mon, Mar 12, 2018 at 3:49 PM, Naresh Kamboju
+<naresh.kamboju@linaro.org> wrote:
+> On 12 March 2018 at 17:56, Sudeep Holla <sudeep.holla@arm.com> wrote:
+>> Hi,
+>>
+>> I couldn't find the exact mail corresponding to the patch merged in v4.16-rc5
+>> but commit 864b75f9d6b01 "mm/page_alloc: fix memmap_init_zone
+>> pageblock alignment"
+>> cause boot hang on my ARM64 platform.
+>
+> I have also noticed this problem on hi6220 Hikey - arm64.
+>
+> LKFT: linux-next: Hikey boot failed linux-next-20180308
+> https://bugs.linaro.org/show_bug.cgi?id=3676
+>
+> - Naresh
+>
+>>
+>> Log:
+>> [    0.000000] NUMA: No NUMA configuration found
+>> [    0.000000] NUMA: Faking a node at [mem
+>> 0x0000000000000000-0x00000009ffffffff]
+>> [    0.000000] NUMA: NODE_DATA [mem 0x9fffcb480-0x9fffccf7f]
+>> [    0.000000] Zone ranges:
+>> [    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000ffffffff]
+>> [    0.000000]   Normal   [mem 0x0000000100000000-0x00000009ffffffff]
+>> [    0.000000] Movable zone start for each node
+>> [    0.000000] Early memory node ranges
+>> [    0.000000]   node   0: [mem 0x0000000080000000-0x00000000f8f9afff]
+>> [    0.000000]   node   0: [mem 0x00000000f8f9b000-0x00000000f908ffff]
+>> [    0.000000]   node   0: [mem 0x00000000f9090000-0x00000000f914ffff]
+>> [    0.000000]   node   0: [mem 0x00000000f9150000-0x00000000f920ffff]
+>> [    0.000000]   node   0: [mem 0x00000000f9210000-0x00000000f922ffff]
+>> [    0.000000]   node   0: [mem 0x00000000f9230000-0x00000000f95bffff]
+>> [    0.000000]   node   0: [mem 0x00000000f95c0000-0x00000000fe58ffff]
+>> [    0.000000]   node   0: [mem 0x00000000fe590000-0x00000000fe5cffff]
+>> [    0.000000]   node   0: [mem 0x00000000fe5d0000-0x00000000fe5dffff]
+>> [    0.000000]   node   0: [mem 0x00000000fe5e0000-0x00000000fe62ffff]
+>> [    0.000000]   node   0: [mem 0x00000000fe630000-0x00000000feffffff]
+>> [    0.000000]   node   0: [mem 0x0000000880000000-0x00000009ffffffff]
+>> [    0.000000]  Initmem setup node 0 [mem 0x0000000080000000-0x00000009ffffffff]
+>>
+>> On Sat, Mar 3, 2018 at 1:08 AM, Daniel Vacek <neelx@redhat.com> wrote:
+>>> On Sat, Mar 3, 2018 at 1:40 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+>>>>
+>>>> This makes me wonder whether a -stable backport is really needed...
+>>>
+>>> For some machines it definitely is. Won't hurt either, IMHO.
+>>>
+>>> --nX
 
-This bug can be reproduced by:
-* making sure ksm is running (in case disabling ksmtuned)
-* enabling transparent hugepages
-* allocating a THP-aligned 1-THP-sized buffer
-  e.g. on amd64: posix_memalign(&p, 1<<21, 1<<21)
-* filling it with the same values
-  e.g. memset(p, 42, 1<<21)
-* performing madvise to make it mergeable
-  e.g. madvise(p, 1<<21, MADV_MERGEABLE)
-* waiting for KSM to perform a few scans
+Hmm, does it step back perhaps?
 
-The expected outcome is that the all the pages get merged (1 shared and
-the rest sharing); the actual outcome is that no pages get merged (1
-unshared and the rest volatile)
+Can you check if below cures the boot hang?
 
-The reason of this behaviour is that we increase the reference count
-once for both pages we want to merge, but if they belong to the same
-hugepage (or compound page), the reference counter used in both cases
-is the one of the head of the compound page.
-This means that split_huge_page will find a value of the reference
-counter too high and will fail.
+--nX
 
-This patch solves this problem by testing if the two pages to merge
-belong to the same hugepage when attempting to merge them. If so, the
-hugepage is split safely. This means that the hugepage is not split if
-not necessary.
-
-Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Signed-off-by: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
----
- mm/ksm.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 293721f..7a826fa 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -2001,7 +2001,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
- 	struct page *kpage;
- 	unsigned int checksum;
- 	int err;
--	bool max_page_sharing_bypass = false;
-+	bool split, max_page_sharing_bypass = false;
- 
- 	stable_node = page_stable_node(page);
- 	if (stable_node) {
-@@ -2084,6 +2084,8 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
- 	if (tree_rmap_item) {
- 		kpage = try_to_merge_two_pages(rmap_item, page,
- 						tree_rmap_item, tree_page);
-+		split = PageTransCompound(page) && PageTransCompound(tree_page)
-+			&& compound_head(page) == compound_head(tree_page);
- 		put_page(tree_page);
- 		if (kpage) {
- 			/*
-@@ -2110,6 +2112,11 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
- 				break_cow(tree_rmap_item);
- 				break_cow(rmap_item);
- 			}
-+		} else if (split) {
-+			if (!trylock_page(page))
-+				return;
-+			split_huge_page(page);
-+			unlock_page(page);
- 		}
- 	}
- }
--- 
-2.7.4
+~~~~
+neelx@metal:~/nX/src/linux$ git diff
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 3d974cb2a1a1..415571120bbd 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5365,8 +5365,10 @@ void __meminit memmap_init_zone(unsigned long
+size, int nid, unsigned long zone,
+                         * the valid region but still depends on correct page
+                         * metadata.
+                         */
+-                       pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
++                       unsigned long next_pfn;
++                       next_pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
+                                        ~(pageblock_nr_pages-1)) - 1;
++                       pfn = max(next_pfn, pfn);
+ #endif
+                        continue;
+                }
+~~~~
