@@ -1,77 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CA4EC6B0028
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 15:23:25 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id c41-v6so8224688plj.10
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 12:23:25 -0700 (PDT)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0047.outbound.protection.outlook.com. [104.47.42.47])
-        by mx.google.com with ESMTPS id v17si6161946pfe.186.2018.03.12.12.23.24
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ED096B0009
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 15:42:45 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id k44so3749418wrc.3
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 12:42:45 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id x9si1552364edk.414.2018.03.12.12.42.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 12 Mar 2018 12:23:24 -0700 (PDT)
-From: "Steven J. Hill" <steven.hill@cavium.com>
-Subject: [PATCH] mm/vmstat.c: Fix vmstat_update() preemption BUG.
-Date: Mon, 12 Mar 2018 14:05:52 -0500
-Message-Id: <1520881552-25659-1-git-send-email-steven.hill@cavium.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Mar 2018 12:42:43 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH] dcache: fix indirectly reclaimable memory accounting for CONFIG_SLOB
+Date: Mon, 12 Mar 2018 19:41:40 +0000
+Message-ID: <20180312194140.19517-1-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
+Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Tony Lindgren <tony@atomide.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+
+Indirectly reclaimable memory accounting uses
+kmalloc_size()/kmalloc_index() functions to estimate
+amount of consumed memory. kmalloc_size() always returns 0
+and kmalloc_index() is not defined for CONFIG_SLOB,
+and so it breaks the build.
+
+Fix this by using ksize() function instead.
+
+Slub:
+$ cat /proc/meminfo | grep Avail
+MemAvailable:    7857112 kB
+$ python indirect.py
+$ cat /proc/meminfo | grep Avail
+MemAvailable:    7781312 kB
+
+Slob:
+$ cat /proc/meminfo | grep Avail
+MemAvailable:    7853272 kB
+$ python indirect.py
+$ cat /proc/meminfo | grep Avail
+MemAvailable:    7616644 kB
+
+indirect.py:
+  import os
+
+  for iter in range (0, 1000000):
+      try:
+          name = ("/some_long_name_%d" % iter) + "_" * 220
+          os.stat(name)
+      except Exception:
+          pass
+
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tony Lindgren <tony@atomide.com>
+Cc: linux-fsdevel@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
-
-Attempting to hotplug CPUs with CONFIG_VM_EVENT_COUNTERS enabled
-can cause vmstat_update() to report a BUG due to preemption not
-being disabled around smp_processor_id(). Discovered on Ubiquiti
-EdgeRouter Pro with Cavium Octeon II processor.
-
-BUG: using smp_processor_id() in preemptible [00000000] code:
-kworker/1:1/269
-caller is vmstat_update+0x50/0xa0
-CPU: 0 PID: 269 Comm: kworker/1:1 Not tainted
-4.16.0-rc4-Cavium-Octeon-00009-gf83bbd5-dirty #1
-Workqueue: mm_percpu_wq vmstat_update
-Stack : 0000002600000026 0000000010009ce0 0000000000000000 0000000000000001
-        0000000000000000 0000000000000000 0000000000000005 8001180000000800
-        00000000000000bf 0000000000000000 00000000000000bf 766d737461745f75
-        ffffffff83ad0000 0000000000000007 0000000000000000 0000000008000000
-        0000000000000000 ffffffff818d0000 0000000000000001 ffffffff81818a70
-        0000000000000000 0000000000000000 ffffffff8115bbb0 ffffffff818a0000
-        0000000000000005 ffffffff8144dc50 0000000000000000 0000000000000000
-        8000000088980000 8000000088983b30 0000000000000088 ffffffff813d3054
-        0000000000000000 ffffffff83ace622 00000000000000be 0000000000000000
-        00000000000000be ffffffff81121fb4 0000000000000000 0000000000000000
-        ...
-Call Trace:
-[<ffffffff81121fb4>] show_stack+0x94/0x128
-[<ffffffff813d3054>] dump_stack+0xa4/0xe0
-[<ffffffff813fcfb8>] check_preemption_disabled+0x118/0x120
-[<ffffffff811eafd8>] vmstat_update+0x50/0xa0
-[<ffffffff8115b954>] process_one_work+0x144/0x348
-[<ffffffff8115bd00>] worker_thread+0x150/0x4b8
-[<ffffffff811622a0>] kthread+0x110/0x140
-[<ffffffff8111c304>] ret_from_kernel_thread+0x14/0x1c
-
-Signed-off-by: Steven J. Hill <steven.hill@cavium.com>
+Cc: linux-mm@kvack.org
+Cc: kernel-team@fb.com
 ---
- mm/vmstat.c | 2 ++
- 1 file changed, 2 insertions(+)
+ fs/dcache.c | 26 ++++++++++----------------
+ 1 file changed, 10 insertions(+), 16 deletions(-)
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 40b2db6..33581be 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1839,9 +1839,11 @@ static void vmstat_update(struct work_struct *w)
- 		 * to occur in the future. Keep on running the
- 		 * update worker thread.
- 		 */
-+		preempt_disable();
- 		queue_delayed_work_on(smp_processor_id(), mm_percpu_wq,
- 				this_cpu_ptr(&vmstat_work),
- 				round_jiffies_relative(sysctl_stat_interval));
-+		preempt_enable();
- 	}
- }
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 135297a2d40e..98826efe22a0 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -270,12 +270,10 @@ static void __d_free_external(struct rcu_head *head)
+ {
+ 	struct dentry *dentry = container_of(head, struct dentry, d_u.d_rcu);
+ 	struct external_name *name = external_name(dentry);
+-	unsigned long bytes;
  
+-	bytes = dentry->d_name.len + offsetof(struct external_name, name[1]);
+ 	mod_node_page_state(page_pgdat(virt_to_page(name)),
+ 			    NR_INDIRECTLY_RECLAIMABLE_BYTES,
+-			    -kmalloc_size(kmalloc_index(bytes)));
++			    -ksize(name));
+ 
+ 	kfree(name);
+ 	kmem_cache_free(dentry_cache, dentry);
+@@ -1607,10 +1605,10 @@ EXPORT_SYMBOL(d_invalidate);
+  
+ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+ {
++	struct external_name *ext = NULL;
+ 	struct dentry *dentry;
+ 	char *dname;
+ 	int err;
+-	size_t reclaimable = 0;
+ 
+ 	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL);
+ 	if (!dentry)
+@@ -1627,17 +1625,15 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+ 		name = &slash_name;
+ 		dname = dentry->d_iname;
+ 	} else if (name->len > DNAME_INLINE_LEN-1) {
+-		struct external_name *p;
++		size_t size = offsetof(struct external_name, name[1]);
+ 
+-		reclaimable = offsetof(struct external_name, name[1]) +
+-			name->len;
+-		p = kmalloc(reclaimable, GFP_KERNEL_ACCOUNT);
+-		if (!p) {
++		ext = kmalloc(size + name->len, GFP_KERNEL_ACCOUNT);
++		if (!ext) {
+ 			kmem_cache_free(dentry_cache, dentry); 
+ 			return NULL;
+ 		}
+-		atomic_set(&p->u.count, 1);
+-		dname = p->name;
++		atomic_set(&ext->u.count, 1);
++		dname = ext->name;
+ 	} else  {
+ 		dname = dentry->d_iname;
+ 	}	
+@@ -1676,12 +1672,10 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+ 		}
+ 	}
+ 
+-	if (unlikely(reclaimable)) {
+-		pg_data_t *pgdat;
+-
+-		pgdat = page_pgdat(virt_to_page(external_name(dentry)));
++	if (unlikely(ext)) {
++		pg_data_t *pgdat = page_pgdat(virt_to_page(ext));
+ 		mod_node_page_state(pgdat, NR_INDIRECTLY_RECLAIMABLE_BYTES,
+-				    kmalloc_size(kmalloc_index(reclaimable)));
++				    ksize(ext));
+ 	}
+ 
+ 	this_cpu_inc(nr_dentry);
 -- 
-2.1.4
+2.14.3
