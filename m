@@ -1,91 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E35346B0006
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 08:26:58 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id w140so7965521qkb.15
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 05:26:58 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x94sor4593369qte.143.2018.03.12.05.26.57
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B4C9B6B0003
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 09:10:54 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id t9so3851258ioa.9
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 06:10:54 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 26sor1344765ioq.234.2018.03.12.06.10.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 12 Mar 2018 05:26:57 -0700 (PDT)
+        Mon, 12 Mar 2018 06:10:53 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CACjP9X_tpVVDPUvyc-B2QU=2J5MXbuFsDcG90d7L0KuwEEuR-g@mail.gmail.com>
-References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
- <cover.1520011944.git.neelx@redhat.com> <0485727b2e82da7efbce5f6ba42524b429d0391a.1520011945.git.neelx@redhat.com>
- <20180302164052.5eea1b896e3a7125d1e1f23a@linux-foundation.org> <CACjP9X_tpVVDPUvyc-B2QU=2J5MXbuFsDcG90d7L0KuwEEuR-g@mail.gmail.com>
-From: Sudeep Holla <sudeep.holla@arm.com>
-Date: Mon, 12 Mar 2018 12:26:56 +0000
-Message-ID: <CAPKp9ubzXBMeV6Oi=KW1HaPOrv_P78HOXcdQeZ5e1=bqY97tkA@mail.gmail.com>
-Subject: Re: [PATCH v3 2/2] mm/page_alloc: fix memmap_init_zone pageblock alignment
+In-Reply-To: <20180309191823.p6r7f5dlxhifxokh@lakrids.cambridge.arm.com>
+References: <cover.1520017438.git.andreyknvl@google.com> <1943a345f4fb7e8e8f19b4ece2457bccd772f0dc.1520017438.git.andreyknvl@google.com>
+ <20180305145435.tfaldb334lp4obhi@lakrids.cambridge.arm.com>
+ <CAAeHK+y+sAGYSsfUHk4De2QiAPEN_+_ACxCoQ7XMSkvpseoFVQ@mail.gmail.com> <20180309191823.p6r7f5dlxhifxokh@lakrids.cambridge.arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Mon, 12 Mar 2018 14:10:50 +0100
+Message-ID: <CAAeHK+zZA3mqEiXddaENBnAGUyG5fQobNRJ8heJ9oOkyG6Fq0Q@mail.gmail.com>
+Subject: Re: [RFC PATCH 14/14] khwasan: default the instrumentation mode to inline
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vacek <neelx@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, stable@vger.kernel.org, Sudeep Holla <sudeep.holla@arm.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-Hi,
-
-I couldn't find the exact mail corresponding to the patch merged in v4.16-rc5
-but commit 864b75f9d6b01 "mm/page_alloc: fix memmap_init_zone
-pageblock alignment"
-cause boot hang on my ARM64 platform.
-
-Log:
-[    0.000000] NUMA: No NUMA configuration found
-[    0.000000] NUMA: Faking a node at [mem
-0x0000000000000000-0x00000009ffffffff]
-[    0.000000] NUMA: NODE_DATA [mem 0x9fffcb480-0x9fffccf7f]
-[    0.000000] Zone ranges:
-[    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000ffffffff]
-[    0.000000]   Normal   [mem 0x0000000100000000-0x00000009ffffffff]
-[    0.000000] Movable zone start for each node
-[    0.000000] Early memory node ranges
-[    0.000000]   node   0: [mem 0x0000000080000000-0x00000000f8f9afff]
-[    0.000000]   node   0: [mem 0x00000000f8f9b000-0x00000000f908ffff]
-[    0.000000]   node   0: [mem 0x00000000f9090000-0x00000000f914ffff]
-[    0.000000]   node   0: [mem 0x00000000f9150000-0x00000000f920ffff]
-[    0.000000]   node   0: [mem 0x00000000f9210000-0x00000000f922ffff]
-[    0.000000]   node   0: [mem 0x00000000f9230000-0x00000000f95bffff]
-[    0.000000]   node   0: [mem 0x00000000f95c0000-0x00000000fe58ffff]
-[    0.000000]   node   0: [mem 0x00000000fe590000-0x00000000fe5cffff]
-[    0.000000]   node   0: [mem 0x00000000fe5d0000-0x00000000fe5dffff]
-[    0.000000]   node   0: [mem 0x00000000fe5e0000-0x00000000fe62ffff]
-[    0.000000]   node   0: [mem 0x00000000fe630000-0x00000000feffffff]
-[    0.000000]   node   0: [mem 0x0000000880000000-0x00000009ffffffff]
-[    0.000000]  Initmem setup node 0 [mem 0x0000000080000000-0x00000009ffffffff]
-
-On Sat, Mar 3, 2018 at 1:08 AM, Daniel Vacek <neelx@redhat.com> wrote:
-> On Sat, Mar 3, 2018 at 1:40 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
->> On Sat,  3 Mar 2018 01:12:26 +0100 Daniel Vacek <neelx@redhat.com> wrote:
+On Fri, Mar 9, 2018 at 8:18 PM, Mark Rutland <mark.rutland@arm.com> wrote:
+> On Fri, Mar 09, 2018 at 07:06:59PM +0100, Andrey Konovalov wrote:
+>> On Mon, Mar 5, 2018 at 3:54 PM, Mark Rutland <mark.rutland@arm.com> wrote:
 >>
->>> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
->>> where possible") introduced a bug where move_freepages() triggers a
->>> VM_BUG_ON() on uninitialized page structure due to pageblock alignment.
+>> Hi Mark!
 >>
->> b92df1de5d28 was merged a year ago.  Can you suggest why this hasn't
->> been reported before now?
+>> GCC before 5.0 doesn't support KASAN_INLINE, but AFAIU will fallback
+>> to outline instrumentation in this case.
+>>
+>> Latest Clang Release doesn't support KASAN_INLINE (although current
+>> trunk does) and falls back to outline instrumentation.
+>>
+>> So nothing should break, but people with newer compilers should get
+>> the benefits of using the inline instrumentation by default.
 >
-> Yeah. I was surprised myself I couldn't find a fix to backport to
-> RHEL. But actually customers started to report this as soon as 7.4
-> (where b92df1de5d28 was merged in RHEL) was released. I remember
-> reports from September/October-ish times. It's not easily reproduced
-> and happens on a handful of machines only. I guess that's why. But
-> that does not make it less serious, I think.
+> Ah, ok. I had assumed that they were separate compiler options, and this
+> would result in a build failure.
+
+No worries, I'll check that GCC 4.9 works and add this info to the
+commit message.
+
 >
-> Though there actually is a report here:
-> https://bugzilla.kernel.org/show_bug.cgi?id=196443
+> I have no strong feelings either way as to the default. I typically use
+> inline today unless I'm trying to debug particularly weird cases and
+> want to hack the shadow accesses.
+
+Great!
+
 >
-> And there are reports for Fedora from July:
-> https://bugzilla.redhat.com/show_bug.cgi?id=1473242
-> and CentOS: https://bugs.centos.org/view.php?id=13964
-> and we internally track several dozens reports for RHEL bug
-> https://bugzilla.redhat.com/show_bug.cgi?id=1525121
->
-> Enough? ;-)
->
->> This makes me wonder whether a -stable backport is really needed...
->
-> For some machines it definitely is. Won't hurt either, IMHO.
->
-> --nX
+> Thanks,
+> Mark.
