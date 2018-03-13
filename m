@@ -1,77 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 397CC6B002E
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 11:56:50 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id d128so49332qkb.6
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 08:56:50 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q45si487384qtq.122.2018.03.13.08.56.49
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BB2BD6B0031
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 12:05:13 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id w9so69216uaa.17
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 09:05:13 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id f4si184766uam.44.2018.03.13.09.05.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Mar 2018 08:56:49 -0700 (PDT)
-Date: Tue, 13 Mar 2018 11:56:46 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH 00/13] SVM (share virtual memory) with HMM in nouveau
-Message-ID: <20180313155645.GD3828@redhat.com>
-References: <20180310032141.6096-1-jglisse@redhat.com>
- <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
- <20180312173009.GN8589@phenom.ffwll.local>
- <20180312175057.GC4214@redhat.com>
- <39139ff7-76ad-960c-53f6-46b57525b733@nvidia.com>
+        Tue, 13 Mar 2018 09:05:12 -0700 (PDT)
+Date: Tue, 13 Mar 2018 12:04:30 -0400
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: Re: [v5 1/2] mm: disable interrupts while initializing deferred pages
+Message-ID: <20180313160430.hbjnyiazadt3jwa6@xakep.localdomain>
+References: <20180309220807.24961-1-pasha.tatashin@oracle.com>
+ <20180309220807.24961-2-pasha.tatashin@oracle.com>
+ <20180312130410.e2fce8e5e38bc2086c7fd924@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <39139ff7-76ad-960c-53f6-46b57525b733@nvidia.com>
+In-Reply-To: <20180312130410.e2fce8e5e38bc2086c7fd924@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: christian.koenig@amd.com, dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org, Evgeny Baskakov <ebaskakov@nvidia.com>, linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>, Felix Kuehling <felix.kuehling@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, m.mizuma@jp.fujitsu.com, mhocko@suse.com, catalin.marinas@arm.com, takahiro.akashi@linaro.org, gi-oh.kim@profitbricks.com, heiko.carstens@de.ibm.com, baiyaowei@cmss.chinamobile.com, richard.weiyang@gmail.com, paul.burton@mips.com, miles.chen@mediatek.com, vbabka@suse.cz, mgorman@suse.de, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 12, 2018 at 11:14:47PM -0700, John Hubbard wrote:
-> On 03/12/2018 10:50 AM, Jerome Glisse wrote:
+Hi Andrew,
 
-[...]
-
-> Yes, on NVIDIA GPUs, the Host/FIFO unit is limited to 40-bit addresses, so
-> things such as the following need to be below (1 << 40), and also accessible 
-> to both CPU (user space) and GPU hardware. 
->     -- command buffers (CPU user space driver fills them, GPU consumes them), 
->     -- semaphores (here, a GPU-centric term, rather than OS-type: these are
->        memory locations that, for example, the GPU hardware might write to, in
->        order to indicate work completion; there are other uses as well), 
->     -- a few other things most likely (this is not a complete list).
+> > +/* Disable interrupts and save previous IRQ state in flags before locking */
+> > +static inline
+> > +void pgdat_resize_lock_irq(struct pglist_data *pgdat, unsigned long *flags)
+> > +{
+> > +	unsigned long tmp_flags;
+> > +
+> > +	local_irq_save(*flags);
+> > +	local_irq_disable();
+> > +	pgdat_resize_lock(pgdat, &tmp_flags);
+> > +}
 > 
-> So what I'd tentatively expect that to translate into in the driver stack is, 
-> approximately:
+> As far as I can tell, this ugly-looking thing is identical to
+> pgdat_resize_lock().
+
+I will get rid of it, and use pgdat_resize_lock(). My confusion was that I
+thought that local_irq_save() only saves the IRQ flags does not disable
+them.
+
 > 
->     -- User space driver code mmap's an area below (1 << 40). It's hard to avoid this,
->        given that user space needs access to the area (for filling out command
->        buffers and monitoring semaphores, that sort of thing). Then suballocate
->        from there using mmap's MAP_FIXED or (future-ish) MAP_FIXED_SAFE flags.
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1506,7 +1506,6 @@ static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
+> >  		} else if (!(pfn & nr_pgmask)) {
+> >  			deferred_free_range(pfn - nr_free, nr_free);
+> >  			nr_free = 1;
+> > -			cond_resched();
+> >  		} else {
+> >  			nr_free++;
 > 
->        ...glancing at the other fork of this thread, I think that is exactly what
->        Felix is saying, too. So that's good.
-> 
->     -- The user space program sits above the user space driver, and although the
->        program could, in theory, interfere with this mmap'd area, that would be
->        wrong in the same way that mucking around with malloc'd areas (outside of
->        malloc() itself) is wrong. So I don't see any particular need to do much
->        more than the above.
+> And how can we simply remove these cond_resched()s?  I assume this is
+> being done because interrupts are now disabled?  But those were there
+> for a reason, weren't they?
 
-I am worried that rogue program (i am not worried about buggy program
-if people shoot themself in the foot they should feel the pain) could
-use that to abuse channel to do something harmful. I am not familiar
-enough with the hardware to completely rule out such scenario.
+We must remove cond_resched() because we can't sleep anymore. They were
+added to fight NMI timeouts, so I will replace them with
+touch_nmi_watchdog() in a follow-up fix.
 
-I do believe hardware with userspace queue support have the necessary
-boundary to keep thing secure as i would assume for those the hardware
-engineers had to take security into consideration.
-
-Note that in my patchset the code that monitor the special vma is small
-something like 20lines of code that only get call if something happen
-to the reserved area. So i believe it is worth having such thing, cost
-is low for little extra peace of mind :)
-
-Cheers,
-Jerome
+Thank you for your review,
+Pavel
