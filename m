@@ -1,60 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 87EBE6B0006
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 03:14:51 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id k4-v6so9819410pls.15
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 00:14:51 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id t10si6309356pgc.18.2018.03.13.00.14.47
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6320E6B0005
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 04:55:57 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id v8so11506754iob.0
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 01:55:57 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q5sor4537676iof.63.2018.03.13.01.55.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 13 Mar 2018 00:14:47 -0700 (PDT)
-Date: Tue, 13 Mar 2018 00:14:40 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: fallocate on XFS for swap
-Message-ID: <20180313071440.GA23797@infradead.org>
-References: <8C28C1CB-47F1-48D1-85C9-5373D29EA13E@amazon.com>
- <20180309234422.GA4860@magnolia>
- <20180310005850.GW18129@dastard>
- <20180310093844.GA23306@infradead.org>
- <20180312214626.GZ18129@dastard>
+        (Google Transport Security);
+        Tue, 13 Mar 2018 01:55:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180312214626.GZ18129@dastard>
+In-Reply-To: <1520820258-19225-1-git-send-email-chenhc@lemote.com>
+References: <1520820258-19225-1-git-send-email-chenhc@lemote.com>
+From: Huacai Chen <chenhc@lemote.com>
+Date: Tue, 13 Mar 2018 16:55:53 +0800
+Message-ID: <CAAhV-H4zFAMjg9W2f1VfYrgLnDfNDPaUHUechGDT+v3o_8WNTg@mail.gmail.com>
+Subject: Re: [PATCH V2] ZBOOT: fix stack protector in compressed boot phase
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Hellwig <hch@infradead.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, "Besogonov, Aleksei" <cyberax@amazon.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, xfs <linux-xfs@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <james.hogan@mips.com>, Linux MIPS Mailing List <linux-mips@linux-mips.org>, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, Huacai Chen <chenhc@lemote.com>, stable <stable@vger.kernel.org>
 
-On Tue, Mar 13, 2018 at 08:46:26AM +1100, Dave Chinner wrote:
-> > So maybe we want a layout based swap code instead of reinventing it,
-> > with the slight twist to the layout break code to never try a lease
-> > break and just return an error for the IS_SWAPFILE case.
-> 
-> Hmmm - won't that change user visible behaviour on swapfiles? Not
-> that it would be a bad thing to reject read/write from root on swap
-> files, but it would make XFS different to everything else.
+Hi, Yoshinori, Rich and SuperH developers,
 
-We already can't writew to active swap files, thank god:
+I'm not familiar with SuperH assembly, but SuperH has the same bug
+obviously. Could you please fix that?
 
-root@testvm:~# dd if=/dev/zero of=swapfile bs=1M count=64
-64+0 records in
-64+0 records out
-67108864 bytes (67 MB, 64 MiB) copied, 0.0458446 s, 1.5 GB/s
-mkswap swapfile
-mkswap: swapfile: insecure permissions 0644, 0600 suggested.
-Setting up swapspace version 1, size = 64 MiB (67104768 bytes)
-no label, UUID=bb42b883-f224-4627-8580-c1ba9f4569ab
-root@testvm:~# swapon swapfile
-swapon: /root/swapfile: insecure permissions 0644, 0600 suggested.
-[   54.165439] Adding 65532k swap on /root/swapfile.  Priority:-2 extents:1 across:65532k
-root@testvm:~# dd if=/dev/zero of=swapfile bs=1M count=64
-dd: failed to open 'swapfile': Text file busy
+Huacai
 
-> 
-> Speaking of which - we probably need to spend some time at LSFMM in
-> the fs track talking about the iomap infrastructure and long term
-> plans to migrate the major filesystems to it....
-
-I won't be there, as I'll be busy working the local election ballot.
+On Mon, Mar 12, 2018 at 10:04 AM, Huacai Chen <chenhc@lemote.com> wrote:
+> Call __stack_chk_guard_setup() in decompress_kernel() is too late that
+> stack checking always fails for decompress_kernel() itself. So remove
+> __stack_chk_guard_setup() and initialize __stack_chk_guard before we
+> call decompress_kernel().
+>
+> Original code comes from ARM but also used for MIPS and SH, so fix them
+> together. If without this fix, compressed booting of these archs will
+> fail because stack checking is enabled by default (>=4.16).
+>
+> V2: Fix build on ARM.
+>
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Huacai Chen <chenhc@lemote.com>
+> ---
+>  arch/arm/boot/compressed/head.S        | 4 ++++
+>  arch/arm/boot/compressed/misc.c        | 7 -------
+>  arch/mips/boot/compressed/decompress.c | 7 -------
+>  arch/mips/boot/compressed/head.S       | 4 ++++
+>  arch/sh/boot/compressed/head_32.S      | 4 ++++
+>  arch/sh/boot/compressed/head_64.S      | 4 ++++
+>  arch/sh/boot/compressed/misc.c         | 7 -------
+>  7 files changed, 16 insertions(+), 21 deletions(-)
+>
+> diff --git a/arch/arm/boot/compressed/head.S b/arch/arm/boot/compressed/head.S
+> index 45c8823..bae1fc6 100644
+> --- a/arch/arm/boot/compressed/head.S
+> +++ b/arch/arm/boot/compressed/head.S
+> @@ -547,6 +547,10 @@ not_relocated:     mov     r0, #0
+>                 bic     r4, r4, #1
+>                 blne    cache_on
+>
+> +               ldr     r0, =__stack_chk_guard
+> +               ldr     r1, =0x000a0dff
+> +               str     r1, [r0]
+> +
+>  /*
+>   * The C runtime environment should now be setup sufficiently.
+>   * Set up some pointers, and start decompressing.
+> diff --git a/arch/arm/boot/compressed/misc.c b/arch/arm/boot/compressed/misc.c
+> index 16a8a80..e518ef5 100644
+> --- a/arch/arm/boot/compressed/misc.c
+> +++ b/arch/arm/boot/compressed/misc.c
+> @@ -130,11 +130,6 @@ asmlinkage void __div0(void)
+>
+>  unsigned long __stack_chk_guard;
+>
+> -void __stack_chk_guard_setup(void)
+> -{
+> -       __stack_chk_guard = 0x000a0dff;
+> -}
+> -
+>  void __stack_chk_fail(void)
+>  {
+>         error("stack-protector: Kernel stack is corrupted\n");
+> @@ -150,8 +145,6 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
+>  {
+>         int ret;
+>
+> -       __stack_chk_guard_setup();
+> -
+>         output_data             = (unsigned char *)output_start;
+>         free_mem_ptr            = free_mem_ptr_p;
+>         free_mem_end_ptr        = free_mem_ptr_end_p;
+> diff --git a/arch/mips/boot/compressed/decompress.c b/arch/mips/boot/compressed/decompress.c
+> index fdf99e9..5ba431c 100644
+> --- a/arch/mips/boot/compressed/decompress.c
+> +++ b/arch/mips/boot/compressed/decompress.c
+> @@ -78,11 +78,6 @@ void error(char *x)
+>
+>  unsigned long __stack_chk_guard;
+>
+> -void __stack_chk_guard_setup(void)
+> -{
+> -       __stack_chk_guard = 0x000a0dff;
+> -}
+> -
+>  void __stack_chk_fail(void)
+>  {
+>         error("stack-protector: Kernel stack is corrupted\n");
+> @@ -92,8 +87,6 @@ void decompress_kernel(unsigned long boot_heap_start)
+>  {
+>         unsigned long zimage_start, zimage_size;
+>
+> -       __stack_chk_guard_setup();
+> -
+>         zimage_start = (unsigned long)(&__image_begin);
+>         zimage_size = (unsigned long)(&__image_end) -
+>             (unsigned long)(&__image_begin);
+> diff --git a/arch/mips/boot/compressed/head.S b/arch/mips/boot/compressed/head.S
+> index 409cb48..00d0ee0 100644
+> --- a/arch/mips/boot/compressed/head.S
+> +++ b/arch/mips/boot/compressed/head.S
+> @@ -32,6 +32,10 @@ start:
+>         bne     a2, a0, 1b
+>          addiu  a0, a0, 4
+>
+> +       PTR_LA  a0, __stack_chk_guard
+> +       PTR_LI  a1, 0x000a0dff
+> +       sw      a1, 0(a0)
+> +
+>         PTR_LA  a0, (.heap)          /* heap address */
+>         PTR_LA  sp, (.stack + 8192)  /* stack address */
+>
+> diff --git a/arch/sh/boot/compressed/head_32.S b/arch/sh/boot/compressed/head_32.S
+> index 7bb1681..a3fdb05 100644
+> --- a/arch/sh/boot/compressed/head_32.S
+> +++ b/arch/sh/boot/compressed/head_32.S
+> @@ -76,6 +76,10 @@ l1:
+>         mov.l   init_stack_addr, r0
+>         mov.l   @r0, r15
+>
+> +       mov.l   __stack_chk_guard, r0
+> +       mov     #0x000a0dff, r1
+> +       mov.l   r1, @r0
+> +
+>         /* Decompress the kernel */
+>         mov.l   decompress_kernel_addr, r0
+>         jsr     @r0
+> diff --git a/arch/sh/boot/compressed/head_64.S b/arch/sh/boot/compressed/head_64.S
+> index 9993113..8b4d540 100644
+> --- a/arch/sh/boot/compressed/head_64.S
+> +++ b/arch/sh/boot/compressed/head_64.S
+> @@ -132,6 +132,10 @@ startup:
+>         addi    r22, 4, r22
+>         bne     r22, r23, tr1
+>
+> +       movi    datalabel __stack_chk_guard, r0
+> +       movi    0x000a0dff, r1
+> +       st.l    r0, 0, r1
+> +
+>         /*
+>          * Decompress the kernel.
+>          */
+> diff --git a/arch/sh/boot/compressed/misc.c b/arch/sh/boot/compressed/misc.c
+> index 627ce8e..fe4c079 100644
+> --- a/arch/sh/boot/compressed/misc.c
+> +++ b/arch/sh/boot/compressed/misc.c
+> @@ -106,11 +106,6 @@ static void error(char *x)
+>
+>  unsigned long __stack_chk_guard;
+>
+> -void __stack_chk_guard_setup(void)
+> -{
+> -       __stack_chk_guard = 0x000a0dff;
+> -}
+> -
+>  void __stack_chk_fail(void)
+>  {
+>         error("stack-protector: Kernel stack is corrupted\n");
+> @@ -130,8 +125,6 @@ void decompress_kernel(void)
+>  {
+>         unsigned long output_addr;
+>
+> -       __stack_chk_guard_setup();
+> -
+>  #ifdef CONFIG_SUPERH64
+>         output_addr = (CONFIG_MEMORY_START + 0x2000);
+>  #else
+> --
+> 2.7.0
+>
