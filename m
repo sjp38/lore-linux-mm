@@ -1,193 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6320E6B0005
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 04:55:57 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id v8so11506754iob.0
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 01:55:57 -0700 (PDT)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A116F6B0007
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 05:02:57 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id r9so11271845ioa.11
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 02:02:57 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q5sor4537676iof.63.2018.03.13.01.55.55
+        by mx.google.com with SMTPS id u130sor6773itc.138.2018.03.13.02.02.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Mar 2018 01:55:55 -0700 (PDT)
+        Tue, 13 Mar 2018 02:02:56 -0700 (PDT)
+Date: Tue, 13 Mar 2018 18:02:49 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCHv2 2/2] zram: drop max_zpage_size and use
+ zs_huge_class_size()
+Message-ID: <20180313090249.GA240650@rodete-desktop-imager.corp.google.com>
+References: <20180306070639.7389-1-sergey.senozhatsky@gmail.com>
+ <20180306070639.7389-3-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1520820258-19225-1-git-send-email-chenhc@lemote.com>
-References: <1520820258-19225-1-git-send-email-chenhc@lemote.com>
-From: Huacai Chen <chenhc@lemote.com>
-Date: Tue, 13 Mar 2018 16:55:53 +0800
-Message-ID: <CAAhV-H4zFAMjg9W2f1VfYrgLnDfNDPaUHUechGDT+v3o_8WNTg@mail.gmail.com>
-Subject: Re: [PATCH V2] ZBOOT: fix stack protector in compressed boot phase
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180306070639.7389-3-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <james.hogan@mips.com>, Linux MIPS Mailing List <linux-mips@linux-mips.org>, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, Huacai Chen <chenhc@lemote.com>, stable <stable@vger.kernel.org>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Hi, Yoshinori, Rich and SuperH developers,
+Hi Sergey,
 
-I'm not familiar with SuperH assembly, but SuperH has the same bug
-obviously. Could you please fix that?
+Sorry for being late.
+I love this patchset! Just a minor below.
 
-Huacai
-
-On Mon, Mar 12, 2018 at 10:04 AM, Huacai Chen <chenhc@lemote.com> wrote:
-> Call __stack_chk_guard_setup() in decompress_kernel() is too late that
-> stack checking always fails for decompress_kernel() itself. So remove
-> __stack_chk_guard_setup() and initialize __stack_chk_guard before we
-> call decompress_kernel().
->
-> Original code comes from ARM but also used for MIPS and SH, so fix them
-> together. If without this fix, compressed booting of these archs will
-> fail because stack checking is enabled by default (>=4.16).
->
-> V2: Fix build on ARM.
->
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Huacai Chen <chenhc@lemote.com>
+On Tue, Mar 06, 2018 at 04:06:39PM +0900, Sergey Senozhatsky wrote:
+> This patch removes ZRAM's enforced "huge object" value and uses
+> zsmalloc huge-class watermark instead, which makes more sense.
+> 
+> TEST
+> - I used a 1G zram device, LZO compression back-end, original
+>   data set size was 444MB. Looking at zsmalloc classes stats the
+>   test ended up to be pretty fair.
+> 
+> BASE ZRAM/ZSMALLOC
+> =====================
+> zram mm_stat
+> 
+> 498978816 191482495 199831552        0 199831552    15634        0
+> 
+> zsmalloc classes
+> 
+>  class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage freeable
+> ...
+>    151  2448           0            0          1240       1240        744                3        0
+>    168  2720           0            0          4200       4200       2800                2        0
+>    190  3072           0            0         10100      10100       7575                3        0
+>    202  3264           0            0           380        380        304                4        0
+>    254  4096           0            0         10620      10620      10620                1        0
+> 
+>  Total                 7           46        106982     106187      48787                         0
+> 
+> PATCHED ZRAM/ZSMALLOC
+> =====================
+> 
+> zram mm_stat
+> 
+> 498978816 182579184 194248704        0 194248704    15628        0
+> 
+> zsmalloc classes
+> 
+>  class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage freeable
+> ...
+>    151  2448           0            0          1240       1240        744                3        0
+>    168  2720           0            0          4200       4200       2800                2        0
+>    190  3072           0            0         10100      10100       7575                3        0
+>    202  3264           0            0          7180       7180       5744                4        0
+>    254  4096           0            0          3820       3820       3820                1        0
+> 
+>  Total                 8           45        106959     106193      47424                         0
+> 
+> As we can see, we reduced the number of objects stored in class-4096,
+> because a huge number of objects which we previously forcibly stored
+> in class-4096 now stored in non-huge class-3264. This results in lower
+> memory consumption:
+>  - zsmalloc now uses 47424 physical pages, which is less than 48787
+>    pages zsmalloc used before.
+> 
+>  - objects that we store in class-3264 share zspages. That's why overall
+>    the number of pages that both class-4096 and class-3264 consumed went
+>    down from 10924 to 9564.
+> 
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 > ---
->  arch/arm/boot/compressed/head.S        | 4 ++++
->  arch/arm/boot/compressed/misc.c        | 7 -------
->  arch/mips/boot/compressed/decompress.c | 7 -------
->  arch/mips/boot/compressed/head.S       | 4 ++++
->  arch/sh/boot/compressed/head_32.S      | 4 ++++
->  arch/sh/boot/compressed/head_64.S      | 4 ++++
->  arch/sh/boot/compressed/misc.c         | 7 -------
->  7 files changed, 16 insertions(+), 21 deletions(-)
->
-> diff --git a/arch/arm/boot/compressed/head.S b/arch/arm/boot/compressed/head.S
-> index 45c8823..bae1fc6 100644
-> --- a/arch/arm/boot/compressed/head.S
-> +++ b/arch/arm/boot/compressed/head.S
-> @@ -547,6 +547,10 @@ not_relocated:     mov     r0, #0
->                 bic     r4, r4, #1
->                 blne    cache_on
->
-> +               ldr     r0, =__stack_chk_guard
-> +               ldr     r1, =0x000a0dff
-> +               str     r1, [r0]
-> +
->  /*
->   * The C runtime environment should now be setup sufficiently.
->   * Set up some pointers, and start decompressing.
-> diff --git a/arch/arm/boot/compressed/misc.c b/arch/arm/boot/compressed/misc.c
-> index 16a8a80..e518ef5 100644
-> --- a/arch/arm/boot/compressed/misc.c
-> +++ b/arch/arm/boot/compressed/misc.c
-> @@ -130,11 +130,6 @@ asmlinkage void __div0(void)
->
->  unsigned long __stack_chk_guard;
->
-> -void __stack_chk_guard_setup(void)
-> -{
-> -       __stack_chk_guard = 0x000a0dff;
-> -}
-> -
->  void __stack_chk_fail(void)
->  {
->         error("stack-protector: Kernel stack is corrupted\n");
-> @@ -150,8 +145,6 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
->  {
->         int ret;
->
-> -       __stack_chk_guard_setup();
-> -
->         output_data             = (unsigned char *)output_start;
->         free_mem_ptr            = free_mem_ptr_p;
->         free_mem_end_ptr        = free_mem_ptr_end_p;
-> diff --git a/arch/mips/boot/compressed/decompress.c b/arch/mips/boot/compressed/decompress.c
-> index fdf99e9..5ba431c 100644
-> --- a/arch/mips/boot/compressed/decompress.c
-> +++ b/arch/mips/boot/compressed/decompress.c
-> @@ -78,11 +78,6 @@ void error(char *x)
->
->  unsigned long __stack_chk_guard;
->
-> -void __stack_chk_guard_setup(void)
-> -{
-> -       __stack_chk_guard = 0x000a0dff;
-> -}
-> -
->  void __stack_chk_fail(void)
->  {
->         error("stack-protector: Kernel stack is corrupted\n");
-> @@ -92,8 +87,6 @@ void decompress_kernel(unsigned long boot_heap_start)
->  {
->         unsigned long zimage_start, zimage_size;
->
-> -       __stack_chk_guard_setup();
-> -
->         zimage_start = (unsigned long)(&__image_begin);
->         zimage_size = (unsigned long)(&__image_end) -
->             (unsigned long)(&__image_begin);
-> diff --git a/arch/mips/boot/compressed/head.S b/arch/mips/boot/compressed/head.S
-> index 409cb48..00d0ee0 100644
-> --- a/arch/mips/boot/compressed/head.S
-> +++ b/arch/mips/boot/compressed/head.S
-> @@ -32,6 +32,10 @@ start:
->         bne     a2, a0, 1b
->          addiu  a0, a0, 4
->
-> +       PTR_LA  a0, __stack_chk_guard
-> +       PTR_LI  a1, 0x000a0dff
-> +       sw      a1, 0(a0)
-> +
->         PTR_LA  a0, (.heap)          /* heap address */
->         PTR_LA  sp, (.stack + 8192)  /* stack address */
->
-> diff --git a/arch/sh/boot/compressed/head_32.S b/arch/sh/boot/compressed/head_32.S
-> index 7bb1681..a3fdb05 100644
-> --- a/arch/sh/boot/compressed/head_32.S
-> +++ b/arch/sh/boot/compressed/head_32.S
-> @@ -76,6 +76,10 @@ l1:
->         mov.l   init_stack_addr, r0
->         mov.l   @r0, r15
->
-> +       mov.l   __stack_chk_guard, r0
-> +       mov     #0x000a0dff, r1
-> +       mov.l   r1, @r0
-> +
->         /* Decompress the kernel */
->         mov.l   decompress_kernel_addr, r0
->         jsr     @r0
-> diff --git a/arch/sh/boot/compressed/head_64.S b/arch/sh/boot/compressed/head_64.S
-> index 9993113..8b4d540 100644
-> --- a/arch/sh/boot/compressed/head_64.S
-> +++ b/arch/sh/boot/compressed/head_64.S
-> @@ -132,6 +132,10 @@ startup:
->         addi    r22, 4, r22
->         bne     r22, r23, tr1
->
-> +       movi    datalabel __stack_chk_guard, r0
-> +       movi    0x000a0dff, r1
-> +       st.l    r0, 0, r1
-> +
->         /*
->          * Decompress the kernel.
->          */
-> diff --git a/arch/sh/boot/compressed/misc.c b/arch/sh/boot/compressed/misc.c
-> index 627ce8e..fe4c079 100644
-> --- a/arch/sh/boot/compressed/misc.c
-> +++ b/arch/sh/boot/compressed/misc.c
-> @@ -106,11 +106,6 @@ static void error(char *x)
->
->  unsigned long __stack_chk_guard;
->
-> -void __stack_chk_guard_setup(void)
-> -{
-> -       __stack_chk_guard = 0x000a0dff;
-> -}
-> -
->  void __stack_chk_fail(void)
->  {
->         error("stack-protector: Kernel stack is corrupted\n");
-> @@ -130,8 +125,6 @@ void decompress_kernel(void)
->  {
->         unsigned long output_addr;
->
-> -       __stack_chk_guard_setup();
-> -
->  #ifdef CONFIG_SUPERH64
->         output_addr = (CONFIG_MEMORY_START + 0x2000);
->  #else
-> --
-> 2.7.0
->
+>  drivers/block/zram/zram_drv.c |  9 ++++++++-
+>  drivers/block/zram/zram_drv.h | 16 ----------------
+>  2 files changed, 8 insertions(+), 17 deletions(-)
+> 
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index 85110e7931e5..1b8082e6d2f5 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -44,6 +44,11 @@ static const char *default_compressor = "lzo";
+>  
+>  /* Module params (documentation at end) */
+>  static unsigned int num_devices = 1;
+> +/*
+> + * Pages that compress to sizes equals or greater than this are stored
+> + * uncompressed in memory.
+> + */
+> +static size_t huge_class_size;
+>  
+>  static void zram_free_page(struct zram *zram, size_t index);
+>  
+> @@ -786,6 +791,8 @@ static bool zram_meta_alloc(struct zram *zram, u64 disksize)
+>  		return false;
+>  	}
+>  
+> +	if (!huge_class_size)
+> +		huge_class_size = zs_huge_class_size();
+
+If it is static, we can do this in zram_init? I believe it's more readable in that
+it's never changed betweens zram instances.
