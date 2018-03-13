@@ -1,63 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7596B0012
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 09:49:07 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u188so7473864pfb.6
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 06:49:07 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e4si188706pfa.103.2018.03.13.06.49.05
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AF9A6B0012
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 09:58:26 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j8so7481295pfh.13
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 06:58:26 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 62-v6sor93331ply.43.2018.03.13.06.58.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 13 Mar 2018 06:49:05 -0700 (PDT)
-Date: Tue, 13 Mar 2018 14:49:02 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 1/2] mm: memcg: remote memcg charging for kmem
- allocations
-Message-ID: <20180313134902.GW12772@dhcp22.suse.cz>
-References: <20180221223757.127213-1-shakeelb@google.com>
- <20180221223757.127213-2-shakeelb@google.com>
+        (Google Transport Security);
+        Tue, 13 Mar 2018 06:58:24 -0700 (PDT)
+Date: Tue, 13 Mar 2018 22:58:15 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCHv2 2/2] zram: drop max_zpage_size and use
+ zs_huge_class_size()
+Message-ID: <20180313135815.GA96381@rodete-laptop-imager.corp.google.com>
+References: <20180306070639.7389-1-sergey.senozhatsky@gmail.com>
+ <20180306070639.7389-3-sergey.senozhatsky@gmail.com>
+ <20180313090249.GA240650@rodete-desktop-imager.corp.google.com>
+ <20180313102437.GA5114@jagdpanzerIV>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180221223757.127213-2-shakeelb@google.com>
+In-Reply-To: <20180313102437.GA5114@jagdpanzerIV>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Wed 21-02-18 14:37:56, Shakeel Butt wrote:
-[...]
-> +#ifdef CONFIG_MEMCG
-> +static inline struct mem_cgroup *memalloc_memcg_save(struct mem_cgroup *memcg)
-> +{
-> +	struct mem_cgroup *old_memcg = current->target_memcg;
-> +	current->target_memcg = memcg;
-> +	return old_memcg;
-> +}
+On Tue, Mar 13, 2018 at 07:24:37PM +0900, Sergey Senozhatsky wrote:
+> Hello Minchan,
+> 
+> On (03/13/18 18:02), Minchan Kim wrote:
+> > Sorry for being late.
+> > I love this patchset! Just a minor below.
+> 
+> :)
+> 
+> [..]
+> > > +	if (!huge_class_size)
+> > > +		huge_class_size = zs_huge_class_size();
+> > 
+> > If it is static, we can do this in zram_init? I believe it's more readable in that
+> > it's never changed betweens zram instances.
+> 
+> We need to have at least one pool, because pool decides where the
+> watermark is. At zram_init() stage we don't have a pool yet. We
+> zs_create_pool() in zram_meta_alloc() so that's why I put
+> zs_huge_class_size() there. I'm not in love with it, but that's
+> the only place where we can have it.
 
-So you are relying that the caller will handle the reference counting
-properly? I do not think this is a good idea. Also do we need some kind
-of debugging facility to detect unbalanced save/restore scopes?
-
-[...]
-> @@ -2260,7 +2269,10 @@ struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep)
->  	if (current->memcg_kmem_skip_account)
->  		return cachep;
->  
-> -	memcg = get_mem_cgroup_from_mm(current->mm);
-> +	if (current->target_memcg)
-> +		memcg = get_mem_cgroup(current->target_memcg);
-> +	if (!memcg)
-> +		memcg = get_mem_cgroup_from_mm(current->mm);
->  	kmemcg_id = READ_ONCE(memcg->kmemcg_id);
->  	if (kmemcg_id < 0)
->  		goto out;
-
-You are also adding one branch for _each_ charge path even though the
-usecase is rather limited.
-
-I will have to think about this approach more. It is clearly less code
-than your previous attempt but I cannot say I would be really impressed.
--- 
-Michal Hocko
-SUSE Labs
+Fair enough. Then what happens if client calls zs_huge_class_size
+without creating zs_create_pool?
+I think we should make zs_huge_class_size has a zs_pool as argument.
