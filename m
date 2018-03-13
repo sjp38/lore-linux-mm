@@ -1,114 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 48F506B0007
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 02:34:48 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id a28-v6so6015397lfg.7
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 23:34:48 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z70sor1858988ljb.51.2018.03.12.23.34.46
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A6F916B0005
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 03:03:00 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id g66so6985184pfj.11
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 00:03:00 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id e15si3063478pfl.284.2018.03.13.00.02.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 12 Mar 2018 23:34:46 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Mar 2018 00:02:59 -0700 (PDT)
+Date: Tue, 13 Mar 2018 15:04:04 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [PATCH v4 3/3 update] mm/free_pcppages_bulk: prefetch buddy
+ while not holding lock
+Message-ID: <20180313070404.GA7501@intel.com>
+References: <20180301062845.26038-1-aaron.lu@intel.com>
+ <20180301062845.26038-4-aaron.lu@intel.com>
+ <20180301160950.b561d6b8b561217bad511229@linux-foundation.org>
+ <20180302082756.GC6356@intel.com>
+ <20180309082431.GB30868@intel.com>
+ <988ce376-bdc4-0989-5133-612bfa3f7c45@intel.com>
+ <20180313033519.GC13782@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CACjP9X96_Wtj3WOXgkjfijN-ZXB9pS=K547-JerRq4QKkrYkfQ@mail.gmail.com>
-References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
- <cover.1520011944.git.neelx@redhat.com> <0485727b2e82da7efbce5f6ba42524b429d0391a.1520011945.git.neelx@redhat.com>
- <20180302164052.5eea1b896e3a7125d1e1f23a@linux-foundation.org>
- <CACjP9X_tpVVDPUvyc-B2QU=2J5MXbuFsDcG90d7L0KuwEEuR-g@mail.gmail.com>
- <CAPKp9ubzXBMeV6Oi=KW1HaPOrv_P78HOXcdQeZ5e1=bqY97tkA@mail.gmail.com>
- <CA+G9fYvWm5NYX64POULrdGB1c3Ar3WfZAsBTEKw4+NYQ_mmddA@mail.gmail.com> <CACjP9X96_Wtj3WOXgkjfijN-ZXB9pS=K547-JerRq4QKkrYkfQ@mail.gmail.com>
-From: Naresh Kamboju <naresh.kamboju@linaro.org>
-Date: Tue, 13 Mar 2018 12:04:45 +0530
-Message-ID: <CA+G9fYth0DVemSK3Sp8aRc9mzDAq0==WW08Gq1L5JjxWg-a+Gw@mail.gmail.com>
-Subject: Re: [PATCH v3 2/2] mm/page_alloc: fix memmap_init_zone pageblock alignment
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180313033519.GC13782@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vacek <neelx@redhat.com>
-Cc: Sudeep Holla <sudeep.holla@arm.com>, Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, linux- stable <stable@vger.kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
 
-On 12 March 2018 at 22:21, Daniel Vacek <neelx@redhat.com> wrote:
-> On Mon, Mar 12, 2018 at 3:49 PM, Naresh Kamboju
-> <naresh.kamboju@linaro.org> wrote:
->> On 12 March 2018 at 17:56, Sudeep Holla <sudeep.holla@arm.com> wrote:
->>> Hi,
->>>
->>> I couldn't find the exact mail corresponding to the patch merged in v4.16-rc5
->>> but commit 864b75f9d6b01 "mm/page_alloc: fix memmap_init_zone
->>> pageblock alignment"
->>> cause boot hang on my ARM64 platform.
->>
->> I have also noticed this problem on hi6220 Hikey - arm64.
->>
->> LKFT: linux-next: Hikey boot failed linux-next-20180308
->> https://bugs.linaro.org/show_bug.cgi?id=3676
->>
->> - Naresh
->>
->>>
->>> Log:
->>> [    0.000000] NUMA: No NUMA configuration found
->>> [    0.000000] NUMA: Faking a node at [mem
->>> 0x0000000000000000-0x00000009ffffffff]
->>> [    0.000000] NUMA: NODE_DATA [mem 0x9fffcb480-0x9fffccf7f]
->>> [    0.000000] Zone ranges:
->>> [    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000ffffffff]
->>> [    0.000000]   Normal   [mem 0x0000000100000000-0x00000009ffffffff]
->>> [    0.000000] Movable zone start for each node
->>> [    0.000000] Early memory node ranges
->>> [    0.000000]   node   0: [mem 0x0000000080000000-0x00000000f8f9afff]
->>> [    0.000000]   node   0: [mem 0x00000000f8f9b000-0x00000000f908ffff]
->>> [    0.000000]   node   0: [mem 0x00000000f9090000-0x00000000f914ffff]
->>> [    0.000000]   node   0: [mem 0x00000000f9150000-0x00000000f920ffff]
->>> [    0.000000]   node   0: [mem 0x00000000f9210000-0x00000000f922ffff]
->>> [    0.000000]   node   0: [mem 0x00000000f9230000-0x00000000f95bffff]
->>> [    0.000000]   node   0: [mem 0x00000000f95c0000-0x00000000fe58ffff]
->>> [    0.000000]   node   0: [mem 0x00000000fe590000-0x00000000fe5cffff]
->>> [    0.000000]   node   0: [mem 0x00000000fe5d0000-0x00000000fe5dffff]
->>> [    0.000000]   node   0: [mem 0x00000000fe5e0000-0x00000000fe62ffff]
->>> [    0.000000]   node   0: [mem 0x00000000fe630000-0x00000000feffffff]
->>> [    0.000000]   node   0: [mem 0x0000000880000000-0x00000009ffffffff]
->>> [    0.000000]  Initmem setup node 0 [mem 0x0000000080000000-0x00000009ffffffff]
->>>
->>> On Sat, Mar 3, 2018 at 1:08 AM, Daniel Vacek <neelx@redhat.com> wrote:
->>>> On Sat, Mar 3, 2018 at 1:40 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
->>>>>
->>>>> This makes me wonder whether a -stable backport is really needed...
->>>>
->>>> For some machines it definitely is. Won't hurt either, IMHO.
->>>>
->>>> --nX
->
-> Hmm, does it step back perhaps?
->
-> Can you check if below cures the boot hang?
->
-> --nX
->
-> ~~~~
-> neelx@metal:~/nX/src/linux$ git diff
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3d974cb2a1a1..415571120bbd 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5365,8 +5365,10 @@ void __meminit memmap_init_zone(unsigned long
-> size, int nid, unsigned long zone,
->                          * the valid region but still depends on correct page
->                          * metadata.
->                          */
-> -                       pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
-> +                       unsigned long next_pfn;
-> +                       next_pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
->                                         ~(pageblock_nr_pages-1)) - 1;
-> +                       pfn = max(next_pfn, pfn);
->  #endif
->                         continue;
->                 }
+On Tue, Mar 13, 2018 at 11:35:19AM +0800, Aaron Lu wrote:
+> On Mon, Mar 12, 2018 at 10:32:32AM -0700, Dave Hansen wrote:
+> > On 03/09/2018 12:24 AM, Aaron Lu wrote:
+> > > +			/*
+> > > +			 * We are going to put the page back to the global
+> > > +			 * pool, prefetch its buddy to speed up later access
+> > > +			 * under zone->lock. It is believed the overhead of
+> > > +			 * an additional test and calculating buddy_pfn here
+> > > +			 * can be offset by reduced memory latency later. To
+> > > +			 * avoid excessive prefetching due to large count, only
+> > > +			 * prefetch buddy for the last pcp->batch nr of pages.
+> > > +			 */
+> > > +			if (count > pcp->batch)
+> > > +				continue;
+> > > +			pfn = page_to_pfn(page);
+> > > +			buddy_pfn = __find_buddy_pfn(pfn, 0);
+> > > +			buddy = page + (buddy_pfn - pfn);
+> > > +			prefetch(buddy);
+> > 
+> > FWIW, I think this needs to go into a helper function.  Is that possible?
+> 
+> I'll give it a try.
+> 
+> > 
+> > There's too much logic happening here.  Also, 'count' going from
+> > batch_size->0 is totally non-obvious from the patch context.  It makes
+> > this hunk look totally wrong by itself.
 
-After applying this patch on linux-next the boot hang problem resolved.
-Now the hi6220-hikey is booting successfully.
-Thank you.
+I tried to avoid adding one more local variable but looks like it caused
+a lot of pain. What about the following? It doesn't use count any more
+but prefetch_nr to indicate how many prefetches have happened.
 
-- Naresh
+Also, I think it's not worth the risk of disordering pages in free_list
+by changing list_add_tail() to list_add() as Andrew reminded so I
+dropped that change too.
 
-> ~~~~
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dafdcdec9c1f..00ea4483f679 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1099,6 +1099,15 @@ static bool bulkfree_pcp_prepare(struct page *page)
+ }
+ #endif /* CONFIG_DEBUG_VM */
+ 
++static inline void prefetch_buddy(struct page *page)
++{
++	unsigned long pfn = page_to_pfn(page);
++	unsigned long buddy_pfn = __find_buddy_pfn(pfn, 0);
++	struct page *buddy = page + (buddy_pfn - pfn);
++
++	prefetch(buddy);
++}
++
+ /*
+  * Frees a number of pages from the PCP lists
+  * Assumes all pages on list are in same zone, and of same order.
+@@ -1115,6 +1124,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ {
+ 	int migratetype = 0;
+ 	int batch_free = 0;
++	int prefetch_nr = 0;
+ 	bool isolated_pageblocks;
+ 	struct page *page, *tmp;
+ 	LIST_HEAD(head);
+@@ -1150,6 +1160,18 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 				continue;
+ 
+ 			list_add_tail(&page->lru, &head);
++
++			/*
++			 * We are going to put the page back to the global
++			 * pool, prefetch its buddy to speed up later access
++			 * under zone->lock. It is believed the overhead of
++			 * an additional test and calculating buddy_pfn here
++			 * can be offset by reduced memory latency later. To
++			 * avoid excessive prefetching due to large count, only
++			 * prefetch buddy for the first pcp->batch nr of pages.
++			 */
++			if (prefetch_nr++ < pcp->batch)
++				prefetch_buddy(page);
+ 		} while (--count && --batch_free && !list_empty(list));
+ 	}
+ 
+-- 
+2.14.3
