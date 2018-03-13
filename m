@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FCB86B0278
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 09:27:23 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id w22-v6so10230581pll.2
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 06:27:23 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CC4A06B0007
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 09:28:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u188so7450345pfb.6
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 06:28:14 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id o20-v6si149294pli.229.2018.03.13.06.27.11
+        by mx.google.com with ESMTPS id c136si125984pga.318.2018.03.13.06.26.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 13 Mar 2018 06:27:11 -0700 (PDT)
+        Tue, 13 Mar 2018 06:26:51 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v9 61/61] radix tree: Remove unused functions
-Date: Tue, 13 Mar 2018 06:26:39 -0700
-Message-Id: <20180313132639.17387-62-willy@infradead.org>
+Subject: [PATCH v9 21/61] xarray: Add xas_next and xas_prev
+Date: Tue, 13 Mar 2018 06:25:59 -0700
+Message-Id: <20180313132639.17387-22-willy@infradead.org>
 In-Reply-To: <20180313132639.17387-1-willy@infradead.org>
 References: <20180313132639.17387-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,434 +22,493 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The following functions are (now) unused:
- - __radix_tree_delete_node
- - radix_tree_gang_lookup_slot
- - radix_tree_join
- - radix_tree_maybe_preload_order
- - radix_tree_split
- - radix_tree_split_preload
+These two functions move the xas index by one position, and adjust the
+rest of the iterator state to match it.  This is more efficient than
+calling xas_set() as it keeps the iterator at the leaves of the tree
+instead of walking the iterator from the root each time.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/radix-tree.h |  16 +--
- lib/radix-tree.c           | 294 +--------------------------------------------
- 2 files changed, 4 insertions(+), 306 deletions(-)
+ include/linux/xarray.h                 |  67 +++++++++
+ lib/xarray.c                           |  74 ++++++++++
+ tools/testing/radix-tree/xarray-test.c | 261 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 401 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index f64beb9ba175..eb2ae901f2ec 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -147,12 +147,11 @@ static inline unsigned int iter_shift(const struct radix_tree_iter *iter)
-  * radix_tree_lookup_slot
-  * radix_tree_tag_get
-  * radix_tree_gang_lookup
-- * radix_tree_gang_lookup_slot
-  * radix_tree_gang_lookup_tag
-  * radix_tree_gang_lookup_tag_slot
-  * radix_tree_tagged
-  *
-- * The first 8 functions are able to be called locklessly, using RCU. The
-+ * The first 7 functions are able to be called locklessly, using RCU. The
-  * caller must ensure calls to these functions are made within rcu_read_lock()
-  * regions. Other readers (lock-free or otherwise) and modifications may be
-  * running concurrently.
-@@ -254,9 +253,6 @@ void radix_tree_iter_replace(struct radix_tree_root *,
- 		const struct radix_tree_iter *, void __rcu **slot, void *entry);
- void radix_tree_replace_slot(struct radix_tree_root *,
- 			     void __rcu **slot, void *entry);
--void __radix_tree_delete_node(struct radix_tree_root *,
--			      struct radix_tree_node *,
--			      radix_tree_update_node_t update_node);
- void radix_tree_iter_delete(struct radix_tree_root *,
- 			struct radix_tree_iter *iter, void __rcu **slot);
- void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
-@@ -266,12 +262,8 @@ void radix_tree_clear_tags(struct radix_tree_root *, struct radix_tree_node *,
- unsigned int radix_tree_gang_lookup(const struct radix_tree_root *,
- 			void **results, unsigned long first_index,
- 			unsigned int max_items);
--unsigned int radix_tree_gang_lookup_slot(const struct radix_tree_root *,
--			void __rcu ***results, unsigned long *indices,
--			unsigned long first_index, unsigned int max_items);
- int radix_tree_preload(gfp_t gfp_mask);
- int radix_tree_maybe_preload(gfp_t gfp_mask);
--int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order);
- void radix_tree_init(void);
- void *radix_tree_tag_set(struct radix_tree_root *,
- 			unsigned long index, unsigned int tag);
-@@ -296,12 +288,6 @@ static inline void radix_tree_preload_end(void)
- 	preempt_enable();
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index 96773f83ae03..c8a0ddc1b3df 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -683,6 +683,12 @@ static inline bool xas_not_node(struct xa_node *node)
+ 	return ((unsigned long)node & 3) || !node;
  }
  
--int radix_tree_split_preload(unsigned old_order, unsigned new_order, gfp_t);
--int radix_tree_split(struct radix_tree_root *, unsigned long index,
--			unsigned new_order);
--int radix_tree_join(struct radix_tree_root *, unsigned long index,
--			unsigned new_order, void *);
--
- void __rcu **idr_get_free(struct radix_tree_root *root,
- 			      struct radix_tree_iter *iter, gfp_t gfp,
- 			      unsigned long max);
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 71697bd25140..20858120ac0b 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -41,9 +41,6 @@
- #include <linux/xarray.h>
- 
- 
--/* Number of nodes in fully populated tree of given height */
--static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
--
- /*
-  * Radix tree node cache.
-  */
-@@ -463,73 +460,6 @@ int radix_tree_maybe_preload(gfp_t gfp_mask)
- }
- EXPORT_SYMBOL(radix_tree_maybe_preload);
- 
--#ifdef CONFIG_RADIX_TREE_MULTIORDER
--/*
-- * Preload with enough objects to ensure that we can split a single entry
-- * of order @old_order into many entries of size @new_order
-- */
--int radix_tree_split_preload(unsigned int old_order, unsigned int new_order,
--							gfp_t gfp_mask)
--{
--	unsigned top = 1 << (old_order % RADIX_TREE_MAP_SHIFT);
--	unsigned layers = (old_order / RADIX_TREE_MAP_SHIFT) -
--				(new_order / RADIX_TREE_MAP_SHIFT);
--	unsigned nr = 0;
--
--	WARN_ON_ONCE(!gfpflags_allow_blocking(gfp_mask));
--	BUG_ON(new_order >= old_order);
--
--	while (layers--)
--		nr = nr * RADIX_TREE_MAP_SIZE + 1;
--	return __radix_tree_preload(gfp_mask, top * nr);
--}
--#endif
--
--/*
-- * The same as function above, but preload number of nodes required to insert
-- * (1 << order) continuous naturally-aligned elements.
-- */
--int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
--{
--	unsigned long nr_subtrees;
--	int nr_nodes, subtree_height;
--
--	/* Preloading doesn't help anything with this gfp mask, skip it */
--	if (!gfpflags_allow_blocking(gfp_mask)) {
--		preempt_disable();
--		return 0;
--	}
--
--	/*
--	 * Calculate number and height of fully populated subtrees it takes to
--	 * store (1 << order) elements.
--	 */
--	nr_subtrees = 1 << order;
--	for (subtree_height = 0; nr_subtrees > RADIX_TREE_MAP_SIZE;
--			subtree_height++)
--		nr_subtrees >>= RADIX_TREE_MAP_SHIFT;
--
--	/*
--	 * The worst case is zero height tree with a single item at index 0 and
--	 * then inserting items starting at ULONG_MAX - (1 << order).
--	 *
--	 * This requires RADIX_TREE_MAX_PATH nodes to build branch from root to
--	 * 0-index item.
--	 */
--	nr_nodes = RADIX_TREE_MAX_PATH;
--
--	/* Plus branch to fully populated subtrees. */
--	nr_nodes += RADIX_TREE_MAX_PATH - subtree_height;
--
--	/* Root node is shared. */
--	nr_nodes--;
--
--	/* Plus nodes required to build subtrees. */
--	nr_nodes += nr_subtrees * height_to_maxnodes[subtree_height];
--
--	return __radix_tree_preload(gfp_mask, nr_nodes);
--}
--
- static unsigned radix_tree_load_root(const struct radix_tree_root *root,
- 		struct radix_tree_node **nodep, unsigned long *maxindex)
++/* True if the node represents RESTART or an error */
++static inline bool xas_frozen(struct xa_node *node)
++{
++	return (unsigned long)node & 2;
++}
++
+ /* True if the node represents head-of-tree, RESTART or BOUNDS */
+ static inline bool xas_top(struct xa_node *node)
  {
-@@ -1138,7 +1068,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
-  * @slot:	pointer to slot
-  * @item:	new item to store in the slot.
-  *
-- * For use with radix_tree_lookup_slot(), radix_tree_gang_lookup_slot(),
-+ * For use with radix_tree_lookup_slot() and
-  * radix_tree_gang_lookup_tag_slot().  Caller must hold tree write locked
-  * across slot lookup and replacement.
-  *
-@@ -1161,8 +1091,8 @@ EXPORT_SYMBOL(radix_tree_replace_slot);
-  * @slot:	pointer to slot
-  * @item:	new item to store in the slot.
-  *
-- * For use with radix_tree_split() and radix_tree_for_each_slot().
-- * Caller must hold tree write locked across split and replacement.
-+ * For use with radix_tree_for_each_slot().
-+ * Caller must hold tree write locked.
-  */
- void radix_tree_iter_replace(struct radix_tree_root *root,
- 				const struct radix_tree_iter *iter,
-@@ -1171,151 +1101,6 @@ void radix_tree_iter_replace(struct radix_tree_root *root,
- 	__radix_tree_replace(root, iter->node, slot, item, NULL);
- }
+@@ -940,6 +946,67 @@ enum {
+ 	for (entry = xas_find_tag(xas, max, tag); entry; \
+ 	     entry = xas_next_tag(xas, max, tag))
  
--#ifdef CONFIG_RADIX_TREE_MULTIORDER
--/**
-- * radix_tree_join - replace multiple entries with one multiorder entry
-- * @root: radix tree root
-- * @index: an index inside the new entry
-- * @order: order of the new entry
-- * @item: new entry
-- *
-- * Call this function to replace several entries with one larger entry.
-- * The existing entries are presumed to not need freeing as a result of
-- * this call.
-- *
-- * The replacement entry will have all the tags set on it that were set
-- * on any of the entries it is replacing.
-- */
--int radix_tree_join(struct radix_tree_root *root, unsigned long index,
--			unsigned order, void *item)
--{
--	struct radix_tree_node *node;
--	void __rcu **slot;
--	int error;
--
--	BUG_ON(radix_tree_is_internal_node(item));
--
--	error = __radix_tree_create(root, index, order, &node, &slot);
--	if (!error)
--		error = insert_entries(node, slot, item, order, true);
--	if (error > 0)
--		error = 0;
--
--	return error;
--}
--
--/**
-- * radix_tree_split - Split an entry into smaller entries
-- * @root: radix tree root
-- * @index: An index within the large entry
-- * @order: Order of new entries
-- *
-- * Call this function as the first step in replacing a multiorder entry
-- * with several entries of lower order.  After this function returns,
-- * loop over the relevant portion of the tree using radix_tree_for_each_slot()
-- * and call radix_tree_iter_replace() to set up each new entry.
-- *
-- * The tags from this entry are replicated to all the new entries.
-- *
-- * The radix tree should be locked against modification during the entire
-- * replacement operation.  Lock-free lookups will see RADIX_TREE_RETRY which
-- * should prompt RCU walkers to restart the lookup from the root.
-- */
--int radix_tree_split(struct radix_tree_root *root, unsigned long index,
--				unsigned order)
--{
--	struct radix_tree_node *parent, *node, *child;
--	void __rcu **slot;
--	unsigned int offset, end;
--	unsigned n, tag, tags = 0;
--	gfp_t gfp = root_gfp_mask(root);
--
--	if (!__radix_tree_lookup(root, index, &parent, &slot))
--		return -ENOENT;
--	if (!parent)
--		return -ENOENT;
--
--	offset = get_slot_offset(parent, slot);
--
--	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
--		if (tag_get(parent, tag, offset))
--			tags |= 1 << tag;
--
--	for (end = offset + 1; end < RADIX_TREE_MAP_SIZE; end++) {
--		if (!xa_is_sibling(rcu_dereference_raw(parent->slots[end])))
--			break;
--		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
--			if (tags & (1 << tag))
--				tag_set(parent, tag, end);
--		/* rcu_assign_pointer ensures tags are set before RETRY */
--		rcu_assign_pointer(parent->slots[end], RADIX_TREE_RETRY);
--	}
--	rcu_assign_pointer(parent->slots[offset], RADIX_TREE_RETRY);
--	parent->nr_values -= (end - offset);
--
--	if (order == parent->shift)
--		return 0;
--	if (order > parent->shift) {
--		while (offset < end)
--			offset += insert_entries(parent, &parent->slots[offset],
--					RADIX_TREE_RETRY, order, true);
--		return 0;
--	}
--
--	node = parent;
--
--	for (;;) {
--		if (node->shift > order) {
--			child = radix_tree_node_alloc(gfp, node, root,
--					node->shift - RADIX_TREE_MAP_SHIFT,
--					offset, 0, 0);
--			if (!child)
--				goto nomem;
--			if (node != parent) {
--				node->count++;
--				rcu_assign_pointer(node->slots[offset],
--							node_to_entry(child));
--				for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
--					if (tags & (1 << tag))
--						tag_set(node, tag, offset);
--			}
--
--			node = child;
--			offset = 0;
--			continue;
--		}
--
--		n = insert_entries(node, &node->slots[offset],
--					RADIX_TREE_RETRY, order, false);
--		BUG_ON(n > RADIX_TREE_MAP_SIZE);
--
--		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
--			if (tags & (1 << tag))
--				tag_set(node, tag, offset);
--		offset += n;
--
--		while (offset == RADIX_TREE_MAP_SIZE) {
--			if (node == parent)
--				break;
--			offset = node->offset;
--			child = node;
--			node = node->parent;
--			rcu_assign_pointer(node->slots[offset],
--						node_to_entry(child));
--			offset++;
--		}
--		if ((node == parent) && (offset == end))
--			return 0;
--	}
--
-- nomem:
--	/* Shouldn't happen; did user forget to preload? */
--	/* TODO: free all the allocated nodes */
--	WARN_ON(1);
--	return -ENOMEM;
--}
--#endif
--
- static void node_tag_set(struct radix_tree_root *root,
- 				struct radix_tree_node *node,
- 				unsigned int tag, unsigned int offset)
-@@ -1772,48 +1557,6 @@ radix_tree_gang_lookup(const struct radix_tree_root *root, void **results,
- }
- EXPORT_SYMBOL(radix_tree_gang_lookup);
++void *__xas_next(struct xa_state *);
++void *__xas_prev(struct xa_state *);
++
++/**
++ * xas_prev() - Move iterator to previous index.
++ * @xas: XArray operation state.
++ *
++ * If the @xas was in an error state, it will remain in an error state
++ * and this function will return %NULL.  If the @xas has never been walked,
++ * it will have the effect of calling xas_load().  Otherwise one will be
++ * subtracted from the index and the state will be walked to the correct
++ * location in the array for the next operation.
++ *
++ * If the iterator was referencing index 0, this function wraps
++ * around to %ULONG_MAX.
++ *
++ * Return: The entry at the new index.  This may be %NULL or an internal
++ * entry, although it should never be a node entry.
++ */
++static inline void *xas_prev(struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_node;
++
++	if (unlikely(xas_not_node(node) || node->shift ||
++				xas->xa_offset == 0))
++		return __xas_prev(xas);
++
++	xas->xa_index--;
++	xas->xa_offset--;
++	return xa_entry(xas->xa, node, xas->xa_offset);
++}
++
++/**
++ * xas_next() - Move state to next index.
++ * @xas: XArray operation state.
++ *
++ * If the @xas was in an error state, it will remain in an error state
++ * and this function will return %NULL.  If the @xas has never been walked,
++ * it will have the effect of calling xas_load().  Otherwise one will be
++ * added to the index and the state will be walked to the correct
++ * location in the array for the next operation.
++ *
++ * If the iterator was referencing index %ULONG_MAX, this function wraps
++ * around to 0.
++ *
++ * Return: The entry at the new index.  This may be %NULL or an internal
++ * entry, although it should never be a node entry.
++ */
++static inline void *xas_next(struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_node;
++
++	if (unlikely(xas_not_node(node) || node->shift ||
++				xas->xa_offset == XA_CHUNK_MASK))
++		return __xas_next(xas);
++
++	xas->xa_index++;
++	xas->xa_offset++;
++	return xa_entry(xas->xa, node, xas->xa_offset);
++}
++
+ /* Internal functions, mostly shared between radix-tree.c, xarray.c and idr.c */
+ void xas_destroy(struct xa_state *);
  
--/**
-- *	radix_tree_gang_lookup_slot - perform multiple slot lookup on radix tree
-- *	@root:		radix tree root
-- *	@results:	where the results of the lookup are placed
-- *	@indices:	where their indices should be placed (but usually NULL)
-- *	@first_index:	start the lookup from this key
-- *	@max_items:	place up to this many items at *results
-- *
-- *	Performs an index-ascending scan of the tree for present items.  Places
-- *	their slots at *@results and returns the number of items which were
-- *	placed at *@results.
-- *
-- *	The implementation is naive.
-- *
-- *	Like radix_tree_gang_lookup as far as RCU and locking goes. Slots must
-- *	be dereferenced with radix_tree_deref_slot, and if using only RCU
-- *	protection, radix_tree_deref_slot may fail requiring a retry.
-- */
--unsigned int
--radix_tree_gang_lookup_slot(const struct radix_tree_root *root,
--			void __rcu ***results, unsigned long *indices,
--			unsigned long first_index, unsigned int max_items)
--{
--	struct radix_tree_iter iter;
--	void __rcu **slot;
--	unsigned int ret = 0;
--
--	if (unlikely(!max_items))
--		return 0;
--
--	radix_tree_for_each_slot(slot, root, &iter, first_index) {
--		results[ret] = slot;
--		if (indices)
--			indices[ret] = iter.index;
--		if (++ret == max_items)
--			break;
--	}
--
--	return ret;
--}
--EXPORT_SYMBOL(radix_tree_gang_lookup_slot);
--
+diff --git a/lib/xarray.c b/lib/xarray.c
+index 080ed0fc3feb..7cf195b6e740 100644
+--- a/lib/xarray.c
++++ b/lib/xarray.c
+@@ -838,6 +838,80 @@ void xas_pause(struct xa_state *xas)
+ }
+ EXPORT_SYMBOL_GPL(xas_pause);
+ 
++/*
++ * __xas_prev() - Find the previous entry in the XArray.
++ * @xas: XArray operation state.
++ *
++ * Helper function for xas_prev() which handles all the complex cases
++ * out of line.
++ */
++void *__xas_prev(struct xa_state *xas)
++{
++	void *entry;
++
++	if (!xas_frozen(xas->xa_node))
++		xas->xa_index--;
++	if (xas_not_node(xas->xa_node))
++		return xas_load(xas);
++
++	if (xas->xa_offset != get_offset(xas->xa_index, xas->xa_node))
++		xas->xa_offset--;
++
++	while (xas->xa_offset == 255) {
++		xas->xa_offset = xas->xa_node->offset - 1;
++		xas->xa_node = xa_parent(xas->xa, xas->xa_node);
++		if (!xas->xa_node)
++			return set_bounds(xas);
++	}
++
++	for (;;) {
++		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
++		if (!xa_is_node(entry))
++			return entry;
++
++		xas->xa_node = xa_to_node(entry);
++		xas_set_offset(xas);
++	}
++}
++EXPORT_SYMBOL_GPL(__xas_prev);
++
++/*
++ * __xas_next() - Find the next entry in the XArray.
++ * @xas: XArray operation state.
++ *
++ * Helper function for xas_next() which handles all the complex cases
++ * out of line.
++ */
++void *__xas_next(struct xa_state *xas)
++{
++	void *entry;
++
++	if (!xas_frozen(xas->xa_node))
++		xas->xa_index++;
++	if (xas_not_node(xas->xa_node))
++		return xas_load(xas);
++
++	if (xas->xa_offset != get_offset(xas->xa_index, xas->xa_node))
++		xas->xa_offset++;
++
++	while (xas->xa_offset == XA_CHUNK_SIZE) {
++		xas->xa_offset = xas->xa_node->offset + 1;
++		xas->xa_node = xa_parent(xas->xa, xas->xa_node);
++		if (!xas->xa_node)
++			return set_bounds(xas);
++	}
++
++	for (;;) {
++		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
++		if (!xa_is_node(entry))
++			return entry;
++
++		xas->xa_node = xa_to_node(entry);
++		xas_set_offset(xas);
++	}
++}
++EXPORT_SYMBOL_GPL(__xas_next);
++
  /**
-  *	radix_tree_gang_lookup_tag - perform multiple lookup on a radix tree
-  *	                             based on a tag
-@@ -1890,23 +1633,6 @@ radix_tree_gang_lookup_tag_slot(const struct radix_tree_root *root,
- }
- EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
- 
--/**
-- *	__radix_tree_delete_node    -    try to free node after clearing a slot
-- *	@root:		radix tree root
-- *	@node:		node containing @index
-- *	@update_node:	callback for changing leaf nodes
-- *
-- *	After clearing the slot at @index in @node from radix tree
-- *	rooted at @root, call this function to attempt freeing the
-- *	node and shrinking the tree.
-- */
--void __radix_tree_delete_node(struct radix_tree_root *root,
--			      struct radix_tree_node *node,
--			      radix_tree_update_node_t update_node)
--{
--	delete_node(root, node, update_node);
--}
--
- static bool __radix_tree_delete(struct radix_tree_root *root,
- 				struct radix_tree_node *node, void __rcu **slot)
- {
-@@ -2173,19 +1899,6 @@ static __init unsigned long __maxindex(unsigned int height)
- 	return ~0UL >> shift;
+  * xas_find() - Find the next present entry in the XArray.
+  * @xas: XArray operation state.
+diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
+index 0392b0ae81fe..83fe6c6213e8 100644
+--- a/tools/testing/radix-tree/xarray-test.c
++++ b/tools/testing/radix-tree/xarray-test.c
+@@ -42,6 +42,147 @@ void check_xa_tag(struct xarray *xa)
+ 	assert(xa_get_tag(xa, 0, XA_TAG_0) == false);
  }
  
--static __init void radix_tree_init_maxnodes(void)
--{
--	unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH + 1];
--	unsigned int i, j;
--
--	for (i = 0; i < ARRAY_SIZE(height_to_maxindex); i++)
--		height_to_maxindex[i] = __maxindex(i);
--	for (i = 0; i < ARRAY_SIZE(height_to_maxnodes); i++) {
--		for (j = i; j > 0; j--)
--			height_to_maxnodes[i] += height_to_maxindex[j - 1] + 1;
--	}
--}
--
- static int radix_tree_cpu_dead(unsigned int cpu)
++/* Check that putting the xas into an error state works correctly */
++void check_xas_error(struct xarray *xa)
++{
++	XA_STATE(xas, xa, 0);
++
++	assert(xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL) == 0);
++	assert(xa_load(xa, 1) == xa_mk_value(1));
++
++	assert(xas_error(&xas) == 0);
++
++	xas_set_err(&xas, -ENOTTY);
++	assert(xas_error(&xas) == -ENOTTY);
++
++	xas_set_err(&xas, -ENOSPC);
++	assert(xas_error(&xas) == -ENOSPC);
++
++	xas_set_err(&xas, -ENOMEM);
++	assert(xas_error(&xas) == -ENOMEM);
++
++	assert(xas_load(&xas) == NULL);
++	assert(xas_store(&xas, &xas) == NULL);
++	assert(xas_load(&xas) == NULL);
++
++	assert(xas.xa_index == 0);
++	assert(xas_next(&xas) == NULL);
++	assert(xas.xa_index == 0);
++
++	assert(xas_prev(&xas) == NULL);
++	assert(xas.xa_index == 0);
++
++	xas_retry(&xas, XA_RETRY_ENTRY);
++	assert(xas_error(&xas) == 0);
++
++	assert(xas_find(&xas, ULONG_MAX) == xa_mk_value(1));
++	assert(xas.xa_index == 1);
++	assert(xas_error(&xas) == 0);
++
++	assert(xas_find(&xas, ULONG_MAX) == NULL);
++	assert(xas.xa_index > 1);
++	assert(xas_error(&xas) == 0);
++	assert(xas.xa_node == XAS_BOUNDS);
++}
++
++void check_xas_pause(struct xarray *xa)
++{
++	XA_STATE(xas, xa, 0);
++	void *entry;
++	unsigned int seen;
++
++	xa_store(xa, 0, xa_mk_value(0), GFP_KERNEL);
++	xa_set_tag(xa, 0, XA_TAG_0);
++
++	seen = 0;
++	rcu_read_lock();
++	xas_for_each_tag(&xas, entry, ULONG_MAX, XA_TAG_0) {
++		if (!seen++) {
++			xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
++			xa_set_tag(xa, 1, XA_TAG_0);
++		}
++	}
++	rcu_read_unlock();
++	/* We don't see an entry that was added after we started */
++	assert(seen == 1);
++
++	seen = 0;
++	xas_set(&xas, 0);
++	rcu_read_lock();
++	xas_for_each_tag(&xas, entry, ULONG_MAX, XA_TAG_0) {
++		if (!seen++)
++			xa_erase(xa, 1);
++	}
++	rcu_read_unlock();
++	assert(seen == 1);
++
++	seen = 0;
++	xas_set(&xas, 0);
++	rcu_read_lock();
++	xas_for_each(&xas, entry, ULONG_MAX) {
++		if (!seen++)
++			xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
++	}
++	rcu_read_unlock();
++	assert(seen == 1);
++
++	seen = 0;
++	xas_set(&xas, 0);
++	rcu_read_lock();
++	xas_for_each(&xas, entry, ULONG_MAX) {
++		if (!seen++)
++			xa_erase(xa, 1);
++	}
++	rcu_read_unlock();
++	assert(seen == 1);
++
++	seen = 0;
++	xas_set(&xas, 0);
++	rcu_read_lock();
++	for (entry = xas_load(&xas); entry; entry = xas_next(&xas)) {
++		if (!seen++)
++			xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
++	}
++	rcu_read_unlock();
++	assert(seen == 2);
++
++	seen = 0;
++	xas_set(&xas, 0);
++	rcu_read_lock();
++	for (entry = xas_load(&xas); entry; entry = xas_next(&xas)) {
++		if (!seen++)
++			xa_erase(xa, 1);
++	}
++	rcu_read_unlock();
++	assert(seen == 1);
++
++	xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
++	seen = 0;
++	xas_set(&xas, 0);
++	xas_for_each(&xas, entry, ULONG_MAX) {
++		if (!seen++)
++			xas_pause(&xas);
++	}
++	assert(seen == 2);
++
++	seen = 0;
++	xas_set(&xas, 0);
++	for (entry = xas_load(&xas); entry; entry = xas_next(&xas)) {
++		if (!seen++)
++			xas_pause(&xas);
++	}
++	assert(seen == 2);
++
++	seen = 0;
++	xas_set(&xas, 0);
++	xa_set_tag(xa, 1, XA_TAG_0);
++	xas_for_each_tag(&xas, entry, ULONG_MAX, XA_TAG_0) {
++		if (!seen++)
++			xas_pause(&xas);
++	}
++	assert(seen == 2);
++}
++
+ void check_xas_retry(struct xarray *xa)
  {
- 	struct radix_tree_preload *rtp;
-@@ -2215,7 +1928,6 @@ void __init radix_tree_init(void)
- 			sizeof(struct radix_tree_node), 0,
- 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
- 			radix_tree_node_ctor);
--	radix_tree_init_maxnodes();
- 	ret = cpuhp_setup_state_nocalls(CPUHP_RADIX_DEAD, "lib/radix:dead",
- 					NULL, radix_tree_cpu_dead);
- 	WARN_ON(ret < 0);
+ 	XA_STATE(xas, xa, 0);
+@@ -54,7 +195,7 @@ void check_xas_retry(struct xarray *xa)
+ 	assert(xa_is_retry(xas_reload(&xas)));
+ 	assert(!xas_retry(&xas, NULL));
+ 	assert(!xas_retry(&xas, xa_mk_value(0)));
+-	assert(xas_retry(&xas, XA_RETRY_ENTRY));
++	xas_reset(&xas);
+ 	assert(xas.xa_node == XAS_RESTART);
+ 	assert(xas_next_entry(&xas, ULONG_MAX) == xa_mk_value(0));
+ 	assert(xas.xa_node == NULL);
+@@ -250,9 +391,108 @@ void check_xas_delete(struct xarray *xa)
+ 	}
+ }
+ 
++void check_move_small(struct xarray *xa, unsigned long idx)
++{
++	XA_STATE(xas, xa, 0);
++	unsigned long i;
++
++	xa_store(xa, 0, xa_mk_value(0), GFP_KERNEL);
++	xa_store(xa, idx, xa_mk_value(idx), GFP_KERNEL);
++
++	for (i = 0; i < idx * 4; i++) {
++		void *entry = xas_next(&xas);
++		if (i <= idx)
++			assert(xas.xa_node != XAS_RESTART);
++		assert(xas.xa_index == i);
++		if (i == 0 || i == idx)
++			assert(entry == xa_mk_value(i));
++		else
++			assert(entry == NULL);
++	}
++	xas_next(&xas);
++	assert(xas.xa_index == i);
++
++	do {
++		void *entry = xas_prev(&xas);
++		i--;
++		if (i <= idx)
++			assert(xas.xa_node != XAS_RESTART);
++		assert(xas.xa_index == i);
++		if (i == 0 || i == idx)
++			assert(entry == xa_mk_value(i));
++		else
++			assert(entry == NULL);
++	} while (i > 0);
++
++	xas_set(&xas, ULONG_MAX);
++	assert(xas_next(&xas) == NULL);
++	assert(xas.xa_index == ULONG_MAX);
++	assert(xas_next(&xas) == xa_mk_value(0));
++	assert(xas.xa_index == 0);
++	assert(xas_prev(&xas) == NULL);
++	assert(xas.xa_index == ULONG_MAX);
++}
++
++void check_move(struct xarray *xa)
++{
++	XA_STATE(xas, xa, (1 << 16) - 1);
++	unsigned long i;
++
++	for (i = 0; i < (1 << 16); i++) {
++		xa_store(xa, i, xa_mk_value(i), GFP_KERNEL);
++	}
++
++	do {
++		void *entry = xas_prev(&xas);
++		i--;
++		assert(entry == xa_mk_value(i));
++		assert(i == xas.xa_index);
++	} while (i != 0);
++
++	assert(xas_prev(&xas) == NULL);
++	assert(xas.xa_index == ULONG_MAX);
++
++	do {
++		void *entry = xas_next(&xas);
++		assert(entry == xa_mk_value(i));
++		assert(i == xas.xa_index);
++		i++;
++	} while (i < (1 << 16));
++
++	for (i = (1 << 8); i < (1 << 15); i++) {
++		xa_erase(xa, i);
++	}
++
++	i = xas.xa_index;
++
++	do {
++		void *entry = xas_prev(&xas);
++		i--;
++		if ((i < (1 << 8)) || (i >= (1 << 15)))
++			assert(entry == xa_mk_value(i));
++		else
++			assert(entry == NULL);
++		assert(i == xas.xa_index);
++	} while (i != 0);
++
++	assert(xas_prev(&xas) == NULL);
++	assert(xas.xa_index == ULONG_MAX);
++
++	do {
++		void *entry = xas_next(&xas);
++		if ((i < (1 << 8)) || (i >= (1 << 15)))
++			assert(entry == xa_mk_value(i));
++		else
++			assert(entry == NULL);
++		assert(i == xas.xa_index);
++		i++;
++	} while (i < (1 << 16));
++}
++
+ void xarray_checks(void)
+ {
+ 	DEFINE_XARRAY(array);
++	unsigned long i;
+ 
+ 	check_xa_err(&array);
+ 	item_kill_tree(&array);
+@@ -260,9 +500,15 @@ void xarray_checks(void)
+ 	check_xa_tag(&array);
+ 	item_kill_tree(&array);
+ 
++	check_xas_error(&array);
++	item_kill_tree(&array);
++
+ 	check_xas_retry(&array);
+ 	item_kill_tree(&array);
+ 
++	check_xas_pause(&array);
++	item_kill_tree(&array);
++
+ 	check_xa_load(&array);
+ 	item_kill_tree(&array);
+ 
+@@ -276,6 +522,19 @@ void xarray_checks(void)
+ 	check_find(&array);
+ 	check_xas_delete(&array);
+ 	item_kill_tree(&array);
++
++	for (i = 0; i < 16; i++) {
++		check_move_small(&array, 1UL << i);
++		item_kill_tree(&array);
++	}
++
++	for (i = 2; i < 16; i++) {
++		check_move_small(&array, (1UL << i) - 1);
++		item_kill_tree(&array);
++	}
++
++	check_move(&array);
++	item_kill_tree(&array);
+ }
+ 
+ int __weak main(void)
 -- 
 2.16.1
