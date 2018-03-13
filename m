@@ -1,86 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 957B06B000D
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 12:49:14 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id j11so526768ioe.5
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 09:49:14 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F0F46B0010
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 12:54:58 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id p128so89272pga.19
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 09:54:58 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g42sor301918ioj.231.2018.03.13.09.49.12
+        by mx.google.com with SMTPS id p13sor164022pgc.251.2018.03.13.09.54.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 13 Mar 2018 09:49:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAG_fn=UfNxWkfza5=W9zGXcuDW7zfTAGuPunfcYn5ZriTjjeVA@mail.gmail.com>
-References: <cover.1520017438.git.andreyknvl@google.com> <1943a345f4fb7e8e8f19b4ece2457bccd772f0dc.1520017438.git.andreyknvl@google.com>
- <CAG_fn=UfNxWkfza5=W9zGXcuDW7zfTAGuPunfcYn5ZriTjjeVA@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 13 Mar 2018 17:49:11 +0100
-Message-ID: <CAAeHK+xpNMHej6jtcfgCtbdb=gBfgHwJoF9FeAhOaJ=rtanaYA@mail.gmail.com>
-Subject: Re: [RFC PATCH 14/14] khwasan: default the instrumentation mode to inline
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+        Tue, 13 Mar 2018 09:54:57 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH] slab, slub: remove size disparity on debug kernel
+Date: Tue, 13 Mar 2018 09:54:28 -0700
+Message-Id: <20180313165428.58699-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-On Tue, Mar 13, 2018 at 3:44 PM, Alexander Potapenko <glider@google.com> wr=
-ote:
-> On Fri, Mar 2, 2018 at 8:44 PM, Andrey Konovalov <andreyknvl@google.com> =
-wrote:
->> There are two reasons to use outline instrumentation:
->> 1. Outline instrumentation reduces the size of the kernel text, and shou=
-ld
->>    be used where this size matters.
->> 2. Outline instrumentation is less invasive and can be used for debuggin=
-g
->>    for KASAN developers, when it's not clear whether some issue is cause=
-d
->>    by KASAN or by something else.
->
-> Don't you think this patch can be landed separately from the KHWASAN seri=
-es?
+I have noticed on debug kernel with SLAB, the size of some non-root
+slabs were larger than their corresponding root slabs.
 
-Sure, I can mail it separately.
+e.g. for radix_tree_node:
+$cat /proc/slabinfo | grep radix
+name     <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> ...
+radix_tree_node 15052    15075      4096         1             1 ...
 
->
->> For the rest cases inline instrumentation is preferrable, since it's
->> faster.
->>
->> This patch changes the default instrumentation mode to inline.
->> ---
->>  lib/Kconfig.kasan | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
->> index ab34e7d7d3a7..8ea6ae26b4a3 100644
->> --- a/lib/Kconfig.kasan
->> +++ b/lib/Kconfig.kasan
->> @@ -70,7 +70,7 @@ config KASAN_EXTRA
->>  choice
->>         prompt "Instrumentation type"
->>         depends on KASAN
->> -       default KASAN_OUTLINE
->> +       default KASAN_INLINE
->>
->>  config KASAN_OUTLINE
->>         bool "Outline instrumentation"
->> --
->> 2.16.2.395.g2e18187dfd-goog
->>
-> Reviewed-by: Alexander Potapenko <glider@google.com>
->
->
->
->
-> --
-> Alexander Potapenko
-> Software Engineer
->
-> Google Germany GmbH
-> Erika-Mann-Stra=C3=9Fe, 33
-> 80636 M=C3=BCnchen
->
-> Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-> Registergericht und -nummer: Hamburg, HRB 86891
-> Sitz der Gesellschaft: Hamburg
+$cat /cgroup/memory/temp/memory.kmem.slabinfo | grep radix
+name     <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> ...
+radix_tree_node 1581      158       4120         1             2 ...
+
+However for SLUB in debug kernel, the sizes were same. On further
+inspection it is found that SLUB always use kmem_cache.object_size to
+measure the kmem_cache.size while SLAB use the given kmem_cache.size. In
+the debug kernel the slab's size can be larger than its object_size.
+Thus in the creation of non-root slab, the SLAB uses the root's size as
+base to calculate the non-root slab's size and thus non-root slab's size
+can be larger than the root slab's size. For SLUB, the non-root slab's
+size is measured based on the root's object_size and thus the size will
+remain same for root and non-root slab.
+
+This patch makes slab's object_size the default base to measure the
+slab's size.
+
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+---
+ mm/slab_common.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index e41cbc18c57d..61ab2ca8bea7 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -379,7 +379,7 @@ struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
+ }
+ 
+ static struct kmem_cache *create_cache(const char *name,
+-		unsigned int object_size, unsigned int size, unsigned int align,
++		unsigned int object_size, unsigned int align,
+ 		slab_flags_t flags, unsigned int useroffset,
+ 		unsigned int usersize, void (*ctor)(void *),
+ 		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
+@@ -396,8 +396,7 @@ static struct kmem_cache *create_cache(const char *name,
+ 		goto out;
+ 
+ 	s->name = name;
+-	s->object_size = object_size;
+-	s->size = size;
++	s->size = s->object_size = object_size;
+ 	s->align = align;
+ 	s->ctor = ctor;
+ 	s->useroffset = useroffset;
+@@ -503,7 +502,7 @@ kmem_cache_create_usercopy(const char *name,
+ 		goto out_unlock;
+ 	}
+ 
+-	s = create_cache(cache_name, size, size,
++	s = create_cache(cache_name, size,
+ 			 calculate_alignment(flags, align, size),
+ 			 flags, useroffset, usersize, ctor, NULL, NULL);
+ 	if (IS_ERR(s)) {
+@@ -650,7 +649,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 		goto out_unlock;
+ 
+ 	s = create_cache(cache_name, root_cache->object_size,
+-			 root_cache->size, root_cache->align,
++			 root_cache->align,
+ 			 root_cache->flags & CACHE_CREATE_MASK,
+ 			 root_cache->useroffset, root_cache->usersize,
+ 			 root_cache->ctor, memcg, root_cache);
+-- 
+2.16.2.660.g709887971b-goog
