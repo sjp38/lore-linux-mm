@@ -1,150 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DEF1E6B0022
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 13:03:54 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id n67-v6so176106otn.0
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 10:03:54 -0700 (PDT)
-Received: from g9t5009.houston.hpe.com (g9t5009.houston.hpe.com. [15.241.48.73])
-        by mx.google.com with ESMTPS id e70si165471oib.378.2018.03.13.10.03.53
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B297A6B0012
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 13:19:56 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id u65so295857wrc.8
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 10:19:56 -0700 (PDT)
+Received: from mail3-relais-sop.national.inria.fr (mail3-relais-sop.national.inria.fr. [192.134.164.104])
+        by mx.google.com with ESMTPS id 90si434711wrk.63.2018.03.13.10.19.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Mar 2018 10:03:53 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH 2/2] x86/mm: remove pointless checks in vmalloc_fault
-Date: Tue, 13 Mar 2018 11:03:47 -0600
-Message-Id: <20180313170347.3829-3-toshi.kani@hpe.com>
-In-Reply-To: <20180313170347.3829-1-toshi.kani@hpe.com>
-References: <20180313170347.3829-1-toshi.kani@hpe.com>
+        Tue, 13 Mar 2018 10:19:55 -0700 (PDT)
+Date: Tue, 13 Mar 2018 18:19:51 +0100 (CET)
+From: Julia Lawall <julia.lawall@lip6.fr>
+Subject: Re: [PATCH 2/2] mm: Add kvmalloc_ab_c and kvzalloc_struct
+In-Reply-To: <20180308230512.GD29073@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.20.1803131818550.3117@hadrien>
+References: <20180214182618.14627-1-willy@infradead.org> <20180214182618.14627-3-willy@infradead.org> <CAGXu5jL9hqQGe672CmvFwqNbtTr=qu7WRwHuS4Vy7o5sX_UTgg@mail.gmail.com> <alpine.DEB.2.20.1803072212160.2814@hadrien> <20180308025812.GA9082@bombadil.infradead.org>
+ <alpine.DEB.2.20.1803080722300.3754@hadrien> <20180308230512.GD29073@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
-Cc: bp@alien8.de, luto@kernel.org, gratian.crisan@ni.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Julia Lawall <julia.lawall@lip6.fr>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, cocci@systeme.lip6.fr, Himanshu Jha <himanshujha199640@gmail.com>
 
-vmalloc_fault() sets user's pgd or p4d from the kernel page table.
-Once it's set, all tables underneath are identical. There is no point
-of following the same page table with two separate pointers and makes
-sure they see the same with BUG().
 
-Remove the pointless checks in vmalloc_fault(). Also rename the kernel
-pgd/p4d pointers to pgd_k/p4d_k so that their names are consistent in
-the file.
 
-Suggested-by: Andy Lutomirski <luto@kernel.org>
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Gratian Crisan <gratian.crisan@ni.com>
----
- arch/x86/mm/fault.c |   56 +++++++++++++++------------------------------------
- 1 file changed, 17 insertions(+), 39 deletions(-)
+On Thu, 8 Mar 2018, Matthew Wilcox wrote:
 
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 25a30b5d6582..e7bc79853538 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -417,11 +417,11 @@ void vmalloc_sync_all(void)
-  */
- static noinline int vmalloc_fault(unsigned long address)
- {
--	pgd_t *pgd, *pgd_ref;
--	p4d_t *p4d, *p4d_ref;
--	pud_t *pud, *pud_ref;
--	pmd_t *pmd, *pmd_ref;
--	pte_t *pte, *pte_ref;
-+	pgd_t *pgd, *pgd_k;
-+	p4d_t *p4d, *p4d_k;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *pte;
- 
- 	/* Make sure we are in vmalloc area: */
- 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
-@@ -435,73 +435,51 @@ static noinline int vmalloc_fault(unsigned long address)
- 	 * case just flush:
- 	 */
- 	pgd = (pgd_t *)__va(read_cr3_pa()) + pgd_index(address);
--	pgd_ref = pgd_offset_k(address);
--	if (pgd_none(*pgd_ref))
-+	pgd_k = pgd_offset_k(address);
-+	if (pgd_none(*pgd_k))
- 		return -1;
- 
- 	if (CONFIG_PGTABLE_LEVELS > 4) {
- 		if (pgd_none(*pgd)) {
--			set_pgd(pgd, *pgd_ref);
-+			set_pgd(pgd, *pgd_k);
- 			arch_flush_lazy_mmu_mode();
- 		} else {
--			BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
-+			BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_k));
- 		}
- 	}
- 
- 	/* With 4-level paging, copying happens on the p4d level. */
- 	p4d = p4d_offset(pgd, address);
--	p4d_ref = p4d_offset(pgd_ref, address);
--	if (p4d_none(*p4d_ref))
-+	p4d_k = p4d_offset(pgd_k, address);
-+	if (p4d_none(*p4d_k))
- 		return -1;
- 
- 	if (p4d_none(*p4d) && CONFIG_PGTABLE_LEVELS == 4) {
--		set_p4d(p4d, *p4d_ref);
-+		set_p4d(p4d, *p4d_k);
- 		arch_flush_lazy_mmu_mode();
- 	} else {
--		BUG_ON(p4d_pfn(*p4d) != p4d_pfn(*p4d_ref));
-+		BUG_ON(p4d_pfn(*p4d) != p4d_pfn(*p4d_k));
- 	}
- 
--	/*
--	 * Below here mismatches are bugs because these lower tables
--	 * are shared:
--	 */
- 	BUILD_BUG_ON(CONFIG_PGTABLE_LEVELS < 4);
- 
- 	pud = pud_offset(p4d, address);
--	pud_ref = pud_offset(p4d_ref, address);
--	if (pud_none(*pud_ref))
-+	if (pud_none(*pud))
- 		return -1;
- 
--	if (pud_none(*pud) || pud_pfn(*pud) != pud_pfn(*pud_ref))
--		BUG();
--
- 	if (pud_large(*pud))
- 		return 0;
- 
- 	pmd = pmd_offset(pud, address);
--	pmd_ref = pmd_offset(pud_ref, address);
--	if (pmd_none(*pmd_ref))
-+	if (pmd_none(*pmd))
- 		return -1;
- 
--	if (pmd_none(*pmd) || pmd_pfn(*pmd) != pmd_pfn(*pmd_ref))
--		BUG();
--
- 	if (pmd_large(*pmd))
- 		return 0;
- 
--	pte_ref = pte_offset_kernel(pmd_ref, address);
--	if (!pte_present(*pte_ref))
--		return -1;
--
- 	pte = pte_offset_kernel(pmd, address);
--
--	/*
--	 * Don't use pte_page here, because the mappings can point
--	 * outside mem_map, and the NUMA hash lookup cannot handle
--	 * that:
--	 */
--	if (!pte_present(*pte) || pte_pfn(*pte) != pte_pfn(*pte_ref))
--		BUG();
-+	if (!pte_present(*pte))
-+		return -1;
- 
- 	return 0;
- }
+> On Thu, Mar 08, 2018 at 07:24:47AM +0100, Julia Lawall wrote:
+> > On Wed, 7 Mar 2018, Matthew Wilcox wrote:
+> > > On Wed, Mar 07, 2018 at 10:18:21PM +0100, Julia Lawall wrote:
+> > > > > Otherwise, yes, please. We could build a coccinelle rule for
+> > > > > additional replacements...
+> > > >
+> > > > A potential semantic patch and the changes it generates are attached
+> > > > below.  Himanshu Jha helped with its development.  Working on this
+> > > > uncovered one bug, where the allocated array is too large, because the
+> > > > size provided for it was a structure size, but actually only pointers to
+> > > > that structure were to be stored in it.
+> > >
+> > > This is cool!  Thanks for doing the coccinelle patch!  Diffstat:
+> > >
+> > >  50 files changed, 81 insertions(+), 124 deletions(-)
+> > >
+> > > I find that pretty compelling.  I'll repost the kvmalloc_struct patch
+> > > imminently.
+> >
+> > Thanks.  So it's OK to replace kmalloc and kzalloc, even though they
+> > didn't previously consider vmalloc and even though kmalloc doesn't zero?
+>
+> We'll also need to replace the corresponding places where those structs
+> are freed with kvfree().  Can coccinelle handle that too?
+
+Is the use of vmalloc a necessary part of the design?  Or could there be a
+non vmalloc versions for call sites that are already ok with that?
+
+julia
+
+> > There are a few other cases that use GFP_NOFS and GFP_NOWAIT, but I didn't
+> > transform those because the comment says that the flags should be
+> > GFP_KERNEL based.  Should those be transformed too?
+>
+> The problem with non-GFP_KERNEL allocations is that vmalloc may have to
+> allocate page tables, which is always done with an implicit GFP_KERNEL
+> allocation.  There's an intent to get rid of GFP_NOFS, but that's not
+> been realised yet (and I'm not sure of our strategy to eliminate it ...
+> I'll send a separate email about that).  I'm not sure why anything's
+> trying to allocate with GFP_NOWAIT; can you send a list of those places?
+>
