@@ -1,85 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 70AB26B0007
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 16:11:59 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id h61-v6so322598pld.3
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 13:11:59 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k4-v6si647827plt.255.2018.03.13.13.11.58
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DD9BC6B0005
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 16:37:06 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id a22so590270qkc.1
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 13:37:06 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id l17si501506qkk.482.2018.03.13.13.37.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Mar 2018 13:11:58 -0700 (PDT)
-Date: Tue, 13 Mar 2018 13:11:56 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [v5 1/2] mm: disable interrupts while initializing deferred
- pages
-Message-Id: <20180313131156.f156abe1822a79ec01c4800a@linux-foundation.org>
-In-Reply-To: <20180313194546.k62tni4g4gnds2nx@xakep.localdomain>
-References: <20180309220807.24961-1-pasha.tatashin@oracle.com>
-	<20180309220807.24961-2-pasha.tatashin@oracle.com>
-	<20180312130410.e2fce8e5e38bc2086c7fd924@linux-foundation.org>
-	<20180313160430.hbjnyiazadt3jwa6@xakep.localdomain>
-	<20180313115549.7badec1c6b85eb5a1cf21eb6@linux-foundation.org>
-	<20180313194546.k62tni4g4gnds2nx@xakep.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 13 Mar 2018 13:37:05 -0700 (PDT)
+Date: Tue, 13 Mar 2018 16:36:57 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 1/8] Uprobe: Export vaddr <-> offset conversion functions
+Message-ID: <20180313203657.GG3828@redhat.com>
+References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
+ <20180313125603.19819-2-ravi.bangoria@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180313125603.19819-2-ravi.bangoria@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, m.mizuma@jp.fujitsu.com, mhocko@suse.com, catalin.marinas@arm.com, takahiro.akashi@linaro.org, gi-oh.kim@profitbricks.com, heiko.carstens@de.ibm.com, baiyaowei@cmss.chinamobile.com, richard.weiyang@gmail.com, paul.burton@mips.com, miles.chen@mediatek.com, vbabka@suse.cz, mgorman@suse.de, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+Cc: mhiramat@kernel.org, oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
 
-On Tue, 13 Mar 2018 15:45:46 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+On Tue, Mar 13, 2018 at 06:25:56PM +0530, Ravi Bangoria wrote:
+> No functionality changes.
+> 
+> Signed-off-by: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
 
-> > > 
-> > > We must remove cond_resched() because we can't sleep anymore. They were
-> > > added to fight NMI timeouts, so I will replace them with
-> > > touch_nmi_watchdog() in a follow-up fix.
-> > 
-> > This makes no sense.  Any code section where we can add cond_resched()
-> > was never subject to NMI timeouts because that code cannot be running with
-> > disabled interrupts.
-> > 
-> 
-> Hi Andrew,
-> 
-> I was talking about this patch:
-> 
-> 9b6e63cbf85b89b2dbffa4955dbf2df8250e5375
-> mm, page_alloc: add scheduling point to memmap_init_zone
-> 
-> Which adds cond_resched() to memmap_init_zone() to avoid NMI timeouts.
-> 
-> memmap_init_zone() is used both, early in boot, when non-deferred struct
-> pages are initialized, but also may be used later, during memory hotplug.
-> 
-> As I understand, the later case could cause the timeout on non-preemptible
-> kernels.
-> 
-> My understanding, is that the same logic was used here when cond_resched()s
-> were added.
-> 
-> Please correct me if I am wrong.
+Reviewed-by: Jerome Glisse <jglisse@redhat.com>
 
-Yes, the message is a bit confusing and the terminology is perhaps
-vague.  And it's been a while since I played with this stuff, so from
-(dated) memory:
-
-Soft lockup: kernel has run for too long without rescheduling
-Hard lockup: kernel has run for too long with interrupts disabled
-
-Both of these are detected by the NMI watchdog handler.
-
-9b6e63cbf85b89b2d fixes a soft lockup by adding a manual rescheduling
-point.  Replacing that with touch_nmi_watchdog() won't work (I think). 
-Presumably calling touch_softlockup_watchdog() will "work", in that it
-suppresses the warning.  But it won't fix the thing which the warning
-is actually warning about: starvation of the CPU scheduler.  That's
-what the cond_resched() does.
-
-I'm not sure what to suggest, really.  Your changelog isn't the best:
-"Vlastimil Babka reported about a window issue during which when
-deferred pages are initialized, and the current version of on-demand
-initialization is finished, allocations may fail".  Well...  where is
-ths mysterious window?  Without such detail it's hard for others to
-suggest alternative approaches.
+> ---
+>  include/linux/mm.h      | 12 ++++++++++++
+>  kernel/events/uprobes.c | 10 ----------
+>  2 files changed, 12 insertions(+), 10 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ad06d42..95909f2 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2274,6 +2274,18 @@ struct vm_unmapped_area_info {
+>  		return unmapped_area(info);
+>  }
+>  
+> +static inline unsigned long
+> +offset_to_vaddr(struct vm_area_struct *vma, loff_t offset)
+> +{
+> +	return vma->vm_start + offset - ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
+> +}
+> +
+> +static inline loff_t
+> +vaddr_to_offset(struct vm_area_struct *vma, unsigned long vaddr)
+> +{
+> +	return ((loff_t)vma->vm_pgoff << PAGE_SHIFT) + (vaddr - vma->vm_start);
+> +}
+> +
+>  /* truncate.c */
+>  extern void truncate_inode_pages(struct address_space *, loff_t);
+>  extern void truncate_inode_pages_range(struct address_space *,
+> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+> index ce6848e..bd6f230 100644
+> --- a/kernel/events/uprobes.c
+> +++ b/kernel/events/uprobes.c
+> @@ -130,16 +130,6 @@ static bool valid_vma(struct vm_area_struct *vma, bool is_register)
+>  	return vma->vm_file && (vma->vm_flags & flags) == VM_MAYEXEC;
+>  }
+>  
+> -static unsigned long offset_to_vaddr(struct vm_area_struct *vma, loff_t offset)
+> -{
+> -	return vma->vm_start + offset - ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
+> -}
+> -
+> -static loff_t vaddr_to_offset(struct vm_area_struct *vma, unsigned long vaddr)
+> -{
+> -	return ((loff_t)vma->vm_pgoff << PAGE_SHIFT) + (vaddr - vma->vm_start);
+> -}
+> -
+>  /**
+>   * __replace_page - replace page in vma by new page.
+>   * based on replace_page in mm/ksm.c
+> -- 
+> 1.8.3.1
+> 
