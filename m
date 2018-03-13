@@ -1,110 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B4C326B0005
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 16:40:32 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id h21so576340qtm.22
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 13:40:32 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 55si1049878qtn.410.2018.03.13.13.40.31
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 351B86B0007
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 16:44:20 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id x140so627512vkx.17
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 13:44:20 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id o28si409644vki.211.2018.03.13.13.44.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Mar 2018 13:40:31 -0700 (PDT)
-Date: Tue, 13 Mar 2018 16:40:25 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 4/8] Uprobe: Export uprobe_map_info along with
- uprobe_{build/free}_map_info()
-Message-ID: <20180313204024.GJ3828@redhat.com>
-References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180313125603.19819-5-ravi.bangoria@linux.vnet.ibm.com>
+        Tue, 13 Mar 2018 13:44:19 -0700 (PDT)
+Subject: Re: [v5 1/2] mm: disable interrupts while initializing deferred pages
+References: <20180309220807.24961-1-pasha.tatashin@oracle.com>
+ <20180309220807.24961-2-pasha.tatashin@oracle.com>
+ <20180312130410.e2fce8e5e38bc2086c7fd924@linux-foundation.org>
+ <20180313160430.hbjnyiazadt3jwa6@xakep.localdomain>
+ <20180313115549.7badec1c6b85eb5a1cf21eb6@linux-foundation.org>
+ <20180313194546.k62tni4g4gnds2nx@xakep.localdomain>
+ <20180313131156.f156abe1822a79ec01c4800a@linux-foundation.org>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <ff16234e-eb45-ca99-bfec-6d33967e9c8f@oracle.com>
+Date: Tue, 13 Mar 2018 16:43:47 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180313125603.19819-5-ravi.bangoria@linux.vnet.ibm.com>
+In-Reply-To: <20180313131156.f156abe1822a79ec01c4800a@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Cc: mhiramat@kernel.org, oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, m.mizuma@jp.fujitsu.com, mhocko@suse.com, catalin.marinas@arm.com, takahiro.akashi@linaro.org, gi-oh.kim@profitbricks.com, heiko.carstens@de.ibm.com, baiyaowei@cmss.chinamobile.com, richard.weiyang@gmail.com, paul.burton@mips.com, miles.chen@mediatek.com, vbabka@suse.cz, mgorman@suse.de, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 13, 2018 at 06:25:59PM +0530, Ravi Bangoria wrote:
-> These exported data structure and functions will be used by other
-> files in later patches.
-> 
-> No functionality changes.
-> 
-> Signed-off-by: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
 
-Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+> Soft lockup: kernel has run for too long without rescheduling
+> Hard lockup: kernel has run for too long with interrupts disabled
+> 
+> Both of these are detected by the NMI watchdog handler.
+> 
+> 9b6e63cbf85b89b2d fixes a soft lockup by adding a manual rescheduling
+> point.  Replacing that with touch_nmi_watchdog() won't work (I think). 
+> Presumably calling touch_softlockup_watchdog() will "work", in that it
+> suppresses the warning.  But it won't fix the thing which the warning
+> is actually warning about: starvation of the CPU scheduler.  That's
+> what the cond_resched() does.
 
-> ---
->  include/linux/uprobes.h |  9 +++++++++
->  kernel/events/uprobes.c | 14 +++-----------
->  2 files changed, 12 insertions(+), 11 deletions(-)
+But, unlike memmap_init_zone(), which can be used after boot, here we do
+not worry about kernel running for too long.  This is because we are
+booting, and no user programs are running.
+
+So, it is acceptable to have a long uninterruptible span, as long
+as we making a useful progress. BTW, the boot CPU still has
+interrupts enabled during this span.
+
+Comment in: include/linux/nmi.h, states:
+
+ * If the architecture supports the NMI watchdog, touch_nmi_watchdog()
+ * may be used to reset the timeout - for code which intentionally
+ * disables interrupts for a long time. This call is stateless.
+
+Which is exactly what we are trying to do here, now that these threads
+run with interrupts disabled.
+
+Before, where they were running with interrupts enabled, and
+cond_resched() was enough to satisfy soft lockups.
+
 > 
-> diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-> index 0a294e9..7bd2760 100644
-> --- a/include/linux/uprobes.h
-> +++ b/include/linux/uprobes.h
-> @@ -109,12 +109,19 @@ enum rp_check {
->  	RP_CHECK_RET,
->  };
->  
-> +struct address_space;
->  struct xol_area;
->  
->  struct uprobes_state {
->  	struct xol_area		*xol_area;
->  };
->  
-> +struct uprobe_map_info {
-> +	struct uprobe_map_info *next;
-> +	struct mm_struct *mm;
-> +	unsigned long vaddr;
-> +};
-> +
->  extern int set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
->  extern int set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
->  extern bool is_swbp_insn(uprobe_opcode_t *insn);
-> @@ -149,6 +156,8 @@ struct uprobes_state {
->  extern bool arch_uprobe_ignore(struct arch_uprobe *aup, struct pt_regs *regs);
->  extern void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
->  					 void *src, unsigned long len);
-> +extern struct uprobe_map_info *uprobe_free_map_info(struct uprobe_map_info *info);
-> +extern struct uprobe_map_info *uprobe_build_map_info(struct address_space *mapping, loff_t offset, bool is_register);
->  #else /* !CONFIG_UPROBES */
->  struct uprobes_state {
->  };
-> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-> index 081b88c1..e7830b8 100644
-> --- a/kernel/events/uprobes.c
-> +++ b/kernel/events/uprobes.c
-> @@ -695,23 +695,15 @@ static void delete_uprobe(struct uprobe *uprobe)
->  	put_uprobe(uprobe);
->  }
->  
-> -struct uprobe_map_info {
-> -	struct uprobe_map_info *next;
-> -	struct mm_struct *mm;
-> -	unsigned long vaddr;
-> -};
-> -
-> -static inline struct uprobe_map_info *
-> -uprobe_free_map_info(struct uprobe_map_info *info)
-> +struct uprobe_map_info *uprobe_free_map_info(struct uprobe_map_info *info)
->  {
->  	struct uprobe_map_info *next = info->next;
->  	kfree(info);
->  	return next;
->  }
->  
-> -static struct uprobe_map_info *
-> -uprobe_build_map_info(struct address_space *mapping, loff_t offset,
-> -		      bool is_register)
-> +struct uprobe_map_info *uprobe_build_map_info(struct address_space *mapping,
-> +					      loff_t offset, bool is_register)
->  {
->  	unsigned long pgoff = offset >> PAGE_SHIFT;
->  	struct vm_area_struct *vma;
-> -- 
-> 1.8.3.1
-> 
+> I'm not sure what to suggest, really.  Your changelog isn't the best:
+> "Vlastimil Babka reported about a window issue during which when
+> deferred pages are initialized, and the current version of on-demand
+> initialization is finished, allocations may fail".  Well...  where is
+> ths mysterious window?  Without such detail it's hard for others to
+> suggest alternative approaches.
+
+Here is hopefully a better description of the problem:
+
+Currently, during boot we preinitialize some number of struct pages to satisfy all boot allocations. Even if these allocations happen when we initialize the reset of deferred pages in page_alloc_init_late(). The problem is that we do not know how much kernel will need, and it also depends on various options.
+
+So, with this work, we are changing this behavior to initialize struct pages on-demand, only when allocations happen.
+
+During boot, when we try to allocate memory, the on-demand struct page initialization code takes care of it. But, once the deferred pages are initializing in:
+
+page_alloc_init_late()
+   for_each_node_state(nid, N_MEMORY)
+      kthread_run(deferred_init_memmap())
+
+We cannot use on-demand initialization, as these threads resize pgdat.
+
+This whole thing is to take care of this time.
+
+My first version of on-demand deferred page initialization would simply fail to allocate memory during this period of time. But, this new version waits for threads to finish initializing deferred memory, and successfully perform the allocation.
+
+Because interrupt handler would wait for pgdat resize lock.
+
+Thank you,
+Pavel
