@@ -1,55 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4981D6B0005
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 20:45:36 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id h33so10235060wrh.10
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 17:45:36 -0700 (PDT)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id z12si4022401wmh.127.2018.03.12.17.45.34
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EC8496B0007
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 20:57:54 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id t6so4295823pgt.11
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 17:57:54 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l7-v6sor2740515pls.108.2018.03.12.17.57.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Mar 2018 17:45:34 -0700 (PDT)
-Date: Tue, 13 Mar 2018 00:45:32 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH 3/3] dcache: account external names as indirectly
- reclaimable memory
-Message-ID: <20180313004532.GU30522@ZenIV.linux.org.uk>
-References: <20180305133743.12746-1-guro@fb.com>
- <20180305133743.12746-5-guro@fb.com>
- <20180312211742.GR30522@ZenIV.linux.org.uk>
- <20180312223632.GA6124@castle>
+        (Google Transport Security);
+        Mon, 12 Mar 2018 17:57:53 -0700 (PDT)
+Date: Mon, 12 Mar 2018 17:57:51 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -mm v3 0/3] mm, memcg: introduce oom policies
+Message-ID: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180312223632.GA6124@castle>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 12, 2018 at 10:36:38PM +0000, Roman Gushchin wrote:
+There are three significant concerns about the cgroup aware oom killer as
+it is implemented in -mm:
 
-> Ah, I see...
-> 
-> I think, it's better to account them when we're actually freeing,
-> otherwise we will have strange path:
-> (indirectly) reclaimable -> unreclaimable -> free
-> 
-> Do you agree?
+ (1) allows users to evade the oom killer by creating subcontainers or
+     using other controllers since scoring is done per cgroup and not
+     hierarchically,
 
-> +static void __d_free_external_name(struct rcu_head *head)
-> +{
-> +	struct external_name *name;
-> +
-> +	name = container_of(head, struct external_name, u.head);
-> +
-> +	mod_node_page_state(page_pgdat(virt_to_page(name)),
-> +			    NR_INDIRECTLY_RECLAIMABLE_BYTES,
-> +			    -ksize(name));
-> +
-> +	kfree(name);
-> +}
+ (2) unfairly compares the root mem cgroup using completely different
+     criteria than leaf mem cgroups and allows wildly inaccurate results
+     if oom_score_adj is used, and
 
-Maybe, but then you want to call that from __d_free_external() and from
-failure path in __d_alloc() as well.  Duplicating something that convoluted
-and easy to get out of sync is just asking for trouble.
+ (3) does not allow the user to influence the decisionmaking, such that
+     important subtrees cannot be preferred or biased.
+
+This patchset aims to fix (1) completely and, by doing so, introduces a
+completely extensible user interface that can be expanded in the future.
+
+It preserves all functionality that currently exists in -mm and extends
+it to be generally useful outside of very specialized usecases.
+
+It eliminates the mount option for the cgroup aware oom killer entirely
+since it is now enabled through the root mem cgroup's oom policy.
+---
+ v3:
+  - updated documentation
+  - rebased to next-20180309
+
+ Documentation/cgroup-v2.txt | 90 ++++++++++++++++++++++++-------------
+ include/linux/cgroup-defs.h |  5 ---
+ include/linux/memcontrol.h  | 21 +++++++++
+ kernel/cgroup/cgroup.c      | 13 +-----
+ mm/memcontrol.c             | 64 +++++++++++++++++++++-----
+ 5 files changed, 132 insertions(+), 61 deletions(-)
