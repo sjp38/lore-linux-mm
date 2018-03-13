@@ -1,78 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 940D66B0273
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 10:44:39 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id n23so8623843vke.14
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 07:44:39 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k35sor139631uad.186.2018.03.13.07.44.38
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DD9456B0279
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 10:45:39 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id p128so5317762pga.19
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 07:45:39 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m5si207712pgv.487.2018.03.13.07.45.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 13 Mar 2018 07:44:38 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 13 Mar 2018 07:45:38 -0700 (PDT)
+Date: Tue, 13 Mar 2018 15:45:36 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] memory-failure: fix section mismatch
+Message-ID: <20180313144536.GC4811@dhcp22.suse.cz>
+References: <20180304071613.16899-1-nick.desaulniers@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1943a345f4fb7e8e8f19b4ece2457bccd772f0dc.1520017438.git.andreyknvl@google.com>
-References: <cover.1520017438.git.andreyknvl@google.com> <1943a345f4fb7e8e8f19b4ece2457bccd772f0dc.1520017438.git.andreyknvl@google.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Tue, 13 Mar 2018 15:44:35 +0100
-Message-ID: <CAG_fn=UfNxWkfza5=W9zGXcuDW7zfTAGuPunfcYn5ZriTjjeVA@mail.gmail.com>
-Subject: Re: [RFC PATCH 14/14] khwasan: default the instrumentation mode to inline
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180304071613.16899-1-nick.desaulniers@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Bob Picco <bob.picco@oracle.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Nick Desaulniers <nick.desaulniers@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Mar 2, 2018 at 8:44 PM, Andrey Konovalov <andreyknvl@google.com> wr=
-ote:
-> There are two reasons to use outline instrumentation:
-> 1. Outline instrumentation reduces the size of the kernel text, and shoul=
-d
->    be used where this size matters.
-> 2. Outline instrumentation is less invasive and can be used for debugging
->    for KASAN developers, when it's not clear whether some issue is caused
->    by KASAN or by something else.
+On Sat 03-03-18 23:16:11, Nick Desaulniers wrote:
+> Clang complains when a variable is declared extern twice, but with two
+> different sections. num_poisoned_pages is marked extern and __read_mostly
+> in include/linux/swapops.h, but only extern in include/linux/mm.h. Some
+> c source files must include both, and thus see the conflicting
+> declarations.
 
-Don't you think this patch can be landed separately from the KHWASAN series=
-?
+Why do we need declarations in both places? This sounds like a mess to
+me.
 
-> For the rest cases inline instrumentation is preferrable, since it's
-> faster.
->
-> This patch changes the default instrumentation mode to inline.
+> Signed-off-by: Nick Desaulniers <nick.desaulniers@gmail.com>
 > ---
->  lib/Kconfig.kasan | 2 +-
+>  include/linux/mm.h | 2 +-
 >  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-> index ab34e7d7d3a7..8ea6ae26b4a3 100644
-> --- a/lib/Kconfig.kasan
-> +++ b/lib/Kconfig.kasan
-> @@ -70,7 +70,7 @@ config KASAN_EXTRA
->  choice
->         prompt "Instrumentation type"
->         depends on KASAN
-> -       default KASAN_OUTLINE
-> +       default KASAN_INLINE
->
->  config KASAN_OUTLINE
->         bool "Outline instrumentation"
-> --
-> 2.16.2.395.g2e18187dfd-goog
->
-Reviewed-by: Alexander Potapenko <glider@google.com>
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ad06d42adb1a..bd4bd59f02c1 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2582,7 +2582,7 @@ extern int get_hwpoison_page(struct page *page);
+>  extern int sysctl_memory_failure_early_kill;
+>  extern int sysctl_memory_failure_recovery;
+>  extern void shake_page(struct page *p, int access);
+> -extern atomic_long_t num_poisoned_pages;
+> +extern atomic_long_t num_poisoned_pages __read_mostly;
+>  extern int soft_offline_page(struct page *page, int flags);
+>  
+>  
+> -- 
+> 2.14.1
+> 
 
-
-
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+-- 
+Michal Hocko
+SUSE Labs
