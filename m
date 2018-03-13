@@ -1,74 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 45B116B0005
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 21:32:24 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id x81so2362026pgx.21
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 18:32:24 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id f6si5884956pgn.165.2018.03.12.18.32.22
-        for <linux-mm@kvack.org>;
-        Mon, 12 Mar 2018 18:32:22 -0700 (PDT)
-Date: Tue, 13 Mar 2018 12:31:44 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: fallocate on XFS for swap
-Message-ID: <20180313013144.GA18129@dastard>
-References: <8C28C1CB-47F1-48D1-85C9-5373D29EA13E@amazon.com>
- <20180309234422.GA4860@magnolia>
- <20180310005850.GW18129@dastard>
- <20180310011707.GA4875@magnolia>
- <20180310013646.GX18129@dastard>
- <A59B9E63-29A2-4C40-960B-E09809DE501F@amazon.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C5F146B0007
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2018 22:10:38 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id r1so7469792pgq.7
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 19:10:38 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id s14-v6si4434411plq.674.2018.03.12.19.10.37
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Mar 2018 19:10:37 -0700 (PDT)
+Date: Tue, 13 Mar 2018 10:11:41 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [PATCH v4 1/3] mm/free_pcppages_bulk: update pcp->count inside
+Message-ID: <20180313021141.GA13782@intel.com>
+References: <20180301062845.26038-1-aaron.lu@intel.com>
+ <20180301062845.26038-2-aaron.lu@intel.com>
+ <a541716e-b55c-bb75-eab9-eb46a08d5ffa@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <A59B9E63-29A2-4C40-960B-E09809DE501F@amazon.com>
+In-Reply-To: <a541716e-b55c-bb75-eab9-eb46a08d5ffa@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Besogonov, Aleksei" <cyberax@amazon.com>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, xfs <linux-xfs@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
 
-[Aleski, can you word wrap your email text at 72 columns? ]
-
-On Mon, Mar 12, 2018 at 10:01:54PM +0000, Besogonov, Aleksei wrote:
-> [snip unrelated]
+On Mon, Mar 12, 2018 at 02:22:28PM +0100, Vlastimil Babka wrote:
+> On 03/01/2018 07:28 AM, Aaron Lu wrote:
+> > Matthew Wilcox found that all callers of free_pcppages_bulk() currently
+> > update pcp->count immediately after so it's natural to do it inside
+> > free_pcppages_bulk().
+> > 
+> > No functionality or performance change is expected from this patch.
 > 
-> So I'm looking at the XFS code and it appears that the iomap is
-> limited to 1024*PAGE_SIZE blocks at a time,
+> Well, it's N decrements instead of one decrement by N / assignment of
+> zero. But I assume the difference is negligible anyway, right?
 
-Take a closer look - that code is not used for reading file extents
-and returning them to the caller.
+Yes.
 
-> which is too small for
-> most of swap use-cases. I can of course just loop through the file
-> in 4Mb increments and, just like the bmap() code does today. But
-> this just doesn't look right and it's not atomic. And it looks
-> like iomap in ext2 doesn't have this limitation. 
 > 
-> The stated rationale for the XFS limit is:
-> >/*
-> > * We cap the maximum length we map here to MAX_WRITEBACK_PAGES pages
-> > * to keep the chunks of work done where somewhat symmetric with the
-> > * work writeback does. This is a completely arbitrary number pulled
-> > * out of thin air as a best guess for initial testing.
-> > *
-> > * Note that the values needs to be less than 32-bits wide until
-> > * the lower level functions are updated.
-> > */
+> > Suggested-by: Matthew Wilcox <willy@infradead.org>
+> > Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Yeah, that's in the IOMAP_WRITE path used for block allocation. swap
-file mapping should not be asking for IOMAP_WRITE mappings that
-trigger extent allocation, so you should never hit this case.
+Thanks!
 
-You should probably be using the IOMAP_REPORT path (i.e. basically
-very similar code to iomap_fiemap/iomap_fiemap_apply and rejecting
-any file that returns an iomap that is not IOMAP_MAPPED or
-IOMAP_UNWRITTEN. Also, you want to reject any file that returns
-IOMAP_F_SHARED in iomap->flags, too, because swapfiles can't do COW
-to break extent sharing on writes.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> > ---
+> >  mm/page_alloc.c | 10 +++-------
+> >  1 file changed, 3 insertions(+), 7 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index cb416723538f..faa33eac1635 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1148,6 +1148,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+> >  			page = list_last_entry(list, struct page, lru);
+> >  			/* must delete as __free_one_page list manipulates */
+> >  			list_del(&page->lru);
+> > +			pcp->count--;
+> >  
+> >  			mt = get_pcppage_migratetype(page);
+> >  			/* MIGRATE_ISOLATE page should not go to pcplists */
+> > @@ -2416,10 +2417,8 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
+> >  	local_irq_save(flags);
+> >  	batch = READ_ONCE(pcp->batch);
+> >  	to_drain = min(pcp->count, batch);
+> > -	if (to_drain > 0) {
+> > +	if (to_drain > 0)
+> >  		free_pcppages_bulk(zone, to_drain, pcp);
+> > -		pcp->count -= to_drain;
+> > -	}
+> >  	local_irq_restore(flags);
+> >  }
+> >  #endif
+> > @@ -2441,10 +2440,8 @@ static void drain_pages_zone(unsigned int cpu, struct zone *zone)
+> >  	pset = per_cpu_ptr(zone->pageset, cpu);
+> >  
+> >  	pcp = &pset->pcp;
+> > -	if (pcp->count) {
+> > +	if (pcp->count)
+> >  		free_pcppages_bulk(zone, pcp->count, pcp);
+> > -		pcp->count = 0;
+> > -	}
+> >  	local_irq_restore(flags);
+> >  }
+> >  
+> > @@ -2668,7 +2665,6 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
+> >  	if (pcp->count >= pcp->high) {
+> >  		unsigned long batch = READ_ONCE(pcp->batch);
+> >  		free_pcppages_bulk(zone, batch, pcp);
+> > -		pcp->count -= batch;
+> >  	}
+> >  }
+> >  
+> > 
+> 
