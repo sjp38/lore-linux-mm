@@ -1,132 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E50616B0005
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 02:14:50 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id y3so8065008qka.14
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 23:14:50 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id e132si6084896qkb.311.2018.03.12.23.14.49
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 48F506B0007
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 02:34:48 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id a28-v6so6015397lfg.7
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2018 23:34:48 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z70sor1858988ljb.51.2018.03.12.23.34.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Mar 2018 23:14:49 -0700 (PDT)
-Subject: Re: [RFC PATCH 00/13] SVM (share virtual memory) with HMM in nouveau
-References: <20180310032141.6096-1-jglisse@redhat.com>
- <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
- <20180312173009.GN8589@phenom.ffwll.local> <20180312175057.GC4214@redhat.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <39139ff7-76ad-960c-53f6-46b57525b733@nvidia.com>
-Date: Mon, 12 Mar 2018 23:14:47 -0700
+        (Google Transport Security);
+        Mon, 12 Mar 2018 23:34:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180312175057.GC4214@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <CACjP9X96_Wtj3WOXgkjfijN-ZXB9pS=K547-JerRq4QKkrYkfQ@mail.gmail.com>
+References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
+ <cover.1520011944.git.neelx@redhat.com> <0485727b2e82da7efbce5f6ba42524b429d0391a.1520011945.git.neelx@redhat.com>
+ <20180302164052.5eea1b896e3a7125d1e1f23a@linux-foundation.org>
+ <CACjP9X_tpVVDPUvyc-B2QU=2J5MXbuFsDcG90d7L0KuwEEuR-g@mail.gmail.com>
+ <CAPKp9ubzXBMeV6Oi=KW1HaPOrv_P78HOXcdQeZ5e1=bqY97tkA@mail.gmail.com>
+ <CA+G9fYvWm5NYX64POULrdGB1c3Ar3WfZAsBTEKw4+NYQ_mmddA@mail.gmail.com> <CACjP9X96_Wtj3WOXgkjfijN-ZXB9pS=K547-JerRq4QKkrYkfQ@mail.gmail.com>
+From: Naresh Kamboju <naresh.kamboju@linaro.org>
+Date: Tue, 13 Mar 2018 12:04:45 +0530
+Message-ID: <CA+G9fYth0DVemSK3Sp8aRc9mzDAq0==WW08Gq1L5JjxWg-a+Gw@mail.gmail.com>
+Subject: Re: [PATCH v3 2/2] mm/page_alloc: fix memmap_init_zone pageblock alignment
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, christian.koenig@amd.com, dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org, Evgeny Baskakov <ebaskakov@nvidia.com>, linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>, Felix Kuehling <felix.kuehling@amd.com>, "Bridgman,
- John" <John.Bridgman@amd.com>
+To: Daniel Vacek <neelx@redhat.com>
+Cc: Sudeep Holla <sudeep.holla@arm.com>, Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, linux- stable <stable@vger.kernel.org>
 
-On 03/12/2018 10:50 AM, Jerome Glisse wrote:
-> On Mon, Mar 12, 2018 at 06:30:09PM +0100, Daniel Vetter wrote:
->> On Sat, Mar 10, 2018 at 04:01:58PM +0100, Christian K??nig wrote:
->=20
-> [...]
->=20
->>>> They are work underway to revamp nouveau channel creation with a new
->>>> userspace API. So we might want to delay upstreaming until this lands.
->>>> We can stil discuss one aspect specific to HMM here namely the issue
->>>> around GEM objects used for some specific part of the GPU. Some engine
->>>> inside the GPU (engine are a GPU block like the display block which
->>>> is responsible of scaning memory to send out a picture through some
->>>> connector for instance HDMI or DisplayPort) can only access memory
->>>> with virtual address below (1 << 40). To accomodate those we need to
->>>> create a "hole" inside the process address space. This patchset have
->>>> a hack for that (patch 13 HACK FOR HMM AREA), it reserves a range of
->>>> device file offset so that process can mmap this range with PROT_NONE
->>>> to create a hole (process must make sure the hole is below 1 << 40).
->>>> I feel un-easy of doing it this way but maybe it is ok with other
->>>> folks.
+On 12 March 2018 at 22:21, Daniel Vacek <neelx@redhat.com> wrote:
+> On Mon, Mar 12, 2018 at 3:49 PM, Naresh Kamboju
+> <naresh.kamboju@linaro.org> wrote:
+>> On 12 March 2018 at 17:56, Sudeep Holla <sudeep.holla@arm.com> wrote:
+>>> Hi,
 >>>
->>> Well we have essentially the same problem with pre gfx9 AMD hardware. F=
-elix
->>> might have some advise how it was solved for HSA.
+>>> I couldn't find the exact mail corresponding to the patch merged in v4.16-rc5
+>>> but commit 864b75f9d6b01 "mm/page_alloc: fix memmap_init_zone
+>>> pageblock alignment"
+>>> cause boot hang on my ARM64 platform.
 >>
->> Couldn't we do an in-kernel address space for those special gpu blocks? =
-As
->> long as it's display the kernel needs to manage it anyway, and adding a
->> 2nd mapping when you pin/unpin for scanout usage shouldn't really matter
->> (as long as you cache the mapping until the buffer gets thrown out of
->> vram). More-or-less what we do for i915 (where we have an entirely
->> separate address space for these things which is 4G on the latest chips)=
-.
->> -Daniel
->=20
-> We can not do an in-kernel address space for those. We already have an
-> in kernel address space but it does not apply for the object considered
-> here.
->=20
-> For NVidia (i believe this is the same for AMD AFAIK) the objects we
-> are talking about are objects that must be in the same address space
-> as the one against which process's shader/dma/... get executed.
->=20
-> For instance command buffer submited by userspace must be inside a
-> GEM object mapped inside the GPU's process address against which the
-> command are executed. My understanding is that the PFIFO (the engine
-> on nv GPU that fetch commands) first context switch to address space
-> associated with the channel and then starts fetching commands with
-> all address being interpreted against the channel address space.
->=20
-> Hence why we need to reserve some range in the process virtual address
-> space if we want to do SVM in a sane way. I mean we could just map
-> buffer into GPU page table and then cross fingers and toes hopping that
-> the process will never get any of its mmap overlapping those mapping :)
->=20
-> Cheers,
-> J=C3=A9r=C3=B4me
->=20
+>> I have also noticed this problem on hi6220 Hikey - arm64.
+>>
+>> LKFT: linux-next: Hikey boot failed linux-next-20180308
+>> https://bugs.linaro.org/show_bug.cgi?id=3676
+>>
+>> - Naresh
+>>
+>>>
+>>> Log:
+>>> [    0.000000] NUMA: No NUMA configuration found
+>>> [    0.000000] NUMA: Faking a node at [mem
+>>> 0x0000000000000000-0x00000009ffffffff]
+>>> [    0.000000] NUMA: NODE_DATA [mem 0x9fffcb480-0x9fffccf7f]
+>>> [    0.000000] Zone ranges:
+>>> [    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000ffffffff]
+>>> [    0.000000]   Normal   [mem 0x0000000100000000-0x00000009ffffffff]
+>>> [    0.000000] Movable zone start for each node
+>>> [    0.000000] Early memory node ranges
+>>> [    0.000000]   node   0: [mem 0x0000000080000000-0x00000000f8f9afff]
+>>> [    0.000000]   node   0: [mem 0x00000000f8f9b000-0x00000000f908ffff]
+>>> [    0.000000]   node   0: [mem 0x00000000f9090000-0x00000000f914ffff]
+>>> [    0.000000]   node   0: [mem 0x00000000f9150000-0x00000000f920ffff]
+>>> [    0.000000]   node   0: [mem 0x00000000f9210000-0x00000000f922ffff]
+>>> [    0.000000]   node   0: [mem 0x00000000f9230000-0x00000000f95bffff]
+>>> [    0.000000]   node   0: [mem 0x00000000f95c0000-0x00000000fe58ffff]
+>>> [    0.000000]   node   0: [mem 0x00000000fe590000-0x00000000fe5cffff]
+>>> [    0.000000]   node   0: [mem 0x00000000fe5d0000-0x00000000fe5dffff]
+>>> [    0.000000]   node   0: [mem 0x00000000fe5e0000-0x00000000fe62ffff]
+>>> [    0.000000]   node   0: [mem 0x00000000fe630000-0x00000000feffffff]
+>>> [    0.000000]   node   0: [mem 0x0000000880000000-0x00000009ffffffff]
+>>> [    0.000000]  Initmem setup node 0 [mem 0x0000000080000000-0x00000009ffffffff]
+>>>
+>>> On Sat, Mar 3, 2018 at 1:08 AM, Daniel Vacek <neelx@redhat.com> wrote:
+>>>> On Sat, Mar 3, 2018 at 1:40 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+>>>>>
+>>>>> This makes me wonder whether a -stable backport is really needed...
+>>>>
+>>>> For some machines it definitely is. Won't hurt either, IMHO.
+>>>>
+>>>> --nX
+>
+> Hmm, does it step back perhaps?
+>
+> Can you check if below cures the boot hang?
+>
+> --nX
+>
+> ~~~~
+> neelx@metal:~/nX/src/linux$ git diff
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3d974cb2a1a1..415571120bbd 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5365,8 +5365,10 @@ void __meminit memmap_init_zone(unsigned long
+> size, int nid, unsigned long zone,
+>                          * the valid region but still depends on correct page
+>                          * metadata.
+>                          */
+> -                       pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
+> +                       unsigned long next_pfn;
+> +                       next_pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
+>                                         ~(pageblock_nr_pages-1)) - 1;
+> +                       pfn = max(next_pfn, pfn);
+>  #endif
+>                         continue;
+>                 }
 
-Hi Jerome and all,
+After applying this patch on linux-next the boot hang problem resolved.
+Now the hi6220-hikey is booting successfully.
+Thank you.
 
-Yes, on NVIDIA GPUs, the Host/FIFO unit is limited to 40-bit addresses, so
-things such as the following need to be below (1 << 40), and also accessibl=
-e=20
-to both CPU (user space) and GPU hardware.=20
-    -- command buffers (CPU user space driver fills them, GPU consumes them=
-),=20
-    -- semaphores (here, a GPU-centric term, rather than OS-type: these are
-       memory locations that, for example, the GPU hardware might write to,=
- in
-       order to indicate work completion; there are other uses as well),=20
-    -- a few other things most likely (this is not a complete list).
+- Naresh
 
-So what I'd tentatively expect that to translate into in the driver stack i=
-s,=20
-approximately:
-
-    -- User space driver code mmap's an area below (1 << 40). It's hard to =
-avoid this,
-       given that user space needs access to the area (for filling out comm=
-and
-       buffers and monitoring semaphores, that sort of thing). Then suballo=
-cate
-       from there using mmap's MAP_FIXED or (future-ish) MAP_FIXED_SAFE fla=
-gs.
-
-       ...glancing at the other fork of this thread, I think that is exactl=
-y what
-       Felix is saying, too. So that's good.
-
-    -- The user space program sits above the user space driver, and althoug=
-h the
-       program could, in theory, interfere with this mmap'd area, that woul=
-d be
-       wrong in the same way that mucking around with malloc'd areas (outsi=
-de of
-       malloc() itself) is wrong. So I don't see any particular need to do =
-much
-       more than the above.
-
-thanks,
---=20
-John Hubbard
-NVIDIA
+> ~~~~
