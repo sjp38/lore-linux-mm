@@ -1,68 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A1F16B0268
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 10:18:19 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id s25so7516981pfh.9
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 07:18:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m5sor83646pgd.171.2018.03.13.07.18.17
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 153176B026C
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 10:28:05 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id 13so10567445qkg.23
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 07:28:05 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id w23si334584qtj.181.2018.03.13.07.28.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 13 Mar 2018 07:18:17 -0700 (PDT)
-Date: Tue, 13 Mar 2018 23:18:13 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCHv2 2/2] zram: drop max_zpage_size and use
- zs_huge_class_size()
-Message-ID: <20180313141813.GA741@tigerII.localdomain>
-References: <20180306070639.7389-1-sergey.senozhatsky@gmail.com>
- <20180306070639.7389-3-sergey.senozhatsky@gmail.com>
- <20180313090249.GA240650@rodete-desktop-imager.corp.google.com>
- <20180313102437.GA5114@jagdpanzerIV>
- <20180313135815.GA96381@rodete-laptop-imager.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Mar 2018 07:28:03 -0700 (PDT)
+Date: Tue, 13 Mar 2018 10:28:00 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [RFC PATCH 00/13] SVM (share virtual memory) with HMM in nouveau
+Message-ID: <20180313142759.GB3828@redhat.com>
+References: <20180310032141.6096-1-jglisse@redhat.com>
+ <cae53b72-f99c-7641-8cb9-5cbe0a29b585@gmail.com>
+ <ef3d82cd-6c39-a50a-c4cb-d9d9ba13e31b@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20180313135815.GA96381@rodete-laptop-imager.corp.google.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <ef3d82cd-6c39-a50a-c4cb-d9d9ba13e31b@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Felix Kuehling <felix.kuehling@amd.com>
+Cc: christian.koenig@amd.com, dri-devel@lists.freedesktop.org, nouveau@lists.freedesktop.org, Evgeny Baskakov <ebaskakov@nvidia.com>, linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, "Bridgman, John" <John.Bridgman@amd.com>
 
-On (03/13/18 22:58), Minchan Kim wrote:
-> > > If it is static, we can do this in zram_init? I believe it's more readable in that
-> > > it's never changed betweens zram instances.
-> > 
-> > We need to have at least one pool, because pool decides where the
-> > watermark is. At zram_init() stage we don't have a pool yet. We
-> > zs_create_pool() in zram_meta_alloc() so that's why I put
-> > zs_huge_class_size() there. I'm not in love with it, but that's
-> > the only place where we can have it.
+On Mon, Mar 12, 2018 at 02:28:42PM -0400, Felix Kuehling wrote:
+> On 2018-03-10 10:01 AM, Christian Konig wrote:
+> >> To accomodate those we need to
+> >> create a "hole" inside the process address space. This patchset have
+> >> a hack for that (patch 13 HACK FOR HMM AREA), it reserves a range of
+> >> device file offset so that process can mmap this range with PROT_NONE
+> >> to create a hole (process must make sure the hole is below 1 << 40).
+> >> I feel un-easy of doing it this way but maybe it is ok with other
+> >> folks.
+> >
+> > Well we have essentially the same problem with pre gfx9 AMD hardware.
+> > Felix might have some advise how it was solved for HSA. 
 > 
-> Fair enough. Then what happens if client calls zs_huge_class_size
-> without creating zs_create_pool?
+> For pre-gfx9 hardware we reserve address space in user mode using a big
+> mmap PROT_NONE call at application start. Then we manage the address
+> space in user mode and use MAP_FIXED to map buffers at specific
+> addresses within the reserved range.
+> 
+> The big address space reservation causes issues for some debugging tools
+> (clang-sanitizer was mentioned to me), so with gfx9 we're going to get
+> rid of this address space reservation.
 
-Will receive 0.
-One of the version was returning SIZE_MAX in such case.
+What do you need those mapping for ? What kind of object (pm4 packet
+command buffer, GPU semaphore | fence, ...) ? Kernel private object ?
+On nv we need it for the main command buffer ring which we do not want
+to expose to application.
 
-size_t zs_huge_class_size(void)
- {
-+	if (unlikely(!huge_class_size))
-+		return SIZE_MAX;
- 	return huge_class_size;
- }
+Thus for nv gpu we need kernel to monitor this PROT_NONE region to make
+sure that i never got unmapped, resize, move ... this is me fearing a
+rogue userspace that munmap and try to abuse some bug in SVM/GPU driver
+to abuse object map behind those fix mapping.
 
-> I think we should make zs_huge_class_size has a zs_pool as argument.
-
-Can do, but the param will be unused. May be we can do something
-like below instead:
-
- size_t zs_huge_class_size(void)
- {
-+	if (unlikely(!huge_class_size))
-+		return 3 * PAGE_SIZE / 4;
- 	return huge_class_size;
- }
-
-Should do no harm (unless I'm missing something).
-
-	-ss
+Cheers,
+Jerome
