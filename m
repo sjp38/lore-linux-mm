@@ -1,95 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 351B86B0007
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 16:44:20 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id x140so627512vkx.17
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 13:44:20 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id o28si409644vki.211.2018.03.13.13.44.18
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 92D4F6B0005
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 17:14:57 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id s21so425065pfm.15
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 14:14:57 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i127si787196pfc.148.2018.03.13.14.14.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Mar 2018 13:44:19 -0700 (PDT)
-Subject: Re: [v5 1/2] mm: disable interrupts while initializing deferred pages
-References: <20180309220807.24961-1-pasha.tatashin@oracle.com>
- <20180309220807.24961-2-pasha.tatashin@oracle.com>
- <20180312130410.e2fce8e5e38bc2086c7fd924@linux-foundation.org>
- <20180313160430.hbjnyiazadt3jwa6@xakep.localdomain>
- <20180313115549.7badec1c6b85eb5a1cf21eb6@linux-foundation.org>
- <20180313194546.k62tni4g4gnds2nx@xakep.localdomain>
- <20180313131156.f156abe1822a79ec01c4800a@linux-foundation.org>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <ff16234e-eb45-ca99-bfec-6d33967e9c8f@oracle.com>
-Date: Tue, 13 Mar 2018 16:43:47 -0400
-MIME-Version: 1.0
-In-Reply-To: <20180313131156.f156abe1822a79ec01c4800a@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        Tue, 13 Mar 2018 14:14:56 -0700 (PDT)
+Date: Tue, 13 Mar 2018 14:14:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: make start_isolate_page_range() fail if already
+ isolated
+Message-Id: <20180313141454.f3ad61c301c299ab6f81aae0@linux-foundation.org>
+In-Reply-To: <20180309224731.16978-1-mike.kravetz@oracle.com>
+References: <20180226191054.14025-1-mike.kravetz@oracle.com>
+	<20180309224731.16978-1-mike.kravetz@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, m.mizuma@jp.fujitsu.com, mhocko@suse.com, catalin.marinas@arm.com, takahiro.akashi@linaro.org, gi-oh.kim@profitbricks.com, heiko.carstens@de.ibm.com, baiyaowei@cmss.chinamobile.com, richard.weiyang@gmail.com, paul.burton@mips.com, miles.chen@mediatek.com, vbabka@suse.cz, mgorman@suse.de, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Luiz Capitulino <lcapitulino@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
 
+On Fri,  9 Mar 2018 14:47:31 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-> Soft lockup: kernel has run for too long without rescheduling
-> Hard lockup: kernel has run for too long with interrupts disabled
+> start_isolate_page_range() is used to set the migrate type of a
+> set of pageblocks to MIGRATE_ISOLATE while attempting to start
+> a migration operation.  It assumes that only one thread is
+> calling it for the specified range.  This routine is used by
+> CMA, memory hotplug and gigantic huge pages.  Each of these users
+> synchronize access to the range within their subsystem.  However,
+> two subsystems (CMA and gigantic huge pages for example) could
+> attempt operations on the same range.  If this happens, one thread
+> may 'undo' the work another thread is doing.  This can result in
+> pageblocks being incorrectly left marked as MIGRATE_ISOLATE and
+> therefore not available for page allocation.
 > 
-> Both of these are detected by the NMI watchdog handler.
+> What is ideally needed is a way to synchronize access to a set
+> of pageblocks that are undergoing isolation and migration.  The
+> only thing we know about these pageblocks is that they are all
+> in the same zone.  A per-node mutex is too coarse as we want to
+> allow multiple operations on different ranges within the same zone
+> concurrently.  Instead, we will use the migration type of the
+> pageblocks themselves as a form of synchronization.
 > 
-> 9b6e63cbf85b89b2d fixes a soft lockup by adding a manual rescheduling
-> point.  Replacing that with touch_nmi_watchdog() won't work (I think). 
-> Presumably calling touch_softlockup_watchdog() will "work", in that it
-> suppresses the warning.  But it won't fix the thing which the warning
-> is actually warning about: starvation of the CPU scheduler.  That's
-> what the cond_resched() does.
-
-But, unlike memmap_init_zone(), which can be used after boot, here we do
-not worry about kernel running for too long.  This is because we are
-booting, and no user programs are running.
-
-So, it is acceptable to have a long uninterruptible span, as long
-as we making a useful progress. BTW, the boot CPU still has
-interrupts enabled during this span.
-
-Comment in: include/linux/nmi.h, states:
-
- * If the architecture supports the NMI watchdog, touch_nmi_watchdog()
- * may be used to reset the timeout - for code which intentionally
- * disables interrupts for a long time. This call is stateless.
-
-Which is exactly what we are trying to do here, now that these threads
-run with interrupts disabled.
-
-Before, where they were running with interrupts enabled, and
-cond_resched() was enough to satisfy soft lockups.
-
+> start_isolate_page_range sets the migration type on a set of page-
+> blocks going in order from the one associated with the smallest
+> pfn to the largest pfn.  The zone lock is acquired to check and
+> set the migration type.  When going through the list of pageblocks
+> check if MIGRATE_ISOLATE is already set.  If so, this indicates
+> another thread is working on this pageblock.  We know exactly
+> which pageblocks we set, so clean up by undo those and return
+> -EBUSY.
 > 
-> I'm not sure what to suggest, really.  Your changelog isn't the best:
-> "Vlastimil Babka reported about a window issue during which when
-> deferred pages are initialized, and the current version of on-demand
-> initialization is finished, allocations may fail".  Well...  where is
-> ths mysterious window?  Without such detail it's hard for others to
-> suggest alternative approaches.
+> This allows start_isolate_page_range to serve as a synchronization
+> mechanism and will allow for more general use of callers making
+> use of these interfaces.  Update comments in alloc_contig_range
+> to reflect this new functionality.
+> 
+> ...
+>
+> + * There is no high level synchronization mechanism that prevents two threads
+> + * from trying to isolate overlapping ranges.  If this happens, one thread
+> + * will notice pageblocks in the overlapping range already set to isolate.
+> + * This happens in set_migratetype_isolate, and set_migratetype_isolate
+> + * returns an error.  We then clean up by restoring the migration type on
+> + * pageblocks we may have modified and return -EBUSY to caller.  This
+> + * prevents two threads from simultaneously working on overlapping ranges.
+>   */
 
-Here is hopefully a better description of the problem:
-
-Currently, during boot we preinitialize some number of struct pages to satisfy all boot allocations. Even if these allocations happen when we initialize the reset of deferred pages in page_alloc_init_late(). The problem is that we do not know how much kernel will need, and it also depends on various options.
-
-So, with this work, we are changing this behavior to initialize struct pages on-demand, only when allocations happen.
-
-During boot, when we try to allocate memory, the on-demand struct page initialization code takes care of it. But, once the deferred pages are initializing in:
-
-page_alloc_init_late()
-   for_each_node_state(nid, N_MEMORY)
-      kthread_run(deferred_init_memmap())
-
-We cannot use on-demand initialization, as these threads resize pgdat.
-
-This whole thing is to take care of this time.
-
-My first version of on-demand deferred page initialization would simply fail to allocate memory during this period of time. But, this new version waits for threads to finish initializing deferred memory, and successfully perform the allocation.
-
-Because interrupt handler would wait for pgdat resize lock.
-
-Thank you,
-Pavel
+Well I can kinda visualize how this works, with two CPUs chewing away
+at two overlapping blocks of pfns, possibly with different starting
+pfns.  And I can't immediately see any holes in it, apart from possible
+memory ordering issues.  What guarantee is there that CPU1 will see
+CPU2's writes in the order in which CPU2 performed them?  And what
+guarantee is there that CPU1 will see CPU2's writes in a sequential
+manner?  If four of CPU2's writes get written back in a single atomic
+flush, what will CPU1 make of that?
