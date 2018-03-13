@@ -1,120 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 936A06B0006
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 18:47:20 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id x21so715353oie.5
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 15:47:20 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q57sor524965otq.33.2018.03.13.15.47.19
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 63C8D6B0006
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 19:43:39 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id 188so1403683iou.14
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 16:43:39 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0121.outbound.protection.outlook.com. [104.47.38.121])
+        by mx.google.com with ESMTPS id 83si808622itb.168.2018.03.13.16.43.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 13 Mar 2018 15:47:19 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 13 Mar 2018 16:43:37 -0700 (PDT)
+From: Sasha Levin <Alexander.Levin@microsoft.com>
+Subject: Re: [PATCH v2 1/2] mm: uninitialized struct page poisoning sanity
+ checking
+Date: Tue, 13 Mar 2018 23:43:35 +0000
+Message-ID: <20180313234333.j3i43yxeawx5d67x@sasha-lappy>
+References: <20180131210300.22963-1-pasha.tatashin@oracle.com>
+ <20180131210300.22963-2-pasha.tatashin@oracle.com>
+In-Reply-To: <20180131210300.22963-2-pasha.tatashin@oracle.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <9732134B9E963143AEC8301E7EBD6B7F@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <CA+G9fYth0DVemSK3Sp8aRc9mzDAq0==WW08Gq1L5JjxWg-a+Gw@mail.gmail.com>
-References: <1519908465-12328-1-git-send-email-neelx@redhat.com>
- <cover.1520011944.git.neelx@redhat.com> <0485727b2e82da7efbce5f6ba42524b429d0391a.1520011945.git.neelx@redhat.com>
- <20180302164052.5eea1b896e3a7125d1e1f23a@linux-foundation.org>
- <CACjP9X_tpVVDPUvyc-B2QU=2J5MXbuFsDcG90d7L0KuwEEuR-g@mail.gmail.com>
- <CAPKp9ubzXBMeV6Oi=KW1HaPOrv_P78HOXcdQeZ5e1=bqY97tkA@mail.gmail.com>
- <CA+G9fYvWm5NYX64POULrdGB1c3Ar3WfZAsBTEKw4+NYQ_mmddA@mail.gmail.com>
- <CACjP9X96_Wtj3WOXgkjfijN-ZXB9pS=K547-JerRq4QKkrYkfQ@mail.gmail.com> <CA+G9fYth0DVemSK3Sp8aRc9mzDAq0==WW08Gq1L5JjxWg-a+Gw@mail.gmail.com>
-From: Daniel Vacek <neelx@redhat.com>
-Date: Tue, 13 Mar 2018 23:47:18 +0100
-Message-ID: <CACjP9X_DjH4hVrUOOLok+ht5NO52TuV0mS4yZs5RCGjF0hi6LQ@mail.gmail.com>
-Subject: Re: [PATCH v3 2/2] mm/page_alloc: fix memmap_init_zone pageblock alignment
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naresh Kamboju <naresh.kamboju@linaro.org>
-Cc: Sudeep Holla <sudeep.holla@arm.com>, Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, linux- stable <stable@vger.kernel.org>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@suse.com" <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "bharata@linux.vnet.ibm.com" <bharata@linux.vnet.ibm.com>
 
-On Tue, Mar 13, 2018 at 7:34 AM, Naresh Kamboju
-<naresh.kamboju@linaro.org> wrote:
-> On 12 March 2018 at 22:21, Daniel Vacek <neelx@redhat.com> wrote:
->> On Mon, Mar 12, 2018 at 3:49 PM, Naresh Kamboju
->> <naresh.kamboju@linaro.org> wrote:
->>> On 12 March 2018 at 17:56, Sudeep Holla <sudeep.holla@arm.com> wrote:
->>>> Hi,
->>>>
->>>> I couldn't find the exact mail corresponding to the patch merged in v4.16-rc5
->>>> but commit 864b75f9d6b01 "mm/page_alloc: fix memmap_init_zone
->>>> pageblock alignment"
->>>> cause boot hang on my ARM64 platform.
->>>
->>> I have also noticed this problem on hi6220 Hikey - arm64.
->>>
->>> LKFT: linux-next: Hikey boot failed linux-next-20180308
->>> https://bugs.linaro.org/show_bug.cgi?id=3676
->>>
->>> - Naresh
->>>
->>>>
->>>> Log:
->>>> [    0.000000] NUMA: No NUMA configuration found
->>>> [    0.000000] NUMA: Faking a node at [mem
->>>> 0x0000000000000000-0x00000009ffffffff]
->>>> [    0.000000] NUMA: NODE_DATA [mem 0x9fffcb480-0x9fffccf7f]
->>>> [    0.000000] Zone ranges:
->>>> [    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000ffffffff]
->>>> [    0.000000]   Normal   [mem 0x0000000100000000-0x00000009ffffffff]
->>>> [    0.000000] Movable zone start for each node
->>>> [    0.000000] Early memory node ranges
->>>> [    0.000000]   node   0: [mem 0x0000000080000000-0x00000000f8f9afff]
->>>> [    0.000000]   node   0: [mem 0x00000000f8f9b000-0x00000000f908ffff]
->>>> [    0.000000]   node   0: [mem 0x00000000f9090000-0x00000000f914ffff]
->>>> [    0.000000]   node   0: [mem 0x00000000f9150000-0x00000000f920ffff]
->>>> [    0.000000]   node   0: [mem 0x00000000f9210000-0x00000000f922ffff]
->>>> [    0.000000]   node   0: [mem 0x00000000f9230000-0x00000000f95bffff]
->>>> [    0.000000]   node   0: [mem 0x00000000f95c0000-0x00000000fe58ffff]
->>>> [    0.000000]   node   0: [mem 0x00000000fe590000-0x00000000fe5cffff]
->>>> [    0.000000]   node   0: [mem 0x00000000fe5d0000-0x00000000fe5dffff]
->>>> [    0.000000]   node   0: [mem 0x00000000fe5e0000-0x00000000fe62ffff]
->>>> [    0.000000]   node   0: [mem 0x00000000fe630000-0x00000000feffffff]
->>>> [    0.000000]   node   0: [mem 0x0000000880000000-0x00000009ffffffff]
->>>> [    0.000000]  Initmem setup node 0 [mem 0x0000000080000000-0x00000009ffffffff]
->>>>
->>>> On Sat, Mar 3, 2018 at 1:08 AM, Daniel Vacek <neelx@redhat.com> wrote:
->>>>> On Sat, Mar 3, 2018 at 1:40 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
->>>>>>
->>>>>> This makes me wonder whether a -stable backport is really needed...
->>>>>
->>>>> For some machines it definitely is. Won't hurt either, IMHO.
->>>>>
->>>>> --nX
->>
->> Hmm, does it step back perhaps?
->>
->> Can you check if below cures the boot hang?
->>
->> --nX
->>
->> ~~~~
->> neelx@metal:~/nX/src/linux$ git diff
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 3d974cb2a1a1..415571120bbd 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -5365,8 +5365,10 @@ void __meminit memmap_init_zone(unsigned long
->> size, int nid, unsigned long zone,
->>                          * the valid region but still depends on correct page
->>                          * metadata.
->>                          */
->> -                       pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
->> +                       unsigned long next_pfn;
->> +                       next_pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
->>                                         ~(pageblock_nr_pages-1)) - 1;
->> +                       pfn = max(next_pfn, pfn);
->>  #endif
->>                         continue;
->>                 }
+On Wed, Jan 31, 2018 at 04:02:59PM -0500, Pavel Tatashin wrote:
+>During boot we poison struct page memory in order to ensure that no one is
+>accessing this memory until the struct pages are initialized in
+>__init_single_page().
 >
-> After applying this patch on linux-next the boot hang problem resolved.
-> Now the hi6220-hikey is booting successfully.
-> Thank you.
+>This patch adds more scrutiny to this checking, by making sure that flags
+>do not equal to poison pattern when the are accessed. The pattern is all
+>ones.
+>
+>Since, node id is also stored in struct page, and may be accessed quiet
+>early we add the enforcement into page_to_nid() function as well.
+>
+>Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+>---
 
-Thank you and Sudeep for testing. I've just sent Andrew a formal patch.
+Hey Pasha,
 
->
-> - Naresh
->
->> ~~~~
+This patch is causing the following on boot:
+
+[    1.253732] BUG: unable to handle kernel paging request at fffffffffffff=
+ffe
+[    1.254000] PGD 2284e19067 P4D 2284e19067 PUD 2284e1b067 PMD 0
+[    1.254000] Oops: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
+[    1.254000] Modules linked in:
+[    1.254000] CPU: 1 PID: 1 Comm: swapper/0 Not tainted 4.16.0-rc5-next-20=
+180313 #10
+[    1.254000] Hardware name: Microsoft Corporation Virtual Machine/Virtual=
+ Machine, BIOS 090007  06/02/2017
+[    1.254000] RIP: 0010:__dump_page (??:?)
+[    1.254000] RSP: 0000:ffff881c63c17810 EFLAGS: 00010246
+[    1.254000] RAX: dffffc0000000000 RBX: ffffea0084000000 RCX: 1ffff1038c7=
+82f2b
+[    1.254000] RDX: 1fffffffffffffff RSI: ffffffff9e160640 RDI: ffffea00840=
+00000
+[    1.254000] RBP: ffff881c63c17c00 R08: ffff8840107e8880 R09: ffffed08021=
+67a4d
+[    1.254000] R10: 0000000000000001 R11: ffffed0802167a4c R12: 1ffff1038c7=
+82f07
+[    1.254000] R13: ffffea0084000020 R14: fffffffffffffffe R15: ffff881c63c=
+17bd8
+[    1.254000] FS:  0000000000000000(0000) GS:ffff881c6ac00000(0000) knlGS:=
+0000000000000000
+[    1.254000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[    1.254000] CR2: fffffffffffffffe CR3: 0000002284e16000 CR4: 00000000003=
+406e0
+[    1.254000] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 00000000000=
+00000
+[    1.254000] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 00000000000=
+00400
+[    1.254000] Call Trace:
+[    1.254000] dump_page (/mm/debug.c:80)
+[    1.254000] get_nid_for_pfn (/./include/linux/mm.h:900 /drivers/base/nod=
+e.c:396)
+[    1.254000] register_mem_sect_under_node (/drivers/base/node.c:438)
+[    1.254000] link_mem_sections (/drivers/base/node.c:517)
+[    1.254000] topology_init (/./include/linux/nodemask.h:271 /arch/x86/ker=
+nel/topology.c:164)
+[    1.254000] do_one_initcall (/init/main.c:835)
+[    1.254000] kernel_init_freeable (/init/main.c:901 /init/main.c:909 /ini=
+t/main.c:927 /init/main.c:1076)
+[    1.254000] kernel_init (/init/main.c:1004)
+[    1.254000] ret_from_fork (/arch/x86/entry/entry_64.S:417)
+[ 1.254000] Code: ff a8 01 4c 0f 44 f3 4d 85 f6 0f 84 31 0e 00 00 4c 89 f2 =
+48 b8 00 00 00 00 00 fc ff df 48 c1 ea 03 80 3c 02 00 0f 85 2d 11 00 00 <49=
+> 83 3e ff 0f 84 a9 06 00 00 4d 8d b7 c0 fd ff ff 48 b8 00 00
+All code
+=3D=3D=3D=3D=3D=3D=3D=3D
+   0:   ff a8 01 4c 0f 44       ljmp   *0x440f4c01(%rax)
+   6:   f3 4d 85 f6             repz test %r14,%r14
+   a:   0f 84 31 0e 00 00       je     0xe41
+  10:   4c 89 f2                mov    %r14,%rdx
+  13:   48 b8 00 00 00 00 00    movabs $0xdffffc0000000000,%rax
+  1a:   fc ff df
+  1d:   48 c1 ea 03             shr    $0x3,%rdx
+  21:   80 3c 02 00             cmpb   $0x0,(%rdx,%rax,1)
+  25:   0f 85 2d 11 00 00       jne    0x1158
+  2b:*  49 83 3e ff             cmpq   $0xffffffffffffffff,(%r14)          =
+     <-- trapping instruction
+  2f:   0f 84 a9 06 00 00       je     0x6de
+  35:   4d 8d b7 c0 fd ff ff    lea    -0x240(%r15),%r14
+  3c:   48                      rex.W
+  3d:   b8                      .byte 0xb8
+        ...
+
+Code starting with the faulting instruction
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+   0:   49 83 3e ff             cmpq   $0xffffffffffffffff,(%r14)
+   4:   0f 84 a9 06 00 00       je     0x6b3
+   a:   4d 8d b7 c0 fd ff ff    lea    -0x240(%r15),%r14
+  11:   48                      rex.W
+  12:   b8                      .byte 0xb8
+        ...
+[    1.254000] RIP: __dump_page+0x1c8/0x13c0 RSP: ffff881c63c17810 (/./incl=
+ude/asm-generic/sections.h:42)
+[    1.254000] CR2: fffffffffffffffe
+[    1.254000] ---[ end trace e643dfbc44b562ca ]---
+
+--=20
+
+Thanks,
+Sasha=
