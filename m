@@ -1,64 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A99C36B0007
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:53:04 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id x188so2737000qkc.12
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 11:53:04 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id o188si2918451qkb.328.2018.03.14.11.53.02
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 00A2E6B000D
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:55:51 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id q19so686678qta.17
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 11:55:50 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y130si2917862qkb.344.2018.03.14.11.55.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 11:53:03 -0700 (PDT)
-Subject: Re: [mmotm:master 8/285] fs//hugetlbfs/inode.c:142:22: note: in
- expansion of macro 'PGOFF_LOFFT_MAX'
-References: <201803141423.WZYJTFEz%fengguang.wu@intel.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <0d54df0b-1e53-58a0-81ff-e496ae2f7cd8@oracle.com>
-Date: Wed, 14 Mar 2018 11:52:51 -0700
+        Wed, 14 Mar 2018 11:55:49 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2EIti8F114479
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:55:48 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2gq5c6kkr8-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:55:48 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Wed, 14 Mar 2018 18:55:18 -0000
+Date: Wed, 14 Mar 2018 11:54:52 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH 1/1 v2] x86: pkey-mprotect must allow pkey-0
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1521013574-27041-1-git-send-email-linuxram@us.ibm.com>
+ <18b155e3-07e9-5a4b-1f95-e1667078438c@intel.com>
+ <20180314171448.GA1060@ram.oc3035372033.ibm.com>
+ <5027ca9e-63c8-47ab-960d-a9c4466d7075@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <201803141423.WZYJTFEz%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5027ca9e-63c8-47ab-960d-a9c4466d7075@intel.com>
+Message-Id: <20180314185452.GB1060@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: mingo@redhat.com, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com
 
-On 03/13/2018 11:15 PM, kbuild test robot wrote:
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   ead058c4ec49752a4e0323368f1d695385c66020
-> commit: af7abfba1161d2814301844fe11adac16910ea80 [8/285] hugetlbfs-check-for-pgoff-value-overflow-v3
-> config: sh-defconfig (attached as .config)
-> compiler: sh4-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
-> reproduce:
->         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout af7abfba1161d2814301844fe11adac16910ea80
->         # save the attached .config to linux build tree
->         make.cross ARCH=sh 
+On Wed, Mar 14, 2018 at 10:51:26AM -0700, Dave Hansen wrote:
+> On 03/14/2018 10:14 AM, Ram Pai wrote:
+> > I look at key-0 as 'the key'. It has special status. 
+> > (a) It always exist.
 > 
-> All warnings (new ones prefixed by >>):
+> Do you mean "is always allocated"?
+
+always allocated and cannot be freed. Hence always exists.
+
+If we let it freed, than yes 'it is always allocated', but
+may not 'always exist'.
+
 > 
->    fs//hugetlbfs/inode.c: In function 'hugetlbfs_file_mmap':
->>> fs//hugetlbfs/inode.c:118:36: warning: left shift count is negative [-Wshift-count-negative]
->     #define PGOFF_LOFFT_MAX (PAGE_MASK << (BITS_PER_LONG - (2 * PAGE_SHIFT) - 1))
->                                        ^
+> > (b) it cannot be freed.
+> 
+> This is the one I'm questioning.
 
-BITS_PER_LONG = 32 (32bit config)
-PAGE_SHIFT = 16 (64K pages)
-This results in the negative shift value.
+this is a philosophical question. Should we allow the application 
+shoot-its-own-feet or help it from doing so. I tend to
+gravitate towards the later.
 
-I had proposed another (not so pretty way) to create the mask.
+> 
+> > (c) it is assigned by default.
+> 
+> I agree on this totally. :)
 
-#define PGOFF_LOFFT_MAX \
-	(((1UL << (PAGE_SHIFT + 1)) - 1) <<  (BITS_PER_LONG - (PAGE_SHIFT + 1)))
+good. we have some common ground :)
 
-This works for the above config, and should work for any.
+> 
+> > (d) its permissions cannot be modified.
+> 
+> Why not?  You could pretty easily get a thread going that had its stack
+> covered with another pkey and that was being very careful what it
+> accesses.  It could pretty easily set pkey-0's access or write-disable bits.
 
-Andrew, how would you like me to update the patch?  I can send a new
-version but know you have also made some changes for VM_WARN.  Would
-you simply like a delta on top of the current patch?
+ok. I see your point. Will not argue against it.
+
+> 
+> > (e) it bypasses key-permission checks when assigned.
+> 
+> I don't think this is necessary.  I think the only rule we *need* is:
+> 
+> 	pkey-0 is allocated implicitly at execve() time.  You do not
+> 	need to call pkey_alloc() to allocate it.
+
+And can be explicitly associated with any address range ?
+
+> 
+> > An arch need not necessarily map 'the key-0' to its key-0.  It could
+> > internally map it to any of its internal key of its choice, transparent
+> > to the application.
+> 
+> I don't understand what you are saying here.
+
+I was trying to disassociate the notion that "application's key-0 
+means hardware's key-0". Nevermind. its not important for this
+discussion.
 
 -- 
-Mike Kravetz
+Ram Pai
