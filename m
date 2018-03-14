@@ -1,106 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A737F6B0005
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 17:50:22 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id l32so3115866qtd.2
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:50:22 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id r7si2898260qkf.355.2018.03.14.14.50.21
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 511C56B0009
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 17:58:14 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id bd8-v6so219727plb.20
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:58:14 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id e6si2438005pgt.680.2018.03.14.14.58.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 14:50:21 -0700 (PDT)
-Subject: Re: [mmotm:master 8/285] fs//hugetlbfs/inode.c:142:22: note: in
- expansion of macro 'PGOFF_LOFFT_MAX'
-References: <201803141423.WZYJTFEz%fengguang.wu@intel.com>
- <0d54df0b-1e53-58a0-81ff-e496ae2f7cd8@oracle.com>
- <20180314144607.34f429990ccce6c4a244cbde@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <432fb2a3-b729-9c3a-7d60-890b8f9b10dd@oracle.com>
-Date: Wed, 14 Mar 2018 14:50:13 -0700
+        Wed, 14 Mar 2018 14:58:13 -0700 (PDT)
+Date: Wed, 14 Mar 2018 17:58:11 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
+ count (semaphore)
+Message-ID: <20180314175811.1ca7d830@vmware.local.home>
+In-Reply-To: <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
+References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
+	<20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20180314144607.34f429990ccce6c4a244cbde@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+Cc: mhiramat@kernel.org, oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
 
-On 03/14/2018 02:46 PM, Andrew Morton wrote:
-> On Wed, 14 Mar 2018 11:52:51 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> 
->> On 03/13/2018 11:15 PM, kbuild test robot wrote:
->>> tree:   git://git.cmpxchg.org/linux-mmotm.git master
->>> head:   ead058c4ec49752a4e0323368f1d695385c66020
->>> commit: af7abfba1161d2814301844fe11adac16910ea80 [8/285] hugetlbfs-check-for-pgoff-value-overflow-v3
->>> config: sh-defconfig (attached as .config)
->>> compiler: sh4-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
->>> reproduce:
->>>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->>>         chmod +x ~/bin/make.cross
->>>         git checkout af7abfba1161d2814301844fe11adac16910ea80
->>>         # save the attached .config to linux build tree
->>>         make.cross ARCH=sh 
->>>
->>> All warnings (new ones prefixed by >>):
->>>
->>>    fs//hugetlbfs/inode.c: In function 'hugetlbfs_file_mmap':
->>>>> fs//hugetlbfs/inode.c:118:36: warning: left shift count is negative [-Wshift-count-negative]
->>>     #define PGOFF_LOFFT_MAX (PAGE_MASK << (BITS_PER_LONG - (2 * PAGE_SHIFT) - 1))
->>>                                        ^
->>
->> BITS_PER_LONG = 32 (32bit config)
->> PAGE_SHIFT = 16 (64K pages)
->> This results in the negative shift value.
->>
->> I had proposed another (not so pretty way) to create the mask.
->>
->> #define PGOFF_LOFFT_MAX \
->> 	(((1UL << (PAGE_SHIFT + 1)) - 1) <<  (BITS_PER_LONG - (PAGE_SHIFT + 1)))
->>
->> This works for the above config, and should work for any.
->>
->> Andrew, how would you like me to update the patch?  I can send a new
->> version but know you have also made some changes for VM_WARN.  Would
->> you simply like a delta on top of the current patch?
-> 
-> This?
+On Tue, 13 Mar 2018 18:26:00 +0530
+Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
 
-That will do it.  Thank you,
--- 
-Mike Kravetz
+>  include/linux/uprobes.h     |   2 +
+>  kernel/events/uprobes.c     |   6 ++
+>  kernel/trace/trace_uprobe.c | 172 +++++++++++++++++++++++++++++++++++++++++++-
 
+I'm currently traveling, but I'll try to look at it in a week or two.
+
+-- Steve
+
+>  3 files changed, 178 insertions(+), 2 deletions(-)
 > 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: hugetlbfs-check-for-pgoff-value-overflow-v3-fix-fix
-> 
-> fix -ve left shift count on sh
-> 
-> Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: Nic Losby <blurbdust@gmail.com>
-> Cc: Yisheng Xie <xieyisheng1@huawei.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  fs/hugetlbfs/inode.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff -puN mm/hugetlb.c~hugetlbfs-check-for-pgoff-value-overflow-v3-fix-fix mm/hugetlb.c
-> diff -puN fs/hugetlbfs/inode.c~hugetlbfs-check-for-pgoff-value-overflow-v3-fix-fix fs/hugetlbfs/inode.c
-> --- a/fs/hugetlbfs/inode.c~hugetlbfs-check-for-pgoff-value-overflow-v3-fix-fix
-> +++ a/fs/hugetlbfs/inode.c
-> @@ -115,7 +115,8 @@ static void huge_pagevec_release(struct
->   * value.  The extra bit (- 1 in the shift value) is to take the sign
->   * bit into account.
->   */
-> -#define PGOFF_LOFFT_MAX (PAGE_MASK << (BITS_PER_LONG - (2 * PAGE_SHIFT) - 1))
-> +#define PGOFF_LOFFT_MAX \
-> +	(((1UL << (PAGE_SHIFT + 1)) - 1) <<  (BITS_PER_LONG - (PAGE_SHIFT + 1)))
->  
->  static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
->  {
-> _
-> 
+>
