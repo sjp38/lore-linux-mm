@@ -1,89 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D6256B000D
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 17:03:55 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id w140so2977636qkb.15
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:03:55 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g55sor2877451qtg.15.2018.03.14.14.03.54
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A3C16B0005
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 17:31:36 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id v8so3994307iob.0
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:31:36 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id g3sor870282itf.36.2018.03.14.14.31.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 14 Mar 2018 14:03:54 -0700 (PDT)
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v3] powerpc: treat pkey-0 special
-Date: Wed, 14 Mar 2018 14:01:35 -0700
-Message-Id: <1521061295-22605-1-git-send-email-linuxram@us.ibm.com>
+        Wed, 14 Mar 2018 14:31:35 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <201803141059.9HN3FiaN%fengguang.wu@intel.com>
+References: <201803141059.9HN3FiaN%fengguang.wu@intel.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Wed, 14 Mar 2018 22:31:34 +0100
+Message-ID: <CAK8P3a1CyFM8i14OVJO7wDL7951wC22BrO-xJCLg9j=+D4BFKw@mail.gmail.com>
+Subject: Re: lib///lzo/lzodefs.h:27:2: error: #error "conflicting endian definitions"
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mpe@ellerman.id.au
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@redhat.com, akpm@linux-foundation.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Applications need the ability to associate an address-range with some
-key and latter revert to its initial default key. Pkey-0 comes close to
-providing this function but falls short, because the current
-implementation disallows applications to explicitly associate pkey-0 to
-the address range.
+On Wed, Mar 14, 2018 at 3:16 AM, kbuild test robot
+<fengguang.wu@intel.com> wrote:
+> Hi Arnd,
+>
+> FYI, the error/warning still remains.
+>
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> head:   fc6eabbbf8ef99efed778dd5afabc83c21dba585
+> commit: 101110f6271ce956a049250c907bc960030577f8 Kbuild: always define endianess in kconfig.h
+> date:   3 weeks ago
+> config: m32r-allmodconfig (attached as .config)
+> compiler: m32r-linux-gcc (GCC) 7.2.0
+> reproduce:
+>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         git checkout 101110f6271ce956a049250c907bc960030577f8
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=m32r
+>
+> All errors (new ones prefixed by >>):
+>
+>    In file included from arch/m32r/include/uapi/asm/byteorder.h:8:0,
+>                     from arch/m32r/include/asm/bitops.h:22,
+>                     from include/linux/bitops.h:38,
+>                     from include/linux/kernel.h:11,
+>                     from include/linux/list.h:9,
+>                     from include/linux/module.h:9,
+>                     from lib///lzo/lzo1x_compress.c:14:
+>    include/linux/byteorder/big_endian.h:8:2: warning: #warning inconsistent configuration, needs CONFIG_CPU_BIG_ENDIAN [-Wcpp]
+>     #warning inconsistent configuration, needs CONFIG_CPU_BIG_ENDIAN
 
-This patch clarifies the semantics of pkey-0 and provides the
-corresponding implementation on powerpc.
+I did now get around to looking at this, sorry for the delay.
 
-Pkey-0 is special with the following semantics.
-(a) it is implicitly allocated and can never be freed. It always exists.
-(b) it is the default key assigned to any address-range.
-(c) it can be explicitly associated with any address-range.
+The thing is that the warning shows an actual bug when it was previously
+broken silently. The configuration sets CONFIG_CPU_LITTLE_ENDIAN
+but the compiler only supports big-endian mode.
 
-Tested on powerpc.
+The m32r architecture is being removed in linux-4.17 as we have shown
+that there are no remaining users, so I would suggest not doing anything
+here and leaving the warning in place.
 
-History:
-    v3 : added clarification of the semantics of pkey0.
-    		-- suggested by Dave Hansen
-    v2 : split the patch into two, one for x86 and one for powerpc
-    		-- suggested by Michael Ellermen
-
-cc: Dave Hansen <dave.hansen@intel.com>
-cc: Michael Ellermen <mpe@ellerman.id.au>
-cc: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Ram Pai <linuxram@us.ibm.com>
----
- arch/powerpc/include/asm/pkeys.h | 19 ++++++++++++++-----
- 1 file changed, 14 insertions(+), 5 deletions(-)
-
-diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
-index 0409c80..3c1deec 100644
---- a/arch/powerpc/include/asm/pkeys.h
-+++ b/arch/powerpc/include/asm/pkeys.h
-@@ -101,10 +101,18 @@ static inline u16 pte_to_pkey_bits(u64 pteflags)
- 
- static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
- {
--	/* A reserved key is never considered as 'explicitly allocated' */
--	return ((pkey < arch_max_pkey()) &&
--		!__mm_pkey_is_reserved(pkey) &&
--		__mm_pkey_is_allocated(mm, pkey));
-+	/* pkey 0 is allocated by default. */
-+	if (!pkey)
-+	       return true;
-+
-+	if (pkey < 0 || pkey >= arch_max_pkey())
-+	       return false;
-+
-+	/* Reserved keys are never allocated. */
-+	if (__mm_pkey_is_reserved(pkey))
-+	       return false;
-+
-+	return __mm_pkey_is_allocated(mm, pkey);
- }
- 
- extern void __arch_activate_pkey(int pkey);
-@@ -150,7 +158,8 @@ static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
- 	if (static_branch_likely(&pkey_disabled))
- 		return -1;
- 
--	if (!mm_pkey_is_allocated(mm, pkey))
-+	/* pkey 0 cannot be freed */
-+	if (!pkey || !mm_pkey_is_allocated(mm, pkey))
- 		return -EINVAL;
- 
- 	/*
--- 
-1.8.3.1
+       Arnd
