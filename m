@@ -1,68 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 921F76B000C
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 04:43:34 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id a189-v6so839574lfa.5
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 01:43:34 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p21-v6sor8460lfj.74.2018.03.14.01.43.32
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 326EE6B000E
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 04:49:13 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id a143so1706675qkg.4
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 01:49:13 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id 37si2178400qtu.37.2018.03.14.01.49.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Mar 2018 01:43:32 -0700 (PDT)
-Date: Wed, 14 Mar 2018 11:43:29 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH] slab, slub: remove size disparity on debug kernel
-Message-ID: <20180314084329.y7735ecw2is5i5pd@esperanza>
-References: <20180313165428.58699-1-shakeelb@google.com>
- <alpine.DEB.2.20.1803131217200.9367@nuc-kabylake>
- <CALvZod4qa39QJqCr3n6UqzdD6pfLAQ3Rix6zm9_1pQkfQCDa7Q@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 14 Mar 2018 01:49:09 -0700 (PDT)
+Date: Wed, 14 Mar 2018 09:48:44 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v9 17/24] mm: Protect mm_rb tree with a rwlock
+Message-ID: <20180314084844.GP4043@hirez.programming.kicks-ass.net>
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1520963994-28477-18-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod4qa39QJqCr3n6UqzdD6pfLAQ3Rix6zm9_1pQkfQCDa7Q@mail.gmail.com>
+In-Reply-To: <1520963994-28477-18-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Christopher Lameter <cl@linux.com>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Tue, Mar 13, 2018 at 10:36:52AM -0700, Shakeel Butt wrote:
-> On Tue, Mar 13, 2018 at 10:19 AM, Christopher Lameter <cl@linux.com> wrote:
-> > On Tue, 13 Mar 2018, Shakeel Butt wrote:
-> >
-> >> However for SLUB in debug kernel, the sizes were same. On further
-> >> inspection it is found that SLUB always use kmem_cache.object_size to
-> >> measure the kmem_cache.size while SLAB use the given kmem_cache.size. In
-> >> the debug kernel the slab's size can be larger than its object_size.
-> >> Thus in the creation of non-root slab, the SLAB uses the root's size as
-> >> base to calculate the non-root slab's size and thus non-root slab's size
-> >> can be larger than the root slab's size. For SLUB, the non-root slab's
-> >> size is measured based on the root's object_size and thus the size will
-> >> remain same for root and non-root slab.
-> >
-> > Note that the object_size and size may differ for SLUB based on kernel
-> > parameters and slab configuration. For SLAB these are compilation options.
-> >
-> 
-> Thanks for the explanation.
-> 
-> >> @@ -379,7 +379,7 @@ struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
-> >>  }
-> >>
-> >>  static struct kmem_cache *create_cache(const char *name,
-> >> -             unsigned int object_size, unsigned int size, unsigned int align,
-> >> +             unsigned int object_size, unsigned int align,
-> >>               slab_flags_t flags, unsigned int useroffset,
-> >
-> > Why was both the size and object_size passed during cache creation in the
-> > first place? From the flags etc the slab logic should be able to compute
-> > the actual bytes required for each object and its metadata.
-> >
-> 
-> +Vladimir
-> 
-> I think it was introduced by 794b1248be4e7 ("memcg, slab: separate
-> memcg vs root cache creation paths") but I could not find out the
-> reason.
+On Tue, Mar 13, 2018 at 06:59:47PM +0100, Laurent Dufour wrote:
+> This change is inspired by the Peter's proposal patch [1] which was
+> protecting the VMA using SRCU. Unfortunately, SRCU is not scaling well in
+> that particular case, and it is introducing major performance degradation
+> due to excessive scheduling operations.
 
-This was a mistake - I missed that __kmem_cache_create() overwrites
-kmem_cache->size. Thanks for fixing this.
+Do you happen to have a little more detail on that?
+
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 34fde7111e88..28c763ea1036 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -335,6 +335,7 @@ struct vm_area_struct {
+>  	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
+>  #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+>  	seqcount_t vm_sequence;
+> +	atomic_t vm_ref_count;		/* see vma_get(), vma_put() */
+>  #endif
+>  } __randomize_layout;
+>  
+> @@ -353,6 +354,9 @@ struct kioctx_table;
+>  struct mm_struct {
+>  	struct vm_area_struct *mmap;		/* list of VMAs */
+>  	struct rb_root mm_rb;
+> +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+> +	rwlock_t mm_rb_lock;
+> +#endif
+>  	u32 vmacache_seqnum;                   /* per-thread vmacache */
+>  #ifdef CONFIG_MMU
+>  	unsigned long (*get_unmapped_area) (struct file *filp,
+
+When I tried this, it simply traded contention on mmap_sem for
+contention on these two cachelines.
+
+This was for the concurrent fault benchmark, where mmap_sem is only ever
+acquired for reading (so no blocking ever happens) and the bottle-neck
+was really pure cacheline access.
+
+Only by using RCU can you avoid that thrashing.
+
+Also note that if your database allocates the one giant mapping, it'll
+be _one_ VMA and that vm_ref_count gets _very_ hot indeed.
