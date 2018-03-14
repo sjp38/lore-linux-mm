@@ -1,47 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 188896B0010
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 09:55:48 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id b7so3780754ywe.17
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 06:55:48 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h189sor1044373ywf.181.2018.03.14.06.55.47
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C7F6C6B0022
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 10:08:45 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g66so1649377pfj.11
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 07:08:45 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id x23si1907539pgv.124.2018.03.14.07.08.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Mar 2018 06:55:47 -0700 (PDT)
-Date: Wed, 14 Mar 2018 06:55:44 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] percpu: Allow to kill tasks doing pcpu_alloc() and
- waiting for pcpu_balance_workfn()
-Message-ID: <20180314135544.GT2943022@devbig577.frc2.facebook.com>
-References: <152102825828.13166.9574628787314078889.stgit@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Mar 2018 07:08:44 -0700 (PDT)
+Subject: Re: [PATCH] x86, powerpc : pkey-mprotect must allow pkey-0
+References: <1520583161-11741-1-git-send-email-linuxram@us.ibm.com>
+ <ec90ed75-2810-bcc3-8439-8dc85a6b46ac@redhat.com>
+ <20180309200017.GR1060@ram.oc3035372033.ibm.com>
+ <f71b583f-2b66-e9ed-b08b-fddff228a5a7@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <b525f67d-8b79-56c1-2eed-292a806d9202@intel.com>
+Date: Wed, 14 Mar 2018 07:08:29 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <152102825828.13166.9574628787314078889.stgit@localhost.localdomain>
+In-Reply-To: <f71b583f-2b66-e9ed-b08b-fddff228a5a7@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Florian Weimer <fweimer@redhat.com>, Ram Pai <linuxram@us.ibm.com>
+Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
 
-On Wed, Mar 14, 2018 at 02:51:48PM +0300, Kirill Tkhai wrote:
-> In case of memory deficit and low percpu memory pages,
-> pcpu_balance_workfn() takes pcpu_alloc_mutex for a long
-> time (as it makes memory allocations itself and waits
-> for memory reclaim). If tasks doing pcpu_alloc() are
-> choosen by OOM killer, they can't exit, because they
-> are waiting for the mutex.
-> 
-> The patch makes pcpu_alloc() to care about killing signal
-> and use mutex_lock_killable(), when it's allowed by GFP
-> flags. This guarantees, a task does not miss SIGKILL
-> from OOM killer.
-> 
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+On 03/14/2018 01:00 AM, Florian Weimer wrote:
+> ... but not the key which is used for PROT_EXEC emulation, which is still
+> reserved
 
-Applied to percpu/for-4.16-fixes.
-
-Thanks, Kirill.
-
--- 
-tejun
+The PROT_EXEC key is dynamically allocated.  There is no "the key".
