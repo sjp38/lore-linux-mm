@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ACF56B0005
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 03:47:20 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id 41so1582432qtp.8
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 00:47:20 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d38sor1635542qtd.27.2018.03.14.00.47.19
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6C86B0005
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 04:00:46 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id g199so1573104qke.18
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 01:00:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id g5si1754420qkc.463.2018.03.14.01.00.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Mar 2018 00:47:19 -0700 (PDT)
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH 1/1 v2] x86: pkey-mprotect must allow pkey-0
-Date: Wed, 14 Mar 2018 00:46:14 -0700
-Message-Id: <1521013574-27041-1-git-send-email-linuxram@us.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Mar 2018 01:00:45 -0700 (PDT)
+Subject: Re: [PATCH] x86, powerpc : pkey-mprotect must allow pkey-0
+References: <1520583161-11741-1-git-send-email-linuxram@us.ibm.com>
+ <ec90ed75-2810-bcc3-8439-8dc85a6b46ac@redhat.com>
+ <20180309200017.GR1060@ram.oc3035372033.ibm.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <f71b583f-2b66-e9ed-b08b-fddff228a5a7@redhat.com>
+Date: Wed, 14 Mar 2018 09:00:36 +0100
+MIME-Version: 1.0
+In-Reply-To: <20180309200017.GR1060@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mingo@redhat.com
-Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
 
-Once an address range is associated with an allocated pkey, it cannot be
-reverted back to key-0. There is no valid reason for the above behavior.  On
-the contrary applications need the ability to do so.
+On 03/09/2018 09:00 PM, Ram Pai wrote:
+> On Fri, Mar 09, 2018 at 12:04:49PM +0100, Florian Weimer wrote:
+>> On 03/09/2018 09:12 AM, Ram Pai wrote:
+>>> Once an address range is associated with an allocated pkey, it cannot be
+>>> reverted back to key-0. There is no valid reason for the above behavior.
+>>
+>> mprotect without a key does not necessarily use key 0, e.g. if
+>> protection keys are used to emulate page protection flag combination
+>> which is not directly supported by the hardware.
+>>
+>> Therefore, it seems to me that filtering out non-allocated keys is
+>> the right thing to do.
+> 
+> I am not sure, what you mean. Do you agree with the patch or otherwise?
 
-The patch relaxes the restriction.
+I think it's inconsistent to make key 0 allocated, but not the key which 
+is used for PROT_EXEC emulation, which is still reserved.  Even if you 
+change the key 0 behavior, it is still not possible to emulate mprotect 
+behavior faithfully with an allocated key.
 
-Tested on x86_64.
-
-cc: Dave Hansen <dave.hansen@intel.com>
-cc: Michael Ellermen <mpe@ellerman.id.au>
-cc: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Ram Pai <linuxram@us.ibm.com>
----
- arch/x86/include/asm/pkeys.h | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/arch/x86/include/asm/pkeys.h b/arch/x86/include/asm/pkeys.h
-index a0ba1ff..6ea7486 100644
---- a/arch/x86/include/asm/pkeys.h
-+++ b/arch/x86/include/asm/pkeys.h
-@@ -52,7 +52,7 @@ bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
- 	 * from pkey_alloc().  pkey 0 is special, and never
- 	 * returned from pkey_alloc().
- 	 */
--	if (pkey <= 0)
-+	if (pkey < 0)
- 		return false;
- 	if (pkey >= arch_max_pkey())
- 		return false;
-@@ -92,7 +92,8 @@ int mm_pkey_alloc(struct mm_struct *mm)
- static inline
- int mm_pkey_free(struct mm_struct *mm, int pkey)
- {
--	if (!mm_pkey_is_allocated(mm, pkey))
-+	/* pkey 0 is special and can never be freed */
-+	if (!pkey || !mm_pkey_is_allocated(mm, pkey))
- 		return -EINVAL;
- 
- 	mm_set_pkey_free(mm, pkey);
--- 
-1.8.3.1
+Thanks,
+Florian
