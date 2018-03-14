@@ -1,47 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F0D46B0024
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 09:04:26 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id u68so1572907pfk.8
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 06:04:26 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 30-v6si1921814plc.446.2018.03.14.06.04.24
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 444BF6B000C
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 09:11:26 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id v4-v6so1435594plp.16
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 06:11:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 44-v6si1974353pla.376.2018.03.14.06.11.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Mar 2018 06:04:24 -0700 (PDT)
-Date: Wed, 14 Mar 2018 06:04:18 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH v19 0/8] mm: security: ro protection for dynamic data
-Message-ID: <20180314130418.GG29631@bombadil.infradead.org>
-References: <20180313214554.28521-1-igor.stoppa@huawei.com>
- <a9bfc57f-1591-21b6-1676-b60341a2fadd@huawei.com>
- <20180314115653.GD29631@bombadil.infradead.org>
- <8623382b-cdbe-8862-8c2f-fa5bc6a1213a@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Mar 2018 06:11:24 -0700 (PDT)
+Date: Wed, 14 Mar 2018 14:11:18 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v9 00/24] Speculative page faults
+Message-ID: <20180314131118.GC23100@dhcp22.suse.cz>
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8623382b-cdbe-8862-8c2f-fa5bc6a1213a@huawei.com>
+In-Reply-To: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: keescook@chromium.org, david@fromorbit.com, rppt@linux.vnet.ibm.com, mhocko@kernel.org, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Wed, Mar 14, 2018 at 02:55:10PM +0200, Igor Stoppa wrote:
-> >  The page_frag allocator seems like a much better place to
-> > start than genalloc.  It has a significantly lower overhead and is
-> > much more suited to the kind of probably-identical-lifespan that the
-> > pmalloc API is going to persuade its users to have.
-> 
-> Could you please provide me a pointer?
-> I did a quick search on 4.16-rc5 and found the definition of page_frag
-> and sk_page_frag(). Is this what you are referring to?
+On Tue 13-03-18 18:59:30, Laurent Dufour wrote:
+> Changes since v8:
+>  - Don't check PMD when locking the pte when THP is disabled
+>    Thanks to Daniel Jordan for reporting this.
+>  - Rebase on 4.16
 
-It's a blink-and-you'll-miss-it allocator buried deep in mm/page_alloc.c:
-void *page_frag_alloc(struct page_frag_cache *nc,
-                      unsigned int fragsz, gfp_t gfp_mask)
-void page_frag_free(void *addr)
+Is this really worth reposting the whole pile? I mean this is at v9,
+each doing little changes. It is quite tiresome to barely get to a
+bookmarked version just to find out that there are 2 new versions out.
 
-I don't necessarily think you should use it as-is, but the principle it uses
-seems like a better match to me than the rather complex genalloc.  Just
-allocate some pages and track the offset within those pages that is the
-current allocation point.  It's less than 100 lines of code!
+I am sorry to be grumpy and I can understand some frustration it doesn't
+move forward that easilly but this is a _big_ change. We should start
+with a real high level review rather than doing small changes here and
+there and reach v20 quickly.
+
+I am planning to find some time to look at it but the spare cycles are
+so rare these days...
+-- 
+Michal Hocko
+SUSE Labs
