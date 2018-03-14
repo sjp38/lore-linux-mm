@@ -1,72 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BDF016B0007
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 21:03:37 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id h7-v6so864876oti.23
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 18:03:37 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id i3si392178oik.340.2018.03.13.18.03.36
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6637C6B0009
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2018 21:21:26 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id u46-v6so888938otg.16
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 18:21:26 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k192sor604668oib.187.2018.03.13.18.21.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Mar 2018 18:03:36 -0700 (PDT)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w2E11wpT132040
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 01:03:36 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2120.oracle.com with ESMTP id 2gps3bg2er-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 01:03:35 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w2E13YGp002089
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 01:03:35 GMT
-Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w2E13YwM014418
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 01:03:34 GMT
-Received: by mail-oi0-f44.google.com with SMTP id g5so1344728oiy.8
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2018 18:03:33 -0700 (PDT)
+        (Google Transport Security);
+        Tue, 13 Mar 2018 18:21:25 -0700 (PDT)
+Subject: Re: kernel BUG at mm/khugepaged.c:533 on 4.15.3
+From: Laura Abbott <labbott@redhat.com>
+References: <2a152301-0535-6cb6-8823-44035f007fae@redhat.com>
+ <20180221091445.iqtncxx66etpqamt@node.shutemov.name>
+ <70a4ca16-0d54-5df4-15bb-fdf1538ef080@redhat.com>
+Message-ID: <b2c6ca17-70d7-24ed-da0a-7a606a5dc7b4@redhat.com>
+Date: Tue, 13 Mar 2018 18:21:21 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180314005350.6xdda2uqzuy4n3o6@sasha-lappy>
-References: <20180131210300.22963-1-pasha.tatashin@oracle.com>
- <20180131210300.22963-2-pasha.tatashin@oracle.com> <20180313234333.j3i43yxeawx5d67x@sasha-lappy>
- <CAGM2reaPK=ZcLBOnmBiC2-u86DZC6ukOhL1xxZofB2OTW3ozoA@mail.gmail.com> <20180314005350.6xdda2uqzuy4n3o6@sasha-lappy>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Tue, 13 Mar 2018 21:02:53 -0400
-Message-ID: <CAGM2reYo2EbH0W70rJGSGWRBAO=upcNDanBoCQgve+eQ_94C8A@mail.gmail.com>
-Subject: Re: [PATCH v2 1/2] mm: uninitialized struct page poisoning sanity checking
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <70a4ca16-0d54-5df4-15bb-fdf1538ef080@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <Alexander.Levin@microsoft.com>
-Cc: "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@suse.com" <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "bharata@linux.vnet.ibm.com" <bharata@linux.vnet.ibm.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Linux-MM <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, Mar 13, 2018 at 8:53 PM, Sasha Levin
-<Alexander.Levin@microsoft.com> wrote:
-> On Tue, Mar 13, 2018 at 08:38:57PM -0400, Pavel Tatashin wrote:
->>Hi Sasha,
+On 02/22/2018 09:33 AM, Laura Abbott wrote:
+> On 02/21/2018 01:14 AM, Kirill A. Shutemov wrote:
+>> On Mon, Feb 19, 2018 at 10:51:01AM -0800, Laura Abbott wrote:
+>>> Hi,
+>>>
+>>> Fedora got a bug report of a BUG with 4.15.3:
+>>> (https://bugzilla.redhat.com/show_bug.cgi?id=1546709)
 >>
->>It seems the patch is doing the right thing, and it catches bugs. Here
->>we access uninitialized struct page. The question is why this happens?
->
-> Not completely; note that we die on an invalid reference rather than
-> assertion failure.
-
-I think that invalid reference happens within assertion failure, as
-far as I can tell, it is dump_page() where we get the invalid
-reference, but to get to dump_page() from get_nid_for_pfn() we must
-have triggered the assertion.
-
->
->>register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
->>   page_nid = get_nid_for_pfn(pfn);
+>> Is it new to v4.15 kernel?
+>> I don't see any recent change that could cause it.
 >>
->>node id is stored in page flags, and since struct page is poisoned,
->>and the pattern is recognized, the panic is triggered.
+> 
+> The original reporter only saw it on 4.15 but another reporter
+> saw it on 4.14.13 (I only found this out after I sent the
+> e-mail). So I suspect the bug may have been latent but
+> hard to trigger.
+> 
 >>
->>Do you have config file? Also, instructions how to reproduce it?
->
-> Attached the config. It just happens on boot.
+>>> page:fffffac1800a0000 count:513 mapcount:1 mapping:ffff95657ef359a1 index:0x7f95d3400 compound_mapcount: 0
+>>> flags: 0xffffe00048268(uptodate|lru|active|owner_priv_1|head|swapbacked)
+>>> raw: 000ffffe00048268 ffff95657ef359a1 00000007f95d3400 0000020100000000
+>>> raw: fffffac18edea9a0 fffffac18e7085a0 00000000000db400 ffff9567a3269800
+>>> page dumped because: VM_BUG_ON_PAGE(PageCompound(page))
+>>> page->mem_cgroup:ffff9567a3269800
+>>> ------------[ cut here ]------------
+>>> kernel BUG at mm/khugepaged.c:533!
+>>> invalid opcode: 0000 [#1] SMP PTI
+>>> Modules linked in: vhost_net vhost tap fuse xt_CHECKSUM ipt_MASQUERADE nf_nat_masquerade_ipv4 tun ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 xt_conntrack ip_set nfnetlink ebtable_nat ebtable_broute bridge stp llc ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_raw ip6table_security iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack libcrc32c iptable_mangle iptable_raw iptable_security ebtable_filter ebtables ip6table_filter ip6_tables sunrpc vfat fat rmi_smbus rmi_core arc4 intel_rapl x86_pkg_temp_thermal intel_powerclamp coretemp snd_hda_codec_hdmi iwlmvm kvm_intel iTCO_wdt mac80211 snd_hda_codec_realtek iTCO_vendor_support mei_wdt kvm snd_hda_codec_generic irqbypass intel_cstate snd_hda_intel intel_uncore iwlwifi uvcvideo intel_rapl_perf
+>>> snd_hda_codec videobuf2_vmalloc videobuf2_memops videobuf2_v4l2 videobuf2_core snd_hda_core cfg80211 videodev snd_hwdep snd_seq snd_seq_device snd_pcm media mei_me snd_timer thinkpad_acpi wmi_bmof rtsx_pci_ms joydev tpm_tis memstick i2c_i801 mei tpm_tis_core snd soundcore intel_pch_thermal tpm shpchp rfkill dm_crypt hid_logitech_hidpp hid_logitech_dj mmc_block nouveau i915 rtsx_pci_sdmmc mmc_core mxm_wmi ttm e1000e i2c_algo_bit drm_kms_helper crct10dif_pclmul crc32_pclmul crc32c_intel ptp drm ghash_clmulni_intel serio_raw rtsx_pci pps_core wmi video
+>>> CPU: 2 PID: 66 Comm: khugepaged Not tainted 4.15.3-300.fc27.x86_64 #1
+>>> Hardware name: LENOVO 20FXS0BB14/20FXS0BB14, BIOS R07ET63W (2.03 ) 03/15/2016
+>>> RIP: 0010:khugepaged+0x1af6/0x2130
+>>> RSP: 0018:ffffacacc1b4bdc0 EFLAGS: 00010282
+>>> RAX: 0000000000000021 RBX: fffffac1800a0000 RCX: 0000000000000006
+>>> RDX: 0000000000000000 RSI: 0000000000000086 RDI: ffff9567c14968f0
+>>> RBP: fffffac18e3a5b40 R08: 00000000000004a8 R09: 0000000000000004
+>>> R10: ffffacacc1b4bd70 R11: ffffffffb995b1ed R12: 00007f95f7e00000
+>>> R13: ffff95661113eaf0 R14: ffff9567a9ea0000 R15: 8000000002800825
+>>> FS:A  0000000000000000(0000) GS:ffff9567c1480000(0000) knlGS:0000000000000000
+>>> CS:A  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>>> CR2: 0000000000481046 CR3: 00000002ee20a005 CR4: 00000000003626e0
+>>> Call Trace:
+>>> ? finish_wait+0x80/0x80
+>>> ? collapse_shmem+0xdd0/0xdd0
+>>> kthread+0x113/0x130
+>>> ? kthread_create_worker_on_cpu+0x70/0x70
+>>> ret_from_fork+0x35/0x40
+>>> Code: ff e9 e7 fd ff ff bb 07 00 00 00 49 89 c7 e9 20 fb ff ff 48 83 ea 01 e9 66 fc ff ff 48 c7 c6 d8 3f 0a b9 48 89 df e8 0a 82 fa ff <0f> 0b 31 c9 4c 89 fa 48 89 de 4c 89 f7 e8 58 f1 fd ff e9 2e fa
+>>> RIP: khugepaged+0x1af6/0x2130 RSP: ffffacacc1b4bdc0
+>>> ---[ end trace a734c2f4d682e3bd ]---
+>>>
+>>> Reporter said it happened several times. Config is attached.
+>>> Any ideas?
+>>
+>> Looks like somebody managed to insert THP into the range in split it back
+>> between khugepaged_scan_pmd() and __collapse_huge_page_isolate().
+>>
+>> That's rather unlikely chain of events, but I don't see other option.
+>>
+>> Could you check if this works:
+>>
+>> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+>> index b7e2268dfc9a..c15da1ea7e63 100644
+>> --- a/mm/khugepaged.c
+>> +++ b/mm/khugepaged.c
+>> @@ -530,7 +530,12 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>> A A A A A A A A A A A A A  goto out;
+>> A A A A A A A A A  }
+>> -A A A A A A A  VM_BUG_ON_PAGE(PageCompound(page), page);
+>> +A A A A A A A  /* TODO: teach khugepaged to collapse THP mapped with pte */
+>> +A A A A A A A  if (PageCompound(page)) {
+>> +A A A A A A A A A A A  result = SCAN_PAGE_COMPOUND;
+>> +A A A A A A A A A A A  goto out;
+>> +A A A A A A A  }
+>> +
+>> A A A A A A A A A  VM_BUG_ON_PAGE(!PageAnon(page), page);
+>> A A A A A A A A A  /*
+>>
+> 
+> I asked the reporter(s) to test with this patch. I'll let you know
+> if I hear any results.
+> 
+> Thanks,
+> Laura
 
-Thanks, I will try in qemu.
+Reporter said he had been running with the patch for several
+weeks and hadn't seen the issue again.
 
-Pasha
+Thanks,
+Laura
