@@ -1,96 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AF996B000C
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 10:38:41 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id j4so2068912wrg.11
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 07:38:41 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.131])
-        by mx.google.com with ESMTPS id u62si1027759wma.135.2018.03.14.07.38.40
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 87CBF6B000C
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 10:40:09 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e127so1078888wmg.7
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 07:40:09 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
+        by mx.google.com with ESMTPS id a35si2070775wrc.46.2018.03.14.07.40.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 07:38:40 -0700 (PDT)
+        Wed, 14 Mar 2018 07:40:08 -0700 (PDT)
 From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH 09/16] mm: remove blackfin MPU support
-Date: Wed, 14 Mar 2018 15:37:38 +0100
-Message-Id: <20180314143755.1508262-2-arnd@arndb.de>
-In-Reply-To: <20180314143755.1508262-1-arnd@arndb.de>
-References: <20180314143755.1508262-1-arnd@arndb.de>
+Subject: [PATCH 10/16] mm: remove obsolete alloc_remap()
+Date: Wed, 14 Mar 2018 15:39:09 +0100
+Message-Id: <20180314143958.1548568-1-arnd@arndb.de>
+In-Reply-To: <20180314143529.1456168-1-arnd@arndb.de>
+References: <20180314143529.1456168-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Jessica Yu <jeyu@kernel.org>, "Steven Rostedt (VMware)" <rostedt@goodmis.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Jeremy Linton <jeremy.linton@arm.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Petr Tesarik <ptesarik@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org
 
-The CONFIG_MPU option was only defined on blackfin, and that architecture
-is now being removed, so the respective code can be simplified.
+Tile was the only remaining architecture to implement alloc_remap(),
+and since that is being removed, there is no point in keeping this
+function.
 
-A lot of other microcontrollers have an MPU, but I suspect that if we
-want to bring that support back, we'd do it differently anyway.
+Removing all callers simplifies the mem_map handling.
 
 Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 ---
- kernel/module.c |  4 ----
- mm/nommu.c      | 20 --------------------
- 2 files changed, 24 deletions(-)
+ include/linux/bootmem.h |  9 ---------
+ mm/page_alloc.c         |  5 +----
+ mm/sparse.c             | 15 ---------------
+ 3 files changed, 1 insertion(+), 28 deletions(-)
 
-diff --git a/kernel/module.c b/kernel/module.c
-index ad2d420024f6..2c1df850029b 100644
---- a/kernel/module.c
-+++ b/kernel/module.c
-@@ -2181,10 +2181,6 @@ static void free_module(struct module *mod)
- 	/* Finally, free the core (containing the module structure) */
- 	disable_ro_nx(&mod->core_layout);
- 	module_memfree(mod->core_layout.base);
--
--#ifdef CONFIG_MPU
--	update_protections(current->mm);
--#endif
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index a53063e9d7d8..7942a96b1a9d 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -364,15 +364,6 @@ static inline void __init memblock_free_late(
  }
+ #endif /* defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM) */
  
- void *__symbol_get(const char *symbol)
-diff --git a/mm/nommu.c b/mm/nommu.c
-index ebb6e618dade..838a8fdec5c2 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -663,22 +663,6 @@ static void put_nommu_region(struct vm_region *region)
- }
- 
- /*
-- * update protection on a vma
-- */
--static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
+-#ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
+-extern void *alloc_remap(int nid, unsigned long size);
+-#else
+-static inline void *alloc_remap(int nid, unsigned long size)
 -{
--#ifdef CONFIG_MPU
--	struct mm_struct *mm = vma->vm_mm;
--	long start = vma->vm_start & PAGE_MASK;
--	while (start < vma->vm_end) {
--		protect_page(mm, start, flags);
--		start += PAGE_SIZE;
--	}
--	update_protections(mm);
--#endif
+-	return NULL;
 -}
+-#endif /* CONFIG_HAVE_ARCH_ALLOC_REMAP */
 -
--/*
-  * add a VMA into a process's mm_struct in the appropriate place in the list
-  * and tree and add to the address space's page tree also if not an anonymous
-  * page
-@@ -695,8 +679,6 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
- 	mm->map_count++;
- 	vma->vm_mm = mm;
+ extern void *alloc_large_system_hash(const char *tablename,
+ 				     unsigned long bucketsize,
+ 				     unsigned long numentries,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index cb416723538f..484e21062228 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6199,10 +6199,7 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
+ 		end = pgdat_end_pfn(pgdat);
+ 		end = ALIGN(end, MAX_ORDER_NR_PAGES);
+ 		size =  (end - start) * sizeof(struct page);
+-		map = alloc_remap(pgdat->node_id, size);
+-		if (!map)
+-			map = memblock_virt_alloc_node_nopanic(size,
+-							       pgdat->node_id);
++		map = memblock_virt_alloc_node_nopanic(size, pgdat->node_id);
+ 		pgdat->node_mem_map = map + offset;
+ 	}
+ 	pr_debug("%s: node %d, pgdat %08lx, node_mem_map %08lx\n",
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 7af5e7a92528..65bb52599f90 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -427,10 +427,6 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
+ 	struct page *map;
+ 	unsigned long size;
  
--	protect_vma(vma, vma->vm_flags);
+-	map = alloc_remap(nid, sizeof(struct page) * PAGES_PER_SECTION);
+-	if (map)
+-		return map;
 -
- 	/* add the VMA to the mapping */
- 	if (vma->vm_file) {
- 		mapping = vma->vm_file->f_mapping;
-@@ -757,8 +739,6 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct task_struct *curr = current;
+ 	size = PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
+ 	map = memblock_virt_alloc_try_nid(size,
+ 					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
+@@ -446,17 +442,6 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 	unsigned long pnum;
+ 	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
  
--	protect_vma(vma, 0);
+-	map = alloc_remap(nodeid, size * map_count);
+-	if (map) {
+-		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+-			if (!present_section_nr(pnum))
+-				continue;
+-			map_map[pnum] = map;
+-			map += size;
+-		}
+-		return;
+-	}
 -
- 	mm->map_count--;
- 	for (i = 0; i < VMACACHE_SIZE; i++) {
- 		/* if the vma is cached, invalidate the entire cache */
+ 	size = PAGE_ALIGN(size);
+ 	map = memblock_virt_alloc_try_nid_raw(size * map_count,
+ 					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
 -- 
 2.9.0
