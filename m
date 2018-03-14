@@ -1,54 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EFC936B000C
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 16:44:47 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v3so2121578pfm.21
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 13:44:47 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4381D6B000C
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 16:56:34 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id p128so1912856pga.19
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 13:56:34 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d2si2352853pgc.758.2018.03.14.13.44.46
+        by mx.google.com with ESMTPS id p66si1829702pfk.100.2018.03.14.13.56.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 13:44:46 -0700 (PDT)
-Date: Wed, 14 Mar 2018 13:44:45 -0700
+        Wed, 14 Mar 2018 13:56:32 -0700 (PDT)
+Date: Wed, 14 Mar 2018 13:56:31 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [memcg:since-4.15 382/386] arch/m68k/mm/init.c:125:0: warning:
- "UL" redefined
-Message-Id: <20180314134445.61e26e6038e5c565f1438a9b@linux-foundation.org>
-In-Reply-To: <201803142315.LTV2xdYr%fengguang.wu@intel.com>
-References: <201803142315.LTV2xdYr%fengguang.wu@intel.com>
+Subject: Re: [PATCH] percpu: Allow to kill tasks doing pcpu_alloc() and
+ waiting for pcpu_balance_workfn()
+Message-Id: <20180314135631.3e21b31b154e9f3036fa6c52@linux-foundation.org>
+In-Reply-To: <152102825828.13166.9574628787314078889.stgit@localhost.localdomain>
+References: <152102825828.13166.9574628787314078889.stgit@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Masahiro Yamada <yamada.masahiro@socionext.com>, kbuild-all@01.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: tj@kernel.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 14 Mar 2018 23:20:21 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Wed, 14 Mar 2018 14:51:48 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-4.15
-> head:   5c3f7a041df707417532dd64b1d71fc29b24c0fe
-> commit: 145e9c14cca497b2d02f9edcf9307aad5946172f [382/386] linux/const.h: move UL() macro to include/linux/const.h
-> config: m68k-sun3_defconfig (attached as .config)
-> compiler: m68k-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
-> reproduce:
->         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout 145e9c14cca497b2d02f9edcf9307aad5946172f
->         # save the attached .config to linux build tree
->         make.cross ARCH=m68k 
+> In case of memory deficit and low percpu memory pages,
+> pcpu_balance_workfn() takes pcpu_alloc_mutex for a long
+> time (as it makes memory allocations itself and waits
+> for memory reclaim). If tasks doing pcpu_alloc() are
+> choosen by OOM killer, they can't exit, because they
+> are waiting for the mutex.
 > 
-> All warnings (new ones prefixed by >>):
+> The patch makes pcpu_alloc() to care about killing signal
+> and use mutex_lock_killable(), when it's allowed by GFP
+> flags. This guarantees, a task does not miss SIGKILL
+> from OOM killer.
 > 
->    arch/m68k/mm/init.c: In function 'print_memmap':
-> >> arch/m68k/mm/init.c:125:0: warning: "UL" redefined
->     #define UL(x) ((unsigned long) (x))
->     
->    In file included from include/linux/list.h:8:0,
->                     from include/linux/module.h:9,
->                     from arch/m68k/mm/init.c:11:
->    include/linux/const.h:6:0: note: this is the location of the previous definition
->     #define UL(x)  (_UL(x))
+> ...
+>
+> --- a/mm/percpu.c
+> +++ b/mm/percpu.c
+> @@ -1369,8 +1369,12 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+>  		return NULL;
+>  	}
+>  
+> -	if (!is_atomic)
+> -		mutex_lock(&pcpu_alloc_mutex);
+> +	if (!is_atomic) {
+> +		if (gfp & __GFP_NOFAIL)
+> +			mutex_lock(&pcpu_alloc_mutex);
+> +		else if (mutex_lock_killable(&pcpu_alloc_mutex))
+> +			return NULL;
+> +	}
 
-That's OK - an unrelated patch in linux-next.patch removes that
-#define.
+It would benefit from a comment explaining why we're doing this (it's
+for the oom-killer).
+
+My memory is weak and our documentation is awful.  What does
+mutex_lock_killable() actually do and how does it differ from
+mutex_lock_interruptible()?  Userspace tasks can run pcpu_alloc() and I
+wonder if there's any way in which a userspace-delivered signal can
+disrupt another userspace task's memory allocation attempt?
