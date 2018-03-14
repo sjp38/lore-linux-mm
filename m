@@ -1,44 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 605B96B0007
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 15:38:58 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id c41-v6so1860518plj.10
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 12:38:58 -0700 (PDT)
-Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
-        by mx.google.com with ESMTPS id v6-v6si2425405plg.618.2018.03.14.12.38.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 12:38:57 -0700 (PDT)
-From: "Kani, Toshi" <toshi.kani@hpe.com>
-Subject: Re: [PATCH 2/2] x86/mm: remove pointless checks in vmalloc_fault
-Date: Wed, 14 Mar 2018 19:38:51 +0000
-Message-ID: <1521056327.2693.138.camel@hpe.com>
-References: <20180313170347.3829-1-toshi.kani@hpe.com>
-	 <20180313170347.3829-3-toshi.kani@hpe.com>
-	 <alpine.DEB.2.21.1803142024540.1946@nanos.tec.linutronix.de>
-In-Reply-To: <alpine.DEB.2.21.1803142024540.1946@nanos.tec.linutronix.de>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <95D0813A8DE3224DAA8F43FA8237DC15@NAMPRD84.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 261A56B0007
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 15:45:40 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id a81so4982365ywh.11
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 12:45:40 -0700 (PDT)
+From: Tejun Heo <tj@kernel.org>
+Subject: [PATCH 4/8] HMM: Remove superflous RCU protection around radix tree lookup
+Date: Wed, 14 Mar 2018 12:45:11 -0700
+Message-Id: <20180314194515.1661824-4-tj@kernel.org>
+In-Reply-To: <20180314194515.1661824-1-tj@kernel.org>
+References: <20180314194205.1651587-1-tj@kernel.org>
+ <20180314194515.1661824-1-tj@kernel.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "tglx@linutronix.de" <tglx@linutronix.de>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "gratian.crisan@ni.com" <gratian.crisan@ni.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>
+To: torvalds@linux-foundation.org, jannh@google.com, paulmck@linux.vnet.ibm.com, bcrl@kvack.org, viro@zeniv.linux.org.uk, kent.overstreet@gmail.com
+Cc: security@kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 
-T24gV2VkLCAyMDE4LTAzLTE0IGF0IDIwOjI3ICswMTAwLCBUaG9tYXMgR2xlaXhuZXIgd3JvdGU6
-DQo+IE9uIFR1ZSwgMTMgTWFyIDIwMTgsIFRvc2hpIEthbmkgd3JvdGU6DQo+IA0KPiA+IHZtYWxs
-b2NfZmF1bHQoKSBzZXRzIHVzZXIncyBwZ2Qgb3IgcDRkIGZyb20gdGhlIGtlcm5lbCBwYWdlIHRh
-YmxlLg0KPiA+IE9uY2UgaXQncyBzZXQsIGFsbCB0YWJsZXMgdW5kZXJuZWF0aCBhcmUgaWRlbnRp
-Y2FsLiBUaGVyZSBpcyBubyBwb2ludA0KPiA+IG9mIGZvbGxvd2luZyB0aGUgc2FtZSBwYWdlIHRh
-YmxlIHdpdGggdHdvIHNlcGFyYXRlIHBvaW50ZXJzIGFuZCBtYWtlcw0KPiA+IHN1cmUgdGhleSBz
-ZWUgdGhlIHNhbWUgd2l0aCBCVUcoKS4NCj4gPiANCj4gPiBSZW1vdmUgdGhlIHBvaW50bGVzcyBj
-aGVja3MgaW4gdm1hbGxvY19mYXVsdCgpLiBBbHNvIHJlbmFtZSB0aGUga2VybmVsDQo+ID4gcGdk
-L3A0ZCBwb2ludGVycyB0byBwZ2Rfay9wNGRfayBzbyB0aGF0IHRoZWlyIG5hbWVzIGFyZSBjb25z
-aXN0ZW50IGluDQo+ID4gdGhlIGZpbGUuDQo+IA0KPiBJIGhhdmUgbm8gaWRlYSB0byB3aGljaCBi
-cmFuY2ggdGhpcyBtaWdodCBhcHBseS4gVGhlIGZpcnN0IHBhdGNoIGFwcGxpZXMNCj4gY2xlYW5s
-eSBvbiBsaW51cyBoZWFkLCBidXQgdGhpcyBvbmUgZmFpbHMgaW4gaHVuayAjMiBvbiBldmVyeXRo
-aW5nIEkNCj4gdHJpZWQuIENhbiB5b3UgcGxlYXNlIGNoZWNrPw0KDQpTb3JyeSBmb3IgdGhlIHRy
-b3VibGUuIFRoZSBwYXRjaGVzIGFyZSBiYXNlZCBvbiBsaW51cyBoZWFkLiBJIGp1c3QgdHJpZWQN
-CmFuZCB0aGV5IGFwcGxpZWQgY2xlYW4gdG8gbWUuLi4gDQoNClRoYW5rcywNCi1Ub3NoaQ0K
+hmm_devmem_find() requires rcu_read_lock_held() but there's nothing
+which actually uses the RCU protection.  The only caller is
+hmm_devmem_pages_create() which already grabs the mutex and does
+superflous rcu_read_lock/unlock() around the function.
+
+This doesn't add anything and just adds to confusion.  Remove the RCU
+protection and open-code the radix tree lookup.  If this needs to
+become more sophisticated in the future, let's add them back when
+necessary.
+
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Reviewed-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+---
+Hello,
+
+JA(C)rA'me, how do you want to route this patch?  If you prefer, I can
+route it together with other patches.
+
+Thanks.
+
+ mm/hmm.c | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 320545b98..d4627c5 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -845,13 +845,6 @@ static void hmm_devmem_release(struct device *dev, void *data)
+ 	hmm_devmem_radix_release(resource);
+ }
+ 
+-static struct hmm_devmem *hmm_devmem_find(resource_size_t phys)
+-{
+-	WARN_ON_ONCE(!rcu_read_lock_held());
+-
+-	return radix_tree_lookup(&hmm_devmem_radix, phys >> PA_SECTION_SHIFT);
+-}
+-
+ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+ {
+ 	resource_size_t key, align_start, align_size, align_end;
+@@ -892,9 +885,8 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+ 	for (key = align_start; key <= align_end; key += PA_SECTION_SIZE) {
+ 		struct hmm_devmem *dup;
+ 
+-		rcu_read_lock();
+-		dup = hmm_devmem_find(key);
+-		rcu_read_unlock();
++		dup = radix_tree_lookup(&hmm_devmem_radix,
++					key >> PA_SECTION_SHIFT);
+ 		if (dup) {
+ 			dev_err(device, "%s: collides with mapping for %s\n",
+ 				__func__, dev_name(dup->device));
+-- 
+2.9.5
