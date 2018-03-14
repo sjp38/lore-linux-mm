@@ -1,57 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 435846B0005
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 18:22:06 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id z3-v6so2017317pln.23
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 15:22:06 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A50D16B0006
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 18:38:38 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id v3so2236823pfm.21
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 15:38:38 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v2si2488278pgf.530.2018.03.14.15.22.05
+        by mx.google.com with ESMTPS id n18si2774775pfi.262.2018.03.14.15.38.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 15:22:05 -0700 (PDT)
-Date: Wed, 14 Mar 2018 15:22:03 -0700
+        Wed, 14 Mar 2018 15:38:37 -0700 (PDT)
+Date: Wed, 14 Mar 2018 15:38:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] percpu: Allow to kill tasks doing pcpu_alloc() and
- waiting for pcpu_balance_workfn()
-Message-Id: <20180314152203.c06fce436d221d34d3e4cf4a@linux-foundation.org>
-In-Reply-To: <20180314220909.GE2943022@devbig577.frc2.facebook.com>
-References: <152102825828.13166.9574628787314078889.stgit@localhost.localdomain>
-	<20180314135631.3e21b31b154e9f3036fa6c52@linux-foundation.org>
-	<20180314220909.GE2943022@devbig577.frc2.facebook.com>
+Subject: Re: [PATCH v2 1/2] mm/vmalloc: Add interfaces to free unmapped page
+ table
+Message-Id: <20180314153835.68e75da3fdc18b27ad0e290c@linux-foundation.org>
+In-Reply-To: <20180314180155.19492-2-toshi.kani@hpe.com>
+References: <20180314180155.19492-1-toshi.kani@hpe.com>
+	<20180314180155.19492-2-toshi.kani@hpe.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: mhocko@suse.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, catalin.marinas@arm.com, guohanjun@huawei.com, will.deacon@arm.com, wxf.wang@hisilicon.com, willy@infradead.org, cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On Wed, 14 Mar 2018 15:09:09 -0700 Tejun Heo <tj@kernel.org> wrote:
+On Wed, 14 Mar 2018 12:01:54 -0600 Toshi Kani <toshi.kani@hpe.com> wrote:
 
-> Hello, Andrew.
+> On architectures with CONFIG_HAVE_ARCH_HUGE_VMAP set, ioremap()
+> may create pud/pmd mappings.  Kernel panic was observed on arm64
+> systems with Cortex-A75 in the following steps as described by
+> Hanjun Guo.
 > 
-> On Wed, Mar 14, 2018 at 01:56:31PM -0700, Andrew Morton wrote:
-> > It would benefit from a comment explaining why we're doing this (it's
-> > for the oom-killer).
+>  1. ioremap a 4K size, valid page table will build,
+>  2. iounmap it, pte0 will set to 0;
+>  3. ioremap the same address with 2M size, pgd/pmd is unchanged,
+>     then set the a new value for pmd;
+>  4. pte0 is leaked;
+>  5. CPU may meet exception because the old pmd is still in TLB,
+>     which will lead to kernel panic.
 > 
-> Will add.
+> This panic is not reproducible on x86.  INVLPG, called from iounmap,
+> purges all levels of entries associated with purged address on x86.
+> x86 still has memory leak.
 > 
-> > My memory is weak and our documentation is awful.  What does
-> > mutex_lock_killable() actually do and how does it differ from
-> > mutex_lock_interruptible()?  Userspace tasks can run pcpu_alloc() and I
+> The patch changes the ioremap path to free unmapped page table(s) since
+> doing so in the unmap path has the following issues:
 > 
-> IIRC, killable listens only to SIGKILL.
+>  - The iounmap() path is shared with vunmap().  Since vmap() only
+>    supports pte mappings, making vunmap() to free a pte page is an
+>    overhead for regular vmap users as they do not need a pte page
+>    freed up.
+>  - Checking if all entries in a pte page are cleared in the unmap path
+>    is racy, and serializing this check is expensive.
+>  - The unmap path calls free_vmap_area_noflush() to do lazy TLB purges.
+>    Clearing a pud/pmd entry before the lazy TLB purges needs extra TLB
+>    purge.
 > 
-> > wonder if there's any way in which a userspace-delivered signal can
-> > disrupt another userspace task's memory allocation attempt?
+> Add two interfaces, pud_free_pmd_page() and pmd_free_pte_page(),
+> which clear a given pud/pmd entry and free up a page for the lower
+> level entries.
 > 
-> Hmm... maybe.  Just honoring SIGKILL *should* be fine but the alloc
-> failure paths might be broken, so there are some risks.  Given that
-> the cases where userspace tasks end up allocation percpu memory is
-> pretty limited and/or priviledged (like mount, bpf), I don't think the
-> risks are high tho.
+> This patch implements their stub functions on x86 and arm64, which
+> work as workaround.
+> 
 
-hm.  spose so.  Maybe.  Are there other ways?  I assume the time is
-being spent in pcpu_create_chunk()?  We could drop the mutex while
-running that stuff and take the appropriate did-we-race-with-someone
-testing after retaking it.  Or similar.
+whoops.
+
+--- a/include/asm-generic/pgtable.h~mm-vmalloc-add-interfaces-to-free-unmapped-page-table-fix
++++ a/include/asm-generic/pgtable.h
+@@ -1014,7 +1014,7 @@ static inline int pud_free_pmd_page(pud_
+ {
+ 	return 0;
+ }
+-static inline int pmd_free_pte_page(pud_t *pmd)
++static inline int pmd_free_pte_page(pmd_t *pmd)
+ {
+ 	return 0;
+ }
+_
