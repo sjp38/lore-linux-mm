@@ -1,41 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 511C56B0009
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 17:58:14 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id bd8-v6so219727plb.20
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:58:14 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e6si2438005pgt.680.2018.03.14.14.58.13
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CF7B6B0009
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 18:09:31 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id e6so3086171qkf.19
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 15:09:31 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id u90sor2425564qku.144.2018.03.14.15.09.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 14:58:13 -0700 (PDT)
-Date: Wed, 14 Mar 2018 17:58:11 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
- count (semaphore)
-Message-ID: <20180314175811.1ca7d830@vmware.local.home>
-In-Reply-To: <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
-References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
-	<20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Wed, 14 Mar 2018 15:09:12 -0700 (PDT)
+Date: Wed, 14 Mar 2018 15:09:09 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] percpu: Allow to kill tasks doing pcpu_alloc() and
+ waiting for pcpu_balance_workfn()
+Message-ID: <20180314220909.GE2943022@devbig577.frc2.facebook.com>
+References: <152102825828.13166.9574628787314078889.stgit@localhost.localdomain>
+ <20180314135631.3e21b31b154e9f3036fa6c52@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180314135631.3e21b31b154e9f3036fa6c52@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Cc: mhiramat@kernel.org, oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 13 Mar 2018 18:26:00 +0530
-Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
+Hello, Andrew.
 
->  include/linux/uprobes.h     |   2 +
->  kernel/events/uprobes.c     |   6 ++
->  kernel/trace/trace_uprobe.c | 172 +++++++++++++++++++++++++++++++++++++++++++-
+On Wed, Mar 14, 2018 at 01:56:31PM -0700, Andrew Morton wrote:
+> It would benefit from a comment explaining why we're doing this (it's
+> for the oom-killer).
 
-I'm currently traveling, but I'll try to look at it in a week or two.
+Will add.
 
--- Steve
+> My memory is weak and our documentation is awful.  What does
+> mutex_lock_killable() actually do and how does it differ from
+> mutex_lock_interruptible()?  Userspace tasks can run pcpu_alloc() and I
 
->  3 files changed, 178 insertions(+), 2 deletions(-)
-> 
->
+IIRC, killable listens only to SIGKILL.
+
+> wonder if there's any way in which a userspace-delivered signal can
+> disrupt another userspace task's memory allocation attempt?
+
+Hmm... maybe.  Just honoring SIGKILL *should* be fine but the alloc
+failure paths might be broken, so there are some risks.  Given that
+the cases where userspace tasks end up allocation percpu memory is
+pretty limited and/or priviledged (like mount, bpf), I don't think the
+risks are high tho.
+
+Thanks.
+
+-- 
+tejun
