@@ -1,66 +1,303 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E66196B000D
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 09:34:04 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id j28so1958205wrd.17
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 06:34:04 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id x2si123736edc.313.2018.03.14.06.34.02
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E1A196B0010
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 09:48:18 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g66so1620740pfj.11
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 06:48:18 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id m1si1876103pgq.399.2018.03.14.06.48.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 06:34:03 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2EDXid5046692
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 09:34:02 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2gq1rdr5gx-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 09:34:01 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 14 Mar 2018 13:33:59 -0000
-Subject: Re: [PATCH v9 00/24] Speculative page faults
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <20180314131118.GC23100@dhcp22.suse.cz>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 14 Mar 2018 14:33:48 +0100
-MIME-Version: 1.0
-In-Reply-To: <20180314131118.GC23100@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        Wed, 14 Mar 2018 06:48:17 -0700 (PDT)
+Date: Wed, 14 Mar 2018 22:48:09 +0900
+From: Masami Hiramatsu <mhiramat@kernel.org>
+Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
+ count (semaphore)
+Message-Id: <20180314224809.5ee4c8834bb366faa398e342@kernel.org>
+In-Reply-To: <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
+References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
+	<20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <5e0d0fdd-4c7d-5895-4a0d-4c71e9c142b5@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+Cc: oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
 
-On 14/03/2018 14:11, Michal Hocko wrote:
-> On Tue 13-03-18 18:59:30, Laurent Dufour wrote:
->> Changes since v8:
->>  - Don't check PMD when locking the pte when THP is disabled
->>    Thanks to Daniel Jordan for reporting this.
->>  - Rebase on 4.16
+Hi Ravi,
+
+On Tue, 13 Mar 2018 18:26:00 +0530
+Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
+
+> Userspace Statically Defined Tracepoints[1] are dtrace style markers
+> inside userspace applications. These markers are added by developer at
+> important places in the code. Each marker source expands to a single
+> nop instruction in the compiled code but there may be additional
+> overhead for computing the marker arguments which expands to couple of
+> instructions. In case the overhead is more, execution of it can be
+> ommited by runtime if() condition when no one is tracing on the marker:
 > 
-> Is this really worth reposting the whole pile? I mean this is at v9,
-> each doing little changes. It is quite tiresome to barely get to a
-> bookmarked version just to find out that there are 2 new versions out.
-
-I agree, I could have sent only a change for the concerned patch. But the
-previous series has been sent a month ago and this one is rebased on the 4.16
-kernel.
-
-> I am sorry to be grumpy and I can understand some frustration it doesn't
-> move forward that easilly but this is a _big_ change. We should start
-> with a real high level review rather than doing small changes here and
-> there and reach v20 quickly.
+>     if (reference_counter > 0) {
+>         Execute marker instructions;
+>     }
 > 
-> I am planning to find some time to look at it but the spare cycles are
-> so rare these days...
+> Default value of reference counter is 0. Tracer has to increment the
+> reference counter before tracing on a marker and decrement it when
+> done with the tracing.
+> 
+> Implement the reference counter logic in trace_uprobe, leaving core
+> uprobe infrastructure as is, except one new callback from uprobe_mmap()
+> to trace_uprobe.
+> 
+> trace_uprobe definition with reference counter will now be:
+> 
+>   <path>:<offset>[(ref_ctr_offset)]
 
-I understand that this is a big change and I'll try to not post a new series
-until I get more feedback from this one.
+Would you mean 
+<path>:<offset>(<ref_ctr_offset>)
+?
+
+or use "[]" for delimiter?
+
+Since,
+
+> @@ -454,6 +458,26 @@ static int create_trace_uprobe(int argc, char **argv)
+>  		goto fail_address_parse;
+>  	}
+>  
+> +	/* Parse reference counter offset if specified. */
+> +	rctr = strchr(arg, '(');
+
+This seems you choose "()" for delimiter.
+
+> +	if (rctr) {
+> +		rctr_end = strchr(arg, ')');
+
+		rctr_end = strchr(rctr, ')');
+
+? since we are sure rctr != NULL.
+
+> +		if (rctr > rctr_end || *(rctr_end + 1) != 0) {
+> +			ret = -EINVAL;
+> +			pr_info("Invalid reference counter offset.\n");
+> +			goto fail_address_parse;
+> +		}
+
+
+Also
+
+> +
+> +		*rctr++ = 0;
+> +		*rctr_end = 0;
+
+Please consider to use '\0' for nul;
 
 Thanks,
-Laurent.
+
+
+
+> +		ret = kstrtoul(rctr, 0, &ref_ctr_offset);
+> +		if (ret) {
+> +			pr_info("Invalid reference counter offset.\n");
+> +			goto fail_address_parse;
+> +		}
+> +	}
+> +
+> +	/* Parse uprobe offset. */
+>  	ret = kstrtoul(arg, 0, &offset);
+>  	if (ret)
+>  		goto fail_address_parse;
+> @@ -488,6 +512,7 @@ static int create_trace_uprobe(int argc, char **argv)
+>  		goto fail_address_parse;
+>  	}
+>  	tu->offset = offset;
+> +	tu->ref_ctr_offset = ref_ctr_offset;
+>  	tu->inode = inode;
+>  	tu->filename = kstrdup(filename, GFP_KERNEL);
+>  
+> @@ -620,6 +645,8 @@ static int probes_seq_show(struct seq_file *m, void *v)
+>  			break;
+>  		}
+>  	}
+> +	if (tu->ref_ctr_offset)
+> +		seq_printf(m, "(0x%lx)", tu->ref_ctr_offset);
+>  
+>  	for (i = 0; i < tu->tp.nr_args; i++)
+>  		seq_printf(m, " %s=%s", tu->tp.args[i].name, tu->tp.args[i].comm);
+> @@ -894,6 +921,139 @@ static void uretprobe_trace_func(struct trace_uprobe *tu, unsigned long func,
+>  	return trace_handle_return(s);
+>  }
+>  
+> +static bool sdt_valid_vma(struct trace_uprobe *tu, struct vm_area_struct *vma)
+> +{
+> +	unsigned long vaddr = vma_offset_to_vaddr(vma, tu->ref_ctr_offset);
+> +
+> +	return tu->ref_ctr_offset &&
+> +		vma->vm_file &&
+> +		file_inode(vma->vm_file) == tu->inode &&
+> +		vma->vm_flags & VM_WRITE &&
+> +		vma->vm_start <= vaddr &&
+> +		vma->vm_end > vaddr;
+> +}
+> +
+> +static struct vm_area_struct *
+> +sdt_find_vma(struct mm_struct *mm, struct trace_uprobe *tu)
+> +{
+> +	struct vm_area_struct *tmp;
+> +
+> +	for (tmp = mm->mmap; tmp != NULL; tmp = tmp->vm_next)
+> +		if (sdt_valid_vma(tu, tmp))
+> +			return tmp;
+> +
+> +	return NULL;
+> +}
+> +
+> +/*
+> + * Reference count gate the invocation of probe. If present,
+> + * by default reference count is 0. One needs to increment
+> + * it before tracing the probe and decrement it when done.
+> + */
+> +static int
+> +sdt_update_ref_ctr(struct mm_struct *mm, unsigned long vaddr, short d)
+> +{
+> +	void *kaddr;
+> +	struct page *page;
+> +	struct vm_area_struct *vma;
+> +	int ret = 0;
+> +	unsigned short orig = 0;
+> +
+> +	if (vaddr == 0)
+> +		return -EINVAL;
+> +
+> +	ret = get_user_pages_remote(NULL, mm, vaddr, 1,
+> +		FOLL_FORCE | FOLL_WRITE, &page, &vma, NULL);
+> +	if (ret <= 0)
+> +		return ret;
+> +
+> +	kaddr = kmap_atomic(page);
+> +	memcpy(&orig, kaddr + (vaddr & ~PAGE_MASK), sizeof(orig));
+> +	orig += d;
+> +	memcpy(kaddr + (vaddr & ~PAGE_MASK), &orig, sizeof(orig));
+> +	kunmap_atomic(kaddr);
+> +
+> +	put_page(page);
+> +	return 0;
+> +}
+> +
+> +static void sdt_increment_ref_ctr(struct trace_uprobe *tu)
+> +{
+> +	struct uprobe_map_info *info;
+> +	struct vm_area_struct *vma;
+> +	unsigned long vaddr;
+> +
+> +	uprobe_start_dup_mmap();
+> +	info = uprobe_build_map_info(tu->inode->i_mapping,
+> +				tu->ref_ctr_offset, false);
+> +	if (IS_ERR(info))
+> +		goto out;
+> +
+> +	while (info) {
+> +		down_write(&info->mm->mmap_sem);
+> +
+> +		vma = sdt_find_vma(info->mm, tu);
+> +		vaddr = vma_offset_to_vaddr(vma, tu->ref_ctr_offset);
+> +		sdt_update_ref_ctr(info->mm, vaddr, 1);
+> +
+> +		up_write(&info->mm->mmap_sem);
+> +		mmput(info->mm);
+> +		info = uprobe_free_map_info(info);
+> +	}
+> +
+> +out:
+> +	uprobe_end_dup_mmap();
+> +}
+> +
+> +/* Called with down_write(&vma->vm_mm->mmap_sem) */
+> +void trace_uprobe_mmap_callback(struct vm_area_struct *vma)
+> +{
+> +	struct trace_uprobe *tu;
+> +	unsigned long vaddr;
+> +
+> +	if (!(vma->vm_flags & VM_WRITE))
+> +		return;
+> +
+> +	mutex_lock(&uprobe_lock);
+> +	list_for_each_entry(tu, &uprobe_list, list) {
+> +		if (!sdt_valid_vma(tu, vma) ||
+> +		    !trace_probe_is_enabled(&tu->tp))
+> +			continue;
+> +
+> +		vaddr = vma_offset_to_vaddr(vma, tu->ref_ctr_offset);
+> +		sdt_update_ref_ctr(vma->vm_mm, vaddr, 1);
+> +	}
+> +	mutex_unlock(&uprobe_lock);
+> +}
+> +
+> +static void sdt_decrement_ref_ctr(struct trace_uprobe *tu)
+> +{
+> +	struct vm_area_struct *vma;
+> +	unsigned long vaddr;
+> +	struct uprobe_map_info *info;
+> +
+> +	uprobe_start_dup_mmap();
+> +	info = uprobe_build_map_info(tu->inode->i_mapping,
+> +				tu->ref_ctr_offset, false);
+> +	if (IS_ERR(info))
+> +		goto out;
+> +
+> +	while (info) {
+> +		down_write(&info->mm->mmap_sem);
+> +
+> +		vma = sdt_find_vma(info->mm, tu);
+> +		vaddr = vma_offset_to_vaddr(vma, tu->ref_ctr_offset);
+> +		sdt_update_ref_ctr(info->mm, vaddr, -1);
+> +
+> +		up_write(&info->mm->mmap_sem);
+> +		mmput(info->mm);
+> +		info = uprobe_free_map_info(info);
+> +	}
+> +
+> +out:
+> +	uprobe_end_dup_mmap();
+> +}
+> +
+>  typedef bool (*filter_func_t)(struct uprobe_consumer *self,
+>  				enum uprobe_filter_ctx ctx,
+>  				struct mm_struct *mm);
+> @@ -939,6 +1099,9 @@ typedef bool (*filter_func_t)(struct uprobe_consumer *self,
+>  	if (ret)
+>  		goto err_buffer;
+>  
+> +	if (tu->ref_ctr_offset)
+> +		sdt_increment_ref_ctr(tu);
+> +
+>  	return 0;
+>  
+>   err_buffer:
+> @@ -979,6 +1142,9 @@ typedef bool (*filter_func_t)(struct uprobe_consumer *self,
+>  
+>  	WARN_ON(!uprobe_filter_is_empty(&tu->filter));
+>  
+> +	if (tu->ref_ctr_offset)
+> +		sdt_decrement_ref_ctr(tu);
+> +
+>  	uprobe_unregister(tu->inode, tu->offset, &tu->consumer);
+>  	tu->tp.flags &= file ? ~TP_FLAG_TRACE : ~TP_FLAG_PROFILE;
+>  
+> @@ -1423,6 +1589,8 @@ static __init int init_uprobe_trace(void)
+>  	/* Profile interface */
+>  	trace_create_file("uprobe_profile", 0444, d_tracer,
+>  				    NULL, &uprobe_profile_ops);
+> +
+> +	uprobe_mmap_callback = trace_uprobe_mmap_callback;
+>  	return 0;
+>  }
+>  
+> -- 
+> 1.8.3.1
+> 
+
+
+-- 
+Masami Hiramatsu <mhiramat@kernel.org>
