@@ -1,152 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EB78E6B000C
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 10:35:39 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id u68so1077522wmd.5
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 07:35:39 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AF996B000C
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 10:38:41 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id j4so2068912wrg.11
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 07:38:41 -0700 (PDT)
 Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.131])
-        by mx.google.com with ESMTPS id 93si1915814wrn.101.2018.03.14.07.35.37
+        by mx.google.com with ESMTPS id u62si1027759wma.135.2018.03.14.07.38.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 07:35:37 -0700 (PDT)
+        Wed, 14 Mar 2018 07:38:40 -0700 (PDT)
 From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH 00/16] remove eight obsolete architectures
-Date: Wed, 14 Mar 2018 15:34:59 +0100
-Message-Id: <20180314143529.1456168-1-arnd@arndb.de>
+Subject: [PATCH 09/16] mm: remove blackfin MPU support
+Date: Wed, 14 Mar 2018 15:37:38 +0100
+Message-Id: <20180314143755.1508262-2-arnd@arndb.de>
+In-Reply-To: <20180314143755.1508262-1-arnd@arndb.de>
+References: <20180314143755.1508262-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, linux-doc@vger.kernel.org, linux-block@vger.kernel.org, linux-ide@vger.kernel.org, linux-input@vger.kernel.org, netdev@vger.kernel.org, linux-wireless@vger.kernel.org, linux-pwm@vger.kernel.org, linux-rtc@vger.kernel.org, linux-spi@vger.kernel.org, linux-usb@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-fbdev@vger.kernel.org, linux-watchdog@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Jessica Yu <jeyu@kernel.org>, "Steven Rostedt (VMware)" <rostedt@goodmis.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Jeremy Linton <jeremy.linton@arm.com>, linux-mm@kvack.org
 
-Here is the collection of patches I have applied to my 'asm-generic' tree
-on top of the 'metag' removal. This does not include any of the device
-drivers, I'll send those separately to a someone different list of people.
+The CONFIG_MPU option was only defined on blackfin, and that architecture
+is now being removed, so the respective code can be simplified.
 
-The removal came out of a discussion that is now documented at
-https://lwn.net/Articles/748074/
+A lot of other microcontrollers have an MPU, but I suspect that if we
+want to bring that support back, we'd do it differently anyway.
 
-Following up from the state described there, I ended up removing the
-mn10300, tile, blackfin and cris architectures directly, rather than
-waiting, after consulting with the respective maintainers.
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ kernel/module.c |  4 ----
+ mm/nommu.c      | 20 --------------------
+ 2 files changed, 24 deletions(-)
 
-However, the unicore32 architecture is no longer part of the removal,
-after its maintainer Xuetao Guan said that the port is still actively
-being used and that he intends to keep working on it, and that he will
-try to provide updated toolchain sources.
-
-In the end, it seems that while the eight architectures are extremely
-different, they all suffered the same fate: There was one company in
-charge of an SoC line, a CPU microarchitecture and a software ecosystem,
-which was more costly than licensing newer off-the-shelf CPU cores from
-a third party (typically ARM, MIPS, or RISC-V). It seems that all the
-SoC product lines are still around, but have not used the custom CPU
-architectures for several years at this point.
-
-      Arnd
-
-Arnd Bergmann (14):
-  arch: remove frv port
-  arch: remove m32r port
-  arch: remove score port
-  arch: remove blackfin port
-  arch: remove tile port
-  procfs: remove CONFIG_HARDWALL dependency
-  mm: remove blackfin MPU support
-  mm: remove obsolete alloc_remap()
-  treewide: simplify Kconfig dependencies for removed archs
-  asm-generic: siginfo: remove obsolete #ifdefs
-  Documentation: arch-support: remove obsolete architectures
-  asm-generic: clean up asm/unistd.h
-  recordmcount.pl: drop blackin and tile support
-  ktest: remove obsolete architectures
-
-David Howells (1):
-  mn10300: Remove the architecture
-
-Jesper Nilsson (1):
-  CRIS: Drop support for the CRIS port
-
-Dirstat only (full diffstat is over 100KB):
-
-   6.3% arch/blackfin/mach-bf548/include/mach/
-   4.5% arch/blackfin/mach-bf609/include/mach/
-  26.3% arch/blackfin/
-   4.1% arch/cris/arch-v32/
-   5.6% arch/cris/include/arch-v32/arch/hwregs/iop/
-   4.1% arch/cris/include/arch-v32/mach-a3/mach/hwregs/
-   4.7% arch/cris/include/arch-v32/
-   7.8% arch/cris/
-   5.6% arch/frv/
-   5.5% arch/m32r/
-   7.0% arch/mn10300/
-   7.6% arch/tile/include/
-   6.4% arch/tile/kernel/
-   0.0% Documentation/admin-guide/
-   0.0% Documentation/blackfin/
-   0.0% Documentation/cris/
-   0.0% Documentation/devicetree/bindings/cris/
-   0.0% Documentation/devicetree/bindings/interrupt-controller/
-   2.8% Documentation/features/
-   0.5% Documentation/frv/
-   0.0% Documentation/ioctl/
-   0.0% Documentation/mn10300/
-   0.0% Documentation/
-   0.0% block/
-   0.0% crypto/
-   0.0% drivers/ide/
-   0.0% drivers/input/joystick/
-   0.0% drivers/isdn/hisax/
-   0.0% drivers/net/ethernet/davicom/
-   0.0% drivers/net/ethernet/smsc/
-   0.0% drivers/net/wireless/cisco/
-   0.0% drivers/pci/
-   0.0% drivers/pwm/
-   0.0% drivers/rtc/
-   0.0% drivers/spi/
-   0.0% drivers/staging/speakup/
-   0.0% drivers/usb/musb/
-   0.0% drivers/video/console/
-   0.0% drivers/watchdog/
-   0.0% fs/minix/
-   0.0% fs/proc/
-   0.0% fs/
-   0.0% include/asm-generic/
-   0.0% include/linux/
-   0.0% include/uapi/asm-generic/
-   0.0% init/
-   0.0% kernel/
-   0.0% lib/
-   0.0% mm/
-   0.0% samples/blackfin/
-   0.0% samples/kprobes/
-   0.0% samples/
-   0.0% scripts/mod/
-   0.0% scripts/
-   0.0% tools/arch/frv/include/uapi/asm/
-   0.0% tools/arch/m32r/include/uapi/asm/
-   0.0% tools/arch/mn10300/include/uapi/asm/
-   0.0% tools/arch/score/include/uapi/asm/
-   0.0% tools/arch/tile/include/asm/
-   0.0% tools/arch/tile/include/uapi/asm/
-   0.0% tools/include/asm-generic/
-   0.0% tools/scripts/
-   0.0% tools/testing/ktest/examples/
-   0.0% tools/testing/ktest/
-
-Cc: linux-doc@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-block@vger.kernel.org
-Cc: linux-ide@vger.kernel.org
-Cc: linux-input@vger.kernel.org
-Cc: netdev@vger.kernel.org
-Cc: linux-wireless@vger.kernel.org
-Cc: linux-pwm@vger.kernel.org
-Cc: linux-rtc@vger.kernel.org
-Cc: linux-spi@vger.kernel.org
-Cc: linux-usb@vger.kernel.org
-Cc: dri-devel@lists.freedesktop.org
-Cc: linux-fbdev@vger.kernel.org
-Cc: linux-watchdog@vger.kernel.org
-Cc: linux-fsdevel@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
-Cc: linux-mm@kvack.org
+diff --git a/kernel/module.c b/kernel/module.c
+index ad2d420024f6..2c1df850029b 100644
+--- a/kernel/module.c
++++ b/kernel/module.c
+@@ -2181,10 +2181,6 @@ static void free_module(struct module *mod)
+ 	/* Finally, free the core (containing the module structure) */
+ 	disable_ro_nx(&mod->core_layout);
+ 	module_memfree(mod->core_layout.base);
+-
+-#ifdef CONFIG_MPU
+-	update_protections(current->mm);
+-#endif
+ }
+ 
+ void *__symbol_get(const char *symbol)
+diff --git a/mm/nommu.c b/mm/nommu.c
+index ebb6e618dade..838a8fdec5c2 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -663,22 +663,6 @@ static void put_nommu_region(struct vm_region *region)
+ }
+ 
+ /*
+- * update protection on a vma
+- */
+-static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
+-{
+-#ifdef CONFIG_MPU
+-	struct mm_struct *mm = vma->vm_mm;
+-	long start = vma->vm_start & PAGE_MASK;
+-	while (start < vma->vm_end) {
+-		protect_page(mm, start, flags);
+-		start += PAGE_SIZE;
+-	}
+-	update_protections(mm);
+-#endif
+-}
+-
+-/*
+  * add a VMA into a process's mm_struct in the appropriate place in the list
+  * and tree and add to the address space's page tree also if not an anonymous
+  * page
+@@ -695,8 +679,6 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
+ 	mm->map_count++;
+ 	vma->vm_mm = mm;
+ 
+-	protect_vma(vma, vma->vm_flags);
+-
+ 	/* add the VMA to the mapping */
+ 	if (vma->vm_file) {
+ 		mapping = vma->vm_file->f_mapping;
+@@ -757,8 +739,6 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	struct task_struct *curr = current;
+ 
+-	protect_vma(vma, 0);
+-
+ 	mm->map_count--;
+ 	for (i = 0; i < VMACACHE_SIZE; i++) {
+ 		/* if the vma is cached, invalidate the entire cache */
+-- 
+2.9.0
