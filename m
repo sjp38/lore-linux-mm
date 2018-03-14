@@ -1,108 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C88B6B000C
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 16:59:02 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 139so2138743pfw.7
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 13:59:02 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u31sor835772pgn.67.2018.03.14.13.59.01
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D31776B000D
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 16:59:39 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id 29so2961502qto.10
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 13:59:39 -0700 (PDT)
+Received: from g2t2353.austin.hpe.com (g2t2353.austin.hpe.com. [15.233.44.26])
+        by mx.google.com with ESMTPS id t34si3565112qtg.195.2018.03.14.13.59.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Mar 2018 13:59:01 -0700 (PDT)
-Date: Wed, 14 Mar 2018 13:58:59 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm v3 1/3] mm, memcg: introduce per-memcg oom policy
- tunable
-In-Reply-To: <20180314123851.GB20850@castle.DHCP.thefacebook.com>
-Message-ID: <alpine.DEB.2.20.1803141341180.163553@chino.kir.corp.google.com>
-References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803121757080.192200@chino.kir.corp.google.com> <20180314123851.GB20850@castle.DHCP.thefacebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Mar 2018 13:59:38 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hpe.com>
+Subject: [PATCH] x86/mm: remove pointless checks in vmalloc_fault
+Date: Wed, 14 Mar 2018 14:59:32 -0600
+Message-Id: <20180314205932.7193-1-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: tglx@linutronix.de
+Cc: mingo@redhat.com, hpa@zytor.com, bp@alien8.de, luto@kernel.org, gratian.crisan@ni.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
 
-On Wed, 14 Mar 2018, Roman Gushchin wrote:
+vmalloc_fault() sets user's pgd or p4d from the kernel page table.
+Once it's set, all tables underneath are identical. There is no point
+of following the same page table with two separate pointers and makes
+sure they see the same with BUG().
 
-> > The cgroup aware oom killer is needlessly enforced for the entire system
-> > by a mount option.  It's unnecessary to force the system into a single
-> > oom policy: either cgroup aware, or the traditional process aware.
-> 
-> Can you, please, provide a real-life example, when using per-process
-> and cgroup-aware OOM killer depending on OOM scope is beneficial?
-> 
+Remove the pointless checks in vmalloc_fault(). Also rename the kernel
+pgd/p4d pointers to pgd_k/p4d_k so that their names are consistent in
+the file.
 
-Hi Roman,
+Suggested-by: Andy Lutomirski <luto@kernel.org>
+Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Gratian Crisan <gratian.crisan@ni.com>
+---
+Rebased 2/2 patch on tip.
+---
+ arch/x86/mm/fault.c |   56 +++++++++++++++------------------------------------
+ 1 file changed, 17 insertions(+), 39 deletions(-)
 
-This question is only about per-process vs cgroup-aware, not about the 
-need for individual cgroup vs hierarchical subtree, so I'll only focus on 
-that.
-
-Three reasons:
-
- - Does not lock the entire system into a single methodology.  Users
-   working in a subtree can default to what they are used to: per-process
-   oom selection even though their subtree might be targeted by a system
-   policy level decision at the root.  This allow them flexibility to
-   organize their subtree intuitively for use with other controllers in a
-   single hierarchy.
-
-   The real-world example is a user who currently organizes their subtree
-   for this purpose and has defined oom_score_adj appropriately and now
-   regresses if the admin mounts with the needless "groupoom" option.
-
- - Allows changing the oom policy at runtime without remounting the entire
-   cgroup fs.  Depending on how cgroups are going to be used, per-process 
-   vs cgroup-aware may be mandated separately.  This is a trait only of
-   the mem cgroup controller, the root level oom policy is no different
-   from the subtree and depends directly on how the subtree is organized.
-   If other controllers are already being used, requiring a remount to
-   change the system-wide oom policy is an unnecessary burden.
-
-   The real-world example is systems software that either supports user
-   subtrees or strictly subtrees that it maintains itself.  While other
-   controllers are used, the mem cgroup oom policy can be changed at
-   runtime rather than requiring a remount and reorganizing other
-   controllers exactly as before.
-
- - Can be extended to cgroup v1 if necessary.  There is no need for a
-   new cgroup v1 mount option and mem cgroup oom selection is not
-   dependant on any functionality provided by cgroup v2.  The policies
-   introduced here work exactly the same if used with cgroup v1.
-
-   The real-world example is a cgroup configuration that hasn't had
-   the ability to move to cgroup v2 yet and still would like to use
-   cgroup-aware oom selection with a very trivial change to add the
-   memory.oom_policy file to the cgroup v1 filesystem.
-
-> It might be quite confusing, depending on configuration.
-> From inside a container you can have different types of OOMs,
-> depending on parent's cgroup configuration, which is not even
-> accessible for reading from inside.
-> 
-
-Right, and the oom is the result of the parent's limit that is outside the 
-control of the user.  That limit, and now oom policy, is defined by the 
-user controlling the ancestor of the subtree.  The user need not be 
-concerned that it was singled out for oom kill: that policy decision is 
-outside hiso or her control.  memory.oom_group can certainly be delegated 
-to the user, but the targeting cannot be changed or evaded.
-
-However, this patchset also provides them with the ability to define their 
-own oom policy for subcontainers that they create themselves.
-
-> Also, it's probably good to have an interface to show which policies
-> are available.
-> 
-
-This comes back to the user interface question.  I'm very happy to address 
-any way that the interface can be made better, even though I think what is 
-currently proposed is satisfactory.  I think your comment eludes to thp 
-like enabling where we have "[always] madvise never"?  I'm speculating 
-that you may be happier with memory.oom_policy becoming 
-"[none] cgroup tree" and extended for additional policies later?  
-Otherwise the user would need to try the write and test the return value, 
-which purely depends on whether the policy is available or not.  I'm 
-rather indifferent to either interface, but if you would prefer the
-"[none] cgroup tree" appearance, I'll change to that.
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 8e012c3f6ad6..73bd8c95ac71 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -417,11 +417,11 @@ void vmalloc_sync_all(void)
+  */
+ static noinline int vmalloc_fault(unsigned long address)
+ {
+-	pgd_t *pgd, *pgd_ref;
+-	p4d_t *p4d, *p4d_ref;
+-	pud_t *pud, *pud_ref;
+-	pmd_t *pmd, *pmd_ref;
+-	pte_t *pte, *pte_ref;
++	pgd_t *pgd, *pgd_k;
++	p4d_t *p4d, *p4d_k;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *pte;
+ 
+ 	/* Make sure we are in vmalloc area: */
+ 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
+@@ -435,73 +435,51 @@ static noinline int vmalloc_fault(unsigned long address)
+ 	 * case just flush:
+ 	 */
+ 	pgd = (pgd_t *)__va(read_cr3_pa()) + pgd_index(address);
+-	pgd_ref = pgd_offset_k(address);
+-	if (pgd_none(*pgd_ref))
++	pgd_k = pgd_offset_k(address);
++	if (pgd_none(*pgd_k))
+ 		return -1;
+ 
+ 	if (pgtable_l5_enabled) {
+ 		if (pgd_none(*pgd)) {
+-			set_pgd(pgd, *pgd_ref);
++			set_pgd(pgd, *pgd_k);
+ 			arch_flush_lazy_mmu_mode();
+ 		} else {
+-			BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
++			BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_k));
+ 		}
+ 	}
+ 
+ 	/* With 4-level paging, copying happens on the p4d level. */
+ 	p4d = p4d_offset(pgd, address);
+-	p4d_ref = p4d_offset(pgd_ref, address);
+-	if (p4d_none(*p4d_ref))
++	p4d_k = p4d_offset(pgd_k, address);
++	if (p4d_none(*p4d_k))
+ 		return -1;
+ 
+ 	if (p4d_none(*p4d) && !pgtable_l5_enabled) {
+-		set_p4d(p4d, *p4d_ref);
++		set_p4d(p4d, *p4d_k);
+ 		arch_flush_lazy_mmu_mode();
+ 	} else {
+-		BUG_ON(p4d_pfn(*p4d) != p4d_pfn(*p4d_ref));
++		BUG_ON(p4d_pfn(*p4d) != p4d_pfn(*p4d_k));
+ 	}
+ 
+-	/*
+-	 * Below here mismatches are bugs because these lower tables
+-	 * are shared:
+-	 */
+ 	BUILD_BUG_ON(CONFIG_PGTABLE_LEVELS < 4);
+ 
+ 	pud = pud_offset(p4d, address);
+-	pud_ref = pud_offset(p4d_ref, address);
+-	if (pud_none(*pud_ref))
++	if (pud_none(*pud))
+ 		return -1;
+ 
+-	if (pud_none(*pud) || pud_pfn(*pud) != pud_pfn(*pud_ref))
+-		BUG();
+-
+ 	if (pud_large(*pud))
+ 		return 0;
+ 
+ 	pmd = pmd_offset(pud, address);
+-	pmd_ref = pmd_offset(pud_ref, address);
+-	if (pmd_none(*pmd_ref))
++	if (pmd_none(*pmd))
+ 		return -1;
+ 
+-	if (pmd_none(*pmd) || pmd_pfn(*pmd) != pmd_pfn(*pmd_ref))
+-		BUG();
+-
+ 	if (pmd_large(*pmd))
+ 		return 0;
+ 
+-	pte_ref = pte_offset_kernel(pmd_ref, address);
+-	if (!pte_present(*pte_ref))
+-		return -1;
+-
+ 	pte = pte_offset_kernel(pmd, address);
+-
+-	/*
+-	 * Don't use pte_page here, because the mappings can point
+-	 * outside mem_map, and the NUMA hash lookup cannot handle
+-	 * that:
+-	 */
+-	if (!pte_present(*pte) || pte_pfn(*pte) != pte_pfn(*pte_ref))
+-		BUG();
++	if (!pte_present(*pte))
++		return -1;
+ 
+ 	return 0;
+ }
