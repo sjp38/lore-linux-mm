@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 39B096B0007
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 04:18:50 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 73so1229652pfz.22
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 01:18:50 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 674DE6B0009
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 04:18:56 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id az5-v6so1118680plb.14
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 01:18:56 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o12sor531793pgf.377.2018.03.14.01.18.48
+        by mx.google.com with SMTPS id d4-v6sor675082plr.96.2018.03.14.01.18.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 14 Mar 2018 01:18:49 -0700 (PDT)
+        Wed, 14 Mar 2018 01:18:55 -0700 (PDT)
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: [PATCHv3 1/2] zsmalloc: introduce zs_huge_class_size() function
-Date: Wed, 14 Mar 2018 17:18:32 +0900
-Message-Id: <20180314081833.1096-2-sergey.senozhatsky@gmail.com>
+Subject: [PATCHv3 2/2] zram: drop max_zpage_size and use zs_huge_class_size()
+Date: Wed, 14 Mar 2018 17:18:33 +0900
+Message-Id: <20180314081833.1096-3-sergey.senozhatsky@gmail.com>
 In-Reply-To: <20180314081833.1096-1-sergey.senozhatsky@gmail.com>
 References: <20180314081833.1096-1-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,112 +22,131 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey
 
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-Not every object can be share its zspage with other objects, e.g.  when
-the object is as big as zspage or nearly as big a zspage.  For such
-objects zsmalloc has a so called huge class - every object which belongs
-to huge class consumes the entire zspage (which consists of a physical
-page).  On x86_64, PAGE_SHIFT 12 box, the first non-huge class size is
-3264, so starting down from size 3264, objects can share page(-s) and thus
-minimize memory wastage.
+This patch removes ZRAM's enforced "huge object" value and uses zsmalloc
+huge-class watermark instead, which makes more sense.
 
-ZRAM, however, has its own statically defined watermark for huge objects -
-"3 * PAGE_SIZE / 4 = 3072", and forcibly stores every object larger than
-this watermark (3072) as a PAGE_SIZE object, in other words, to a huge
-class, while zsmalloc can keep some of those objects in non-huge classes.
-This results in increased memory consumption.
+TEST
+- I used a 1G zram device, LZO compression back-end, original
+  data set size was 444MB. Looking at zsmalloc classes stats the
+  test ended up to be pretty fair.
 
-zsmalloc knows better if the object is huge or not.  Introduce
-zs_huge_class_size() function which tells if the given object can be
-stored in one of non-huge classes or not.  This will let us to drop ZRAM's
-huge object watermark and fully rely on zsmalloc when we decide if the
-object is huge.
+BASE ZRAM/ZSMALLOC
+=====================
+zram mm_stat
+
+498978816 191482495 199831552        0 199831552    15634        0
+
+zsmalloc classes
+
+ class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage freeable
+...
+   151  2448           0            0          1240       1240        744                3        0
+   168  2720           0            0          4200       4200       2800                2        0
+   190  3072           0            0         10100      10100       7575                3        0
+   202  3264           0            0           380        380        304                4        0
+   254  4096           0            0         10620      10620      10620                1        0
+
+ Total                 7           46        106982     106187      48787                         0
+
+PATCHED ZRAM/ZSMALLOC
+=====================
+
+zram mm_stat
+
+498978816 182579184 194248704        0 194248704    15628        0
+
+zsmalloc classes
+
+ class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage freeable
+...
+   151  2448           0            0          1240       1240        744                3        0
+   168  2720           0            0          4200       4200       2800                2        0
+   190  3072           0            0         10100      10100       7575                3        0
+   202  3264           0            0          7180       7180       5744                4        0
+   254  4096           0            0          3820       3820       3820                1        0
+
+ Total                 8           45        106959     106193      47424                         0
+
+As we can see, we reduced the number of objects stored in class-4096,
+because a huge number of objects which we previously forcibly stored in
+class-4096 now stored in non-huge class-3264.  This results in lower
+memory consumption:
+
+- zsmalloc now uses 47424 physical pages, which is less than 48787 pages
+  zsmalloc used before.
+
+- objects that we store in class-3264 share zspages.  That's why overall
+  the number of pages that both class-4096 and class-3264 consumed went
+  down from 10924 to 9564.
 
 Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- include/linux/zsmalloc.h |  2 ++
- mm/zsmalloc.c            | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+)
+ drivers/block/zram/zram_drv.c |  9 ++++++++-
+ drivers/block/zram/zram_drv.h | 16 ----------------
+ 2 files changed, 8 insertions(+), 17 deletions(-)
 
-diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
-index 57a8e98f2708..2219cce81ca4 100644
---- a/include/linux/zsmalloc.h
-+++ b/include/linux/zsmalloc.h
-@@ -47,6 +47,8 @@ void zs_destroy_pool(struct zs_pool *pool);
- unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t flags);
- void zs_free(struct zs_pool *pool, unsigned long obj);
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 71b449613cfa..0f3fadd71230 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -44,6 +44,11 @@ static const char *default_compressor = "lzo";
  
-+size_t zs_huge_class_size(struct zs_pool *pool);
-+
- void *zs_map_object(struct zs_pool *pool, unsigned long handle,
- 			enum zs_mapmode mm);
- void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 4076c406dd32..61cb05dc950c 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -193,6 +193,7 @@ static struct vfsmount *zsmalloc_mnt;
-  * (see: fix_fullness_group())
-  */
- static const int fullness_threshold_frac = 4;
+ /* Module params (documentation at end) */
+ static unsigned int num_devices = 1;
++/*
++ * Pages that compress to sizes equals or greater than this are stored
++ * uncompressed in memory.
++ */
 +static size_t huge_class_size;
  
- struct size_class {
- 	spinlock_t lock;
-@@ -1409,6 +1410,25 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
+ static void zram_free_page(struct zram *zram, size_t index);
+ 
+@@ -786,6 +791,8 @@ static bool zram_meta_alloc(struct zram *zram, u64 disksize)
+ 		return false;
+ 	}
+ 
++	if (!huge_class_size)
++		huge_class_size = zs_huge_class_size(zram->mem_pool);
+ 	return true;
  }
- EXPORT_SYMBOL_GPL(zs_unmap_object);
  
-+/**
-+ * zs_huge_class_size() - Returns the size (in bytes) of the first huge
-+ *                        zsmalloc &size_class.
-+ * @pool: zsmalloc pool to use
-+ *
-+ * The function returns the size of the first huge class - any object of equal
-+ * or bigger size will be stored in zspage consisting of a single physical
-+ * page.
-+ *
-+ * Context: Any context.
-+ *
-+ * Return: the size (in bytes) of the first huge zsmalloc &size_class.
-+ */
-+size_t zs_huge_class_size(struct zs_pool *pool)
-+{
-+	return huge_class_size;
-+}
-+EXPORT_SYMBOL_GPL(zs_huge_class_size);
-+
- static unsigned long obj_malloc(struct size_class *class,
- 				struct zspage *zspage, unsigned long handle)
- {
-@@ -2365,6 +2385,27 @@ struct zs_pool *zs_create_pool(const char *name)
- 		pages_per_zspage = get_pages_per_zspage(size);
- 		objs_per_zspage = pages_per_zspage * PAGE_SIZE / size;
+@@ -965,7 +972,7 @@ static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
+ 		return ret;
+ 	}
  
-+		/*
-+		 * We iterate from biggest down to smallest classes,
-+		 * so huge_class_size holds the size of the first huge
-+		 * class. Any object bigger than or equal to that will
-+		 * endup in the huge class.
-+		 */
-+		if (pages_per_zspage != 1 && objs_per_zspage != 1 &&
-+				!huge_class_size) {
-+			huge_class_size = size;
-+			/*
-+			 * The object uses ZS_HANDLE_SIZE bytes to store the
-+			 * handle. We need to subtract it, because zs_malloc()
-+			 * unconditionally adds handle size before it performs
-+			 * size class search - so object may be smaller than
-+			 * huge class size, yet it still can end up in the huge
-+			 * class because it grows by ZS_HANDLE_SIZE extra bytes
-+			 * right before class lookup.
-+			 */
-+			huge_class_size -= (ZS_HANDLE_SIZE - 1);
-+		}
-+
- 		/*
- 		 * size_class is used for normal zsmalloc operation such
- 		 * as alloc/free for that size. Although it is natural that we
+-	if (unlikely(comp_len > max_zpage_size)) {
++	if (unlikely(comp_len >= huge_class_size)) {
+ 		if (zram_wb_enabled(zram) && allow_wb) {
+ 			zcomp_stream_put(zram->comp);
+ 			ret = write_to_bdev(zram, bvec, index, bio, &element);
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index 31762db861e3..d71c8000a964 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -21,22 +21,6 @@
+ 
+ #include "zcomp.h"
+ 
+-/*-- Configurable parameters */
+-
+-/*
+- * Pages that compress to size greater than this are stored
+- * uncompressed in memory.
+- */
+-static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
+-
+-/*
+- * NOTE: max_zpage_size must be less than or equal to:
+- *   ZS_MAX_ALLOC_SIZE. Otherwise, zs_malloc() would
+- * always return failure.
+- */
+-
+-/*-- End of configurable params */
+-
+ #define SECTOR_SHIFT		9
+ #define SECTORS_PER_PAGE_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
+ #define SECTORS_PER_PAGE	(1 << SECTORS_PER_PAGE_SHIFT)
 -- 
 2.16.2
