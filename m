@@ -1,65 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4381D6B000C
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 16:56:34 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p128so1912856pga.19
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 13:56:34 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p66si1829702pfk.100.2018.03.14.13.56.32
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C88B6B000C
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 16:59:02 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 139so2138743pfw.7
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 13:59:02 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id u31sor835772pgn.67.2018.03.14.13.59.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 13:56:32 -0700 (PDT)
-Date: Wed, 14 Mar 2018 13:56:31 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] percpu: Allow to kill tasks doing pcpu_alloc() and
- waiting for pcpu_balance_workfn()
-Message-Id: <20180314135631.3e21b31b154e9f3036fa6c52@linux-foundation.org>
-In-Reply-To: <152102825828.13166.9574628787314078889.stgit@localhost.localdomain>
-References: <152102825828.13166.9574628787314078889.stgit@localhost.localdomain>
-Mime-Version: 1.0
+        (Google Transport Security);
+        Wed, 14 Mar 2018 13:59:01 -0700 (PDT)
+Date: Wed, 14 Mar 2018 13:58:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm v3 1/3] mm, memcg: introduce per-memcg oom policy
+ tunable
+In-Reply-To: <20180314123851.GB20850@castle.DHCP.thefacebook.com>
+Message-ID: <alpine.DEB.2.20.1803141341180.163553@chino.kir.corp.google.com>
+References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803121757080.192200@chino.kir.corp.google.com> <20180314123851.GB20850@castle.DHCP.thefacebook.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: tj@kernel.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 14 Mar 2018 14:51:48 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+On Wed, 14 Mar 2018, Roman Gushchin wrote:
 
-> In case of memory deficit and low percpu memory pages,
-> pcpu_balance_workfn() takes pcpu_alloc_mutex for a long
-> time (as it makes memory allocations itself and waits
-> for memory reclaim). If tasks doing pcpu_alloc() are
-> choosen by OOM killer, they can't exit, because they
-> are waiting for the mutex.
+> > The cgroup aware oom killer is needlessly enforced for the entire system
+> > by a mount option.  It's unnecessary to force the system into a single
+> > oom policy: either cgroup aware, or the traditional process aware.
 > 
-> The patch makes pcpu_alloc() to care about killing signal
-> and use mutex_lock_killable(), when it's allowed by GFP
-> flags. This guarantees, a task does not miss SIGKILL
-> from OOM killer.
+> Can you, please, provide a real-life example, when using per-process
+> and cgroup-aware OOM killer depending on OOM scope is beneficial?
 > 
-> ...
->
-> --- a/mm/percpu.c
-> +++ b/mm/percpu.c
-> @@ -1369,8 +1369,12 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
->  		return NULL;
->  	}
->  
-> -	if (!is_atomic)
-> -		mutex_lock(&pcpu_alloc_mutex);
-> +	if (!is_atomic) {
-> +		if (gfp & __GFP_NOFAIL)
-> +			mutex_lock(&pcpu_alloc_mutex);
-> +		else if (mutex_lock_killable(&pcpu_alloc_mutex))
-> +			return NULL;
-> +	}
 
-It would benefit from a comment explaining why we're doing this (it's
-for the oom-killer).
+Hi Roman,
 
-My memory is weak and our documentation is awful.  What does
-mutex_lock_killable() actually do and how does it differ from
-mutex_lock_interruptible()?  Userspace tasks can run pcpu_alloc() and I
-wonder if there's any way in which a userspace-delivered signal can
-disrupt another userspace task's memory allocation attempt?
+This question is only about per-process vs cgroup-aware, not about the 
+need for individual cgroup vs hierarchical subtree, so I'll only focus on 
+that.
+
+Three reasons:
+
+ - Does not lock the entire system into a single methodology.  Users
+   working in a subtree can default to what they are used to: per-process
+   oom selection even though their subtree might be targeted by a system
+   policy level decision at the root.  This allow them flexibility to
+   organize their subtree intuitively for use with other controllers in a
+   single hierarchy.
+
+   The real-world example is a user who currently organizes their subtree
+   for this purpose and has defined oom_score_adj appropriately and now
+   regresses if the admin mounts with the needless "groupoom" option.
+
+ - Allows changing the oom policy at runtime without remounting the entire
+   cgroup fs.  Depending on how cgroups are going to be used, per-process 
+   vs cgroup-aware may be mandated separately.  This is a trait only of
+   the mem cgroup controller, the root level oom policy is no different
+   from the subtree and depends directly on how the subtree is organized.
+   If other controllers are already being used, requiring a remount to
+   change the system-wide oom policy is an unnecessary burden.
+
+   The real-world example is systems software that either supports user
+   subtrees or strictly subtrees that it maintains itself.  While other
+   controllers are used, the mem cgroup oom policy can be changed at
+   runtime rather than requiring a remount and reorganizing other
+   controllers exactly as before.
+
+ - Can be extended to cgroup v1 if necessary.  There is no need for a
+   new cgroup v1 mount option and mem cgroup oom selection is not
+   dependant on any functionality provided by cgroup v2.  The policies
+   introduced here work exactly the same if used with cgroup v1.
+
+   The real-world example is a cgroup configuration that hasn't had
+   the ability to move to cgroup v2 yet and still would like to use
+   cgroup-aware oom selection with a very trivial change to add the
+   memory.oom_policy file to the cgroup v1 filesystem.
+
+> It might be quite confusing, depending on configuration.
+> From inside a container you can have different types of OOMs,
+> depending on parent's cgroup configuration, which is not even
+> accessible for reading from inside.
+> 
+
+Right, and the oom is the result of the parent's limit that is outside the 
+control of the user.  That limit, and now oom policy, is defined by the 
+user controlling the ancestor of the subtree.  The user need not be 
+concerned that it was singled out for oom kill: that policy decision is 
+outside hiso or her control.  memory.oom_group can certainly be delegated 
+to the user, but the targeting cannot be changed or evaded.
+
+However, this patchset also provides them with the ability to define their 
+own oom policy for subcontainers that they create themselves.
+
+> Also, it's probably good to have an interface to show which policies
+> are available.
+> 
+
+This comes back to the user interface question.  I'm very happy to address 
+any way that the interface can be made better, even though I think what is 
+currently proposed is satisfactory.  I think your comment eludes to thp 
+like enabling where we have "[always] madvise never"?  I'm speculating 
+that you may be happier with memory.oom_policy becoming 
+"[none] cgroup tree" and extended for additional policies later?  
+Otherwise the user would need to try the write and test the return value, 
+which purely depends on whether the policy is available or not.  I'm 
+rather indifferent to either interface, but if you would prefer the
+"[none] cgroup tree" appearance, I'll change to that.
