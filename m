@@ -1,75 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 107FA6B0010
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:11:32 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id e17so1753746pgv.5
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 11:11:32 -0700 (PDT)
-Received: from g4t3426.houston.hpe.com (g4t3426.houston.hpe.com. [15.241.140.75])
-        by mx.google.com with ESMTPS id n11-v6si2312061plg.565.2018.03.14.11.11.29
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A99C36B0007
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:53:04 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id x188so2737000qkc.12
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 11:53:04 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id o188si2918451qkb.328.2018.03.14.11.53.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 11:11:30 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v2 0/2] fix memory leak / panic in ioremap huge pages
-Date: Wed, 14 Mar 2018 12:01:53 -0600
-Message-Id: <20180314180155.19492-1-toshi.kani@hpe.com>
+        Wed, 14 Mar 2018 11:53:03 -0700 (PDT)
+Subject: Re: [mmotm:master 8/285] fs//hugetlbfs/inode.c:142:22: note: in
+ expansion of macro 'PGOFF_LOFFT_MAX'
+References: <201803141423.WZYJTFEz%fengguang.wu@intel.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <0d54df0b-1e53-58a0-81ff-e496ae2f7cd8@oracle.com>
+Date: Wed, 14 Mar 2018 11:52:51 -0700
+MIME-Version: 1.0
+In-Reply-To: <201803141423.WZYJTFEz%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, catalin.marinas@arm.com
-Cc: guohanjun@huawei.com, will.deacon@arm.com, wxf.wang@hisilicon.com, willy@infradead.org, cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+To: kbuild test robot <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On architectures with CONFIG_HAVE_ARCH_HUGE_VMAP set, ioremap()
-may create pud/pmd mappings.  Kernel panic was observed on arm64
-systems with Cortex-A75 in the following steps as described by
-Hanjun Guo. [1]
+On 03/13/2018 11:15 PM, kbuild test robot wrote:
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   ead058c4ec49752a4e0323368f1d695385c66020
+> commit: af7abfba1161d2814301844fe11adac16910ea80 [8/285] hugetlbfs-check-for-pgoff-value-overflow-v3
+> config: sh-defconfig (attached as .config)
+> compiler: sh4-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
+> reproduce:
+>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         git checkout af7abfba1161d2814301844fe11adac16910ea80
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=sh 
+> 
+> All warnings (new ones prefixed by >>):
+> 
+>    fs//hugetlbfs/inode.c: In function 'hugetlbfs_file_mmap':
+>>> fs//hugetlbfs/inode.c:118:36: warning: left shift count is negative [-Wshift-count-negative]
+>     #define PGOFF_LOFFT_MAX (PAGE_MASK << (BITS_PER_LONG - (2 * PAGE_SHIFT) - 1))
+>                                        ^
 
- 1. ioremap a 4K size, valid page table will build,
- 2. iounmap it, pte0 will set to 0;
- 3. ioremap the same address with 2M size, pgd/pmd is unchanged,
-    then set the a new value for pmd;
- 4. pte0 is leaked;
- 5. CPU may meet exception because the old pmd is still in TLB,
-    which will lead to kernel panic.
+BITS_PER_LONG = 32 (32bit config)
+PAGE_SHIFT = 16 (64K pages)
+This results in the negative shift value.
 
-This panic is not reproducible on x86.  INVLPG, called from iounmap,
-purges all levels of entries associated with purged address on x86.
-x86 still has memory leak.
+I had proposed another (not so pretty way) to create the mask.
 
-The patch changes the ioremap path to free unmapped page table(s) since
-doing so in the unmap path has the following issues:
+#define PGOFF_LOFFT_MAX \
+	(((1UL << (PAGE_SHIFT + 1)) - 1) <<  (BITS_PER_LONG - (PAGE_SHIFT + 1)))
 
- - The iounmap() path is shared with vunmap().  Since vmap() only
-   supports pte mappings, making vunmap() to free a pte page is an
-   overhead for regular vmap users as they do not need a pte page
-   freed up.
- - Checking if all entries in a pte page are cleared in the unmap path
-   is racy, and serializing this check is expensive.
- - The unmap path calls free_vmap_area_noflush() to do lazy TLB purges.
-   Clearing a pud/pmd entry before the lazy TLB purges needs extra TLB
-   purge.
+This works for the above config, and should work for any.
 
-Patch 01 adds new interfaces as stubs, which work as workaround of
-this issue.  This patch 01 was leveraged from Hanjun's patch. [1]
+Andrew, how would you like me to update the patch?  I can send a new
+version but know you have also made some changes for VM_WARN.  Would
+you simply like a delta on top of the current patch?
 
-Patch 02 fixes the issue on x86 by implementing the interfaces.
-A separate patch (not included in this series) is necessary for arm64.
-
-[1] https://patchwork.kernel.org/patch/10134581/
-
----
-v2
- - Added cc to stable (Andrew Morton)
- - Added proper function headers (Matthew Wilcox)
- - Added descriptions why fixing in the ioremap path. (Will Deacon)
-
----
-Toshi Kani (2):
- 1/2 mm/vmalloc: Add interfaces to free unmapped page table
- 2/2 x86/mm: implement free pmd/pte page interfaces
-
----
- arch/arm64/mm/mmu.c           | 10 ++++++++++
- arch/x86/mm/pgtable.c         | 44 +++++++++++++++++++++++++++++++++++++++++++
- include/asm-generic/pgtable.h | 10 ++++++++++
- lib/ioremap.c                 |  6 ++++--
- 4 files changed, 68 insertions(+), 2 deletions(-)
+-- 
+Mike Kravetz
