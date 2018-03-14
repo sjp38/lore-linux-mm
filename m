@@ -1,150 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D31776B000D
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 16:59:39 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id 29so2961502qto.10
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 13:59:39 -0700 (PDT)
-Received: from g2t2353.austin.hpe.com (g2t2353.austin.hpe.com. [15.233.44.26])
-        by mx.google.com with ESMTPS id t34si3565112qtg.195.2018.03.14.13.59.38
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 179D26B000C
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 17:00:58 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id w140so2970956qkb.15
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:00:58 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k22sor2792334qtk.82.2018.03.14.14.00.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 13:59:38 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH] x86/mm: remove pointless checks in vmalloc_fault
-Date: Wed, 14 Mar 2018 14:59:32 -0600
-Message-Id: <20180314205932.7193-1-toshi.kani@hpe.com>
+        (Google Transport Security);
+        Wed, 14 Mar 2018 14:00:56 -0700 (PDT)
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: [PATCH v3] x86: treat pkey-0 special
+Date: Wed, 14 Mar 2018 14:00:14 -0700
+Message-Id: <1521061214-22385-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de
-Cc: mingo@redhat.com, hpa@zytor.com, bp@alien8.de, luto@kernel.org, gratian.crisan@ni.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
+To: mingo@redhat.com
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
 
-vmalloc_fault() sets user's pgd or p4d from the kernel page table.
-Once it's set, all tables underneath are identical. There is no point
-of following the same page table with two separate pointers and makes
-sure they see the same with BUG().
+Applications need the ability to associate an address-range with some
+key and latter revert to its initial default key. Pkey-0 comes close to
+providing this function but falls short, because the current
+implementation disallows applications to explicitly associate pkey-0 to
+the address range.
 
-Remove the pointless checks in vmalloc_fault(). Also rename the kernel
-pgd/p4d pointers to pgd_k/p4d_k so that their names are consistent in
-the file.
+This patch clarifies the semantics of pkey-0 and provides the
+corresponding implementation on powerpc.
 
-Suggested-by: Andy Lutomirski <luto@kernel.org>
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Gratian Crisan <gratian.crisan@ni.com>
+Pkey-0 is special with the following semantics.
+(a) it is implicitly allocated and can never be freed. It always exists.
+(b) it is the default key assigned to any address-range.
+(c) it can be explicitly associated with any address-range.
+
+Tested on x86_64.
+
+History:
+    v3 : added clarification of the semantics of pkey0.
+    		-- suggested by Dave Hansen
+    v2 : split the patch into two, one for x86 and one for powerpc
+    		-- suggested by Michael Ellermen
+
+cc: Dave Hansen <dave.hansen@intel.com>
+cc: Michael Ellermen <mpe@ellerman.id.au>
+cc: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
-Rebased 2/2 patch on tip.
----
- arch/x86/mm/fault.c |   56 +++++++++++++++------------------------------------
- 1 file changed, 17 insertions(+), 39 deletions(-)
+ arch/x86/include/asm/pkeys.h | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 8e012c3f6ad6..73bd8c95ac71 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -417,11 +417,11 @@ void vmalloc_sync_all(void)
-  */
- static noinline int vmalloc_fault(unsigned long address)
- {
--	pgd_t *pgd, *pgd_ref;
--	p4d_t *p4d, *p4d_ref;
--	pud_t *pud, *pud_ref;
--	pmd_t *pmd, *pmd_ref;
--	pte_t *pte, *pte_ref;
-+	pgd_t *pgd, *pgd_k;
-+	p4d_t *p4d, *p4d_k;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *pte;
- 
- 	/* Make sure we are in vmalloc area: */
- 	if (!(address >= VMALLOC_START && address < VMALLOC_END))
-@@ -435,73 +435,51 @@ static noinline int vmalloc_fault(unsigned long address)
- 	 * case just flush:
+diff --git a/arch/x86/include/asm/pkeys.h b/arch/x86/include/asm/pkeys.h
+index a0ba1ff..6ea7486 100644
+--- a/arch/x86/include/asm/pkeys.h
++++ b/arch/x86/include/asm/pkeys.h
+@@ -52,7 +52,7 @@ bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
+ 	 * from pkey_alloc().  pkey 0 is special, and never
+ 	 * returned from pkey_alloc().
  	 */
- 	pgd = (pgd_t *)__va(read_cr3_pa()) + pgd_index(address);
--	pgd_ref = pgd_offset_k(address);
--	if (pgd_none(*pgd_ref))
-+	pgd_k = pgd_offset_k(address);
-+	if (pgd_none(*pgd_k))
- 		return -1;
+-	if (pkey <= 0)
++	if (pkey < 0)
+ 		return false;
+ 	if (pkey >= arch_max_pkey())
+ 		return false;
+@@ -92,7 +92,8 @@ int mm_pkey_alloc(struct mm_struct *mm)
+ static inline
+ int mm_pkey_free(struct mm_struct *mm, int pkey)
+ {
+-	if (!mm_pkey_is_allocated(mm, pkey))
++	/* pkey 0 is special and can never be freed */
++	if (!pkey || !mm_pkey_is_allocated(mm, pkey))
+ 		return -EINVAL;
  
- 	if (pgtable_l5_enabled) {
- 		if (pgd_none(*pgd)) {
--			set_pgd(pgd, *pgd_ref);
-+			set_pgd(pgd, *pgd_k);
- 			arch_flush_lazy_mmu_mode();
- 		} else {
--			BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
-+			BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_k));
- 		}
- 	}
- 
- 	/* With 4-level paging, copying happens on the p4d level. */
- 	p4d = p4d_offset(pgd, address);
--	p4d_ref = p4d_offset(pgd_ref, address);
--	if (p4d_none(*p4d_ref))
-+	p4d_k = p4d_offset(pgd_k, address);
-+	if (p4d_none(*p4d_k))
- 		return -1;
- 
- 	if (p4d_none(*p4d) && !pgtable_l5_enabled) {
--		set_p4d(p4d, *p4d_ref);
-+		set_p4d(p4d, *p4d_k);
- 		arch_flush_lazy_mmu_mode();
- 	} else {
--		BUG_ON(p4d_pfn(*p4d) != p4d_pfn(*p4d_ref));
-+		BUG_ON(p4d_pfn(*p4d) != p4d_pfn(*p4d_k));
- 	}
- 
--	/*
--	 * Below here mismatches are bugs because these lower tables
--	 * are shared:
--	 */
- 	BUILD_BUG_ON(CONFIG_PGTABLE_LEVELS < 4);
- 
- 	pud = pud_offset(p4d, address);
--	pud_ref = pud_offset(p4d_ref, address);
--	if (pud_none(*pud_ref))
-+	if (pud_none(*pud))
- 		return -1;
- 
--	if (pud_none(*pud) || pud_pfn(*pud) != pud_pfn(*pud_ref))
--		BUG();
--
- 	if (pud_large(*pud))
- 		return 0;
- 
- 	pmd = pmd_offset(pud, address);
--	pmd_ref = pmd_offset(pud_ref, address);
--	if (pmd_none(*pmd_ref))
-+	if (pmd_none(*pmd))
- 		return -1;
- 
--	if (pmd_none(*pmd) || pmd_pfn(*pmd) != pmd_pfn(*pmd_ref))
--		BUG();
--
- 	if (pmd_large(*pmd))
- 		return 0;
- 
--	pte_ref = pte_offset_kernel(pmd_ref, address);
--	if (!pte_present(*pte_ref))
--		return -1;
--
- 	pte = pte_offset_kernel(pmd, address);
--
--	/*
--	 * Don't use pte_page here, because the mappings can point
--	 * outside mem_map, and the NUMA hash lookup cannot handle
--	 * that:
--	 */
--	if (!pte_present(*pte) || pte_pfn(*pte) != pte_pfn(*pte_ref))
--		BUG();
-+	if (!pte_present(*pte))
-+		return -1;
- 
- 	return 0;
- }
+ 	mm_set_pkey_free(mm, pkey);
+-- 
+1.8.3.1
