@@ -1,72 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9397F6B000C
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 16:41:06 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 139so2124111pfw.7
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 13:41:06 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y6sor972577pfe.41.2018.03.14.13.41.05
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EFC936B000C
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 16:44:47 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v3so2121578pfm.21
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 13:44:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d2si2352853pgc.758.2018.03.14.13.44.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 14 Mar 2018 13:41:05 -0700 (PDT)
-Date: Wed, 14 Mar 2018 13:41:03 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm] mm, memcg: evaluate root and leaf memcgs fairly on
- oom
-In-Reply-To: <20180314121700.GA20850@castle.DHCP.thefacebook.com>
-Message-ID: <alpine.DEB.2.20.1803141337110.163553@chino.kir.corp.google.com>
-References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803131720470.247949@chino.kir.corp.google.com> <20180314121700.GA20850@castle.DHCP.thefacebook.com>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Mar 2018 13:44:46 -0700 (PDT)
+Date: Wed, 14 Mar 2018 13:44:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [memcg:since-4.15 382/386] arch/m68k/mm/init.c:125:0: warning:
+ "UL" redefined
+Message-Id: <20180314134445.61e26e6038e5c565f1438a9b@linux-foundation.org>
+In-Reply-To: <201803142315.LTV2xdYr%fengguang.wu@intel.com>
+References: <201803142315.LTV2xdYr%fengguang.wu@intel.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Masahiro Yamada <yamada.masahiro@socionext.com>, kbuild-all@01.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
 
-On Wed, 14 Mar 2018, Roman Gushchin wrote:
+On Wed, 14 Mar 2018 23:20:21 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-> > @@ -2618,92 +2620,65 @@ static long memcg_oom_badness(struct mem_cgroup *memcg,
-> >  		if (nodemask && !node_isset(nid, *nodemask))
-> >  			continue;
-> >  
-> > -		points += mem_cgroup_node_nr_lru_pages(memcg, nid,
-> > -				LRU_ALL_ANON | BIT(LRU_UNEVICTABLE));
-> > -
-> >  		pgdat = NODE_DATA(nid);
-> > -		points += lruvec_page_state(mem_cgroup_lruvec(pgdat, memcg),
-> > -					    NR_SLAB_UNRECLAIMABLE);
-> > +		if (is_root_memcg) {
-> > +			points += node_page_state(pgdat, NR_ACTIVE_ANON) +
-> > +				  node_page_state(pgdat, NR_INACTIVE_ANON);
-> > +			points += node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE);
-> > +		} else {
-> > +			points += mem_cgroup_node_nr_lru_pages(memcg, nid,
-> > +							       LRU_ALL_ANON);
-> > +			points += lruvec_page_state(mem_cgroup_lruvec(pgdat, memcg),
-> > +						    NR_SLAB_UNRECLAIMABLE);
-> > +		}
-> >  	}
-> >  
-> > -	points += memcg_page_state(memcg, MEMCG_KERNEL_STACK_KB) /
-> > -		(PAGE_SIZE / 1024);
-> > -	points += memcg_page_state(memcg, MEMCG_SOCK);
-> > -	points += memcg_page_state(memcg, MEMCG_SWAP);
-> > -
-> > +	if (is_root_memcg) {
-> > +		points += global_zone_page_state(NR_KERNEL_STACK_KB) /
-> > +				(PAGE_SIZE / 1024);
-> > +		points += atomic_long_read(&total_sock_pages);
->                                             ^^^^^^^^^^^^^^^^
-> BTW, where do we change this counter?
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-4.15
+> head:   5c3f7a041df707417532dd64b1d71fc29b24c0fe
+> commit: 145e9c14cca497b2d02f9edcf9307aad5946172f [382/386] linux/const.h: move UL() macro to include/linux/const.h
+> config: m68k-sun3_defconfig (attached as .config)
+> compiler: m68k-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
+> reproduce:
+>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         git checkout 145e9c14cca497b2d02f9edcf9307aad5946172f
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=m68k 
 > 
-
-Seems like it was dropped from the patch somehow.  It is intended to do 
-atomic_long_add(nr_pages) in mem_cgroup_charge_skmem() and 
-atomic_long_add(-nr_pages) mem_cgroup_uncharge_skmem().
-
-> I also doubt that global atomic variable can work here,
-> we probably need something better scaling.
+> All warnings (new ones prefixed by >>):
 > 
+>    arch/m68k/mm/init.c: In function 'print_memmap':
+> >> arch/m68k/mm/init.c:125:0: warning: "UL" redefined
+>     #define UL(x) ((unsigned long) (x))
+>     
+>    In file included from include/linux/list.h:8:0,
+>                     from include/linux/module.h:9,
+>                     from arch/m68k/mm/init.c:11:
+>    include/linux/const.h:6:0: note: this is the location of the previous definition
+>     #define UL(x)  (_UL(x))
 
-Why do you think an atomic_long_add() is too expensive when we're already 
-disabling irqs and dong try_charge()?
+That's OK - an unrelated patch in linux-next.patch removes that
+#define.
