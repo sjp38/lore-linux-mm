@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 179D26B000C
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 17:00:58 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id w140so2970956qkb.15
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:00:58 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D6256B000D
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 17:03:55 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id w140so2977636qkb.15
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 14:03:55 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k22sor2792334qtk.82.2018.03.14.14.00.56
+        by mx.google.com with SMTPS id g55sor2877451qtg.15.2018.03.14.14.03.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 14 Mar 2018 14:00:56 -0700 (PDT)
+        Wed, 14 Mar 2018 14:03:54 -0700 (PDT)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v3] x86: treat pkey-0 special
-Date: Wed, 14 Mar 2018 14:00:14 -0700
-Message-Id: <1521061214-22385-1-git-send-email-linuxram@us.ibm.com>
+Subject: [PATCH v3] powerpc: treat pkey-0 special
+Date: Wed, 14 Mar 2018 14:01:35 -0700
+Message-Id: <1521061295-22605-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mingo@redhat.com
-Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
+To: mpe@ellerman.id.au
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@redhat.com, akpm@linux-foundation.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
 
 Applications need the ability to associate an address-range with some
 key and latter revert to its initial default key. Pkey-0 comes close to
@@ -32,7 +32,7 @@ Pkey-0 is special with the following semantics.
 (b) it is the default key assigned to any address-range.
 (c) it can be explicitly associated with any address-range.
 
-Tested on x86_64.
+Tested on powerpc.
 
 History:
     v3 : added clarification of the semantics of pkey0.
@@ -45,31 +45,45 @@ cc: Michael Ellermen <mpe@ellerman.id.au>
 cc: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- arch/x86/include/asm/pkeys.h | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ arch/powerpc/include/asm/pkeys.h | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/include/asm/pkeys.h b/arch/x86/include/asm/pkeys.h
-index a0ba1ff..6ea7486 100644
---- a/arch/x86/include/asm/pkeys.h
-+++ b/arch/x86/include/asm/pkeys.h
-@@ -52,7 +52,7 @@ bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
- 	 * from pkey_alloc().  pkey 0 is special, and never
- 	 * returned from pkey_alloc().
- 	 */
--	if (pkey <= 0)
-+	if (pkey < 0)
- 		return false;
- 	if (pkey >= arch_max_pkey())
- 		return false;
-@@ -92,7 +92,8 @@ int mm_pkey_alloc(struct mm_struct *mm)
- static inline
- int mm_pkey_free(struct mm_struct *mm, int pkey)
+diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
+index 0409c80..3c1deec 100644
+--- a/arch/powerpc/include/asm/pkeys.h
++++ b/arch/powerpc/include/asm/pkeys.h
+@@ -101,10 +101,18 @@ static inline u16 pte_to_pkey_bits(u64 pteflags)
+ 
+ static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
  {
+-	/* A reserved key is never considered as 'explicitly allocated' */
+-	return ((pkey < arch_max_pkey()) &&
+-		!__mm_pkey_is_reserved(pkey) &&
+-		__mm_pkey_is_allocated(mm, pkey));
++	/* pkey 0 is allocated by default. */
++	if (!pkey)
++	       return true;
++
++	if (pkey < 0 || pkey >= arch_max_pkey())
++	       return false;
++
++	/* Reserved keys are never allocated. */
++	if (__mm_pkey_is_reserved(pkey))
++	       return false;
++
++	return __mm_pkey_is_allocated(mm, pkey);
+ }
+ 
+ extern void __arch_activate_pkey(int pkey);
+@@ -150,7 +158,8 @@ static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
+ 	if (static_branch_likely(&pkey_disabled))
+ 		return -1;
+ 
 -	if (!mm_pkey_is_allocated(mm, pkey))
-+	/* pkey 0 is special and can never be freed */
++	/* pkey 0 cannot be freed */
 +	if (!pkey || !mm_pkey_is_allocated(mm, pkey))
  		return -EINVAL;
  
- 	mm_set_pkey_free(mm, pkey);
+ 	/*
 -- 
 1.8.3.1
