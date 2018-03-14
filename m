@@ -1,41 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C94A66B0022
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 09:03:16 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id o61-v6so1436565pld.5
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 06:03:16 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m19-v6si1978817pli.36.2018.03.14.06.03.15
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F0D46B0024
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 09:04:26 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u68so1572907pfk.8
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 06:04:26 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 30-v6si1921814plc.446.2018.03.14.06.04.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Mar 2018 06:03:15 -0700 (PDT)
-Date: Wed, 14 Mar 2018 14:03:13 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mmotm 2018-03-13-15-15 uploaded
-Message-ID: <20180314130313.GB23100@dhcp22.suse.cz>
-References: <20180313221617.IBhUuE5FL%akpm@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 14 Mar 2018 06:04:24 -0700 (PDT)
+Date: Wed, 14 Mar 2018 06:04:18 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH v19 0/8] mm: security: ro protection for dynamic data
+Message-ID: <20180314130418.GG29631@bombadil.infradead.org>
+References: <20180313214554.28521-1-igor.stoppa@huawei.com>
+ <a9bfc57f-1591-21b6-1676-b60341a2fadd@huawei.com>
+ <20180314115653.GD29631@bombadil.infradead.org>
+ <8623382b-cdbe-8862-8c2f-fa5bc6a1213a@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180313221617.IBhUuE5FL%akpm@linux-foundation.org>
+In-Reply-To: <8623382b-cdbe-8862-8c2f-fa5bc6a1213a@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mm-commits@vger.kernel.org, sfr@canb.auug.org.au
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: keescook@chromium.org, david@fromorbit.com, rppt@linux.vnet.ibm.com, mhocko@kernel.org, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On Tue 13-03-18 15:16:17, Andrew Morton wrote:
-> The mm-of-the-moment snapshot 2018-03-13-15-15 has been uploaded to
-[...]
-> To develop on top of mmotm git:
+On Wed, Mar 14, 2018 at 02:55:10PM +0200, Igor Stoppa wrote:
+> >  The page_frag allocator seems like a much better place to
+> > start than genalloc.  It has a significantly lower overhead and is
+> > much more suited to the kind of probably-identical-lifespan that the
+> > pmalloc API is going to persuade its users to have.
 > 
->   $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
->   $ git remote update mmotm
->   $ git checkout -b topic mmotm/master
->   <make changes, commit>
->   $ git send-email mmotm/master.. [...]
+> Could you please provide me a pointer?
+> I did a quick search on 4.16-rc5 and found the definition of page_frag
+> and sk_page_frag(). Is this what you are referring to?
 
-JFYI. After few missed mmotm updates while I was offline the tree is
-back up-to-date.
--- 
-Michal Hocko
-SUSE Labs
+It's a blink-and-you'll-miss-it allocator buried deep in mm/page_alloc.c:
+void *page_frag_alloc(struct page_frag_cache *nc,
+                      unsigned int fragsz, gfp_t gfp_mask)
+void page_frag_free(void *addr)
+
+I don't necessarily think you should use it as-is, but the principle it uses
+seems like a better match to me than the rather complex genalloc.  Just
+allocate some pages and track the offset within those pages that is the
+current allocation point.  It's less than 100 lines of code!
