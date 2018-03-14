@@ -1,266 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B2EBB6B000C
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 10:15:48 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p9so1671885pfk.5
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 07:15:48 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h1-v6si2043760pld.16.2018.03.14.07.15.47
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CB2B06B000C
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 10:17:31 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id f3-v6so1522518plf.1
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 07:17:31 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o6si526220pgf.82.2018.03.14.07.17.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 07:15:47 -0700 (PDT)
-Date: Wed, 14 Mar 2018 23:15:40 +0900
-From: Masami Hiramatsu <mhiramat@kernel.org>
-Subject: Re: [PATCH 6/8] trace_uprobe/sdt: Fix multiple update of same
- reference counter
-Message-Id: <20180314231540.b98c74a153255f59f54ebc46@kernel.org>
-In-Reply-To: <20180313125603.19819-7-ravi.bangoria@linux.vnet.ibm.com>
-References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
-	<20180313125603.19819-7-ravi.bangoria@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Mar 2018 07:17:30 -0700 (PDT)
+Date: Wed, 14 Mar 2018 15:17:27 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/page_alloc: fix boot hang in memmap_init_zone
+Message-ID: <20180314141727.GE23100@dhcp22.suse.cz>
+References: <20180313224240.25295-1-neelx@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180313224240.25295-1-neelx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Cc: oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
+To: Daniel Vacek <neelx@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sudeep Holla <sudeep.holla@arm.com>, Naresh Kamboju <naresh.kamboju@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Paul Burton <paul.burton@imgtec.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org
 
-On Tue, 13 Mar 2018 18:26:01 +0530
-Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
+On Tue 13-03-18 23:42:40, Daniel Vacek wrote:
+> On some architectures (reported on arm64) commit 864b75f9d6b01 ("mm/page_alloc: fix memmap_init_zone pageblock alignment")
+> causes a boot hang. This patch fixes the hang making sure the alignment
+> never steps back.
 
-> For tiny binaries/libraries, different mmap regions points to the
-> same file portion. In such cases, we may increment reference counter
-> multiple times. But while de-registration, reference counter will get
-> decremented only by once leaving reference counter > 0 even if no one
-> is tracing on that marker.
-> 
-> Ensure increment and decrement happens in sync by keeping list of
-> mms in trace_uprobe. Increment reference counter only if mm is not
-> present in the list and decrement only if mm is present in the list.
-> 
-> Example
-> 
->   # echo "p:sdt_tick/loop2 /tmp/tick:0x6e4(0x10036)" > uprobe_events
-> 
-> Before patch:
-> 
->   # perf stat -a -e sdt_tick:loop2
->   # /tmp/tick
->   # dd if=/proc/`pgrep tick`/mem bs=1 count=1 skip=$(( 0x10020036 )) 2>/dev/null | xxd
->    0000000: 02                                       .
-> 
->   # pkill perf
->   # dd if=/proc/`pgrep tick`/mem bs=1 count=1 skip=$(( 0x10020036 )) 2>/dev/null | xxd
->   0000000: 01                                       .
-> 
-> After patch:
-> 
->   # perf stat -a -e sdt_tick:loop2
->   # /tmp/tick
->   # dd if=/proc/`pgrep tick`/mem bs=1 count=1 skip=$(( 0x10020036 )) 2>/dev/null | xxd
->   0000000: 01                                       .
-> 
->   # pkill perf
->   # dd if=/proc/`pgrep tick`/mem bs=1 count=1 skip=$(( 0x10020036 )) 2>/dev/null | xxd
->   0000000: 00                                       .
-> 
-> Signed-off-by: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+I am sorry to be complaining again, but the code is so obscure that I
+would _really_ appreciate some more information about what is going
+on here. memblock_next_valid_pfn will most likely return a pfn within
+the same memblock and the alignment will move it before the old pfn
+which is not valid - so the block has some holes. Is that correct?
+If yes then please put it into the changelog. Maybe reuse data provided
+by Arnd http://lkml.kernel.org/r/20180314134431.13241-1-ard.biesheuvel@linaro.org
+ 
+> Link: http://lkml.kernel.org/r/0485727b2e82da7efbce5f6ba42524b429d0391a.1520011945.git.neelx@redhat.com
+> Fixes: 864b75f9d6b01 ("mm/page_alloc: fix memmap_init_zone pageblock alignment")
+> Signed-off-by: Daniel Vacek <neelx@redhat.com>
+> Tested-by: Sudeep Holla <sudeep.holla@arm.com>
+> Tested-by: Naresh Kamboju <naresh.kamboju@linaro.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Paul Burton <paul.burton@imgtec.com>
+> Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: <stable@vger.kernel.org>
 > ---
->  kernel/trace/trace_uprobe.c | 105 +++++++++++++++++++++++++++++++++++++++++++-
->  1 file changed, 103 insertions(+), 2 deletions(-)
+>  mm/page_alloc.c | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
 > 
-> diff --git a/kernel/trace/trace_uprobe.c b/kernel/trace/trace_uprobe.c
-> index b6c9b48..9bf3f7a 100644
-> --- a/kernel/trace/trace_uprobe.c
-> +++ b/kernel/trace/trace_uprobe.c
-> @@ -50,6 +50,11 @@ struct trace_uprobe_filter {
->  	struct list_head	perf_events;
->  };
->  
-> +struct sdt_mm_list {
-> +	struct mm_struct *mm;
-> +	struct sdt_mm_list *next;
-> +};
-
-Oh, please use struct list_head instead of defining your own pointer-chain :(
-
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3d974cb2a1a1..e033a6895c6f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5364,9 +5364,14 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>  			 * is not. move_freepages_block() can shift ahead of
+>  			 * the valid region but still depends on correct page
+>  			 * metadata.
+> +			 * Also make sure we never step back.
+>  			 */
+> -			pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
+> +			unsigned long next_pfn;
 > +
->  /*
->   * uprobe event core functions
->   */
-> @@ -61,6 +66,8 @@ struct trace_uprobe {
->  	char				*filename;
->  	unsigned long			offset;
->  	unsigned long			ref_ctr_offset;
-> +	struct sdt_mm_list		*sml;
-> +	struct rw_semaphore		sml_rw_sem;
-
-BTW, is there any reason to use rw_semaphore? (mutex doesn't fit?)
-
-Thank you,
-
->  	unsigned long			nhit;
->  	struct trace_probe		tp;
->  };
-> @@ -274,6 +281,7 @@ static inline bool is_ret_probe(struct trace_uprobe *tu)
->  	if (is_ret)
->  		tu->consumer.ret_handler = uretprobe_dispatcher;
->  	init_trace_uprobe_filter(&tu->filter);
-> +	init_rwsem(&tu->sml_rw_sem);
->  	return tu;
->  
->  error:
-> @@ -921,6 +929,74 @@ static void uretprobe_trace_func(struct trace_uprobe *tu, unsigned long func,
->  	return trace_handle_return(s);
->  }
->  
-> +static bool sdt_check_mm_list(struct trace_uprobe *tu, struct mm_struct *mm)
-> +{
-> +	struct sdt_mm_list *tmp = tu->sml;
-> +
-> +	if (!tu->sml || !mm)
-> +		return false;
-> +
-> +	while (tmp) {
-> +		if (tmp->mm == mm)
-> +			return true;
-> +		tmp = tmp->next;
-> +	}
-> +
-> +	return false;
-> +}
-> +
-> +static void sdt_add_mm_list(struct trace_uprobe *tu, struct mm_struct *mm)
-> +{
-> +	struct sdt_mm_list *tmp;
-> +
-> +	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
-> +	if (!tmp)
-> +		return;
-> +
-> +	tmp->mm = mm;
-> +	tmp->next = tu->sml;
-> +	tu->sml = tmp;
-> +}
-> +
-> +static void sdt_del_mm_list(struct trace_uprobe *tu, struct mm_struct *mm)
-> +{
-> +	struct sdt_mm_list *prev, *curr;
-> +
-> +	if (!tu->sml)
-> +		return;
-> +
-> +	if (tu->sml->mm == mm) {
-> +		curr = tu->sml;
-> +		tu->sml = tu->sml->next;
-> +		kfree(curr);
-> +		return;
-> +	}
-> +
-> +	prev = tu->sml;
-> +	curr = tu->sml->next;
-> +	while (curr) {
-> +		if (curr->mm == mm) {
-> +			prev->next = curr->next;
-> +			kfree(curr);
-> +			return;
-> +		}
-> +		prev = curr;
-> +		curr = curr->next;
-> +	}
-> +}
-> +
-> +static void sdt_flush_mm_list(struct trace_uprobe *tu)
-> +{
-> +	struct sdt_mm_list *next, *curr = tu->sml;
-> +
-> +	while (curr) {
-> +		next = curr->next;
-> +		kfree(curr);
-> +		curr = next;
-> +	}
-> +	tu->sml = NULL;
-> +}
-> +
->  static bool sdt_valid_vma(struct trace_uprobe *tu, struct vm_area_struct *vma)
->  {
->  	unsigned long vaddr = vma_offset_to_vaddr(vma, tu->ref_ctr_offset);
-> @@ -989,17 +1065,25 @@ static void sdt_increment_ref_ctr(struct trace_uprobe *tu)
->  	if (IS_ERR(info))
->  		goto out;
->  
-> +	down_write(&tu->sml_rw_sem);
->  	while (info) {
-> +		if (sdt_check_mm_list(tu, info->mm))
-> +			goto cont;
-> +
->  		down_write(&info->mm->mmap_sem);
->  
->  		vma = sdt_find_vma(info->mm, tu);
->  		vaddr = vma_offset_to_vaddr(vma, tu->ref_ctr_offset);
-> -		sdt_update_ref_ctr(info->mm, vaddr, 1);
-> +		if (!sdt_update_ref_ctr(info->mm, vaddr, 1))
-> +			sdt_add_mm_list(tu, info->mm);
->  
->  		up_write(&info->mm->mmap_sem);
-> +
-> +cont:
->  		mmput(info->mm);
->  		info = uprobe_free_map_info(info);
->  	}
-> +	up_write(&tu->sml_rw_sem);
->  
->  out:
->  	uprobe_end_dup_mmap();
-> @@ -1020,8 +1104,16 @@ void trace_uprobe_mmap_callback(struct vm_area_struct *vma)
->  		    !trace_probe_is_enabled(&tu->tp))
+> +			next_pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
+>  					~(pageblock_nr_pages-1)) - 1;
+> +			if (next_pfn > pfn)
+> +				pfn = next_pfn;
+>  #endif
 >  			continue;
->  
-> +		down_write(&tu->sml_rw_sem);
-> +		if (sdt_check_mm_list(tu, vma->vm_mm))
-> +			goto cont;
-> +
->  		vaddr = vma_offset_to_vaddr(vma, tu->ref_ctr_offset);
-> -		sdt_update_ref_ctr(vma->vm_mm, vaddr, 1);
-> +		if (!sdt_update_ref_ctr(vma->vm_mm, vaddr, 1))
-> +			sdt_add_mm_list(tu, vma->vm_mm);
-> +
-> +cont:
-> +		up_write(&tu->sml_rw_sem);
->  	}
->  	mutex_unlock(&uprobe_lock);
->  }
-> @@ -1038,7 +1130,11 @@ static void sdt_decrement_ref_ctr(struct trace_uprobe *tu)
->  	if (IS_ERR(info))
->  		goto out;
->  
-> +	down_write(&tu->sml_rw_sem);
->  	while (info) {
-> +		if (!sdt_check_mm_list(tu, info->mm))
-> +			goto cont;
-> +
->  		down_write(&info->mm->mmap_sem);
->  
->  		vma = sdt_find_vma(info->mm, tu);
-> @@ -1046,9 +1142,14 @@ static void sdt_decrement_ref_ctr(struct trace_uprobe *tu)
->  		sdt_update_ref_ctr(info->mm, vaddr, -1);
->  
->  		up_write(&info->mm->mmap_sem);
-> +		sdt_del_mm_list(tu, info->mm);
-> +
-> +cont:
->  		mmput(info->mm);
->  		info = uprobe_free_map_info(info);
->  	}
-> +	sdt_flush_mm_list(tu);
-> +	up_write(&tu->sml_rw_sem);
->  
->  out:
->  	uprobe_end_dup_mmap();
+>  		}
 > -- 
-> 1.8.3.1
+> 2.16.2
 > 
-
 
 -- 
-Masami Hiramatsu <mhiramat@kernel.org>
+Michal Hocko
+SUSE Labs
