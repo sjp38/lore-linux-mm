@@ -1,134 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EDA8D6B0003
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 16:16:56 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id az5-v6so3796868plb.14
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:16:56 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e14sor1566362pfn.142.2018.03.15.13.16.55
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 127906B0003
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 16:34:53 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 17so3721547pfo.23
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:34:53 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x20sor1473239pfj.151.2018.03.15.13.34.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 15 Mar 2018 13:16:55 -0700 (PDT)
-Date: Thu, 15 Mar 2018 13:16:53 -0700 (PDT)
+        Thu, 15 Mar 2018 13:34:51 -0700 (PDT)
+Date: Thu, 15 Mar 2018 13:34:49 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm v3 1/3] mm, memcg: introduce per-memcg oom policy
- tunable
-In-Reply-To: <20180315171039.GB1853@castle.DHCP.thefacebook.com>
-Message-ID: <alpine.DEB.2.20.1803151301480.44030@chino.kir.corp.google.com>
-References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803121757080.192200@chino.kir.corp.google.com> <20180314123851.GB20850@castle.DHCP.thefacebook.com> <alpine.DEB.2.20.1803141341180.163553@chino.kir.corp.google.com>
- <20180315171039.GB1853@castle.DHCP.thefacebook.com>
+Subject: [patch -mm] mm, memcg: separate oom_group from selection criteria
+In-Reply-To: <alpine.DEB.2.20.1803131720470.247949@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.20.1803151334260.52771@chino.kir.corp.google.com>
+References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803131720470.247949@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 15 Mar 2018, Roman Gushchin wrote:
+With the current implementation of the cgroup-aware oom killer,
+memory.oom_group defines two behaviors:
 
-> >  - Does not lock the entire system into a single methodology.  Users
-> >    working in a subtree can default to what they are used to: per-process
-> >    oom selection even though their subtree might be targeted by a system
-> >    policy level decision at the root.  This allow them flexibility to
-> >    organize their subtree intuitively for use with other controllers in a
-> >    single hierarchy.
-> > 
-> >    The real-world example is a user who currently organizes their subtree
-> >    for this purpose and has defined oom_score_adj appropriately and now
-> >    regresses if the admin mounts with the needless "groupoom" option.
-> 
-> I find this extremely confusing.
-> 
-> The problem is that OOM policy defines independently how the OOM
-> of the corresponding scope is handled, not like how it prefers
-> to handle OOMs from above.
-> 
-> As I've said, if you're inside a container, you can have OOMs
-> of different types, depending on settings, which you don't even know about.
-> Sometimes oom_score_adj works, sometimes not.
-> Sometimes all processes are killed, sometimes not.
-> IMO, this adds nothing but mess.
-> 
+ - consider the footprint of the "group" consisting of the mem cgroup
+   itself and all descendants for comparison with other cgroups, and
 
-There are many additional problems with the cgroup aware oom killer in 
--mm, yes, the fact that memory.oom_group is factored into the selection 
-logic is another problem.  Users who prefer to account their subtree for 
-comparison (the only way to avoid allowing users to evade the oom killer 
-completely) should use the memory.oom_policy of "tree" introduced later.  
-memory.oom_group needs to be completely separated from the policy of 
-selecting a victim, it shall only be a mechanism that defines if a single 
-process is oom killed or all processes attached to the victim mem cgroup 
-as a property of the workload.
+ - when selected as the victim mem cgroup, kill all processes attached to
+   it and its descendants that are eligible to be killed.
 
-> The mount option (which I'm not a big fan of too) was added only
-> to provide a 100% backward compatibility, what was forced by Michal.
-> But I doubt that mixing per-process and per-cgroup approach
-> makes any sense.
-> 
+Now that the memory.oom_policy of "tree" considers the memory footprint of
+the mem cgroup and all its descendants, separate the memory.oom_group
+setting from the selection criteria.
 
-It makes absolute sense and has real users who can immediately use this if 
-it's merged.  There is nothing wrong with a user preferring to kill the 
-largest process from their subtree on mem cgroup oom.  It's what they've 
-always experienced, with cgroup v1 and v2.  It's the difference between 
-users in a subtree being able to use /proc/pid/oom_score_adj or not.  
-Without it, their oom_score_adj values become entirely irrelevant.  We 
-have users who tune their oom_score_adj and are running in a subtree they 
-control.
+Now, memory.oom_group only controls whether all processes attached to the
+victim mem cgroup and its descendants are oom killed (when set to "1") or
+the single largest memory consuming process attached to the victim mem
+cgroup and its descendants is killed.
 
-If an overcomitted ancestor is oom, which is up to the admin to define in 
-the organization of the hierarchy and imposing limits, the user does not 
-control which process or group of processes is oom killed.  That's a 
-decision for the ancestor which controls all descendant cgroups, including 
-limits and oom policies.
+This is generally regarded as a property of the workload attached to the
+subtree: it depends on whether the workload can continue running and be
+useful if a single process is oom killed or whether it's better to kill
+all attached processes.
 
-> > 
-> >  - Allows changing the oom policy at runtime without remounting the entire
-> >    cgroup fs.  Depending on how cgroups are going to be used, per-process 
-> >    vs cgroup-aware may be mandated separately.  This is a trait only of
-> >    the mem cgroup controller, the root level oom policy is no different
-> >    from the subtree and depends directly on how the subtree is organized.
-> >    If other controllers are already being used, requiring a remount to
-> >    change the system-wide oom policy is an unnecessary burden.
-> > 
-> >    The real-world example is systems software that either supports user
-> >    subtrees or strictly subtrees that it maintains itself.  While other
-> >    controllers are used, the mem cgroup oom policy can be changed at
-> >    runtime rather than requiring a remount and reorganizing other
-> >    controllers exactly as before.
-> 
-> Btw, what the problem with remounting? You don't have to re-create cgroups,
-> or something like this; the operation is as trivial as adding a flag.
-> 
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ Based on top of oom policy patch series at
+ https://marc.info/?t=152090280800001 and follow-up patch at
+ https://marc.info/?l=linux-kernel&m=152098687824112
 
-Remounting is for the entire mem cgroup hierarchy.  The point of this 
-entire patchset is that different subtrees will have different policies, 
-it cannot be locked into a single selection logic.
+ Documentation/cgroup-v2.txt | 21 ++++-----------------
+ mm/memcontrol.c             |  8 ++++----
+ 2 files changed, 8 insertions(+), 21 deletions(-)
 
-This completely avoids users being able to evade the cgroup-aware oom 
-killer by creating subcontainers.
-
-Obviously I've been focused on users controlling subtrees in a lot of my 
-examples.  Those users may already prefer oom killing the largest process 
-on the system (or their subtree).  They can still do that with this patch 
-and opt out of cgroup awareness for their subtree.
-
-It also provides all the functionality that the current implementation in 
--mm provides.
-
-> > 
-> >  - Can be extended to cgroup v1 if necessary.  There is no need for a
-> >    new cgroup v1 mount option and mem cgroup oom selection is not
-> >    dependant on any functionality provided by cgroup v2.  The policies
-> >    introduced here work exactly the same if used with cgroup v1.
-> > 
-> >    The real-world example is a cgroup configuration that hasn't had
-> >    the ability to move to cgroup v2 yet and still would like to use
-> >    cgroup-aware oom selection with a very trivial change to add the
-> >    memory.oom_policy file to the cgroup v1 filesystem.
-> 
-> I assume that v1 interface is frozen.
-> 
-
-It requires adding the memory.oom_policy file to the cgroup v1 fs, that's 
-it.  No other support is needed.  If that's allowed upstream, great; if 
-not, it's a very simple patch to carry for a distribution.
+diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
+--- a/Documentation/cgroup-v2.txt
++++ b/Documentation/cgroup-v2.txt
+@@ -1045,25 +1045,12 @@ PAGE_SIZE multiple when read back.
+ 	A read-write single value file which exists on non-root
+ 	cgroups.  The default is "0".
+ 
+-	If set, OOM killer will consider the memory cgroup as an
+-	indivisible memory consumers and compare it with other memory
+-	consumers by it's memory footprint.
+-	If such memory cgroup is selected as an OOM victim, all
+-	processes belonging to it or it's descendants will be killed.
++	If such memory cgroup is selected as an OOM victim, all processes
++	attached to it and its descendants that are eligible for oom kill
++	(their /proc/pid/oom_score_adj is not oom disabled) will be killed.
+ 
+ 	This applies to system-wide OOM conditions and reaching
+ 	the hard memory limit of the cgroup and their ancestor.
+-	If OOM condition happens in a descendant cgroup with it's own
+-	memory limit, the memory cgroup can't be considered
+-	as an OOM victim, and OOM killer will not kill all belonging
+-	tasks.
+-
+-	Also, OOM killer respects the /proc/pid/oom_score_adj value -1000,
+-	and will never kill the unkillable task, even if memory.oom_group
+-	is set.
+-
+-	If cgroup-aware OOM killer is not enabled, ENOTSUPP error
+-	is returned on attempt to access the file.
+ 
+   memory.oom_policy
+ 
+@@ -1325,7 +1312,7 @@ When selecting a cgroup as a victim, the OOM killer will kill the process
+ with the largest memory footprint.  A user can control this behavior by
+ enabling the per-cgroup memory.oom_group option.  If set, it causes the
+ OOM killer to kill all processes attached to the cgroup, except processes
+-with /proc/pid/oom_score_adj set to -1000 (oom disabled).
++with /proc/pid/oom_score_adj set to OOM_SCORE_ADJ_MIN.
+ 
+ The root cgroup is treated as a leaf memory cgroup as well, so it is
+ compared with other leaf memory cgroups.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2732,11 +2732,11 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+ 			continue;
+ 
+ 		/*
+-		 * We don't consider non-leaf non-oom_group memory cgroups
+-		 * without the oom policy of "tree" as OOM victims.
++		 * We don't consider non-leaf memory cgroups without the oom
++		 * policy of "tree" as OOM victims.
+ 		 */
+-		if (memcg_has_children(iter) && !mem_cgroup_oom_group(iter) &&
+-		    iter->oom_policy != MEMCG_OOM_POLICY_TREE)
++		if (iter->oom_policy != MEMCG_OOM_POLICY_TREE &&
++				memcg_has_children(iter))
+ 			continue;
+ 
+ 		/*
