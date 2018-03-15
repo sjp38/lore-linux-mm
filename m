@@ -1,55 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 485586B000A
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 16:54:21 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id y17so5221677qth.11
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:54:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s184sor4105152qkd.0.2018.03.15.13.54.20
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9431A6B0006
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 18:48:32 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 60-v6so3996472plf.19
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 15:48:32 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y4si4077813pgr.152.2018.03.15.15.48.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 15 Mar 2018 13:54:20 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180315190529.20943-22-linux@dominikbrodowski.net>
-References: <20180315190529.20943-1-linux@dominikbrodowski.net> <20180315190529.20943-22-linux@dominikbrodowski.net>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Thu, 15 Mar 2018 21:54:19 +0100
-Message-ID: <CAK8P3a0Bfp+KOTgCRLGFMxh-yBu0H_wd-SvJzDbBVvg42QOgVg@mail.gmail.com>
-Subject: Re: [PATCH v2 21/36] mm: add ksys_mmap_pgoff() helper; remove
- in-kernel calls to sys_mmap_pgoff()
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Mar 2018 15:48:31 -0700 (PDT)
+Date: Thu, 15 Mar 2018 15:48:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/4] mm/hmm: HMM should have a callback before MM is
+ destroyed
+Message-Id: <20180315154829.89054bfd579d03097b0f6457@linux-foundation.org>
+In-Reply-To: <20180315183700.3843-4-jglisse@redhat.com>
+References: <20180315183700.3843-1-jglisse@redhat.com>
+	<20180315183700.3843-4-jglisse@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dominik Brodowski <linux@dominikbrodowski.net>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+To: jglisse@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
 
-On Thu, Mar 15, 2018 at 8:05 PM, Dominik Brodowski
-<linux@dominikbrodowski.net> wrote:
-> Using this helper allows us to avoid the in-kernel calls to the
-> sys_mmap_pgoff() syscall.
->
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Dominik Brodowski <linux@dominikbrodowski.net>
+On Thu, 15 Mar 2018 14:36:59 -0400 jglisse@redhat.com wrote:
 
-It might be a good idea to clean up the sys_mmap2()/sys_mmap_pgoff()
-distinction as well: From what I understand (I'm sure Al will correct me
-if this is wrong), all 32-bit architectures have a sys_mmap2() syscall
-that has a fixed bit shift value, possibly always 12.
-sys_mmap_pgoff() is defined to have a shift of PAGE_SHIFT, which
-may or may not depend on the kernel configuration.
+> From: Ralph Campbell <rcampbell@nvidia.com>
+> 
+> The hmm_mirror_register() function registers a callback for when
+> the CPU pagetable is modified. Normally, the device driver will
+> call hmm_mirror_unregister() when the process using the device is
+> finished. However, if the process exits uncleanly, the struct_mm
+> can be destroyed with no warning to the device driver.
 
-If we replace the
+The changelog doesn't tell us what the runtime effects of the bug are. 
+This makes it hard for me to answer the "did Jerome consider doing
+cc:stable" question.
 
-+SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
-+               unsigned long, prot, unsigned long, flags,
-+               unsigned long, fd, unsigned long, pgoff)
-+{
-+       return ksys_mmap_pgoff(addr, len, prot, flags, fd, pgoff);
-+}
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -160,6 +160,23 @@ static void hmm_invalidate_range(struct hmm *hmm,
+>  	up_read(&hmm->mirrors_sem);
+>  }
+>  
+> +static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+> +{
+> +	struct hmm *hmm = mm->hmm;
+> +	struct hmm_mirror *mirror;
+> +	struct hmm_mirror *mirror_next;
+> +
+> +	VM_BUG_ON(!hmm);
 
-with a corresponding sys_mmap2() definition, it seems we can
-simplify a number of architectures that today need to define
-sys_mmap2() as a wrapper around sys_mmap_pgoff().
+This doesn't add much value.  We'll reliably oops on the next statement
+anyway, which will provide the same info.  And Linus gets all upset at
+new BUG_ON() instances.
 
-        Arnd
+> +	down_write(&hmm->mirrors_sem);
+> +	list_for_each_entry_safe(mirror, mirror_next, &hmm->mirrors, list) {
+> +		list_del_init(&mirror->list);
+> +		if (mirror->ops->release)
+> +			mirror->ops->release(mirror);
+> +	}
+> +	up_write(&hmm->mirrors_sem);
+> +}
+> +
