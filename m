@@ -1,35 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C43836B000C
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 10:17:57 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id x81so2961643pgx.21
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 07:17:57 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id h70si3883658pfc.269.2018.03.15.07.17.54
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DE966B0006
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 10:21:28 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id n51so4541755qta.9
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 07:21:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id o63si3485347qtd.423.2018.03.15.07.21.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Mar 2018 07:17:54 -0700 (PDT)
-Date: Thu, 15 Mar 2018 07:17:49 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 00/16] remove eight obsolete architectures
-Message-ID: <20180315141749.GA27100@infradead.org>
-References: <20180314143529.1456168-1-arnd@arndb.de>
- <2929.1521106970@warthog.procyon.org.uk>
- <6c9d075c-d7a8-72a5-9b2d-af1feaa06c6c@suse.de>
- <CAK8P3a01pfvsdM1mR8raU9dA7p4H-jRJz2Y8-+KEY76W_Mukpg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Mar 2018 07:21:27 -0700 (PDT)
+Date: Thu, 15 Mar 2018 15:21:20 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
+ count (semaphore)
+Message-ID: <20180315142120.GA19218@redhat.com>
+References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
+ <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAK8P3a01pfvsdM1mR8raU9dA7p4H-jRJz2Y8-+KEY76W_Mukpg@mail.gmail.com>
+In-Reply-To: <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Hannes Reinecke <hare@suse.de>, David Howells <dhowells@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-block <linux-block@vger.kernel.org>, IDE-ML <linux-ide@vger.kernel.org>, "open list:HID CORE LAYER" <linux-input@vger.kernel.org>, Networking <netdev@vger.kernel.org>, linux-wireless <linux-wireless@vger.kernel.org>, linux-pwm@vger.kernel.org, linux-rtc@vger.kernel.org, linux-spi <linux-spi@vger.kernel.org>, linux-usb@vger.kernel.org, dri-devel <dri-devel@lists.freedesktop.org>, linux-fbdev@vger.kernel.org, linux-watchdog@vger.kernel.org, Linux FS-devel Mailing List <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
 
-On Thu, Mar 15, 2018 at 11:42:25AM +0100, Arnd Bergmann wrote:
-> Is anyone producing a chip that includes enough of the Privileged ISA spec
-> to have things like system calls, but not the MMU parts?
+On 03/13, Ravi Bangoria wrote:
+>
+> @@ -1053,6 +1056,9 @@ int uprobe_mmap(struct vm_area_struct *vma)
+>  	struct uprobe *uprobe, *u;
+>  	struct inode *inode;
+>
+> +	if (uprobe_mmap_callback)
+> +		uprobe_mmap_callback(vma);
+> +
+>  	if (no_uprobe_events() || !valid_vma(vma, true))
+>  		return 0;
 
-Various SiFive SOCs seem to support M and U mode, but no S mode or
-iommu.  That should be enough for nommu Linux running in M mode if
-someone cares enough to actually port it.
+probe_event_enable() does
+
+	uprobe_register();
+	/* WINDOW */
+	sdt_increment_ref_ctr();
+
+what if uprobe_mmap() is called in between? The counter(s) in this vma
+will be incremented twice, no?
+
+> +static struct vm_area_struct *
+> +sdt_find_vma(struct mm_struct *mm, struct trace_uprobe *tu)
+> +{
+> +	struct vm_area_struct *tmp;
+> +
+> +	for (tmp = mm->mmap; tmp != NULL; tmp = tmp->vm_next)
+> +		if (sdt_valid_vma(tu, tmp))
+> +			return tmp;
+> +
+> +	return NULL;
+
+I can't understand the logic... Lets ignore sdt_valid_vma() for now.
+The caller has uprobe_map_info, why it can't simply do
+vma = find_vma(uprobe_map_info->vaddr)? and then check sdt_valid_vma().
+
+Oleg.
