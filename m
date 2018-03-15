@@ -1,80 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E16F6B0003
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 12:47:30 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id g199so4751196qke.18
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 09:47:30 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id e63si1403410qkf.275.2018.03.15.09.47.28
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 110066B0006
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 12:48:22 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id t10-v6so3129926plr.12
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 09:48:22 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id x190si3677873pgx.159.2018.03.15.09.48.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Mar 2018 09:47:29 -0700 (PDT)
-Date: Thu, 15 Mar 2018 16:46:53 +0000
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [patch -mm] mm, memcg: evaluate root and leaf memcgs fairly on
- oom
-Message-ID: <20180315164646.GA1853@castle.DHCP.thefacebook.com>
-References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com>
- <alpine.DEB.2.20.1803131720470.247949@chino.kir.corp.google.com>
- <20180314121700.GA20850@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.20.1803141337110.163553@chino.kir.corp.google.com>
+        Thu, 15 Mar 2018 09:48:21 -0700 (PDT)
+Date: Thu, 15 Mar 2018 12:48:16 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
+ count (semaphore)
+Message-ID: <20180315124816.6aa3d4e2@vmware.local.home>
+In-Reply-To: <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
+References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
+	<20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1803141337110.163553@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+Cc: mhiramat@kernel.org, oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
 
-On Wed, Mar 14, 2018 at 01:41:03PM -0700, David Rientjes wrote:
-> On Wed, 14 Mar 2018, Roman Gushchin wrote:
-> 
-> > > @@ -2618,92 +2620,65 @@ static long memcg_oom_badness(struct mem_cgroup *memcg,
-> > >  		if (nodemask && !node_isset(nid, *nodemask))
-> > >  			continue;
-> > >  
-> > > -		points += mem_cgroup_node_nr_lru_pages(memcg, nid,
-> > > -				LRU_ALL_ANON | BIT(LRU_UNEVICTABLE));
-> > > -
-> > >  		pgdat = NODE_DATA(nid);
-> > > -		points += lruvec_page_state(mem_cgroup_lruvec(pgdat, memcg),
-> > > -					    NR_SLAB_UNRECLAIMABLE);
-> > > +		if (is_root_memcg) {
-> > > +			points += node_page_state(pgdat, NR_ACTIVE_ANON) +
-> > > +				  node_page_state(pgdat, NR_INACTIVE_ANON);
-> > > +			points += node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE);
-> > > +		} else {
-> > > +			points += mem_cgroup_node_nr_lru_pages(memcg, nid,
-> > > +							       LRU_ALL_ANON);
-> > > +			points += lruvec_page_state(mem_cgroup_lruvec(pgdat, memcg),
-> > > +						    NR_SLAB_UNRECLAIMABLE);
-> > > +		}
-> > >  	}
-> > >  
-> > > -	points += memcg_page_state(memcg, MEMCG_KERNEL_STACK_KB) /
-> > > -		(PAGE_SIZE / 1024);
-> > > -	points += memcg_page_state(memcg, MEMCG_SOCK);
-> > > -	points += memcg_page_state(memcg, MEMCG_SWAP);
-> > > -
-> > > +	if (is_root_memcg) {
-> > > +		points += global_zone_page_state(NR_KERNEL_STACK_KB) /
-> > > +				(PAGE_SIZE / 1024);
-> > > +		points += atomic_long_read(&total_sock_pages);
-> >                                             ^^^^^^^^^^^^^^^^
-> > BTW, where do we change this counter?
-> > 
-> 
-> Seems like it was dropped from the patch somehow.  It is intended to do 
-> atomic_long_add(nr_pages) in mem_cgroup_charge_skmem() and 
-> atomic_long_add(-nr_pages) mem_cgroup_uncharge_skmem().
-> 
-> > I also doubt that global atomic variable can work here,
-> > we probably need something better scaling.
-> > 
-> 
-> Why do you think an atomic_long_add() is too expensive when we're already 
-> disabling irqs and dong try_charge()?
+On Tue, 13 Mar 2018 18:26:00 +0530
+Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
 
-Hard to say without having full code :)
-try_charge() is batched, if you'll batch it too, it will probably work.
+> +static void sdt_increment_ref_ctr(struct trace_uprobe *tu)
+> +{
+> +	struct uprobe_map_info *info;
+> +	struct vm_area_struct *vma;
+> +	unsigned long vaddr;
+> +
+> +	uprobe_start_dup_mmap();
+
+Please add a comment here that this function ups the mm ref count for
+each info returned. Otherwise it's hard to know what that mmput() below
+matches.
+
+-- Steve
+
+> +	info = uprobe_build_map_info(tu->inode->i_mapping,
+> +				tu->ref_ctr_offset, false);
+> +	if (IS_ERR(info))
+> +		goto out;
+> +
+> +	while (info) {
+> +		down_write(&info->mm->mmap_sem);
+> +
+> +		vma = sdt_find_vma(info->mm, tu);
+> +		vaddr = vma_offset_to_vaddr(vma, tu->ref_ctr_offset);
+> +		sdt_update_ref_ctr(info->mm, vaddr, 1);
+> +
+> +		up_write(&info->mm->mmap_sem);
+> +		mmput(info->mm);
+> +		info = uprobe_free_map_info(info);
+> +	}
+> +
+> +out:
+> +	uprobe_end_dup_mmap();
+> +}
+> +
