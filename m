@@ -1,123 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0746B0008
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B65B26B000C
 	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 12:45:54 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s6so3146848pgn.3
+Received: by mail-pl0-f71.google.com with SMTP id h61-v6so3519371pld.3
         for <linux-mm@kvack.org>; Thu, 15 Mar 2018 09:45:54 -0700 (PDT)
 Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0124.outbound.protection.outlook.com. [104.47.1.124])
-        by mx.google.com with ESMTPS id y25si3982197pfe.206.2018.03.15.09.45.52
+        by mx.google.com with ESMTPS id y25si3982197pfe.206.2018.03.15.09.45.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 15 Mar 2018 09:45:52 -0700 (PDT)
+        Thu, 15 Mar 2018 09:45:53 -0700 (PDT)
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH 1/6] mm/vmscan: Wake up flushers for legacy cgroups too
-Date: Thu, 15 Mar 2018 19:45:48 +0300
-Message-Id: <20180315164553.17856-1-aryabinin@virtuozzo.com>
+Subject: [PATCH 3/6] mm/vmscan: replace mm_vmscan_lru_shrink_inactive with shrink_page_list tracepoint
+Date: Thu, 15 Mar 2018 19:45:50 +0300
+Message-Id: <20180315164553.17856-3-aryabinin@virtuozzo.com>
+In-Reply-To: <20180315164553.17856-1-aryabinin@virtuozzo.com>
+References: <20180315164553.17856-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, stable@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-Commit 726d061fbd36 ("mm: vmscan: kick flushers when we encounter
-dirty pages on the LRU") added flusher invocation to
-shrink_inactive_list() when many dirty pages on the LRU are encountered.
+With upcoming changes keeping the mm_vmscan_lru_shrink_inactive tracepoint
+intact would require some additional code churn. In particular
+'struct recalim_stat' will gain more wide usage, but we don't need
+'nr_activate', 'nr_ref_keep', 'nr_unmap_fail' counters anywhere besides
+tracepoint.
 
-However, shrink_inactive_list() doesn't wake up flushers for legacy
-cgroup reclaim, so the next commit bbef938429f5 ("mm: vmscan: remove
-old flusher wakeup from direct reclaim path") removed the only source
-of flusher's wake up in legacy mem cgroup reclaim path.
+Since mm_vmscan_lru_shrink_inactive tracepoint mostly provide
+information collected by shrink_page_list(), we can just replace it
+by tracepoint in shrink_page_list(). We don't have 'nr_scanned'
+and 'file' arguments there, but user could obtain this information
+from mm_vmscan_lru_isolate tracepoint.
 
-This leads to premature OOM if there is too many dirty pages in cgroup:
-    # mkdir /sys/fs/cgroup/memory/test
-    # echo $$ > /sys/fs/cgroup/memory/test/tasks
-    # echo 50M > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
-    # dd if=/dev/zero of=tmp_file bs=1M count=100
-    Killed
-
-    dd invoked oom-killer: gfp_mask=0x14000c0(GFP_KERNEL), nodemask=(null), order=0, oom_score_adj=0
-
-    Call Trace:
-     dump_stack+0x46/0x65
-     dump_header+0x6b/0x2ac
-     oom_kill_process+0x21c/0x4a0
-     out_of_memory+0x2a5/0x4b0
-     mem_cgroup_out_of_memory+0x3b/0x60
-     mem_cgroup_oom_synchronize+0x2ed/0x330
-     pagefault_out_of_memory+0x24/0x54
-     __do_page_fault+0x521/0x540
-     page_fault+0x45/0x50
-
-    Task in /test killed as a result of limit of /test
-    memory: usage 51200kB, limit 51200kB, failcnt 73
-    memory+swap: usage 51200kB, limit 9007199254740988kB, failcnt 0
-    kmem: usage 296kB, limit 9007199254740988kB, failcnt 0
-    Memory cgroup stats for /test: cache:49632KB rss:1056KB rss_huge:0KB shmem:0KB
-            mapped_file:0KB dirty:49500KB writeback:0KB swap:0KB inactive_anon:0KB
-	    active_anon:1168KB inactive_file:24760KB active_file:24960KB unevictable:0KB
-    Memory cgroup out of memory: Kill process 3861 (bash) score 88 or sacrifice child
-    Killed process 3876 (dd) total-vm:8484kB, anon-rss:1052kB, file-rss:1720kB, shmem-rss:0kB
-    oom_reaper: reaped process 3876 (dd), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-
-Wake up flushers in legacy cgroup reclaim too.
-
-Fixes: bbef938429f5 ("mm: vmscan: remove old flusher wakeup from direct reclaim path")
 Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: <stable@vger.kernel.org>
 ---
- mm/vmscan.c | 31 ++++++++++++++++---------------
- 1 file changed, 16 insertions(+), 15 deletions(-)
+ include/trace/events/vmscan.h | 36 +++++++++++++++---------------------
+ mm/vmscan.c                   | 18 +++++-------------
+ 2 files changed, 20 insertions(+), 34 deletions(-)
 
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index 6570c5b45ba1..8743a8113b42 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -342,23 +342,21 @@ TRACE_EVENT(mm_vmscan_writepage,
+ 		show_reclaim_flags(__entry->reclaim_flags))
+ );
+ 
+-TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
++TRACE_EVENT(mm_vmscan_shrink_page_list,
+ 
+ 	TP_PROTO(int nid,
+-		unsigned long nr_scanned, unsigned long nr_reclaimed,
+-		unsigned long nr_dirty, unsigned long nr_writeback,
+-		unsigned long nr_congested, unsigned long nr_immediate,
+-		unsigned long nr_activate, unsigned long nr_ref_keep,
+-		unsigned long nr_unmap_fail,
+-		int priority, int file),
+-
+-	TP_ARGS(nid, nr_scanned, nr_reclaimed, nr_dirty, nr_writeback,
++		unsigned long nr_reclaimed, unsigned long nr_dirty,
++		unsigned long nr_writeback, unsigned long nr_congested,
++		unsigned long nr_immediate, unsigned long nr_activate,
++		unsigned long nr_ref_keep, unsigned long nr_unmap_fail,
++		int priority),
++
++	TP_ARGS(nid, nr_reclaimed, nr_dirty, nr_writeback,
+ 		nr_congested, nr_immediate, nr_activate, nr_ref_keep,
+-		nr_unmap_fail, priority, file),
++		nr_unmap_fail, priority),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(int, nid)
+-		__field(unsigned long, nr_scanned)
+ 		__field(unsigned long, nr_reclaimed)
+ 		__field(unsigned long, nr_dirty)
+ 		__field(unsigned long, nr_writeback)
+@@ -368,12 +366,10 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
+ 		__field(unsigned long, nr_ref_keep)
+ 		__field(unsigned long, nr_unmap_fail)
+ 		__field(int, priority)
+-		__field(int, reclaim_flags)
+ 	),
+ 
+ 	TP_fast_assign(
+ 		__entry->nid = nid;
+-		__entry->nr_scanned = nr_scanned;
+ 		__entry->nr_reclaimed = nr_reclaimed;
+ 		__entry->nr_dirty = nr_dirty;
+ 		__entry->nr_writeback = nr_writeback;
+@@ -383,17 +379,15 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
+ 		__entry->nr_ref_keep = nr_ref_keep;
+ 		__entry->nr_unmap_fail = nr_unmap_fail;
+ 		__entry->priority = priority;
+-		__entry->reclaim_flags = trace_shrink_flags(file);
+ 	),
+ 
+-	TP_printk("nid=%d nr_scanned=%ld nr_reclaimed=%ld nr_dirty=%ld nr_writeback=%ld nr_congested=%ld nr_immediate=%ld nr_activate=%ld nr_ref_keep=%ld nr_unmap_fail=%ld priority=%d flags=%s",
++	TP_printk("nid=%d nr_reclaimed=%ld nr_dirty=%ld nr_writeback=%ld nr_congested=%ld nr_immediate=%ld nr_activate=%ld nr_ref_keep=%ld nr_unmap_fail=%ld priority=%d",
+ 		__entry->nid,
+-		__entry->nr_scanned, __entry->nr_reclaimed,
+-		__entry->nr_dirty, __entry->nr_writeback,
+-		__entry->nr_congested, __entry->nr_immediate,
+-		__entry->nr_activate, __entry->nr_ref_keep,
+-		__entry->nr_unmap_fail, __entry->priority,
+-		show_reclaim_flags(__entry->reclaim_flags))
++		__entry->nr_reclaimed, __entry->nr_dirty,
++		__entry->nr_writeback, __entry->nr_congested,
++		__entry->nr_immediate, __entry->nr_activate,
++		__entry->nr_ref_keep, __entry->nr_unmap_fail,
++		__entry->priority)
+ );
+ 
+ TRACE_EVENT(mm_vmscan_lru_shrink_active,
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8fcd9f8d7390..4390a8d5be41 100644
+index 6d74b12099bd..0d5ab312a7f4 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1771,6 +1771,20 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	if (stat.nr_writeback && stat.nr_writeback == nr_taken)
- 		set_bit(PGDAT_WRITEBACK, &pgdat->flags);
+@@ -863,9 +863,6 @@ struct reclaim_stat {
+ 	unsigned nr_congested;
+ 	unsigned nr_writeback;
+ 	unsigned nr_immediate;
+-	unsigned nr_activate;
+-	unsigned nr_ref_keep;
+-	unsigned nr_unmap_fail;
+ };
  
-+	/*
-+	 * If dirty pages are scanned that are not queued for IO, it
-+	 * implies that flushers are not doing their job. This can
-+	 * happen when memory pressure pushes dirty pages to the end of
-+	 * the LRU before the dirty limits are breached and the dirty
-+	 * data has expired. It can also happen when the proportion of
-+	 * dirty pages grows not through writes but through memory
-+	 * pressure reclaiming all the clean cache. And in some cases,
-+	 * the flushers simply cannot keep up with the allocation
-+	 * rate. Nudge the flusher threads in case they are asleep.
-+	 */
-+	if (stat.nr_unqueued_dirty == nr_taken)
-+		wakeup_flusher_threads(WB_REASON_VMSCAN);
+ /*
+@@ -1271,15 +1268,17 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 	list_splice(&ret_pages, page_list);
+ 	count_vm_events(PGACTIVATE, pgactivate);
+ 
++	trace_mm_vmscan_shrink_page_list(pgdat->node_id,
++			nr_reclaimed, nr_dirty, nr_writeback, nr_congested,
++			nr_immediate, pgactivate, nr_ref_keep, nr_unmap_fail,
++			sc->priority);
 +
- 	/*
- 	 * Legacy memcg will stall in page writeback so avoid forcibly
- 	 * stalling here.
-@@ -1783,22 +1797,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		if (stat.nr_dirty && stat.nr_dirty == stat.nr_congested)
- 			set_bit(PGDAT_CONGESTED, &pgdat->flags);
+ 	if (stat) {
+ 		stat->nr_dirty = nr_dirty;
+ 		stat->nr_congested = nr_congested;
+ 		stat->nr_unqueued_dirty = nr_unqueued_dirty;
+ 		stat->nr_writeback = nr_writeback;
+ 		stat->nr_immediate = nr_immediate;
+-		stat->nr_activate = pgactivate;
+-		stat->nr_ref_keep = nr_ref_keep;
+-		stat->nr_unmap_fail = nr_unmap_fail;
+ 	}
+ 	return nr_reclaimed;
+ }
+@@ -1820,13 +1819,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	    current_may_throttle())
+ 		wait_iff_congested(pgdat, BLK_RW_ASYNC, HZ/10);
  
--		/*
--		 * If dirty pages are scanned that are not queued for IO, it
--		 * implies that flushers are not doing their job. This can
--		 * happen when memory pressure pushes dirty pages to the end of
--		 * the LRU before the dirty limits are breached and the dirty
--		 * data has expired. It can also happen when the proportion of
--		 * dirty pages grows not through writes but through memory
--		 * pressure reclaiming all the clean cache. And in some cases,
--		 * the flushers simply cannot keep up with the allocation
--		 * rate. Nudge the flusher threads in case they are asleep, but
--		 * also allow kswapd to start writing pages during reclaim.
--		 */
--		if (stat.nr_unqueued_dirty == nr_taken) {
--			wakeup_flusher_threads(WB_REASON_VMSCAN);
-+		/* Allow kswapd to start writing pages during reclaim. */
-+		if (stat.nr_unqueued_dirty == nr_taken)
- 			set_bit(PGDAT_DIRTY, &pgdat->flags);
--		}
+-	trace_mm_vmscan_lru_shrink_inactive(pgdat->node_id,
+-			nr_scanned, nr_reclaimed,
+-			stat.nr_dirty,  stat.nr_writeback,
+-			stat.nr_congested, stat.nr_immediate,
+-			stat.nr_activate, stat.nr_ref_keep,
+-			stat.nr_unmap_fail,
+-			sc->priority, file);
+ 	return nr_reclaimed;
+ }
  
- 		/*
- 		 * If kswapd scans pages marked marked for immediate
 -- 
 2.16.1
