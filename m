@@ -1,93 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E7F1F6B0007
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:11:13 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id m6-v6so3380861pln.8
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 10:11:13 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id v6si3704434pgq.146.2018.03.15.10.11.11
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 55CE46B0006
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:13:49 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id e9so1016878ioj.18
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 10:13:49 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0032.hostedemail.com. [216.40.44.32])
+        by mx.google.com with ESMTPS id k21si647975iti.146.2018.03.15.10.13.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Mar 2018 10:11:12 -0700 (PDT)
-Date: Thu, 15 Mar 2018 17:10:41 +0000
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [patch -mm v3 1/3] mm, memcg: introduce per-memcg oom policy
- tunable
-Message-ID: <20180315171039.GB1853@castle.DHCP.thefacebook.com>
-References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com>
- <alpine.DEB.2.20.1803121757080.192200@chino.kir.corp.google.com>
- <20180314123851.GB20850@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.20.1803141341180.163553@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1803141341180.163553@chino.kir.corp.google.com>
+        Thu, 15 Mar 2018 10:13:48 -0700 (PDT)
+Message-ID: <1521134022.22221.38.camel@perches.com>
+Subject: Re: rfc: remove print_vma_addr ? (was Re: [PATCH 00/16] remove
+ eight obsolete architectures)
+From: Joe Perches <joe@perches.com>
+Date: Thu, 15 Mar 2018 10:13:42 -0700
+In-Reply-To: <20180315170830.GA17574@bombadil.infradead.org>
+References: <20180314143529.1456168-1-arnd@arndb.de>
+	 <2929.1521106970@warthog.procyon.org.uk>
+	 <CAMuHMdXcxuzCOnFCNm4NXDv-wfYJDO5GQpB_ECu7j=2BjMhNpA@mail.gmail.com>
+	 <1521133006.22221.35.camel@perches.com>
+	 <20180315170830.GA17574@bombadil.infradead.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>, David Howells <dhowells@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Linux-Arch <linux-arch@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, linux-block@vger.kernel.org, linux-ide@vger.kernel.org, linux-input@vger.kernel.org, netdev <netdev@vger.kernel.org>, linux-wireless <linux-wireless@vger.kernel.org>, Linux PWM List <linux-pwm@vger.kernel.org>, linux-rtc@vger.kernel.org, linux-spi <linux-spi@vger.kernel.org>, USB list <linux-usb@vger.kernel.org>, DRI Development <dri-devel@lists.freedesktop.org>, Linux Fbdev development list <linux-fbdev@vger.kernel.org>, Linux Watchdog Mailing List <linux-watchdog@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-Hello, David!
+On Thu, 2018-03-15 at 10:08 -0700, Matthew Wilcox wrote:
+> On Thu, Mar 15, 2018 at 09:56:46AM -0700, Joe Perches wrote:
+> > I have a patchset that creates a vsprintf extension for
+> > print_vma_addr and removes all the uses similar to the
+> > print_symbol() removal.
+> > 
+> > This now avoids any possible printk interleaving.
+> > 
+> > Unfortunately, without some #ifdef in vsprintf, which
+> > I would like to avoid, it increases the nommu kernel
+> > size by ~500 bytes.
+> > 
+> > Anyone think this is acceptable?
+[]
+> This doesn't feel like a huge win since it's only called ~once per
+> architecture.  I'd be more excited if it made the printing of the whole
+> thing standardised; eg we have a print_fault() function in mm/memory.c
+> which takes a suitable set of arguments.
 
-On Wed, Mar 14, 2018 at 01:58:59PM -0700, David Rientjes wrote:
-> On Wed, 14 Mar 2018, Roman Gushchin wrote:
->  - Does not lock the entire system into a single methodology.  Users
->    working in a subtree can default to what they are used to: per-process
->    oom selection even though their subtree might be targeted by a system
->    policy level decision at the root.  This allow them flexibility to
->    organize their subtree intuitively for use with other controllers in a
->    single hierarchy.
-> 
->    The real-world example is a user who currently organizes their subtree
->    for this purpose and has defined oom_score_adj appropriately and now
->    regresses if the admin mounts with the needless "groupoom" option.
+Sure but perhaps that's not feasible as the surrounding output
+is per-arch specific.
 
-I find this extremely confusing.
-
-The problem is that OOM policy defines independently how the OOM
-of the corresponding scope is handled, not like how it prefers
-to handle OOMs from above.
-
-As I've said, if you're inside a container, you can have OOMs
-of different types, depending on settings, which you don't even know about.
-Sometimes oom_score_adj works, sometimes not.
-Sometimes all processes are killed, sometimes not.
-IMO, this adds nothing but mess.
-
-The mount option (which I'm not a big fan of too) was added only
-to provide a 100% backward compatibility, what was forced by Michal.
-But I doubt that mixing per-process and per-cgroup approach
-makes any sense.
-
-> 
->  - Allows changing the oom policy at runtime without remounting the entire
->    cgroup fs.  Depending on how cgroups are going to be used, per-process 
->    vs cgroup-aware may be mandated separately.  This is a trait only of
->    the mem cgroup controller, the root level oom policy is no different
->    from the subtree and depends directly on how the subtree is organized.
->    If other controllers are already being used, requiring a remount to
->    change the system-wide oom policy is an unnecessary burden.
-> 
->    The real-world example is systems software that either supports user
->    subtrees or strictly subtrees that it maintains itself.  While other
->    controllers are used, the mem cgroup oom policy can be changed at
->    runtime rather than requiring a remount and reorganizing other
->    controllers exactly as before.
-
-Btw, what the problem with remounting? You don't have to re-create cgroups,
-or something like this; the operation is as trivial as adding a flag.
-
-> 
->  - Can be extended to cgroup v1 if necessary.  There is no need for a
->    new cgroup v1 mount option and mem cgroup oom selection is not
->    dependant on any functionality provided by cgroup v2.  The policies
->    introduced here work exactly the same if used with cgroup v1.
-> 
->    The real-world example is a cgroup configuration that hasn't had
->    the ability to move to cgroup v2 yet and still would like to use
->    cgroup-aware oom selection with a very trivial change to add the
->    memory.oom_policy file to the cgroup v1 filesystem.
-
-I assume that v1 interface is frozen.
-
-Thanks!
+What could be a standardized fault message here?
