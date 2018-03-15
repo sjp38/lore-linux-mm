@@ -1,62 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D06D6B0003
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 16:43:18 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id h61-v6so3836795pld.3
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:43:18 -0700 (PDT)
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0133.outbound.protection.outlook.com. [104.47.37.133])
-        by mx.google.com with ESMTPS id az5-v6si4579496plb.617.2018.03.15.13.43.16
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 55C796B0006
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 16:51:04 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 69-v6so3811401plc.18
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:51:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y96-v6sor1966353plh.37.2018.03.15.13.51.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 15 Mar 2018 13:43:16 -0700 (PDT)
-From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: Re: [PATCH v2 1/2] mm: uninitialized struct page poisoning sanity
- checking
-Date: Thu, 15 Mar 2018 20:43:14 +0000
-Message-ID: <20180315204312.n7p4zzrftgg6m7zw@sasha-lappy>
-References: <20180131210300.22963-1-pasha.tatashin@oracle.com>
- <20180131210300.22963-2-pasha.tatashin@oracle.com>
- <20180313234333.j3i43yxeawx5d67x@sasha-lappy>
- <CAGM2reaPK=ZcLBOnmBiC2-u86DZC6ukOhL1xxZofB2OTW3ozoA@mail.gmail.com>
- <20180314005350.6xdda2uqzuy4n3o6@sasha-lappy>
- <20180315190430.o3vs7uxlafzdwgzd@xakep.localdomain>
-In-Reply-To: <20180315190430.o3vs7uxlafzdwgzd@xakep.localdomain>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <698089C6C27CF943BDBEFE8F28446663@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Thu, 15 Mar 2018 13:51:03 -0700 (PDT)
+Date: Thu, 15 Mar 2018 13:51:01 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -mm] mm, memcg: disregard mempolicies for cgroup-aware oom
+ killer
+In-Reply-To: <alpine.DEB.2.20.1803131720470.247949@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.20.1803151350420.55261@chino.kir.corp.google.com>
+References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803131720470.247949@chino.kir.corp.google.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@suse.com" <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "bharata@linux.vnet.ibm.com" <bharata@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Mar 15, 2018 at 03:04:30PM -0400, Pavel Tatashin wrote:
->>
->> Attached the config. It just happens on boot.
->
->Hi Sasha,
->
->I have tried unsuccessfully to reproduce the bug in qemu with 20G RAM,
->and 8 CPUs.
->
->Patch "mm: uninitialized struct page poisoning sanity" should be improved
->to make dump_page() to detect poisoned struct page, and simply print hex
->in such case. I will send an updated patch later.
->
->How do you run this on Microsoft hypervisor? Do I need Windows 10 for
->that?
+The cgroup-aware oom killer currently considers the set of allowed nodes
+for the allocation that triggers the oom killer and discounts usage from
+disallowed nodes when comparing cgroups.
 
-Booting a Linux VM on Azure would be the easiest, and free too :)
+If a cgroup has both the cpuset and memory controllers enabled, it may be
+possible to restrict allocations to a subset of nodes, for example.  Some
+latency sensitive users use cpusets to allocate only local memory, almost
+to the point of oom even though there is an abundance of available free
+memory on other nodes.
 
->BTW, I am going to be on vacation for the next two week (going to Israel),
->so I may not be able to response quickly.
+The same is true for processes that mbind(2) their memory to a set of
+allowed nodes.
 
-Have fun!
+This yields very inconsistent results by considering usage from each mem
+cgroup (and perhaps its subtree) for the allocation's set of allowed nodes
+for its mempolicy.  Allocating a single page for a vma that is mbind to a
+now-oom node can cause a cgroup that is restricted to that node by its
+cpuset controller to be oom killed when other cgroups may have much higher
+overall usage.
 
-We may need to hold off on getting this patch merged for the time being.
+The cgroup-aware oom killer is described as killing the largest memory
+consuming cgroup (or subtree) without mentioning the mempolicy of the
+allocation.  For now, discount it.  It would be possible to add an
+additional oom policy for NUMA awareness if it would be generally useful
+later with the extensible interface.
 
---=20
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ Based on top of oom policy patch series at
+ https://marc.info/?t=152090280800001 and follow-up patch at
+ https://marc.info/?l=linux-kernel&m=152098687824112
 
-Thanks,
-Sasha=
+ mm/memcontrol.c | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2608,19 +2608,15 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
+ 	return ret;
+ }
+ 
+-static long memcg_oom_badness(struct mem_cgroup *memcg,
+-			      const nodemask_t *nodemask)
++static long memcg_oom_badness(struct mem_cgroup *memcg)
+ {
+ 	const bool is_root_memcg = memcg == root_mem_cgroup;
+ 	long points = 0;
+ 	int nid;
+-	pg_data_t *pgdat;
+ 
+ 	for_each_node_state(nid, N_MEMORY) {
+-		if (nodemask && !node_isset(nid, *nodemask))
+-			continue;
++		pg_data_t *pgdat = NODE_DATA(nid);
+ 
+-		pgdat = NODE_DATA(nid);
+ 		if (is_root_memcg) {
+ 			points += node_page_state(pgdat, NR_ACTIVE_ANON) +
+ 				  node_page_state(pgdat, NR_INACTIVE_ANON);
+@@ -2656,8 +2652,7 @@ static long memcg_oom_badness(struct mem_cgroup *memcg,
+  *   >0: memcg is eligible, and the returned value is an estimation
+  *       of the memory footprint
+  */
+-static long oom_evaluate_memcg(struct mem_cgroup *memcg,
+-			       const nodemask_t *nodemask)
++static long oom_evaluate_memcg(struct mem_cgroup *memcg)
+ {
+ 	struct css_task_iter it;
+ 	struct task_struct *task;
+@@ -2691,7 +2686,7 @@ static long oom_evaluate_memcg(struct mem_cgroup *memcg,
+ 	if (eligible <= 0)
+ 		return eligible;
+ 
+-	return memcg_oom_badness(memcg, nodemask);
++	return memcg_oom_badness(memcg);
+ }
+ 
+ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+@@ -2751,7 +2746,7 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+ 		if (memcg_has_children(iter))
+ 			continue;
+ 
+-		score = oom_evaluate_memcg(iter, oc->nodemask);
++		score = oom_evaluate_memcg(iter);
+ 
+ 		/*
+ 		 * Ignore empty and non-eligible memory cgroups.
+@@ -2780,8 +2775,7 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+ 
+ 	if (oc->chosen_memcg != INFLIGHT_VICTIM) {
+ 		if (root == root_mem_cgroup) {
+-			group_score = oom_evaluate_memcg(root_mem_cgroup,
+-							 oc->nodemask);
++			group_score = oom_evaluate_memcg(root_mem_cgroup);
+ 			if (group_score > leaf_score) {
+ 				/*
+ 				 * Discount the sum of all leaf scores to find
