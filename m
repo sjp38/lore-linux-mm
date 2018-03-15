@@ -1,60 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 90EA06B0008
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 16:54:12 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id w20-v6so2589987plp.13
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:54:12 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 485586B000A
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 16:54:21 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id y17so5221677qth.11
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:54:21 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g6-v6sor2230956pll.131.2018.03.15.13.54.11
+        by mx.google.com with SMTPS id s184sor4105152qkd.0.2018.03.15.13.54.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 15 Mar 2018 13:54:11 -0700 (PDT)
-Date: Thu, 15 Mar 2018 13:54:09 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm v3 0/3] mm, memcg: introduce oom policies
-In-Reply-To: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com>
-References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com>
+        Thu, 15 Mar 2018 13:54:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180315190529.20943-22-linux@dominikbrodowski.net>
+References: <20180315190529.20943-1-linux@dominikbrodowski.net> <20180315190529.20943-22-linux@dominikbrodowski.net>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Thu, 15 Mar 2018 21:54:19 +0100
+Message-ID: <CAK8P3a0Bfp+KOTgCRLGFMxh-yBu0H_wd-SvJzDbBVvg42QOgVg@mail.gmail.com>
+Subject: Re: [PATCH v2 21/36] mm: add ksys_mmap_pgoff() helper; remove
+ in-kernel calls to sys_mmap_pgoff()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dominik Brodowski <linux@dominikbrodowski.net>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
 
-On Mon, 12 Mar 2018, David Rientjes wrote:
+On Thu, Mar 15, 2018 at 8:05 PM, Dominik Brodowski
+<linux@dominikbrodowski.net> wrote:
+> Using this helper allows us to avoid the in-kernel calls to the
+> sys_mmap_pgoff() syscall.
+>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Dominik Brodowski <linux@dominikbrodowski.net>
 
-> There are three significant concerns about the cgroup aware oom killer as
-> it is implemented in -mm:
-> 
->  (1) allows users to evade the oom killer by creating subcontainers or
->      using other controllers since scoring is done per cgroup and not
->      hierarchically,
-> 
->  (2) unfairly compares the root mem cgroup using completely different
->      criteria than leaf mem cgroups and allows wildly inaccurate results
->      if oom_score_adj is used, and
-> 
->  (3) does not allow the user to influence the decisionmaking, such that
->      important subtrees cannot be preferred or biased.
-> 
-> This patchset aims to fix (1) completely and, by doing so, introduces a
-> completely extensible user interface that can be expanded in the future.
-> 
-> It preserves all functionality that currently exists in -mm and extends
-> it to be generally useful outside of very specialized usecases.
-> 
-> It eliminates the mount option for the cgroup aware oom killer entirely
-> since it is now enabled through the root mem cgroup's oom policy.
+It might be a good idea to clean up the sys_mmap2()/sys_mmap_pgoff()
+distinction as well: From what I understand (I'm sure Al will correct me
+if this is wrong), all 32-bit architectures have a sys_mmap2() syscall
+that has a fixed bit shift value, possibly always 12.
+sys_mmap_pgoff() is defined to have a shift of PAGE_SHIFT, which
+may or may not depend on the kernel configuration.
 
-There are currently six patches in this series since additional patches on 
-top of it have been proposed to fix the several issues with the current 
-implementation in -mm.  The six patches address (1) and (2) above, as well 
-as a couple other minor tweaks.  I believe (3) can be subsequently 
-addressed after the feature has been merged since it builds upon what is 
-already here and shouldn't hold it back from being merged itself.
+If we replace the
 
-I plan on sending out the entire series once feedback is received for the 
-patches already sent.
++SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
++               unsigned long, prot, unsigned long, flags,
++               unsigned long, fd, unsigned long, pgoff)
++{
++       return ksys_mmap_pgoff(addr, len, prot, flags, fd, pgoff);
++}
 
-Thanks.
+with a corresponding sys_mmap2() definition, it seems we can
+simplify a number of architectures that today need to define
+sys_mmap2() as a wrapper around sys_mmap_pgoff().
+
+        Arnd
