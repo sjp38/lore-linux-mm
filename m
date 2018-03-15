@@ -1,78 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D84286B0003
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 14:30:35 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id j8so3616314pfh.13
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 11:30:35 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v23-v6si4444768plo.276.2018.03.15.11.30.34
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D01CC6B0003
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 14:37:10 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id l5so4990211qth.18
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 11:37:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 206si5231339qkn.24.2018.03.15.11.37.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Mar 2018 11:30:34 -0700 (PDT)
-Date: Thu, 15 Mar 2018 19:30:31 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/thp: Do not wait for lock_page() in
- deferred_split_scan()
-Message-ID: <20180315183031.GS23100@dhcp22.suse.cz>
-References: <20180315150747.31945-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Mar 2018 11:37:09 -0700 (PDT)
+From: jglisse@redhat.com
+Subject: [PATCH 0/4] hmm: fixes and documentations
+Date: Thu, 15 Mar 2018 14:36:56 -0400
+Message-Id: <20180315183700.3843-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180315150747.31945-1-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Eric Wheeler <linux-mm@lists.ewheeler.net>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
 
-On Thu 15-03-18 18:07:47, Kirill A. Shutemov wrote:
-> deferred_split_scan() gets called from reclaim path. Waiting for page
-> lock may lead to deadlock there.
-> 
-> Replace lock_page() with trylock_page() and skip the page if we failed
-> to lock it. We will get to the page on the next scan.
-> 
+From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-Fixes: 9a982250f773 ("thp: introduce deferred_split_huge_page()")
-and maybe even Cc: stable as this can lead to deadlocks AFAICS.
+All patches only impact HMM user, there is no implication outside HMM.
 
-Btw. other THP shrinker does suffer from the same problem and a deadlock
-has been reported[1]. Thanks for Tetsuo to point that out [2].
+First patch improve documentation to better reflect what HMM is. Second
+patch fix #if/#else placement in hmm.h. The third patch add a call on
+mm release which helps device driver who use HMM to clean up early when
+a process quit. Finaly last patch modify the CPU snapshot and page fault
+helper to simplify device driver. The nouveau patchset i posted last
+week already depends on all of those patches.
 
-[1] http://lkml.kernel.org/r/alpine.LRH.2.11.1801242349220.30642@mail.ewheeler.net
-[2] http://lkml.kernel.org/r/04bbbd39-a1c0-b84b-28a2-0a3876be1054@i-love.sakura.ne.jp
+You can find them in a hmm-for-4.17 branch:
 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+git://people.freedesktop.org/~glisse/linux
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-for-4.17
 
-Anyway feel free to add 
-Acked-by: Michal Hocko <mhocko@suse.com>
-to this patch but a deeper audit is due I suspect
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
+Cc: Mark Hairgrove <mhairgrove@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
 
-> ---
->  mm/huge_memory.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 87ab9b8f56b5..529cf36b7edb 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2783,11 +2783,13 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
->  
->  	list_for_each_safe(pos, next, &list) {
->  		page = list_entry((void *)pos, struct page, mapping);
-> -		lock_page(page);
-> +		if (!trylock_page(page))
-> +			goto next;
->  		/* split_huge_page() removes page from list on success */
->  		if (!split_huge_page(page))
->  			split++;
->  		unlock_page(page);
-> +next:
->  		put_page(page);
->  	}
->  
-> -- 
-> 2.16.1
+JA(C)rA'me Glisse (2):
+  mm/hmm: fix header file if/else/endif maze
+  mm/hmm: change CPU page table snapshot functions to simplify drivers
+
+Ralph Campbell (2):
+  mm/hmm: documentation editorial update to HMM documentation
+  mm/hmm: HMM should have a callback before MM is destroyed
+
+ Documentation/vm/hmm.txt | 360 ++++++++++++++++++++++++-----------------------
+ MAINTAINERS              |   1 +
+ include/linux/hmm.h      | 147 ++++++++++---------
+ mm/hmm.c                 | 351 +++++++++++++++++++++++++--------------------
+ 4 files changed, 468 insertions(+), 391 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.14.3
