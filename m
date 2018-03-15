@@ -1,42 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DE8626B0006
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 08:54:15 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id k17so3204310pfj.10
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 05:54:15 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id r29si3287969pgn.386.2018.03.15.05.54.14
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 084536B0005
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 09:18:37 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id u68so3222012pfk.8
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 06:18:36 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j82si1224167pfk.248.2018.03.15.06.18.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Mar 2018 05:54:15 -0700 (PDT)
-From: Kalle Valo <kvalo@codeaurora.org>
-Subject: Re: [PATCH 11/16] treewide: simplify Kconfig dependencies for removed archs
-References: <20180314143529.1456168-1-arnd@arndb.de>
-	<20180314144614.1632190-1-arnd@arndb.de>
-Date: Thu, 15 Mar 2018 14:54:07 +0200
-In-Reply-To: <20180314144614.1632190-1-arnd@arndb.de> (Arnd Bergmann's message
-	of "Wed, 14 Mar 2018 15:43:46 +0100")
-Message-ID: <873711zehc.fsf@purkki.adurom.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 15 Mar 2018 06:18:35 -0700 (PDT)
+Date: Thu, 15 Mar 2018 06:18:32 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] Improve mutex documentation
+Message-ID: <20180315131832.GC9949@bombadil.infradead.org>
+References: <152102825828.13166.9574628787314078889.stgit@localhost.localdomain>
+ <20180314135631.3e21b31b154e9f3036fa6c52@linux-foundation.org>
+ <20180315115812.GA9949@bombadil.infradead.org>
+ <2397831d-71b5-3cc8-9dc4-ce06e2eddfde@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2397831d-71b5-3cc8-9dc4-ce06e2eddfde@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-ide@vger.kernel.org, linux-input@vger.kernel.org, netdev@vger.kernel.org, linux-wireless@vger.kernel.org, linux-pwm@vger.kernel.org, linux-rtc@vger.kernel.org, linux-spi@vger.kernel.org, linux-usb@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-fbdev@vger.kernel.org, linux-watchdog@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, tj@kernel.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Mauro Carvalho Chehab <mchehab@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>
 
-Arnd Bergmann <arnd@arndb.de> writes:
+On Thu, Mar 15, 2018 at 03:12:30PM +0300, Kirill Tkhai wrote:
+> > +/**
+> > + * mutex_lock_killable() - Acquire the mutex, interruptible by fatal signals.
+> 
+> Shouldn't we clarify that fatal signals are SIGKILL only?
 
-> A lot of Kconfig symbols have architecture specific dependencies.
-> In those cases that depend on architectures we have already removed,
-> they can be omitted.
->
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+It's more complicated than it might seem (... welcome to signal handling!)
+If you send SIGINT to a task that's waiting on a mutex_killable(), it will
+still die.  I *think* that's due to the code in complete_signal():
 
-[...]
+        if (sig_fatal(p, sig) &&
+            !(signal->flags & SIGNAL_GROUP_EXIT) &&
+            !sigismember(&t->real_blocked, sig) &&
+            (sig == SIGKILL || !p->ptrace)) {
+...
+                                sigaddset(&t->pending.signal, SIGKILL);
 
->  drivers/net/wireless/cisco/Kconfig   |  2 +-
+You're correct that this code only checks for SIGKILL, but any fatal
+signal will result in the signal group receiving SIGKILL.
 
-Acked-by: Kalle Valo <kvalo@codeaurora.org>
-
--- 
-Kalle Valo
+Unless I've misunderstood, and it wouldn't be the first time I've
+misunderstood signal handling.
