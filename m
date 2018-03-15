@@ -1,83 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A80E6B0006
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 08:37:20 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id z3-v6so3119734pln.23
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 05:37:20 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o11si3364652pgp.245.2018.03.15.05.37.18
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A79D16B0006
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 08:47:59 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id w19-v6so1098236plq.2
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 05:47:59 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id n20si3373019pgc.508.2018.03.15.05.47.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Mar 2018 05:37:18 -0700 (PDT)
-Date: Thu, 15 Mar 2018 13:37:17 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: KVM hang after OOM
-Message-ID: <20180315123717.GJ23100@dhcp22.suse.cz>
-References: <CABXGCsOv040dsCkQNYzROBmZtYbqqnqLdhfGnCjU==N_nYQCKw@mail.gmail.com>
- <20180312090054.mqu56pju7nijjufh@node.shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180312090054.mqu56pju7nijjufh@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Mar 2018 05:47:58 -0700 (PDT)
+Date: Thu, 15 Mar 2018 21:47:50 +0900
+From: Masami Hiramatsu <mhiramat@kernel.org>
+Subject: Re: [PATCH 8/8] trace_uprobe/sdt: Document about reference counter
+Message-Id: <20180315214750.fc1d53d01045d8e6c1e8e491@kernel.org>
+In-Reply-To: <ec9c4ef7-0117-7c7c-64bc-f6bf4261721d@linux.vnet.ibm.com>
+References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
+	<20180313125603.19819-9-ravi.bangoria@linux.vnet.ibm.com>
+	<20180314225021.64109239de8b14b0aec1e1c5@kernel.org>
+	<ec9c4ef7-0117-7c7c-64bc-f6bf4261721d@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>, linux-mm@kvack.org, kvm@vger.kernel.org
+To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+Cc: oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
 
-On Mon 12-03-18 12:00:54, Kirill A. Shutemov wrote:
-> On Sun, Mar 11, 2018 at 11:11:52PM +0500, Mikhail Gavrilov wrote:
-> > $ uname -a
-> > Linux localhost.localdomain 4.15.7-300.fc27.x86_64+debug #1 SMP Wed
-> > Feb 28 17:32:16 UTC 2018 x86_64 x86_64 x86_64 GNU/Linux
-> > 
-> > 
-> > How reproduce:
-> > 1. start virtual machine
-> > 2. open https://oom.sy24.ru/ in Firefox which will helps occurred OOM.
-> > Sorry I can't attach here html page because my message will rejected
-> > as message would contained HTML subpart.
-> > 
-> > Actual result virtual machine hang and even couldn't be force off.
-> > 
-> > Expected result virtual machine continue work.
-> > 
-> > [ 2335.903277] INFO: task CPU 0/KVM:7450 blocked for more than 120 seconds.
-> > [ 2335.903284]       Not tainted 4.15.7-300.fc27.x86_64+debug #1
-> > [ 2335.903287] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
-> > disables this message.
-> > [ 2335.903291] CPU 0/KVM       D10648  7450      1 0x00000000
-> > [ 2335.903298] Call Trace:
-> > [ 2335.903308]  ? __schedule+0x2e9/0xbb0
-> > [ 2335.903318]  ? __lock_page+0xad/0x180
-> > [ 2335.903322]  schedule+0x2f/0x90
-> > [ 2335.903327]  io_schedule+0x12/0x40
-> > [ 2335.903331]  __lock_page+0xed/0x180
-> > [ 2335.903338]  ? page_cache_tree_insert+0x130/0x130
-> > [ 2335.903347]  deferred_split_scan+0x318/0x340
-> 
-> I guess it's bad idea to wait the page to be unlocked in the relaim path.
-> Could you check if this makes a difference:
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 87ab9b8f56b5..529cf36b7edb 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2783,11 +2783,13 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
->  
->  	list_for_each_safe(pos, next, &list) {
->  		page = list_entry((void *)pos, struct page, mapping);
-> -		lock_page(page);
-> +		if (!trylock_page(page))
-> +			goto next;
->  		/* split_huge_page() removes page from list on success */
->  		if (!split_huge_page(page))
->  			split++;
->  		unlock_page(page);
-> +next:
->  		put_page(page);
->  	}
+Hi Ravi,
 
-Absolutely! Can you send a proper patch please?
+On Wed, 14 Mar 2018 20:52:59 +0530
+Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
+
+> On 03/14/2018 07:20 PM, Masami Hiramatsu wrote:
+> > On Tue, 13 Mar 2018 18:26:03 +0530
+> > Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
+> >
+> >> No functionality changes.
+> > Please consider to describe what is this change and why, here.
+> 
+> Will add in next version.
+
+Thanks, and could you also move this before perf-probe patch?
+Also Could you make perf-probe check the tracing/README whether
+the kernel supports reference counter syntax or not?
+
+perf-tool can be used on older (or stable) kernel.
+
+Thank you,
+
+> 
+> >> Signed-off-by: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+> >> ---
+> >>  Documentation/trace/uprobetracer.txt | 16 +++++++++++++---
+> >>  kernel/trace/trace.c                 |  2 +-
+> >>  2 files changed, 14 insertions(+), 4 deletions(-)
+> >>
+> >> diff --git a/Documentation/trace/uprobetracer.txt b/Documentation/trace/uprobetracer.txt
+> >> index bf526a7c..8fb13b0 100644
+> >> --- a/Documentation/trace/uprobetracer.txt
+> >> +++ b/Documentation/trace/uprobetracer.txt
+> >> @@ -19,15 +19,25 @@ user to calculate the offset of the probepoint in the object.
+> >>  
+> >>  Synopsis of uprobe_tracer
+> >>  -------------------------
+> >> -  p[:[GRP/]EVENT] PATH:OFFSET [FETCHARGS] : Set a uprobe
+> >> -  r[:[GRP/]EVENT] PATH:OFFSET [FETCHARGS] : Set a return uprobe (uretprobe)
+> >> -  -:[GRP/]EVENT                           : Clear uprobe or uretprobe event
+> >> +  p[:[GRP/]EVENT] PATH:OFFSET[(REF_CTR_OFFSET)] [FETCHARGS]
+> >> +  r[:[GRP/]EVENT] PATH:OFFSET[(REF_CTR_OFFSET)] [FETCHARGS]
+> > Ah, OK in this context, [] means optional syntax :)
+> 
+> Correct.
+> 
+> Thanks,
+> Ravi
+> 
+
+
 -- 
-Michal Hocko
-SUSE Labs
+Masami Hiramatsu <mhiramat@kernel.org>
