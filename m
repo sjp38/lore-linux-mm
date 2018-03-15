@@ -1,113 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E5F66B0006
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 03:39:38 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f4-v6so2739417plr.11
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 00:39:38 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id b22si3412376pfi.244.2018.03.15.00.39.37
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 445646B0005
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 04:39:27 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id g66so2925304pfj.11
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 01:39:27 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l5-v6si2943472pls.740.2018.03.15.01.39.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Mar 2018 00:39:37 -0700 (PDT)
-Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
-References: <20180314180155.19492-1-toshi.kani@hpe.com>
- <20180314180155.19492-3-toshi.kani@hpe.com>
-From: Chintan Pandya <cpandya@codeaurora.org>
-Message-ID: <14cb9fdf-25de-6519-2200-43f585b64cdd@codeaurora.org>
-Date: Thu, 15 Mar 2018 13:09:10 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Mar 2018 01:39:24 -0700 (PDT)
+Date: Thu, 15 Mar 2018 09:39:20 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [memcg:since-4.15 382/386] arch/m68k/mm/init.c:125:0: warning:
+ "UL" redefined
+Message-ID: <20180315083920.GY23100@dhcp22.suse.cz>
+References: <201803142315.LTV2xdYr%fengguang.wu@intel.com>
+ <20180314134445.61e26e6038e5c565f1438a9b@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20180314180155.19492-3-toshi.kani@hpe.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180314134445.61e26e6038e5c565f1438a9b@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>, mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, catalin.marinas@arm.com
-Cc: x86@kernel.org, wxf.wang@hisilicon.com, guohanjun@huawei.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, willy@infradead.org, linux-mm@kvack.org, stable@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, kbuild-all@01.org, linux-mm@kvack.org
 
-
-
-On 3/14/2018 11:31 PM, Toshi Kani wrote:
-> Implement pud_free_pmd_page() and pmd_free_pte_page() on x86, which
-> clear a given pud/pmd entry and free up lower level page table(s).
-> Address range associated with the pud/pmd entry must have been purged
-> by INVLPG.
+On Wed 14-03-18 13:44:45, Andrew Morton wrote:
+> On Wed, 14 Mar 2018 23:20:21 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 > 
-> fixes: e61ce6ade404e ("mm: change ioremap to set up huge I/O mappings")
-> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Borislav Petkov <bp@suse.de>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: <stable@vger.kernel.org>
-> ---
->   arch/x86/mm/pgtable.c |   28 ++++++++++++++++++++++++++--
->   1 file changed, 26 insertions(+), 2 deletions(-)
+> > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-4.15
+> > head:   5c3f7a041df707417532dd64b1d71fc29b24c0fe
+> > commit: 145e9c14cca497b2d02f9edcf9307aad5946172f [382/386] linux/const.h: move UL() macro to include/linux/const.h
+> > config: m68k-sun3_defconfig (attached as .config)
+> > compiler: m68k-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
+> > reproduce:
+> >         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+> >         chmod +x ~/bin/make.cross
+> >         git checkout 145e9c14cca497b2d02f9edcf9307aad5946172f
+> >         # save the attached .config to linux build tree
+> >         make.cross ARCH=m68k 
+> > 
+> > All warnings (new ones prefixed by >>):
+> > 
+> >    arch/m68k/mm/init.c: In function 'print_memmap':
+> > >> arch/m68k/mm/init.c:125:0: warning: "UL" redefined
+> >     #define UL(x) ((unsigned long) (x))
+> >     
+> >    In file included from include/linux/list.h:8:0,
+> >                     from include/linux/module.h:9,
+> >                     from arch/m68k/mm/init.c:11:
+> >    include/linux/const.h:6:0: note: this is the location of the previous definition
+> >     #define UL(x)  (_UL(x))
 > 
-> diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-> index 1eed7ed518e6..34cda7e0551b 100644
-> --- a/arch/x86/mm/pgtable.c
-> +++ b/arch/x86/mm/pgtable.c
-> @@ -712,7 +712,22 @@ int pmd_clear_huge(pmd_t *pmd)
->    */
->   int pud_free_pmd_page(pud_t *pud)
->   {
-> -	return pud_none(*pud);
-> +	pmd_t *pmd;
-> +	int i;
-> +
-> +	if (pud_none(*pud))
-> +		return 1;
-> +
-> +	pmd = (pmd_t *)pud_page_vaddr(*pud);
-> +
-> +	for (i = 0; i < PTRS_PER_PMD; i++)
-> +		if (!pmd_free_pte_page(&pmd[i]))
-
-This is forced action and no optional. Also, pmd_free_pte_page()
-doesn't return 0 in any case. So, you may remove _if_ ?
-
-> +			return 0;
-> +
-> +	pud_clear(pud);
-> +	free_page((unsigned long)pmd);
-> +
-> +	return 1;
->   }
->   
->   /**
-> @@ -724,6 +739,15 @@ int pud_free_pmd_page(pud_t *pud)
->    */
->   int pmd_free_pte_page(pmd_t *pmd)
->   {
-> -	return pmd_none(*pmd);
-> +	pte_t *pte;
-> +
-> +	if (pmd_none(*pmd))
-
-This should also check if pmd is already huge. Same for pud ?
-
-> +		return 1;
-> +
-> +	pte = (pte_t *)pmd_page_vaddr(*pmd);
-> +	pmd_clear(pmd);
-> +	free_page((unsigned long)pte);
-> +
-> +	return 1;
->   }
->   #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
-> 
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> That's OK - an unrelated patch in linux-next.patch removes that
+> #define.
 > 
 
-Chintan
+I have cherry-picked 445420c31cbba4a218b432bece0b500b6c4f9d63 into my
+mmotm git tree. Thanks for pointing that out.
+
 -- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, a Linux Foundation
-Collaborative Project
+Michal Hocko
+SUSE Labs
