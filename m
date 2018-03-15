@@ -1,69 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AD8BE6B0003
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:41:02 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id x8so4215041wrg.14
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 10:41:02 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id x9si2423206edk.414.2018.03.15.10.41.00
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 529696B0003
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:49:47 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id k4-v6so3605987pls.15
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 10:49:47 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h4si4146700pfh.48.2018.03.15.10.49.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Mar 2018 10:41:01 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2FHel0b092766
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:40:58 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2gqv53v1k6-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 13:40:53 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Thu, 15 Mar 2018 17:40:13 -0000
-Date: Thu, 15 Mar 2018 10:39:59 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH v3] x86: treat pkey-0 special
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1521061214-22385-1-git-send-email-linuxram@us.ibm.com>
- <alpine.DEB.2.21.1803151039430.1525@nanos.tec.linutronix.de>
- <f5ef79ef-122a-e0a3-9b8e-d49c33f4a417@intel.com>
- <20180315172129.GD1060@ram.oc3035372033.ibm.com>
- <2bf8e659-5a8d-a2d5-ea52-e4d395ea2201@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Mar 2018 10:49:45 -0700 (PDT)
+Date: Thu, 15 Mar 2018 18:49:41 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 1/2] mm: memcg: remote memcg charging for kmem
+ allocations
+Message-ID: <20180315174941.GN23100@dhcp22.suse.cz>
+References: <20180221223757.127213-1-shakeelb@google.com>
+ <20180221223757.127213-2-shakeelb@google.com>
+ <20180313134902.GW12772@dhcp22.suse.cz>
+ <CALvZod5XFKLfQiHN1g3KWJ-DEJPt8gX6QJD=x22x_eyDN88RYg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2bf8e659-5a8d-a2d5-ea52-e4d395ea2201@intel.com>
-Message-Id: <20180315173959.GE1060@ram.oc3035372033.ibm.com>
+In-Reply-To: <CALvZod5XFKLfQiHN1g3KWJ-DEJPt8gX6QJD=x22x_eyDN88RYg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, mingo@redhat.com, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com, Ulrich.Weigand@de.ibm.com
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Mar 15, 2018 at 10:31:51AM -0700, Dave Hansen wrote:
-> On 03/15/2018 10:21 AM, Ram Pai wrote:
-> > On Thu, Mar 15, 2018 at 08:55:31AM -0700, Dave Hansen wrote:
-> >> On 03/15/2018 02:46 AM, Thomas Gleixner wrote:
-> >>>> +	if (!pkey || !mm_pkey_is_allocated(mm, pkey))
-> >>> Why this extra check? mm_pkey_is_allocated(mm, 0) should not return true
-> >>> ever. If it does, then this wants to be fixed.
-> >> I was thinking that we _do_ actually want it to seem allocated.  It just
-> >> get "allocated" implicitly when an mm is created.  I think that will
-> >> simplify the code if we avoid treating it specially in as many places as
-> >> possible.
-> > I think, the logic that makes pkey-0 special must to go
-> > in arch-neutral code.   How about checking for pkey-0 in sys_pkey_free()
-> > itself?
+On Tue 13-03-18 10:55:18, Shakeel Butt wrote:
+> On Tue, Mar 13, 2018 at 6:49 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Wed 21-02-18 14:37:56, Shakeel Butt wrote:
+> > [...]
+> >> +#ifdef CONFIG_MEMCG
+> >> +static inline struct mem_cgroup *memalloc_memcg_save(struct mem_cgroup *memcg)
+> >> +{
+> >> +     struct mem_cgroup *old_memcg = current->target_memcg;
+> >> +     current->target_memcg = memcg;
+> >> +     return old_memcg;
+> >> +}
+> >
+> > So you are relying that the caller will handle the reference counting
+> > properly? I do not think this is a good idea.
 > 
-> This is for protection against shooting yourself in the foot?  Yes, that
-> can go in sys_pkey_free().
+> For the fsnotify use-case, this assumption makes sense as fsnotify has
+> an abstraction of fsnotify_group which is created by the
+> person/process interested in the events and thus can be used to hold
+> the reference to the person/process's memcg.
+
+OK, but there is not any direct connection between fsnotify_group and
+task_struct lifetimes, is it? This makes the API suspectible to
+use-after-free bugs.
+
+> Another use-case I have
+> in mind is the filesystem mount. Basically attaching a mount with a
+> memcg and thus all user pages and kmem allocations (inodes, dentries)
+> for that mount will be charged to the attached memcg.
+
+So you charge page cache to the origin task but metadata to a different
+memcg?
+
+> In this use-case
+> the super_block is the perfect structure to hold the reference to the
+> memcg.
 > 
-> Does this need manpage and/or selftests updates?
+> If in future we find a use-case where this assumption does not make
+> sense we can evolve the API and since this is kernel internal API, it
+> should not be hard to evolve.
+> 
+> > Also do we need some kind
+> > of debugging facility to detect unbalanced save/restore scopes?
+> >
+> 
+> I am not sure, I didn't find other similar patterns (like PF_MEMALLOC)
+> having debugging facility.
 
-Yes. it needs selftest, manpage and documentation updates too.
+Maybe we need something more generic here.
 
-Unfortunately I am not getting enough reviewed-by for my selftests
-and documentation changes. :-(  Need help!
+> Maybe we can add such debugging facility
+> when we find more users other than kmalloc & kmem_cache_alloc. Vmalloc
+> may be one but I could not think of a use-case for vmalloc for remote
+> charging, so, no need to add more code at this time.
+> 
+> > [...]
+> >> @@ -2260,7 +2269,10 @@ struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep)
+> >>       if (current->memcg_kmem_skip_account)
+> >>               return cachep;
+> >>
+> >> -     memcg = get_mem_cgroup_from_mm(current->mm);
+> >> +     if (current->target_memcg)
+> >> +             memcg = get_mem_cgroup(current->target_memcg);
+> >> +     if (!memcg)
+> >> +             memcg = get_mem_cgroup_from_mm(current->mm);
+> >>       kmemcg_id = READ_ONCE(memcg->kmemcg_id);
+> >>       if (kmemcg_id < 0)
+> >>               goto out;
+> >
+> > You are also adding one branch for _each_ charge path even though the
+> > usecase is rather limited.
+> >
+> 
+> I understand the concern but the charging path, IMO, is much complex
+> than just one or couple of additional branches. I can run a simple
+> microbenchmark to see if there is anything noticeable here.
 
-
+Charging path is still a _hot path_. Especially when the kmem accounting
+is enabled by default. You cannot simply downplay the overhead. We have
+_one_ user but all users should pay the price. This is simply hard to
+justify. Maybe we can thing of something that would put the burden on
+the charging context?
 -- 
-Ram Pai
+Michal Hocko
+SUSE Labs
