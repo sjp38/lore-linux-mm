@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A3A16B0009
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 11:07:57 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id z3-v6so3344042pln.23
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 08:07:57 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id o129si3895239pfo.209.2018.03.15.08.07.56
+	by kanga.kvack.org (Postfix) with ESMTP id B2B4F6B0007
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 11:26:04 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id z3-v6so3367169pln.23
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 08:26:04 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id b69si3964739pfe.254.2018.03.15.08.26.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Mar 2018 08:07:56 -0700 (PDT)
+        Thu, 15 Mar 2018 08:26:03 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] mm/thp: Do not wait for lock_page() in deferred_split_scan()
-Date: Thu, 15 Mar 2018 18:07:47 +0300
-Message-Id: <20180315150747.31945-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm/khugepaged: Convert VM_BUG_ON() to collapse fail
+Date: Thu, 15 Mar 2018 18:23:53 +0300
+Message-Id: <20180315152353.27989-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-deferred_split_scan() gets called from reclaim path. Waiting for page
-lock may lead to deadlock there.
+khugepaged is not yet able to convert PTE-mapped huge pages back to PMD
+mapped. We do not collapse such pages. See check khugepaged_scan_pmd().
 
-Replace lock_page() with trylock_page() and skip the page if we failed
-to lock it. We will get to the page on the next scan.
+But if between khugepaged_scan_pmd() and __collapse_huge_page_isolate()
+somebody managed to instantiate THP in the range and then split the PMD
+back to PTEs we would have a problem -- VM_BUG_ON_PAGE(PageCompound(page))
+will get triggered.
+
+It's possible since we drop mmap_sem during collapse to re-take for
+write.
+
+Replace the VM_BUG_ON() with graceful collapse fail.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Fixes: b1caa957ae6d ("khugepaged: ignore pmd tables with THP mapped with ptes")
 ---
- mm/huge_memory.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ mm/khugepaged.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 87ab9b8f56b5..529cf36b7edb 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2783,11 +2783,13 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index b7e2268dfc9a..c15da1ea7e63 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -530,7 +530,12 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 			goto out;
+ 		}
  
- 	list_for_each_safe(pos, next, &list) {
- 		page = list_entry((void *)pos, struct page, mapping);
--		lock_page(page);
-+		if (!trylock_page(page))
-+			goto next;
- 		/* split_huge_page() removes page from list on success */
- 		if (!split_huge_page(page))
- 			split++;
- 		unlock_page(page);
-+next:
- 		put_page(page);
- 	}
+-		VM_BUG_ON_PAGE(PageCompound(page), page);
++		/* TODO: teach khugepaged to collapse THP mapped with pte */
++		if (PageCompound(page)) {
++			result = SCAN_PAGE_COMPOUND;
++			goto out;
++		}
++
+ 		VM_BUG_ON_PAGE(!PageAnon(page), page);
  
+ 		/*
 -- 
 2.16.1
