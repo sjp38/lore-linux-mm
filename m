@@ -1,104 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 52DA76B0009
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2018 21:47:48 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id h61-v6so2302409pld.3
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2018 18:47:48 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id i3-v6si3011368pld.404.2018.03.14.18.47.47
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E5F66B0006
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 03:39:38 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id f4-v6so2739417plr.11
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 00:39:38 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id b22si3412376pfi.244.2018.03.15.00.39.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Mar 2018 18:47:47 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm, madvise, THP: Use THP aligned address in madvise_free_huge_pmd()
-References: <20180315011840.27599-1-ying.huang@intel.com>
-	<869F4AAA-5BBA-40D6-916F-6919E515D271@cs.rutgers.edu>
-Date: Thu, 15 Mar 2018 09:47:44 +0800
-In-Reply-To: <869F4AAA-5BBA-40D6-916F-6919E515D271@cs.rutgers.edu> (Zi Yan's
-	message of "Wed, 14 Mar 2018 21:39:54 -0400")
-Message-ID: <873712az3z.fsf@yhuang-dev.intel.com>
+        Thu, 15 Mar 2018 00:39:37 -0700 (PDT)
+Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
+References: <20180314180155.19492-1-toshi.kani@hpe.com>
+ <20180314180155.19492-3-toshi.kani@hpe.com>
+From: Chintan Pandya <cpandya@codeaurora.org>
+Message-ID: <14cb9fdf-25de-6519-2200-43f585b64cdd@codeaurora.org>
+Date: Thu, 15 Mar 2018 13:09:10 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180314180155.19492-3-toshi.kani@hpe.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@kernel.org>, jglisse@redhat.com, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Toshi Kani <toshi.kani@hpe.com>, mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, catalin.marinas@arm.com
+Cc: x86@kernel.org, wxf.wang@hisilicon.com, guohanjun@huawei.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, willy@infradead.org, linux-mm@kvack.org, stable@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-Zi Yan <zi.yan@cs.rutgers.edu> writes:
 
-> This cannot happen.
->
-> Two address parameters are passed: addr and next.
-> If a??addra?? is not aligned and a??nexta?? is aligned or the end of madvise range, which might not be aligned,
-> either way next - addr < HPAGE_PMD_SIZE.
->
-> This means the code in a??if (next - addr != HPAGE_PMD_SIZE)a??, which is above your second hunk,
-> will split the THP between a??addra?? and a??nexta?? and get out as long as a??addra?? is not aligned.
-> Thus, the code in your second hunk should always get aligned a??addra??.
->
-> Let me know if I miss anything.
 
-Yes, you are right!  Thanks for pointing this out.
+On 3/14/2018 11:31 PM, Toshi Kani wrote:
+> Implement pud_free_pmd_page() and pmd_free_pte_page() on x86, which
+> clear a given pud/pmd entry and free up lower level page table(s).
+> Address range associated with the pud/pmd entry must have been purged
+> by INVLPG.
+> 
+> fixes: e61ce6ade404e ("mm: change ioremap to set up huge I/O mappings")
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Borislav Petkov <bp@suse.de>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: <stable@vger.kernel.org>
+> ---
+>   arch/x86/mm/pgtable.c |   28 ++++++++++++++++++++++++++--
+>   1 file changed, 26 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+> index 1eed7ed518e6..34cda7e0551b 100644
+> --- a/arch/x86/mm/pgtable.c
+> +++ b/arch/x86/mm/pgtable.c
+> @@ -712,7 +712,22 @@ int pmd_clear_huge(pmd_t *pmd)
+>    */
+>   int pud_free_pmd_page(pud_t *pud)
+>   {
+> -	return pud_none(*pud);
+> +	pmd_t *pmd;
+> +	int i;
+> +
+> +	if (pud_none(*pud))
+> +		return 1;
+> +
+> +	pmd = (pmd_t *)pud_page_vaddr(*pud);
+> +
+> +	for (i = 0; i < PTRS_PER_PMD; i++)
+> +		if (!pmd_free_pte_page(&pmd[i]))
 
-Sorry for bothering, please ignore this patch.
+This is forced action and no optional. Also, pmd_free_pte_page()
+doesn't return 0 in any case. So, you may remove _if_ ?
 
-Best Regards,
-Huang, Ying
+> +			return 0;
+> +
+> +	pud_clear(pud);
+> +	free_page((unsigned long)pmd);
+> +
+> +	return 1;
+>   }
+>   
+>   /**
+> @@ -724,6 +739,15 @@ int pud_free_pmd_page(pud_t *pud)
+>    */
+>   int pmd_free_pte_page(pmd_t *pmd)
+>   {
+> -	return pmd_none(*pmd);
+> +	pte_t *pte;
+> +
+> +	if (pmd_none(*pmd))
 
-> a??
-> Best Regards,
-> Yan Zi
->
-> On 14 Mar 2018, at 21:18, Huang, Ying wrote:
->
->> From: Huang Ying <ying.huang@intel.com>
->>
->> The address argument passed in madvise_free_huge_pmd() may be not THP
->> aligned.  But some THP operations like pmdp_invalidate(),
->> set_pmd_at(), and tlb_remove_pmd_tlb_entry() need the address to be
->> THP aligned.  Fix this via using THP aligned address for these
->> functions in madvise_free_huge_pmd().
->>
->> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Shaohua Li <shli@kernel.org>
->> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
->> Cc: jglisse@redhat.com
->> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> ---
->>  mm/huge_memory.c | 7 ++++---
->>  1 file changed, 4 insertions(+), 3 deletions(-)
->>
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index 0cc62405de9c..c5e1bfb08bd7 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -1617,6 +1617,7 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->>  	struct page *page;
->>  	struct mm_struct *mm = tlb->mm;
->>  	bool ret = false;
->> +	unsigned long haddr = addr & HPAGE_PMD_MASK;
->>
->>  	tlb_remove_check_page_size_change(tlb, HPAGE_PMD_SIZE);
->>
->> @@ -1663,12 +1664,12 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->>  	unlock_page(page);
->>
->>  	if (pmd_young(orig_pmd) || pmd_dirty(orig_pmd)) {
->> -		pmdp_invalidate(vma, addr, pmd);
->> +		pmdp_invalidate(vma, haddr, pmd);
->>  		orig_pmd = pmd_mkold(orig_pmd);
->>  		orig_pmd = pmd_mkclean(orig_pmd);
->>
->> -		set_pmd_at(mm, addr, pmd, orig_pmd);
->> -		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
->> +		set_pmd_at(mm, haddr, pmd, orig_pmd);
->> +		tlb_remove_pmd_tlb_entry(tlb, pmd, haddr);
->>  	}
->>
->>  	mark_page_lazyfree(page);
->> -- 
->> 2.16.1
+This should also check if pmd is already huge. Same for pud ?
+
+> +		return 1;
+> +
+> +	pte = (pte_t *)pmd_page_vaddr(*pmd);
+> +	pmd_clear(pmd);
+> +	free_page((unsigned long)pte);
+> +
+> +	return 1;
+>   }
+>   #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+> 
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> 
+
+Chintan
+-- 
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
+Inc. is a member of the Code Aurora Forum, a Linux Foundation
+Collaborative Project
