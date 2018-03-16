@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BF22C6B0289
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:31:32 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k44so6066464wrc.3
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:31:32 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 5796C6B028A
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:31:34 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id w10so2958763wrg.15
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:31:34 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id j14si2116215eda.484.2018.03.16.12.30.05
+        by mx.google.com with ESMTPS id e1si1298454edc.321.2018.03.16.12.30.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 12:30:05 -0700 (PDT)
+        Fri, 16 Mar 2018 12:30:09 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 11/35] x86/entry/32: Simplify debug entry point
-Date: Fri, 16 Mar 2018 20:29:29 +0100
-Message-Id: <1521228593-3820-12-git-send-email-joro@8bytes.org>
+Subject: [PATCH 26/35] x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on x86_32
+Date: Fri, 16 Mar 2018 20:29:44 +0100
+Message-Id: <1521228593-3820-27-git-send-email-joro@8bytes.org>
 In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,66 +22,53 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The common exception entry code now handles the
-entry-from-sysenter stack situation and makes sure to leave
-with the same stack as it entered the kernel.
-
-So there is no need anymore for the special handling in the
-debug entry code.
+Cloning on the P4D level would clone the complete kernel
+address space into the user-space page-tables for PAE
+kernels. Cloning on PMD level is fine for PAE and legacy
+paging.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 35 +++--------------------------------
- 1 file changed, 3 insertions(+), 32 deletions(-)
+ arch/x86/mm/pti.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 4133f95..3c4822a 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -1221,41 +1221,12 @@ END(common_exception)
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index 96a690e..3ffd923 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -312,6 +312,7 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
+ 	}
+ }
  
- ENTRY(debug)
- 	/*
--	 * #DB can happen at the first instruction of
--	 * entry_SYSENTER_32 or in Xen's SYSENTER prologue.  If this
--	 * happens, then we will be running on a very small stack.  We
--	 * need to detect this condition and switch to the thread
--	 * stack before calling any C code at all.
--	 *
--	 * If you edit this code, keep in mind that NMIs can happen in here.
-+	 * Entry from sysenter is now handled in common_exception
- 	 */
- 	ASM_CLAC
- 	pushl	$-1				# mark this as an int
--
--	SAVE_ALL
--	ENCODE_FRAME_POINTER
--	xorl	%edx, %edx			# error code 0
--	movl	%esp, %eax			# pt_regs pointer
--
--	/* Are we currently on the SYSENTER stack? */
--	movl	PER_CPU_VAR(cpu_entry_area), %ecx
--	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
--	subl	%eax, %ecx	/* ecx = (end of entry_stack) - esp */
--	cmpl	$SIZEOF_entry_stack, %ecx
--	jb	.Ldebug_from_sysenter_stack
--
--	TRACE_IRQS_OFF
--	call	do_debug
--	jmp	ret_from_exception
--
--.Ldebug_from_sysenter_stack:
--	/* We're on the SYSENTER stack.  Switch off. */
--	movl	%esp, %ebx
--	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
--	TRACE_IRQS_OFF
--	call	do_debug
--	movl	%ebx, %esp
--	jmp	ret_from_exception
-+	pushl	$do_debug
-+	jmp	common_exception
- END(debug)
- 
++#ifdef CONFIG_X86_64
  /*
+  * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
+  * next-level entry on 5-level systems.
+@@ -335,6 +336,25 @@ static void __init pti_clone_user_shared(void)
+ 	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
+ }
+ 
++#else /* CONFIG_X86_64 */
++
++/*
++ * On 32 bit PAE systems with 1GB of Kernel address space there is only
++ * one pgd/p4d for the whole kernel. Cloning that would map the whole
++ * address space into the user page-tables, making PTI useless. So clone
++ * the page-table on the PMD level to prevent that.
++ */
++static void __init pti_clone_user_shared(void)
++{
++	unsigned long start, end;
++
++	start = CPU_ENTRY_AREA_BASE;
++	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
++
++	pti_clone_pmds(start, end, _PAGE_GLOBAL);
++}
++#endif /* CONFIG_X86_64 */
++
+ /*
+  * Clone the ESPFIX P4D into the user space visinble page table
+  */
 -- 
 2.7.4
