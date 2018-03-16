@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 13E996B025F
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E5AB6B0261
 	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:30:14 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id j28so5916578wrd.17
+Received: by mail-wm0-f70.google.com with SMTP id r78so1230269wmd.0
         for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:30:14 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id y62si707056eda.304.2018.03.16.12.30.12
+        by mx.google.com with ESMTPS id d12si3867347edh.501.2018.03.16.12.30.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 12:30:12 -0700 (PDT)
+        Fri, 16 Mar 2018 12:30:13 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 34/35] x86/mm/pti: Add Warning when booting on a PCID capable CPU
-Date: Fri, 16 Mar 2018 20:29:52 +0100
-Message-Id: <1521228593-3820-35-git-send-email-joro@8bytes.org>
+Subject: [PATCH 33/35] x86/pti: Allow CONFIG_PAGE_TABLE_ISOLATION for x86_32
+Date: Fri, 16 Mar 2018 20:29:51 +0100
+Message-Id: <1521228593-3820-34-git-send-email-joro@8bytes.org>
 In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,41 +22,25 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Warn the user in case the performance can be significantly
-improved by switching to a 64-bit kernel.
+Allow PTI to be compiled on x86_32.
 
-Suggested-by: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ security/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index 3ffd923..8f5aa0d 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -385,6 +385,22 @@ void __init pti_init(void)
- 
- 	pr_info("enabled\n");
- 
-+#ifdef CONFIG_X86_32
-+	if (boot_cpu_has(X86_FEATURE_PCID)) {
-+		/* Use printk to work around pr_fmt() */
-+		printk(KERN_WARNING "\n");
-+		printk(KERN_WARNING "************************************************************\n");
-+		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
-+		printk(KERN_WARNING "**                                                        **\n");
-+		printk(KERN_WARNING "** You are using 32-bit PTI on a 64-bit PCID-capable CPU. **\n");
-+		printk(KERN_WARNING "** Your performance will increase dramatically if you     **\n");
-+		printk(KERN_WARNING "** switch to a 64-bit kernel!                             **\n");
-+		printk(KERN_WARNING "**                                                        **\n");
-+		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
-+		printk(KERN_WARNING "************************************************************\n");
-+	}
-+#endif
-+
- 	pti_clone_user_shared();
- 	pti_clone_entry_text();
- 	pti_setup_espfix64();
+diff --git a/security/Kconfig b/security/Kconfig
+index b0cb9a5..93d85fd 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -57,7 +57,7 @@ config SECURITY_NETWORK
+ config PAGE_TABLE_ISOLATION
+ 	bool "Remove the kernel mapping in user mode"
+ 	default y
+-	depends on X86_64 && !UML
++	depends on X86 && !UML
+ 	help
+ 	  This feature reduces the number of hardware side channels by
+ 	  ensuring that the majority of kernel addresses are not mapped
 -- 
 2.7.4
