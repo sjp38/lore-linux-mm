@@ -1,76 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 35ADD6B0025
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:37:36 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id u200so7443792qka.21
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:37:36 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id q189si3082517qkb.310.2018.03.16.14.37.35
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A43796B0025
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:40:49 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id k22so7585732qtj.0
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:40:49 -0700 (PDT)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id w63si1571046qkd.397.2018.03.16.14.40.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 14:37:35 -0700 (PDT)
-Subject: Re: [PATCH 03/14] mm/hmm: HMM should have a callback before MM is
- destroyed v2
+        Fri, 16 Mar 2018 14:40:48 -0700 (PDT)
+Subject: Re: [PATCH 02/14] mm/hmm: fix header file if/else/endif maze
 References: <20180316191414.3223-1-jglisse@redhat.com>
- <20180316191414.3223-4-jglisse@redhat.com>
- <20180316141221.f2b622630de3f1da51a5c105@linux-foundation.org>
- <20180316212630.GC4861@redhat.com>
+ <20180316191414.3223-3-jglisse@redhat.com>
+ <20180316140959.b603888e2a9ba2e42e56ba1f@linux-foundation.org>
+ <20180316211801.GB4861@redhat.com>
+ <20180316143537.0d49a76ec48ec0ab034af93b@linux-foundation.org>
 From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <0748100d-1414-93b8-baab-f08bb0b0b6ea@nvidia.com>
-Date: Fri, 16 Mar 2018 14:37:33 -0700
+Message-ID: <48f31a69-c4f8-5e50-00e8-0def08f750a3@nvidia.com>
+Date: Fri, 16 Mar 2018 14:40:47 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180316212630.GC4861@redhat.com>
+In-Reply-To: <20180316143537.0d49a76ec48ec0ab034af93b@linux-foundation.org>
 Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, stable@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Jerome Glisse <jglisse@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>
 
-On 03/16/2018 02:26 PM, Jerome Glisse wrote:
-> On Fri, Mar 16, 2018 at 02:12:21PM -0700, Andrew Morton wrote:
->> On Fri, 16 Mar 2018 15:14:08 -0400 jglisse@redhat.com wrote:
+On 03/16/2018 02:35 PM, Andrew Morton wrote:
+> On Fri, 16 Mar 2018 17:18:02 -0400 Jerome Glisse <jglisse@redhat.com> wro=
+te:
+>=20
+>> On Fri, Mar 16, 2018 at 02:09:59PM -0700, Andrew Morton wrote:
+>>> On Fri, 16 Mar 2018 15:14:07 -0400 jglisse@redhat.com wrote:
+>>>
+>>>> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>>>>
+>>>> The #if/#else/#endif for IS_ENABLED(CONFIG_HMM) were wrong.
+>>>
+>>> "were wrong" is not a sufficient explanation of the problem, especially
+>>> if we're requesting a -stable backport.  Please fully describe the
+>>> effects of a bug when fixing it?
 >>
->>> The hmm_mirror_register() function registers a callback for when
->>> the CPU pagetable is modified. Normally, the device driver will
->>> call hmm_mirror_unregister() when the process using the device is
->>> finished. However, if the process exits uncleanly, the struct_mm
->>> can be destroyed with no warning to the device driver.
->>
->> Again, what are the user-visible effects of the bug?  Such info is
->> needed when others review our request for a -stable backport.  And the
->> many people who review -stable patches for integration into their own
->> kernel trees will want to understand the benefit of the patch to their
->> users.
+>> Build issue (compilation failure) if you have multiple includes of
+>> hmm.h through different headers is the most obvious issue. So it
+>> will be very obvious with any big driver that include the file in
+>> different headers.
 >=20
-> I have not had any issues in any of my own testing but nouveau driver
-> is not as advance as the NVidia closed driver in respect to HMM inte-
-> gration yet.
->=20
-> If any issues they will happen between exit_mm() and exit_files() in
-> do_exit() (kernel/exit.c) exit_mm() tear down the mm struct but without
-> this callback the device driver might still be handling page fault and
-> thus might potentialy tries to handle them against a dead mm_struct.
->=20
-> So i am not sure what are the symptoms. To be fair there is no public
-> driver using that part of HMM beside nouveau rfc patches. So at this
-> point the impact on anybody is non existent. If anyone want to back-
-> port nouveau HMM support once it make it upstream it will probably
-> have to backport more things along the way. This is why i am not that
-> aggressive on ccing stable so far.
+> That doesn't seem to warrant a -stable backport?  The developer of such
+> a driver will simply fix the headers?
 
-The problem I'd like to avoid is: having a version of HMM in stable that
-is missing this new callback. And without it, once the driver starts doing
-actual concurrent operations, we can expect that the race condition will
-happen.
-
-It just seems unfortunate to have stable versions out there that would
-be exposed to this, when it only require a small patch to avoid it.
-
-On the other hand, it's also reasonable to claim that this is part of the
-evolving HMM feature, and as such, this new feature does not belong in
-stable.  I'm not sure which argument carries more weight here.
+Right. For this patch, I would strongly request a -stable backport.  It's=20
+really going to cause problems if anyone tries to use -stable with HMM,
+without this fix.
 
 thanks,
 --=20
@@ -78,6 +61,8 @@ John Hubbard
 NVIDIA
 
 >=20
-> Cheers,
-> J=C3=A9r=C3=B4me
+>> I can respin with that. Sorry again for not being more explanatory
+>> it is always hard for me to figure what is not obvious to others.
+>=20
+> I updated the changelog, no respin needed.
 >=20
