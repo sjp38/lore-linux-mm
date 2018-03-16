@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C425F6B000E
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 18:08:30 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id q6so2737699pgv.12
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:08:30 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id bj11-v6si2834406plb.525.2018.03.16.15.08.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 570606B000E
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 18:10:17 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id v3so5833873pfm.21
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:10:17 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id y3-v6si7605060pln.209.2018.03.16.15.10.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 15:08:29 -0700 (PDT)
-Subject: Re: [PATCH v12 07/22] selftests/vm: fixed bugs in
- pkey_disable_clear()
+        Fri, 16 Mar 2018 15:10:16 -0700 (PDT)
+Subject: Re: [PATCH v12 08/22] selftests/vm: clear the bits in shadow reg when
+ a pkey is freed.
 References: <1519264541-7621-1-git-send-email-linuxram@us.ibm.com>
- <1519264541-7621-8-git-send-email-linuxram@us.ibm.com>
+ <1519264541-7621-9-git-send-email-linuxram@us.ibm.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <dc5ee0c8-afe3-78aa-001d-7b49b398337b@intel.com>
-Date: Fri, 16 Mar 2018 15:08:20 -0700
+Message-ID: <a884e9eb-4da6-54af-e09e-acac7ceee397@intel.com>
+Date: Fri, 16 Mar 2018 15:10:07 -0700
 MIME-Version: 1.0
-In-Reply-To: <1519264541-7621-8-git-send-email-linuxram@us.ibm.com>
+In-Reply-To: <1519264541-7621-9-git-send-email-linuxram@us.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -27,26 +27,28 @@ To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger
 Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@redhat.com, akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, arnd@arndb.de
 
 On 02/21/2018 05:55 PM, Ram Pai wrote:
+> When a key is freed, the  key  is  no  more  effective.
+> Clear the bits corresponding to the pkey in the shadow
+> register. Otherwise  it  will carry some spurious bits
+> which can trigger false-positive asserts.
+...
+> diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
+> index ca54a95..aaf9f09 100644
 > --- a/tools/testing/selftests/vm/protection_keys.c
 > +++ b/tools/testing/selftests/vm/protection_keys.c
-> @@ -461,7 +461,7 @@ void pkey_disable_clear(int pkey, int flags)
->  			pkey, pkey, pkey_rights);
->  	pkey_assert(pkey_rights >= 0);
->  
-> -	pkey_rights |= flags;
-> +	pkey_rights &= ~flags;
->  
->  	ret = pkey_set(pkey, pkey_rights, 0);
->  	/* pkey_reg and flags have the same format */
-> @@ -475,7 +475,7 @@ void pkey_disable_clear(int pkey, int flags)
->  	dprintf1("%s(%d) pkey_reg: 0x%016lx\n", __func__,
->  			pkey, rdpkey_reg());
->  	if (flags)
-> -		assert(rdpkey_reg() > orig_pkey_reg);
-> +		assert(rdpkey_reg() < orig_pkey_reg);
+> @@ -582,6 +582,9 @@ int alloc_pkey(void)
+>  int sys_pkey_free(unsigned long pkey)
+>  {
+>  	int ret = syscall(SYS_pkey_free, pkey);
+> +
+> +	if (!ret)
+> +		shadow_pkey_reg &= reset_bits(pkey, PKEY_DISABLE_ACCESS);
+>  	dprintf1("%s(pkey=%ld) syscall ret: %d\n", __func__, pkey, ret);
+>  	return ret;
 >  }
->  
->  void pkey_write_allow(int pkey)
 
-This seems so horribly wrong that I wonder how it worked in the first
-place.  Any idea?
+Did this cause problems for you in practice?
+
+On x86, sys_pkey_free() does not affect PKRU, so this isn't quite right.
+ I'd much rather have the actual tests explicitly clear the PKRU bits
+and also in the process clear the shadow bits.
