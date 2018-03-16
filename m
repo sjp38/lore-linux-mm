@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B5EF06B005D
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F21806B0062
 	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:30:11 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id j4so5946098wrg.11
+Received: by mail-wm0-f70.google.com with SMTP id t123so1349320wmt.2
         for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:30:11 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id o17si1929111edf.398.2018.03.16.12.30.10
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id n17si984604edf.405.2018.03.16.12.30.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 16 Mar 2018 12:30:10 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 23/35] x86/mm/legacy: Populate the user page-table with user pgd's
-Date: Fri, 16 Mar 2018 20:29:41 +0100
-Message-Id: <1521228593-3820-24-git-send-email-joro@8bytes.org>
+Subject: [PATCH 25/35] x86/mm/pti: Define X86_CR3_PTI_PCID_USER_BIT on x86_32
+Date: Fri, 16 Mar 2018 20:29:43 +0100
+Message-Id: <1521228593-3820-26-git-send-email-joro@8bytes.org>
 In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,46 +22,38 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Also populate the user-spage pgd's in the user page-table.
+Move it out of the X86_64 specific processor defines so
+that its visible for 32bit too.
 
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable-2level.h | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ arch/x86/include/asm/processor-flags.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable-2level.h b/arch/x86/include/asm/pgtable-2level.h
-index 685ffe8..c399ea5 100644
---- a/arch/x86/include/asm/pgtable-2level.h
-+++ b/arch/x86/include/asm/pgtable-2level.h
-@@ -19,6 +19,9 @@ static inline void native_set_pte(pte_t *ptep , pte_t pte)
+diff --git a/arch/x86/include/asm/processor-flags.h b/arch/x86/include/asm/processor-flags.h
+index 625a52a..02c2cbd 100644
+--- a/arch/x86/include/asm/processor-flags.h
++++ b/arch/x86/include/asm/processor-flags.h
+@@ -39,10 +39,6 @@
+ #define CR3_PCID_MASK	0xFFFull
+ #define CR3_NOFLUSH	BIT_ULL(63)
  
- static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
- {
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pmd.pud.p4d.pgd = pti_set_user_pgtbl(&pmdp->pud.p4d.pgd, pmd.pud.p4d.pgd);
-+#endif
- 	*pmdp = pmd;
- }
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-# define X86_CR3_PTI_PCID_USER_BIT	11
+-#endif
+-
+ #else
+ /*
+  * CR3_ADDR_MASK needs at least bits 31:5 set on PAE systems, and we save
+@@ -53,4 +49,8 @@
+ #define CR3_NOFLUSH	0
+ #endif
  
-@@ -58,6 +61,9 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
- #ifdef CONFIG_SMP
- static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
- {
 +#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pti_set_user_pgtbl(&xp->pud.p4d.pgd, __pgd(0));
++# define X86_CR3_PTI_PCID_USER_BIT	11
 +#endif
- 	return __pmd(xchg((pmdval_t *)xp, 0));
- }
- #else
-@@ -67,6 +73,9 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
- #ifdef CONFIG_SMP
- static inline pud_t native_pudp_get_and_clear(pud_t *xp)
- {
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pti_set_user_pgtbl(&xp->p4d.pgd, __pgd(0));
-+#endif
- 	return __pud(xchg((pudval_t *)xp, 0));
- }
- #else
++
+ #endif /* _ASM_X86_PROCESSOR_FLAGS_H */
 -- 
 2.7.4
