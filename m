@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 233C66B0260
+	by kanga.kvack.org (Postfix) with ESMTP id E51336B0266
 	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:30:15 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id v191so1224257wmf.2
+Received: by mail-wm0-f69.google.com with SMTP id m7so720781wmg.9
         for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:30:15 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id 32si2441388ede.179.2018.03.16.12.30.13
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id k2si2288523edf.460.2018.03.16.12.30.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 12:30:13 -0700 (PDT)
+        Fri, 16 Mar 2018 12:30:14 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 29/35] x86/ldt: Reserve address-space range on 32 bit for the LDT
-Date: Fri, 16 Mar 2018 20:29:47 +0100
-Message-Id: <1521228593-3820-30-git-send-email-joro@8bytes.org>
+Subject: [PATCH 32/35] x86/ldt: Enable LDT user-mapping for PAE
+Date: Fri, 16 Mar 2018 20:29:50 +0100
+Message-Id: <1521228593-3820-33-git-send-email-joro@8bytes.org>
 In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,71 +22,104 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Reserve 2MB/4MB of address-space for mapping the LDT to
-user-space on 32 bit PTI kernels.
+This adds the needed special case for PAE to get the LDT
+mapped into the user page-table when PTI is enabled. The big
+difference to the other paging modes is that we don't have a
+full top-level PGD entry available for the LDT, but only PMD
+entry.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable_32_types.h | 7 +++++--
- arch/x86/mm/dump_pagetables.c           | 9 +++++++++
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/mmu_context.h |  4 ---
+ arch/x86/kernel/ldt.c              | 53 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
-index 0777e18..eb2e97a 100644
---- a/arch/x86/include/asm/pgtable_32_types.h
-+++ b/arch/x86/include/asm/pgtable_32_types.h
-@@ -48,13 +48,16 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
- 	((FIXADDR_TOT_START - PAGE_SIZE * (CPU_ENTRY_AREA_PAGES + 1))   \
- 	 & PMD_MASK)
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index c931b88..af96cfb 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -70,11 +70,7 @@ struct ldt_struct {
  
--#define PKMAP_BASE		\
-+#define LDT_BASE_ADDR		\
- 	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)
- 
-+#define PKMAP_BASE		\
-+	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
-+
- #ifdef CONFIG_HIGHMEM
- # define VMALLOC_END	(PKMAP_BASE - 2 * PAGE_SIZE)
- #else
--# define VMALLOC_END	(CPU_ENTRY_AREA_BASE - 2 * PAGE_SIZE)
-+# define VMALLOC_END	(LDT_BASE_ADDR - 2 * PAGE_SIZE)
- #endif
- 
- #define MODULES_VADDR	VMALLOC_START
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 2151ebb..fdefdf0 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -117,6 +117,9 @@ enum address_markers_idx {
- #ifdef CONFIG_HIGHMEM
- 	PKMAP_BASE_NR,
- #endif
-+#ifdef CONFIG_MODIFY_LDT_SYSCALL
-+	LDT_NR,
-+#endif
- 	CPU_ENTRY_AREA_NR,
- 	FIXADDR_START_NR,
- 	END_OF_SPACE_NR,
-@@ -130,6 +133,9 @@ static struct addr_marker address_markers[] = {
- #ifdef CONFIG_HIGHMEM
- 	[PKMAP_BASE_NR]		= { 0UL,		"Persistent kmap() Area" },
- #endif
-+#ifdef CONFIG_MODIFY_LDT_SYSCALL
-+	[LDT_NR]		= { 0UL,		"LDT remap" },
-+#endif
- 	[CPU_ENTRY_AREA_NR]	= { 0UL,		"CPU entry area" },
- 	[FIXADDR_START_NR]	= { 0UL,		"Fixmap area" },
- 	[END_OF_SPACE_NR]	= { -1,			NULL }
-@@ -579,6 +585,9 @@ static int __init pt_dump_init(void)
- # endif
- 	address_markers[FIXADDR_START_NR].start_address = FIXADDR_START;
- 	address_markers[CPU_ENTRY_AREA_NR].start_address = CPU_ENTRY_AREA_BASE;
-+# ifdef CONFIG_MODIFY_LDT_SYSCALL
-+	address_markers[LDT_NR].start_address = LDT_BASE_ADDR;
-+# endif
- #endif
- 	return 0;
+ static inline void *ldt_slot_va(int slot)
+ {
+-#ifdef CONFIG_X86_64
+ 	return (void *)(LDT_BASE_ADDR + LDT_SLOT_STRIDE * slot);
+-#else
+-	BUG();
+-#endif
  }
+ 
+ /*
+diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
+index 8ab7df9..7787451 100644
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -126,6 +126,57 @@ static void do_sanity_check(struct mm_struct *mm,
+ 	}
+ }
+ 
++#ifdef CONFIG_X86_PAE
++
++static pmd_t *pgd_to_pmd_walk(pgd_t *pgd, unsigned long va)
++{
++	p4d_t *p4d;
++	pud_t *pud;
++
++	if (pgd->pgd == 0)
++		return NULL;
++
++	p4d = p4d_offset(pgd, va);
++	if (p4d_none(*p4d))
++		return NULL;
++
++	pud = pud_offset(p4d, va);
++	if (pud_none(*pud))
++		return NULL;
++
++	return pmd_offset(pud, va);
++}
++
++static void map_ldt_struct_to_user(struct mm_struct *mm)
++{
++	pgd_t *k_pgd = pgd_offset(mm, LDT_BASE_ADDR);
++	pgd_t *u_pgd = kernel_to_user_pgdp(k_pgd);
++	pmd_t *k_pmd, *u_pmd;
++
++	k_pmd = pgd_to_pmd_walk(k_pgd, LDT_BASE_ADDR);
++	u_pmd = pgd_to_pmd_walk(u_pgd, LDT_BASE_ADDR);
++
++	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
++		set_pmd(u_pmd, *k_pmd);
++}
++
++static void sanity_check_ldt_mapping(struct mm_struct *mm)
++{
++	pgd_t *k_pgd = pgd_offset(mm, LDT_BASE_ADDR);
++	pgd_t *u_pgd = kernel_to_user_pgdp(k_pgd);
++	bool had_kernel, had_user;
++	pmd_t *k_pmd, *u_pmd;
++
++	k_pmd      = pgd_to_pmd_walk(k_pgd, LDT_BASE_ADDR);
++	u_pmd      = pgd_to_pmd_walk(u_pgd, LDT_BASE_ADDR);
++	had_kernel = (k_pmd->pmd != 0);
++	had_user   = (u_pmd->pmd != 0);
++
++	do_sanity_check(mm, had_kernel, had_user);
++}
++
++#else /* !CONFIG_X86_PAE */
++
+ static void map_ldt_struct_to_user(struct mm_struct *mm)
+ {
+ 	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
+@@ -143,6 +194,8 @@ static void sanity_check_ldt_mapping(struct mm_struct *mm)
+ 	do_sanity_check(mm, had_kernel, had_user);
+ }
+ 
++#endif /* CONFIG_X86_PAE */
++
+ /*
+  * If PTI is enabled, this maps the LDT into the kernelmode and
+  * usermode tables for the given mm.
 -- 
 2.7.4
