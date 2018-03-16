@@ -1,86 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 637CE6B0292
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:32:12 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id v191so1226156wmf.2
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:32:12 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id p1si3540493edh.187.2018.03.16.12.32.10
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 03C176B002D
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 16:21:04 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id w134so6090514ywa.21
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 13:21:03 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s140-v6sor803696ybc.54.2018.03.16.13.21.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 12:32:11 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2GJUKka004208
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:32:09 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2grk2fjdew-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:32:09 -0400
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Fri, 16 Mar 2018 19:32:05 -0000
-Date: Fri, 16 Mar 2018 12:31:52 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH v4] mm, pkey: treat pkey-0 special
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1521196416-18157-1-git-send-email-linuxram@us.ibm.com>
- <CAKTCnzmSCT+VecdSRpyY2Rb_AW2ngCi3UTZfLE3VOLNSQn6vsA@mail.gmail.com>
+        (Google Transport Security);
+        Fri, 16 Mar 2018 13:21:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKTCnzmSCT+VecdSRpyY2Rb_AW2ngCi3UTZfLE3VOLNSQn6vsA@mail.gmail.com>
-Message-Id: <20180316193152.GG1060@ram.oc3035372033.ibm.com>
+In-Reply-To: <CAAeHK+zrLtgDKPb96uMSgYPPPYRiUAttvJsvr0jUHjBDHWk6MQ@mail.gmail.com>
+References: <cover.1520017438.git.andreyknvl@google.com> <06a4d0c483fba8babd01fe23727fe4a79482d309.1520017438.git.andreyknvl@google.com>
+ <CAG_fn=XjN2zQQrL1r-pv5rMhLgmvOyh8LS9QF0PQ8Y7gk4AVug@mail.gmail.com>
+ <CAAeHK+wGHsFeDP_QMQRzWGTFg10bxfJPxx-_7Ja-_uTP8GJtCA@mail.gmail.com>
+ <7f8e8f46-791e-7e8f-551b-f93aa64bcf6e@virtuozzo.com> <CAAeHK+xNjYOAhLBogYYfXi+KiFf9SDYGoaV6og=aRmuB7rhvHg@mail.gmail.com>
+ <CAFKCwriP6KY6PaHheZi9gLVebKp-rLa-gATSSE3R-fhrRYex3A@mail.gmail.com>
+ <CAAeHK+y8FD7bOOX9p-Vk_dA5geA2S3_T0vwedfQiiHEf3MYdCw@mail.gmail.com>
+ <CAFKCwrheE=uDnrS5sH585CgciLg-o7uUsp45TNmF10cuUUR2GA@mail.gmail.com> <CAAeHK+zrLtgDKPb96uMSgYPPPYRiUAttvJsvr0jUHjBDHWk6MQ@mail.gmail.com>
+From: Evgenii Stepanov <eugenis@google.com>
+Date: Fri, 16 Mar 2018 13:21:01 -0700
+Message-ID: <CAFKCwrgA2B05ZuDvzLaQRUjngyKtmx6TV96wLThX6-Njpgmpgw@mail.gmail.com>
+Subject: Re: [RFC PATCH 09/14] khwasan: add hooks implementation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Aneesh Kumar KV <aneesh.kumar@linux.vnet.ibm.com>, Haren Myneni/Beaverton/IBM <hbabu@us.ibm.com>, Michal Hocko <mhocko@kernel.org>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Jonathan Corbet <corbet@lwn.net>, Arnd Bergmann <arnd@arndb.de>, fweimer@redhat.com, msuchanek@suse.com, Thomas Gleixner <tglx@linutronix.de>, Ulrich.Weigand@de.ibm.com, Ram Pai <ram.n.pai@gmail.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-On Fri, Mar 16, 2018 at 10:02:22PM +1100, Balbir Singh wrote:
-> On Fri, Mar 16, 2018 at 9:33 PM, Ram Pai <linuxram@us.ibm.com> wrote:
-> > Applications need the ability to associate an address-range with some
-> > key and latter revert to its initial default key. Pkey-0 comes close to
-> > providing this function but falls short, because the current
-> > implementation disallows applications to explicitly associate pkey-0 to
-> > the address range.
-> >
-> > Clarify the semantics of pkey-0 and provide the corresponding
-> > implementation.
-> >
-> > Pkey-0 is special with the following semantics.
-> > (a) it is implicitly allocated and can never be freed. It always exists.
-> > (b) it is the default key assigned to any address-range.
-> > (c) it can be explicitly associated with any address-range.
-> >
-> > Tested on powerpc only. Could not test on x86.
-> 
-> 
-> Ram,
-> 
-> I was wondering if we should check the AMOR values on the ppc side to make sure
-> that pkey0 is indeed available for use as default. I am still of the
-> opinion that we
+On Fri, Mar 16, 2018 at 12:06 PM, Andrey Konovalov
+<andreyknvl@google.com> wrote:
+> On Fri, Mar 16, 2018 at 7:45 PM, Evgenii Stepanov <eugenis@google.com> wrote:
+>> On Fri, Mar 16, 2018 at 11:24 AM, Andrey Konovalov
+>> <andreyknvl@google.com> wrote:
+>>> Right, by redzones in this case I meant the metadata that is stored
+>>> right after the object (which includes alloc and free stack handles
+>>> and perhaps some other allocator stuff).
+>>
+>> Oh, I did not realize we have free (as in beer, not as in
+>> use-after-free) redzones between allocations. Yes, reserving a color
+>> sounds
+>> like a good idea.
+>
+> OK, I'll do that then.
+>
+>>
+>>>
+>>>> As for use-after-free, to catch it with
+>>>> 100% probability one would need infinite memory for the quarantine.
+>
+> As for the second part of Andrey's suggestion (as far as I understand
+> it): reserve a color for freed objects. Without quarantine, this
+> should give us a precise
+> use-after-free-but-without-someone-else-allocating-the-same-object
+> detection. What do you think about that?
 
-AMOR cannot be read/written by the OS in priviledge-non-hypervisor-mode.
-We could try testing if key-0 is available to the OS by temproarily
-changing the bits key-0 bits of AMR or IAMR register. But will be
-dangeorous to do, for you might disable read,execute of all the pages,
-since all pages are asscoiated with key-0 bydefault.
+Still non-deterministic, but we can use the same color we reserved for
+the redzones, why not.
 
-May be we can play with UAMOR register and check if its key-0 can be
-modified. That is a good indication that key-0 is available.
-If it is not available, disable the pkey-subsystem, and operate
-the legacy way; no pkeys.
-
-
-> should consider non-0 default pkey in the long run. I'm OK with the patches for
-> now, but really 0 is not special except for it being the default bit
-> values present
-> in the PTE.
-
-it will be a pain. Any new pte that gets instantiated will now have to
-explicitly initialize its key to this default-non-zero-key.  I hope
-we or any architecture goes there ever.
-
--- 
-Ram Pai
+>
+>>>> It
+>>>> is possible to guarantee 100% detection of linear buffer overflow by
+>>>> giving live adjacent chunks distinct tags.
+>
+> I'll add that to the TODO list as well.
