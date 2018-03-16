@@ -1,89 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 694CD6B0003
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 06:59:32 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e10so4935087pff.3
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 03:59:32 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id u1-v6si5889352pls.488.2018.03.16.03.59.30
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 242FB6B0009
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 07:02:25 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id t34so6224632uat.3
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 04:02:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t80sor1070982vkb.21.2018.03.16.04.02.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 03:59:31 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] mm/shmem: Do not wait for lock_page() in shmem_unused_huge_shrink()
-Date: Fri, 16 Mar 2018 13:59:08 +0300
-Message-Id: <20180316105908.62516-1-kirill.shutemov@linux.intel.com>
+        (Google Transport Security);
+        Fri, 16 Mar 2018 04:02:24 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1521196416-18157-1-git-send-email-linuxram@us.ibm.com>
+References: <1521196416-18157-1-git-send-email-linuxram@us.ibm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Fri, 16 Mar 2018 22:02:22 +1100
+Message-ID: <CAKTCnzmSCT+VecdSRpyY2Rb_AW2ngCi3UTZfLE3VOLNSQn6vsA@mail.gmail.com>
+Subject: Re: [PATCH v4] mm, pkey: treat pkey-0 special
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Aneesh Kumar KV <aneesh.kumar@linux.vnet.ibm.com>, Haren Myneni/Beaverton/IBM <hbabu@us.ibm.com>, Michal Hocko <mhocko@kernel.org>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Jonathan Corbet <corbet@lwn.net>, Arnd Bergmann <arnd@arndb.de>, fweimer@redhat.com, msuchanek@suse.com, Thomas Gleixner <tglx@linutronix.de>, Ulrich.Weigand@de.ibm.com, Ram Pai <ram.n.pai@gmail.com>
 
-shmem_unused_huge_shrink() gets called from reclaim path. Waiting for page
-lock may lead to deadlock there.
+On Fri, Mar 16, 2018 at 9:33 PM, Ram Pai <linuxram@us.ibm.com> wrote:
+> Applications need the ability to associate an address-range with some
+> key and latter revert to its initial default key. Pkey-0 comes close to
+> providing this function but falls short, because the current
+> implementation disallows applications to explicitly associate pkey-0 to
+> the address range.
+>
+> Clarify the semantics of pkey-0 and provide the corresponding
+> implementation.
+>
+> Pkey-0 is special with the following semantics.
+> (a) it is implicitly allocated and can never be freed. It always exists.
+> (b) it is the default key assigned to any address-range.
+> (c) it can be explicitly associated with any address-range.
+>
+> Tested on powerpc only. Could not test on x86.
 
-Replace lock_page() with trylock_page() and skip the page if we failed
-to lock it. We will get to the page on the next scan.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Fixes: 779750d20b93 ("shmem: split huge pages beyond i_size under memory pressure")
-Cc: stable@vger.kernel.org # v4.8+
----
- mm/shmem.c | 25 ++++++++++++++++++-------
- 1 file changed, 18 insertions(+), 7 deletions(-)
+Ram,
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 1907688b75ee..2afe809d4bd4 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -498,31 +498,42 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
- 			continue;
- 		}
- 
--		page = find_lock_page(inode->i_mapping,
-+		page = find_get_page(inode->i_mapping,
- 				(inode->i_size & HPAGE_PMD_MASK) >> PAGE_SHIFT);
- 		if (!page)
- 			goto drop;
- 
-+		/* No huge page at the end of the file: nothing to split */
- 		if (!PageTransHuge(page)) {
--			unlock_page(page);
- 			put_page(page);
- 			goto drop;
- 		}
- 
-+		/*
-+		 * Leave the inode on the list if we failed to lock
-+		 * the page at this time.
-+		 *
-+		 * Waiting for the lock may lead to deadlock in the
-+		 * reclaim path.
-+		 */
-+		if (!trylock_page(page)) {
-+			put_page(page);
-+			goto leave;
-+		}
-+
- 		ret = split_huge_page(page);
- 		unlock_page(page);
- 		put_page(page);
- 
--		if (ret) {
--			/* split failed: leave it on the list */
--			iput(inode);
--			continue;
--		}
-+		/* If split failed leave the inode on the list */
-+		if (ret)
-+			goto leave;
- 
- 		split++;
- drop:
- 		list_del_init(&info->shrinklist);
- 		removed++;
-+leave:
- 		iput(inode);
- 	}
- 
--- 
-2.16.1
+I was wondering if we should check the AMOR values on the ppc side to make sure
+that pkey0 is indeed available for use as default. I am still of the
+opinion that we
+should consider non-0 default pkey in the long run. I'm OK with the patches for
+now, but really 0 is not special except for it being the default bit
+values present
+in the PTE.
+
+The patches themselves look OK to me
+
+Balbir Singh.
