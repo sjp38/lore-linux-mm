@@ -1,58 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DB95E6B000E
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 18:13:15 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id az5-v6so6231382plb.14
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:13:15 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id x24-v6si6903980pll.83.2018.03.16.15.13.14
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 313C16B0010
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 18:13:32 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id m78so1356535wma.7
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:13:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z11sor4197822edh.50.2018.03.16.15.13.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 15:13:14 -0700 (PDT)
-Subject: Re: [PATCH v12 09/22] selftests/vm: fix alloc_random_pkey() to make
- it really random
-References: <1519264541-7621-1-git-send-email-linuxram@us.ibm.com>
- <1519264541-7621-10-git-send-email-linuxram@us.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <9e410d84-3cd3-edf5-4699-26fcc2bbb393@intel.com>
-Date: Fri, 16 Mar 2018 15:13:06 -0700
+        (Google Transport Security);
+        Fri, 16 Mar 2018 15:13:30 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1519264541-7621-10-git-send-email-linuxram@us.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20180316182512.118361-1-wvw@google.com> <20180316143306.dd98055a170497e9535cc176@linux-foundation.org>
+ <CAMFybE7EKyJMmR=Ntn1UX1ZMWJ=32v9G_kYdXh4LhinDv_JO8Q@mail.gmail.com> <20180316145942.9e2d353ed10041fbac42e5a3@linux-foundation.org>
+In-Reply-To: <20180316145942.9e2d353ed10041fbac42e5a3@linux-foundation.org>
+From: Wei Wang <wvw@google.com>
+Date: Fri, 16 Mar 2018 22:13:19 +0000
+Message-ID: <CAGXk5yoL=NuW1d1VHD9_CXi3kg0gmKeWFubNC7Ro053yDnR9vA@mail.gmail.com>
+Subject: Re: [PATCH] mm: add config for readahead window
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
-Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@redhat.com, akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, arnd@arndb.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wei Wang <wei.vince.wang@gmail.com>, gregkh@linuxfoundation.org, Todd Poynor <toddpoynor@google.com>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@kernel.org>, Sherry Cheung <SCheung@nvidia.com>, Oliver O'Halloran <oohall@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Huang Ying <ying.huang@intel.com>, Dennis Zhou <dennisz@fb.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 02/21/2018 05:55 PM, Ram Pai wrote:
-> alloc_random_pkey() was allocating the same pkey every time.
-> Not all pkeys were geting tested. fixed it.
-...
-> @@ -602,13 +603,15 @@ int alloc_random_pkey(void)
->  	int alloced_pkeys[NR_PKEYS];
->  	int nr_alloced = 0;
->  	int random_index;
-> +
->  	memset(alloced_pkeys, 0, sizeof(alloced_pkeys));
-> +	srand((unsigned int)time(NULL));
->  
->  	/* allocate every possible key and make a note of which ones we got */
->  	max_nr_pkey_allocs = NR_PKEYS;
-> -	max_nr_pkey_allocs = 1;
->  	for (i = 0; i < max_nr_pkey_allocs; i++) {
->  		int new_pkey = alloc_pkey();
+On Fri, Mar 16, 2018 at 2:59 PM Andrew Morton <akpm@linux-foundation.org>
+wrote:
 
-The srand() is probably useful, but won't this always just do a single
-alloc_pkey() now?  That seems like it will mean we always use the first
-one the kernel gives us, which isn't random.
+> On Fri, 16 Mar 2018 21:51:48 +0000 Wei Wang <wei.vince.wang@gmail.com>
+wrote:
 
-> -	dprintf1("%s()::%d, ret: %d pkey_reg: 0x%x shadow: 0x%x\n", __func__,
-> -			__LINE__, ret, __rdpkey_reg(), shadow_pkey_reg);
-> +	dprintf1("%s()::%d, ret: %d pkey_reg: 0x%x shadow: 0x%016lx\n",
-> +		__func__, __LINE__, ret, __rdpkey_reg(), shadow_pkey_reg);
->  	return ret;
->  }
+> > On Fri, Mar 16, 2018, 14:33 Andrew Morton <akpm@linux-foundation.org>
+wrote:
+> >
+> > > On Fri, 16 Mar 2018 11:25:08 -0700 Wei Wang <wvw@google.com> wrote:
+> > >
+> > > > Change VM_MAX_READAHEAD value from the default 128KB to a
+configurable
+> > > > value. This will allow the readahead window to grow to a maximum
+size
+> > > > bigger than 128KB during boot, which could benefit to sequential
+read
+> > > > throughput and thus boot performance.
+> > >
+> > > You can presently run ioctl(BLKRASET) against the block device?
+> > >
+> >
+> > Yeah we are doing tuning in userland after init. But this is something
+we
+> > thought could help in very early stage.
+> >
 
-This belonged in the pkey_reg_t patch, I think.
+> "thought" and "could" are rather weak!  Some impressive performance
+> numbers for real-world setups would help such a patch along.
+
+~90ms savings from an Android device compared to setting the window later
+in userland.
+I was using 'week' words as I agree with Linus's point - it is all about
+the storage, so the savings are not universal indeed.
