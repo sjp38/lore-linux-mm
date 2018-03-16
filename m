@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 236B96B0268
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:30:17 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z14so6099308wrh.1
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:30:17 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id q5si539203edh.143.2018.03.16.12.30.15
+	by kanga.kvack.org (Postfix) with ESMTP id BF22C6B0289
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:31:32 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k44so6066464wrc.3
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:31:32 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id j14si2116215eda.484.2018.03.16.12.30.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 12:30:15 -0700 (PDT)
+        Fri, 16 Mar 2018 12:30:05 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 31/35] x86/ldt: Split out sanity check in map_ldt_struct()
-Date: Fri, 16 Mar 2018 20:29:49 +0100
-Message-Id: <1521228593-3820-32-git-send-email-joro@8bytes.org>
+Subject: [PATCH 11/35] x86/entry/32: Simplify debug entry point
+Date: Fri, 16 Mar 2018 20:29:29 +0100
+Message-Id: <1521228593-3820-12-git-send-email-joro@8bytes.org>
 In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,143 +22,66 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-This splits out the mapping sanity check and the actual
-mapping of the LDT to user-space from the map_ldt_struct()
-function in a way so that it is re-usable for PAE paging.
+The common exception entry code now handles the
+entry-from-sysenter stack situation and makes sure to leave
+with the same stack as it entered the kernel.
+
+So there is no need anymore for the special handling in the
+debug entry code.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/kernel/ldt.c | 82 ++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 58 insertions(+), 24 deletions(-)
+ arch/x86/entry/entry_32.S | 35 +++--------------------------------
+ 1 file changed, 3 insertions(+), 32 deletions(-)
 
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index f3c2fbf..8ab7df9 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -100,6 +100,49 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- 	return new_ldt;
- }
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 4133f95..3c4822a 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -1221,41 +1221,12 @@ END(common_exception)
  
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+
-+static void do_sanity_check(struct mm_struct *mm,
-+			    bool had_kernel_mapping,
-+			    bool had_user_mapping)
-+{
-+	if (mm->context.ldt) {
-+		/*
-+		 * We already had an LDT.  The top-level entry should already
-+		 * have been allocated and synchronized with the usermode
-+		 * tables.
-+		 */
-+		WARN_ON(!had_kernel_mapping);
-+		if (static_cpu_has(X86_FEATURE_PTI))
-+			WARN_ON(!had_user_mapping);
-+	} else {
-+		/*
-+		 * This is the first time we're mapping an LDT for this process.
-+		 * Sync the pgd to the usermode tables.
-+		 */
-+		WARN_ON(had_kernel_mapping);
-+		if (static_cpu_has(X86_FEATURE_PTI))
-+			WARN_ON(had_user_mapping);
-+	}
-+}
-+
-+static void map_ldt_struct_to_user(struct mm_struct *mm)
-+{
-+	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
-+
-+	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
-+		set_pgd(kernel_to_user_pgdp(pgd), *pgd);
-+}
-+
-+static void sanity_check_ldt_mapping(struct mm_struct *mm)
-+{
-+	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
-+	bool had_kernel = (pgd->pgd != 0);
-+	bool had_user   = (kernel_to_user_pgdp(pgd)->pgd != 0);
-+
-+	do_sanity_check(mm, had_kernel, had_user);
-+}
-+
- /*
-  * If PTI is enabled, this maps the LDT into the kernelmode and
-  * usermode tables for the given mm.
-@@ -115,9 +158,8 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- static int
- map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- {
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--	bool is_vmalloc, had_top_level_entry;
- 	unsigned long va;
-+	bool is_vmalloc;
- 	spinlock_t *ptl;
- 	pgd_t *pgd;
- 	int i;
-@@ -131,13 +173,15 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 	 */
- 	WARN_ON(ldt->slot != -1);
- 
-+	/* Check if the current mappings are sane */
-+	sanity_check_ldt_mapping(mm);
-+
+ ENTRY(debug)
  	/*
- 	 * Did we already have the top level entry allocated?  We can't
- 	 * use pgd_none() for this because it doens't do anything on
- 	 * 4-level page table kernels.
+-	 * #DB can happen at the first instruction of
+-	 * entry_SYSENTER_32 or in Xen's SYSENTER prologue.  If this
+-	 * happens, then we will be running on a very small stack.  We
+-	 * need to detect this condition and switch to the thread
+-	 * stack before calling any C code at all.
+-	 *
+-	 * If you edit this code, keep in mind that NMIs can happen in here.
++	 * Entry from sysenter is now handled in common_exception
  	 */
- 	pgd = pgd_offset(mm, LDT_BASE_ADDR);
--	had_top_level_entry = (pgd->pgd != 0);
+ 	ASM_CLAC
+ 	pushl	$-1				# mark this as an int
+-
+-	SAVE_ALL
+-	ENCODE_FRAME_POINTER
+-	xorl	%edx, %edx			# error code 0
+-	movl	%esp, %eax			# pt_regs pointer
+-
+-	/* Are we currently on the SYSENTER stack? */
+-	movl	PER_CPU_VAR(cpu_entry_area), %ecx
+-	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
+-	subl	%eax, %ecx	/* ecx = (end of entry_stack) - esp */
+-	cmpl	$SIZEOF_entry_stack, %ecx
+-	jb	.Ldebug_from_sysenter_stack
+-
+-	TRACE_IRQS_OFF
+-	call	do_debug
+-	jmp	ret_from_exception
+-
+-.Ldebug_from_sysenter_stack:
+-	/* We're on the SYSENTER stack.  Switch off. */
+-	movl	%esp, %ebx
+-	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+-	TRACE_IRQS_OFF
+-	call	do_debug
+-	movl	%ebx, %esp
+-	jmp	ret_from_exception
++	pushl	$do_debug
++	jmp	common_exception
+ END(debug)
  
- 	is_vmalloc = is_vmalloc_addr(ldt->entries);
- 
-@@ -168,35 +212,25 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 		pte_unmap_unlock(ptep, ptl);
- 	}
- 
--	if (mm->context.ldt) {
--		/*
--		 * We already had an LDT.  The top-level entry should already
--		 * have been allocated and synchronized with the usermode
--		 * tables.
--		 */
--		WARN_ON(!had_top_level_entry);
--		if (static_cpu_has(X86_FEATURE_PTI))
--			WARN_ON(!kernel_to_user_pgdp(pgd)->pgd);
--	} else {
--		/*
--		 * This is the first time we're mapping an LDT for this process.
--		 * Sync the pgd to the usermode tables.
--		 */
--		WARN_ON(had_top_level_entry);
--		if (static_cpu_has(X86_FEATURE_PTI)) {
--			WARN_ON(kernel_to_user_pgdp(pgd)->pgd);
--			set_pgd(kernel_to_user_pgdp(pgd), *pgd);
--		}
--	}
-+	/* Propagate LDT mapping to the user page-table */
-+	map_ldt_struct_to_user(mm);
- 
- 	va = (unsigned long)ldt_slot_va(slot);
- 	flush_tlb_mm_range(mm, va, va + LDT_SLOT_STRIDE, 0);
- 
- 	ldt->slot = slot;
--#endif
- 	return 0;
- }
- 
-+#else /* !CONFIG_PAGE_TABLE_ISOLATION */
-+
-+static int
-+map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
-+{
-+	return 0;
-+}
-+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
-+
- static void free_ldt_pgtables(struct mm_struct *mm)
- {
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ /*
 -- 
 2.7.4
