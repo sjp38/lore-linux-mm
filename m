@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 43D976B002E
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A79CD6B0031
 	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:30:08 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id n14so1353331wmc.0
+Received: by mail-wr0-f197.google.com with SMTP id g13so5850074wrh.23
         for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:30:08 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id f54si1148213edb.205.2018.03.16.12.30.06
+        by mx.google.com with ESMTPS id r38si465085edd.337.2018.03.16.12.30.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 12:30:06 -0700 (PDT)
+        Fri, 16 Mar 2018 12:30:07 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 14/35] x86/entry/32: Add PTI cr3 switches to NMI handler code
-Date: Fri, 16 Mar 2018 20:29:32 +0100
-Message-Id: <1521228593-3820-15-git-send-email-joro@8bytes.org>
+Subject: [PATCH 20/35] x86/pgtable: Move two more functions from pgtable_64.h to pgtable.h
+Date: Fri, 16 Mar 2018 20:29:38 +0100
+Message-Id: <1521228593-3820-21-git-send-email-joro@8bytes.org>
 In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,107 +22,116 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The NMI handler is special, as it needs to leave with the
-same cr3 as it was entered with. We need to do this because
-we could enter the NMI handler from kernel code with
-user-cr3 already loaded.
+These two functions are required for PTI on 32 bit:
+
+	* pgdp_maps_userspace()
+	* pgd_large()
+
+Also re-implement pgdp_maps_userspace() so that it will work
+on 64 and 32 bit kernels.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 41 +++++++++++++++++++++++++++++++++++------
- 1 file changed, 35 insertions(+), 6 deletions(-)
+ arch/x86/include/asm/pgtable-2level_types.h |  3 +++
+ arch/x86/include/asm/pgtable-3level_types.h |  1 +
+ arch/x86/include/asm/pgtable.h              | 16 ++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h           | 15 ---------------
+ arch/x86/include/asm/pgtable_64_types.h     |  2 ++
+ 5 files changed, 22 insertions(+), 15 deletions(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 86b3fe6d..0250b79 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -77,6 +77,8 @@
- #endif
- .endm
+diff --git a/arch/x86/include/asm/pgtable-2level_types.h b/arch/x86/include/asm/pgtable-2level_types.h
+index f982ef8..6deb6cd 100644
+--- a/arch/x86/include/asm/pgtable-2level_types.h
++++ b/arch/x86/include/asm/pgtable-2level_types.h
+@@ -35,4 +35,7 @@ typedef union {
  
-+#define PTI_SWITCH_MASK         (1 << PAGE_SHIFT)
+ #define PTRS_PER_PTE	1024
+ 
++/* This covers all VMSPLIT_* and VMSPLIT_*_OPT variants */
++#define PGD_KERNEL_START	(CONFIG_PAGE_OFFSET >> PGDIR_SHIFT)
 +
+ #endif /* _ASM_X86_PGTABLE_2LEVEL_DEFS_H */
+diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
+index ed8a200..925ac1b 100644
+--- a/arch/x86/include/asm/pgtable-3level_types.h
++++ b/arch/x86/include/asm/pgtable-3level_types.h
+@@ -45,5 +45,6 @@ typedef union {
+  */
+ #define PTRS_PER_PTE	512
+ 
++#define PGD_KERNEL_START	(CONFIG_PAGE_OFFSET >> PGDIR_SHIFT)
+ 
+ #endif /* _ASM_X86_PGTABLE_3LEVEL_DEFS_H */
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 1e900c1..981e49a 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1132,6 +1132,22 @@ static inline int pud_write(pud_t pud)
+ 	return pud_flags(pud) & _PAGE_RW;
+ }
+ 
++/*
++ * Page table pages are page-aligned.  The lower half of the top
++ * level is used for userspace and the top half for the kernel.
++ *
++ * Returns true for parts of the PGD that map userspace and
++ * false for the parts that map the kernel.
++ */
++static inline bool pgdp_maps_userspace(void *__ptr)
++{
++	unsigned long ptr = (unsigned long)__ptr;
++
++	return (((ptr & ~PAGE_MASK) / sizeof(pgd_t)) < PGD_KERNEL_START);
++}
++
++static inline int pgd_large(pgd_t pgd) { return 0; }
++
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
  /*
-  * User gs save/restore
-  *
-@@ -213,8 +215,19 @@
+  * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 4cbf517..e11b925 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -131,20 +131,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ #endif
+ }
  
- .endm
- 
--.macro SAVE_ALL_NMI
-+.macro SAVE_ALL_NMI cr3_reg:req
- 	SAVE_ALL
-+
-+	/*
-+	 * Now switch the CR3 when PTI is enabled.
-+	 *
-+	 * We can enter with either user or kernel cr3, the code will
-+	 * store the old cr3 in \cr3_reg and switches to the kernel cr3
-+	 * if necessary.
-+	 */
-+	SWITCH_TO_KERNEL_CR3 scratch_reg=\cr3_reg
-+
-+.Lend_\@:
- .endm
+-/*
+- * Page table pages are page-aligned.  The lower half of the top
+- * level is used for userspace and the top half for the kernel.
+- *
+- * Returns true for parts of the PGD that map userspace and
+- * false for the parts that map the kernel.
+- */
+-static inline bool pgdp_maps_userspace(void *__ptr)
+-{
+-	unsigned long ptr = (unsigned long)__ptr;
+-
+-	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
+-}
+-
+ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ {
+ #if defined(CONFIG_PAGE_TABLE_ISOLATION) && !defined(CONFIG_X86_5LEVEL)
+@@ -187,7 +173,6 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
  /*
-  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
-@@ -262,7 +275,23 @@
- 	POP_GS_EX
- .endm
+  * Level 4 access.
+  */
+-static inline int pgd_large(pgd_t pgd) { return 0; }
+ #define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
  
--.macro RESTORE_ALL_NMI pop=0
-+.macro RESTORE_ALL_NMI cr3_reg:req pop=0
-+	/*
-+	 * Now switch the CR3 when PTI is enabled.
-+	 *
-+	 * We enter with kernel cr3 and switch the cr3 to the value
-+	 * stored on \cr3_reg, which is either a user or a kernel cr3.
-+	 */
-+	ALTERNATIVE "jmp .Lswitched_\@", "", X86_FEATURE_PTI
+ /* PUD - Level3 access */
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 6b8f73d..e57003a 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -124,4 +124,6 @@ typedef struct { pteval_t pte; } pte_t;
+ 
+ #define EARLY_DYNAMIC_PAGE_TABLES	64
+ 
++#define PGD_KERNEL_START	((PAGE_SIZE / 2) / sizeof(pgd_t))
 +
-+	testl	$PTI_SWITCH_MASK, \cr3_reg
-+	jz	.Lswitched_\@
-+
-+	/* User cr3 in \cr3_reg - write it to hardware cr3 */
-+	movl	\cr3_reg, %cr3
-+
-+.Lswitched_\@:
-+
- 	RESTORE_REGS pop=\pop
- .endm
- 
-@@ -1323,7 +1352,7 @@ ENTRY(nmi)
- #endif
- 
- 	pushl	%eax				# pt_regs->orig_ax
--	SAVE_ALL_NMI
-+	SAVE_ALL_NMI cr3_reg=%edi
- 	ENCODE_FRAME_POINTER
- 	xorl	%edx, %edx			# zero error code
- 	movl	%esp, %eax			# pt_regs pointer
-@@ -1351,7 +1380,7 @@ ENTRY(nmi)
- 
- .Lnmi_return:
- 	CHECK_AND_APPLY_ESPFIX
--	RESTORE_ALL_NMI pop=4
-+	RESTORE_ALL_NMI cr3_reg=%edi pop=4
- 	jmp	.Lirq_return
- 
- #ifdef CONFIG_X86_ESPFIX32
-@@ -1367,12 +1396,12 @@ ENTRY(nmi)
- 	pushl	16(%esp)
- 	.endr
- 	pushl	%eax
--	SAVE_ALL_NMI
-+	SAVE_ALL_NMI cr3_reg=%edi
- 	ENCODE_FRAME_POINTER
- 	FIXUP_ESPFIX_STACK			# %eax == %esp
- 	xorl	%edx, %edx			# zero error code
- 	call	do_nmi
--	RESTORE_ALL_NMI
-+	RESTORE_ALL_NMI cr3_reg=%edi
- 	lss	12+4(%esp), %esp		# back to espfix stack
- 	jmp	.Lirq_return
- #endif
+ #endif /* _ASM_X86_PGTABLE_64_DEFS_H */
 -- 
 2.7.4
