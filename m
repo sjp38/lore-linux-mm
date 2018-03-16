@@ -1,106 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 617CC6B0025
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:08:41 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q65so5221937pga.15
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:08:41 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id j18si1688342pfk.286.2018.03.16.14.08.39
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E151E6B0027
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:08:48 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id o61-v6so6170746pld.5
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:08:48 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o6-v6sor3221226pls.80.2018.03.16.14.08.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 14:08:39 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2] mm/shmem: Do not wait for lock_page() in shmem_unused_huge_shrink()
-Date: Sat, 17 Mar 2018 00:08:30 +0300
-Message-Id: <20180316210830.43738-1-kirill.shutemov@linux.intel.com>
+        (Google Transport Security);
+        Fri, 16 Mar 2018 14:08:47 -0700 (PDT)
+Date: Fri, 16 Mar 2018 14:08:45 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -mm 0/6] rewrite cgroup aware oom killer for general use
+In-Reply-To: <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com>
+References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Eric Wheeler <linux-mm@lists.ewheeler.net>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-shmem_unused_huge_shrink() gets called from reclaim path. Waiting for page
-lock may lead to deadlock there.
+There are three significant concerns about the cgroup aware oom killer as
+it is implemented in -mm:
 
-There was a bug report that may be attributed to this:
+ (1) allows users to evade the oom killer by creating subcontainers or
+     using other controllers since scoring is done per cgroup and not
+     hierarchically,
 
-http://lkml.kernel.org/r/alpine.LRH.2.11.1801242349220.30642@mail.ewheeler.net
+ (2) unfairly compares the root mem cgroup using completely different
+     criteria than leaf mem cgroups and allows wildly inaccurate results
+     if oom_score_adj is used, and
 
-Replace lock_page() with trylock_page() and skip the page if we failed
-to lock it. We will get to the page on the next scan.
+ (3) does not allow the user to influence the decisionmaking, such that
+     important subtrees cannot be preferred or biased.
 
-We can test for the PageTransHuge() outside the page lock as we only
-need protection against splitting the page under us. Holding pin oni
-the page is enough for this.
+This patchset fixes (1) and (2) completely and, by doing so, introduces a
+completely extensible user interface that can be expanded in the future.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Reported-by: Eric Wheeler <linux-mm@lists.ewheeler.net>
-Fixes: 779750d20b93 ("shmem: split huge pages beyond i_size under memory pressure")
-Cc: stable@vger.kernel.org # v4.8+
+Concern (3) could subsequently be addressed either before or after the
+cgroup-aware oom killer feature is merged.
+
+It preserves all functionality that currently exists in -mm and extends
+it to be generally useful outside of very specialized usecases.
+
+It eliminates the mount option for the cgroup aware oom killer entirely
+since it is now enabled through the root mem cgroup's oom policy.
 ---
- mm/shmem.c | 31 ++++++++++++++++++++-----------
- 1 file changed, 20 insertions(+), 11 deletions(-)
+ - Rebased to next-20180305
+ - Fixed issue where total_sock_pages was not being modified
+ - Changed output of memory.oom_policy to show all available policies
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 1907688b75ee..b85919243399 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -493,36 +493,45 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
- 		info = list_entry(pos, struct shmem_inode_info, shrinklist);
- 		inode = &info->vfs_inode;
- 
--		if (nr_to_split && split >= nr_to_split) {
--			iput(inode);
--			continue;
--		}
-+		if (nr_to_split && split >= nr_to_split)
-+			goto leave;
- 
--		page = find_lock_page(inode->i_mapping,
-+		page = find_get_page(inode->i_mapping,
- 				(inode->i_size & HPAGE_PMD_MASK) >> PAGE_SHIFT);
- 		if (!page)
- 			goto drop;
- 
-+		/* No huge page at the end of the file: nothing to split */
- 		if (!PageTransHuge(page)) {
--			unlock_page(page);
- 			put_page(page);
- 			goto drop;
- 		}
- 
-+		/*
-+		 * Leave the inode on the list if we failed to lock
-+		 * the page at this time.
-+		 *
-+		 * Waiting for the lock may lead to deadlock in the
-+		 * reclaim path.
-+		 */
-+		if (!trylock_page(page)) {
-+			put_page(page);
-+			goto leave;
-+		}
-+
- 		ret = split_huge_page(page);
- 		unlock_page(page);
- 		put_page(page);
- 
--		if (ret) {
--			/* split failed: leave it on the list */
--			iput(inode);
--			continue;
--		}
-+		/* If split failed leave the inode on the list */
-+		if (ret)
-+			goto leave;
- 
- 		split++;
- drop:
- 		list_del_init(&info->shrinklist);
- 		removed++;
-+leave:
- 		iput(inode);
- 	}
- 
--- 
-2.16.1
+ Documentation/cgroup-v2.txt | 100 ++++++++--------
+ include/linux/cgroup-defs.h |   5 -
+ include/linux/memcontrol.h  |  21 ++++
+ kernel/cgroup/cgroup.c      |  13 +--
+ mm/memcontrol.c             | 221 +++++++++++++++++++++---------------
+ 5 files changed, 204 insertions(+), 156 deletions(-)
