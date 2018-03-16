@@ -1,176 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F1B906B0006
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 11:14:34 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y20so5282873pfm.1
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 08:14:34 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m137si5168479pga.270.2018.03.16.08.14.33
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 876E56B0007
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:16:25 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id c9so6905559qth.16
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 09:16:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id g88si6390860qkh.342.2018.03.16.09.16.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 16 Mar 2018 08:14:33 -0700 (PDT)
-Date: Fri, 16 Mar 2018 16:14:30 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Revert "mm: page_alloc: skip over regions of invalid
- pfns where possible"
-Message-ID: <20180316151430.GL23100@dhcp22.suse.cz>
-References: <20180316143855.29838-1-neelx@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Mar 2018 09:16:24 -0700 (PDT)
+Date: Fri, 16 Mar 2018 17:16:17 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
+ count (semaphore)
+Message-ID: <20180316161616.GA28249@redhat.com>
+References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
+ <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
+ <20180315124816.6aa3d4e2@vmware.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180316143855.29838-1-neelx@redhat.com>
+In-Reply-To: <20180315124816.6aa3d4e2@vmware.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vacek <neelx@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Paul Burton <paul.burton@imgtec.com>, stable@vger.kernel.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>, mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
 
-On Fri 16-03-18 15:38:55, Daniel Vacek wrote:
-> This reverts commit b92df1de5d289c0b5d653e72414bf0850b8511e0. The commit
-> is meant to be a boot init speed up skipping the loop in memmap_init_zone()
-> for invalid pfns. But given some specific memory mapping on x86_64 (or more
-> generally theoretically anywhere but on arm with CONFIG_HAVE_ARCH_PFN_VALID)
-> the implementation also skips valid pfns which is plain wrong and causes
-> 'kernel BUG at mm/page_alloc.c:1389!'
-> 
-> crash> log | grep -e BUG -e RIP -e Call.Trace -e move_freepages_block -e rmqueue -e freelist -A1
-> kernel BUG at mm/page_alloc.c:1389!
-> invalid opcode: 0000 [#1] SMP
-> --
-> RIP: 0010:[<ffffffff8118833e>]  [<ffffffff8118833e>] move_freepages+0x15e/0x160
-> RSP: 0018:ffff88054d727688  EFLAGS: 00010087
-> --
-> Call Trace:
->  [<ffffffff811883b3>] move_freepages_block+0x73/0x80
->  [<ffffffff81189e63>] __rmqueue+0x263/0x460
->  [<ffffffff8118c781>] get_page_from_freelist+0x7e1/0x9e0
->  [<ffffffff8118caf6>] __alloc_pages_nodemask+0x176/0x420
-> --
-> RIP  [<ffffffff8118833e>] move_freepages+0x15e/0x160
->  RSP <ffff88054d727688>
-> 
-> crash> page_init_bug -v | grep RAM
-> <struct resource 0xffff88067fffd2f8>          1000 -        9bfff       System RAM (620.00 KiB)
-> <struct resource 0xffff88067fffd3a0>        100000 -     430bffff       System RAM (  1.05 GiB = 1071.75 MiB = 1097472.00 KiB)
-> <struct resource 0xffff88067fffd410>      4b0c8000 -     4bf9cfff       System RAM ( 14.83 MiB = 15188.00 KiB)
-> <struct resource 0xffff88067fffd480>      4bfac000 -     646b1fff       System RAM (391.02 MiB = 400408.00 KiB)
-> <struct resource 0xffff88067fffd560>      7b788000 -     7b7fffff       System RAM (480.00 KiB)
-> <struct resource 0xffff88067fffd640>     100000000 -    67fffffff       System RAM ( 22.00 GiB)
-> 
-> crash> page_init_bug | head -6
-> <struct resource 0xffff88067fffd560>      7b788000 -     7b7fffff       System RAM (480.00 KiB)
-> <struct page 0xffffea0001ede200>   1fffff00000000  0 <struct pglist_data 0xffff88047ffd9000> 1 <struct zone 0xffff88047ffd9800> DMA32          4096    1048575
-> <struct page 0xffffea0001ede200> 505736 505344 <struct page 0xffffea0001ed8000> 505855 <struct page 0xffffea0001edffc0>
-> <struct page 0xffffea0001ed8000>                0  0 <struct pglist_data 0xffff88047ffd9000> 0 <struct zone 0xffff88047ffd9000> DMA               1       4095
-> <struct page 0xffffea0001edffc0>   1fffff00000400  0 <struct pglist_data 0xffff88047ffd9000> 1 <struct zone 0xffff88047ffd9800> DMA32          4096    1048575
-> BUG, zones differ!
-> 
-> crash> kmem -p 77fff000 78000000 7b5ff000 7b600000 7b787000 7b788000
->       PAGE        PHYSICAL      MAPPING       INDEX CNT FLAGS
-> ffffea0001e00000  78000000                0        0  0 0
-> ffffea0001ed7fc0  7b5ff000                0        0  0 0
-> ffffea0001ed8000  7b600000                0        0  0 0       <<<<
-> ffffea0001ede1c0  7b787000                0        0  0 0
-> ffffea0001ede200  7b788000                0        0  1 1fffff00000000
-> 
-> Fixes: b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns where possible")
-> Signed-off-by: Daniel Vacek <neelx@redhat.com>
-> Acked-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-> Cc: Paul Burton <paul.burton@imgtec.com>
-> Cc: stable@vger.kernel.org
+On 03/15, Steven Rostedt wrote:
+>
+> On Tue, 13 Mar 2018 18:26:00 +0530
+> Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
+>
+> > +static void sdt_increment_ref_ctr(struct trace_uprobe *tu)
+> > +{
+> > +	struct uprobe_map_info *info;
+> > +	struct vm_area_struct *vma;
+> > +	unsigned long vaddr;
+> > +
+> > +	uprobe_start_dup_mmap();
+>
+> Please add a comment here that this function ups the mm ref count for
+> each info returned. Otherwise it's hard to know what that mmput() below
+> matches.
 
-Yes, this looks like the most simple way for now before a proper
-solution is found
-Acked-by: Michal Hocko <mhocko@suse.com>
+You meant uprobe_build_map_info(), not uprobe_start_dup_mmap().
 
-> ---
->  include/linux/memblock.h |  1 -
->  mm/memblock.c            | 28 ----------------------------
->  mm/page_alloc.c          | 11 +----------
->  3 files changed, 1 insertion(+), 39 deletions(-)
-> 
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 8be5077efb5f..f92ea7783652 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -187,7 +187,6 @@ int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
->  			    unsigned long  *end_pfn);
->  void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
->  			  unsigned long *out_end_pfn, int *out_nid);
-> -unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
->  
->  /**
->   * for_each_mem_pfn_range - early memory pfn range iterator
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index b6ba6b7adadc..48376bd33274 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1101,34 +1101,6 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
->  		*out_nid = r->nid;
->  }
->  
-> -unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
-> -						      unsigned long max_pfn)
-> -{
-> -	struct memblock_type *type = &memblock.memory;
-> -	unsigned int right = type->cnt;
-> -	unsigned int mid, left = 0;
-> -	phys_addr_t addr = PFN_PHYS(++pfn);
-> -
-> -	do {
-> -		mid = (right + left) / 2;
-> -
-> -		if (addr < type->regions[mid].base)
-> -			right = mid;
-> -		else if (addr >= (type->regions[mid].base +
-> -				  type->regions[mid].size))
-> -			left = mid + 1;
-> -		else {
-> -			/* addr is within the region, so pfn is valid */
-> -			return pfn;
-> -		}
-> -	} while (left < right);
-> -
-> -	if (right == type->cnt)
-> -		return -1UL;
-> -	else
-> -		return PHYS_PFN(type->regions[right].base);
-> -}
-> -
->  /**
->   * memblock_set_node - set node ID on memblock regions
->   * @base: base of area to set node ID for
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 635d7dd29d7f..e4566a3f8083 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5356,17 +5356,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->  		if (context != MEMMAP_EARLY)
->  			goto not_early;
->  
-> -		if (!early_pfn_valid(pfn)) {
-> -#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> -			/*
-> -			 * Skip to the pfn preceding the next valid one (or
-> -			 * end_pfn), such that we hit a valid pfn (or end_pfn)
-> -			 * on our next iteration of the loop.
-> -			 */
-> -			pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
-> -#endif
-> +		if (!early_pfn_valid(pfn))
->  			continue;
-> -		}
->  		if (!early_pfn_in_nid(pfn, nid))
->  			continue;
->  		if (!update_defer_init(pgdat, pfn, end_pfn, &nr_initialised))
-> -- 
-> 2.16.2
-> 
+Yes, and if it gets more callers perhaps we should move this mmput() into
+uprobe_free_map_info()...
 
--- 
-Michal Hocko
-SUSE Labs
+Oleg.
+
+
+--- x/kernel/events/uprobes.c
++++ x/kernel/events/uprobes.c
+@@ -714,6 +714,7 @@ struct map_info {
+ static inline struct map_info *free_map_info(struct map_info *info)
+ {
+ 	struct map_info *next = info->next;
++	mmput(info->mm);
+ 	kfree(info);
+ 	return next;
+ }
+@@ -783,8 +784,11 @@ build_map_info(struct address_space *map
+ 
+ 	goto again;
+  out:
+-	while (prev)
+-		prev = free_map_info(prev);
++	while (prev) {
++		info = prev;
++		prev = prev->next;
++		kfree(info);
++	}
+ 	return curr;
+ }
+ 
+@@ -834,7 +838,6 @@ register_for_each_vma(struct uprobe *upr
+  unlock:
+ 		up_write(&mm->mmap_sem);
+  free:
+-		mmput(mm);
+ 		info = free_map_info(info);
+ 	}
+  out:
