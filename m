@@ -1,62 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F3D486B0025
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:26:33 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id l32so7586967qtd.2
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:26:33 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id x67si3565809qka.399.2018.03.16.14.26.33
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A130F6B0027
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:26:49 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id p203-v6so2698211itc.1
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:26:49 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 82sor3481584itg.101.2018.03.16.14.26.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 14:26:33 -0700 (PDT)
-Date: Fri, 16 Mar 2018 17:26:30 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 03/14] mm/hmm: HMM should have a callback before MM is
- destroyed v2
-Message-ID: <20180316212630.GC4861@redhat.com>
-References: <20180316191414.3223-1-jglisse@redhat.com>
- <20180316191414.3223-4-jglisse@redhat.com>
- <20180316141221.f2b622630de3f1da51a5c105@linux-foundation.org>
+        (Google Transport Security);
+        Fri, 16 Mar 2018 14:26:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180316141221.f2b622630de3f1da51a5c105@linux-foundation.org>
+In-Reply-To: <20180316205607.lr6nmrkkzzbw2tqh@node.shutemov.name>
+References: <20180316182512.118361-1-wvw@google.com> <20180316205607.lr6nmrkkzzbw2tqh@node.shutemov.name>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 16 Mar 2018 14:26:47 -0700
+Message-ID: <CA+55aFyLRhWZ-XD72xkZZm0FshhspK1RJezGfMo-7YPVGXweHA@mail.gmail.com>
+Subject: Re: [PATCH] mm: add config for readahead window
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, stable@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Wei Wang <wvw@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, toddpoynor@google.com, wei.vince.wang@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@kernel.org>, Sherry Cheung <SCheung@nvidia.com>, Oliver O'Halloran <oohall@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Huang Ying <ying.huang@intel.com>, Dennis Zhou <dennisz@fb.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri, Mar 16, 2018 at 02:12:21PM -0700, Andrew Morton wrote:
-> On Fri, 16 Mar 2018 15:14:08 -0400 jglisse@redhat.com wrote:
-> 
-> > The hmm_mirror_register() function registers a callback for when
-> > the CPU pagetable is modified. Normally, the device driver will
-> > call hmm_mirror_unregister() when the process using the device is
-> > finished. However, if the process exits uncleanly, the struct_mm
-> > can be destroyed with no warning to the device driver.
-> 
-> Again, what are the user-visible effects of the bug?  Such info is
-> needed when others review our request for a -stable backport.  And the
-> many people who review -stable patches for integration into their own
-> kernel trees will want to understand the benefit of the patch to their
-> users.
+On Fri, Mar 16, 2018 at 1:56 PM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+>
+> Increase of readahead window was proposed several times. And rejected.
+> IIRC, Linus was against it.
 
-I have not had any issues in any of my own testing but nouveau driver
-is not as advance as the NVidia closed driver in respect to HMM inte-
-gration yet.
+I have never seen any valid situation that wasn't tuning for one odd
+machine, usually with a horribly crappy disk setup and very little
+testing of latencies or low-memory situations.
 
-If any issues they will happen between exit_mm() and exit_files() in
-do_exit() (kernel/exit.c) exit_mm() tear down the mm struct but without
-this callback the device driver might still be handling page fault and
-thus might potentialy tries to handle them against a dead mm_struct.
+And "horribly crappy" very much tends to include "big serious
+enterprise hardware" that people paid big bucks for, and that has huge
+theoretical throughput for large transfers, but is pure garbage in
+every other way.
 
-So i am not sure what are the symptoms. To be fair there is no public
-driver using that part of HMM beside nouveau rfc patches. So at this
-point the impact on anybody is non existent. If anyone want to back-
-port nouveau HMM support once it make it upstream it will probably
-have to backport more things along the way. This is why i am not that
-aggressive on ccing stable so far.
+So I'm still very much inclined against these kinds of things. They
+need *extensive* numbers and explanations for why it's not just some
+uncommon thing for one setup.
 
-Cheers,
-Jerome
+                   Linus
