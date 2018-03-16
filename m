@@ -1,52 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BF1F06B0005
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 19:04:51 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id z11-v6so6278968plo.21
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 16:04:51 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g8sor2293640pgs.154.2018.03.16.16.04.50
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Mar 2018 16:04:50 -0700 (PDT)
-Date: Fri, 16 Mar 2018 16:04:49 -0700
-From: Matthias Kaehlcke <mka@chromium.org>
-Subject: Re: [PATCH] memory-failure: fix section mismatch
-Message-ID: <20180316230448.GA37438@google.com>
-References: <20180304071613.16899-1-nick.desaulniers@gmail.com>
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E708C6B0005
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 19:14:14 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id y17so7621515qth.11
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 16:14:14 -0700 (PDT)
+Received: from brightrain.aerifal.cx (216-12-86-13.cv.mvl.ntelos.net. [216.12.86.13])
+        by mx.google.com with ESMTP id c25si5859991qkm.448.2018.03.16.16.14.13
+        for <linux-mm@kvack.org>;
+        Fri, 16 Mar 2018 16:14:13 -0700 (PDT)
+Date: Fri, 16 Mar 2018 19:13:59 -0400
+From: Rich Felker <dalias@libc.org>
+Subject: Re: [PATCH V3] ZBOOT: fix stack protector in compressed boot phase
+Message-ID: <20180316231359.GU1436@brightrain.aerifal.cx>
+References: <1521186916-13745-1-git-send-email-chenhc@lemote.com>
+ <20180316151337.f277e3a734326672d41cec61@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180304071613.16899-1-nick.desaulniers@gmail.com>
+In-Reply-To: <20180316151337.f277e3a734326672d41cec61@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Desaulniers <nick.desaulniers@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Huacai Chen <chenhc@lemote.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, James Hogan <james.hogan@mips.com>, linux-mips@linux-mips.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-sh@vger.kernel.org, stable@vger.kernel.org
 
-El Sat, Mar 03, 2018 at 11:16:11PM -0800 Nick Desaulniers ha dit:
-
-> Clang complains when a variable is declared extern twice, but with two
-> different sections. num_poisoned_pages is marked extern and __read_mostly
-> in include/linux/swapops.h, but only extern in include/linux/mm.h. Some
-> c source files must include both, and thus see the conflicting
-> declarations.
+On Fri, Mar 16, 2018 at 03:13:37PM -0700, Andrew Morton wrote:
+> On Fri, 16 Mar 2018 15:55:16 +0800 Huacai Chen <chenhc@lemote.com> wrote:
 > 
-> Signed-off-by: Nick Desaulniers <nick.desaulniers@gmail.com>
-> ---
->  include/linux/mm.h | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> > Call __stack_chk_guard_setup() in decompress_kernel() is too late that
+> > stack checking always fails for decompress_kernel() itself. So remove
+> > __stack_chk_guard_setup() and initialize __stack_chk_guard before we
+> > call decompress_kernel().
+> > 
+> > Original code comes from ARM but also used for MIPS and SH, so fix them
+> > together. If without this fix, compressed booting of these archs will
+> > fail because stack checking is enabled by default (>=4.16).
+> > 
+> > ...
+> >
+> >  arch/arm/boot/compressed/head.S        | 4 ++++
+> >  arch/arm/boot/compressed/misc.c        | 7 -------
+> >  arch/mips/boot/compressed/decompress.c | 7 -------
+> >  arch/mips/boot/compressed/head.S       | 4 ++++
+> >  arch/sh/boot/compressed/head_32.S      | 8 ++++++++
+> >  arch/sh/boot/compressed/head_64.S      | 4 ++++
+> >  arch/sh/boot/compressed/misc.c         | 7 -------
+> >  7 files changed, 20 insertions(+), 21 deletions(-)
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index ad06d42adb1a..bd4bd59f02c1 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2582,7 +2582,7 @@ extern int get_hwpoison_page(struct page *page);
->  extern int sysctl_memory_failure_early_kill;
->  extern int sysctl_memory_failure_recovery;
->  extern void shake_page(struct page *p, int access);
-> -extern atomic_long_t num_poisoned_pages;
-> +extern atomic_long_t num_poisoned_pages __read_mostly;
->  extern int soft_offline_page(struct page *page, int flags);
+> Perhaps this should be split into three patches and each one routed via
+> the appropriate arch tree maintainer (for sh, that might be me).
 
-An equivalent patch was posted by Guenter Roeck and has been picked up
-by Andrew: https://patchwork.kernel.org/patch/10243919/
+Apologies for that. I'm trying to pick back up on things now, now that
+I've got both some downtime from other things and funding for core sh
+maintenance stuff. If you know any issues you'd especially like me to
+put my attention on now, please let me know. I have a few patches
+queued up from myself and others, but I believe there's a lot more I
+haven't been able to get to for quite a while. I should have new SH
+hardware to test on soon and in the meantime I've improved my qemu
+setup.
+
+One question I have about this specific patch is why any code is
+needed at all. Why can't __stack_chk_guard just be moved to
+initialized data, or left uninitialized, for the compressed kernel
+image loader? Assuming it is needed, the code looks ok, but I question
+the premise.
+
+Rich
