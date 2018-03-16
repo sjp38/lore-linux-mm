@@ -1,113 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F4346B0006
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 23:48:03 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id w20-v6so3259086plp.13
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 20:48:03 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j4si4419350pgq.119.2018.03.15.20.48.01
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 30D716B0003
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 00:50:30 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id r1so3979348pgq.7
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 21:50:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i1sor1738737pgq.149.2018.03.15.21.50.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Mar 2018 20:48:01 -0700 (PDT)
-From: NeilBrown <neilb@suse.com>
-Date: Fri, 16 Mar 2018 14:47:48 +1100
-Subject: Re: mmotm 2018-03-14-16-24 uploaded (lustre)
-In-Reply-To: <5c65e935-a6d9-2f80-18ac-470ed38ba439@infradead.org>
-References: <20180314232442.rL_lhWQqT%akpm@linux-foundation.org> <5c65e935-a6d9-2f80-18ac-470ed38ba439@infradead.org>
-Message-ID: <87605wbs0r.fsf@notabene.neil.brown.name>
+        (Google Transport Security);
+        Thu, 15 Mar 2018 21:50:28 -0700 (PDT)
+Date: Fri, 16 Mar 2018 10:20:16 +0530
+From: afzal mohammed <afzal.mohd.ma@gmail.com>
+Subject: Re: [PATCH 00/16] remove eight obsolete architectures
+Message-ID: <20180316045016.GA7697@afzalpc>
+References: <20180314143529.1456168-1-arnd@arndb.de>
+ <2929.1521106970@warthog.procyon.org.uk>
+ <CAK8P3a10hBz7QYk5v5MfhVMPOwFnWYTn95WZp1HtHrd7-GQpRg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAK8P3a10hBz7QYk5v5MfhVMPOwFnWYTn95WZp1HtHrd7-GQpRg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org, sfr@canb.auug.org.au, lustre-devel@lists.lustre.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: David Howells <dhowells@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-block <linux-block@vger.kernel.org>, IDE-ML <linux-ide@vger.kernel.org>, "open list:HID CORE LAYER" <linux-input@vger.kernel.org>, Networking <netdev@vger.kernel.org>, linux-wireless <linux-wireless@vger.kernel.org>, linux-pwm@vger.kernel.org, linux-rtc@vger.kernel.org, linux-spi <linux-spi@vger.kernel.org>, linux-usb@vger.kernel.org, dri-devel <dri-devel@lists.freedesktop.org>, linux-fbdev@vger.kernel.org, linux-watchdog@vger.kernel.org, Linux FS-devel Mailing List <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
---=-=-=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+Hi,
 
-On Thu, Mar 15 2018, Randy Dunlap wrote:
+On Thu, Mar 15, 2018 at 10:56:48AM +0100, Arnd Bergmann wrote:
+> On Thu, Mar 15, 2018 at 10:42 AM, David Howells <dhowells@redhat.com> wrote:
 
-> On 03/14/2018 04:24 PM, akpm@linux-foundation.org wrote:
->> The mm-of-the-moment snapshot 2018-03-14-16-24 has been uploaded to
->>=20
->>    http://www.ozlabs.org/~akpm/mmotm/
->
-> (not from the mmotm patches, but in its linux-next.patch)
->
-> CONFIG_LUSTRE_FS=3Dy
-> # CONFIG_LUSTRE_DEBUG_EXPENSIVE_CHECK is not set
->
->
-> In file included from ../drivers/staging/lustre/include/linux/libcfs/libc=
-fs.h:42:0,
->                  from ../drivers/staging/lustre/lustre/obdclass/lu_object=
-.c:44:
-> ../drivers/staging/lustre/lustre/obdclass/lu_object.c: In function 'lu_co=
-ntext_key_degister':
-> ../drivers/staging/lustre/lustre/obdclass/lu_object.c:1410:51: error: der=
-eferencing pointer to incomplete type
->           __func__, key->lct_owner ? key->lct_owner->name : "",
->                                                    ^
+> > Do we have anything left that still implements NOMMU?
 
-Thanks for the report.
-Arnd Bergmann posted a patch to fix this on Tuesday
+Please don't kill !MMU.
 
-Message-Id: <20180313130425.3975930-1-arnd@arndb.de>
+> Yes, plenty.
 
-http://lkml.kernel.org/r/<20180313130425.3975930-1-arnd@arndb.de>
+> I've made an overview of the remaining architectures for my own reference[1].
+> The remaining NOMMU architectures are:
+> 
+> - arch/arm has ARMv7-M (Cortex-M microcontroller), which is actually
+> gaining traction
 
-so the error should disappear soon.
+ARMv7-R as well, also seems ARM is coming up with more !MMU's - v8-M,
+v8-R. In addition, though only of academic interest, ARM MMU capable
+platform's can run !MMU Linux.
 
-Thanks,
-NeilBrown
+afzal
 
-
-> ../drivers/staging/lustre/include/linux/libcfs/libcfs_debug.h:123:41: not=
-e: in definition of macro '__CDEBUG'
->    libcfs_debug_msg(&msgdata, format, ## __VA_ARGS__); \
->                                          ^
-> ../drivers/staging/lustre/lustre/obdclass/lu_object.c:1409:3: note: in ex=
-pansion of macro 'CDEBUG'
->    CDEBUG(D_INFO, "%s: \"%s\" %p, %d\n",
->    ^
-> ../drivers/staging/lustre/lustre/obdclass/lu_object.c: In function 'lu_co=
-ntext_key_quiesce':
-> ../drivers/staging/lustre/lustre/obdclass/lu_object.c:1550:42: error: der=
-eferencing pointer to incomplete type
->            key->lct_owner ? key->lct_owner->name : "",
->                                           ^
-> ../drivers/staging/lustre/include/linux/libcfs/libcfs_debug.h:123:41: not=
-e: in definition of macro '__CDEBUG'
->    libcfs_debug_msg(&msgdata, format, ## __VA_ARGS__); \
->                                          ^
-> ../drivers/staging/lustre/lustre/obdclass/lu_object.c:1548:4: note: in ex=
-pansion of macro 'CDEBUG'
->     CDEBUG(D_INFO, "%s: \"%s\" %p, %d (%d)\n",
->     ^
->
->
->
-> --=20
-> ~Randy
-
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAlqrPmQACgkQOeye3VZi
-gbnIgg/9H8TxMGQ0KLNoeEmN640Hw9FYzKHUWhYIWGFRHpNtHrpyVlvserEHIxjN
-LshHyZOLxft9KbkYvzptmNLhAYYoN996HlTvXakH8brmKIQ8oCM5igCRXa0hBevG
-Ziz4Fyx+yWix3wmxJhUiPlzrIMF/gZTjs0vmVERKDnTxPAgrzLdXdG501iD67SK9
-Qid6hy5x1TvWHWW6WMlX9QJi5UvALYBwxYD3q7R+IKXnTdkUUXwxZ4u21/3Rb3ZI
-Oozk8muX2VOK7T48wdVLva6r7g/NSbisuEV8pBQRyKUmib0tFa7MZP/QMspYfNdh
-+126mirhrBGduRZ1VZJ1JR8lTQxkxlTFJPQS1JNvRxG6KR1CmEXjP3huH6/ubper
-6/Y1K7TJlqRbMZveVPZUZtBNr5uy3OnGlKxlci9tSLUDqBvJxs6JqWo4+3hNNsVs
-7NW74WMStXNfP0BUI1AZTEAheNGWdnMiM6vdfiz550n9tvsfoMQFF4Zi/2M0+dlv
-qXk37eEwstNOs4vK63F0KQoogm71CUOivRuN4BY6noEAecznmY0VcaZteiIWYXKz
-G4QflgvIKUQyBqruOYKkwzUsRlKZOIcb/ymIpSeUn5P+aRntGpZ3t19c6vnq9aON
-pQc/N201hwlI+LkG6F4qSl7P9V9HNFG8eAksOEB+wPtDhRfzEjM=
-=HgXN
------END PGP SIGNATURE-----
---=-=-=--
+> - arch/sh has an open-source J2 core that was added not that long ago,
+> it seems to
+>   be the only SH compatible core that anyone is working on.
+> - arch/microblaze supports both MMU/NOMMU modes (most use an MMU)
+> - arch/m68k supports several NOMMU targets, both the coldfire SoCs and the
+>   classic processors
+> - c6x has no MMU
