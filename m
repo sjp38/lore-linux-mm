@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ACDE56B002E
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:08:59 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id m6-v6so5967088pln.8
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:08:59 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 46DDD6B002F
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:09:01 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id v126so184097pgb.0
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:09:01 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p190sor51097pga.197.2018.03.16.14.08.58
+        by mx.google.com with SMTPS id h13sor2294310pgq.89.2018.03.16.14.09.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 16 Mar 2018 14:08:58 -0700 (PDT)
-Date: Fri, 16 Mar 2018 14:08:56 -0700 (PDT)
+        Fri, 16 Mar 2018 14:09:00 -0700 (PDT)
+Date: Fri, 16 Mar 2018 14:08:58 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 5/6] mm, memcg: separate oom_group from selection
- criteria
+Subject: [patch -mm 6/6] mm, memcg: disregard mempolicies for cgroup-aware
+ oom killer
 In-Reply-To: <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.20.1803161408070.211123@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.20.1803161408260.211123@chino.kir.corp.google.com>
 References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com> <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -23,92 +23,98 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>
 Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-With the current implementation of the cgroup-aware oom killer,
-memory.oom_group defines two behaviors:
 
- - consider the footprint of the "group" consisting of the mem cgroup
-   itself and all descendants for comparison with other cgroups, and
+The cgroup-aware oom killer currently considers the set of allowed nodes
+for the allocation that triggers the oom killer and discounts usage from
+disallowed nodes when comparing cgroups.
 
- - when selected as the victim mem cgroup, kill all processes attached to
-   it and its descendants that are eligible to be killed.
+If a cgroup has both the cpuset and memory controllers enabled, it may be
+possible to restrict allocations to a subset of nodes, for example.  Some
+latency sensitive users use cpusets to allocate only local memory, almost
+to the point of oom even though there is an abundance of available free
+memory on other nodes.
 
-Now that the memory.oom_policy of "tree" considers the memory footprint of
-the mem cgroup and all its descendants, separate the memory.oom_group
-setting from the selection criteria.
+The same is true for processes that mbind(2) their memory to a set of
+allowed nodes.
 
-Now, memory.oom_group only controls whether all processes attached to the
-victim mem cgroup and its descendants are oom killed (when set to "1") or
-the single largest memory consuming process attached to the victim mem
-cgroup and its descendants is killed.
+This yields very inconsistent results by considering usage from each mem
+cgroup (and perhaps its subtree) for the allocation's set of allowed nodes
+for its mempolicy.  Allocating a single page for a vma that is mbind to a
+now-oom node can cause a cgroup that is restricted to that node by its
+cpuset controller to be oom killed when other cgroups may have much higher
+overall usage.
 
-This is generally regarded as a property of the workload attached to the
-subtree: it depends on whether the workload can continue running and be
-useful if a single process is oom killed or whether it's better to kill
-all attached processes.
+The cgroup-aware oom killer is described as killing the largest memory
+consuming cgroup (or subtree) without mentioning the mempolicy of the
+allocation.  For now, discount it.  It would be possible to add an
+additional oom policy for NUMA awareness if it would be generally useful
+later with the extensible interface.
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- Documentation/cgroup-v2.txt | 21 ++++-----------------
- mm/memcontrol.c             |  8 ++++----
- 2 files changed, 8 insertions(+), 21 deletions(-)
+ mm/memcontrol.c | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
 
-diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
---- a/Documentation/cgroup-v2.txt
-+++ b/Documentation/cgroup-v2.txt
-@@ -1045,25 +1045,12 @@ PAGE_SIZE multiple when read back.
- 	A read-write single value file which exists on non-root
- 	cgroups.  The default is "0".
- 
--	If set, OOM killer will consider the memory cgroup as an
--	indivisible memory consumers and compare it with other memory
--	consumers by it's memory footprint.
--	If such memory cgroup is selected as an OOM victim, all
--	processes belonging to it or it's descendants will be killed.
-+	If such memory cgroup is selected as an OOM victim, all processes
-+	attached to it and its descendants that are eligible for oom kill
-+	(their /proc/pid/oom_score_adj is not oom disabled) will be killed.
- 
- 	This applies to system-wide OOM conditions and reaching
- 	the hard memory limit of the cgroup and their ancestor.
--	If OOM condition happens in a descendant cgroup with it's own
--	memory limit, the memory cgroup can't be considered
--	as an OOM victim, and OOM killer will not kill all belonging
--	tasks.
--
--	Also, OOM killer respects the /proc/pid/oom_score_adj value -1000,
--	and will never kill the unkillable task, even if memory.oom_group
--	is set.
--
--	If cgroup-aware OOM killer is not enabled, ENOTSUPP error
--	is returned on attempt to access the file.
- 
-   memory.oom_policy
- 
-@@ -1325,7 +1312,7 @@ When selecting a cgroup as a victim, the OOM killer will kill the process
- with the largest memory footprint.  A user can control this behavior by
- enabling the per-cgroup memory.oom_group option.  If set, it causes the
- OOM killer to kill all processes attached to the cgroup, except processes
--with /proc/pid/oom_score_adj set to -1000 (oom disabled).
-+with /proc/pid/oom_score_adj set to OOM_SCORE_ADJ_MIN.
- 
- The root cgroup is treated as a leaf memory cgroup as well, so it is
- compared with other leaf memory cgroups.
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2732,11 +2732,11 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+@@ -2608,19 +2608,15 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
+ 	return ret;
+ }
+ 
+-static long memcg_oom_badness(struct mem_cgroup *memcg,
+-			      const nodemask_t *nodemask)
++static long memcg_oom_badness(struct mem_cgroup *memcg)
+ {
+ 	const bool is_root_memcg = memcg == root_mem_cgroup;
+ 	long points = 0;
+ 	int nid;
+-	pg_data_t *pgdat;
+ 
+ 	for_each_node_state(nid, N_MEMORY) {
+-		if (nodemask && !node_isset(nid, *nodemask))
+-			continue;
++		pg_data_t *pgdat = NODE_DATA(nid);
+ 
+-		pgdat = NODE_DATA(nid);
+ 		if (is_root_memcg) {
+ 			points += node_page_state(pgdat, NR_ACTIVE_ANON) +
+ 				  node_page_state(pgdat, NR_INACTIVE_ANON);
+@@ -2656,8 +2652,7 @@ static long memcg_oom_badness(struct mem_cgroup *memcg,
+  *   >0: memcg is eligible, and the returned value is an estimation
+  *       of the memory footprint
+  */
+-static long oom_evaluate_memcg(struct mem_cgroup *memcg,
+-			       const nodemask_t *nodemask)
++static long oom_evaluate_memcg(struct mem_cgroup *memcg)
+ {
+ 	struct css_task_iter it;
+ 	struct task_struct *task;
+@@ -2691,7 +2686,7 @@ static long oom_evaluate_memcg(struct mem_cgroup *memcg,
+ 	if (eligible <= 0)
+ 		return eligible;
+ 
+-	return memcg_oom_badness(memcg, nodemask);
++	return memcg_oom_badness(memcg);
+ }
+ 
+ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+@@ -2751,7 +2746,7 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+ 		if (memcg_has_children(iter))
  			continue;
  
- 		/*
--		 * We don't consider non-leaf non-oom_group memory cgroups
--		 * without the oom policy of "tree" as OOM victims.
-+		 * We don't consider non-leaf memory cgroups without the oom
-+		 * policy of "tree" as OOM victims.
- 		 */
--		if (memcg_has_children(iter) && !mem_cgroup_oom_group(iter) &&
--		    iter->oom_policy != MEMCG_OOM_POLICY_TREE)
-+		if (iter->oom_policy != MEMCG_OOM_POLICY_TREE &&
-+				memcg_has_children(iter))
- 			continue;
+-		score = oom_evaluate_memcg(iter, oc->nodemask);
++		score = oom_evaluate_memcg(iter);
  
  		/*
+ 		 * Ignore empty and non-eligible memory cgroups.
+@@ -2780,8 +2775,7 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+ 
+ 	if (oc->chosen_memcg != INFLIGHT_VICTIM) {
+ 		if (root == root_mem_cgroup) {
+-			group_score = oom_evaluate_memcg(root_mem_cgroup,
+-							 oc->nodemask);
++			group_score = oom_evaluate_memcg(root_mem_cgroup);
+ 			if (group_score > leaf_score) {
+ 				/*
+ 				 * Discount the sum of all leaf scores to find
