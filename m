@@ -1,35 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 539AB6B0025
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:10:02 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f4-v6so6144166plr.11
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:10:02 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ED3D86B0025
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:12:23 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j8so5775564pfh.13
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:12:23 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b22si6120434pfi.244.2018.03.16.14.10.01
+        by mx.google.com with ESMTPS id u7-v6si7157758plz.562.2018.03.16.14.12.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 14:10:01 -0700 (PDT)
-Date: Fri, 16 Mar 2018 14:09:59 -0700
+        Fri, 16 Mar 2018 14:12:23 -0700 (PDT)
+Date: Fri, 16 Mar 2018 14:12:21 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 02/14] mm/hmm: fix header file if/else/endif maze
-Message-Id: <20180316140959.b603888e2a9ba2e42e56ba1f@linux-foundation.org>
-In-Reply-To: <20180316191414.3223-3-jglisse@redhat.com>
+Subject: Re: [PATCH 03/14] mm/hmm: HMM should have a callback before MM is
+ destroyed v2
+Message-Id: <20180316141221.f2b622630de3f1da51a5c105@linux-foundation.org>
+In-Reply-To: <20180316191414.3223-4-jglisse@redhat.com>
 References: <20180316191414.3223-1-jglisse@redhat.com>
-	<20180316191414.3223-3-jglisse@redhat.com>
+	<20180316191414.3223-4-jglisse@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, stable@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
 
-On Fri, 16 Mar 2018 15:14:07 -0400 jglisse@redhat.com wrote:
+On Fri, 16 Mar 2018 15:14:08 -0400 jglisse@redhat.com wrote:
 
-> From: J=E9r=F4me Glisse <jglisse@redhat.com>
->=20
-> The #if/#else/#endif for IS_ENABLED(CONFIG_HMM) were wrong.
+> The hmm_mirror_register() function registers a callback for when
+> the CPU pagetable is modified. Normally, the device driver will
+> call hmm_mirror_unregister() when the process using the device is
+> finished. However, if the process exits uncleanly, the struct_mm
+> can be destroyed with no warning to the device driver.
 
-"were wrong" is not a sufficient explanation of the problem, especially
-if we're requesting a -stable backport.  Please fully describe the
-effects of a bug when fixing it?
+Again, what are the user-visible effects of the bug?  Such info is
+needed when others review our request for a -stable backport.  And the
+many people who review -stable patches for integration into their own
+kernel trees will want to understand the benefit of the patch to their
+users.
