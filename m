@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A79CD6B0031
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E684A6B0033
 	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:30:08 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g13so5850074wrh.23
+Received: by mail-wr0-f198.google.com with SMTP id v6so4095769wrg.8
         for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:30:08 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id r38si465085edd.337.2018.03.16.12.30.07
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id e12si3219141edk.286.2018.03.16.12.30.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 16 Mar 2018 12:30:07 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 20/35] x86/pgtable: Move two more functions from pgtable_64.h to pgtable.h
-Date: Fri, 16 Mar 2018 20:29:38 +0100
-Message-Id: <1521228593-3820-21-git-send-email-joro@8bytes.org>
+Subject: [PATCH 22/35] x86/mm/pae: Populate the user page-table with user pgd's
+Date: Fri, 16 Mar 2018 20:29:40 +0100
+Message-Id: <1521228593-3820-23-git-send-email-joro@8bytes.org>
 In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,116 +22,38 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-These two functions are required for PTI on 32 bit:
-
-	* pgdp_maps_userspace()
-	* pgd_large()
-
-Also re-implement pgdp_maps_userspace() so that it will work
-on 64 and 32 bit kernels.
+When we populate a PGD entry, make sure we populate it in
+the user page-table too.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable-2level_types.h |  3 +++
- arch/x86/include/asm/pgtable-3level_types.h |  1 +
- arch/x86/include/asm/pgtable.h              | 16 ++++++++++++++++
- arch/x86/include/asm/pgtable_64.h           | 15 ---------------
- arch/x86/include/asm/pgtable_64_types.h     |  2 ++
- 5 files changed, 22 insertions(+), 15 deletions(-)
+ arch/x86/include/asm/pgtable-3level.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable-2level_types.h b/arch/x86/include/asm/pgtable-2level_types.h
-index f982ef8..6deb6cd 100644
---- a/arch/x86/include/asm/pgtable-2level_types.h
-+++ b/arch/x86/include/asm/pgtable-2level_types.h
-@@ -35,4 +35,7 @@ typedef union {
+diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
+index bc4af54..ab2aa44 100644
+--- a/arch/x86/include/asm/pgtable-3level.h
++++ b/arch/x86/include/asm/pgtable-3level.h
+@@ -98,6 +98,9 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
  
- #define PTRS_PER_PTE	1024
- 
-+/* This covers all VMSPLIT_* and VMSPLIT_*_OPT variants */
-+#define PGD_KERNEL_START	(CONFIG_PAGE_OFFSET >> PGDIR_SHIFT)
-+
- #endif /* _ASM_X86_PGTABLE_2LEVEL_DEFS_H */
-diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
-index ed8a200..925ac1b 100644
---- a/arch/x86/include/asm/pgtable-3level_types.h
-+++ b/arch/x86/include/asm/pgtable-3level_types.h
-@@ -45,5 +45,6 @@ typedef union {
-  */
- #define PTRS_PER_PTE	512
- 
-+#define PGD_KERNEL_START	(CONFIG_PAGE_OFFSET >> PGDIR_SHIFT)
- 
- #endif /* _ASM_X86_PGTABLE_3LEVEL_DEFS_H */
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 1e900c1..981e49a 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -1132,6 +1132,22 @@ static inline int pud_write(pud_t pud)
- 	return pud_flags(pud) & _PAGE_RW;
- }
- 
-+/*
-+ * Page table pages are page-aligned.  The lower half of the top
-+ * level is used for userspace and the top half for the kernel.
-+ *
-+ * Returns true for parts of the PGD that map userspace and
-+ * false for the parts that map the kernel.
-+ */
-+static inline bool pgdp_maps_userspace(void *__ptr)
-+{
-+	unsigned long ptr = (unsigned long)__ptr;
-+
-+	return (((ptr & ~PAGE_MASK) / sizeof(pgd_t)) < PGD_KERNEL_START);
-+}
-+
-+static inline int pgd_large(pgd_t pgd) { return 0; }
-+
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
- /*
-  * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 4cbf517..e11b925 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -131,20 +131,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
- #endif
- }
- 
--/*
-- * Page table pages are page-aligned.  The lower half of the top
-- * level is used for userspace and the top half for the kernel.
-- *
-- * Returns true for parts of the PGD that map userspace and
-- * false for the parts that map the kernel.
-- */
--static inline bool pgdp_maps_userspace(void *__ptr)
--{
--	unsigned long ptr = (unsigned long)__ptr;
--
--	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
--}
--
- static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ static inline void native_set_pud(pud_t *pudp, pud_t pud)
  {
- #if defined(CONFIG_PAGE_TABLE_ISOLATION) && !defined(CONFIG_X86_5LEVEL)
-@@ -187,7 +173,6 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
- /*
-  * Level 4 access.
-  */
--static inline int pgd_large(pgd_t pgd) { return 0; }
- #define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pud.p4d.pgd = pti_set_user_pgtbl(&pudp->p4d.pgd, pud.p4d.pgd);
++#endif
+ 	set_64bit((unsigned long long *)(pudp), native_pud_val(pud));
+ }
  
- /* PUD - Level3 access */
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 6b8f73d..e57003a 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -124,4 +124,6 @@ typedef struct { pteval_t pte; } pte_t;
+@@ -194,6 +197,10 @@ static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
+ {
+ 	union split_pud res, *orig = (union split_pud *)pudp;
  
- #define EARLY_DYNAMIC_PAGE_TABLES	64
- 
-+#define PGD_KERNEL_START	((PAGE_SIZE / 2) / sizeof(pgd_t))
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&pudp->p4d.pgd, __pgd(0));
++#endif
 +
- #endif /* _ASM_X86_PGTABLE_64_DEFS_H */
+ 	/* xchg acts as a barrier before setting of the high bits */
+ 	res.pud_low = xchg(&orig->pud_low, 0);
+ 	res.pud_high = orig->pud_high;
 -- 
 2.7.4
