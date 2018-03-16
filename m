@@ -1,68 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 835CC6B0003
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 22:56:50 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id m6-v6so4247615pln.8
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 19:56:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q14sor1412985pgc.328.2018.03.15.19.56.49
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F4346B0006
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 23:48:03 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id w20-v6so3259086plp.13
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 20:48:03 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j4si4419350pgq.119.2018.03.15.20.48.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 15 Mar 2018 19:56:49 -0700 (PDT)
-From: Jia He <hejianet@gmail.com>
-Subject: [PATCH] Revert "mm/memblock.c: hardcode the end_pfn being -1"
-Date: Thu, 15 Mar 2018 19:56:06 -0700
-Message-Id: <1521168966-5245-1-git-send-email-hejianet@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Mar 2018 20:48:01 -0700 (PDT)
+From: NeilBrown <neilb@suse.com>
+Date: Fri, 16 Mar 2018 14:47:48 +1100
+Subject: Re: mmotm 2018-03-14-16-24 uploaded (lustre)
+In-Reply-To: <5c65e935-a6d9-2f80-18ac-470ed38ba439@infradead.org>
+References: <20180314232442.rL_lhWQqT%akpm@linux-foundation.org> <5c65e935-a6d9-2f80-18ac-470ed38ba439@infradead.org>
+Message-ID: <87605wbs0r.fsf@notabene.neil.brown.name>
+MIME-Version: 1.0
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Daniel Vacek <neelx@redhat.com>, linux-kernel@vger.kernel.org, Jia He <hejianet@gmail.com>, Jia He <jia.he@hxt-semitech.com>
+To: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, broonie@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org, sfr@canb.auug.org.au, lustre-devel@lists.lustre.org
 
-This reverts commit 379b03b7fa05f7db521b7732a52692448a3c34fe.
+--=-=-=
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Commit 864b75f9d6b0 ("mm/page_alloc: fix memmap_init_zone pageblock
-alignment") introduced boot hang issues in arm/arm64 machines, so
-Ard Biesheuvel reverted in commit 3e04040df6d4. But there is a
-preparation patch for commit 864b75f9d6b0. So just revert it for
-the sake of caution.
+On Thu, Mar 15 2018, Randy Dunlap wrote:
 
-Signed-off-by: Jia He <jia.he@hxt-semitech.com>
----
- mm/memblock.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+> On 03/14/2018 04:24 PM, akpm@linux-foundation.org wrote:
+>> The mm-of-the-moment snapshot 2018-03-14-16-24 has been uploaded to
+>>=20
+>>    http://www.ozlabs.org/~akpm/mmotm/
+>
+> (not from the mmotm patches, but in its linux-next.patch)
+>
+> CONFIG_LUSTRE_FS=3Dy
+> # CONFIG_LUSTRE_DEBUG_EXPENSIVE_CHECK is not set
+>
+>
+> In file included from ../drivers/staging/lustre/include/linux/libcfs/libc=
+fs.h:42:0,
+>                  from ../drivers/staging/lustre/lustre/obdclass/lu_object=
+.c:44:
+> ../drivers/staging/lustre/lustre/obdclass/lu_object.c: In function 'lu_co=
+ntext_key_degister':
+> ../drivers/staging/lustre/lustre/obdclass/lu_object.c:1410:51: error: der=
+eferencing pointer to incomplete type
+>           __func__, key->lct_owner ? key->lct_owner->name : "",
+>                                                    ^
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index b6ba6b7..5a9ca2a 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1107,7 +1107,7 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
- 	struct memblock_type *type = &memblock.memory;
- 	unsigned int right = type->cnt;
- 	unsigned int mid, left = 0;
--	phys_addr_t addr = PFN_PHYS(++pfn);
-+	phys_addr_t addr = PFN_PHYS(pfn + 1);
- 
- 	do {
- 		mid = (right + left) / 2;
-@@ -1118,15 +1118,15 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
- 				  type->regions[mid].size))
- 			left = mid + 1;
- 		else {
--			/* addr is within the region, so pfn is valid */
--			return pfn;
-+			/* addr is within the region, so pfn + 1 is valid */
-+			return min(pfn + 1, max_pfn);
- 		}
- 	} while (left < right);
- 
- 	if (right == type->cnt)
--		return -1UL;
-+		return max_pfn;
- 	else
--		return PHYS_PFN(type->regions[right].base);
-+		return min(PHYS_PFN(type->regions[right].base), max_pfn);
- }
- 
- /**
--- 
-2.7.4
+Thanks for the report.
+Arnd Bergmann posted a patch to fix this on Tuesday
+
+Message-Id: <20180313130425.3975930-1-arnd@arndb.de>
+
+http://lkml.kernel.org/r/<20180313130425.3975930-1-arnd@arndb.de>
+
+so the error should disappear soon.
+
+Thanks,
+NeilBrown
+
+
+> ../drivers/staging/lustre/include/linux/libcfs/libcfs_debug.h:123:41: not=
+e: in definition of macro '__CDEBUG'
+>    libcfs_debug_msg(&msgdata, format, ## __VA_ARGS__); \
+>                                          ^
+> ../drivers/staging/lustre/lustre/obdclass/lu_object.c:1409:3: note: in ex=
+pansion of macro 'CDEBUG'
+>    CDEBUG(D_INFO, "%s: \"%s\" %p, %d\n",
+>    ^
+> ../drivers/staging/lustre/lustre/obdclass/lu_object.c: In function 'lu_co=
+ntext_key_quiesce':
+> ../drivers/staging/lustre/lustre/obdclass/lu_object.c:1550:42: error: der=
+eferencing pointer to incomplete type
+>            key->lct_owner ? key->lct_owner->name : "",
+>                                           ^
+> ../drivers/staging/lustre/include/linux/libcfs/libcfs_debug.h:123:41: not=
+e: in definition of macro '__CDEBUG'
+>    libcfs_debug_msg(&msgdata, format, ## __VA_ARGS__); \
+>                                          ^
+> ../drivers/staging/lustre/lustre/obdclass/lu_object.c:1548:4: note: in ex=
+pansion of macro 'CDEBUG'
+>     CDEBUG(D_INFO, "%s: \"%s\" %p, %d (%d)\n",
+>     ^
+>
+>
+>
+> --=20
+> ~Randy
+
+--=-=-=
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAlqrPmQACgkQOeye3VZi
+gbnIgg/9H8TxMGQ0KLNoeEmN640Hw9FYzKHUWhYIWGFRHpNtHrpyVlvserEHIxjN
+LshHyZOLxft9KbkYvzptmNLhAYYoN996HlTvXakH8brmKIQ8oCM5igCRXa0hBevG
+Ziz4Fyx+yWix3wmxJhUiPlzrIMF/gZTjs0vmVERKDnTxPAgrzLdXdG501iD67SK9
+Qid6hy5x1TvWHWW6WMlX9QJi5UvALYBwxYD3q7R+IKXnTdkUUXwxZ4u21/3Rb3ZI
+Oozk8muX2VOK7T48wdVLva6r7g/NSbisuEV8pBQRyKUmib0tFa7MZP/QMspYfNdh
++126mirhrBGduRZ1VZJ1JR8lTQxkxlTFJPQS1JNvRxG6KR1CmEXjP3huH6/ubper
+6/Y1K7TJlqRbMZveVPZUZtBNr5uy3OnGlKxlci9tSLUDqBvJxs6JqWo4+3hNNsVs
+7NW74WMStXNfP0BUI1AZTEAheNGWdnMiM6vdfiz550n9tvsfoMQFF4Zi/2M0+dlv
+qXk37eEwstNOs4vK63F0KQoogm71CUOivRuN4BY6noEAecznmY0VcaZteiIWYXKz
+G4QflgvIKUQyBqruOYKkwzUsRlKZOIcb/ymIpSeUn5P+aRntGpZ3t19c6vnq9aON
+pQc/N201hwlI+LkG6F4qSl7P9V9HNFG8eAksOEB+wPtDhRfzEjM=
+=HgXN
+-----END PGP SIGNATURE-----
+--=-=-=--
