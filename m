@@ -1,66 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E2FC96B0003
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 08:25:34 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id m79so766512wma.7
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 05:25:34 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g27sor3494396edf.34.2018.03.16.05.25.33
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 33C576B0003
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 08:37:42 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id g66so5048456pfj.11
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 05:37:42 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u70si1230761pfj.341.2018.03.16.05.37.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Mar 2018 05:25:33 -0700 (PDT)
-Date: Fri, 16 Mar 2018 15:25:08 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm/shmem: Do not wait for lock_page() in
- shmem_unused_huge_shrink()
-Message-ID: <20180316122508.fv4edpx34hdqybwx@node.shutemov.name>
-References: <20180316105908.62516-1-kirill.shutemov@linux.intel.com>
- <20180316121303.GI23100@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 16 Mar 2018 05:37:40 -0700 (PDT)
+Date: Fri, 16 Mar 2018 13:37:37 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH -mm] mm: Fix race between swapoff and mincore
+Message-ID: <20180316123737.GJ23100@dhcp22.suse.cz>
+References: <20180313012036.1597-1-ying.huang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180316121303.GI23100@dhcp22.suse.cz>
+In-Reply-To: <20180313012036.1597-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>
 
-On Fri, Mar 16, 2018 at 01:13:03PM +0100, Michal Hocko wrote:
-> On Fri 16-03-18 13:59:08, Kirill A. Shutemov wrote:
-> [..]
-> > @@ -498,31 +498,42 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
-> >  			continue;
-> >  		}
-> >  
-> > -		page = find_lock_page(inode->i_mapping,
-> > +		page = find_get_page(inode->i_mapping,
-> >  				(inode->i_size & HPAGE_PMD_MASK) >> PAGE_SHIFT);
-> >  		if (!page)
-> >  			goto drop;
-> >  
-> > +		/* No huge page at the end of the file: nothing to split */
-> >  		if (!PageTransHuge(page)) {
-> > -			unlock_page(page);
-> >  			put_page(page);
-> >  			goto drop;
-> >  		}
-> >  
-> > +		/*
-> > +		 * Leave the inode on the list if we failed to lock
-> > +		 * the page at this time.
-> > +		 *
-> > +		 * Waiting for the lock may lead to deadlock in the
-> > +		 * reclaim path.
-> > +		 */
-> > +		if (!trylock_page(page)) {
-> > +			put_page(page);
-> > +			goto leave;
-> > +		}
+On Tue 13-03-18 09:20:36, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
 > 
-> Can somebody split the huge page after the PageTransHuge check and
-> before we lock it?
+> >From commit 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB
+> trunks") on, after swapoff, the address_space associated with the swap
+> device will be freed.  So swap_address_space() users which touch the
+> address_space need some kind of mechanism to prevent the address_space
+> from being freed during accessing.
+> 
+> When mincore process unmapped range for swapped shmem pages, it
+> doesn't hold the lock to prevent swap device from being swapoff.  So
+> the following race is possible,
+> 
+> CPU1					CPU2
+> do_mincore()				swapoff()
+>   walk_page_range()
+>     mincore_unmapped_range()
+>       __mincore_unmapped_range
+>         mincore_page
+> 	  as = swap_address_space()
+>           ...				  exit_swap_address_space()
+>           ...				    kvfree(spaces)
+> 	  find_get_page(as)
+> 
+> The address space may be accessed after being freed.
+> 
+> To fix the race, get_swap_device()/put_swap_device() is used to
+> enclose find_get_page() to check whether the swap entry is valid and
+> prevent the swap device from being swapoff during accessing.
+> 
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 
-Nope. Pin on the page is enough to prevent split.
+Fixes: 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB  trunks")
+
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Hugh Dickins <hughd@google.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/mincore.c | 12 ++++++++++--
+>  1 file changed, 10 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/mincore.c b/mm/mincore.c
+> index fc37afe226e6..a66f2052c7b1 100644
+> --- a/mm/mincore.c
+> +++ b/mm/mincore.c
+> @@ -68,8 +68,16 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+>  		 */
+>  		if (radix_tree_exceptional_entry(page)) {
+>  			swp_entry_t swp = radix_to_swp_entry(page);
+> -			page = find_get_page(swap_address_space(swp),
+> -					     swp_offset(swp));
+> +			struct swap_info_struct *si;
+> +
+> +			/* Prevent swap device to being swapoff under us */
+> +			si = get_swap_device(swp);
+> +			if (si) {
+> +				page = find_get_page(swap_address_space(swp),
+> +						     swp_offset(swp));
+> +				put_swap_device(si);
+> +			} else
+> +				page = NULL;
+>  		}
+>  	} else
+>  		page = find_get_page(mapping, pgoff);
+> -- 
+> 2.15.1
+> 
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
