@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 50DE16B005D
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B5EF06B005D
 	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:30:11 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id t19so1353766wmh.3
+Received: by mail-wr0-f200.google.com with SMTP id j4so5946098wrg.11
         for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:30:11 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id o10si4245798edl.109.2018.03.16.12.30.09
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id o17si1929111edf.398.2018.03.16.12.30.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 12:30:09 -0700 (PDT)
+        Fri, 16 Mar 2018 12:30:10 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 27/35] x86/mm/dump_pagetables: Define INIT_PGD
-Date: Fri, 16 Mar 2018 20:29:45 +0100
-Message-Id: <1521228593-3820-28-git-send-email-joro@8bytes.org>
+Subject: [PATCH 23/35] x86/mm/legacy: Populate the user page-table with user pgd's
+Date: Fri, 16 Mar 2018 20:29:41 +0100
+Message-Id: <1521228593-3820-24-git-send-email-joro@8bytes.org>
 In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,58 +22,46 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Define INIT_PGD to point to the correct initial page-table
-for 32 and 64 bit and use it where needed. This fixes the
-build on 32 bit with CONFIG_PAGE_TABLE_ISOLATION enabled.
+Also populate the user-spage pgd's in the user page-table.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/dump_pagetables.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ arch/x86/include/asm/pgtable-2level.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 2a4849e..2151ebb 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -105,6 +105,8 @@ static struct addr_marker address_markers[] = {
- 	[END_OF_SPACE_NR]	= { -1,			NULL }
- };
+diff --git a/arch/x86/include/asm/pgtable-2level.h b/arch/x86/include/asm/pgtable-2level.h
+index 685ffe8..c399ea5 100644
+--- a/arch/x86/include/asm/pgtable-2level.h
++++ b/arch/x86/include/asm/pgtable-2level.h
+@@ -19,6 +19,9 @@ static inline void native_set_pte(pte_t *ptep , pte_t pte)
  
-+#define INIT_PGD	((pgd_t *) &init_top_pgt)
-+
- #else /* CONFIG_X86_64 */
- 
- enum address_markers_idx {
-@@ -133,6 +135,8 @@ static struct addr_marker address_markers[] = {
- 	[END_OF_SPACE_NR]	= { -1,			NULL }
- };
- 
-+#define INIT_PGD	(swapper_pg_dir)
-+
- #endif /* !CONFIG_X86_64 */
- 
- /* Multipliers for offsets within the PTEs */
-@@ -478,11 +482,7 @@ static inline bool is_hypervisor_range(int idx)
- static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
- 				       bool checkwx, bool dmesg)
+ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
  {
--#ifdef CONFIG_X86_64
--	pgd_t *start = (pgd_t *) &init_top_pgt;
--#else
--	pgd_t *start = swapper_pg_dir;
--#endif
-+	pgd_t *start = INIT_PGD;
- 	pgprotval_t prot;
- 	int i;
- 	struct pg_state st = {};
-@@ -543,7 +543,7 @@ EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
- static void ptdump_walk_user_pgd_level_checkwx(void)
- {
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
--	pgd_t *pgd = (pgd_t *) &init_top_pgt;
-+	pgd_t *pgd = INIT_PGD;
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pmd.pud.p4d.pgd = pti_set_user_pgtbl(&pmdp->pud.p4d.pgd, pmd.pud.p4d.pgd);
++#endif
+ 	*pmdp = pmd;
+ }
  
- 	if (!static_cpu_has(X86_FEATURE_PTI))
- 		return;
+@@ -58,6 +61,9 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
+ #ifdef CONFIG_SMP
+ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
+ {
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&xp->pud.p4d.pgd, __pgd(0));
++#endif
+ 	return __pmd(xchg((pmdval_t *)xp, 0));
+ }
+ #else
+@@ -67,6 +73,9 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
+ #ifdef CONFIG_SMP
+ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ {
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&xp->p4d.pgd, __pgd(0));
++#endif
+ 	return __pud(xchg((pudval_t *)xp, 0));
+ }
+ #else
 -- 
 2.7.4
