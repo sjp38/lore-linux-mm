@@ -1,85 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 876E56B0007
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:16:25 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id c9so6905559qth.16
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 09:16:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id g88si6390860qkh.342.2018.03.16.09.16.24
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 603BD6B0009
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:19:32 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id p123so10435218ywh.2
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 09:19:32 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id i187-v6si1227067ybc.531.2018.03.16.09.19.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 09:16:24 -0700 (PDT)
-Date: Fri, 16 Mar 2018 17:16:17 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
- count (semaphore)
-Message-ID: <20180316161616.GA28249@redhat.com>
-References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
- <20180315124816.6aa3d4e2@vmware.local.home>
+        Fri, 16 Mar 2018 09:19:31 -0700 (PDT)
+Subject: Re: [PATCH v3] hugetlbfs: check for pgoff value overflow
+References: <20180306133135.4dc344e478d98f0e29f47698@linux-foundation.org>
+ <20180309002726.7248-1-mike.kravetz@oracle.com>
+ <20180316101757.GE23100@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <12826dc6-c81e-c22a-2ec1-8e1cf0f07dfc@oracle.com>
+Date: Fri, 16 Mar 2018 09:19:07 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180315124816.6aa3d4e2@vmware.local.home>
+In-Reply-To: <20180316101757.GE23100@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>, mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Nic Losby <blurbdust@gmail.com>, Yisheng Xie <xieyisheng1@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-On 03/15, Steven Rostedt wrote:
->
-> On Tue, 13 Mar 2018 18:26:00 +0530
-> Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
->
-> > +static void sdt_increment_ref_ctr(struct trace_uprobe *tu)
-> > +{
-> > +	struct uprobe_map_info *info;
-> > +	struct vm_area_struct *vma;
-> > +	unsigned long vaddr;
-> > +
-> > +	uprobe_start_dup_mmap();
->
-> Please add a comment here that this function ups the mm ref count for
-> each info returned. Otherwise it's hard to know what that mmput() below
-> matches.
+On 03/16/2018 03:17 AM, Michal Hocko wrote:
+> On Thu 08-03-18 16:27:26, Mike Kravetz wrote:
+> 
+> OK, looks good to me. Hairy but seems to be the easiest way around this.
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> 
+<snip>
+>> +/*
+>> + * Mask used when checking the page offset value passed in via system
+>> + * calls.  This value will be converted to a loff_t which is signed.
+>> + * Therefore, we want to check the upper PAGE_SHIFT + 1 bits of the
+>> + * value.  The extra bit (- 1 in the shift value) is to take the sign
+>> + * bit into account.
+>> + */
+>> +#define PGOFF_LOFFT_MAX (PAGE_MASK << (BITS_PER_LONG - (2 * PAGE_SHIFT) - 1))
 
-You meant uprobe_build_map_info(), not uprobe_start_dup_mmap().
+Thanks Michal,
 
-Yes, and if it gets more callers perhaps we should move this mmput() into
-uprobe_free_map_info()...
+However, kbuild found a problem with this definition on certain configs.
+Consider a config where,
+BITS_PER_LONG = 32 (32bit config)
+PAGE_SHIFT = 16 (64K pages)
+This results in the negative shift value.
+Not something I would not immediately think of, but a valid config.
 
-Oleg.
+The definition has been changed to,
+#define PGOFF_LOFFT_MAX \
+	(((1UL << (PAGE_SHIFT + 1)) - 1) <<  (BITS_PER_LONG - (PAGE_SHIFT + 1)))
 
-
---- x/kernel/events/uprobes.c
-+++ x/kernel/events/uprobes.c
-@@ -714,6 +714,7 @@ struct map_info {
- static inline struct map_info *free_map_info(struct map_info *info)
- {
- 	struct map_info *next = info->next;
-+	mmput(info->mm);
- 	kfree(info);
- 	return next;
- }
-@@ -783,8 +784,11 @@ build_map_info(struct address_space *map
- 
- 	goto again;
-  out:
--	while (prev)
--		prev = free_map_info(prev);
-+	while (prev) {
-+		info = prev;
-+		prev = prev->next;
-+		kfree(info);
-+	}
- 	return curr;
- }
- 
-@@ -834,7 +838,6 @@ register_for_each_vma(struct uprobe *upr
-  unlock:
- 		up_write(&mm->mmap_sem);
-  free:
--		mmput(mm);
- 		info = free_map_info(info);
- 	}
-  out:
+as discussed here,
+http://lkml.kernel.org/r/432fb2a3-b729-9c3a-7d60-890b8f9b10dd@oracle.com
+-- 
+Mike Kravetz
