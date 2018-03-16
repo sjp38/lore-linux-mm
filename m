@@ -1,53 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B8586B0025
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:35:40 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id bb5-v6so6170258plb.22
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:35:40 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c12-v6si6972112plo.278.2018.03.16.14.35.39
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 662206B0027
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:36:26 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y19so5220255pgv.18
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:36:26 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s20sor2586622pfi.110.2018.03.16.14.36.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 14:35:39 -0700 (PDT)
-Date: Fri, 16 Mar 2018 14:35:37 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 02/14] mm/hmm: fix header file if/else/endif maze
-Message-Id: <20180316143537.0d49a76ec48ec0ab034af93b@linux-foundation.org>
-In-Reply-To: <20180316211801.GB4861@redhat.com>
-References: <20180316191414.3223-1-jglisse@redhat.com>
-	<20180316191414.3223-3-jglisse@redhat.com>
-	<20180316140959.b603888e2a9ba2e42e56ba1f@linux-foundation.org>
-	<20180316211801.GB4861@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Fri, 16 Mar 2018 14:36:25 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: SIGSEGV on OSPKE machine
+Date: Fri, 16 Mar 2018 14:36:04 -0700
+Message-Id: <20180316213604.167305-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>
+To: Thomas Gleixner <tglx@linutronix.de>, Greg Thelen <gthelen@google.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, John Sperbeck <jsperbeck@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, Shakeel Butt <shakeelb@google.com>
 
-On Fri, 16 Mar 2018 17:18:02 -0400 Jerome Glisse <jglisse@redhat.com> wrote:
+Hi all,
 
-> On Fri, Mar 16, 2018 at 02:09:59PM -0700, Andrew Morton wrote:
-> > On Fri, 16 Mar 2018 15:14:07 -0400 jglisse@redhat.com wrote:
-> >=20
-> > > From: J=E9r=F4me Glisse <jglisse@redhat.com>
-> > >=20
-> > > The #if/#else/#endif for IS_ENABLED(CONFIG_HMM) were wrong.
-> >=20
-> > "were wrong" is not a sufficient explanation of the problem, especially
-> > if we're requesting a -stable backport.  Please fully describe the
-> > effects of a bug when fixing it?
->=20
-> Build issue (compilation failure) if you have multiple includes of
-> hmm.h through different headers is the most obvious issue. So it
-> will be very obvious with any big driver that include the file in
-> different headers.
+The following simple program is producing SIGSEGV on machines which have
+X86_FEATURE_OSPKE feature on 4.15 kernel.
 
-That doesn't seem to warrant a -stable backport?  The developer of such
-a driver will simply fix the headers?
+#include <sys/mman.h>
 
-> I can respin with that. Sorry again for not being more explanatory
-> it is always hard for me to figure what is not obvious to others.
+int main(int argc, char *argv[])
+{
+	void *p = mmap(0, 4096, PROT_EXEC, MAP_ANONYMOUS|MAP_PRIVATE,
+		       -1, 0);
+	mprotect(p, 4096, PROT_NONE);
+	mprotect(p, 4096, PROT_READ);
+	(void)*(volatile unsigned char *)p;
+}
 
-I updated the changelog, no respin needed.
+On further inspection it seems like transition from PROT_EXEC to
+PROT_NONE leaves the exec-only pkey lingering in the vma flags.  That
+is, new_vma_pkey is non-zero in do_mprotect_pkey().  Later, then
+enabling PROT_READ, the pkey remains and overrides the normal page
+protections.
+
+This change seems to help but is this the right way to solve it?
+
+---
+ arch/x86/mm/pkeys.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/x86/mm/pkeys.c b/arch/x86/mm/pkeys.c
+index d7bc0eea20a5..4a837a220516 100644
+--- a/arch/x86/mm/pkeys.c
++++ b/arch/x86/mm/pkeys.c
+@@ -94,6 +94,10 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot, int pkey
+ 	 */
+ 	if (pkey != -1)
+ 		return pkey;
++
++	if ((prot & (PROT_READ|PROT_WRITE|PROT_EXEC)) == 0)
++		return 0;
++
+ 	/*
+ 	 * Look for a protection-key-drive execute-only mapping
+ 	 * which is now being given permissions that are not
+-- 
+2.16.2.804.g6dcf76e118-goog
