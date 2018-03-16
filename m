@@ -1,101 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5924A6B028C
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:31:45 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id d23so1355770wmd.1
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:31:45 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id s35si4345524eda.464.2018.03.16.12.30.04
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 637CE6B0292
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:32:12 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id v191so1226156wmf.2
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:32:12 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p1si3540493edh.187.2018.03.16.12.32.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 12:30:04 -0700 (PDT)
-From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 12/35] x86/32: Use tss.sp1 as cpu_current_top_of_stack
-Date: Fri, 16 Mar 2018 20:29:30 +0100
-Message-Id: <1521228593-3820-13-git-send-email-joro@8bytes.org>
-In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
-References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
+        Fri, 16 Mar 2018 12:32:11 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2GJUKka004208
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:32:09 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2grk2fjdew-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:32:09 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Fri, 16 Mar 2018 19:32:05 -0000
+Date: Fri, 16 Mar 2018 12:31:52 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v4] mm, pkey: treat pkey-0 special
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1521196416-18157-1-git-send-email-linuxram@us.ibm.com>
+ <CAKTCnzmSCT+VecdSRpyY2Rb_AW2ngCi3UTZfLE3VOLNSQn6vsA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKTCnzmSCT+VecdSRpyY2Rb_AW2ngCi3UTZfLE3VOLNSQn6vsA@mail.gmail.com>
+Message-Id: <20180316193152.GG1060@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, jroedel@suse.de, joro@8bytes.org
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Aneesh Kumar KV <aneesh.kumar@linux.vnet.ibm.com>, Haren Myneni/Beaverton/IBM <hbabu@us.ibm.com>, Michal Hocko <mhocko@kernel.org>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Jonathan Corbet <corbet@lwn.net>, Arnd Bergmann <arnd@arndb.de>, fweimer@redhat.com, msuchanek@suse.com, Thomas Gleixner <tglx@linutronix.de>, Ulrich.Weigand@de.ibm.com, Ram Pai <ram.n.pai@gmail.com>
 
-From: Joerg Roedel <jroedel@suse.de>
+On Fri, Mar 16, 2018 at 10:02:22PM +1100, Balbir Singh wrote:
+> On Fri, Mar 16, 2018 at 9:33 PM, Ram Pai <linuxram@us.ibm.com> wrote:
+> > Applications need the ability to associate an address-range with some
+> > key and latter revert to its initial default key. Pkey-0 comes close to
+> > providing this function but falls short, because the current
+> > implementation disallows applications to explicitly associate pkey-0 to
+> > the address range.
+> >
+> > Clarify the semantics of pkey-0 and provide the corresponding
+> > implementation.
+> >
+> > Pkey-0 is special with the following semantics.
+> > (a) it is implicitly allocated and can never be freed. It always exists.
+> > (b) it is the default key assigned to any address-range.
+> > (c) it can be explicitly associated with any address-range.
+> >
+> > Tested on powerpc only. Could not test on x86.
+> 
+> 
+> Ram,
+> 
+> I was wondering if we should check the AMOR values on the ppc side to make sure
+> that pkey0 is indeed available for use as default. I am still of the
+> opinion that we
 
-Now that we store the task-stack in tss.sp1 we can also use
-it as cpu_current_top_of_stack. This unifies the handling
-with x86-64.
+AMOR cannot be read/written by the OS in priviledge-non-hypervisor-mode.
+We could try testing if key-0 is available to the OS by temproarily
+changing the bits key-0 bits of AMR or IAMR register. But will be
+dangeorous to do, for you might disable read,execute of all the pages,
+since all pages are asscoiated with key-0 bydefault.
 
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
----
- arch/x86/include/asm/processor.h   | 4 ----
- arch/x86/include/asm/thread_info.h | 2 --
- arch/x86/kernel/cpu/common.c       | 4 ----
- arch/x86/kernel/process_32.c       | 6 ------
- 4 files changed, 16 deletions(-)
+May be we can play with UAMOR register and check if its key-0 can be
+modified. That is a good indication that key-0 is available.
+If it is not available, disable the pkey-subsystem, and operate
+the legacy way; no pkeys.
 
-diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index 513f960..b7c238e 100644
---- a/arch/x86/include/asm/processor.h
-+++ b/arch/x86/include/asm/processor.h
-@@ -374,12 +374,8 @@ DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
- #define __KERNEL_TSS_LIMIT	\
- 	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
- 
--#ifdef CONFIG_X86_32
--DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
--#else
- /* The RO copy can't be accessed with this_cpu_xyz(), so use the RW copy. */
- #define cpu_current_top_of_stack cpu_tss_rw.x86_tss.sp1
--#endif
- 
- /*
-  * Save the original ist values for checking stack pointers during debugging
-diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
-index eda3b68..ea7e118 100644
---- a/arch/x86/include/asm/thread_info.h
-+++ b/arch/x86/include/asm/thread_info.h
-@@ -207,9 +207,7 @@ static inline int arch_within_stack_frames(const void * const stack,
- 
- #else /* !__ASSEMBLY__ */
- 
--#ifdef CONFIG_X86_64
- # define cpu_current_top_of_stack (cpu_tss_rw + TSS_sp1)
--#endif
- 
- #endif
- 
-diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
-index a0ed348..de1c595 100644
---- a/arch/x86/kernel/cpu/common.c
-+++ b/arch/x86/kernel/cpu/common.c
-@@ -1503,10 +1503,6 @@ EXPORT_PER_CPU_SYMBOL(__preempt_count);
-  * the top of the kernel stack.  Use an extra percpu variable to track the
-  * top of the kernel stack directly.
-  */
--DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
--	(unsigned long)&init_thread_union + THREAD_SIZE;
--EXPORT_PER_CPU_SYMBOL(cpu_current_top_of_stack);
--
- #ifdef CONFIG_CC_STACKPROTECTOR
- DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
- #endif
-diff --git a/arch/x86/kernel/process_32.c b/arch/x86/kernel/process_32.c
-index 3f3a8c6..8c29fd5 100644
---- a/arch/x86/kernel/process_32.c
-+++ b/arch/x86/kernel/process_32.c
-@@ -290,12 +290,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
- 	update_sp0(next_p);
- 	refresh_sysenter_cs(next);
- 	this_cpu_write(cpu_current_top_of_stack, task_top_of_stack(next_p));
--	/*
--	 * TODO: Find a way to let cpu_current_top_of_stack point to
--	 * cpu_tss_rw.x86_tss.sp1. Doing so now results in stack corruption with
--	 * iret exceptions.
--	 */
--	this_cpu_write(cpu_tss_rw.x86_tss.sp1, next_p->thread.sp0);
- 
- 	/*
- 	 * Restore %gs if needed (which is common)
+
+> should consider non-0 default pkey in the long run. I'm OK with the patches for
+> now, but really 0 is not special except for it being the default bit
+> values present
+> in the PTE.
+
+it will be a pain. Any new pte that gets instantiated will now have to
+explicitly initialize its key to this default-non-zero-key.  I hope
+we or any architecture goes there ever.
+
 -- 
-2.7.4
+Ram Pai
