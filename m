@@ -1,128 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 550726B0009
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 06:33:55 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id h62so2574664qkc.20
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 03:33:55 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z63sor4502230qkc.76.2018.03.16.03.33.54
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 694CD6B0003
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 06:59:32 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e10so4935087pff.3
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 03:59:32 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id u1-v6si5889352pls.488.2018.03.16.03.59.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Mar 2018 03:33:54 -0700 (PDT)
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v4] mm, pkey: treat pkey-0 special
-Date: Fri, 16 Mar 2018 03:33:36 -0700
-Message-Id: <1521196416-18157-1-git-send-email-linuxram@us.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Mar 2018 03:59:31 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm/shmem: Do not wait for lock_page() in shmem_unused_huge_shrink()
+Date: Fri, 16 Mar 2018 13:59:08 +0300
+Message-Id: <20180316105908.62516-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, corbet@lwn.net, arnd@arndb.de, fweimer@redhat.com, msuchanek@suse.com, tglx@linutronix.de, Ulrich.Weigand@de.ibm.com, ram.n.pai@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org
 
-Applications need the ability to associate an address-range with some
-key and latter revert to its initial default key. Pkey-0 comes close to
-providing this function but falls short, because the current
-implementation disallows applications to explicitly associate pkey-0 to
-the address range.
+shmem_unused_huge_shrink() gets called from reclaim path. Waiting for page
+lock may lead to deadlock there.
 
-Clarify the semantics of pkey-0 and provide the corresponding
-implementation.
+Replace lock_page() with trylock_page() and skip the page if we failed
+to lock it. We will get to the page on the next scan.
 
-Pkey-0 is special with the following semantics.
-(a) it is implicitly allocated and can never be freed. It always exists.
-(b) it is the default key assigned to any address-range.
-(c) it can be explicitly associated with any address-range.
-
-Tested on powerpc only. Could not test on x86.
-
-cc: Thomas Gleixner <tglx@linutronix.de>
-cc: Dave Hansen <dave.hansen@intel.com>
-cc: Michael Ellermen <mpe@ellerman.id.au>
-cc: Ingo Molnar <mingo@kernel.org>
-cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Fixes: 779750d20b93 ("shmem: split huge pages beyond i_size under memory pressure")
+Cc: stable@vger.kernel.org # v4.8+
 ---
- History:
-     v4 : (1) moved the code entirely in arch-independent location.
-     	  (2) fixed comments -- suggested by Thomas Gliexner
-     v3 : added clarification of the semantics of pkey0.
-               -- suggested by Dave Hansen
-     v2 : split the patch into two, one for x86 and one for powerpc
-               -- suggested by Michael Ellermen
+ mm/shmem.c | 25 ++++++++++++++++++-------
+ 1 file changed, 18 insertions(+), 7 deletions(-)
 
- Documentation/x86/protection-keys.txt |    8 ++++++++
- mm/mprotect.c                         |   25 ++++++++++++++++++++++---
- 2 files changed, 30 insertions(+), 3 deletions(-)
-
-diff --git a/Documentation/x86/protection-keys.txt b/Documentation/x86/protection-keys.txt
-index ecb0d2d..92802c4 100644
---- a/Documentation/x86/protection-keys.txt
-+++ b/Documentation/x86/protection-keys.txt
-@@ -88,3 +88,11 @@ with a read():
- The kernel will send a SIGSEGV in both cases, but si_code will be set
- to SEGV_PKERR when violating protection keys versus SEGV_ACCERR when
- the plain mprotect() permissions are violated.
-+
-+====================== pkey 0 ==================================
-+
-+Pkey-0 is special. It is implicitly allocated. Applications cannot allocate or
-+free that key. This key is the default key that gets associated with a
-+addres-space. It can be explicitly associated with any address-space.
-+
-+================================================================
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index e3309fc..2c779fa 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -430,7 +430,13 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
- 	 * them use it here.
- 	 */
- 	error = -EINVAL;
--	if ((pkey != -1) && !mm_pkey_is_allocated(current->mm, pkey))
-+
-+	/*
-+	 * pkey-0 is special. It always exists. No need to check if it is
-+	 * allocated. Check allocation status of all other keys. pkey=-1
-+	 * is not realy a key, it means; use any available key.
-+	 */
-+	if (pkey && pkey != -1 && !mm_pkey_is_allocated(current->mm, pkey))
- 		goto out;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 1907688b75ee..2afe809d4bd4 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -498,31 +498,42 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
+ 			continue;
+ 		}
  
- 	vma = find_vma(current->mm, start);
-@@ -549,6 +555,12 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
- 	if (pkey == -1)
- 		goto out;
+-		page = find_lock_page(inode->i_mapping,
++		page = find_get_page(inode->i_mapping,
+ 				(inode->i_size & HPAGE_PMD_MASK) >> PAGE_SHIFT);
+ 		if (!page)
+ 			goto drop;
  
-+	if (!pkey) {
-+		mm_pkey_free(current->mm, pkey);
-+		printk("Internal error, cannot explicitly allocate key-0");
-+		goto out;
-+	}
++		/* No huge page at the end of the file: nothing to split */
+ 		if (!PageTransHuge(page)) {
+-			unlock_page(page);
+ 			put_page(page);
+ 			goto drop;
+ 		}
+ 
++		/*
++		 * Leave the inode on the list if we failed to lock
++		 * the page at this time.
++		 *
++		 * Waiting for the lock may lead to deadlock in the
++		 * reclaim path.
++		 */
++		if (!trylock_page(page)) {
++			put_page(page);
++			goto leave;
++		}
 +
- 	ret = arch_set_user_pkey_access(current, pkey, init_val);
- 	if (ret) {
- 		mm_pkey_free(current->mm, pkey);
-@@ -564,13 +576,20 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
- {
- 	int ret;
+ 		ret = split_huge_page(page);
+ 		unlock_page(page);
+ 		put_page(page);
  
-+	/*
-+	 * pkey-0 is special. Userspace can never allocate or free it. It is
-+	 * allocated by default. It always exists.
-+	 */
-+	if (!pkey)
-+		return -EINVAL;
-+
- 	down_write(&current->mm->mmap_sem);
- 	ret = mm_pkey_free(current->mm, pkey);
- 	up_write(&current->mm->mmap_sem);
+-		if (ret) {
+-			/* split failed: leave it on the list */
+-			iput(inode);
+-			continue;
+-		}
++		/* If split failed leave the inode on the list */
++		if (ret)
++			goto leave;
  
- 	/*
--	 * We could provie warnings or errors if any VMA still
--	 * has the pkey set here.
-+	 * We could provide warnings or errors if any VMA still has the pkey
-+	 * set here.
- 	 */
- 	return ret;
- }
+ 		split++;
+ drop:
+ 		list_del_init(&info->shrinklist);
+ 		removed++;
++leave:
+ 		iput(inode);
+ 	}
+ 
 -- 
-1.7.1
+2.16.1
