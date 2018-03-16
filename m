@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F1F4E6B0025
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:30:03 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 96so5874624wrk.12
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:30:03 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id a30si4137943ede.391.2018.03.16.12.30.02
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A1926B0026
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:30:04 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d23so1354018wmd.1
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:30:04 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id x10si203936edh.504.2018.03.16.12.30.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 12:30:02 -0700 (PDT)
+        Fri, 16 Mar 2018 12:30:03 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 06/35] x86/entry/32: Split off return-to-kernel path
-Date: Fri, 16 Mar 2018 20:29:24 +0100
-Message-Id: <1521228593-3820-7-git-send-email-joro@8bytes.org>
+Subject: [PATCH 05/35] x86/entry/32: Unshare NMI return path
+Date: Fri, 16 Mar 2018 20:29:23 +0100
+Message-Id: <1521228593-3820-6-git-send-email-joro@8bytes.org>
 In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,52 +22,40 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Use a separate return path when we know we are returning to
-the kernel. This allows us to put the PTI cr3-switch and the
-switch to the entry-stack into the return-to-user path
-without further checking.
+NMI will no longer use most of the shared return path,
+because NMI needs special handling when the CR3 switches for
+PTI are added. This patch prepares for that.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ arch/x86/entry/entry_32.S | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
 diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 00ae759..9bd7718 100644
+index 0289bde..00ae759 100644
 --- a/arch/x86/entry/entry_32.S
 +++ b/arch/x86/entry/entry_32.S
-@@ -65,7 +65,7 @@
- # define preempt_stop(clobbers)	DISABLE_INTERRUPTS(clobbers); TRACE_IRQS_OFF
- #else
- # define preempt_stop(clobbers)
--# define resume_kernel		restore_all
-+# define resume_kernel		restore_all_kernel
- #endif
+@@ -1007,7 +1007,7 @@ ENTRY(nmi)
  
- .macro TRACE_IRQS_IRET
-@@ -400,9 +400,9 @@ ENTRY(resume_kernel)
- 	DISABLE_INTERRUPTS(CLBR_ANY)
- .Lneed_resched:
- 	cmpl	$0, PER_CPU_VAR(__preempt_count)
--	jnz	restore_all
-+	jnz	restore_all_kernel
- 	testl	$X86_EFLAGS_IF, PT_EFLAGS(%esp)	# interrupts off (exception path) ?
--	jz	restore_all
-+	jz	restore_all_kernel
- 	call	preempt_schedule_irq
- 	jmp	.Lneed_resched
- END(resume_kernel)
-@@ -602,6 +602,11 @@ restore_all:
- .Lirq_return:
- 	INTERRUPT_RETURN
+ 	/* Not on SYSENTER stack. */
+ 	call	do_nmi
+-	jmp	.Lrestore_all_notrace
++	jmp	.Lnmi_return
  
-+restore_all_kernel:
-+	TRACE_IRQS_IRET
+ .Lnmi_from_sysenter_stack:
+ 	/*
+@@ -1018,7 +1018,11 @@ ENTRY(nmi)
+ 	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+ 	call	do_nmi
+ 	movl	%ebx, %esp
+-	jmp	.Lrestore_all_notrace
++
++.Lnmi_return:
++	CHECK_AND_APPLY_ESPFIX
 +	RESTORE_REGS 4
 +	jmp	.Lirq_return
-+
- .section .fixup, "ax"
- ENTRY(iret_exc	)
- 	pushl	$0				# no error code
+ 
+ #ifdef CONFIG_X86_ESPFIX32
+ .Lnmi_espfix_stack:
 -- 
 2.7.4
