@@ -1,79 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CC2106B0027
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 16:56:33 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k6so6090075wre.21
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 13:56:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o60sor4198571edb.14.2018.03.16.13.56.32
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 617CC6B0025
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:08:41 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id q65so5221937pga.15
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:08:41 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id j18si1688342pfk.286.2018.03.16.14.08.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Mar 2018 13:56:32 -0700 (PDT)
-Date: Fri, 16 Mar 2018 23:56:07 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: add config for readahead window
-Message-ID: <20180316205607.lr6nmrkkzzbw2tqh@node.shutemov.name>
-References: <20180316182512.118361-1-wvw@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180316182512.118361-1-wvw@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Mar 2018 14:08:39 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2] mm/shmem: Do not wait for lock_page() in shmem_unused_huge_shrink()
+Date: Sat, 17 Mar 2018 00:08:30 +0300
+Message-Id: <20180316210830.43738-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wvw@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: gregkh@linuxfoundation.org, toddpoynor@google.com, wei.vince.wang@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@kernel.org>, Sherry Cheung <SCheung@nvidia.com>, Oliver O'Halloran <oohall@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Huang Ying <ying.huang@intel.com>, Dennis Zhou <dennisz@fb.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Eric Wheeler <linux-mm@lists.ewheeler.net>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org
 
-On Fri, Mar 16, 2018 at 11:25:08AM -0700, Wei Wang wrote:
-> From: Wei Wang <wvw@google.com>
-> 
-> Change VM_MAX_READAHEAD value from the default 128KB to a configurable
-> value. This will allow the readahead window to grow to a maximum size
-> bigger than 128KB during boot, which could benefit to sequential read
-> throughput and thus boot performance.
+shmem_unused_huge_shrink() gets called from reclaim path. Waiting for page
+lock may lead to deadlock there.
 
-Increase of readahead window was proposed several times. And rejected.
-IIRC, Linus was against it.
+There was a bug report that may be attributed to this:
 
-What is different this time?
+http://lkml.kernel.org/r/alpine.LRH.2.11.1801242349220.30642@mail.ewheeler.net
 
-> Signed-off-by: Wei Wang <wvw@google.com>
-> ---
->  include/linux/mm.h | 2 +-
->  mm/Kconfig         | 8 ++++++++
->  2 files changed, 9 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index ad06d42adb1a..d7dc6125833e 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2291,7 +2291,7 @@ int __must_check write_one_page(struct page *page);
->  void task_dirty_inc(struct task_struct *tsk);
->  
->  /* readahead.c */
-> -#define VM_MAX_READAHEAD	128	/* kbytes */
-> +#define VM_MAX_READAHEAD	CONFIG_VM_MAX_READAHEAD_KB
->  #define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
->  
->  int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index c782e8fb7235..da9ff543bdb9 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -760,3 +760,11 @@ config GUP_BENCHMARK
->  	  performance of get_user_pages_fast().
->  
->  	  See tools/testing/selftests/vm/gup_benchmark.c
-> +
-> +config VM_MAX_READAHEAD_KB
-> +	int "Default max readahead window size in Kilobytes"
-> +	default 128
-> +	help
-> +	  This sets the VM_MAX_READAHEAD value to allow the readahead window
-> +	  to grow to a maximum size of configured. Increasing this value will
-> +	  benefit sequential read throughput.
-> -- 
-> 2.16.2.804.g6dcf76e118-goog
-> 
+Replace lock_page() with trylock_page() and skip the page if we failed
+to lock it. We will get to the page on the next scan.
 
+We can test for the PageTransHuge() outside the page lock as we only
+need protection against splitting the page under us. Holding pin oni
+the page is enough for this.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Reported-by: Eric Wheeler <linux-mm@lists.ewheeler.net>
+Fixes: 779750d20b93 ("shmem: split huge pages beyond i_size under memory pressure")
+Cc: stable@vger.kernel.org # v4.8+
+---
+ mm/shmem.c | 31 ++++++++++++++++++++-----------
+ 1 file changed, 20 insertions(+), 11 deletions(-)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 1907688b75ee..b85919243399 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -493,36 +493,45 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
+ 		info = list_entry(pos, struct shmem_inode_info, shrinklist);
+ 		inode = &info->vfs_inode;
+ 
+-		if (nr_to_split && split >= nr_to_split) {
+-			iput(inode);
+-			continue;
+-		}
++		if (nr_to_split && split >= nr_to_split)
++			goto leave;
+ 
+-		page = find_lock_page(inode->i_mapping,
++		page = find_get_page(inode->i_mapping,
+ 				(inode->i_size & HPAGE_PMD_MASK) >> PAGE_SHIFT);
+ 		if (!page)
+ 			goto drop;
+ 
++		/* No huge page at the end of the file: nothing to split */
+ 		if (!PageTransHuge(page)) {
+-			unlock_page(page);
+ 			put_page(page);
+ 			goto drop;
+ 		}
+ 
++		/*
++		 * Leave the inode on the list if we failed to lock
++		 * the page at this time.
++		 *
++		 * Waiting for the lock may lead to deadlock in the
++		 * reclaim path.
++		 */
++		if (!trylock_page(page)) {
++			put_page(page);
++			goto leave;
++		}
++
+ 		ret = split_huge_page(page);
+ 		unlock_page(page);
+ 		put_page(page);
+ 
+-		if (ret) {
+-			/* split failed: leave it on the list */
+-			iput(inode);
+-			continue;
+-		}
++		/* If split failed leave the inode on the list */
++		if (ret)
++			goto leave;
+ 
+ 		split++;
+ drop:
+ 		list_del_init(&info->shrinklist);
+ 		removed++;
++leave:
+ 		iput(inode);
+ 	}
+ 
 -- 
- Kirill A. Shutemov
+2.16.1
