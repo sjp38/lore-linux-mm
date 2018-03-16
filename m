@@ -1,38 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D28B86B0003
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 04:57:21 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id d23so505773wmd.1
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 01:57:21 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D7E0C6B0009
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 04:59:36 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id q15so5105833wra.22
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 01:59:36 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id o1si3266731eda.173.2018.03.16.01.57.20
+        by mx.google.com with ESMTPS id z11si1020782edh.554.2018.03.16.01.59.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 01:57:20 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2G8rrBf060036
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 04:57:19 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2gr9tkafqp-1
+        Fri, 16 Mar 2018 01:59:35 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2G8x0mC127421
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 04:59:33 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2gr8j4d2wa-1
 	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 04:57:18 -0400
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 04:59:33 -0400
 Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
-	Fri, 16 Mar 2018 08:57:16 -0000
-Subject: Re: [PATCH 4/8] Uprobe: Export uprobe_map_info along with
- uprobe_{build/free}_map_info()
+	Fri, 16 Mar 2018 08:59:31 -0000
+Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
+ count (semaphore)
 References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180313125603.19819-5-ravi.bangoria@linux.vnet.ibm.com>
- <20180315123255.17a8d997@vmware.local.home>
+ <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
+ <20180315124816.6aa3d4e2@vmware.local.home>
 From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Date: Fri, 16 Mar 2018 14:29:25 +0530
+Date: Fri, 16 Mar 2018 14:31:34 +0530
 MIME-Version: 1.0
-In-Reply-To: <20180315123255.17a8d997@vmware.local.home>
+In-Reply-To: <20180315124816.6aa3d4e2@vmware.local.home>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
-Message-Id: <635d8d6d-0d2d-98a6-5fe4-44185aa560d8@linux.vnet.ibm.com>
+Message-Id: <90b06fcf-e041-a0c0-d034-69f64d3eca36@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Steven Rostedt <rostedt@goodmis.org>
@@ -40,19 +40,22 @@ Cc: mhiramat@kernel.org, oleg@redhat.com, peterz@infradead.org, srikar@linux.vne
 
 
 
-On 03/15/2018 10:02 PM, Steven Rostedt wrote:
-> On Tue, 13 Mar 2018 18:25:59 +0530
+On 03/15/2018 10:18 PM, Steven Rostedt wrote:
+> On Tue, 13 Mar 2018 18:26:00 +0530
 > Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
 >
->> These exported data structure and functions will be used by other
->> files in later patches.
-> I'm reluctantly OK with the above.
->
->> No functionality changes.
-> Please remove this line. There are functionality changes. Turning a
-> static inline into an exported function *is* a functionality change.
+>> +static void sdt_increment_ref_ctr(struct trace_uprobe *tu)
+>> +{
+>> +	struct uprobe_map_info *info;
+>> +	struct vm_area_struct *vma;
+>> +	unsigned long vaddr;
+>> +
+>> +	uprobe_start_dup_mmap();
+> Please add a comment here that this function ups the mm ref count for
+> each info returned. Otherwise it's hard to know what that mmput() below
+> matches.
 
-Sure. Will change it.
+Sure. Will add it.
 
 Thanks for the review,
 Ravi
