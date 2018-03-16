@@ -1,44 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A130F6B0027
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:26:49 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id p203-v6so2698211itc.1
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:26:49 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 82sor3481584itg.101.2018.03.16.14.26.48
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B0E3B6B000D
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:33:09 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id t23-v6so796668ply.0
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:33:09 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id n81si6190307pfb.320.2018.03.16.14.33.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 16 Mar 2018 14:26:48 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180316205607.lr6nmrkkzzbw2tqh@node.shutemov.name>
-References: <20180316182512.118361-1-wvw@google.com> <20180316205607.lr6nmrkkzzbw2tqh@node.shutemov.name>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 16 Mar 2018 14:26:47 -0700
-Message-ID: <CA+55aFyLRhWZ-XD72xkZZm0FshhspK1RJezGfMo-7YPVGXweHA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Mar 2018 14:33:08 -0700 (PDT)
+Date: Fri, 16 Mar 2018 14:33:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mm: add config for readahead window
-Content-Type: text/plain; charset="UTF-8"
+Message-Id: <20180316143306.dd98055a170497e9535cc176@linux-foundation.org>
+In-Reply-To: <20180316182512.118361-1-wvw@google.com>
+References: <20180316182512.118361-1-wvw@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Wei Wang <wvw@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, toddpoynor@google.com, wei.vince.wang@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@kernel.org>, Sherry Cheung <SCheung@nvidia.com>, Oliver O'Halloran <oohall@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Huang Ying <ying.huang@intel.com>, Dennis Zhou <dennisz@fb.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Wei Wang <wvw@google.com>
+Cc: gregkh@linuxfoundation.org, toddpoynor@google.com, wei.vince.wang@gmail.com, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@kernel.org>, Sherry Cheung <SCheung@nvidia.com>, Oliver O'Halloran <oohall@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Huang Ying <ying.huang@intel.com>, Dennis Zhou <dennisz@fb.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Mar 16, 2018 at 1:56 PM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
->
-> Increase of readahead window was proposed several times. And rejected.
-> IIRC, Linus was against it.
+On Fri, 16 Mar 2018 11:25:08 -0700 Wei Wang <wvw@google.com> wrote:
 
-I have never seen any valid situation that wasn't tuning for one odd
-machine, usually with a horribly crappy disk setup and very little
-testing of latencies or low-memory situations.
+> Change VM_MAX_READAHEAD value from the default 128KB to a configurable
+> value. This will allow the readahead window to grow to a maximum size
+> bigger than 128KB during boot, which could benefit to sequential read
+> throughput and thus boot performance.
 
-And "horribly crappy" very much tends to include "big serious
-enterprise hardware" that people paid big bucks for, and that has huge
-theoretical throughput for large transfers, but is pure garbage in
-every other way.
-
-So I'm still very much inclined against these kinds of things. They
-need *extensive* numbers and explanations for why it's not just some
-uncommon thing for one setup.
-
-                   Linus
+You can presently run ioctl(BLKRASET) against the block device?
