@@ -1,44 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E5FD26B0009
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 19:04:56 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m18so3535253pgu.14
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 16:04:56 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g3-v6si5002806pll.290.2018.03.15.16.04.55
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 981366B0006
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2018 20:11:54 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id m4so5411654uad.5
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2018 17:11:54 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t10sor2373559uaf.37.2018.03.15.17.11.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Mar 2018 16:04:55 -0700 (PDT)
-Date: Thu, 15 Mar 2018 16:04:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/khugepaged: Convert VM_BUG_ON() to collapse fail
-Message-Id: <20180315160453.dff17cfe3dca056dabc98b9e@linux-foundation.org>
-In-Reply-To: <20180315152353.27989-1-kirill.shutemov@linux.intel.com>
-References: <20180315152353.27989-1-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 15 Mar 2018 17:11:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180315183700.3843-3-jglisse@redhat.com>
+References: <20180315183700.3843-1-jglisse@redhat.com> <20180315183700.3843-3-jglisse@redhat.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Fri, 16 Mar 2018 11:11:52 +1100
+Message-ID: <CAKTCnz=dGz-yoONiG+0Ajf-S6EePyMvHmNvndHA-QtfkqjXWZw@mail.gmail.com>
+Subject: Re: [PATCH 2/4] mm/hmm: fix header file if/else/endif maze
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>
 
-On Thu, 15 Mar 2018 18:23:53 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Fri, Mar 16, 2018 at 5:36 AM,  <jglisse@redhat.com> wrote:
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>
+> The #if/#else/#endif for IS_ENABLED(CONFIG_HMM) were wrong.
+>
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
+> ---
 
-> khugepaged is not yet able to convert PTE-mapped huge pages back to PMD
-> mapped. We do not collapse such pages. See check khugepaged_scan_pmd().
-> 
-> But if between khugepaged_scan_pmd() and __collapse_huge_page_isolate()
-> somebody managed to instantiate THP in the range and then split the PMD
-> back to PTEs we would have a problem -- VM_BUG_ON_PAGE(PageCompound(page))
-> will get triggered.
-> 
-> It's possible since we drop mmap_sem during collapse to re-take for
-> write.
-> 
-> Replace the VM_BUG_ON() with graceful collapse fail.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Fixes: b1caa957ae6d ("khugepaged: ignore pmd tables with THP mapped with ptes")
-
-Jan 2016.  Do we need a cc:stable?
+Acked-by: Balbir Singh <bsingharora@gmail.com>
