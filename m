@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5796C6B028A
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:31:34 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id w10so2958763wrg.15
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:31:34 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id e1si1298454edc.321.2018.03.16.12.30.09
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5924A6B028C
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 15:31:45 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id d23so1355770wmd.1
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 12:31:45 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id s35si4345524eda.464.2018.03.16.12.30.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 12:30:09 -0700 (PDT)
+        Fri, 16 Mar 2018 12:30:04 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 26/35] x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on x86_32
-Date: Fri, 16 Mar 2018 20:29:44 +0100
-Message-Id: <1521228593-3820-27-git-send-email-joro@8bytes.org>
+Subject: [PATCH 12/35] x86/32: Use tss.sp1 as cpu_current_top_of_stack
+Date: Fri, 16 Mar 2018 20:29:30 +0100
+Message-Id: <1521228593-3820-13-git-send-email-joro@8bytes.org>
 In-Reply-To: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 References: <1521228593-3820-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,53 +22,80 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Cloning on the P4D level would clone the complete kernel
-address space into the user-space page-tables for PAE
-kernels. Cloning on PMD level is fine for PAE and legacy
-paging.
+Now that we store the task-stack in tss.sp1 we can also use
+it as cpu_current_top_of_stack. This unifies the handling
+with x86-64.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ arch/x86/include/asm/processor.h   | 4 ----
+ arch/x86/include/asm/thread_info.h | 2 --
+ arch/x86/kernel/cpu/common.c       | 4 ----
+ arch/x86/kernel/process_32.c       | 6 ------
+ 4 files changed, 16 deletions(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index 96a690e..3ffd923 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -312,6 +312,7 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
- 	}
- }
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 513f960..b7c238e 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -374,12 +374,8 @@ DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
+ #define __KERNEL_TSS_LIMIT	\
+ 	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
  
-+#ifdef CONFIG_X86_64
- /*
-  * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
-  * next-level entry on 5-level systems.
-@@ -335,6 +336,25 @@ static void __init pti_clone_user_shared(void)
- 	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
- }
+-#ifdef CONFIG_X86_32
+-DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
+-#else
+ /* The RO copy can't be accessed with this_cpu_xyz(), so use the RW copy. */
+ #define cpu_current_top_of_stack cpu_tss_rw.x86_tss.sp1
+-#endif
  
-+#else /* CONFIG_X86_64 */
-+
-+/*
-+ * On 32 bit PAE systems with 1GB of Kernel address space there is only
-+ * one pgd/p4d for the whole kernel. Cloning that would map the whole
-+ * address space into the user page-tables, making PTI useless. So clone
-+ * the page-table on the PMD level to prevent that.
-+ */
-+static void __init pti_clone_user_shared(void)
-+{
-+	unsigned long start, end;
-+
-+	start = CPU_ENTRY_AREA_BASE;
-+	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
-+
-+	pti_clone_pmds(start, end, _PAGE_GLOBAL);
-+}
-+#endif /* CONFIG_X86_64 */
-+
  /*
-  * Clone the ESPFIX P4D into the user space visinble page table
+  * Save the original ist values for checking stack pointers during debugging
+diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
+index eda3b68..ea7e118 100644
+--- a/arch/x86/include/asm/thread_info.h
++++ b/arch/x86/include/asm/thread_info.h
+@@ -207,9 +207,7 @@ static inline int arch_within_stack_frames(const void * const stack,
+ 
+ #else /* !__ASSEMBLY__ */
+ 
+-#ifdef CONFIG_X86_64
+ # define cpu_current_top_of_stack (cpu_tss_rw + TSS_sp1)
+-#endif
+ 
+ #endif
+ 
+diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+index a0ed348..de1c595 100644
+--- a/arch/x86/kernel/cpu/common.c
++++ b/arch/x86/kernel/cpu/common.c
+@@ -1503,10 +1503,6 @@ EXPORT_PER_CPU_SYMBOL(__preempt_count);
+  * the top of the kernel stack.  Use an extra percpu variable to track the
+  * top of the kernel stack directly.
   */
+-DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
+-	(unsigned long)&init_thread_union + THREAD_SIZE;
+-EXPORT_PER_CPU_SYMBOL(cpu_current_top_of_stack);
+-
+ #ifdef CONFIG_CC_STACKPROTECTOR
+ DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
+ #endif
+diff --git a/arch/x86/kernel/process_32.c b/arch/x86/kernel/process_32.c
+index 3f3a8c6..8c29fd5 100644
+--- a/arch/x86/kernel/process_32.c
++++ b/arch/x86/kernel/process_32.c
+@@ -290,12 +290,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
+ 	update_sp0(next_p);
+ 	refresh_sysenter_cs(next);
+ 	this_cpu_write(cpu_current_top_of_stack, task_top_of_stack(next_p));
+-	/*
+-	 * TODO: Find a way to let cpu_current_top_of_stack point to
+-	 * cpu_tss_rw.x86_tss.sp1. Doing so now results in stack corruption with
+-	 * iret exceptions.
+-	 */
+-	this_cpu_write(cpu_tss_rw.x86_tss.sp1, next_p->thread.sp0);
+ 
+ 	/*
+ 	 * Restore %gs if needed (which is common)
 -- 
 2.7.4
