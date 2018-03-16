@@ -1,63 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DFFB76B0006
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:25:40 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p9so5549645pfk.5
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 11:25:40 -0700 (PDT)
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B791C6B0005
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 14:45:44 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id n8so10763520ywh.10
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 11:45:44 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 64sor1188026pgj.144.2018.03.16.11.25.39
+        by mx.google.com with SMTPS id j2-v6sor2988820ybc.22.2018.03.16.11.45.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 16 Mar 2018 11:25:39 -0700 (PDT)
-From: Wei Wang <wvw@google.com>
-Subject: [PATCH] mm: add config for readahead window
-Date: Fri, 16 Mar 2018 11:25:08 -0700
-Message-Id: <20180316182512.118361-1-wvw@google.com>
+        Fri, 16 Mar 2018 11:45:43 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAAeHK+y8FD7bOOX9p-Vk_dA5geA2S3_T0vwedfQiiHEf3MYdCw@mail.gmail.com>
+References: <cover.1520017438.git.andreyknvl@google.com> <06a4d0c483fba8babd01fe23727fe4a79482d309.1520017438.git.andreyknvl@google.com>
+ <CAG_fn=XjN2zQQrL1r-pv5rMhLgmvOyh8LS9QF0PQ8Y7gk4AVug@mail.gmail.com>
+ <CAAeHK+wGHsFeDP_QMQRzWGTFg10bxfJPxx-_7Ja-_uTP8GJtCA@mail.gmail.com>
+ <7f8e8f46-791e-7e8f-551b-f93aa64bcf6e@virtuozzo.com> <CAAeHK+xNjYOAhLBogYYfXi+KiFf9SDYGoaV6og=aRmuB7rhvHg@mail.gmail.com>
+ <CAFKCwriP6KY6PaHheZi9gLVebKp-rLa-gATSSE3R-fhrRYex3A@mail.gmail.com> <CAAeHK+y8FD7bOOX9p-Vk_dA5geA2S3_T0vwedfQiiHEf3MYdCw@mail.gmail.com>
+From: Evgenii Stepanov <eugenis@google.com>
+Date: Fri, 16 Mar 2018 11:45:42 -0700
+Message-ID: <CAFKCwrheE=uDnrS5sH585CgciLg-o7uUsp45TNmF10cuUUR2GA@mail.gmail.com>
+Subject: Re: [RFC PATCH 09/14] khwasan: add hooks implementation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: gregkh@linuxfoundation.org, toddpoynor@google.com, wei.vince.wang@gmail.com, Wei Wang <wvw@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@kernel.org>, Sherry Cheung <SCheung@nvidia.com>, Oliver O'Halloran <oohall@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Huang Ying <ying.huang@intel.com>, Dennis Zhou <dennisz@fb.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-From: Wei Wang <wvw@google.com>
+On Fri, Mar 16, 2018 at 11:24 AM, Andrey Konovalov
+<andreyknvl@google.com> wrote:
+> On Fri, Mar 16, 2018 at 7:16 PM, Evgenii Stepanov <eugenis@google.com> wrote:
+>> On Fri, Mar 16, 2018 at 11:09 AM, Andrey Konovalov
+>> <andreyknvl@google.com> wrote:
+>>> On Thu, Mar 15, 2018 at 5:52 PM, Andrey Ryabinin
+>>>> Wouldn't be better to have some reserved tag value for invalid memory (redzones/free), so that
+>>>> we catch access to such memory with 100% probability?
+>>>
+>>> We could do that. That would reduce the chance to detect a
+>>> use-after-free though, since we're using fewer different tag values
+>>> for the objects themselves. I don't have a strong opinion about which
+>>> one is better though.
+>
+> Note: I misread the message and didn't notice the "/free" part there,
+> so I was considering marking only redzones with a reserved tag value.
+>
+>>
+>> hwasan does not need redzones.
+>
+> Right, by redzones in this case I meant the metadata that is stored
+> right after the object (which includes alloc and free stack handles
+> and perhaps some other allocator stuff).
 
-Change VM_MAX_READAHEAD value from the default 128KB to a configurable
-value. This will allow the readahead window to grow to a maximum size
-bigger than 128KB during boot, which could benefit to sequential read
-throughput and thus boot performance.
+Oh, I did not realize we have free (as in beer, not as in
+use-after-free) redzones between allocations. Yes, reserving a color
+sounds
+like a good idea.
 
-Signed-off-by: Wei Wang <wvw@google.com>
----
- include/linux/mm.h | 2 +-
- mm/Kconfig         | 8 ++++++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ad06d42adb1a..d7dc6125833e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2291,7 +2291,7 @@ int __must_check write_one_page(struct page *page);
- void task_dirty_inc(struct task_struct *tsk);
- 
- /* readahead.c */
--#define VM_MAX_READAHEAD	128	/* kbytes */
-+#define VM_MAX_READAHEAD	CONFIG_VM_MAX_READAHEAD_KB
- #define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
- 
- int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
-diff --git a/mm/Kconfig b/mm/Kconfig
-index c782e8fb7235..da9ff543bdb9 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -760,3 +760,11 @@ config GUP_BENCHMARK
- 	  performance of get_user_pages_fast().
- 
- 	  See tools/testing/selftests/vm/gup_benchmark.c
-+
-+config VM_MAX_READAHEAD_KB
-+	int "Default max readahead window size in Kilobytes"
-+	default 128
-+	help
-+	  This sets the VM_MAX_READAHEAD value to allow the readahead window
-+	  to grow to a maximum size of configured. Increasing this value will
-+	  benefit sequential read throughput.
--- 
-2.16.2.804.g6dcf76e118-goog
+>
+>> As for use-after-free, to catch it with
+>> 100% probability one would need infinite memory for the quarantine. It
+>> is possible to guarantee 100% detection of linear buffer overflow by
+>> giving live adjacent chunks distinct tags.
