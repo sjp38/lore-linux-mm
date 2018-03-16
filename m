@@ -1,66 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D67466B0009
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 05:26:50 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id h62so2483241qkc.20
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 02:26:50 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d18si6657914qtl.91.2018.03.16.02.26.49
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 30C546B000A
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 05:27:11 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id p203-v6so1011358itc.1
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 02:27:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o123-v6sor2742536ith.78.2018.03.16.02.27.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 02:26:50 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2G9PA9G140193
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 05:26:49 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2gr8vdw7f7-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 05:26:48 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
-	Fri, 16 Mar 2018 09:26:45 -0000
-From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
- count (semaphore)
-References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
- <20180315142120.GA19218@redhat.com> <20180315143044.GA19643@redhat.com>
-Date: Fri, 16 Mar 2018 14:58:55 +0530
+        (Google Transport Security);
+        Fri, 16 Mar 2018 02:27:10 -0700 (PDT)
+Subject: Re: [PATCH] Revert "mm/memblock.c: hardcode the end_pfn being -1"
+References: <1521168966-5245-1-git-send-email-hejianet@gmail.com>
+ <20180316090647.GC23100@dhcp22.suse.cz>
+From: Jia He <hejianet@gmail.com>
+Message-ID: <d0c53509-98b3-11a8-2bf2-b43cdd67b5de@gmail.com>
+Date: Fri, 16 Mar 2018 17:26:57 +0800
 MIME-Version: 1.0
-In-Reply-To: <20180315143044.GA19643@redhat.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20180316090647.GC23100@dhcp22.suse.cz>
+Content-Type: text/plain; charset=gbk; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-Message-Id: <3b303a2d-35dd-9178-fc03-de9f2d588797@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com, Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Daniel Vacek <neelx@redhat.com>, linux-kernel@vger.kernel.org, Jia He <jia.he@hxt-semitech.com>
 
 
 
-On 03/15/2018 08:00 PM, Oleg Nesterov wrote:
-> On 03/15, Oleg Nesterov wrote:
->>> +static struct vm_area_struct *
->>> +sdt_find_vma(struct mm_struct *mm, struct trace_uprobe *tu)
->>> +{
->>> +	struct vm_area_struct *tmp;
->>> +
->>> +	for (tmp = mm->mmap; tmp != NULL; tmp = tmp->vm_next)
->>> +		if (sdt_valid_vma(tu, tmp))
->>> +			return tmp;
->>> +
->>> +	return NULL;
->> I can't understand the logic... Lets ignore sdt_valid_vma() for now.
->> The caller has uprobe_map_info, why it can't simply do
->> vma = find_vma(uprobe_map_info->vaddr)? and then check sdt_valid_vma().
-> Note to mention that sdt_find_vma() can return NULL but the callers do
-> vma_offset_to_vaddr(vma) without any check.
+On 3/16/2018 5:06 PM, Michal Hocko Wrote:
+> On Thu 15-03-18 19:56:06, Jia He wrote:
+>> This reverts commit 379b03b7fa05f7db521b7732a52692448a3c34fe.
+>>
+>> Commit 864b75f9d6b0 ("mm/page_alloc: fix memmap_init_zone pageblock
+>> alignment") introduced boot hang issues in arm/arm64 machines, so
+>> Ard Biesheuvel reverted in commit 3e04040df6d4. But there is a
+>> preparation patch for commit 864b75f9d6b0. So just revert it for
+>> the sake of caution.
+> Why? Is there anything wrong with this one?
+I don't think there might be anything wrong. Justin for the sake of caution.
+Please ignore this patch if you prefer to keep 379b03b7fa.
+But seems parameter *max_pfn* is useless and can be removed in this case?
 
-If the "mm" we are passing to sdt_find_vma() is returned by
-uprobe_build_map_info(ref_ctr_offset), sdt_find_vma() must
-_not_ return NULL.
-
-Thanks for the review,
-Ravi
+Cheers,
+Jia
+>> Signed-off-by: Jia He <jia.he@hxt-semitech.com>
+>> ---
+>>   mm/memblock.c | 10 +++++-----
+>>   1 file changed, 5 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/mm/memblock.c b/mm/memblock.c
+>> index b6ba6b7..5a9ca2a 100644
+>> --- a/mm/memblock.c
+>> +++ b/mm/memblock.c
+>> @@ -1107,7 +1107,7 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
+>>   	struct memblock_type *type = &memblock.memory;
+>>   	unsigned int right = type->cnt;
+>>   	unsigned int mid, left = 0;
+>> -	phys_addr_t addr = PFN_PHYS(++pfn);
+>> +	phys_addr_t addr = PFN_PHYS(pfn + 1);
+>>   
+>>   	do {
+>>   		mid = (right + left) / 2;
+>> @@ -1118,15 +1118,15 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
+>>   				  type->regions[mid].size))
+>>   			left = mid + 1;
+>>   		else {
+>> -			/* addr is within the region, so pfn is valid */
+>> -			return pfn;
+>> +			/* addr is within the region, so pfn + 1 is valid */
+>> +			return min(pfn + 1, max_pfn);
+>>   		}
+>>   	} while (left < right);
+>>   
+>>   	if (right == type->cnt)
+>> -		return -1UL;
+>> +		return max_pfn;
+>>   	else
+>> -		return PHYS_PFN(type->regions[right].base);
+>> +		return min(PHYS_PFN(type->regions[right].base), max_pfn);
+>>   }
+>>   
+>>   /**
+>> -- 
+>> 2.7.4
+>>
