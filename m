@@ -1,42 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E1646B0005
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 20:43:16 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id k17so6016520pfj.10
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:43:16 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id t10-v6si7146848ply.86.2018.03.16.17.43.14
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EF68F6B0007
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 20:53:15 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s6so5468496pgn.3
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 17:53:15 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id o5si6500056pfh.390.2018.03.16.17.53.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 17:43:14 -0700 (PDT)
-Date: Sat, 17 Mar 2018 08:42:17 +0800
+        Fri, 16 Mar 2018 17:53:14 -0700 (PDT)
+Date: Sat, 17 Mar 2018 08:53:11 +0800
 From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH] mm: fix low-high watermark distance on small systems
-Message-ID: <201803170858.f4QvE89z%fengguang.wu@intel.com>
-References: <1521110079-26870-1-git-send-email-vinmenon@codeaurora.org>
+Subject: Re: [PATCH 2/4] mm/hmm: fix header file if/else/endif maze
+Message-ID: <201803170847.tDn26SeR%fengguang.wu@intel.com>
+References: <20180315183700.3843-3-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="IJpNTDwzlM2Ie8A6"
+Content-Type: multipart/mixed; boundary="DocE+STaALJfprDB"
 Content-Disposition: inline
-In-Reply-To: <1521110079-26870-1-git-send-email-vinmenon@codeaurora.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180315183700.3843-3-jglisse@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: kbuild-all@01.org, hannes@cmpxchg.org, mgorman@techsingularity.net, linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, sfr@canb.auug.org.au, pasha.tatashin@oracle.com, penguin-kernel@I-love.SAKURA.ne.jp
+To: jglisse@redhat.com
+Cc: kbuild-all@01.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>
 
 
---IJpNTDwzlM2Ie8A6
-Content-Type: text/plain; charset=us-ascii
+--DocE+STaALJfprDB
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 
-Hi Vinayak,
+Hi Jerome,
 
-Thank you for the patch! Yet something to improve:
+I love your patch! Yet something to improve:
 
-[auto build test ERROR on v4.16-rc4]
-[also build test ERROR on next-20180316]
+[auto build test ERROR on linus/master]
+[also build test ERROR on v4.16-rc5 next-20180316]
 [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
-url:    https://github.com/0day-ci/linux/commits/Vinayak-Menon/mm-fix-low-high-watermark-distance-on-small-systems/20180317-073051
+url:    https://github.com/0day-ci/linux/commits/jglisse-redhat-com/mm-hmm-documentation-editorial-update-to-HMM-documentation/20180317-074102
 config: i386-tinyconfig (attached as .config)
 compiler: gcc-7 (Debian 7.3.0-1) 7.3.0
 reproduce:
@@ -45,21 +47,49 @@ reproduce:
 
 All errors (new ones prefixed by >>):
 
-   mm/page_alloc.o: In function `__setup_per_zone_wmarks':
->> page_alloc.c:(.text+0xa10): undefined reference to `__udivdi3'
->> page_alloc.c:(.text+0xa41): undefined reference to `__umoddi3'
-   page_alloc.c:(.text+0xa58): undefined reference to `__udivdi3'
+   In file included from kernel/fork.c:40:0:
+>> include/linux/hmm.h:515:20: error: redefinition of 'hmm_mm_destroy'
+    static inline void hmm_mm_destroy(struct mm_struct *mm) {}
+                       ^~~~~~~~~~~~~~
+   include/linux/hmm.h:502:20: note: previous definition of 'hmm_mm_destroy' was here
+    static inline void hmm_mm_destroy(struct mm_struct *mm) {}
+                       ^~~~~~~~~~~~~~
+>> include/linux/hmm.h:516:20: error: redefinition of 'hmm_mm_init'
+    static inline void hmm_mm_init(struct mm_struct *mm) {}
+                       ^~~~~~~~~~~
+   include/linux/hmm.h:503:20: note: previous definition of 'hmm_mm_init' was here
+    static inline void hmm_mm_init(struct mm_struct *mm) {}
+                       ^~~~~~~~~~~
+
+vim +/hmm_mm_destroy +515 include/linux/hmm.h
+
+133ff0eac Jerome Glisse 2017-09-08  509  
+133ff0eac Jerome Glisse 2017-09-08  510  static inline void hmm_mm_init(struct mm_struct *mm)
+133ff0eac Jerome Glisse 2017-09-08  511  {
+133ff0eac Jerome Glisse 2017-09-08  512  	mm->hmm = NULL;
+133ff0eac Jerome Glisse 2017-09-08  513  }
+6b368cd4a Jerome Glisse 2017-09-08  514  #else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+6b368cd4a Jerome Glisse 2017-09-08 @515  static inline void hmm_mm_destroy(struct mm_struct *mm) {}
+6b368cd4a Jerome Glisse 2017-09-08 @516  static inline void hmm_mm_init(struct mm_struct *mm) {}
+6b368cd4a Jerome Glisse 2017-09-08  517  #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+133ff0eac Jerome Glisse 2017-09-08  518  
+
+:::::: The code at line 515 was first introduced by commit
+:::::: 6b368cd4a44ce95b33f1d31f2f932e6ae707f319 mm/hmm: avoid bloating arch that do not make use of HMM
+
+:::::: TO: Jerome Glisse <jglisse@redhat.com>
+:::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---IJpNTDwzlM2Ie8A6
+--DocE+STaALJfprDB
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICORhrFoAAy5jb25maWcAjFxbc+M2sn7Pr2AlVacmD5nxbRynTvkBAkEREUEyBCjJfmEp
+H4sICENjrFoAAy5jb25maWcAjFxbc+M2sn7Pr2AlVacmD5nxbRynTvkBAkEREUEyBCjJfmEp
 sjyjGlvySnIy8+9PN0CJt4b2bFU2EboB4tKXrxsN//LTLwF7P2xfF4f1cvHy8iP4stqsdovD
 6il4Xr+s/jcIsyDNTCBCaT4Cc7LevH//tL6+uw1uPl7efrz4bbe8CSar3Wb1EvDt5nn95R26
 r7ebn34Bdp6lkRxXtzcjaYL1PthsD8F+dfipbp/f3VbXV/c/Wr+bHzLVpii5kVlahYJnoSga
@@ -185,4 +215,4 @@ Bo9m00Nuo1mv5XMBsMg0fDDIUJnSLKk5TVM3l+n4pJDrFGUZIi9wyMePMaXJ11fp7PvuAVXj
 E6bjMv8hztQOh27KPuSfMHbHTMHOSbOMa2xTJjY9mGisTIt7Wa28jS509K5iUCHtUTpmtZK3
 z6QmrEpDOjaiZox5dfF07gjEYwJVHwxjdiOOz3+cg8WrcmAAAA==
 
---IJpNTDwzlM2Ie8A6--
+--DocE+STaALJfprDB--
