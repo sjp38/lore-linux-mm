@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 237BA6B0005
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 23:59:56 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id p11so8038830qtg.19
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 20:59:56 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id 96si9287563qtc.419.2018.03.16.20.59.55
+	by kanga.kvack.org (Postfix) with ESMTP id 5B4086B0003
+	for <linux-mm@kvack.org>; Sat, 17 Mar 2018 00:35:32 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id h89so2266631qtd.18
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 21:35:32 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id q84si1220059qke.105.2018.03.16.21.35.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 20:59:56 -0700 (PDT)
-Subject: Re: [PATCH 07/14] mm/hmm: use uint64_t for HMM pfn instead of
- defining hmm_pfn_t to ulong
+        Fri, 16 Mar 2018 21:35:31 -0700 (PDT)
+Subject: Re: [PATCH 08/14] mm/hmm: cleanup special vma handling (VM_SPECIAL)
 References: <20180316191414.3223-1-jglisse@redhat.com>
- <20180316191414.3223-8-jglisse@redhat.com>
+ <20180316191414.3223-9-jglisse@redhat.com>
 From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <e20e4e55-c99b-03c2-0bcf-4167d583dcbe@nvidia.com>
-Date: Fri, 16 Mar 2018 20:59:49 -0700
+Message-ID: <44d08350-7035-a26c-d6c8-29b3dc3f99eb@nvidia.com>
+Date: Fri, 16 Mar 2018 21:35:29 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180316191414.3223-8-jglisse@redhat.com>
+In-Reply-To: <20180316191414.3223-9-jglisse@redhat.com>
 Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
@@ -29,76 +28,47 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Evg
 On 03/16/2018 12:14 PM, jglisse@redhat.com wrote:
 > From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
 >=20
+> Special vma (one with any of the VM_SPECIAL flags) can not be access by
+> device because there is no consistent model accross device drivers on
+> those vma and their backing memory.
+>=20
+> This patch directly use hmm_range struct for hmm_pfns_special() argument
+> as it is always affecting the whole vma and thus the whole range.
+>=20
+> It also make behavior consistent after this patch both hmm_vma_fault()
+> and hmm_vma_get_pfns() returns -EINVAL when facing such vma. Previously
+> hmm_vma_fault() returned 0 and hmm_vma_get_pfns() return -EINVAL but
+> both were filling the HMM pfn array with special entry.
+>=20
 
 Hi Jerome,
 
-This one looks great. A couple of trivial typo fixes are listed below.
+This seems correct.=20
 
-You can add:
+<snip>
+
+> @@ -486,6 +478,14 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
+>  	return 0;
+>  }
+> =20
+> +static void hmm_pfns_special(struct hmm_range *range)
+> +{
+> +	unsigned long addr =3D range->start, i =3D 0;
+> +
+> +	for (; addr < range->end; addr +=3D PAGE_SIZE, i++)
+> +		range->pfns[i] =3D HMM_PFN_SPECIAL;
+> +}
+
+Silly nit: the above would read more naturally, like this:
+
+	unsigned long addr, i =3D 0;
+
+	for (addr =3D range->start; addr < range->end; addr +=3D PAGE_SIZE, i++)
+		range->pfns[i] =3D HMM_PFN_SPECIAL;
+
+Either way,
 
 Reviewed-by: John Hubbard <jhubbard@nvidia.com>
-
-> All device driver we care about are using 64bits page table entry. In
-> order to match this and to avoid useless define convert all HMM pfn to
-> directly use uint64_t. It is a first step on the road to allow driver
-> to directly use pfn value return by HMM (saving memory and CPU cycles
-> use for convertion between the two).
-
-  used for conversion
->=20
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: Mark Hairgrove <mhairgrove@nvidia.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> ---
->  include/linux/hmm.h | 46 +++++++++++++++++++++-------------------------
->  mm/hmm.c            | 26 +++++++++++++-------------
->  2 files changed, 34 insertions(+), 38 deletions(-)
->=20
-
-<snip>
-
-> @@ -104,14 +100,14 @@ typedef unsigned long hmm_pfn_t;
->  #define HMM_PFN_SHIFT 6
-> =20
->  /*
-> - * hmm_pfn_t_to_page() - return struct page pointed to by a valid hmm_pf=
-n_t
-> - * @pfn: hmm_pfn_t to convert to struct page
-> - * Returns: struct page pointer if pfn is a valid hmm_pfn_t, NULL otherw=
-ise
-> + * hmm_pfn_to_page() - return struct page pointed to by a valid HMM pfn
-> + * @pfn: HMM pfn value to get corresponding struct page from
-> + * Returns: struct page pointer if pfn is a valid HMM pfn, NULL otherwis=
-e
->   *
-> - * If the hmm_pfn_t is valid (ie valid flag set) then return the struct =
-page
-> - * matching the pfn value stored in the hmm_pfn_t. Otherwise return NULL=
-.
-> + * If the uint64_t is valid (ie valid flag set) then return the struct p=
-age
-
-      If the HMM pfn is valid
-
-<snip>
-
-> =20
-> @@ -634,8 +634,8 @@ EXPORT_SYMBOL(hmm_vma_range_done);
->   * This is similar to a regular CPU page fault except that it will not t=
-rigger
->   * any memory migration if the memory being faulted is not accessible by=
- CPUs.
->   *
-> - * On error, for one virtual address in the range, the function will set=
- the
-> - * hmm_pfn_t error flag for the corresponding pfn entry.
-> + * On error, for one virtual address in the range, the function will mar=
-k the
-> + * correspond HMM pfn entry with error flag.
-
-      corresponding HMM pfn entry with an error flag.
 
 thanks,
 --=20
