@@ -1,76 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B4086B0003
-	for <linux-mm@kvack.org>; Sat, 17 Mar 2018 00:35:32 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id h89so2266631qtd.18
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 21:35:32 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id q84si1220059qke.105.2018.03.16.21.35.31
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EE47C6B0005
+	for <linux-mm@kvack.org>; Sat, 17 Mar 2018 00:39:02 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id n67so215776qkn.14
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 21:39:02 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id p13si2358762qtg.19.2018.03.16.21.39.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 21:35:31 -0700 (PDT)
-Subject: Re: [PATCH 08/14] mm/hmm: cleanup special vma handling (VM_SPECIAL)
-References: <20180316191414.3223-1-jglisse@redhat.com>
- <20180316191414.3223-9-jglisse@redhat.com>
+        Fri, 16 Mar 2018 21:39:02 -0700 (PDT)
+Subject: Re: [PATCH 03/14] mm/hmm: HMM should have a callback before MM is
+ destroyed v2
 From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <44d08350-7035-a26c-d6c8-29b3dc3f99eb@nvidia.com>
-Date: Fri, 16 Mar 2018 21:35:29 -0700
+References: <20180316191414.3223-1-jglisse@redhat.com>
+ <20180316191414.3223-4-jglisse@redhat.com>
+ <7e87c1f9-5c1a-84fd-1f7f-55ffaaed8a66@nvidia.com>
+ <b0cd570b-dfe4-4b42-18bb-967d1dbddcb3@nvidia.com>
+Message-ID: <b1406b15-858f-00a2-e2c1-a950d190f0e1@nvidia.com>
+Date: Fri, 16 Mar 2018 21:39:00 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180316191414.3223-9-jglisse@redhat.com>
+In-Reply-To: <b0cd570b-dfe4-4b42-18bb-967d1dbddcb3@nvidia.com>
 Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: jglisse@redhat.com, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, stable@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
 
-On 03/16/2018 12:14 PM, jglisse@redhat.com wrote:
-> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->=20
-> Special vma (one with any of the VM_SPECIAL flags) can not be access by
-> device because there is no consistent model accross device drivers on
-> those vma and their backing memory.
->=20
-> This patch directly use hmm_range struct for hmm_pfns_special() argument
-> as it is always affecting the whole vma and thus the whole range.
->=20
-> It also make behavior consistent after this patch both hmm_vma_fault()
-> and hmm_vma_get_pfns() returns -EINVAL when facing such vma. Previously
-> hmm_vma_fault() returned 0 and hmm_vma_get_pfns() return -EINVAL but
-> both were filling the HMM pfn array with special entry.
->=20
+On 03/16/2018 08:47 PM, John Hubbard wrote:
+> On 03/16/2018 07:36 PM, John Hubbard wrote:
+>> On 03/16/2018 12:14 PM, jglisse@redhat.com wrote:
+>>> From: Ralph Campbell <rcampbell@nvidia.com>
+>>>
+>>
+>> <snip>
+>>
+>>> +static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+>>> +{
+>>> +	struct hmm *hmm = mm->hmm;
+>>> +	struct hmm_mirror *mirror;
+>>> +	struct hmm_mirror *mirror_next;
+>>> +
+>>> +	down_write(&hmm->mirrors_sem);
+>>> +	list_for_each_entry_safe(mirror, mirror_next, &hmm->mirrors, list) {
+>>> +		list_del_init(&mirror->list);
+>>> +		if (mirror->ops->release)
+>>> +			mirror->ops->release(mirror);
+>>> +	}
+>>> +	up_write(&hmm->mirrors_sem);
+>>> +}
+>>> +
+>>
+>> OK, as for actual code review:
+>>
+>> This part of the locking looks good. However, I think it can race against
+>> hmm_mirror_register(), because hmm_mirror_register() will just add a new 
+>> mirror regardless.
+>>
+>> So:
+>>
+>> thread 1                                      thread 2
+>> --------------                                -----------------
+>> hmm_release                                   hmm_mirror_register 
+>>     down_write(&hmm->mirrors_sem);                <blocked: waiting for sem>
+>>         // deletes all list items
+>>     up_write
+>>                                                   unblocked: adds new mirror
+>>                                               
+>>
 
-Hi Jerome,
+Mark Hairgrove just pointed out some more fun facts:
 
-This seems correct.=20
+1. Because hmm_mirror_register() needs to be called with an mm that has a non-zero
+refcount, you generally cannot get an hmm_release callback, so the above race should
+not happen.
 
-<snip>
+2. We looked around, and the code is missing a call to mmu_notifier_unregister().
+That means that it is going to leak memory and not let the mm get released either.
 
-> @@ -486,6 +478,14 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
->  	return 0;
->  }
-> =20
-> +static void hmm_pfns_special(struct hmm_range *range)
-> +{
-> +	unsigned long addr =3D range->start, i =3D 0;
-> +
-> +	for (; addr < range->end; addr +=3D PAGE_SIZE, i++)
-> +		range->pfns[i] =3D HMM_PFN_SPECIAL;
-> +}
-
-Silly nit: the above would read more naturally, like this:
-
-	unsigned long addr, i =3D 0;
-
-	for (addr =3D range->start; addr < range->end; addr +=3D PAGE_SIZE, i++)
-		range->pfns[i] =3D HMM_PFN_SPECIAL;
-
-Either way,
-
-Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+Maybe having each mirror have its own mmu notifier callback is a possible way
+to solve this.
 
 thanks,
---=20
+-- 
 John Hubbard
 NVIDIA
