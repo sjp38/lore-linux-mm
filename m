@@ -1,48 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4155A6B0003
-	for <linux-mm@kvack.org>; Sat, 17 Mar 2018 05:12:24 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 65so6682856wrn.7
-        for <linux-mm@kvack.org>; Sat, 17 Mar 2018 02:12:24 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 65si360292wrf.114.2018.03.17.02.12.22
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CD7B46B0003
+	for <linux-mm@kvack.org>; Sat, 17 Mar 2018 07:13:56 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k44so6928869wrc.3
+        for <linux-mm@kvack.org>; Sat, 17 Mar 2018 04:13:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q13sor68005wrg.76.2018.03.17.04.13.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sat, 17 Mar 2018 02:12:22 -0700 (PDT)
-Date: Sat, 17 Mar 2018 10:12:15 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 1/3] x86, pkeys: do not special case protection key 0
-In-Reply-To: <20180316214656.0E059008@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.21.1803171011100.1509@nanos.tec.linutronix.de>
-References: <20180316214654.895E24EC@viggo.jf.intel.com> <20180316214656.0E059008@viggo.jf.intel.com>
+        (Google Transport Security);
+        Sat, 17 Mar 2018 04:13:55 -0700 (PDT)
+From: Lukas Bulwahn <lukas.bulwahn@gmail.com>
+Date: Sat, 17 Mar 2018 12:13:39 +0100 (CET)
+Subject: clang fails on linux-next since commit 8bf705d13039
+Message-ID: <alpine.DEB.2.20.1803171208370.21003@alpaca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxram@us.ibm.com, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@kernel.org>
+Cc: linux-mm@kvack.org, kasan-dev@googlegroups.com, llvmlinux@lists.linuxfoundation.org, sil2review@lists.osadl.org
 
-On Fri, 16 Mar 2018, Dave Hansen wrote:
+Hi Dmitry, hi Ingo,
 
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> mm_pkey_is_allocated() treats pkey 0 as unallocated.  That is
-> inconsistent with the manpages, and also inconsistent with
-> mm->context.pkey_allocation_map.  Stop special casing it and only
-> disallow values that are actually bad (< 0).
-> 
-> The end-user visible effect of this is that you can now use
-> mprotect_pkey() to set pkey=0.
-> 
-> This is a bit nicer than what Ram proposed because it is simpler
-> and removes special-casing for pkey 0.  On the other hand, it does
-> allow applciations to pkey_free() pkey-0, but that's just a silly
-> thing to do, so we are not going to protect against it.
+since commit 8bf705d13039 ("locking/atomic/x86: Switch atomic.h to use atomic-instrumented.h")
+on linux-next (tested and bisected from tag next-20180316), compiling the 
+kernel with clang fails with:
 
-What's the consequence of that? Application crashing and burning itself or
-something more subtle?
+In file included from arch/x86/entry/vdso/vdso32/vclock_gettime.c:33:
+In file included from arch/x86/entry/vdso/vdso32/../vclock_gettime.c:15:
+In file included from ./arch/x86/include/asm/vgtod.h:6:
+In file included from ./include/linux/clocksource.h:13:
+In file included from ./include/linux/timex.h:56:
+In file included from ./include/uapi/linux/timex.h:56:
+In file included from ./include/linux/time.h:6:
+In file included from ./include/linux/seqlock.h:36:
+In file included from ./include/linux/spinlock.h:51:
+In file included from ./include/linux/preempt.h:81:
+In file included from ./arch/x86/include/asm/preempt.h:7:
+In file included from ./include/linux/thread_info.h:38:
+In file included from ./arch/x86/include/asm/thread_info.h:53:
+In file included from ./arch/x86/include/asm/cpufeature.h:5:
+In file included from ./arch/x86/include/asm/processor.h:21:
+In file included from ./arch/x86/include/asm/msr.h:67:
+In file included from ./arch/x86/include/asm/atomic.h:279:
+./include/asm-generic/atomic-instrumented.h:295:10: error: invalid output size for constraint '=a'
+                return arch_cmpxchg((u64 *)ptr, (u64)old, (u64)new);
+                       ^
+./arch/x86/include/asm/cmpxchg.h:149:2: note: expanded from macro 'arch_cmpxchg'
+        __cmpxchg(ptr, old, new, sizeof(*(ptr)))
+        ^
+./arch/x86/include/asm/cmpxchg.h:134:2: note: expanded from macro '__cmpxchg'
+        __raw_cmpxchg((ptr), (old), (new), (size), LOCK_PREFIX)
+        ^
+./arch/x86/include/asm/cmpxchg.h:95:17: note: expanded from macro '__raw_cmpxchg'
+                             : "=a" (__ret), "+m" (*__ptr)              \
+                                     ^
 
-Thanks,
+(... and some more similar and closely related errors)
 
-	tglx
+Best regards,
+
+Lukas
