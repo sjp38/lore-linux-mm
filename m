@@ -1,80 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DCD46B0005
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 22:36:26 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id e205so3570195qkb.8
-        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 19:36:26 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id w64si6099632qkd.292.2018.03.16.19.36.24
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 412056B0005
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2018 23:08:15 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id a207so5415855qkb.23
+        for <linux-mm@kvack.org>; Fri, 16 Mar 2018 20:08:15 -0700 (PDT)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id q87si7310207qkl.273.2018.03.16.20.08.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Mar 2018 19:36:25 -0700 (PDT)
-Subject: Re: [PATCH 03/14] mm/hmm: HMM should have a callback before MM is
- destroyed v2
+        Fri, 16 Mar 2018 20:08:14 -0700 (PDT)
+Subject: Re: [PATCH 05/14] mm/hmm: use struct for hmm_vma_fault(),
+ hmm_vma_get_pfns() parameters
 References: <20180316191414.3223-1-jglisse@redhat.com>
- <20180316191414.3223-4-jglisse@redhat.com>
+ <20180316191414.3223-6-jglisse@redhat.com>
 From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <7e87c1f9-5c1a-84fd-1f7f-55ffaaed8a66@nvidia.com>
-Date: Fri, 16 Mar 2018 19:36:23 -0700
+Message-ID: <9b8ad818-252d-e1f2-0cdb-a7228ccaa392@nvidia.com>
+Date: Fri, 16 Mar 2018 20:08:11 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180316191414.3223-4-jglisse@redhat.com>
+In-Reply-To: <20180316191414.3223-6-jglisse@redhat.com>
 Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: jglisse@redhat.com, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, stable@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
 
 On 03/16/2018 12:14 PM, jglisse@redhat.com wrote:
-> From: Ralph Campbell <rcampbell@nvidia.com>
-> 
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>=20
+
+Hi Jerome,
+
+I failed to find any problems in this patch, so:
+
+Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+
+There are a couple of documentation recommended typo fixes listed
+below, which are very minor but as long as I'm here I'll point them out.
+
+> Both hmm_vma_fault() and hmm_vma_get_pfns() were taking a hmm_range
+> struct as parameter and were initializing that struct with others of
+> their parameters. Have caller of those function do this as they are
+> likely to already do and only pass this struct to both function this
+> shorten function signature and make it easiers in the future to add
+
+                                         easier
+
+> new parameters by simply adding them to the structure.
+>=20
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: Mark Hairgrove <mhairgrove@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> ---
+>  include/linux/hmm.h | 18 ++++---------
+>  mm/hmm.c            | 78 +++++++++++++++++++----------------------------=
+------
+>  2 files changed, 33 insertions(+), 63 deletions(-)
+
+
+<snip>
+> =20
+> =20
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 64d9e7dae712..49f0f6b337ed 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -490,11 +490,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
+> =20
+>  /*
+>   * hmm_vma_get_pfns() - snapshot CPU page table for a range of virtual a=
+ddresses
+> - * @vma: virtual memory area containing the virtual address range
+> - * @range: used to track snapshot validity
+> - * @start: range virtual start address (inclusive)
+> - * @end: range virtual end address (exclusive)
+> - * @entries: array of hmm_pfn_t: provided by the caller, filled in by fu=
+nction
+> + * @range: range being snapshoted and all needed informations
+
+Let's just say this:
+
+* @range: range being snapshotted
+
 
 <snip>
 
-> +static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
-> +{
-> +	struct hmm *hmm = mm->hmm;
-> +	struct hmm_mirror *mirror;
-> +	struct hmm_mirror *mirror_next;
-> +
-> +	down_write(&hmm->mirrors_sem);
-> +	list_for_each_entry_safe(mirror, mirror_next, &hmm->mirrors, list) {
-> +		list_del_init(&mirror->list);
-> +		if (mirror->ops->release)
-> +			mirror->ops->release(mirror);
-> +	}
-> +	up_write(&hmm->mirrors_sem);
-> +}
-> +
+> @@ -628,11 +617,7 @@ EXPORT_SYMBOL(hmm_vma_range_done);
+> =20
+>  /*
+>   * hmm_vma_fault() - try to fault some address in a virtual address rang=
+e
+> - * @vma: virtual memory area containing the virtual address range
+> - * @range: use to track pfns array content validity
+> - * @start: fault range virtual start address (inclusive)
+> - * @end: fault range virtual end address (exclusive)
+> - * @pfns: array of hmm_pfn_t, only entry with fault flag set will be fau=
+lted
+> + * @range: range being faulted and all needed informations
 
-OK, as for actual code review:
+Similarly here, let's just write it like this:
 
-This part of the locking looks good. However, I think it can race against
-hmm_mirror_register(), because hmm_mirror_register() will just add a new 
-mirror regardless.
+* @range: range being faulted
 
-So:
-
-thread 1                                      thread 2
---------------                                -----------------
-hmm_release                                   hmm_mirror_register 
-    down_write(&hmm->mirrors_sem);                <blocked: waiting for sem>
-        // deletes all list items
-    up_write
-                                                  unblocked: adds new mirror
-                                              
-
-...so I think we need a way to back out of any pending hmm_mirror_register()
-calls, as part of the .release steps, right? It seems hard for the device driver,
-which could be inside of hmm_mirror_register(), to handle that. Especially considering
-that right now, hmm_mirror_register() will return success in this case--so
-there is no indication that anything is wrong.
-
-Maybe hmm_mirror_register() could return an error (and not add to the mirror list),
-in such a situation, how's that sound?
 
 thanks,
--- 
+--=20
 John Hubbard
 NVIDIA
