@@ -1,211 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A4016B0023
-	for <linux-mm@kvack.org>; Sun, 18 Mar 2018 09:15:11 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id b2-v6so8626584plz.17
-        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 06:15:11 -0700 (PDT)
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id z7si8794654pfg.278.2018.03.18.06.15.09
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 417546B0003
+	for <linux-mm@kvack.org>; Sun, 18 Mar 2018 09:22:39 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 65so8010934wrn.7
+        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 06:22:39 -0700 (PDT)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id x77si3982618wrb.209.2018.03.18.06.22.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Mar 2018 06:15:10 -0700 (PDT)
-From: Abbott Liu <liuwenliang@huawei.com>
-Subject: [PATCH 4/7] Replace memory function for kasan
-Date: Sun, 18 Mar 2018 20:53:39 +0800
-Message-ID: <20180318125342.4278-5-liuwenliang@huawei.com>
-In-Reply-To: <20180318125342.4278-1-liuwenliang@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 18 Mar 2018 06:22:37 -0700 (PDT)
+Date: Sun, 18 Mar 2018 13:21:27 +0000
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
+Subject: Re: [PATCH 1/7] 2 1-byte checks more safer for memory_is_poisoned_16
+Message-ID: <20180318132126.GA565@n2100.armlinux.org.uk>
 References: <20180318125342.4278-1-liuwenliang@huawei.com>
+ <20180318125342.4278-2-liuwenliang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180318125342.4278-2-liuwenliang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@armlinux.org.uk, aryabinin@virtuozzo.com, marc.zyngier@arm.com, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, f.fainelli@gmail.com, liuwenliang@huawei.com, akpm@linux-foundation.org, afzal.mohd.ma@gmail.com, alexander.levin@verizon.com
-Cc: glider@google.com, dvyukov@google.com, christoffer.dall@linaro.org, linux@rasmusvillemoes.dk, mawilcox@microsoft.com, pombredanne@nexb.com, ard.biesheuvel@linaro.org, vladimir.murzin@arm.com, nicolas.pitre@linaro.org, tglx@linutronix.de, thgarnie@google.com, dhowells@redhat.com, keescook@chromium.org, arnd@arndb.de, geert@linux-m68k.org, tixy@linaro.org, mark.rutland@arm.com, james.morse@arm.com, zhichao.huang@linaro.org, jinb.park7@gmail.com, labbott@redhat.com, philip@cog.systems, grygorii.strashko@linaro.org, catalin.marinas@arm.com, opendmb@gmail.com, kirill.shutemov@linux.intel.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, linux-mm@kvack.org
+To: Abbott Liu <liuwenliang@huawei.com>
+Cc: aryabinin@virtuozzo.com, marc.zyngier@arm.com, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, f.fainelli@gmail.com, akpm@linux-foundation.org, afzal.mohd.ma@gmail.com, alexander.levin@verizon.com, glider@google.com, dvyukov@google.com, christoffer.dall@linaro.org, linux@rasmusvillemoes.dk, mawilcox@microsoft.com, pombredanne@nexb.com, ard.biesheuvel@linaro.org, vladimir.murzin@arm.com, nicolas.pitre@linaro.org, tglx@linutronix.de, thgarnie@google.com, dhowells@redhat.com, keescook@chromium.org, arnd@arndb.de, geert@linux-m68k.org, tixy@linaro.org, mark.rutland@arm.com, james.morse@arm.com, zhichao.huang@linaro.org, jinb.park7@gmail.com, labbott@redhat.com, philip@cog.systems, grygorii.strashko@linaro.org, catalin.marinas@arm.com, opendmb@gmail.com, kirill.shutemov@linux.intel.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, linux-mm@kvack.org
 
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
+On Sun, Mar 18, 2018 at 08:53:36PM +0800, Abbott Liu wrote:
+> Because in some architecture(eg. arm) instruction set, non-aligned
+> access support is not very well, so 2 1-byte checks is more
+> safer than 1 2-byte check. The impact on performance is small
+> because 16-byte accesses are not too common.
 
-Functions like memset/memmove/memcpy do a lot of memory accesses.
-If bad pointer passed to one of these function it is important
-to catch this. Compiler's instrumentation cannot do this since
-these functions are written in assembly.
+This is unnecessary:
 
-KASan replaces memory functions with manually instrumented variants.
-Original functions declared as weak symbols so strong definitions
-in mm/kasan/kasan.c could replace them. Original functions have aliases
-with '__' prefix in name, so we could call non-instrumented variant
-if needed.
+1. a load of a 16-bit quantity will work as desired on modern ARMs.
+2. Networking already relies on unaligned loads to work as per x86
+   (iow, an unaligned 32-bit load loads the 32-bits at the address
+   even if it's not naturally aligned, and that also goes for 16-bit
+   accesses.)
 
-We must use __memcpy/__memset to replace memcpy/memset when we copy
-.data to RAM and when we clear .bss, because kasan_early_init can't
-be called before the initialization of .data and .bss.
+If these are rare (which you say above - "not too common") then it's
+much better to leave the code as-is, because it will most likely be
+faster on modern CPUs, and the impact for older generation CPUs is
+likely to be low.
 
-Reviewed-by: Russell King - ARM Linux <linux@armlinux.org.uk>
-Acked-by: Florian Fainelli <f.fainelli@gmail.com>
-Tested-by: Florian Fainelli <f.fainelli@gmail.com>
-Signed-off-by: Abbott Liu <liuwenliang@huawei.com>
----
- arch/arm/boot/compressed/decompress.c |  2 ++
- arch/arm/boot/compressed/libfdt_env.h |  2 ++
- arch/arm/include/asm/string.h         | 17 +++++++++++++++++
- arch/arm/kernel/head-common.S         |  4 ++--
- arch/arm/lib/memcpy.S                 |  3 +++
- arch/arm/lib/memmove.S                |  5 ++++-
- arch/arm/lib/memset.S                 |  3 +++
- 7 files changed, 33 insertions(+), 3 deletions(-)
-
-diff --git a/arch/arm/boot/compressed/decompress.c b/arch/arm/boot/compressed/decompress.c
-index a2ac3fe..0596077 100644
---- a/arch/arm/boot/compressed/decompress.c
-+++ b/arch/arm/boot/compressed/decompress.c
-@@ -49,8 +49,10 @@ extern int memcmp(const void *cs, const void *ct, size_t count);
- #endif
- 
- #ifdef CONFIG_KERNEL_XZ
-+#ifndef CONFIG_KASAN
- #define memmove memmove
- #define memcpy memcpy
-+#endif
- #include "../../../../lib/decompress_unxz.c"
- #endif
- 
-diff --git a/arch/arm/boot/compressed/libfdt_env.h b/arch/arm/boot/compressed/libfdt_env.h
-index 0743781..736ed36 100644
---- a/arch/arm/boot/compressed/libfdt_env.h
-+++ b/arch/arm/boot/compressed/libfdt_env.h
-@@ -17,4 +17,6 @@ typedef __be64 fdt64_t;
- #define fdt64_to_cpu(x)		be64_to_cpu(x)
- #define cpu_to_fdt64(x)		cpu_to_be64(x)
- 
-+#undef memset
-+
- #endif
-diff --git a/arch/arm/include/asm/string.h b/arch/arm/include/asm/string.h
-index 111a1d8..1f9016b 100644
---- a/arch/arm/include/asm/string.h
-+++ b/arch/arm/include/asm/string.h
-@@ -15,15 +15,18 @@ extern char * strchr(const char * s, int c);
- 
- #define __HAVE_ARCH_MEMCPY
- extern void * memcpy(void *, const void *, __kernel_size_t);
-+extern void *__memcpy(void *dest, const void *src, __kernel_size_t n);
- 
- #define __HAVE_ARCH_MEMMOVE
- extern void * memmove(void *, const void *, __kernel_size_t);
-+extern void *__memmove(void *dest, const void *src, __kernel_size_t n);
- 
- #define __HAVE_ARCH_MEMCHR
- extern void * memchr(const void *, int, __kernel_size_t);
- 
- #define __HAVE_ARCH_MEMSET
- extern void * memset(void *, int, __kernel_size_t);
-+extern void *__memset(void *s, int c, __kernel_size_t n);
- 
- #define __HAVE_ARCH_MEMSET32
- extern void *__memset32(uint32_t *, uint32_t v, __kernel_size_t);
-@@ -39,4 +42,18 @@ static inline void *memset64(uint64_t *p, uint64_t v, __kernel_size_t n)
- 	return __memset64(p, v, n * 8, v >> 32);
- }
- 
-+
-+
-+#if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
-+
-+/*
-+ * For files that not instrumented (e.g. mm/slub.c) we
-+ * should use not instrumented version of mem* functions.
-+ */
-+
-+#define memcpy(dst, src, len) __memcpy(dst, src, len)
-+#define memmove(dst, src, len) __memmove(dst, src, len)
-+#define memset(s, c, n) __memset(s, c, n)
-+#endif
-+
- #endif
-diff --git a/arch/arm/kernel/head-common.S b/arch/arm/kernel/head-common.S
-index 6e0375e..c79b829 100644
---- a/arch/arm/kernel/head-common.S
-+++ b/arch/arm/kernel/head-common.S
-@@ -99,7 +99,7 @@ __mmap_switched:
-  THUMB(	ldmia	r4!, {r0, r1, r2, r3} )
-  THUMB(	mov	sp, r3 )
- 	sub	r2, r2, r1
--	bl	memcpy				@ copy .data to RAM
-+	bl	__memcpy			@ copy .data to RAM
- #endif
- 
-    ARM(	ldmia	r4!, {r0, r1, sp} )
-@@ -107,7 +107,7 @@ __mmap_switched:
-  THUMB(	mov	sp, r3 )
- 	sub	r2, r1, r0
- 	mov	r1, #0
--	bl	memset				@ clear .bss
-+	bl	__memset			@ clear .bss
- 
- 	ldmia	r4, {r0, r1, r2, r3}
- 	str	r9, [r0]			@ Save processor ID
-diff --git a/arch/arm/lib/memcpy.S b/arch/arm/lib/memcpy.S
-index 64111bd..79a83f8 100644
---- a/arch/arm/lib/memcpy.S
-+++ b/arch/arm/lib/memcpy.S
-@@ -61,6 +61,8 @@
- 
- /* Prototype: void *memcpy(void *dest, const void *src, size_t n); */
- 
-+.weak memcpy
-+ENTRY(__memcpy)
- ENTRY(mmiocpy)
- ENTRY(memcpy)
- 
-@@ -68,3 +70,4 @@ ENTRY(memcpy)
- 
- ENDPROC(memcpy)
- ENDPROC(mmiocpy)
-+ENDPROC(__memcpy)
-diff --git a/arch/arm/lib/memmove.S b/arch/arm/lib/memmove.S
-index 69a9d47..313db6c 100644
---- a/arch/arm/lib/memmove.S
-+++ b/arch/arm/lib/memmove.S
-@@ -27,12 +27,14 @@
-  * occurring in the opposite direction.
-  */
- 
-+.weak memmove
-+ENTRY(__memmove)
- ENTRY(memmove)
- 	UNWIND(	.fnstart			)
- 
- 		subs	ip, r0, r1
- 		cmphi	r2, ip
--		bls	memcpy
-+		bls	__memcpy
- 
- 		stmfd	sp!, {r0, r4, lr}
- 	UNWIND(	.fnend				)
-@@ -225,3 +227,4 @@ ENTRY(memmove)
- 18:		backward_copy_shift	push=24	pull=8
- 
- ENDPROC(memmove)
-+ENDPROC(__memmove)
-diff --git a/arch/arm/lib/memset.S b/arch/arm/lib/memset.S
-index ed6d35d..64aa06a 100644
---- a/arch/arm/lib/memset.S
-+++ b/arch/arm/lib/memset.S
-@@ -16,6 +16,8 @@
- 	.text
- 	.align	5
- 
-+.weak memset
-+ENTRY(__memset)
- ENTRY(mmioset)
- ENTRY(memset)
- UNWIND( .fnstart         )
-@@ -135,6 +137,7 @@ UNWIND( .fnstart            )
- UNWIND( .fnend   )
- ENDPROC(memset)
- ENDPROC(mmioset)
-+ENDPROC(__memset)
- 
- ENTRY(__memset32)
- UNWIND( .fnstart         )
 -- 
-2.9.0
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
+According to speedtest.net: 8.21Mbps down 510kbps up
