@@ -1,77 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0652C6B0003
-	for <linux-mm@kvack.org>; Sun, 18 Mar 2018 04:55:47 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id m7so2212766wmg.9
-        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 01:55:46 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id s6sor5902844edc.9.2018.03.18.01.55.45
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 322416B0003
+	for <linux-mm@kvack.org>; Sun, 18 Mar 2018 05:31:01 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u68so2858000wmd.5
+        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 02:31:01 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id a6si8113626wrh.22.2018.03.18.02.30.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 18 Mar 2018 01:55:45 -0700 (PDT)
-Date: Sun, 18 Mar 2018 11:55:18 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v2] mm: Warn on lock_page() from reclaim context.
-Message-ID: <20180318085518.k5ikurvvrimp7ncx@node.shutemov.name>
-References: <1521295866-9670-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180317155437.pcbeigeivn4a23gt@node.shutemov.name>
- <201803181022.IAI30275.JOFOQMtFSHLFOV@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Sun, 18 Mar 2018 02:30:59 -0700 (PDT)
+Date: Sun, 18 Mar 2018 10:30:48 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 1/3] x86, pkeys: do not special case protection key 0
+In-Reply-To: <20180317232425.GH1060@ram.oc3035372033.ibm.com>
+Message-ID: <alpine.DEB.2.21.1803181029220.1509@nanos.tec.linutronix.de>
+References: <20180316214654.895E24EC@viggo.jf.intel.com> <20180316214656.0E059008@viggo.jf.intel.com> <20180317232425.GH1060@ram.oc3035372033.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201803181022.IAI30275.JOFOQMtFSHLFOV@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, mhocko@suse.com
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
 
-On Sun, Mar 18, 2018 at 10:22:49AM +0900, Tetsuo Handa wrote:
-> >From f43b8ca61b76f9a19c13f6bf42b27fad9554afc0 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Sun, 18 Mar 2018 10:18:01 +0900
-> Subject: [PATCH v2] mm: Warn on lock_page() from reclaim context.
+On Sat, 17 Mar 2018, Ram Pai wrote:
+> On Fri, Mar 16, 2018 at 02:46:56PM -0700, Dave Hansen wrote:
+> > 
+> > From: Dave Hansen <dave.hansen@linux.intel.com>
+> > 
+> > mm_pkey_is_allocated() treats pkey 0 as unallocated.  That is
+> > inconsistent with the manpages, and also inconsistent with
+> > mm->context.pkey_allocation_map.  Stop special casing it and only
+> > disallow values that are actually bad (< 0).
+> > 
+> > The end-user visible effect of this is that you can now use
+> > mprotect_pkey() to set pkey=0.
+> > 
+> > This is a bit nicer than what Ram proposed because it is simpler
+> > and removes special-casing for pkey 0.  On the other hand, it does
+> > allow applciations to pkey_free() pkey-0, but that's just a silly
+> > thing to do, so we are not going to protect against it.
 > 
-> Kirill A. Shutemov noticed that calling lock_page[_killable]() from
-> reclaim context might cause deadlock. In order to help finding such
-> lock_page[_killable]() users (including out of tree users), this patch
-> emits warning messages when CONFIG_PROVE_LOCKING is enabled.
+> So your proposal 
+> (a) allocates pkey 0 implicitly, 
+> (b) does not stop anyone from freeing pkey-0
+> (c) and allows pkey-0 to be explicitly associated with any address range.
+> correct?
 > 
-> [   81.532721] ------------[ cut here ]------------
-> [   81.534253] lock_page() from reclaim context might deadlock
-> [   81.534264] WARNING: CPU: 3 PID: 56 at mm/filemap.c:3340 __warn_lock_page_from_reclaim_context+0x1e/0x30
-> [   81.539982] Modules linked in: pcspkr sg vmw_vmci shpchp i2c_piix4 sd_mod ata_generic pata_acpi vmwgfx drm_kms_helper syscopyarea sysfillrect mptspi sysimgblt fb_sys_fops ahci ttm libahci e1000 scsi_transport_spi mptscsih drm ata_piix mptbase i2c_core libata serio_raw ipv6
-> [   81.546750] CPU: 3 PID: 56 Comm: kswapd0 Kdump: loaded Not tainted 4.16.0-rc5-next-20180316+ #698
-> [   81.549333] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 05/19/2017
-> [   81.552256] RIP: 0010:__warn_lock_page_from_reclaim_context+0x1e/0x30
-> [   81.554164] RSP: 0018:ffffc9000085bbf8 EFLAGS: 00010282
-> [   81.555833] RAX: 0000000000000000 RBX: ffffea0004b2b880 RCX: 0000000000000007
-> [   81.558283] RDX: 0000000000000b6d RSI: ffff88013aa0b700 RDI: ffff88013aa0ae80
-> [   81.562130] RBP: 0000000000000000 R08: 0000000000000001 R09: 0000000000000000
-> [   81.564291] R10: 0000000000000040 R11: 0000000000000000 R12: ffff8801357b4958
-> [   81.566551] R13: 0000000000000000 R14: ffffffff82068220 R15: 0000000000000002
-> [   81.568956] FS:  0000000000000000(0000) GS:ffff88013bcc0000(0000) knlGS:0000000000000000
-> [   81.571310] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [   81.573193] CR2: 00000000006020bf CR3: 000000000200f005 CR4: 00000000001606e0
-> [   81.575453] Call Trace:
-> [   81.577001]  pagecache_get_page+0x22a/0x230
-> [   81.578497]  ? iput+0x52/0x2f0
-> [   81.579762]  shmem_unused_huge_shrink+0x2e9/0x380
-> [   81.581465]  super_cache_scan+0x17a/0x180
-> [   81.582999]  shrink_slab+0x218/0x590
-> [   81.584398]  shrink_node+0x346/0x350
-> [   81.585777]  kswapd+0x322/0x930
-> [   81.587090]  kthread+0xf0/0x130
-> [   81.588370]  ? mem_cgroup_shrink_node+0x320/0x320
-> [   81.589996]  ? kthread_create_on_node+0x60/0x60
-> [   81.591670]  ret_from_fork+0x3a/0x50
-> [   81.593716] Code: f0 41 80 8c 24 08 01 00 00 02 eb b3 90 80 3d b8 54 f8 00 00 74 02 f3 c3 48 c7 c7 b0 87 df 81 c6 05 a6 54 f8 00 01 e8 d2 89 ee ff <0f> 0b c3 0f 1f 44 00 00 66 2e 0f 1f 84 00 00 00 00 00 41 55 41
-> [   81.599356] ---[ end trace d9238c3d53557ed5 ]---
+> My proposal
+> (a) allocates pkey 0 implicitly, 
+> (b) stops anyone from freeing pkey-0
+> (c) and allows pkey-0 to be explicitly associated with any address range.
 > 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
+> So the difference between the two proposals is just the freeing part i.e (b).
+> Did I get this right?
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Yes, and that's consistent with the other pkeys.
 
--- 
- Kirill A. Shutemov
+> Its a philosophical debate; allow the user to shoot-in-the-feet or stop
+> from not doing so. There is no clear answer either way. I am fine either
+> way.
+
+The user can shoot himself already with the other pkeys, so adding another
+one does not matter and is again consistent.
+
+Thanks,
+
+	tglx
