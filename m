@@ -1,68 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 322416B0003
-	for <linux-mm@kvack.org>; Sun, 18 Mar 2018 05:31:01 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u68so2858000wmd.5
-        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 02:31:01 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id a6si8113626wrh.22.2018.03.18.02.30.59
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DA346B0003
+	for <linux-mm@kvack.org>; Sun, 18 Mar 2018 09:13:52 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id az5-v6so8636530plb.14
+        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 06:13:52 -0700 (PDT)
+Received: from huawei.com ([45.249.212.35])
+        by mx.google.com with ESMTPS id a2-v6si9997523plp.544.2018.03.18.06.13.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sun, 18 Mar 2018 02:30:59 -0700 (PDT)
-Date: Sun, 18 Mar 2018 10:30:48 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 1/3] x86, pkeys: do not special case protection key 0
-In-Reply-To: <20180317232425.GH1060@ram.oc3035372033.ibm.com>
-Message-ID: <alpine.DEB.2.21.1803181029220.1509@nanos.tec.linutronix.de>
-References: <20180316214654.895E24EC@viggo.jf.intel.com> <20180316214656.0E059008@viggo.jf.intel.com> <20180317232425.GH1060@ram.oc3035372033.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 18 Mar 2018 06:13:50 -0700 (PDT)
+From: Abbott Liu <liuwenliang@huawei.com>
+Subject: [PATCH 1/7] 2 1-byte checks more safer for memory_is_poisoned_16
+Date: Sun, 18 Mar 2018 20:53:36 +0800
+Message-ID: <20180318125342.4278-2-liuwenliang@huawei.com>
+In-Reply-To: <20180318125342.4278-1-liuwenliang@huawei.com>
+References: <20180318125342.4278-1-liuwenliang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
+To: linux@armlinux.org.uk, aryabinin@virtuozzo.com, marc.zyngier@arm.com, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, f.fainelli@gmail.com, liuwenliang@huawei.com, akpm@linux-foundation.org, afzal.mohd.ma@gmail.com, alexander.levin@verizon.com
+Cc: glider@google.com, dvyukov@google.com, christoffer.dall@linaro.org, linux@rasmusvillemoes.dk, mawilcox@microsoft.com, pombredanne@nexb.com, ard.biesheuvel@linaro.org, vladimir.murzin@arm.com, nicolas.pitre@linaro.org, tglx@linutronix.de, thgarnie@google.com, dhowells@redhat.com, keescook@chromium.org, arnd@arndb.de, geert@linux-m68k.org, tixy@linaro.org, mark.rutland@arm.com, james.morse@arm.com, zhichao.huang@linaro.org, jinb.park7@gmail.com, labbott@redhat.com, philip@cog.systems, grygorii.strashko@linaro.org, catalin.marinas@arm.com, opendmb@gmail.com, kirill.shutemov@linux.intel.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, kvmarm@lists.cs.columbia.edu, linux-mm@kvack.org
 
-On Sat, 17 Mar 2018, Ram Pai wrote:
-> On Fri, Mar 16, 2018 at 02:46:56PM -0700, Dave Hansen wrote:
-> > 
-> > From: Dave Hansen <dave.hansen@linux.intel.com>
-> > 
-> > mm_pkey_is_allocated() treats pkey 0 as unallocated.  That is
-> > inconsistent with the manpages, and also inconsistent with
-> > mm->context.pkey_allocation_map.  Stop special casing it and only
-> > disallow values that are actually bad (< 0).
-> > 
-> > The end-user visible effect of this is that you can now use
-> > mprotect_pkey() to set pkey=0.
-> > 
-> > This is a bit nicer than what Ram proposed because it is simpler
-> > and removes special-casing for pkey 0.  On the other hand, it does
-> > allow applciations to pkey_free() pkey-0, but that's just a silly
-> > thing to do, so we are not going to protect against it.
-> 
-> So your proposal 
-> (a) allocates pkey 0 implicitly, 
-> (b) does not stop anyone from freeing pkey-0
-> (c) and allows pkey-0 to be explicitly associated with any address range.
-> correct?
-> 
-> My proposal
-> (a) allocates pkey 0 implicitly, 
-> (b) stops anyone from freeing pkey-0
-> (c) and allows pkey-0 to be explicitly associated with any address range.
-> 
-> So the difference between the two proposals is just the freeing part i.e (b).
-> Did I get this right?
+Because in some architecture(eg. arm) instruction set, non-aligned
+access support is not very well, so 2 1-byte checks is more
+safer than 1 2-byte check. The impact on performance is small
+because 16-byte accesses are not too common.
 
-Yes, and that's consistent with the other pkeys.
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Reviewed-by: Russell King - ARM Linux <linux@armlinux.org.uk>
+Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Acked-by: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Abbott Liu <liuwenliang@huawei.com>
+---
+ mm/kasan/kasan.c | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)
 
-> Its a philosophical debate; allow the user to shoot-in-the-feet or stop
-> from not doing so. There is no clear answer either way. I am fine either
-> way.
-
-The user can shoot himself already with the other pkeys, so adding another
-one does not matter and is again consistent.
-
-Thanks,
-
-	tglx
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index e13d911..104839a 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -151,13 +151,20 @@ static __always_inline bool memory_is_poisoned_2_4_8(unsigned long addr,
+ 
+ static __always_inline bool memory_is_poisoned_16(unsigned long addr)
+ {
+-	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
+-
+-	/* Unaligned 16-bytes access maps into 3 shadow bytes. */
+-	if (unlikely(!IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
+-		return *shadow_addr || memory_is_poisoned_1(addr + 15);
++	u8 *shadow_addr = (u8 *)kasan_mem_to_shadow((void *)addr);
+ 
+-	return *shadow_addr;
++	if (unlikely(shadow_addr[0] || shadow_addr[1])) {
++		return true;
++	} else if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE))) {
++		/*
++		 * If two shadow bytes covers 16-byte access, we don't
++		 * need to do anything more. Otherwise, test the last
++		 * shadow byte.
++		 */
++		return false;
++	} else {
++		return memory_is_poisoned_1(addr + 15);
++	}
+ }
+ 
+ static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
+-- 
+2.9.0
