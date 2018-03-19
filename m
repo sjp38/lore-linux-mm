@@ -1,59 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 503636B0007
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 09:46:25 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id j2so4208746qtl.1
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 06:46:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id w6si62903qtc.196.2018.03.19.06.46.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Mar 2018 06:46:24 -0700 (PDT)
-Date: Mon, 19 Mar 2018 14:46:18 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
- count (semaphore)
-Message-ID: <20180319134618.GB12554@redhat.com>
-References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
- <20180314165943.GA5948@redhat.com>
- <9cb068f7-0996-6e24-a95b-771006559318@linux.vnet.ibm.com>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C38AC6B0009
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 10:31:58 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id d95so3321637oic.22
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 07:31:58 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id n38-v6si47719ote.248.2018.03.19.07.31.57
+        for <linux-mm@kvack.org>;
+        Mon, 19 Mar 2018 07:31:57 -0700 (PDT)
+Message-ID: <5AAFC939.3010309@arm.com>
+Date: Mon, 19 Mar 2018 14:29:13 +0000
+From: James Morse <james.morse@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9cb068f7-0996-6e24-a95b-771006559318@linux.vnet.ibm.com>
+Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's add/remove
+ and notify code
+References: <20180215185606.26736-1-james.morse@arm.com> <20180215185606.26736-3-james.morse@arm.com> <20180301150144.GA4215@pd.tnic> <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com> <20180301223529.GA28811@pd.tnic> <5AA02C26.10803@arm.com> <20180308104408.GB21166@pd.tnic>
+In-Reply-To: <20180308104408.GB21166@pd.tnic>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
+To: Borislav Petkov <bp@alien8.de>
+Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
 
-On 03/19, Ravi Bangoria wrote:
->
-> Hi Oleg,
+Hi Borislav,
+
+On 08/03/18 10:44, Borislav Petkov wrote:
+> On Wed, Mar 07, 2018 at 06:15:02PM +0000, James Morse wrote:
+>> Today its just x86 and arm64. arm64 doesn't have a hook to do this. I'm happy to
+>> add an empty declaration or leave it under an ifdef until someone complains
+>> about any behaviour I missed!
 > 
-> On 03/14/2018 10:29 PM, Oleg Nesterov wrote:
-> > On 03/13, Ravi Bangoria wrote:
-> >> +static bool sdt_valid_vma(struct trace_uprobe *tu, struct vm_area_struct *vma)
-> >> +{
-> >> +	unsigned long vaddr = vma_offset_to_vaddr(vma, tu->ref_ctr_offset);
-> >> +
-> >> +	return tu->ref_ctr_offset &&
-> >> +		vma->vm_file &&
-> >> +		file_inode(vma->vm_file) == tu->inode &&
-> >> +		vma->vm_flags & VM_WRITE &&
-> >> +		vma->vm_start <= vaddr &&
-> >> +		vma->vm_end > vaddr;
-> >> +}
-> > Perhaps in this case a simple
-> >
-> > 		ref_ctr_offset < vma->vm_end - vma->vm_start
-> >
-> > check without vma_offset_to_vaddr() makes more sense, but I won't insist.
-> >
+> So I did some more staring at the code and I think oops_begin() is
+> needed mainly, as you point out, to prevent two oops messages from
+> interleaving. And yap, the other stuff with printk() is not true anymore
+> because the commit which added oops_begin():
 > 
-> I still don't get this. This seems a comparison between file offset and size
-> of the vma. Shouldn't we need to consider pg_off here?
+>   81e88fdc432a ("ACPI, APEI, Generic Hardware Error Source POLL/IRQ/NMI notification type support")
+> 
+> still saw an NMI-unsafe printk. Which is long taken care of now.
+> 
+> So only the interleaving issue remains.
+> 
+> Which begs the question: how are you guys preventing the interleaving on
+> arm64? Because arch/arm64/kernel/traps.c:200 grabs the die_lock too, so
+> interleaving can happen on arm64 too, AFAICT.
 
-Indeed, I am stupid ;)
+die() messages are stopped from interleaving with each other by that die_lock.
+panic()s atomic_cmpxchg() then panic_smp_self_stop() means panic() is
+first-past-the-post.
 
-Oleg.
+So our problem is interleaving of the two. The sequence is roughly:
+1. oops_begin(); // I'm going to panic()
+2. printk(some stuff);
+3. panic();
+
+Everything we print at (2) gets batched up by vprintk_nmi(), and is only printed
+from (3) when we call printk_safe_flush_on_panic().
+
+... and now I spot there are two calls to printk_safe_flush_on_panic(), one of
+which happens before any smp_send_stop() calls.
+
+This means we can get interleaving with panic() as we flush the printk_safe
+buffer before smp_send_stop(), and even if we change that a remote CPU may
+refuse to die. (Both x86 and arm64 have timeouts in their smp_send_stop() code).
+
+
+> And by that logic, you should technically grab that lock here too in
+> _in_nmi_notify_one().
+
+I don't think the die_lock really helps here, do we really want to wait for a
+remote CPU to finish printing an OOPs about user-space's bad memory accesses,
+before we bring the machine down due to this system-wide fatal RAS error? The
+presence of firmware-first means we know this error, and any other oops are
+unrelated.
+
+Grabbing the die_lock doesn't stop remote CPUs printing messages via a mechanism
+other than die()/_in_nmi_notify_one(). I think oops_begin() is just plastering
+over a problem. (how come this exclusion isn't done by oops_enter()/oops_exit()?)
+
+Isn't oops_begin() trying to guarantee any messages printk()d by this CPU appear
+'with' the subsequent panic()? I can't see any way to stop a remote CPU from
+messing this up by printk()ing in a loop with interrupts masked, preventing us
+from smp_send_stop()ing it, and making it difficult to take the lock.
+
+I'd like to leave this under the x86-ifdef for now. For arm64 it would be an
+APEI specific arch hook to stop the arch code from printing some messages,
+meanwhile the rest of the kernel is unaffected. I suspect this sort of thing
+really needs support from printk(). (maybe some printk() severity that mutes
+other CPUs, or redirects them to the printk_safe buffer).
+
+
+Thanks,
+
+James
