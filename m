@@ -1,45 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BBB96B0005
-	for <linux-mm@kvack.org>; Sun, 18 Mar 2018 21:56:56 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 17so8688246pfo.23
-        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 18:56:56 -0700 (PDT)
-Received: from huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id y67si9782198pfd.195.2018.03.18.18.56.54
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D4A06B0003
+	for <linux-mm@kvack.org>; Sun, 18 Mar 2018 22:30:29 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id az5-v6so9549624plb.14
+        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 19:30:29 -0700 (PDT)
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id p26-v6si11099741pli.534.2018.03.18.19.30.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Mar 2018 18:56:54 -0700 (PDT)
-From: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
-Subject: Re: [PATCH v2 0/7] KASan for arm
-Date: Mon, 19 Mar 2018 01:56:52 +0000
-Message-ID: <B8AC3E80E903784988AB3003E3E97330C0076FFD@dggemm510-mbs.china.huawei.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="us-ascii"
+        Sun, 18 Mar 2018 19:30:27 -0700 (PDT)
+From: "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Mime-Version: 1.0 (Mac OS X Mail 10.2 \(3259\))
+Subject: [PATCH] vfio iommu type1: improve memory pinning process for raw PFN
+ mapping
+Message-Id: <7F93BB33-4ABF-468F-8814-78DE9D23FA08@linux.alibaba.com>
+Date: Mon, 19 Mar 2018 10:30:24 +0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Fainelli <f.fainelli@gmail.com>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "marc.zyngier@arm.com" <marc.zyngier@arm.com>, "kstewart@linuxfoundation.org" <kstewart@linuxfoundation.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>
-Cc: "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "linux@rasmusvillemoes.dk" <linux@rasmusvillemoes.dk>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "pombredanne@nexb.com" <pombredanne@nexb.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "nicolas.pitre@linaro.org" <nicolas.pitre@linaro.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "geert@linux-m68k.org" <geert@linux-m68k.org>, "tixy@linaro.org" <tixy@linaro.org>, "mark.rutland@arm.com" <mark.rutland@arm.com>, "james.morse@arm.com" <james.morse@arm.com>, "zhichao.huang@linaro.org" <zhichao.huang@linaro.org>, "jinb.park7@gmail.com" <jinb.park7@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "philip@cog.systems" <philip@cog.systems>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "kvmarm@lists.cs.columbia.edu" <kvmarm@lists.cs.columbia.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Alex Williamson <alex.williamson@redhat.com>, pbonzini@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: gnehzuil@linux.alibaba.com, "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com>
 
-On 03/19/2018 09:23 AM, Florian Fainelli wrote:
->On 03/18/2018 06:20 PM, Liuwenliang (Abbott Liu) wrote:
->> On 03/19/2018 03:14 AM, Florian Fainelli wrote:
->>> Thanks for posting these patches! Just FWIW, you cannot quite add
->>> someone's Tested-by for a patch series that was just resubmitted given
->>> the differences with v1. I just gave it a spin on a Cortex-A5 (no LPAE)
->>> and it looks like test_kasan.ko is passing, great job!
->>=20
->> I'm sorry.
->> Thanks for your testing very much!
->> I forget to add Tested-by in cover letter patch file. But I have alreadl=
-y added
->> Tested-by in some of following patch.=20
->> In the next version I am going to add Tested-by in all patches.
->
->This is not exactly what I meant. When you submit a v2 of your patches,
->you must wait for people to give you their test results. The Tested-by
->applied to v1, and so much has changed it is no longer valid for v2
->unless someone tells you they tested v2. Hope this is clearer.
+When using vfio to pass through a PCIe device (e.g. a GPU card) that
+has a huge BAR (e.g. 16GB), a lot of cycles are wasted on memory
+pinning because PFNs of PCI BAR are not backed by struct page, and
+the corresponding VMA has flag VM_PFNMAP.
 
-Ok, I understand now. thank you for your explanation.
+With this change, when pinning a region which is a raw PFN mapping,
+it can skip unnecessary user memory pinning process, and thus, can
+significantly improve VM's boot up time when passing through devices
+via VFIO. In my test on a Xeon E5 2.6GHz, the time mapping a 16GB
+BAR was reduced from about 0.4s to 1.5us.
+
+Signed-off-by: Jason Cai (Xiang Feng) <jason.cai@linux.alibaba.com>
+---
+ drivers/vfio/vfio_iommu_type1.c | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/vfio/vfio_iommu_type1.c =
+b/drivers/vfio/vfio_iommu_type1.c
+index 45657e2b1ff7..0658f35318b8 100644
+--- a/drivers/vfio/vfio_iommu_type1.c
++++ b/drivers/vfio/vfio_iommu_type1.c
+@@ -397,7 +397,6 @@ static long vfio_pin_pages_remote(struct vfio_dma =
+*dma, unsigned long vaddr,
+ {
+        unsigned long pfn =3D 0;
+        long ret, pinned =3D 0, lock_acct =3D 0;
+-       bool rsvd;
+        dma_addr_t iova =3D vaddr - dma->vaddr + dma->iova;
+
+        /* This code path is only user initiated */
+@@ -408,14 +407,22 @@ static long vfio_pin_pages_remote(struct vfio_dma =
+*dma, unsigned long vaddr,
+        if (ret)
+                return ret;
+
++       if (is_invalid_reserved_pfn(*pfn_base)) {
++               struct vm_area_struct *vma;
++               down_read(&current->mm->mmap_sem);
++               vma =3D find_vma_intersection(current->mm, vaddr, vaddr =
++ 1);
++               pinned =3D min(npage, (long)vma_pages(vma));
++               up_read(&current->mm->mmap_sem);
++               return pinned;
++       }
++
+        pinned++;
+-       rsvd =3D is_invalid_reserved_pfn(*pfn_base);
+
+        /*
+         * Reserved pages aren't counted against the user, externally =
+pinned
+         * pages are already counted against the user.
+         */
+-       if (!rsvd && !vfio_find_vpfn(dma, iova)) {
++       if (!vfio_find_vpfn(dma, iova)) {
+                if (!lock_cap && current->mm->locked_vm + 1 > limit) {
+                        put_pfn(*pfn_base, dma->prot);
+                        pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", =
+__func__,
+@@ -435,13 +442,12 @@ static long vfio_pin_pages_remote(struct vfio_dma =
+*dma, unsigned long vaddr,
+                if (ret)
+                        break;
+
+-               if (pfn !=3D *pfn_base + pinned ||
+-                   rsvd !=3D is_invalid_reserved_pfn(pfn)) {
++               if (pfn !=3D *pfn_base + pinned) {
+                        put_pfn(pfn, dma->prot);
+                        break;
+                }
+
+-               if (!rsvd && !vfio_find_vpfn(dma, iova)) {
++               if (!vfio_find_vpfn(dma, iova)) {
+                        if (!lock_cap &&
+                            current->mm->locked_vm + lock_acct + 1 > =
+limit) {
+                                put_pfn(pfn, dma->prot);
+@@ -459,10 +465,8 @@ static long vfio_pin_pages_remote(struct vfio_dma =
+*dma, unsigned long vaddr,
+
+ unpin_out:
+        if (ret) {
+-               if (!rsvd) {
+-                       for (pfn =3D *pfn_base ; pinned ; pfn++, =
+pinned--)
+-                               put_pfn(pfn, dma->prot);
+-               }
++               for (pfn =3D *pfn_base ; pinned ; pfn++, pinned--)
++                       put_pfn(pfn, dma->prot);
+
+                return ret;
+        }
+--
+2.13.6
