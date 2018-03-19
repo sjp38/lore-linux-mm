@@ -1,67 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D3A5E6B0003
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 00:26:18 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 31so1190537wrr.2
-        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 21:26:18 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id y7si1078970edm.292.2018.03.18.21.26.16
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 139536B0003
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 01:51:04 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id o61-v6so9837700pld.5
+        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 22:51:04 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id 97-v6si11432777pld.142.2018.03.18.22.51.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Mar 2018 21:26:17 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2J4O7PY054511
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 00:26:16 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2gsxgg3q5w-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 00:26:15 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
-	Mon, 19 Mar 2018 04:26:13 -0000
-Subject: Re: [PATCH 5/8] trace_uprobe: Support SDT markers having reference
- count (semaphore)
-References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180313125603.19819-6-ravi.bangoria@linux.vnet.ibm.com>
- <20180314165943.GA5948@redhat.com>
-From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Date: Mon, 19 Mar 2018 09:58:28 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 18 Mar 2018 22:51:02 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH 1/3] x86, pkeys: do not special case protection key 0
+In-Reply-To: <6e0c687d-f465-5433-10be-db04489278a9@intel.com>
+References: <20180316214654.895E24EC@viggo.jf.intel.com> <20180316214656.0E059008@viggo.jf.intel.com> <alpine.DEB.2.21.1803171011100.1509@nanos.tec.linutronix.de> <6e0c687d-f465-5433-10be-db04489278a9@intel.com>
+Date: Mon, 19 Mar 2018 16:50:56 +1100
+Message-ID: <877eq8hav3.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-In-Reply-To: <20180314165943.GA5948@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-Message-Id: <9cb068f7-0996-6e24-a95b-771006559318@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com, Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+To: Dave Hansen <dave.hansen@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxram@us.ibm.com, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
 
-Hi Oleg,
+Dave Hansen <dave.hansen@intel.com> writes:
 
-On 03/14/2018 10:29 PM, Oleg Nesterov wrote:
-> On 03/13, Ravi Bangoria wrote:
->> +static bool sdt_valid_vma(struct trace_uprobe *tu, struct vm_area_struct *vma)
->> +{
->> +	unsigned long vaddr = vma_offset_to_vaddr(vma, tu->ref_ctr_offset);
->> +
->> +	return tu->ref_ctr_offset &&
->> +		vma->vm_file &&
->> +		file_inode(vma->vm_file) == tu->inode &&
->> +		vma->vm_flags & VM_WRITE &&
->> +		vma->vm_start <= vaddr &&
->> +		vma->vm_end > vaddr;
->> +}
-> Perhaps in this case a simple
+> On 03/17/2018 02:12 AM, Thomas Gleixner wrote:
+>>> This is a bit nicer than what Ram proposed because it is simpler
+>>> and removes special-casing for pkey 0.  On the other hand, it does
+>>> allow applciations to pkey_free() pkey-0, but that's just a silly
+>>> thing to do, so we are not going to protect against it.
+>> What's the consequence of that? Application crashing and burning itself or
+>> something more subtle?
 >
-> 		ref_ctr_offset < vma->vm_end - vma->vm_start
+> You would have to:
 >
-> check without vma_offset_to_vaddr() makes more sense, but I won't insist.
+> 	pkey_free(0)
+> 	... later
+> 	new_key = pkey_alloc();
+> 	// now new_key=0
+> 	pkey_deny_access(new_key); // or whatever
 >
+> At which point most apps would probably croak because its stack is
+> inaccessible.  The free itself does not make the key inaccessible, *but*
+> we could also do that within the existing ABI if we want.  I think I
+> called out that behavior as undefined in the manpage.
 
-I still don't get this. This seems a comparison between file offset and size
-of the vma. Shouldn't we need to consider pg_off here?
+Allowing key 0 to be freed introduces some pretty weird API IMHO. For
+example this part of the manpage:
 
-Thanks,
-Ravi
+  An application should not call pkey_free() on any protection key
+  which has been assigned to an address range by pkey_mprotect(2)
+  and which is still in use. The behavior in this case is undefined
+  and may result in an error.
+
+You basically can't avoid hitting undefined behaviour with pkey 0,
+because even if you never assigned pkey 0 to an address range, it *is
+still in use* - because it's used as the default key for every address
+range that doesn't have another key.
+
+So I don't really think it makes sense to allow pkey 0 to be freed. But
+I won't die in a ditch over it, I just look forward to a manpage update
+that can sensibly describe the semantics.
+
+cheers
