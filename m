@@ -1,102 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C17356B000E
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:19:18 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id h11so10088495pfn.0
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 11:19:18 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bb5-v6sor281608plb.33.2018.03.19.11.19.17
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 945C56B000C
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:21:10 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u188so10090257pfb.6
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 11:21:10 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id g33-v6si420420plb.499.2018.03.19.11.21.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 19 Mar 2018 11:19:17 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Mar 2018 11:21:09 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.9 074/241] mm: Fix false-positive VM_BUG_ON() in page_cache_{get,add}_speculative()
+Date: Mon, 19 Mar 2018 19:05:39 +0100
+Message-Id: <20180319180754.269544891@linuxfoundation.org>
+In-Reply-To: <20180319180751.172155436@linuxfoundation.org>
+References: <20180319180751.172155436@linuxfoundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20180319152936.GI6955@suse.cz>
-References: <001a11427716098c150567bcd12f@google.com> <20180319161406-mutt-send-email-mst@kernel.org>
- <20180319152936.GI6955@suse.cz>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 19 Mar 2018 19:18:56 +0100
-Message-ID: <CACT4Y+baZvirMR6oRDy7YRpAqHgqCtuLFCQ9a4Ku2fEjnGLA4g@mail.gmail.com>
-Subject: Re: get_user_pages returning 0 (was Re: kernel BUG at drivers/vhost/vhost.c:LINE!)
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dsterba@suse.cz, "Michael S. Tsirkin" <mst@redhat.com>, syzbot <syzbot+6304bf97ef436580fede@syzkaller.appspotmail.com>, Michel Lespinasse <walken@google.com>, syzkaller-bugs@googlegroups.com, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Jason Wang <jasowang@redhat.com>, KVM list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, netdev <netdev@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Fengguang Wu <fengguang.wu@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, LKP <lkp@01.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
 
-On Mon, Mar 19, 2018 at 4:29 PM, David Sterba <dsterba@suse.cz> wrote:
-> On Mon, Mar 19, 2018 at 05:09:28PM +0200,  Michael S. Tsirkin  wrote:
->> Hello!
->> The following code triggered by syzbot
->>
->>         r = get_user_pages_fast(log, 1, 1, &page);
->>         if (r < 0)
->>                 return r;
->>         BUG_ON(r != 1);
->>
->> Just looking at get_user_pages_fast's documentation this seems
->> impossible - it is supposed to only ever return # of pages
->> pinned or errno.
->>
->> However, poking at code, I see at least one path that might cause this:
->>
->>                         ret = faultin_page(tsk, vma, start, &foll_flags,
->>                                         nonblocking);
->>                         switch (ret) {
->>                         case 0:
->>                                 goto retry;
->>                         case -EFAULT:
->>                         case -ENOMEM:
->>                         case -EHWPOISON:
->>                                 return i ? i : ret;
->>                         case -EBUSY:
->>                                 return i;
->>
->> which originally comes from:
->>
->> commit 53a7706d5ed8f1a53ba062b318773160cc476dde
->> Author: Michel Lespinasse <walken@google.com>
->> Date:   Thu Jan 13 15:46:14 2011 -0800
->>
->>     mlock: do not hold mmap_sem for extended periods of time
->>
->>     __get_user_pages gets a new 'nonblocking' parameter to signal that the
->>     caller is prepared to re-acquire mmap_sem and retry the operation if
->>     needed.  This is used to split off long operations if they are going to
->>     block on a disk transfer, or when we detect contention on the mmap_sem.
->>
->>     [akpm@linux-foundation.org: remove ref to rwsem_is_contended()]
->>     Signed-off-by: Michel Lespinasse <walken@google.com>
->>     Cc: Hugh Dickins <hughd@google.com>
->>     Cc: Rik van Riel <riel@redhat.com>
->>     Cc: Peter Zijlstra <peterz@infradead.org>
->>     Cc: Nick Piggin <npiggin@kernel.dk>
->>     Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>     Cc: Ingo Molnar <mingo@elte.hu>
->>     Cc: "H. Peter Anvin" <hpa@zytor.com>
->>     Cc: Thomas Gleixner <tglx@linutronix.de>
->>     Cc: David Howells <dhowells@redhat.com>
->>     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->>     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
->>
->> I started looking into this, if anyone has any feedback meanwhile,
->> that would be appreciated.
->>
->> In particular I don't really see why would this trigger
->> on commit 8f5fd927c3a7576d57248a2d7a0861c3f2795973:
->>
->> Merge: 8757ae2 093e037
->> Author: Linus Torvalds <torvalds@linux-foundation.org>
->> Date:   Fri Mar 16 13:37:42 2018 -0700
->>
->>     Merge tag 'for-4.16-rc5-tag' of git://git.kernel.org/pub/scm/linux/kernel/git/kdave/linux
->>
->> is btrfs used on these systems?
->
-> There were 3 patches pulled by that tag, none of them is even remotely
-> related to the reported bug, AFAICS. If there's some impact, it must be
-> indirect, obvious bugs like NULL pointer would exhibit in a different
-> way and leave at least some trace in the stacks.
+4.9-stable review patch.  If anyone has any objections, please let me know.
 
-That is just a commit on which the bug was hit. It's provided so that
-developers can make sense out of line numbers and check if the tree
-includes/not includes a particular commit, etc. It's not that that
-commit introduced the bug.
+------------------
+
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+
+
+[ Upstream commit 591a3d7c09fa08baff48ad86c2347dbd28a52753 ]
+
+0day testing by Fengguang Wu triggered this crash while running Trinity:
+
+  kernel BUG at include/linux/pagemap.h:151!
+  ...
+  CPU: 0 PID: 458 Comm: trinity-c0 Not tainted 4.11.0-rc2-00251-g2947ba0 #1
+  ...
+  Call Trace:
+   __get_user_pages_fast()
+   get_user_pages_fast()
+   get_futex_key()
+   futex_requeue()
+   do_futex()
+   SyS_futex()
+   do_syscall_64()
+   entry_SYSCALL64_slow_path()
+
+It' VM_BUG_ON() due to false-negative in_atomic(). We call
+page_cache_get_speculative() with disabled local interrupts.
+It should be atomic enough.
+
+So let's check for disabled interrupts in the VM_BUG_ON() condition
+too, to resolve this.
+
+( This got triggered by the conversion of the x86 GUP code to the
+  generic GUP code. )
+
+Reported-by: Fengguang Wu <fengguang.wu@intel.com>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: LKP <lkp@01.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/20170324114709.pcytvyb3d6ajux33@black.fi.intel.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ include/linux/pagemap.h |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -148,7 +148,7 @@ static inline int page_cache_get_specula
+ 
+ #ifdef CONFIG_TINY_RCU
+ # ifdef CONFIG_PREEMPT_COUNT
+-	VM_BUG_ON(!in_atomic());
++	VM_BUG_ON(!in_atomic() && !irqs_disabled());
+ # endif
+ 	/*
+ 	 * Preempt must be disabled here - we rely on rcu_read_lock doing
+@@ -186,7 +186,7 @@ static inline int page_cache_add_specula
+ 
+ #if !defined(CONFIG_SMP) && defined(CONFIG_TREE_RCU)
+ # ifdef CONFIG_PREEMPT_COUNT
+-	VM_BUG_ON(!in_atomic());
++	VM_BUG_ON(!in_atomic() && !irqs_disabled());
+ # endif
+ 	VM_BUG_ON_PAGE(page_count(page) == 0, page);
+ 	page_ref_add(page, count);
