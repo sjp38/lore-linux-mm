@@ -1,66 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A2736B0008
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 07:19:43 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id w14-v6so2499717plp.13
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 04:19:43 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id o1-v6si11945196plk.138.2018.03.19.04.19.41
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FEFF6B0007
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 08:04:09 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id f32-v6so9870618otc.13
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 05:04:09 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id t45si307483otf.353.2018.03.19.05.04.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 19 Mar 2018 04:19:42 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH 3/5] powerpc/mm/32: Use page_is_ram to check for RAM
-In-Reply-To: <874llcha6p.fsf@concordia.ellerman.id.au>
-References: <20180222121516.23415-1-j.neuschaefer@gmx.net> <20180222121516.23415-4-j.neuschaefer@gmx.net> <874llcha6p.fsf@concordia.ellerman.id.au>
-Date: Mon, 19 Mar 2018 22:19:32 +1100
-Message-ID: <87y3iofh2z.fsf@concordia.ellerman.id.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 19 Mar 2018 05:04:02 -0700 (PDT)
+Subject: Re: [PATCH v2] mm: Warn on lock_page() from reclaim context.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20180319090419.GR23100@dhcp22.suse.cz>
+	<20180319101440.6xe5ixd5nn4zrvl2@node.shutemov.name>
+	<20180319103336.GU23100@dhcp22.suse.cz>
+	<20180319104502.n524uvuvjze3hbdz@node.shutemov.name>
+	<20180319105517.GX23100@dhcp22.suse.cz>
+In-Reply-To: <20180319105517.GX23100@dhcp22.suse.cz>
+Message-Id: <201803192104.DAG43292.MJFHOLOSFtVQOF@I-love.SAKURA.ne.jp>
+Date: Mon, 19 Mar 2018 21:04:01 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, linuxppc-dev@lists.ozlabs.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, Joel Stanley <joel@jms.id.au>, Guenter Roeck <linux@roeck-us.net>
+To: mhocko@suse.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-Michael Ellerman <mpe@ellerman.id.au> writes:
-> Jonathan Neusch=C3=A4fer <j.neuschaefer@gmx.net> writes:
->
->> Signed-off-by: Jonathan Neusch=C3=A4fer <j.neuschaefer@gmx.net>
->> ---
->>  arch/powerpc/mm/pgtable_32.c | 3 +--
->>  1 file changed, 1 insertion(+), 2 deletions(-)
->>
->> diff --git a/arch/powerpc/mm/pgtable_32.c b/arch/powerpc/mm/pgtable_32.c
->> index d35d9ad3c1cd..d54e1a9c1c99 100644
->> --- a/arch/powerpc/mm/pgtable_32.c
->> +++ b/arch/powerpc/mm/pgtable_32.c
->> @@ -145,9 +145,8 @@ __ioremap_caller(phys_addr_t addr, unsigned long siz=
-e, unsigned long flags,
->>  #ifndef CONFIG_CRASH_DUMP
->>  	/*
->>  	 * Don't allow anybody to remap normal RAM that we're using.
->> -	 * mem_init() sets high_memory so only do the check after that.
->>  	 */
->> -	if (slab_is_available() && (p < virt_to_phys(high_memory)) &&
->> +	if (page_is_ram(__phys_to_pfn(p)) &&
->>  	    !(__allow_ioremap_reserved && memblock_is_region_reserved(p, size)=
-)) {
->>  		printk("__ioremap(): phys addr 0x%llx is RAM lr %ps\n",
->>  		       (unsigned long long)p, __builtin_return_address(0));
->
->
-> This is killing my p5020ds (Freescale e5500) unfortunately:
+Michal Hocko wrote:
+> On Mon 19-03-18 13:45:02, Kirill A. Shutemov wrote:
+> > On Mon, Mar 19, 2018 at 11:33:36AM +0100, Michal Hocko wrote:
+> > > On Mon 19-03-18 13:14:40, Kirill A. Shutemov wrote:
+> > > > On Mon, Mar 19, 2018 at 10:04:19AM +0100, Michal Hocko wrote:
+> > > > > On Sun 18-03-18 10:22:49, Tetsuo Handa wrote:
+> > > > > > >From f43b8ca61b76f9a19c13f6bf42b27fad9554afc0 Mon Sep 17 00:00:00 2001
+> > > > > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > > > > Date: Sun, 18 Mar 2018 10:18:01 +0900
+> > > > > > Subject: [PATCH v2] mm: Warn on lock_page() from reclaim context.
+> > > > > > 
+> > > > > > Kirill A. Shutemov noticed that calling lock_page[_killable]() from
+> > > > > > reclaim context might cause deadlock. In order to help finding such
+> > > > > > lock_page[_killable]() users (including out of tree users), this patch
+> > > > > > emits warning messages when CONFIG_PROVE_LOCKING is enabled.
+> > > > > 
+> > > > > So how do you ensure that this won't cause false possitives? E.g. do we
+> > > > > ever allocate while holding the page lock and not having the page on the
+> > > > > LRU list?
+> > > > 
+> > > > Hm. Do we even have a reason to lock such pages?
+> > > > Probably we do, but I cannot come up with an example.
+> > > 
+> > > Page lock is way too obscure to be sure :/
+> > > Anyway, maybe we want to be more conservative and only warn about LRU
+> > > pages...
+> > 
+> > I would rather see what we actually step onto. Sometimes false-positive
+> > warning may bring useful insight.
+> > 
+> > Maybe keep in in mm- tree for few cycles? (If it wouldn't blow up
+> > immediately)
+> 
+> I would be OK to keep it in mmotm for some time. But I am not yet
+> convinced this is a mainline material yet. Please also note that we have
+> some PF_MEMALLOC (ab)users outside of the MM proper and thy use the flag
+> to break into reserves and I wouldn't be all that surprised if they id
+> lock_page as well.
 
-Duh, I should actually read the patch :)
-
-This is a 32-bit system with 4G of RAM, so not all of RAM is mapped,
-some of it is highem which is why removing the test against high_memory
-above breaks it.
-
-So I need the high_memory test on this system.
-
-I'm not clear why it was a problem for you on the Wii, do you even build
-the Wii kernel with HIGHMEM enabled?
-
-cheers
+I don't know who is doing such thing. But if the purpose of abusing PF_MEMALLOC
+is "not to block the current thread" by allowing memory reserves, I think it is
+better to warn locations (like lock_page()) which might be unexpectedly blocked
+due to invisible dependency.
