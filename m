@@ -1,116 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B8CF6B0009
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 05:16:31 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id v21so3606893wmh.9
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 02:16:30 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id a38si178842edf.314.2018.03.19.02.16.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Mar 2018 02:16:25 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2J9EXj2025658
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 05:16:24 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2gt9aa2mb3-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 05:16:23 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
-	Mon, 19 Mar 2018 09:16:21 -0000
-Subject: Re: [PATCH 6/8] trace_uprobe/sdt: Fix multiple update of same
- reference counter
-References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180313125603.19819-7-ravi.bangoria@linux.vnet.ibm.com>
- <20180315144959.GB19643@redhat.com>
- <c93216a4-a4e1-dd8f-00be-17254e308cd1@linux.vnet.ibm.com>
- <20180316175030.GA28770@redhat.com>
-From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Date: Mon, 19 Mar 2018 14:48:35 +0530
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A67896B0009
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 06:01:23 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id c72so1742743oig.8
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 03:01:23 -0700 (PDT)
+Received: from baidu.com ([220.181.50.185])
+        by mx.google.com with ESMTP id c37si426228otd.267.2018.03.19.03.01.21
+        for <linux-mm@kvack.org>;
+        Mon, 19 Mar 2018 03:01:22 -0700 (PDT)
+From: "Li,Rongqing" <lirongqing@baidu.com>
+Subject: =?gb2312?B?tPC4tDogW1BBVENIXSBtbS9tZW1jb250cm9sLmM6IHNwZWVkIHVwIHRvIGZv?=
+ =?gb2312?Q?rce_empty_a_memory_cgroup?=
+Date: Mon, 19 Mar 2018 10:00:41 +0000
+Message-ID: <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
+References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
+ <20180319085355.GQ23100@dhcp22.suse.cz>
+In-Reply-To: <20180319085355.GQ23100@dhcp22.suse.cz>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20180316175030.GA28770@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-Message-Id: <4b337afd-fc5e-6110-888b-d4fa36a797ee@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com, Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-Hi Oleg,
-
-On 03/16/2018 11:20 PM, Oleg Nesterov wrote:
-> On 03/16, Ravi Bangoria wrote:
->> On 03/15/2018 08:19 PM, Oleg Nesterov wrote:
->>> On 03/13, Ravi Bangoria wrote:
->>>> For tiny binaries/libraries, different mmap regions points to the
->>>> same file portion. In such cases, we may increment reference counter
->>>> multiple times.
->>> Yes,
->>>
->>>> But while de-registration, reference counter will get
->>>> decremented only by once
->>> could you explain why this happens? sdt_increment_ref_ctr() and
->>> sdt_decrement_ref_ctr() look symmetrical, _decrement_ should see
->>> the same mappings?
-> ...
->
->> A A A  # strace -o out python
->> A A  A A  mmap(NULL, 2738968, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fff92460000
->> A A A A A  mmap(0x7fff926a0000, 327680, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x230000) = 0x7fff926a0000
->> A A A A A  mprotect(0x7fff926a0000, 65536, PROT_READ) = 0
-> Ah, in this case everything is clear, thanks.
->
-> I was confused by the changelog, I misinterpreted it as if inc/dec are not
-> balanced in case of multiple mappings even if the application doesn't play
-> with mmap/mprotect/etc.
->
-> And it seems that you are trying to confuse yourself, not only me ;) Just
-> suppose that an application does mmap+munmap in a loop and the mapped region
-> contains uprobe but not the counter.
-
-this is fine because ...
-
->
-> And this all makes me think that we should do something else. Ideally,
-> install_breakpoint() and remove_breakpoint() should inc/dec the counter
-> if they do not fail...
-
-The whole point of adding this logic in trace_uprobe is we wanted to
-decouple the counter inc/dec logic from uprobe patching. If user is just
-doing mmap+munmap region in a loop which contains uprobe, the
-instruction will be patched by the core uprobe infrastructure. Whenever
-application mmap the region that holds to counter, it will be incremented.
-
-Our initial design was to increment counter in install_breakpoint() but
-uprobed instruction gets patched in a very early stage of binary loading
-and vma that holds the counter may not be mapped yet.
-
->
-> Btw, why do we need a counter, not a boolean? Who else can modify it?
-> Or different uprobes can share the same counter?
-
-Yes, multiple SDT markers can share the counter. Ex, there can be multiple
-implementation of same function and thus each individual implementation
-may contain marker which share the same counter. From mysql,
-
-A  # readelf -n /usr/lib64/mysql/libmysqlclient.so.18.0.0 | grep -A2 Provider
-A A A  Provider: mysql
-A A A  Name: net__write__start
-A A A  Location: 0x000000000003caa0, ..., Semaphore: 0x0000000000333532
-A  --
-A A A  Provider: mysql
-A A A  Name: net__write__start
-A A A  Location: 0x000000000003cd5c, ..., Semaphore: 0x0000000000333532
-
-Here, both the markers has same name, but different location. Also they
-share the counter (semaphore).
-
-Apart from that, counter allows multiple tracers to trace on a single marker,
-which is difficult with boolean flag.
-
-Thanks,
-Ravi
+DQoNCj4gLS0tLS3Tyrz+1K28/i0tLS0tDQo+ILeivP7IyzogTWljaGFsIEhvY2tvIFttYWlsdG86
+bWhvY2tvQGtlcm5lbC5vcmddDQo+ILeiy83KsbzkOiAyMDE4xOoz1MIxOcjVIDE2OjU0DQo+IMrV
+vP7IyzogTGksUm9uZ3FpbmcgPGxpcm9uZ3FpbmdAYmFpZHUuY29tPg0KPiCzrcvNOiBsaW51eC1r
+ZXJuZWxAdmdlci5rZXJuZWwub3JnOyBsaW51eC1tbUBrdmFjay5vcmc7DQo+IGNncm91cHNAdmdl
+ci5rZXJuZWwub3JnOyBoYW5uZXNAY21weGNoZy5vcmc7IEFuZHJleSBSeWFiaW5pbg0KPiA8YXJ5
+YWJpbmluQHZpcnR1b3p6by5jb20+DQo+INb3zOI6IFJlOiBbUEFUQ0hdIG1tL21lbWNvbnRyb2wu
+Yzogc3BlZWQgdXAgdG8gZm9yY2UgZW1wdHkgYSBtZW1vcnkNCj4gY2dyb3VwDQo+IA0KPiBPbiBN
+b24gMTktMDMtMTggMTY6Mjk6MzAsIExpIFJvbmdRaW5nIHdyb3RlOg0KPiA+IG1lbV9jZ3JvdXBf
+Zm9yY2VfZW1wdHkoKSB0cmllcyB0byBmcmVlIG9ubHkgMzIgKFNXQVBfQ0xVU1RFUl9NQVgpDQo+
+ID4gcGFnZXMgb24gZWFjaCBpdGVyYXRpb24sIGlmIGEgbWVtb3J5IGNncm91cCBoYXMgbG90cyBv
+ZiBwYWdlIGNhY2hlLCBpdA0KPiA+IHdpbGwgdGFrZSBtYW55IGl0ZXJhdGlvbnMgdG8gZW1wdHkg
+YWxsIHBhZ2UgY2FjaGUsIHNvIGluY3JlYXNlIHRoZQ0KPiA+IHJlY2xhaW1lZCBudW1iZXIgcGVy
+IGl0ZXJhdGlvbiB0byBzcGVlZCBpdCB1cC4gc2FtZSBhcyBpbg0KPiA+IG1lbV9jZ3JvdXBfcmVz
+aXplX2xpbWl0KCkNCj4gPg0KPiA+IGEgc2ltcGxlIHRlc3Qgc2hvdzoNCj4gPg0KPiA+ICAgJGRk
+IGlmPWFhYSAgb2Y9YmJiICBicz0xayBjb3VudD0zODg2MDgwDQo+ID4gICAkcm0gLWYgYmJiDQo+
+ID4gICAkdGltZSBlY2hvIDEwMDAwMDAwMCA+L2Nncm91cC9tZW1vcnkvdGVzdC9tZW1vcnkubGlt
+aXRfaW5fYnl0ZXMNCj4gPg0KPiA+IEJlZm9yZTogMG0wLjI1MnMgPT09PiBhZnRlcjogMG0wLjE3
+OHMNCj4gDQo+IEFuZHJleSB3YXMgcHJvcG9zaW5nIHNvbWV0aGluZyBzaW1pbGFyIFsxXS4gTXkg
+bWFpbiBvYmplY3Rpb24gd2FzIHRoYXQgaGlzDQo+IGFwcHJvYWNoIG1pZ2h0IGxlYWQgdG8gb3Zl
+ci1yZWNsYWltLiBZb3VyIGFwcHJvYWNoIGlzIG1vcmUgY29uc2VydmF0aXZlDQo+IGJlY2F1c2Ug
+aXQganVzdCBpbmNyZWFzZXMgdGhlIGJhdGNoIHNpemUuIFRoZSBzaXplIGlzIHN0aWxsIHJhdGhl
+ciBhcmJpdHJhcnkuIFNhbWUNCj4gYXMgU1dBUF9DTFVTVEVSX01BWCBidXQgdGhhdCBvbmUgaXMg
+YSBjb21tb25seSB1c2VkIHVuaXQgb2YgcmVjbGFpbSBpbg0KPiB0aGUgTU0gY29kZS4NCj4gDQo+
+IEkgd291bGQgYmUgcmVhbGx5IGN1cmlvdXMgYWJvdXQgbW9yZSBkZXRhaWxlZCBleHBsYW5hdGlv
+biB3aHkgaGF2aW5nIGENCj4gbGFyZ2VyIGJhdGNoIHlpZWxkcyB0byBhIGJldHRlciBwZXJmb3Jt
+YW5jZSBiZWNhdXNlIHdlIGFyZSBkb2luZ2cNCj4gU1dBUF9DTFVTVEVSX01BWCBiYXRjaGVzIGF0
+IHRoZSBsb3dlciByZWNsYWltIGxldmVsIGFueXdheS4NCj4gDQoNCkFsdGhvdWdoIFNXQVBfQ0xV
+U1RFUl9NQVggaXMgdXNlZCBhdCB0aGUgbG93ZXIgbGV2ZWwsIGJ1dCB0aGUgY2FsbCBzdGFjayBv
+ZiANCnRyeV90b19mcmVlX21lbV9jZ3JvdXBfcGFnZXMgaXMgdG9vIGxvbmcsIGluY3JlYXNlIHRo
+ZSBucl90b19yZWNsYWltIGNhbiByZWR1Y2UNCnRpbWVzIG9mIGNhbGxpbmcgZnVuY3Rpb25bZG9f
+dHJ5X3RvX2ZyZWVfcGFnZXMsIHNocmlua196b25lcywgaHJpbmtfbm9kZSBdDQoNCm1lbV9jZ3Jv
+dXBfcmVzaXplX2xpbWl0DQotLS0+dHJ5X3RvX2ZyZWVfbWVtX2Nncm91cF9wYWdlczogIC5ucl90
+b19yZWNsYWltID0gbWF4KDEwMjQsICBTV0FQX0NMVVNURVJfTUFYKSwNCiAgIC0tLT4gZG9fdHJ5
+X3RvX2ZyZWVfcGFnZXMgDQogICAgIC0tLT4gc2hyaW5rX3pvbmVzDQogICAgICAtLS0+c2hyaW5r
+X25vZGUNCiAgICAgICAtLS0+IHNocmlua19ub2RlX21lbWNnDQogICAgICAgICAtLS0+IHNocmlu
+a19saXN0ICAgICAgICAgIDwtLS0tLS0tbG9vcCB3aWxsIGhhcHBlbiBpbiB0aGlzIHBsYWNlIFt0
+aW1lcz0xMDI0LzMyXQ0KICAgICAgICAgICAtLS0+IHNocmlua19wYWdlX2xpc3QNCg0KDQo+IFsx
+XQ0KPiBodHRwOi8vbGttbC5rZXJuZWwub3JnL3IvMjAxODAxMTkxMzI1NDQuMTk1NjktMi1hcnlh
+YmluaW5AdmlydHVvenpvLmNvDQo+IG0NCj4gDQo+ID4NCj4gPiBTaWduZWQtb2ZmLWJ5OiBMaSBS
+b25nUWluZyA8bGlyb25ncWluZ0BiYWlkdS5jb20+DQo+ID4gLS0tDQo+ID4gIG1tL21lbWNvbnRy
+b2wuYyB8IDQgKystLQ0KPiA+ICAxIGZpbGUgY2hhbmdlZCwgMiBpbnNlcnRpb25zKCspLCAyIGRl
+bGV0aW9ucygtKQ0KPiA+DQo+ID4gZGlmZiAtLWdpdCBhL21tL21lbWNvbnRyb2wuYyBiL21tL21l
+bWNvbnRyb2wuYyBpbmRleA0KPiA+IDY3MGU5OWI2OGFhNi4uODkxMGQ5ZThlOTA4IDEwMDY0NA0K
+PiA+IC0tLSBhL21tL21lbWNvbnRyb2wuYw0KPiA+ICsrKyBiL21tL21lbWNvbnRyb2wuYw0KPiA+
+IEBAIC0yNDgwLDcgKzI0ODAsNyBAQCBzdGF0aWMgaW50IG1lbV9jZ3JvdXBfcmVzaXplX2xpbWl0
+KHN0cnVjdA0KPiBtZW1fY2dyb3VwICptZW1jZywNCj4gPiAgCQlpZiAoIXJldCkNCj4gPiAgCQkJ
+YnJlYWs7DQo+ID4NCj4gPiAtCQlpZiAoIXRyeV90b19mcmVlX21lbV9jZ3JvdXBfcGFnZXMobWVt
+Y2csIDEsDQo+ID4gKwkJaWYgKCF0cnlfdG9fZnJlZV9tZW1fY2dyb3VwX3BhZ2VzKG1lbWNnLCAx
+MDI0LA0KPiA+ICAJCQkJCUdGUF9LRVJORUwsICFtZW1zdykpIHsNCj4gPiAgCQkJcmV0ID0gLUVC
+VVNZOw0KPiA+ICAJCQlicmVhazsNCj4gPiBAQCAtMjYxMCw3ICsyNjEwLDcgQEAgc3RhdGljIGlu
+dCBtZW1fY2dyb3VwX2ZvcmNlX2VtcHR5KHN0cnVjdA0KPiBtZW1fY2dyb3VwICptZW1jZykNCj4g
+PiAgCQlpZiAoc2lnbmFsX3BlbmRpbmcoY3VycmVudCkpDQo+ID4gIAkJCXJldHVybiAtRUlOVFI7
+DQo+ID4NCj4gPiAtCQlwcm9ncmVzcyA9IHRyeV90b19mcmVlX21lbV9jZ3JvdXBfcGFnZXMobWVt
+Y2csIDEsDQo+ID4gKwkJcHJvZ3Jlc3MgPSB0cnlfdG9fZnJlZV9tZW1fY2dyb3VwX3BhZ2VzKG1l
+bWNnLCAxMDI0LA0KPiA+ICAJCQkJCQkJR0ZQX0tFUk5FTCwgdHJ1ZSk7DQo+ID4gIAkJaWYgKCFw
+cm9ncmVzcykgew0KPiA+ICAJCQlucl9yZXRyaWVzLS07DQo+ID4gLS0NCj4gPiAyLjExLjANCj4g
+DQo+IC0tDQo+IE1pY2hhbCBIb2Nrbw0KPiBTVVNFIExhYnMNCg==
