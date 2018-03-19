@@ -1,82 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 092C16B000C
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:18:01 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id w19-v6so8963933plq.2
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 11:18:01 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 52CA36B000D
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:18:45 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id i11so8861789pgq.10
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 11:18:45 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j88si341065pfe.324.2018.03.19.11.17.59
+        by mx.google.com with ESMTPS id i15-v6si394478pll.633.2018.03.19.11.18.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Mar 2018 11:18:00 -0700 (PDT)
+        Mon, 19 Mar 2018 11:18:44 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 115/134] x86/mm: Fix vmalloc_fault to use pXd_large
-Date: Mon, 19 Mar 2018 19:06:38 +0100
-Message-Id: <20180319171905.892026687@linuxfoundation.org>
-In-Reply-To: <20180319171849.024066323@linuxfoundation.org>
-References: <20180319171849.024066323@linuxfoundation.org>
+Subject: [PATCH 4.9 020/241] x86/mm: Make mmap(MAP_32BIT) work correctly
+Date: Mon, 19 Mar 2018 19:04:45 +0100
+Message-Id: <20180319180752.005376139@linuxfoundation.org>
+In-Reply-To: <20180319180751.172155436@linuxfoundation.org>
+References: <20180319180751.172155436@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Gratian Crisan <gratian.crisan@ni.com>, Toshi Kani <toshi.kani@hpe.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dmitry Safonov <dsafonov@virtuozzo.com>, 0x7f454c46@gmail.com, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Sasha Levin <alexander.levin@microsoft.com>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+4.9-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
-From: Toshi Kani <toshi.kani@hpe.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
 
-commit 18a955219bf7d9008ce480d4451b6b8bf4483a22 upstream.
 
-Gratian Crisan reported that vmalloc_fault() crashes when CONFIG_HUGETLBFS
-is not set since the function inadvertently uses pXn_huge(), which always
-return 0 in this case.  ioremap() does not depend on CONFIG_HUGETLBFS.
+[ Upstream commit 3e6ef9c80946f781fc25e8490c9875b1d2b61158 ]
 
-Fix vmalloc_fault() to call pXd_large() instead.
+mmap(MAP_32BIT) is broken due to the dependency on the TIF_ADDR32 thread
+flag.
 
-Fixes: f4eafd8bcd52 ("x86/mm: Fix vmalloc_fault() to handle large pages properly")
-Reported-by: Gratian Crisan <gratian.crisan@ni.com>
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: stable@vger.kernel.org
+For 64bit applications MAP_32BIT will force legacy bottom-up allocations and
+the 1GB address space restriction even if the application issued a compat
+syscall, which should not be subject of these restrictions.
+
+For 32bit applications, which issue 64bit syscalls the newly introduced
+mmap base separation into 64-bit and compat bases changed the behaviour
+because now a 64-bit mapping is returned, but due to the TIF_ADDR32
+dependency MAP_32BIT is ignored. Before the separation a 32-bit mapping was
+returned, so the MAP_32BIT handling was irrelevant.
+
+Replace the check for TIF_ADDR32 with a check for the compat syscall. That
+solves both the 64-bit issuing a compat syscall and the 32-bit issuing a
+64-bit syscall problems.
+
+[ tglx: Massaged changelog ]
+
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: 0x7f454c46@gmail.com
 Cc: linux-mm@kvack.org
-Cc: Borislav Petkov <bp@alien8.de>
 Cc: Andy Lutomirski <luto@kernel.org>
-Link: https://lkml.kernel.org/r/20180313170347.3829-2-toshi.kani@hpe.com
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Link: http://lkml.kernel.org/r/20170306141721.9188-5-dsafonov@virtuozzo.com
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
 ---
- arch/x86/mm/fault.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ arch/x86/kernel/sys_x86_64.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -287,7 +287,7 @@ static noinline int vmalloc_fault(unsign
- 	if (!pmd_k)
- 		return -1;
+--- a/arch/x86/kernel/sys_x86_64.c
++++ b/arch/x86/kernel/sys_x86_64.c
+@@ -100,7 +100,7 @@ out:
+ static void find_start_end(unsigned long flags, unsigned long *begin,
+ 			   unsigned long *end)
+ {
+-	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT)) {
++	if (!in_compat_syscall() && (flags & MAP_32BIT)) {
+ 		/* This is usually used needed to map code in small
+ 		   model, so it needs to be in the first 31bit. Limit
+ 		   it to that.  This means we need to move the
+@@ -175,7 +175,7 @@ arch_get_unmapped_area_topdown(struct fi
+ 		return addr;
  
--	if (pmd_huge(*pmd_k))
-+	if (pmd_large(*pmd_k))
- 		return 0;
+ 	/* for MAP_32BIT mappings we force the legacy mmap base */
+-	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT))
++	if (!in_compat_syscall() && (flags & MAP_32BIT))
+ 		goto bottomup;
  
- 	pte_k = pte_offset_kernel(pmd_k, address);
-@@ -407,7 +407,7 @@ static noinline int vmalloc_fault(unsign
- 	if (pud_none(*pud) || pud_pfn(*pud) != pud_pfn(*pud_ref))
- 		BUG();
- 
--	if (pud_huge(*pud))
-+	if (pud_large(*pud))
- 		return 0;
- 
- 	pmd = pmd_offset(pud, address);
-@@ -418,7 +418,7 @@ static noinline int vmalloc_fault(unsign
- 	if (pmd_none(*pmd) || pmd_pfn(*pmd) != pmd_pfn(*pmd_ref))
- 		BUG();
- 
--	if (pmd_huge(*pmd))
-+	if (pmd_large(*pmd))
- 		return 0;
- 
- 	pte_ref = pte_offset_kernel(pmd_ref, address);
+ 	/* requesting a specific address */
