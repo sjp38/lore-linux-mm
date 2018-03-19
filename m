@@ -1,86 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B7E1B6B0008
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 17:10:09 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h11so10308114pfn.0
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:10:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a7-v6sor42668pll.106.2018.03.19.14.10.08
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 189E16B0008
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 18:08:28 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x7so10372986pfd.19
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 15:08:28 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m89si160261pfg.202.2018.03.19.15.08.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 19 Mar 2018 14:10:08 -0700 (PDT)
-Date: Mon, 19 Mar 2018 14:10:05 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, thp: do not cause memcg oom for thp
-Message-ID: <alpine.DEB.2.20.1803191409420.124411@chino.kir.corp.google.com>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Mar 2018 15:08:26 -0700 (PDT)
+Date: Mon, 19 Mar 2018 15:08:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: Warn on lock_page() from reclaim context.
+Message-Id: <20180319150824.24032e2854908b0cc5240d9f@linux-foundation.org>
+In-Reply-To: <201803181022.IAI30275.JOFOQMtFSHLFOV@I-love.SAKURA.ne.jp>
+References: <1521295866-9670-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20180317155437.pcbeigeivn4a23gt@node.shutemov.name>
+	<201803181022.IAI30275.JOFOQMtFSHLFOV@I-love.SAKURA.ne.jp>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: kirill@shutemov.name, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, mhocko@suse.com
 
-Commit 2516035499b9 ("mm, thp: remove __GFP_NORETRY from khugepaged and
-madvised allocations") changed the page allocator to no longer detect thp
-allocations based on __GFP_NORETRY.
+On Sun, 18 Mar 2018 10:22:49 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
 
-It did not, however, modify the mem cgroup try_charge() path to avoid oom
-kill for either khugepaged collapsing or thp faulting.  It is never
-expected to oom kill a process to allocate a hugepage for thp; reclaim is
-governed by the thp defrag mode and MADV_HUGEPAGE, but allocations (and
-charging) should fallback instead of oom killing processes.
+> >From f43b8ca61b76f9a19c13f6bf42b27fad9554afc0 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sun, 18 Mar 2018 10:18:01 +0900
+> Subject: [PATCH v2] mm: Warn on lock_page() from reclaim context.
+> 
+> Kirill A. Shutemov noticed that calling lock_page[_killable]() from
+> reclaim context might cause deadlock. In order to help finding such
+> lock_page[_killable]() users (including out of tree users), this patch
+> emits warning messages when CONFIG_PROVE_LOCKING is enabled.
+>
+> ...
+> 
+> --- a/include/linux/pagemap.h
+> +++ b/include/linux/pagemap.h
+> @@ -466,6 +466,7 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
+>  extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+>  				unsigned int flags);
+>  extern void unlock_page(struct page *page);
+> +extern void __warn_lock_page_from_reclaim_context(void);
+>  
+>  static inline int trylock_page(struct page *page)
+>  {
+> @@ -479,6 +480,9 @@ static inline int trylock_page(struct page *page)
+>  static inline void lock_page(struct page *page)
+>  {
+>  	might_sleep();
+> +	if (IS_ENABLED(CONFIG_PROVE_LOCKING) &&
+> +	    unlikely(current->flags & PF_MEMALLOC))
+> +		__warn_lock_page_from_reclaim_context();
+>  	if (!trylock_page(page))
+>  		__lock_page(page);
+>  }
 
-Fixes: 2516035499b9 ("mm, thp: remove __GFP_NORETRY from khugepaged and madvised allocations")
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/huge_memory.c | 5 +++--
- mm/khugepaged.c  | 8 ++++++--
- 2 files changed, 9 insertions(+), 4 deletions(-)
+I think it would be neater to do something like
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -555,7 +555,8 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
- 
- 	VM_BUG_ON_PAGE(!PageCompound(page), page);
- 
--	if (mem_cgroup_try_charge(page, vma->vm_mm, gfp, &memcg, true)) {
-+	if (mem_cgroup_try_charge(page, vma->vm_mm, gfp | __GFP_NORETRY, &memcg,
-+				  true)) {
- 		put_page(page);
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
-@@ -1316,7 +1317,7 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
- 	}
- 
- 	if (unlikely(mem_cgroup_try_charge(new_page, vma->vm_mm,
--					huge_gfp, &memcg, true))) {
-+				huge_gfp | __GFP_NORETRY, &memcg, true))) {
- 		put_page(new_page);
- 		split_huge_pmd(vma, vmf->pmd, vmf->address);
- 		if (page)
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -960,7 +960,9 @@ static void collapse_huge_page(struct mm_struct *mm,
- 		goto out_nolock;
- 	}
- 
--	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp, &memcg, true))) {
-+	/* Do not oom kill for khugepaged charges */
-+	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp | __GFP_NORETRY,
-+					   &memcg, true))) {
- 		result = SCAN_CGROUP_CHARGE_FAIL;
- 		goto out_nolock;
- 	}
-@@ -1319,7 +1321,9 @@ static void collapse_shmem(struct mm_struct *mm,
- 		goto out;
- 	}
- 
--	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp, &memcg, true))) {
-+	/* Do not oom kill for khugepaged charges */
-+	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp | __GFP_NORETRY,
-+					   &memcg, true))) {
- 		result = SCAN_CGROUP_CHARGE_FAIL;
- 		goto out;
- 	}
+#ifdef CONFIG_PROVE_LOCKING
+static inline void lock_page_check_context(struct page *page)
+{
+	if (unlikely(current->flags & PF_MEMALLOC))
+		__lock_page_check_context(page);
+}
+#else
+static inline void lock_page_check_context(struct page *page)
+{
+}
+#endif
+
+and
+
+void __lock_page_check_context(struct page *page)
+{
+	WARN_ONCE(...);
+	dump_page(page);
+}
+
+And I wonder if overloading CONFIG_PROVE_LOCKING is appropriate here. 
+CONFIG_PROVE_LOCKING is a high-level thing under which a whole bunch of
+different debugging options may exist.  I guess we should add a new
+config item under PROVE_LOCKING, or perhaps use CONFIG_DEBUG_VM.
+
+Also, is PF_MEMALLOC the best way of determining that we're running
+reclaim?  What about using current->reclaim_state?
