@@ -1,118 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D4A06B0003
-	for <linux-mm@kvack.org>; Sun, 18 Mar 2018 22:30:29 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id az5-v6so9549624plb.14
-        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 19:30:29 -0700 (PDT)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id p26-v6si11099741pli.534.2018.03.18.19.30.26
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 28A1F6B0003
+	for <linux-mm@kvack.org>; Sun, 18 Mar 2018 22:37:04 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j12so8753314pff.18
+        for <linux-mm@kvack.org>; Sun, 18 Mar 2018 19:37:04 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id 197si8874901pge.78.2018.03.18.19.37.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Mar 2018 19:30:27 -0700 (PDT)
-From: "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0 (Mac OS X Mail 10.2 \(3259\))
-Subject: [PATCH] vfio iommu type1: improve memory pinning process for raw PFN
- mapping
-Message-Id: <7F93BB33-4ABF-468F-8814-78DE9D23FA08@linux.alibaba.com>
-Date: Mon, 19 Mar 2018 10:30:24 +0800
+        Sun, 18 Mar 2018 19:37:03 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH] mm: add config for readahead window
+References: <20180316182512.118361-1-wvw@google.com>
+	<CAGXk5yoVMd9B=nvob7s=niCAQ9oHAX84eupF9Eet_dAk7WTStg@mail.gmail.com>
+Date: Mon, 19 Mar 2018 10:36:58 +0800
+In-Reply-To: <CAGXk5yoVMd9B=nvob7s=niCAQ9oHAX84eupF9Eet_dAk7WTStg@mail.gmail.com>
+	(Wei Wang's message of "Fri, 16 Mar 2018 18:49:08 +0000")
+Message-ID: <87zi34zt85.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Williamson <alex.williamson@redhat.com>, pbonzini@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: gnehzuil@linux.alibaba.com, "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com>
+To: Wei Wang <wvw@google.com>
+Cc: gregkh@linuxfoundation.org, Todd Poynor <toddpoynor@google.com>, Wei Wang <wei.vince.wang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Ingo Molnar <mingo@kernel.org>, Sherry Cheung <SCheung@nvidia.com>, Oliver
+ O'Halloran <oohall@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dennis Zhou <dennisz@fb.com>, Pavel
+ Tatashin <pasha.tatashin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When using vfio to pass through a PCIe device (e.g. a GPU card) that
-has a huge BAR (e.g. 16GB), a lot of cycles are wasted on memory
-pinning because PFNs of PCI BAR are not backed by struct page, and
-the corresponding VMA has flag VM_PFNMAP.
+Wei Wang <wvw@google.com> writes:
 
-With this change, when pinning a region which is a raw PFN mapping,
-it can skip unnecessary user memory pinning process, and thus, can
-significantly improve VM's boot up time when passing through devices
-via VFIO. In my test on a Xeon E5 2.6GHz, the time mapping a 16GB
-BAR was reduced from about 0.4s to 1.5us.
+> Android devices boot time benefits by bigger readahead window setting from
+> init. This patch will make readahead window a config so early boot can
+> benefit by it as well.
 
-Signed-off-by: Jason Cai (Xiang Feng) <jason.cai@linux.alibaba.com>
----
- drivers/vfio/vfio_iommu_type1.c | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+Can you change the source code of init to call ioctl(BLKRASET) early?
 
-diff --git a/drivers/vfio/vfio_iommu_type1.c =
-b/drivers/vfio/vfio_iommu_type1.c
-index 45657e2b1ff7..0658f35318b8 100644
---- a/drivers/vfio/vfio_iommu_type1.c
-+++ b/drivers/vfio/vfio_iommu_type1.c
-@@ -397,7 +397,6 @@ static long vfio_pin_pages_remote(struct vfio_dma =
-*dma, unsigned long vaddr,
- {
-        unsigned long pfn =3D 0;
-        long ret, pinned =3D 0, lock_acct =3D 0;
--       bool rsvd;
-        dma_addr_t iova =3D vaddr - dma->vaddr + dma->iova;
-
-        /* This code path is only user initiated */
-@@ -408,14 +407,22 @@ static long vfio_pin_pages_remote(struct vfio_dma =
-*dma, unsigned long vaddr,
-        if (ret)
-                return ret;
-
-+       if (is_invalid_reserved_pfn(*pfn_base)) {
-+               struct vm_area_struct *vma;
-+               down_read(&current->mm->mmap_sem);
-+               vma =3D find_vma_intersection(current->mm, vaddr, vaddr =
-+ 1);
-+               pinned =3D min(npage, (long)vma_pages(vma));
-+               up_read(&current->mm->mmap_sem);
-+               return pinned;
-+       }
-+
-        pinned++;
--       rsvd =3D is_invalid_reserved_pfn(*pfn_base);
-
-        /*
-         * Reserved pages aren't counted against the user, externally =
-pinned
-         * pages are already counted against the user.
-         */
--       if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-+       if (!vfio_find_vpfn(dma, iova)) {
-                if (!lock_cap && current->mm->locked_vm + 1 > limit) {
-                        put_pfn(*pfn_base, dma->prot);
-                        pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", =
-__func__,
-@@ -435,13 +442,12 @@ static long vfio_pin_pages_remote(struct vfio_dma =
-*dma, unsigned long vaddr,
-                if (ret)
-                        break;
-
--               if (pfn !=3D *pfn_base + pinned ||
--                   rsvd !=3D is_invalid_reserved_pfn(pfn)) {
-+               if (pfn !=3D *pfn_base + pinned) {
-                        put_pfn(pfn, dma->prot);
-                        break;
-                }
-
--               if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-+               if (!vfio_find_vpfn(dma, iova)) {
-                        if (!lock_cap &&
-                            current->mm->locked_vm + lock_acct + 1 > =
-limit) {
-                                put_pfn(pfn, dma->prot);
-@@ -459,10 +465,8 @@ static long vfio_pin_pages_remote(struct vfio_dma =
-*dma, unsigned long vaddr,
-
- unpin_out:
-        if (ret) {
--               if (!rsvd) {
--                       for (pfn =3D *pfn_base ; pinned ; pfn++, =
-pinned--)
--                               put_pfn(pfn, dma->prot);
--               }
-+               for (pfn =3D *pfn_base ; pinned ; pfn++, pinned--)
-+                       put_pfn(pfn, dma->prot);
-
-                return ret;
-        }
---
-2.13.6
+Best Regards,
+Huang, Ying
