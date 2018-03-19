@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E6BE6B0008
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:09:33 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m18so8842555pgu.14
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 11:09:33 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FEBD6B0008
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:13:41 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id f59-v6so11025421plb.7
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 11:13:41 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 126si306438pgd.375.2018.03.19.11.09.32
+        by mx.google.com with ESMTPS id l189si347963pfl.47.2018.03.19.11.13.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Mar 2018 11:09:32 -0700 (PDT)
+        Mon, 19 Mar 2018 11:13:40 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 3.18 20/68] mm: Fix false-positive VM_BUG_ON() in page_cache_{get,add}_speculative()
-Date: Mon, 19 Mar 2018 19:05:58 +0100
-Message-Id: <20180319171830.694141961@linuxfoundation.org>
-In-Reply-To: <20180319171827.899658615@linuxfoundation.org>
-References: <20180319171827.899658615@linuxfoundation.org>
+Subject: [PATCH 4.4 036/134] mm: Fix false-positive VM_BUG_ON() in page_cache_{get,add}_speculative()
+Date: Mon, 19 Mar 2018 19:05:19 +0100
+Message-Id: <20180319171854.521145165@linuxfoundation.org>
+In-Reply-To: <20180319171849.024066323@linuxfoundation.org>
+References: <20180319171849.024066323@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Fengguang Wu <fengguang.wu@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, LKP <lkp@01.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
 
-3.18-stable review patch.  If anyone has any objections, please let me know.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -77,7 +77,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --- a/include/linux/pagemap.h
 +++ b/include/linux/pagemap.h
-@@ -146,7 +146,7 @@ static inline int page_cache_get_specula
+@@ -153,7 +153,7 @@ static inline int page_cache_get_specula
  
  #ifdef CONFIG_TINY_RCU
  # ifdef CONFIG_PREEMPT_COUNT
@@ -86,7 +86,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  # endif
  	/*
  	 * Preempt must be disabled here - we rely on rcu_read_lock doing
-@@ -184,7 +184,7 @@ static inline int page_cache_add_specula
+@@ -191,7 +191,7 @@ static inline int page_cache_add_specula
  
  #if !defined(CONFIG_SMP) && defined(CONFIG_TREE_RCU)
  # ifdef CONFIG_PREEMPT_COUNT
