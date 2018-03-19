@@ -1,61 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DC306B000C
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 04:44:10 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id w19-v6so8038432plq.2
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 01:44:10 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x13-v6sor3959499pln.55.2018.03.19.01.44.09
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B7226B000C
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 04:53:58 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u68so9250917pfk.8
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 01:53:58 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g8-v6si11747590pln.420.2018.03.19.01.53.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 19 Mar 2018 01:44:09 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 19 Mar 2018 01:53:57 -0700 (PDT)
+Date: Mon, 19 Mar 2018 09:53:55 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/memcontrol.c: speed up to force empty a memory cgroup
+Message-ID: <20180319085355.GQ23100@dhcp22.suse.cz>
+References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
 MIME-Version: 1.0
-In-Reply-To: <B8AC3E80E903784988AB3003E3E97330C0076FFD@dggemm510-mbs.china.huawei.com>
-References: <B8AC3E80E903784988AB3003E3E97330C0076FFD@dggemm510-mbs.china.huawei.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 19 Mar 2018 09:43:48 +0100
-Message-ID: <CACT4Y+bec8x8AZOneZ57bnxei=gBGGKG2_VUiqyMaa1OPzov2g@mail.gmail.com>
-Subject: Re: [PATCH v2 0/7] KASan for arm
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
-Cc: Florian Fainelli <f.fainelli@gmail.com>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "marc.zyngier@arm.com" <marc.zyngier@arm.com>, "kstewart@linuxfoundation.org" <kstewart@linuxfoundation.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "glider@google.com" <glider@google.com>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "linux@rasmusvillemoes.dk" <linux@rasmusvillemoes.dk>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "pombredanne@nexb.com" <pombredanne@nexb.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "nicolas.pitre@linaro.org" <nicolas.pitre@linaro.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "geert@linux-m68k.org" <geert@linux-m68k.org>, "tixy@linaro.org" <tixy@linaro.org>, "mark.rutland@arm.com" <mark.rutland@arm.com>, "james.morse@arm.com" <james.morse@arm.com>, "zhichao.huang@linaro.org" <zhichao.huang@linaro.org>, "jinb.park7@gmail.com" <jinb.park7@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "philip@cog.systems" <philip@cog.systems>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "kvmarm@lists.cs.columbia.edu" <kvmarm@lists.cs.columbia.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Li RongQing <lirongqing@baidu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, hannes@cmpxchg.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On Mon, Mar 19, 2018 at 2:56 AM, Liuwenliang (Abbott Liu)
-<liuwenliang@huawei.com> wrote:
-> On 03/19/2018 09:23 AM, Florian Fainelli wrote:
->>On 03/18/2018 06:20 PM, Liuwenliang (Abbott Liu) wrote:
->>> On 03/19/2018 03:14 AM, Florian Fainelli wrote:
->>>> Thanks for posting these patches! Just FWIW, you cannot quite add
->>>> someone's Tested-by for a patch series that was just resubmitted given
->>>> the differences with v1. I just gave it a spin on a Cortex-A5 (no LPAE)
->>>> and it looks like test_kasan.ko is passing, great job!
->>>
->>> I'm sorry.
->>> Thanks for your testing very much!
->>> I forget to add Tested-by in cover letter patch file. But I have alreadly added
->>> Tested-by in some of following patch.
->>> In the next version I am going to add Tested-by in all patches.
->>
->>This is not exactly what I meant. When you submit a v2 of your patches,
->>you must wait for people to give you their test results. The Tested-by
->>applied to v1, and so much has changed it is no longer valid for v2
->>unless someone tells you they tested v2. Hope this is clearer.
->
-> Ok, I understand now. thank you for your explanation.
+On Mon 19-03-18 16:29:30, Li RongQing wrote:
+> mem_cgroup_force_empty() tries to free only 32 (SWAP_CLUSTER_MAX) pages
+> on each iteration, if a memory cgroup has lots of page cache, it will
+> take many iterations to empty all page cache, so increase the reclaimed
+> number per iteration to speed it up. same as in mem_cgroup_resize_limit()
+> 
+> a simple test show:
+> 
+>   $dd if=aaa  of=bbb  bs=1k count=3886080
+>   $rm -f bbb
+>   $time echo 100000000 >/cgroup/memory/test/memory.limit_in_bytes
+> 
+> Before: 0m0.252s ===> after: 0m0.178s
 
+Andrey was proposing something similar [1]. My main objection was that
+his approach might lead to over-reclaim. Your approach is more
+conservative because it just increases the batch size. The size is still
+rather arbitrary. Same as SWAP_CLUSTER_MAX but that one is a commonly
+used unit of reclaim in the MM code.
 
-Hi Abbott,
+I would be really curious about more detailed explanation why having a
+larger batch yields to a better performance because we are doingg
+SWAP_CLUSTER_MAX batches at the lower reclaim level anyway.
 
-I've skimmed through the changes and they generally look good to me. I
-am not an expect in arm, so I did not look too closely on these parts
-(which is actually most of the changes).
+[1] http://lkml.kernel.org/r/20180119132544.19569-2-aryabinin@virtuozzo.com
 
-FWIW
-Acked-by: Dmitry Vyukov <dvyukov@google.com>
+> 
+> Signed-off-by: Li RongQing <lirongqing@baidu.com>
+> ---
+>  mm/memcontrol.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 670e99b68aa6..8910d9e8e908 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2480,7 +2480,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>  		if (!ret)
+>  			break;
+>  
+> -		if (!try_to_free_mem_cgroup_pages(memcg, 1,
+> +		if (!try_to_free_mem_cgroup_pages(memcg, 1024,
+>  					GFP_KERNEL, !memsw)) {
+>  			ret = -EBUSY;
+>  			break;
+> @@ -2610,7 +2610,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
+>  		if (signal_pending(current))
+>  			return -EINTR;
+>  
+> -		progress = try_to_free_mem_cgroup_pages(memcg, 1,
+> +		progress = try_to_free_mem_cgroup_pages(memcg, 1024,
+>  							GFP_KERNEL, true);
+>  		if (!progress) {
+>  			nr_retries--;
+> -- 
+> 2.11.0
 
-Please also update set of supported archs at the top of
-Documentation/dev-tools/kasan.rst
-
-Thanks for working on upstreaming this!
+-- 
+Michal Hocko
+SUSE Labs
