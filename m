@@ -1,84 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A67896B0009
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 06:01:23 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id c72so1742743oig.8
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 03:01:23 -0700 (PDT)
-Received: from baidu.com ([220.181.50.185])
-        by mx.google.com with ESMTP id c37si426228otd.267.2018.03.19.03.01.21
-        for <linux-mm@kvack.org>;
-        Mon, 19 Mar 2018 03:01:22 -0700 (PDT)
-From: "Li,Rongqing" <lirongqing@baidu.com>
-Subject: =?gb2312?B?tPC4tDogW1BBVENIXSBtbS9tZW1jb250cm9sLmM6IHNwZWVkIHVwIHRvIGZv?=
- =?gb2312?Q?rce_empty_a_memory_cgroup?=
-Date: Mon, 19 Mar 2018 10:00:41 +0000
-Message-ID: <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
-References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
- <20180319085355.GQ23100@dhcp22.suse.cz>
-In-Reply-To: <20180319085355.GQ23100@dhcp22.suse.cz>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 77CE26B000C
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 06:15:09 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id z83so2253715wmc.2
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 03:15:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z11sor7197861edh.50.2018.03.19.03.15.08
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 19 Mar 2018 03:15:08 -0700 (PDT)
+Date: Mon, 19 Mar 2018 13:14:40 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2] mm: Warn on lock_page() from reclaim context.
+Message-ID: <20180319101440.6xe5ixd5nn4zrvl2@node.shutemov.name>
+References: <1521295866-9670-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180317155437.pcbeigeivn4a23gt@node.shutemov.name>
+ <201803181022.IAI30275.JOFOQMtFSHLFOV@I-love.SAKURA.ne.jp>
+ <20180319090419.GR23100@dhcp22.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180319090419.GR23100@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-DQoNCj4gLS0tLS3Tyrz+1K28/i0tLS0tDQo+ILeivP7IyzogTWljaGFsIEhvY2tvIFttYWlsdG86
-bWhvY2tvQGtlcm5lbC5vcmddDQo+ILeiy83KsbzkOiAyMDE4xOoz1MIxOcjVIDE2OjU0DQo+IMrV
-vP7IyzogTGksUm9uZ3FpbmcgPGxpcm9uZ3FpbmdAYmFpZHUuY29tPg0KPiCzrcvNOiBsaW51eC1r
-ZXJuZWxAdmdlci5rZXJuZWwub3JnOyBsaW51eC1tbUBrdmFjay5vcmc7DQo+IGNncm91cHNAdmdl
-ci5rZXJuZWwub3JnOyBoYW5uZXNAY21weGNoZy5vcmc7IEFuZHJleSBSeWFiaW5pbg0KPiA8YXJ5
-YWJpbmluQHZpcnR1b3p6by5jb20+DQo+INb3zOI6IFJlOiBbUEFUQ0hdIG1tL21lbWNvbnRyb2wu
-Yzogc3BlZWQgdXAgdG8gZm9yY2UgZW1wdHkgYSBtZW1vcnkNCj4gY2dyb3VwDQo+IA0KPiBPbiBN
-b24gMTktMDMtMTggMTY6Mjk6MzAsIExpIFJvbmdRaW5nIHdyb3RlOg0KPiA+IG1lbV9jZ3JvdXBf
-Zm9yY2VfZW1wdHkoKSB0cmllcyB0byBmcmVlIG9ubHkgMzIgKFNXQVBfQ0xVU1RFUl9NQVgpDQo+
-ID4gcGFnZXMgb24gZWFjaCBpdGVyYXRpb24sIGlmIGEgbWVtb3J5IGNncm91cCBoYXMgbG90cyBv
-ZiBwYWdlIGNhY2hlLCBpdA0KPiA+IHdpbGwgdGFrZSBtYW55IGl0ZXJhdGlvbnMgdG8gZW1wdHkg
-YWxsIHBhZ2UgY2FjaGUsIHNvIGluY3JlYXNlIHRoZQ0KPiA+IHJlY2xhaW1lZCBudW1iZXIgcGVy
-IGl0ZXJhdGlvbiB0byBzcGVlZCBpdCB1cC4gc2FtZSBhcyBpbg0KPiA+IG1lbV9jZ3JvdXBfcmVz
-aXplX2xpbWl0KCkNCj4gPg0KPiA+IGEgc2ltcGxlIHRlc3Qgc2hvdzoNCj4gPg0KPiA+ICAgJGRk
-IGlmPWFhYSAgb2Y9YmJiICBicz0xayBjb3VudD0zODg2MDgwDQo+ID4gICAkcm0gLWYgYmJiDQo+
-ID4gICAkdGltZSBlY2hvIDEwMDAwMDAwMCA+L2Nncm91cC9tZW1vcnkvdGVzdC9tZW1vcnkubGlt
-aXRfaW5fYnl0ZXMNCj4gPg0KPiA+IEJlZm9yZTogMG0wLjI1MnMgPT09PiBhZnRlcjogMG0wLjE3
-OHMNCj4gDQo+IEFuZHJleSB3YXMgcHJvcG9zaW5nIHNvbWV0aGluZyBzaW1pbGFyIFsxXS4gTXkg
-bWFpbiBvYmplY3Rpb24gd2FzIHRoYXQgaGlzDQo+IGFwcHJvYWNoIG1pZ2h0IGxlYWQgdG8gb3Zl
-ci1yZWNsYWltLiBZb3VyIGFwcHJvYWNoIGlzIG1vcmUgY29uc2VydmF0aXZlDQo+IGJlY2F1c2Ug
-aXQganVzdCBpbmNyZWFzZXMgdGhlIGJhdGNoIHNpemUuIFRoZSBzaXplIGlzIHN0aWxsIHJhdGhl
-ciBhcmJpdHJhcnkuIFNhbWUNCj4gYXMgU1dBUF9DTFVTVEVSX01BWCBidXQgdGhhdCBvbmUgaXMg
-YSBjb21tb25seSB1c2VkIHVuaXQgb2YgcmVjbGFpbSBpbg0KPiB0aGUgTU0gY29kZS4NCj4gDQo+
-IEkgd291bGQgYmUgcmVhbGx5IGN1cmlvdXMgYWJvdXQgbW9yZSBkZXRhaWxlZCBleHBsYW5hdGlv
-biB3aHkgaGF2aW5nIGENCj4gbGFyZ2VyIGJhdGNoIHlpZWxkcyB0byBhIGJldHRlciBwZXJmb3Jt
-YW5jZSBiZWNhdXNlIHdlIGFyZSBkb2luZ2cNCj4gU1dBUF9DTFVTVEVSX01BWCBiYXRjaGVzIGF0
-IHRoZSBsb3dlciByZWNsYWltIGxldmVsIGFueXdheS4NCj4gDQoNCkFsdGhvdWdoIFNXQVBfQ0xV
-U1RFUl9NQVggaXMgdXNlZCBhdCB0aGUgbG93ZXIgbGV2ZWwsIGJ1dCB0aGUgY2FsbCBzdGFjayBv
-ZiANCnRyeV90b19mcmVlX21lbV9jZ3JvdXBfcGFnZXMgaXMgdG9vIGxvbmcsIGluY3JlYXNlIHRo
-ZSBucl90b19yZWNsYWltIGNhbiByZWR1Y2UNCnRpbWVzIG9mIGNhbGxpbmcgZnVuY3Rpb25bZG9f
-dHJ5X3RvX2ZyZWVfcGFnZXMsIHNocmlua196b25lcywgaHJpbmtfbm9kZSBdDQoNCm1lbV9jZ3Jv
-dXBfcmVzaXplX2xpbWl0DQotLS0+dHJ5X3RvX2ZyZWVfbWVtX2Nncm91cF9wYWdlczogIC5ucl90
-b19yZWNsYWltID0gbWF4KDEwMjQsICBTV0FQX0NMVVNURVJfTUFYKSwNCiAgIC0tLT4gZG9fdHJ5
-X3RvX2ZyZWVfcGFnZXMgDQogICAgIC0tLT4gc2hyaW5rX3pvbmVzDQogICAgICAtLS0+c2hyaW5r
-X25vZGUNCiAgICAgICAtLS0+IHNocmlua19ub2RlX21lbWNnDQogICAgICAgICAtLS0+IHNocmlu
-a19saXN0ICAgICAgICAgIDwtLS0tLS0tbG9vcCB3aWxsIGhhcHBlbiBpbiB0aGlzIHBsYWNlIFt0
-aW1lcz0xMDI0LzMyXQ0KICAgICAgICAgICAtLS0+IHNocmlua19wYWdlX2xpc3QNCg0KDQo+IFsx
-XQ0KPiBodHRwOi8vbGttbC5rZXJuZWwub3JnL3IvMjAxODAxMTkxMzI1NDQuMTk1NjktMi1hcnlh
-YmluaW5AdmlydHVvenpvLmNvDQo+IG0NCj4gDQo+ID4NCj4gPiBTaWduZWQtb2ZmLWJ5OiBMaSBS
-b25nUWluZyA8bGlyb25ncWluZ0BiYWlkdS5jb20+DQo+ID4gLS0tDQo+ID4gIG1tL21lbWNvbnRy
-b2wuYyB8IDQgKystLQ0KPiA+ICAxIGZpbGUgY2hhbmdlZCwgMiBpbnNlcnRpb25zKCspLCAyIGRl
-bGV0aW9ucygtKQ0KPiA+DQo+ID4gZGlmZiAtLWdpdCBhL21tL21lbWNvbnRyb2wuYyBiL21tL21l
-bWNvbnRyb2wuYyBpbmRleA0KPiA+IDY3MGU5OWI2OGFhNi4uODkxMGQ5ZThlOTA4IDEwMDY0NA0K
-PiA+IC0tLSBhL21tL21lbWNvbnRyb2wuYw0KPiA+ICsrKyBiL21tL21lbWNvbnRyb2wuYw0KPiA+
-IEBAIC0yNDgwLDcgKzI0ODAsNyBAQCBzdGF0aWMgaW50IG1lbV9jZ3JvdXBfcmVzaXplX2xpbWl0
-KHN0cnVjdA0KPiBtZW1fY2dyb3VwICptZW1jZywNCj4gPiAgCQlpZiAoIXJldCkNCj4gPiAgCQkJ
-YnJlYWs7DQo+ID4NCj4gPiAtCQlpZiAoIXRyeV90b19mcmVlX21lbV9jZ3JvdXBfcGFnZXMobWVt
-Y2csIDEsDQo+ID4gKwkJaWYgKCF0cnlfdG9fZnJlZV9tZW1fY2dyb3VwX3BhZ2VzKG1lbWNnLCAx
-MDI0LA0KPiA+ICAJCQkJCUdGUF9LRVJORUwsICFtZW1zdykpIHsNCj4gPiAgCQkJcmV0ID0gLUVC
-VVNZOw0KPiA+ICAJCQlicmVhazsNCj4gPiBAQCAtMjYxMCw3ICsyNjEwLDcgQEAgc3RhdGljIGlu
-dCBtZW1fY2dyb3VwX2ZvcmNlX2VtcHR5KHN0cnVjdA0KPiBtZW1fY2dyb3VwICptZW1jZykNCj4g
-PiAgCQlpZiAoc2lnbmFsX3BlbmRpbmcoY3VycmVudCkpDQo+ID4gIAkJCXJldHVybiAtRUlOVFI7
-DQo+ID4NCj4gPiAtCQlwcm9ncmVzcyA9IHRyeV90b19mcmVlX21lbV9jZ3JvdXBfcGFnZXMobWVt
-Y2csIDEsDQo+ID4gKwkJcHJvZ3Jlc3MgPSB0cnlfdG9fZnJlZV9tZW1fY2dyb3VwX3BhZ2VzKG1l
-bWNnLCAxMDI0LA0KPiA+ICAJCQkJCQkJR0ZQX0tFUk5FTCwgdHJ1ZSk7DQo+ID4gIAkJaWYgKCFw
-cm9ncmVzcykgew0KPiA+ICAJCQlucl9yZXRyaWVzLS07DQo+ID4gLS0NCj4gPiAyLjExLjANCj4g
-DQo+IC0tDQo+IE1pY2hhbCBIb2Nrbw0KPiBTVVNFIExhYnMNCg==
+On Mon, Mar 19, 2018 at 10:04:19AM +0100, Michal Hocko wrote:
+> On Sun 18-03-18 10:22:49, Tetsuo Handa wrote:
+> > >From f43b8ca61b76f9a19c13f6bf42b27fad9554afc0 Mon Sep 17 00:00:00 2001
+> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Date: Sun, 18 Mar 2018 10:18:01 +0900
+> > Subject: [PATCH v2] mm: Warn on lock_page() from reclaim context.
+> > 
+> > Kirill A. Shutemov noticed that calling lock_page[_killable]() from
+> > reclaim context might cause deadlock. In order to help finding such
+> > lock_page[_killable]() users (including out of tree users), this patch
+> > emits warning messages when CONFIG_PROVE_LOCKING is enabled.
+> 
+> So how do you ensure that this won't cause false possitives? E.g. do we
+> ever allocate while holding the page lock and not having the page on the
+> LRU list?
+
+Hm. Do we even have a reason to lock such pages?
+Probably we do, but I cannot come up with an example.
+
+-- 
+ Kirill A. Shutemov
