@@ -1,42 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 12F546B0003
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 03:15:19 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id d18so9028444wre.6
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 00:15:19 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CC676B0007
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 03:57:12 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id x8-v6so1404699pln.9
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 00:57:12 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p192sor1877339wmg.21.2018.03.19.00.15.17
+        by mx.google.com with SMTPS id x10-v6sor274508plo.143.2018.03.19.00.57.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 19 Mar 2018 00:15:17 -0700 (PDT)
-From: Lukas Bulwahn <lukas.bulwahn@gmail.com>
-Date: Mon, 19 Mar 2018 08:15:03 +0100 (CET)
-Subject: Re: clang fails on linux-next since commit 8bf705d13039
-In-Reply-To: <CACT4Y+aLqY6wUfRMto_CZxPRSyvPKxK8ucvAmAY-aR_gq8fOAg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1803190758010.30965@alpaca>
-References: <alpine.DEB.2.20.1803171208370.21003@alpaca> <CACT4Y+aLqY6wUfRMto_CZxPRSyvPKxK8ucvAmAY-aR_gq8fOAg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 19 Mar 2018 00:57:11 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] include/linux/mmdebug.h: make VM_WARN* non-rvals
+Date: Mon, 19 Mar 2018 08:57:02 +0100
+Message-Id: <20180319075702.25645-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Lukas Bulwahn <lukas.bulwahn@gmail.com>, Nick Desaulniers <ndesaulniers@google.com>, Greg Hackmann <ghackmann@google.com>, Luis Lozano <llozano@google.com>, Matthias Kaehlcke <mka@google.com>, Michael Davidson <md@google.com>, Sami Tolvanen <samitolvanen@google.com>, Paul Lawrence <paullawrence@google.com>, Ingo Molnar <mingo@kernel.org>, Linux-MM <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>, llvmlinux@lists.linuxfoundation.org, sil2review@lists.osadl.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Michal Hocko <mhocko@suse.com>
 
+At present the construct
 
-Hi Dmitry,
+	if (VM_WARN(...))
 
-On Mon, 19 Mar 2018, Dmitry Vyukov wrote:
-> 
-> Also, Lukas what's your version of clang? Potentially there are some
-> fixes for kernel in the very latest versions of clang.
-> 
+will compile OK with CONFIG_DEBUG_VM=y and will fail with
+CONFIG_DEBUG_VM=n. The reason is that VM_{WARN,BUG}* have always been
+special wrt. {WARN/BUG}* and never generate any code when DEBUG_VM is
+disabled. So we cannot really use it in conditionals.
 
-I tested it on clang-5.0 and clang-6.0 in a debian buster distribution.
-I  just reconfirmed that it also appears on clang-7 (version 
-1:7~svn327768-1 [1]) in a debian sid distribution.
+We considered changing things so that this construct works in both cases
+but that might cause unwanted code generation with CONFIG_DEBUG_VM=n.  It
+is safer and simpler to make the build fail in both cases.
 
-I also forget to mention that I simply use defconfig.
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+[akpm@linux-foundation.org: changelog]
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+ include/linux/mmdebug.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-[1] https://packages.debian.org/sid/clang-7
-
-Lukas
+diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
+index 35d77b0dae3b..14baf1d9d65b 100644
+--- a/include/linux/mmdebug.h
++++ b/include/linux/mmdebug.h
+@@ -37,10 +37,10 @@ void dump_mm(const struct mm_struct *mm);
+ 			BUG();						\
+ 		}							\
+ 	} while (0)
+-#define VM_WARN_ON(cond) WARN_ON(cond)
+-#define VM_WARN_ON_ONCE(cond) WARN_ON_ONCE(cond)
+-#define VM_WARN_ONCE(cond, format...) WARN_ONCE(cond, format)
+-#define VM_WARN(cond, format...) WARN(cond, format)
++#define VM_WARN_ON(cond) (void)WARN_ON(cond)
++#define VM_WARN_ON_ONCE(cond) (void)WARN_ON_ONCE(cond)
++#define VM_WARN_ONCE(cond, format...) (void)WARN_ONCE(cond, format)
++#define VM_WARN(cond, format...) (void)WARN(cond, format)
+ #else
+ #define VM_BUG_ON(cond) BUILD_BUG_ON_INVALID(cond)
+ #define VM_BUG_ON_PAGE(cond, page) VM_BUG_ON(cond)
+-- 
+2.16.1
