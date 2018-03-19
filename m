@@ -1,71 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FEFF6B0007
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 08:04:09 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id f32-v6so9870618otc.13
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 05:04:09 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id t45si307483otf.353.2018.03.19.05.04.01
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 254C66B0007
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 09:41:03 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id h89so6166694qtd.18
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 06:41:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id g6si68200qto.11.2018.03.19.06.40.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Mar 2018 05:04:02 -0700 (PDT)
-Subject: Re: [PATCH v2] mm: Warn on lock_page() from reclaim context.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20180319090419.GR23100@dhcp22.suse.cz>
-	<20180319101440.6xe5ixd5nn4zrvl2@node.shutemov.name>
-	<20180319103336.GU23100@dhcp22.suse.cz>
-	<20180319104502.n524uvuvjze3hbdz@node.shutemov.name>
-	<20180319105517.GX23100@dhcp22.suse.cz>
-In-Reply-To: <20180319105517.GX23100@dhcp22.suse.cz>
-Message-Id: <201803192104.DAG43292.MJFHOLOSFtVQOF@I-love.SAKURA.ne.jp>
-Date: Mon, 19 Mar 2018 21:04:01 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Mar 2018 06:40:58 -0700 (PDT)
+Date: Mon, 19 Mar 2018 14:40:51 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 6/8] trace_uprobe/sdt: Fix multiple update of same
+ reference counter
+Message-ID: <20180319134050.GA12554@redhat.com>
+References: <20180313125603.19819-1-ravi.bangoria@linux.vnet.ibm.com>
+ <20180313125603.19819-7-ravi.bangoria@linux.vnet.ibm.com>
+ <20180315144959.GB19643@redhat.com>
+ <c93216a4-a4e1-dd8f-00be-17254e308cd1@linux.vnet.ibm.com>
+ <20180316175030.GA28770@redhat.com>
+ <4b337afd-fc5e-6110-888b-d4fa36a797ee@linux.vnet.ibm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4b337afd-fc5e-6110-888b-d4fa36a797ee@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, gregkh@linuxfoundation.org, huawei.libin@huawei.com, hughd@google.com, jack@suse.cz, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kirill.shutemov@linux.intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, pombredanne@nexb.com, rostedt@goodmis.org, tglx@linutronix.de, tmricht@linux.vnet.ibm.com, willy@infradead.org, yao.jin@linux.intel.com, fengguang.wu@intel.com
 
-Michal Hocko wrote:
-> On Mon 19-03-18 13:45:02, Kirill A. Shutemov wrote:
-> > On Mon, Mar 19, 2018 at 11:33:36AM +0100, Michal Hocko wrote:
-> > > On Mon 19-03-18 13:14:40, Kirill A. Shutemov wrote:
-> > > > On Mon, Mar 19, 2018 at 10:04:19AM +0100, Michal Hocko wrote:
-> > > > > On Sun 18-03-18 10:22:49, Tetsuo Handa wrote:
-> > > > > > >From f43b8ca61b76f9a19c13f6bf42b27fad9554afc0 Mon Sep 17 00:00:00 2001
-> > > > > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > > > > Date: Sun, 18 Mar 2018 10:18:01 +0900
-> > > > > > Subject: [PATCH v2] mm: Warn on lock_page() from reclaim context.
-> > > > > > 
-> > > > > > Kirill A. Shutemov noticed that calling lock_page[_killable]() from
-> > > > > > reclaim context might cause deadlock. In order to help finding such
-> > > > > > lock_page[_killable]() users (including out of tree users), this patch
-> > > > > > emits warning messages when CONFIG_PROVE_LOCKING is enabled.
-> > > > > 
-> > > > > So how do you ensure that this won't cause false possitives? E.g. do we
-> > > > > ever allocate while holding the page lock and not having the page on the
-> > > > > LRU list?
-> > > > 
-> > > > Hm. Do we even have a reason to lock such pages?
-> > > > Probably we do, but I cannot come up with an example.
-> > > 
-> > > Page lock is way too obscure to be sure :/
-> > > Anyway, maybe we want to be more conservative and only warn about LRU
-> > > pages...
-> > 
-> > I would rather see what we actually step onto. Sometimes false-positive
-> > warning may bring useful insight.
-> > 
-> > Maybe keep in in mm- tree for few cycles? (If it wouldn't blow up
-> > immediately)
-> 
-> I would be OK to keep it in mmotm for some time. But I am not yet
-> convinced this is a mainline material yet. Please also note that we have
-> some PF_MEMALLOC (ab)users outside of the MM proper and thy use the flag
-> to break into reserves and I wouldn't be all that surprised if they id
-> lock_page as well.
+Hi Ravi,
 
-I don't know who is doing such thing. But if the purpose of abusing PF_MEMALLOC
-is "not to block the current thread" by allowing memory reserves, I think it is
-better to warn locations (like lock_page()) which might be unexpectedly blocked
-due to invisible dependency.
+On 03/19, Ravi Bangoria wrote:
+>
+> On 03/16/2018 11:20 PM, Oleg Nesterov wrote:
+> >
+> > And it seems that you are trying to confuse yourself, not only me ;) Just
+> > suppose that an application does mmap+munmap in a loop and the mapped region
+> > contains uprobe but not the counter.
+>
+> this is fine because ...
+
+Yes, I guess I tried to say "counter but not uprobe" but possibly I was actually
+confused.
+
+> Our initial design was to increment counter in install_breakpoint() but
+> uprobed instruction gets patched in a very early stage of binary loading
+> and vma that holds the counter may not be mapped yet.
+
+Yes, yes, I understand this is not that simple...
+
+> > Btw, why do we need a counter, not a boolean? Who else can modify it?
+> > Or different uprobes can share the same counter?
+>
+> Yes, multiple SDT markers can share the counter.
+
+OK, thanks.
+
+Oleg.
