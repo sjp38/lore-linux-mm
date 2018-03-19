@@ -1,51 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CB586B000C
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 17:00:29 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f4-v6so11237644plr.11
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:00:29 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B7E1B6B0008
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 17:10:09 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id h11so10308114pfn.0
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:10:09 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n15sor24744pfa.101.2018.03.19.14.00.28
+        by mx.google.com with SMTPS id a7-v6sor42668pll.106.2018.03.19.14.10.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 19 Mar 2018 14:00:28 -0700 (PDT)
-From: Shakeel Butt <shakeelb@google.com>
-Subject: [PATCH] mm, slab: memcg_link the SLAB's kmem_cache
-Date: Mon, 19 Mar 2018 14:00:20 -0700
-Message-Id: <20180319210020.60289-1-shakeelb@google.com>
+        Mon, 19 Mar 2018 14:10:08 -0700 (PDT)
+Date: Mon, 19 Mar 2018 14:10:05 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, thp: do not cause memcg oom for thp
+Message-ID: <alpine.DEB.2.20.1803191409420.124411@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-All the root caches are linked into slab_root_caches which was
-introduced by the commit 510ded33e075 ("slab: implement slab_root_caches
-list") but it missed to add the SLAB's kmem_cache.
+Commit 2516035499b9 ("mm, thp: remove __GFP_NORETRY from khugepaged and
+madvised allocations") changed the page allocator to no longer detect thp
+allocations based on __GFP_NORETRY.
 
-While experimenting with opt-in/opt-out kmem accounting, I noticed
-system crashes due to NULL dereference inside cache_from_memcg_idx()
-while deferencing kmem_cache.memcg_params.memcg_caches. The upstream
-clean kernel will not see these crashes but SLAB should be consistent
-with SLUB which does linked its boot caches (kmem_cache_node and
-kmem_cache) into slab_root_caches.
+It did not, however, modify the mem cgroup try_charge() path to avoid oom
+kill for either khugepaged collapsing or thp faulting.  It is never
+expected to oom kill a process to allocate a hugepage for thp; reclaim is
+governed by the thp defrag mode and MADV_HUGEPAGE, but allocations (and
+charging) should fallback instead of oom killing processes.
 
-Fixes: 510ded33e075c ("slab: implement slab_root_caches list")
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
+Fixes: 2516035499b9 ("mm, thp: remove __GFP_NORETRY from khugepaged and madvised allocations")
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/slab.c | 1 +
- 1 file changed, 1 insertion(+)
+ mm/huge_memory.c | 5 +++--
+ mm/khugepaged.c  | 8 ++++++--
+ 2 files changed, 9 insertions(+), 4 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 324446621b3e..9095c3945425 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1283,6 +1283,7 @@ void __init kmem_cache_init(void)
- 				  nr_node_ids * sizeof(struct kmem_cache_node *),
- 				  SLAB_HWCACHE_ALIGN, 0, 0);
- 	list_add(&kmem_cache->list, &slab_caches);
-+	memcg_link_cache(kmem_cache);
- 	slab_state = PARTIAL;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -555,7 +555,8 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
  
- 	/*
--- 
-2.16.2.804.g6dcf76e118-goog
+ 	VM_BUG_ON_PAGE(!PageCompound(page), page);
+ 
+-	if (mem_cgroup_try_charge(page, vma->vm_mm, gfp, &memcg, true)) {
++	if (mem_cgroup_try_charge(page, vma->vm_mm, gfp | __GFP_NORETRY, &memcg,
++				  true)) {
+ 		put_page(page);
+ 		count_vm_event(THP_FAULT_FALLBACK);
+ 		return VM_FAULT_FALLBACK;
+@@ -1316,7 +1317,7 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+ 	}
+ 
+ 	if (unlikely(mem_cgroup_try_charge(new_page, vma->vm_mm,
+-					huge_gfp, &memcg, true))) {
++				huge_gfp | __GFP_NORETRY, &memcg, true))) {
+ 		put_page(new_page);
+ 		split_huge_pmd(vma, vmf->pmd, vmf->address);
+ 		if (page)
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -960,7 +960,9 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 		goto out_nolock;
+ 	}
+ 
+-	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp, &memcg, true))) {
++	/* Do not oom kill for khugepaged charges */
++	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp | __GFP_NORETRY,
++					   &memcg, true))) {
+ 		result = SCAN_CGROUP_CHARGE_FAIL;
+ 		goto out_nolock;
+ 	}
+@@ -1319,7 +1321,9 @@ static void collapse_shmem(struct mm_struct *mm,
+ 		goto out;
+ 	}
+ 
+-	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp, &memcg, true))) {
++	/* Do not oom kill for khugepaged charges */
++	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp | __GFP_NORETRY,
++					   &memcg, true))) {
+ 		result = SCAN_CGROUP_CHARGE_FAIL;
+ 		goto out;
+ 	}
