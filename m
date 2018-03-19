@@ -1,84 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A3B96B0007
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 06:51:47 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id x6so9472725pfx.16
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 03:51:47 -0700 (PDT)
-Received: from baidu.com ([61.135.165.120])
-        by mx.google.com with ESMTP id y30-v6si4437559plh.441.2018.03.19.03.51.45
-        for <linux-mm@kvack.org>;
-        Mon, 19 Mar 2018 03:51:45 -0700 (PDT)
-From: "Li,Rongqing" <lirongqing@baidu.com>
-Subject: =?utf-8?B?562U5aSNOiDnrZTlpI06IFtQQVRDSF0gbW0vbWVtY29udHJvbC5jOiBzcGVl?=
- =?utf-8?Q?d_up_to_force_empty_a_memory_cgroup?=
-Date: Mon, 19 Mar 2018 10:51:42 +0000
-Message-ID: <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
-References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
- <20180319085355.GQ23100@dhcp22.suse.cz>
- <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
- <20180319103756.GV23100@dhcp22.suse.cz>
-In-Reply-To: <20180319103756.GV23100@dhcp22.suse.cz>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 334F96B0008
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 06:55:21 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id y20so9480131pfm.1
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 03:55:21 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t28si10412532pfk.187.2018.03.19.03.55.19
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 19 Mar 2018 03:55:20 -0700 (PDT)
+Date: Mon, 19 Mar 2018 11:55:17 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH v2] mm: Warn on lock_page() from reclaim context.
+Message-ID: <20180319105517.GX23100@dhcp22.suse.cz>
+References: <1521295866-9670-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180317155437.pcbeigeivn4a23gt@node.shutemov.name>
+ <201803181022.IAI30275.JOFOQMtFSHLFOV@I-love.SAKURA.ne.jp>
+ <20180319090419.GR23100@dhcp22.suse.cz>
+ <20180319101440.6xe5ixd5nn4zrvl2@node.shutemov.name>
+ <20180319103336.GU23100@dhcp22.suse.cz>
+ <20180319104502.n524uvuvjze3hbdz@node.shutemov.name>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180319104502.n524uvuvjze3hbdz@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-DQoNCj4gLS0tLS3pgq7ku7bljp/ku7YtLS0tLQ0KPiDlj5Hku7bkuro6IE1pY2hhbCBIb2NrbyBb
-bWFpbHRvOm1ob2Nrb0BrZXJuZWwub3JnXQ0KPiDlj5HpgIHml7bpl7Q6IDIwMTjlubQz5pyIMTnm
-l6UgMTg6MzgNCj4g5pS25Lu25Lq6OiBMaSxSb25ncWluZyA8bGlyb25ncWluZ0BiYWlkdS5jb20+
-DQo+IOaKhOmAgTogbGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZzsgbGludXgtbW1Aa3ZhY2su
-b3JnOw0KPiBjZ3JvdXBzQHZnZXIua2VybmVsLm9yZzsgaGFubmVzQGNtcHhjaGcub3JnOyBBbmRy
-ZXkgUnlhYmluaW4NCj4gPGFyeWFiaW5pbkB2aXJ0dW96em8uY29tPg0KPiDkuLvpopg6IFJlOiDn
-rZTlpI06IFtQQVRDSF0gbW0vbWVtY29udHJvbC5jOiBzcGVlZCB1cCB0byBmb3JjZSBlbXB0eSBh
-DQo+IG1lbW9yeSBjZ3JvdXANCj4gDQo+IE9uIE1vbiAxOS0wMy0xOCAxMDowMDo0MSwgTGksUm9u
-Z3Fpbmcgd3JvdGU6DQo+ID4NCj4gPg0KPiA+ID4gLS0tLS3pgq7ku7bljp/ku7YtLS0tLQ0KPiA+
-ID4g5Y+R5Lu25Lq6OiBNaWNoYWwgSG9ja28gW21haWx0bzptaG9ja29Aa2VybmVsLm9yZ10NCj4g
-PiA+IOWPkemAgeaXtumXtDogMjAxOOW5tDPmnIgxOeaXpSAxNjo1NA0KPiA+ID4g5pS25Lu25Lq6
-OiBMaSxSb25ncWluZyA8bGlyb25ncWluZ0BiYWlkdS5jb20+DQo+ID4gPiDmioTpgIE6IGxpbnV4
-LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZzsNCj4gPiA+IGNncm91
-cHNAdmdlci5rZXJuZWwub3JnOyBoYW5uZXNAY21weGNoZy5vcmc7IEFuZHJleSBSeWFiaW5pbg0K
-PiA+ID4gPGFyeWFiaW5pbkB2aXJ0dW96em8uY29tPg0KPiA+ID4g5Li76aKYOiBSZTogW1BBVENI
-XSBtbS9tZW1jb250cm9sLmM6IHNwZWVkIHVwIHRvIGZvcmNlIGVtcHR5IGENCj4gbWVtb3J5DQo+
-ID4gPiBjZ3JvdXANCj4gPiA+DQo+ID4gPiBPbiBNb24gMTktMDMtMTggMTY6Mjk6MzAsIExpIFJv
-bmdRaW5nIHdyb3RlOg0KPiA+ID4gPiBtZW1fY2dyb3VwX2ZvcmNlX2VtcHR5KCkgdHJpZXMgdG8g
-ZnJlZSBvbmx5IDMyDQo+IChTV0FQX0NMVVNURVJfTUFYKQ0KPiA+ID4gPiBwYWdlcyBvbiBlYWNo
-IGl0ZXJhdGlvbiwgaWYgYSBtZW1vcnkgY2dyb3VwIGhhcyBsb3RzIG9mIHBhZ2UNCj4gPiA+ID4g
-Y2FjaGUsIGl0IHdpbGwgdGFrZSBtYW55IGl0ZXJhdGlvbnMgdG8gZW1wdHkgYWxsIHBhZ2UgY2Fj
-aGUsIHNvDQo+ID4gPiA+IGluY3JlYXNlIHRoZSByZWNsYWltZWQgbnVtYmVyIHBlciBpdGVyYXRp
-b24gdG8gc3BlZWQgaXQgdXAuIHNhbWUNCj4gPiA+ID4gYXMgaW4NCj4gPiA+ID4gbWVtX2Nncm91
-cF9yZXNpemVfbGltaXQoKQ0KPiA+ID4gPg0KPiA+ID4gPiBhIHNpbXBsZSB0ZXN0IHNob3c6DQo+
-ID4gPiA+DQo+ID4gPiA+ICAgJGRkIGlmPWFhYSAgb2Y9YmJiICBicz0xayBjb3VudD0zODg2MDgw
-DQo+ID4gPiA+ICAgJHJtIC1mIGJiYg0KPiA+ID4gPiAgICR0aW1lIGVjaG8NCj4gMTAwMDAwMDAw
-ID4vY2dyb3VwL21lbW9yeS90ZXN0L21lbW9yeS5saW1pdF9pbl9ieXRlcw0KPiA+ID4gPg0KPiA+
-ID4gPiBCZWZvcmU6IDBtMC4yNTJzID09PT4gYWZ0ZXI6IDBtMC4xNzhzDQo+ID4gPg0KPiA+ID4g
-QW5kcmV5IHdhcyBwcm9wb3Npbmcgc29tZXRoaW5nIHNpbWlsYXIgWzFdLiBNeSBtYWluIG9iamVj
-dGlvbiB3YXMNCj4gPiA+IHRoYXQgaGlzIGFwcHJvYWNoIG1pZ2h0IGxlYWQgdG8gb3Zlci1yZWNs
-YWltLiBZb3VyIGFwcHJvYWNoIGlzIG1vcmUNCj4gPiA+IGNvbnNlcnZhdGl2ZSBiZWNhdXNlIGl0
-IGp1c3QgaW5jcmVhc2VzIHRoZSBiYXRjaCBzaXplLiBUaGUgc2l6ZSBpcw0KPiA+ID4gc3RpbGwg
-cmF0aGVyIGFyYml0cmFyeS4gU2FtZSBhcyBTV0FQX0NMVVNURVJfTUFYIGJ1dCB0aGF0IG9uZSBp
-cyBhDQo+ID4gPiBjb21tb25seSB1c2VkIHVuaXQgb2YgcmVjbGFpbSBpbiB0aGUgTU0gY29kZS4N
-Cj4gPiA+DQo+ID4gPiBJIHdvdWxkIGJlIHJlYWxseSBjdXJpb3VzIGFib3V0IG1vcmUgZGV0YWls
-ZWQgZXhwbGFuYXRpb24gd2h5IGhhdmluZw0KPiA+ID4gYSBsYXJnZXIgYmF0Y2ggeWllbGRzIHRv
-IGEgYmV0dGVyIHBlcmZvcm1hbmNlIGJlY2F1c2Ugd2UgYXJlIGRvaW5nZw0KPiA+ID4gU1dBUF9D
-TFVTVEVSX01BWCBiYXRjaGVzIGF0IHRoZSBsb3dlciByZWNsYWltIGxldmVsIGFueXdheS4NCj4g
-PiA+DQo+ID4NCj4gPiBBbHRob3VnaCBTV0FQX0NMVVNURVJfTUFYIGlzIHVzZWQgYXQgdGhlIGxv
-d2VyIGxldmVsLCBidXQgdGhlIGNhbGwNCj4gPiBzdGFjayBvZiB0cnlfdG9fZnJlZV9tZW1fY2dy
-b3VwX3BhZ2VzIGlzIHRvbyBsb25nLCBpbmNyZWFzZSB0aGUNCj4gPiBucl90b19yZWNsYWltIGNh
-biByZWR1Y2UgdGltZXMgb2YgY2FsbGluZw0KPiA+IGZ1bmN0aW9uW2RvX3RyeV90b19mcmVlX3Bh
-Z2VzLCBzaHJpbmtfem9uZXMsIGhyaW5rX25vZGUgXQ0KPiA+DQo+ID4gbWVtX2Nncm91cF9yZXNp
-emVfbGltaXQNCj4gPiAtLS0+dHJ5X3RvX2ZyZWVfbWVtX2Nncm91cF9wYWdlczogIC5ucl90b19y
-ZWNsYWltID0gbWF4KDEwMjQsDQo+ID4gLS0tPlNXQVBfQ0xVU1RFUl9NQVgpLA0KPiA+ICAgIC0t
-LT4gZG9fdHJ5X3RvX2ZyZWVfcGFnZXMNCj4gPiAgICAgIC0tLT4gc2hyaW5rX3pvbmVzDQo+ID4g
-ICAgICAgLS0tPnNocmlua19ub2RlDQo+ID4gICAgICAgIC0tLT4gc2hyaW5rX25vZGVfbWVtY2cN
-Cj4gPiAgICAgICAgICAtLS0+IHNocmlua19saXN0ICAgICAgICAgIDwtLS0tLS0tbG9vcCB3aWxs
-IGhhcHBlbiBpbiB0aGlzIHBsYWNlDQo+IFt0aW1lcz0xMDI0LzMyXQ0KPiA+ICAgICAgICAgICAg
-LS0tPiBzaHJpbmtfcGFnZV9saXN0DQo+IA0KPiBDYW4geW91IGFjdHVhbGx5IG1lYXN1cmUgdGhp
-cyB0byBiZSB0aGUgY3VscHJpdC4gQmVjYXVzZSB3ZSBzaG91bGQgcmV0aGluaw0KPiBvdXIgY2Fs
-bCBwYXRoIGlmIGl0IGlzIHRvbyBjb21wbGljYXRlZC9kZWVwIHRvIHBlcmZvcm0gd2VsbC4NCj4g
-QWRkaW5nIGFyYml0cmFyeSBiYXRjaCBzaXplcyBkb2Vzbid0IHNvdW5kIGxpa2UgYSBnb29kIHdh
-eSB0byBnbyB0byBtZS4NCg0KT2ssIEkgd2lsbCB0cnkNCg0KLVJvbmdRaW5nDQo+IC0tDQo+IE1p
-Y2hhbCBIb2Nrbw0KPiBTVVNFIExhYnMNCg==
+On Mon 19-03-18 13:45:02, Kirill A. Shutemov wrote:
+> On Mon, Mar 19, 2018 at 11:33:36AM +0100, Michal Hocko wrote:
+> > On Mon 19-03-18 13:14:40, Kirill A. Shutemov wrote:
+> > > On Mon, Mar 19, 2018 at 10:04:19AM +0100, Michal Hocko wrote:
+> > > > On Sun 18-03-18 10:22:49, Tetsuo Handa wrote:
+> > > > > >From f43b8ca61b76f9a19c13f6bf42b27fad9554afc0 Mon Sep 17 00:00:00 2001
+> > > > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > > > Date: Sun, 18 Mar 2018 10:18:01 +0900
+> > > > > Subject: [PATCH v2] mm: Warn on lock_page() from reclaim context.
+> > > > > 
+> > > > > Kirill A. Shutemov noticed that calling lock_page[_killable]() from
+> > > > > reclaim context might cause deadlock. In order to help finding such
+> > > > > lock_page[_killable]() users (including out of tree users), this patch
+> > > > > emits warning messages when CONFIG_PROVE_LOCKING is enabled.
+> > > > 
+> > > > So how do you ensure that this won't cause false possitives? E.g. do we
+> > > > ever allocate while holding the page lock and not having the page on the
+> > > > LRU list?
+> > > 
+> > > Hm. Do we even have a reason to lock such pages?
+> > > Probably we do, but I cannot come up with an example.
+> > 
+> > Page lock is way too obscure to be sure :/
+> > Anyway, maybe we want to be more conservative and only warn about LRU
+> > pages...
+> 
+> I would rather see what we actually step onto. Sometimes false-positive
+> warning may bring useful insight.
+> 
+> Maybe keep in in mm- tree for few cycles? (If it wouldn't blow up
+> immediately)
+
+I would be OK to keep it in mmotm for some time. But I am not yet
+convinced this is a mainline material yet. Please also note that we have
+some PF_MEMALLOC (ab)users outside of the MM proper and thy use the flag
+to break into reserves and I wouldn't be all that surprised if they id
+lock_page as well.
+-- 
+Michal Hocko
+SUSE Labs
