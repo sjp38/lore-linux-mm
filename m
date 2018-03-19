@@ -1,118 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D6726B000C
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:16:13 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u68so10022679pfk.8
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 11:16:13 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e11sor166392pgr.121.2018.03.19.11.16.12
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 092C16B000C
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 14:18:01 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id w19-v6so8963933plq.2
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 11:18:01 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j88si341065pfe.324.2018.03.19.11.17.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 19 Mar 2018 11:16:12 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Mar 2018 11:18:00 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 115/134] x86/mm: Fix vmalloc_fault to use pXd_large
+Date: Mon, 19 Mar 2018 19:06:38 +0100
+Message-Id: <20180319171905.892026687@linuxfoundation.org>
+In-Reply-To: <20180319171849.024066323@linuxfoundation.org>
+References: <20180319171849.024066323@linuxfoundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20180319175457.GC37438@google.com>
-References: <alpine.DEB.2.20.1803171208370.21003@alpaca> <CACT4Y+aLqY6wUfRMto_CZxPRSyvPKxK8ucvAmAY-aR_gq8fOAg@mail.gmail.com>
- <20180319172902.GB37438@google.com> <CACT4Y+Z9xeWvu5XUy_qNTewihuCC1-2a0hZDuymU6PA_3NJ90Q@mail.gmail.com>
- <20180319175457.GC37438@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 19 Mar 2018 19:15:50 +0100
-Message-ID: <CACT4Y+ZsmWyvfcpCtxEUH3YJDDNFUAO=0kyCmJAfv=NXeVGRkA@mail.gmail.com>
-Subject: Re: clang fails on linux-next since commit 8bf705d13039
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthias Kaehlcke <mka@chromium.org>
-Cc: Lukas Bulwahn <lukas.bulwahn@gmail.com>, Nick Desaulniers <ndesaulniers@google.com>, Greg Hackmann <ghackmann@google.com>, Luis Lozano <llozano@google.com>, Michael Davidson <md@google.com>, Sami Tolvanen <samitolvanen@google.com>, Paul Lawrence <paullawrence@google.com>, Ingo Molnar <mingo@kernel.org>, Linux-MM <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>, llvmlinux@lists.linuxfoundation.org, sil2review@lists.osadl.org, Manoj Gupta <manojgupta@chromium.org>, Stephen Hines <srhines@google.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Gratian Crisan <gratian.crisan@ni.com>, Toshi Kani <toshi.kani@hpe.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>
 
-On Mon, Mar 19, 2018 at 6:54 PM, Matthias Kaehlcke <mka@chromium.org> wrote:
-> El Mon, Mar 19, 2018 at 06:39:32PM +0100 Dmitry Vyukov ha dit:
->
->> On Mon, Mar 19, 2018 at 6:29 PM, Matthias Kaehlcke <mka@chromium.org> wrote:
->> > El Mon, Mar 19, 2018 at 09:43:25AM +0300 Dmitry Vyukov ha dit:
->> >
->> >> On Sat, Mar 17, 2018 at 2:13 PM, Lukas Bulwahn <lukas.bulwahn@gmail.com> wrote:
->> >> > Hi Dmitry, hi Ingo,
->> >> >
->> >> > since commit 8bf705d13039 ("locking/atomic/x86: Switch atomic.h to use atomic-instrumented.h")
->> >> > on linux-next (tested and bisected from tag next-20180316), compiling the
->> >> > kernel with clang fails with:
->> >> >
->> >> > In file included from arch/x86/entry/vdso/vdso32/vclock_gettime.c:33:
->> >> > In file included from arch/x86/entry/vdso/vdso32/../vclock_gettime.c:15:
->> >> > In file included from ./arch/x86/include/asm/vgtod.h:6:
->> >> > In file included from ./include/linux/clocksource.h:13:
->> >> > In file included from ./include/linux/timex.h:56:
->> >> > In file included from ./include/uapi/linux/timex.h:56:
->> >> > In file included from ./include/linux/time.h:6:
->> >> > In file included from ./include/linux/seqlock.h:36:
->> >> > In file included from ./include/linux/spinlock.h:51:
->> >> > In file included from ./include/linux/preempt.h:81:
->> >> > In file included from ./arch/x86/include/asm/preempt.h:7:
->> >> > In file included from ./include/linux/thread_info.h:38:
->> >> > In file included from ./arch/x86/include/asm/thread_info.h:53:
->> >> > In file included from ./arch/x86/include/asm/cpufeature.h:5:
->> >> > In file included from ./arch/x86/include/asm/processor.h:21:
->> >> > In file included from ./arch/x86/include/asm/msr.h:67:
->> >> > In file included from ./arch/x86/include/asm/atomic.h:279:
->> >> > ./include/asm-generic/atomic-instrumented.h:295:10: error: invalid output size for constraint '=a'
->> >> >                 return arch_cmpxchg((u64 *)ptr, (u64)old, (u64)new);
->> >> >                        ^
->> >> > ./arch/x86/include/asm/cmpxchg.h:149:2: note: expanded from macro 'arch_cmpxchg'
->> >> >         __cmpxchg(ptr, old, new, sizeof(*(ptr)))
->> >> >         ^
->> >> > ./arch/x86/include/asm/cmpxchg.h:134:2: note: expanded from macro '__cmpxchg'
->> >> >         __raw_cmpxchg((ptr), (old), (new), (size), LOCK_PREFIX)
->> >> >         ^
->> >> > ./arch/x86/include/asm/cmpxchg.h:95:17: note: expanded from macro '__raw_cmpxchg'
->> >> >                              : "=a" (__ret), "+m" (*__ptr)              \
->> >> >                                      ^
->> >> >
->> >> > (... and some more similar and closely related errors)
->> >>
->> >>
->> >> Thanks for reporting, Lukas.
->> >>
->> >> +more people who are more aware of the current state of clang for kernel.
->> >>
->> >> Are there are known issues in '=a' constraint handling between gcc and
->> >> clang? Is there a recommended way to resolve them?
->> >>
->> >> Also, Lukas what's your version of clang? Potentially there are some
->> >> fixes for kernel in the very latest versions of clang.
->> >
->> > My impression is that the problem only occurs in code built for
->> > 32-bit (like arch/x86/entry/vdso/vdso32/*), where the use of a 64-bit
->> > address with a '=a' constraint is indeed invalid. I think the 'root
->> > cause' is that clang parses unreachable code before it discards it:
->> >
->> > static __always_inline unsigned long
->> > cmpxchg_local_size(volatile void *ptr, unsigned long old, unsigned long new,
->> >                    int size)
->> > {
->> >         ...
->> >         switch (size) {
->> >         ...
->> >         case 8:
->> >                 BUILD_BUG_ON(sizeof(unsigned long) != 8);
->> >                 return arch_cmpxchg_local((u64 *)ptr, (u64)old, (u64)new);
->> >         }
->> >         ...
->> > }
->> >
->> > For 32-bit builds size is 4 and the code in the 'offending' branch is
->> > unreachable, however clang still parses it.
->> >
->> > d135b8b5060e ("arm64: uaccess: suppress spurious clang warning") fixes
->> > a similar issue.
->>
->>
->> Thanks!
->>
->> Do I understand it correctly that this is being fixed in clang?
->
-> Personally I am not aware of any development on that side, however I'm
-> not an LLVM dev.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
+------------------
 
-This looks like something that will hit us again and again if we don't
-fix this in clang.
+From: Toshi Kani <toshi.kani@hpe.com>
+
+commit 18a955219bf7d9008ce480d4451b6b8bf4483a22 upstream.
+
+Gratian Crisan reported that vmalloc_fault() crashes when CONFIG_HUGETLBFS
+is not set since the function inadvertently uses pXn_huge(), which always
+return 0 in this case.  ioremap() does not depend on CONFIG_HUGETLBFS.
+
+Fix vmalloc_fault() to call pXd_large() instead.
+
+Fixes: f4eafd8bcd52 ("x86/mm: Fix vmalloc_fault() to handle large pages properly")
+Reported-by: Gratian Crisan <gratian.crisan@ni.com>
+Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: stable@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Andy Lutomirski <luto@kernel.org>
+Link: https://lkml.kernel.org/r/20180313170347.3829-2-toshi.kani@hpe.com
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ arch/x86/mm/fault.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -287,7 +287,7 @@ static noinline int vmalloc_fault(unsign
+ 	if (!pmd_k)
+ 		return -1;
+ 
+-	if (pmd_huge(*pmd_k))
++	if (pmd_large(*pmd_k))
+ 		return 0;
+ 
+ 	pte_k = pte_offset_kernel(pmd_k, address);
+@@ -407,7 +407,7 @@ static noinline int vmalloc_fault(unsign
+ 	if (pud_none(*pud) || pud_pfn(*pud) != pud_pfn(*pud_ref))
+ 		BUG();
+ 
+-	if (pud_huge(*pud))
++	if (pud_large(*pud))
+ 		return 0;
+ 
+ 	pmd = pmd_offset(pud, address);
+@@ -418,7 +418,7 @@ static noinline int vmalloc_fault(unsign
+ 	if (pmd_none(*pmd) || pmd_pfn(*pmd) != pmd_pfn(*pmd_ref))
+ 		BUG();
+ 
+-	if (pmd_huge(*pmd))
++	if (pmd_large(*pmd))
+ 		return 0;
+ 
+ 	pte_ref = pte_offset_kernel(pmd_ref, address);
