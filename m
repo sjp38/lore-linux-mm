@@ -1,189 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 599A96B0005
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 09:50:26 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id m6-v6so1156526pln.8
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 06:50:26 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id s4-v6si1625863plp.423.2018.03.20.06.50.25
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 699BD6B0009
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 10:10:55 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id t23-v6so1213247ply.0
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 07:10:55 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s3-v6si1682536plp.523.2018.03.20.07.10.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 06:50:25 -0700 (PDT)
-Date: Tue, 20 Mar 2018 21:50:20 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [RFC PATCH v2 1/4] mm/page_alloc: use helper functions to
- add/remove a page to/from buddy
-Message-ID: <20180320135019.GA2033@intel.com>
-References: <20180320085452.24641-1-aaron.lu@intel.com>
- <20180320085452.24641-2-aaron.lu@intel.com>
- <d9121a55-411e-37e0-2080-00b860612cc8@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 20 Mar 2018 07:10:53 -0700 (PDT)
+Date: Tue, 20 Mar 2018 15:10:51 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH 1/2] mm,oom_reaper: Show trace of unable to reap victim
+ thread.
+Message-ID: <20180320141051.GS23100@dhcp22.suse.cz>
+References: <20180320122818.GL23100@dhcp22.suse.cz>
+ <201803202152.HED82804.QFOHLMVFFtOOJS@I-love.SAKURA.ne.jp>
+ <20180320131953.GM23100@dhcp22.suse.cz>
+ <201803202230.HDH17140.OFtMQJVLOOFHSF@I-love.SAKURA.ne.jp>
+ <20180320133445.GP23100@dhcp22.suse.cz>
+ <201803202250.CHG18290.FJMOtOHLFVQFOS@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d9121a55-411e-37e0-2080-00b860612cc8@suse.cz>
+In-Reply-To: <201803202250.CHG18290.FJMOtOHLFVQFOS@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, rientjes@google.com
 
-On Tue, Mar 20, 2018 at 12:35:46PM +0100, Vlastimil Babka wrote:
-> On 03/20/2018 09:54 AM, Aaron Lu wrote:
-> > There are multiple places that add/remove a page into/from buddy,
-> > introduce helper functions for them.
+On Tue 20-03-18 22:50:21, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Tue 20-03-18 22:30:16, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > > > On Tue 20-03-18 21:52:33, Tetsuo Handa wrote:
+> > > > > Michal Hocko wrote:
+> > > > > > A single stack trace in the changelog would be sufficient IMHO.
+> > > > > > Appart from that. What do you expect users will do about this trace?
+> > > > > > Sure they will see a path which holds mmap_sem, we will see a bug report
+> > > > > > but we can hardly do anything about that. We simply cannot drop the lock
+> > > > > > from that path in 99% of situations. So _why_ do we want to add more
+> > > > > > information to the log?
+> > > > > 
+> > > > > This case is blocked at i_mmap_lock_write().
+> > > > 
+> > > > But why does i_mmap_lock_write matter for oom_reaping. We are not
+> > > > touching hugetlb mappings. dup_mmap holds mmap_sem for write which is
+> > > > the most probable source of the backoff.
+> > > 
+> > > If i_mmap_lock_write can bail out upon SIGKILL, the OOM victim will be able to
+> > > release mmap_sem held for write, which helps the OOM reaper not to back off.
 > > 
-> > This also makes it easier to add code when a page is added/removed
-> > to/from buddy.
-> > 
-> > Signed-off-by: Aaron Lu <aaron.lu@intel.com>
-> > ---
-> >  mm/page_alloc.c | 65 ++++++++++++++++++++++++++++++++++-----------------------
-> >  1 file changed, 39 insertions(+), 26 deletions(-)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 3db9cfb2265b..3cdf1e10d412 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -736,12 +736,41 @@ static inline void set_page_order(struct page *page, unsigned int order)
-> >  	__SetPageBuddy(page);
-> >  }
-> >  
-> > +static inline void add_to_buddy_common(struct page *page, struct zone *zone,
-> > +					unsigned int order, int mt)
-> > +{
-> > +	set_page_order(page, order);
-> > +	zone->free_area[order].nr_free++;
+> > There are so many other blocking calls (including allocations) in
+> > dup_mmap 
 > 
-> The 'mt' parameter seems unused here. Otherwise
-
-An right, forgot to remove it...
-
+> Yes. But
 > 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks!
-
+> >          that I do not really think i_mmap_lock_write is the biggest
+> > problem. That will be likely the case for other mmap_sem write lockers.
 > 
-> > +}
-> > +
-> > +static inline void add_to_buddy_head(struct page *page, struct zone *zone,
-> > +					unsigned int order, int mt)
-> > +{
-> > +	add_to_buddy_common(page, zone, order, mt);
-> > +	list_add(&page->lru, &zone->free_area[order].free_list[mt]);
-> > +}
-> > +
-> > +static inline void add_to_buddy_tail(struct page *page, struct zone *zone,
-> > +					unsigned int order, int mt)
-> > +{
-> > +	add_to_buddy_common(page, zone, order, mt);
-> > +	list_add_tail(&page->lru, &zone->free_area[order].free_list[mt]);
-> > +}
-> > +
-> >  static inline void rmv_page_order(struct page *page)
-> >  {
-> >  	__ClearPageBuddy(page);
-> >  	set_page_private(page, 0);
-> >  }
-> >  
-> > +static inline void remove_from_buddy(struct page *page, struct zone *zone,
-> > +					unsigned int order)
-> > +{
-> > +	list_del(&page->lru);
-> > +	zone->free_area[order].nr_free--;
-> > +	rmv_page_order(page);
-> > +}
-> > +
-> >  /*
-> >   * This function checks whether a page is free && is the buddy
-> >   * we can do coalesce a page and its buddy if
-> > @@ -845,13 +874,10 @@ static inline void __free_one_page(struct page *page,
-> >  		 * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
-> >  		 * merge with it and move up one order.
-> >  		 */
-> > -		if (page_is_guard(buddy)) {
-> > +		if (page_is_guard(buddy))
-> >  			clear_page_guard(zone, buddy, order, migratetype);
-> > -		} else {
-> > -			list_del(&buddy->lru);
-> > -			zone->free_area[order].nr_free--;
-> > -			rmv_page_order(buddy);
-> > -		}
-> > +		else
-> > +			remove_from_buddy(buddy, zone, order);
-> >  		combined_pfn = buddy_pfn & pfn;
-> >  		page = page + (combined_pfn - pfn);
-> >  		pfn = combined_pfn;
-> > @@ -883,8 +909,6 @@ static inline void __free_one_page(struct page *page,
-> >  	}
-> >  
-> >  done_merging:
-> > -	set_page_order(page, order);
-> > -
-> >  	/*
-> >  	 * If this is not the largest possible page, check if the buddy
-> >  	 * of the next-highest order is free. If it is, it's possible
-> > @@ -901,15 +925,12 @@ static inline void __free_one_page(struct page *page,
-> >  		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
-> >  		if (pfn_valid_within(buddy_pfn) &&
-> >  		    page_is_buddy(higher_page, higher_buddy, order + 1)) {
-> > -			list_add_tail(&page->lru,
-> > -				&zone->free_area[order].free_list[migratetype]);
-> > -			goto out;
-> > +			add_to_buddy_tail(page, zone, order, migratetype);
-> > +			return;
-> >  		}
-> >  	}
-> >  
-> > -	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
-> > -out:
-> > -	zone->free_area[order].nr_free++;
-> > +	add_to_buddy_head(page, zone, order, migratetype);
-> >  }
-> >  
-> >  /*
-> > @@ -1731,9 +1752,7 @@ static inline void expand(struct zone *zone, struct page *page,
-> >  		if (set_page_guard(zone, &page[size], high, migratetype))
-> >  			continue;
-> >  
-> > -		list_add(&page[size].lru, &area->free_list[migratetype]);
-> > -		area->nr_free++;
-> > -		set_page_order(&page[size], high);
-> > +		add_to_buddy_head(&page[size], zone, high, migratetype);
-> >  	}
-> >  }
-> >  
-> > @@ -1877,9 +1896,7 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
-> >  							struct page, lru);
-> >  		if (!page)
-> >  			continue;
-> > -		list_del(&page->lru);
-> > -		rmv_page_order(page);
-> > -		area->nr_free--;
-> > +		remove_from_buddy(page, zone, current_order);
-> >  		expand(zone, page, order, current_order, area, migratetype);
-> >  		set_pcppage_migratetype(page, migratetype);
-> >  		return page;
-> > @@ -2795,9 +2812,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
-> >  	}
-> >  
-> >  	/* Remove page from free list */
-> > -	list_del(&page->lru);
-> > -	zone->free_area[order].nr_free--;
-> > -	rmv_page_order(page);
-> > +	remove_from_buddy(page, zone, order);
-> >  
-> >  	/*
-> >  	 * Set the pageblock if the isolated page is at least half of a
-> > @@ -7886,9 +7901,7 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
-> >  		pr_info("remove from free list %lx %d %lx\n",
-> >  			pfn, 1 << order, end_pfn);
-> >  #endif
-> > -		list_del(&page->lru);
-> > -		rmv_page_order(page);
-> > -		zone->free_area[order].nr_free--;
-> > +		remove_from_buddy(page, zone, order);
-> >  		for (i = 0; i < (1 << order); i++)
-> >  			SetPageReserved((page+i));
-> >  		pfn += (1 << order);
-> > 
+> i_mmap_lock_write() is one of the problems which we could afford fixing.
+> 8 out of 11 "oom_reaper: unable to reap" messages are blocked at i_mmap_lock_write().
 > 
+[...]
+> > Really I am not sure dumping more information is beneficial here.
+> 
+> Converting to use killable where we can afford is beneficial.
+
+I am no questioning that. I am questioning the additional information
+because we won't be able to do anything about mmap_sem holder most of
+the time. Because they tend block on allocations...
+
+-- 
+Michal Hocko
+SUSE Labs
