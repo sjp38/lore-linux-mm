@@ -1,115 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B181B6B0007
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 04:44:50 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id p128so537967pga.19
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 01:44:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j62si892808pgd.404.2018.03.20.01.44.49
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 976266B0007
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 04:53:47 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id f3-v6so699787plf.1
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 01:53:47 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id l185si925211pgd.108.2018.03.20.01.53.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 20 Mar 2018 01:44:49 -0700 (PDT)
-Date: Tue, 20 Mar 2018 09:44:45 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH v2] mm: Warn on lock_page() from reclaim context.
-Message-ID: <20180320084445.GE23100@dhcp22.suse.cz>
-References: <1521295866-9670-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180317155437.pcbeigeivn4a23gt@node.shutemov.name>
- <201803181022.IAI30275.JOFOQMtFSHLFOV@I-love.SAKURA.ne.jp>
- <20180319150824.24032e2854908b0cc5240d9f@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180319150824.24032e2854908b0cc5240d9f@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Mar 2018 01:53:46 -0700 (PDT)
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: [RFC PATCH v2 0/4] Eliminate zone->lock contention for will-it-scale/page_fault1 and parallel free
+Date: Tue, 20 Mar 2018 16:54:48 +0800
+Message-Id: <20180320085452.24641-1-aaron.lu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kirill@shutemov.name, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On Mon 19-03-18 15:08:24, Andrew Morton wrote:
-> On Sun, 18 Mar 2018 10:22:49 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
-> 
-> > >From f43b8ca61b76f9a19c13f6bf42b27fad9554afc0 Mon Sep 17 00:00:00 2001
-> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Date: Sun, 18 Mar 2018 10:18:01 +0900
-> > Subject: [PATCH v2] mm: Warn on lock_page() from reclaim context.
-> > 
-> > Kirill A. Shutemov noticed that calling lock_page[_killable]() from
-> > reclaim context might cause deadlock. In order to help finding such
-> > lock_page[_killable]() users (including out of tree users), this patch
-> > emits warning messages when CONFIG_PROVE_LOCKING is enabled.
-> >
-> > ...
-> > 
-> > --- a/include/linux/pagemap.h
-> > +++ b/include/linux/pagemap.h
-> > @@ -466,6 +466,7 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
-> >  extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
-> >  				unsigned int flags);
-> >  extern void unlock_page(struct page *page);
-> > +extern void __warn_lock_page_from_reclaim_context(void);
-> >  
-> >  static inline int trylock_page(struct page *page)
-> >  {
-> > @@ -479,6 +480,9 @@ static inline int trylock_page(struct page *page)
-> >  static inline void lock_page(struct page *page)
-> >  {
-> >  	might_sleep();
-> > +	if (IS_ENABLED(CONFIG_PROVE_LOCKING) &&
-> > +	    unlikely(current->flags & PF_MEMALLOC))
-> > +		__warn_lock_page_from_reclaim_context();
-> >  	if (!trylock_page(page))
-> >  		__lock_page(page);
-> >  }
-> 
-> I think it would be neater to do something like
-> 
-> #ifdef CONFIG_PROVE_LOCKING
-> static inline void lock_page_check_context(struct page *page)
-> {
-> 	if (unlikely(current->flags & PF_MEMALLOC))
-> 		__lock_page_check_context(page);
-> }
-> #else
-> static inline void lock_page_check_context(struct page *page)
-> {
-> }
-> #endif
-> 
-> and
-> 
-> void __lock_page_check_context(struct page *page)
-> {
-> 	WARN_ONCE(...);
-> 	dump_page(page);
-> }
+This series is meant to improve zone->lock scalability for order 0 pages.
+With will-it-scale/page_fault1 workload, on a 2 sockets Intel Skylake
+server with 112 CPUs, CPU spend 80% of its time spinning on zone->lock.
+Perf profile shows the most time consuming part under zone->lock is the
+cache miss on "struct page", so here I'm trying to avoid those cache
+misses.
 
-I would just put __lock_page_check_context in place. Or do you expect
-more callers? But agreed that this looks neater than in line code.
+Patch 1/4 adds some wrapper functions for page to be added/removed
+into/from buddy and doesn't have functionality changes.
 
-> And I wonder if overloading CONFIG_PROVE_LOCKING is appropriate here. 
-> CONFIG_PROVE_LOCKING is a high-level thing under which a whole bunch of
-> different debugging options may exist.
+Patch 2/4 skip doing merge for order 0 pages to avoid cache misses on
+buddy's "struct page". On a 2 sockets Intel Skylake, this has very good
+effect on free path for will-it-scale/page_fault1 full load in that it
+reduced zone->lock contention on free path from 35% to 1.1%. Also, it
+shows good result on parallel free(*) workload by reducing zone->lock
+contention from 90% to almost zero(lru lock increased from almost 0 to
+90% though).
 
-Yes but it is meant to catch locking issues in general so I think doing
-this check under the same config makes sense.
+Patch 3/4 deals with allocation path zone->lock contention by not
+touching pages on free_list one by one inside zone->lock. Together with
+patch 2/4, zone->lock contention is entirely eliminated for
+will-it-scale/page_fault1 full load, though this patch adds some
+overhead to manage cluster on free path and it has some bad effects on
+parallel free workload in that it increased zone->lock contention from
+almost 0 to 25%.
 
-> I guess we should add a new config item under PROVE_LOCKING,
+Patch 4/4 is an optimization in free path due to cluster operation. It
+decreased the number of times add_to_cluster() has to be called and
+restored performance for parallel free workload by reducing zone->lock's
+contention to almost 0% again.
 
-I am not convinced a new config is really worth it. We have way too many
-already and PROVE_LOCKING sounds like a good fit to me.
+The good thing about this patchset is, it eliminated zone->lock
+contention for will-it-scale/page_fault1 and parallel free on big
+servers(contention shifted to lru_lock). The bad thing are:
+ - it added some overhead in compaction path where it will do merging
+   for those merge-skipped order 0 pages;
+ - it is unfriendly to high order page allocation since we do not do
+   merging for order 0 pages now.
 
-> or perhaps use CONFIG_DEBUG_VM.
+To see how much effect it has on compaction, mmtests/stress-highalloc is
+used on a Desktop machine with 8 CPUs and 4G memory.
+(mmtests/stress-highalloc: make N copies of kernel tree and start
+building them to consume almost all memory with reclaimable file page
+cache. These file page cache will not be returned to buddy so effectively
+makes it a worst case for high order page workload. Then after 5 minutes,
+start allocating X order-9 pages to see how well compaction works).
 
-Please don't. There are people running with this config and adding more
-potentially performance visible changes wouldn't make them too happy.
+With a delay of 100ms between allocations:
+kernel   success_rate  average_time_of_alloc_one_hugepage
+base           58%       3.95927e+06 ns
+patch2/4       58%       5.45935e+06 ns
+patch4/4       57%       6.59174e+06 ns
 
-> Also, is PF_MEMALLOC the best way of determining that we're running
-> reclaim?  What about using current->reclaim_state?
+With a delay of 1ms between allocations:
+kernel   success_rate  average_time_of_alloc_one_hugepage
+base           53%       3.17362e+06 ns
+patch2/4       44%       2.31637e+06 ns
+patch4/4       59%       2.73029e+06 ns
 
-Yeah, reclaim_state state would rule out PF_MEMALLOC (ab)users
-allocating under the page lock.
+If we compare patch4/4's result with base, it performed OK I think.
+This is probably due to compaction is a heavy job so the added overhead
+doesn't affect much.
+
+To see how much effect it has on workload that uses hugepage, I did the
+following test on a 2 sockets Intel Skylake with 112 CPUs/64G memory:
+1 Break all high order pages by starting a program that consumes almost
+  all memory with anonymous pages and then exit. This is used to create
+  an extreme bad case for this patchset compared to vanilla that always
+  does merging;
+2 Start 56 processes of will-it-scale/page_fault1 that use hugepages
+  through calling madvise(MADV_HUGEPAGE). To make things worse for this
+  patchset, start another 56 processes of will-it-scale/page_fault1 that
+  uses order 0 pages to continually cause trouble for the 56 THP users.
+  Let them run for 5 minutes.
+
+Score result(higher is better):
+
+kernel      order0           THP
+base        1522246        10540254
+patch2/4    5266247 +246%   3309816 -69%
+patch4/4    2234073 +47%    9610295 -8.8%
+
+TBH, I'm not sure if the way I tried above is good enough to expose the
+problem of this patchset. So if you have any thoughts on this patchset,
+please feel free to let me know, thanks.
+
+(*) Parallel free is a workload that I used to see how well parallel
+freeing a large VMA can be. I tested this on a 4 sockets Intel Skylake
+machine with 768G memory. The test program starts by doing a 512G anon
+memory allocation with mmap() and then exit to see how fast it can exit.
+The parallel is implemented inside kernel and has been posted before:
+http://lkml.kernel.org/r/1489568404-7817-1-git-send-email-aaron.lu@intel.com
+
+A branch is maintained here in case someone wants to give it a try:
+https://github.com/aaronlu/linux zone_lock_rfc_v2
+
+v2:
+Rewrote allocation path optimization, compaction could happen now and no
+crashes that I'm aware of.
+
+v1 is here:
+https://lkml.kernel.org/r/20180205053013.GB16980@intel.com
+
+Aaron Lu (4):
+  mm/page_alloc: use helper functions to add/remove a page to/from buddy
+  mm/__free_one_page: skip merge for order-0 page unless compaction
+    failed
+  mm/rmqueue_bulk: alloc without touching individual page structure
+  mm/free_pcppages_bulk: reduce overhead of cluster operation on free
+    path
+
+ Documentation/vm/struct_page_field |  10 +
+ include/linux/mm_types.h           |   3 +
+ include/linux/mmzone.h             |  35 +++
+ mm/compaction.c                    |  17 +-
+ mm/internal.h                      |  61 +++++
+ mm/page_alloc.c                    | 488 +++++++++++++++++++++++++++++++++----
+ 6 files changed, 563 insertions(+), 51 deletions(-)
+ create mode 100644 Documentation/vm/struct_page_field
 
 -- 
-Michal Hocko
-SUSE Labs
+2.14.3
