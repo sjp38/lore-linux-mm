@@ -1,299 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FAE66B0007
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 07:47:43 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id z11-v6so951872plo.21
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 04:47:43 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a33-v6si1485805plc.101.2018.03.20.04.47.41
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 303706B0003
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 07:57:56 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id w23so771214pgv.17
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 04:57:56 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p1si1040170pfb.188.2018.03.20.04.57.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 20 Mar 2018 04:47:41 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 2/4] mm/__free_one_page: skip merge for order-0
- page unless compaction failed
-References: <20180320085452.24641-1-aaron.lu@intel.com>
- <20180320085452.24641-3-aaron.lu@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <7b1988e9-7d50-d55e-7590-20426fb257af@suse.cz>
-Date: Tue, 20 Mar 2018 12:45:50 +0100
-MIME-Version: 1.0
-In-Reply-To: <20180320085452.24641-3-aaron.lu@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Mar 2018 04:57:54 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH 2/2] mm,oom_reaper: Correct MAX_OOM_REAP_RETRIES'th attempt.
+Date: Tue, 20 Mar 2018 20:57:56 +0900
+Message-Id: <1521547076-3399-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1521547076-3399-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1521547076-3399-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>
 
-On 03/20/2018 09:54 AM, Aaron Lu wrote:
-> Running will-it-scale/page_fault1 process mode workload on a 2 sockets
-> Intel Skylake server showed severe lock contention of zone->lock, as
-> high as about 80%(42% on allocation path and 35% on free path) CPU
-> cycles are burnt spinning. With perf, the most time consuming part inside
-> that lock on free path is cache missing on page structures, mostly on
-> the to-be-freed page's buddy due to merging.
+I got "oom_reaper: unable to reap pid:" messages when the victim thread
+was blocked inside free_pgtables() (which occurred after returning from
+unmap_vmas() and setting MMF_OOM_SKIP). We don't need to complain when
+__oom_reap_task_mm() returned true (by e.g. finding MMF_OOM_SKIP already
+set) when oom_reap_task() was trying MAX_OOM_REAP_RETRIES'th attempt.
 
-But why, with all the prefetching in place?
+[  663.593821] Killed process 7558 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
+[  664.684801] oom_reaper: unable to reap pid:7558 (a.out)
+[  664.892292] a.out           D13272  7558   6931 0x00100084
+[  664.895765] Call Trace:
+[  664.897574]  ? __schedule+0x25f/0x780
+[  664.900099]  schedule+0x2d/0x80
+[  664.902260]  rwsem_down_write_failed+0x2bb/0x440
+[  664.905249]  ? rwsem_down_write_failed+0x55/0x440
+[  664.908335]  ? free_pgd_range+0x569/0x5e0
+[  664.911145]  call_rwsem_down_write_failed+0x13/0x20
+[  664.914121]  down_write+0x49/0x60
+[  664.916519]  ? unlink_file_vma+0x28/0x50
+[  664.919255]  unlink_file_vma+0x28/0x50
+[  664.922234]  free_pgtables+0x36/0x100
+[  664.924797]  exit_mmap+0xbb/0x180
+[  664.927220]  mmput+0x50/0x110
+[  664.929504]  copy_process.part.41+0xb61/0x1fe0
+[  664.932448]  ? _do_fork+0xe6/0x560
+[  664.934902]  ? _do_fork+0xe6/0x560
+[  664.937361]  _do_fork+0xe6/0x560
+[  664.939742]  ? syscall_trace_enter+0x1a9/0x240
+[  664.942693]  ? retint_user+0x18/0x18
+[  664.945309]  ? page_fault+0x2f/0x50
+[  664.947896]  ? trace_hardirqs_on_caller+0x11f/0x1b0
+[  664.951075]  do_syscall_64+0x74/0x230
+[  664.953747]  entry_SYSCALL_64_after_hwframe+0x42/0xb7
 
-> One way to avoid this overhead is not do any merging at all for order-0
-> pages. With this approach, the lock contention for zone->lock on free
-> path dropped to 1.1% but allocation side still has as high as 42% lock
-> contention. In the meantime, the dropped lock contention on free side
-> doesn't translate to performance increase, instead, it's consumed by
-> increased lock contention of the per node lru_lock(rose from 5% to 37%)
-> and the final performance slightly dropped about 1%.
-> 
-> Though performance dropped a little, it almost eliminated zone lock
-> contention on free path and it is the foundation for the next patch
-> that eliminates zone lock contention for allocation path.
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: David Rientjes <rientjes@google.com>
+---
+ mm/oom_kill.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-Not thrilled about such disruptive change in the name of a
-microbenchmark :/ Shouldn't normally the pcplists hide the overhead?
-If not, wouldn't it make more sense to turn zone->lock into a range lock?
-
-> A new document file called "struct_page_filed" is added to explain
-> the newly reused field in "struct page".
-
-Sounds rather ad-hoc for a single field, I'd rather document it via
-comments.
-
-> Suggested-by: Dave Hansen <dave.hansen@intel.com>
-> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
-> ---
->  Documentation/vm/struct_page_field |  5 +++
->  include/linux/mm_types.h           |  1 +
->  mm/compaction.c                    | 13 +++++-
->  mm/internal.h                      | 27 ++++++++++++
->  mm/page_alloc.c                    | 89 +++++++++++++++++++++++++++++++++-----
->  5 files changed, 122 insertions(+), 13 deletions(-)
->  create mode 100644 Documentation/vm/struct_page_field
-> 
-> diff --git a/Documentation/vm/struct_page_field b/Documentation/vm/struct_page_field
-> new file mode 100644
-> index 000000000000..1ab6c19ccc7a
-> --- /dev/null
-> +++ b/Documentation/vm/struct_page_field
-> @@ -0,0 +1,5 @@
-> +buddy_merge_skipped:
-> +Used to indicate this page skipped merging when added to buddy. This
-> +field only makes sense if the page is in Buddy and is order zero.
-> +It's a bug if any higher order pages in Buddy has this field set.
-> +Shares space with index.
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index fd1af6b9591d..7edc4e102a8e 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -91,6 +91,7 @@ struct page {
->  		pgoff_t index;		/* Our offset within mapping. */
->  		void *freelist;		/* sl[aou]b first free object */
->  		/* page_deferred_list().prev	-- second tail page */
-> +		bool buddy_merge_skipped; /* skipped merging when added to buddy */
->  	};
->  
->  	union {
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 2c8999d027ab..fb9031fdca41 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -776,8 +776,19 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->  		 * potential isolation targets.
->  		 */
->  		if (PageBuddy(page)) {
-> -			unsigned long freepage_order = page_order_unsafe(page);
-> +			unsigned long freepage_order;
->  
-> +			/*
-> +			 * If this is a merge_skipped page, do merge now
-> +			 * since high-order pages are needed. zone lock
-> +			 * isn't taken for the merge_skipped check so the
-> +			 * check could be wrong but the worst case is we
-> +			 * lose a merge opportunity.
-> +			 */
-> +			if (page_merge_was_skipped(page))
-> +				try_to_merge_page(page);
-> +
-> +			freepage_order = page_order_unsafe(page);
->  			/*
->  			 * Without lock, we cannot be sure that what we got is
->  			 * a valid page order. Consider only values in the
-> diff --git a/mm/internal.h b/mm/internal.h
-> index e6bd35182dae..2bfbaae2d835 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -538,4 +538,31 @@ static inline bool is_migrate_highatomic_page(struct page *page)
->  }
->  
->  void setup_zone_pageset(struct zone *zone);
-> +
-> +static inline bool page_merge_was_skipped(struct page *page)
-> +{
-> +	return page->buddy_merge_skipped;
-> +}
-> +
-> +void try_to_merge_page(struct page *page);
-> +
-> +#ifdef CONFIG_COMPACTION
-> +static inline bool can_skip_merge(struct zone *zone, int order)
-> +{
-> +	/* Compaction has failed in this zone, we shouldn't skip merging */
-> +	if (zone->compact_considered)
-> +		return false;
-> +
-> +	/* Only consider no_merge for order 0 pages */
-> +	if (order)
-> +		return false;
-> +
-> +	return true;
-> +}
-> +#else /* CONFIG_COMPACTION */
-> +static inline bool can_skip_merge(struct zone *zone, int order)
-> +{
-> +	return false;
-> +}
-> +#endif  /* CONFIG_COMPACTION */
->  #endif	/* __MM_INTERNAL_H */
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3cdf1e10d412..eb78014dfbde 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -730,6 +730,16 @@ static inline void clear_page_guard(struct zone *zone, struct page *page,
->  				unsigned int order, int migratetype) {}
->  #endif
->  
-> +static inline void set_page_merge_skipped(struct page *page)
-> +{
-> +	page->buddy_merge_skipped = true;
-> +}
-> +
-> +static inline void clear_page_merge_skipped(struct page *page)
-> +{
-> +	page->buddy_merge_skipped = false;
-> +}
-> +
->  static inline void set_page_order(struct page *page, unsigned int order)
->  {
->  	set_page_private(page, order);
-> @@ -739,6 +749,13 @@ static inline void set_page_order(struct page *page, unsigned int order)
->  static inline void add_to_buddy_common(struct page *page, struct zone *zone,
->  					unsigned int order, int mt)
->  {
-> +	/*
-> +	 * Always clear buddy_merge_skipped when added to buddy because
-> +	 * buddy_merge_skipped shares space with index and index could
-> +	 * be used as migratetype for PCP pages.
-> +	 */
-> +	clear_page_merge_skipped(page);
-> +
->  	set_page_order(page, order);
->  	zone->free_area[order].nr_free++;
->  }
-> @@ -769,6 +786,7 @@ static inline void remove_from_buddy(struct page *page, struct zone *zone,
->  	list_del(&page->lru);
->  	zone->free_area[order].nr_free--;
->  	rmv_page_order(page);
-> +	clear_page_merge_skipped(page);
->  }
->  
->  /*
-> @@ -839,7 +857,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
->   * -- nyc
->   */
->  
-> -static inline void __free_one_page(struct page *page,
-> +static inline void do_merge(struct page *page,
->  		unsigned long pfn,
->  		struct zone *zone, unsigned int order,
->  		int migratetype)
-> @@ -851,16 +869,6 @@ static inline void __free_one_page(struct page *page,
->  
->  	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
->  
-> -	VM_BUG_ON(!zone_is_initialized(zone));
-> -	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
-> -
-> -	VM_BUG_ON(migratetype == -1);
-> -	if (likely(!is_migrate_isolate(migratetype)))
-> -		__mod_zone_freepage_state(zone, 1 << order, migratetype);
-> -
-> -	VM_BUG_ON_PAGE(pfn & ((1 << order) - 1), page);
-> -	VM_BUG_ON_PAGE(bad_range(zone, page), page);
-> -
->  continue_merging:
->  	while (order < max_order - 1) {
->  		buddy_pfn = __find_buddy_pfn(pfn, order);
-> @@ -933,6 +941,61 @@ static inline void __free_one_page(struct page *page,
->  	add_to_buddy_head(page, zone, order, migratetype);
->  }
->  
-> +void try_to_merge_page(struct page *page)
-> +{
-> +	unsigned long pfn, buddy_pfn, flags;
-> +	struct page *buddy;
-> +	struct zone *zone;
-> +
-> +	/*
-> +	 * No need to do merging if buddy is not free.
-> +	 * zone lock isn't taken so this could be wrong but worst case
-> +	 * is we lose a merge opportunity.
-> +	 */
-> +	pfn = page_to_pfn(page);
-> +	buddy_pfn = __find_buddy_pfn(pfn, 0);
-> +	buddy = page + (buddy_pfn - pfn);
-> +	if (!PageBuddy(buddy))
-> +		return;
-> +
-> +	zone = page_zone(page);
-> +	spin_lock_irqsave(&zone->lock, flags);
-> +	/* Verify again after taking the lock */
-> +	if (likely(PageBuddy(page) && page_merge_was_skipped(page) &&
-> +		   PageBuddy(buddy))) {
-> +		int mt = get_pageblock_migratetype(page);
-> +
-> +		remove_from_buddy(page, zone, 0);
-> +		do_merge(page, pfn, zone, 0, mt);
-> +	}
-> +	spin_unlock_irqrestore(&zone->lock, flags);
-> +}
-> +
-> +static inline void __free_one_page(struct page *page,
-> +		unsigned long pfn,
-> +		struct zone *zone, unsigned int order,
-> +		int migratetype)
-> +{
-> +	VM_BUG_ON(!zone_is_initialized(zone));
-> +	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
-> +
-> +	VM_BUG_ON(migratetype == -1);
-> +	if (likely(!is_migrate_isolate(migratetype)))
-> +		__mod_zone_freepage_state(zone, 1 << order, migratetype);
-> +
-> +	VM_BUG_ON_PAGE(pfn & ((1 << order) - 1), page);
-> +	VM_BUG_ON_PAGE(bad_range(zone, page), page);
-> +
-> +	if (can_skip_merge(zone, order)) {
-> +		add_to_buddy_head(page, zone, 0, migratetype);
-> +		set_page_merge_skipped(page);
-> +		return;
-> +	}
-> +
-> +	do_merge(page, pfn, zone, order, migratetype);
-> +}
-> +
-> +
->  /*
->   * A bad page could be due to a number of fields. Instead of multiple branches,
->   * try and check multiple fields with one check. The caller must do a detailed
-> @@ -1183,8 +1246,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  			 * can be offset by reduced memory latency later. To
->  			 * avoid excessive prefetching due to large count, only
->  			 * prefetch buddy for the last pcp->batch nr of pages.
-> +			 *
-> +			 * If merge can be skipped, no need to prefetch buddy.
->  			 */
-> -			if (count > pcp->batch)
-> +			if (can_skip_merge(zone, 0) || count > pcp->batch)
->  				continue;
->  			pfn = page_to_pfn(page);
->  			buddy_pfn = __find_buddy_pfn(pfn, 0);
-> 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 900300c..1cb2b98 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -588,11 +588,11 @@ static void oom_reap_task(struct task_struct *tsk)
+ 	struct mm_struct *mm = tsk->signal->oom_mm;
+ 
+ 	/* Retry the down_read_trylock(mmap_sem) a few times */
+-	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task_mm(tsk, mm))
++	while (attempts++ < MAX_OOM_REAP_RETRIES) {
++		if (__oom_reap_task_mm(tsk, mm))
++			goto done;
+ 		schedule_timeout_idle(HZ/10);
+-
+-	if (attempts <= MAX_OOM_REAP_RETRIES)
+-		goto done;
++	}
+ 
+ 
+ 	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
+-- 
+1.8.3.1
