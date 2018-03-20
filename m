@@ -1,59 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 734436B0007
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 16:42:35 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id m3-v6so10630691iti.1
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 13:42:35 -0700 (PDT)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id w7-v6si1656217itd.101.2018.03.20.13.42.34
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3616C6B0007
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 16:46:54 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id g22so1434502pgv.16
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 13:46:54 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p9sor716467pgd.305.2018.03.20.13.46.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 13:42:34 -0700 (PDT)
-Date: Tue, 20 Mar 2018 15:42:32 -0500 (CDT)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
-In-Reply-To: <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
-Message-ID: <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake>
-References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake>
- <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+        (Google Transport Security);
+        Tue, 20 Mar 2018 13:46:53 -0700 (PDT)
+Date: Tue, 20 Mar 2018 13:46:51 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] mm,oom_reaper: Show trace of unable to reap victim
+ thread.
+In-Reply-To: <201803202320.IDG60953.QOFOFVFSLOHtMJ@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.20.1803201341210.167205@chino.kir.corp.google.com>
+References: <20180320131953.GM23100@dhcp22.suse.cz> <201803202230.HDH17140.OFtMQJVLOOFHSF@I-love.SAKURA.ne.jp> <20180320133445.GP23100@dhcp22.suse.cz> <201803202250.CHG18290.FJMOtOHLFVQFOS@I-love.SAKURA.ne.jp> <20180320141051.GS23100@dhcp22.suse.cz>
+ <201803202320.IDG60953.QOFOFVFSLOHtMJ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@suse.com, linux-mm@kvack.org
 
-On Tue, 20 Mar 2018, Mikulas Patocka wrote:
+On Tue, 20 Mar 2018, Tetsuo Handa wrote:
 
-> > Maybe do the same thing for SLAB?
->
-> Yes, but I need to change it for a specific cache, not for all caches.
+> > I am no questioning that. I am questioning the additional information
+> > because we won't be able to do anything about mmap_sem holder most of
+> > the time. Because they tend block on allocations...
+> 
+> serial-20180320.txt.xz is saying that they tend to block on i_mmap_lock_write() rather
+> than memory allocations. Making memory allocations killable will need a lot of work.
+> But I think that making frequently hitting down_write() killable won't need so much work.
+> 
 
-Why only some caches?
+I have available to me more than 28,222,058 occurrences of successful oom 
+reaping and 13,018 occurrences of failing to grab mm->mmap_sem.
 
-> When the order is greater than 3 (PAGE_ALLOC_COSTLY_ORDER), the allocation
-> becomes unreliable, thus it is a bad idea to increase slub_max_order
-> system-wide.
-
-Well the allocations is more likely to fail that is true but SLUB will
-fall back to a smaller order should the page allocator refuse to give us
-that larger sized page.
-
-> Another problem with slub_max_order is that it would pad all caches to
-> slub_max_order, even those that already have a power-of-two size (in that
-> case, the padding is counterproductive).
-
-No it does not. Slub will calculate the configuration with the least byte
-wastage. It is not the standard order but the maximum order to be used.
-Power of two caches below PAGE_SIZE will have order 0.
-
-There are some corner cases where extra metadata is needed per object or
-per page that will result in either object sizes that are no longer a
-power of two or in page sizes smaller than the whole page. Maybe you have
-a case like that? Can you show me a cache that has this issue?
-
-> BTW. the function "order_store" in mm/slub.c modifies the structure
-> kmem_cache without taking any locks - is it a bug?
-
-The kmem_cache structure was just allocated. Only one thread can access it
-thus no locking is necessary.
+The number of failures is low on production workloads, so I don't see an 
+issue with emitting a stack trace in these instances if it can help 
+improve things.  But for my 0.04% failure rate, I can't say that I would 
+look into them much unless it results in the system livelocking.  Unless 
+there's a compelling reason why this is shouldn't be done (too much email 
+sent to linux-mm as a result? :), I say just go ahead and add the darn 
+stack trace.
