@@ -1,63 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B3336B0005
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 14:41:29 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u188so1410862pfb.6
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 11:41:29 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id b9si1748385pff.169.2018.03.20.11.41.28
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D294D6B0005
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 15:22:07 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id t27so1593303qki.11
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 12:22:07 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id m63si3444757qkb.269.2018.03.20.12.22.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 11:41:28 -0700 (PDT)
-Date: Tue, 20 Mar 2018 11:41:26 -0700
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: Re: [linux-next:master] BUILD REGRESSION
- a5444cde9dc2120612e50fc5a56c975e67a041fb
-Message-ID: <20180320184125.jy4w4cfzgeavwt5p@agluck-desk>
-References: <5ab048c0.wmRYTJi5ip8zBzJ4%fengguang.wu@intel.com>
- <d22bd482-2f5b-8c02-4821-9f1b02122b51@infradead.org>
+        Tue, 20 Mar 2018 12:22:06 -0700 (PDT)
+Date: Tue, 20 Mar 2018 15:22:03 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake>
+Message-ID: <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d22bd482-2f5b-8c02-4821-9f1b02122b51@infradead.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christopher Lameter <cl@linux.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
-On Mon, Mar 19, 2018 at 06:10:13PM -0700, Randy Dunlap wrote:
-> On 03/19/2018 04:33 PM, kbuild test robot wrote:
-> > tree/branch: https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git  master
-> > branch HEAD: a5444cde9dc2120612e50fc5a56c975e67a041fb  Add linux-next specific files for 20180319
-> > 
-> > Regressions in current branch:
-> > 
-> > ERROR: "__sw_hweight8" [drivers/net/wireless/mediatek/mt76/mt76.ko] undefined!
-> 
-> Well, the driver could do:
-> 
-> drivers/net/wireless/mediatek/mt76/Kconfig:
-> 
-> +	select GENERIC_HWEIGHT
-> 
-> but maybe arch/ix64/Kconfig (where the build error is) could be asked to do:
-> 
-> config GENERIC_HWEIGHT
-> 	def_bool y
-> 
-> like 23 other $arch-es do.  Aha, ia64 provides inline functions via some
-> a twisty maze of header files.
-> 
-> Tony, Fengguang, what header(s) should be used to reach __arch_hweight8()?
 
-Looks like a few architectures have their own __arch_hweight8
-(alpha, blackfin, ia64, mips, powerpc, sparc, tile and x86)
 
-everyone except x86 puts them in <asm/bitops.h> ... x86 has a
-<asm/arch_hweight.h>
+On Tue, 20 Mar 2018, Christopher Lameter wrote:
 
-Likely that the best solution would be to match how x86 does
-this and move the hweight defines out of bitops.h.  But it all
-seems very messy :-(
+> On Tue, 20 Mar 2018, Matthew Wilcox wrote:
+> 
+> > On Tue, Mar 20, 2018 at 01:25:09PM -0400, Mikulas Patocka wrote:
+> > > The reason why we need this is that we are going to merge code that does
+> > > block device deduplication (it was developed separatedly and sold as a
+> > > commercial product), and the code uses block sizes that are not a power of
+> > > two (block sizes 192K, 448K, 640K, 832K are used in the wild). The slab
+> > > allocator rounds up the allocation to the nearest power of two, but that
+> > > wastes a lot of memory. Performance of the solution depends on efficient
+> > > memory usage, so we should minimize wasted as much as possible.
+> >
+> > The SLUB allocator also falls back to using the page (buddy) allocator
+> > for allocations above 8kB, so this patch is going to have no effect on
+> > slub.  You'd be better off using alloc_pages_exact() for this kind of
+> > size, or managing your own pool of pages by using something like five
+> > 192k blocks in a 1MB allocation.
+> 
+> The fallback is only effective for kmalloc caches. Manually created caches
+> do not follow this rule.
 
--Tony
+Yes - the dm-bufio layer uses manually created caches.
+
+> Note that you can already control the page orders for allocation and
+> the objects per slab using
+> 
+> 	slub_min_order
+> 	slub_max_order
+> 	slub_min_objects
+> 
+> This is documented in linux/Documentation/vm/slub.txt
+> 
+> Maybe do the same thing for SLAB?
+
+Yes, but I need to change it for a specific cache, not for all caches.
+
+When the order is greater than 3 (PAGE_ALLOC_COSTLY_ORDER), the allocation 
+becomes unreliable, thus it is a bad idea to increase slub_max_order 
+system-wide.
+
+Another problem with slub_max_order is that it would pad all caches to 
+slub_max_order, even those that already have a power-of-two size (in that 
+case, the padding is counterproductive).
+
+BTW. the function "order_store" in mm/slub.c modifies the structure 
+kmem_cache without taking any locks - is it a bug?
+
+Mikulas
