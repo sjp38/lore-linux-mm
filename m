@@ -1,222 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AE32A6B000A
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 18:04:49 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id w43-v6so1791285otd.1
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 15:04:49 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g138si667464oib.7.2018.03.20.15.04.48
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 27D0B6B0003
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 18:08:44 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id v25so1533161pgn.20
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 15:08:44 -0700 (PDT)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50113.outbound.protection.outlook.com. [40.107.5.113])
+        by mx.google.com with ESMTPS id q12-v6si1424371plk.559.2018.03.20.15.08.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 15:04:48 -0700 (PDT)
-Date: Tue, 20 Mar 2018 16:04:45 -0600
-From: Alex Williamson <alex.williamson@redhat.com>
-Subject: Re: [PATCH] vfio iommu type1: improve memory pinning process for
- raw PFN mapping
-Message-ID: <20180320160445.4cb838cc@t450s.home>
-In-Reply-To: <20180320153323.41c58c19@t450s.home>
-References: <7F93BB33-4ABF-468F-8814-78DE9D23FA08@linux.alibaba.com>
-	<20180320153323.41c58c19@t450s.home>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 20 Mar 2018 15:08:42 -0700 (PDT)
+Subject: =?UTF-8?B?UmU6IOetlOWkjTog562U5aSNOiBbUEFUQ0hdIG1tL21lbWNvbnRyb2wu?=
+ =?UTF-8?Q?c:_speed_up_to_force_empty_a_memory_cgroup?=
+References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
+ <20180319085355.GQ23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
+ <20180319103756.GV23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
+ <alpine.DEB.2.20.1803191044310.177918@chino.kir.corp.google.com>
+ <20180320083950.GD23100@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1803201327060.167205@chino.kir.corp.google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <56508bd0-e8d7-55fd-5109-c8dacf26b13e@virtuozzo.com>
+Date: Wed, 21 Mar 2018 01:08:02 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.20.1803201327060.167205@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com>
-Cc: pbonzini@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, gnehzuil@linux.alibaba.com
+To: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>
+Cc: "Li,Rongqing" <lirongqing@baidu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Tue, 20 Mar 2018 15:33:23 -0600
-Alex Williamson <alex.williamson@redhat.com> wrote:
 
-> On Mon, 19 Mar 2018 10:30:24 +0800
-> "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com> wrote:
-> 
-> > When using vfio to pass through a PCIe device (e.g. a GPU card) that
-> > has a huge BAR (e.g. 16GB), a lot of cycles are wasted on memory
-> > pinning because PFNs of PCI BAR are not backed by struct page, and
-> > the corresponding VMA has flag VM_PFNMAP.
-> > 
-> > With this change, when pinning a region which is a raw PFN mapping,
-> > it can skip unnecessary user memory pinning process, and thus, can
-> > significantly improve VM's boot up time when passing through devices
-> > via VFIO. In my test on a Xeon E5 2.6GHz, the time mapping a 16GB
-> > BAR was reduced from about 0.4s to 1.5us.
-> > 
-> > Signed-off-by: Jason Cai (Xiang Feng) <jason.cai@linux.alibaba.com>
-> > ---
-> >  drivers/vfio/vfio_iommu_type1.c | 24 ++++++++++++++----------
-> >  1 file changed, 14 insertions(+), 10 deletions(-)
-> > 
-> > diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-> > index 45657e2b1ff7..0658f35318b8 100644
-> > --- a/drivers/vfio/vfio_iommu_type1.c
-> > +++ b/drivers/vfio/vfio_iommu_type1.c
-> > @@ -397,7 +397,6 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
-> >  {
-> >         unsigned long pfn = 0;
-> >         long ret, pinned = 0, lock_acct = 0;
-> > -       bool rsvd;
-> >         dma_addr_t iova = vaddr - dma->vaddr + dma->iova;
-> > 
-> >         /* This code path is only user initiated */
-> > @@ -408,14 +407,22 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
-> >         if (ret)
-> >                 return ret;
-> > 
-> > +       if (is_invalid_reserved_pfn(*pfn_base)) {
-> > +               struct vm_area_struct *vma;
-> > +               down_read(&current->mm->mmap_sem);
-> > +               vma = find_vma_intersection(current->mm, vaddr, vaddr + 1);
-> > +               pinned = min(npage, (long)vma_pages(vma));
-> > +               up_read(&current->mm->mmap_sem);
-> > +               return pinned;
-> > +       }
-> > +
-> >         pinned++;
-> > -       rsvd = is_invalid_reserved_pfn(*pfn_base);
-> > 
-> >         /*
-> >          * Reserved pages aren't counted against the user, externally pinned
-> >          * pages are already counted against the user.
-> >          */
-> > -       if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-> > +       if (!vfio_find_vpfn(dma, iova)) {
-> >                 if (!lock_cap && current->mm->locked_vm + 1 > limit) {
-> >                         put_pfn(*pfn_base, dma->prot);
-> >                         pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
-> > @@ -435,13 +442,12 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
-> >                 if (ret)
-> >                         break;
-> > 
-> > -               if (pfn != *pfn_base + pinned ||
-> > -                   rsvd != is_invalid_reserved_pfn(pfn)) {
-> > +               if (pfn != *pfn_base + pinned) {
-> >                         put_pfn(pfn, dma->prot);
-> >                         break;
-> >                 }
-> > 
-> > -               if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-> > +               if (!vfio_find_vpfn(dma, iova)) {
-> >                         if (!lock_cap &&
-> >                             current->mm->locked_vm + lock_acct + 1 > limit) {
-> >                                 put_pfn(pfn, dma->prot);
-> > @@ -459,10 +465,8 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
-> > 
-> >  unpin_out:
-> >         if (ret) {
-> > -               if (!rsvd) {
-> > -                       for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
-> > -                               put_pfn(pfn, dma->prot);
-> > -               }
-> > +               for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
-> > +                       put_pfn(pfn, dma->prot);
-> > 
-> >                 return ret;
-> >         }  
-> 
-> Hi Jason,
-> 
-> Something is wrong with your mail setup, the patch looks normal above,
-> but when I view the source or save it to try to apply it, the diff is
-> corrupt, as below.  It looks like maybe you're pasting the patch into
-> your mailer and it's wrapping lines (ending with '=') and actual '='
-> are replaced with '=3D' and tabs are converted to spaces.  Please fix
-> your mailer and resend.  Thanks,
 
-Actually, it's even a little more strange, the copies I received via
-the kvm and lkml mailing lists don't have the line wrapping and
-character conversion, but the tab to space conversion is still there,
-which is what caused me to suspect a copy-paste into the mailer.
-Between the headers, I see the direct copy has:
+On 03/20/2018 11:29 PM, David Rientjes wrote:
+> On Tue, 20 Mar 2018, Michal Hocko wrote:
+> 
+>>>>>> Although SWAP_CLUSTER_MAX is used at the lower level, but the call
+>>>>>> stack of try_to_free_mem_cgroup_pages is too long, increase the
+>>>>>> nr_to_reclaim can reduce times of calling
+>>>>>> function[do_try_to_free_pages, shrink_zones, hrink_node ]
+>>>>>>
+>>>>>> mem_cgroup_resize_limit
+>>>>>> --->try_to_free_mem_cgroup_pages:  .nr_to_reclaim = max(1024,
+>>>>>> --->SWAP_CLUSTER_MAX),
+>>>>>>    ---> do_try_to_free_pages
+>>>>>>      ---> shrink_zones
+>>>>>>       --->shrink_node
+>>>>>>        ---> shrink_node_memcg
+>>>>>>          ---> shrink_list          <-------loop will happen in this place
+>>>>> [times=1024/32]
+>>>>>>            ---> shrink_page_list
+>>>>>
+>>>>> Can you actually measure this to be the culprit. Because we should rethink
+>>>>> our call path if it is too complicated/deep to perform well.
+>>>>> Adding arbitrary batch sizes doesn't sound like a good way to go to me.
+>>>>
+>>>> Ok, I will try
+>>>>
+>>>
+>>> Looping in mem_cgroup_resize_limit(), which takes memcg_limit_mutex on 
+>>> every iteration which contends with lowering limits in other cgroups (on 
+>>> our systems, thousands), calling try_to_free_mem_cgroup_pages() with less 
+>>> than SWAP_CLUSTER_MAX is lame.
+>>
+>> Well, if the global lock is a bottleneck in your deployments then we
+>> can come up with something more clever. E.g. per hierarchy locking
+>> or even drop the lock for the reclaim altogether. If we reclaim in
+>> SWAP_CLUSTER_MAX then the potential over-reclaim risk quite low when
+>> multiple users are shrinking the same (sub)hierarchy.
+>>
+> 
+> I don't believe this to be a bottleneck if nr_pages is increased in 
+> mem_cgroup_resize_limit().
+> 
+>>> It would probably be best to limit the 
+>>> nr_pages to the amount that needs to be reclaimed, though, rather than 
+>>> over reclaiming.
+>>
+>> How do you achieve that? The charging path is not synchornized with the
+>> shrinking one at all.
+>>
+> 
+> The point is to get a better guess at how many pages, up to 
+> SWAP_CLUSTER_MAX, that need to be reclaimed instead of 1.
+> 
+>>> If you wanted to be invasive, you could change page_counter_limit() to 
+>>> return the count - limit, fix up the callers that look for -EBUSY, and 
+>>> then use max(val, SWAP_CLUSTER_MAX) as your nr_pages.
+>>
+>> I am not sure I understand
+>>
+> 
+> Have page_counter_limit() return the number of pages over limit, i.e. 
+> count - limit, since it compares the two anyway.  Fix up existing callers 
+> and then clamp that value to SWAP_CLUSTER_MAX in 
+> mem_cgroup_resize_limit().  It's a more accurate guess than either 1 or 
+> 1024.
+> 
 
-Content-Transfer-Encoding: quoted-printable
-
-While the list copy has:
-
-Content-Transfer-Encoding: 8BIT
-
-Perhaps the list is automatically fixing some part of the problem.
-Thanks,
-
-Alex
-
-> diff --git a/drivers/vfio/vfio_iommu_type1.c =
-> b/drivers/vfio/vfio_iommu_type1.c
-> index 45657e2b1ff7..0658f35318b8 100644
-> --- a/drivers/vfio/vfio_iommu_type1.c
-> +++ b/drivers/vfio/vfio_iommu_type1.c
-> @@ -397,7 +397,6 @@ static long vfio_pin_pages_remote(struct vfio_dma =
-> *dma, unsigned long vaddr,
->  {
->         unsigned long pfn =3D 0;
->         long ret, pinned =3D 0, lock_acct =3D 0;
-> -       bool rsvd;
->         dma_addr_t iova =3D vaddr - dma->vaddr + dma->iova;
-> 
->         /* This code path is only user initiated */
-> @@ -408,14 +407,22 @@ static long vfio_pin_pages_remote(struct vfio_dma =
-> *dma, unsigned long vaddr,
->         if (ret)
->                 return ret;
-> 
-> +       if (is_invalid_reserved_pfn(*pfn_base)) {
-> +               struct vm_area_struct *vma;
-> +               down_read(&current->mm->mmap_sem);
-> +               vma =3D find_vma_intersection(current->mm, vaddr, vaddr =
-> + 1);
-> +               pinned =3D min(npage, (long)vma_pages(vma));
-> +               up_read(&current->mm->mmap_sem);
-> +               return pinned;
-> +       }
-> +
->         pinned++;
-> -       rsvd =3D is_invalid_reserved_pfn(*pfn_base);
-> 
->         /*
->          * Reserved pages aren't counted against the user, externally =
-> pinned
->          * pages are already counted against the user.
->          */
-> -       if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-> +       if (!vfio_find_vpfn(dma, iova)) {
->                 if (!lock_cap && current->mm->locked_vm + 1 > limit) {
->                         put_pfn(*pfn_base, dma->prot);
->                         pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", =
-> __func__,
-> @@ -435,13 +442,12 @@ static long vfio_pin_pages_remote(struct vfio_dma =
-> *dma, unsigned long vaddr,
->                 if (ret)
->                         break;
-> 
-> -               if (pfn !=3D *pfn_base + pinned ||
-> -                   rsvd !=3D is_invalid_reserved_pfn(pfn)) {
-> +               if (pfn !=3D *pfn_base + pinned) {
->                         put_pfn(pfn, dma->prot);
->                         break;
->                 }
-> 
-> -               if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-> +               if (!vfio_find_vpfn(dma, iova)) {
->                         if (!lock_cap &&
->                             current->mm->locked_vm + lock_acct + 1 > =
-> limit) {
->                                 put_pfn(pfn, dma->prot);
-> @@ -459,10 +465,8 @@ static long vfio_pin_pages_remote(struct vfio_dma =
-> *dma, unsigned long vaddr,
-> 
->  unpin_out:
->         if (ret) {
-> -               if (!rsvd) {
-> -                       for (pfn =3D *pfn_base ; pinned ; pfn++, =
-> pinned--)
-> -                               put_pfn(pfn, dma->prot);
-> -               }
-> +               for (pfn =3D *pfn_base ; pinned ; pfn++, pinned--)
-> +                       put_pfn(pfn, dma->prot);
-> 
->                 return ret;
->         }
-> --
-> 2.13.6
-> 
-> 
+JFYI, it's never 1, it's always SWAP_CLUSTER_MAX.
+See try_to_free_mem_cgroup_pages():
+....	
+	struct scan_control sc = {
+		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
