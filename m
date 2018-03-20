@@ -1,118 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F0A7A6B0003
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 08:14:37 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k44so780601wrc.3
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 05:14:37 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 93si327342edp.539.2018.03.20.05.14.35
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EC2846B0003
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 08:20:34 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id w71-v6so718692oia.20
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 05:20:34 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id 98-v6si464166otv.398.2018.03.20.05.20.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 05:14:36 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2KCDxBt057344
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 08:14:35 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2gu0rybp7g-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 08:14:34 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <imbrenda@linux.vnet.ibm.com>;
-	Tue, 20 Mar 2018 12:14:32 -0000
-From: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
-Subject: [PATCH v3 1/1] mm/ksm: fix interaction with THP
-Date: Tue, 20 Mar 2018 13:14:29 +0100
-Message-Id: <1521548069-24758-1-git-send-email-imbrenda@linux.vnet.ibm.com>
+        Tue, 20 Mar 2018 05:20:32 -0700 (PDT)
+Subject: Re: KVM hang after OOM
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <178719aa-b669-c443-bf87-5728b71557c0@i-love.sakura.ne.jp>
+	<CABXGCsNecgRN7mn4OxZY2rqa2N4kVBw3f0s6XEvLob4uy3LOug@mail.gmail.com>
+	<201803171213.BFF21361.OOSFVFHLJQOtFM@I-love.SAKURA.ne.jp>
+	<CABXGCsN8mN7bGNDx9Tb2sewuXWp6DbcyKpMFv0UzGATAMELxqA@mail.gmail.com>
+	<20180320065339.GA23100@dhcp22.suse.cz>
+In-Reply-To: <20180320065339.GA23100@dhcp22.suse.cz>
+Message-Id: <201803202120.FDI17671.VQMLOFJFOStHFO@I-love.SAKURA.ne.jp>
+Date: Tue, 20 Mar 2018 21:20:30 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, minchan@kernel.org, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, hughd@google.com, borntraeger@de.ibm.com, gerald.schaefer@de.ibm.com
+To: mhocko@kernel.org, mikhail.v.gavrilov@gmail.com
+Cc: linux-mm@kvack.org, kvm@vger.kernel.org, kirill@shutemov.name
 
-This patch fixes a corner case for KSM. When two pages belong or
-belonged to the same transparent hugepage, and they should be merged,
-KSM fails to split the page, and therefore no merging happens.
+Michal Hocko wrote:
+> On Mon 19-03-18 21:23:12, Mikhail Gavrilov wrote:
+> > using swap actively.
+> > But I'm already satisfied with proposed patch.
+> > 
+> > I am attached dmesg when I triggering OOM three times. And every time
+> > after it system survived.
+> > I think this patch should be merged in mainline.
+> 
+> Could you be more specific what is _this_ patch, please?
 
-This bug can be reproduced by:
-* making sure ksm is running (in case disabling ksmtuned)
-* enabling transparent hugepages
-* allocating a THP-aligned 1-THP-sized buffer
-  e.g. on amd64: posix_memalign(&p, 1<<21, 1<<21)
-* filling it with the same values
-  e.g. memset(p, 42, 1<<21)
-* performing madvise to make it mergeable
-  e.g. madvise(p, 1<<21, MADV_MERGEABLE)
-* waiting for KSM to perform a few scans
+I think it is
+"[PATCH] mm/thp: Do not wait for lock_page() in deferred_split_scan()".
 
-The expected outcome is that the all the pages get merged (1 shared and
-the rest sharing); the actual outcome is that no pages get merged (1
-unshared and the rest volatile)
+Unless the problem is something like commit 0b1d647a02c5a1b6
+("[PATCH] dm: work around mempool_alloc, bio_alloc_bioset deadlocks"),
+there should be no need to use io_schedule_timeout().
 
-The reason of this behaviour is that we increase the reference count
-once for both pages we want to merge, but if they belong to the same
-hugepage (or compound page), the reference counter used in both cases
-is the one of the head of the compound page.
-This means that split_huge_page will find a value of the reference
-counter too high and will fail.
-
-This patch solves this problem by testing if the two pages to merge
-belong to the same hugepage when attempting to merge them. If so, the
-hugepage is split safely. This means that the hugepage is not split if
-not necessary.
-
-Co-authored-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Signed-off-by: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
----
- mm/ksm.c | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 293721f..da777a9 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -2082,8 +2082,22 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
- 	tree_rmap_item =
- 		unstable_tree_search_insert(rmap_item, page, &tree_page);
- 	if (tree_rmap_item) {
-+		bool split;
-+
- 		kpage = try_to_merge_two_pages(rmap_item, page,
- 						tree_rmap_item, tree_page);
-+		/*
-+		 * If both pages we tried to merge belong to the same compound
-+		 * page, then we actually ended up increasing the reference
-+		 * count of the same compound page twice, and split_huge_page
-+		 * failed.
-+		 * Here we set a flag if that happened, and we use it later to
-+		 * try split_huge_page again. Since we call put_page right
-+		 * afterwards, the reference count will be correct and
-+		 * split_huge_page should succeed.
-+		 */
-+		split = PageTransCompound(page)
-+			&& compound_head(page) == compound_head(tree_page);
- 		put_page(tree_page);
- 		if (kpage) {
- 			/*
-@@ -2110,6 +2124,20 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
- 				break_cow(tree_rmap_item);
- 				break_cow(rmap_item);
- 			}
-+		} else if (split) {
-+			/*
-+			 * We are here if we tried to merge two pages and
-+			 * failed because they both belonged to the same
-+			 * compound page. We will split the page now, but no
-+			 * merging will take place.
-+			 * We do not want to add the cost of a full lock; if
-+			 * the page is locked, it is better to skip it and
-+			 * perhaps try again later.
-+			 */
-+			if (!trylock_page(page))
-+				return;
-+			split_huge_page(page);
-+			unlock_page(page);
- 		}
- 	}
- }
--- 
-2.7.4
+Mikhail, can you test with only
+"[PATCH] mm/thp: Do not wait for lock_page() in deferred_split_scan()" and
+"[PATCHv2] mm/shmem: Do not wait for lock_page() in shmem_unused_huge_shrink()"
+applied? Because the last dmesg.txt was using io_schedule_timeout()...
