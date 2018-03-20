@@ -1,87 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EAABB6B0007
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 08:47:29 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id p10so895039pfl.22
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 05:47:29 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id b3si1173963pge.715.2018.03.20.05.47.28
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 04D066B0009
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 08:51:17 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d23so857444wmd.1
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 05:51:16 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c5sor1931263ede.41.2018.03.20.05.51.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 05:47:28 -0700 (PDT)
-Subject: [PATCH 2/2] mm,oom_reaper: Check for MMF_OOM_SKIP before complain.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1521547076-3399-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<1521547076-3399-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20180320121246.GK23100@dhcp22.suse.cz>
-	<201803202137.CAC35494.OFtJLHFSFOMVOQ@I-love.SAKURA.ne.jp>
-In-Reply-To: <201803202137.CAC35494.OFtJLHFSFOMVOQ@I-love.SAKURA.ne.jp>
-Message-Id: <201803202147.ICB09393.FFSJOOtHVQOFLM@I-love.SAKURA.ne.jp>
-Date: Tue, 20 Mar 2018 21:47:31 +0900
-Mime-Version: 1.0
+        (Google Transport Security);
+        Tue, 20 Mar 2018 05:51:15 -0700 (PDT)
+Date: Tue, 20 Mar 2018 15:50:46 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC, PATCH 19/22] x86/mm: Implement free_encrypt_page()
+Message-ID: <20180320125046.zcefctri5rzronau@node.shutemov.name>
+References: <20180305162610.37510-1-kirill.shutemov@linux.intel.com>
+ <20180305162610.37510-20-kirill.shutemov@linux.intel.com>
+ <a692b2ff-b590-b731-ad14-18238f471a1c@intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a692b2ff-b590-b731-ad14-18238f471a1c@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: linux-mm@kvack.org, rientjes@google.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
->From c8954b88c8e78d10829c646c95e076516a54e84f Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Tue, 20 Mar 2018 21:42:12 +0900
-Subject: [PATCH] mm,oom_reaper: Check for MMF_OOM_SKIP before complain.
+On Mon, Mar 05, 2018 at 11:07:16AM -0800, Dave Hansen wrote:
+> On 03/05/2018 08:26 AM, Kirill A. Shutemov wrote:
+> > +void free_encrypt_page(struct page *page, int keyid, unsigned int order)
+> > +{
+> > +	int i;
+> > +	void *v;
+> > +
+> > +	for (i = 0; i < (1 << order); i++) {
+> > +		v = kmap_atomic_keyid(page, keyid + i);
+> > +		/* See comment in prep_encrypt_page() */
+> > +		clflush_cache_range(v, PAGE_SIZE);
+> > +		kunmap_atomic(v);
+> > +	}
+> > +}
+> 
+> Have you measured how slow this is?
 
-I got "oom_reaper: unable to reap pid:" messages when the victim thread
-was blocked inside free_pgtables() (which occurred after returning from
-unmap_vmas() and setting MMF_OOM_SKIP). We don't need to complain when
-exit_mmap() already set MMF_OOM_SKIP.
+Well, it's pretty bad.
 
-[  663.593821] Killed process 7558 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[  664.684801] oom_reaper: unable to reap pid:7558 (a.out)
-[  664.892292] a.out           D13272  7558   6931 0x00100084
-[  664.895765] Call Trace:
-[  664.897574]  ? __schedule+0x25f/0x780
-[  664.900099]  schedule+0x2d/0x80
-[  664.902260]  rwsem_down_write_failed+0x2bb/0x440
-[  664.905249]  ? rwsem_down_write_failed+0x55/0x440
-[  664.908335]  ? free_pgd_range+0x569/0x5e0
-[  664.911145]  call_rwsem_down_write_failed+0x13/0x20
-[  664.914121]  down_write+0x49/0x60
-[  664.916519]  ? unlink_file_vma+0x28/0x50
-[  664.919255]  unlink_file_vma+0x28/0x50
-[  664.922234]  free_pgtables+0x36/0x100
-[  664.924797]  exit_mmap+0xbb/0x180
-[  664.927220]  mmput+0x50/0x110
-[  664.929504]  copy_process.part.41+0xb61/0x1fe0
-[  664.932448]  ? _do_fork+0xe6/0x560
-[  664.934902]  ? _do_fork+0xe6/0x560
-[  664.937361]  _do_fork+0xe6/0x560
-[  664.939742]  ? syscall_trace_enter+0x1a9/0x240
-[  664.942693]  ? retint_user+0x18/0x18
-[  664.945309]  ? page_fault+0x2f/0x50
-[  664.947896]  ? trace_hardirqs_on_caller+0x11f/0x1b0
-[  664.951075]  do_syscall_64+0x74/0x230
-[  664.953747]  entry_SYSCALL_64_after_hwframe+0x42/0xb7
+Tight loop of allocation/free a page (measured from within kernel) is
+4-6 times slower:
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Encryption off
+Order-0, 10000000 iterations: 50496616 cycles
+Order-0, 10000000 iterations: 46900080 cycles
+Order-0, 10000000 iterations: 46873540 cycles
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5336985..dfd3705 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -590,7 +590,8 @@ static void oom_reap_task(struct task_struct *tsk)
- 	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task_mm(tsk, mm))
- 		schedule_timeout_idle(HZ/10);
- 
--	if (attempts <= MAX_OOM_REAP_RETRIES)
-+	if (attempts <= MAX_OOM_REAP_RETRIES ||
-+	    test_bit(MMF_OOM_SKIP, &mm->flags))
- 		goto done;
- 
- 
+Encryption on
+Order-0, 10000000 iterations: 222021882 cycles
+Order-0, 10000000 iterations: 222315381 cycles
+Order-0, 10000000 iterations: 222289110 cycles
+
+Encryption off
+Order-9, 100000 iterations: 46829632 cycles
+Order-9, 100000 iterations: 46919952 cycles
+Order-9, 100000 iterations: 37647873 cycles
+
+Encryption on
+Order-9, 100000 iterations: 222407715 cycles
+Order-9, 100000 iterations: 222111657 cycles
+Order-9, 100000 iterations: 222335352 cycles
+
+On macro benchmark it's not that dramatic, but still bad -- 16% down:
+
+Encryption off
+
+ Performance counter stats for 'sh -c make -j100 -B -k >/dev/null' (5 runs):
+
+    6769369.623773      task-clock (msec)         #   33.869 CPUs utilized            ( +-  0.02% )
+         1,086,729      context-switches          #    0.161 K/sec                    ( +-  0.83% )
+           193,153      cpu-migrations            #    0.029 K/sec                    ( +-  0.72% )
+       104,971,541      page-faults               #    0.016 M/sec                    ( +-  0.01% )
+20,179,502,944,932      cycles                    #    2.981 GHz                      ( +-  0.02% )
+15,244,481,306,390      stalled-cycles-frontend   #   75.54% frontend cycles idle     ( +-  0.02% )
+11,548,852,154,412      instructions              #    0.57  insn per cycle
+                                                  #    1.32  stalled cycles per insn  ( +-  0.00% )
+ 2,488,836,449,779      branches                  #  367.661 M/sec                    ( +-  0.00% )
+    94,445,965,563      branch-misses             #    3.79% of all branches          ( +-  0.01% )
+
+     199.871815231 seconds time elapsed                                          ( +-  0.17% )
+
+Encryption on
+
+ Performance counter stats for 'sh -c make -j100 -B -k >/dev/null' (5 runs):
+
+    8099514.432371      task-clock (msec)         #   34.959 CPUs utilized            ( +-  0.01% )
+         1,169,589      context-switches          #    0.144 K/sec                    ( +-  0.51% )
+           198,008      cpu-migrations            #    0.024 K/sec                    ( +-  0.77% )
+       104,953,906      page-faults               #    0.013 M/sec                    ( +-  0.01% )
+24,158,282,050,086      cycles                    #    2.983 GHz                      ( +-  0.01% )
+19,183,031,041,329      stalled-cycles-frontend   #   79.41% frontend cycles idle     ( +-  0.01% )
+11,600,772,560,767      instructions              #    0.48  insn per cycle
+                                                  #    1.65  stalled cycles per insn  ( +-  0.00% )
+ 2,501,453,131,164      branches                  #  308.840 M/sec                    ( +-  0.00% )
+    94,566,437,048      branch-misses             #    3.78% of all branches          ( +-  0.01% )
+
+     231.684539584 seconds time elapsed                                          ( +-  0.15% )
+
+I'll check what we can do here.
+
 -- 
-1.8.3.1
+ Kirill A. Shutemov
