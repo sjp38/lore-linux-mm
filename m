@@ -1,83 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E21686B0003
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 04:39:58 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id e17so543658pgv.5
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 01:39:58 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B181B6B0007
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 04:44:50 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id p128so537967pga.19
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 01:44:50 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t66si930353pgc.160.2018.03.20.01.39.56
+        by mx.google.com with ESMTPS id j62si892808pgd.404.2018.03.20.01.44.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 20 Mar 2018 01:39:57 -0700 (PDT)
-Date: Tue, 20 Mar 2018 09:39:50 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: =?utf-8?B?562U5aSNOiDnrZTlpI06IFtQQVRD?= =?utf-8?Q?H=5D?=
- mm/memcontrol.c: speed up to force empty a memory cgroup
-Message-ID: <20180320083950.GD23100@dhcp22.suse.cz>
-References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
- <20180319085355.GQ23100@dhcp22.suse.cz>
- <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
- <20180319103756.GV23100@dhcp22.suse.cz>
- <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
- <alpine.DEB.2.20.1803191044310.177918@chino.kir.corp.google.com>
+        Tue, 20 Mar 2018 01:44:49 -0700 (PDT)
+Date: Tue, 20 Mar 2018 09:44:45 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH v2] mm: Warn on lock_page() from reclaim context.
+Message-ID: <20180320084445.GE23100@dhcp22.suse.cz>
+References: <1521295866-9670-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180317155437.pcbeigeivn4a23gt@node.shutemov.name>
+ <201803181022.IAI30275.JOFOQMtFSHLFOV@I-love.SAKURA.ne.jp>
+ <20180319150824.24032e2854908b0cc5240d9f@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1803191044310.177918@chino.kir.corp.google.com>
+In-Reply-To: <20180319150824.24032e2854908b0cc5240d9f@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: "Li,Rongqing" <lirongqing@baidu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kirill@shutemov.name, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-On Mon 19-03-18 10:51:57, David Rientjes wrote:
-> On Mon, 19 Mar 2018, Li,Rongqing wrote:
+On Mon 19-03-18 15:08:24, Andrew Morton wrote:
+> On Sun, 18 Mar 2018 10:22:49 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
 > 
-> > > > Although SWAP_CLUSTER_MAX is used at the lower level, but the call
-> > > > stack of try_to_free_mem_cgroup_pages is too long, increase the
-> > > > nr_to_reclaim can reduce times of calling
-> > > > function[do_try_to_free_pages, shrink_zones, hrink_node ]
-> > > >
-> > > > mem_cgroup_resize_limit
-> > > > --->try_to_free_mem_cgroup_pages:  .nr_to_reclaim = max(1024,
-> > > > --->SWAP_CLUSTER_MAX),
-> > > >    ---> do_try_to_free_pages
-> > > >      ---> shrink_zones
-> > > >       --->shrink_node
-> > > >        ---> shrink_node_memcg
-> > > >          ---> shrink_list          <-------loop will happen in this place
-> > > [times=1024/32]
-> > > >            ---> shrink_page_list
-> > > 
-> > > Can you actually measure this to be the culprit. Because we should rethink
-> > > our call path if it is too complicated/deep to perform well.
-> > > Adding arbitrary batch sizes doesn't sound like a good way to go to me.
+> > >From f43b8ca61b76f9a19c13f6bf42b27fad9554afc0 Mon Sep 17 00:00:00 2001
+> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Date: Sun, 18 Mar 2018 10:18:01 +0900
+> > Subject: [PATCH v2] mm: Warn on lock_page() from reclaim context.
 > > 
-> > Ok, I will try
+> > Kirill A. Shutemov noticed that calling lock_page[_killable]() from
+> > reclaim context might cause deadlock. In order to help finding such
+> > lock_page[_killable]() users (including out of tree users), this patch
+> > emits warning messages when CONFIG_PROVE_LOCKING is enabled.
+> >
+> > ...
 > > 
+> > --- a/include/linux/pagemap.h
+> > +++ b/include/linux/pagemap.h
+> > @@ -466,6 +466,7 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
+> >  extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+> >  				unsigned int flags);
+> >  extern void unlock_page(struct page *page);
+> > +extern void __warn_lock_page_from_reclaim_context(void);
+> >  
+> >  static inline int trylock_page(struct page *page)
+> >  {
+> > @@ -479,6 +480,9 @@ static inline int trylock_page(struct page *page)
+> >  static inline void lock_page(struct page *page)
+> >  {
+> >  	might_sleep();
+> > +	if (IS_ENABLED(CONFIG_PROVE_LOCKING) &&
+> > +	    unlikely(current->flags & PF_MEMALLOC))
+> > +		__warn_lock_page_from_reclaim_context();
+> >  	if (!trylock_page(page))
+> >  		__lock_page(page);
+> >  }
 > 
-> Looping in mem_cgroup_resize_limit(), which takes memcg_limit_mutex on 
-> every iteration which contends with lowering limits in other cgroups (on 
-> our systems, thousands), calling try_to_free_mem_cgroup_pages() with less 
-> than SWAP_CLUSTER_MAX is lame.
+> I think it would be neater to do something like
+> 
+> #ifdef CONFIG_PROVE_LOCKING
+> static inline void lock_page_check_context(struct page *page)
+> {
+> 	if (unlikely(current->flags & PF_MEMALLOC))
+> 		__lock_page_check_context(page);
+> }
+> #else
+> static inline void lock_page_check_context(struct page *page)
+> {
+> }
+> #endif
+> 
+> and
+> 
+> void __lock_page_check_context(struct page *page)
+> {
+> 	WARN_ONCE(...);
+> 	dump_page(page);
+> }
 
-Well, if the global lock is a bottleneck in your deployments then we
-can come up with something more clever. E.g. per hierarchy locking
-or even drop the lock for the reclaim altogether. If we reclaim in
-SWAP_CLUSTER_MAX then the potential over-reclaim risk quite low when
-multiple users are shrinking the same (sub)hierarchy.
+I would just put __lock_page_check_context in place. Or do you expect
+more callers? But agreed that this looks neater than in line code.
 
-> It would probably be best to limit the 
-> nr_pages to the amount that needs to be reclaimed, though, rather than 
-> over reclaiming.
+> And I wonder if overloading CONFIG_PROVE_LOCKING is appropriate here. 
+> CONFIG_PROVE_LOCKING is a high-level thing under which a whole bunch of
+> different debugging options may exist.
 
-How do you achieve that? The charging path is not synchornized with the
-shrinking one at all.
+Yes but it is meant to catch locking issues in general so I think doing
+this check under the same config makes sense.
 
-> If you wanted to be invasive, you could change page_counter_limit() to 
-> return the count - limit, fix up the callers that look for -EBUSY, and 
-> then use max(val, SWAP_CLUSTER_MAX) as your nr_pages.
+> I guess we should add a new config item under PROVE_LOCKING,
 
-I am not sure I understand
+I am not convinced a new config is really worth it. We have way too many
+already and PROVE_LOCKING sounds like a good fit to me.
+
+> or perhaps use CONFIG_DEBUG_VM.
+
+Please don't. There are people running with this config and adding more
+potentially performance visible changes wouldn't make them too happy.
+
+> Also, is PF_MEMALLOC the best way of determining that we're running
+> reclaim?  What about using current->reclaim_state?
+
+Yeah, reclaim_state state would rule out PF_MEMALLOC (ab)users
+allocating under the page lock.
 
 -- 
 Michal Hocko
