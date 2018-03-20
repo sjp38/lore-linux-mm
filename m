@@ -1,96 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E1D026B000C
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 10:11:21 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id c5so1021767pfn.17
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 07:11:21 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id t28si1386211pfk.187.2018.03.20.07.11.20
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 78AC66B000E
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 10:20:46 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id b3-v6so1224570plc.5
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 07:20:46 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id t4si1233641pgv.512.2018.03.20.07.20.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 07:11:20 -0700 (PDT)
-Date: Tue, 20 Mar 2018 22:11:01 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [RFC PATCH v2 2/4] mm/__free_one_page: skip merge for order-0
- page unless compaction failed
-Message-ID: <20180320141101.GB2033@intel.com>
-References: <20180320085452.24641-1-aaron.lu@intel.com>
- <20180320085452.24641-3-aaron.lu@intel.com>
- <7b1988e9-7d50-d55e-7590-20426fb257af@suse.cz>
-MIME-Version: 1.0
+        Tue, 20 Mar 2018 07:20:45 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm,oom_reaper: Show trace of unable to reap victim thread.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20180320131953.GM23100@dhcp22.suse.cz>
+	<201803202230.HDH17140.OFtMQJVLOOFHSF@I-love.SAKURA.ne.jp>
+	<20180320133445.GP23100@dhcp22.suse.cz>
+	<201803202250.CHG18290.FJMOtOHLFVQFOS@I-love.SAKURA.ne.jp>
+	<20180320141051.GS23100@dhcp22.suse.cz>
+In-Reply-To: <20180320141051.GS23100@dhcp22.suse.cz>
+Message-Id: <201803202320.IDG60953.QOFOFVFSLOHtMJ@I-love.SAKURA.ne.jp>
+Date: Tue, 20 Mar 2018 23:20:48 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <7b1988e9-7d50-d55e-7590-20426fb257af@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: mhocko@suse.com
+Cc: linux-mm@kvack.org, rientjes@google.com
 
-On Tue, Mar 20, 2018 at 12:45:50PM +0100, Vlastimil Babka wrote:
-> On 03/20/2018 09:54 AM, Aaron Lu wrote:
-> > Running will-it-scale/page_fault1 process mode workload on a 2 sockets
-> > Intel Skylake server showed severe lock contention of zone->lock, as
-> > high as about 80%(42% on allocation path and 35% on free path) CPU
-> > cycles are burnt spinning. With perf, the most time consuming part inside
-> > that lock on free path is cache missing on page structures, mostly on
-> > the to-be-freed page's buddy due to merging.
-> 
-> But why, with all the prefetching in place?
-
-The prefetch is just for its order 0 buddy, if merge happens, then its
-order 1 buddy will also be checked and on and on, so the cache misses
-are much more in merge mode.
-
-> 
-> > One way to avoid this overhead is not do any merging at all for order-0
-> > pages. With this approach, the lock contention for zone->lock on free
-> > path dropped to 1.1% but allocation side still has as high as 42% lock
-> > contention. In the meantime, the dropped lock contention on free side
-> > doesn't translate to performance increase, instead, it's consumed by
-> > increased lock contention of the per node lru_lock(rose from 5% to 37%)
-> > and the final performance slightly dropped about 1%.
+Michal Hocko wrote:
+> On Tue 20-03-18 22:50:21, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Tue 20-03-18 22:30:16, Tetsuo Handa wrote:
+> > > > Michal Hocko wrote:
+> > > > > On Tue 20-03-18 21:52:33, Tetsuo Handa wrote:
+> > > > > > Michal Hocko wrote:
+> > > > > > > A single stack trace in the changelog would be sufficient IMHO.
+> > > > > > > Appart from that. What do you expect users will do about this trace?
+> > > > > > > Sure they will see a path which holds mmap_sem, we will see a bug report
+> > > > > > > but we can hardly do anything about that. We simply cannot drop the lock
+> > > > > > > from that path in 99% of situations. So _why_ do we want to add more
+> > > > > > > information to the log?
+> > > > > > 
+> > > > > > This case is blocked at i_mmap_lock_write().
+> > > > > 
+> > > > > But why does i_mmap_lock_write matter for oom_reaping. We are not
+> > > > > touching hugetlb mappings. dup_mmap holds mmap_sem for write which is
+> > > > > the most probable source of the backoff.
+> > > > 
+> > > > If i_mmap_lock_write can bail out upon SIGKILL, the OOM victim will be able to
+> > > > release mmap_sem held for write, which helps the OOM reaper not to back off.
+> > > 
+> > > There are so many other blocking calls (including allocations) in
+> > > dup_mmap 
 > > 
-> > Though performance dropped a little, it almost eliminated zone lock
-> > contention on free path and it is the foundation for the next patch
-> > that eliminates zone lock contention for allocation path.
-> 
-> Not thrilled about such disruptive change in the name of a
-> microbenchmark :/ Shouldn't normally the pcplists hide the overhead?
-
-Sadly, with the default pcp count, it didn't avoid the lock contention.
-We can of course increase pcp->count to a large enough value to avoid
-entering buddy and thus avoid zone->lock contention, but that would
-require admin to manually change the value on a per-machine per-workload
-basis I believe.
-
-> If not, wouldn't it make more sense to turn zone->lock into a range lock?
-
-Not familiar with range lock, will need to take a look at it, thanks for
-the pointer.
-
-> 
-> > A new document file called "struct_page_filed" is added to explain
-> > the newly reused field in "struct page".
-> 
-> Sounds rather ad-hoc for a single field, I'd rather document it via
-> comments.
-
-Dave would like to have a document to explain all those "struct page"
-fields that are repurposed under different scenarios and this is the
-very start of the document :-)
-
-I probably should have explained the intent of the document more.
-
-Thanks for taking a look at this.
-
-> > Suggested-by: Dave Hansen <dave.hansen@intel.com>
-> > Signed-off-by: Aaron Lu <aaron.lu@intel.com>
-> > ---
-> >  Documentation/vm/struct_page_field |  5 +++
-> >  include/linux/mm_types.h           |  1 +
-> >  mm/compaction.c                    | 13 +++++-
-> >  mm/internal.h                      | 27 ++++++++++++
-> >  mm/page_alloc.c                    | 89 +++++++++++++++++++++++++++++++++-----
-> >  5 files changed, 122 insertions(+), 13 deletions(-)
-> >  create mode 100644 Documentation/vm/struct_page_field
+> > Yes. But
 > > 
+> > >          that I do not really think i_mmap_lock_write is the biggest
+> > > problem. That will be likely the case for other mmap_sem write lockers.
+> > 
+> > i_mmap_lock_write() is one of the problems which we could afford fixing.
+> > 8 out of 11 "oom_reaper: unable to reap" messages are blocked at i_mmap_lock_write().
+> > 
+> [...]
+> > > Really I am not sure dumping more information is beneficial here.
+> > 
+> > Converting to use killable where we can afford is beneficial.
+> 
+> I am no questioning that. I am questioning the additional information
+> because we won't be able to do anything about mmap_sem holder most of
+> the time. Because they tend block on allocations...
+
+serial-20180320.txt.xz is saying that they tend to block on i_mmap_lock_write() rather
+than memory allocations. Making memory allocations killable will need a lot of work.
+But I think that making frequently hitting down_write() killable won't need so much work.
