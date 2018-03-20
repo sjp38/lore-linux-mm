@@ -1,57 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 936106B0005
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 13:11:50 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id b2-v6so1496694plz.17
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 10:11:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q1sor553593pgt.65.2018.03.20.10.11.48
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CC216B0007
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 13:25:15 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id y9so1461085qtf.7
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 10:25:15 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id g73si3325762qka.136.2018.03.20.10.25.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 20 Mar 2018 10:11:49 -0700 (PDT)
-Date: Tue, 20 Mar 2018 10:11:47 -0700 (PDT)
-Subject: Re: [PATCH 00/16] remove eight obsolete architectures
-In-Reply-To: <CAK8P3a01pfvsdM1mR8raU9dA7p4H-jRJz2Y8-+KEY76W_Mukpg@mail.gmail.com>
-From: Palmer Dabbelt <palmer@sifive.com>
-Message-ID: <mhng-f6731cb9-8394-419d-b14b-c6fcd6c0930d@palmer-si-x1c4>
-Mime-Version: 1.0 (MHng)
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Mar 2018 10:25:13 -0700 (PDT)
+Date: Tue, 20 Mar 2018 13:25:09 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
+Message-ID: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: hare@suse.de, dhowells@redhat.com, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-block@vger.kernel.org, linux-ide@vger.kernel.org, linux-input@vger.kernel.org, netdev@vger.kernel.org, linux-wireless@vger.kernel.org, linux-pwm@vger.kernel.org, linux-rtc@vger.kernel.org, linux-spi@vger.kernel.org, linux-usb@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-fbdev@vger.kernel.org, linux-watchdog@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
-On Thu, 15 Mar 2018 03:42:25 PDT (-0700), Arnd Bergmann wrote:
-> On Thu, Mar 15, 2018 at 10:59 AM, Hannes Reinecke <hare@suse.de> wrote:
->> On 03/15/2018 10:42 AM, David Howells wrote:
->>> Do we have anything left that still implements NOMMU?
->>>
->> RISC-V ?
->> (evil grin :-)
->
-> Is anyone producing a chip that includes enough of the Privileged ISA spec
-> to have things like system calls, but not the MMU parts?
->
-> I thought at least initially the kernel only supports hardware that has a rather
-> complete feature set.
+Hi
 
-We currently do not have a NOMMU port.  As far as I know, everyone who's
-currently producing RISC-V hardware with enough memory to run Linux has S mode
-with paging support.  The ISA allows for S mode without paging but there's no
-hardware for that -- if you're going to put a DRAM controller on there then
-paging seems pretty cheap.  You could run a NOMMU port on a system with S-mode
-and paging, but With all the superpage stuff I don't think you'll get an
-appreciable performance win for any workload running without an MMU so there's
-nothing to justify the work (and incompatibility) of a NOMMU port there.
+I'm submitting this patch for the slab allocator. The patch adds a new 
+flag SLAB_MINIMIZE_WASTE. When this flag is present, the slab subsystem 
+will use higher-order allocations to minimize wasted space (it will not 
+use higher-order allocations when there's no benefit, such as if the 
+object size is a power of two).
 
-While I think you could implement a NOMMU port on a machine with only M and U
-modes (and therefor no address translation at all), I don't know of any MU-only
-machines that have enough memory to run Linux (ours have less than 32KiB).  A
-SBI-free Linux would be a prerequisite for this, but there's some interest in
-that outside of a NOMMU port so it might materialize anyway.
+The reason why we need this is that we are going to merge code that does 
+block device deduplication (it was developed separatedly and sold as a 
+commercial product), and the code uses block sizes that are not a power of 
+two (block sizes 192K, 448K, 640K, 832K are used in the wild). The slab 
+allocator rounds up the allocation to the nearest power of two, but that 
+wastes a lot of memory. Performance of the solution depends on efficient 
+memory usage, so we should minimize wasted as much as possible.
 
-Of course, QEMU could probably be tricked into emulating one of these machines
-with little to no effort :)...  That said, I doubt we'll see a NOMMU port
-materialize without some real hardware as it's a lot of work for a QEMU-only
-target.
+Larger-order allocations are unreliable (they may fail at any time if the 
+memory is fragmented), but it is not an issue here - the code preallocates 
+a few buffers with vmalloc and then allocates buffers from the slab cache. 
+If the allocation fails due to memory fragmentation, we throw away and 
+reuse some existing buffer, so there is no functionality loss.
+
+Mikulas
+
+
+From: Mikulas Patocka <mpatocka@redhat.com>
+
+This patch introduces a flag SLAB_MINIMIZE_WASTE for slab and slub. This
+flag causes allocation of larger slab caches in order to minimize wasted
+space.
+
+Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+
+---
+ include/linux/slab.h  |    7 +++++++
+ mm/slab.c             |    4 ++--
+ mm/slab.h             |    7 ++++---
+ mm/slab_common.c      |    2 +-
+ mm/slub.c             |   25 ++++++++++++++++++++-----
+ 6 files changed, 35 insertions(+), 12 deletions(-)
+
+Index: linux-2.6/include/linux/slab.h
+===================================================================
+--- linux-2.6.orig/include/linux/slab.h	2018-03-20 14:59:20.528030000 +0100
++++ linux-2.6/include/linux/slab.h	2018-03-20 14:59:20.518030000 +0100
+@@ -108,6 +108,13 @@
+ #define SLAB_KASAN		0
+ #endif
+ 
++/*
++ * Use higer order allocations to minimize wasted space.
++ * Note: the allocation is unreliable if this flag is used, the caller
++ * must handle allocation failures gracefully.
++ */
++#define SLAB_MINIMIZE_WASTE	((slab_flags_t __force)0x10000000U)
++
+ /* The following flags affect the page allocator grouping pages by mobility */
+ /* Objects are reclaimable */
+ #define SLAB_RECLAIM_ACCOUNT	((slab_flags_t __force)0x00020000U)
+Index: linux-2.6/mm/slab_common.c
+===================================================================
+--- linux-2.6.orig/mm/slab_common.c	2018-03-20 14:59:20.528030000 +0100
++++ linux-2.6/mm/slab_common.c	2018-03-20 14:59:20.518030000 +0100
+@@ -52,7 +52,7 @@ static DECLARE_WORK(slab_caches_to_rcu_d
+ 		SLAB_FAILSLAB | SLAB_KASAN)
+ 
+ #define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | \
+-			 SLAB_ACCOUNT)
++			 SLAB_ACCOUNT | SLAB_MINIMIZE_WASTE)
+ 
+ /*
+  * Merge control. If this is set then no merging of slab caches will occur.
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2018-03-20 14:59:20.528030000 +0100
++++ linux-2.6/mm/slub.c	2018-03-20 14:59:20.518030000 +0100
+@@ -3234,7 +3234,7 @@ static inline int slab_order(int size, i
+ 	return order;
+ }
+ 
+-static inline int calculate_order(int size, int reserved)
++static inline int calculate_order(int size, int reserved, slab_flags_t flags)
+ {
+ 	int order;
+ 	int min_objects;
+@@ -3261,7 +3261,7 @@ static inline int calculate_order(int si
+ 			order = slab_order(size, min_objects,
+ 					slub_max_order, fraction, reserved);
+ 			if (order <= slub_max_order)
+-				return order;
++				goto ret_order;
+ 			fraction /= 2;
+ 		}
+ 		min_objects--;
+@@ -3273,15 +3273,30 @@ static inline int calculate_order(int si
+ 	 */
+ 	order = slab_order(size, 1, slub_max_order, 1, reserved);
+ 	if (order <= slub_max_order)
+-		return order;
++		goto ret_order;
+ 
+ 	/*
+ 	 * Doh this slab cannot be placed using slub_max_order.
+ 	 */
+ 	order = slab_order(size, 1, MAX_ORDER, 1, reserved);
+ 	if (order < MAX_ORDER)
+-		return order;
++		goto ret_order;
+ 	return -ENOSYS;
++
++ret_order:
++	if (flags & SLAB_MINIMIZE_WASTE) {
++		/* Increase the order if it decreases waste */
++		int test_order;
++		for (test_order = order + 1; test_order < MAX_ORDER; test_order++) {
++			unsigned long order_objects = ((PAGE_SIZE << order) - reserved) / size;
++			unsigned long test_order_objects = ((PAGE_SIZE << test_order) - reserved) / size;
++			if (test_order_objects >= min(64, MAX_OBJS_PER_PAGE))
++				break;
++			if (test_order_objects > order_objects << (test_order - order))
++				order = test_order;
++		}
++	}
++	return order;
+ }
+ 
+ static void
+@@ -3546,7 +3561,7 @@ static int calculate_sizes(struct kmem_c
+ 	if (forced_order >= 0)
+ 		order = forced_order;
+ 	else
+-		order = calculate_order(size, s->reserved);
++		order = calculate_order(size, s->reserved, flags);
+ 
+ 	if (order < 0)
+ 		return 0;
+Index: linux-2.6/mm/slab.h
+===================================================================
+--- linux-2.6.orig/mm/slab.h	2018-03-20 14:59:20.528030000 +0100
++++ linux-2.6/mm/slab.h	2018-03-20 14:59:20.518030000 +0100
+@@ -142,10 +142,10 @@ static inline slab_flags_t kmem_cache_fl
+ #if defined(CONFIG_SLAB)
+ #define SLAB_CACHE_FLAGS (SLAB_MEM_SPREAD | SLAB_NOLEAKTRACE | \
+ 			  SLAB_RECLAIM_ACCOUNT | SLAB_TEMPORARY | \
+-			  SLAB_ACCOUNT)
++			  SLAB_ACCOUNT | SLAB_MINIMIZE_WASTE)
+ #elif defined(CONFIG_SLUB)
+ #define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
+-			  SLAB_TEMPORARY | SLAB_ACCOUNT)
++			  SLAB_TEMPORARY | SLAB_ACCOUNT | SLAB_MINIMIZE_WASTE)
+ #else
+ #define SLAB_CACHE_FLAGS (0)
+ #endif
+@@ -164,7 +164,8 @@ static inline slab_flags_t kmem_cache_fl
+ 			      SLAB_NOLEAKTRACE | \
+ 			      SLAB_RECLAIM_ACCOUNT | \
+ 			      SLAB_TEMPORARY | \
+-			      SLAB_ACCOUNT)
++			      SLAB_ACCOUNT | \
++			      SLAB_MINIMIZE_WASTE)
+ 
+ int __kmem_cache_shutdown(struct kmem_cache *);
+ void __kmem_cache_release(struct kmem_cache *);
+Index: linux-2.6/mm/slab.c
+===================================================================
+--- linux-2.6.orig/mm/slab.c	2018-03-20 14:59:20.528030000 +0100
++++ linux-2.6/mm/slab.c	2018-03-20 14:59:20.518030000 +0100
+@@ -1789,14 +1789,14 @@ static size_t calculate_slab_order(struc
+ 		 * as GFP_NOFS and we really don't want to have to be allocating
+ 		 * higher-order pages when we are unable to shrink dcache.
+ 		 */
+-		if (flags & SLAB_RECLAIM_ACCOUNT)
++		if (flags & SLAB_RECLAIM_ACCOUNT && !(flags & SLAB_MINIMIZE_WASTE))
+ 			break;
+ 
+ 		/*
+ 		 * Large number of objects is good, but very large slabs are
+ 		 * currently bad for the gfp()s.
+ 		 */
+-		if (gfporder >= slab_max_order)
++		if (gfporder >= slab_max_order && !(flags & SLAB_MINIMIZE_WASTE))
+ 			break;
+ 
+ 		/*
