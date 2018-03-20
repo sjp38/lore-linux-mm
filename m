@@ -1,233 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 42ABF6B0007
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 05:58:09 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id q65so632685pga.15
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 02:58:09 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o81si1074669pfk.67.2018.03.20.02.58.07
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 83DBA6B0003
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 06:16:38 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id z23so1126040iob.23
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 03:16:38 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id h82-v6sor681551itb.145.2018.03.20.03.16.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 20 Mar 2018 02:58:08 -0700 (PDT)
-Subject: Re: [patch] mm, page_alloc: wakeup kcompactd even if kswapd cannot
- free more memory
-References: <alpine.DEB.2.20.1803111659420.209721@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <224545ab-9859-6f37-f58a-d5e04371258c@suse.cz>
-Date: Tue, 20 Mar 2018 10:56:17 +0100
+        (Google Transport Security);
+        Tue, 20 Mar 2018 03:16:37 -0700 (PDT)
+Date: Tue, 20 Mar 2018 19:16:29 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: fix low-high watermark distance on small systems
+Message-ID: <20180320101629.GA210031@rodete-desktop-imager.corp.google.com>
+References: <1521110079-26870-1-git-send-email-vinmenon@codeaurora.org>
+ <20180315143415.GA473@rodete-desktop-imager.corp.google.com>
+ <d6dc8e61-8d3e-d628-2651-50db62dd7fa1@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1803111659420.209721@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <d6dc8e61-8d3e-d628-2651-50db62dd7fa1@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: hannes@cmpxchg.org, mgorman@techsingularity.net, linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, sfr@canb.auug.org.au, pasha.tatashin@oracle.com, penguin-kernel@I-love.SAKURA.ne.jp
 
-On 03/12/2018 01:00 AM, David Rientjes wrote:
-> Kswapd will not wakeup if per-zone watermarks are not failing or if too
-> many previous attempts at background reclaim have failed.
+On Fri, Mar 16, 2018 at 04:33:54PM +0530, Vinayak Menon wrote:
 > 
-> This can be true if there is a lot of free memory available.  For high-
-> order allocations, kswapd is responsible for waking up kcompactd for
-> background compaction.  If the zone is now below its watermarks or
-                                         not ?
+> On 3/15/2018 8:04 PM, Minchan Kim wrote:
+> > Hi Vinayak,
+> 
+> Thanks for your comments Minchan.
+> >
+> > On Thu, Mar 15, 2018 at 04:04:39PM +0530, Vinayak Menon wrote:
+> >> It is observed that watermark_scale_factor when used to reduce
+> >> thundering herds in direct reclaim, reduces the direct reclaims,
+> >> but results in unnecessary reclaim due to kswapd running for long
+> >> after being woken up. The tests are done with 4 GB of RAM and the
+> >> tests done are multibuild and another which opens a set of apps
+> >> sequentially on Android and repeating the sequence N times. The
+> >> tests are done on 4.9 kernel.
+> >>
+> >> The issue is caused by watermark_scale_factor creating larger than
+> >> required gap between low and high watermarks. The following results
+> >> are with watermark_scale_factor of 120.
+> >>
+> >>                        wsf-120-default  wsf-120-reduced-low-high-gap
+> >> workingset_activate    15120206         8319182
+> >> pgpgin                 269795482        147928581
+> >> allocstall             1406             1498
+> >> pgsteal_kswapd         68676960         38105142
+> >> slabs_scanned          94181738         49085755
+> > "required gap" you mentiond is very dependent for your workload.
+> > You had an experiment with wsf-120. It means user wanted to be more
+> > aggressive for kswapd while your load is not enough to make meomry
+> > consumption spike. Couldn't you decrease wfs?
+> 
+> I did try reducing the wsf for both multibuild and Android workloads. But that results in kswapd
+> waking up late and thus latency issues due to higher direct reclaims. As I understand the problem, the
+> wsf in its current form helps in tuning the kswapd wakeups (and note that I have not touched the
+> wsf logic to calculate min-low gap), but the issue arises due to the depth to which kswapd scans the LRUs in a
+> single run, causing thrashing, due to the higher low-high gap. From experiments, it looks like kswapd waking
 
-> reclaim has recently failed (lots of free memory, nothing left to
-> reclaim), kcompactd does not get woken up.
-> 
-> When __GFP_DIRECT_RECLAIM is not allowed, allow kcompactd to still be
-> woken up even if kswapd will not reclaim.  This allows high-order
-> allocations, such as thp, to still trigger background compaction even
-> when the zone has an abundance of free memory.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+wsf conducts kswapd sleep time as well as wakeup time.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+"This factor controls the aggressiveness of kswapd. It defines the
+amount of memory left in a node/system before kswapd is woken up and
+how much memory needs to be free before kswapd goes back to sleep."
 
-> ---
->  .../postprocess/trace-vmscan-postprocess.pl   |  4 +--
->  include/linux/mmzone.h                        |  3 +-
->  include/trace/events/vmscan.h                 | 17 ++++++----
->  mm/page_alloc.c                               | 14 ++++----
->  mm/vmscan.c                                   | 32 +++++++++++++------
->  5 files changed, 45 insertions(+), 25 deletions(-)
+> up few more times and doing shorter steals is better than kswapd stealing more in a single run. The latter
+> does not better direct reclaims and causes thrashing too.
+
+
+That's the tradeoff of kswapd aggressiveness to avoid high rate
+direct reclaim.
+
 > 
-> diff --git a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-> --- a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-> +++ b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-> @@ -111,7 +111,7 @@ my $regex_direct_begin_default = 'order=([0-9]*) may_writepage=([0-9]*) gfp_flag
->  my $regex_direct_end_default = 'nr_reclaimed=([0-9]*)';
->  my $regex_kswapd_wake_default = 'nid=([0-9]*) order=([0-9]*)';
->  my $regex_kswapd_sleep_default = 'nid=([0-9]*)';
-> -my $regex_wakeup_kswapd_default = 'nid=([0-9]*) zid=([0-9]*) order=([0-9]*)';
-> +my $regex_wakeup_kswapd_default = 'nid=([0-9]*) zid=([0-9]*) order=([0-9]*) gfp_flags=([A-Z_|]*)';
->  my $regex_lru_isolate_default = 'isolate_mode=([0-9]*) classzone_idx=([0-9]*) order=([0-9]*) nr_requested=([0-9]*) nr_scanned=([0-9]*) nr_skipped=([0-9]*) nr_taken=([0-9]*) lru=([a-z_]*)';
->  my $regex_lru_shrink_inactive_default = 'nid=([0-9]*) nr_scanned=([0-9]*) nr_reclaimed=([0-9]*) nr_dirty=([0-9]*) nr_writeback=([0-9]*) nr_congested=([0-9]*) nr_immediate=([0-9]*) nr_activate=([0-9]*) nr_ref_keep=([0-9]*) nr_unmap_fail=([0-9]*) priority=([0-9]*) flags=([A-Z_|]*)';
->  my $regex_lru_shrink_active_default = 'lru=([A-Z_]*) nr_scanned=([0-9]*) nr_rotated=([0-9]*) priority=([0-9]*)';
-> @@ -201,7 +201,7 @@ $regex_kswapd_sleep = generate_traceevent_regex(
->  $regex_wakeup_kswapd = generate_traceevent_regex(
->  			"vmscan/mm_vmscan_wakeup_kswapd",
->  			$regex_wakeup_kswapd_default,
-> -			"nid", "zid", "order");
-> +			"nid", "zid", "order", "gfp_flags");
->  $regex_lru_isolate = generate_traceevent_regex(
->  			"vmscan/mm_vmscan_lru_isolate",
->  			$regex_lru_isolate_default,
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -775,7 +775,8 @@ static inline bool is_dev_zone(const struct zone *zone)
->  #include <linux/memory_hotplug.h>
->  
->  void build_all_zonelists(pg_data_t *pgdat);
-> -void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
-> +void wakeup_kswapd(struct zone *zone, gfp_t gfp_mask, int order,
-> +		   enum zone_type classzone_idx);
->  bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
->  			 int classzone_idx, unsigned int alloc_flags,
->  			 long free_pages);
-> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -78,26 +78,29 @@ TRACE_EVENT(mm_vmscan_kswapd_wake,
->  
->  TRACE_EVENT(mm_vmscan_wakeup_kswapd,
->  
-> -	TP_PROTO(int nid, int zid, int order),
-> +	TP_PROTO(int nid, int zid, int order, gfp_t gfp_flags),
->  
-> -	TP_ARGS(nid, zid, order),
-> +	TP_ARGS(nid, zid, order, gfp_flags),
->  
->  	TP_STRUCT__entry(
-> -		__field(	int,		nid	)
-> -		__field(	int,		zid	)
-> -		__field(	int,		order	)
-> +		__field(	int,	nid		)
-> +		__field(	int,	zid		)
-> +		__field(	int,	order		)
-> +		__field(	gfp_t,	gfp_flags	)
->  	),
->  
->  	TP_fast_assign(
->  		__entry->nid		= nid;
->  		__entry->zid		= zid;
->  		__entry->order		= order;
-> +		__entry->gfp_flags	= gfp_flags;
->  	),
->  
-> -	TP_printk("nid=%d zid=%d order=%d",
-> +	TP_printk("nid=%d zid=%d order=%d gfp_flags=%s",
->  		__entry->nid,
->  		__entry->zid,
-> -		__entry->order)
-> +		__entry->order,
-> +		show_gfp_flags(__entry->gfp_flags))
->  );
->  
->  DECLARE_EVENT_CLASS(mm_vmscan_direct_reclaim_begin_template,
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3683,16 +3683,18 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
->  	return page;
->  }
->  
-> -static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
-> +static void wake_all_kswapds(unsigned int order, gfp_t gfp_mask,
-> +			     const struct alloc_context *ac)
->  {
->  	struct zoneref *z;
->  	struct zone *zone;
->  	pg_data_t *last_pgdat = NULL;
-> +	enum zone_type high_zoneidx = ac->high_zoneidx;
->  
-> -	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist,
-> -					ac->high_zoneidx, ac->nodemask) {
-> +	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, high_zoneidx,
-> +					ac->nodemask) {
->  		if (last_pgdat != zone->zone_pgdat)
-> -			wakeup_kswapd(zone, order, ac->high_zoneidx);
-> +			wakeup_kswapd(zone, gfp_mask, order, high_zoneidx);
->  		last_pgdat = zone->zone_pgdat;
->  	}
->  }
-> @@ -3971,7 +3973,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  		goto nopage;
->  
->  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
-> -		wake_all_kswapds(order, ac);
-> +		wake_all_kswapds(order, gfp_mask, ac);
->  
->  	/*
->  	 * The adjusted alloc_flags might result in immediate success, so try
-> @@ -4029,7 +4031,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  retry:
->  	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
->  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
-> -		wake_all_kswapds(order, ac);
-> +		wake_all_kswapds(order, gfp_mask, ac);
->  
->  	reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
->  	if (reserve_flags)
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3546,16 +3546,21 @@ static int kswapd(void *p)
->  }
->  
->  /*
-> - * A zone is low on free memory, so wake its kswapd task to service it.
-> + * A zone is low on free memory or too fragmented for high-order memory.  If
-> + * kswapd should reclaim (direct reclaim is deferred), wake it up for the zone's
-> + * pgdat.  It will wake up kcompactd after reclaiming memory.  If kswapd reclaim
-> + * has failed or is not needed, still wake up kcompactd if only compaction is
-> + * needed.
->   */
-> -void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
-> +void wakeup_kswapd(struct zone *zone, gfp_t gfp_flags, int order,
-> +		   enum zone_type classzone_idx)
->  {
->  	pg_data_t *pgdat;
->  
->  	if (!managed_zone(zone))
->  		return;
->  
-> -	if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
-> +	if (!cpuset_zone_allowed(zone, gfp_flags))
->  		return;
->  	pgdat = zone->zone_pgdat;
->  	pgdat->kswapd_classzone_idx = kswapd_classzone_idx(pgdat,
-> @@ -3564,14 +3569,23 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
->  	if (!waitqueue_active(&pgdat->kswapd_wait))
->  		return;
->  
-> -	/* Hopeless node, leave it to direct reclaim */
-> -	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES)
-> -		return;
-> -
-> -	if (pgdat_balanced(pgdat, order, classzone_idx))
-> +	/* Hopeless node, leave it to direct reclaim if possible */
-> +	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES ||
-> +	    pgdat_balanced(pgdat, order, classzone_idx)) {
-> +		/*
-> +		 * There may be plenty of free memory available, but it's too
-> +		 * fragmented for high-order allocations.  Wake up kcompactd
-> +		 * and rely on compaction_suitable() to determine if it's
-> +		 * needed.  If it fails, it will defer subsequent attempts to
-> +		 * ratelimit its work.
-> +		 */
-> +		if (!(gfp_flags & __GFP_DIRECT_RECLAIM))
-> +			wakeup_kcompactd(pgdat, order, classzone_idx);
->  		return;
-> +	}
->  
-> -	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, classzone_idx, order);
-> +	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, classzone_idx, order,
-> +				      gfp_flags);
->  	wake_up_interruptible(&pgdat->kswapd_wait);
->  }
->  
+> >
+> > Don't get me wrong. I don't want you test all of wfs with varios
+> > workload to prove your logic is better. What I want to say here is
+> > it's heuristic so it couldn't be perfect for every workload so
+> > if you change to non-linear, you could be better but others might be not.
 > 
+> Yes I understand your point. But since mmtests and Android tests showed similar results, I thought the
+> heuristic may just work across workloads. I assume from Johannes's tests on 140GB machine (from the
+> commit msg of the patch which introduced wsf) that the current low-high gap works well without thrashing
+> on bigger machines. This made me assume that the behavior is non-linear. So the non-linear behavior will
+> not make any difference to higher RAM machines as the low-high remains almost same as shown in the table
+> below. But I understand your point, for a different workload on smaller machines, I am not sure the benefit I
+> see would be observed, though that's the same problem with current wsf too.
+
+True. That's why I don't want to make it complicate. Later, if someone complains
+"linear is better for his several testing", are you happy to rollback to it? 
+
+You might argue it's same problem now but at least as-is code is simple to
+understand. 
+
+> 
+> >
+> > In such context, current linear linear scale factor is simple enough
+> > to understand. IMO, if we really want to enhance watermark, the low/high
+> > wmark shold be adaptable according to memory spike. One of rough idea is
+> > to change low/high wmark based on kswapd_[high|low]_wmark_hit_quickly.
+> 
+> That seems like a nice idea to me.  But considering the current case with and without this patch,
+> the kswapd_low_wmark_hit quickly is actually less without the patch. But that comes at the cost of thrashing.
+> Which then would mean we need to detect thrashing to adjust the watermark. We may get the thrashing data
+> from workingset refaults, but I am not sure if we can take it as an input to adjust watermark since thrashing can
+> be due to other reasons too. Maybe there are ways to make this adaptive, like using Johannes's memdelay feature
+> to detect more time spent in direct reclaims and then raise the low watermark, and then use time spent in refault
+> and stabilized direct reclaim time to bring down or stop raising the low watermark.
+> But do we need that adaptive logic now if this (or other similar) patch just works across workloads for small machines ?
+> What is your suggestion ?
+
+Sorry for being grumpy.
+
+Let's leave it as-is. Such a simple heuristic could be never optimal
+for everyone. If we really need to fix it, I want to see better logic
+to convince others.
