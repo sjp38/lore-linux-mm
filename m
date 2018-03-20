@@ -1,130 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 363166B0007
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 17:58:41 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id o23so1577795wrc.9
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 14:58:41 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id g1si2767414edh.384.2018.03.20.14.58.39
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FC6E6B0007
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 18:02:55 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id v74so1895373qkl.9
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 15:02:55 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id f72si3804237qkf.203.2018.03.20.15.02.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 14:58:39 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2KLqkM8045594
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 17:58:38 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2guakn05fc-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 17:58:37 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Tue, 20 Mar 2018 21:58:36 -0000
-Date: Tue, 20 Mar 2018 14:58:28 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [bug?] Access was denied by memory protection keys in
- execute-only address
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <CAEemH2f0LDqyR5AmUYv17OuBc5-UycckDPWgk46XU_ghQo4diw@mail.gmail.com>
- <871sguep4v.fsf@concordia.ellerman.id.au>
- <20180308164545.GM1060@ram.oc3035372033.ibm.com>
- <CAEemH2czWDjvJLpL6ynV1+VxCFh_-A-d72tJhA5zwgrAES2nWA@mail.gmail.com>
+        Tue, 20 Mar 2018 15:02:54 -0700 (PDT)
+Date: Tue, 20 Mar 2018 18:02:51 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake>
+Message-ID: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake> <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAEemH2czWDjvJLpL6ynV1+VxCFh_-A-d72tJhA5zwgrAES2nWA@mail.gmail.com>
-Message-Id: <20180320215828.GA5825@ram.oc3035372033.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@redhat.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Jan Stancek <jstancek@redhat.com>, ltp@lists.linux.it, linux-mm@kvack.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
-
-On Fri, Mar 09, 2018 at 11:43:00AM +0800, Li Wang wrote:
->    On Fri, Mar 9, 2018 at 12:45 AM, Ram Pai <[1]linuxram@us.ibm.com> wrote:
-> 
->      On Thu, Mar 08, 2018 at 11:19:12PM +1100, Michael Ellerman wrote:
->      > Li Wang <[2]liwang@redhat.com> writes:
->      > > Hi,
->      > >
->      > > ltp/mprotect04[1] crashed by SEGV_PKUERR on ppc64(LPAR on P730,
->      Power 8
->      > > 8247-22L) with kernel-v4.16.0-rc4.
->      > >
->      > > 10000000-10020000 r-xp 00000000 fd:00 167223A  A  A  A  A  A mprotect04
->      > > 10020000-10030000 r--p 00010000 fd:00 167223A  A  A  A  A  A mprotect04
->      > > 10030000-10040000 rw-p 00020000 fd:00 167223A  A  A  A  A  A mprotect04
->      > > 1001a380000-1001a3b0000 rw-p 00000000 00:00 0A  A  A  A  A  [heap]
->      > > 7fffa6c60000-7fffa6c80000 --xp 00000000 00:00 0 a??
->      > >
->      > > a??&exec_func = 0x10030170a??
->      > >
->      > > a??&func = 0x7fffa6c60170a??
->      > >
->      > > a??While perform a??
->      > > "(*func)();" we get the
->      > > a??segmentation fault.
->      > > a??
->      > >
->      > > a??strace log:a??
->      > >
->      > > -------------------
->      > > a??mprotect(0x7fffaed00000, 131072, PROT_EXEC) = 0
->      > > rt_sigprocmask(SIG_BLOCK, NULL, [], 8)A  = 0
->      > > --- SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_PKUERR,
->      si_addr=0x7fffaed00170}
->      > > ---a??
->      >
->      > Looks like a bug to me.
->      >
->      > Please Cc linuxppc-dev on powerpc bugs.
->      >
->      > I also can't reproduce this failure on my machine.
->      > Not sure what's going on?
-> 
->      I could reproduce it on a power7 lpar.A  But not on a power8 lpar.
-> 
->      The problem seems to be that the cpu generates a key exception if
->      the page with Read/Write-disable-but-execute-enable key is executed
->      on power7. If I enable read on that key, the exception disappears.
-> 
->    After adding read permission on that key, reproducer get PASS on my power8
->    machine too.a??
->    a??(a??mprotect(..,PROT_READ | PROT_EXEC))a??
->    A 
-> 
->      BTW: the testcase executes
->      a??a??mprotect(..,PROT_EXEC).
->      The mprotect(, PROT_EXEC) system call internally generates a
->      execute-only key and associates it with the pages in the address-range.A 
-> 
->      Now since Li Wang claims that he can reproduce it on power8 as well, i
->      am wondering if the slightly different cpu behavior is dependent on the
->      version of the firmware/microcode?
-> 
->    a??I also run this reproducer on series ppc kvm machines, but none of them
->    get the FAIL.
->    If you need some more HW info, pls let me know.a??
-
-Hi Li,
-
-   Can you try the following patch and see if it solves your problem.
+To: Christopher Lameter <cl@linux.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
 
-diff --git a/arch/powerpc/mm/pkeys.c b/arch/powerpc/mm/pkeys.c
-index c269817..184a10a 100644
---- a/arch/powerpc/mm/pkeys.c
-+++ b/arch/powerpc/mm/pkeys.c
-@@ -421,7 +421,7 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot,
- 	 * The requested protection is execute-only. Hence let's use an
- 	 * execute-only pkey.
- 	 */
--	if (prot == PROT_EXEC) {
-+	if (prot == PROT_EXEC && pkey_execute_disable_supported) {
- 		pkey = execute_only_pkey(vma->vm_mm);
- 		if (pkey > 0)
- 			return pkey;
 
+On Tue, 20 Mar 2018, Christopher Lameter wrote:
 
-Thanks
-RP
+> On Tue, 20 Mar 2018, Mikulas Patocka wrote:
+> 
+> > > Maybe do the same thing for SLAB?
+> >
+> > Yes, but I need to change it for a specific cache, not for all caches.
+> 
+> Why only some caches?
+
+I need high order for the buffer cache that holds the deduplicated data. I 
+don't need to force it system-wide.
+
+> > When the order is greater than 3 (PAGE_ALLOC_COSTLY_ORDER), the allocation
+> > becomes unreliable, thus it is a bad idea to increase slub_max_order
+> > system-wide.
+> 
+> Well the allocations is more likely to fail that is true but SLUB will
+> fall back to a smaller order should the page allocator refuse to give us
+> that larger sized page.
+
+Does SLAB have this fall-back too?
+
+> > Another problem with slub_max_order is that it would pad all caches to
+> > slub_max_order, even those that already have a power-of-two size (in that
+> > case, the padding is counterproductive).
+> 
+> No it does not. Slub will calculate the configuration with the least byte
+> wastage. It is not the standard order but the maximum order to be used.
+> Power of two caches below PAGE_SIZE will have order 0.
+
+Try to boot with slub_max_order=10 and you can see this in /proc/slabinfo:
+kmalloc-8192         352    352   8192   32   64 : tunables    0    0    0 : slabdata     11     11      0
+                                             ^^^^
+
+So it rounds up power-of-two sizes to high orders unnecessarily. Without 
+slub_max_order=10, the number of pages for the kmalloc-8192 cache is just 
+8.
+
+I observe the same pathological rounding in dm-bufio caches.
+
+> There are some corner cases where extra metadata is needed per object or
+> per page that will result in either object sizes that are no longer a
+> power of two or in page sizes smaller than the whole page. Maybe you have
+> a case like that? Can you show me a cache that has this issue?
+
+Here I have a patch set that changes the dm-bufio subsystem to support 
+buffer sizes that are not a power of two:
+http://people.redhat.com/~mpatocka/patches/kernel/dm-bufio-arbitrary-sector-size/
+
+I need to change the slub cache to minimize wasted space - i.e. when 
+asking for a slab cache for 640kB objects, the slub system currently 
+allocates 1MB per object and 384kB is wasted. This is the reason why I'm 
+making this patch.
+
+> > BTW. the function "order_store" in mm/slub.c modifies the structure
+> > kmem_cache without taking any locks - is it a bug?
+> 
+> The kmem_cache structure was just allocated. Only one thread can access it
+> thus no locking is necessary.
+
+No - order_store is called when writing to /sys/kernel/slab/<cache>/order 
+- you can modify order for any existing cache - and the modification 
+happens without any locking.
+
+Mikulas
