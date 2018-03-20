@@ -1,122 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BE6A16B0003
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 05:52:11 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id f32-v6so579776otc.13
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 02:52:11 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 42ABF6B0007
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 05:58:09 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id q65so632685pga.15
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 02:58:09 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p7si351031oib.509.2018.03.20.02.52.10
+        by mx.google.com with ESMTPS id o81si1074669pfk.67.2018.03.20.02.58.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 20 Mar 2018 02:52:10 -0700 (PDT)
-Subject: Re: [PATCH v4 3/3 update] mm/free_pcppages_bulk: prefetch buddy while
- not holding lock
-References: <20180301062845.26038-1-aaron.lu@intel.com>
- <20180301062845.26038-4-aaron.lu@intel.com>
- <20180301160950.b561d6b8b561217bad511229@linux-foundation.org>
- <20180302082756.GC6356@intel.com> <20180309082431.GB30868@intel.com>
- <988ce376-bdc4-0989-5133-612bfa3f7c45@intel.com>
- <20180313033519.GC13782@intel.com> <20180313070404.GA7501@intel.com>
+        Tue, 20 Mar 2018 02:58:08 -0700 (PDT)
+Subject: Re: [patch] mm, page_alloc: wakeup kcompactd even if kswapd cannot
+ free more memory
+References: <alpine.DEB.2.20.1803111659420.209721@chino.kir.corp.google.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5600c827-d22b-136c-6b90-a4b52f40af31@suse.cz>
-Date: Tue, 20 Mar 2018 10:50:18 +0100
+Message-ID: <224545ab-9859-6f37-f58a-d5e04371258c@suse.cz>
+Date: Tue, 20 Mar 2018 10:56:17 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180313070404.GA7501@intel.com>
+In-Reply-To: <alpine.DEB.2.20.1803111659420.209721@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/13/2018 08:04 AM, Aaron Lu wrote:
-> On Tue, Mar 13, 2018 at 11:35:19AM +0800, Aaron Lu wrote:
->> On Mon, Mar 12, 2018 at 10:32:32AM -0700, Dave Hansen wrote:
->>> On 03/09/2018 12:24 AM, Aaron Lu wrote:
->>>> +			/*
->>>> +			 * We are going to put the page back to the global
->>>> +			 * pool, prefetch its buddy to speed up later access
->>>> +			 * under zone->lock. It is believed the overhead of
->>>> +			 * an additional test and calculating buddy_pfn here
->>>> +			 * can be offset by reduced memory latency later. To
->>>> +			 * avoid excessive prefetching due to large count, only
->>>> +			 * prefetch buddy for the last pcp->batch nr of pages.
->>>> +			 */
->>>> +			if (count > pcp->batch)
->>>> +				continue;
->>>> +			pfn = page_to_pfn(page);
->>>> +			buddy_pfn = __find_buddy_pfn(pfn, 0);
->>>> +			buddy = page + (buddy_pfn - pfn);
->>>> +			prefetch(buddy);
->>>
->>> FWIW, I think this needs to go into a helper function.  Is that possible?
->>
->> I'll give it a try.
->>
->>>
->>> There's too much logic happening here.  Also, 'count' going from
->>> batch_size->0 is totally non-obvious from the patch context.  It makes
->>> this hunk look totally wrong by itself.
+On 03/12/2018 01:00 AM, David Rientjes wrote:
+> Kswapd will not wakeup if per-zone watermarks are not failing or if too
+> many previous attempts at background reclaim have failed.
 > 
-> I tried to avoid adding one more local variable but looks like it caused
-> a lot of pain. What about the following? It doesn't use count any more
-> but prefetch_nr to indicate how many prefetches have happened.
-> 
-> Also, I think it's not worth the risk of disordering pages in free_list
-> by changing list_add_tail() to list_add() as Andrew reminded so I
-> dropped that change too.
+> This can be true if there is a lot of free memory available.  For high-
+> order allocations, kswapd is responsible for waking up kcompactd for
+> background compaction.  If the zone is now below its watermarks or
+                                         not ?
 
-Looks fine, you can add
+> reclaim has recently failed (lots of free memory, nothing left to
+> reclaim), kcompactd does not get woken up.
+> 
+> When __GFP_DIRECT_RECLAIM is not allowed, allow kcompactd to still be
+> woken up even if kswapd will not reclaim.  This allows high-order
+> allocations, such as thp, to still trigger background compaction even
+> when the zone has an abundance of free memory.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
+> ---
+>  .../postprocess/trace-vmscan-postprocess.pl   |  4 +--
+>  include/linux/mmzone.h                        |  3 +-
+>  include/trace/events/vmscan.h                 | 17 ++++++----
+>  mm/page_alloc.c                               | 14 ++++----
+>  mm/vmscan.c                                   | 32 +++++++++++++------
+>  5 files changed, 45 insertions(+), 25 deletions(-)
 > 
+> diff --git a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
+> --- a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
+> +++ b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
+> @@ -111,7 +111,7 @@ my $regex_direct_begin_default = 'order=([0-9]*) may_writepage=([0-9]*) gfp_flag
+>  my $regex_direct_end_default = 'nr_reclaimed=([0-9]*)';
+>  my $regex_kswapd_wake_default = 'nid=([0-9]*) order=([0-9]*)';
+>  my $regex_kswapd_sleep_default = 'nid=([0-9]*)';
+> -my $regex_wakeup_kswapd_default = 'nid=([0-9]*) zid=([0-9]*) order=([0-9]*)';
+> +my $regex_wakeup_kswapd_default = 'nid=([0-9]*) zid=([0-9]*) order=([0-9]*) gfp_flags=([A-Z_|]*)';
+>  my $regex_lru_isolate_default = 'isolate_mode=([0-9]*) classzone_idx=([0-9]*) order=([0-9]*) nr_requested=([0-9]*) nr_scanned=([0-9]*) nr_skipped=([0-9]*) nr_taken=([0-9]*) lru=([a-z_]*)';
+>  my $regex_lru_shrink_inactive_default = 'nid=([0-9]*) nr_scanned=([0-9]*) nr_reclaimed=([0-9]*) nr_dirty=([0-9]*) nr_writeback=([0-9]*) nr_congested=([0-9]*) nr_immediate=([0-9]*) nr_activate=([0-9]*) nr_ref_keep=([0-9]*) nr_unmap_fail=([0-9]*) priority=([0-9]*) flags=([A-Z_|]*)';
+>  my $regex_lru_shrink_active_default = 'lru=([A-Z_]*) nr_scanned=([0-9]*) nr_rotated=([0-9]*) priority=([0-9]*)';
+> @@ -201,7 +201,7 @@ $regex_kswapd_sleep = generate_traceevent_regex(
+>  $regex_wakeup_kswapd = generate_traceevent_regex(
+>  			"vmscan/mm_vmscan_wakeup_kswapd",
+>  			$regex_wakeup_kswapd_default,
+> -			"nid", "zid", "order");
+> +			"nid", "zid", "order", "gfp_flags");
+>  $regex_lru_isolate = generate_traceevent_regex(
+>  			"vmscan/mm_vmscan_lru_isolate",
+>  			$regex_lru_isolate_default,
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -775,7 +775,8 @@ static inline bool is_dev_zone(const struct zone *zone)
+>  #include <linux/memory_hotplug.h>
+>  
+>  void build_all_zonelists(pg_data_t *pgdat);
+> -void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
+> +void wakeup_kswapd(struct zone *zone, gfp_t gfp_mask, int order,
+> +		   enum zone_type classzone_idx);
+>  bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+>  			 int classzone_idx, unsigned int alloc_flags,
+>  			 long free_pages);
+> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+> --- a/include/trace/events/vmscan.h
+> +++ b/include/trace/events/vmscan.h
+> @@ -78,26 +78,29 @@ TRACE_EVENT(mm_vmscan_kswapd_wake,
+>  
+>  TRACE_EVENT(mm_vmscan_wakeup_kswapd,
+>  
+> -	TP_PROTO(int nid, int zid, int order),
+> +	TP_PROTO(int nid, int zid, int order, gfp_t gfp_flags),
+>  
+> -	TP_ARGS(nid, zid, order),
+> +	TP_ARGS(nid, zid, order, gfp_flags),
+>  
+>  	TP_STRUCT__entry(
+> -		__field(	int,		nid	)
+> -		__field(	int,		zid	)
+> -		__field(	int,		order	)
+> +		__field(	int,	nid		)
+> +		__field(	int,	zid		)
+> +		__field(	int,	order		)
+> +		__field(	gfp_t,	gfp_flags	)
+>  	),
+>  
+>  	TP_fast_assign(
+>  		__entry->nid		= nid;
+>  		__entry->zid		= zid;
+>  		__entry->order		= order;
+> +		__entry->gfp_flags	= gfp_flags;
+>  	),
+>  
+> -	TP_printk("nid=%d zid=%d order=%d",
+> +	TP_printk("nid=%d zid=%d order=%d gfp_flags=%s",
+>  		__entry->nid,
+>  		__entry->zid,
+> -		__entry->order)
+> +		__entry->order,
+> +		show_gfp_flags(__entry->gfp_flags))
+>  );
+>  
+>  DECLARE_EVENT_CLASS(mm_vmscan_direct_reclaim_begin_template,
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index dafdcdec9c1f..00ea4483f679 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -1099,6 +1099,15 @@ static bool bulkfree_pcp_prepare(struct page *page)
+> @@ -3683,16 +3683,18 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+>  	return page;
 >  }
->  #endif /* CONFIG_DEBUG_VM */
 >  
-> +static inline void prefetch_buddy(struct page *page)
-> +{
-> +	unsigned long pfn = page_to_pfn(page);
-> +	unsigned long buddy_pfn = __find_buddy_pfn(pfn, 0);
-> +	struct page *buddy = page + (buddy_pfn - pfn);
-> +
-> +	prefetch(buddy);
-> +}
-> +
->  /*
->   * Frees a number of pages from the PCP lists
->   * Assumes all pages on list are in same zone, and of same order.
-> @@ -1115,6 +1124,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+> -static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
+> +static void wake_all_kswapds(unsigned int order, gfp_t gfp_mask,
+> +			     const struct alloc_context *ac)
 >  {
->  	int migratetype = 0;
->  	int batch_free = 0;
-> +	int prefetch_nr = 0;
->  	bool isolated_pageblocks;
->  	struct page *page, *tmp;
->  	LIST_HEAD(head);
-> @@ -1150,6 +1160,18 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  				continue;
+>  	struct zoneref *z;
+>  	struct zone *zone;
+>  	pg_data_t *last_pgdat = NULL;
+> +	enum zone_type high_zoneidx = ac->high_zoneidx;
 >  
->  			list_add_tail(&page->lru, &head);
-> +
-> +			/*
-> +			 * We are going to put the page back to the global
-> +			 * pool, prefetch its buddy to speed up later access
-> +			 * under zone->lock. It is believed the overhead of
-> +			 * an additional test and calculating buddy_pfn here
-> +			 * can be offset by reduced memory latency later. To
-> +			 * avoid excessive prefetching due to large count, only
-> +			 * prefetch buddy for the first pcp->batch nr of pages.
-> +			 */
-> +			if (prefetch_nr++ < pcp->batch)
-> +				prefetch_buddy(page);
->  		} while (--count && --batch_free && !list_empty(list));
+> -	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist,
+> -					ac->high_zoneidx, ac->nodemask) {
+> +	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, high_zoneidx,
+> +					ac->nodemask) {
+>  		if (last_pgdat != zone->zone_pgdat)
+> -			wakeup_kswapd(zone, order, ac->high_zoneidx);
+> +			wakeup_kswapd(zone, gfp_mask, order, high_zoneidx);
+>  		last_pgdat = zone->zone_pgdat;
 >  	}
+>  }
+> @@ -3971,7 +3973,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		goto nopage;
+>  
+>  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+> -		wake_all_kswapds(order, ac);
+> +		wake_all_kswapds(order, gfp_mask, ac);
+>  
+>  	/*
+>  	 * The adjusted alloc_flags might result in immediate success, so try
+> @@ -4029,7 +4031,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  retry:
+>  	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
+>  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+> -		wake_all_kswapds(order, ac);
+> +		wake_all_kswapds(order, gfp_mask, ac);
+>  
+>  	reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
+>  	if (reserve_flags)
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3546,16 +3546,21 @@ static int kswapd(void *p)
+>  }
+>  
+>  /*
+> - * A zone is low on free memory, so wake its kswapd task to service it.
+> + * A zone is low on free memory or too fragmented for high-order memory.  If
+> + * kswapd should reclaim (direct reclaim is deferred), wake it up for the zone's
+> + * pgdat.  It will wake up kcompactd after reclaiming memory.  If kswapd reclaim
+> + * has failed or is not needed, still wake up kcompactd if only compaction is
+> + * needed.
+>   */
+> -void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+> +void wakeup_kswapd(struct zone *zone, gfp_t gfp_flags, int order,
+> +		   enum zone_type classzone_idx)
+>  {
+>  	pg_data_t *pgdat;
+>  
+>  	if (!managed_zone(zone))
+>  		return;
+>  
+> -	if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
+> +	if (!cpuset_zone_allowed(zone, gfp_flags))
+>  		return;
+>  	pgdat = zone->zone_pgdat;
+>  	pgdat->kswapd_classzone_idx = kswapd_classzone_idx(pgdat,
+> @@ -3564,14 +3569,23 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+>  	if (!waitqueue_active(&pgdat->kswapd_wait))
+>  		return;
+>  
+> -	/* Hopeless node, leave it to direct reclaim */
+> -	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES)
+> -		return;
+> -
+> -	if (pgdat_balanced(pgdat, order, classzone_idx))
+> +	/* Hopeless node, leave it to direct reclaim if possible */
+> +	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES ||
+> +	    pgdat_balanced(pgdat, order, classzone_idx)) {
+> +		/*
+> +		 * There may be plenty of free memory available, but it's too
+> +		 * fragmented for high-order allocations.  Wake up kcompactd
+> +		 * and rely on compaction_suitable() to determine if it's
+> +		 * needed.  If it fails, it will defer subsequent attempts to
+> +		 * ratelimit its work.
+> +		 */
+> +		if (!(gfp_flags & __GFP_DIRECT_RECLAIM))
+> +			wakeup_kcompactd(pgdat, order, classzone_idx);
+>  		return;
+> +	}
+>  
+> -	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, classzone_idx, order);
+> +	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, classzone_idx, order,
+> +				      gfp_flags);
+>  	wake_up_interruptible(&pgdat->kswapd_wait);
+>  }
 >  
 > 
