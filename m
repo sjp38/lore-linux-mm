@@ -1,54 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C70C6B0007
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 21:10:23 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 140-v6so258571itg.4
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 18:10:23 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id q184si334238iod.108.2018.03.19.18.10.22
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 99C0D6B0007
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2018 22:00:41 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id a22so56659qkc.1
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2018 19:00:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id f52si742292qtc.75.2018.03.19.19.00.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 19 Mar 2018 18:10:22 -0700 (PDT)
-From: Randy Dunlap <rdunlap@infradead.org>
-Subject: Re: [linux-next:master] BUILD REGRESSION
- a5444cde9dc2120612e50fc5a56c975e67a041fb
-References: <5ab048c0.wmRYTJi5ip8zBzJ4%fengguang.wu@intel.com>
-Message-ID: <d22bd482-2f5b-8c02-4821-9f1b02122b51@infradead.org>
-Date: Mon, 19 Mar 2018 18:10:13 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Mar 2018 19:00:40 -0700 (PDT)
+From: jglisse@redhat.com
+Subject: [PATCH 00/15] hmm: fixes and documentations v3
+Date: Mon, 19 Mar 2018 22:00:22 -0400
+Message-Id: <20180320020038.3360-1-jglisse@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <5ab048c0.wmRYTJi5ip8zBzJ4%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Tony Luck <tony.luck@intel.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-On 03/19/2018 04:33 PM, kbuild test robot wrote:
-> tree/branch: https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git  master
-> branch HEAD: a5444cde9dc2120612e50fc5a56c975e67a041fb  Add linux-next specific files for 20180319
-> 
-> Regressions in current branch:
-> 
-> ERROR: "__sw_hweight8" [drivers/net/wireless/mediatek/mt76/mt76.ko] undefined!
+From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-Well, the driver could do:
+Added a patch to fix zombie mm_struct (missing call to mmu notifier
+unregister) this was lost in translation at some point. Included all
+typos and comments received so far (and even more typos fixes). Added
+more comments. Updated individual patch version to reflect changes.
 
-drivers/net/wireless/mediatek/mt76/Kconfig:
+Below are previous cover letter (everything in them are still true):
 
-+	select GENERIC_HWEIGHT
+----------------------------------------------------------------------
+cover letter for v2:
 
-but maybe arch/ix64/Kconfig (where the build error is) could be asked to do:
+Removed pointless VM_BUG_ON() cced stable when appropriate and splitted
+the last patch into _many_ smaller patches to make it easier to review.
+The end result is same modulo comments i received so far and the extra
+documentation i added while splitting thing up. Below is previous cover
+letter (everything in it is still true):
+----------------------------------------------------------------------
+cover letter for v1:
 
-config GENERIC_HWEIGHT
-	def_bool y
+All patches only impact HMM user, there is no implication outside HMM.
 
-like 23 other $arch-es do.  Aha, ia64 provides inline functions via some
-a twisty maze of header files.
+First patch improve documentation to better reflect what HMM is. Second
+patch fix #if/#else placement in hmm.h. The third patch add a call on
+mm release which helps device driver who use HMM to clean up early when
+a process quit. Finaly last patch modify the CPU snapshot and page fault
+helper to simplify device driver. The nouveau patchset i posted last
+week already depends on all of those patches.
 
-Tony, Fengguang, what header(s) should be used to reach __arch_hweight8()?
+You can find them in a hmm-for-4.17 branch:
 
-thanks,
+git://people.freedesktop.org/~glisse/linux
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-for-4.17
+
+JA(C)rA'me Glisse (13):
+  mm/hmm: fix header file if/else/endif maze v2
+  mm/hmm: unregister mmu_notifier when last HMM client quit
+  mm/hmm: hmm_pfns_bad() was accessing wrong struct
+  mm/hmm: use struct for hmm_vma_fault(), hmm_vma_get_pfns() parameters
+    v2
+  mm/hmm: remove HMM_PFN_READ flag and ignore peculiar architecture v2
+  mm/hmm: use uint64_t for HMM pfn instead of defining hmm_pfn_t to
+    ulong v2
+  mm/hmm: cleanup special vma handling (VM_SPECIAL)
+  mm/hmm: do not differentiate between empty entry or missing directory
+    v2
+  mm/hmm: rename HMM_PFN_DEVICE_UNADDRESSABLE to HMM_PFN_DEVICE_PRIVATE
+  mm/hmm: move hmm_pfns_clear() closer to where it is use
+  mm/hmm: factor out pte and pmd handling to simplify hmm_vma_walk_pmd()
+  mm/hmm: change hmm_vma_fault() to allow write fault on page basis
+  mm/hmm: use device driver encoding for HMM pfn v2
+
+Ralph Campbell (2):
+  mm/hmm: documentation editorial update to HMM documentation
+  mm/hmm: HMM should have a callback before MM is destroyed v2
+
+ Documentation/vm/hmm.txt | 360 ++++++++++++++++----------------
+ MAINTAINERS              |   1 +
+ include/linux/hmm.h      | 201 +++++++++++-------
+ mm/hmm.c                 | 526 ++++++++++++++++++++++++++++++-----------------
+ 4 files changed, 648 insertions(+), 440 deletions(-)
+
 -- 
-~Randy
+2.14.3
