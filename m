@@ -1,91 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FD626B0007
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 11:29:09 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id s21so1132912pfm.15
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 08:29:09 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z4si1448600pfb.192.2018.03.20.08.29.07
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 936106B0005
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 13:11:50 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id b2-v6so1496694plz.17
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 10:11:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q1sor553593pgt.65.2018.03.20.10.11.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 20 Mar 2018 08:29:07 -0700 (PDT)
-Date: Tue, 20 Mar 2018 16:29:03 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/6] mm/vmscan: Don't mess with pgdat->flags in memcg
- reclaim.
-Message-ID: <20180320152903.GA23100@dhcp22.suse.cz>
-References: <20180315164553.17856-1-aryabinin@virtuozzo.com>
- <20180315164553.17856-6-aryabinin@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180315164553.17856-6-aryabinin@virtuozzo.com>
+        (Google Transport Security);
+        Tue, 20 Mar 2018 10:11:49 -0700 (PDT)
+Date: Tue, 20 Mar 2018 10:11:47 -0700 (PDT)
+Subject: Re: [PATCH 00/16] remove eight obsolete architectures
+In-Reply-To: <CAK8P3a01pfvsdM1mR8raU9dA7p4H-jRJz2Y8-+KEY76W_Mukpg@mail.gmail.com>
+From: Palmer Dabbelt <palmer@sifive.com>
+Message-ID: <mhng-f6731cb9-8394-419d-b14b-c6fcd6c0930d@palmer-si-x1c4>
+Mime-Version: 1.0 (MHng)
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: hare@suse.de, dhowells@redhat.com, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-block@vger.kernel.org, linux-ide@vger.kernel.org, linux-input@vger.kernel.org, netdev@vger.kernel.org, linux-wireless@vger.kernel.org, linux-pwm@vger.kernel.org, linux-rtc@vger.kernel.org, linux-spi@vger.kernel.org, linux-usb@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-fbdev@vger.kernel.org, linux-watchdog@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 15-03-18 19:45:53, Andrey Ryabinin wrote:
-> memcg reclaim may alter pgdat->flags based on the state of LRU lists
-> in cgroup and its children. PGDAT_WRITEBACK may force kswapd to sleep
-> congested_wait(), PGDAT_DIRTY may force kswapd to writeback filesystem
-> pages. But the worst here is PGDAT_CONGESTED, since it may force all
-> direct reclaims to stall in wait_iff_congested(). Note that only kswapd
-> have powers to clear any of these bits. This might just never happen if
-> cgroup limits configured that way. So all direct reclaims will stall
-> as long as we have some congested bdi in the system.
-> 
-> Leave all pgdat->flags manipulations to kswapd. kswapd scans the whole
-> pgdat, so it's reasonable to leave all decisions about node stat
-> to kswapd. Also add per-cgroup congestion state to avoid needlessly
-> burning CPU in cgroup reclaim if heavy congestion is observed.
-> 
-> Currently there is no need in per-cgroup PGDAT_WRITEBACK and PGDAT_DIRTY
-> bits since they alter only kswapd behavior.
-> 
-> The problem could be easily demonstrated by creating heavy congestion
-> in one cgroup:
-> 
->     echo "+memory" > /sys/fs/cgroup/cgroup.subtree_control
->     mkdir -p /sys/fs/cgroup/congester
->     echo 512M > /sys/fs/cgroup/congester/memory.max
->     echo $$ > /sys/fs/cgroup/congester/cgroup.procs
->     /* generate a lot of diry data on slow HDD */
->     while true; do dd if=/dev/zero of=/mnt/sdb/zeroes bs=1M count=1024; done &
->     ....
->     while true; do dd if=/dev/zero of=/mnt/sdb/zeroes bs=1M count=1024; done &
-> 
-> and some job in another cgroup:
-> 
->     mkdir /sys/fs/cgroup/victim
->     echo 128M > /sys/fs/cgroup/victim/memory.max
-> 
->     # time cat /dev/sda > /dev/null
->     real    10m15.054s
->     user    0m0.487s
->     sys     1m8.505s
-> 
-> According to the tracepoint in wait_iff_congested(), the 'cat' spent 50%
-> of the time sleeping there.
-> 
-> With the patch, cat don't waste time anymore:
-> 
->     # time cat /dev/sda > /dev/null
->     real    5m32.911s
->     user    0m0.411s
->     sys     0m56.664s
-> 
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> ---
->  include/linux/backing-dev.h |  2 +-
->  include/linux/memcontrol.h  |  2 ++
->  mm/backing-dev.c            | 19 ++++------
->  mm/vmscan.c                 | 84 ++++++++++++++++++++++++++++++++-------------
->  4 files changed, 70 insertions(+), 37 deletions(-)
+On Thu, 15 Mar 2018 03:42:25 PDT (-0700), Arnd Bergmann wrote:
+> On Thu, Mar 15, 2018 at 10:59 AM, Hannes Reinecke <hare@suse.de> wrote:
+>> On 03/15/2018 10:42 AM, David Howells wrote:
+>>> Do we have anything left that still implements NOMMU?
+>>>
+>> RISC-V ?
+>> (evil grin :-)
+>
+> Is anyone producing a chip that includes enough of the Privileged ISA spec
+> to have things like system calls, but not the MMU parts?
+>
+> I thought at least initially the kernel only supports hardware that has a rather
+> complete feature set.
 
-This patch seems overly complicated. Why don't you simply reduce the whole
-pgdat_flags handling to global_reclaim()?
+We currently do not have a NOMMU port.  As far as I know, everyone who's
+currently producing RISC-V hardware with enough memory to run Linux has S mode
+with paging support.  The ISA allows for S mode without paging but there's no
+hardware for that -- if you're going to put a DRAM controller on there then
+paging seems pretty cheap.  You could run a NOMMU port on a system with S-mode
+and paging, but With all the superpage stuff I don't think you'll get an
+appreciable performance win for any workload running without an MMU so there's
+nothing to justify the work (and incompatibility) of a NOMMU port there.
 
--- 
-Michal Hocko
-SUSE Labs
+While I think you could implement a NOMMU port on a machine with only M and U
+modes (and therefor no address translation at all), I don't know of any MU-only
+machines that have enough memory to run Linux (ours have less than 32KiB).  A
+SBI-free Linux would be a prerequisite for this, but there's some interest in
+that outside of a NOMMU port so it might materialize anyway.
+
+Of course, QEMU could probably be tricked into emulating one of these machines
+with little to no effort :)...  That said, I doubt we'll see a NOMMU port
+materialize without some real hardware as it's a lot of work for a QEMU-only
+target.
