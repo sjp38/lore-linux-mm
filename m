@@ -1,47 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 74FBD6B0005
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 13:50:12 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id 1-v6so1561269plv.6
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 10:50:12 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z19si1649797pfd.397.2018.03.20.10.50.10
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 25C5F6B0005
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 13:54:50 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id y4so2245093iod.5
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 10:54:50 -0700 (PDT)
+Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
+        by mx.google.com with ESMTPS id t26si1430026ioa.60.2018.03.20.10.54.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 10:50:11 -0700 (PDT)
-Date: Tue, 20 Mar 2018 10:50:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: Warn on lock_page() from reclaim context.
-Message-Id: <20180320105009.2a7055bd3dfefe750d01cd38@linux-foundation.org>
-In-Reply-To: <20180320084445.GE23100@dhcp22.suse.cz>
-References: <1521295866-9670-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20180317155437.pcbeigeivn4a23gt@node.shutemov.name>
-	<201803181022.IAI30275.JOFOQMtFSHLFOV@I-love.SAKURA.ne.jp>
-	<20180319150824.24032e2854908b0cc5240d9f@linux-foundation.org>
-	<20180320084445.GE23100@dhcp22.suse.cz>
-Mime-Version: 1.0
+        Tue, 20 Mar 2018 10:54:49 -0700 (PDT)
+Date: Tue, 20 Mar 2018 12:54:47 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <20180320173512.GA19669@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake>
+References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kirill@shutemov.name, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
-On Tue, 20 Mar 2018 09:44:45 +0100 Michal Hocko <mhocko@suse.com> wrote:
+On Tue, 20 Mar 2018, Matthew Wilcox wrote:
 
-> > And I wonder if overloading CONFIG_PROVE_LOCKING is appropriate here. 
-> > CONFIG_PROVE_LOCKING is a high-level thing under which a whole bunch of
-> > different debugging options may exist.
-> 
-> Yes but it is meant to catch locking issues in general so I think doing
-> this check under the same config makes sense.
-> 
-> > I guess we should add a new config item under PROVE_LOCKING,
-> 
-> I am not convinced a new config is really worth it. We have way too many
-> already and PROVE_LOCKING sounds like a good fit to me.
+> On Tue, Mar 20, 2018 at 01:25:09PM -0400, Mikulas Patocka wrote:
+> > The reason why we need this is that we are going to merge code that does
+> > block device deduplication (it was developed separatedly and sold as a
+> > commercial product), and the code uses block sizes that are not a power of
+> > two (block sizes 192K, 448K, 640K, 832K are used in the wild). The slab
+> > allocator rounds up the allocation to the nearest power of two, but that
+> > wastes a lot of memory. Performance of the solution depends on efficient
+> > memory usage, so we should minimize wasted as much as possible.
+>
+> The SLUB allocator also falls back to using the page (buddy) allocator
+> for allocations above 8kB, so this patch is going to have no effect on
+> slub.  You'd be better off using alloc_pages_exact() for this kind of
+> size, or managing your own pool of pages by using something like five
+> 192k blocks in a 1MB allocation.
 
-I few scruffy misc sites have used PROVE_LOCKING in this fashion, but
-they really shouldn't have.  It means that if anyone wants to enable,
-say, "Locking API boot-time self-tests" then they must enable
-PROVE_LOCKING, so they accidentally get this feature as well.
+The fallback is only effective for kmalloc caches. Manually created caches
+do not follow this rule.
+
+Note that you can already control the page orders for allocation and
+the objects per slab using
+
+	slub_min_order
+	slub_max_order
+	slub_min_objects
+
+This is documented in linux/Documentation/vm/slub.txt
+
+Maybe do the same thing for SLAB?
