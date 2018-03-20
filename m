@@ -1,100 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A696B0003
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 17:26:30 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id s62so2010212vke.4
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 14:26:30 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id l22si994244uaf.128.2018.03.20.14.26.28
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 30C5D6B0003
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2018 17:32:01 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id k13-v6so1453970oib.4
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 14:32:01 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id d61-v6si766641otb.408.2018.03.20.14.31.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 14:26:29 -0700 (PDT)
-Subject: Re: [PATCH] mm/hugetlb: prevent hugetlb VMA to be misaligned
-References: <1521566754-30390-1-git-send-email-ldufour@linux.vnet.ibm.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <86240c1a-d1f1-0f03-855e-c5196762ec0a@oracle.com>
-Date: Tue, 20 Mar 2018 14:26:22 -0700
-MIME-Version: 1.0
-In-Reply-To: <1521566754-30390-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Tue, 20 Mar 2018 14:31:59 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
+Date: Wed, 21 Mar 2018 05:31:19 +0800
+Message-Id: <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, mhocko@kernel.org, Dan Williams <dan.j.williams@intel.com>
+To: akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/20/2018 10:25 AM, Laurent Dufour wrote:
-> When running the sampler detailed below, the kernel, if built with the VM
-> debug option turned on (as many distro do), is panicing with the following
-> message :
-> kernel BUG at /build/linux-jWa1Fv/linux-4.15.0/mm/hugetlb.c:3310!
-> Oops: Exception in kernel mode, sig: 5 [#1]
-> LE SMP NR_CPUS=2048 NUMA PowerNV
-> Modules linked in: kcm nfc af_alg caif_socket caif phonet fcrypt
-> 		8<--8<--8<--8< snip 8<--8<--8<--8<
-> CPU: 18 PID: 43243 Comm: trinity-subchil Tainted: G         C  E
-> 4.15.0-10-generic #11-Ubuntu
-> NIP:  c00000000036e764 LR: c00000000036ee48 CTR: 0000000000000009
-> REGS: c000003fbcdcf810 TRAP: 0700   Tainted: G         C  E
-> (4.15.0-10-generic)
-> MSR:  9000000000029033 <SF,HV,EE,ME,IR,DR,RI,LE>  CR: 24002222  XER:
-> 20040000
-> CFAR: c00000000036ee44 SOFTE: 1
-> GPR00: c00000000036ee48 c000003fbcdcfa90 c0000000016ea600 c000003fbcdcfc40
-> GPR04: c000003fd9858950 00007115e4e00000 00007115e4e10000 0000000000000000
-> GPR08: 0000000000000010 0000000000010000 0000000000000000 0000000000000000
-> GPR12: 0000000000002000 c000000007a2c600 00000fe3985954d0 00007115e4e00000
-> GPR16: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
-> GPR20: 00000fe398595a94 000000000000a6fc c000003fd9858950 0000000000018554
-> GPR24: c000003fdcd84500 c0000000019acd00 00007115e4e10000 c000003fbcdcfc40
-> GPR28: 0000000000200000 00007115e4e00000 c000003fbc9ac600 c000003fd9858950
-> NIP [c00000000036e764] __unmap_hugepage_range+0xa4/0x760
-> LR [c00000000036ee48] __unmap_hugepage_range_final+0x28/0x50
-> Call Trace:
-> [c000003fbcdcfa90] [00007115e4e00000] 0x7115e4e00000 (unreliable)
-> [c000003fbcdcfb50] [c00000000036ee48]
-> __unmap_hugepage_range_final+0x28/0x50
-> [c000003fbcdcfb80] [c00000000033497c] unmap_single_vma+0x11c/0x190
-> [c000003fbcdcfbd0] [c000000000334e14] unmap_vmas+0x94/0x140
-> [c000003fbcdcfc20] [c00000000034265c] exit_mmap+0x9c/0x1d0
-> [c000003fbcdcfce0] [c000000000105448] mmput+0xa8/0x1d0
-> [c000003fbcdcfd10] [c00000000010fad0] do_exit+0x360/0xc80
-> [c000003fbcdcfdd0] [c0000000001104c0] do_group_exit+0x60/0x100
-> [c000003fbcdcfe10] [c000000000110584] SyS_exit_group+0x24/0x30
-> [c000003fbcdcfe30] [c00000000000b184] system_call+0x58/0x6c
-> Instruction dump:
-> 552907fe e94a0028 e94a0408 eb2a0018 81590008 7f9c5036 0b090000 e9390010
-> 7d2948f8 7d2a2838 0b0a0000 7d293038 <0b090000> e9230086 2fa90000 419e0468
-> ---[ end trace ee88f958a1c62605 ]---
-> 
-> The panic is due to a VMA pointing to a hugetlb area while the
-> vma->vm_start or vma->vm_end field are not aligned to the huge page
-> boundaries. The sampler is just unmapping a part of the hugetlb area,
-> leading to 2 VMAs which are not well aligned.  The same could be achieved
-> by calling madvise() situation, as it is when running:
-> stress-ng --shm-sysv 1
-> 
-> The hugetlb code is assuming that the VMA will be well aligned when it is
-> unmapped, so we must prevent such a VMA to be split or shrink to a
-> misaligned address.
-> 
-> This patch is preventing this by checking the new VMA's boundaries when a
-> VMA is modified by calling vma_adjust().
-> 
-> If this patch is applied, stable should be Cced.
+When running some mmap/munmap scalability tests with large memory (i.e.
+> 300GB), the below hung task issue may happen occasionally.
 
-Thanks Laurent!
+INFO: task ps:14018 blocked for more than 120 seconds.
+       Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+ "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+message.
+ ps              D    0 14018      1 0x00000004
+  ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+  ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+  00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+ Call Trace:
+  [<ffffffff817154d0>] ? __schedule+0x250/0x730
+  [<ffffffff817159e6>] schedule+0x36/0x80
+  [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+  [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+  [<ffffffff81717db0>] down_read+0x20/0x40
+  [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+  [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
+  [<ffffffff81241d87>] __vfs_read+0x37/0x150
+  [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
+  [<ffffffff81242266>] vfs_read+0x96/0x130
+  [<ffffffff812437b5>] SyS_read+0x55/0xc0
+  [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
 
-This bug was introduced by 31383c6865a5.  Dan's changes for 31383c6865a5
-seem pretty straight forward.  It simply replaces an explicit check when
-splitting a vma to a new vm_ops split callout.  Unfortunately, mappings
-created via shmget/shmat have their vm_ops replaced.  Therefore, this
-split callout is never made.
+It is because munmap holds mmap_sem from very beginning to all the way
+down to the end, and doesn't release it in the middle. When unmapping
+large mapping, it may take long time (take ~18 seconds to unmap 320GB
+mapping with every single page mapped on an idle machine).
 
-The shm vm_ops do indirectly call the original vm_ops routines as needed.
-Therefore, I would suggest a patch something like the following instead.
-If we move forward with the patch, we should include Laurent's BUG output
-and perhaps test program in the commit message.
+Since unmapping does't require any atomicity, so here unmap large
+mapping (> HPAGE_PUD_SIZE) section by section, and release mmap_sem for
+unmapping every HPAGE_PUD_SIZE if mmap_sem is contended and the call
+path is fine to be interrupted controlled by "atomic", newly added
+parameter to do_munmap(). "false" means it is fine to do unlock/relock
+to mmap_sem in the middle.
 
+Not only munmap may benefit from this change, but also
+mremap/shm since they all call do_munmap() to do the real work.
+
+The below is some regression and performance data collected on a machine
+with 32 cores of E5-2680 @ 2.70GHz and 384GB memory.
+
+Measurement of SyS_munmap() execution time:
+  size        pristine        patched        delta
+  80GB       5008377 us      4905841 us       -2%
+  160GB      9129243 us      9145306 us       +0.18%
+  320GB      17915310 us     17990174 us      +0.42%
+
+Throughput of page faults (#/s) with vm-scalability:
+                    pristine         patched         delta
+mmap-pread-seq       554894           563517         +1.6%
+mmap-pread-seq-mt    581232           580772         -0.079%
+mmap-xread-seq-mt    99182            105400         +6.3%
+
+Throughput of page faults (#/s) with the below stress-ng test:
+stress-ng --mmap 0 --mmap-bytes 80G --mmap-file --metrics --perf
+--timeout 600s
+        pristine         patched          delta
+         100165           108396          +8.2%
+
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ include/linux/mm.h |  2 +-
+ mm/mmap.c          | 40 ++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ad06d42..2e447d4 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2212,7 +2212,7 @@ extern unsigned long do_mmap(struct file *file, unsigned long addr,
+ 	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate,
+ 	struct list_head *uf);
+ extern int do_munmap(struct mm_struct *, unsigned long, size_t,
+-		     struct list_head *uf);
++		     struct list_head *uf, bool atomic);
+ 
+ static inline unsigned long
+ do_mmap_pgoff(struct file *file, unsigned long addr,
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 9efdc021..ad6ae7a 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2632,8 +2632,8 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+  * work.  This now handles partial unmappings.
+  * Jeremy Fitzhardinge <jeremy@goop.org>
+  */
+-int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+-	      struct list_head *uf)
++static int do_munmap_range(struct mm_struct *mm, unsigned long start,
++			   size_t len, struct list_head *uf)
+ {
+ 	unsigned long end;
+ 	struct vm_area_struct *vma, *prev, *last;
+@@ -2733,6 +2733,42 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+ 	return 0;
+ }
+ 
++int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
++	      struct list_head *uf, bool atomic)
++{
++	int ret = 0;
++	size_t step = HPAGE_PUD_SIZE;
++
++	/*
++	 * unmap large mapping (> huge pud size) section by section
++	 * in order to give mmap_sem waiters a chance to acquire it.
++	 */
++	if (len <= step)
++		ret = do_munmap_range(mm, start, len, uf);
++	else {
++		do {
++			ret = do_munmap_range(mm, start, step, uf);
++			if (ret < 0)
++				break;
++
++			if (rwsem_is_contended(&mm->mmap_sem) && !atomic &&
++			    need_resched()) {
++				VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
++				up_write(&mm->mmap_sem);
++				cond_resched();
++				down_write(&mm->mmap_sem);
++			}
++
++			start += step;
++			len -= step;
++			if (len <= step)
++				step = len;
++		} while (len > 0);
++	}
++
++	return ret;
++}
++
+ int vm_munmap(unsigned long start, size_t len)
+ {
+ 	int ret;
 -- 
-Mike Kravetz
+1.8.3.1
