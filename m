@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F5416B0029
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:32 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w140so2810138wme.4
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:23:32 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CCEE16B002A
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:34 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id o23so3066448wrc.9
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:23:34 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 36si131359ede.505.2018.03.21.12.23.30
+        by mx.google.com with ESMTPS id 94si2083742edj.128.2018.03.21.12.23.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 12:23:30 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LJIaaR009095
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:29 -0400
+        Wed, 21 Mar 2018 12:23:33 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LJMXv2078862
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:32 -0400
 Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2gut8117xh-1
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2guwg9g1nk-1
 	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:29 -0400
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:31 -0400
 Received: from localhost
 	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 21 Mar 2018 19:23:26 -0000
+	Wed, 21 Mar 2018 19:23:29 -0000
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 05/32] docs/vm: highmem.txt: convert to ReST format
-Date: Wed, 21 Mar 2018 21:22:21 +0200
+Subject: [PATCH 06/32] docs/vm: hmm.txt: convert to ReST format
+Date: Wed, 21 Mar 2018 21:22:22 +0200
 In-Reply-To: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1521660168-14372-6-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1521660168-14372-7-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jonathan Corbet <corbet@lwn.net>
@@ -33,166 +33,181 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Richard Henderson <rth@twiddle.ne
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- Documentation/vm/highmem.txt | 87 ++++++++++++++++++--------------------------
- 1 file changed, 36 insertions(+), 51 deletions(-)
+ Documentation/vm/hmm.txt | 66 ++++++++++++++++++++----------------------------
+ 1 file changed, 28 insertions(+), 38 deletions(-)
 
-diff --git a/Documentation/vm/highmem.txt b/Documentation/vm/highmem.txt
-index 4324d24..0f69a9f 100644
---- a/Documentation/vm/highmem.txt
-+++ b/Documentation/vm/highmem.txt
-@@ -1,25 +1,14 @@
-+.. _highmem:
+diff --git a/Documentation/vm/hmm.txt b/Documentation/vm/hmm.txt
+index 4d3aac9..3fafa33 100644
+--- a/Documentation/vm/hmm.txt
++++ b/Documentation/vm/hmm.txt
+@@ -1,4 +1,8 @@
++.. hmm:
++
++=====================================
+ Heterogeneous Memory Management (HMM)
++=====================================
  
--			     ====================
--			     HIGH MEMORY HANDLING
--			     ====================
-+====================
-+High Memory Handling
-+====================
+ Transparently allow any component of a program to use any memory region of said
+ program with a device without using device specific memory allocator. This is
+@@ -14,19 +18,10 @@ deals with how device memory is represented inside the kernel. Finaly the last
+ section present the new migration helper that allow to leverage the device DMA
+ engine.
  
- By: Peter Zijlstra <a.p.zijlstra@chello.nl>
- 
--Contents:
--
-- (*) What is high memory?
--
-- (*) Temporary virtual mappings.
--
-- (*) Using kmap_atomic.
--
-- (*) Cost of temporary mappings.
--
-- (*) i386 PAE.
 +.. contents:: :local:
  
+-1) Problems of using device specific memory allocator:
+-2) System bus, device memory characteristics
+-3) Share address space and migration
+-4) Address space mirroring implementation and API
+-5) Represent and manage device memory from core kernel point of view
+-6) Migrate to and from device memory
+-7) Memory cgroup (memcg) and rss accounting
 -
--====================
--WHAT IS HIGH MEMORY?
-+What Is High Memory?
- ====================
+-
+--------------------------------------------------------------------------------
+-
+-1) Problems of using device specific memory allocator:
++Problems of using device specific memory allocator
++==================================================
  
- High memory (highmem) is used when the size of physical memory approaches or
-@@ -38,7 +27,7 @@ kernel entry/exit.  This means the available virtual memory space (4GiB on
- i386) has to be divided between user and kernel space.
- 
- The traditional split for architectures using this approach is 3:1, 3GiB for
--userspace and the top 1GiB for kernel space:
-+userspace and the top 1GiB for kernel space::
- 
- 		+--------+ 0xffffffff
- 		| Kernel |
-@@ -58,40 +47,38 @@ and user maps.  Some hardware (like some ARMs), however, have limited virtual
- space when they use mm context tags.
+ Device with large amount of on board memory (several giga bytes) like GPU have
+ historically manage their memory through dedicated driver specific API. This
+@@ -68,9 +63,8 @@ only do-able with a share address. It is as well more reasonable to use a share
+ address space for all the other patterns.
  
  
--==========================
--TEMPORARY VIRTUAL MAPPINGS
-+Temporary Virtual Mappings
- ==========================
+--------------------------------------------------------------------------------
+-
+-2) System bus, device memory characteristics
++System bus, device memory characteristics
++=========================================
  
- The kernel contains several ways of creating temporary mappings:
- 
-- (*) vmap().  This can be used to make a long duration mapping of multiple
--     physical pages into a contiguous virtual space.  It needs global
--     synchronization to unmap.
-+* vmap().  This can be used to make a long duration mapping of multiple
-+  physical pages into a contiguous virtual space.  It needs global
-+  synchronization to unmap.
- 
-- (*) kmap().  This permits a short duration mapping of a single page.  It needs
--     global synchronization, but is amortized somewhat.  It is also prone to
--     deadlocks when using in a nested fashion, and so it is not recommended for
--     new code.
-+* kmap().  This permits a short duration mapping of a single page.  It needs
-+  global synchronization, but is amortized somewhat.  It is also prone to
-+  deadlocks when using in a nested fashion, and so it is not recommended for
-+  new code.
- 
-- (*) kmap_atomic().  This permits a very short duration mapping of a single
--     page.  Since the mapping is restricted to the CPU that issued it, it
--     performs well, but the issuing task is therefore required to stay on that
--     CPU until it has finished, lest some other task displace its mappings.
-+* kmap_atomic().  This permits a very short duration mapping of a single
-+  page.  Since the mapping is restricted to the CPU that issued it, it
-+  performs well, but the issuing task is therefore required to stay on that
-+  CPU until it has finished, lest some other task displace its mappings.
- 
--     kmap_atomic() may also be used by interrupt contexts, since it is does not
--     sleep and the caller may not sleep until after kunmap_atomic() is called.
-+  kmap_atomic() may also be used by interrupt contexts, since it is does not
-+  sleep and the caller may not sleep until after kunmap_atomic() is called.
- 
--     It may be assumed that k[un]map_atomic() won't fail.
-+  It may be assumed that k[un]map_atomic() won't fail.
+ System bus cripple share address due to few limitations. Most system bus only
+ allow basic memory access from device to main memory, even cache coherency is
+@@ -100,9 +94,8 @@ access any memory memory but we must also permit any memory to be migrated to
+ device memory while device is using it (blocking CPU access while it happens).
  
  
--=================
--USING KMAP_ATOMIC
-+Using kmap_atomic
- =================
+--------------------------------------------------------------------------------
+-
+-3) Share address space and migration
++Share address space and migration
++=================================
  
- When and where to use kmap_atomic() is straightforward.  It is used when code
- wants to access the contents of a page that might be allocated from high memory
- (see __GFP_HIGHMEM), for example a page in the pagecache.  The API has two
--functions, and they can be used in a manner similar to the following:
-+functions, and they can be used in a manner similar to the following::
- 
- 	/* Find the page of interest. */
- 	struct page *page = find_get_page(mapping, offset);
-@@ -109,7 +96,7 @@ Note that the kunmap_atomic() call takes the result of the kmap_atomic() call
- not the argument.
- 
- If you need to map two pages because you want to copy from one page to
--another you need to keep the kmap_atomic calls strictly nested, like:
-+another you need to keep the kmap_atomic calls strictly nested, like::
- 
- 	vaddr1 = kmap_atomic(page1);
- 	vaddr2 = kmap_atomic(page2);
-@@ -120,8 +107,7 @@ another you need to keep the kmap_atomic calls strictly nested, like:
- 	kunmap_atomic(vaddr1);
+ HMM intends to provide two main features. First one is to share the address
+ space by duplication the CPU page table into the device page table so same
+@@ -140,14 +133,13 @@ leverage device memory by migrating part of data-set that is actively use by a
+ device.
  
  
--==========================
--COST OF TEMPORARY MAPPINGS
-+Cost of Temporary Mappings
- ==========================
+--------------------------------------------------------------------------------
+-
+-4) Address space mirroring implementation and API
++Address space mirroring implementation and API
++==============================================
  
- The cost of creating temporary mappings can be quite high.  The arch has to
-@@ -136,25 +122,24 @@ If CONFIG_MMU is not set, then there can be no temporary mappings and no
- highmem.  In such a case, the arithmetic approach will also be used.
+ Address space mirroring main objective is to allow to duplicate range of CPU
+ page table into a device page table and HMM helps keeping both synchronize. A
+ device driver that want to mirror a process address space must start with the
+-registration of an hmm_mirror struct:
++registration of an hmm_mirror struct::
+ 
+  int hmm_mirror_register(struct hmm_mirror *mirror,
+                          struct mm_struct *mm);
+@@ -156,7 +148,7 @@ registration of an hmm_mirror struct:
+ 
+ The locked variant is to be use when the driver is already holding the mmap_sem
+ of the mm in write mode. The mirror struct has a set of callback that are use
+-to propagate CPU page table:
++to propagate CPU page table::
+ 
+  struct hmm_mirror_ops {
+      /* sync_cpu_device_pagetables() - synchronize page tables
+@@ -187,7 +179,8 @@ be done with the update.
  
  
--========
- i386 PAE
- ========
+ When device driver wants to populate a range of virtual address it can use
+-either:
++either::
++
+  int hmm_vma_get_pfns(struct vm_area_struct *vma,
+                       struct hmm_range *range,
+                       unsigned long start,
+@@ -211,7 +204,7 @@ that array correspond to an address in the virtual range. HMM provide a set of
+ flags to help driver identify special CPU page table entries.
  
- The i386 arch, under some circumstances, will permit you to stick up to 64GiB
- of RAM into your 32-bit machine.  This has a number of consequences:
+ Locking with the update() callback is the most important aspect the driver must
+-respect in order to keep things properly synchronize. The usage pattern is :
++respect in order to keep things properly synchronize. The usage pattern is::
  
-- (*) Linux needs a page-frame structure for each page in the system and the
--     pageframes need to live in the permanent mapping, which means:
-+* Linux needs a page-frame structure for each page in the system and the
-+  pageframes need to live in the permanent mapping, which means:
+  int driver_populate_range(...)
+  {
+@@ -251,9 +244,8 @@ concurrently for multiple devices. Waiting for each device to report commands
+ as executed is serialize (there is no point in doing this concurrently).
  
-- (*) you can have 896M/sizeof(struct page) page-frames at most; with struct
--     page being 32-bytes that would end up being something in the order of 112G
--     worth of pages; the kernel, however, needs to store more than just
--     page-frames in that memory...
-+* you can have 896M/sizeof(struct page) page-frames at most; with struct
-+  page being 32-bytes that would end up being something in the order of 112G
-+  worth of pages; the kernel, however, needs to store more than just
-+  page-frames in that memory...
  
-- (*) PAE makes your page tables larger - which slows the system down as more
--     data has to be accessed to traverse in TLB fills and the like.  One
--     advantage is that PAE has more PTE bits and can provide advanced features
--     like NX and PAT.
-+* PAE makes your page tables larger - which slows the system down as more
-+  data has to be accessed to traverse in TLB fills and the like.  One
-+  advantage is that PAE has more PTE bits and can provide advanced features
-+  like NX and PAT.
+--------------------------------------------------------------------------------
+-
+-5) Represent and manage device memory from core kernel point of view
++Represent and manage device memory from core kernel point of view
++=================================================================
  
- The general recommendation is that you don't use more than 8GiB on a 32-bit
- machine - although more might work for you and your workload, you're pretty
+ Several differents design were try to support device memory. First one use
+ device specific data structure to keep information about migrated memory and
+@@ -269,14 +261,14 @@ un-aware of the difference. We only need to make sure that no one ever try to
+ map those page from the CPU side.
+ 
+ HMM provide a set of helpers to register and hotplug device memory as a new
+-region needing struct page. This is offer through a very simple API:
++region needing struct page. This is offer through a very simple API::
+ 
+  struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+                                    struct device *device,
+                                    unsigned long size);
+  void hmm_devmem_remove(struct hmm_devmem *devmem);
+ 
+-The hmm_devmem_ops is where most of the important things are:
++The hmm_devmem_ops is where most of the important things are::
+ 
+  struct hmm_devmem_ops {
+      void (*free)(struct hmm_devmem *devmem, struct page *page);
+@@ -294,13 +286,12 @@ second callback happens whenever CPU try to access a device page which it can
+ not do. This second callback must trigger a migration back to system memory.
+ 
+ 
+--------------------------------------------------------------------------------
+-
+-6) Migrate to and from device memory
++Migrate to and from device memory
++=================================
+ 
+ Because CPU can not access device memory, migration must use device DMA engine
+ to perform copy from and to device memory. For this we need a new migration
+-helper:
++helper::
+ 
+  int migrate_vma(const struct migrate_vma_ops *ops,
+                  struct vm_area_struct *vma,
+@@ -319,7 +310,7 @@ such migration base on range of address the device is actively accessing.
+ 
+ The migrate_vma_ops struct define two callbacks. First one (alloc_and_copy())
+ control destination memory allocation and copy operation. Second one is there
+-to allow device driver to perform cleanup operation after migration.
++to allow device driver to perform cleanup operation after migration::
+ 
+  struct migrate_vma_ops {
+      void (*alloc_and_copy)(struct vm_area_struct *vma,
+@@ -353,9 +344,8 @@ bandwidth but this is considered as a rare event and a price that we are
+ willing to pay to keep all the code simpler.
+ 
+ 
+--------------------------------------------------------------------------------
+-
+-7) Memory cgroup (memcg) and rss accounting
++Memory cgroup (memcg) and rss accounting
++========================================
+ 
+ For now device memory is accounted as any regular page in rss counters (either
+ anonymous if device page is use for anonymous, file if device page is use for
 -- 
 2.7.4
