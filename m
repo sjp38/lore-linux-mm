@@ -1,110 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D54E96B0024
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 04:20:30 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id k22so2808263qtj.0
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 01:20:30 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l20si3926517qtb.13.2018.03.21.01.20.29
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 951CF6B0025
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 04:22:31 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z14so2158789wrh.1
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 01:22:31 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n4si2375575wmh.9.2018.03.21.01.22.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 01:20:30 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2L8JhIV057869
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 04:20:29 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2guk4q1n1u-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 04:20:28 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 21 Mar 2018 08:20:26 -0000
-Subject: Re: [PATCH] mm/hugetlb: prevent hugetlb VMA to be misaligned
-References: <1521566754-30390-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <86240c1a-d1f1-0f03-855e-c5196762ec0a@oracle.com>
- <0d24f817-303a-7b4d-4603-b2d14e4b391a@oracle.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 21 Mar 2018 09:20:21 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Mar 2018 01:22:30 -0700 (PDT)
+Date: Wed, 21 Mar 2018 09:22:28 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch] mm, thp: do not cause memcg oom for thp
+Message-ID: <20180321082228.GC23100@dhcp22.suse.cz>
+References: <alpine.DEB.2.20.1803191409420.124411@chino.kir.corp.google.com>
+ <20180320071624.GB23100@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1803201321430.167205@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <0d24f817-303a-7b4d-4603-b2d14e4b391a@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <f238cd7e-3d80-7888-618c-3138cf59bbb1@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1803201321430.167205@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, mhocko@kernel.org, Dan Williams <dan.j.williams@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 20/03/2018 22:35, Mike Kravetz wrote:
-> On 03/20/2018 02:26 PM, Mike Kravetz wrote:
->> Thanks Laurent!
->>
->> This bug was introduced by 31383c6865a5.  Dan's changes for 31383c6865a5
->> seem pretty straight forward.  It simply replaces an explicit check when
->> splitting a vma to a new vm_ops split callout.  Unfortunately, mappings
->> created via shmget/shmat have their vm_ops replaced.  Therefore, this
->> split callout is never made.
->>
->> The shm vm_ops do indirectly call the original vm_ops routines as needed.
->> Therefore, I would suggest a patch something like the following instead.
->> If we move forward with the patch, we should include Laurent's BUG output
->> and perhaps test program in the commit message.
+On Tue 20-03-18 13:25:23, David Rientjes wrote:
+> On Tue, 20 Mar 2018, Michal Hocko wrote:
 > 
-> Sorry, patch in previous mail was a mess
+> > > Commit 2516035499b9 ("mm, thp: remove __GFP_NORETRY from khugepaged and
+> > > madvised allocations") changed the page allocator to no longer detect thp
+> > > allocations based on __GFP_NORETRY.
+> > > 
+> > > It did not, however, modify the mem cgroup try_charge() path to avoid oom
+> > > kill for either khugepaged collapsing or thp faulting.  It is never
+> > > expected to oom kill a process to allocate a hugepage for thp; reclaim is
+> > > governed by the thp defrag mode and MADV_HUGEPAGE, but allocations (and
+> > > charging) should fallback instead of oom killing processes.
+> > 
+> > For some reason I thought that the charging path simply bails out for
+> > costly orders - effectively the same thing as for the global OOM killer.
+> > But we do not. Is there any reason to not do that though? Why don't we
+> > simply do
+> > 
 > 
-> From 7a19414319c7937fd2757c27f936258f16c1f61d Mon Sep 17 00:00:00 2001
-> From: Mike Kravetz <mike.kravetz@oracle.com>
-> Date: Tue, 20 Mar 2018 13:56:57 -0700
-> Subject: [PATCH] shm: add split function to shm_vm_ops
-> 
-> The split function was added to vm_operations_struct to determine
-> if a mapping can be split.  This was mostly for device-dax and
-> hugetlbfs mappings which have specific alignment constraints.
-> 
-> mappings initiated via shmget/shmat have their original vm_ops
-> overwritten with shm_vm_ops.  shm_vm_ops functions will call back
-> to the original vm_ops if needed.  Add such a split function.
+> I'm not sure of the expectation of high-order memcg charging without 
+> __GFP_NORETRY,
 
-FWIW,
-Reviewed-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Tested-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+It should be semantically compatible with the allocation path.
 
-> Fixes: 31383c6865a5 ("mm, hugetlbfs: introduce ->split() to vm_operations_struct)
-> Reported by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->  ipc/shm.c | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
+> I only know that khugepaged can now cause memcg oom kills 
+> when trying to collapse memory, and then subsequently found that the same 
+> situation exists for faulting instead of falling back to small pages.
+
+And that is clearly a bug because page allocator doesn't oom kill while
+the memcg charge does for the same gfp flag. That should be fixed.
+
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index d1a917b5b7b7..08accbcd1a18 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -1493,7 +1493,7 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
+> >  
+> >  static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+> >  {
+> > -	if (!current->memcg_may_oom)
+> > +	if (!current->memcg_may_oom || order > PAGE_ALLOC_COSTLY_ORDER)
+> >  		return;
+> >  	/*
+> >  	 * We are in the middle of the charge context here, so we
 > 
-> diff --git a/ipc/shm.c b/ipc/shm.c
-> index 7acda23430aa..50e88fc060b1 100644
-> --- a/ipc/shm.c
-> +++ b/ipc/shm.c
-> @@ -386,6 +386,17 @@ static int shm_fault(struct vm_fault *vmf)
->  	return sfd->vm_ops->fault(vmf);
->  }
-> 
-> +static int shm_split(struct vm_area_struct *vma, unsigned long addr)
-> +{
-> +	struct file *file = vma->vm_file;
-> +	struct shm_file_data *sfd = shm_file_data(file);
-> +
-> +	if (sfd->vm_ops && sfd->vm_ops->split)
-> +		return sfd->vm_ops->split(vma, addr);
-> +
-> +	return 0;
-> +}
-> +
->  #ifdef CONFIG_NUMA
->  static int shm_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
->  {
-> @@ -510,6 +521,7 @@ static const struct vm_operations_struct shm_vm_ops = {
->  	.open	= shm_open,	/* callback for a new vm-area open */
->  	.close	= shm_close,	/* callback for when the vm-area is released */
->  	.fault	= shm_fault,
-> +	.split	= shm_split,
->  #if defined(CONFIG_NUMA)
->  	.set_policy = shm_set_policy,
->  	.get_policy = shm_get_policy,
-> 
+> That may make sense as an additional patch, but for thp allocations we 
+> don't want to retry reclaim nr_retries times anyway; we want the old 
+> behavior of __GFP_NORETRY before commit 2516035499b9.
+
+Why? Allocation and the charge path should use the same gfp mask unless
+there is a strong reason for it. If you have one then please mention it
+in the changelog.
+
+> So the above would be a follow-up patch that wouldn't replace mine.
+
+Unless there is a strong reason to use different gfp mask for the
+allocation and the charge then your fix is actually wrong.
+-- 
+Michal Hocko
+SUSE Labs
