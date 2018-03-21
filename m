@@ -1,108 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 39C686B0012
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:42:46 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id v3so2900143pfm.21
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:42:46 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0105.outbound.protection.outlook.com. [104.47.2.105])
-        by mx.google.com with ESMTPS id 31-v6si4157282plz.176.2018.03.21.09.42.44
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 562796B0012
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:50:53 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id y20so2928143pfm.1
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:50:53 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id y22si3279969pfm.357.2018.03.21.09.50.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 21 Mar 2018 09:42:44 -0700 (PDT)
-Subject: Re: [PATCH 03/10] mm: Assign memcg-aware shrinkers bitmap to memcg
-References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
- <152163850081.21546.6969747084834474733.stgit@localhost.localdomain>
- <20180321145625.GA4780@bombadil.infradead.org>
- <eda62454-5788-4f65-c2b5-719d4a98cb2a@virtuozzo.com>
- <20180321152647.GB4780@bombadil.infradead.org>
- <638887a1-35f8-a71d-6e45-4e779eb62dc4@virtuozzo.com>
- <20180321162039.GC4780@bombadil.infradead.org>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <d738c32f-78fd-7e95-803d-2c48594d14e2@virtuozzo.com>
-Date: Wed, 21 Mar 2018 19:42:38 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Mar 2018 09:50:52 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
+References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
+ <20180321131449.GN23100@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <8e0ded7b-4be4-fa25-f40c-d3116a6db4db@linux.alibaba.com>
+Date: Wed, 21 Mar 2018 09:50:31 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180321162039.GC4780@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <20180321131449.GN23100@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 21.03.2018 19:20, Matthew Wilcox wrote:
-> On Wed, Mar 21, 2018 at 06:43:01PM +0300, Kirill Tkhai wrote:
->> On 21.03.2018 18:26, Matthew Wilcox wrote:
->>> On Wed, Mar 21, 2018 at 06:12:17PM +0300, Kirill Tkhai wrote:
->>>> On 21.03.2018 17:56, Matthew Wilcox wrote:
->>>>> Why use your own bitmap here?  Why not use an IDA which can grow and
->>>>> shrink automatically without you needing to play fun games with RCU?
->>>>
->>>> Bitmap allows to use unlocked set_bit()/clear_bit() to maintain the map
->>>> of not empty shrinkers.
->>>>
->>>> So, the reason to use IDR here is to save bitmap memory? Does this mean
->>>> IDA works fast with sparse identifiers? It seems they require per-memcg
->>>> lock to call IDR primitives. I just don't have information about this.
->>>>
->>>> If so, which IDA primitive can be used to set particular id in bitmap?
->>>> There is idr_alloc_cyclic(idr, NULL, id, id+1, GFP_KERNEL) only I see
->>>> to do that.
->>>
->>> You're confusing IDR and IDA in your email, which is unfortunate.
->>>
->>> You can set a bit in an IDA by calling ida_simple_get(ida, n, n, GFP_FOO);
->>> You clear it by calling ida_simple_remove(ida, n);
->>
->> I moved to IDR in the message, since IDA uses global spinlock. It will be
->> taken every time a first object is added to list_lru, or last is removed.
->> These may be frequently called operations, and they may scale not good
->> on big machines.
-> 
-> I'm fixing the global spinlock issue with the IDA.  Not going to be ready
-> for 4.17, but hopefully for 4.18.
 
-It will be nice to see that in kernel.
 
->> Using IDR will allow us to introduce memcg-related locks, but I'm still not
->> sure it's easy to introduce them in scalable-way. Simple set_bit()/clear_bit()
->> do not require locks at all.
-> 
-> They're locked operations ... they may not have an explicit spinlock
-> associated with them, but the locking still happens.
+On 3/21/18 6:14 AM, Michal Hocko wrote:
+> On Wed 21-03-18 05:31:19, Yang Shi wrote:
+>> When running some mmap/munmap scalability tests with large memory (i.e.
+>>> 300GB), the below hung task issue may happen occasionally.
+>> INFO: task ps:14018 blocked for more than 120 seconds.
+>>         Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+>>   "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+>> message.
+>>   ps              D    0 14018      1 0x00000004
+>>    ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+>>    ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+>>    00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+>>   Call Trace:
+>>    [<ffffffff817154d0>] ? __schedule+0x250/0x730
+>>    [<ffffffff817159e6>] schedule+0x36/0x80
+>>    [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+>>    [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+>>    [<ffffffff81717db0>] down_read+0x20/0x40
+>>    [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+> Slightly off-topic:
+> Btw. this sucks as well. Do we really need to take mmap_sem here? Do any
+> of
+> 	arg_start = mm->arg_start;
+> 	arg_end = mm->arg_end;
+> 	env_start = mm->env_start;
+> 	env_end = mm->env_end;
+>
+> change after exec or while the pid is already visible in proc? If yes
+> maybe we can use a dedicated lock.
 
-Yes, they are not ideal in this way.
+Actually, Alexey Dobriyan had the same comment when he reviewed my very 
+first patch (which changes down_read to down_read_killable at that place).
 
->>> The identifiers aren't going to be all that sparse; after all you're
->>> allocating them from a global IDA.  Up to 62 identifiers will allocate
->>> no memory; 63-1024 identifiers will allocate a single 128 byte chunk.
->>> Between 1025 and 65536 identifiers, you'll allocate a 576-byte chunk
->>> and then 128-byte chunks for each block of 1024 identifiers (*).  One of
->>> the big wins with the IDA is that it will shrink again after being used.
->>> I didn't read all the way through your patchset to see if you bother to
->>> shrink your bitmap after it's no longer used, but most resizing bitmaps
->>> we have in the kernel don't bother with that part.
->>>
->>> (*) Actually it's more complex than that... between 1025 and 1086,
->>> you'll have a 576 byte chunk, a 128-byte chunk and then use 62 bits of
->>> the next pointer before allocating a 128 byte chunk when reaching ID
->>> 1087.  Similar things happen for the 62 bits after 2048, 3076 and so on.
->>> The individual chunks aren't shrunk until they're empty so if you set ID
->>> 1025 and then ID 1100, then clear ID 1100, the 128-byte chunk will remain
->>> allocated until ID 1025 is cleared.  This probably doesn't matter to you.
->>
->> Sound great, thanks for explaining this. The big problem I see is
->> that IDA/IDR add primitives allocate memory, while they will be used
->> in the places, where they mustn't fail. There is list_lru_add(), and
->> it's called unconditionally in current kernel code. The patchset makes
->> the bitmap be populated in this function. So, we can't use IDR there.
-> 
-> Maybe we can use GFP_NOFAIL here.  They're small allocations, so we're
-> only asking for single-page allocations to not fail, which shouldn't
-> put too much strain on the VM.
- 
-Oh. I'm not sure about this. Even if each allocation is small, there is
-theoretically possible a situation, when many lists will want to add first
-element. list_lru_add() is called from iput() for example.
+Those 4 values might be changed by prctl_set_mm() and prctl_set_mm_map() 
+concurrently. They used to use down_read() to protect the change, but it 
+looks not good enough to protect concurrent writing. So, Mateusz Guzik's 
+commit ddf1d398e517e660207e2c807f76a90df543a217 ("prctl: take mmap sem 
+for writing to protect against others") change it to down_write().
 
-Kirill
+It seems mmap_sem can be replaced to a dedicated lock. How about 
+defining a rwlock in mm_struct to protect those data? I will come up 
+with a RFC patch for this.
+
+However, this dedicated lock just can work around this specific case. I 
+believe solving mmap_sem scalability issue aimed by the patch series is 
+still our consensus.
+
+Thanks,
+Yang
