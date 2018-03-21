@@ -1,73 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A3276B0022
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 14:56:03 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id c5so3090493pfn.17
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:56:03 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y1-v6si4919339pli.586.2018.03.21.11.56.02
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B21366B0012
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 14:57:06 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id o187-v6so5373402ito.2
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:57:06 -0700 (PDT)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
+        by mx.google.com with ESMTPS id m8-v6si3686237itm.110.2018.03.21.11.57.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 21 Mar 2018 11:56:02 -0700 (PDT)
-Date: Wed, 21 Mar 2018 11:55:58 -0700
-From: Matthew Wilcox <willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Mar 2018 11:57:05 -0700 (PDT)
+Date: Wed, 21 Mar 2018 13:57:02 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
 Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
-Message-ID: <20180321185558.GA18494@bombadil.infradead.org>
-References: <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake>
- <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake>
- <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
- <alpine.DEB.2.20.1803211233290.3384@nuc-kabylake>
- <20180321174937.GF4780@bombadil.infradead.org>
- <alpine.LRH.2.02.1803211406180.26409@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211335240.13978@nuc-kabylake>
+In-Reply-To: <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.DEB.2.20.1803211354170.13978@nuc-kabylake>
+References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake> <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake> <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake> <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1803211335240.13978@nuc-kabylake>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Mikulas Patocka <mpatocka@redhat.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
-On Wed, Mar 21, 2018 at 01:40:31PM -0500, Christopher Lameter wrote:
-> On Wed, 21 Mar 2018, Mikulas Patocka wrote:
-> 
-> > > > F.e. you could optimize the allcations > 2x PAGE_SIZE so that they do not
-> > > > allocate powers of two pages. It would be relatively easy to make
-> > > > kmalloc_large round the allocation to the next page size and then allocate
-> > > > N consecutive pages via alloc_pages_exact() and free the remainder unused
-> > > > pages or some such thing.
+On Wed, 21 Mar 2018, Mikulas Patocka wrote:
+
+> So, what would you recommend for allocating 640KB objects while minimizing
+> wasted space?
+> * alloc_pages - rounds up to the next power of two
+> * kmalloc - rounds up to the next power of two
+> * alloc_pages_exact - O(n*log n) complexity; and causes memory
+>   fragmentation if used excesivelly
+> * vmalloc - horrible performance (modifies page tables and that causes
+>   synchronization across all CPUs)
+>
+> anything else?
+
+Need to find it but there is a way to allocate N pages in sequence
+somewhere. Otherwise mempools are something that would work.
+
+> > > > What kind of problem could be caused here?
+> > >
+> > > Unlocked accesses are generally considered bad. For example, see this
+> > > piece of code in calculate_sizes:
+> > >         s->allocflags = 0;
+> > >         if (order)
+> > >                 s->allocflags |= __GFP_COMP;
+> > >
+> > >         if (s->flags & SLAB_CACHE_DMA)
+> > >                 s->allocflags |= GFP_DMA;
+> > >
+> > >         if (s->flags & SLAB_RECLAIM_ACCOUNT)
+> > >                 s->allocflags |= __GFP_RECLAIMABLE;
+> > >
+> > > If you are running this while the cache is in use (i.e. when the user
+> > > writes /sys/kernel/slab/<cache>/order), then other processes will see
+> > > invalid s->allocflags for a short time.
 > >
-> > alloc_pages_exact() has O(n*log n) complexity with respect to the number
-> > of requested pages. It would have to be reworked and optimized if it were
-> > to be used for the dm-bufio cache. (it could be optimized down to O(log n)
-> > if it didn't split the compound page to a lot of separate pages, but split
-> > it to a power-of-two clusters instead).
-> 
-> Well then a memory pool of page allocator requests may address that issue?
-> 
-> Have a look at include/linux/mempool.h.
+> > Calculating sizes is done when the slab has only a single accessor. Thus
+> > no locking is neeed.
+>
+> The calculation is done whenever someone writes to
+> "/sys/kernel/slab/*/order"
 
-That's not what mempool is for.  mempool is a cache of elements that were
-allocated from slab in the first place.  (OK, technically, you don't have
-to use slab as the allocator, but since there is no allocator that solves
-this problem, mempool doesn't solve the problem either!)
+But the flags you are mentioning do not change and the size of the object
+does not change. What changes is the number of objects in the slab page.
 
-> > BTW. it could be possible to open the file
-> > "/sys/kernel/slab/<cache>/order" from the dm-bufio kernel driver and write
-> > the requested value there, but it seems very dirty. It would be better to
-> > have a kernel interface for that.
-> 
-> Hehehe you could directly write to the kmem_cache structure and increase
-> the order. AFAICT this would be dirty but work.
-> 
-> But still the increased page order will get you into trouble with
-> fragmentation when the system runs for a long time. That is the reason we
-> try to limit the allocation sizes coming from the slab allocator.
+> And you can obviously write to that file why the slab cache is in use. Try
+> it.
 
-Right; he has a fallback already (vmalloc).  So ... let's just add the
-interface to allow slab caches to have their order tuned by users who
-really know what they're doing?
+You cannot change flags that would impact the size of the objects. I only
+allowed changing characteristics that does not impact object size.
+
+> I am not talking about changing the size of objects in a slab cache. I am
+> talking about changing the allocation order of a slab cache while the
+> cache is in use. This can be done with the sysfs interface.
+
+But then that is something that is allowed but does not affect the object
+size used by the slab allocators.
