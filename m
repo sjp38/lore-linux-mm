@@ -1,150 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 29A406B027B
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E67A6B0280
 	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:25:10 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id n67so3757981qkn.14
+Received: by mail-qt0-f197.google.com with SMTP id q19so3890061qta.17
         for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:25:10 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u85si488248qkl.250.2018.03.21.12.25.08
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id f10si6596829qki.156.2018.03.21.12.25.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 21 Mar 2018 12:25:09 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LJN6nT061974
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:25:08 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2guw2hsa3b-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:25:07 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 21 Mar 2018 19:25:03 -0000
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 27/32] docs/vm: userfaultfd.txt: convert to ReST format
-Date: Wed, 21 Mar 2018 21:22:43 +0200
-In-Reply-To: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1521660168-14372-28-git-send-email-rppt@linux.vnet.ibm.com>
+Date: Wed, 21 Mar 2018 15:25:07 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.DEB.2.20.1803211233290.3384@nuc-kabylake>
+Message-ID: <alpine.LRH.2.02.1803211522310.26409@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake> <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake> <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake> <alpine.DEB.2.20.1803211233290.3384@nuc-kabylake>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Christopher Lameter <cl@linux.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- Documentation/vm/userfaultfd.txt | 66 ++++++++++++++++++++++++----------------
- 1 file changed, 39 insertions(+), 27 deletions(-)
 
-diff --git a/Documentation/vm/userfaultfd.txt b/Documentation/vm/userfaultfd.txt
-index bb2f945..5048cf6 100644
---- a/Documentation/vm/userfaultfd.txt
-+++ b/Documentation/vm/userfaultfd.txt
-@@ -1,6 +1,11 @@
--= Userfaultfd =
-+.. _userfaultfd:
- 
--== Objective ==
-+===========
-+Userfaultfd
-+===========
-+
-+Objective
-+=========
- 
- Userfaults allow the implementation of on-demand paging from userland
- and more generally they allow userland to take control of various
-@@ -9,7 +14,8 @@ memory page faults, something otherwise only the kernel code could do.
- For example userfaults allows a proper and more optimal implementation
- of the PROT_NONE+SIGSEGV trick.
- 
--== Design ==
-+Design
-+======
- 
- Userfaults are delivered and resolved through the userfaultfd syscall.
- 
-@@ -41,7 +47,8 @@ different processes without them being aware about what is going on
- themselves on the same region the manager is already tracking, which
- is a corner case that would currently return -EBUSY).
- 
--== API ==
-+API
-+===
- 
- When first opened the userfaultfd must be enabled invoking the
- UFFDIO_API ioctl specifying a uffdio_api.api value set to UFFD_API (or
-@@ -101,7 +108,8 @@ UFFDIO_COPY. They're atomic as in guaranteeing that nothing can see an
- half copied page since it'll keep userfaulting until the copy has
- finished.
- 
--== QEMU/KVM ==
-+QEMU/KVM
-+========
- 
- QEMU/KVM is using the userfaultfd syscall to implement postcopy live
- migration. Postcopy live migration is one form of memory
-@@ -163,7 +171,8 @@ sending the same page twice (in case the userfault is read by the
- postcopy thread just before UFFDIO_COPY|ZEROPAGE runs in the migration
- thread).
- 
--== Non-cooperative userfaultfd ==
-+Non-cooperative userfaultfd
-+===========================
- 
- When the userfaultfd is monitored by an external manager, the manager
- must be able to track changes in the process virtual memory
-@@ -172,27 +181,30 @@ the same read(2) protocol as for the page fault notifications. The
- manager has to explicitly enable these events by setting appropriate
- bits in uffdio_api.features passed to UFFDIO_API ioctl:
- 
--UFFD_FEATURE_EVENT_FORK - enable userfaultfd hooks for fork(). When
--this feature is enabled, the userfaultfd context of the parent process
--is duplicated into the newly created process. The manager receives
--UFFD_EVENT_FORK with file descriptor of the new userfaultfd context in
--the uffd_msg.fork.
--
--UFFD_FEATURE_EVENT_REMAP - enable notifications about mremap()
--calls. When the non-cooperative process moves a virtual memory area to
--a different location, the manager will receive UFFD_EVENT_REMAP. The
--uffd_msg.remap will contain the old and new addresses of the area and
--its original length.
--
--UFFD_FEATURE_EVENT_REMOVE - enable notifications about
--madvise(MADV_REMOVE) and madvise(MADV_DONTNEED) calls. The event
--UFFD_EVENT_REMOVE will be generated upon these calls to madvise. The
--uffd_msg.remove will contain start and end addresses of the removed
--area.
--
--UFFD_FEATURE_EVENT_UNMAP - enable notifications about memory
--unmapping. The manager will get UFFD_EVENT_UNMAP with uffd_msg.remove
--containing start and end addresses of the unmapped area.
-+UFFD_FEATURE_EVENT_FORK
-+	enable userfaultfd hooks for fork(). When this feature is
-+	enabled, the userfaultfd context of the parent process is
-+	duplicated into the newly created process. The manager
-+	receives UFFD_EVENT_FORK with file descriptor of the new
-+	userfaultfd context in the uffd_msg.fork.
-+
-+UFFD_FEATURE_EVENT_REMAP
-+	enable notifications about mremap() calls. When the
-+	non-cooperative process moves a virtual memory area to a
-+	different location, the manager will receive
-+	UFFD_EVENT_REMAP. The uffd_msg.remap will contain the old and
-+	new addresses of the area and its original length.
-+
-+UFFD_FEATURE_EVENT_REMOVE
-+	enable notifications about madvise(MADV_REMOVE) and
-+	madvise(MADV_DONTNEED) calls. The event UFFD_EVENT_REMOVE will
-+	be generated upon these calls to madvise. The uffd_msg.remove
-+	will contain start and end addresses of the removed area.
-+
-+UFFD_FEATURE_EVENT_UNMAP
-+	enable notifications about memory unmapping. The manager will
-+	get UFFD_EVENT_UNMAP with uffd_msg.remove containing start and
-+	end addresses of the unmapped area.
- 
- Although the UFFD_FEATURE_EVENT_REMOVE and UFFD_FEATURE_EVENT_UNMAP
- are pretty similar, they quite differ in the action expected from the
--- 
-2.7.4
+
+On Wed, 21 Mar 2018, Christopher Lameter wrote:
+
+> One other thought: If you want to improve the behavior for large scale
+> objects allocated through kmalloc/kmemcache then we would certainly be
+> glad to entertain those ideas.
+> 
+> F.e. you could optimize the allcations > 2x PAGE_SIZE so that they do not
+> allocate powers of two pages. It would be relatively easy to make
+> kmalloc_large round the allocation to the next page size and then allocate
+> N consecutive pages via alloc_pages_exact() and free the remainder unused
+> pages or some such thing.
+
+It may be possible, but we'd need to improve the horrible complexity of 
+alloc_pages_exact().
+
+This is a trade-of between performance and waste. A power-of-two 
+allocation can be done quicky, but it wastes a lot of space. 
+alloc_pages_exact() wastes less space, but it is slow.
+
+The question is - how many of these large-kmalloc allocations are 
+short-lived and how many are long-lived? I don't know, I haven't measured 
+it.
+
+Mikulas
