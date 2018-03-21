@@ -1,85 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F9D96B0012
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:53:47 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id g22so2659065pgv.16
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:53:47 -0700 (PDT)
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id i131si2955364pgc.347.2018.03.21.09.53.45
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 06DAE6B0026
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 13:00:53 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id f4-v6so3426233plr.11
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 10:00:52 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0725.outbound.protection.outlook.com. [2a01:111:f400:fe1e::725])
+        by mx.google.com with ESMTPS id z190si3011218pgb.461.2018.03.21.10.00.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 09:53:46 -0700 (PDT)
-Subject: Re: [RFC PATCH 7/8] x86: mpx: pass atomic parameter to do_munmap()
-References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
- <1521581486-99134-8-git-send-email-yang.shi@linux.alibaba.com>
- <alpine.DEB.2.21.1803202307330.1714@nanos.tec.linutronix.de>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <8d2b26b6-b40a-cef8-9d67-afb8c12ad359@linux.alibaba.com>
-Date: Wed, 21 Mar 2018 09:53:36 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 21 Mar 2018 10:00:50 -0700 (PDT)
+Subject: Re: [PATCH 6/6] mm/vmscan: Don't mess with pgdat->flags in memcg
+ reclaim.
+References: <20180315164553.17856-1-aryabinin@virtuozzo.com>
+ <20180315164553.17856-6-aryabinin@virtuozzo.com>
+ <20180320152903.GA23100@dhcp22.suse.cz>
+ <c3405049-222d-a045-4ce5-8e51817d89b6@virtuozzo.com>
+ <20180321114301.GH23100@dhcp22.suse.cz>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <d29cdc69-718c-7c7e-bffb-d716d343a154@virtuozzo.com>
+Date: Wed, 21 Mar 2018 20:01:32 +0300
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1803202307330.1714@nanos.tec.linutronix.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180321114301.GH23100@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@suse.de>, x86@kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+
+On 03/21/2018 02:43 PM, Michal Hocko wrote:
+> On Wed 21-03-18 14:14:35, Andrey Ryabinin wrote:
+>>
+>>
+>> On 03/20/2018 06:29 PM, Michal Hocko wrote:
+>>
+>>>> Leave all pgdat->flags manipulations to kswapd. kswapd scans the whole
+>>>> pgdat, so it's reasonable to leave all decisions about node stat
+>>>> to kswapd. Also add per-cgroup congestion state to avoid needlessly
+>>>> burning CPU in cgroup reclaim if heavy congestion is observed.
+>>>>
+>>>> Currently there is no need in per-cgroup PGDAT_WRITEBACK and PGDAT_DIRTY
+>>>> bits since they alter only kswapd behavior.
+>>>>
+>>>> The problem could be easily demonstrated by creating heavy congestion
+>>>> in one cgroup:
+>>>>
+>>>>     echo "+memory" > /sys/fs/cgroup/cgroup.subtree_control
+>>>>     mkdir -p /sys/fs/cgroup/congester
+>>>>     echo 512M > /sys/fs/cgroup/congester/memory.max
+>>>>     echo $$ > /sys/fs/cgroup/congester/cgroup.procs
+>>>>     /* generate a lot of diry data on slow HDD */
+>>>>     while true; do dd if=/dev/zero of=/mnt/sdb/zeroes bs=1M count=1024; done &
+>>>>     ....
+>>>>     while true; do dd if=/dev/zero of=/mnt/sdb/zeroes bs=1M count=1024; done &
+>>>>
+>>>> and some job in another cgroup:
+>>>>
+>>>>     mkdir /sys/fs/cgroup/victim
+>>>>     echo 128M > /sys/fs/cgroup/victim/memory.max
+>>>>
+>>>>     # time cat /dev/sda > /dev/null
+>>>>     real    10m15.054s
+>>>>     user    0m0.487s
+>>>>     sys     1m8.505s
+>>>>
+>>>> According to the tracepoint in wait_iff_congested(), the 'cat' spent 50%
+>>>> of the time sleeping there.
+>>>>
+>>>> With the patch, cat don't waste time anymore:
+>>>>
+>>>>     # time cat /dev/sda > /dev/null
+>>>>     real    5m32.911s
+>>>>     user    0m0.411s
+>>>>     sys     0m56.664s
+>>>>
+>>>> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+>>>> ---
+>>>>  include/linux/backing-dev.h |  2 +-
+>>>>  include/linux/memcontrol.h  |  2 ++
+>>>>  mm/backing-dev.c            | 19 ++++------
+>>>>  mm/vmscan.c                 | 84 ++++++++++++++++++++++++++++++++-------------
+>>>>  4 files changed, 70 insertions(+), 37 deletions(-)
+>>>
+>>> This patch seems overly complicated. Why don't you simply reduce the whole
+>>> pgdat_flags handling to global_reclaim()?
+>>>
+>>
+>> In that case cgroup2 reclaim wouldn't have any way of throttling if
+>> cgroup is full of congested dirty pages.
+> 
+> It's been some time since I've looked into the throttling code so pardon
+> my ignorance. Don't cgroup v2 users get throttled in the write path to
+> not dirty too many pages in the first place?
+ 
+Yes, they do. The same as no cgroup users. Basically, cgroup v2 mimics
+all that global reclaim, dirty ratelimiting, throttling stuff.
+However, balance_dirty_pages() can't always protect from too much dirty problem.
+E.g. you could mmap() file and start writing to it at the speed of RAM.
+balance_dirty_pages() can't stop you there.
 
 
+> In other words, is your patch trying to fix two different things? One is
+> per-memcg reclaim influencing the global pgdat state, which is clearly
+> wrng, and cgroup v2 reclaim throttling that is not pgdat based?
+> 
 
-On 3/20/18 3:35 PM, Thomas Gleixner wrote:
-> On Wed, 21 Mar 2018, Yang Shi wrote:
->
-> Please CC everyone involved on the full patch set next time. I had to dig
-> the rest out from my lkml archive to get the context.
+Kinda, but the second problem is introduced by fixing the first one. Since
+without fixing the first problem we have congestion throttling in cgroup v2.
+Yes, it's based on global pgdat state, which is wrong, but it should throttle
+cgroupv2 reclaim when memcg is congested.
 
-Sorry for the inconvenience. Will pay attention to it next time.
+I didn't try to evaluate how useful this whole congestion throttling is,
+and whether it's really needed. But if we need for global reclaim, than
+we probably need it in cgroup2 reclaim too.
 
->
->> Pass "true" to do_munmap() to not do unlock/relock to mmap_sem when
->> manipulating mpx map.
->> This is API change only.
-> This is wrong. You cannot change the function in one patch and then clean
-> up the users. That breaks bisectability.
->
-> Depending on the number of callers this wants to be a single patch changing
-> both the function and the callers or you need to create a new function
-> which has the extra argument and switch all users over to it and then
-> remove the old function.
->
->> @@ -780,7 +780,7 @@ static int unmap_entire_bt(struct mm_struct *mm,
->>   	 * avoid recursion, do_munmap() will check whether it comes
->>   	 * from one bounds table through VM_MPX flag.
->>   	 */
->> -	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm), NULL);
->> +	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm), NULL, true);
-> But looking at the full context this is the wrong approach.
->
-> First of all the name of that parameter 'atomic' is completely
-> misleading. It suggests that this happens in fully atomic context, which is
-> not the case.
->
-> Secondly, conditional locking is frowned upon in general and rightfully so.
->
-> So the right thing to do is to leave do_munmap() alone and add a new
-> function do_munmap_huge() or whatever sensible name you come up with. Then
-> convert the places which are considered to be safe one by one with a proper
-> changelog which explains WHY this is safe.
->
-> That way you avoid the chasing game of all existing do_munmap() callers and
-> just use the new 'free in chunks' approach where it is appropriate and
-> safe. No suprises, no bisectability issues....
->
-> While at it please add proper kernel doc documentation to both do_munmap()
-> and the new function which explains the intricacies.
 
-Thanks a lot for the suggestion. Absolutely agree. Will fix the problems 
-in newer version.
-
-Yang
-
->
-> Thanks,
->
-> 	tglx
+P.S. Some observation: blk-mq seems doesn't have any congestion mechanism.
+Dunno whether is this intentional or just an oversight. This means congestion
+throttling never happens on such system.
