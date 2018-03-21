@@ -1,90 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C6F5A6B0007
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 03:55:20 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id c5so2262186pfn.17
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 00:55:20 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s11si2449452pgn.207.2018.03.21.00.55.19
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A80FF6B0007
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 04:10:19 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id u1-v6so1421031pls.5
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 01:10:19 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 78sor941701pgb.3.2018.03.21.01.10.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Mar 2018 00:55:19 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 2/4] mm/__free_one_page: skip merge for order-0
- page unless compaction failed
-References: <20180320085452.24641-1-aaron.lu@intel.com>
- <20180320085452.24641-3-aaron.lu@intel.com>
- <7b1988e9-7d50-d55e-7590-20426fb257af@suse.cz>
- <20180320141101.GB2033@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5b1f7ef5-0dca-c35f-aba9-3b55f81740b2@suse.cz>
-Date: Wed, 21 Mar 2018 08:53:27 +0100
-MIME-Version: 1.0
-In-Reply-To: <20180320141101.GB2033@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 21 Mar 2018 01:10:18 -0700 (PDT)
+From: Jia He <hejianet@gmail.com>
+Subject: [PATCH RFC 0/4] optimize memblock_next_valid_pfn() and early_pfn_valid()
+Date: Wed, 21 Mar 2018 01:09:52 -0700
+Message-Id: <1521619796-3846-1-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steve Capper <steve.capper@arm.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Jia He <hejianet@gmail.com>
 
-On 03/20/2018 03:11 PM, Aaron Lu wrote:
-> On Tue, Mar 20, 2018 at 12:45:50PM +0100, Vlastimil Babka wrote:
->> But why, with all the prefetching in place?
-> 
-> The prefetch is just for its order 0 buddy, if merge happens, then its
-> order 1 buddy will also be checked and on and on, so the cache misses
-> are much more in merge mode.
+Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+where possible") tried to optimize the loop in memmap_init_zone(). But
+there is still some room for improvement.
 
-I see.
+Patch 1 optimized the memblock_next_valid_pfn()
+Patch 2~4 optimized the early_pfn_valid(), I have to split it into parts
+because the changes are located across subsystems.
 
->> Not thrilled about such disruptive change in the name of a
->> microbenchmark :/ Shouldn't normally the pcplists hide the overhead?
-> 
-> Sadly, with the default pcp count, it didn't avoid the lock contention.
-> We can of course increase pcp->count to a large enough value to avoid
-> entering buddy and thus avoid zone->lock contention, but that would
-> require admin to manually change the value on a per-machine per-workload
-> basis I believe.
+I tested the pfn steping up process in memmap_init(), the same as before.
+As for the performance improvement, after this set, I can see the time
+overhead of memmap_init() is reduced from 41313 us to 24345 us in my
+armv8a server(QDF2400 with 96G memory).
 
-Well, anyone who really cares about performance has to invest some time
-to tuning anyway, I believe?
+Attached the memblock region information in my server.
+[   86.956758] Zone ranges:
+[   86.959452]   DMA      [mem 0x0000000000200000-0x00000000ffffffff]
+[   86.966041]   Normal   [mem 0x0000000100000000-0x00000017ffffffff]
+[   86.972631] Movable zone start for each node
+[   86.977179] Early memory node ranges
+[   86.980985]   node   0: [mem 0x0000000000200000-0x000000000021ffff]
+[   86.987666]   node   0: [mem 0x0000000000820000-0x000000000307ffff]
+[   86.994348]   node   0: [mem 0x0000000003080000-0x000000000308ffff]
+[   87.001029]   node   0: [mem 0x0000000003090000-0x00000000031fffff]
+[   87.007710]   node   0: [mem 0x0000000003200000-0x00000000033fffff]
+[   87.014392]   node   0: [mem 0x0000000003410000-0x000000000563ffff]
+[   87.021073]   node   0: [mem 0x0000000005640000-0x000000000567ffff]
+[   87.027754]   node   0: [mem 0x0000000005680000-0x00000000056dffff]
+[   87.034435]   node   0: [mem 0x00000000056e0000-0x00000000086fffff]
+[   87.041117]   node   0: [mem 0x0000000008700000-0x000000000871ffff]
+[   87.047798]   node   0: [mem 0x0000000008720000-0x000000000894ffff]
+[   87.054479]   node   0: [mem 0x0000000008950000-0x0000000008baffff]
+[   87.061161]   node   0: [mem 0x0000000008bb0000-0x0000000008bcffff]
+[   87.067842]   node   0: [mem 0x0000000008bd0000-0x0000000008c4ffff]
+[   87.074524]   node   0: [mem 0x0000000008c50000-0x0000000008e2ffff]
+[   87.081205]   node   0: [mem 0x0000000008e30000-0x0000000008e4ffff]
+[   87.087886]   node   0: [mem 0x0000000008e50000-0x0000000008fcffff]
+[   87.094568]   node   0: [mem 0x0000000008fd0000-0x000000000910ffff]
+[   87.101249]   node   0: [mem 0x0000000009110000-0x00000000092effff]
+[   87.107930]   node   0: [mem 0x00000000092f0000-0x000000000930ffff]
+[   87.114612]   node   0: [mem 0x0000000009310000-0x000000000963ffff]
+[   87.121293]   node   0: [mem 0x0000000009640000-0x000000000e61ffff]
+[   87.127975]   node   0: [mem 0x000000000e620000-0x000000000e64ffff]
+[   87.134657]   node   0: [mem 0x000000000e650000-0x000000000fffffff]
+[   87.141338]   node   0: [mem 0x0000000010800000-0x0000000017feffff]
+[   87.148019]   node   0: [mem 0x000000001c000000-0x000000001c00ffff]
+[   87.154701]   node   0: [mem 0x000000001c010000-0x000000001c7fffff]
+[   87.161383]   node   0: [mem 0x000000001c810000-0x000000007efbffff]
+[   87.168064]   node   0: [mem 0x000000007efc0000-0x000000007efdffff]
+[   87.174746]   node   0: [mem 0x000000007efe0000-0x000000007efeffff]
+[   87.181427]   node   0: [mem 0x000000007eff0000-0x000000007effffff]
+[   87.188108]   node   0: [mem 0x000000007f000000-0x00000017ffffffff]
+[   87.194791] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
 
->> If not, wouldn't it make more sense to turn zone->lock into a range lock?
-> 
-> Not familiar with range lock, will need to take a look at it, thanks for
-> the pointer.
+Without this patchset:
+[  117.106153] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
+[  117.113677] before memmap_init
+[  117.118195] after  memmap_init
+>>> memmap_init takes 4518 us
+[  117.121446] before memmap_init
+[  117.154992] after  memmap_init
+>>> memmap_init takes 33546 us
+[  117.158241] before memmap_init
+[  117.161490] after  memmap_init
+>>> memmap_init takes 3249 us
+>>> totally takes 41313 us
 
-The suggestion was rather quick and not well thought-out. Range lock
-itself is insufficient - for merging/splitting buddies it's ok for
-working with struct pages because the candidate buddies are within a
-MAX_ORDER range. But the freelists contain pages from the whole zone.
+With this patchset:
+[   87.194791] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
+[   87.202314] before memmap_init
+[   87.206164] after  memmap_init
+>>> memmap_init takes 3850 us
+[   87.209416] before memmap_init
+[   87.226662] after  memmap_init
+>>> memmap_init takes 17246 us
+[   87.229911] before memmap_init
+[   87.233160] after  memmap_init
+>>> memmap_init takes 3249 us
+>>> totally takes 24345 us
 
->>
->>> A new document file called "struct_page_filed" is added to explain
->>> the newly reused field in "struct page".
->>
->> Sounds rather ad-hoc for a single field, I'd rather document it via
->> comments.
-> 
-> Dave would like to have a document to explain all those "struct page"
-> fields that are repurposed under different scenarios and this is the
-> very start of the document :-)
+Jia He (4):
+  mm: page_alloc: reduce unnecessary binary search in memblock_next_valid_pfn()
+  mm/memblock: introduce memblock_search_pfn_regions()
+  arm64: introduce pfn_valid_region()
+  mm: page_alloc: reduce unnecessary binary search in early_pfn_valid()
 
-Oh, I see.
+ arch/arm64/include/asm/page.h    |  3 ++-
+ arch/arm64/mm/init.c             | 19 ++++++++++++++++++-
+ arch/x86/include/asm/mmzone_32.h |  2 +-
+ include/linux/memblock.h         |  3 ++-
+ include/linux/mmzone.h           | 12 +++++++++---
+ mm/memblock.c                    | 35 +++++++++++++++++++++++++++++++----
+ mm/page_alloc.c                  |  5 +++--
+ 7 files changed, 66 insertions(+), 13 deletions(-)
 
-> I probably should have explained the intent of the document more.
-> 
-> Thanks for taking a look at this.
-> 
->>> Suggested-by: Dave Hansen <dave.hansen@intel.com>
->>> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
->>> ---
->>>  Documentation/vm/struct_page_field |  5 +++
->>>  include/linux/mm_types.h           |  1 +
->>>  mm/compaction.c                    | 13 +++++-
->>>  mm/internal.h                      | 27 ++++++++++++
->>>  mm/page_alloc.c                    | 89 +++++++++++++++++++++++++++++++++-----
->>>  5 files changed, 122 insertions(+), 13 deletions(-)
->>>  create mode 100644 Documentation/vm/struct_page_field
->>>
+-- 
+2.7.4
