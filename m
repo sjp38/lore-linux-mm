@@ -1,86 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CB9E16B0003
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 07:13:55 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id g13-v6so689330pln.13
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 04:13:55 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0132.outbound.protection.outlook.com. [104.47.0.132])
-        by mx.google.com with ESMTPS id c5-v6si3615324pll.90.2018.03.21.04.13.53
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 89ABB6B0003
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 07:21:29 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id k4-v6so2904467pls.15
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 04:21:29 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n7si306906pfn.30.2018.03.21.04.21.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 21 Mar 2018 04:13:54 -0700 (PDT)
-Subject: Re: [PATCH 6/6] mm/vmscan: Don't mess with pgdat->flags in memcg
- reclaim.
-References: <20180315164553.17856-1-aryabinin@virtuozzo.com>
- <20180315164553.17856-6-aryabinin@virtuozzo.com>
- <20180320152903.GA23100@dhcp22.suse.cz>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <c3405049-222d-a045-4ce5-8e51817d89b6@virtuozzo.com>
-Date: Wed, 21 Mar 2018 14:14:35 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Mar 2018 04:21:28 -0700 (PDT)
+Date: Wed, 21 Mar 2018 12:21:24 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm,page_alloc: wait for oom_lock than back off
+Message-ID: <20180321112124.GF23100@dhcp22.suse.cz>
+References: <20180226121933.GC16269@dhcp22.suse.cz>
+ <201802262216.ADH48949.FtQLFOHJOVSOMF@I-love.SAKURA.ne.jp>
+ <201803022010.BJE26043.LtSOOVFQOMJFHF@I-love.SAKURA.ne.jp>
+ <20180302141000.GB12772@dhcp22.suse.cz>
+ <201803031215.FCJ69722.OtJFLQVFMFOSOH@I-love.SAKURA.ne.jp>
+ <201803211939.EFG92060.tFSHOFQFOMJLOV@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20180320152903.GA23100@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201803211939.EFG92060.tFSHOFQFOMJLOV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
 
+On Wed 21-03-18 19:39:32, Tetsuo Handa wrote:
+> Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > > But since Michal is still worrying that adding a single synchronization
+> > > > point into the OOM path is risky (without showing a real life example
+> > > > where lock_killable() in the coldest OOM path hurts), changes made by
+> > > > this patch will be enabled only when oom_compat_mode=0 kernel command line
+> > > > parameter is specified so that users can test whether their workloads get
+> > > > hurt by this patch.
+> > > > 
+> > > Nacked with passion. This is absolutely hideous. First of all there is
+> > > absolutely no need for the kernel command line. That is just trying to
+> > > dance around the fact that you are not able to argue for the change
+> > > and bring reasonable arguments on the table. We definitely do not want
+> > > two subtly different modes for the oom handling. Secondly, and repeatedly,
+> > > you are squashing multiple changes into a single patch. And finally this
+> > > is too big of a hammer for something that even doesn't solve the problem
+> > > for PREEMPTIVE kernels which are free to schedule regardless of the
+> > > sleep or the reclaim retry you are so passion about.
+> > 
+> > So, where is your version? Offload to a kernel thread like the OOM reaper?
+> > Get rid of oom_lock? Just rejecting my proposal makes no progress.
+> > 
+> Did you come up with some idea?
+> Even CONFIG_PREEMPT=y, as far as I tested, v2 patch significantly reduces stalls than now.
+> I believe there is no valid reason not to test my v2 patch at linux-next.
 
+There are and I've mentioned them in my review feedback.
 
-On 03/20/2018 06:29 PM, Michal Hocko wrote:
-
->> Leave all pgdat->flags manipulations to kswapd. kswapd scans the whole
->> pgdat, so it's reasonable to leave all decisions about node stat
->> to kswapd. Also add per-cgroup congestion state to avoid needlessly
->> burning CPU in cgroup reclaim if heavy congestion is observed.
->>
->> Currently there is no need in per-cgroup PGDAT_WRITEBACK and PGDAT_DIRTY
->> bits since they alter only kswapd behavior.
->>
->> The problem could be easily demonstrated by creating heavy congestion
->> in one cgroup:
->>
->>     echo "+memory" > /sys/fs/cgroup/cgroup.subtree_control
->>     mkdir -p /sys/fs/cgroup/congester
->>     echo 512M > /sys/fs/cgroup/congester/memory.max
->>     echo $$ > /sys/fs/cgroup/congester/cgroup.procs
->>     /* generate a lot of diry data on slow HDD */
->>     while true; do dd if=/dev/zero of=/mnt/sdb/zeroes bs=1M count=1024; done &
->>     ....
->>     while true; do dd if=/dev/zero of=/mnt/sdb/zeroes bs=1M count=1024; done &
->>
->> and some job in another cgroup:
->>
->>     mkdir /sys/fs/cgroup/victim
->>     echo 128M > /sys/fs/cgroup/victim/memory.max
->>
->>     # time cat /dev/sda > /dev/null
->>     real    10m15.054s
->>     user    0m0.487s
->>     sys     1m8.505s
->>
->> According to the tracepoint in wait_iff_congested(), the 'cat' spent 50%
->> of the time sleeping there.
->>
->> With the patch, cat don't waste time anymore:
->>
->>     # time cat /dev/sda > /dev/null
->>     real    5m32.911s
->>     user    0m0.411s
->>     sys     0m56.664s
->>
->> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
->> ---
->>  include/linux/backing-dev.h |  2 +-
->>  include/linux/memcontrol.h  |  2 ++
->>  mm/backing-dev.c            | 19 ++++------
->>  mm/vmscan.c                 | 84 ++++++++++++++++++++++++++++++++-------------
->>  4 files changed, 70 insertions(+), 37 deletions(-)
-> 
-> This patch seems overly complicated. Why don't you simply reduce the whole
-> pgdat_flags handling to global_reclaim()?
-> 
-
-In that case cgroup2 reclaim wouldn't have any way of throttling if cgroup is full of congested dirty pages.
+-- 
+Michal Hocko
+SUSE Labs
