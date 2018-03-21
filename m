@@ -1,90 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 532996B000C
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 00:38:24 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v126so118526pgb.23
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 21:38:24 -0700 (PDT)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id b7si2219038pgc.551.2018.03.20.21.38.22
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E48F6B000E
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 00:39:30 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id q185so2409776qke.0
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 21:39:30 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id x14si625024qtj.69.2018.03.20.21.39.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 21:38:23 -0700 (PDT)
-Received: from epcas5p3.samsung.com (unknown [182.195.41.41])
-	by mailout4.samsung.com (KnoxPortal) with ESMTP id 20180321043820epoutp04554ef1e2f9ebf6d6fde07fa49f22a748~d1ZiPXRrN1601316013epoutp04k
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 04:38:20 +0000 (GMT)
-From: Maninder Singh <maninder1.s@samsung.com>
-Subject: [PATCH 1/1] mm/page_owner: fix recursion bug after changing skip
- entries
-Date: Wed, 21 Mar 2018 10:07:23 +0530
-Message-Id: <1521607043-34670-1-git-send-email-maninder1.s@samsung.com>
+        Tue, 20 Mar 2018 21:39:29 -0700 (PDT)
+Subject: Re: [PATCH 15/15] mm/hmm: use device driver encoding for HMM pfn v2
+References: <20180320020038.3360-1-jglisse@redhat.com>
+ <20180320020038.3360-16-jglisse@redhat.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <0a46cec4-3c39-bc2c-90f5-da33981cb8f2@nvidia.com>
+Date: Tue, 20 Mar 2018 21:39:27 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180320020038.3360-16-jglisse@redhat.com>
 Content-Type: text/plain; charset="utf-8"
-References: <CGME20180321043818epcas5p176fe0e0bbfce685420df2bfb7a421acd@epcas5p1.samsung.com>
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vbabka@suse.cz, mhocko@suse.com, osalvador@techadventures.net, gregkh@linuxfoundation.org, ayush.m@samsung.com, guptap@codeaurora.org, vinmenon@codeaurora.org, gomonovych@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, a.sahrawat@samsung.com, pankaj.m@samsung.com, Maninder Singh <maninder1.s@samsung.com>, Vaneet Narang <v.narang@samsung.com>
+To: jglisse@redhat.com, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
 
-This patch fixes "5f48f0bd4e368425db4424b9afd1bd251d32367a".
-(mm, page_owner: skip unnecessary stack_trace entries)
+On 03/19/2018 07:00 PM, jglisse@redhat.com wrote:
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>=20
+> User of hmm_vma_fault() and hmm_vma_get_pfns() provide a flags array
+> and pfn shift value allowing them to define their own encoding for HMM
+> pfn that are fill inside the pfns array of the hmm_range struct. With
+> this device driver can get pfn that match their own private encoding
+> out of HMM without having to do any conversion.
+>=20
+> Changed since v1:
+>   - Split flags and special values for clarification
+>   - Improved comments and provide examples
+>=20
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: Mark Hairgrove <mhairgrove@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> ---
+>  include/linux/hmm.h | 130 +++++++++++++++++++++++++++++++++++++---------=
+------
+>  mm/hmm.c            |  85 +++++++++++++++++++---------------
+>  2 files changed, 142 insertions(+), 73 deletions(-)
+>=20
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index 0f7ea3074175..5d26e0a223d9 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -80,68 +80,145 @@
+>  struct hmm;
+> =20
+>  /*
+> + * hmm_pfn_flag_e - HMM flag enums
+> + *
+>   * Flags:
+>   * HMM_PFN_VALID: pfn is valid. It has, at least, read permission.
+>   * HMM_PFN_WRITE: CPU page table has write permission set
+> + * HMM_PFN_DEVICE_PRIVATE: private device memory (ZONE_DEVICE)
+> + *
+> + * The driver provide a flags array, if driver valid bit for an entry is=
+ bit
+> + * 3 ie (entry & (1 << 3)) is true if entry is valid then driver must pr=
+ovide
+> + * an array in hmm_range.flags with hmm_range.flags[HMM_PFN_VALID] =3D=
+=3D 1 << 3.
+> + * Same logic apply to all flags. This is same idea as vm_page_prot in v=
+ma
+> + * except that this is per device driver rather than per architecture.
 
-Because if we skip first two entries then logic of checking count
-value as 2 for recursion is broken and code will go in one depth
-recursion.
+Hi Jerome,
 
-so we need to check only one call of _RET_IP(__set_page_owner)
-while checking for recursion.
+If we go with this approach--and I hope not, I'll try to talk you down from=
+ the
+ledge, in a moment--then maybe we should add the following to the comments:=
+=20
 
-Current Backtrace while checking for recursion:-
+"There is only one bit ever set in each hmm_range.flags[entry]."=20
 
-(save_stack)             from (__set_page_owner)  // (But recursion returns true here)
-(__set_page_owner)       from (get_page_from_freelist)
-(get_page_from_freelist) from (__alloc_pages_nodemask)
-(__alloc_pages_nodemask) from (depot_save_stack)
-(depot_save_stack)       from (save_stack)       // recursion should return true here
-(save_stack)             from (__set_page_owner)
-(__set_page_owner)       from (get_page_from_freelist)
-(get_page_from_freelist) from (__alloc_pages_nodemask+)
-(__alloc_pages_nodemask) from (depot_save_stack)
-(depot_save_stack)       from (save_stack)
-(save_stack)             from (__set_page_owner)
-(__set_page_owner)       from (get_page_from_freelist)
+Or maybe we'll get pushback, that the code shows that already, but IMHO thi=
+s is=20
+strange way to do things (especially when there is a much easier way), and =
+deserves=20
+that extra bit of helpful documentation.
 
-Correct Backtrace with fix:
+More below...
 
-(save_stack)             from (__set_page_owner) // recursion returned true here
-(__set_page_owner)       from (get_page_from_freelist)
-(get_page_from_freelist) from (__alloc_pages_nodemask+)
-(__alloc_pages_nodemask) from (depot_save_stack)
-(depot_save_stack)       from (save_stack)
-(save_stack)             from (__set_page_owner)
-(__set_page_owner)       from (get_page_from_freelist)
+> + */
+> +enum hmm_pfn_flag_e {
+> +	HMM_PFN_VALID =3D 0,
+> +	HMM_PFN_WRITE,
+> +	HMM_PFN_DEVICE_PRIVATE,
+> +	HMM_PFN_FLAG_MAX
+> +};
+> +
+> +/*
+> + * hmm_pfn_value_e - HMM pfn special value
+> + *
+> + * Flags:
+>   * HMM_PFN_ERROR: corresponding CPU page table entry points to poisoned =
+memory
+> + * HMM_PFN_NONE: corresponding CPU page table entry is pte_none()
+>   * HMM_PFN_SPECIAL: corresponding CPU page table entry is special; i.e.,=
+ the
+>   *      result of vm_insert_pfn() or vm_insert_page(). Therefore, it sho=
+uld not
+>   *      be mirrored by a device, because the entry will never have HMM_P=
+FN_VALID
+>   *      set and the pfn value is undefined.
+> - * HMM_PFN_DEVICE_PRIVATE: unaddressable device memory (ZONE_DEVICE)
+> + *
+> + * Driver provide entry value for none entry, error entry and special en=
+try,
+> + * driver can alias (ie use same value for error and special for instanc=
+e). It
+> + * should not alias none and error or special.
+> + *
+> + * HMM pfn value returned by hmm_vma_get_pfns() or hmm_vma_fault() will =
+be:
+> + * hmm_range.values[HMM_PFN_ERROR] if CPU page table entry is poisonous,
+> + * hmm_range.values[HMM_PFN_NONE] if there is no CPU page table
+> + * hmm_range.values[HMM_PFN_SPECIAL] if CPU page table entry is a specia=
+l one
+>   */
+> -#define HMM_PFN_VALID (1 << 0)
+> -#define HMM_PFN_WRITE (1 << 1)
+> -#define HMM_PFN_ERROR (1 << 2)
+> -#define HMM_PFN_SPECIAL (1 << 3)
+> -#define HMM_PFN_DEVICE_PRIVATE (1 << 4)
+> -#define HMM_PFN_SHIFT 5
+> +enum hmm_pfn_value_e {
+> +	HMM_PFN_ERROR,
+> +	HMM_PFN_NONE,
+> +	HMM_PFN_SPECIAL,
+> +	HMM_PFN_VALUE_MAX
+> +};
 
-Signed-off-by: Maninder Singh <maninder1.s@samsung.com>
-Signed-off-by: Vaneet Narang <v.narang@samsung.com>
----
- mm/page_owner.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
+I can think of perhaps two good solid ways to get what you want, without
+moving to what I consider an unnecessary excursion into arrays of flags.=20
+If I understand correctly, you want to let each architecture
+specify which bit to use for each of the above HMM_PFN_* flags.=20
 
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 8592543..46ab1c4 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -123,13 +123,13 @@ void __reset_page_owner(struct page *page, unsigned int order)
- static inline bool check_recursive_alloc(struct stack_trace *trace,
- 					unsigned long ip)
- {
--	int i, count;
-+	int i;
- 
- 	if (!trace->nr_entries)
- 		return false;
- 
--	for (i = 0, count = 0; i < trace->nr_entries; i++) {
--		if (trace->entries[i] == ip && ++count == 2)
-+	for (i = 0; i < trace->nr_entries; i++) {
-+		if (trace->entries[i] == ip)
- 			return true;
- 	}
- 
--- 
-1.7.1
+The way you have it now, the code does things like this:
+
+        cpu_flags & range->flags[HMM_PFN_WRITE]
+
+but that array entry is mostly empty space, and it's confusing. It would
+be nicer to see:
+
+        cpu_flags & HMM_PFN_WRITE
+
+...which you can easily do, by defining HMM_PFN_WRITE and friends in an
+arch-specific header file.
+
+The other way to make this more readable would be to use helper routines
+similar to what the vm_pgprot* routines do:
+
+static pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
+{
+	return pgprot_modify(oldprot, vm_get_page_prot(vm_flags));
+}
+
+...but that's also unnecessary.
+
+Let's just keep it simple, and go back to the bitmap flags!
+
+thanks,
+--=20
+John Hubbard
+NVIDIA
