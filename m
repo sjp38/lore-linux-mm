@@ -1,69 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D5BD86B0025
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 13:07:51 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id v131so2583565wmv.6
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 10:07:51 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b83sor1440244wme.4.2018.03.21.10.07.50
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E95106B0025
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 13:11:03 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id x8-v6so3451451pln.9
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 10:11:03 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z13si2979157pgp.602.2018.03.21.10.11.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Mar 2018 10:07:50 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 21 Mar 2018 10:11:02 -0700 (PDT)
+Date: Wed, 21 Mar 2018 10:10:57 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
+Message-ID: <20180321171057.GD4780@bombadil.infradead.org>
+References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180320173512.GA19669@bombadil.infradead.org>
+ <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake>
+ <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake>
+ <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake>
+ <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-References: <alpine.DEB.2.20.1803171208370.21003@alpaca> <CACT4Y+aLqY6wUfRMto_CZxPRSyvPKxK8ucvAmAY-aR_gq8fOAg@mail.gmail.com>
- <20180319172902.GB37438@google.com> <CACT4Y+Z9xeWvu5XUy_qNTewihuCC1-2a0hZDuymU6PA_3NJ90Q@mail.gmail.com>
- <20180319175457.GC37438@google.com> <CACT4Y+ZsmWyvfcpCtxEUH3YJDDNFUAO=0kyCmJAfv=NXeVGRkA@mail.gmail.com>
-In-Reply-To: <CACT4Y+ZsmWyvfcpCtxEUH3YJDDNFUAO=0kyCmJAfv=NXeVGRkA@mail.gmail.com>
-From: Nick Desaulniers <ndesaulniers@google.com>
-Date: Wed, 21 Mar 2018 17:07:38 +0000
-Message-ID: <CAKwvOd=S=ZqtfWM9RqYN9d_tUeHqhPFyEJoz4jBgXwYBvYJ3DA@mail.gmail.com>
-Subject: Re: clang fails on linux-next since commit 8bf705d13039
-Content-Type: multipart/alternative; boundary="001a11422ca415cc040567ef3b09"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Matthias Kaehlcke <mka@chromium.org>, lukas.bulwahn@gmail.com, Greg Hackmann <ghackmann@google.com>, Luis Lozano <llozano@google.com>, Michael Davidson <md@google.com>, Sami Tolvanen <samitolvanen@google.com>, Paul Lawrence <paullawrence@google.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, kasan-dev <kasan-dev@googlegroups.com>, llvmlinux@lists.linuxfoundation.org, sil2review@lists.osadl.org, manojgupta@chromium.org, Stephen Hines <srhines@google.com>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Christopher Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
---001a11422ca415cc040567ef3b09
-Content-Type: text/plain; charset="UTF-8"
+On Wed, Mar 21, 2018 at 12:25:39PM -0400, Mikulas Patocka wrote:
+> Now - we don't want higher-order allocations for power-of-two caches 
+> (because higher-order allocations just cause memory fragmentation without 
+> any benefit)
 
-On Mon, Mar 19, 2018 at 11:16 AM Dmitry Vyukov <dvyukov@google.com> wrote:
+Higher-order allocations don't cause memory fragmentation.  Indeed,
+they avoid it.  They do fail as a result of fragmentation, which is
+probably what you meant.
 
-> This looks like something that will hit us again and again if we don't
-> fix this in clang.
->
+> , but we want higher-order allocations for non-power-of-two 
+> caches (because higher-order allocations minimize wasted space).
+> 
+> For example:
+> for 192K block size, the ideal order is 4MB (it takes 21 blocks)
 
-I agree.  I'll bring it up with some our coworkers who hack on the
-integrated assembler.
+I wonder if that's true.  You can get five blocks into 1MB, wasting 64kB.
+So going up by two orders of magnitude lets you get an extra block in
+at the cost of failing more frequently.
 
--- 
-Thanks,
-~Nick Desaulniers
+> > You should not be using the slab allocators for these. Allocate higher
+> > order pages or numbers of consecutive smaller pagess from the page
+> > allocator. The slab allocators are written for objects smaller than page
+> > size.
+> 
+> So, do you argue that I need to write my own slab cache functionality 
+> instead of using the existing slab code?
+> 
+> I can do it - but duplicating code is bad thing.
 
---001a11422ca415cc040567ef3b09
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+It is -- but writing a special-purpose allocator can be better than making
+a general purpose allocator also solve a special purpose.  I don't know
+whether that's true here or not.
 
-<div dir=3D"ltr"><div class=3D"gmail_quote"><div dir=3D"ltr">On Mon, Mar 19=
-, 2018 at 11:16 AM Dmitry Vyukov &lt;<a href=3D"mailto:dvyukov@google.com">=
-dvyukov@google.com</a>&gt; wrote:</div><blockquote class=3D"gmail_quote" st=
-yle=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
-This looks like something that will hit us again and again if we don&#39;t<=
-br>
-fix this in clang.<br>
-</blockquote></div><br clear=3D"all"><div><span style=3D"color:rgb(34,34,34=
-);font-family:sans-serif;font-size:13px;font-style:normal;font-variant-liga=
-tures:normal;font-variant-caps:normal;font-weight:400;letter-spacing:normal=
-;text-align:start;text-indent:0px;text-transform:none;white-space:normal;wo=
-rd-spacing:0px;background-color:rgb(255,255,255);text-decoration-style:init=
-ial;text-decoration-color:initial;float:none;display:inline">I agree.=C2=A0=
- I&#39;ll bring it up with some our coworkers who hack on the integrated as=
-sembler.</span><br style=3D"color:rgb(34,34,34);font-family:sans-serif;font=
--size:13px;font-style:normal;font-variant-ligatures:normal;font-variant-cap=
-s:normal;font-weight:400;letter-spacing:normal;text-align:start;text-indent=
-:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoratio=
-n-style:initial;text-decoration-color:initial"><br></div>-- <br><div dir=3D=
-"ltr" class=3D"gmail_signature" data-smartmail=3D"gmail_signature"><div dir=
-=3D"ltr">Thanks,<div>~Nick Desaulniers</div></div></div></div>
+Your allocator seems like it could be remarkably simple; you know
+you're always doing high-order allocations, and you know that you're
+never allocating more than a handful of blocks from a page allocation.
+So you can probably store all of your metadata in the struct page
+(because your metadata is basically a bitmap) and significantly save on
+memory usage.  The one downside I see is that you don't get the reporting
+through /proc/slabinfo.
 
---001a11422ca415cc040567ef3b09--
+So, is this an area where slub should be improved, or is this a case where
+writing a special-purpose allocator makes more sense?  It seems like you
+already have a special-purpose allocator, in that you know how to fall
+back to vmalloc if slab-alloc fails.  So maybe have your own allocator
+that interfaces to the page allocator for now; keep its interface nice
+and clean, and maybe it'll get pulled out of your driver and put into mm/
+some day if it becomes a useful API for everybody to share?
