@@ -1,92 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4923B6B0012
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 14:42:46 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id x69-v6so3091854oia.21
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:42:46 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m110-v6sor2071036otc.155.2018.03.21.11.42.45
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0935D6B0012
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 14:55:27 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id e205so3670266qkb.8
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:55:27 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id j19si5151013qtf.343.2018.03.21.11.55.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Mar 2018 11:42:45 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Mar 2018 11:55:26 -0700 (PDT)
+Date: Wed, 21 Mar 2018 14:55:21 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.DEB.2.20.1803211335240.13978@nuc-kabylake>
+Message-ID: <alpine.LRH.2.02.1803211443070.26409@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake> <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake> <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake> <alpine.DEB.2.20.1803211233290.3384@nuc-kabylake> <20180321174937.GF4780@bombadil.infradead.org> <alpine.LRH.2.02.1803211406180.26409@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211335240.13978@nuc-kabylake>
 MIME-Version: 1.0
-In-Reply-To: <20180321161314.7711-1-mike.kravetz@oracle.com>
-References: <0d24f817-303a-7b4d-4603-b2d14e4b391a@oracle.com> <20180321161314.7711-1-mike.kravetz@oracle.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 21 Mar 2018 11:42:44 -0700
-Message-ID: <CAPcyv4g9Gbz00YZEX=25eZ8TEBvhmcTO-ZBamvZRqN-LPZmk5Q@mail.gmail.com>
-Subject: Re: [PATCH v2] shm: add split function to shm_vm_ops
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, stable <stable@vger.kernel.org>
+To: Christopher Lameter <cl@linux.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
-On Wed, Mar 21, 2018 at 9:13 AM, Mike Kravetz <mike.kravetz@oracle.com> wrote:
->
-> If System V shmget/shmat operations are used to create a hugetlbfs
-> backed mapping, it is possible to munmap part of the mapping and
-> split the underlying vma such that it is not huge page aligned.
-> This will untimately result in the following BUG:
->
-> kernel BUG at /build/linux-jWa1Fv/linux-4.15.0/mm/hugetlb.c:3310!
-> Oops: Exception in kernel mode, sig: 5 [#1]
-> LE SMP NR_CPUS=2048 NUMA PowerNV
-> Modules linked in: kcm nfc af_alg caif_socket caif phonet fcrypt
->                 8<--8<--8<--8< snip 8<--8<--8<--8<
-> CPU: 18 PID: 43243 Comm: trinity-subchil Tainted: G         C  E
-> 4.15.0-10-generic #11-Ubuntu
-> NIP:  c00000000036e764 LR: c00000000036ee48 CTR: 0000000000000009
-> REGS: c000003fbcdcf810 TRAP: 0700   Tainted: G         C  E
-> (4.15.0-10-generic)
-> MSR:  9000000000029033 <SF,HV,EE,ME,IR,DR,RI,LE>  CR: 24002222  XER:
-> 20040000
-> CFAR: c00000000036ee44 SOFTE: 1
-> GPR00: c00000000036ee48 c000003fbcdcfa90 c0000000016ea600 c000003fbcdcfc40
-> GPR04: c000003fd9858950 00007115e4e00000 00007115e4e10000 0000000000000000
-> GPR08: 0000000000000010 0000000000010000 0000000000000000 0000000000000000
-> GPR12: 0000000000002000 c000000007a2c600 00000fe3985954d0 00007115e4e00000
-> GPR16: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
-> GPR20: 00000fe398595a94 000000000000a6fc c000003fd9858950 0000000000018554
-> GPR24: c000003fdcd84500 c0000000019acd00 00007115e4e10000 c000003fbcdcfc40
-> GPR28: 0000000000200000 00007115e4e00000 c000003fbc9ac600 c000003fd9858950
-> NIP [c00000000036e764] __unmap_hugepage_range+0xa4/0x760
-> LR [c00000000036ee48] __unmap_hugepage_range_final+0x28/0x50
-> Call Trace:
-> [c000003fbcdcfa90] [00007115e4e00000] 0x7115e4e00000 (unreliable)
-> [c000003fbcdcfb50] [c00000000036ee48]
-> __unmap_hugepage_range_final+0x28/0x50
-> [c000003fbcdcfb80] [c00000000033497c] unmap_single_vma+0x11c/0x190
-> [c000003fbcdcfbd0] [c000000000334e14] unmap_vmas+0x94/0x140
-> [c000003fbcdcfc20] [c00000000034265c] exit_mmap+0x9c/0x1d0
-> [c000003fbcdcfce0] [c000000000105448] mmput+0xa8/0x1d0
-> [c000003fbcdcfd10] [c00000000010fad0] do_exit+0x360/0xc80
-> [c000003fbcdcfdd0] [c0000000001104c0] do_group_exit+0x60/0x100
-> [c000003fbcdcfe10] [c000000000110584] SyS_exit_group+0x24/0x30
-> [c000003fbcdcfe30] [c00000000000b184] system_call+0x58/0x6c
-> Instruction dump:
-> 552907fe e94a0028 e94a0408 eb2a0018 81590008 7f9c5036 0b090000 e9390010
-> 7d2948f8 7d2a2838 0b0a0000 7d293038 <0b090000> e9230086 2fa90000 419e0468
-> ---[ end trace ee88f958a1c62605 ]---
->
-> This bug was introduced by commit 31383c6865a5 ("mm, hugetlbfs:
-> introduce ->split() to vm_operations_struct").  A split function
-> was added to vm_operations_struct to determine if a mapping can
-> be split.  This was mostly for device-dax and hugetlbfs mappings
-> which have specific alignment constraints.
->
-> Mappings initiated via shmget/shmat have their original vm_ops
-> overwritten with shm_vm_ops.  shm_vm_ops functions will call back
-> to the original vm_ops if needed.  Add such a split function to
-> shm_vm_ops.
->
-> Fixes: 31383c6865a5 ("mm, hugetlbfs: introduce ->split() to vm_operations_struct")
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> Reported by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> Tested-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Cc: stable@vger.kernel.org
 
-Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 
-...don't worry about resending if this has already hit a maintainer tree.
+On Wed, 21 Mar 2018, Christopher Lameter wrote:
+
+> On Wed, 21 Mar 2018, Mikulas Patocka wrote:
+> 
+> > > > F.e. you could optimize the allcations > 2x PAGE_SIZE so that they do not
+> > > > allocate powers of two pages. It would be relatively easy to make
+> > > > kmalloc_large round the allocation to the next page size and then allocate
+> > > > N consecutive pages via alloc_pages_exact() and free the remainder unused
+> > > > pages or some such thing.
+> >
+> > alloc_pages_exact() has O(n*log n) complexity with respect to the number
+> > of requested pages. It would have to be reworked and optimized if it were
+> > to be used for the dm-bufio cache. (it could be optimized down to O(log n)
+> > if it didn't split the compound page to a lot of separate pages, but split
+> > it to a power-of-two clusters instead).
+> 
+> Well then a memory pool of page allocator requests may address that issue?
+> 
+> Have a look at include/linux/mempool.h.
+
+I know the mempool interface. Mempool can keep some amount reserved 
+objects if the system memory is exhausted.
+
+Mempool doesn't deal with object allocation at all - mempool needs to be 
+hooked to an existing object allocator (slab cache, kmalloc, alloc_pages, 
+or some custom allocator provided with the methods mempool_alloc_t and 
+mempool_free_t).
+
+> > > I don't know if that's a good idea.  That will contribute to fragmentation
+> > > if the allocation is held onto for a short-to-medium length of time.
+> > > If the allocation is for a very long period of time then those pages
+> > > would have been unavailable anyway, but if the user of the tail pages
+> > > holds them beyond the lifetime of the large allocation, then this is
+> > > probably a bad tradeoff to make.
+> 
+> Fragmentation is sadly a big issue. You could create a mempool on bootup
+> or early after boot to ensure that you have a sufficient number of
+> contiguous pages available.
+
+The dm-bufio driver deals correctly with this - it preallocates several 
+buffers with vmalloc when the dm-bufio cache is created. During operation, 
+if a high-order allocation fails, the dm-bufio subsystem throws away some 
+existing buffer and reuses the already allocated chunk of memory for the 
+buffer that needs to be created.
+
+So, fragmentation is not an issue with this use case. dm-bufio can make 
+forward progress even if memory is totally exhausted.
+
+> > The problem with alloc_pages_exact() is that it exhausts all the
+> > high-order pages and leaves many free low-order pages around. So you'll
+> > end up in a system with a lot of free memory, but with all high-order
+> > pages missing. As there would be a lot of free memory, the kswapd thread
+> > would not be woken up to free some high-order pages.
+> 
+> I think that logic is properly balanced and will take into account pages
+> that have been removed from the LRU expiration logic.
+> 
+> > I think that using slab with high order is better, because it at least
+> > doesn't leave many low-order pages behind.
+> 
+> Any request to the slab via kmalloc with a size > 2x page size will simply
+> lead to a page allocator request. You have the same issue. If you want to
+> rely on the slab allocator buffering large segments for you then a mempool
+> will also solve the issue for you and you have more control over the pool.
+
+mempool solves nothing because it needs a backing allocator. And the 
+question is what this backing allocator should be.
+
+> > BTW. it could be possible to open the file
+> > "/sys/kernel/slab/<cache>/order" from the dm-bufio kernel driver and write
+> > the requested value there, but it seems very dirty. It would be better to
+> > have a kernel interface for that.
+> 
+> Hehehe you could directly write to the kmem_cache structure and increase
+> the order. AFAICT this would be dirty but work.
+> 
+> But still the increased page order will get you into trouble with
+> fragmentation when the system runs for a long time. That is the reason we
+> try to limit the allocation sizes coming from the slab allocator.
+
+It won't - see above - if the high-order allocation fails, dm-bufio just 
+reuses some existing buffer.
+
+Mikulas
