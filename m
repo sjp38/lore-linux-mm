@@ -1,108 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E67716B0012
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:31:42 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id y19so2619348pgv.18
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:31:42 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id b59-v6si810650plb.530.2018.03.21.09.31.41
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 39C686B0012
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:42:46 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v3so2900143pfm.21
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:42:46 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0105.outbound.protection.outlook.com. [104.47.2.105])
+        by mx.google.com with ESMTPS id 31-v6si4157282plz.176.2018.03.21.09.42.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 09:31:41 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
-References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
- <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
- <20180321130833.GM23100@dhcp22.suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <f88deb20-bcce-939f-53a6-1061c39a9f6c@linux.alibaba.com>
-Date: Wed, 21 Mar 2018 09:31:22 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 21 Mar 2018 09:42:44 -0700 (PDT)
+Subject: Re: [PATCH 03/10] mm: Assign memcg-aware shrinkers bitmap to memcg
+References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
+ <152163850081.21546.6969747084834474733.stgit@localhost.localdomain>
+ <20180321145625.GA4780@bombadil.infradead.org>
+ <eda62454-5788-4f65-c2b5-719d4a98cb2a@virtuozzo.com>
+ <20180321152647.GB4780@bombadil.infradead.org>
+ <638887a1-35f8-a71d-6e45-4e779eb62dc4@virtuozzo.com>
+ <20180321162039.GC4780@bombadil.infradead.org>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <d738c32f-78fd-7e95-803d-2c48594d14e2@virtuozzo.com>
+Date: Wed, 21 Mar 2018 19:42:38 +0300
 MIME-Version: 1.0
-In-Reply-To: <20180321130833.GM23100@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180321162039.GC4780@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
-
-On 3/21/18 6:08 AM, Michal Hocko wrote:
-> On Wed 21-03-18 05:31:19, Yang Shi wrote:
->> When running some mmap/munmap scalability tests with large memory (i.e.
->>> 300GB), the below hung task issue may happen occasionally.
->> INFO: task ps:14018 blocked for more than 120 seconds.
->>         Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->>   "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
->> message.
->>   ps              D    0 14018      1 0x00000004
->>    ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->>    ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->>    00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->>   Call Trace:
->>    [<ffffffff817154d0>] ? __schedule+0x250/0x730
->>    [<ffffffff817159e6>] schedule+0x36/0x80
->>    [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->>    [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->>    [<ffffffff81717db0>] down_read+0x20/0x40
->>    [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
->>    [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
->>    [<ffffffff81241d87>] __vfs_read+0x37/0x150
->>    [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
->>    [<ffffffff81242266>] vfs_read+0x96/0x130
->>    [<ffffffff812437b5>] SyS_read+0x55/0xc0
->>    [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+On 21.03.2018 19:20, Matthew Wilcox wrote:
+> On Wed, Mar 21, 2018 at 06:43:01PM +0300, Kirill Tkhai wrote:
+>> On 21.03.2018 18:26, Matthew Wilcox wrote:
+>>> On Wed, Mar 21, 2018 at 06:12:17PM +0300, Kirill Tkhai wrote:
+>>>> On 21.03.2018 17:56, Matthew Wilcox wrote:
+>>>>> Why use your own bitmap here?  Why not use an IDA which can grow and
+>>>>> shrink automatically without you needing to play fun games with RCU?
+>>>>
+>>>> Bitmap allows to use unlocked set_bit()/clear_bit() to maintain the map
+>>>> of not empty shrinkers.
+>>>>
+>>>> So, the reason to use IDR here is to save bitmap memory? Does this mean
+>>>> IDA works fast with sparse identifiers? It seems they require per-memcg
+>>>> lock to call IDR primitives. I just don't have information about this.
+>>>>
+>>>> If so, which IDA primitive can be used to set particular id in bitmap?
+>>>> There is idr_alloc_cyclic(idr, NULL, id, id+1, GFP_KERNEL) only I see
+>>>> to do that.
+>>>
+>>> You're confusing IDR and IDA in your email, which is unfortunate.
+>>>
+>>> You can set a bit in an IDA by calling ida_simple_get(ida, n, n, GFP_FOO);
+>>> You clear it by calling ida_simple_remove(ida, n);
 >>
->> It is because munmap holds mmap_sem from very beginning to all the way
->> down to the end, and doesn't release it in the middle. When unmapping
->> large mapping, it may take long time (take ~18 seconds to unmap 320GB
->> mapping with every single page mapped on an idle machine).
-> Yes, this definitely sucks. One way to work that around is to split the
-> unmap to two phases. One to drop all the pages. That would only need
-> mmap_sem for read and then tear down the mapping with the mmap_sem for
-> write. This wouldn't help for parallel mmap_sem writers but those really
-> need a different approach (e.g. the range locking).
+>> I moved to IDR in the message, since IDA uses global spinlock. It will be
+>> taken every time a first object is added to list_lru, or last is removed.
+>> These may be frequently called operations, and they may scale not good
+>> on big machines.
+> 
+> I'm fixing the global spinlock issue with the IDA.  Not going to be ready
+> for 4.17, but hopefully for 4.18.
 
-page fault might sneak in to map a page which has been unmapped before?
+It will be nice to see that in kernel.
 
-range locking should help a lot on manipulating small sections of a 
-large mapping in parallel or multiple small mappings. It may not achieve 
-too much for single large mapping.
+>> Using IDR will allow us to introduce memcg-related locks, but I'm still not
+>> sure it's easy to introduce them in scalable-way. Simple set_bit()/clear_bit()
+>> do not require locks at all.
+> 
+> They're locked operations ... they may not have an explicit spinlock
+> associated with them, but the locking still happens.
 
->
->> Since unmapping does't require any atomicity, so here unmap large
-> How come? Could you be more specific why? Once you drop the lock the
-> address space might change under your feet and you might be unmapping a
-> completely different vma. That would require userspace doing nasty
-> things of course (e.g. MAP_FIXED) but I am worried that userspace really
-> depends on mmap/munmap atomicity these days.
+Yes, they are not ideal in this way.
 
-Sorry for the ambiguity. The statement does look misleading. munmap does 
-need certain atomicity, particularly for the below sequence:
+>>> The identifiers aren't going to be all that sparse; after all you're
+>>> allocating them from a global IDA.  Up to 62 identifiers will allocate
+>>> no memory; 63-1024 identifiers will allocate a single 128 byte chunk.
+>>> Between 1025 and 65536 identifiers, you'll allocate a 576-byte chunk
+>>> and then 128-byte chunks for each block of 1024 identifiers (*).  One of
+>>> the big wins with the IDA is that it will shrink again after being used.
+>>> I didn't read all the way through your patchset to see if you bother to
+>>> shrink your bitmap after it's no longer used, but most resizing bitmaps
+>>> we have in the kernel don't bother with that part.
+>>>
+>>> (*) Actually it's more complex than that... between 1025 and 1086,
+>>> you'll have a 576 byte chunk, a 128-byte chunk and then use 62 bits of
+>>> the next pointer before allocating a 128 byte chunk when reaching ID
+>>> 1087.  Similar things happen for the 62 bits after 2048, 3076 and so on.
+>>> The individual chunks aren't shrunk until they're empty so if you set ID
+>>> 1025 and then ID 1100, then clear ID 1100, the 128-byte chunk will remain
+>>> allocated until ID 1025 is cleared.  This probably doesn't matter to you.
+>>
+>> Sound great, thanks for explaining this. The big problem I see is
+>> that IDA/IDR add primitives allocate memory, while they will be used
+>> in the places, where they mustn't fail. There is list_lru_add(), and
+>> it's called unconditionally in current kernel code. The patchset makes
+>> the bitmap be populated in this function. So, we can't use IDR there.
+> 
+> Maybe we can use GFP_NOFAIL here.  They're small allocations, so we're
+> only asking for single-page allocations to not fail, which shouldn't
+> put too much strain on the VM.
+ 
+Oh. I'm not sure about this. Even if each allocation is small, there is
+theoretically possible a situation, when many lists will want to add first
+element. list_lru_add() is called from iput() for example.
 
-splitting vma
-unmap region
-free pagetables
-free vmas
-
-Otherwise it may run into the below race condition:
-
-           CPU A                             CPU B
-        ----------                     ----------
-        do_munmap
-      zap_pmd_range
-        up_write                        do_munmap
-                                             down_write
-                                             ......
-                                             remove_vma_list
-                                             up_write
-       down_write
-      access vmas  <-- use-after-free bug
-
-This is why I do the range unmap in do_munmap() rather than doing it in 
-deeper location, i.e. zap_pmd_range(). I elaborated this in the cover 
-letter.
-
-Thanks,
-Yang
+Kirill
