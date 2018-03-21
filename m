@@ -1,64 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 283BB6B0026
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:04:59 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id 15-v6so2775281oij.6
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 08:04:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k129sor1614464oia.184.2018.03.21.08.04.58
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 68F076B0028
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:05:35 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id b17so2704675wrf.20
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 08:05:35 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id c60si2736055edd.409.2018.03.21.08.05.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Mar 2018 08:04:58 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <3f208ebe-572f-f2f6-003e-5a9cf49bb92f@gmail.com>
-References: <1521619796-3846-1-git-send-email-hejianet@gmail.com>
- <1521619796-3846-2-git-send-email-hejianet@gmail.com> <CACjP9X92M3izDD-1s1vY6n6Hx3mxqNqeM4f+T3RNnBo8kjP4Qg@mail.gmail.com>
- <3f208ebe-572f-f2f6-003e-5a9cf49bb92f@gmail.com>
-From: Daniel Vacek <neelx@redhat.com>
-Date: Wed, 21 Mar 2018 16:04:57 +0100
-Message-ID: <CACjP9X_aU1P78JLhLBXwJHVKwJE7B8x7xruKK=vA8joji-990w@mail.gmail.com>
-Subject: Re: [PATCH 1/4] mm: page_alloc: reduce unnecessary binary search in memblock_next_valid_pfn()
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Mar 2018 08:05:34 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LF3SfK021783
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:05:32 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2gupga1eek-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:05:31 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 21 Mar 2018 15:05:29 -0000
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH] docs/vm: update 00-INDEX
+Date: Wed, 21 Mar 2018 17:05:23 +0200
+Message-Id: <1521644723-19354-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jia He <hejianet@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Jia He <jia.he@hxt-semitech.com>
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Wed, Mar 21, 2018 at 1:28 PM, Jia He <hejianet@gmail.com> wrote:
->
-> On 3/21/2018 6:14 PM, Daniel Vacek Wrote:
->>
->> On Wed, Mar 21, 2018 at 9:09 AM, Jia He <hejianet@gmail.com> wrote:
->>>
->>> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
->>> where possible") optimized the loop in memmap_init_zone(). But there is
->>> still some room for improvement. E.g. if pfn and pfn+1 are in the same
->>> memblock region, we can simply pfn++ instead of doing the binary search
->>> in memblock_next_valid_pfn.
->>
->> There is a
->> revert-mm-page_alloc-skip-over-regions-of-invalid-pfns-where-possible.patch
->> in -mm reverting b92df1de5d289c0b as it is fundamentally wrong by
->> design causing system panics on some machines with rare but still
->> valid mappings. Basically it skips valid pfns which are outside of
->> usable memory ranges (outside of memblock memory regions).
->
-> Thanks for the infomation.
-> quote from you patch description:
->>But given some specific memory mapping on x86_64 (or more generally
->> theoretically anywhere but on arm with CONFIG_HAVE_ARCH_PFN_VALID) > the
->> implementation also skips valid pfns which is plain wrong and causes >
->> 'kernel BUG at mm/page_alloc.c:1389!'
->
-> Do you think memblock_next_valid_pfn can remain to be not reverted on arm64
-> with CONFIG_HAVE_ARCH_PFN_VALID? Arm64 can benefit from this optimization.
+Several files were added to Documentation/vm without updates to 00-INDEX.
+Fill in the missing documents
 
-I guess this is a question for maintainers. I am really not sure about
-arm(64) but if this function is correct at least for arm(64) with arch
-pfn_valid(), which is likely, then I'd say it should be moved
-somewhere to arch/arm{,64}/mm/ (init.c maybe?) and #ifdefed properly.
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+ Documentation/vm/00-INDEX | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
 
-Ard?
-
-> Cheers,
-> Jia
+diff --git a/Documentation/vm/00-INDEX b/Documentation/vm/00-INDEX
+index 11d3d8d..0278f2c 100644
+--- a/Documentation/vm/00-INDEX
++++ b/Documentation/vm/00-INDEX
+@@ -10,6 +10,8 @@ frontswap.txt
+ 	- Outline frontswap, part of the transcendent memory frontend.
+ highmem.txt
+ 	- Outline of highmem and common issues.
++hmm.txt
++	- Documentation of heterogeneous memory management
+ hugetlbpage.txt
+ 	- a brief summary of hugetlbpage support in the Linux kernel.
+ hugetlbfs_reserv.txt
+@@ -20,25 +22,41 @@ idle_page_tracking.txt
+ 	- description of the idle page tracking feature.
+ ksm.txt
+ 	- how to use the Kernel Samepage Merging feature.
++mmu_notifier.txt
++	- a note about clearing pte/pmd and mmu notifications
+ numa
+ 	- information about NUMA specific code in the Linux vm.
+ numa_memory_policy.txt
+ 	- documentation of concepts and APIs of the 2.6 memory policy support.
+ overcommit-accounting
+ 	- description of the Linux kernels overcommit handling modes.
++page_frags
++	- description of page fragments allocator
+ page_migration
+ 	- description of page migration in NUMA systems.
+ pagemap.txt
+ 	- pagemap, from the userspace perspective
++page_owner.txt
++	- tracking about who allocated each page
++remap_file_pages.txt
++	- a note about remap_file_pages() system call
+ slub.txt
+ 	- a short users guide for SLUB.
+ soft-dirty.txt
+ 	- short explanation for soft-dirty PTEs
+ split_page_table_lock
+ 	- Separate per-table lock to improve scalability of the old page_table_lock.
++swap_numa.txt
++	- automatic binding of swap device to numa node
+ transhuge.txt
+ 	- Transparent Hugepage Support, alternative way of using hugepages.
+ unevictable-lru.txt
+ 	- Unevictable LRU infrastructure
++userfaultfd.txt
++	- description of userfaultfd system call
++z3fold.txt
++	- outline of z3fold allocator for storing compressed pages
++zsmalloc.txt
++	- outline of zsmalloc allocator for storing compressed pages
+ zswap.txt
+ 	- Intro to compressed cache for swap pages
+-- 
+2.7.4
