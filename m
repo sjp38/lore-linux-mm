@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E7BD96B0026
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:23 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id j3so2968341wrb.18
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:23:23 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id n1si252024edc.511.2018.03.21.12.23.21
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E6FC26B0028
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:26 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id c4so3941817qtm.4
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:23:26 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s129si5876587qkb.267.2018.03.21.12.23.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 12:23:22 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LJJXCR022643
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:20 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2gusvyaf35-1
+        Wed, 21 Mar 2018 12:23:25 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LJN3Tb119131
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:24 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2gut67sccs-1
 	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:20 -0400
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:24 -0400
 Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 21 Mar 2018 19:23:17 -0000
+	Wed, 21 Mar 2018 19:23:21 -0000
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 03/32] docs/vm: cleancache.txt: convert to ReST format
-Date: Wed, 21 Mar 2018 21:22:19 +0200
+Subject: [PATCH 04/32] docs/vm: frontswap.txt: convert to ReST format
+Date: Wed, 21 Mar 2018 21:22:20 +0200
 In-Reply-To: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1521660168-14372-4-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1521660168-14372-5-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jonathan Corbet <corbet@lwn.net>
@@ -33,206 +33,137 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Richard Henderson <rth@twiddle.ne
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- Documentation/vm/cleancache.txt | 105 ++++++++++++++++++++++++----------------
- 1 file changed, 62 insertions(+), 43 deletions(-)
+ Documentation/vm/frontswap.txt | 59 ++++++++++++++++++++++++++----------------
+ 1 file changed, 37 insertions(+), 22 deletions(-)
 
-diff --git a/Documentation/vm/cleancache.txt b/Documentation/vm/cleancache.txt
-index e4b49df..68cba91 100644
---- a/Documentation/vm/cleancache.txt
-+++ b/Documentation/vm/cleancache.txt
-@@ -1,4 +1,11 @@
--MOTIVATION
-+.. _cleancache:
+diff --git a/Documentation/vm/frontswap.txt b/Documentation/vm/frontswap.txt
+index c71a019..1979f43 100644
+--- a/Documentation/vm/frontswap.txt
++++ b/Documentation/vm/frontswap.txt
+@@ -1,13 +1,20 @@
++.. _frontswap:
 +
-+==========
-+Cleancache
-+==========
++=========
++Frontswap
++=========
 +
-+Motivation
-+==========
+ Frontswap provides a "transcendent memory" interface for swap pages.
+ In some environments, dramatic performance savings may be obtained because
+ swapped pages are saved in RAM (or a RAM-like device) instead of a swap disk.
  
- Cleancache is a new optional feature provided by the VFS layer that
- potentially dramatically increases page cache effectiveness for
-@@ -21,9 +28,10 @@ Transcendent memory "drivers" for cleancache are currently implemented
- in Xen (using hypervisor memory) and zcache (using in-kernel compressed
- memory) and other implementations are in development.
- 
--FAQs are included below.
-+:ref:`FAQs <faq>` are included below.
- 
--IMPLEMENTATION OVERVIEW
-+Implementation Overview
-+=======================
- 
- A cleancache "backend" that provides transcendent memory registers itself
- to the kernel's cleancache "frontend" by calling cleancache_register_ops,
-@@ -80,22 +88,33 @@ different Linux threads are simultaneously putting and invalidating a page
- with the same handle, the results are indeterminate.  Callers must
- lock the page to ensure serial behavior.
- 
--CLEANCACHE PERFORMANCE METRICS
-+Cleancache Performance Metrics
-+==============================
- 
- If properly configured, monitoring of cleancache is done via debugfs in
--the /sys/kernel/debug/cleancache directory.  The effectiveness of cleancache
-+the `/sys/kernel/debug/cleancache` directory.  The effectiveness of cleancache
- can be measured (across all filesystems) with:
- 
--succ_gets	- number of gets that were successful
--failed_gets	- number of gets that failed
--puts		- number of puts attempted (all "succeed")
--invalidates	- number of invalidates attempted
-+``succ_gets``
-+	number of gets that were successful
+-(Note, frontswap -- and cleancache (merged at 3.0) -- are the "frontends"
++(Note, frontswap -- and :ref:`cleancache` (merged at 3.0) -- are the "frontends"
+ and the only necessary changes to the core kernel for transcendent memory;
+ all other supporting code -- the "backends" -- is implemented as drivers.
+-See the LWN.net article "Transcendent memory in a nutshell" for a detailed
+-overview of frontswap and related kernel parts:
+-https://lwn.net/Articles/454795/ )
++See the LWN.net article `Transcendent memory in a nutshell`_
++for a detailed overview of frontswap and related kernel parts)
 +
-+``failed_gets``
-+	number of gets that failed
++.. _Transcendent memory in a nutshell: https://lwn.net/Articles/454795/
+ 
+ Frontswap is so named because it can be thought of as the opposite of
+ a "backing" store for a swap device.  The storage is assumed to be
+@@ -50,19 +57,27 @@ or the store fails AND the page is invalidated.  This ensures stale data may
+ never be obtained from frontswap.
+ 
+ If properly configured, monitoring of frontswap is done via debugfs in
+-the /sys/kernel/debug/frontswap directory.  The effectiveness of
++the `/sys/kernel/debug/frontswap` directory.  The effectiveness of
+ frontswap can be measured (across all swap devices) with:
+ 
+-failed_stores	- how many store attempts have failed
+-loads		- how many loads were attempted (all should succeed)
+-succ_stores	- how many store attempts have succeeded
+-invalidates	- how many invalidates were attempted
++``failed_stores``
++	how many store attempts have failed
 +
-+``puts``
-+	number of puts attempted (all "succeed")
++``loads``
++	how many loads were attempted (all should succeed)
++
++``succ_stores``
++	how many store attempts have succeeded
 +
 +``invalidates``
-+	number of invalidates attempted
++	how many invalidates were attempted
  
  A backend implementation may provide additional metrics.
  
-+.. _faq:
-+
  FAQ
 +===
  
--1) Where's the value? (Andrew Morton)
-+* Where's the value? (Andrew Morton)
+-1) Where's the value?
++* Where's the value?
  
- Cleancache provides a significant performance benefit to many workloads
- in many environments with negligible overhead by improving the
-@@ -137,8 +156,8 @@ device that stores pages of data in a compressed state.  And
- the proposed "RAMster" driver shares RAM across multiple physical
- systems.
+ When a workload starts swapping, performance falls through the floor.
+ Frontswap significantly increases performance in many such workloads by
+@@ -117,8 +132,8 @@ A KVM implementation is underway and has been RFC'ed to lkml.  And,
+ using frontswap, investigation is also underway on the use of NVM as
+ a memory extension technology.
  
--2) Why does cleancache have its sticky fingers so deep inside the
--   filesystems and VFS? (Andrew Morton and Christoph Hellwig)
-+* Why does cleancache have its sticky fingers so deep inside the
-+  filesystems and VFS? (Andrew Morton and Christoph Hellwig)
+-2) Sure there may be performance advantages in some situations, but
+-   what's the space/time overhead of frontswap?
++* Sure there may be performance advantages in some situations, but
++  what's the space/time overhead of frontswap?
  
- The core hooks for cleancache in VFS are in most cases a single line
- and the minimum set are placed precisely where needed to maintain
-@@ -168,9 +187,9 @@ filesystems in the future.
- The total impact of the hooks to existing fs and mm files is only
- about 40 lines added (not counting comments and blank lines).
+ If CONFIG_FRONTSWAP is disabled, every frontswap hook compiles into
+ nothingness and the only overhead is a few extra bytes per swapon'ed
+@@ -148,8 +163,8 @@ pressure that can potentially outweigh the other advantages.  A
+ backend, such as zcache, must implement policies to carefully (but
+ dynamically) manage memory limits to ensure this doesn't happen.
  
--3) Why not make cleancache asynchronous and batched so it can
--   more easily interface with real devices with DMA instead
--   of copying each individual page? (Minchan Kim)
-+* Why not make cleancache asynchronous and batched so it can more
-+  easily interface with real devices with DMA instead of copying each
-+  individual page? (Minchan Kim)
+-3) OK, how about a quick overview of what this frontswap patch does
+-   in terms that a kernel hacker can grok?
++* OK, how about a quick overview of what this frontswap patch does
++  in terms that a kernel hacker can grok?
  
- The one-page-at-a-time copy semantics simplifies the implementation
- on both the frontend and backend and also allows the backend to
-@@ -182,8 +201,8 @@ are avoided.  While the interface seems odd for a "real device"
- or for real kernel-addressable RAM, it makes perfect sense for
- transcendent memory.
+ Let's assume that a frontswap "backend" has registered during
+ kernel initialization; this registration indicates that this
+@@ -188,9 +203,9 @@ and (potentially) a swap device write are replaced by a "frontswap backend
+ store" and (possibly) a "frontswap backend loads", which are presumably much
+ faster.
  
--4) Why is non-shared cleancache "exclusive"?  And where is the
--   page "invalidated" after a "get"? (Minchan Kim)
-+* Why is non-shared cleancache "exclusive"?  And where is the
-+  page "invalidated" after a "get"? (Minchan Kim)
+-4) Can't frontswap be configured as a "special" swap device that is
+-   just higher priority than any real swap device (e.g. like zswap,
+-   or maybe swap-over-nbd/NFS)?
++* Can't frontswap be configured as a "special" swap device that is
++  just higher priority than any real swap device (e.g. like zswap,
++  or maybe swap-over-nbd/NFS)?
  
- The main reason is to free up space in transcendent memory and
- to avoid unnecessary cleancache_invalidate calls.  If you want inclusive,
-@@ -193,7 +212,7 @@ be easily extended to add a "get_no_invalidate" call.
+ No.  First, the existing swap subsystem doesn't allow for any kind of
+ swap hierarchy.  Perhaps it could be rewritten to accommodate a hierarchy,
+@@ -240,9 +255,9 @@ installation, frontswap is useless.  Swapless portable devices
+ can still use frontswap but a backend for such devices must configure
+ some kind of "ghost" swap device and ensure that it is never used.
  
- The invalidate is done by the cleancache backend implementation.
+-5) Why this weird definition about "duplicate stores"?  If a page
+-   has been previously successfully stored, can't it always be
+-   successfully overwritten?
++* Why this weird definition about "duplicate stores"?  If a page
++  has been previously successfully stored, can't it always be
++  successfully overwritten?
  
--5) What's the performance impact?
-+* What's the performance impact?
+ Nearly always it can, but no, sometimes it cannot.  Consider an example
+ where data is compressed and the original 4K page has been compressed
+@@ -254,7 +269,7 @@ the old data and ensure that it is no longer accessible.  Since the
+ swap subsystem then writes the new data to the read swap device,
+ this is the correct course of action to ensure coherency.
  
- Performance analysis has been presented at OLS'09 and LCA'10.
- Briefly, performance gains can be significant on most workloads,
-@@ -206,7 +225,7 @@ single-core systems with slow memory-copy speeds, cleancache
- has little value, but in newer multicore machines, especially
- consolidated/virtualized machines, it has great value.
+-6) What is frontswap_shrink for?
++* What is frontswap_shrink for?
  
--6) How do I add cleancache support for filesystem X? (Boaz Harrash)
-+* How do I add cleancache support for filesystem X? (Boaz Harrash)
+ When the (non-frontswap) swap subsystem swaps out a page to a real
+ swap device, that page is only taking up low-value pre-allocated disk
+@@ -267,7 +282,7 @@ to "repatriate" pages sent to a remote machine back to the local machine;
+ this is driven using the frontswap_shrink mechanism when memory pressure
+ subsides.
  
- Filesystems that are well-behaved and conform to certain
- restrictions can utilize cleancache simply by making a call to
-@@ -217,26 +236,26 @@ not enable the optional cleancache.
+-7) Why does the frontswap patch create the new include file swapfile.h?
++* Why does the frontswap patch create the new include file swapfile.h?
  
- Some points for a filesystem to consider:
- 
--- The FS should be block-device-based (e.g. a ram-based FS such
--  as tmpfs should not enable cleancache)
--- To ensure coherency/correctness, the FS must ensure that all
--  file removal or truncation operations either go through VFS or
--  add hooks to do the equivalent cleancache "invalidate" operations
--- To ensure coherency/correctness, either inode numbers must
--  be unique across the lifetime of the on-disk file OR the
--  FS must provide an "encode_fh" function.
--- The FS must call the VFS superblock alloc and deactivate routines
--  or add hooks to do the equivalent cleancache calls done there.
--- To maximize performance, all pages fetched from the FS should
--  go through the do_mpag_readpage routine or the FS should add
--  hooks to do the equivalent (cf. btrfs)
--- Currently, the FS blocksize must be the same as PAGESIZE.  This
--  is not an architectural restriction, but no backends currently
--  support anything different.
--- A clustered FS should invoke the "shared_init_fs" cleancache
--  hook to get best performance for some backends.
--
--7) Why not use the KVA of the inode as the key? (Christoph Hellwig)
-+  - The FS should be block-device-based (e.g. a ram-based FS such
-+    as tmpfs should not enable cleancache)
-+  - To ensure coherency/correctness, the FS must ensure that all
-+    file removal or truncation operations either go through VFS or
-+    add hooks to do the equivalent cleancache "invalidate" operations
-+  - To ensure coherency/correctness, either inode numbers must
-+    be unique across the lifetime of the on-disk file OR the
-+    FS must provide an "encode_fh" function.
-+  - The FS must call the VFS superblock alloc and deactivate routines
-+    or add hooks to do the equivalent cleancache calls done there.
-+  - To maximize performance, all pages fetched from the FS should
-+    go through the do_mpag_readpage routine or the FS should add
-+    hooks to do the equivalent (cf. btrfs)
-+  - Currently, the FS blocksize must be the same as PAGESIZE.  This
-+    is not an architectural restriction, but no backends currently
-+    support anything different.
-+  - A clustered FS should invoke the "shared_init_fs" cleancache
-+    hook to get best performance for some backends.
-+
-+* Why not use the KVA of the inode as the key? (Christoph Hellwig)
- 
- If cleancache would use the inode virtual address instead of
- inode/filehandle, the pool id could be eliminated.  But, this
-@@ -251,7 +270,7 @@ of cleancache would be lost because the cache of pages in cleanache
- is potentially much larger than the kernel pagecache and is most
- useful if the pages survive inode cache removal.
- 
--8) Why is a global variable required?
-+* Why is a global variable required?
- 
- The cleancache_enabled flag is checked in all of the frequently-used
- cleancache hooks.  The alternative is a function call to check a static
-@@ -262,14 +281,14 @@ global variable allows cleancache to be enabled by default at compile
- time, but have insignificant performance impact when cleancache remains
- disabled at runtime.
- 
--9) Does cleanache work with KVM?
-+* Does cleanache work with KVM?
- 
- The memory model of KVM is sufficiently different that a cleancache
- backend may have less value for KVM.  This remains to be tested,
- especially in an overcommitted system.
- 
--10) Does cleancache work in userspace?  It sounds useful for
--   memory hungry caches like web browsers.  (Jamie Lokier)
-+* Does cleancache work in userspace?  It sounds useful for
-+  memory hungry caches like web browsers.  (Jamie Lokier)
- 
- No plans yet, though we agree it sounds useful, at least for
- apps that bypass the page cache (e.g. O_DIRECT).
+ The frontswap code depends on some swap-subsystem-internal data
+ structures that have, over the years, moved back and forth between
 -- 
 2.7.4
