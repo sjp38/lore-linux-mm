@@ -1,120 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CFFE56B0006
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 01:24:36 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id g203so2455337qkb.3
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 22:24:36 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id d129si2402566qkb.161.2018.03.20.22.24.35
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A1106B0006
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 01:59:18 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id e19-v6so2310174otf.9
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2018 22:59:18 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b189sor1142041oia.287.2018.03.20.22.59.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Mar 2018 22:24:35 -0700 (PDT)
-Subject: Re: [PATCH 10/15] mm/hmm: do not differentiate between empty entry or
- missing directory v2
-References: <20180320020038.3360-1-jglisse@redhat.com>
- <20180320020038.3360-11-jglisse@redhat.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <4b0da5bb-4e44-798c-f4dd-cabc93cfeb99@nvidia.com>
-Date: Tue, 20 Mar 2018 22:24:34 -0700
+        (Google Transport Security);
+        Tue, 20 Mar 2018 22:59:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180320020038.3360-11-jglisse@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20180321045353.GC28705@intel.com>
+References: <20180320085452.24641-1-aaron.lu@intel.com> <20180320085452.24641-3-aaron.lu@intel.com>
+ <CAF7GXvovKsabDw88icK5c5xBqg6g0TomQdspfi4ikjtbg=XzGQ@mail.gmail.com>
+ <20180321015944.GB28705@intel.com> <CAF7GXvrQG0+iPu8h13coo2QW7WxNhjHA1JAaOYoEBBB9-obRSQ@mail.gmail.com>
+ <20180321045353.GC28705@intel.com>
+From: "Figo.zhang" <figo1802@gmail.com>
+Date: Tue, 20 Mar 2018 22:59:16 -0700
+Message-ID: <CAF7GXvpzZassTEebX7nS0u_xynns=mxEF28rPBhXX9Yp4xQ3hw@mail.gmail.com>
+Subject: Re: [RFC PATCH v2 2/4] mm/__free_one_page: skip merge for order-0
+ page unless compaction failed
+Content-Type: multipart/alternative; boundary="001a113d24a831f16c0567e5e4be"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On 03/19/2018 07:00 PM, jglisse@redhat.com wrote:
-> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->=20
-> There is no point in differentiating between a range for which there
-> is not even a directory (and thus entries) and empty entry (pte_none()
-> or pmd_none() returns true).
->=20
-> Simply drop the distinction ie remove HMM_PFN_EMPTY flag and merge now
-> duplicate hmm_vma_walk_hole() and hmm_vma_walk_clear() functions.
->=20
-> Changed since v1:
->   - Improved comments
->=20
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: Mark Hairgrove <mhairgrove@nvidia.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> ---
->  include/linux/hmm.h |  8 +++-----
->  mm/hmm.c            | 45 +++++++++++++++------------------------------
->  2 files changed, 18 insertions(+), 35 deletions(-)
->=20
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 54d684fe3b90..cf283db22106 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -84,7 +84,6 @@ struct hmm;
->   * HMM_PFN_VALID: pfn is valid. It has, at least, read permission.
->   * HMM_PFN_WRITE: CPU page table has write permission set
->   * HMM_PFN_ERROR: corresponding CPU page table entry points to poisoned =
-memory
-> - * HMM_PFN_EMPTY: corresponding CPU page table entry is pte_none()
->   * HMM_PFN_SPECIAL: corresponding CPU page table entry is special; i.e.,=
- the
->   *      result of vm_insert_pfn() or vm_insert_page(). Therefore, it sho=
-uld not
->   *      be mirrored by a device, because the entry will never have HMM_P=
-FN_VALID
-> @@ -94,10 +93,9 @@ struct hmm;
->  #define HMM_PFN_VALID (1 << 0)
->  #define HMM_PFN_WRITE (1 << 1)
->  #define HMM_PFN_ERROR (1 << 2)
-> -#define HMM_PFN_EMPTY (1 << 3)
+--001a113d24a831f16c0567e5e4be
+Content-Type: text/plain; charset="UTF-8"
 
-Hi Jerome,
+2018-03-20 21:53 GMT-07:00 Aaron Lu <aaron.lu@intel.com>:
 
-Nearly done with this one...see below for a bit more detail, but I think if=
- we did this:
+> On Tue, Mar 20, 2018 at 09:21:33PM -0700, Figo.zhang wrote:
+> > suppose that in free_one_page() will try to merge to high order anytime ,
+> > but now in your patch,
+> > those merge has postponed when system in low memory status, it is very
+> easy
+> > let system trigger
+> > low memory state and get poor performance.
+>
+> Merge or not merge, the size of free memory is not affected.
+>
 
-    #define HMM_PFN_EMPTY (0)
+yes, the total free memory is not impact, but will influence the higher
+order allocation.
 
-...it would work out nicely.
+--001a113d24a831f16c0567e5e4be
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-> -#define HMM_PFN_SPECIAL (1 << 4)
-> -#define HMM_PFN_DEVICE_UNADDRESSABLE (1 << 5)
-> -#define HMM_PFN_SHIFT 6
-> +#define HMM_PFN_SPECIAL (1 << 3)
-> +#define HMM_PFN_DEVICE_UNADDRESSABLE (1 << 4)
-> +#define HMM_PFN_SHIFT 5
-> =20
+<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><div class=3D"gmail_quo=
+te">2018-03-20 21:53 GMT-07:00 Aaron Lu <span dir=3D"ltr">&lt;<a href=3D"ma=
+ilto:aaron.lu@intel.com" target=3D"_blank">aaron.lu@intel.com</a>&gt;</span=
+>:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-l=
+eft:1px #ccc solid;padding-left:1ex"><span class=3D"">On Tue, Mar 20, 2018 =
+at 09:21:33PM -0700, Figo.zhang wrote:<br>
+&gt; suppose that in free_one_page() will try to merge to high order anytim=
+e ,<br>
+&gt; but now in your patch,<br>
+&gt; those merge has postponed when system in low memory status, it is very=
+ easy<br>
+&gt; let system trigger<br>
+&gt; low memory state and get poor performance.<br>
+<br>
+</span>Merge or not merge, the size of free memory is not affected.<br></bl=
+ockquote><div><br></div><div>yes, the total free memory is not impact, but =
+will influence the higher order allocation.=C2=A0</div></div><br></div></di=
+v>
 
-<snip>
-
-> @@ -438,7 +423,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
->  		pfns[i] =3D 0;
-> =20
->  		if (pte_none(pte)) {
-> -			pfns[i] =3D HMM_PFN_EMPTY;
-> +			pfns[i] =3D 0;
-
-This works, but why not keep HMM_PFN_EMPTY, and just define it as zero?
-Symbols are better than raw numbers here.
-
-
->  			if (hmm_vma_walk->fault)
->  				goto fault;
->  			continue;
-> @@ -489,8 +474,8 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
-> =20
->  fault:
->  		pte_unmap(ptep);
-> -		/* Fault all pages in range */
-> -		return hmm_vma_walk_clear(start, end, walk);
-> +		/* Fault any virtual address we were ask to fault */
-
-                                                     asked to fault
-
-thanks,
---=20
-John Hubbard
-NVIDIA
+--001a113d24a831f16c0567e5e4be--
