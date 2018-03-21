@@ -1,95 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 327036B0012
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:22:24 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id k4-v6so3371558pls.15
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:22:24 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f64si3313575pfa.115.2018.03.21.09.22.22
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 689C46B0012
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:25:44 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id q19so3545549qta.17
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:25:44 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id z187si2514426qke.333.2018.03.21.09.25.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 21 Mar 2018 09:22:23 -0700 (PDT)
-Date: Wed, 21 Mar 2018 09:20:39 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 03/10] mm: Assign memcg-aware shrinkers bitmap to memcg
-Message-ID: <20180321162039.GC4780@bombadil.infradead.org>
-References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
- <152163850081.21546.6969747084834474733.stgit@localhost.localdomain>
- <20180321145625.GA4780@bombadil.infradead.org>
- <eda62454-5788-4f65-c2b5-719d4a98cb2a@virtuozzo.com>
- <20180321152647.GB4780@bombadil.infradead.org>
- <638887a1-35f8-a71d-6e45-4e779eb62dc4@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Mar 2018 09:25:43 -0700 (PDT)
+Date: Wed, 21 Mar 2018 12:25:39 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake>
+Message-ID: <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake> <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake> <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <638887a1-35f8-a71d-6e45-4e779eb62dc4@virtuozzo.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
-On Wed, Mar 21, 2018 at 06:43:01PM +0300, Kirill Tkhai wrote:
-> On 21.03.2018 18:26, Matthew Wilcox wrote:
-> > On Wed, Mar 21, 2018 at 06:12:17PM +0300, Kirill Tkhai wrote:
-> >> On 21.03.2018 17:56, Matthew Wilcox wrote:
-> >>> Why use your own bitmap here?  Why not use an IDA which can grow and
-> >>> shrink automatically without you needing to play fun games with RCU?
-> >>
-> >> Bitmap allows to use unlocked set_bit()/clear_bit() to maintain the map
-> >> of not empty shrinkers.
-> >>
-> >> So, the reason to use IDR here is to save bitmap memory? Does this mean
-> >> IDA works fast with sparse identifiers? It seems they require per-memcg
-> >> lock to call IDR primitives. I just don't have information about this.
-> >>
-> >> If so, which IDA primitive can be used to set particular id in bitmap?
-> >> There is idr_alloc_cyclic(idr, NULL, id, id+1, GFP_KERNEL) only I see
-> >> to do that.
-> > 
-> > You're confusing IDR and IDA in your email, which is unfortunate.
-> > 
-> > You can set a bit in an IDA by calling ida_simple_get(ida, n, n, GFP_FOO);
-> > You clear it by calling ida_simple_remove(ida, n);
+
+
+On Wed, 21 Mar 2018, Christopher Lameter wrote:
+
+> On Tue, 20 Mar 2018, Mikulas Patocka wrote:
 > 
-> I moved to IDR in the message, since IDA uses global spinlock. It will be
-> taken every time a first object is added to list_lru, or last is removed.
-> These may be frequently called operations, and they may scale not good
-> on big machines.
-
-I'm fixing the global spinlock issue with the IDA.  Not going to be ready
-for 4.17, but hopefully for 4.18.
-
-> Using IDR will allow us to introduce memcg-related locks, but I'm still not
-> sure it's easy to introduce them in scalable-way. Simple set_bit()/clear_bit()
-> do not require locks at all.
-
-They're locked operations ... they may not have an explicit spinlock
-associated with them, but the locking still happens.
-
-> > The identifiers aren't going to be all that sparse; after all you're
-> > allocating them from a global IDA.  Up to 62 identifiers will allocate
-> > no memory; 63-1024 identifiers will allocate a single 128 byte chunk.
-> > Between 1025 and 65536 identifiers, you'll allocate a 576-byte chunk
-> > and then 128-byte chunks for each block of 1024 identifiers (*).  One of
-> > the big wins with the IDA is that it will shrink again after being used.
-> > I didn't read all the way through your patchset to see if you bother to
-> > shrink your bitmap after it's no longer used, but most resizing bitmaps
-> > we have in the kernel don't bother with that part.
-> > 
-> > (*) Actually it's more complex than that... between 1025 and 1086,
-> > you'll have a 576 byte chunk, a 128-byte chunk and then use 62 bits of
-> > the next pointer before allocating a 128 byte chunk when reaching ID
-> > 1087.  Similar things happen for the 62 bits after 2048, 3076 and so on.
-> > The individual chunks aren't shrunk until they're empty so if you set ID
-> > 1025 and then ID 1100, then clear ID 1100, the 128-byte chunk will remain
-> > allocated until ID 1025 is cleared.  This probably doesn't matter to you.
+> > > > Another problem with slub_max_order is that it would pad all caches to
+> > > > slub_max_order, even those that already have a power-of-two size (in that
+> > > > case, the padding is counterproductive).
+> > >
+> > > No it does not. Slub will calculate the configuration with the least byte
+> > > wastage. It is not the standard order but the maximum order to be used.
+> > > Power of two caches below PAGE_SIZE will have order 0.
+> >
+> > Try to boot with slub_max_order=10 and you can see this in /proc/slabinfo:
+> > kmalloc-8192         352    352   8192   32   64 : tunables    0    0    0 : slabdata     11     11      0
 > 
-> Sound great, thanks for explaining this. The big problem I see is
-> that IDA/IDR add primitives allocate memory, while they will be used
-> in the places, where they mustn't fail. There is list_lru_add(), and
-> it's called unconditionally in current kernel code. The patchset makes
-> the bitmap be populated in this function. So, we can't use IDR there.
+> Yes it tries to create a slab size that will accomodate the minimum
+> objects per slab.
+> 
+> > So it rounds up power-of-two sizes to high orders unnecessarily. Without
+> > slub_max_order=10, the number of pages for the kmalloc-8192 cache is just
+> > 8.
+> 
+> The kmalloc-8192 has 4 objects per slab on my system which means an
+> allocation size of 32k = order 4.
+> 
+> In this case 4 objects fit tightly into a slab. There is no waste.
+> 
+> But then I thought you were talking about manually created slabs not
+> about the kmalloc array?
 
-Maybe we can use GFP_NOFAIL here.  They're small allocations, so we're
-only asking for single-page allocations to not fail, which shouldn't
-put too much strain on the VM.
+For some workloads, dm-bufio needs caches with sizes that are a power of 
+two (majority of workloads fall into this cathegory). For other workloads 
+dm-bufio needs caches with sizes that are not a power of two.
+
+Now - we don't want higher-order allocations for power-of-two caches 
+(because higher-order allocations just cause memory fragmentation without 
+any benefit), but we want higher-order allocations for non-power-of-two 
+caches (because higher-order allocations minimize wasted space).
+
+For example:
+for 192K block size, the ideal order is 4MB (it takes 21 blocks)
+for 448K block size, the ideal order is 4MB (it takes 9 blocks)
+for 512K block size, the ideal order is 512KB (there is no benefit from 
+	using higher order)
+for 640K block size, the ideal order is 2MB (it takes 3 blocks, increasing 
+	the allocation size to 4MB doesn't result in any benefit)
+for 832K block size, the ideal order is 1MB (it takes 1 block, increasing
+	the allocation to 2MB or 4MB doesn't result in any benefit)
+for 1M block size, the ideal order is 1MB
+
+The problem with "slub_max_order" is that it increases the order either 
+always or never, but doesn't have the capability to calculate the ideal 
+order for the given object size. The patch that I send just does this 
+calculation.
+
+Another problem wit "slub_max_order" is that the device driver that needs 
+to create a slab cache cannot really set it - the device driver can't 
+modify the kernel parameters.
+
+> > I observe the same pathological rounding in dm-bufio caches.
+> >
+> > > There are some corner cases where extra metadata is needed per object or
+> > > per page that will result in either object sizes that are no longer a
+> > > power of two or in page sizes smaller than the whole page. Maybe you have
+> > > a case like that? Can you show me a cache that has this issue?
+> >
+> > Here I have a patch set that changes the dm-bufio subsystem to support
+> > buffer sizes that are not a power of two:
+> > http://people.redhat.com/~mpatocka/patches/kernel/dm-bufio-arbitrary-sector-size/
+> >
+> > I need to change the slub cache to minimize wasted space - i.e. when
+> > asking for a slab cache for 640kB objects, the slub system currently
+> > allocates 1MB per object and 384kB is wasted. This is the reason why I'm
+> > making this patch.
+> 
+> You should not be using the slab allocators for these. Allocate higher
+> order pages or numbers of consecutive smaller pagess from the page
+> allocator. The slab allocators are written for objects smaller than page
+> size.
+
+So, do you argue that I need to write my own slab cache functionality 
+instead of using the existing slab code?
+
+I can do it - but duplicating code is bad thing.
+
+> > > > BTW. the function "order_store" in mm/slub.c modifies the structure
+> > > > kmem_cache without taking any locks - is it a bug?
+> > >
+> > > The kmem_cache structure was just allocated. Only one thread can access it
+> > > thus no locking is necessary.
+> >
+> > No - order_store is called when writing to /sys/kernel/slab/<cache>/order
+> > - you can modify order for any existing cache - and the modification
+> > happens without any locking.
+> 
+> Well it still does not matter. The size of the order of slab pages
+> can be dynamic even within a slab. You can have pages of varying sizes.
+> 
+> What kind of problem could be caused here?
+
+Unlocked accesses are generally considered bad. For example, see this 
+piece of code in calculate_sizes:
+        s->allocflags = 0;
+        if (order)
+                s->allocflags |= __GFP_COMP;
+
+        if (s->flags & SLAB_CACHE_DMA)
+                s->allocflags |= GFP_DMA;
+
+        if (s->flags & SLAB_RECLAIM_ACCOUNT)
+                s->allocflags |= __GFP_RECLAIMABLE;
+
+If you are running this while the cache is in use (i.e. when the user 
+writes /sys/kernel/slab/<cache>/order), then other processes will see 
+invalid s->allocflags for a short time.
+
+Mikulas
