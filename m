@@ -1,59 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 64D9A6B0028
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:14:52 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id r29so2543164wra.13
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 06:14:52 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i136si2896910wmd.193.2018.03.21.06.14.51
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B9EF6B0028
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:21:16 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v17so2641492pff.9
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 06:21:16 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0093.outbound.protection.outlook.com. [104.47.2.93])
+        by mx.google.com with ESMTPS id 65-v6si3909460plb.573.2018.03.21.06.21.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Mar 2018 06:14:51 -0700 (PDT)
-Date: Wed, 21 Mar 2018 14:14:49 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
-Message-ID: <20180321131449.GN23100@dhcp22.suse.cz>
-References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
- <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 21 Mar 2018 06:21:14 -0700 (PDT)
+Subject: [PATCH 00/10] Improve shrink_slab() scalability (old complexity was
+ O(n^2), new is O(n))
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Wed, 21 Mar 2018 16:21:07 +0300
+Message-ID: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com, ktkhai@virtuozzo.com, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
 
-On Wed 21-03-18 05:31:19, Yang Shi wrote:
-> When running some mmap/munmap scalability tests with large memory (i.e.
-> > 300GB), the below hung task issue may happen occasionally.
-> 
-> INFO: task ps:14018 blocked for more than 120 seconds.
->        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->  "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-> message.
->  ps              D    0 14018      1 0x00000004
->   ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->   ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->   00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->  Call Trace:
->   [<ffffffff817154d0>] ? __schedule+0x250/0x730
->   [<ffffffff817159e6>] schedule+0x36/0x80
->   [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->   [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->   [<ffffffff81717db0>] down_read+0x20/0x40
->   [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+Imagine a big node with many cpus, memory cgroups and containers.
+Let we have 200 containers, and every container has 10 mounts
+and 10 cgroups. All container tasks don't touch foreign containers
+mounts.
 
-Slightly off-topic:
-Btw. this sucks as well. Do we really need to take mmap_sem here? Do any
-of
-	arg_start = mm->arg_start;
-	arg_end = mm->arg_end;
-	env_start = mm->env_start;
-	env_end = mm->env_end;
+In case of global reclaim, a task has to iterate all over the memcgs
+and to call all the memcg-aware shrinkers for all of them. This means,
+the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
+and since there are 2000 memcgs, the total calls of do_shrink_slab()
+are 2000 * 2000 = 4000000.
 
-change after exec or while the pid is already visible in proc? If yes
-maybe we can use a dedicated lock.
--- 
-Michal Hocko
-SUSE Labs
+4 million calls are not a number operations, which can takes 1 cpu cycle.
+E.g., super_cache_count() accesses at least two lists, and makes arifmetical
+calculations. Even, if there are no charged objects, we do these calculations,
+and replaces cpu caches by read memory. I observed nodes spending almost 100%
+time in kernel, in case of intensive writing and global reclaim. Even if
+there is no writing, the iterations just waste the time, and slows reclaim down.
+
+Let's see the small test below:
+    $echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
+    $mkdir /sys/fs/cgroup/memory/ct
+    $echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
+    $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i; echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs; mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file; done
+
+Then, let's see drop caches time (4 sequential calls):
+    $time echo 3 > /proc/sys/vm/drop_caches
+    0.00user 6.80system 0:06.82elapsed 99%CPU 
+    0.00user 4.61system 0:04.62elapsed 99%CPU
+    0.00user 4.61system 0:04.61elapsed 99%CPU
+    0.00user 4.61system 0:04.61elapsed 99%CPU
+
+Last three calls don't actually shrink something. So, the iterations
+over slab shrinkers take 4.61 seconds. Not so good for scalability.
+
+The patchset solves the problem with following actions:
+1)Assign id to every registered memcg-aware shrinker.
+2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
+  and set a shrinker-related bit after the first element
+  is added to lru list (also, when removed child memcg
+  elements are reparanted).
+3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
+  and call a shrinker if its bit is set in memcg's shrinker
+  bitmap
+(Also, there is a functionality to clear the bit, after
+ last element is shrinked).
+
+This gives signify performance increase. The result after patchset is applied:
+
+    $time echo 3 > /proc/sys/vm/drop_caches
+    0.00user 0.93system 0:00.94elapsed 99%CPU
+    0.00user 0.00system 0:00.01elapsed 80%CPU
+    0.00user 0.00system 0:00.01elapsed 80%CPU
+    0.00user 0.00system 0:00.01elapsed 81%CPU
+    (4.61s/0.01s = 461 times faster)
+
+Currenly, all memcg-aware shrinkers are implemented via list_lru.
+The only exception is XFS cached objects backlog (which is completelly
+no memcg-aware, but pretends to be memcg-aware). See
+xfs_fs_nr_cached_objects() and xfs_fs_free_cached_objects() for
+the details. It seems, this can be reworked to fix this lack.
+
+So, the patchset makes shrink_slab() of less complexity and improves
+the performance in such types of load I pointed. This will give a profit
+in case of !global reclaim case, since there also will be less do_shrink_slab()
+calls.
+
+This patchset is made against linux-next.git tree.
+
+---
+
+Kirill Tkhai (10):
+      mm: Assign id to every memcg-aware shrinker
+      mm: Maintain memcg-aware shrinkers in mcg_shrinkers array
+      mm: Assign memcg-aware shrinkers bitmap to memcg
+      fs: Propagate shrinker::id to list_lru
+      list_lru: Add memcg argument to list_lru_from_kmem()
+      list_lru: Pass dst_memcg argument to memcg_drain_list_lru_node()
+      list_lru: Pass lru argument to memcg_drain_list_lru_node()
+      mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
+      mm: Iterate only over charged shrinkers during memcg shrink_slab()
+      mm: Clear shrinker bit if there are no objects related to memcg
+
+
+ fs/super.c                 |    8 +
+ include/linux/list_lru.h   |    3 
+ include/linux/memcontrol.h |   20 +++
+ include/linux/shrinker.h   |    9 +
+ mm/list_lru.c              |   65 ++++++--
+ mm/memcontrol.c            |    7 +
+ mm/vmscan.c                |  337 ++++++++++++++++++++++++++++++++++++++++++--
+ mm/workingset.c            |    6 +
+ 8 files changed, 418 insertions(+), 37 deletions(-)
+
+--
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
