@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E6FC26B0028
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:26 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id c4so3941817qtm.4
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:23:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s129si5876587qkb.267.2018.03.21.12.23.25
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F5416B0029
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:32 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w140so2810138wme.4
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:23:32 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 36si131359ede.505.2018.03.21.12.23.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 12:23:25 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LJN3Tb119131
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:24 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2gut67sccs-1
+        Wed, 21 Mar 2018 12:23:30 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LJIaaR009095
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:29 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2gut8117xh-1
 	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:24 -0400
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:29 -0400
 Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 21 Mar 2018 19:23:21 -0000
+	Wed, 21 Mar 2018 19:23:26 -0000
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 04/32] docs/vm: frontswap.txt: convert to ReST format
-Date: Wed, 21 Mar 2018 21:22:20 +0200
+Subject: [PATCH 05/32] docs/vm: highmem.txt: convert to ReST format
+Date: Wed, 21 Mar 2018 21:22:21 +0200
 In-Reply-To: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1521660168-14372-5-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1521660168-14372-6-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jonathan Corbet <corbet@lwn.net>
@@ -33,137 +33,166 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Richard Henderson <rth@twiddle.ne
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- Documentation/vm/frontswap.txt | 59 ++++++++++++++++++++++++++----------------
- 1 file changed, 37 insertions(+), 22 deletions(-)
+ Documentation/vm/highmem.txt | 87 ++++++++++++++++++--------------------------
+ 1 file changed, 36 insertions(+), 51 deletions(-)
 
-diff --git a/Documentation/vm/frontswap.txt b/Documentation/vm/frontswap.txt
-index c71a019..1979f43 100644
---- a/Documentation/vm/frontswap.txt
-+++ b/Documentation/vm/frontswap.txt
-@@ -1,13 +1,20 @@
-+.. _frontswap:
-+
-+=========
-+Frontswap
-+=========
-+
- Frontswap provides a "transcendent memory" interface for swap pages.
- In some environments, dramatic performance savings may be obtained because
- swapped pages are saved in RAM (or a RAM-like device) instead of a swap disk.
+diff --git a/Documentation/vm/highmem.txt b/Documentation/vm/highmem.txt
+index 4324d24..0f69a9f 100644
+--- a/Documentation/vm/highmem.txt
++++ b/Documentation/vm/highmem.txt
+@@ -1,25 +1,14 @@
++.. _highmem:
  
--(Note, frontswap -- and cleancache (merged at 3.0) -- are the "frontends"
-+(Note, frontswap -- and :ref:`cleancache` (merged at 3.0) -- are the "frontends"
- and the only necessary changes to the core kernel for transcendent memory;
- all other supporting code -- the "backends" -- is implemented as drivers.
--See the LWN.net article "Transcendent memory in a nutshell" for a detailed
--overview of frontswap and related kernel parts:
--https://lwn.net/Articles/454795/ )
-+See the LWN.net article `Transcendent memory in a nutshell`_
-+for a detailed overview of frontswap and related kernel parts)
-+
-+.. _Transcendent memory in a nutshell: https://lwn.net/Articles/454795/
+-			     ====================
+-			     HIGH MEMORY HANDLING
+-			     ====================
++====================
++High Memory Handling
++====================
  
- Frontswap is so named because it can be thought of as the opposite of
- a "backing" store for a swap device.  The storage is assumed to be
-@@ -50,19 +57,27 @@ or the store fails AND the page is invalidated.  This ensures stale data may
- never be obtained from frontswap.
+ By: Peter Zijlstra <a.p.zijlstra@chello.nl>
  
- If properly configured, monitoring of frontswap is done via debugfs in
--the /sys/kernel/debug/frontswap directory.  The effectiveness of
-+the `/sys/kernel/debug/frontswap` directory.  The effectiveness of
- frontswap can be measured (across all swap devices) with:
+-Contents:
+-
+- (*) What is high memory?
+-
+- (*) Temporary virtual mappings.
+-
+- (*) Using kmap_atomic.
+-
+- (*) Cost of temporary mappings.
+-
+- (*) i386 PAE.
++.. contents:: :local:
  
--failed_stores	- how many store attempts have failed
--loads		- how many loads were attempted (all should succeed)
--succ_stores	- how many store attempts have succeeded
--invalidates	- how many invalidates were attempted
-+``failed_stores``
-+	how many store attempts have failed
-+
-+``loads``
-+	how many loads were attempted (all should succeed)
-+
-+``succ_stores``
-+	how many store attempts have succeeded
-+
-+``invalidates``
-+	how many invalidates were attempted
+-
+-====================
+-WHAT IS HIGH MEMORY?
++What Is High Memory?
+ ====================
  
- A backend implementation may provide additional metrics.
+ High memory (highmem) is used when the size of physical memory approaches or
+@@ -38,7 +27,7 @@ kernel entry/exit.  This means the available virtual memory space (4GiB on
+ i386) has to be divided between user and kernel space.
  
- FAQ
-+===
+ The traditional split for architectures using this approach is 3:1, 3GiB for
+-userspace and the top 1GiB for kernel space:
++userspace and the top 1GiB for kernel space::
  
--1) Where's the value?
-+* Where's the value?
+ 		+--------+ 0xffffffff
+ 		| Kernel |
+@@ -58,40 +47,38 @@ and user maps.  Some hardware (like some ARMs), however, have limited virtual
+ space when they use mm context tags.
  
- When a workload starts swapping, performance falls through the floor.
- Frontswap significantly increases performance in many such workloads by
-@@ -117,8 +132,8 @@ A KVM implementation is underway and has been RFC'ed to lkml.  And,
- using frontswap, investigation is also underway on the use of NVM as
- a memory extension technology.
  
--2) Sure there may be performance advantages in some situations, but
--   what's the space/time overhead of frontswap?
-+* Sure there may be performance advantages in some situations, but
-+  what's the space/time overhead of frontswap?
+-==========================
+-TEMPORARY VIRTUAL MAPPINGS
++Temporary Virtual Mappings
+ ==========================
  
- If CONFIG_FRONTSWAP is disabled, every frontswap hook compiles into
- nothingness and the only overhead is a few extra bytes per swapon'ed
-@@ -148,8 +163,8 @@ pressure that can potentially outweigh the other advantages.  A
- backend, such as zcache, must implement policies to carefully (but
- dynamically) manage memory limits to ensure this doesn't happen.
+ The kernel contains several ways of creating temporary mappings:
  
--3) OK, how about a quick overview of what this frontswap patch does
--   in terms that a kernel hacker can grok?
-+* OK, how about a quick overview of what this frontswap patch does
-+  in terms that a kernel hacker can grok?
+- (*) vmap().  This can be used to make a long duration mapping of multiple
+-     physical pages into a contiguous virtual space.  It needs global
+-     synchronization to unmap.
++* vmap().  This can be used to make a long duration mapping of multiple
++  physical pages into a contiguous virtual space.  It needs global
++  synchronization to unmap.
  
- Let's assume that a frontswap "backend" has registered during
- kernel initialization; this registration indicates that this
-@@ -188,9 +203,9 @@ and (potentially) a swap device write are replaced by a "frontswap backend
- store" and (possibly) a "frontswap backend loads", which are presumably much
- faster.
+- (*) kmap().  This permits a short duration mapping of a single page.  It needs
+-     global synchronization, but is amortized somewhat.  It is also prone to
+-     deadlocks when using in a nested fashion, and so it is not recommended for
+-     new code.
++* kmap().  This permits a short duration mapping of a single page.  It needs
++  global synchronization, but is amortized somewhat.  It is also prone to
++  deadlocks when using in a nested fashion, and so it is not recommended for
++  new code.
  
--4) Can't frontswap be configured as a "special" swap device that is
--   just higher priority than any real swap device (e.g. like zswap,
--   or maybe swap-over-nbd/NFS)?
-+* Can't frontswap be configured as a "special" swap device that is
-+  just higher priority than any real swap device (e.g. like zswap,
-+  or maybe swap-over-nbd/NFS)?
+- (*) kmap_atomic().  This permits a very short duration mapping of a single
+-     page.  Since the mapping is restricted to the CPU that issued it, it
+-     performs well, but the issuing task is therefore required to stay on that
+-     CPU until it has finished, lest some other task displace its mappings.
++* kmap_atomic().  This permits a very short duration mapping of a single
++  page.  Since the mapping is restricted to the CPU that issued it, it
++  performs well, but the issuing task is therefore required to stay on that
++  CPU until it has finished, lest some other task displace its mappings.
  
- No.  First, the existing swap subsystem doesn't allow for any kind of
- swap hierarchy.  Perhaps it could be rewritten to accommodate a hierarchy,
-@@ -240,9 +255,9 @@ installation, frontswap is useless.  Swapless portable devices
- can still use frontswap but a backend for such devices must configure
- some kind of "ghost" swap device and ensure that it is never used.
+-     kmap_atomic() may also be used by interrupt contexts, since it is does not
+-     sleep and the caller may not sleep until after kunmap_atomic() is called.
++  kmap_atomic() may also be used by interrupt contexts, since it is does not
++  sleep and the caller may not sleep until after kunmap_atomic() is called.
  
--5) Why this weird definition about "duplicate stores"?  If a page
--   has been previously successfully stored, can't it always be
--   successfully overwritten?
-+* Why this weird definition about "duplicate stores"?  If a page
-+  has been previously successfully stored, can't it always be
-+  successfully overwritten?
+-     It may be assumed that k[un]map_atomic() won't fail.
++  It may be assumed that k[un]map_atomic() won't fail.
  
- Nearly always it can, but no, sometimes it cannot.  Consider an example
- where data is compressed and the original 4K page has been compressed
-@@ -254,7 +269,7 @@ the old data and ensure that it is no longer accessible.  Since the
- swap subsystem then writes the new data to the read swap device,
- this is the correct course of action to ensure coherency.
  
--6) What is frontswap_shrink for?
-+* What is frontswap_shrink for?
+-=================
+-USING KMAP_ATOMIC
++Using kmap_atomic
+ =================
  
- When the (non-frontswap) swap subsystem swaps out a page to a real
- swap device, that page is only taking up low-value pre-allocated disk
-@@ -267,7 +282,7 @@ to "repatriate" pages sent to a remote machine back to the local machine;
- this is driven using the frontswap_shrink mechanism when memory pressure
- subsides.
+ When and where to use kmap_atomic() is straightforward.  It is used when code
+ wants to access the contents of a page that might be allocated from high memory
+ (see __GFP_HIGHMEM), for example a page in the pagecache.  The API has two
+-functions, and they can be used in a manner similar to the following:
++functions, and they can be used in a manner similar to the following::
  
--7) Why does the frontswap patch create the new include file swapfile.h?
-+* Why does the frontswap patch create the new include file swapfile.h?
+ 	/* Find the page of interest. */
+ 	struct page *page = find_get_page(mapping, offset);
+@@ -109,7 +96,7 @@ Note that the kunmap_atomic() call takes the result of the kmap_atomic() call
+ not the argument.
  
- The frontswap code depends on some swap-subsystem-internal data
- structures that have, over the years, moved back and forth between
+ If you need to map two pages because you want to copy from one page to
+-another you need to keep the kmap_atomic calls strictly nested, like:
++another you need to keep the kmap_atomic calls strictly nested, like::
+ 
+ 	vaddr1 = kmap_atomic(page1);
+ 	vaddr2 = kmap_atomic(page2);
+@@ -120,8 +107,7 @@ another you need to keep the kmap_atomic calls strictly nested, like:
+ 	kunmap_atomic(vaddr1);
+ 
+ 
+-==========================
+-COST OF TEMPORARY MAPPINGS
++Cost of Temporary Mappings
+ ==========================
+ 
+ The cost of creating temporary mappings can be quite high.  The arch has to
+@@ -136,25 +122,24 @@ If CONFIG_MMU is not set, then there can be no temporary mappings and no
+ highmem.  In such a case, the arithmetic approach will also be used.
+ 
+ 
+-========
+ i386 PAE
+ ========
+ 
+ The i386 arch, under some circumstances, will permit you to stick up to 64GiB
+ of RAM into your 32-bit machine.  This has a number of consequences:
+ 
+- (*) Linux needs a page-frame structure for each page in the system and the
+-     pageframes need to live in the permanent mapping, which means:
++* Linux needs a page-frame structure for each page in the system and the
++  pageframes need to live in the permanent mapping, which means:
+ 
+- (*) you can have 896M/sizeof(struct page) page-frames at most; with struct
+-     page being 32-bytes that would end up being something in the order of 112G
+-     worth of pages; the kernel, however, needs to store more than just
+-     page-frames in that memory...
++* you can have 896M/sizeof(struct page) page-frames at most; with struct
++  page being 32-bytes that would end up being something in the order of 112G
++  worth of pages; the kernel, however, needs to store more than just
++  page-frames in that memory...
+ 
+- (*) PAE makes your page tables larger - which slows the system down as more
+-     data has to be accessed to traverse in TLB fills and the like.  One
+-     advantage is that PAE has more PTE bits and can provide advanced features
+-     like NX and PAT.
++* PAE makes your page tables larger - which slows the system down as more
++  data has to be accessed to traverse in TLB fills and the like.  One
++  advantage is that PAE has more PTE bits and can provide advanced features
++  like NX and PAT.
+ 
+ The general recommendation is that you don't use more than 8GiB on a 32-bit
+ machine - although more might work for you and your workload, you're pretty
 -- 
 2.7.4
