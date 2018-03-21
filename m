@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B1A36B002E
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:53 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id h4so1247751qtj.11
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:23:53 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 12si1398383qtc.32.2018.03.21.12.23.52
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 216C06B002F
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:58 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id h33so3054057wrh.10
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:23:58 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id c45si643172ede.550.2018.03.21.12.23.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 12:23:52 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LJJ9OZ124677
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:51 -0400
+        Wed, 21 Mar 2018 12:23:56 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LJIYAU047044
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:55 -0400
 Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2guvm8agpw-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2guuubvdc9-1
 	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:50 -0400
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:23:54 -0400
 Received: from localhost
 	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 21 Mar 2018 19:23:48 -0000
+	Wed, 21 Mar 2018 19:23:51 -0000
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 10/32] docs/vm: idle_page_tracking.txt: convert to ReST format
-Date: Wed, 21 Mar 2018 21:22:26 +0200
+Subject: [PATCH 11/32] docs/vm: ksm.txt: convert to ReST format
+Date: Wed, 21 Mar 2018 21:22:27 +0200
 In-Reply-To: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1521660168-14372-11-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1521660168-14372-12-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jonathan Corbet <corbet@lwn.net>
@@ -33,113 +33,242 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Richard Henderson <rth@twiddle.ne
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- Documentation/vm/idle_page_tracking.txt | 55 +++++++++++++++++++++------------
- 1 file changed, 36 insertions(+), 19 deletions(-)
+ Documentation/vm/ksm.txt | 215 ++++++++++++++++++++++++-----------------------
+ 1 file changed, 110 insertions(+), 105 deletions(-)
 
-diff --git a/Documentation/vm/idle_page_tracking.txt b/Documentation/vm/idle_page_tracking.txt
-index 85dcc3b..9cbe6f8 100644
---- a/Documentation/vm/idle_page_tracking.txt
-+++ b/Documentation/vm/idle_page_tracking.txt
-@@ -1,4 +1,11 @@
--MOTIVATION
-+.. _idle_page_tracking:
+diff --git a/Documentation/vm/ksm.txt b/Documentation/vm/ksm.txt
+index 6686bd2..87e7eef 100644
+--- a/Documentation/vm/ksm.txt
++++ b/Documentation/vm/ksm.txt
+@@ -1,8 +1,11 @@
+-How to use the Kernel Samepage Merging feature
+-----------------------------------------------
++.. _ksm:
 +
-+==================
-+Idle Page Tracking
-+==================
++=======================
++Kernel Samepage Merging
++=======================
+ 
+ KSM is a memory-saving de-duplication feature, enabled by CONFIG_KSM=y,
+-added to the Linux kernel in 2.6.32.  See mm/ksm.c for its implementation,
++added to the Linux kernel in 2.6.32.  See ``mm/ksm.c`` for its implementation,
+ and http://lwn.net/Articles/306704/ and http://lwn.net/Articles/330589/
+ 
+ The KSM daemon ksmd periodically scans those areas of user memory which
+@@ -51,110 +54,112 @@ Applications should be considerate in their use of MADV_MERGEABLE,
+ restricting its use to areas likely to benefit.  KSM's scans may use a lot
+ of processing power: some installations will disable KSM for that reason.
+ 
+-The KSM daemon is controlled by sysfs files in /sys/kernel/mm/ksm/,
++The KSM daemon is controlled by sysfs files in ``/sys/kernel/mm/ksm/``,
+ readable by all but writable only by root:
+ 
+-pages_to_scan    - how many present pages to scan before ksmd goes to sleep
+-                   e.g. "echo 100 > /sys/kernel/mm/ksm/pages_to_scan"
+-                   Default: 100 (chosen for demonstration purposes)
+-
+-sleep_millisecs  - how many milliseconds ksmd should sleep before next scan
+-                   e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
+-                   Default: 20 (chosen for demonstration purposes)
+-
+-merge_across_nodes - specifies if pages from different numa nodes can be merged.
+-                   When set to 0, ksm merges only pages which physically
+-                   reside in the memory area of same NUMA node. That brings
+-                   lower latency to access of shared pages. Systems with more
+-                   nodes, at significant NUMA distances, are likely to benefit
+-                   from the lower latency of setting 0. Smaller systems, which
+-                   need to minimize memory usage, are likely to benefit from
+-                   the greater sharing of setting 1 (default). You may wish to
+-                   compare how your system performs under each setting, before
+-                   deciding on which to use. merge_across_nodes setting can be
+-                   changed only when there are no ksm shared pages in system:
+-                   set run 2 to unmerge pages first, then to 1 after changing
+-                   merge_across_nodes, to remerge according to the new setting.
+-                   Default: 1 (merging across nodes as in earlier releases)
+-
+-run              - set 0 to stop ksmd from running but keep merged pages,
+-                   set 1 to run ksmd e.g. "echo 1 > /sys/kernel/mm/ksm/run",
+-                   set 2 to stop ksmd and unmerge all pages currently merged,
+-                         but leave mergeable areas registered for next run
+-                   Default: 0 (must be changed to 1 to activate KSM,
+-                               except if CONFIG_SYSFS is disabled)
+-
+-use_zero_pages   - specifies whether empty pages (i.e. allocated pages
+-                   that only contain zeroes) should be treated specially.
+-                   When set to 1, empty pages are merged with the kernel
+-                   zero page(s) instead of with each other as it would
+-                   happen normally. This can improve the performance on
+-                   architectures with coloured zero pages, depending on
+-                   the workload. Care should be taken when enabling this
+-                   setting, as it can potentially degrade the performance
+-                   of KSM for some workloads, for example if the checksums
+-                   of pages candidate for merging match the checksum of
+-                   an empty page. This setting can be changed at any time,
+-                   it is only effective for pages merged after the change.
+-                   Default: 0 (normal KSM behaviour as in earlier releases)
+-
+-max_page_sharing - Maximum sharing allowed for each KSM page. This
+-                   enforces a deduplication limit to avoid the virtual
+-                   memory rmap lists to grow too large. The minimum
+-                   value is 2 as a newly created KSM page will have at
+-                   least two sharers. The rmap walk has O(N)
+-                   complexity where N is the number of rmap_items
+-                   (i.e. virtual mappings) that are sharing the page,
+-                   which is in turn capped by max_page_sharing. So
+-                   this effectively spread the the linear O(N)
+-                   computational complexity from rmap walk context
+-                   over different KSM pages. The ksmd walk over the
+-                   stable_node "chains" is also O(N), but N is the
+-                   number of stable_node "dups", not the number of
+-                   rmap_items, so it has not a significant impact on
+-                   ksmd performance. In practice the best stable_node
+-                   "dup" candidate will be kept and found at the head
+-                   of the "dups" list. The higher this value the
+-                   faster KSM will merge the memory (because there
+-                   will be fewer stable_node dups queued into the
+-                   stable_node chain->hlist to check for pruning) and
+-                   the higher the deduplication factor will be, but
+-                   the slowest the worst case rmap walk could be for
+-                   any given KSM page. Slowing down the rmap_walk
+-                   means there will be higher latency for certain
+-                   virtual memory operations happening during
+-                   swapping, compaction, NUMA balancing and page
+-                   migration, in turn decreasing responsiveness for
+-                   the caller of those virtual memory operations. The
+-                   scheduler latency of other tasks not involved with
+-                   the VM operations doing the rmap walk is not
+-                   affected by this parameter as the rmap walks are
+-                   always schedule friendly themselves.
+-
+-stable_node_chains_prune_millisecs - How frequently to walk the whole
+-                   list of stable_node "dups" linked in the
+-                   stable_node "chains" in order to prune stale
+-                   stable_nodes. Smaller milllisecs values will free
+-                   up the KSM metadata with lower latency, but they
+-                   will make ksmd use more CPU during the scan. This
+-                   only applies to the stable_node chains so it's a
+-                   noop if not a single KSM page hit the
+-                   max_page_sharing yet (there would be no stable_node
+-                   chains in such case).
+-
+-The effectiveness of KSM and MADV_MERGEABLE is shown in /sys/kernel/mm/ksm/:
+-
+-pages_shared     - how many shared pages are being used
+-pages_sharing    - how many more sites are sharing them i.e. how much saved
+-pages_unshared   - how many pages unique but repeatedly checked for merging
+-pages_volatile   - how many pages changing too fast to be placed in a tree
+-full_scans       - how many times all mergeable areas have been scanned
+-
+-stable_node_chains - number of stable node chains allocated, this is
+-		     effectively the number of KSM pages that hit the
+-		     max_page_sharing limit
+-stable_node_dups   - number of stable node dups queued into the
+-		     stable_node chains
++pages_to_scan
++        how many present pages to scan before ksmd goes to sleep
++        e.g. ``echo 100 > /sys/kernel/mm/ksm/pages_to_scan`` Default: 100
++        (chosen for demonstration purposes)
 +
-+Motivation
-+==========
- 
- The idle page tracking feature allows to track which memory pages are being
- accessed by a workload and which are idle. This information can be useful for
-@@ -8,10 +15,14 @@ or deciding where to place the workload within a compute cluster.
- 
- It is enabled by CONFIG_IDLE_PAGE_TRACKING=y.
- 
--USER API
-+.. _user_api:
- 
--The idle page tracking API is located at /sys/kernel/mm/page_idle. Currently,
--it consists of the only read-write file, /sys/kernel/mm/page_idle/bitmap.
-+User API
-+========
++sleep_millisecs
++        how many milliseconds ksmd should sleep before next scan
++        e.g. ``echo 20 > /sys/kernel/mm/ksm/sleep_millisecs`` Default: 20
++        (chosen for demonstration purposes)
 +
-+The idle page tracking API is located at ``/sys/kernel/mm/page_idle``.
-+Currently, it consists of the only read-write file,
-+``/sys/kernel/mm/page_idle/bitmap``.
- 
- The file implements a bitmap where each bit corresponds to a memory page. The
- bitmap is represented by an array of 8-byte integers, and the page at PFN #i is
-@@ -19,8 +30,9 @@ mapped to bit #i%64 of array element #i/64, byte order is native. When a bit is
- set, the corresponding page is idle.
- 
- A page is considered idle if it has not been accessed since it was marked idle
--(for more details on what "accessed" actually means see the IMPLEMENTATION
--DETAILS section). To mark a page idle one has to set the bit corresponding to
-+(for more details on what "accessed" actually means see the :ref:`Implementation
-+Details <impl_details>` section).
-+To mark a page idle one has to set the bit corresponding to
- the page by writing to the file. A value written to the file is OR-ed with the
- current bitmap value.
- 
-@@ -30,9 +42,9 @@ page types (e.g. SLAB pages) an attempt to mark a page idle is silently ignored,
- and hence such pages are never reported idle.
- 
- For huge pages the idle flag is set only on the head page, so one has to read
--/proc/kpageflags in order to correctly count idle huge pages.
-+``/proc/kpageflags`` in order to correctly count idle huge pages.
- 
--Reading from or writing to /sys/kernel/mm/page_idle/bitmap will return
-+Reading from or writing to ``/sys/kernel/mm/page_idle/bitmap`` will return
- -EINVAL if you are not starting the read/write on an 8-byte boundary, or
- if the size of the read/write is not a multiple of 8 bytes. Writing to
- this file beyond max PFN will return -ENXIO.
-@@ -41,21 +53,25 @@ That said, in order to estimate the amount of pages that are not used by a
- workload one should:
- 
-  1. Mark all the workload's pages as idle by setting corresponding bits in
--    /sys/kernel/mm/page_idle/bitmap. The pages can be found by reading
--    /proc/pid/pagemap if the workload is represented by a process, or by
--    filtering out alien pages using /proc/kpagecgroup in case the workload is
--    placed in a memory cgroup.
-+    ``/sys/kernel/mm/page_idle/bitmap``. The pages can be found by reading
-+    ``/proc/pid/pagemap`` if the workload is represented by a process, or by
-+    filtering out alien pages using ``/proc/kpagecgroup`` in case the workload
-+    is placed in a memory cgroup.
- 
-  2. Wait until the workload accesses its working set.
- 
-- 3. Read /sys/kernel/mm/page_idle/bitmap and count the number of bits set. If
--    one wants to ignore certain types of pages, e.g. mlocked pages since they
--    are not reclaimable, he or she can filter them out using /proc/kpageflags.
-+ 3. Read ``/sys/kernel/mm/page_idle/bitmap`` and count the number of bits set.
-+    If one wants to ignore certain types of pages, e.g. mlocked pages since they
-+    are not reclaimable, he or she can filter them out using
-+    ``/proc/kpageflags``.
++merge_across_nodes
++        specifies if pages from different numa nodes can be merged.
++        When set to 0, ksm merges only pages which physically reside
++        in the memory area of same NUMA node. That brings lower
++        latency to access of shared pages. Systems with more nodes, at
++        significant NUMA distances, are likely to benefit from the
++        lower latency of setting 0. Smaller systems, which need to
++        minimize memory usage, are likely to benefit from the greater
++        sharing of setting 1 (default). You may wish to compare how
++        your system performs under each setting, before deciding on
++        which to use. merge_across_nodes setting can be changed only
++        when there are no ksm shared pages in system: set run 2 to
++        unmerge pages first, then to 1 after changing
++        merge_across_nodes, to remerge according to the new setting.
++        Default: 1 (merging across nodes as in earlier releases)
 +
-+See Documentation/vm/pagemap.txt for more information about
-+``/proc/pid/pagemap``, ``/proc/kpageflags``, and ``/proc/kpagecgroup``.
++run
++        set 0 to stop ksmd from running but keep merged pages,
++        set 1 to run ksmd e.g. ``echo 1 > /sys/kernel/mm/ksm/run``,
++        set 2 to stop ksmd and unmerge all pages currently merged, but
++        leave mergeable areas registered for next run Default: 0 (must
++        be changed to 1 to activate KSM, except if CONFIG_SYSFS is
++        disabled)
++
++use_zero_pages
++        specifies whether empty pages (i.e. allocated pages that only
++        contain zeroes) should be treated specially.  When set to 1,
++        empty pages are merged with the kernel zero page(s) instead of
++        with each other as it would happen normally. This can improve
++        the performance on architectures with coloured zero pages,
++        depending on the workload. Care should be taken when enabling
++        this setting, as it can potentially degrade the performance of
++        KSM for some workloads, for example if the checksums of pages
++        candidate for merging match the checksum of an empty
++        page. This setting can be changed at any time, it is only
++        effective for pages merged after the change.  Default: 0
++        (normal KSM behaviour as in earlier releases)
++
++max_page_sharing
++        Maximum sharing allowed for each KSM page. This enforces a
++        deduplication limit to avoid the virtual memory rmap lists to
++        grow too large. The minimum value is 2 as a newly created KSM
++        page will have at least two sharers. The rmap walk has O(N)
++        complexity where N is the number of rmap_items (i.e. virtual
++        mappings) that are sharing the page, which is in turn capped
++        by max_page_sharing. So this effectively spread the the linear
++        O(N) computational complexity from rmap walk context over
++        different KSM pages. The ksmd walk over the stable_node
++        "chains" is also O(N), but N is the number of stable_node
++        "dups", not the number of rmap_items, so it has not a
++        significant impact on ksmd performance. In practice the best
++        stable_node "dup" candidate will be kept and found at the head
++        of the "dups" list. The higher this value the faster KSM will
++        merge the memory (because there will be fewer stable_node dups
++        queued into the stable_node chain->hlist to check for pruning)
++        and the higher the deduplication factor will be, but the
++        slowest the worst case rmap walk could be for any given KSM
++        page. Slowing down the rmap_walk means there will be higher
++        latency for certain virtual memory operations happening during
++        swapping, compaction, NUMA balancing and page migration, in
++        turn decreasing responsiveness for the caller of those virtual
++        memory operations. The scheduler latency of other tasks not
++        involved with the VM operations doing the rmap walk is not
++        affected by this parameter as the rmap walks are always
++        schedule friendly themselves.
++
++stable_node_chains_prune_millisecs
++        How frequently to walk the whole list of stable_node "dups"
++        linked in the stable_node "chains" in order to prune stale
++        stable_nodes. Smaller milllisecs values will free up the KSM
++        metadata with lower latency, but they will make ksmd use more
++        CPU during the scan. This only applies to the stable_node
++        chains so it's a noop if not a single KSM page hit the
++        max_page_sharing yet (there would be no stable_node chains in
++        such case).
++
++The effectiveness of KSM and MADV_MERGEABLE is shown in ``/sys/kernel/mm/ksm/``:
++
++pages_shared
++        how many shared pages are being used
++pages_sharing
++        how many more sites are sharing them i.e. how much saved
++pages_unshared
++        how many pages unique but repeatedly checked for merging
++pages_volatile
++        how many pages changing too fast to be placed in a tree
++full_scans
++        how many times all mergeable areas have been scanned
++stable_node_chains
++        number of stable node chains allocated, this is effectively
++        the number of KSM pages that hit the max_page_sharing limit
++stable_node_dups
++        number of stable node dups queued into the stable_node chains
  
--See Documentation/vm/pagemap.txt for more information about /proc/pid/pagemap,
--/proc/kpageflags, and /proc/kpagecgroup.
-+.. _impl_details:
- 
--IMPLEMENTATION DETAILS
-+Implementation Details
-+======================
- 
- The kernel internally keeps track of accesses to user memory pages in order to
- reclaim unreferenced pages first on memory shortage conditions. A page is
-@@ -77,7 +93,8 @@ When a dirty page is written to swap or disk as a result of memory reclaim or
- exceeding the dirty memory limit, it is not marked referenced.
- 
- The idle memory tracking feature adds a new page flag, the Idle flag. This flag
--is set manually, by writing to /sys/kernel/mm/page_idle/bitmap (see the USER API
-+is set manually, by writing to ``/sys/kernel/mm/page_idle/bitmap`` (see the
-+:ref:`User API <user_api>`
- section), and cleared automatically whenever a page is referenced as defined
- above.
- 
+ A high ratio of pages_sharing to pages_shared indicates good sharing, but
+ a high ratio of pages_unshared to pages_sharing indicates wasted effort.
 -- 
 2.7.4
