@@ -1,75 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A4BEC6B002A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:08:22 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id u186so3260502qkc.6
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 08:08:22 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id p57si3259180qtf.335.2018.03.21.08.08.21
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DF7F6B002A
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:10:45 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id p128so2536456pga.19
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 08:10:45 -0700 (PDT)
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id q10si3243919pfc.183.2018.03.21.08.10.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 08:08:21 -0700 (PDT)
-Date: Wed, 21 Mar 2018 11:08:19 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 13/15] mm/hmm: factor out pte and pmd handling to
- simplify hmm_vma_walk_pmd()
-Message-ID: <20180321150819.GC3214@redhat.com>
-References: <20180320020038.3360-1-jglisse@redhat.com>
- <20180320020038.3360-14-jglisse@redhat.com>
- <e0fd4348-8b8c-90b2-a9d8-91a30768fddc@nvidia.com>
+        Wed, 21 Mar 2018 08:10:44 -0700 (PDT)
+Date: Wed, 21 Mar 2018 09:10:42 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH] docs/vm: update 00-INDEX
+Message-ID: <20180321091042.678b31bf@lwn.net>
+In-Reply-To: <1521644723-19354-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1521644723-19354-1-git-send-email-rppt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <e0fd4348-8b8c-90b2-a9d8-91a30768fddc@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 20, 2018 at 10:07:29PM -0700, John Hubbard wrote:
-> On 03/19/2018 07:00 PM, jglisse@redhat.com wrote:
-> > From: Jerome Glisse <jglisse@redhat.com>
-> > 
-> > No functional change, just create one function to handle pmd and one
-> > to handle pte (hmm_vma_handle_pmd() and hmm_vma_handle_pte()).
-> > 
-> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
-> > Cc: Ralph Campbell <rcampbell@nvidia.com>
-> > Cc: Mark Hairgrove <mhairgrove@nvidia.com>
-> > Cc: John Hubbard <jhubbard@nvidia.com>
-> > ---
-> >  mm/hmm.c | 174 +++++++++++++++++++++++++++++++++++++--------------------------
-> >  1 file changed, 102 insertions(+), 72 deletions(-)
-> > 
-> > diff --git a/mm/hmm.c b/mm/hmm.c
-> > index 52cdceb35733..dc703e9c3a95 100644
-> > --- a/mm/hmm.c
-> > +++ b/mm/hmm.c
-> > @@ -351,6 +351,99 @@ static int hmm_vma_walk_hole(unsigned long addr,
-> >  	return hmm_vma_walk->fault ? -EAGAIN : 0;
-> >  }
-> >  
-> > +static int hmm_vma_handle_pmd(struct mm_walk *walk,
-> > +			      unsigned long addr,
-> > +			      unsigned long end,
-> > +			      uint64_t *pfns,
-> 
-> Hi Jerome,
-> 
-> Nice cleanup, it makes it much easier to follow the code now.
-> 
-> Let's please rename the pfns argument above to "pfn", because in this
-> helper (and the _pte helper too), there is only one pfn involved, rather
-> than an array of them.
+On Wed, 21 Mar 2018 17:05:23 +0200
+Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
 
-This is only true to handle_pte, for handle_pmd it will go over several
-pfn entries. But they will all get fill with same value modulo pfn which
-will increase monotically (ie same flag as pmd permissions apply to all
-entries).
+> Several files were added to Documentation/vm without updates to 00-INDEX.
+> Fill in the missing documents
 
-Note sure s/pfns/pfn for hmm_vma_handle_pte() warrant a respin.
+Applied, thanks.
 
-Cheers,
-Jerome
+jon
