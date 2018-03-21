@@ -1,19 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B9EF6B0028
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:21:16 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v17so2641492pff.9
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 06:21:16 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0093.outbound.protection.outlook.com. [104.47.2.93])
-        by mx.google.com with ESMTPS id 65-v6si3909460plb.573.2018.03.21.06.21.14
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A6E96B0029
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:21:29 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id z11-v6so3062843plo.21
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 06:21:29 -0700 (PDT)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40117.outbound.protection.outlook.com. [40.107.4.117])
+        by mx.google.com with ESMTPS id u25si3083206pfm.164.2018.03.21.06.21.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 21 Mar 2018 06:21:14 -0700 (PDT)
-Subject: [PATCH 00/10] Improve shrink_slab() scalability (old complexity was
- O(n^2), new is O(n))
+        Wed, 21 Mar 2018 06:21:27 -0700 (PDT)
+Subject: [PATCH 01/10] mm: Assign id to every memcg-aware shrinker
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Wed, 21 Mar 2018 16:21:07 +0300
-Message-ID: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
+Date: Wed, 21 Mar 2018 16:21:17 +0300
+Message-ID: <152163847740.21546.16821490541519326725.stgit@localhost.localdomain>
+In-Reply-To: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
+References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -21,98 +22,116 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com, ktkhai@virtuozzo.com, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
 
-Imagine a big node with many cpus, memory cgroups and containers.
-Let we have 200 containers, and every container has 10 mounts
-and 10 cgroups. All container tasks don't touch foreign containers
-mounts.
+The patch introduces shrinker::id number, which is used to enumerate
+memcg-aware shrinkers. The number start from 0, and the code tries
+to maintain it as small as possible.
 
-In case of global reclaim, a task has to iterate all over the memcgs
-and to call all the memcg-aware shrinkers for all of them. This means,
-the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
-and since there are 2000 memcgs, the total calls of do_shrink_slab()
-are 2000 * 2000 = 4000000.
+This will be used as to represent a memcg-aware shrinkers in memcg
+shrinkers map.
 
-4 million calls are not a number operations, which can takes 1 cpu cycle.
-E.g., super_cache_count() accesses at least two lists, and makes arifmetical
-calculations. Even, if there are no charged objects, we do these calculations,
-and replaces cpu caches by read memory. I observed nodes spending almost 100%
-time in kernel, in case of intensive writing and global reclaim. Even if
-there is no writing, the iterations just waste the time, and slows reclaim down.
-
-Let's see the small test below:
-    $echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
-    $mkdir /sys/fs/cgroup/memory/ct
-    $echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
-    $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i; echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs; mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file; done
-
-Then, let's see drop caches time (4 sequential calls):
-    $time echo 3 > /proc/sys/vm/drop_caches
-    0.00user 6.80system 0:06.82elapsed 99%CPU 
-    0.00user 4.61system 0:04.62elapsed 99%CPU
-    0.00user 4.61system 0:04.61elapsed 99%CPU
-    0.00user 4.61system 0:04.61elapsed 99%CPU
-
-Last three calls don't actually shrink something. So, the iterations
-over slab shrinkers take 4.61 seconds. Not so good for scalability.
-
-The patchset solves the problem with following actions:
-1)Assign id to every registered memcg-aware shrinker.
-2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
-  and set a shrinker-related bit after the first element
-  is added to lru list (also, when removed child memcg
-  elements are reparanted).
-3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
-  and call a shrinker if its bit is set in memcg's shrinker
-  bitmap
-(Also, there is a functionality to clear the bit, after
- last element is shrinked).
-
-This gives signify performance increase. The result after patchset is applied:
-
-    $time echo 3 > /proc/sys/vm/drop_caches
-    0.00user 0.93system 0:00.94elapsed 99%CPU
-    0.00user 0.00system 0:00.01elapsed 80%CPU
-    0.00user 0.00system 0:00.01elapsed 80%CPU
-    0.00user 0.00system 0:00.01elapsed 81%CPU
-    (4.61s/0.01s = 461 times faster)
-
-Currenly, all memcg-aware shrinkers are implemented via list_lru.
-The only exception is XFS cached objects backlog (which is completelly
-no memcg-aware, but pretends to be memcg-aware). See
-xfs_fs_nr_cached_objects() and xfs_fs_free_cached_objects() for
-the details. It seems, this can be reworked to fix this lack.
-
-So, the patchset makes shrink_slab() of less complexity and improves
-the performance in such types of load I pointed. This will give a profit
-in case of !global reclaim case, since there also will be less do_shrink_slab()
-calls.
-
-This patchset is made against linux-next.git tree.
-
----
-
-Kirill Tkhai (10):
-      mm: Assign id to every memcg-aware shrinker
-      mm: Maintain memcg-aware shrinkers in mcg_shrinkers array
-      mm: Assign memcg-aware shrinkers bitmap to memcg
-      fs: Propagate shrinker::id to list_lru
-      list_lru: Add memcg argument to list_lru_from_kmem()
-      list_lru: Pass dst_memcg argument to memcg_drain_list_lru_node()
-      list_lru: Pass lru argument to memcg_drain_list_lru_node()
-      mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
-      mm: Iterate only over charged shrinkers during memcg shrink_slab()
-      mm: Clear shrinker bit if there are no objects related to memcg
-
-
- fs/super.c                 |    8 +
- include/linux/list_lru.h   |    3 
- include/linux/memcontrol.h |   20 +++
- include/linux/shrinker.h   |    9 +
- mm/list_lru.c              |   65 ++++++--
- mm/memcontrol.c            |    7 +
- mm/vmscan.c                |  337 ++++++++++++++++++++++++++++++++++++++++++--
- mm/workingset.c            |    6 +
- 8 files changed, 418 insertions(+), 37 deletions(-)
-
---
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+---
+ include/linux/shrinker.h |    1 +
+ mm/vmscan.c              |   59 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+)
+
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index a3894918a436..738de8ef5246 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -66,6 +66,7 @@ struct shrinker {
+ 
+ 	/* These are for internal use */
+ 	struct list_head list;
++	int id;
+ 	/* objs pending delete, per node */
+ 	atomic_long_t *nr_deferred;
+ };
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 8fcd9f8d7390..91b5120b924f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -159,6 +159,56 @@ unsigned long vm_total_pages;
+ static LIST_HEAD(shrinker_list);
+ static DECLARE_RWSEM(shrinker_rwsem);
+ 
++#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
++static DEFINE_IDA(bitmap_id_ida);
++static DECLARE_RWSEM(bitmap_rwsem);
++static int bitmap_id_start;
++
++static int alloc_shrinker_id(struct shrinker *shrinker)
++{
++	int id, ret;
++
++	if (!(shrinker->flags & SHRINKER_MEMCG_AWARE))
++		return 0;
++retry:
++	ida_pre_get(&bitmap_id_ida, GFP_KERNEL);
++	down_write(&bitmap_rwsem);
++	ret = ida_get_new_above(&bitmap_id_ida, bitmap_id_start, &id);
++	if (!ret) {
++		shrinker->id = id;
++		bitmap_id_start = shrinker->id + 1;
++	}
++	up_write(&bitmap_rwsem);
++	if (ret == -EAGAIN)
++		goto retry;
++
++	return ret;
++}
++
++static void free_shrinker_id(struct shrinker *shrinker)
++{
++	int id = shrinker->id;
++
++	if (!(shrinker->flags & SHRINKER_MEMCG_AWARE))
++		return;
++
++	down_write(&bitmap_rwsem);
++	ida_remove(&bitmap_id_ida, id);
++	if (bitmap_id_start > id)
++		bitmap_id_start = id;
++	up_write(&bitmap_rwsem);
++}
++#else /* CONFIG_MEMCG && !CONFIG_SLOB */
++static int alloc_shrinker_id(struct shrinker *shrinker)
++{
++	return 0;
++}
++
++static void free_shrinker_id(struct shrinker *shrinker)
++{
++}
++#endif /* CONFIG_MEMCG && !CONFIG_SLOB */
++
+ #ifdef CONFIG_MEMCG
+ static bool global_reclaim(struct scan_control *sc)
+ {
+@@ -269,10 +319,18 @@ int register_shrinker(struct shrinker *shrinker)
+ 	if (!shrinker->nr_deferred)
+ 		return -ENOMEM;
+ 
++	if (alloc_shrinker_id(shrinker))
++		goto free_deferred;
++
+ 	down_write(&shrinker_rwsem);
+ 	list_add_tail(&shrinker->list, &shrinker_list);
+ 	up_write(&shrinker_rwsem);
+ 	return 0;
++
++free_deferred:
++	kfree(shrinker->nr_deferred);
++	shrinker->nr_deferred = NULL;
++	return -ENOMEM;
+ }
+ EXPORT_SYMBOL(register_shrinker);
+ 
+@@ -286,6 +344,7 @@ void unregister_shrinker(struct shrinker *shrinker)
+ 	down_write(&shrinker_rwsem);
+ 	list_del(&shrinker->list);
+ 	up_write(&shrinker_rwsem);
++	free_shrinker_id(shrinker);
+ 	kfree(shrinker->nr_deferred);
+ 	shrinker->nr_deferred = NULL;
+ }
