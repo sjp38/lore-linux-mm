@@ -1,34 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0935D6B0012
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 14:55:27 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id e205so3670266qkb.8
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:55:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id j19si5151013qtf.343.2018.03.21.11.55.25
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A3276B0022
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 14:56:03 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c5so3090493pfn.17
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:56:03 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id y1-v6si4919339pli.586.2018.03.21.11.56.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 11:55:26 -0700 (PDT)
-Date: Wed, 21 Mar 2018 14:55:21 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 21 Mar 2018 11:56:02 -0700 (PDT)
+Date: Wed, 21 Mar 2018 11:55:58 -0700
+From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
-In-Reply-To: <alpine.DEB.2.20.1803211335240.13978@nuc-kabylake>
-Message-ID: <alpine.LRH.2.02.1803211443070.26409@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake> <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake> <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake> <alpine.DEB.2.20.1803211233290.3384@nuc-kabylake> <20180321174937.GF4780@bombadil.infradead.org> <alpine.LRH.2.02.1803211406180.26409@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <20180321185558.GA18494@bombadil.infradead.org>
+References: <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake>
+ <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake>
+ <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
+ <alpine.DEB.2.20.1803211233290.3384@nuc-kabylake>
+ <20180321174937.GF4780@bombadil.infradead.org>
+ <alpine.LRH.2.02.1803211406180.26409@file01.intranet.prod.int.rdu2.redhat.com>
  <alpine.DEB.2.20.1803211335240.13978@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1803211335240.13978@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christopher Lameter <cl@linux.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
-
-
-On Wed, 21 Mar 2018, Christopher Lameter wrote:
-
+On Wed, Mar 21, 2018 at 01:40:31PM -0500, Christopher Lameter wrote:
 > On Wed, 21 Mar 2018, Mikulas Patocka wrote:
 > 
 > > > > F.e. you could optimize the allcations > 2x PAGE_SIZE so that they do not
@@ -47,53 +51,10 @@ On Wed, 21 Mar 2018, Christopher Lameter wrote:
 > 
 > Have a look at include/linux/mempool.h.
 
-I know the mempool interface. Mempool can keep some amount reserved 
-objects if the system memory is exhausted.
-
-Mempool doesn't deal with object allocation at all - mempool needs to be 
-hooked to an existing object allocator (slab cache, kmalloc, alloc_pages, 
-or some custom allocator provided with the methods mempool_alloc_t and 
-mempool_free_t).
-
-> > > I don't know if that's a good idea.  That will contribute to fragmentation
-> > > if the allocation is held onto for a short-to-medium length of time.
-> > > If the allocation is for a very long period of time then those pages
-> > > would have been unavailable anyway, but if the user of the tail pages
-> > > holds them beyond the lifetime of the large allocation, then this is
-> > > probably a bad tradeoff to make.
-> 
-> Fragmentation is sadly a big issue. You could create a mempool on bootup
-> or early after boot to ensure that you have a sufficient number of
-> contiguous pages available.
-
-The dm-bufio driver deals correctly with this - it preallocates several 
-buffers with vmalloc when the dm-bufio cache is created. During operation, 
-if a high-order allocation fails, the dm-bufio subsystem throws away some 
-existing buffer and reuses the already allocated chunk of memory for the 
-buffer that needs to be created.
-
-So, fragmentation is not an issue with this use case. dm-bufio can make 
-forward progress even if memory is totally exhausted.
-
-> > The problem with alloc_pages_exact() is that it exhausts all the
-> > high-order pages and leaves many free low-order pages around. So you'll
-> > end up in a system with a lot of free memory, but with all high-order
-> > pages missing. As there would be a lot of free memory, the kswapd thread
-> > would not be woken up to free some high-order pages.
-> 
-> I think that logic is properly balanced and will take into account pages
-> that have been removed from the LRU expiration logic.
-> 
-> > I think that using slab with high order is better, because it at least
-> > doesn't leave many low-order pages behind.
-> 
-> Any request to the slab via kmalloc with a size > 2x page size will simply
-> lead to a page allocator request. You have the same issue. If you want to
-> rely on the slab allocator buffering large segments for you then a mempool
-> will also solve the issue for you and you have more control over the pool.
-
-mempool solves nothing because it needs a backing allocator. And the 
-question is what this backing allocator should be.
+That's not what mempool is for.  mempool is a cache of elements that were
+allocated from slab in the first place.  (OK, technically, you don't have
+to use slab as the allocator, but since there is no allocator that solves
+this problem, mempool doesn't solve the problem either!)
 
 > > BTW. it could be possible to open the file
 > > "/sys/kernel/slab/<cache>/order" from the dm-bufio kernel driver and write
@@ -107,7 +68,6 @@ question is what this backing allocator should be.
 > fragmentation when the system runs for a long time. That is the reason we
 > try to limit the allocation sizes coming from the slab allocator.
 
-It won't - see above - if the high-order allocation fails, dm-bufio just 
-reuses some existing buffer.
-
-Mikulas
+Right; he has a fallback already (vmalloc).  So ... let's just add the
+interface to allow slab caches to have their order tuned by users who
+really know what they're doing?
