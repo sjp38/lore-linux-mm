@@ -1,80 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E95106B0025
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 13:11:03 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id x8-v6so3451451pln.9
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 10:11:03 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z13si2979157pgp.602.2018.03.21.10.11.02
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B81BE6B0025
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 13:17:03 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 2so2973171pft.4
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 10:17:03 -0700 (PDT)
+Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
+        by mx.google.com with ESMTPS id b4si2968358pgq.427.2018.03.21.10.17.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 21 Mar 2018 10:11:02 -0700 (PDT)
-Date: Wed, 21 Mar 2018 10:10:57 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
-Message-ID: <20180321171057.GD4780@bombadil.infradead.org>
-References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com>
- <20180320173512.GA19669@bombadil.infradead.org>
- <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake>
- <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake>
- <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake>
- <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Mar 2018 10:17:02 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
+From: Yang Shi <yang.shi@linux.alibaba.com>
+References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
+ <20180321131449.GN23100@dhcp22.suse.cz>
+ <8e0ded7b-4be4-fa25-f40c-d3116a6db4db@linux.alibaba.com>
+Message-ID: <cf87ade4-5a5c-3919-0fc6-acc40e12659b@linux.alibaba.com>
+Date: Wed, 21 Mar 2018 10:16:41 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <8e0ded7b-4be4-fa25-f40c-d3116a6db4db@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Christopher Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Mar 21, 2018 at 12:25:39PM -0400, Mikulas Patocka wrote:
-> Now - we don't want higher-order allocations for power-of-two caches 
-> (because higher-order allocations just cause memory fragmentation without 
-> any benefit)
 
-Higher-order allocations don't cause memory fragmentation.  Indeed,
-they avoid it.  They do fail as a result of fragmentation, which is
-probably what you meant.
 
-> , but we want higher-order allocations for non-power-of-two 
-> caches (because higher-order allocations minimize wasted space).
-> 
-> For example:
-> for 192K block size, the ideal order is 4MB (it takes 21 blocks)
+On 3/21/18 9:50 AM, Yang Shi wrote:
+>
+>
+> On 3/21/18 6:14 AM, Michal Hocko wrote:
+>> On Wed 21-03-18 05:31:19, Yang Shi wrote:
+>>> When running some mmap/munmap scalability tests with large memory (i.e.
+>>>> 300GB), the below hung task issue may happen occasionally.
+>>> INFO: task ps:14018 blocked for more than 120 seconds.
+>>>         Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+>>>   "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+>>> message.
+>>>   ps              D    0 14018      1 0x00000004
+>>>    ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+>>>    ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+>>>    00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+>>>   Call Trace:
+>>>    [<ffffffff817154d0>] ? __schedule+0x250/0x730
+>>>    [<ffffffff817159e6>] schedule+0x36/0x80
+>>>    [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+>>>    [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+>>>    [<ffffffff81717db0>] down_read+0x20/0x40
+>>>    [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+>> Slightly off-topic:
+>> Btw. this sucks as well. Do we really need to take mmap_sem here? Do any
+>> of
+>>     arg_start = mm->arg_start;
+>>     arg_end = mm->arg_end;
+>>     env_start = mm->env_start;
+>>     env_end = mm->env_end;
+>>
+>> change after exec or while the pid is already visible in proc? If yes
+>> maybe we can use a dedicated lock.
 
-I wonder if that's true.  You can get five blocks into 1MB, wasting 64kB.
-So going up by two orders of magnitude lets you get an extra block in
-at the cost of failing more frequently.
+BTW, this is not the only place to acquire mmap_sem in 
+proc_pid_cmdline_read(), it calls access_remote_vm() which need acquire 
+mmap_sem too, so the mmap_sem scalability issue will be hit sooner or later.
 
-> > You should not be using the slab allocators for these. Allocate higher
-> > order pages or numbers of consecutive smaller pagess from the page
-> > allocator. The slab allocators are written for objects smaller than page
-> > size.
-> 
-> So, do you argue that I need to write my own slab cache functionality 
-> instead of using the existing slab code?
-> 
-> I can do it - but duplicating code is bad thing.
+Yang
 
-It is -- but writing a special-purpose allocator can be better than making
-a general purpose allocator also solve a special purpose.  I don't know
-whether that's true here or not.
-
-Your allocator seems like it could be remarkably simple; you know
-you're always doing high-order allocations, and you know that you're
-never allocating more than a handful of blocks from a page allocation.
-So you can probably store all of your metadata in the struct page
-(because your metadata is basically a bitmap) and significantly save on
-memory usage.  The one downside I see is that you don't get the reporting
-through /proc/slabinfo.
-
-So, is this an area where slub should be improved, or is this a case where
-writing a special-purpose allocator makes more sense?  It seems like you
-already have a special-purpose allocator, in that you know how to fall
-back to vmalloc if slab-alloc fails.  So maybe have your own allocator
-that interfaces to the page allocator for now; keep its interface nice
-and clean, and maybe it'll get pulled out of your driver and put into mm/
-some day if it becomes a useful API for everybody to share?
+>
+> Actually, Alexey Dobriyan had the same comment when he reviewed my 
+> very first patch (which changes down_read to down_read_killable at 
+> that place).
+>
+> Those 4 values might be changed by prctl_set_mm() and 
+> prctl_set_mm_map() concurrently. They used to use down_read() to 
+> protect the change, but it looks not good enough to protect concurrent 
+> writing. So, Mateusz Guzik's commit 
+> ddf1d398e517e660207e2c807f76a90df543a217 ("prctl: take mmap sem for 
+> writing to protect against others") change it to down_write().
+>
+> It seems mmap_sem can be replaced to a dedicated lock. How about 
+> defining a rwlock in mm_struct to protect those data? I will come up 
+> with a RFC patch for this.
+>
+> However, this dedicated lock just can work around this specific case. 
+> I believe solving mmap_sem scalability issue aimed by the patch series 
+> is still our consensus.
+>
+> Thanks,
+> Yang
+>
+>
+>
+>
