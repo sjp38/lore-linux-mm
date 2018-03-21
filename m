@@ -1,108 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 20F6F6B000A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 04:41:17 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id j47so2136295wre.11
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 01:41:17 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 891E76B000A
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 05:59:16 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id i64so2058677wmd.8
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 02:59:16 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m54si2956645wrm.302.2018.03.21.01.41.15
+        by mx.google.com with ESMTPS id k66si3108742wrc.14.2018.03.21.02.59.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Mar 2018 01:41:15 -0700 (PDT)
-Date: Wed, 21 Mar 2018 09:41:13 +0100
+        Wed, 21 Mar 2018 02:59:15 -0700 (PDT)
+Date: Wed, 21 Mar 2018 10:59:13 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/hugetlb: prevent hugetlb VMA to be misaligned
-Message-ID: <20180321084113.GD23100@dhcp22.suse.cz>
-References: <1521566754-30390-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <86240c1a-d1f1-0f03-855e-c5196762ec0a@oracle.com>
- <0d24f817-303a-7b4d-4603-b2d14e4b391a@oracle.com>
+Subject: Re: =?utf-8?B?562U5aSNOiDnrZTlpI06IFtQQVRD?= =?utf-8?Q?H=5D?=
+ mm/memcontrol.c: speed up to force empty a memory cgroup
+Message-ID: <20180321095913.GE23100@dhcp22.suse.cz>
+References: <20180319085355.GQ23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
+ <20180319103756.GV23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
+ <alpine.DEB.2.20.1803191044310.177918@chino.kir.corp.google.com>
+ <20180320083950.GD23100@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1803201327060.167205@chino.kir.corp.google.com>
+ <56508bd0-e8d7-55fd-5109-c8dacf26b13e@virtuozzo.com>
+ <alpine.DEB.2.20.1803201514340.14003@chino.kir.corp.google.com>
+ <e265c518-968b-8669-ad22-671c781ad96e@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0d24f817-303a-7b4d-4603-b2d14e4b391a@oracle.com>
+In-Reply-To: <e265c518-968b-8669-ad22-671c781ad96e@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Dan Williams <dan.j.williams@intel.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: David Rientjes <rientjes@google.com>, "Li,Rongqing" <lirongqing@baidu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Tue 20-03-18 14:35:28, Mike Kravetz wrote:
-> On 03/20/2018 02:26 PM, Mike Kravetz wrote:
-> > Thanks Laurent!
+On Wed 21-03-18 01:35:05, Andrey Ryabinin wrote:
+> On 03/21/2018 01:15 AM, David Rientjes wrote:
+> > On Wed, 21 Mar 2018, Andrey Ryabinin wrote:
 > > 
-> > This bug was introduced by 31383c6865a5.  Dan's changes for 31383c6865a5
-> > seem pretty straight forward.  It simply replaces an explicit check when
-> > splitting a vma to a new vm_ops split callout.  Unfortunately, mappings
-> > created via shmget/shmat have their vm_ops replaced.  Therefore, this
-> > split callout is never made.
+> >>>>> It would probably be best to limit the 
+> >>>>> nr_pages to the amount that needs to be reclaimed, though, rather than 
+> >>>>> over reclaiming.
+> >>>>
+> >>>> How do you achieve that? The charging path is not synchornized with the
+> >>>> shrinking one at all.
+> >>>>
+> >>>
+> >>> The point is to get a better guess at how many pages, up to 
+> >>> SWAP_CLUSTER_MAX, that need to be reclaimed instead of 1.
+> >>>
+> >>>>> If you wanted to be invasive, you could change page_counter_limit() to 
+> >>>>> return the count - limit, fix up the callers that look for -EBUSY, and 
+> >>>>> then use max(val, SWAP_CLUSTER_MAX) as your nr_pages.
+> >>>>
+> >>>> I am not sure I understand
+> >>>>
+> >>>
+> >>> Have page_counter_limit() return the number of pages over limit, i.e. 
+> >>> count - limit, since it compares the two anyway.  Fix up existing callers 
+> >>> and then clamp that value to SWAP_CLUSTER_MAX in 
+> >>> mem_cgroup_resize_limit().  It's a more accurate guess than either 1 or 
+> >>> 1024.
+> >>>
+> >>
+> >> JFYI, it's never 1, it's always SWAP_CLUSTER_MAX.
+> >> See try_to_free_mem_cgroup_pages():
+> >> ....	
+> >> 	struct scan_control sc = {
+> >> 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+> >>
 > > 
-> > The shm vm_ops do indirectly call the original vm_ops routines as needed.
-> > Therefore, I would suggest a patch something like the following instead.
-> > If we move forward with the patch, we should include Laurent's BUG output
-> > and perhaps test program in the commit message.
+> > Is SWAP_CLUSTER_MAX the best answer if I'm lowering the limit by 1GB?
+> > 
 > 
-> Sorry, patch in previous mail was a mess
-> 
-> >From 7a19414319c7937fd2757c27f936258f16c1f61d Mon Sep 17 00:00:00 2001
-> From: Mike Kravetz <mike.kravetz@oracle.com>
-> Date: Tue, 20 Mar 2018 13:56:57 -0700
-> Subject: [PATCH] shm: add split function to shm_vm_ops
-> 
-> The split function was added to vm_operations_struct to determine
-> if a mapping can be split.  This was mostly for device-dax and
-> hugetlbfs mappings which have specific alignment constraints.
-> 
-> mappings initiated via shmget/shmat have their original vm_ops
-> overwritten with shm_vm_ops.  shm_vm_ops functions will call back
-> to the original vm_ops if needed.  Add such a split function.
-> 
-> Fixes: 31383c6865a5 ("mm, hugetlbfs: introduce ->split() to vm_operations_struct)
-> Reported by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Absolutely not. I completely on your side here. 
+> I've tried to fix this recently - http://lkml.kernel.org/r/20180119132544.19569-2-aryabinin@virtuozzo.com
+> I guess that Andrew decided to not take my patch, because Michal wasn't
+> happy about it (see mail archives if you want more details).
 
-Yes this looks much better than the original hugetlb specific code in
-the generic vma code.
+I was unhappy about the explanation and justification of the patch. It
+is still not clear to me why try_to_free_mem_cgroup_pages with a single
+target should be slower than multiple calls of this function with
+smaller batches when the real reclaim is still SWAP_CLUSTER_MAX batched.
 
-Please add the original VM_BUG_ON report to the changelog
-
-Cc: stable
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  ipc/shm.c | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
-> 
-> diff --git a/ipc/shm.c b/ipc/shm.c
-> index 7acda23430aa..50e88fc060b1 100644
-> --- a/ipc/shm.c
-> +++ b/ipc/shm.c
-> @@ -386,6 +386,17 @@ static int shm_fault(struct vm_fault *vmf)
->  	return sfd->vm_ops->fault(vmf);
->  }
->  
-> +static int shm_split(struct vm_area_struct *vma, unsigned long addr)
-> +{
-> +	struct file *file = vma->vm_file;
-> +	struct shm_file_data *sfd = shm_file_data(file);
-> +
-> +	if (sfd->vm_ops && sfd->vm_ops->split)
-> +		return sfd->vm_ops->split(vma, addr);
-> +
-> +	return 0;
-> +}
-> +
->  #ifdef CONFIG_NUMA
->  static int shm_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
->  {
-> @@ -510,6 +521,7 @@ static const struct vm_operations_struct shm_vm_ops = {
->  	.open	= shm_open,	/* callback for a new vm-area open */
->  	.close	= shm_close,	/* callback for when the vm-area is released */
->  	.fault	= shm_fault,
-> +	.split	= shm_split,
->  #if defined(CONFIG_NUMA)
->  	.set_policy = shm_set_policy,
->  	.get_policy = shm_get_policy,
-> -- 
-> 2.13.6
+There is also a theoretical risk of over reclaim. Especially with large
+targets.
 
 -- 
 Michal Hocko
