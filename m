@@ -1,87 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FC386B0012
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:43:11 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id t10-v6so3281957plr.12
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 08:43:11 -0700 (PDT)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20090.outbound.protection.outlook.com. [40.107.2.90])
-        by mx.google.com with ESMTPS id r1si3410252pff.24.2018.03.21.08.43.09
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BA686B0026
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 11:52:32 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id x35so3516527qtx.5
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 08:52:32 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id s38si1032140qtj.370.2018.03.21.08.52.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 21 Mar 2018 08:43:09 -0700 (PDT)
-Subject: Re: [PATCH 03/10] mm: Assign memcg-aware shrinkers bitmap to memcg
-References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
- <152163850081.21546.6969747084834474733.stgit@localhost.localdomain>
- <20180321145625.GA4780@bombadil.infradead.org>
- <eda62454-5788-4f65-c2b5-719d4a98cb2a@virtuozzo.com>
- <20180321152647.GB4780@bombadil.infradead.org>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <638887a1-35f8-a71d-6e45-4e779eb62dc4@virtuozzo.com>
-Date: Wed, 21 Mar 2018 18:43:01 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Mar 2018 08:52:31 -0700 (PDT)
+Date: Wed, 21 Mar 2018 11:52:28 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 15/15] mm/hmm: use device driver encoding for HMM pfn v2
+Message-ID: <20180321155228.GD3214@redhat.com>
+References: <20180320020038.3360-1-jglisse@redhat.com>
+ <20180320020038.3360-16-jglisse@redhat.com>
+ <0a46cec4-3c39-bc2c-90f5-da33981cb8f2@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <20180321152647.GB4780@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <0a46cec4-3c39-bc2c-90f5-da33981cb8f2@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
 
-On 21.03.2018 18:26, Matthew Wilcox wrote:
-> On Wed, Mar 21, 2018 at 06:12:17PM +0300, Kirill Tkhai wrote:
->> On 21.03.2018 17:56, Matthew Wilcox wrote:
->>> Why use your own bitmap here?  Why not use an IDA which can grow and
->>> shrink automatically without you needing to play fun games with RCU?
->>
->> Bitmap allows to use unlocked set_bit()/clear_bit() to maintain the map
->> of not empty shrinkers.
->>
->> So, the reason to use IDR here is to save bitmap memory? Does this mean
->> IDA works fast with sparse identifiers? It seems they require per-memcg
->> lock to call IDR primitives. I just don't have information about this.
->>
->> If so, which IDA primitive can be used to set particular id in bitmap?
->> There is idr_alloc_cyclic(idr, NULL, id, id+1, GFP_KERNEL) only I see
->> to do that.
+On Tue, Mar 20, 2018 at 09:39:27PM -0700, John Hubbard wrote:
+> On 03/19/2018 07:00 PM, jglisse@redhat.com wrote:
+> > From: Jerome Glisse <jglisse@redhat.com>
+
+[...]
+
+> > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> > index 0f7ea3074175..5d26e0a223d9 100644
+> > --- a/include/linux/hmm.h
+> > +++ b/include/linux/hmm.h
+> > @@ -80,68 +80,145 @@
+> >  struct hmm;
+> >  
+> >  /*
+> > + * hmm_pfn_flag_e - HMM flag enums
+> > + *
+> >   * Flags:
+> >   * HMM_PFN_VALID: pfn is valid. It has, at least, read permission.
+> >   * HMM_PFN_WRITE: CPU page table has write permission set
+> > + * HMM_PFN_DEVICE_PRIVATE: private device memory (ZONE_DEVICE)
+> > + *
+> > + * The driver provide a flags array, if driver valid bit for an entry is bit
+> > + * 3 ie (entry & (1 << 3)) is true if entry is valid then driver must provide
+> > + * an array in hmm_range.flags with hmm_range.flags[HMM_PFN_VALID] == 1 << 3.
+> > + * Same logic apply to all flags. This is same idea as vm_page_prot in vma
+> > + * except that this is per device driver rather than per architecture.
 > 
-> You're confusing IDR and IDA in your email, which is unfortunate.
+> Hi Jerome,
 > 
-> You can set a bit in an IDA by calling ida_simple_get(ida, n, n, GFP_FOO);
-> You clear it by calling ida_simple_remove(ida, n);
-
-I moved to IDR in the message, since IDA uses global spinlock. It will be
-taken every time a first object is added to list_lru, or last is removed.
-These may be frequently called operations, and they may scale not good
-on big machines.
-
-Using IDR will allow us to introduce memcg-related locks, but I'm still not
-sure it's easy to introduce them in scalable-way. Simple set_bit()/clear_bit()
-do not require locks at all.
-
-> The identifiers aren't going to be all that sparse; after all you're
-> allocating them from a global IDA.  Up to 62 identifiers will allocate
-> no memory; 63-1024 identifiers will allocate a single 128 byte chunk.
-> Between 1025 and 65536 identifiers, you'll allocate a 576-byte chunk
-> and then 128-byte chunks for each block of 1024 identifiers (*).  One of
-> the big wins with the IDA is that it will shrink again after being used.
-> I didn't read all the way through your patchset to see if you bother to
-> shrink your bitmap after it's no longer used, but most resizing bitmaps
-> we have in the kernel don't bother with that part.
+> If we go with this approach--and I hope not, I'll try to talk you down from the
+> ledge, in a moment--then maybe we should add the following to the comments: 
 > 
-> (*) Actually it's more complex than that... between 1025 and 1086,
-> you'll have a 576 byte chunk, a 128-byte chunk and then use 62 bits of
-> the next pointer before allocating a 128 byte chunk when reaching ID
-> 1087.  Similar things happen for the 62 bits after 2048, 3076 and so on.
-> The individual chunks aren't shrunk until they're empty so if you set ID
-> 1025 and then ID 1100, then clear ID 1100, the 128-byte chunk will remain
-> allocated until ID 1025 is cleared.  This probably doesn't matter to you.
+> "There is only one bit ever set in each hmm_range.flags[entry]." 
 
-Sound great, thanks for explaining this. The big problem I see is
-that IDA/IDR add primitives allocate memory, while they will be used
-in the places, where they mustn't fail. There is list_lru_add(), and
-it's called unconditionally in current kernel code. The patchset makes
-the bitmap be populated in this function. So, we can't use IDR there.
+This is not necesarily true, driver can have multiple bits set matching
+one HMM flag. Actually i do expect to see that (in nouveau).
 
-Thanks,
-Kirill
+
+> Or maybe we'll get pushback, that the code shows that already, but IMHO this is 
+> strange way to do things (especially when there is a much easier way), and deserves 
+> that extra bit of helpful documentation.
+> 
+> More below...
+> 
+> > + */
+> > +enum hmm_pfn_flag_e {
+> > +	HMM_PFN_VALID = 0,
+> > +	HMM_PFN_WRITE,
+> > +	HMM_PFN_DEVICE_PRIVATE,
+> > +	HMM_PFN_FLAG_MAX
+> > +};
+> > +
+> > +/*
+> > + * hmm_pfn_value_e - HMM pfn special value
+> > + *
+> > + * Flags:
+> >   * HMM_PFN_ERROR: corresponding CPU page table entry points to poisoned memory
+> > + * HMM_PFN_NONE: corresponding CPU page table entry is pte_none()
+> >   * HMM_PFN_SPECIAL: corresponding CPU page table entry is special; i.e., the
+> >   *      result of vm_insert_pfn() or vm_insert_page(). Therefore, it should not
+> >   *      be mirrored by a device, because the entry will never have HMM_PFN_VALID
+> >   *      set and the pfn value is undefined.
+> > - * HMM_PFN_DEVICE_PRIVATE: unaddressable device memory (ZONE_DEVICE)
+> > + *
+> > + * Driver provide entry value for none entry, error entry and special entry,
+> > + * driver can alias (ie use same value for error and special for instance). It
+> > + * should not alias none and error or special.
+> > + *
+> > + * HMM pfn value returned by hmm_vma_get_pfns() or hmm_vma_fault() will be:
+> > + * hmm_range.values[HMM_PFN_ERROR] if CPU page table entry is poisonous,
+> > + * hmm_range.values[HMM_PFN_NONE] if there is no CPU page table
+> > + * hmm_range.values[HMM_PFN_SPECIAL] if CPU page table entry is a special one
+> >   */
+> > -#define HMM_PFN_VALID (1 << 0)
+> > -#define HMM_PFN_WRITE (1 << 1)
+> > -#define HMM_PFN_ERROR (1 << 2)
+> > -#define HMM_PFN_SPECIAL (1 << 3)
+> > -#define HMM_PFN_DEVICE_PRIVATE (1 << 4)
+> > -#define HMM_PFN_SHIFT 5
+> > +enum hmm_pfn_value_e {
+> > +	HMM_PFN_ERROR,
+> > +	HMM_PFN_NONE,
+> > +	HMM_PFN_SPECIAL,
+> > +	HMM_PFN_VALUE_MAX
+> > +};
+> 
+> I can think of perhaps two good solid ways to get what you want, without
+> moving to what I consider an unnecessary excursion into arrays of flags. 
+> If I understand correctly, you want to let each architecture
+> specify which bit to use for each of the above HMM_PFN_* flags. 
+> 
+> The way you have it now, the code does things like this:
+> 
+>         cpu_flags & range->flags[HMM_PFN_WRITE]
+> 
+> but that array entry is mostly empty space, and it's confusing. It would
+> be nicer to see:
+> 
+>         cpu_flags & HMM_PFN_WRITE
+> 
+> ...which you can easily do, by defining HMM_PFN_WRITE and friends in an
+> arch-specific header file.
+
+arch-specific header do not work, HMM can be use in same kernel by
+different device driver (AMD and NVidia for instance) and each will
+have their own page table entry format and they won't match.
+
+
+> The other way to make this more readable would be to use helper routines
+> similar to what the vm_pgprot* routines do:
+> 
+> static pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
+> {
+> 	return pgprot_modify(oldprot, vm_get_page_prot(vm_flags));
+> }
+> 
+> ...but that's also unnecessary.
+> 
+> Let's just keep it simple, and go back to the bitmap flags!
+
+This simplify nouveau code and it is the reason why i did that patch.
+I am sure it can simplify NVidia uvm code, i can look into it if you
+want to give pointers. Idea here is that HMM can fill array with some-
+thing that match device driver internal format and avoid the conversion
+step from HMM format to driver format (saving CPU cycles and memory
+doing so). I am open to alternative that give the same end result.
+
+[Just because code is worth 2^32 words :)
+
+Without this patch:
+    int nouveau_do_fault(..., ulong addr, unsigned npages, ...)
+    {
+        uint64_t *hmm_pfns, *nouveau_pfns;
+
+        hmm_pfns = kmalloc(sizeof(uint64_t) * npages, GFP_KERNEL);
+        nouveau_pfns = kmalloc(sizeof(uint64_t) * npages, GFP_KERNEL);
+        hmm_vma_fault(..., hmm_pfns, ...);
+
+        for (i = 0; i < npages; ++i) {
+            nouveau_pfns[i] = nouveau_pfn_from_hmm_pfn(hmm_pfns[i]);
+        }
+        ...
+    }
+
+With this patch:
+    int nouveau_do_fault(..., ulong addr, unsigned npages, ...)
+    {
+        uint64_t *nouveau_pfns;
+
+        nouveau_pfns = kmalloc(sizeof(uint64_t) * npages, GFP_KERNEL);
+        hmm_vma_fault(..., nouveau_pfns, ...);
+
+        ...
+    }
+
+Benefit from this patch is quite obvious to me. Down the road with bit
+more integration between HMM and IOMMU/DMA this can turn into something
+directly ready for hardware consumptions.
+
+Note that you could argue that i can convert nouveau to use HMM format
+but this would not work, first because it requires a lot of changes in
+nouuveau, second because HMM do not have all the flags needed by the
+drivers (nor does HMM need them). HMM being the helper here, i feel it
+is up to HMM to adapt to drivers than the other way around.]
+
+Cheers,
+Jerome
