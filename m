@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E67A6B0280
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:25:10 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id q19so3890061qta.17
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:25:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id f10si6596829qki.156.2018.03.21.12.25.09
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 17B716B0280
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:25:13 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id m188so2554230qkd.15
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:25:13 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u66si642461qkd.334.2018.03.21.12.25.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 12:25:09 -0700 (PDT)
-Date: Wed, 21 Mar 2018 15:25:07 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
-In-Reply-To: <alpine.DEB.2.20.1803211233290.3384@nuc-kabylake>
-Message-ID: <alpine.LRH.2.02.1803211522310.26409@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake> <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake> <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake> <alpine.DEB.2.20.1803211233290.3384@nuc-kabylake>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 21 Mar 2018 12:25:12 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2LJIaNe064383
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:25:11 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2gurspnwpp-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:25:10 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 21 Mar 2018 19:25:08 -0000
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH 28/32] docs/vm: z3fold.txt: convert to ReST format
+Date: Wed, 21 Mar 2018 21:22:44 +0200
+In-Reply-To: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1521660168-14372-29-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+ Documentation/vm/z3fold.txt | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-
-On Wed, 21 Mar 2018, Christopher Lameter wrote:
-
-> One other thought: If you want to improve the behavior for large scale
-> objects allocated through kmalloc/kmemcache then we would certainly be
-> glad to entertain those ideas.
-> 
-> F.e. you could optimize the allcations > 2x PAGE_SIZE so that they do not
-> allocate powers of two pages. It would be relatively easy to make
-> kmalloc_large round the allocation to the next page size and then allocate
-> N consecutive pages via alloc_pages_exact() and free the remainder unused
-> pages or some such thing.
-
-It may be possible, but we'd need to improve the horrible complexity of 
-alloc_pages_exact().
-
-This is a trade-of between performance and waste. A power-of-two 
-allocation can be done quicky, but it wastes a lot of space. 
-alloc_pages_exact() wastes less space, but it is slow.
-
-The question is - how many of these large-kmalloc allocations are 
-short-lived and how many are long-lived? I don't know, I haven't measured 
-it.
-
-Mikulas
+diff --git a/Documentation/vm/z3fold.txt b/Documentation/vm/z3fold.txt
+index 38e4dac..224e3c6 100644
+--- a/Documentation/vm/z3fold.txt
++++ b/Documentation/vm/z3fold.txt
+@@ -1,5 +1,8 @@
++.. _z3fold:
++
++======
+ z3fold
+-------
++======
+ 
+ z3fold is a special purpose allocator for storing compressed pages.
+ It is designed to store up to three compressed pages per physical page.
+@@ -7,6 +10,7 @@ It is a zbud derivative which allows for higher compression
+ ratio keeping the simplicity and determinism of its predecessor.
+ 
+ The main differences between z3fold and zbud are:
++
+ * unlike zbud, z3fold allows for up to PAGE_SIZE allocations
+ * z3fold can hold up to 3 compressed pages in its page
+ * z3fold doesn't export any API itself and is thus intended to be used
+-- 
+2.7.4
