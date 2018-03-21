@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8625D6B0026
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 18:44:47 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h11so3401648pfn.0
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:44:47 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B520D6B0028
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 18:44:49 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id i127so1797018pgc.22
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:44:49 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i64-v6si4826966pli.78.2018.03.21.15.44.46
+        by mx.google.com with ESMTPS id v45si3467449pgn.379.2018.03.21.15.44.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Mar 2018 15:44:46 -0700 (PDT)
+        Wed, 21 Mar 2018 15:44:48 -0700 (PDT)
 From: Goldwyn Rodrigues <rgoldwyn@suse.de>
-Subject: [PATCH 2/3] fs: use memalloc_nofs API while shrinking superblock
-Date: Wed, 21 Mar 2018 17:44:28 -0500
-Message-Id: <20180321224429.15860-3-rgoldwyn@suse.de>
+Subject: [PATCH 3/3] fs: Use memalloc_nofs_save in generic_perform_write
+Date: Wed, 21 Mar 2018 17:44:29 -0500
+Message-Id: <20180321224429.15860-4-rgoldwyn@suse.de>
 In-Reply-To: <20180321224429.15860-1-rgoldwyn@suse.de>
 References: <20180321224429.15860-1-rgoldwyn@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,55 +22,43 @@ Cc: linux-mm@kvack.org, willy@infradead.org, david@fromorbit.com, Goldwyn Rodrig
 
 From: Goldwyn Rodrigues <rgoldwyn@suse.com>
 
-The superblock shrinkers are responsible for pruning dcache and icache.
-which evicts the inode by calling into local filesystem code. Protect
-allocations under memalloc_nofs_save/restore().
+Perform generic_perform_write() under memalloc_nofs because any allocations
+should not recurse into fs writebacks.
+This covers grab and write cache pages,
 
 Signed-off-by: Goldwyn Rodrigues <rgoldwyn@suse.com>
 ---
- fs/super.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ mm/filemap.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/fs/super.c b/fs/super.c
-index 672538ca9831..26fc2679118d 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -35,6 +35,7 @@
- #include <linux/fsnotify.h>
- #include <linux/lockdep.h>
- #include <linux/user_namespace.h>
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 3c9ead9a1e32..5fe54614c69f 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -36,6 +36,7 @@
+ #include <linux/cleancache.h>
+ #include <linux/shmem_fs.h>
+ #include <linux/rmap.h>
 +#include <linux/sched/mm.h>
  #include "internal.h"
  
+ #define CREATE_TRACE_POINTS
+@@ -3105,6 +3106,7 @@ ssize_t generic_perform_write(struct file *file,
+ 	long status = 0;
+ 	ssize_t written = 0;
+ 	unsigned int flags = 0;
++	unsigned nofs_flags = memalloc_nofs_save();
  
-@@ -63,6 +64,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
- 	long	freed = 0;
- 	long	dentries;
- 	long	inodes;
-+	unsigned flags;
+ 	do {
+ 		struct page *page;
+@@ -3177,6 +3179,8 @@ ssize_t generic_perform_write(struct file *file,
+ 		balance_dirty_pages_ratelimited(mapping);
+ 	} while (iov_iter_count(i));
  
- 	sb = container_of(shrink, struct super_block, s_shrink);
- 
-@@ -70,9 +72,11 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
- 	 * Deadlock avoidance.  We may hold various FS locks, and we don't want
- 	 * to recurse into the FS that called us in clear_inode() and friends..
- 	 */
--	if (!(sc->gfp_mask & __GFP_FS))
-+	if (!(sc->gfp_mask & __GFP_FS) || (current->flags & PF_MEMALLOC_NOFS))
- 		return SHRINK_STOP;
- 
-+	flags = memalloc_nofs_save();
++	memalloc_nofs_restore(nofs_flags);
 +
- 	if (!trylock_super(sb))
- 		return SHRINK_STOP;
- 
-@@ -107,6 +111,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
- 		freed += sb->s_op->free_cached_objects(sb, sc);
- 	}
- 
-+	memalloc_nofs_restore(flags);
- 	up_read(&sb->s_umount);
- 	return freed;
+ 	return written ? written : status;
  }
+ EXPORT_SYMBOL(generic_perform_write);
 -- 
 2.16.2
