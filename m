@@ -1,79 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 562796B0012
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:50:53 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id y20so2928143pfm.1
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:50:53 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id y22si3279969pfm.357.2018.03.21.09.50.51
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F9D96B0012
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 12:53:47 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id g22so2659065pgv.16
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 09:53:47 -0700 (PDT)
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id i131si2955364pgc.347.2018.03.21.09.53.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 09:50:52 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
+        Wed, 21 Mar 2018 09:53:46 -0700 (PDT)
+Subject: Re: [RFC PATCH 7/8] x86: mpx: pass atomic parameter to do_munmap()
 References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
- <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
- <20180321131449.GN23100@dhcp22.suse.cz>
+ <1521581486-99134-8-git-send-email-yang.shi@linux.alibaba.com>
+ <alpine.DEB.2.21.1803202307330.1714@nanos.tec.linutronix.de>
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <8e0ded7b-4be4-fa25-f40c-d3116a6db4db@linux.alibaba.com>
-Date: Wed, 21 Mar 2018 09:50:31 -0700
+Message-ID: <8d2b26b6-b40a-cef8-9d67-afb8c12ad359@linux.alibaba.com>
+Date: Wed, 21 Mar 2018 09:53:36 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180321131449.GN23100@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.21.1803202307330.1714@nanos.tec.linutronix.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@suse.de>, x86@kernel.org
 
 
 
-On 3/21/18 6:14 AM, Michal Hocko wrote:
-> On Wed 21-03-18 05:31:19, Yang Shi wrote:
->> When running some mmap/munmap scalability tests with large memory (i.e.
->>> 300GB), the below hung task issue may happen occasionally.
->> INFO: task ps:14018 blocked for more than 120 seconds.
->>         Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->>   "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
->> message.
->>   ps              D    0 14018      1 0x00000004
->>    ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->>    ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->>    00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->>   Call Trace:
->>    [<ffffffff817154d0>] ? __schedule+0x250/0x730
->>    [<ffffffff817159e6>] schedule+0x36/0x80
->>    [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->>    [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->>    [<ffffffff81717db0>] down_read+0x20/0x40
->>    [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
-> Slightly off-topic:
-> Btw. this sucks as well. Do we really need to take mmap_sem here? Do any
-> of
-> 	arg_start = mm->arg_start;
-> 	arg_end = mm->arg_end;
-> 	env_start = mm->env_start;
-> 	env_end = mm->env_end;
+On 3/20/18 3:35 PM, Thomas Gleixner wrote:
+> On Wed, 21 Mar 2018, Yang Shi wrote:
 >
-> change after exec or while the pid is already visible in proc? If yes
-> maybe we can use a dedicated lock.
+> Please CC everyone involved on the full patch set next time. I had to dig
+> the rest out from my lkml archive to get the context.
 
-Actually, Alexey Dobriyan had the same comment when he reviewed my very 
-first patch (which changes down_read to down_read_killable at that place).
+Sorry for the inconvenience. Will pay attention to it next time.
 
-Those 4 values might be changed by prctl_set_mm() and prctl_set_mm_map() 
-concurrently. They used to use down_read() to protect the change, but it 
-looks not good enough to protect concurrent writing. So, Mateusz Guzik's 
-commit ddf1d398e517e660207e2c807f76a90df543a217 ("prctl: take mmap sem 
-for writing to protect against others") change it to down_write().
+>
+>> Pass "true" to do_munmap() to not do unlock/relock to mmap_sem when
+>> manipulating mpx map.
+>> This is API change only.
+> This is wrong. You cannot change the function in one patch and then clean
+> up the users. That breaks bisectability.
+>
+> Depending on the number of callers this wants to be a single patch changing
+> both the function and the callers or you need to create a new function
+> which has the extra argument and switch all users over to it and then
+> remove the old function.
+>
+>> @@ -780,7 +780,7 @@ static int unmap_entire_bt(struct mm_struct *mm,
+>>   	 * avoid recursion, do_munmap() will check whether it comes
+>>   	 * from one bounds table through VM_MPX flag.
+>>   	 */
+>> -	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm), NULL);
+>> +	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm), NULL, true);
+> But looking at the full context this is the wrong approach.
+>
+> First of all the name of that parameter 'atomic' is completely
+> misleading. It suggests that this happens in fully atomic context, which is
+> not the case.
+>
+> Secondly, conditional locking is frowned upon in general and rightfully so.
+>
+> So the right thing to do is to leave do_munmap() alone and add a new
+> function do_munmap_huge() or whatever sensible name you come up with. Then
+> convert the places which are considered to be safe one by one with a proper
+> changelog which explains WHY this is safe.
+>
+> That way you avoid the chasing game of all existing do_munmap() callers and
+> just use the new 'free in chunks' approach where it is appropriate and
+> safe. No suprises, no bisectability issues....
+>
+> While at it please add proper kernel doc documentation to both do_munmap()
+> and the new function which explains the intricacies.
 
-It seems mmap_sem can be replaced to a dedicated lock. How about 
-defining a rwlock in mm_struct to protect those data? I will come up 
-with a RFC patch for this.
+Thanks a lot for the suggestion. Absolutely agree. Will fix the problems 
+in newer version.
 
-However, this dedicated lock just can work around this specific case. I 
-believe solving mmap_sem scalability issue aimed by the patch series is 
-still our consensus.
-
-Thanks,
 Yang
+
+>
+> Thanks,
+>
+> 	tglx
