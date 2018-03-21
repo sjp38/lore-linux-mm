@@ -1,73 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BDCEC6B0006
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 18:15:09 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id q65so3050284pga.15
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:15:09 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 1-v6si4749465plk.52.2018.03.21.15.15.05
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BF8BF6B0012
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 18:16:06 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id z1so4199212qtz.12
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 15:16:06 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id o21si1792425qtm.67.2018.03.21.15.16.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 21 Mar 2018 15:15:05 -0700 (PDT)
-Date: Wed, 21 Mar 2018 15:15:02 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
-Message-ID: <20180321221502.GA3969@bombadil.infradead.org>
-References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
- <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
- <20180321130833.GM23100@dhcp22.suse.cz>
- <f88deb20-bcce-939f-53a6-1061c39a9f6c@linux.alibaba.com>
- <20180321172932.GE4780@bombadil.infradead.org>
- <f057a634-7e0a-1b51-eede-dcb6f128b18e@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Mar 2018 15:16:05 -0700 (PDT)
+Subject: Re: [PATCH 03/15] mm/hmm: HMM should have a callback before MM is
+ destroyed v2
+References: <20180320020038.3360-1-jglisse@redhat.com>
+ <20180320020038.3360-4-jglisse@redhat.com>
+ <d89e417d-c939-4d18-72f5-08b22dc6cff0@nvidia.com>
+ <20180321180342.GE3214@redhat.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <788cf786-edbf-ab43-af0d-abbe9d538757@nvidia.com>
+Date: Wed, 21 Mar 2018 15:16:04 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f057a634-7e0a-1b51-eede-dcb6f128b18e@linux.alibaba.com>
+In-Reply-To: <20180321180342.GE3214@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, stable@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
 
-On Wed, Mar 21, 2018 at 02:45:44PM -0700, Yang Shi wrote:
-> On 3/21/18 10:29 AM, Matthew Wilcox wrote:
-> > On Wed, Mar 21, 2018 at 09:31:22AM -0700, Yang Shi wrote:
-> > > On 3/21/18 6:08 AM, Michal Hocko wrote:
-> > > > Yes, this definitely sucks. One way to work that around is to split the
-> > > > unmap to two phases. One to drop all the pages. That would only need
-> > > > mmap_sem for read and then tear down the mapping with the mmap_sem for
-> > > > write. This wouldn't help for parallel mmap_sem writers but those really
-> > > > need a different approach (e.g. the range locking).
-> > > page fault might sneak in to map a page which has been unmapped before?
-> > > 
-> > > range locking should help a lot on manipulating small sections of a large
-> > > mapping in parallel or multiple small mappings. It may not achieve too much
-> > > for single large mapping.
-> > I don't think we need range locking.  What if we do munmap this way:
-> > 
-> > Take the mmap_sem for write
-> > Find the VMA
-> >    If the VMA is large(*)
-> >      Mark the VMA as deleted
-> >      Drop the mmap_sem
-> >      zap all of the entries
-> >      Take the mmap_sem
-> >    Else
-> >      zap all of the entries
-> > Continue finding VMAs
-> > Drop the mmap_sem
-> > 
-> > Now we need to change everywhere which looks up a VMA to see if it needs
-> > to care the the VMA is deleted (page faults, eg will need to SIGBUS; mmap
-> 
-> Marking vma as deleted sounds good. The problem for my current approach is
-> the concurrent page fault may succeed if it access the not yet unmapped
-> section. Marking deleted vma could tell page fault the vma is not valid
-> anymore, then return SIGSEGV.
-> 
-> > does not care; munmap will need to wait for the existing munmap operation
-> 
-> Why mmap doesn't care? How about MAP_FIXED? It may fail unexpectedly, right?
+On 03/21/2018 11:03 AM, Jerome Glisse wrote:
+> On Tue, Mar 20, 2018 at 09:14:34PM -0700, John Hubbard wrote:
+>> On 03/19/2018 07:00 PM, jglisse@redhat.com wrote:
+>>> From: Ralph Campbell <rcampbell@nvidia.com>
 
-Oh, I forgot about MAP_FIXED.  Yes, MAP_FIXED should wait for the munmap
-to finish.  But a regular mmap can just pretend that it happened before
-the munmap call and avoid the deleted VMAs.
+<snip>
+
+>> Hi Jerome,
+>>
+>> This presents a deadlock problem (details below). As for solution ideas,=
+=20
+>> Mark Hairgrove points out that the MMU notifiers had to solve the
+>> same sort of problem, and part of the solution involves "avoid
+>> holding locks when issuing these callbacks". That's not an entire=20
+>> solution description, of course, but it seems like a good start.
+>>
+>> Anyway, for the deadlock problem:
+>>
+>> Each of these ->release callbacks potentially has to wait for the=20
+>> hmm_invalidate_range() callbacks to finish. That is not shown in any
+>> code directly, but it's because: when a device driver is processing=20
+>> the above ->release callback, it has to allow any in-progress operations=
+=20
+>> to finish up (as specified clearly in your comment documentation above).=
+=20
+>>
+>> Some of those operations will invariably need to do things that result=20
+>> in page invalidations, thus triggering the hmm_invalidate_range() callba=
+ck.
+>> Then, the hmm_invalidate_range() callback tries to acquire the same=20
+>> hmm->mirrors_sem lock, thus leading to deadlock:
+>>
+>> hmm_invalidate_range():
+>> // ...
+>> 	down_read(&hmm->mirrors_sem);
+>> 	list_for_each_entry(mirror, &hmm->mirrors, list)
+>> 		mirror->ops->sync_cpu_device_pagetables(mirror, action,
+>> 							start, end);
+>> 	up_read(&hmm->mirrors_sem);
+>=20
+> That is just illegal, the release callback is not allowed to trigger
+> invalidation all it does is kill all device's threads and stop device
+> page fault from happening. So there is no deadlock issues. I can re-
+> inforce the comment some more (see [1] for example on what it should
+> be).
+
+That rule is fine, and it is true that the .release callback will not=20
+directly trigger any invalidations. However, the problem is in letting=20
+any *existing* outstanding operations finish up. We have to let=20
+existing operations "drain", in order to meet the requirement that=20
+everything is done when .release returns.
+
+For example, if a device driver thread is in the middle of working through
+its fault buffer, it will call migrate_vma(), which will in turn unmap
+pages. That will cause an hmm_invalidate_range() callback, which tries
+to take hmm->mirrors_sems, and we deadlock.
+
+There's no way to "kill" such a thread while it's in the middle of
+migrate_vma(), you have to let it finish up.
+
+>=20
+> Also it is illegal for the sync callback to trigger any mmu_notifier
+> callback. I thought this was obvious. The sync callback should only
+> update device page table and do _nothing else_. No way to make this
+> re-entrant.
+
+That is obvious, yes. I am not trying to say there is any problem with
+that rule. It's the "drain outstanding operations during .release",=20
+above, that is the real problem.
+
+thanks,
+--=20
+John Hubbard
+NVIDIA
+
+>=20
+> For anonymous private memory migrated to device memory it is freed
+> shortly after the release callback (see exit_mmap()). For share memory
+> you might want to migrate back to regular memory but that will be fine
+> as you will not get mmu_notifier callback any more.
+>=20
+> So i don't see any deadlock here.
+>=20
+> Cheers,
+> J=C3=A9r=C3=B4me
+>=20
+> [1] https://cgit.freedesktop.org/~glisse/linux/commit/?h=3Dnouveau-hmm&id=
+=3D93adb3e6b4f39d5d146b6a8afb4175d37bdd4890
+>=20
