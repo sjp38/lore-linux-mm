@@ -1,85 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EA926B000D
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 19:22:52 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id q19so4288712qta.17
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 16:22:52 -0700 (PDT)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id i66si826695qkd.103.2018.03.21.16.22.51
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 91FAC6B0022
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 19:24:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p9so3447391pfk.5
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 16:24:50 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y19si3423193pgv.139.2018.03.21.16.24.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 16:22:51 -0700 (PDT)
-Subject: Re: [PATCH 04/15] mm/hmm: unregister mmu_notifier when last HMM
- client quit v2
-References: <20180320020038.3360-5-jglisse@redhat.com>
- <20180321181614.9968-1-jglisse@redhat.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <a9ba54c5-a2d9-49f6-16ad-46b79525b93c@nvidia.com>
-Date: Wed, 21 Mar 2018 16:22:49 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180321181614.9968-1-jglisse@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+        Wed, 21 Mar 2018 16:24:49 -0700 (PDT)
+Date: Wed, 21 Mar 2018 16:24:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/vmstat.c: Fix vmstat_update() preemption BUG.
+Message-Id: <20180321162447.ad8990ecb547f0e016d7cd12@linux-foundation.org>
+In-Reply-To: <1520881552-25659-1-git-send-email-steven.hill@cavium.com>
+References: <1520881552-25659-1-git-send-email-steven.hill@cavium.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
+To: "Steven J. Hill" <steven.hill@cavium.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>
 
-On 03/21/2018 11:16 AM, jglisse@redhat.com wrote:
-> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->=20
-> This code was lost in translation at one point. This properly call
-> mmu_notifier_unregister_no_release() once last user is gone. This
-> fix the zombie mm_struct as without this patch we do not drop the
-> refcount we have on it.
->=20
-> Changed since v1:
->   - close race window between a last mirror unregistering and a new
->     mirror registering, which could have lead to use after free()
->     kind of bug
->=20
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: Mark Hairgrove <mhairgrove@nvidia.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> ---
->  mm/hmm.c | 35 +++++++++++++++++++++++++++++++++--
->  1 file changed, 33 insertions(+), 2 deletions(-)
->=20
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 6088fa6ed137..f75aa8df6e97 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -222,13 +222,24 @@ int hmm_mirror_register(struct hmm_mirror *mirror, =
-struct mm_struct *mm)
->  	if (!mm || !mirror || !mirror->ops)
->  		return -EINVAL;
-> =20
-> +again:
->  	mirror->hmm =3D hmm_register(mm);
->  	if (!mirror->hmm)
->  		return -ENOMEM;
-> =20
->  	down_write(&mirror->hmm->mirrors_sem);
-> -	list_add(&mirror->list, &mirror->hmm->mirrors);
-> -	up_write(&mirror->hmm->mirrors_sem);
-> +	if (mirror->hmm->mm =3D=3D NULL) {
-> +		/*
-> +		 * A racing hmm_mirror_unregister() is about to destroy the hmm
-> +		 * struct. Try again to allocate a new one.
-> +		 */
-> +		up_write(&mirror->hmm->mirrors_sem);
-> +		mirror->hmm =3D NULL;
+On Mon, 12 Mar 2018 14:05:52 -0500 "Steven J. Hill" <steven.hill@cavium.com> wrote:
 
-This is being set outside of locks, so now there is another race with
-another hmm_mirror_register...
+> Attempting to hotplug CPUs with CONFIG_VM_EVENT_COUNTERS enabled
+> can cause vmstat_update() to report a BUG due to preemption not
+> being disabled around smp_processor_id(). Discovered on Ubiquiti
+> EdgeRouter Pro with Cavium Octeon II processor.
+> 
+> BUG: using smp_processor_id() in preemptible [00000000] code:
+> kworker/1:1/269
+> caller is vmstat_update+0x50/0xa0
+> CPU: 0 PID: 269 Comm: kworker/1:1 Not tainted
+> 4.16.0-rc4-Cavium-Octeon-00009-gf83bbd5-dirty #1
+> Workqueue: mm_percpu_wq vmstat_update
+> Stack : 0000002600000026 0000000010009ce0 0000000000000000 0000000000000001
+>         0000000000000000 0000000000000000 0000000000000005 8001180000000800
+>         00000000000000bf 0000000000000000 00000000000000bf 766d737461745f75
+>         ffffffff83ad0000 0000000000000007 0000000000000000 0000000008000000
+>         0000000000000000 ffffffff818d0000 0000000000000001 ffffffff81818a70
+>         0000000000000000 0000000000000000 ffffffff8115bbb0 ffffffff818a0000
+>         0000000000000005 ffffffff8144dc50 0000000000000000 0000000000000000
+>         8000000088980000 8000000088983b30 0000000000000088 ffffffff813d3054
+>         0000000000000000 ffffffff83ace622 00000000000000be 0000000000000000
+>         00000000000000be ffffffff81121fb4 0000000000000000 0000000000000000
+>         ...
+> Call Trace:
+> [<ffffffff81121fb4>] show_stack+0x94/0x128
+> [<ffffffff813d3054>] dump_stack+0xa4/0xe0
+> [<ffffffff813fcfb8>] check_preemption_disabled+0x118/0x120
+> [<ffffffff811eafd8>] vmstat_update+0x50/0xa0
+> [<ffffffff8115b954>] process_one_work+0x144/0x348
+> [<ffffffff8115bd00>] worker_thread+0x150/0x4b8
+> [<ffffffff811622a0>] kthread+0x110/0x140
+> [<ffffffff8111c304>] ret_from_kernel_thread+0x14/0x1c
+> 
+> ...
+>
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1839,9 +1839,11 @@ static void vmstat_update(struct work_struct *w)
+>  		 * to occur in the future. Keep on running the
+>  		 * update worker thread.
+>  		 */
+> +		preempt_disable();
+>  		queue_delayed_work_on(smp_processor_id(), mm_percpu_wq,
+>  				this_cpu_ptr(&vmstat_work),
+>  				round_jiffies_relative(sysctl_stat_interval));
+> +		preempt_enable();
+>  	}
+>  }
 
-I'll take a moment and draft up what I have in mind here, which is a more
-symmetrical locking scheme for these routines.
+hm, I suspect this warning is a false-positive.  vmstat_update() is
+called from a workqueue and so vmstat_update()'s execution is pinned to
+a particular CPU, so smp_processor_id()'s return will not be
+invalidated by a preemption-induced CPU switch.  Unless the workqueue
+code changed more than I think it did ;)
 
-thanks,
---=20
-John Hubbard
-NVIDIA
+The patch is OK and will work, but I wonder if a better fix is to use
+raw_smp_processor_id() and to add a little comment explaining why it's
+needed and is safe.
