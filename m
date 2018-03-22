@@ -1,52 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CAAE86B000A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 21:59:43 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 139so3676649pfw.7
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 18:59:43 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id o6-v6sor2427774plh.68.2018.03.21.18.59.42
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D448C6B0008
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 00:52:39 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id v14so3537314pgq.11
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 21:52:39 -0700 (PDT)
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id 79si4273932pfh.118.2018.03.21.21.52.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 21 Mar 2018 18:59:42 -0700 (PDT)
-Date: Wed, 21 Mar 2018 19:00:14 -0700
-From: Nicolin Chen <nicoleotsuka@gmail.com>
-Subject: Re: mm/hmm: a simple question regarding devm_request_mem_region()
-Message-ID: <20180322020013.GA26480@Asurada-Nvidia>
-References: <20180321222357.GA31089@Asurada-Nvidia>
- <20180321225632.GI3214@redhat.com>
- <20180322002352.GA12673@Asurada-Nvidia>
- <20180322003253.GL3214@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180322003253.GL3214@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Mar 2018 21:52:38 -0700 (PDT)
+From: "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com>
+Subject: [PATCH] vfio iommu type1: improve memory pinning process for raw PFN mapping
+Date: Thu, 22 Mar 2018 12:52:16 +0800
+Message-Id: <20180322045216.22220-1-jason.cai@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: alex.williamson@redhat.com, pbonzini@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: gnehzuil@linux.alibaba.com, jason.cai@linux.alibaba.com
 
-On Wed, Mar 21, 2018 at 08:32:54PM -0400, Jerome Glisse wrote:
+When using vfio to pass through a PCIe device (e.g. a GPU card) that
+has a huge BAR (e.g. 16GB), a lot of cycles are wasted on memory
+pinning because PFNs of PCI BAR are not backed by struct page, and
+the corresponding VMA has flag VM_PFNMAP.
 
-> > I am testing with drivers/char/hmm_dmirror.c from your git repository.
-> > 
-> > The addr I got (before "- size") is actually 0x7fffffffff, so equally
-> > (1 << 40).
-> > 
-> > So from your reply, it seems to me that HMM is supposed to request a
-> > region like it.
-> 
-> The dummy driver by default test the private memory, i had patches to
-> make it test public memory too somewhere in a branch. So yes this is
-> expected from the dummy driver. HMM here is trying to get a region that
-> will not collide with any known existing resources. Idealy we would
-> like a platform/arch function for that but it is hard to justify it
-> nor is there a safe way to find such thing either from arch/platform
-> specific code (there isn't for x86 at least).
-> 
-> For real device driver of pcie devices, the advice is to use the pci
-> bar region of the device. This way we know for sure we do not collide
-> with anything (ie use hmm_devmem_add_resource() not hmm_devmem_add()
-> but this need some code change for res->desc).
+With this change, when pinning a region which is a raw PFN mapping,
+it can skip unnecessary user memory pinning process, and thus, can
+significantly improve VM's boot up time when passing through devices
+via VFIO. In my test on a Xeon E5 2.6GHz, the time mapping a 16GB
+BAR was reduced from about 0.4s to 1.5us.
 
-I see. Thank you!
+Signed-off-by: Jason Cai (Xiang Feng) <jason.cai@linux.alibaba.com>
+---
+ drivers/vfio/vfio_iommu_type1.c | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
+index 45657e2b1ff7..0658f35318b8 100644
+--- a/drivers/vfio/vfio_iommu_type1.c
++++ b/drivers/vfio/vfio_iommu_type1.c
+@@ -397,7 +397,6 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+ {
+ 	unsigned long pfn = 0;
+ 	long ret, pinned = 0, lock_acct = 0;
+-	bool rsvd;
+ 	dma_addr_t iova = vaddr - dma->vaddr + dma->iova;
+ 
+ 	/* This code path is only user initiated */
+@@ -408,14 +407,22 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+ 	if (ret)
+ 		return ret;
+ 
++	if (is_invalid_reserved_pfn(*pfn_base)) {
++		struct vm_area_struct *vma;
++		down_read(&current->mm->mmap_sem);
++		vma = find_vma_intersection(current->mm, vaddr, vaddr + 1);
++		pinned = min(npage, (long)vma_pages(vma));
++		up_read(&current->mm->mmap_sem);
++		return pinned;
++	}
++
+ 	pinned++;
+-	rsvd = is_invalid_reserved_pfn(*pfn_base);
+ 
+ 	/*
+ 	 * Reserved pages aren't counted against the user, externally pinned
+ 	 * pages are already counted against the user.
+ 	 */
+-	if (!rsvd && !vfio_find_vpfn(dma, iova)) {
++	if (!vfio_find_vpfn(dma, iova)) {
+ 		if (!lock_cap && current->mm->locked_vm + 1 > limit) {
+ 			put_pfn(*pfn_base, dma->prot);
+ 			pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
+@@ -435,13 +442,12 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+ 		if (ret)
+ 			break;
+ 
+-		if (pfn != *pfn_base + pinned ||
+-		    rsvd != is_invalid_reserved_pfn(pfn)) {
++		if (pfn != *pfn_base + pinned) {
+ 			put_pfn(pfn, dma->prot);
+ 			break;
+ 		}
+ 
+-		if (!rsvd && !vfio_find_vpfn(dma, iova)) {
++		if (!vfio_find_vpfn(dma, iova)) {
+ 			if (!lock_cap &&
+ 			    current->mm->locked_vm + lock_acct + 1 > limit) {
+ 				put_pfn(pfn, dma->prot);
+@@ -459,10 +465,8 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+ 
+ unpin_out:
+ 	if (ret) {
+-		if (!rsvd) {
+-			for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
+-				put_pfn(pfn, dma->prot);
+-		}
++		for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
++			put_pfn(pfn, dma->prot);
+ 
+ 		return ret;
+ 	}
+-- 
+2.13.6
