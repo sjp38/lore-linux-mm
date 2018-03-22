@@ -1,158 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 020196B0011
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 05:01:41 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id d23so3588052wmd.1
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 02:01:40 -0700 (PDT)
-Received: from isilmar-4.linta.de (isilmar-4.linta.de. [136.243.71.142])
-        by mx.google.com with ESMTPS id v38si4647676wrc.6.2018.03.22.02.01.39
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 45F5D6B0009
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 05:10:14 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y19so3820195pgv.18
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 02:10:14 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u7-v6si5615963plq.460.2018.03.22.02.10.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 02:01:39 -0700 (PDT)
-From: Dominik Brodowski <linux@dominikbrodowski.net>
-Subject: [PATCH 29/45] mm: add ksys_readahead() helper; remove in-kernel calls to sys_readahead()
-Date: Thu, 22 Mar 2018 10:00:43 +0100
-Message-Id: <20180322090059.19361-30-linux@dominikbrodowski.net>
-In-Reply-To: <20180322090059.19361-1-linux@dominikbrodowski.net>
-References: <20180322090059.19361-1-linux@dominikbrodowski.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Mar 2018 02:10:12 -0700 (PDT)
+Date: Thu, 22 Mar 2018 10:10:08 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
+Message-ID: <20180322091008.GZ23100@dhcp22.suse.cz>
+References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
+ <20180321131449.GN23100@dhcp22.suse.cz>
+ <8e0ded7b-4be4-fa25-f40c-d3116a6db4db@linux.alibaba.com>
+ <cf87ade4-5a5c-3919-0fc6-acc40e12659b@linux.alibaba.com>
+ <20180321212355.GR23100@dhcp22.suse.cz>
+ <952dcae2-a73e-0726-3cc5-9b6a63b417b7@linux.alibaba.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <952dcae2-a73e-0726-3cc5-9b6a63b417b7@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, viro@ZenIV.linux.org.uk, arnd@arndb.de, linux-arch@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Using this helper allows us to avoid the in-kernel calls to the
-sys_readahead() syscall. The ksys_ prefix denotes that this function is
-meant as a drop-in replacement for the syscall. In particular, it uses the
-same calling convention as sys_readahead().
+On Wed 21-03-18 15:36:12, Yang Shi wrote:
+> 
+> 
+> On 3/21/18 2:23 PM, Michal Hocko wrote:
+> > On Wed 21-03-18 10:16:41, Yang Shi wrote:
+> > > 
+> > > On 3/21/18 9:50 AM, Yang Shi wrote:
+> > > > 
+> > > > On 3/21/18 6:14 AM, Michal Hocko wrote:
+> > > > > On Wed 21-03-18 05:31:19, Yang Shi wrote:
+> > > > > > When running some mmap/munmap scalability tests with large memory (i.e.
+> > > > > > > 300GB), the below hung task issue may happen occasionally.
+> > > > > > INFO: task ps:14018 blocked for more than 120 seconds.
+> > > > > >          Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+> > > > > >    "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+> > > > > > message.
+> > > > > >    ps              D    0 14018      1 0x00000004
+> > > > > >     ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+> > > > > >     ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+> > > > > >     00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+> > > > > >    Call Trace:
+> > > > > >     [<ffffffff817154d0>] ? __schedule+0x250/0x730
+> > > > > >     [<ffffffff817159e6>] schedule+0x36/0x80
+> > > > > >     [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+> > > > > >     [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+> > > > > >     [<ffffffff81717db0>] down_read+0x20/0x40
+> > > > > >     [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+> > > > > Slightly off-topic:
+> > > > > Btw. this sucks as well. Do we really need to take mmap_sem here? Do any
+> > > > > of
+> > > > >      arg_start = mm->arg_start;
+> > > > >      arg_end = mm->arg_end;
+> > > > >      env_start = mm->env_start;
+> > > > >      env_end = mm->env_end;
+> > > > > 
+> > > > > change after exec or while the pid is already visible in proc? If yes
+> > > > > maybe we can use a dedicated lock.
+> > > BTW, this is not the only place to acquire mmap_sem in
+> > > proc_pid_cmdline_read(), it calls access_remote_vm() which need acquire
+> > > mmap_sem too, so the mmap_sem scalability issue will be hit sooner or later.
+> > Ohh, absolutely. mmap_sem is unfortunatelly abused and it would be great
+> > to remove that. munmap should perform much better. How to do that safely
+> 
+> Yes, agree. We are on the same page.
+> 
+> > is a different question. I am not yet convinced that tearing down a vma
+> > in batches is safe. The vast majority of time is spent on tearing down
+> 
+> You can try my patches. I did full LTP test and running multiple kernel
+> build in parallel. It survives.
 
-This patch is part of a series which tries to remove in-kernel calls to
-syscalls. On this basis, the syscall entry path can be streamlined.
+Which doesn't really mean anything. Those tests are likely to not hit
+corner cases where an application silently depends on the mmap locking
+and unmap atomicity.
+ 
+> > pages and that is quite easy to move out of the write lock. That would
+> > be an improvement already and it should be risk safe. If even that is
+> > not sufficient then using range locking should help a lot. There
+> > shouldn't be really any other address space operations within the range
+> > most of the time so this would be basically non-contended access.
+> 
+> It might depend on how the range is defined. Too big range may lead to
+> surprisingly more contention, but too small range may bring in too much
+> lock/unlock operations.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
-Signed-off-by: Dominik Brodowski <linux@dominikbrodowski.net>
----
- arch/mips/kernel/linux32.c      | 2 +-
- arch/parisc/kernel/sys_parisc.c | 2 +-
- arch/powerpc/kernel/sys_ppc32.c | 2 +-
- arch/s390/kernel/compat_linux.c | 2 +-
- arch/sparc/kernel/sys_sparc32.c | 2 +-
- arch/x86/ia32/sys_ia32.c        | 2 +-
- include/linux/syscalls.h        | 1 +
- mm/readahead.c                  | 7 ++++++-
- 8 files changed, 13 insertions(+), 7 deletions(-)
-
-diff --git a/arch/mips/kernel/linux32.c b/arch/mips/kernel/linux32.c
-index 0571ab7b68b0..318f1c05c5b3 100644
---- a/arch/mips/kernel/linux32.c
-+++ b/arch/mips/kernel/linux32.c
-@@ -131,7 +131,7 @@ SYSCALL_DEFINE1(32_personality, unsigned long, personality)
- asmlinkage ssize_t sys32_readahead(int fd, u32 pad0, u64 a2, u64 a3,
- 				   size_t count)
- {
--	return sys_readahead(fd, merge_64(a2, a3), count);
-+	return ksys_readahead(fd, merge_64(a2, a3), count);
- }
- 
- asmlinkage long sys32_sync_file_range(int fd, int __pad,
-diff --git a/arch/parisc/kernel/sys_parisc.c b/arch/parisc/kernel/sys_parisc.c
-index 080d566654ea..8c99ebbe2bac 100644
---- a/arch/parisc/kernel/sys_parisc.c
-+++ b/arch/parisc/kernel/sys_parisc.c
-@@ -345,7 +345,7 @@ asmlinkage ssize_t parisc_pwrite64(unsigned int fd, const char __user *buf,
- asmlinkage ssize_t parisc_readahead(int fd, unsigned int high, unsigned int low,
- 		                    size_t count)
- {
--	return sys_readahead(fd, (loff_t)high << 32 | low, count);
-+	return ksys_readahead(fd, (loff_t)high << 32 | low, count);
- }
- 
- asmlinkage long parisc_fadvise64_64(int fd,
-diff --git a/arch/powerpc/kernel/sys_ppc32.c b/arch/powerpc/kernel/sys_ppc32.c
-index 0b95fa13307f..c11c73373691 100644
---- a/arch/powerpc/kernel/sys_ppc32.c
-+++ b/arch/powerpc/kernel/sys_ppc32.c
-@@ -88,7 +88,7 @@ compat_ssize_t compat_sys_pwrite64(unsigned int fd, const char __user *ubuf, com
- 
- compat_ssize_t compat_sys_readahead(int fd, u32 r4, u32 offhi, u32 offlo, u32 count)
- {
--	return sys_readahead(fd, ((loff_t)offhi << 32) | offlo, count);
-+	return ksys_readahead(fd, ((loff_t)offhi << 32) | offlo, count);
- }
- 
- asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,
-diff --git a/arch/s390/kernel/compat_linux.c b/arch/s390/kernel/compat_linux.c
-index da5ef7718254..8ac38d51ed7d 100644
---- a/arch/s390/kernel/compat_linux.c
-+++ b/arch/s390/kernel/compat_linux.c
-@@ -328,7 +328,7 @@ COMPAT_SYSCALL_DEFINE5(s390_pwrite64, unsigned int, fd, const char __user *, ubu
- 
- COMPAT_SYSCALL_DEFINE4(s390_readahead, int, fd, u32, high, u32, low, s32, count)
- {
--	return sys_readahead(fd, (unsigned long)high << 32 | low, count);
-+	return ksys_readahead(fd, (unsigned long)high << 32 | low, count);
- }
- 
- struct stat64_emu31 {
-diff --git a/arch/sparc/kernel/sys_sparc32.c b/arch/sparc/kernel/sys_sparc32.c
-index 4da66aed50b4..f166e5bbf506 100644
---- a/arch/sparc/kernel/sys_sparc32.c
-+++ b/arch/sparc/kernel/sys_sparc32.c
-@@ -217,7 +217,7 @@ asmlinkage long compat_sys_readahead(int fd,
- 				     unsigned long offlo,
- 				     compat_size_t count)
- {
--	return sys_readahead(fd, (offhi << 32) | offlo, count);
-+	return ksys_readahead(fd, (offhi << 32) | offlo, count);
- }
- 
- long compat_sys_fadvise64(int fd,
-diff --git a/arch/x86/ia32/sys_ia32.c b/arch/x86/ia32/sys_ia32.c
-index bf4e8dbd65e7..064b76598a2e 100644
---- a/arch/x86/ia32/sys_ia32.c
-+++ b/arch/x86/ia32/sys_ia32.c
-@@ -208,7 +208,7 @@ COMPAT_SYSCALL_DEFINE6(x86_fadvise64_64, int, fd, __u32, offset_low,
- COMPAT_SYSCALL_DEFINE4(x86_readahead, int, fd, unsigned int, off_lo,
- 		       unsigned int, off_hi, size_t, count)
- {
--	return sys_readahead(fd, ((u64)off_hi << 32) | off_lo, count);
-+	return ksys_readahead(fd, ((u64)off_hi << 32) | off_lo, count);
- }
- 
- COMPAT_SYSCALL_DEFINE6(x86_sync_file_range, int, fd, unsigned int, off_low,
-diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index c509459ce9d5..3591c4af33d8 100644
---- a/include/linux/syscalls.h
-+++ b/include/linux/syscalls.h
-@@ -982,6 +982,7 @@ ssize_t ksys_pwrite64(unsigned int fd, const char __user *buf,
- 		      size_t count, loff_t pos);
- int ksys_fallocate(int fd, int mode, loff_t offset, loff_t len);
- int ksys_setsid(void);
-+ssize_t ksys_readahead(int fd, loff_t offset, size_t count);
- 
- /*
-  * The following kernel syscall equivalents are just wrappers to fs-internal
-diff --git a/mm/readahead.c b/mm/readahead.c
-index c4ca70239233..4d57b4644f98 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -573,7 +573,7 @@ do_readahead(struct address_space *mapping, struct file *filp,
- 	return force_page_cache_readahead(mapping, filp, index, nr);
- }
- 
--SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
-+ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
- {
- 	ssize_t ret;
- 	struct fd f;
-@@ -592,3 +592,8 @@ SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
- 	}
- 	return ret;
- }
-+
-+SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
-+{
-+	return ksys_readahead(fd, offset, count);
-+}
+The full vma will have to be range locked. So there is nothing small or large.
 -- 
-2.16.2
+Michal Hocko
+SUSE Labs
