@@ -1,61 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D04C6B0023
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 13:34:56 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s6so4515670pgn.3
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 10:34:56 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 38-v6si6607544pln.397.2018.03.22.10.34.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 22 Mar 2018 10:34:55 -0700 (PDT)
-Date: Thu, 22 Mar 2018 10:34:50 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 6/8] page_frag_cache: Use a mask instead of offset
-Message-ID: <20180322173450.GI28468@bombadil.infradead.org>
-References: <20180322153157.10447-1-willy@infradead.org>
- <20180322153157.10447-7-willy@infradead.org>
- <CAKgT0UfcYLm3UZcq536cNOczVhR60qoFDHh_gcXqqyqdViuLzw@mail.gmail.com>
- <20180322164157.GE28468@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180322164157.GE28468@bombadil.infradead.org>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 152606B005C
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:17:38 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id u16-v6so4936801oiv.10
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:17:38 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id m47-v6si2217244otd.281.2018.03.22.11.17.36
+        for <linux-mm@kvack.org>;
+        Thu, 22 Mar 2018 11:17:36 -0700 (PDT)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH v2 00/11] APEI in_nmi() rework and arm64 SDEI wire-up
+Date: Thu, 22 Mar 2018 18:14:34 +0000
+Message-Id: <20180322181445.23298-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Netdev <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, James Morse <james.morse@arm.com>
 
-On Thu, Mar 22, 2018 at 09:41:57AM -0700, Matthew Wilcox wrote:
-> On Thu, Mar 22, 2018 at 09:22:31AM -0700, Alexander Duyck wrote:
-> > You could just use the pfc->mask here instead of size - 1 just to
-> > avoid having to do the subtraction more than once assuming the
-> > compiler doesn't optimize it.
-> 
-> Either way I'm assuming a compiler optimisation -- that it won't reload
-> from memory, or that it'll remember the subtraction.  I don't much care
-> which, and I'll happily use the page_frag_cache_mask() if that reads better
-> for you.
+The aim of this series is to wire arm64's SDEI into APEI.
 
-Looks like it does reload from memory if I make that change.  Before:
+What changed since v1? The NMI-like GHES entries now have an additional
+fixmap+lock, instead of choosing which lock to use, and being surprised
+when it turns out all GHES are processed from process-context during
+boot. (Thanks to Tyler for catching this...)
+Some comments and code cleanup, noted in each patch.
 
-    37e7:       c7 43 08 ff 7f 00 00    movl   $0x7fff,0x8(%rbx)
-    37ee:       b9 00 80 00 00          mov    $0x8000,%ecx
-    37f3:       be ff 7f 00 00          mov    $0x7fff,%esi
-    37f8:       ba 00 80 00 00          mov    $0x8000,%edx
-...
-    380b:       01 70 1c                add    %esi,0x1c(%rax)
 
-After:
+The earlier boiler-plate:
 
-    37e7:       c7 43 08 ff 7f 00 00    movl   $0x7fff,0x8(%rbx)
-    37ee:       b9 00 80 00 00          mov    $0x8000,%ecx
-    37f3:       ba 00 80 00 00          mov    $0x8000,%edx
-...
-    3806:       8b 73 08                mov    0x8(%rbx),%esi
-    3809:       01 70 1c                add    %esi,0x1c(%rax)
+What's SDEI? Its ARM's "Software Delegated Exception Interface" [0]. It's
+used by firmware to tell the OS about firmware-first RAS events.
 
-Of course, it's shorter because it's fewer bytes to reload from memory
-than it is to put a 32-bit immediate in the instruction stream, but
-it's one additional memory reference (cache-hot, of course).  I don't
-really care because it's the cold path.
+These Software exceptions can interrupt anything, so I describe them as
+NMI-like. They aren't the only NMI-like way to notify the OS about
+firmware-first RAS events, the ACPI spec also defines 'NOTFIY_SEA' and
+'NOTIFY_SEI'.
+
+(Acronyms: SEA, Synchronous External Abort. The CPU requested some memory,
+but the owner of that memory said no. These are always synchronous with the
+instruction that caused them. SEI, System-Error Interrupt, commonly called
+SError. This is an asynchronous external abort, the memory-owner didn't say no
+at the right point. Collectively these things are called external-aborts
+How is firmware involved? It traps these and re-injects them into the kernel
+once its written the CPER records).
+
+APEI's GHES code only expects one source of NMI. If a platform implements
+more than one of these mechanisms, APEI needs to handle the interaction.
+'SEA' and 'SEI' can interact as 'SEI' is asynchronous. SDEI can interact
+with itself: its exceptions can be 'normal' or 'critical', and firmware
+could use both types for RAS. (errors using normal, 'panic-now' using
+critical).
+
+What does this series do?
+Patches 1-3 refactor APEIs 'estatus queue' so it can be used for all
+NMI-like notifications. This defers the NMI work to irq_work, which will
+happen when we next unmask interrupts.
+
+Patches 4&5 move the arch and KVM code around so that NMI-like notifications
+are always called in_nmi().
+
+Patch 6 changes the 'irq or nmi?' path through ghes_copy_tofrom_phys()
+to be per-ghes. When called in_nmi(), the struct ghes is expected to
+provide a fixmap slot and lock that is safe to use. NMI-like notifications
+that mask each other can share these resources. Those that interact should
+have their own fixmap slot and lock.
+
+Patch 7 renames NOTIFY_SEA's use of NOTIFY_NMI's infrastructure, as we're
+about to have multiple NMI-like users that can't share resources.
+
+Pathes 8&9 add the SDEI helper, and notify methods for APEI.
+
+After this, adding further firmware-first pieces for arm64 is simple
+(and safe), and all our NMI-like notifications behave the same as x86's
+NOTIFY_NMI.
+
+
+All of this makes the race between memory_failure_queue() and
+ret_to_user worse, as there is now always irq_work involved.
+
+Patch 10 makes the reschedule to memory_failure() run as soon as possible.
+Patch 11 makes sure the arch code knows whether the irq_work has run by
+the time do_sea() returns. We can skip the signalling step if it has as
+APEI has done its work.
+
+
+ghes.c became clearer to me when I worked out that it has three sets of
+functions with 'estatus' in the name. One is a pool of memory that can be
+allocated-from atomically. This is grown/shrunk when new NMI users are
+allocated.
+The second is the estatus-cache, which holds recent notifications so it
+can suppress notifications we've already handled.
+The last it the estatus-queue, which holds data from NMI-like notifications
+(in pool memory) to be processed from irq_work.
+
+
+Testing?
+Tested with the SDEI FVP based software model and a mocked up NOTFIY_SEA using
+KVM. I've added a case where 'corrected errors' are discovered at probe time
+to exercise ghes_probe() during boot. I've only build tested this on x86.
+
+
+Thanks,
+
+James
+
+[0] http://infocenter.arm.com/help/topic/com.arm.doc.den0054a/ARM_DEN0054A_Software_Delegated_Exception_Interface.pdf
+
+
+James Morse (11):
+  ACPI / APEI: Move the estatus queue code up, and under its own ifdef
+  ACPI / APEI: Generalise the estatus queue's add/remove and notify code
+  ACPI / APEI: Switch NOTIFY_SEA to use the estatus queue
+  KVM: arm/arm64: Add kvm_ras.h to collect kvm specific RAS plumbing
+  arm64: KVM/mm: Move SEA handling behind a single 'claim' interface
+  ACPI / APEI: Make the nmi_fixmap_idx per-ghes to allow multiple
+    in_nmi() users
+  ACPI / APEI: Split fixmap pages for arm64 NMI-like notifications
+  firmware: arm_sdei: Add ACPI GHES registration helper
+  ACPI / APEI: Add support for the SDEI GHES Notification type
+  mm/memory-failure: increase queued recovery work's priority
+  arm64: acpi: Make apei_claim_sea() synchronise with APEI's irq work
+
+ arch/arm/include/asm/kvm_ras.h       |  14 +
+ arch/arm/include/asm/system_misc.h   |   5 -
+ arch/arm64/include/asm/acpi.h        |   3 +
+ arch/arm64/include/asm/daifflags.h   |   1 +
+ arch/arm64/include/asm/fixmap.h      |   8 +-
+ arch/arm64/include/asm/kvm_ras.h     |  29 ++
+ arch/arm64/include/asm/system_misc.h |   2 -
+ arch/arm64/kernel/acpi.c             |  49 ++++
+ arch/arm64/mm/fault.c                |  30 +-
+ drivers/acpi/apei/ghes.c             | 519 ++++++++++++++++++++---------------
+ drivers/firmware/arm_sdei.c          |  75 +++++
+ include/acpi/ghes.h                  |   4 +
+ include/linux/arm_sdei.h             |   8 +
+ mm/memory-failure.c                  |  11 +-
+ virt/kvm/arm/mmu.c                   |   4 +-
+ 15 files changed, 505 insertions(+), 257 deletions(-)
+ create mode 100644 arch/arm/include/asm/kvm_ras.h
+ create mode 100644 arch/arm64/include/asm/kvm_ras.h
+
+-- 
+2.16.2
