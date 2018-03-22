@@ -1,37 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2261E6B000D
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:50:50 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id s8so4601652pgf.0
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:50:50 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 758756B0025
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 15:58:27 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id c16so4645089pgv.8
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 12:58:27 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m1-v6si2475774plb.127.2018.03.22.11.50.49
+        by mx.google.com with ESMTPS id u4si4798153pgr.337.2018.03.22.12.58.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 22 Mar 2018 11:50:49 -0700 (PDT)
-Date: Thu, 22 Mar 2018 11:50:46 -0700
+        Thu, 22 Mar 2018 12:58:25 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH v2 2/4] mm/__free_one_page: skip merge for order-0
- page unless compaction failed
-Message-ID: <20180322185046.GK28468@bombadil.infradead.org>
-References: <20180320085452.24641-1-aaron.lu@intel.com>
- <20180320085452.24641-3-aaron.lu@intel.com>
- <7b1988e9-7d50-d55e-7590-20426fb257af@suse.cz>
- <20180320141101.GB2033@intel.com>
- <20180322171503.GH28468@bombadil.infradead.org>
- <9ab5a6dd-c1b2-8da3-31f1-dd2237ea0f44@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9ab5a6dd-c1b2-8da3-31f1-dd2237ea0f44@oracle.com>
+Subject: [PATCH 1/4] decompression: Rename malloc and free
+Date: Thu, 22 Mar 2018 12:58:16 -0700
+Message-Id: <20180322195819.24271-2-willy@infradead.org>
+In-Reply-To: <20180322195819.24271-1-willy@infradead.org>
+References: <20180322195819.24271-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Aaron Lu <aaron.lu@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>
+To: linux-mm@kvack.org
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Thu, Mar 22, 2018 at 02:39:17PM -0400, Daniel Jordan wrote:
-> Shouldn't the anon column also contain lru?
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Probably; I didn't finish investigating everything.  There should probably
-also be another column for swap pages.  Maybe some other users use a
-significant amount of the struct page ... ?
+Rename the trivial malloc and free implementations to tmalloc and tfree
+to avoid a namespace collision with an in-kernel free() function.
+
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+ include/linux/decompress/mm.h | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/decompress/mm.h b/include/linux/decompress/mm.h
+index 868e9eacd69e..0ac62b025c1b 100644
+--- a/include/linux/decompress/mm.h
++++ b/include/linux/decompress/mm.h
+@@ -31,7 +31,7 @@
+ STATIC_RW_DATA unsigned long malloc_ptr;
+ STATIC_RW_DATA int malloc_count;
+ 
+-static void *malloc(int size)
++static void *tmalloc(int size)
+ {
+ 	void *p;
+ 
+@@ -52,15 +52,17 @@ static void *malloc(int size)
+ 	return p;
+ }
+ 
+-static void free(void *where)
++static void tfree(void *where)
+ {
+ 	malloc_count--;
+ 	if (!malloc_count)
+ 		malloc_ptr = free_mem_ptr;
+ }
+ 
+-#define large_malloc(a) malloc(a)
+-#define large_free(a) free(a)
++#define malloc(a) tmalloc(a)
++#define free(a) tfree(a)
++#define large_malloc(a) tmalloc(a)
++#define large_free(a) tfree(a)
+ 
+ #define INIT
+ 
+-- 
+2.16.2
