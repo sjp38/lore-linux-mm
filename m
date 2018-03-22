@@ -1,49 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D00256B0003
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:17:26 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id q11so1885953pfd.8
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 08:17:26 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 662596B000C
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:32:14 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 30-v6so814707ple.19
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 08:32:14 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c20si5060531pfi.18.2018.03.22.08.17.24
+        by mx.google.com with ESMTPS id z85si5166728pfk.194.2018.03.22.08.32.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 22 Mar 2018 08:17:25 -0700 (PDT)
-Date: Thu, 22 Mar 2018 08:17:19 -0700
+        Thu, 22 Mar 2018 08:32:13 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v4 2/3] mm/free_pcppages_bulk: do not hold lock when
- picking pages to free
-Message-ID: <20180322151719.GA28468@bombadil.infradead.org>
-References: <20180301062845.26038-1-aaron.lu@intel.com>
- <20180301062845.26038-3-aaron.lu@intel.com>
- <9cad642d-9fe5-b2c3-456c-279065c32337@suse.cz>
- <20180313033453.GB13782@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180313033453.GB13782@intel.com>
+Subject: [PATCH v2 0/8] page_frag_cache improvements
+Date: Thu, 22 Mar 2018 08:31:49 -0700
+Message-Id: <20180322153157.10447-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, netdev@vger.kernel.org, linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On Tue, Mar 13, 2018 at 11:34:53AM +0800, Aaron Lu wrote:
-> I wish there is a data structure that has the flexibility of list while
-> at the same time we can locate the Nth element in the list without the
-> need to iterate. That's what I'm looking for when developing clustered
-> allocation for order 0 pages. In the end, I had to use another place to
-> record where the Nth element is. I hope to send out v2 of that RFC
-> series soon but I'm still collecting data for it. I would appreciate if
-> people could take a look then :-)
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Sorry, I missed this.  There is such a data structure -- the IDR, or
-possibly a bare radix tree, or we can build a better data structure on
-top of the radix tree (I talked about one called the XQueue a while ago).
+Version 1 was completely wrong-headed and I have repented of the error
+of my ways.  Thanks for educating me.
 
-The IDR will automatically grow to whatever needed size, it stores
-pointers, you can find out quickly where the last allocated index is,
-you can remove from the middle of the array.  Disadvantage is that it
-requires memory allocation to store the array of pointers, *but* it
-can always hold at least one entry.  So if you have no memory, you can
-always return the one element in your IDR to the free pool and allocate
-from that page.
+I still think it's possible to improve on the current state of the
+page_frag allocator, and here are eight patches, each of which I think
+represents an improvement.  They're not all that interlinked, although
+there will be textual conflicts, so I'll be happy to revise and drop
+any that are not actual improvements.
+
+I have discovered (today), much to my chagrin, that testing using trinity
+in KVM doesn't actually test the page_frag allocator.  I don't understand
+why not.  So, this turns out to only be compile tested.  Sorry.
+
+The net effect of all these patches is a reduction of four instructions
+in the fastpath of the allocator on x86.  The page_frag_cache structure
+also shrinks, to as small as 8 bytes on 32-bit with CONFIG_BASE_SMALL.
+
+The last patch is probably wrong.  It'll definitely be inaccurate
+because the call to page_frag_free() may not be the call which frees
+a page; there's a really unlikely race where the page cache finds a
+stale RCU pointer, bumps its refcount, discovers it's not the page it
+was looking for and calls put_page(), which might end up being the last
+reference count.  We can do something about that inaccuracy, but I don't
+even know if this is the best approach to accounting these pages.
+
+Matthew Wilcox (8):
+  page_frag_cache: Remove pfmemalloc bool
+  page_frag_cache: Move slowpath code from page_frag_alloc
+  page_frag_cache: Rename 'nc' to 'pfc'
+  page_frag_cache: Rename fragsz to size
+  page_frag_cache: Save memory on small machines
+  page_frag_cache: Use a mask instead of offset
+  page_frag: Update documentation
+  page_frag: Account allocations
+
+ Documentation/vm/page_frags     |  42 -----------
+ Documentation/vm/page_frags.rst |  24 +++++++
+ include/linux/mm_types.h        |  20 ++++--
+ include/linux/mmzone.h          |   3 +-
+ mm/page_alloc.c                 | 155 ++++++++++++++++++++++++----------------
+ net/core/skbuff.c               |   5 +-
+ 6 files changed, 135 insertions(+), 114 deletions(-)
+ delete mode 100644 Documentation/vm/page_frags
+ create mode 100644 Documentation/vm/page_frags.rst
+
+-- 
+2.16.2
