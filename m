@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F92B6B0260
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:17:54 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id x69-v6so4924285oia.21
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:17:54 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1FB6B0005
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:17:58 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id i23-v6so1153587oik.1
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:17:58 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 5-v6si2143152ota.454.2018.03.22.11.17.52
+        by mx.google.com with ESMTP id z3-v6si2090948ota.296.2018.03.22.11.17.56
         for <linux-mm@kvack.org>;
-        Thu, 22 Mar 2018 11:17:53 -0700 (PDT)
+        Thu, 22 Mar 2018 11:17:56 -0700 (PDT)
 From: James Morse <james.morse@arm.com>
-Subject: [PATCH v2 04/11] KVM: arm/arm64: Add kvm_ras.h to collect kvm specific RAS plumbing
-Date: Thu, 22 Mar 2018 18:14:38 +0000
-Message-Id: <20180322181445.23298-5-james.morse@arm.com>
+Subject: [PATCH v2 05/11] arm64: KVM/mm: Move SEA handling behind a single 'claim' interface
+Date: Thu, 22 Mar 2018 18:14:39 +0000
+Message-Id: <20180322181445.23298-6-james.morse@arm.com>
 In-Reply-To: <20180322181445.23298-1-james.morse@arm.com>
 References: <20180322181445.23298-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,142 +19,225 @@ List-ID: <linux-mm.kvack.org>
 To: linux-acpi@vger.kernel.org
 Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, James Morse <james.morse@arm.com>
 
-To split up APEIs in_nmi() path, we need any nmi-like callers to always
-be in_nmi(). KVM shouldn't have to know about this, pull the RAS plumbing
-out into a header file.
+To ensure APEI always takes the same locks when processing a notification
+we need the nmi-like callers to always call APEI in_nmi(). Add a helper
+to do the work and claim the notification.
 
-Currently guest synchronous external aborts are claimed as RAS
-notifications by handle_guest_sea(), which is hidden in the arch codes
-mm/fault.c. 32bit gets a dummy declaration in system_misc.h.
+When KVM or the arch code takes an exception that might be a RAS
+notification, it asks the APEI firmware-first code whether it wants
+to claim the exception. We can then go on to see if (a future)
+kernel-first mechanism wants to claim the notification, before
+falling through to the existing default behaviour.
 
-There is going to be more of this in the future if/when we support
-the SError-based firmware-first notification mechanism and/or
-kernel-first notifications for both synchronous external abort and
-SError. Each of these will come with some Kconfig symbols and a
-handful of header files.
+The NOTIFY_SEA code was merged before we had multiple, possibly
+interacting, NMI-like notifications and the need to consider kernel
+first in the future. Make the 'claiming' behaviour explicit.
 
-Create a header file for all this.
+As we're restructuring the APEI code to allow multiple NMI-like
+notifications, any notification that might interrupt interrupts-masked
+code must always be wrapped in nmi_enter()/nmi_exit(). This allows APEI
+to use in_nmi() to choose between the raw/regular spinlock routines.
 
-This patch gives handle_guest_sea() a 'kvm_' prefix, and moves the
-declarations to kvm_ras.h as preparation for a future patch that moves
-the ACPI-specific RAS code out of mm/fault.c.
+We mask SError over this window to prevent an asynchronous RAS error
+arriving and tripping 'nmi_enter()'s BUG_ON(in_nmi()).
 
 Signed-off-by: James Morse <james.morse@arm.com>
-Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
 ---
- arch/arm/include/asm/kvm_ras.h       | 14 ++++++++++++++
- arch/arm/include/asm/system_misc.h   |  5 -----
- arch/arm64/include/asm/kvm_ras.h     | 11 +++++++++++
- arch/arm64/include/asm/system_misc.h |  2 --
- arch/arm64/mm/fault.c                |  2 +-
- virt/kvm/arm/mmu.c                   |  4 ++--
- 6 files changed, 28 insertions(+), 10 deletions(-)
- create mode 100644 arch/arm/include/asm/kvm_ras.h
- create mode 100644 arch/arm64/include/asm/kvm_ras.h
+Why does apei_claim_sea() take a pt_regs? This gets used later to take
+APEI by the hand through NMI->IRQ context, depending on what we
+interrupted. See patch 11.
 
-diff --git a/arch/arm/include/asm/kvm_ras.h b/arch/arm/include/asm/kvm_ras.h
-new file mode 100644
-index 000000000000..aaff56bf338f
---- /dev/null
-+++ b/arch/arm/include/asm/kvm_ras.h
-@@ -0,0 +1,14 @@
-+// SPDX-License-Identifier: GPL-2.0
-+// Copyright (C) 2018 - Arm Ltd
+Changes since v1:
+ * Tinkered with the commit message
+
+ arch/arm64/include/asm/acpi.h      |  3 +++
+ arch/arm64/include/asm/daifflags.h |  1 +
+ arch/arm64/include/asm/kvm_ras.h   | 20 +++++++++++++++++++-
+ arch/arm64/kernel/acpi.c           | 30 ++++++++++++++++++++++++++++++
+ arch/arm64/mm/fault.c              | 31 +++++++------------------------
+ 5 files changed, 60 insertions(+), 25 deletions(-)
+
+diff --git a/arch/arm64/include/asm/acpi.h b/arch/arm64/include/asm/acpi.h
+index 32f465a80e4e..256811cd4b8b 100644
+--- a/arch/arm64/include/asm/acpi.h
++++ b/arch/arm64/include/asm/acpi.h
+@@ -16,6 +16,7 @@
+ #include <linux/psci.h>
+ 
+ #include <asm/cputype.h>
++#include <asm/ptrace.h>
+ #include <asm/smp_plat.h>
+ #include <asm/tlbflush.h>
+ 
+@@ -94,6 +95,8 @@ void __init acpi_init_cpus(void);
+ static inline void acpi_init_cpus(void) { }
+ #endif /* CONFIG_ACPI */
+ 
++int apei_claim_sea(struct pt_regs *regs);
 +
-+#ifndef __ARM_KVM_RAS_H__
-+#define __ARM_KVM_RAS_H__
+ #ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
+ bool acpi_parking_protocol_valid(int cpu);
+ void __init
+diff --git a/arch/arm64/include/asm/daifflags.h b/arch/arm64/include/asm/daifflags.h
+index 22e4c83de5a5..cbd753855bf3 100644
+--- a/arch/arm64/include/asm/daifflags.h
++++ b/arch/arm64/include/asm/daifflags.h
+@@ -20,6 +20,7 @@
+ 
+ #define DAIF_PROCCTX		0
+ #define DAIF_PROCCTX_NOIRQ	PSR_I_BIT
++#define DAIF_ERRCTX		(PSR_I_BIT | PSR_A_BIT)
+ 
+ /* mask/save/unmask/restore all exceptions, including interrupts. */
+ static inline void local_daif_mask(void)
+diff --git a/arch/arm64/include/asm/kvm_ras.h b/arch/arm64/include/asm/kvm_ras.h
+index 5f72b07b7912..9d52bc333110 100644
+--- a/arch/arm64/include/asm/kvm_ras.h
++++ b/arch/arm64/include/asm/kvm_ras.h
+@@ -4,8 +4,26 @@
+ #ifndef __ARM64_KVM_RAS_H__
+ #define __ARM64_KVM_RAS_H__
+ 
++#include <linux/acpi.h>
++#include <linux/errno.h>
+ #include <linux/types.h>
+ 
+-int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr);
++#include <asm/acpi.h>
 +
-+#include <linux/types.h>
-+
++/*
++ * Was this synchronous external abort a RAS notification?
++ * Returns '0' for errors handled by some RAS subsystem, or -ENOENT.
++ *
++ * Call with irqs unmaksed.
++ */
 +static inline int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr)
 +{
-+	return -1;
++	int ret = -ENOENT;
++
++	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA))
++		ret = apei_claim_sea(NULL);
++
++	return ret;
 +}
-+
-+#endif /* __ARM_KVM_RAS_H__ */
-diff --git a/arch/arm/include/asm/system_misc.h b/arch/arm/include/asm/system_misc.h
-index 78f6db114faf..51e5ab50b35f 100644
---- a/arch/arm/include/asm/system_misc.h
-+++ b/arch/arm/include/asm/system_misc.h
-@@ -23,11 +23,6 @@ extern void (*arm_pm_idle)(void);
  
- extern unsigned int user_debug;
+ #endif /* __ARM64_KVM_RAS_H__ */
+diff --git a/arch/arm64/kernel/acpi.c b/arch/arm64/kernel/acpi.c
+index 7b09487ff8fb..6a4823a3eb5e 100644
+--- a/arch/arm64/kernel/acpi.c
++++ b/arch/arm64/kernel/acpi.c
+@@ -33,6 +33,8 @@
  
--static inline int handle_guest_sea(phys_addr_t addr, unsigned int esr)
--{
--	return -1;
--}
--
- #endif /* !__ASSEMBLY__ */
+ #ifdef CONFIG_ACPI_APEI
+ # include <linux/efi.h>
++# include <acpi/ghes.h>
++# include <asm/daifflags.h>
+ # include <asm/pgtable.h>
+ #endif
  
- #endif /* __ASM_ARM_SYSTEM_MISC_H */
-diff --git a/arch/arm64/include/asm/kvm_ras.h b/arch/arm64/include/asm/kvm_ras.h
-new file mode 100644
-index 000000000000..5f72b07b7912
---- /dev/null
-+++ b/arch/arm64/include/asm/kvm_ras.h
-@@ -0,0 +1,11 @@
-+// SPDX-License-Identifier: GPL-2.0
-+// Copyright (C) 2018 - Arm Ltd
+@@ -261,4 +263,32 @@ pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
+ 		return __pgprot(PROT_NORMAL_NC);
+ 	return __pgprot(PROT_DEVICE_nGnRnE);
+ }
 +
-+#ifndef __ARM64_KVM_RAS_H__
-+#define __ARM64_KVM_RAS_H__
 +
-+#include <linux/types.h>
++/*
++ * Claim Synchronous External Aborts as a firmware first notification.
++ *
++ * Used by KVM and the arch do_sea handler.
++ * @regs may be NULL when called from process context.
++ */
++int apei_claim_sea(struct pt_regs *regs)
++{
++	int err = -ENOENT;
++	unsigned long current_flags = arch_local_save_flags();
 +
-+int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr);
++	if (!IS_ENABLED(CONFIG_ACPI_APEI_SEA))
++		return err;
 +
-+#endif /* __ARM64_KVM_RAS_H__ */
-diff --git a/arch/arm64/include/asm/system_misc.h b/arch/arm64/include/asm/system_misc.h
-index 07aa8e3c5630..d0beefeb6d25 100644
---- a/arch/arm64/include/asm/system_misc.h
-+++ b/arch/arm64/include/asm/system_misc.h
-@@ -56,8 +56,6 @@ extern void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
- 	__show_ratelimited;						\
- })
- 
--int handle_guest_sea(phys_addr_t addr, unsigned int esr);
--
- #endif	/* __ASSEMBLY__ */
- 
- #endif	/* __ASM_SYSTEM_MISC_H */
++	/*
++	 * APEI expects an NMI-like notification to always be called
++	 * in NMI context.
++	 */
++	local_daif_restore(DAIF_ERRCTX);
++	nmi_enter();
++	err = ghes_notify_sea();
++	nmi_exit();
++	local_daif_restore(current_flags);
++
++	return err;
++}
+ #endif
 diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index f76bb2c3c943..adac28ce9be3 100644
+index adac28ce9be3..303c8b425c82 100644
 --- a/arch/arm64/mm/fault.c
 +++ b/arch/arm64/mm/fault.c
-@@ -673,7 +673,7 @@ static const struct fault_info fault_info[] = {
+@@ -18,6 +18,7 @@
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include <linux/acpi.h>
+ #include <linux/extable.h>
+ #include <linux/signal.h>
+ #include <linux/mm.h>
+@@ -33,6 +34,7 @@
+ #include <linux/preempt.h>
+ #include <linux/hugetlb.h>
+ 
++#include <asm/acpi.h>
+ #include <asm/bug.h>
+ #include <asm/cmpxchg.h>
+ #include <asm/cpufeature.h>
+@@ -44,8 +46,6 @@
+ #include <asm/pgtable.h>
+ #include <asm/tlbflush.h>
+ 
+-#include <acpi/ghes.h>
+-
+ struct fault_info {
+ 	int	(*fn)(unsigned long addr, unsigned int esr,
+ 		      struct pt_regs *regs);
+@@ -579,19 +579,12 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
+ 	pr_err("Synchronous External Abort: %s (0x%08x) at 0x%016lx\n",
+ 		inf->name, esr, addr);
+ 
+-	/*
+-	 * Synchronous aborts may interrupt code which had interrupts masked.
+-	 * Before calling out into the wider kernel tell the interested
+-	 * subsystems.
+-	 */
+ 	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA)) {
+-		if (interrupts_enabled(regs))
+-			nmi_enter();
+-
+-		ghes_notify_sea();
+-
+-		if (interrupts_enabled(regs))
+-			nmi_exit();
++		/*
++		 * Return value ignored as we rely on signal merging.
++		 * Future patches will make this more robust.
++		 */
++		apei_claim_sea(regs);
+ 	}
+ 
+ 	info.si_signo = SIGBUS;
+@@ -673,16 +666,6 @@ static const struct fault_info fault_info[] = {
  	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 63"			},
  };
  
--int handle_guest_sea(phys_addr_t addr, unsigned int esr)
-+int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr)
+-int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr)
+-{
+-	int ret = -ENOENT;
+-
+-	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA))
+-		ret = ghes_notify_sea();
+-
+-	return ret;
+-}
+-
+ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
+ 					 struct pt_regs *regs)
  {
- 	int ret = -ENOENT;
- 
-diff --git a/virt/kvm/arm/mmu.c b/virt/kvm/arm/mmu.c
-index ec62d1cccab7..8ae691194170 100644
---- a/virt/kvm/arm/mmu.c
-+++ b/virt/kvm/arm/mmu.c
-@@ -27,10 +27,10 @@
- #include <asm/kvm_arm.h>
- #include <asm/kvm_mmu.h>
- #include <asm/kvm_mmio.h>
-+#include <asm/kvm_ras.h>
- #include <asm/kvm_asm.h>
- #include <asm/kvm_emulate.h>
- #include <asm/virt.h>
--#include <asm/system_misc.h>
- 
- #include "trace.h"
- 
-@@ -1535,7 +1535,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
- 		 * For RAS the host kernel may handle this abort.
- 		 * There is no need to pass the error into the guest.
- 		 */
--		if (!handle_guest_sea(fault_ipa, kvm_vcpu_get_hsr(vcpu)))
-+		if (!kvm_handle_guest_sea(fault_ipa, kvm_vcpu_get_hsr(vcpu)))
- 			return 1;
- 
- 		if (unlikely(!is_iabt)) {
 -- 
 2.16.2
