@@ -1,40 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8141D6B0024
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 16:57:33 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id bb5-v6so6109961plb.22
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 13:57:33 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A48746B0024
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 17:10:25 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j12so5224110pff.18
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:10:25 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 134si2267100pge.565.2018.03.22.13.57.32
+        by mx.google.com with ESMTPS id 97-v6si6873118plm.149.2018.03.22.14.10.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 13:57:32 -0700 (PDT)
-Date: Thu, 22 Mar 2018 13:57:29 -0700
+        Thu, 22 Mar 2018 14:10:24 -0700 (PDT)
+Date: Thu, 22 Mar 2018 14:10:22 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
-Message-Id: <20180322135729.dbfd3575819c92c0f88c5c21@linux-foundation.org>
-In-Reply-To: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
-References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
+Subject: Re: [PATCH] mm, vmscan, tracing: Use pointer to reclaim_stat struct
+ in trace event
+Message-Id: <20180322141022.f02476e1f76338ab9cecf62e@linux-foundation.org>
+In-Reply-To: <20180322121003.4177af15@gandalf.local.home>
+References: <20180322121003.4177af15@gandalf.local.home>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ilya Smith <blackzert@gmail.com>
-Cc: rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, jhogan@kernel.org, ralf@linux-mips.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, mhocko@suse.com, hughd@google.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, steve.capper@arm.com, punit.agrawal@arm.com, paul.burton@mips.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, keescook@chromium.org, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, jglisse@redhat.com, willy@infradead.org, aarcange@redhat.com, oleg@redhat.com, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Alexei Starovoitov <ast@fb.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On Thu, 22 Mar 2018 19:36:36 +0300 Ilya Smith <blackzert@gmail.com> wrote:
+On Thu, 22 Mar 2018 12:10:03 -0400 Steven Rostedt <rostedt@goodmis.org> wrote:
 
-> Current implementation doesn't randomize address returned by mmap.
-> All the entropy ends with choosing mmap_base_addr at the process
-> creation. After that mmap build very predictable layout of address
-> space. It allows to bypass ASLR in many cases.
+> 
+> The trace event trace_mm_vmscan_lru_shrink_inactive() currently has 12
+> parameters! Seven of them are from the reclaim_stat structure. This
+> structure is currently local to mm/vmscan.c. By moving it to the global
+> vmstat.h header, we can also reference it from the vmscan tracepoints. In
+> moving it, it brings down the overhead of passing so many arguments to the
+> trace event. In the future, we may limit the number of arguments that a
+> trace event may pass (ideally just 6, but more realistically it may be 8).
 
-Perhaps some more effort on the problem description would help.  *Are*
-people predicting layouts at present?  What problems does this cause? 
-How are they doing this and are there other approaches to solving the
-problem?
+Unfortunately this is not a good time.  Andrey's "mm/vmscan: replace
+mm_vmscan_lru_shrink_inactive with shrink_page_list tracepoint" mucks
+with this code quite a lot and that patch's series is undergoing review
+at present, with a few issues yet unresolved.
 
-Mainly: what value does this patchset have to our users?  This reader
-is unable to determine that from the information which you have
-provided.  Full details, please.
+I'll park your patch for now and if Andrey's series doesn't converge
+soon I'll merge this and will ask Andrey to redo things.
