@@ -1,120 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B2F76B002E
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 17:53:57 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id q6so4773111pgv.12
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:53:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k11sor1962785pfh.52.2018.03.22.14.53.55
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 745896B0022
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 18:21:15 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s8so4851730pgf.0
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 15:21:15 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 30-v6si7050762plf.665.2018.03.22.15.21.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 22 Mar 2018 14:53:56 -0700 (PDT)
-Date: Thu, 22 Mar 2018 14:53:54 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2 -mm 6/6] mm, memcg: disregard mempolicies for cgroup-aware
- oom killer
-In-Reply-To: <alpine.DEB.2.20.1803221451370.17056@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.20.1803221453290.17056@chino.kir.corp.google.com>
-References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com> <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com>
- <alpine.DEB.2.20.1803221451370.17056@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Mar 2018 15:21:14 -0700 (PDT)
+Date: Thu, 22 Mar 2018 22:21:08 +0000
+From: James Hogan <jhogan@kernel.org>
+Subject: Re: [PATCH V3] ZBOOT: fix stack protector in compressed boot phase
+Message-ID: <20180322222107.GJ13126@saruman>
+References: <1521186916-13745-1-git-send-email-chenhc@lemote.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="I/5syFLg1Ed7r+1G"
+Content-Disposition: inline
+In-Reply-To: <1521186916-13745-1-git-send-email-chenhc@lemote.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Huacai Chen <chenhc@lemote.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, stable@vger.kernel.org
 
-The cgroup-aware oom killer currently considers the set of allowed nodes
-for the allocation that triggers the oom killer and discounts usage from
-disallowed nodes when comparing cgroups.
 
-If a cgroup has both the cpuset and memory controllers enabled, it may be
-possible to restrict allocations to a subset of nodes, for example.  Some
-latency sensitive users use cpusets to allocate only local memory, almost
-to the point of oom even though there is an abundance of available free
-memory on other nodes.
+--I/5syFLg1Ed7r+1G
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-The same is true for processes that mbind(2) their memory to a set of
-allowed nodes.
+On Fri, Mar 16, 2018 at 03:55:16PM +0800, Huacai Chen wrote:
+> diff --git a/arch/mips/boot/compressed/decompress.c b/arch/mips/boot/comp=
+ressed/decompress.c
+> index fdf99e9..5ba431c 100644
+> --- a/arch/mips/boot/compressed/decompress.c
+> +++ b/arch/mips/boot/compressed/decompress.c
+> @@ -78,11 +78,6 @@ void error(char *x)
+> =20
+>  unsigned long __stack_chk_guard;
 
-This yields very inconsistent results by considering usage from each mem
-cgroup (and perhaps its subtree) for the allocation's set of allowed nodes
-for its mempolicy.  Allocating a single page for a vma that is mbind to a
-now-oom node can cause a cgroup that is restricted to that node by its
-cpuset controller to be oom killed when other cgroups may have much higher
-overall usage.
+=2E..
 
-The cgroup-aware oom killer is described as killing the largest memory
-consuming cgroup (or subtree) without mentioning the mempolicy of the
-allocation.  For now, discount it.  It would be possible to add an
-additional oom policy for NUMA awareness if it would be generally useful
-later with the extensible interface.
+> diff --git a/arch/mips/boot/compressed/head.S b/arch/mips/boot/compressed=
+/head.S
+> index 409cb48..00d0ee0 100644
+> --- a/arch/mips/boot/compressed/head.S
+> +++ b/arch/mips/boot/compressed/head.S
+> @@ -32,6 +32,10 @@ start:
+>  	bne	a2, a0, 1b
+>  	 addiu	a0, a0, 4
+> =20
+> +	PTR_LA	a0, __stack_chk_guard
+> +	PTR_LI	a1, 0x000a0dff
+> +	sw	a1, 0(a0)
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/memcontrol.c | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+Should that not be LONG_S? Otherwise big endian MIPS64 would get a
+word-swapped canary (which is probably mostly harmless, but still).
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2608,19 +2608,15 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
- 	return ret;
- }
- 
--static long memcg_oom_badness(struct mem_cgroup *memcg,
--			      const nodemask_t *nodemask)
-+static long memcg_oom_badness(struct mem_cgroup *memcg)
- {
- 	const bool is_root_memcg = memcg == root_mem_cgroup;
- 	long points = 0;
- 	int nid;
--	pg_data_t *pgdat;
- 
- 	for_each_node_state(nid, N_MEMORY) {
--		if (nodemask && !node_isset(nid, *nodemask))
--			continue;
-+		pg_data_t *pgdat = NODE_DATA(nid);
- 
--		pgdat = NODE_DATA(nid);
- 		if (is_root_memcg) {
- 			points += node_page_state(pgdat, NR_ACTIVE_ANON) +
- 				  node_page_state(pgdat, NR_INACTIVE_ANON);
-@@ -2656,8 +2652,7 @@ static long memcg_oom_badness(struct mem_cgroup *memcg,
-  *   >0: memcg is eligible, and the returned value is an estimation
-  *       of the memory footprint
-  */
--static long oom_evaluate_memcg(struct mem_cgroup *memcg,
--			       const nodemask_t *nodemask)
-+static long oom_evaluate_memcg(struct mem_cgroup *memcg)
- {
- 	struct css_task_iter it;
- 	struct task_struct *task;
-@@ -2691,7 +2686,7 @@ static long oom_evaluate_memcg(struct mem_cgroup *memcg,
- 	if (eligible <= 0)
- 		return eligible;
- 
--	return memcg_oom_badness(memcg, nodemask);
-+	return memcg_oom_badness(memcg);
- }
- 
- static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
-@@ -2751,7 +2746,7 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
- 		if (memcg_has_children(iter))
- 			continue;
- 
--		score = oom_evaluate_memcg(iter, oc->nodemask);
-+		score = oom_evaluate_memcg(iter);
- 
- 		/*
- 		 * Ignore empty and non-eligible memory cgroups.
-@@ -2780,8 +2775,7 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
- 
- 	if (oc->chosen_memcg != INFLIGHT_VICTIM) {
- 		if (root == root_mem_cgroup) {
--			group_score = oom_evaluate_memcg(root_mem_cgroup,
--							 oc->nodemask);
-+			group_score = oom_evaluate_memcg(root_mem_cgroup);
- 			if (group_score > leaf_score) {
- 				/*
- 				 * Discount the sum of all leaf scores to find
+Also I think it worth mentioning in the commit message the MIPS
+configuration you hit this with, presumably a Loongson one? For me
+decompress_kernel() gets a stack guard on loongson3_defconfig, but not
+malta_defconfig or malta_defconfig + 64-bit. I presume its sensitive to
+the compiler inlining stuff into decompress_kernel() or something such
+that it suddenly qualifies for a stack guard.
+
+Cheers
+James
+
+--I/5syFLg1Ed7r+1G
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEd80NauSabkiESfLYbAtpk944dnoFAlq0LFMACgkQbAtpk944
+dnrmTQ/+JqSPbejJsFyxpccmWIyLBtYPujNEeohQv5ZthOfaooKRy7NvUQqirXxG
+HKpHT1EqQtZsXxir/BZxdpo0rN+M/7kMWU9XKLtFqkiz88k1i+k4o7dlrdQcZOqy
+HFBPtJnkchJrgBxxzPNxmHnWCxOFoYbK2HBxsn0cBGDm9sgLgXPkMwkAk29fG3uT
+ViYFSUhnlmNAo4GBgUkxSFK3rDZZQWq7DFHaMrTEKeJo0SdLtmCt7YD25grSOp0K
+klBR1sdHe+oIXQAcowD3xdsLNSNeRoRgtan2Y6ByBLs00+dE7A6D8buruvohh/m4
+B37/oeHOEg65kmOVVSnhseaW92YfUyBEkGosJHgV0a9/BoNeN8r1deLgKGb/VYCC
+bzOiN0pTzDzPZXvIsWEKibOMrrcm/2Et6Gkh4VawwFEKXZ2ZQAkvwUXFvBjXFwuq
+3/V3+bLsrS6mdkvDGe3HcqNEdRhGcjt9uISxGhQtPe30aK9EgtTYH/Ol9GNe/R2l
+b/1eEo5RGf0FAko1+xeE81q+xAUPoR4IECl5wj9LQy/KEP7rBSSJj2Ixxl2YMZGg
+osFHqfdRh1ihHViu8OMMsT0/qTCH/H953rgGZySpK4twyChK92FMfF2uO7z18NHC
+uAylLlojOuGKA0t6HsAEuB64oWg3HV2bYGu1p1yQK5XolLuLrWk=
+=1hrp
+-----END PGP SIGNATURE-----
+
+--I/5syFLg1Ed7r+1G--
