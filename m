@@ -1,79 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A3B56B0007
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 09:43:57 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j12so4580216pff.18
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 06:43:57 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id m6si4436055pgp.831.2018.03.22.06.43.54
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D00256B0003
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:17:26 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id q11so1885953pfd.8
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 08:17:26 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c20si5060531pfi.18.2018.03.22.08.17.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 06:43:55 -0700 (PDT)
-Subject: Re: [PATCH] mm: fix low-high watermark distance on small systems
-References: <1521110079-26870-1-git-send-email-vinmenon@codeaurora.org>
- <20180315143415.GA473@rodete-desktop-imager.corp.google.com>
- <d6dc8e61-8d3e-d628-2651-50db62dd7fa1@codeaurora.org>
- <20180320101629.GA210031@rodete-desktop-imager.corp.google.com>
- <c1b84fef-0ad7-7380-9a6b-7cbc65abd68f@codeaurora.org>
- <20180320112905.GB210031@rodete-desktop-imager.corp.google.com>
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Message-ID: <a33b81d4-8291-7970-9c20-831bba1c93ae@codeaurora.org>
-Date: Thu, 22 Mar 2018 19:13:48 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 22 Mar 2018 08:17:25 -0700 (PDT)
+Date: Thu, 22 Mar 2018 08:17:19 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v4 2/3] mm/free_pcppages_bulk: do not hold lock when
+ picking pages to free
+Message-ID: <20180322151719.GA28468@bombadil.infradead.org>
+References: <20180301062845.26038-1-aaron.lu@intel.com>
+ <20180301062845.26038-3-aaron.lu@intel.com>
+ <9cad642d-9fe5-b2c3-456c-279065c32337@suse.cz>
+ <20180313033453.GB13782@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180320112905.GB210031@rodete-desktop-imager.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180313033453.GB13782@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: hannes@cmpxchg.org, mgorman@techsingularity.net, linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, sfr@canb.auug.org.au, pasha.tatashin@oracle.com, penguin-kernel@I-love.SAKURA.ne.jp, peter.enderborg@sony.com
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>
 
-On 3/20/2018 4:59 PM, Minchan Kim wrote:
-> On Tue, Mar 20, 2018 at 04:22:36PM +0530, Vinayak Menon wrote:
->>>> up few more times and doing shorter steals is better than kswapd stealing more in a single run. The latter
->>>> does not better direct reclaims and causes thrashing too.
->>> That's the tradeoff of kswapd aggressiveness to avoid high rate
->>> direct reclaim.
->> We can call it trade off only if increasing the aggressiveness of kswapd reduces the direct reclaims ?
->> But as shown by the data I had shared, the aggressiveness does not improve direct reclaims. It is just causing
->> unnecessary reclaim. i.e. a much lower low-high gap gives the same benefit on direct reclaims with far less
->> reclaim.
-> Said again, it depends on workload. I can make simple test to break it easily.
->
->>
+On Tue, Mar 13, 2018 at 11:34:53AM +0800, Aaron Lu wrote:
+> I wish there is a data structure that has the flexibility of list while
+> at the same time we can locate the Nth element in the list without the
+> need to iterate. That's what I'm looking for when developing clustered
+> allocation for order 0 pages. In the end, I had to use another place to
+> record where the Nth element is. I hope to send out v2 of that RFC
+> series soon but I'm still collecting data for it. I would appreciate if
+> people could take a look then :-)
 
-> I don't think repeated app launching on android doesn't reflect real user
-> scenario. Anyone don't do that in real life except some guys want to show
-> benchmark result in youtube.
+Sorry, I missed this.  There is such a data structure -- the IDR, or
+possibly a bare radix tree, or we can build a better data structure on
+top of the radix tree (I talked about one called the XQueue a while ago).
 
-Agree that user won't open apps continuously in sequence like the test does. But I believe it is very similar to what
-a user would do with the device. i.e. open an app, do something, switch to another app..then come
-back to previous app. The test tries to emulate the same.
-
-> About mmtests, what kinds of tests did you perform? So what's the result?
-> If you reduced thrashing, how much the test result is improved?
-> Every tests are improved? Need not vmstat but result from the benchmark.
-> Such wide testing would make more conviction.
-
-I had performed the multibuild test of mmtests (3G RAM). Results below.
-
-A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  wsf-defaultA A A A A A A A A  wsf-this-patch
-multibuild time (secs)A A A A A A  7338A A A A A A A A A A A A A A A  A  A A  7186
-workingset_refaultA A A A A A A A A A A  1228216A A A A A A A A A A A A A  974074A  (-20%)
-workingset_activateA A A A A A A A A  292110A A A  A A A  A A A  A A A  181789A  (-37%)
-pgpginA A A A A A A A A A A A A A A A A A A A A A  A A A A A A A A A A  11307694A A A A A A A A A A A  8678200 (-23%)
-allocstallA A A  A A A  A A A  A A A  A A A  A A A A A A A A A A  98A A A  A A A  A A A  A A A  A A A A A A A A  103
-
-
->> and also the mmtests shows the problem, and fixed by the patch, can we try to pick it and see if someone complains ? I see that
->> there were other reports of this https://lkml.org/lkml/2017/11/24/167 . Do you suggest a tunable approach taken by the patch
->> in that link ? So that varying use cases can be accommodated. I wanted to avoid a new tunable if some heuristic like the patch does
->> just works.
-> Actually, I don't want to touch it unless we have more nice feedback
-> algorithm.
->
-> Anyway, it's just my opinion. I did best effort to explain. I will
-> defer to maintainer.
->
-> Thanks.
+The IDR will automatically grow to whatever needed size, it stores
+pointers, you can find out quickly where the last allocated index is,
+you can remove from the middle of the array.  Disadvantage is that it
+requires memory allocation to store the array of pointers, *but* it
+can always hold at least one entry.  So if you have no memory, you can
+always return the one element in your IDR to the free pool and allocate
+from that page.
