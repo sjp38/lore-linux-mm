@@ -1,45 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 57CC16B0008
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 17:21:32 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id d5so5237896pfn.12
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:21:32 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id a77si5499698pfg.300.2018.03.22.14.21.31
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 040336B000D
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 17:48:28 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id e19-v6so5717429otf.9
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:48:27 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 4si2016620oin.5.2018.03.22.14.48.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 14:21:31 -0700 (PDT)
-Date: Thu, 22 Mar 2018 17:21:28 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] mm, vmscan, tracing: Use pointer to reclaim_stat struct
- in trace event
-Message-ID: <20180322172128.41959c1d@gandalf.local.home>
-In-Reply-To: <20180322141022.f02476e1f76338ab9cecf62e@linux-foundation.org>
-References: <20180322121003.4177af15@gandalf.local.home>
-	<20180322141022.f02476e1f76338ab9cecf62e@linux-foundation.org>
+        Thu, 22 Mar 2018 14:48:26 -0700 (PDT)
+Date: Thu, 22 Mar 2018 15:48:25 -0600
+From: Alex Williamson <alex.williamson@redhat.com>
+Subject: Re: [PATCH] vfio iommu type1: improve memory pinning process for
+ raw PFN mapping
+Message-ID: <20180322154825.0f8477f7@w520.home>
+In-Reply-To: <20180322045216.22220-1-jason.cai@linux.alibaba.com>
+References: <20180322045216.22220-1-jason.cai@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Alexei Starovoitov <ast@fb.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com>
+Cc: pbonzini@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, gnehzuil@linux.alibaba.com
 
-On Thu, 22 Mar 2018 14:10:22 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, 22 Mar 2018 12:52:16 +0800
+"Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com> wrote:
 
-> Unfortunately this is not a good time.  Andrey's "mm/vmscan: replace
-> mm_vmscan_lru_shrink_inactive with shrink_page_list tracepoint" mucks
-> with this code quite a lot and that patch's series is undergoing review
-> at present, with a few issues yet unresolved.
+> When using vfio to pass through a PCIe device (e.g. a GPU card) that
+> has a huge BAR (e.g. 16GB), a lot of cycles are wasted on memory
+> pinning because PFNs of PCI BAR are not backed by struct page, and
+> the corresponding VMA has flag VM_PFNMAP.
 > 
-> I'll park your patch for now and if Andrey's series doesn't converge
-> soon I'll merge this and will ask Andrey to redo things.
+> With this change, when pinning a region which is a raw PFN mapping,
+> it can skip unnecessary user memory pinning process, and thus, can
+> significantly improve VM's boot up time when passing through devices
+> via VFIO. In my test on a Xeon E5 2.6GHz, the time mapping a 16GB
+> BAR was reduced from about 0.4s to 1.5us.
+> 
+> Signed-off-by: Jason Cai (Xiang Feng) <jason.cai@linux.alibaba.com>
+> ---
+>  drivers/vfio/vfio_iommu_type1.c | 24 ++++++++++++++----------
+>  1 file changed, 14 insertions(+), 10 deletions(-)
+> 
+> diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
+> index 45657e2b1ff7..0658f35318b8 100644
+> --- a/drivers/vfio/vfio_iommu_type1.c
+> +++ b/drivers/vfio/vfio_iommu_type1.c
+> @@ -397,7 +397,6 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+>  {
+>  	unsigned long pfn = 0;
+>  	long ret, pinned = 0, lock_acct = 0;
+> -	bool rsvd;
+>  	dma_addr_t iova = vaddr - dma->vaddr + dma->iova;
+>  
+>  	/* This code path is only user initiated */
+> @@ -408,14 +407,22 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+>  	if (ret)
+>  		return ret;
+>  
+> +	if (is_invalid_reserved_pfn(*pfn_base)) {
+> +		struct vm_area_struct *vma;
 
-No problem. I can easily update that patch on top, as it didn't take
-much effort to write and test it. Just let me know if you do pull in
-Andrey's work and I need to do the update.
+scripts/checkpatch.pl suggests a new line here to separate variable
+declaration from code.
 
-Thanks!
+> +		down_read(&current->mm->mmap_sem);
+> +		vma = find_vma_intersection(current->mm, vaddr, vaddr + 1);
+> +		pinned = min(npage, (long)vma_pages(vma));
 
--- Steve
+checkpatch also suggests using min_t rather than casting to a
+compatible type, ie:
+
+	pinned = min_t(long, npage, vma_pages(vma));
+
+I'll make these updates on commit, please make use of checkpatch on
+future patches.  Applied to vfio next branch for v4.17.  Thanks,
+
+Alex
+
+> +		up_read(&current->mm->mmap_sem);
+> +		return pinned;
+> +	}
+> +
+>  	pinned++;
+> -	rsvd = is_invalid_reserved_pfn(*pfn_base);
+>  
+>  	/*
+>  	 * Reserved pages aren't counted against the user, externally pinned
+>  	 * pages are already counted against the user.
+>  	 */
+> -	if (!rsvd && !vfio_find_vpfn(dma, iova)) {
+> +	if (!vfio_find_vpfn(dma, iova)) {
+>  		if (!lock_cap && current->mm->locked_vm + 1 > limit) {
+>  			put_pfn(*pfn_base, dma->prot);
+>  			pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
+> @@ -435,13 +442,12 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+>  		if (ret)
+>  			break;
+>  
+> -		if (pfn != *pfn_base + pinned ||
+> -		    rsvd != is_invalid_reserved_pfn(pfn)) {
+> +		if (pfn != *pfn_base + pinned) {
+>  			put_pfn(pfn, dma->prot);
+>  			break;
+>  		}
+>  
+> -		if (!rsvd && !vfio_find_vpfn(dma, iova)) {
+> +		if (!vfio_find_vpfn(dma, iova)) {
+>  			if (!lock_cap &&
+>  			    current->mm->locked_vm + lock_acct + 1 > limit) {
+>  				put_pfn(pfn, dma->prot);
+> @@ -459,10 +465,8 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+>  
+>  unpin_out:
+>  	if (ret) {
+> -		if (!rsvd) {
+> -			for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
+> -				put_pfn(pfn, dma->prot);
+> -		}
+> +		for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
+> +			put_pfn(pfn, dma->prot);
+>  
+>  		return ret;
+>  	}
