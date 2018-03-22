@@ -1,78 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 417B16B0012
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 05:01:40 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id p2so3956336wre.19
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 020196B0011
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 05:01:41 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id d23so3588052wmd.1
         for <linux-mm@kvack.org>; Thu, 22 Mar 2018 02:01:40 -0700 (PDT)
 Received: from isilmar-4.linta.de (isilmar-4.linta.de. [136.243.71.142])
-        by mx.google.com with ESMTPS id i5si4224599wre.541.2018.03.22.02.01.38
+        by mx.google.com with ESMTPS id v38si4647676wrc.6.2018.03.22.02.01.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 02:01:38 -0700 (PDT)
+        Thu, 22 Mar 2018 02:01:39 -0700 (PDT)
 From: Dominik Brodowski <linux@dominikbrodowski.net>
-Subject: [PATCH 27/45] mm: add kernel_mbind() helper; remove in-kernel call to syscall
-Date: Thu, 22 Mar 2018 10:00:41 +0100
-Message-Id: <20180322090059.19361-28-linux@dominikbrodowski.net>
+Subject: [PATCH 29/45] mm: add ksys_readahead() helper; remove in-kernel calls to sys_readahead()
+Date: Thu, 22 Mar 2018 10:00:43 +0100
+Message-Id: <20180322090059.19361-30-linux@dominikbrodowski.net>
 In-Reply-To: <20180322090059.19361-1-linux@dominikbrodowski.net>
 References: <20180322090059.19361-1-linux@dominikbrodowski.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, viro@ZenIV.linux.org.uk, arnd@arndb.de, linux-arch@vger.kernel.org
-Cc: Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Using the mm-internal kernel_mbind() helper allows us to get rid of the
-mm-internal call to the sys_mbind() syscall.
+Using this helper allows us to avoid the in-kernel calls to the
+sys_readahead() syscall. The ksys_ prefix denotes that this function is
+meant as a drop-in replacement for the syscall. In particular, it uses the
+same calling convention as sys_readahead().
 
 This patch is part of a series which tries to remove in-kernel calls to
 syscalls. On this basis, the syscall entry path can be streamlined.
 
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 Signed-off-by: Dominik Brodowski <linux@dominikbrodowski.net>
 ---
- mm/mempolicy.c | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ arch/mips/kernel/linux32.c      | 2 +-
+ arch/parisc/kernel/sys_parisc.c | 2 +-
+ arch/powerpc/kernel/sys_ppc32.c | 2 +-
+ arch/s390/kernel/compat_linux.c | 2 +-
+ arch/sparc/kernel/sys_sparc32.c | 2 +-
+ arch/x86/ia32/sys_ia32.c        | 2 +-
+ include/linux/syscalls.h        | 1 +
+ mm/readahead.c                  | 7 ++++++-
+ 8 files changed, 13 insertions(+), 7 deletions(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 7399ede02b5f..e4d7d4c0b253 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1336,9 +1336,9 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
- 	return copy_to_user(mask, nodes_addr(*nodes), copy) ? -EFAULT : 0;
- }
- 
--SYSCALL_DEFINE6(mbind, unsigned long, start, unsigned long, len,
--		unsigned long, mode, const unsigned long __user *, nmask,
--		unsigned long, maxnode, unsigned, flags)
-+static long kernel_mbind(unsigned long start, unsigned long len,
-+			 unsigned long mode, const unsigned long __user *nmask,
-+			 unsigned long maxnode, unsigned int flags)
+diff --git a/arch/mips/kernel/linux32.c b/arch/mips/kernel/linux32.c
+index 0571ab7b68b0..318f1c05c5b3 100644
+--- a/arch/mips/kernel/linux32.c
++++ b/arch/mips/kernel/linux32.c
+@@ -131,7 +131,7 @@ SYSCALL_DEFINE1(32_personality, unsigned long, personality)
+ asmlinkage ssize_t sys32_readahead(int fd, u32 pad0, u64 a2, u64 a3,
+ 				   size_t count)
  {
- 	nodemask_t nodes;
- 	int err;
-@@ -1357,6 +1357,13 @@ SYSCALL_DEFINE6(mbind, unsigned long, start, unsigned long, len,
- 	return do_mbind(start, len, mode, mode_flags, &nodes, flags);
+-	return sys_readahead(fd, merge_64(a2, a3), count);
++	return ksys_readahead(fd, merge_64(a2, a3), count);
  }
  
-+SYSCALL_DEFINE6(mbind, unsigned long, start, unsigned long, len,
-+		unsigned long, mode, const unsigned long __user *, nmask,
-+		unsigned long, maxnode, unsigned int, flags)
-+{
-+	return kernel_mbind(start, len, mode, nmask, maxnode, flags);
-+}
-+
- /* Set the process memory policy */
- SYSCALL_DEFINE3(set_mempolicy, int, mode, const unsigned long __user *, nmask,
- 		unsigned long, maxnode)
-@@ -1575,7 +1582,7 @@ COMPAT_SYSCALL_DEFINE6(mbind, compat_ulong_t, start, compat_ulong_t, len,
- 			return -EFAULT;
+ asmlinkage long sys32_sync_file_range(int fd, int __pad,
+diff --git a/arch/parisc/kernel/sys_parisc.c b/arch/parisc/kernel/sys_parisc.c
+index 080d566654ea..8c99ebbe2bac 100644
+--- a/arch/parisc/kernel/sys_parisc.c
++++ b/arch/parisc/kernel/sys_parisc.c
+@@ -345,7 +345,7 @@ asmlinkage ssize_t parisc_pwrite64(unsigned int fd, const char __user *buf,
+ asmlinkage ssize_t parisc_readahead(int fd, unsigned int high, unsigned int low,
+ 		                    size_t count)
+ {
+-	return sys_readahead(fd, (loff_t)high << 32 | low, count);
++	return ksys_readahead(fd, (loff_t)high << 32 | low, count);
+ }
+ 
+ asmlinkage long parisc_fadvise64_64(int fd,
+diff --git a/arch/powerpc/kernel/sys_ppc32.c b/arch/powerpc/kernel/sys_ppc32.c
+index 0b95fa13307f..c11c73373691 100644
+--- a/arch/powerpc/kernel/sys_ppc32.c
++++ b/arch/powerpc/kernel/sys_ppc32.c
+@@ -88,7 +88,7 @@ compat_ssize_t compat_sys_pwrite64(unsigned int fd, const char __user *ubuf, com
+ 
+ compat_ssize_t compat_sys_readahead(int fd, u32 r4, u32 offhi, u32 offlo, u32 count)
+ {
+-	return sys_readahead(fd, ((loff_t)offhi << 32) | offlo, count);
++	return ksys_readahead(fd, ((loff_t)offhi << 32) | offlo, count);
+ }
+ 
+ asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,
+diff --git a/arch/s390/kernel/compat_linux.c b/arch/s390/kernel/compat_linux.c
+index da5ef7718254..8ac38d51ed7d 100644
+--- a/arch/s390/kernel/compat_linux.c
++++ b/arch/s390/kernel/compat_linux.c
+@@ -328,7 +328,7 @@ COMPAT_SYSCALL_DEFINE5(s390_pwrite64, unsigned int, fd, const char __user *, ubu
+ 
+ COMPAT_SYSCALL_DEFINE4(s390_readahead, int, fd, u32, high, u32, low, s32, count)
+ {
+-	return sys_readahead(fd, (unsigned long)high << 32 | low, count);
++	return ksys_readahead(fd, (unsigned long)high << 32 | low, count);
+ }
+ 
+ struct stat64_emu31 {
+diff --git a/arch/sparc/kernel/sys_sparc32.c b/arch/sparc/kernel/sys_sparc32.c
+index 4da66aed50b4..f166e5bbf506 100644
+--- a/arch/sparc/kernel/sys_sparc32.c
++++ b/arch/sparc/kernel/sys_sparc32.c
+@@ -217,7 +217,7 @@ asmlinkage long compat_sys_readahead(int fd,
+ 				     unsigned long offlo,
+ 				     compat_size_t count)
+ {
+-	return sys_readahead(fd, (offhi << 32) | offlo, count);
++	return ksys_readahead(fd, (offhi << 32) | offlo, count);
+ }
+ 
+ long compat_sys_fadvise64(int fd,
+diff --git a/arch/x86/ia32/sys_ia32.c b/arch/x86/ia32/sys_ia32.c
+index bf4e8dbd65e7..064b76598a2e 100644
+--- a/arch/x86/ia32/sys_ia32.c
++++ b/arch/x86/ia32/sys_ia32.c
+@@ -208,7 +208,7 @@ COMPAT_SYSCALL_DEFINE6(x86_fadvise64_64, int, fd, __u32, offset_low,
+ COMPAT_SYSCALL_DEFINE4(x86_readahead, int, fd, unsigned int, off_lo,
+ 		       unsigned int, off_hi, size_t, count)
+ {
+-	return sys_readahead(fd, ((u64)off_hi << 32) | off_lo, count);
++	return ksys_readahead(fd, ((u64)off_hi << 32) | off_lo, count);
+ }
+ 
+ COMPAT_SYSCALL_DEFINE6(x86_sync_file_range, int, fd, unsigned int, off_low,
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index c509459ce9d5..3591c4af33d8 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -982,6 +982,7 @@ ssize_t ksys_pwrite64(unsigned int fd, const char __user *buf,
+ 		      size_t count, loff_t pos);
+ int ksys_fallocate(int fd, int mode, loff_t offset, loff_t len);
+ int ksys_setsid(void);
++ssize_t ksys_readahead(int fd, loff_t offset, size_t count);
+ 
+ /*
+  * The following kernel syscall equivalents are just wrappers to fs-internal
+diff --git a/mm/readahead.c b/mm/readahead.c
+index c4ca70239233..4d57b4644f98 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -573,7 +573,7 @@ do_readahead(struct address_space *mapping, struct file *filp,
+ 	return force_page_cache_readahead(mapping, filp, index, nr);
+ }
+ 
+-SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
++ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
+ {
+ 	ssize_t ret;
+ 	struct fd f;
+@@ -592,3 +592,8 @@ SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
  	}
- 
--	return sys_mbind(start, len, mode, nm, nr_bits+1, flags);
-+	return kernel_mbind(start, len, mode, nm, nr_bits+1, flags);
+ 	return ret;
  }
- 
- COMPAT_SYSCALL_DEFINE4(migrate_pages, compat_pid_t, pid,
++
++SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
++{
++	return ksys_readahead(fd, offset, count);
++}
 -- 
 2.16.2
