@@ -1,90 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 89C976B0009
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 04:11:53 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e130so441222wme.0
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 01:11:53 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x204si4075648wme.204.2018.03.22.01.11.51
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 92D696B0009
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 04:26:16 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id p128so3786004pga.19
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 01:26:16 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y17sor1804414pfl.12.2018.03.22.01.26.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Mar 2018 01:11:51 -0700 (PDT)
-Date: Thu, 22 Mar 2018 09:11:50 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, thp: do not cause memcg oom for thp
-Message-ID: <20180322081150.GX23100@dhcp22.suse.cz>
-References: <alpine.DEB.2.20.1803191409420.124411@chino.kir.corp.google.com>
- <20180320071624.GB23100@dhcp22.suse.cz>
- <alpine.DEB.2.20.1803201321430.167205@chino.kir.corp.google.com>
- <20180321082228.GC23100@dhcp22.suse.cz>
- <alpine.DEB.2.20.1803211212490.92011@chino.kir.corp.google.com>
- <20180321204921.GP23100@dhcp22.suse.cz>
- <alpine.DEB.2.20.1803211422510.107059@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Thu, 22 Mar 2018 01:26:15 -0700 (PDT)
+Date: Thu, 22 Mar 2018 01:26:13 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] memcg, thp: do not invoke oom killer on thp charges
+In-Reply-To: <20180321214104.GT23100@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1803220106010.175961@chino.kir.corp.google.com>
+References: <20180321205928.22240-1-mhocko@kernel.org> <alpine.DEB.2.20.1803211418170.107059@chino.kir.corp.google.com> <20180321214104.GT23100@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1803211422510.107059@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 21-03-18 14:27:10, David Rientjes wrote:
-> On Wed, 21 Mar 2018, Michal Hocko wrote:
-> 
-> > > That doesn't make sense, the allocation path needs to allocate contiguous 
-> > > memory for the high order, the charging path just needs to charge a number 
-> > > of pages.  Why would the allocation and charging path be compatible when 
-> > > one needs to reclaim contiguous memory or compact memory and the the other 
-> > > just needs to reclaim any memory?
+On Wed, 21 Mar 2018, Michal Hocko wrote:
+
+> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > index d1a917b5b7b7..08accbcd1a18 100644
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -1493,7 +1493,7 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
+> > >  
+> > >  static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+> > >  {
+> > > -	if (!current->memcg_may_oom)
+> > > +	if (!current->memcg_may_oom || order > PAGE_ALLOC_COSTLY_ORDER)
+> > >  		return;
+> > >  	/*
+> > >  	 * We are in the middle of the charge context here, so we
 > > 
-> > Because you do not want to see surprises. E.g. seeing unexpected OOMs
-> > for large allocatations. Just think about it. Do you really want to have
-> > a different reclaim policy for the allocation and charging for all
-> > allocating paths?
+> > What bug reports have you received about order-4 and higher order non thp 
+> > charges that this fixes?
 > 
-> It depends on the use of __GFP_NORETRY.  If the high-order charge is 
-> __GFP_NORETRY, it does not oom kill.  It is left to the caller.
-
-How does the caller say it when the charge path is hidden inside the
-allocator - e.g. inside kmalloc?
-
-> Just 
-> because thp allocations have been special cased in the page allocator to 
-> be able to remove __GFP_NORETRY without fixing the memcg charge path does 
-> not mean memcg needs a special heuristic for high-order memory when it 
-> does not require contiguous memory.  You say you don't want any surprises, 
-> but now you are changing behavior needlessly for all charges with
-> order > PAGE_ALLOC_COSTLY_ORDER that do not use __GFP_NORETRY.
-
-Not really. Only the #PF path is allowed to trigger the oom killer now
-so high order allocations (mostly coming from kmalloc) do not trigger
-OOM killer anyway. But this is the thing that might change in future and
-therefore I think it is essential to have a different oom behavior than
-the allocator.
-
-> > You are right that the allocation path involves compaction and that is
-> > different from the charging path. But that is an implementation detail
-> > of the current implementation.
-> > 
+> We do not have any costly _OOM killable_ allocations but THP AFAIR. Or
+> am I missing any?
 > 
-> Lol, the fact that the page allocator requires contiguous memory is not an 
-> implementation detail of the current implementation.
 
-The underlying mechanism might be different in future. So your lol is
-not really appropriate.
+So now you're making a generalized policy change to the memcg charge path 
+to fix what is obviously only thp and caused by removing the __GFP_NORETRY 
+from thp allocations in commit 2516035499b9?  I don't know what orders 
+people enforce for slub_min_order.  I assume that people who don't want to 
+cause a memcg oom kill are using __GFP_NORETRY because that's how it has 
+always worked.  The fact that the page allocator got more sophisticated 
+logic for the various thp fault and defrag policies doesn't change that.
 
-> > Your patch only fixes up the current situation. Anytime a new THP
-> > allocation emerges that code path has to be careful to add
-> > __GFP_NORETRY to not regress again. That is just too error prone.
-> > 
+You're implementing the exact same behavior that commit 2516035499b9 was 
+trying to avoid; it's trying to avoid special-casing thp in general logic. 
+order > PAGE_ALLOC_COSTLY_ORDER is a terrible heuristic to identify thp 
+allocations.
+
+> > PAGE_ALLOC_COSTLY_ORDER is a heuristic used by the page allocator because 
+> > it cannot free high-order contiguous memory.  Memcg just needs to reclaim 
+> > a number of pages.  Two order-3 charges can cause a memcg oom kill but now 
+> > an order-4 charge cannot.  It's an unfair bias against high-order charges 
+> > that are not explicitly using __GFP_NORETRY.
 > 
-> We could certainly handle it by adding helpers similar to 
-> alloc_hugepage_direct_gfpmask() and alloc_hugepage_khugepaged_gfpmask() 
-> which are employed for the same purpose for the page allocator gfp mask.
+> PAGE_ALLOC_COSTLY_ORDER is documented and people know what to expect
+> from such a request. Diverging from that behavior just comes as a
+> surprise. There is no reason for that and as the above outlines it is
+> error prone.
+> 
 
-This doesn't solve the problem in general (e.g. kmalloc).
+You're diverging from it because the memcg charge path has never had this 
+heuristic.  I'm somewhat stunned this has to be repeated: 
+PAGE_ALLOC_COSTLY_ORDER is about the ability to allocate _contiguous_ 
+memory, it's not about the _amount_ of memory.  Changing the memcg charge 
+path to factor order into oom kill decisions is new, and should be 
+proposed as a follow-up patch to my bug fix to describe what else is being 
+impacted by your patch and what is fixed by it.
 
--- 
-Michal Hocko
-SUSE Labs
+Yours is a heuristic change, mine is a bug fix.
+
+Look, commit 2516035499b9 pulled off __GFP_NORETRY for GFP_TRANSHUGE and 
+forgot to fix it up for memcg charging.  I'm setting the bit again to 
+prevent the oom kill.  It's what should be merged for rc7.  I can't make a 
+stable case for it because the stable rules want it to impact more than 
+one user and I haven't seen other bug reports.  It can be backported if 
+others are affected to meet the rules.
+
+Your change is broken and I wouldn't push it to Linus for rc7 if my life 
+depended on it.  What is the response when someone complains that they 
+start getting a ton of MEMCG_OOM notifications for every thp fallback?
+They will, because yours is a broken implementation.
+
+I'm trying to fix the problem introduced by commit 2516035499b9 wrt how 
+memcg charges treat high order non-__GFP_NORETRY allocations, and fix it 
+directly with something that is obviously right.  I'm specifically not 
+trying to change heuristics as a bug fix.  Please feel free to send a 
+follow-up patch for 4.17 that lays out why memcg doesn't want to oom kill 
+for order-4 and above (why does memcg fail for 64KB charges when the 
+caller specifically left off __GFP_NORETRY again?) as a policy change and 
+why that is helpful.
+
+Respectfully, allow the bugfix to fix what was obviously left off from 
+commit 2516035499b9.  I don't have time to write 100 emails on it, but 
+Andrew can be assured if he chooses to send it for rc7 that my code (1) is 
+actually tested, (2) has users that depend on it, and (3) won't cause 
+undesired side-effects like yours wrt oom notifications.
