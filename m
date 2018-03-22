@@ -1,110 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 444A36B025E
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 16:03:17 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id t69so5168401pfi.20
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 13:03:17 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E6FD6B025E
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 16:29:41 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id q6so4681299pgv.12
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 13:29:41 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id v15sor2212277pfk.45.2018.03.22.13.03.15
+        by mx.google.com with SMTPS id m10sor205744pge.108.2018.03.22.13.29.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 22 Mar 2018 13:03:15 -0700 (PDT)
-Date: Thu, 22 Mar 2018 13:03:13 -0700 (PDT)
+        Thu, 22 Mar 2018 13:29:39 -0700 (PDT)
+Date: Thu, 22 Mar 2018 13:29:37 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm, vmscan, tracing: Use pointer to reclaim_stat struct
- in trace event
-In-Reply-To: <20180322121003.4177af15@gandalf.local.home>
-Message-ID: <alpine.DEB.2.20.1803221302570.3268@chino.kir.corp.google.com>
-References: <20180322121003.4177af15@gandalf.local.home>
+Subject: Re: [PATCH] memcg, thp: do not invoke oom killer on thp charges
+In-Reply-To: <20180322085611.GY23100@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1803221304160.3268@chino.kir.corp.google.com>
+References: <20180321205928.22240-1-mhocko@kernel.org> <alpine.DEB.2.20.1803211418170.107059@chino.kir.corp.google.com> <20180321214104.GT23100@dhcp22.suse.cz> <alpine.DEB.2.20.1803220106010.175961@chino.kir.corp.google.com>
+ <20180322085611.GY23100@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Alexei Starovoitov <ast@fb.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 22 Mar 2018, Steven Rostedt wrote:
+On Thu, 22 Mar 2018, Michal Hocko wrote:
 
+> > So now you're making a generalized policy change to the memcg charge path 
+> > to fix what is obviously only thp and caused by removing the __GFP_NORETRY 
+> > from thp allocations in commit 2516035499b9?
 > 
-> The trace event trace_mm_vmscan_lru_shrink_inactive() currently has 12
-> parameters! Seven of them are from the reclaim_stat structure. This
-> structure is currently local to mm/vmscan.c. By moving it to the global
-> vmstat.h header, we can also reference it from the vmscan tracepoints. In
-> moving it, it brings down the overhead of passing so many arguments to the
-> trace event. In the future, we may limit the number of arguments that a
-> trace event may pass (ideally just 6, but more realistically it may be 8).
+> Yes, because relying on __GFP_NORETRY for the oom handling has proven to
+> be subtle and error prone. And as I've repeated few times already there
+> is _no_ reason why the oom policy for the memcg charge should be any
+> different from the allocator's one.
 > 
-> Before this patch, the code to call the trace event is this:
-> 
->  0f 83 aa fe ff ff       jae    ffffffff811e6261 <shrink_inactive_list+0x1e1>
->  48 8b 45 a0             mov    -0x60(%rbp),%rax
->  45 8b 64 24 20          mov    0x20(%r12),%r12d
->  44 8b 6d d4             mov    -0x2c(%rbp),%r13d
->  8b 4d d0                mov    -0x30(%rbp),%ecx
->  44 8b 75 cc             mov    -0x34(%rbp),%r14d
->  44 8b 7d c8             mov    -0x38(%rbp),%r15d
->  48 89 45 90             mov    %rax,-0x70(%rbp)
->  8b 83 b8 fe ff ff       mov    -0x148(%rbx),%eax
->  8b 55 c0                mov    -0x40(%rbp),%edx
->  8b 7d c4                mov    -0x3c(%rbp),%edi
->  8b 75 b8                mov    -0x48(%rbp),%esi
->  89 45 80                mov    %eax,-0x80(%rbp)
->  65 ff 05 e4 f7 e2 7e    incl   %gs:0x7ee2f7e4(%rip)        # 15bd0 <__preempt_count>
->  48 8b 05 75 5b 13 01    mov    0x1135b75(%rip),%rax        # ffffffff8231bf68 <__tracepoint_mm_vmscan_lru_shrink_inactive+0x28>
->  48 85 c0                test   %rax,%rax
->  74 72                   je     ffffffff811e646a <shrink_inactive_list+0x3ea>
->  48 89 c3                mov    %rax,%rbx
->  4c 8b 10                mov    (%rax),%r10
->  89 f8                   mov    %edi,%eax
->  48 89 85 68 ff ff ff    mov    %rax,-0x98(%rbp)
->  89 f0                   mov    %esi,%eax
->  48 89 85 60 ff ff ff    mov    %rax,-0xa0(%rbp)
->  89 c8                   mov    %ecx,%eax
->  48 89 85 78 ff ff ff    mov    %rax,-0x88(%rbp)
->  89 d0                   mov    %edx,%eax
->  48 89 85 70 ff ff ff    mov    %rax,-0x90(%rbp)
->  8b 45 8c                mov    -0x74(%rbp),%eax
->  48 8b 7b 08             mov    0x8(%rbx),%rdi
->  48 83 c3 18             add    $0x18,%rbx
->  50                      push   %rax
->  41 54                   push   %r12
->  41 55                   push   %r13
->  ff b5 78 ff ff ff       pushq  -0x88(%rbp)
->  41 56                   push   %r14
->  41 57                   push   %r15
->  ff b5 70 ff ff ff       pushq  -0x90(%rbp)
->  4c 8b 8d 68 ff ff ff    mov    -0x98(%rbp),%r9
->  4c 8b 85 60 ff ff ff    mov    -0xa0(%rbp),%r8
->  48 8b 4d 98             mov    -0x68(%rbp),%rcx
->  48 8b 55 90             mov    -0x70(%rbp),%rdx
->  8b 75 80                mov    -0x80(%rbp),%esi
->  41 ff d2                callq  *%r10
-> 
-> After the patch:
-> 
->  0f 83 a8 fe ff ff       jae    ffffffff811e626d <shrink_inactive_list+0x1cd>
->  8b 9b b8 fe ff ff       mov    -0x148(%rbx),%ebx
->  45 8b 64 24 20          mov    0x20(%r12),%r12d
->  4c 8b 6d a0             mov    -0x60(%rbp),%r13
->  65 ff 05 f5 f7 e2 7e    incl   %gs:0x7ee2f7f5(%rip)        # 15bd0 <__preempt_count>
->  4c 8b 35 86 5b 13 01    mov    0x1135b86(%rip),%r14        # ffffffff8231bf68 <__tracepoint_mm_vmscan_lru_shrink_inactive+0x28>
->  4d 85 f6                test   %r14,%r14
->  74 2a                   je     ffffffff811e6411 <shrink_inactive_list+0x371>
->  49 8b 06                mov    (%r14),%rax
->  8b 4d 8c                mov    -0x74(%rbp),%ecx
->  49 8b 7e 08             mov    0x8(%r14),%rdi
->  49 83 c6 18             add    $0x18,%r14
->  4c 89 ea                mov    %r13,%rdx
->  45 89 e1                mov    %r12d,%r9d
->  4c 8d 45 b8             lea    -0x48(%rbp),%r8
->  89 de                   mov    %ebx,%esi
->  51                      push   %rcx
->  48 8b 4d 98             mov    -0x68(%rbp),%rcx
->  ff d0                   callq  *%rax
-> 
-> Link: http://lkml.kernel.org/r/2559d7cb-ec60-1200-2362-04fa34fd02bb@fb.com
-> 
-> Reported-by: Alexei Starovoitov <ast@fb.com>
-> Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
 
-Acked-by: David Rientjes <rientjes@google.com>
+The PAGE_ALLOC_COSTLY_ORDER oom heuristic in the page allocator is about 
+the unlikelihood of freeing contiguous memory.  It was added around the 
+same time I added the oom heuristic to prevent killing processes for 
+lowmem because of the unlikelihood of freeing lowmem.
+
+If lowmem is accounted to a memcg, would you avoid oom kill in that 
+scenario too, just for the sake of matching the page allocator?  Of course 
+not.
+
+The argument is absurd, I'm sorry.  Charging 32KB of memory allows the 
+memcg oom killer but magically 64KB of memory automatically fails and the 
+charging path has no ability to override that because you've made it part 
+of the charge path.  There is no __GFP_RETRY.  Making blanket claims that 
+high-order charges should never oom kill and that you know better than the 
+caller, and that you don't think the caller knows what they are doing wrt 
+__GFP_NORETRY, is more dangerous imo than the potential benefit from what 
+you are proposing.
+
+> They simply cannot because kmalloc performs the change under the cover.
+> So you would have to use kmalloc(gfp|__GFP_NORETRY) to be absolutely
+> sure to not trigger _any_ oom killer. This is just wrong thing to do.
+> 
+
+Examples of where this isn't already done?  It certainly wasn't a problem 
+before __GFP_NORETRY was dropped in commit 2516035499b9 but you suspect 
+it's a problem now.
+
+> > You're diverging from it because the memcg charge path has never had this 
+> > heuristic.
+> 
+> Which is arguably a bug which just didn't matter because we do not
+> have costly order oom eligible charges in general and THP was subtly
+> different and turned out to be error prone.
+> 
+
+It was inadvertently dropped from commit 2516035499b9.  There were no 
+high-order charge oom kill problems before this commit.  People know how 
+to use __GFP_NORETRY or leave it off, which you don't trust them to do 
+because you're hardcoding a heuristic in the charge path.  You also acked 
+the commit that introduced this "error prone" problem.  Before you start 
+to advertise that you know better than what previously worked just fine, 
+let's fix the issue that was introduced by that commit and then you can 
+propose a follow-up patch that changes the charge heuristic and it can 
+stand on its own merits.
+
+> > I'm somewhat stunned this has to be repeated: 
+> > PAGE_ALLOC_COSTLY_ORDER is about the ability to allocate _contiguous_ 
+> > memory, it's not about the _amount_ of memory.  Changing the memcg charge 
+> > path to factor order into oom kill decisions is new, and should be 
+> > proposed as a follow-up patch to my bug fix to describe what else is being 
+> > impacted by your patch and what is fixed by it.
+> > 
+> > Yours is a heuristic change, mine is a bug fix.
+> 
+> Nobody is really arguing about this. I have just pointed out my
+> reservation that your bug fix is adding more special casing and a more
+> generic solution is due.
+
+Dude, it's setting a bit that the problem commit dropped.  That's it.  I'm 
+setting a bit.
+
+> If you absolutely believe that your bugfix is
+> so important to make it to rc7 I will not object. It is however strange
+> that we haven't seen a _single_ bug report in last two years about this
+> being a problem. So I am not really sure the urgency is due.
+> 
+
+You're not really sure about the urgency but you were "tempted to mark 
+this for stable" for your heuristic "fix"?
+
+> > Your change is broken and I wouldn't push it to Linus for rc7 if my life 
+> > depended on it.  What is the response when someone complains that they 
+> > start getting a ton of MEMCG_OOM notifications for every thp fallback?
+> > They will, because yours is a broken implementation.
+> 
+> I fail to see what is broken. Could you be more specific?
+>  
+
+I said MEMCG_OOM notifications on thp fallback.  You modified 
+mem_cgroup_oom().  What is called before mem_cgroup_oom()?  
+mem_cgroup_event(mem_over_limit, MEMCG_OOM).  That increments the 
+MEMCG_OOM event and anybody waiting on the events file gets notified it 
+changed.  They read a MEMCG_OOM event.  It's thp fallback, it's not memcg 
+oom.
+
+Really, I can't continue to write 100 emails in this thread.  I'm sorry, 
+but there are only so many hours in a day.  I can't read 20 emails about 
+why Tetsuo shouldn't emit a stack trace when the oom reaper fails, which 
+happens 0.04% of the time on production workloads with data I provided.  I 
+can't continue to reiterate why we added the PAGE_ALLOC_COSTLY_ORDER 
+heuristic to the allocator.  I'm done.
+
+> > Respectfully, allow the bugfix to fix what was obviously left off from 
+> > commit 2516035499b9.
+> 
+> I haven't nacked the patch AFAIR so nothing really prevents it from
+> being merged.
+> 
+
+It should be merged for rc7.  Please send any follow-up policy change wrt 
+to high-order charges as a separate patch for 4.17.
