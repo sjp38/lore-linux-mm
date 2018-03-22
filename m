@@ -1,69 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1793E6B0003
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 08:52:18 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id m130so774211wma.1
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 05:52:18 -0700 (PDT)
-Received: from smtp1.de.adit-jv.com (smtp1.de.adit-jv.com. [62.225.105.245])
-        by mx.google.com with ESMTPS id 65si4637245wrp.37.2018.03.22.05.52.14
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B885B6B0005
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 09:17:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id g66so4581396pfj.11
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 06:17:14 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id x3-v6si4921932plb.366.2018.03.22.06.17.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 05:52:14 -0700 (PDT)
-Date: Thu, 22 Mar 2018 13:52:04 +0100
-From: Eugeniu Rosca <erosca@de.adit-jv.com>
-Subject: Re: [PATCH 1/4] mm: page_alloc: reduce unnecessary binary search in
- memblock_next_valid_pfn()
-Message-ID: <20180322125204.GA8892@vmlxhi-102.adit-jv.com>
-References: <1521619796-3846-1-git-send-email-hejianet@gmail.com>
- <1521619796-3846-2-git-send-email-hejianet@gmail.com>
- <CACjP9X92M3izDD-1s1vY6n6Hx3mxqNqeM4f+T3RNnBo8kjP4Qg@mail.gmail.com>
- <3f208ebe-572f-f2f6-003e-5a9cf49bb92f@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <3f208ebe-572f-f2f6-003e-5a9cf49bb92f@gmail.com>
+        Thu, 22 Mar 2018 06:17:13 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1521715916-4153-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20180322114554.GD23100@dhcp22.suse.cz>
+In-Reply-To: <20180322114554.GD23100@dhcp22.suse.cz>
+Message-Id: <201803222216.HED73490.HJFOVFLFQMtOSO@I-love.SAKURA.ne.jp>
+Date: Thu, 22 Mar 2018 22:16:52 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jia He <hejianet@gmail.com>
-Cc: Daniel Vacek <neelx@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steve Capper <steve.capper@arm.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Jia He <jia.he@hxt-semitech.com>, Eugeniu Rosca <erosca@de.adit-jv.com>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com
 
-On Wed, Mar 21, 2018 at 08:28:18PM +0800, Jia He wrote:
+Michal Hocko wrote:
+> On Thu 22-03-18 19:51:56, Tetsuo Handa wrote:
+> [...]
+> > The whole point of the sleep is to give the OOM victim some time to exit.
 > 
+> Yes, and that is why we sleep under the lock because that would rule all
+> other potential out_of_memory callers from jumping in.
+
+As long as there is !MMF_OOM_SKIP mm, jumping in does not cause problems.
+
+But since this patch did not remove mutex_lock() from the OOM reaper,
+nobody can jump in until the OOM reaper completes the first reclaim attempt.
+And since it is likely that mutex_trylock() by the OOM reaper succeeds,
+somebody unlikely finds !MMF_OOM_SKIP mm when it jumped in.
+
 > 
-> On 3/21/2018 6:14 PM, Daniel Vacek Wrote:
-> >On Wed, Mar 21, 2018 at 9:09 AM, Jia He <hejianet@gmail.com> wrote:
-> >>Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-> >>where possible") optimized the loop in memmap_init_zone(). But there is
-> >>still some room for improvement. E.g. if pfn and pfn+1 are in the same
-> >>memblock region, we can simply pfn++ instead of doing the binary search
-> >>in memblock_next_valid_pfn.
-> >There is a revert-mm-page_alloc-skip-over-regions-of-invalid-pfns-where-possible.patch
-> >in -mm reverting b92df1de5d289c0b as it is fundamentally wrong by
-> >design causing system panics on some machines with rare but still
-> >valid mappings. Basically it skips valid pfns which are outside of
-> >usable memory ranges (outside of memblock memory regions).
-> Thanks for the infomation.
-> quote from you patch description:
-> >But given some specific memory mapping on x86_64 (or more generally
-> theoretically anywhere but on arm with CONFIG_HAVE_ARCH_PFN_VALID) > the
-> implementation also skips valid pfns which is plain wrong and causes >
-> 'kernel BUG at mm/page_alloc.c:1389!'
+> > However, the sleep can prevent contending allocating paths from hitting
+> > the OOM path again even if the OOM victim was able to exit. We need to
+> > make sure that the thread which called out_of_memory() will release
+> > oom_lock shortly. Thus, this patch brings the sleep to outside of the OOM
+> > path. Since the OOM reaper waits for the oom_lock, this patch unlikely
+> > allows contending allocating paths to hit the OOM path earlier than now.
 > 
-> Do you think memblock_next_valid_pfn can remain to be not reverted on arm64
-> with CONFIG_HAVE_ARCH_PFN_VALID? Arm64 can benifit from this optimization.
+> The sleep outside of the lock doesn't make much sense to me. It is
+> basically contradicting its original purpose. If we do want to throttle
+> direct reclaimers than OK but this patch is not the way how to do that.
+> 
+> If you really believe that the sleep is more harmful than useful, then
+> fair enough, I would rather see it removed than shuffled all over
+> outside the lock. 
 
-I confirm that the boot time of Rcar-H3 arm64 platform greatly
-benefits from v4.11-rc1 commit b92df1de5d28 ("mm: page_alloc: skip over
-regions of invalid pfns where possible"). The startup improvement is
-roughly ~140ms, which will be lost if the mentioned commit is reverted.
+Yes, I do believe that the sleep with oom_lock held is more harmful than useful.
+Please remove the sleep (but be careful not to lose the guaranteed sleep for
+PF_WQ_WORKER).
 
-For more details on my measurements, please see linux-next commit
-283f1645e236 ("mm: page_alloc: skip over regions of invalid pfns on
-UMA").
-
-Whichever way you decide to go forward (reimplement/fix b92df1de5d28
-or create an <arch>_next_valid_pfn), I am willing to participate in
-testing your proposals on RCAR SoCs. TIA.
-
-Thanks,
-Eugeniu.
+> 
+> So
+> Nacked-by: Michal Hocko <mhocko@suse.com>
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
