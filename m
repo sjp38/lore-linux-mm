@@ -1,84 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 02AD06B000D
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:39:45 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id w68so6108559vkd.16
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:39:44 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id 73si2543409vkn.322.2018.03.22.11.39.43
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FE376B000D
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:48:09 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id z13so873212pgu.5
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:48:09 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id y3-v6si7276167plk.11.2018.03.22.11.48.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 11:39:43 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 2/4] mm/__free_one_page: skip merge for order-0
- page unless compaction failed
-References: <20180320085452.24641-1-aaron.lu@intel.com>
- <20180320085452.24641-3-aaron.lu@intel.com>
- <7b1988e9-7d50-d55e-7590-20426fb257af@suse.cz>
- <20180320141101.GB2033@intel.com>
- <20180322171503.GH28468@bombadil.infradead.org>
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Message-ID: <9ab5a6dd-c1b2-8da3-31f1-dd2237ea0f44@oracle.com>
-Date: Thu, 22 Mar 2018 14:39:17 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 22 Mar 2018 11:48:08 -0700 (PDT)
+Date: Thu, 22 Mar 2018 11:48:05 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
+Message-ID: <20180322184805.GJ28468@bombadil.infradead.org>
+References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
+ <20180321130833.GM23100@dhcp22.suse.cz>
+ <f88deb20-bcce-939f-53a6-1061c39a9f6c@linux.alibaba.com>
+ <20180321172932.GE4780@bombadil.infradead.org>
+ <af814bbe-b6b5-12f8-72e5-7935e767bd87@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <20180322171503.GH28468@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <af814bbe-b6b5-12f8-72e5-7935e767bd87@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Aaron Lu <aaron.lu@intel.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-
-On 03/22/2018 01:15 PM, Matthew Wilcox wrote:
-> On Tue, Mar 20, 2018 at 10:11:01PM +0800, Aaron Lu wrote:
->>>> A new document file called "struct_page_filed" is added to explain
->>>> the newly reused field in "struct page".
->>>
->>> Sounds rather ad-hoc for a single field, I'd rather document it via
->>> comments.
->>
->> Dave would like to have a document to explain all those "struct page"
->> fields that are repurposed under different scenarios and this is the
->> very start of the document :-)
->>
->> I probably should have explained the intent of the document more.
+On Thu, Mar 22, 2018 at 10:34:08AM -0700, Yang Shi wrote:
+> On 3/21/18 10:29 AM, Matthew Wilcox wrote:
+> > Take the mmap_sem for write
+> > Find the VMA
+> >    If the VMA is large(*)
+> >      Mark the VMA as deleted
+> >      Drop the mmap_sem
+> >      zap all of the entries
+> >      Take the mmap_sem
+> >    Else
+> >      zap all of the entries
+> > Continue finding VMAs
+> > Drop the mmap_sem
+> > 
+> > Now we need to change everywhere which looks up a VMA to see if it needs
+> > to care the the VMA is deleted (page faults, eg will need to SIGBUS; mmap
+> > does not care; munmap will need to wait for the existing munmap operation
 > 
-> Dave and I are in agreement on "Shouldn't struct page be better documented".
-> I came up with this a few weeks ago; never quite got round to turning it
-> into a patch:
+> The other question is why munmap need wait? If the other parallel munmap
+> finds the vma has been marked as "deleted", it just need return 0 as it
+> doesn't find vma.
 > 
-> +---+-----------+-----------+--------------+----------+--------+--------------+
-> | B | slab      | pagecache | tail 1       | anon     | tail 1 | hugetlb      |
-> +===+===========+===========+==============+==========+========+==============+
-> | 0 | flags                                                                   |
-> +---+                                                                         |
-> | 4 |                                                                         |
-> +---+-----------+-----------+--------------+----------+--------+--------------+
-> | 8 | s_mem     | mapping   | cmp_mapcount | anon_vma | defer  | mapping      |
-> +---+           |           +--------------+          | list   |              |
-> |12 |           |           |              |          |        |              |
-> +---+-----------+-----------+--------------+----------+        +--------------+
-> |16 | freelist  | index                               |        | index        |
-> +---+           |                                     |        | (shifted)    |
-> |20 |           |                                     |        |              |
-> +---+-----------+-------------------------------------+--------+--------------+
-> |24 | counters  | mapcount                                                    |
-> +---+           +-----------+--------------+----------+--------+--------------+
-> |28 |           | refcount  |              |          |        | refcount     |
-> +---+-----------+-----------+--------------+----------+--------+--------------+
-> |32 | next      | lru       | cmpd_head    |                   | lru          |
-> +---+           |           |              +-------------------+              +
-> |36 |           |           |              |                   |              |
-> +---+-----------+           +--------------+-------------------+              +
-> |40 | pages     |           | dtor / order |                   |              |
-> +---+-----------+           +--------------+-------------------+              +
-> |44 | pobjects  |           |              |                   |              |
-> +---+-----------+-----------+--------------+----------------------------------+
-> |48 | slb_cache | private   |              |                                  |
-> +---+           |           +--------------+----------------------------------+
-> |52 |           |           |              |                                  |
-> +---+-----------+-----------+--------------+----------------------------------+
+> Currently do_munmap() does the below logic:
+>     vma = find_vma(mm, start);
+>     if (!vma)
+>         return 0;
 
-Shouldn't the anon column also contain lru?
+At the point a munmap() returns, the area should be available for reuse.
+If another thread is still unmapping, it won't actually be available yet.
+We should wait for the other thread to finish before returning.
+
+There may be some other corner cases; like what to do if there's a partial
+unmap of a VMA, or a MAP_FIXED over part of an existing VMA.  It's going
+to be safer to just wait for any conflicts to die down.  It's not like
+real programs call munmap() on conflicting areas at the same time.
