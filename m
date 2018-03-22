@@ -1,144 +1,365 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 152606B005C
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:17:38 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id u16-v6so4936801oiv.10
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:17:38 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A6F4B6B0062
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:17:42 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id w71-v6so5011039oia.20
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:17:42 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m47-v6si2217244otd.281.2018.03.22.11.17.36
+        by mx.google.com with ESMTP id v30-v6si2121466otb.102.2018.03.22.11.17.41
         for <linux-mm@kvack.org>;
-        Thu, 22 Mar 2018 11:17:36 -0700 (PDT)
+        Thu, 22 Mar 2018 11:17:41 -0700 (PDT)
 From: James Morse <james.morse@arm.com>
-Subject: [PATCH v2 00/11] APEI in_nmi() rework and arm64 SDEI wire-up
-Date: Thu, 22 Mar 2018 18:14:34 +0000
-Message-Id: <20180322181445.23298-1-james.morse@arm.com>
+Subject: [PATCH v2 01/11] ACPI / APEI: Move the estatus queue code up, and under its own ifdef
+Date: Thu, 22 Mar 2018 18:14:35 +0000
+Message-Id: <20180322181445.23298-2-james.morse@arm.com>
+In-Reply-To: <20180322181445.23298-1-james.morse@arm.com>
+References: <20180322181445.23298-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-acpi@vger.kernel.org
 Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, James Morse <james.morse@arm.com>
 
-The aim of this series is to wire arm64's SDEI into APEI.
+To support asynchronous NMI-like notifications on arm64 we need to use
+the estatus-queue. These patches refactor it to allow multiple APEI
+notification types to use it.
 
-What changed since v1? The NMI-like GHES entries now have an additional
-fixmap+lock, instead of choosing which lock to use, and being surprised
-when it turns out all GHES are processed from process-context during
-boot. (Thanks to Tyler for catching this...)
-Some comments and code cleanup, noted in each patch.
+First we move the estatus-queue code higher in the file so that any
+notify_foo() handler can make use of it.
 
+This patch moves code around ... and makes the following trivial change:
+Rewrite the dated comment above ghes_estatus_llist. printk() is no
+longer the issue, its the helpers like memory_failure_queue() that
+still aren't nmi safe.
 
-The earlier boiler-plate:
+Signed-off-by: James Morse <james.morse@arm.com>
+Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
+---
+Changes since v1:
+ * Comments and typos,
 
-What's SDEI? Its ARM's "Software Delegated Exception Interface" [0]. It's
-used by firmware to tell the OS about firmware-first RAS events.
+ drivers/acpi/apei/ghes.c | 265 ++++++++++++++++++++++++-----------------------
+ 1 file changed, 137 insertions(+), 128 deletions(-)
 
-These Software exceptions can interrupt anything, so I describe them as
-NMI-like. They aren't the only NMI-like way to notify the OS about
-firmware-first RAS events, the ACPI spec also defines 'NOTFIY_SEA' and
-'NOTIFY_SEI'.
-
-(Acronyms: SEA, Synchronous External Abort. The CPU requested some memory,
-but the owner of that memory said no. These are always synchronous with the
-instruction that caused them. SEI, System-Error Interrupt, commonly called
-SError. This is an asynchronous external abort, the memory-owner didn't say no
-at the right point. Collectively these things are called external-aborts
-How is firmware involved? It traps these and re-injects them into the kernel
-once its written the CPER records).
-
-APEI's GHES code only expects one source of NMI. If a platform implements
-more than one of these mechanisms, APEI needs to handle the interaction.
-'SEA' and 'SEI' can interact as 'SEI' is asynchronous. SDEI can interact
-with itself: its exceptions can be 'normal' or 'critical', and firmware
-could use both types for RAS. (errors using normal, 'panic-now' using
-critical).
-
-What does this series do?
-Patches 1-3 refactor APEIs 'estatus queue' so it can be used for all
-NMI-like notifications. This defers the NMI work to irq_work, which will
-happen when we next unmask interrupts.
-
-Patches 4&5 move the arch and KVM code around so that NMI-like notifications
-are always called in_nmi().
-
-Patch 6 changes the 'irq or nmi?' path through ghes_copy_tofrom_phys()
-to be per-ghes. When called in_nmi(), the struct ghes is expected to
-provide a fixmap slot and lock that is safe to use. NMI-like notifications
-that mask each other can share these resources. Those that interact should
-have their own fixmap slot and lock.
-
-Patch 7 renames NOTIFY_SEA's use of NOTIFY_NMI's infrastructure, as we're
-about to have multiple NMI-like users that can't share resources.
-
-Pathes 8&9 add the SDEI helper, and notify methods for APEI.
-
-After this, adding further firmware-first pieces for arm64 is simple
-(and safe), and all our NMI-like notifications behave the same as x86's
-NOTIFY_NMI.
-
-
-All of this makes the race between memory_failure_queue() and
-ret_to_user worse, as there is now always irq_work involved.
-
-Patch 10 makes the reschedule to memory_failure() run as soon as possible.
-Patch 11 makes sure the arch code knows whether the irq_work has run by
-the time do_sea() returns. We can skip the signalling step if it has as
-APEI has done its work.
-
-
-ghes.c became clearer to me when I worked out that it has three sets of
-functions with 'estatus' in the name. One is a pool of memory that can be
-allocated-from atomically. This is grown/shrunk when new NMI users are
-allocated.
-The second is the estatus-cache, which holds recent notifications so it
-can suppress notifications we've already handled.
-The last it the estatus-queue, which holds data from NMI-like notifications
-(in pool memory) to be processed from irq_work.
-
-
-Testing?
-Tested with the SDEI FVP based software model and a mocked up NOTFIY_SEA using
-KVM. I've added a case where 'corrected errors' are discovered at probe time
-to exercise ghes_probe() during boot. I've only build tested this on x86.
-
-
-Thanks,
-
-James
-
-[0] http://infocenter.arm.com/help/topic/com.arm.doc.den0054a/ARM_DEN0054A_Software_Delegated_Exception_Interface.pdf
-
-
-James Morse (11):
-  ACPI / APEI: Move the estatus queue code up, and under its own ifdef
-  ACPI / APEI: Generalise the estatus queue's add/remove and notify code
-  ACPI / APEI: Switch NOTIFY_SEA to use the estatus queue
-  KVM: arm/arm64: Add kvm_ras.h to collect kvm specific RAS plumbing
-  arm64: KVM/mm: Move SEA handling behind a single 'claim' interface
-  ACPI / APEI: Make the nmi_fixmap_idx per-ghes to allow multiple
-    in_nmi() users
-  ACPI / APEI: Split fixmap pages for arm64 NMI-like notifications
-  firmware: arm_sdei: Add ACPI GHES registration helper
-  ACPI / APEI: Add support for the SDEI GHES Notification type
-  mm/memory-failure: increase queued recovery work's priority
-  arm64: acpi: Make apei_claim_sea() synchronise with APEI's irq work
-
- arch/arm/include/asm/kvm_ras.h       |  14 +
- arch/arm/include/asm/system_misc.h   |   5 -
- arch/arm64/include/asm/acpi.h        |   3 +
- arch/arm64/include/asm/daifflags.h   |   1 +
- arch/arm64/include/asm/fixmap.h      |   8 +-
- arch/arm64/include/asm/kvm_ras.h     |  29 ++
- arch/arm64/include/asm/system_misc.h |   2 -
- arch/arm64/kernel/acpi.c             |  49 ++++
- arch/arm64/mm/fault.c                |  30 +-
- drivers/acpi/apei/ghes.c             | 519 ++++++++++++++++++++---------------
- drivers/firmware/arm_sdei.c          |  75 +++++
- include/acpi/ghes.h                  |   4 +
- include/linux/arm_sdei.h             |   8 +
- mm/memory-failure.c                  |  11 +-
- virt/kvm/arm/mmu.c                   |   4 +-
- 15 files changed, 505 insertions(+), 257 deletions(-)
- create mode 100644 arch/arm/include/asm/kvm_ras.h
- create mode 100644 arch/arm64/include/asm/kvm_ras.h
-
+diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+index 1efefe919555..e2af91c92135 100644
+--- a/drivers/acpi/apei/ghes.c
++++ b/drivers/acpi/apei/ghes.c
+@@ -545,6 +545,16 @@ static int ghes_print_estatus(const char *pfx,
+ 	return 0;
+ }
+ 
++static void __ghes_panic(struct ghes *ghes)
++{
++	__ghes_print_estatus(KERN_EMERG, ghes->generic, ghes->estatus);
++
++	/* reboot to log the error! */
++	if (!panic_timeout)
++		panic_timeout = ghes_panic_timeout;
++	panic("Fatal hardware error!");
++}
++
+ /*
+  * GHES error status reporting throttle, to report more kinds of
+  * errors, instead of just most frequently occurred errors.
+@@ -672,6 +682,133 @@ static void ghes_estatus_cache_add(
+ 	rcu_read_unlock();
+ }
+ 
++#ifdef CONFIG_HAVE_ACPI_APEI_NMI
++/*
++ * Handlers for CPER records may not be NMI safe. For example,
++ * memory_failure_queue() takes spinlocks and calls schedule_work_on().
++ * In any NMI-like handler, memory from ghes_estatus_pool is used to save
++ * estatus, and added to the ghes_estatus_llist. irq_work_queue() causes
++ * ghes_proc_in_irq() to run in IRQ context where each estatus in
++ * ghes_estatus_llist is processed. Each NMI-like error source must grow
++ * the ghes_estatus_pool to ensure memory is available.
++ *
++ * Memory from the ghes_estatus_pool is also used with the ghes_estatus_cache
++ * to suppress frequent messages.
++ */
++static struct llist_head ghes_estatus_llist;
++static struct irq_work ghes_proc_irq_work;
++
++static void ghes_print_queued_estatus(void)
++{
++	struct llist_node *llnode;
++	struct ghes_estatus_node *estatus_node;
++	struct acpi_hest_generic *generic;
++	struct acpi_hest_generic_status *estatus;
++
++	llnode = llist_del_all(&ghes_estatus_llist);
++	/*
++	 * Because the time order of estatus in list is reversed,
++	 * revert it back to proper order.
++	 */
++	llnode = llist_reverse_order(llnode);
++	while (llnode) {
++		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
++					   llnode);
++		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
++		generic = estatus_node->generic;
++		ghes_print_estatus(NULL, generic, estatus);
++		llnode = llnode->next;
++	}
++}
++
++/* Save estatus for further processing in IRQ context */
++static void __process_error(struct ghes *ghes)
++{
++#ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
++	u32 len, node_len;
++	struct ghes_estatus_node *estatus_node;
++	struct acpi_hest_generic_status *estatus;
++
++	if (ghes_estatus_cached(ghes->estatus))
++		return;
++
++	len = cper_estatus_len(ghes->estatus);
++	node_len = GHES_ESTATUS_NODE_LEN(len);
++
++	estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool, node_len);
++	if (!estatus_node)
++		return;
++
++	estatus_node->ghes = ghes;
++	estatus_node->generic = ghes->generic;
++	estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
++	memcpy(estatus, ghes->estatus, len);
++	llist_add(&estatus_node->llnode, &ghes_estatus_llist);
++#endif
++}
++
++static unsigned long ghes_esource_prealloc_size(
++	const struct acpi_hest_generic *generic)
++{
++	unsigned long block_length, prealloc_records, prealloc_size;
++
++	block_length = min_t(unsigned long, generic->error_block_length,
++			     GHES_ESTATUS_MAX_SIZE);
++	prealloc_records = max_t(unsigned long,
++				 generic->records_to_preallocate, 1);
++	prealloc_size = min_t(unsigned long, block_length * prealloc_records,
++			      GHES_ESOURCE_PREALLOC_MAX_SIZE);
++
++	return prealloc_size;
++}
++
++static void ghes_estatus_pool_shrink(unsigned long len)
++{
++	ghes_estatus_pool_size_request -= PAGE_ALIGN(len);
++}
++
++static void ghes_proc_in_irq(struct irq_work *irq_work)
++{
++	struct llist_node *llnode, *next;
++	struct ghes_estatus_node *estatus_node;
++	struct acpi_hest_generic *generic;
++	struct acpi_hest_generic_status *estatus;
++	u32 len, node_len;
++
++	llnode = llist_del_all(&ghes_estatus_llist);
++	/*
++	 * Because the time order of estatus in list is reversed,
++	 * revert it back to proper order.
++	 */
++	llnode = llist_reverse_order(llnode);
++	while (llnode) {
++		next = llnode->next;
++		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
++					   llnode);
++		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
++		len = cper_estatus_len(estatus);
++		node_len = GHES_ESTATUS_NODE_LEN(len);
++		ghes_do_proc(estatus_node->ghes, estatus);
++		if (!ghes_estatus_cached(estatus)) {
++			generic = estatus_node->generic;
++			if (ghes_print_estatus(NULL, generic, estatus))
++				ghes_estatus_cache_add(generic, estatus);
++		}
++		gen_pool_free(ghes_estatus_pool, (unsigned long)estatus_node,
++			      node_len);
++		llnode = next;
++	}
++}
++
++static void ghes_nmi_init_cxt(void)
++{
++	init_irq_work(&ghes_proc_irq_work, ghes_proc_in_irq);
++}
++
++#else
++static inline void ghes_nmi_init_cxt(void) { }
++#endif /* CONFIG_HAVE_ACPI_APEI_NMI */
++
+ static int ghes_ack_error(struct acpi_hest_generic_v2 *gv2)
+ {
+ 	int rc;
+@@ -687,16 +824,6 @@ static int ghes_ack_error(struct acpi_hest_generic_v2 *gv2)
+ 	return apei_write(val, &gv2->read_ack_register);
+ }
+ 
+-static void __ghes_panic(struct ghes *ghes)
+-{
+-	__ghes_print_estatus(KERN_EMERG, ghes->generic, ghes->estatus);
+-
+-	/* reboot to log the error! */
+-	if (!panic_timeout)
+-		panic_timeout = ghes_panic_timeout;
+-	panic("Fatal hardware error!");
+-}
+-
+ static int ghes_proc(struct ghes *ghes)
+ {
+ 	int rc;
+@@ -828,17 +955,6 @@ static inline void ghes_sea_remove(struct ghes *ghes) { }
+ #endif /* CONFIG_ACPI_APEI_SEA */
+ 
+ #ifdef CONFIG_HAVE_ACPI_APEI_NMI
+-/*
+- * printk is not safe in NMI context.  So in NMI handler, we allocate
+- * required memory from lock-less memory allocator
+- * (ghes_estatus_pool), save estatus into it, put them into lock-less
+- * list (ghes_estatus_llist), then delay printk into IRQ context via
+- * irq_work (ghes_proc_irq_work).  ghes_estatus_size_request record
+- * required pool size by all NMI error source.
+- */
+-static struct llist_head ghes_estatus_llist;
+-static struct irq_work ghes_proc_irq_work;
+-
+ /*
+  * NMI may be triggered on any CPU, so ghes_in_nmi is used for
+  * having only one concurrent reader.
+@@ -847,88 +963,6 @@ static atomic_t ghes_in_nmi = ATOMIC_INIT(0);
+ 
+ static LIST_HEAD(ghes_nmi);
+ 
+-static void ghes_proc_in_irq(struct irq_work *irq_work)
+-{
+-	struct llist_node *llnode, *next;
+-	struct ghes_estatus_node *estatus_node;
+-	struct acpi_hest_generic *generic;
+-	struct acpi_hest_generic_status *estatus;
+-	u32 len, node_len;
+-
+-	llnode = llist_del_all(&ghes_estatus_llist);
+-	/*
+-	 * Because the time order of estatus in list is reversed,
+-	 * revert it back to proper order.
+-	 */
+-	llnode = llist_reverse_order(llnode);
+-	while (llnode) {
+-		next = llnode->next;
+-		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
+-					   llnode);
+-		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+-		len = cper_estatus_len(estatus);
+-		node_len = GHES_ESTATUS_NODE_LEN(len);
+-		ghes_do_proc(estatus_node->ghes, estatus);
+-		if (!ghes_estatus_cached(estatus)) {
+-			generic = estatus_node->generic;
+-			if (ghes_print_estatus(NULL, generic, estatus))
+-				ghes_estatus_cache_add(generic, estatus);
+-		}
+-		gen_pool_free(ghes_estatus_pool, (unsigned long)estatus_node,
+-			      node_len);
+-		llnode = next;
+-	}
+-}
+-
+-static void ghes_print_queued_estatus(void)
+-{
+-	struct llist_node *llnode;
+-	struct ghes_estatus_node *estatus_node;
+-	struct acpi_hest_generic *generic;
+-	struct acpi_hest_generic_status *estatus;
+-
+-	llnode = llist_del_all(&ghes_estatus_llist);
+-	/*
+-	 * Because the time order of estatus in list is reversed,
+-	 * revert it back to proper order.
+-	 */
+-	llnode = llist_reverse_order(llnode);
+-	while (llnode) {
+-		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
+-					   llnode);
+-		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+-		generic = estatus_node->generic;
+-		ghes_print_estatus(NULL, generic, estatus);
+-		llnode = llnode->next;
+-	}
+-}
+-
+-/* Save estatus for further processing in IRQ context */
+-static void __process_error(struct ghes *ghes)
+-{
+-#ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
+-	u32 len, node_len;
+-	struct ghes_estatus_node *estatus_node;
+-	struct acpi_hest_generic_status *estatus;
+-
+-	if (ghes_estatus_cached(ghes->estatus))
+-		return;
+-
+-	len = cper_estatus_len(ghes->estatus);
+-	node_len = GHES_ESTATUS_NODE_LEN(len);
+-
+-	estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool, node_len);
+-	if (!estatus_node)
+-		return;
+-
+-	estatus_node->ghes = ghes;
+-	estatus_node->generic = ghes->generic;
+-	estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+-	memcpy(estatus, ghes->estatus, len);
+-	llist_add(&estatus_node->llnode, &ghes_estatus_llist);
+-#endif
+-}
+-
+ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+ {
+ 	struct ghes *ghes;
+@@ -967,26 +1001,6 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+ 	return ret;
+ }
+ 
+-static unsigned long ghes_esource_prealloc_size(
+-	const struct acpi_hest_generic *generic)
+-{
+-	unsigned long block_length, prealloc_records, prealloc_size;
+-
+-	block_length = min_t(unsigned long, generic->error_block_length,
+-			     GHES_ESTATUS_MAX_SIZE);
+-	prealloc_records = max_t(unsigned long,
+-				 generic->records_to_preallocate, 1);
+-	prealloc_size = min_t(unsigned long, block_length * prealloc_records,
+-			      GHES_ESOURCE_PREALLOC_MAX_SIZE);
+-
+-	return prealloc_size;
+-}
+-
+-static void ghes_estatus_pool_shrink(unsigned long len)
+-{
+-	ghes_estatus_pool_size_request -= PAGE_ALIGN(len);
+-}
+-
+ static void ghes_nmi_add(struct ghes *ghes)
+ {
+ 	unsigned long len;
+@@ -1018,14 +1032,9 @@ static void ghes_nmi_remove(struct ghes *ghes)
+ 	ghes_estatus_pool_shrink(len);
+ }
+ 
+-static void ghes_nmi_init_cxt(void)
+-{
+-	init_irq_work(&ghes_proc_irq_work, ghes_proc_in_irq);
+-}
+ #else /* CONFIG_HAVE_ACPI_APEI_NMI */
+ static inline void ghes_nmi_add(struct ghes *ghes) { }
+ static inline void ghes_nmi_remove(struct ghes *ghes) { }
+-static inline void ghes_nmi_init_cxt(void) { }
+ #endif /* CONFIG_HAVE_ACPI_APEI_NMI */
+ 
+ static int ghes_probe(struct platform_device *ghes_dev)
 -- 
 2.16.2
