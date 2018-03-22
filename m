@@ -1,114 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 762156B0268
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:18:21 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id 129-v6so4941377oid.12
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:18:21 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r82si32021oia.276.2018.03.22.11.18.20
-        for <linux-mm@kvack.org>;
-        Thu, 22 Mar 2018 11:18:20 -0700 (PDT)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH v2 11/11] arm64: acpi: Make apei_claim_sea() synchronise with APEI's irq work
-Date: Thu, 22 Mar 2018 18:14:45 +0000
-Message-Id: <20180322181445.23298-12-james.morse@arm.com>
-In-Reply-To: <20180322181445.23298-1-james.morse@arm.com>
-References: <20180322181445.23298-1-james.morse@arm.com>
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 02AD06B000D
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:39:45 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id w68so6108559vkd.16
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:39:44 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 73si2543409vkn.322.2018.03.22.11.39.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Mar 2018 11:39:43 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 2/4] mm/__free_one_page: skip merge for order-0
+ page unless compaction failed
+References: <20180320085452.24641-1-aaron.lu@intel.com>
+ <20180320085452.24641-3-aaron.lu@intel.com>
+ <7b1988e9-7d50-d55e-7590-20426fb257af@suse.cz>
+ <20180320141101.GB2033@intel.com>
+ <20180322171503.GH28468@bombadil.infradead.org>
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Message-ID: <9ab5a6dd-c1b2-8da3-31f1-dd2237ea0f44@oracle.com>
+Date: Thu, 22 Mar 2018 14:39:17 -0400
+MIME-Version: 1.0
+In-Reply-To: <20180322171503.GH28468@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, James Morse <james.morse@arm.com>
+To: Matthew Wilcox <willy@infradead.org>, Aaron Lu <aaron.lu@intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>
 
-APEI is unable to do all of its error handling work in nmi-context, so
-it defers non-fatal work onto the irq_work queue. arch_irq_work_raise()
-sends an IPI to the calling cpu, but we can't guarantee this will be
-taken before we return.
 
-Unless we interrupted a context with irqs-masked, we can call
-irq_work_run() to do the work now. Otherwise return -EINPROGRESS to
-indicate ghes_notify_sea() found some work to do, but it hasn't
-finished yet.
 
-With this we can take apei_claim_sea() returning '0' to mean this
-external-abort was also notification of a firmware-first RAS error,
-and that APEI has processed the CPER records.
+On 03/22/2018 01:15 PM, Matthew Wilcox wrote:
+> On Tue, Mar 20, 2018 at 10:11:01PM +0800, Aaron Lu wrote:
+>>>> A new document file called "struct_page_filed" is added to explain
+>>>> the newly reused field in "struct page".
+>>>
+>>> Sounds rather ad-hoc for a single field, I'd rather document it via
+>>> comments.
+>>
+>> Dave would like to have a document to explain all those "struct page"
+>> fields that are repurposed under different scenarios and this is the
+>> very start of the document :-)
+>>
+>> I probably should have explained the intent of the document more.
+> 
+> Dave and I are in agreement on "Shouldn't struct page be better documented".
+> I came up with this a few weeks ago; never quite got round to turning it
+> into a patch:
+> 
+> +---+-----------+-----------+--------------+----------+--------+--------------+
+> | B | slab      | pagecache | tail 1       | anon     | tail 1 | hugetlb      |
+> +===+===========+===========+==============+==========+========+==============+
+> | 0 | flags                                                                   |
+> +---+                                                                         |
+> | 4 |                                                                         |
+> +---+-----------+-----------+--------------+----------+--------+--------------+
+> | 8 | s_mem     | mapping   | cmp_mapcount | anon_vma | defer  | mapping      |
+> +---+           |           +--------------+          | list   |              |
+> |12 |           |           |              |          |        |              |
+> +---+-----------+-----------+--------------+----------+        +--------------+
+> |16 | freelist  | index                               |        | index        |
+> +---+           |                                     |        | (shifted)    |
+> |20 |           |                                     |        |              |
+> +---+-----------+-------------------------------------+--------+--------------+
+> |24 | counters  | mapcount                                                    |
+> +---+           +-----------+--------------+----------+--------+--------------+
+> |28 |           | refcount  |              |          |        | refcount     |
+> +---+-----------+-----------+--------------+----------+--------+--------------+
+> |32 | next      | lru       | cmpd_head    |                   | lru          |
+> +---+           |           |              +-------------------+              +
+> |36 |           |           |              |                   |              |
+> +---+-----------+           +--------------+-------------------+              +
+> |40 | pages     |           | dtor / order |                   |              |
+> +---+-----------+           +--------------+-------------------+              +
+> |44 | pobjects  |           |              |                   |              |
+> +---+-----------+-----------+--------------+----------------------------------+
+> |48 | slb_cache | private   |              |                                  |
+> +---+           |           +--------------+----------------------------------+
+> |52 |           |           |              |                                  |
+> +---+-----------+-----------+--------------+----------------------------------+
 
-Signed-off-by: James Morse <james.morse@arm.com>
-Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
-CC: Xie XiuQi <xiexiuqi@huawei.com>
-CC: gengdongjiu <gengdongjiu@huawei.com>
----
- arch/arm64/kernel/acpi.c | 19 +++++++++++++++++++
- arch/arm64/mm/fault.c    |  9 ++++-----
- 2 files changed, 23 insertions(+), 5 deletions(-)
-
-diff --git a/arch/arm64/kernel/acpi.c b/arch/arm64/kernel/acpi.c
-index 6a4823a3eb5e..a51a7abd98e0 100644
---- a/arch/arm64/kernel/acpi.c
-+++ b/arch/arm64/kernel/acpi.c
-@@ -22,6 +22,7 @@
- #include <linux/init.h>
- #include <linux/irq.h>
- #include <linux/irqdomain.h>
-+#include <linux/irq_work.h>
- #include <linux/memblock.h>
- #include <linux/of_fdt.h>
- #include <linux/smp.h>
-@@ -275,10 +276,14 @@ int apei_claim_sea(struct pt_regs *regs)
- {
- 	int err = -ENOENT;
- 	unsigned long current_flags = arch_local_save_flags();
-+	unsigned long interrupted_flags = current_flags;
- 
- 	if (!IS_ENABLED(CONFIG_ACPI_APEI_SEA))
- 		return err;
- 
-+	if (regs)
-+		interrupted_flags = regs->pstate;
-+
- 	/*
- 	 * APEI expects an NMI-like notification to always be called
- 	 * in NMI context.
-@@ -287,6 +292,20 @@ int apei_claim_sea(struct pt_regs *regs)
- 	nmi_enter();
- 	err = ghes_notify_sea();
- 	nmi_exit();
-+
-+	/*
-+	 * APEI NMI-like notifications are deferred to irq_work. Unless
-+	 * we interrupted irqs-masked code, we can do that now.
-+	 */
-+	if (!err) {
-+		if (!arch_irqs_disabled_flags(interrupted_flags)) {
-+			local_daif_restore(DAIF_PROCCTX_NOIRQ);
-+			irq_work_run();
-+		} else {
-+			err = -EINPROGRESS;
-+		}
-+	}
-+
- 	local_daif_restore(current_flags);
- 
- 	return err;
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 303c8b425c82..e218e291a17a 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -580,11 +580,10 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
- 		inf->name, esr, addr);
- 
- 	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA)) {
--		/*
--		 * Return value ignored as we rely on signal merging.
--		 * Future patches will make this more robust.
--		 */
--		apei_claim_sea(regs);
-+		if (apei_claim_sea(regs) == 0) {
-+			/* APEI claimed this as a firmware-first notification */
-+			return 0;
-+		}
- 	}
- 
- 	info.si_signo = SIGBUS;
--- 
-2.16.2
+Shouldn't the anon column also contain lru?
