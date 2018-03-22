@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D092F6B0023
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:32:14 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g66so4783905pfj.11
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 08:32:14 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 325C36B000C
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 11:32:15 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e10so4788082pff.3
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 08:32:15 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d81si5144684pfd.210.2018.03.22.08.32.13
+        by mx.google.com with ESMTPS id 73si951897pgg.68.2018.03.22.08.32.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 22 Mar 2018 08:32:13 -0700 (PDT)
+        Thu, 22 Mar 2018 08:32:14 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v2 5/8] page_frag_cache: Save memory on small machines
-Date: Thu, 22 Mar 2018 08:31:54 -0700
-Message-Id: <20180322153157.10447-6-willy@infradead.org>
+Subject: [PATCH v2 6/8] page_frag_cache: Use a mask instead of offset
+Date: Thu, 22 Mar 2018 08:31:55 -0700
+Message-Id: <20180322153157.10447-7-willy@infradead.org>
 In-Reply-To: <20180322153157.10447-1-willy@infradead.org>
 References: <20180322153157.10447-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,28 +22,145 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, netdev@vger.kernel.org, linux-mm@kv
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Only allocate a single page if CONFIG_BASE_SMALL is set.
+By combining 'va' and 'offset' into 'addr' and using a mask instead,
+we can save a compare-and-branch in the fast-path of the allocator.
+This removes 4 instructions on x86 (both 32 and 64 bit).
+
+We can avoid storing the mask at all if we know that we're only allocating
+a single page.  This shrinks page_frag_cache from 12 to 8 bytes on 32-bit
+CONFIG_BASE_SMALL build.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/mm_types.h | 4 ++++
- 1 file changed, 4 insertions(+)
+ include/linux/mm_types.h | 12 +++++++-----
+ mm/page_alloc.c          | 40 +++++++++++++++-------------------------
+ 2 files changed, 22 insertions(+), 30 deletions(-)
 
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index a63b138ad1a4..0defff9e3c0e 100644
+index 0defff9e3c0e..ebe93edec752 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -216,7 +216,11 @@ struct page {
- #endif
- } _struct_page_alignment;
- 
-+#if CONFIG_BASE_SMALL
-+#define PAGE_FRAG_CACHE_MAX_SIZE	PAGE_SIZE
-+#else
- #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
-+#endif
- #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
+@@ -225,12 +225,9 @@ struct page {
  #define PFC_MEMALLOC			(1U << 31)
+ 
+ struct page_frag_cache {
+-	void * va;
++	void *addr;
+ #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
+-	__u16 offset;
+-	__u16 size;
+-#else
+-	__u32 offset;
++	unsigned int mask;
+ #endif
+ 	/* we maintain a pagecount bias, so that we dont dirty cache line
+ 	 * containing page->_refcount every time we allocate a fragment.
+@@ -239,6 +236,11 @@ struct page_frag_cache {
+ };
+ 
+ #define page_frag_cache_pfmemalloc(pfc)	((pfc)->pagecnt_bias & PFC_MEMALLOC)
++#if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
++#define page_frag_cache_mask(pfc)	(pfc)->mask
++#else
++#define page_frag_cache_mask(pfc)	(~PAGE_MASK)
++#endif
+ 
+ typedef unsigned long vm_flags_t;
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5a2e3e293079..d15a5348a8e4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4336,22 +4336,19 @@ EXPORT_SYMBOL(free_pages);
+  * drivers to provide a backing region of memory for use as either an
+  * sk_buff->head, or to be used in the "frags" portion of skb_shared_info.
+  */
+-static struct page *__page_frag_cache_refill(struct page_frag_cache *pfc,
++static void *__page_frag_cache_refill(struct page_frag_cache *pfc,
+ 					     gfp_t gfp_mask)
+ {
+ 	unsigned int size = PAGE_SIZE;
+ 	struct page *page = NULL;
+-	struct page *old = pfc->va ? virt_to_page(pfc->va) : NULL;
++	struct page *old = pfc->addr ? virt_to_head_page(pfc->addr) : NULL;
+ 	gfp_t gfp = gfp_mask;
+ 	unsigned int pagecnt_bias = pfc->pagecnt_bias & ~PFC_MEMALLOC;
+ 
+ 	/* If all allocations have been freed, we can reuse this page */
+ 	if (old && page_ref_sub_and_test(old, pagecnt_bias)) {
+ 		page = old;
+-#if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
+-		/* if size can vary use size else just use PAGE_SIZE */
+-		size = pfc->size;
+-#endif
++		size = page_frag_cache_mask(pfc) + 1;
+ 		/* Page count is 0, we can safely set it */
+ 		set_page_count(page, size);
+ 		goto reset;
+@@ -4364,27 +4361,24 @@ static struct page *__page_frag_cache_refill(struct page_frag_cache *pfc,
+ 				PAGE_FRAG_CACHE_MAX_ORDER);
+ 	if (page)
+ 		size = PAGE_FRAG_CACHE_MAX_SIZE;
+-	pfc->size = size;
++	pfc->mask = size - 1;
+ #endif
+ 	if (unlikely(!page))
+ 		page = alloc_pages_node(NUMA_NO_NODE, gfp, 0);
+ 	if (!page) {
+-		pfc->va = NULL;
++		pfc->addr = NULL;
+ 		return NULL;
+ 	}
+ 
+-	pfc->va = page_address(page);
+-
+ 	/* Using atomic_set() would break get_page_unless_zero() users. */
+ 	page_ref_add(page, size - 1);
+ reset:
+-	/* reset page count bias and offset to start of new frag */
+ 	pfc->pagecnt_bias = size;
+ 	if (page_is_pfmemalloc(page))
+ 		pfc->pagecnt_bias |= PFC_MEMALLOC;
+-	pfc->offset = size;
++	pfc->addr = page_address(page) + size;
+ 
+-	return page;
++	return pfc->addr;
+ }
+ 
+ void __page_frag_cache_drain(struct page *page, unsigned int count)
+@@ -4405,24 +4399,20 @@ EXPORT_SYMBOL(__page_frag_cache_drain);
+ void *page_frag_alloc(struct page_frag_cache *pfc,
+ 		      unsigned int size, gfp_t gfp_mask)
+ {
+-	struct page *page;
+-	int offset;
++	void *addr = pfc->addr;
++	unsigned int offset = (unsigned long)addr & page_frag_cache_mask(pfc);
+ 
+-	if (unlikely(!pfc->va)) {
+-refill:
+-		page = __page_frag_cache_refill(pfc, gfp_mask);
+-		if (!page)
++	if (unlikely(offset < size)) {
++		addr = __page_frag_cache_refill(pfc, gfp_mask);
++		if (!addr)
+ 			return NULL;
+ 	}
+ 
+-	offset = pfc->offset - size;
+-	if (unlikely(offset < 0))
+-		goto refill;
+-
++	addr -= size;
++	pfc->addr = addr;
+ 	pfc->pagecnt_bias--;
+-	pfc->offset = offset;
+ 
+-	return pfc->va + offset;
++	return addr;
+ }
+ EXPORT_SYMBOL(page_frag_alloc);
  
 -- 
 2.16.2
