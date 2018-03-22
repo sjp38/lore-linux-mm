@@ -1,88 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 33C366B0003
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 07:36:49 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id w19-v6so5212265plq.2
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 04:36:49 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id h67si4789652pfj.11.2018.03.22.04.36.46
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 65B126B0003
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 07:40:06 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id m79so3770824wma.7
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 04:40:06 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 67si1553703wmj.245.2018.03.22.04.40.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 04:36:46 -0700 (PDT)
-Subject: [PATCH] mm,oom_reaper: Check for MMF_OOM_SKIP before complain.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1521547076-3399-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20180320121246.GK23100@dhcp22.suse.cz>
-	<201803202137.CAC35494.OFtJLHFSFOMVOQ@I-love.SAKURA.ne.jp>
-	<201803202147.ICB09393.FFSJOOtHVQOFLM@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.20.1803201349270.167205@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.20.1803201349270.167205@chino.kir.corp.google.com>
-Message-Id: <201803221946.DHG65638.VFJHFtOSQLOMOF@I-love.SAKURA.ne.jp>
-Date: Thu, 22 Mar 2018 19:46:36 +0900
-Mime-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Mar 2018 04:40:05 -0700 (PDT)
+Date: Thu, 22 Mar 2018 12:40:02 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: Disable preemption inside the OOM killer.
+Message-ID: <20180322114002.GC23100@dhcp22.suse.cz>
+References: <1521716652-4868-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1521716652-4868-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: rientjes@google.com, mhocko@suse.com, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
->From b141cdbe0db852549c94d5b1e6a9967ca69d59fd Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Thu, 22 Mar 2018 19:44:12 +0900
-Subject: [PATCH] mm,oom_reaper: Check for MMF_OOM_SKIP before complain.
+On Thu 22-03-18 20:04:12, Tetsuo Handa wrote:
+> cond_resched() from printk() or CONFIG_PREEMPT=y can allow other
+> contending allocating paths to disturb the owner of oom_lock.
+> They can break
+> 
+>   /*
+>    * Acquire the oom lock.  If that fails, somebody else is
+>    * making progress for us.
+>    */
+> 
+> assumption in __alloc_pages_may_oom().
+> 
+> If we use mutex_lock_killable() instead of mutex_trylock(), we can
+> guarantee that noone forever continues wasting CPU resource and disturbs
+> the owner of oom_lock.
 
-I got "oom_reaper: unable to reap pid:" messages when the victim thread
-was blocked inside free_pgtables() (which occurred after returning from
-unmap_vmas() and setting MMF_OOM_SKIP). We don't need to complain when
-exit_mmap() already set MMF_OOM_SKIP.
+Wrong! _Any_ non allocating task could still preempt the lock holder.
 
-[  663.593821] Killed process 7558 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[  664.684801] oom_reaper: unable to reap pid:7558 (a.out)
-[  664.892292] a.out           D13272  7558   6931 0x00100084
-[  664.895765] Call Trace:
-[  664.897574]  ? __schedule+0x25f/0x780
-[  664.900099]  schedule+0x2d/0x80
-[  664.902260]  rwsem_down_write_failed+0x2bb/0x440
-[  664.905249]  ? rwsem_down_write_failed+0x55/0x440
-[  664.908335]  ? free_pgd_range+0x569/0x5e0
-[  664.911145]  call_rwsem_down_write_failed+0x13/0x20
-[  664.914121]  down_write+0x49/0x60
-[  664.916519]  ? unlink_file_vma+0x28/0x50
-[  664.919255]  unlink_file_vma+0x28/0x50
-[  664.922234]  free_pgtables+0x36/0x100
-[  664.924797]  exit_mmap+0xbb/0x180
-[  664.927220]  mmput+0x50/0x110
-[  664.929504]  copy_process.part.41+0xb61/0x1fe0
-[  664.932448]  ? _do_fork+0xe6/0x560
-[  664.934902]  ? _do_fork+0xe6/0x560
-[  664.937361]  _do_fork+0xe6/0x560
-[  664.939742]  ? syscall_trace_enter+0x1a9/0x240
-[  664.942693]  ? retint_user+0x18/0x18
-[  664.945309]  ? page_fault+0x2f/0x50
-[  664.947896]  ? trace_hardirqs_on_caller+0x11f/0x1b0
-[  664.951075]  do_syscall_64+0x74/0x230
-[  664.953747]  entry_SYSCALL_64_after_hwframe+0x42/0xb7
+> But when I proposed such change at [1], Michal
+> responded that it is worse because it significantly delays the OOM reaper
+>  from reclaiming memory. [2] is an alternative which will not delay the
+> OOM reaper, but [2] was already rejected.
+> 
+> Therefore, I proposed further steps at [3] and [4]. But Michal still does
+> not like it because it does not address preemption problem. I don't
+> consider preemption as a problem because [1] will eventually stop
+> disturbing the owner of oom_lock by stop wasting CPU resource.
+> 
+> It will be nice if we can make the OOM context not preemptible. But it is
+> not easy because printk() can be very slow which might not fit for
+> disabling the preemption. Since the printk() is responsible for printing
+> dying messages, we need to be careful not to deprive printk() of CPU
+> resources. From that aspect, [3] is safer direction than making the OOM
+> context not preemptible. Of course, if we could get rid of direct reclaim,
+> we won't need [3] from the beginning, for [3] is the last defense against
+> forever disturbing the owner of oom_lock by wasting CPU resource for
+> direct reclaim without any progress.
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Acked-by: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@suse.com>
----
- mm/oom_kill.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Can you pretty please try to come up with a reasonable changelog that
+doesn't refer to 4 different links and state the problem and the way how
+the patch addresses it? Whoever is interested in the history of the
+change can look into mailing list archives.
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5336985..dfd3705 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -590,7 +590,8 @@ static void oom_reap_task(struct task_struct *tsk)
- 	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task_mm(tsk, mm))
- 		schedule_timeout_idle(HZ/10);
- 
--	if (attempts <= MAX_OOM_REAP_RETRIES)
-+	if (attempts <= MAX_OOM_REAP_RETRIES ||
-+	    test_bit(MMF_OOM_SKIP, &mm->flags))
- 		goto done;
- 
- 
+> Nonetheless, this patch disables preemption inside the OOM killer as much
+> as possible, for this is the direction Michal wants to go.
+
+And we are doing some pretty heavy lifting in the oom path so disabling
+the whole preemption is a no-go. You are likely to introduce soft
+lockups on large machines.
+
+Look, this has been explained to you already but you keep ignoring that.
+We are not going to add a code that risks negative side effects just
+because of an artificial workload of yours. It would be great to handle
+it as well but that is way far from straightforward. Large machines with
+zilions of tasks are real, on the other hand. So please try to think out
+of your bubble finally!
+
+Nacked-by: Michal Hocko <mhocko@suse.com>
+
+> 
+> [1] http://lkml.kernel.org/r/201802202232.IEC26597.FOQtMFOFJHOSVL@I-love.SAKURA.ne.jp
+> [2] http://lkml.kernel.org/r/1481020439-5867-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+> [3] http://lkml.kernel.org/r/201802241700.JJB51016.FQOLFJHFOOSVMt@I-love.SAKURA.ne.jp
+> [4] http://lkml.kernel.org/r/201803022010.BJE26043.LtSOOVFQOMJFHF@I-love.SAKURA.ne.jp
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Tejun Heo <tj@kernel.org>
+> ---
+>  mm/oom_kill.c | 14 +++++++++++++-
+>  1 file changed, 13 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index dcdb642..614d1a2 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -1068,7 +1068,7 @@ int unregister_oom_notifier(struct notifier_block *nb)
+>   * OR try to be smart about which process to kill. Note that we
+>   * don't have to be perfect here, we just have to be good.
+>   */
+> -bool out_of_memory(struct oom_control *oc)
+> +static bool __out_of_memory(struct oom_control *oc)
+>  {
+>  	unsigned long freed = 0;
+>  	enum oom_constraint constraint = CONSTRAINT_NONE;
+> @@ -1077,7 +1077,9 @@ bool out_of_memory(struct oom_control *oc)
+>  		return false;
+>  
+>  	if (!is_memcg_oom(oc)) {
+> +		preempt_enable();
+>  		blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+> +		preempt_disable();
+>  		if (freed > 0)
+>  			/* Got some memory back in the last second. */
+>  			return true;
+> @@ -1138,6 +1140,16 @@ bool out_of_memory(struct oom_control *oc)
+>  	return !!oc->chosen_task;
+>  }
+>  
+> +bool out_of_memory(struct oom_control *oc)
+> +{
+> +	bool ret;
+> +
+> +	preempt_disable();
+> +	ret = __out_of_memory(oc);
+> +	preempt_enable();
+> +	return ret;
+> +}
+> +
+>  /*
+>   * The pagefault handler calls here because it is out of memory, so kill a
+>   * memory-hogging task. If oom_lock is held by somebody else, a parallel oom
+> -- 
+> 1.8.3.1
+> 
+
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
