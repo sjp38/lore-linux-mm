@@ -1,201 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 96A6D6B0028
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 12:22:33 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id j3so4455757wrb.18
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 09:22:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r75sor700790wmg.17.2018.03.22.09.22.31
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 53E356B0029
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 12:29:04 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t123so4193187wmt.2
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 09:29:04 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l34si6223454ede.316.2018.03.22.09.29.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 22 Mar 2018 09:22:32 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Mar 2018 09:29:02 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2MGPJrj065196
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 12:29:01 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2gvf89amcp-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 12:29:01 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Thu, 22 Mar 2018 16:28:58 -0000
+Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
+References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
+ <20180321131449.GN23100@dhcp22.suse.cz>
+ <8e0ded7b-4be4-fa25-f40c-d3116a6db4db@linux.alibaba.com>
+ <cf87ade4-5a5c-3919-0fc6-acc40e12659b@linux.alibaba.com>
+ <20180321212355.GR23100@dhcp22.suse.cz>
+ <952dcae2-a73e-0726-3cc5-9b6a63b417b7@linux.alibaba.com>
+ <20180322091008.GZ23100@dhcp22.suse.cz>
+ <8b4407dd-78f6-2f6f-3f45-ddb8a2d805c8@linux.alibaba.com>
+ <20180322161316.GD28468@bombadil.infradead.org>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Thu, 22 Mar 2018 17:28:54 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180322153157.10447-7-willy@infradead.org>
-References: <20180322153157.10447-1-willy@infradead.org> <20180322153157.10447-7-willy@infradead.org>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Thu, 22 Mar 2018 09:22:31 -0700
-Message-ID: <CAKgT0UfcYLm3UZcq536cNOczVhR60qoFDHh_gcXqqyqdViuLzw@mail.gmail.com>
-Subject: Re: [PATCH v2 6/8] page_frag_cache: Use a mask instead of offset
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180322161316.GD28468@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <e36daca9-8bf0-5fad-d68b-a3116cc1a75e@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Netdev <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Matthew Wilcox <willy@infradead.org>, Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 22, 2018 at 8:31 AM, Matthew Wilcox <willy@infradead.org> wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
->
-> By combining 'va' and 'offset' into 'addr' and using a mask instead,
-> we can save a compare-and-branch in the fast-path of the allocator.
-> This removes 4 instructions on x86 (both 32 and 64 bit).
+On 22/03/2018 17:13, Matthew Wilcox wrote:
+> On Thu, Mar 22, 2018 at 09:06:14AM -0700, Yang Shi wrote:
+>> On 3/22/18 2:10 AM, Michal Hocko wrote:
+>>> On Wed 21-03-18 15:36:12, Yang Shi wrote:
+>>>> On 3/21/18 2:23 PM, Michal Hocko wrote:
+>>>>> On Wed 21-03-18 10:16:41, Yang Shi wrote:
+>>>>>> proc_pid_cmdline_read(), it calls access_remote_vm() which need acquire
+>>>>>> mmap_sem too, so the mmap_sem scalability issue will be hit sooner or later.
+>>>>> Ohh, absolutely. mmap_sem is unfortunatelly abused and it would be great
+>>>>> to remove that. munmap should perform much better. How to do that safely
+>>> The full vma will have to be range locked. So there is nothing small or large.
+>>
+>> It sounds not helpful to a single large vma case since just one range lock
+>> for the vma, it sounds equal to mmap_sem.
+> 
+> But splitting mmap_sem into pieces is beneficial for this case.  Imagine
+> we have a spinlock / rwlock to protect the rbtree 
 
-What is the point of renaming "va"? I'm seeing a lot of unneeded
-renaming in these patches that doesn't really seem needed and is just
-making things harder to review.
+Which is more or less what I'm proposing in the speculative page fault series:
+https://lkml.org/lkml/2018/3/13/1158
 
-> We can avoid storing the mask at all if we know that we're only allocating
-> a single page.  This shrinks page_frag_cache from 12 to 8 bytes on 32-bit
-> CONFIG_BASE_SMALL build.
->
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+This being said, having a per VMA lock could lead to tricky dead lock case,
+when merging multiple VMA happens in parallel since multiple VMA will have to
+be locked at the same time, grabbing those lock in a fine order will be required.
 
-So I am not really a fan of CONFIG_BASE_SMALL in general, so
-advertising gains in size is just going back down the reducing size at
-the expense of performance train of thought.
-
-Do we know for certain that a higher order page is always aligned to
-the size of the higher order page itself? That is one thing I have
-never been certain about. I know for example there are head and tail
-pages so I was never certain if it was possible to create a higher
-order page that is not aligned to to the size of the page itself.
-
-If we can get away with making that assumption then yes I would say
-this is probably an optimization, though I think we would be better
-off without the CONFIG_BASE_SMALL bits.
-
-> ---
->  include/linux/mm_types.h | 12 +++++++-----
->  mm/page_alloc.c          | 40 +++++++++++++++-------------------------
->  2 files changed, 22 insertions(+), 30 deletions(-)
->
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 0defff9e3c0e..ebe93edec752 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -225,12 +225,9 @@ struct page {
->  #define PFC_MEMALLOC                   (1U << 31)
->
->  struct page_frag_cache {
-> -       void * va;
-> +       void *addr;
->  #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
-> -       __u16 offset;
-> -       __u16 size;
-> -#else
-> -       __u32 offset;
-> +       unsigned int mask;
-
-So this is just an akward layout. You now have essentially:
-#if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
-#else
-    unsigned int mask;
-#endif
-
->  #endif
->         /* we maintain a pagecount bias, so that we dont dirty cache line
->          * containing page->_refcount every time we allocate a fragment.
-> @@ -239,6 +236,11 @@ struct page_frag_cache {
->  };
->
->  #define page_frag_cache_pfmemalloc(pfc)        ((pfc)->pagecnt_bias & PFC_MEMALLOC)
-> +#if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
-> +#define page_frag_cache_mask(pfc)      (pfc)->mask
-> +#else
-> +#define page_frag_cache_mask(pfc)      (~PAGE_MASK)
-> +#endif
->
->  typedef unsigned long vm_flags_t;
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5a2e3e293079..d15a5348a8e4 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4336,22 +4336,19 @@ EXPORT_SYMBOL(free_pages);
->   * drivers to provide a backing region of memory for use as either an
->   * sk_buff->head, or to be used in the "frags" portion of skb_shared_info.
->   */
-> -static struct page *__page_frag_cache_refill(struct page_frag_cache *pfc,
-> +static void *__page_frag_cache_refill(struct page_frag_cache *pfc,
->                                              gfp_t gfp_mask)
->  {
->         unsigned int size = PAGE_SIZE;
->         struct page *page = NULL;
-> -       struct page *old = pfc->va ? virt_to_page(pfc->va) : NULL;
-> +       struct page *old = pfc->addr ? virt_to_head_page(pfc->addr) : NULL;
->         gfp_t gfp = gfp_mask;
->         unsigned int pagecnt_bias = pfc->pagecnt_bias & ~PFC_MEMALLOC;
->
->         /* If all allocations have been freed, we can reuse this page */
->         if (old && page_ref_sub_and_test(old, pagecnt_bias)) {
->                 page = old;
-> -#if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
-> -               /* if size can vary use size else just use PAGE_SIZE */
-> -               size = pfc->size;
-> -#endif
-> +               size = page_frag_cache_mask(pfc) + 1;
->                 /* Page count is 0, we can safely set it */
->                 set_page_count(page, size);
->                 goto reset;
-> @@ -4364,27 +4361,24 @@ static struct page *__page_frag_cache_refill(struct page_frag_cache *pfc,
->                                 PAGE_FRAG_CACHE_MAX_ORDER);PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
->         if (page)
->                 size = PAGE_FRAG_CACHE_MAX_SIZE;
-> -       pfc->size = size;
-> +       pfc->mask = size - 1;
->  #endif
->         if (unlikely(!page))
->                 page = alloc_pages_node(NUMA_NO_NODE, gfp, 0);
->         if (!page) {
-> -               pfc->va = NULL;
-> +               pfc->addr = NULL;
->                 return NULL;
->         }
->
-> -       pfc->va = page_address(page);
-> -
->         /* Using atomic_set() would break get_page_unless_zero() users. */
->         page_ref_add(page, size - 1);
-
-You could just use the pfc->mask here instead of size - 1 just to
-avoid having to do the subtraction more than once assuming the
-compiler doesn't optimize it.
-
->  reset:
-> -       /* reset page count bias and offset to start of new frag */
->         pfc->pagecnt_bias = size;
->         if (page_is_pfmemalloc(page))
->                 pfc->pagecnt_bias |= PFC_MEMALLOC;
-> -       pfc->offset = size;
-> +       pfc->addr = page_address(page) + size;
->
-> -       return page;
-> +       return pfc->addr;
->  }
->
->  void __page_frag_cache_drain(struct page *page, unsigned int count)
-> @@ -4405,24 +4399,20 @@ EXPORT_SYMBOL(__page_frag_cache_drain);
->  void *page_frag_alloc(struct page_frag_cache *pfc,
->                       unsigned int size, gfp_t gfp_mask)
->  {
-> -       struct page *page;
-> -       int offset;
-> +       void *addr = pfc->addr;
-> +       unsigned int offset = (unsigned long)addr & page_frag_cache_mask(pfc);
->
-> -       if (unlikely(!pfc->va)) {
-> -refill:
-> -               page = __page_frag_cache_refill(pfc, gfp_mask);
-> -               if (!page)
-> +       if (unlikely(offset < size)) {
-> +               addr = __page_frag_cache_refill(pfc, gfp_mask);
-> +               if (!addr)
->                         return NULL;
->         }
->
-> -       offset = pfc->offset - size;
-> -       if (unlikely(offset < 0))
-> -               goto refill;
-> -
-> +       addr -= size;
-> +       pfc->addr = addr;
->         pfc->pagecnt_bias--;
-> -       pfc->offset = offset;
->
-> -       return pfc->va + offset;
-> +       return addr;
->  }
->  EXPORT_SYMBOL(page_frag_alloc);
->
-> --
-> 2.16.2
->
+> ... / arg_start / arg_end
+> / ...  and then each VMA has a rwsem (or equivalent).  access_remote_vm()
+> would walk the tree and grab the VMA's rwsem for read while reading
+> out the arguments.  The munmap code would have a completely different
+> VMA write-locked.
+> 
