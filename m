@@ -1,126 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 040336B000D
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 17:48:28 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id e19-v6so5717429otf.9
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:48:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 4si2016620oin.5.2018.03.22.14.48.26
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B958A6B000D
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 17:53:49 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id y10so4811990pge.2
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 14:53:49 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d79sor549499pfb.93.2018.03.22.14.53.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 14:48:26 -0700 (PDT)
-Date: Thu, 22 Mar 2018 15:48:25 -0600
-From: Alex Williamson <alex.williamson@redhat.com>
-Subject: Re: [PATCH] vfio iommu type1: improve memory pinning process for
- raw PFN mapping
-Message-ID: <20180322154825.0f8477f7@w520.home>
-In-Reply-To: <20180322045216.22220-1-jason.cai@linux.alibaba.com>
-References: <20180322045216.22220-1-jason.cai@linux.alibaba.com>
+        (Google Transport Security);
+        Thu, 22 Mar 2018 14:53:48 -0700 (PDT)
+Date: Thu, 22 Mar 2018 14:53:46 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v2 -mm 0/6] rewrite cgroup aware oom killer for general use
+In-Reply-To: <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.20.1803221451370.17056@chino.kir.corp.google.com>
+References: <alpine.DEB.2.20.1803121755590.192200@chino.kir.corp.google.com> <alpine.DEB.2.20.1803151351140.55261@chino.kir.corp.google.com> <alpine.DEB.2.20.1803161405410.209509@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com>
-Cc: pbonzini@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, gnehzuil@linux.alibaba.com
+To: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 22 Mar 2018 12:52:16 +0800
-"Jason Cai (Xiang Feng)" <jason.cai@linux.alibaba.com> wrote:
+rewrite cgroup aware oom killer for general use
 
-> When using vfio to pass through a PCIe device (e.g. a GPU card) that
-> has a huge BAR (e.g. 16GB), a lot of cycles are wasted on memory
-> pinning because PFNs of PCI BAR are not backed by struct page, and
-> the corresponding VMA has flag VM_PFNMAP.
-> 
-> With this change, when pinning a region which is a raw PFN mapping,
-> it can skip unnecessary user memory pinning process, and thus, can
-> significantly improve VM's boot up time when passing through devices
-> via VFIO. In my test on a Xeon E5 2.6GHz, the time mapping a 16GB
-> BAR was reduced from about 0.4s to 1.5us.
-> 
-> Signed-off-by: Jason Cai (Xiang Feng) <jason.cai@linux.alibaba.com>
-> ---
->  drivers/vfio/vfio_iommu_type1.c | 24 ++++++++++++++----------
->  1 file changed, 14 insertions(+), 10 deletions(-)
-> 
-> diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-> index 45657e2b1ff7..0658f35318b8 100644
-> --- a/drivers/vfio/vfio_iommu_type1.c
-> +++ b/drivers/vfio/vfio_iommu_type1.c
-> @@ -397,7 +397,6 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
->  {
->  	unsigned long pfn = 0;
->  	long ret, pinned = 0, lock_acct = 0;
-> -	bool rsvd;
->  	dma_addr_t iova = vaddr - dma->vaddr + dma->iova;
->  
->  	/* This code path is only user initiated */
-> @@ -408,14 +407,22 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
->  	if (ret)
->  		return ret;
->  
-> +	if (is_invalid_reserved_pfn(*pfn_base)) {
-> +		struct vm_area_struct *vma;
+There are three significant concerns about the cgroup aware oom killer as
+it is implemented in -mm:
 
-scripts/checkpatch.pl suggests a new line here to separate variable
-declaration from code.
+ (1) allows users to evade the oom killer by creating subcontainers or
+     using other controllers since scoring is done per cgroup and not
+     hierarchically,
 
-> +		down_read(&current->mm->mmap_sem);
-> +		vma = find_vma_intersection(current->mm, vaddr, vaddr + 1);
-> +		pinned = min(npage, (long)vma_pages(vma));
+ (2) unfairly compares the root mem cgroup using completely different
+     criteria than leaf mem cgroups and allows wildly inaccurate results
+     if oom_score_adj is used, and
 
-checkpatch also suggests using min_t rather than casting to a
-compatible type, ie:
+ (3) does not allow the user to influence the decisionmaking, such that
+     important subtrees cannot be preferred or biased.
 
-	pinned = min_t(long, npage, vma_pages(vma));
+This patchset fixes (1) and (2) completely and, by doing so, introduces a
+completely extensible user interface that can be expanded in the future.
 
-I'll make these updates on commit, please make use of checkpatch on
-future patches.  Applied to vfio next branch for v4.17.  Thanks,
+Concern (3) could subsequently be addressed either before or after the
+cgroup-aware oom killer feature is merged.
 
-Alex
+It preserves all functionality that currently exists in -mm and extends
+it to be generally useful outside of very specialized usecases.
 
-> +		up_read(&current->mm->mmap_sem);
-> +		return pinned;
-> +	}
-> +
->  	pinned++;
-> -	rsvd = is_invalid_reserved_pfn(*pfn_base);
->  
->  	/*
->  	 * Reserved pages aren't counted against the user, externally pinned
->  	 * pages are already counted against the user.
->  	 */
-> -	if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-> +	if (!vfio_find_vpfn(dma, iova)) {
->  		if (!lock_cap && current->mm->locked_vm + 1 > limit) {
->  			put_pfn(*pfn_base, dma->prot);
->  			pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
-> @@ -435,13 +442,12 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
->  		if (ret)
->  			break;
->  
-> -		if (pfn != *pfn_base + pinned ||
-> -		    rsvd != is_invalid_reserved_pfn(pfn)) {
-> +		if (pfn != *pfn_base + pinned) {
->  			put_pfn(pfn, dma->prot);
->  			break;
->  		}
->  
-> -		if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-> +		if (!vfio_find_vpfn(dma, iova)) {
->  			if (!lock_cap &&
->  			    current->mm->locked_vm + lock_acct + 1 > limit) {
->  				put_pfn(pfn, dma->prot);
-> @@ -459,10 +465,8 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
->  
->  unpin_out:
->  	if (ret) {
-> -		if (!rsvd) {
-> -			for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
-> -				put_pfn(pfn, dma->prot);
-> -		}
-> +		for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
-> +			put_pfn(pfn, dma->prot);
->  
->  		return ret;
->  	}
+It eliminates the mount option for the cgroup aware oom killer entirely
+since it is now enabled through the root mem cgroup's oom policy.
+---
+ - Rebased to next-20180322
+ - Fixed get_nr_swap_pages() build bug found by kbuild test robot
+
+ Documentation/cgroup-v2.txt | 100 ++++++++--------
+ include/linux/cgroup-defs.h |   5 -
+ include/linux/memcontrol.h  |  21 ++++
+ kernel/cgroup/cgroup.c      |  13 +--
+ mm/memcontrol.c             | 221 +++++++++++++++++++++---------------
+ 5 files changed, 204 insertions(+), 156 deletions(-)
