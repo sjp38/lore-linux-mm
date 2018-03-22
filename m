@@ -1,129 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 816296B0022
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 21:28:55 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id t24so4462906qtn.21
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 18:28:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id p73si6705516qka.270.2018.03.21.18.28.54
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FAD76B0023
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2018 21:29:46 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 1-v6so4203238plv.6
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2018 18:29:46 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id x61-v6si2681086plb.213.2018.03.21.18.29.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Mar 2018 18:28:54 -0700 (PDT)
-From: jglisse@redhat.com
-Subject: [PATCH 03/15] mm/hmm: HMM should have a callback before MM is destroyed v3
-Date: Wed, 21 Mar 2018 21:28:48 -0400
-Message-Id: <20180322012848.6936-1-jglisse@redhat.com>
-In-Reply-To: <20180320020038.3360-4-jglisse@redhat.com>
-References: <20180320020038.3360-4-jglisse@redhat.com>
+        Wed, 21 Mar 2018 18:29:44 -0700 (PDT)
+Date: Thu, 22 Mar 2018 09:30:49 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [RFC PATCH v2 0/4] Eliminate zone->lock contention for
+ will-it-scale/page_fault1 and parallel free
+Message-ID: <20180322013049.GA4056@intel.com>
+References: <20180320085452.24641-1-aaron.lu@intel.com>
+ <1dfd4b33-6eff-160e-52fd-994d9bcbffed@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1dfd4b33-6eff-160e-52fd-994d9bcbffed@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>
 
-From: Ralph Campbell <rcampbell@nvidia.com>
+On Wed, Mar 21, 2018 at 01:44:25PM -0400, Daniel Jordan wrote:
+> On 03/20/2018 04:54 AM, Aaron Lu wrote:
+> ...snip...
+> > reduced zone->lock contention on free path from 35% to 1.1%. Also, it
+> > shows good result on parallel free(*) workload by reducing zone->lock
+> > contention from 90% to almost zero(lru lock increased from almost 0 to
+> > 90% though).
+> 
+> Hi Aaron, I'm looking through your series now.  Just wanted to mention that I'm seeing the same interaction between zone->lock and lru_lock in my own testing.  IOW, it's not enough to fix just one or the other: both need attention to get good performance on a big system, at least in this microbenchmark we've both been using.
 
-The hmm_mirror_register() function registers a callback for when
-the CPU pagetable is modified. Normally, the device driver will
-call hmm_mirror_unregister() when the process using the device is
-finished. However, if the process exits uncleanly, the struct_mm
-can be destroyed with no warning to the device driver.
+Agree.
 
-Changed since v1:
-  - dropped VM_BUG_ON()
-  - cc stable
-Changed since v2:
-  - drop stable
-  - Split list removale and call to driver release callback. This
-    allow the release callback to wait on any pending fault handler
-    without deadlock.
+> 
+> There's anti-scaling at high core counts where overall system page faults per second actually decrease with more CPUs added to the test.  This happens when either zone->lock or lru_lock contention are completely removed, but the anti-scaling goes away when both locks are fixed.
+> 
+> Anyway, I'll post some actual data on this stuff soon.
 
-Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
-Cc: Mark Hairgrove <mhairgrove@nvidia.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
----
- include/linux/hmm.h | 10 ++++++++++
- mm/hmm.c            | 29 ++++++++++++++++++++++++++++-
- 2 files changed, 38 insertions(+), 1 deletion(-)
+Looking forward to that, thanks.
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 36dd21fe5caf..fa7b51f65905 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -218,6 +218,16 @@ enum hmm_update_type {
-  * @update: callback to update range on a device
-  */
- struct hmm_mirror_ops {
-+	/* release() - release hmm_mirror
-+	 *
-+	 * @mirror: pointer to struct hmm_mirror
-+	 *
-+	 * This is called when the mm_struct is being released.
-+	 * The callback should make sure no references to the mirror occur
-+	 * after the callback returns.
-+	 */
-+	void (*release)(struct hmm_mirror *mirror);
-+
- 	/* sync_cpu_device_pagetables() - synchronize page tables
- 	 *
- 	 * @mirror: pointer to struct hmm_mirror
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 320545b98ff5..34c16297f65e 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -160,6 +160,32 @@ static void hmm_invalidate_range(struct hmm *hmm,
- 	up_read(&hmm->mirrors_sem);
- }
- 
-+static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
-+{
-+	struct hmm_mirror *mirror;
-+	struct hmm *hmm = mm->hmm;
-+
-+	down_write(&hmm->mirrors_sem);
-+	mirror = list_first_entry_or_null(&hmm->mirrors, struct hmm_mirror,
-+					  list);
-+	while (mirror) {
-+		list_del_init(&mirror->list);
-+		if (mirror->ops->release) {
-+			/*
-+			 * Drop mirrors_sem so callback can wait on any pending
-+			 * work that might itself trigger mmu_notifier callback
-+			 * and thus would deadlock with us.
-+			 */
-+			up_write(&hmm->mirrors_sem);
-+			mirror->ops->release(mirror);
-+			down_write(&hmm->mirrors_sem);
-+		}
-+		mirror = list_first_entry_or_null(&hmm->mirrors, struct hmm_mirror,
-+						  list);
-+	}
-+	up_write(&hmm->mirrors_sem);
-+}
-+
- static void hmm_invalidate_range_start(struct mmu_notifier *mn,
- 				       struct mm_struct *mm,
- 				       unsigned long start,
-@@ -185,6 +211,7 @@ static void hmm_invalidate_range_end(struct mmu_notifier *mn,
- }
- 
- static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
-+	.release		= hmm_release,
- 	.invalidate_range_start	= hmm_invalidate_range_start,
- 	.invalidate_range_end	= hmm_invalidate_range_end,
- };
-@@ -230,7 +257,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)
- 	struct hmm *hmm = mirror->hmm;
- 
- 	down_write(&hmm->mirrors_sem);
--	list_del(&mirror->list);
-+	list_del_init(&mirror->list);
- 	up_write(&hmm->mirrors_sem);
- }
- EXPORT_SYMBOL(hmm_mirror_unregister);
--- 
-2.14.3
+In the meantime, I'll also try your lru_lock optimization work on top of
+this patchset to see if the lock contention shifts back to zone->lock.
