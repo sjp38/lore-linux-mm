@@ -1,86 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F2DC6B0009
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:10:29 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id i64-v6so2090351ita.8
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 08:10:29 -0700 (PDT)
-Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
-        by mx.google.com with ESMTPS id y203-v6si6917499itc.51.2018.03.23.08.10.27
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 774886B0008
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:14:23 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id g66so6801810pfj.11
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 08:14:23 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c9si6180045pge.2.2018.03.23.08.14.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Mar 2018 08:10:28 -0700 (PDT)
-Date: Fri, 23 Mar 2018 10:10:26 -0500 (CDT)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
-In-Reply-To: <alpine.LRH.2.02.1803211613010.28365@file01.intranet.prod.int.rdu2.redhat.com>
-Message-ID: <alpine.DEB.2.20.1803230956420.4108@nuc-kabylake>
-References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake> <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake> <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake> <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211354170.13978@nuc-kabylake> <alpine.LRH.2.02.1803211500570.26409@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211508560.17257@nuc-kabylake> <alpine.LRH.2.02.1803211613010.28365@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 23 Mar 2018 08:14:22 -0700 (PDT)
+Date: Fri, 23 Mar 2018 08:14:21 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 3/4] mm: Add free()
+Message-ID: <20180323151421.GC5624@bombadil.infradead.org>
+References: <20180322195819.24271-1-willy@infradead.org>
+ <20180322195819.24271-4-willy@infradead.org>
+ <6fd1bba1-e60c-e5b3-58be-52e991cda74f@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6fd1bba1-e60c-e5b3-58be-52e991cda74f@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Wed, 21 Mar 2018, Mikulas Patocka wrote:
+On Fri, Mar 23, 2018 at 04:33:24PM +0300, Kirill Tkhai wrote:
+> > +	page = virt_to_head_page(ptr);
+> > +	if (likely(PageSlab(page)))
+> > +		return kmem_cache_free(page->slab_cache, (void *)ptr);
+> 
+> It seems slab_cache is not generic for all types of slabs. SLOB does not care about it:
 
-> > +	s->allocflags = allocflags;
->
-> I'd also use "WRITE_ONCE(s->allocflags, allocflags)" here and when writing
-> s->oo and s->min to avoid some possible compiler misoptimizations.
+Oof.  I was sure I checked that.  You're quite right that it doesn't ...
+this should fix that problem:
 
-It only matters that 0 etc is never written.
+diff --git a/mm/slob.c b/mm/slob.c
+index 623e8a5c46ce..96339420c6fc 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -266,7 +266,7 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align)
+ /*
+  * slob_alloc: entry point into the slob allocator.
+  */
+-static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
++static void *slob_alloc(size_t size, gfp_t gfp, int align, int node, void *c)
+ {
+ 	struct page *sp;
+ 	struct list_head *prev;
+@@ -324,6 +324,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 		sp->units = SLOB_UNITS(PAGE_SIZE);
+ 		sp->freelist = b;
+ 		INIT_LIST_HEAD(&sp->lru);
++		sp->slab_cache = c;
+ 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
+ 		set_slob_page_free(sp, slob_list);
+ 		b = slob_page_alloc(sp, size, align);
+@@ -440,7 +441,7 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
+ 		if (!size)
+ 			return ZERO_SIZE_PTR;
+ 
+-		m = slob_alloc(size + align, gfp, align, node);
++		m = slob_alloc(size + align, gfp, align, node, NULL);
+ 
+ 		if (!m)
+ 			return NULL;
+@@ -544,7 +545,7 @@ static void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ 	fs_reclaim_release(flags);
+ 
+ 	if (c->size < PAGE_SIZE) {
+-		b = slob_alloc(c->size, flags, c->align, node);
++		b = slob_alloc(c->size, flags, c->align, node, c);
+ 		trace_kmem_cache_alloc_node(_RET_IP_, b, c->object_size,
+ 					    SLOB_UNITS(c->size) * SLOB_UNIT,
+ 					    flags, node);
+@@ -600,6 +601,8 @@ static void kmem_rcu_free(struct rcu_head *head)
+ 
+ void kmem_cache_free(struct kmem_cache *c, void *b)
+ {
++	if (!c)
++		return kfree(b);
+ 	kmemleak_free_recursive(b, c->flags);
+ 	if (unlikely(c->flags & SLAB_TYPESAFE_BY_RCU)) {
+ 		struct slob_rcu *slob_rcu;
 
-> Another problem is that it updates s->oo and later it updates s->max:
->         s->oo = oo_make(order, size, s->reserved);
->         s->min = oo_make(get_order(size), size, s->reserved);
->         if (oo_objects(s->oo) > oo_objects(s->max))
->                 s->max = s->oo;
-> --- so, the concurrently running code could see s->oo > s->max, which
-> could trigger some memory corruption.
+> Also, using kmem_cache_free() for kmalloc()'ed memory will connect them hardly,
+> and this may be difficult to maintain in the future.
 
-Well s->max is only relevant for code that analyses the details of slab
-structures for diagnostics.
+I think the win from being able to delete all the little RCU callbacks
+that just do a kmem_cache_free() is big enough to outweigh the
+disadvantage of forcing slab allocators to support kmem_cache_free()
+working on kmalloced memory.
 
-> s->max is only used in memory allocations -
-> kmalloc(BITS_TO_LONGS(oo_objects(s->max)) * sizeof(unsigned long)), so
-> perhaps we could fix the bug by removing s->max at all and always
-> allocating enough memory for the maximum possible number of objects?
->
-> - kmalloc(BITS_TO_LONGS(oo_objects(s->max)) * sizeof(unsigned long), GFP_KERNEL);
-> + kmalloc(BITS_TO_LONGS(MAX_OBJS_PER_PAGE) * sizeof(unsigned long), GFP_KERNEL);
+> One more thing, there is
+> some kasan checks on the main way of kfree(), and there is no guarantee they
+> reflected in kmem_cache_free() identical.
 
-MAX_OBJS_PER_PAGE is 32k. So you are looking at contiguous allocations of
-256kbyte. Not good.
+Which function are you talking about here?
 
-The simplest measure would be to disallow the changing of the order while
-the slab contains objects.
-
-
-Subject: slub: Disallow order changes when objects exist in a slab
-
-There seems to be a couple of races that would have to be
-addressed if the slab order would be changed during active use.
-
-Lets disallow this in the same way as we also do not allow
-other changes of slab characteristics when objects are active.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -4919,6 +4919,9 @@ static ssize_t order_store(struct kmem_c
- 	unsigned long order;
- 	int err;
-
-+	if (any_slab_objects(s))
-+		return -EBUSY;
-+
- 	err = kstrtoul(buf, 10, &order);
- 	if (err)
- 		return err;
+slub calls slab_free() for both kfree() and kmem_cache_free().
+slab calls __cache_free() for both kfree() and kmem_cache_free().
+Each of them do their kasan handling in the called function.
