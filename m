@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 36A4F6B0027
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FAE96B0028
 	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 20:55:51 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id r5so6581406qkb.22
+Received: by mail-qt0-f199.google.com with SMTP id d7so6813949qtm.6
         for <linux-mm@kvack.org>; Thu, 22 Mar 2018 17:55:51 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id h21si4154248qte.275.2018.03.22.17.55.50
+        by mx.google.com with ESMTPS id k5si7505157qkk.321.2018.03.22.17.55.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 22 Mar 2018 17:55:50 -0700 (PDT)
 From: jglisse@redhat.com
-Subject: [PATCH 02/15] mm/hmm: fix header file if/else/endif maze v2
-Date: Thu, 22 Mar 2018 20:55:14 -0400
-Message-Id: <20180323005527.758-3-jglisse@redhat.com>
+Subject: [PATCH 03/15] mm/hmm: HMM should have a callback before MM is destroyed v3
+Date: Thu, 22 Mar 2018 20:55:15 -0400
+Message-Id: <20180323005527.758-4-jglisse@redhat.com>
 In-Reply-To: <20180323005527.758-1-jglisse@redhat.com>
 References: <20180323005527.758-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,59 +21,109 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, stable@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
 
-From: JA(C)rA'me Glisse <jglisse@redhat.com>
+From: Ralph Campbell <rcampbell@nvidia.com>
 
-The #if/#else/#endif for IS_ENABLED(CONFIG_HMM) were wrong. Because
-of this after multiple include there was multiple definition of both
-hmm_mm_init() and hmm_mm_destroy() leading to build failure if HMM
-was enabled (CONFIG_HMM set).
+The hmm_mirror_register() function registers a callback for when
+the CPU pagetable is modified. Normally, the device driver will
+call hmm_mirror_unregister() when the process using the device is
+finished. However, if the process exits uncleanly, the struct_mm
+can be destroyed with no warning to the device driver.
 
 Changed since v1:
-  - Fix the maze when CONFIG_HMM is disabled not just when it is
-    disabled. This fix bot build failure.
-  - Improved commit message.
+  - dropped VM_BUG_ON()
+  - cc stable
+Changed since v2:
+  - drop stable
+  - Split list removale and call to driver release callback. This
+    allow the release callback to wait on any pending fault handler
+    without deadlock.
 
+Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Acked-by: Balbir Singh <bsingharora@gmail.com>
-Cc: stable@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ralph Campbell <rcampbell@nvidia.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
+Reviewed-by: John Hubbard <jhubbard@nvidia.com>
 Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
+Cc: Mark Hairgrove <mhairgrove@nvidia.com>
 ---
- include/linux/hmm.h | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ include/linux/hmm.h | 10 ++++++++++
+ mm/hmm.c            | 29 ++++++++++++++++++++++++++++-
+ 2 files changed, 38 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 325017ad9311..36dd21fe5caf 100644
+index 36dd21fe5caf..fa7b51f65905 100644
 --- a/include/linux/hmm.h
 +++ b/include/linux/hmm.h
-@@ -498,23 +498,16 @@ struct hmm_device {
- struct hmm_device *hmm_device_new(void *drvdata);
- void hmm_device_put(struct hmm_device *hmm_device);
- #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
--#endif /* IS_ENABLED(CONFIG_HMM) */
- 
- /* Below are for HMM internal use only! Not to be used by device driver! */
--#if IS_ENABLED(CONFIG_HMM_MIRROR)
- void hmm_mm_destroy(struct mm_struct *mm);
- 
- static inline void hmm_mm_init(struct mm_struct *mm)
- {
- 	mm->hmm = NULL;
+@@ -218,6 +218,16 @@ enum hmm_update_type {
+  * @update: callback to update range on a device
+  */
+ struct hmm_mirror_ops {
++	/* release() - release hmm_mirror
++	 *
++	 * @mirror: pointer to struct hmm_mirror
++	 *
++	 * This is called when the mm_struct is being released.
++	 * The callback should make sure no references to the mirror occur
++	 * after the callback returns.
++	 */
++	void (*release)(struct hmm_mirror *mirror);
++
+ 	/* sync_cpu_device_pagetables() - synchronize page tables
+ 	 *
+ 	 * @mirror: pointer to struct hmm_mirror
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 320545b98ff5..8116727766f7 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -160,6 +160,32 @@ static void hmm_invalidate_range(struct hmm *hmm,
+ 	up_read(&hmm->mirrors_sem);
  }
--#else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
--static inline void hmm_mm_destroy(struct mm_struct *mm) {}
--static inline void hmm_mm_init(struct mm_struct *mm) {}
--#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
--
--
- #else /* IS_ENABLED(CONFIG_HMM) */
- static inline void hmm_mm_destroy(struct mm_struct *mm) {}
- static inline void hmm_mm_init(struct mm_struct *mm) {}
-+#endif /* IS_ENABLED(CONFIG_HMM) */
- #endif /* LINUX_HMM_H */
+ 
++static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
++{
++	struct hmm_mirror *mirror;
++	struct hmm *hmm = mm->hmm;
++
++	down_write(&hmm->mirrors_sem);
++	mirror = list_first_entry_or_null(&hmm->mirrors, struct hmm_mirror,
++					  list);
++	while (mirror) {
++		list_del_init(&mirror->list);
++		if (mirror->ops->release) {
++			/*
++			 * Drop mirrors_sem so callback can wait on any pending
++			 * work that might itself trigger mmu_notifier callback
++			 * and thus would deadlock with us.
++			 */
++			up_write(&hmm->mirrors_sem);
++			mirror->ops->release(mirror);
++			down_write(&hmm->mirrors_sem);
++		}
++		mirror = list_first_entry_or_null(&hmm->mirrors,
++						  struct hmm_mirror, list);
++	}
++	up_write(&hmm->mirrors_sem);
++}
++
+ static void hmm_invalidate_range_start(struct mmu_notifier *mn,
+ 				       struct mm_struct *mm,
+ 				       unsigned long start,
+@@ -185,6 +211,7 @@ static void hmm_invalidate_range_end(struct mmu_notifier *mn,
+ }
+ 
+ static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
++	.release		= hmm_release,
+ 	.invalidate_range_start	= hmm_invalidate_range_start,
+ 	.invalidate_range_end	= hmm_invalidate_range_end,
+ };
+@@ -230,7 +257,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)
+ 	struct hmm *hmm = mirror->hmm;
+ 
+ 	down_write(&hmm->mirrors_sem);
+-	list_del(&mirror->list);
++	list_del_init(&mirror->list);
+ 	up_write(&hmm->mirrors_sem);
+ }
+ EXPORT_SYMBOL(hmm_mirror_unregister);
 -- 
 2.14.3
