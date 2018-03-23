@@ -1,48 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EEB86B000C
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 10:15:52 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c5so6705137pfn.17
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 07:15:52 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id z67si6835969pfd.257.2018.03.23.07.15.50
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 454B36B0008
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 10:34:49 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id i11so6046470pgq.10
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 07:34:49 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
+        by mx.google.com with ESMTPS id t4si6746692pfh.290.2018.03.23.07.34.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Mar 2018 07:15:50 -0700 (PDT)
-Date: Fri, 23 Mar 2018 10:15:48 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] mm, vmscan, tracing: Use pointer to reclaim_stat struct
- in trace event
-Message-ID: <20180323101548.1f091c93@gandalf.local.home>
-In-Reply-To: <20180323135225.GV23100@dhcp22.suse.cz>
-References: <20180322121003.4177af15@gandalf.local.home>
-	<20180323134200.GT23100@dhcp22.suse.cz>
-	<20180323094753.760b2c86@gandalf.local.home>
-	<20180323135225.GV23100@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 23 Mar 2018 07:34:47 -0700 (PDT)
+Date: Fri, 23 Mar 2018 07:34:35 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 3/4] mm: Add free()
+Message-ID: <20180323143435.GB5624@bombadil.infradead.org>
+References: <20180322195819.24271-1-willy@infradead.org>
+ <20180322195819.24271-4-willy@infradead.org>
+ <1e95ce64-828b-1214-a930-1ffaedfa00b8@rasmusvillemoes.dk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1e95ce64-828b-1214-a930-1ffaedfa00b8@rasmusvillemoes.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Alexei Starovoitov <ast@fb.com>
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: linux-mm@kvack.org, Kirill Tkhai <ktkhai@virtuozzo.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Fri, 23 Mar 2018 14:52:25 +0100
-Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Fri 23-03-18 09:47:53, Steven Rostedt wrote:
+On Fri, Mar 23, 2018 at 09:04:10AM +0100, Rasmus Villemoes wrote:
+> On 2018-03-22 20:58, Matthew Wilcox wrote:
+> > From: Matthew Wilcox <mawilcox@microsoft.com>
 > > 
-> > The one solution is to pull the tracing file
-> > include/trace/events/vmscan.h into mm/ and have a local header to store
-> > the reclaim_stat structure that both vmscan.h and vmscan.c can
-> > reference.  
+> > free() can free many different kinds of memory.
 > 
-> I guess we can live with the public definition as well.
+> I'd be a bit worried about using that name. gcc very much knows about
+> the C standard's definition of that function, as can be seen on
+> godbolt.org by compiling
 > 
+> void free(const void *);
+> void f(void)
+> {
+>     free((void*)0);
+> }
+> 
+> with -O2 -Wall -Wextra -c. Anything from 4.6 onwards simply compiles this to
+> 
+> f:
+>  repz retq
+> 
+> And sure, your free() implementation obviously also has that property,
+> but I'm worried that they might one day decide to warn about the
+> prototype mismatch (actually, I'm surprised it doesn't warn now, given
+> that it obviously pretends to know what free() function I'm calling...),
+> or make some crazy optimization that will break stuff in very subtle ways.
+> 
+> Also, we probably don't want people starting to use free() (or whatever
+> name is chosen) if they do know the kind of memory they're freeing?
+> Maybe it should not be advertised that widely (i.e., in kernel.h).
 
-Yes, that would be easier. Thanks!
+All that you've said I see as an advantage, not a disadvantage.
+Maybe I should change the prototype to match the userspace
+free(), although gcc is deliberately lax about the constness of
+function arguments when determining compatibility with builtins.
+See match_builtin_function_types() if you're really curious.
 
-Then if Andrey's patches are not pulled, then this patch will be good
-to go.
+gcc already does some nice optimisations around free().  For example, it
+can eliminate dead stores:
 
--- Steve
+#include <stdlib.h>
+
+void f(char *foo)
+{
+	foo[1] = 3;
+	free(foo);
+}
+
+becomes:
+
+0000000000000000 <f>:
+   0:	e9 00 00 00 00       	jmpq   5 <f+0x5>
+			1: R_X86_64_PLT32	free-0x4
+
+You can see more things it knows about free() by grepping for
+BUILT_IN_FREE.  
+
+I absolutely do want to see people using free() instead of kfree()
+if it's not important that the memory was kmalloced.  I wouldn't go
+through and change existing code, but I do want to see
+#define malloc(x) kvmalloc((x), GFP_KERNEL)
