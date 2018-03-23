@@ -1,69 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 499106B0282
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 14:11:21 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id c16so6295330pgv.8
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:11:21 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id u8-v6si9395744plr.50.2018.03.23.11.11.19
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E88D76B0285
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 14:26:51 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id t9so11129365ioa.9
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:26:51 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s14-v6sor4627512iti.41.2018.03.23.11.26.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Mar 2018 11:11:20 -0700 (PDT)
-Subject: [PATCH 8/9] x86, pkeys, selftests: add allow faults on unknown keys
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 23 Mar 2018 11:09:17 -0700
-References: <20180323180903.33B17168@viggo.jf.intel.com>
-In-Reply-To: <20180323180903.33B17168@viggo.jf.intel.com>
-Message-Id: <20180323180917.DFF35209@viggo.jf.intel.com>
+        (Google Transport Security);
+        Fri, 23 Mar 2018 11:26:50 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180323174447.55F35636@viggo.jf.intel.com>
+References: <20180323174447.55F35636@viggo.jf.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 23 Mar 2018 11:26:49 -0700
+Message-ID: <CA+55aFwEC1O+6qRc35XwpcuLSgJ+0GP6ciqw_1Oc-msX=efLvQ@mail.gmail.com>
+Subject: Re: [PATCH 00/11] Use global pages with PTI
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linuxram@us.ibm.com, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
 
+On Fri, Mar 23, 2018 at 10:44 AM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+>
+> This adds one major change from the last version of the patch set
+> (present in the last patch).  It makes all kernel text global for non-
+> PCID systems.  This keeps kernel data protected always, but means that
+> it will be easier to find kernel gadgets via meltdown on old systems
+> without PCIDs.  This heuristic is, I think, a reasonable one and it
+> keeps us from having to create any new pti=foo options
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Sounds sane.
 
-The exec-only pkey is allocated inside the kernel and userspace
-is not told what it is.  So, allow PK faults to occur that have
-an unknown key.
+The patches look reasonable, but I hate seeing a patch series like
+this where the only ostensible reason is performance, and there are no
+performance numbers anywhere..
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Ram Pai <linuxram@us.ibm.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Michael Ellermen <mpe@ellerman.id.au>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shuah Khan <shuah@kernel.org>
----
-
- b/tools/testing/selftests/x86/protection_keys.c |   10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
-
-diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-unknown-exec-only-key tools/testing/selftests/x86/protection_keys.c
---- a/tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-unknown-exec-only-key	2018-03-21 15:47:51.985198917 -0700
-+++ b/tools/testing/selftests/x86/protection_keys.c	2018-03-21 15:47:51.988198917 -0700
-@@ -922,13 +922,21 @@ void *malloc_pkey(long size, int prot, u
- }
- 
- int last_pkru_faults;
-+#define UNKNOWN_PKEY -2
- void expected_pk_fault(int pkey)
- {
- 	dprintf2("%s(): last_pkru_faults: %d pkru_faults: %d\n",
- 			__func__, last_pkru_faults, pkru_faults);
- 	dprintf2("%s(%d): last_si_pkey: %d\n", __func__, pkey, last_si_pkey);
- 	pkey_assert(last_pkru_faults + 1 == pkru_faults);
--	pkey_assert(last_si_pkey == pkey);
-+
-+       /*
-+	* For exec-only memory, we do not know the pkey in
-+	* advance, so skip this check.
-+	*/
-+	if (pkey != UNKNOWN_PKEY)
-+		pkey_assert(last_si_pkey == pkey);
-+
- 	/*
- 	 * The signal handler shold have cleared out PKRU to let the
- 	 * test program continue.  We now have to restore it.
-_
+             Linus
