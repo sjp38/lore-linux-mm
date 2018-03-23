@@ -1,140 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C60666B0266
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 14:34:26 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id z13so2641359pgu.5
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:34:26 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0087.outbound.protection.outlook.com. [104.47.41.87])
-        by mx.google.com with ESMTPS id q12-v6si9912083pll.419.2018.03.23.11.34.24
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DC0796B002E
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 15:07:36 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v14so6396273pgq.11
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 12:07:36 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 10si4779540pfs.191.2018.03.23.12.07.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Mar 2018 11:34:24 -0700 (PDT)
-Subject: Re: [RFC PATCH 0/3] mmu_notifier contextual information
-References: <20180323171748.20359-1-jglisse@redhat.com>
-From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
-Message-ID: <e22988c5-2d58-45bb-e2f7-c7ca7bdb9e49@amd.com>
-Date: Fri, 23 Mar 2018 19:34:04 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 23 Mar 2018 12:07:35 -0700 (PDT)
+Date: Fri, 23 Mar 2018 12:06:18 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
+Message-ID: <20180323190618.GA23763@bombadil.infradead.org>
+References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
+ <20180323124806.GA5624@bombadil.infradead.org>
+ <20180323180024.GB1436@brightrain.aerifal.cx>
 MIME-Version: 1.0
-In-Reply-To: <20180323171748.20359-1-jglisse@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180323180024.GB1436@brightrain.aerifal.cx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Joerg Roedel <joro@8bytes.org>, Paolo Bonzini <pbonzini@redhat.com>, Leon Romanovsky <leonro@mellanox.com>, Artemy Kovalyov <artemyko@mellanox.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Alex Deucher <alexander.deucher@amd.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>
+To: Rich Felker <dalias@libc.org>
+Cc: Ilya Smith <blackzert@gmail.com>, rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, jhogan@kernel.org, ralf@linux-mips.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, mhocko@suse.com, hughd@google.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, akpm@linux-foundation.org, steve.capper@arm.com, punit.agrawal@arm.com, paul.burton@mips.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, keescook@chromium.org, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, jglisse@redhat.com, aarcange@redhat.com, oleg@redhat.com, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
 
-Am 23.03.2018 um 18:17 schrieb jglisse@redhat.com:
-> From: JA(C)rA'me Glisse <jglisse@redhat.com>
->
-> This patchset are the improvements to mmu_notifier i wish to discuss
-> at next LSF/MM. I am sending now to give time to people to look at
-> them and think about them.
->
-> git://people.freedesktop.org/~glisse/linux mmu-notifier-rfc
-> https://cgit.freedesktop.org/~glisse/linux/log/?h=mmu-notifier-rfc
->
-> First patch just use a struct for invalidate_range_start/end arguments
-> this make the other 2 patches easier and smaller.
->
-> The idea is to provide more information to mmu_notifier listener on
-> the context of each invalidation. When a range is invalidated this
-> can be for various reasons (munmap, protection change, OOM, ...). If
-> listener can distinguish between those it can take better action.
->
-> For instance if device driver allocate structure to track a range of
-> virtual address prior to this patch it always have to assume that it
-> has to free those on each mmu_notifieir callback (having to assume it
-> is a munmap) and reallocate those latter when the device try to do
-> something with that range again.
->
-> OOM is also an interesting case, recently a patchset was added to
-> avoid OOM on a mm if a blocking mmu_notifier listener have been
-> registered [1]. This can be improve by adding a new OOM event type and
-> having listener take special path on those. All mmu_notifier i know
-> can easily have a special path for OOM that do not block (beside
-> taking a short lived, across driver, spinlock). If mmu_notifier usage
-> grows (from a point of view of more process using devices that rely on
-> them) then we should also make sure OOM can do its bidding.
+On Fri, Mar 23, 2018 at 02:00:24PM -0400, Rich Felker wrote:
+> On Fri, Mar 23, 2018 at 05:48:06AM -0700, Matthew Wilcox wrote:
+> > On Thu, Mar 22, 2018 at 07:36:36PM +0300, Ilya Smith wrote:
+> > > Current implementation doesn't randomize address returned by mmap.
+> > > All the entropy ends with choosing mmap_base_addr at the process
+> > > creation. After that mmap build very predictable layout of address
+> > > space. It allows to bypass ASLR in many cases. This patch make
+> > > randomization of address on any mmap call.
+> > 
+> > Why should this be done in the kernel rather than libc?  libc is perfectly
+> > capable of specifying random numbers in the first argument of mmap.
+> 
+> Generally libc does not have a view of the current vm maps, and thus
+> in passing "random numbers", they would have to be uniform across the
+> whole vm space and thus non-uniform once the kernel rounds up to avoid
+> existing mappings.
 
-+1 for better handling that.
+I'm aware that you're the musl author, but glibc somehow manages to
+provide etext, edata and end, demonstrating that it does know where at
+least some of the memory map lies.  Virtually everything after that is
+brought into the address space via mmap, which at least glibc intercepts,
+so it's entirely possible for a security-conscious libc to know where
+other things are in the memory map.  Not to mention that what we're
+primarily talking about here are libraries which are dynamically linked
+and are loaded by ld.so before calling main(); not dlopen() or even
+regular user mmaps.
 
-The fact that the OOM killer now avoids processes which might sleep 
-during their MM destruction gave me a few sleepless night recently.
+> Also this would impose requirements that libc be
+> aware of the kernel's use of the virtual address space and what's
+> available to userspace -- for example, on 32-bit archs whether 2GB,
+> 3GB, or full 4GB (for 32-bit-user-on-64-bit-kernel) is available, and
+> on 64-bit archs where fewer than the full 64 bits are actually valid
+> in addresses, what the actual usable pointer size is. There is
+> currently no clean way of conveying this information to userspace.
 
-Christian.
-
->
->
-> The last part of the patchset is to allow more concurrency between a
-> range being invalidated and someone wanting to look at CPU page table
-> for a different range of address. I don't have any benchmark for those
-> but i expect this will be common with HMM and mirror once we can run
-> real workload. It can also replace lot of custom and weird counting
-> of active mmu_notifier done listener side (KVM, ODP, ...) with some-
-> thing cleaner.
->
->
-> I have try to leverage all this in KVM but it did not seems to give any
-> significant performance improvements (KVM patches at [2]). Tested with
-> the host kernel using this patchset and KVM patches, and running thing
-> like kernel compilation in the guest. Maybe it is not the kind of work-
-> load that can benefit from this.
->
->
-> [1] http://lkml.iu.edu/hypermail/linux/kernel/1712.1/02108.html
-> [2] https://cgit.freedesktop.org/~glisse/linux/log/?h=mmu-notifier-rfc-kvm
->
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Joerg Roedel <joro@8bytes.org>
-> Cc: Christian KA?nig <christian.koenig@amd.com>
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: Leon Romanovsky <leonro@mellanox.com>
-> Cc: Artemy Kovalyov <artemyko@mellanox.com>
-> Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: Mark Hairgrove <mhairgrove@nvidia.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
-> Cc: Dennis Dalessandro <dennis.dalessandro@intel.com>
-> Cc: Alex Deucher <alexander.deucher@amd.com>
-> Cc: Sudeep Dutt <sudeep.dutt@intel.com>
-> Cc: Ashutosh Dixit <ashutosh.dixit@intel.com>
-> Cc: Dimitri Sivanich <sivanich@sgi.com>
->
-> JA(C)rA'me Glisse (3):
->    mm/mmu_notifier: use struct for invalidate_range_start/end parameters
->    mm/mmu_notifier: provide context information about range invalidation
->    mm/mmu_notifier: keep track of ranges being invalidated
->
->   drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c  |  17 ++---
->   drivers/gpu/drm/i915/i915_gem_userptr.c |  13 ++--
->   drivers/gpu/drm/radeon/radeon_mn.c      |  11 +--
->   drivers/infiniband/core/umem_odp.c      |  16 ++--
->   drivers/infiniband/hw/hfi1/mmu_rb.c     |  12 ++-
->   drivers/misc/mic/scif/scif_dma.c        |  10 +--
->   drivers/misc/sgi-gru/grutlbpurge.c      |  13 ++--
->   drivers/xen/gntdev.c                    |   7 +-
->   fs/dax.c                                |   8 +-
->   fs/proc/task_mmu.c                      |   8 +-
->   include/linux/mm.h                      |   3 +-
->   include/linux/mmu_notifier.h            | 129 ++++++++++++++++++++++++++------
->   kernel/events/uprobes.c                 |  11 +--
->   mm/hmm.c                                |  15 ++--
->   mm/huge_memory.c                        |  69 +++++++++--------
->   mm/hugetlb.c                            |  47 ++++++------
->   mm/khugepaged.c                         |  12 +--
->   mm/ksm.c                                |  24 +++---
->   mm/madvise.c                            |  21 +++---
->   mm/memory.c                             |  97 +++++++++++++-----------
->   mm/migrate.c                            |  47 ++++++------
->   mm/mmu_notifier.c                       |  44 +++++++++--
->   mm/mprotect.c                           |  14 ++--
->   mm/mremap.c                             |  12 +--
->   mm/oom_kill.c                           |  19 +++--
->   mm/rmap.c                               |  22 ++++--
->   virt/kvm/kvm_main.c                     |  12 +--
->   27 files changed, 420 insertions(+), 293 deletions(-)
->
+Huh, I thought libc was aware of this.  Also, I'd expect a libc-based
+implementation to restrict itself to, eg, only loading libraries in
+the bottom 1GB to avoid applications who want to map huge things from
+running out of unfragmented address space.
