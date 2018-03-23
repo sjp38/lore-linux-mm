@@ -1,108 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EF5046B0012
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 22:59:28 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id d187so9104526iog.6
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 19:59:28 -0700 (PDT)
-Received: from baidu.com ([220.181.50.185])
-        by mx.google.com with ESMTP id z3-v6si6243638itf.145.2018.03.22.19.59.23
-        for <linux-mm@kvack.org>;
-        Thu, 22 Mar 2018 19:59:23 -0700 (PDT)
-From: "Li,Rongqing" <lirongqing@baidu.com>
-Subject: =?utf-8?B?562U5aSNOiDnrZTlpI06IFtQQVRDSF0gbW0vbWVtY29udHJvbC5jOiBzcGVl?=
- =?utf-8?Q?d_up_to_force_empty_a_memory_cgroup?=
-Date: Fri, 23 Mar 2018 02:58:36 +0000
-Message-ID: <2AD939572F25A448A3AE3CAEA61328C2374832C1@BC-MAIL-M28.internal.baidu.com>
-References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
- <20180319085355.GQ23100@dhcp22.suse.cz>
- <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
- <20180319103756.GV23100@dhcp22.suse.cz>
- <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
-In-Reply-To: <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ACB936B0023
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 23:51:15 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id y82-v6so2383078lfc.7
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 20:51:15 -0700 (PDT)
+Received: from forward106p.mail.yandex.net (forward106p.mail.yandex.net. [77.88.28.109])
+        by mx.google.com with ESMTPS id z4si2805444ljz.315.2018.03.22.20.51.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Mar 2018 20:51:10 -0700 (PDT)
+Message-ID: <1521777055.1510.9.camel@flygoat.com>
+Subject: Re: [PATCH V3] ZBOOT: fix stack protector in compressed boot phase
+From: Jiaxun Yang <jiaxun.yang@flygoat.com>
+Date: Fri, 23 Mar 2018 11:50:55 +0800
+In-Reply-To: <20180322222107.GJ13126@saruman>
+References: <1521186916-13745-1-git-send-email-chenhc@lemote.com>
+	 <20180322222107.GJ13126@saruman>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li,Rongqing" <lirongqing@baidu.com>, Michal Hocko <mhocko@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, stable@vger.kernel.org
 
-DQoNCj4gLS0tLS3pgq7ku7bljp/ku7YtLS0tLQ0KPiDlj5Hku7bkuro6IGxpbnV4LWtlcm5lbC1v
-d25lckB2Z2VyLmtlcm5lbC5vcmcNCj4gW21haWx0bzpsaW51eC1rZXJuZWwtb3duZXJAdmdlci5r
-ZXJuZWwub3JnXSDku6PooaggTGksUm9uZ3FpbmcNCj4g5Y+R6YCB5pe26Ze0OiAyMDE45bm0M+ac
-iDE55pelIDE4OjUyDQo+IOaUtuS7tuS6ujogTWljaGFsIEhvY2tvIDxtaG9ja29Aa2VybmVsLm9y
-Zz4NCj4g5oqE6YCBOiBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBsaW51eC1tbUBrdmFj
-ay5vcmc7DQo+IGNncm91cHNAdmdlci5rZXJuZWwub3JnOyBoYW5uZXNAY21weGNoZy5vcmc7IEFu
-ZHJleSBSeWFiaW5pbg0KPiA8YXJ5YWJpbmluQHZpcnR1b3p6by5jb20+DQo+IOS4u+mimDog562U
-5aSNOiDnrZTlpI06IFtQQVRDSF0gbW0vbWVtY29udHJvbC5jOiBzcGVlZCB1cCB0byBmb3JjZSBl
-bXB0eSBhDQo+IG1lbW9yeSBjZ3JvdXANCj4gDQo+IA0KPiANCj4gPiAtLS0tLemCruS7tuWOn+S7
-ti0tLS0tDQo+ID4g5Y+R5Lu25Lq6OiBNaWNoYWwgSG9ja28gW21haWx0bzptaG9ja29Aa2VybmVs
-Lm9yZ10NCj4gPiDlj5HpgIHml7bpl7Q6IDIwMTjlubQz5pyIMTnml6UgMTg6MzgNCj4gPiDmlLbk
-u7bkuro6IExpLFJvbmdxaW5nIDxsaXJvbmdxaW5nQGJhaWR1LmNvbT4NCj4gPiDmioTpgIE6IGxp
-bnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZzsNCj4gPiBjZ3Jv
-dXBzQHZnZXIua2VybmVsLm9yZzsgaGFubmVzQGNtcHhjaGcub3JnOyBBbmRyZXkgUnlhYmluaW4N
-Cj4gPiA8YXJ5YWJpbmluQHZpcnR1b3p6by5jb20+DQo+ID4g5Li76aKYOiBSZTog562U5aSNOiBb
-UEFUQ0hdIG1tL21lbWNvbnRyb2wuYzogc3BlZWQgdXAgdG8gZm9yY2UgZW1wdHkgYQ0KPiBtZW1v
-cnkNCj4gPiBjZ3JvdXANCj4gPg0KPiA+IE9uIE1vbiAxOS0wMy0xOCAxMDowMDo0MSwgTGksUm9u
-Z3Fpbmcgd3JvdGU6DQo+ID4gPg0KPiA+ID4NCj4gPiA+ID4gLS0tLS3pgq7ku7bljp/ku7YtLS0t
-LQ0KPiA+ID4gPiDlj5Hku7bkuro6IE1pY2hhbCBIb2NrbyBbbWFpbHRvOm1ob2Nrb0BrZXJuZWwu
-b3JnXQ0KPiA+ID4gPiDlj5HpgIHml7bpl7Q6IDIwMTjlubQz5pyIMTnml6UgMTY6NTQNCj4gPiA+
-ID4g5pS25Lu25Lq6OiBMaSxSb25ncWluZyA8bGlyb25ncWluZ0BiYWlkdS5jb20+DQo+ID4gPiA+
-IOaKhOmAgTogbGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZzsgbGludXgtbW1Aa3ZhY2sub3Jn
-Ow0KPiA+ID4gPiBjZ3JvdXBzQHZnZXIua2VybmVsLm9yZzsgaGFubmVzQGNtcHhjaGcub3JnOyBB
-bmRyZXkgUnlhYmluaW4NCj4gPiA+ID4gPGFyeWFiaW5pbkB2aXJ0dW96em8uY29tPg0KPiA+ID4g
-PiDkuLvpopg6IFJlOiBbUEFUQ0hdIG1tL21lbWNvbnRyb2wuYzogc3BlZWQgdXAgdG8gZm9yY2Ug
-ZW1wdHkgYQ0KPiA+IG1lbW9yeQ0KPiA+ID4gPiBjZ3JvdXANCj4gPiA+ID4NCj4gPiA+ID4gT24g
-TW9uIDE5LTAzLTE4IDE2OjI5OjMwLCBMaSBSb25nUWluZyB3cm90ZToNCj4gPiA+ID4gPiBtZW1f
-Y2dyb3VwX2ZvcmNlX2VtcHR5KCkgdHJpZXMgdG8gZnJlZSBvbmx5IDMyDQo+ID4gKFNXQVBfQ0xV
-U1RFUl9NQVgpDQo+ID4gPiA+ID4gcGFnZXMgb24gZWFjaCBpdGVyYXRpb24sIGlmIGEgbWVtb3J5
-IGNncm91cCBoYXMgbG90cyBvZiBwYWdlDQo+ID4gPiA+ID4gY2FjaGUsIGl0IHdpbGwgdGFrZSBt
-YW55IGl0ZXJhdGlvbnMgdG8gZW1wdHkgYWxsIHBhZ2UgY2FjaGUsIHNvDQo+ID4gPiA+ID4gaW5j
-cmVhc2UgdGhlIHJlY2xhaW1lZCBudW1iZXIgcGVyIGl0ZXJhdGlvbiB0byBzcGVlZCBpdCB1cC4g
-c2FtZQ0KPiA+ID4gPiA+IGFzIGluDQo+ID4gPiA+ID4gbWVtX2Nncm91cF9yZXNpemVfbGltaXQo
-KQ0KPiA+ID4gPiA+DQo+ID4gPiA+ID4gYSBzaW1wbGUgdGVzdCBzaG93Og0KPiA+ID4gPiA+DQo+
-ID4gPiA+ID4gICAkZGQgaWY9YWFhICBvZj1iYmIgIGJzPTFrIGNvdW50PTM4ODYwODANCj4gPiA+
-ID4gPiAgICRybSAtZiBiYmINCj4gPiA+ID4gPiAgICR0aW1lIGVjaG8NCj4gPiAxMDAwMDAwMDAg
-Pi9jZ3JvdXAvbWVtb3J5L3Rlc3QvbWVtb3J5LmxpbWl0X2luX2J5dGVzDQo+ID4gPiA+ID4NCj4g
-PiA+ID4gPiBCZWZvcmU6IDBtMC4yNTJzID09PT4gYWZ0ZXI6IDBtMC4xNzhzDQo+ID4gPiA+DQo+
-ID4gPiA+IEFuZHJleSB3YXMgcHJvcG9zaW5nIHNvbWV0aGluZyBzaW1pbGFyIFsxXS4gTXkgbWFp
-biBvYmplY3Rpb24gd2FzDQo+ID4gPiA+IHRoYXQgaGlzIGFwcHJvYWNoIG1pZ2h0IGxlYWQgdG8g
-b3Zlci1yZWNsYWltLiBZb3VyIGFwcHJvYWNoIGlzDQo+ID4gPiA+IG1vcmUgY29uc2VydmF0aXZl
-IGJlY2F1c2UgaXQganVzdCBpbmNyZWFzZXMgdGhlIGJhdGNoIHNpemUuIFRoZQ0KPiA+ID4gPiBz
-aXplIGlzIHN0aWxsIHJhdGhlciBhcmJpdHJhcnkuIFNhbWUgYXMgU1dBUF9DTFVTVEVSX01BWCBi
-dXQgdGhhdA0KPiA+ID4gPiBvbmUgaXMgYSBjb21tb25seSB1c2VkIHVuaXQgb2YgcmVjbGFpbSBp
-biB0aGUgTU0gY29kZS4NCj4gPiA+ID4NCj4gPiA+ID4gSSB3b3VsZCBiZSByZWFsbHkgY3VyaW91
-cyBhYm91dCBtb3JlIGRldGFpbGVkIGV4cGxhbmF0aW9uIHdoeQ0KPiA+ID4gPiBoYXZpbmcgYSBs
-YXJnZXIgYmF0Y2ggeWllbGRzIHRvIGEgYmV0dGVyIHBlcmZvcm1hbmNlIGJlY2F1c2Ugd2UNCj4g
-PiA+ID4gYXJlIGRvaW5nZyBTV0FQX0NMVVNURVJfTUFYIGJhdGNoZXMgYXQgdGhlIGxvd2VyIHJl
-Y2xhaW0gbGV2ZWwNCj4gYW55d2F5Lg0KPiA+ID4gPg0KPiA+ID4NCj4gPiA+IEFsdGhvdWdoIFNX
-QVBfQ0xVU1RFUl9NQVggaXMgdXNlZCBhdCB0aGUgbG93ZXIgbGV2ZWwsIGJ1dCB0aGUgY2FsbA0K
-PiA+ID4gc3RhY2sgb2YgdHJ5X3RvX2ZyZWVfbWVtX2Nncm91cF9wYWdlcyBpcyB0b28gbG9uZywg
-aW5jcmVhc2UgdGhlDQo+ID4gPiBucl90b19yZWNsYWltIGNhbiByZWR1Y2UgdGltZXMgb2YgY2Fs
-bGluZw0KPiA+ID4gZnVuY3Rpb25bZG9fdHJ5X3RvX2ZyZWVfcGFnZXMsIHNocmlua196b25lcywg
-aHJpbmtfbm9kZSBdDQo+ID4gPg0KPiA+ID4gbWVtX2Nncm91cF9yZXNpemVfbGltaXQNCj4gPiA+
-IC0tLT50cnlfdG9fZnJlZV9tZW1fY2dyb3VwX3BhZ2VzOiAgLm5yX3RvX3JlY2xhaW0gPSBtYXgo
-MTAyNCwNCj4gPiA+IC0tLT5TV0FQX0NMVVNURVJfTUFYKSwNCj4gPiA+ICAgIC0tLT4gZG9fdHJ5
-X3RvX2ZyZWVfcGFnZXMNCj4gPiA+ICAgICAgLS0tPiBzaHJpbmtfem9uZXMNCj4gPiA+ICAgICAg
-IC0tLT5zaHJpbmtfbm9kZQ0KPiA+ID4gICAgICAgIC0tLT4gc2hyaW5rX25vZGVfbWVtY2cNCj4g
-PiA+ICAgICAgICAgIC0tLT4gc2hyaW5rX2xpc3QgICAgICAgICAgPC0tLS0tLS1sb29wIHdpbGwg
-aGFwcGVuIGluIHRoaXMgcGxhY2UNCj4gPiBbdGltZXM9MTAyNC8zMl0NCj4gPiA+ICAgICAgICAg
-ICAgLS0tPiBzaHJpbmtfcGFnZV9saXN0DQo+ID4NCj4gPiBDYW4geW91IGFjdHVhbGx5IG1lYXN1
-cmUgdGhpcyB0byBiZSB0aGUgY3VscHJpdC4gQmVjYXVzZSB3ZSBzaG91bGQNCj4gPiByZXRoaW5r
-IG91ciBjYWxsIHBhdGggaWYgaXQgaXMgdG9vIGNvbXBsaWNhdGVkL2RlZXAgdG8gcGVyZm9ybSB3
-ZWxsLg0KPiA+IEFkZGluZyBhcmJpdHJhcnkgYmF0Y2ggc2l6ZXMgZG9lc24ndCBzb3VuZCBsaWtl
-IGEgZ29vZCB3YXkgdG8gZ28gdG8gbWUuDQo+IA0KPiBPaywgSSB3aWxsIHRyeQ0KPiANCmh0dHA6
-Ly9wYXN0ZWQuY28vNGVkYmNmZmYNCg0KVGhpcyBpcyByZXN1bHQgZnJvbSBmdHJhY2UgZ3JhcGgs
-IGl0IG1heWJlIHByb3ZlIHRoYXQgdGhlIGRlZXAgY2FsbCBwYXRoIGxlYWRzIHRvIGxvdyBwZXJm
-b3JtYW5jZS4NCg0KQW5kIHdoZW4gaW5jcmVhc2UgcmVjbGFpbWluZyBwYWdlIGluIHRyeV90b19m
-cmVlX21lbV9jZ3JvdXBfcGFnZXMsIGl0IGNhbiByZWR1Y2UgY2FsbGluZyBvZiBzaHJpbmtfc2xh
-Yiwgd2hpY2ggc2F2ZSB0aW1lcywgaW4gbXkgY2FzZXMsIHBhZ2UgY2FjaGVzIG9jY3VweSBtb3N0
-IG1lbW9yeSwgc2xhYiBpcyBsaXR0bGUsIGJ1dCBzaHJpbmtfc2xhYiB3aWxsIGJlIGNhbGxlZCBl
-dmVyeXRpbWUNCg0KTXV0ZXhfbG9jayAxIHVzDQoNCnRyeV90b19mcmVlX21lbV9jZ3JvdXBfcGFn
-ZXMNCiAgZG9fdHJ5X3RvX2ZyZWVfcGFnZXMgISAxODUuMDIwIHVzDQogICAgc2hyaW5rX25vZGUg
-ICEgMTE2LjUyOSB1cw0KICAgICAgc2hyaW5rX25vZGVfbWVtY2cgICAzOS4yMDMNCiAgICAgICAg
-ICBzaHJpbmtfaW5hY3RpdmVfbGlzdCAgMzMuOTYwDQogICAgICBzaHJpbmtfc2xhYiAgIDcyLjk1
-NQ0KDQogICAgc2hyaW5rX25vZGUgIDYxLjUwMiB1cw0KICAgICAgc2hyaW5rX25vZGVfbWVtY2cg
-ICAzLjk1NQ0KICAgICAgc2hyaW5rX3NsYWIgICA1NC4yOTYgdXMNCg0KLVJvbmdRaW5nDQoNCj4g
-LVJvbmdRaW5nDQo+ID4gLS0NCj4gPiBNaWNoYWwgSG9ja28NCj4gPiBTVVNFIExhYnMNCg==
+a?? 2018-03-22a??c?? 22:21 +0000i 1/4 ?James Hogana??e??i 1/4 ?
+> On Fri, Mar 16, 2018 at 03:55:16PM +0800, Huacai Chen wrote:
+> > diff --git a/arch/mips/boot/compressed/decompress.c
+> > b/arch/mips/boot/compressed/decompress.c
+> > index fdf99e9..5ba431c 100644
+> > --- a/arch/mips/boot/compressed/decompress.c
+> > +++ b/arch/mips/boot/compressed/decompress.c
+> > @@ -78,11 +78,6 @@ void error(char *x)
+> >  
+> >  unsigned long __stack_chk_guard;
+> 
+> ...
+> 
+> > diff --git a/arch/mips/boot/compressed/head.S
+> > b/arch/mips/boot/compressed/head.S
+> > index 409cb48..00d0ee0 100644
+> > --- a/arch/mips/boot/compressed/head.S
+> > +++ b/arch/mips/boot/compressed/head.S
+> > @@ -32,6 +32,10 @@ start:
+> >  	bne	a2, a0, 1b
+> >  	 addiu	a0, a0, 4
+> >  
+> > +	PTR_LA	a0, __stack_chk_guard
+> > +	PTR_LI	a1, 0x000a0dff
+> > +	sw	a1, 0(a0)
+> 
+
+Hi James
+
+Huacai Can't reply this mail. His chenhc@lemote.com is blcoked by
+Linux-MIPS mailing list while his Gmail didn't receive this email, so
+I'm replying for him.
+
+> Should that not be LONG_S? Otherwise big endian MIPS64 would get a
+> word-swapped canary (which is probably mostly harmless, but still).
+
+Yes, he said it's considerable.
+
+> 
+> Also I think it worth mentioning in the commit message the MIPS
+> configuration you hit this with, presumably a Loongson one? For me
+> decompress_kernel() gets a stack guard on loongson3_defconfig, but
+> not
+> malta_defconfig or malta_defconfig + 64-bit. I presume its sensitive
+> to
+> the compiler inlining stuff into decompress_kernel() or something
+> such
+> that it suddenly qualifies for a stack guard.
+
+Have you tested with CONFIG_CC_STACKPROTECTOR_STRONG=y ?
+Huacai reproduced the issue by this[1] config with GCC 4.9.
+
+[1] https://github.com/loongson-community/linux-stable/blob/rebase-4.14
+/arch/mips/configs/loongson3_defconfig
+
+> 
+> Cheers
+> James
