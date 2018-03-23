@@ -1,84 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ACB936B0023
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 23:51:15 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id y82-v6so2383078lfc.7
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 20:51:15 -0700 (PDT)
-Received: from forward106p.mail.yandex.net (forward106p.mail.yandex.net. [77.88.28.109])
-        by mx.google.com with ESMTPS id z4si2805444ljz.315.2018.03.22.20.51.10
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4451E6B0012
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 03:57:43 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id k4-v6so7164717pls.15
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 00:57:43 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x3sor2014177pge.167.2018.03.23.00.57.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 20:51:10 -0700 (PDT)
-Message-ID: <1521777055.1510.9.camel@flygoat.com>
-Subject: Re: [PATCH V3] ZBOOT: fix stack protector in compressed boot phase
-From: Jiaxun Yang <jiaxun.yang@flygoat.com>
-Date: Fri, 23 Mar 2018 11:50:55 +0800
-In-Reply-To: <20180322222107.GJ13126@saruman>
-References: <1521186916-13745-1-git-send-email-chenhc@lemote.com>
-	 <20180322222107.GJ13126@saruman>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (Google Transport Security);
+        Fri, 23 Mar 2018 00:57:42 -0700 (PDT)
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Subject: [PATCH v1] mm: help the ALLOC_HARDER allocation pass the watermarki when CMA on
+Date: Fri, 23 Mar 2018 15:57:32 +0800
+Message-Id: <1521791852-7048-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Hogan <jhogan@kernel.org>, Huacai Chen <chenhc@lemote.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, stable@vger.kernel.org
+To: zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, vel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org
 
-a?? 2018-03-22a??c?? 22:21 +0000i 1/4 ?James Hogana??e??i 1/4 ?
-> On Fri, Mar 16, 2018 at 03:55:16PM +0800, Huacai Chen wrote:
-> > diff --git a/arch/mips/boot/compressed/decompress.c
-> > b/arch/mips/boot/compressed/decompress.c
-> > index fdf99e9..5ba431c 100644
-> > --- a/arch/mips/boot/compressed/decompress.c
-> > +++ b/arch/mips/boot/compressed/decompress.c
-> > @@ -78,11 +78,6 @@ void error(char *x)
-> >  
-> >  unsigned long __stack_chk_guard;
-> 
-> ...
-> 
-> > diff --git a/arch/mips/boot/compressed/head.S
-> > b/arch/mips/boot/compressed/head.S
-> > index 409cb48..00d0ee0 100644
-> > --- a/arch/mips/boot/compressed/head.S
-> > +++ b/arch/mips/boot/compressed/head.S
-> > @@ -32,6 +32,10 @@ start:
-> >  	bne	a2, a0, 1b
-> >  	 addiu	a0, a0, 4
-> >  
-> > +	PTR_LA	a0, __stack_chk_guard
-> > +	PTR_LI	a1, 0x000a0dff
-> > +	sw	a1, 0(a0)
-> 
+For the type of 'ALLOC_HARDER' page allocation, there is an express
+highway for the whole process which lead the allocation reach __rmqueue_xxx
+easier than other type.
+However, when CMA is enabled, the free_page within zone_watermark_ok() will
+be deducted for number the pages in CMA type, which may cause the watermark
+check fail, but there are possible enough HighAtomic or Unmovable and
+Reclaimable pages in the zone. So add 'alloc_harder' here to
+count CMA pages in to clean the obstacles on the way to the final.
 
-Hi James
+Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
+---
+ mm/page_alloc.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
-Huacai Can't reply this mail. His chenhc@lemote.com is blcoked by
-Linux-MIPS mailing list while his Gmail didn't receive this email, so
-I'm replying for him.
-
-> Should that not be LONG_S? Otherwise big endian MIPS64 would get a
-> word-swapped canary (which is probably mostly harmless, but still).
-
-Yes, he said it's considerable.
-
-> 
-> Also I think it worth mentioning in the commit message the MIPS
-> configuration you hit this with, presumably a Loongson one? For me
-> decompress_kernel() gets a stack guard on loongson3_defconfig, but
-> not
-> malta_defconfig or malta_defconfig + 64-bit. I presume its sensitive
-> to
-> the compiler inlining stuff into decompress_kernel() or something
-> such
-> that it suddenly qualifies for a stack guard.
-
-Have you tested with CONFIG_CC_STACKPROTECTOR_STRONG=y ?
-Huacai reproduced the issue by this[1] config with GCC 4.9.
-
-[1] https://github.com/loongson-community/linux-stable/blob/rebase-4.14
-/arch/mips/configs/loongson3_defconfig
-
-> 
-> Cheers
-> James
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 635d7dd..cc18620 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3045,8 +3045,11 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+ 
+ 
+ #ifdef CONFIG_CMA
+-	/* If allocation can't use CMA areas don't use free CMA pages */
+-	if (!(alloc_flags & ALLOC_CMA))
++	/*
++	 * If allocation can't use CMA areas and no alloc_harder set for none
++	 * order0 allocation, don't use free CMA pages.
++	 */
++	if (!(alloc_flags & ALLOC_CMA) && (!alloc_harder || !order))
+ 		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+ #endif
+ 
+-- 
+1.9.1
