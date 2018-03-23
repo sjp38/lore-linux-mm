@@ -1,196 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A0E916B0009
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 13:18:09 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id r204so5454171ywb.11
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 10:18:09 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 65-v6si1592870ybq.515.2018.03.23.10.18.08
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EE9236B0003
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 13:25:20 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id u18-v6so1460840lfc.5
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 10:25:20 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u2sor2449321lju.66.2018.03.23.10.25.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Mar 2018 10:18:08 -0700 (PDT)
-From: jglisse@redhat.com
-Subject: [RFC PATCH 3/3] mm/mmu_notifier: keep track of ranges being invalidated
-Date: Fri, 23 Mar 2018 13:17:48 -0400
-Message-Id: <20180323171748.20359-4-jglisse@redhat.com>
-In-Reply-To: <20180323171748.20359-1-jglisse@redhat.com>
-References: <20180323171748.20359-1-jglisse@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        (Google Transport Security);
+        Fri, 23 Mar 2018 10:25:18 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
+Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
+From: Ilya Smith <blackzert@gmail.com>
+In-Reply-To: <20180322135729.dbfd3575819c92c0f88c5c21@linux-foundation.org>
+Date: Fri, 23 Mar 2018 20:25:15 +0300
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <C43F853F-6B54-42DF-AEF2-64B22DAB8A1D@gmail.com>
+References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
+ <20180322135729.dbfd3575819c92c0f88c5c21@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, David Rientjes <rientjes@google.com>, Joerg Roedel <joro@8bytes.org>, Dan Williams <dan.j.williams@intel.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Michal Hocko <mhocko@suse.com>, Leon Romanovsky <leonro@mellanox.com>, Artemy Kovalyov <artemyko@mellanox.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Alex Deucher <alexander.deucher@amd.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, jhogan@kernel.org, ralf@linux-mips.org, jejb@parisc-linux.org, Helge Deller <deller@gmx.de>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, mhocko@suse.com, hughd@google.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, steve.capper@arm.com, punit.agrawal@arm.com, paul.burton@mips.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, keescook@chromium.org, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, jglisse@redhat.com, willy@infradead.org, aarcange@redhat.com, oleg@redhat.com, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
 
-From: JA(C)rA'me Glisse <jglisse@redhat.com>
+Hello, Andrew
 
-This keep a list of all virtual address range being invalidated (ie inside
-a mmu_notifier_invalidate_range_start/end section). Also add an helper to
-check if a range is under going such invalidation. With this it easy for a
-concurrent thread to ignore invalidation that do not affect the virtual
-address range it is working on.
+Thanks for reading this patch.
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joerg Roedel <joro@8bytes.org>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Christian KA?nig <christian.koenig@amd.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Leon Romanovsky <leonro@mellanox.com>
-Cc: Artemy Kovalyov <artemyko@mellanox.com>
-Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
-Cc: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Mark Hairgrove <mhairgrove@nvidia.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
-Cc: Dennis Dalessandro <dennis.dalessandro@intel.com>
-Cc: Alex Deucher <alexander.deucher@amd.com>
-Cc: Sudeep Dutt <sudeep.dutt@intel.com>
-Cc: Ashutosh Dixit <ashutosh.dixit@intel.com>
-Cc: Dimitri Sivanich <sivanich@sgi.com>
----
- include/linux/mmu_notifier.h | 38 ++++++++++++++++++++++++++++++++++++++
- mm/mmu_notifier.c            | 28 ++++++++++++++++++++++++++++
- 2 files changed, 66 insertions(+)
+> On 22 Mar 2018, at 23:57, Andrew Morton <akpm@linux-foundation.org> =
+wrote:
+>=20
+> On Thu, 22 Mar 2018 19:36:36 +0300 Ilya Smith <blackzert@gmail.com> =
+wrote:
+>=20
+>> Current implementation doesn't randomize address returned by mmap.
+>> All the entropy ends with choosing mmap_base_addr at the process
+>> creation. After that mmap build very predictable layout of address
+>> space. It allows to bypass ASLR in many cases.
+>=20
+> Perhaps some more effort on the problem description would help.  *Are*
+> people predicting layouts at present?  What problems does this cause?=20=
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index e59db7a1e86d..4bda68499f43 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -47,16 +47,20 @@ struct mmu_notifier_mm {
- 	struct hlist_head list;
- 	/* to serialize the list modifications and hlist_unhashed */
- 	spinlock_t lock;
-+	/* list of all active invalidation range */
-+	struct list_head ranges;
- };
- 
- /*
-  * struct mmu_notifier_range - range being invalidated with range_start/end
-+ * @list: use to track list of active invalidation
-  * @mm: mm_struct invalidation is against
-  * @start: start address of range (inclusive)
-  * @end: end address of range (exclusive)
-  * @event: type of invalidation (see enum mmu_notifier_event)
-  */
- struct mmu_notifier_range {
-+	struct list_head list;
- 	struct mm_struct *mm;
- 	unsigned long start;
- 	unsigned long end;
-@@ -268,6 +272,9 @@ extern void __mmu_notifier_invalidate_range_end(
- extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
- extern bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm);
-+extern bool __mmu_notifier_range_valid(struct mm_struct *mm,
-+				       unsigned long start,
-+				       unsigned long end);
- 
- static inline void mmu_notifier_release(struct mm_struct *mm)
- {
-@@ -275,6 +282,24 @@ static inline void mmu_notifier_release(struct mm_struct *mm)
- 		__mmu_notifier_release(mm);
- }
- 
-+static inline bool mmu_notifier_range_valid(struct mm_struct *mm,
-+					    unsigned long start,
-+					    unsigned long end)
-+{
-+	if (mm_has_notifiers(mm))
-+		return __mmu_notifier_range_valid(mm, start, end);
-+	return false;
-+}
-+
-+static inline bool mmu_notifier_addr_valid(struct mm_struct *mm,
-+					   unsigned long addr)
-+{
-+	addr &= PAGE_MASK;
-+	if (mm_has_notifiers(mm))
-+		return __mmu_notifier_range_valid(mm, addr, addr + PAGE_SIZE);
-+	return false;
-+}
-+
- static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 					  unsigned long start,
- 					  unsigned long end)
-@@ -487,6 +512,19 @@ static inline void mmu_notifier_release(struct mm_struct *mm)
- {
- }
- 
-+static inline bool mmu_notifier_range_valid(struct mm_struct *mm,
-+					    unsigned long start,
-+					    unsigned long end)
-+{
-+	return true;
-+}
-+
-+static inline bool mmu_notifier_addr_valid(struct mm_struct *mm,
-+					   unsigned long addr)
-+{
-+	return true;
-+}
-+
- static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 					  unsigned long start,
- 					  unsigned long end)
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 91a614b9636e..d7c46eaa5d42 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -180,6 +180,10 @@ void __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
- 	struct mmu_notifier *mn;
- 	int id;
- 
-+	spin_lock(&mm->mmu_notifier_mm->lock);
-+	list_add_rcu(&range->list, &mm->mmu_notifier_mm->ranges);
-+	spin_unlock(&mm->mmu_notifier_mm->lock);
-+
- 	id = srcu_read_lock(&srcu);
- 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
- 		if (mn->ops->invalidate_range_start)
-@@ -218,6 +222,10 @@ void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range,
- 			mn->ops->invalidate_range_end(mn, range);
- 	}
- 	srcu_read_unlock(&srcu, id);
-+
-+	spin_lock(&mm->mmu_notifier_mm->lock);
-+	list_del_rcu(&range->list);
-+	spin_unlock(&mm->mmu_notifier_mm->lock);
- }
- EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_end);
- 
-@@ -288,6 +296,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 		goto out_clean;
- 
- 	if (!mm_has_notifiers(mm)) {
-+		INIT_LIST_HEAD(&mmu_notifier_mm->ranges);
- 		INIT_HLIST_HEAD(&mmu_notifier_mm->list);
- 		spin_lock_init(&mmu_notifier_mm->lock);
- 
-@@ -424,3 +433,22 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
- 	mmdrop(mm);
- }
- EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
-+
-+bool __mmu_notifier_range_valid(struct mm_struct *mm,
-+				unsigned long start,
-+				unsigned long end)
-+{
-+	struct mmu_notifier_range *range;
-+
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(range, &mm->mmu_notifier_mm->ranges, list) {
-+		if (end < range->start || start >= range->end)
-+			continue;
-+		rcu_read_unlock();
-+		return false;
-+	}
-+	rcu_read_unlock();
-+
-+	return true;
-+}
-+EXPORT_SYMBOL_GPL(__mmu_notifier_range_valid);
--- 
-2.14.3
+> How are they doing this and are there other approaches to solving the
+> problem?
+>=20
+Sorry, I=E2=80=99ve lost it in first version. In short - memory layout =
+could be easily=20
+repaired by single leakage. Also any Out of Bounds error may easily be=20=
+
+exploited according to current implementation. All because mmap choose =
+address=20
+just before previously allocated segment. You can read more about it =
+here:=20
+http://www.openwall.com/lists/oss-security/2018/02/27/5
+Some test are available here https://github.com/blackzert/aslur.=20
+To solve the problem Kernel should randomize address on any mmap so
+attacker could never easily gain needed addresses.
+
+> Mainly: what value does this patchset have to our users?  This reader
+> is unable to determine that from the information which you have
+> provided.  Full details, please.
+
+The value of this patch is to decrease successful rate of exploitation
+vulnerable applications.These could be either remote or local vectors.
