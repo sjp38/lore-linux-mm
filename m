@@ -1,88 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 454B36B0008
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 10:34:49 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id i11so6046470pgq.10
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 07:34:49 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
-        by mx.google.com with ESMTPS id t4si6746692pfh.290.2018.03.23.07.34.47
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F2DC6B0009
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:10:29 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id i64-v6so2090351ita.8
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 08:10:29 -0700 (PDT)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id y203-v6si6917499itc.51.2018.03.23.08.10.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 23 Mar 2018 07:34:47 -0700 (PDT)
-Date: Fri, 23 Mar 2018 07:34:35 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 3/4] mm: Add free()
-Message-ID: <20180323143435.GB5624@bombadil.infradead.org>
-References: <20180322195819.24271-1-willy@infradead.org>
- <20180322195819.24271-4-willy@infradead.org>
- <1e95ce64-828b-1214-a930-1ffaedfa00b8@rasmusvillemoes.dk>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Mar 2018 08:10:28 -0700 (PDT)
+Date: Fri, 23 Mar 2018 10:10:26 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.LRH.2.02.1803211613010.28365@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.DEB.2.20.1803230956420.4108@nuc-kabylake>
+References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake> <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake> <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake> <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211354170.13978@nuc-kabylake> <alpine.LRH.2.02.1803211500570.26409@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211508560.17257@nuc-kabylake> <alpine.LRH.2.02.1803211613010.28365@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1e95ce64-828b-1214-a930-1ffaedfa00b8@rasmusvillemoes.dk>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: linux-mm@kvack.org, Kirill Tkhai <ktkhai@virtuozzo.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
-On Fri, Mar 23, 2018 at 09:04:10AM +0100, Rasmus Villemoes wrote:
-> On 2018-03-22 20:58, Matthew Wilcox wrote:
-> > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > 
-> > free() can free many different kinds of memory.
-> 
-> I'd be a bit worried about using that name. gcc very much knows about
-> the C standard's definition of that function, as can be seen on
-> godbolt.org by compiling
-> 
-> void free(const void *);
-> void f(void)
-> {
->     free((void*)0);
-> }
-> 
-> with -O2 -Wall -Wextra -c. Anything from 4.6 onwards simply compiles this to
-> 
-> f:
->  repz retq
-> 
-> And sure, your free() implementation obviously also has that property,
-> but I'm worried that they might one day decide to warn about the
-> prototype mismatch (actually, I'm surprised it doesn't warn now, given
-> that it obviously pretends to know what free() function I'm calling...),
-> or make some crazy optimization that will break stuff in very subtle ways.
-> 
-> Also, we probably don't want people starting to use free() (or whatever
-> name is chosen) if they do know the kind of memory they're freeing?
-> Maybe it should not be advertised that widely (i.e., in kernel.h).
+On Wed, 21 Mar 2018, Mikulas Patocka wrote:
 
-All that you've said I see as an advantage, not a disadvantage.
-Maybe I should change the prototype to match the userspace
-free(), although gcc is deliberately lax about the constness of
-function arguments when determining compatibility with builtins.
-See match_builtin_function_types() if you're really curious.
+> > +	s->allocflags = allocflags;
+>
+> I'd also use "WRITE_ONCE(s->allocflags, allocflags)" here and when writing
+> s->oo and s->min to avoid some possible compiler misoptimizations.
 
-gcc already does some nice optimisations around free().  For example, it
-can eliminate dead stores:
+It only matters that 0 etc is never written.
 
-#include <stdlib.h>
+> Another problem is that it updates s->oo and later it updates s->max:
+>         s->oo = oo_make(order, size, s->reserved);
+>         s->min = oo_make(get_order(size), size, s->reserved);
+>         if (oo_objects(s->oo) > oo_objects(s->max))
+>                 s->max = s->oo;
+> --- so, the concurrently running code could see s->oo > s->max, which
+> could trigger some memory corruption.
 
-void f(char *foo)
-{
-	foo[1] = 3;
-	free(foo);
-}
+Well s->max is only relevant for code that analyses the details of slab
+structures for diagnostics.
 
-becomes:
+> s->max is only used in memory allocations -
+> kmalloc(BITS_TO_LONGS(oo_objects(s->max)) * sizeof(unsigned long)), so
+> perhaps we could fix the bug by removing s->max at all and always
+> allocating enough memory for the maximum possible number of objects?
+>
+> - kmalloc(BITS_TO_LONGS(oo_objects(s->max)) * sizeof(unsigned long), GFP_KERNEL);
+> + kmalloc(BITS_TO_LONGS(MAX_OBJS_PER_PAGE) * sizeof(unsigned long), GFP_KERNEL);
 
-0000000000000000 <f>:
-   0:	e9 00 00 00 00       	jmpq   5 <f+0x5>
-			1: R_X86_64_PLT32	free-0x4
+MAX_OBJS_PER_PAGE is 32k. So you are looking at contiguous allocations of
+256kbyte. Not good.
 
-You can see more things it knows about free() by grepping for
-BUILT_IN_FREE.  
+The simplest measure would be to disallow the changing of the order while
+the slab contains objects.
 
-I absolutely do want to see people using free() instead of kfree()
-if it's not important that the memory was kmalloced.  I wouldn't go
-through and change existing code, but I do want to see
-#define malloc(x) kvmalloc((x), GFP_KERNEL)
+
+Subject: slub: Disallow order changes when objects exist in a slab
+
+There seems to be a couple of races that would have to be
+addressed if the slab order would be changed during active use.
+
+Lets disallow this in the same way as we also do not allow
+other changes of slab characteristics when objects are active.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c
++++ linux/mm/slub.c
+@@ -4919,6 +4919,9 @@ static ssize_t order_store(struct kmem_c
+ 	unsigned long order;
+ 	int err;
+
++	if (any_slab_objects(s))
++		return -EBUSY;
++
+ 	err = kstrtoul(buf, 10, &order);
+ 	if (err)
+ 		return err;
