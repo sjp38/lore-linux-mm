@@ -1,54 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CDF376B002F
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 13:55:53 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id m16-v6so4198520lfc.0
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 10:55:53 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 60AAC6B0055
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 14:06:00 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id i201so1316661wmf.6
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:06:00 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d8sor1709388ljj.89.2018.03.23.10.55.52
+        by mx.google.com with SMTPS id a63sor2704817wmf.82.2018.03.23.11.05.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 23 Mar 2018 10:55:52 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
-Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
-From: Ilya Smith <blackzert@gmail.com>
-In-Reply-To: <20180323124806.GA5624@bombadil.infradead.org>
-Date: Fri, 23 Mar 2018 20:55:49 +0300
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <651E0DB6-4507-4DA1-AD46-9C26ED9792A8@gmail.com>
-References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
- <20180323124806.GA5624@bombadil.infradead.org>
+        Fri, 23 Mar 2018 11:05:58 -0700 (PDT)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [RFC PATCH v2 00/15] khwasan: kernel hardware assisted address sanitizer
+Date: Fri, 23 Mar 2018 19:05:36 +0100
+Message-Id: <cover.1521828273.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, ralf@linux-mips.org, jejb@parisc-linux.org, Helge Deller <deller@gmx.de>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, kstewart@linuxfoundation.org, pombredanne@nexb.com, Andrew Morton <akpm@linux-foundation.org>, steve.capper@arm.com, punit.agrawal@arm.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, Kees Cook <keescook@chromium.org>, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, ross.zwisler@linux.intel.com, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-alpha@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-snps-arc@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, "GitAuthor : Andrey Konovalov" <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Stephen Boyd <stephen.boyd@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+
+Hi! This is the 2nd RFC version of the patchset.
+
+This patchset adds a new mode to KASAN [1], which is called KHWASAN
+(Kernel HardWare assisted Address SANitizer). There's still some work to
+do and there are a few TODOs in the code, so I'm publishing this as an RFC
+to collect some initial feedback.
+
+The plan is to implement HWASan [2] for the kernel with the incentive,
+that it's going to have comparable to KASAN performance, but in the same
+time consume much less memory, trading that off for somewhat imprecise
+bug detection and being supported only for arm64.
+
+The overall idea of the approach used by KHWASAN is the following:
+
+1. By using the Top Byte Ignore arm64 CPU feature, we can store pointer
+   tags in the top byte of each kernel pointer.
+
+2. Using shadow memory, we can store memory tags for each chunk of kernel
+   memory.
+
+3. On each memory allocation, we can generate a random tag, embed it into
+   the returned pointer and set the memory tags that correspond to this
+   chunk of memory to the same value.
+
+4. By using compiler instrumentation, before each memory access we can add
+   a check that the pointer tag matches the tag of the memory that is being
+   accessed.
+
+5. On a tag mismatch we report an error.
+
+[1] https://www.kernel.org/doc/html/latest/dev-tools/kasan.html
+
+[2] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
 
 
-> On 23 Mar 2018, at 15:48, Matthew Wilcox <willy@infradead.org> wrote:
->=20
-> On Thu, Mar 22, 2018 at 07:36:36PM +0300, Ilya Smith wrote:
->> Current implementation doesn't randomize address returned by mmap.
->> All the entropy ends with choosing mmap_base_addr at the process
->> creation. After that mmap build very predictable layout of address
->> space. It allows to bypass ASLR in many cases. This patch make
->> randomization of address on any mmap call.
->=20
-> Why should this be done in the kernel rather than libc?  libc is =
-perfectly
-> capable of specifying random numbers in the first argument of mmap.
-Well, there is following reasons:
-1. It should be done in any libc implementation, what is not possible =
-IMO;
-2. User mode is not that layer which should be responsible for choosing
-random address or handling entropy;
-3. Memory fragmentation is unpredictable in this case
+====== Technical details
 
-Off course user mode could use random =E2=80=98hint=E2=80=99 address, =
-but kernel may
-discard this address if it is occupied for example and allocate just =
-before
-closest vma. So this solution doesn=E2=80=99t give that much security =
-like=20
-randomization address inside kernel.=
+KHWASAN is implemented in a very similar way to KASAN. This patchset
+essentially does the following:
+
+1. TCR_TBI1 is set to enable Top Byte Ignore.
+
+2. Shadow memory is used (with a different scale, 1:16, so each shadow
+   byte corresponds to 16 bytes of kernel memory) to store memory tags.
+
+3. All slab objects are aligned to shadow scale, which is 16 bytes.
+
+4. All pointers returned from the slab allocator are tagged with a random
+   tag and the corresponding shadow memory is poisoned with the same value.
+
+5. Compiler instrumentation is used to insert tag checks. Either by
+   calling callbacks or by inlining them (CONFIG_KASAN_OUTLINE and
+   CONFIG_KASAN_INLINE flags are reused).
+
+6. When a tag mismatch is detected in callback instrumentation mode
+   KHWASAN simply prints a bug report. In case of inline instrumentation,
+   clang inserts a brk instruction, and KHWASAN has it's own brk handler,
+   which reports the bug.
+
+7. The memory in between slab objects is marked with a reserved tag, and
+   acts as a redzone.
+
+8. When a slab object is freed it's marked with a reserved tag.
+
+Bug detection is imprecise for two reasons:
+
+1. We won't catch some small out-of-bounds accesses, that fall into the
+   same shadow cell, as the last byte of a slab object.
+
+2. We only have 1 byte to store tags, which means we have a 1/256
+   probability of a tag match for an incorrect access (actually even
+   slightly less due to reserved tag values).
+
+
+====== Benchmarks
+
+The following numbers were collected on Odroid C2 board. Both KASAN and
+KHWASAN were used in inline instrumentation mode. These are the numbers
+I got with the current prototype and they might change.
+
+Boot time [1]:
+* ~4.5 sec for clean kernel
+* ~5.0 sec for KASAN
+* ~5.1 sec for KHWASAN
+
+Slab memory usage after boot [2]:
+* ~32 kb for clean kernel
+* ~95 kb + 1/8th shadow ~= 107 kb for KASAN
+* ~38 kb + 1/16th shadow ~= 40 kb for KHWASAN
+
+Network performance [3]:
+* 11.9 Gbits/sec for clean kernel
+* 3.08 Gbits/sec for KASAN
+* 3.02 Gbits/sec for KHWASAN
+
+Note, that KHWASAN (compared to KASAN) doesn't require quarantine.
+
+[1] Time before the ext4 driver is initialized.
+[2] Measured as `cat /proc/meminfo | grep Slab`.
+[3] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
+
+
+====== Some notes
+
+A few notes:
+
+1. The patchset can be found here:
+   https://github.com/xairy/kasan-prototype/tree/khwasan
+
+2. Building requires a recent LLVM version (r325711 or later) with this
+   patch applied: https://reviews.llvm.org/D44827.
+
+3. Stack instrumentation is not supported yet (in progress).
+
+4. There are still a few TODOs in the code, that need to be addressed.
+
+
+====== Changes
+
+Changes in RFC v2:
+- Removed explicit casts to u8 * for kasan_mem_to_shadow() calls.
+- Introduced KASAN_TCR_FLAGS for setting the TCR_TBI1 flag.
+- Added a comment regarding the non-atomic RMW sequence in
+  khwasan_random_tag().
+- Made all tag related functions accept const void *.
+- Untagged pointers in __kimg_to_phys, which is used by virt_to_phys.
+- Untagged pointers in show_ptr in fault handling logic.
+- Untagged pointers passed to KVM.
+- Added two reserved tag values: 0xFF and 0xFE.
+- Used the reserved tag 0xFF to disable validity checking (to resolve the
+  issue with pointer tag being lost after page_address + kmap usage).
+- Used the reserved tag 0xFE to mark redzones and freed objects.
+- Added mnemonics for esr manipulation in KHWASAN brk handler.
+- Added a comment about the -recover flag.
+- Some minor cleanups and fixes.
+- Rebased onto 3215b9d5 (4.16-rc6+).
+- Tested on real hardware (Odroid C2 board).
+- Added better benchmarks.
+
+Andrey Konovalov (15):
+  khwasan, mm: change kasan hooks signatures
+  khwasan: move common kasan and khwasan code to common.c
+  khwasan: add CONFIG_KASAN_CLASSIC and CONFIG_KASAN_TAGS
+  khwasan, arm64: adjust shadow size for CONFIG_KASAN_TAGS
+  khwasan: initialize shadow to 0xff
+  khwasan, arm64: untag virt address in __kimg_to_phys
+  khwasan, arm64: fix up fault handling logic
+  khwasan: add tag related helper functions
+  khwasan, kvm: untag pointers in kern_hyp_va
+  khwasan, arm64: enable top byte ignore for the kernel
+  khwasan, mm: perform untagged pointers comparison in krealloc
+  khwasan: add bug reporting routines
+  khwasan: add hooks implementation
+  khwasan, arm64: add brk handler for inline instrumentation
+  khwasan: update kasan documentation
+
+ Documentation/dev-tools/kasan.rst      | 212 ++++++++------
+ arch/arm64/Kconfig                     |   1 +
+ arch/arm64/Makefile                    |   2 +-
+ arch/arm64/include/asm/brk-imm.h       |   2 +
+ arch/arm64/include/asm/kvm_mmu.h       |   8 +
+ arch/arm64/include/asm/memory.h        |  22 +-
+ arch/arm64/include/asm/pgtable-hwdef.h |   1 +
+ arch/arm64/kernel/traps.c              |  61 ++++
+ arch/arm64/mm/fault.c                  |   3 +
+ arch/arm64/mm/kasan_init.c             |  13 +-
+ arch/arm64/mm/proc.S                   |   9 +-
+ include/linux/compiler-clang.h         |   9 +-
+ include/linux/compiler-gcc.h           |   4 +
+ include/linux/compiler.h               |   3 +-
+ include/linux/kasan.h                  |  84 +++++-
+ lib/Kconfig.kasan                      |  68 +++--
+ mm/kasan/Makefile                      |   9 +-
+ mm/kasan/common.c                      | 325 +++++++++++++++++++++
+ mm/kasan/kasan.c                       | 302 +-------------------
+ mm/kasan/kasan.h                       |  33 +++
+ mm/kasan/khwasan.c                     | 372 +++++++++++++++++++++++++
+ mm/kasan/report.c                      |  88 +++++-
+ mm/slab.c                              |  12 +-
+ mm/slab.h                              |   2 +-
+ mm/slab_common.c                       |   6 +-
+ mm/slub.c                              |  18 +-
+ scripts/Makefile.kasan                 |  32 ++-
+ virt/kvm/arm/mmu.c                     |  20 +-
+ 28 files changed, 1266 insertions(+), 455 deletions(-)
+ create mode 100644 mm/kasan/common.c
+ create mode 100644 mm/kasan/khwasan.c
+
+-- 
+2.17.0.rc0.231.g781580f067-goog
