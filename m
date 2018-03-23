@@ -1,121 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 780246B0008
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 09:33:34 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id g61-v6so4437487plb.10
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 06:33:34 -0700 (PDT)
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10113.outbound.protection.outlook.com. [40.107.1.113])
-        by mx.google.com with ESMTPS id e4si6083328pgu.623.2018.03.23.06.33.32
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C3EB6B0008
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 09:42:04 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id z11-v6so7677352plo.21
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 06:42:04 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x8-v6si8273430pln.682.2018.03.23.06.42.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 23 Mar 2018 06:33:33 -0700 (PDT)
-Subject: Re: [PATCH 3/4] mm: Add free()
-References: <20180322195819.24271-1-willy@infradead.org>
- <20180322195819.24271-4-willy@infradead.org>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <6fd1bba1-e60c-e5b3-58be-52e991cda74f@virtuozzo.com>
-Date: Fri, 23 Mar 2018 16:33:24 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Mar 2018 06:42:03 -0700 (PDT)
+Date: Fri, 23 Mar 2018 14:42:00 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, vmscan, tracing: Use pointer to reclaim_stat struct
+ in trace event
+Message-ID: <20180323134200.GT23100@dhcp22.suse.cz>
+References: <20180322121003.4177af15@gandalf.local.home>
 MIME-Version: 1.0
-In-Reply-To: <20180322195819.24271-4-willy@infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180322121003.4177af15@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Alexei Starovoitov <ast@fb.com>
 
-Hi, Matthew,
+On Thu 22-03-18 12:10:03, Steven Rostedt wrote:
+> 
+> The trace event trace_mm_vmscan_lru_shrink_inactive() currently has 12
+> parameters! Seven of them are from the reclaim_stat structure. This
+> structure is currently local to mm/vmscan.c. By moving it to the global
+> vmstat.h header, we can also reference it from the vmscan tracepoints. In
+> moving it, it brings down the overhead of passing so many arguments to the
+> trace event. In the future, we may limit the number of arguments that a
+> trace event may pass (ideally just 6, but more realistically it may be 8).
 
-On 22.03.2018 22:58, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
+Yes, the number of parameter is large. struct reclaim_stat is an
+internal stuff so I didn't want to export it. I do not have strong
+objections to add it somewhere tracing can find it though.
+
+> Before this patch, the code to call the trace event is this:
 > 
-> free() can free many different kinds of memory.
+>  0f 83 aa fe ff ff       jae    ffffffff811e6261 <shrink_inactive_list+0x1e1>
+>  48 8b 45 a0             mov    -0x60(%rbp),%rax
+>  45 8b 64 24 20          mov    0x20(%r12),%r12d
+>  44 8b 6d d4             mov    -0x2c(%rbp),%r13d
+>  8b 4d d0                mov    -0x30(%rbp),%ecx
+>  44 8b 75 cc             mov    -0x34(%rbp),%r14d
+>  44 8b 7d c8             mov    -0x38(%rbp),%r15d
+>  48 89 45 90             mov    %rax,-0x70(%rbp)
+>  8b 83 b8 fe ff ff       mov    -0x148(%rbx),%eax
+>  8b 55 c0                mov    -0x40(%rbp),%edx
+>  8b 7d c4                mov    -0x3c(%rbp),%edi
+>  8b 75 b8                mov    -0x48(%rbp),%esi
+>  89 45 80                mov    %eax,-0x80(%rbp)
+>  65 ff 05 e4 f7 e2 7e    incl   %gs:0x7ee2f7e4(%rip)        # 15bd0 <__preempt_count>
+>  48 8b 05 75 5b 13 01    mov    0x1135b75(%rip),%rax        # ffffffff8231bf68 <__tracepoint_mm_vmscan_lru_shrink_inactive+0x28>
+>  48 85 c0                test   %rax,%rax
+>  74 72                   je     ffffffff811e646a <shrink_inactive_list+0x3ea>
+>  48 89 c3                mov    %rax,%rbx
+>  4c 8b 10                mov    (%rax),%r10
+>  89 f8                   mov    %edi,%eax
+>  48 89 85 68 ff ff ff    mov    %rax,-0x98(%rbp)
+>  89 f0                   mov    %esi,%eax
+>  48 89 85 60 ff ff ff    mov    %rax,-0xa0(%rbp)
+>  89 c8                   mov    %ecx,%eax
+>  48 89 85 78 ff ff ff    mov    %rax,-0x88(%rbp)
+>  89 d0                   mov    %edx,%eax
+>  48 89 85 70 ff ff ff    mov    %rax,-0x90(%rbp)
+>  8b 45 8c                mov    -0x74(%rbp),%eax
+>  48 8b 7b 08             mov    0x8(%rbx),%rdi
+>  48 83 c3 18             add    $0x18,%rbx
+>  50                      push   %rax
+>  41 54                   push   %r12
+>  41 55                   push   %r13
+>  ff b5 78 ff ff ff       pushq  -0x88(%rbp)
+>  41 56                   push   %r14
+>  41 57                   push   %r15
+>  ff b5 70 ff ff ff       pushq  -0x90(%rbp)
+>  4c 8b 8d 68 ff ff ff    mov    -0x98(%rbp),%r9
+>  4c 8b 85 60 ff ff ff    mov    -0xa0(%rbp),%r8
+>  48 8b 4d 98             mov    -0x68(%rbp),%rcx
+>  48 8b 55 90             mov    -0x70(%rbp),%rdx
+>  8b 75 80                mov    -0x80(%rbp),%esi
+>  41 ff d2                callq  *%r10
 > 
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> After the patch:
+> 
+>  0f 83 a8 fe ff ff       jae    ffffffff811e626d <shrink_inactive_list+0x1cd>
+>  8b 9b b8 fe ff ff       mov    -0x148(%rbx),%ebx
+>  45 8b 64 24 20          mov    0x20(%r12),%r12d
+>  4c 8b 6d a0             mov    -0x60(%rbp),%r13
+>  65 ff 05 f5 f7 e2 7e    incl   %gs:0x7ee2f7f5(%rip)        # 15bd0 <__preempt_count>
+>  4c 8b 35 86 5b 13 01    mov    0x1135b86(%rip),%r14        # ffffffff8231bf68 <__tracepoint_mm_vmscan_lru_shrink_inactive+0x28>
+>  4d 85 f6                test   %r14,%r14
+>  74 2a                   je     ffffffff811e6411 <shrink_inactive_list+0x371>
+>  49 8b 06                mov    (%r14),%rax
+>  8b 4d 8c                mov    -0x74(%rbp),%ecx
+>  49 8b 7e 08             mov    0x8(%r14),%rdi
+>  49 83 c6 18             add    $0x18,%r14
+>  4c 89 ea                mov    %r13,%rdx
+>  45 89 e1                mov    %r12d,%r9d
+>  4c 8d 45 b8             lea    -0x48(%rbp),%r8
+>  89 de                   mov    %ebx,%esi
+>  51                      push   %rcx
+>  48 8b 4d 98             mov    -0x68(%rbp),%rcx
+>  ff d0                   callq  *%rax
+> 
+> Link: http://lkml.kernel.org/r/2559d7cb-ec60-1200-2362-04fa34fd02bb@fb.com
+> 
+> Reported-by: Alexei Starovoitov <ast@fb.com>
+> Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  include/linux/kernel.h |  2 ++
->  mm/util.c              | 39 +++++++++++++++++++++++++++++++++++++++
->  2 files changed, 41 insertions(+)
+>  include/linux/vmstat.h        | 11 +++++++++++
+>  include/trace/events/vmscan.h | 24 +++++++++---------------
+>  mm/vmscan.c                   | 18 +-----------------
+>  3 files changed, 21 insertions(+), 32 deletions(-)
 > 
-> diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-> index 3fd291503576..8bb578938e65 100644
-> --- a/include/linux/kernel.h
-> +++ b/include/linux/kernel.h
-> @@ -933,6 +933,8 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
->  			 "pointer type mismatch in container_of()");	\
->  	((type *)(__mptr - offsetof(type, member))); })
+> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+> index a4c2317d8b9f..f25cef84b41d 100644
+> --- a/include/linux/vmstat.h
+> +++ b/include/linux/vmstat.h
+> @@ -20,6 +20,17 @@ extern int sysctl_vm_numa_stat_handler(struct ctl_table *table,
+>  		int write, void __user *buffer, size_t *length, loff_t *ppos);
+>  #endif
 >  
-> +void free(const void *);
+> +struct reclaim_stat {
+> +	unsigned nr_dirty;
+> +	unsigned nr_unqueued_dirty;
+> +	unsigned nr_congested;
+> +	unsigned nr_writeback;
+> +	unsigned nr_immediate;
+> +	unsigned nr_activate;
+> +	unsigned nr_ref_keep;
+> +	unsigned nr_unmap_fail;
+> +};
 > +
->  /* Rebuild everything on CONFIG_FTRACE_MCOUNT_RECORD */
->  #ifdef CONFIG_FTRACE_MCOUNT_RECORD
->  # define REBUILD_DUE_TO_FTRACE_MCOUNT_RECORD
-> diff --git a/mm/util.c b/mm/util.c
-> index dc4c7b551aaf..8aa2071059b0 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -26,6 +26,45 @@ static inline int is_kernel_rodata(unsigned long addr)
->  		addr < (unsigned long)__end_rodata;
+>  #ifdef CONFIG_VM_EVENT_COUNTERS
+>  /*
+>   * Light weight per cpu counter implementation.
+> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+> index e0b8b9173e1c..5a7435296d89 100644
+> --- a/include/trace/events/vmscan.h
+> +++ b/include/trace/events/vmscan.h
+> @@ -343,15 +343,9 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
+>  
+>  	TP_PROTO(int nid,
+>  		unsigned long nr_scanned, unsigned long nr_reclaimed,
+> -		unsigned long nr_dirty, unsigned long nr_writeback,
+> -		unsigned long nr_congested, unsigned long nr_immediate,
+> -		unsigned long nr_activate, unsigned long nr_ref_keep,
+> -		unsigned long nr_unmap_fail,
+> -		int priority, int file),
+> +		struct reclaim_stat *stat, int priority, int file),
+>  
+> -	TP_ARGS(nid, nr_scanned, nr_reclaimed, nr_dirty, nr_writeback,
+> -		nr_congested, nr_immediate, nr_activate, nr_ref_keep,
+> -		nr_unmap_fail, priority, file),
+> +	TP_ARGS(nid, nr_scanned, nr_reclaimed, stat, priority, file),
+>  
+>  	TP_STRUCT__entry(
+>  		__field(int, nid)
+> @@ -372,13 +366,13 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
+>  		__entry->nid = nid;
+>  		__entry->nr_scanned = nr_scanned;
+>  		__entry->nr_reclaimed = nr_reclaimed;
+> -		__entry->nr_dirty = nr_dirty;
+> -		__entry->nr_writeback = nr_writeback;
+> -		__entry->nr_congested = nr_congested;
+> -		__entry->nr_immediate = nr_immediate;
+> -		__entry->nr_activate = nr_activate;
+> -		__entry->nr_ref_keep = nr_ref_keep;
+> -		__entry->nr_unmap_fail = nr_unmap_fail;
+> +		__entry->nr_dirty = stat->nr_dirty;
+> +		__entry->nr_writeback = stat->nr_writeback;
+> +		__entry->nr_congested = stat->nr_congested;
+> +		__entry->nr_immediate = stat->nr_immediate;
+> +		__entry->nr_activate = stat->nr_activate;
+> +		__entry->nr_ref_keep = stat->nr_ref_keep;
+> +		__entry->nr_unmap_fail = stat->nr_unmap_fail;
+>  		__entry->priority = priority;
+>  		__entry->reclaim_flags = trace_shrink_flags(file);
+>  	),
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index bee53495a829..aaeb86642095 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -865,17 +865,6 @@ static void page_check_dirty_writeback(struct page *page,
+>  		mapping->a_ops->is_dirty_writeback(page, dirty, writeback);
 >  }
 >  
-> +/**
-> + * free() - Free memory
-> + * @ptr: Pointer to memory
-> + *
-> + * This function can free almost any type of memory.  It can safely be
-> + * called on:
-> + * * NULL pointers.
-> + * * Pointers to read-only data (will do nothing).
-> + * * Pointers to memory allocated from kmalloc().
-> + * * Pointers to memory allocated from kmem_cache_alloc().
-> + * * Pointers to memory allocated from vmalloc().
-> + * * Pointers to memory allocated from alloc_percpu().
-> + * * Pointers to memory allocated from __get_free_pages().
-> + * * Pointers to memory allocated from page_frag_alloc().
-> + *
-> + * It cannot free memory allocated by dma_pool_alloc() or dma_alloc_coherent().
-> + */
-> +void free(const void *ptr)
-> +{
-> +	struct page *page;
-> +
-> +	if (unlikely(ZERO_OR_NULL_PTR(ptr)))
-> +		return;
-> +	if (is_kernel_rodata((unsigned long)ptr))
-> +		return;
-> +
-> +	page = virt_to_head_page(ptr);
-> +	if (likely(PageSlab(page)))
-> +		return kmem_cache_free(page->slab_cache, (void *)ptr);
+> -struct reclaim_stat {
+> -	unsigned nr_dirty;
+> -	unsigned nr_unqueued_dirty;
+> -	unsigned nr_congested;
+> -	unsigned nr_writeback;
+> -	unsigned nr_immediate;
+> -	unsigned nr_activate;
+> -	unsigned nr_ref_keep;
+> -	unsigned nr_unmap_fail;
+> -};
+> -
+>  /*
+>   * shrink_page_list() returns the number of reclaimed pages
+>   */
+> @@ -1828,12 +1817,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  		wait_iff_congested(pgdat, BLK_RW_ASYNC, HZ/10);
+>  
+>  	trace_mm_vmscan_lru_shrink_inactive(pgdat->node_id,
+> -			nr_scanned, nr_reclaimed,
+> -			stat.nr_dirty,  stat.nr_writeback,
+> -			stat.nr_congested, stat.nr_immediate,
+> -			stat.nr_activate, stat.nr_ref_keep,
+> -			stat.nr_unmap_fail,
+> -			sc->priority, file);
+> +			nr_scanned, nr_reclaimed, &stat, sc->priority, file);
+>  	return nr_reclaimed;
+>  }
+>  
+> -- 
+> 2.13.6
+> 
 
-It seems slab_cache is not generic for all types of slabs. SLOB does not care about it:
-
-~/linux-next$ git grep -w slab_cache mm include | grep -v kasan
-include/linux/mm.h:	 * slab code uses page->slab_cache, which share storage with page->ptl.
-include/linux/mm_types.h:		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
-mm/slab.c:	return page->slab_cache;
-mm/slab.c:	cachep = page->slab_cache;
-mm/slab.c:	page->slab_cache = cache;
-mm/slab.c:	cachep = page->slab_cache;
-mm/slab.h:	cachep = page->slab_cache;
-mm/slub.c:	if (unlikely(s != page->slab_cache)) {
-mm/slub.c:		} else if (!page->slab_cache) {
-mm/slub.c:	page->slab_cache = s;
-mm/slub.c:	__free_slab(page->slab_cache, page);
-mm/slub.c:		df->s = page->slab_cache;
-mm/slub.c:	s = page->slab_cache;
-mm/slub.c:	return slab_ksize(page->slab_cache);
-mm/slub.c:	slab_free(page->slab_cache, page, object, NULL, 1, _RET_IP_);
-mm/slub.c:			p->slab_cache = s;
-mm/slub.c:			p->slab_cache = s;
-
-Also, using kmem_cache_free() for kmalloc()'ed memory will connect them hardly,
-and this may be difficult to maintain in the future. One more thing, there is
-some kasan checks on the main way of kfree(), and there is no guarantee they
-reflected in kmem_cache_free() identical.
-
-Maybe, we will use kfree() for now, and skip kmemcache free() support? If there is
-no different way to differ kmemcache memory from kmalloc()'ed memory, of course.
-
-Kirill
+-- 
+Michal Hocko
+SUSE Labs
