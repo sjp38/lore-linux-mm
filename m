@@ -1,50 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A469F6B0030
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 15:15:58 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id i127so5115203pgc.22
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 12:15:58 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0067.outbound.protection.outlook.com. [104.47.34.67])
-        by mx.google.com with ESMTPS id m10-v6si9966695pln.595.2018.03.23.12.15.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 23 Mar 2018 12:15:57 -0700 (PDT)
-From: Nadav Amit <namit@vmware.com>
-Subject: Re: [PATCH 05/11] x86/mm: do not auto-massage page protections
-Date: Fri, 23 Mar 2018 19:15:55 +0000
-Message-ID: <224464E0-1D3A-4ED8-88E0-A8E84C4265FC@vmware.com>
-References: <20180323174447.55F35636@viggo.jf.intel.com>
- <20180323174454.CD00F614@viggo.jf.intel.com>
-In-Reply-To: <20180323174454.CD00F614@viggo.jf.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <3B296758DCC6A84AADBA6B1318CE501A@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 376706B002E
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 15:21:13 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id v20so5635759ywh.5
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 12:21:13 -0700 (PDT)
+Received: from brightrain.aerifal.cx (216-12-86-13.cv.mvl.ntelos.net. [216.12.86.13])
+        by mx.google.com with ESMTP id n67si6281676qkc.359.2018.03.23.12.21.12
+        for <linux-mm@kvack.org>;
+        Fri, 23 Mar 2018 12:21:12 -0700 (PDT)
+Date: Fri, 23 Mar 2018 15:16:21 -0400
+From: Rich Felker <dalias@libc.org>
+Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
+Message-ID: <20180323191621.GC1436@brightrain.aerifal.cx>
+References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
+ <20180323124806.GA5624@bombadil.infradead.org>
+ <20180323180024.GB1436@brightrain.aerifal.cx>
+ <20180323190618.GA23763@bombadil.infradead.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180323190618.GA23763@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "keescook@google.com" <keescook@google.com>, "hughd@google.com" <hughd@google.com>, "jgross@suse.com" <jgross@suse.com>, "x86@kernel.org" <x86@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Ilya Smith <blackzert@gmail.com>, rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, jhogan@kernel.org, ralf@linux-mips.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, mhocko@suse.com, hughd@google.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, akpm@linux-foundation.org, steve.capper@arm.com, punit.agrawal@arm.com, paul.burton@mips.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, keescook@chromium.org, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, jglisse@redhat.com, aarcange@redhat.com, oleg@redhat.com, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
 
-RGF2ZSBIYW5zZW4gPGRhdmUuaGFuc2VuQGxpbnV4LmludGVsLmNvbT4gd3JvdGU6DQoNCj4gDQo+
-IEZyb206IERhdmUgSGFuc2VuIDxkYXZlLmhhbnNlbkBsaW51eC5pbnRlbC5jb20+DQo+IA0KPiBB
-IFBURSBpcyBjb25zdHJ1Y3RlZCBmcm9tIGEgcGh5c2ljYWwgYWRkcmVzcyBhbmQgYSBwZ3Byb3R2
-YWxfdC4NCj4gX19QQUdFX0tFUk5FTCwgZm9yIGluc3RhbmNlLCBpcyBhIHBncHJvdF90IGFuZCBt
-dXN0IGJlIGNvbnZlcnRlZA0KPiBpbnRvIGEgcGdwcm90dmFsX3QgYmVmb3JlIGl0IGNhbiBiZSB1
-c2VkIHRvIGNyZWF0ZSBhIFBURS4gIFRoaXMgaXMNCj4gZG9uZSBpbXBsaWNpdGx5IHdpdGhpbiBm
-dW5jdGlvbnMgbGlrZSBzZXRfcHRlKCkgYnkgbWFzc2FnZV9wZ3Byb3QoKS4NCj4gDQo+IEhvd2V2
-ZXIsIHRoaXMgbWFrZXMgaXQgdmVyeSBjaGFsbGVuZ2luZyB0byBzZXQgYml0cyAoYW5kIGtlZXAg
-dGhlbQ0KPiBzZXQpIGlmIHlvdXIgYml0IGlzIGJlaW5nIGZpbHRlcmVkIG91dCBieSBtYXNzYWdl
-X3BncHJvdCgpLg0KPiANCj4gVGhpcyBtb3ZlcyB0aGUgYml0IGZpbHRlcmluZyBvdXQgb2Ygc2V0
-X3B0ZSgpIGFuZCBmcmllbmRzLiAgRm9yDQoNCkkgZG9u4oCZdCBzZWUgdGhhdCBzZXRfcHRlKCkg
-ZmlsdGVycyB0aGUgYml0cywgc28gSSBhbSBjb25mdXNlZCBieSB0aGlzDQpzZW50ZW5jZS4uLg0K
-DQo+ICtzdGF0aWMgaW5saW5lIHBncHJvdHZhbF90IGNoZWNrX3BncHJvdChwZ3Byb3RfdCBwZ3By
-b3QpDQo+ICt7DQo+ICsJcGdwcm90dmFsX3QgbWFzc2FnZWRfdmFsID0gbWFzc2FnZV9wZ3Byb3Qo
-cGdwcm90KTsNCj4gKw0KPiArCS8qIG1tZGVidWcuaCBjYW4gbm90IGJlIGluY2x1ZGVkIGhlcmUg
-YmVjYXVzZSBvZiBkZXBlbmRlbmNpZXMgKi8NCj4gKyNpZmRlZiBDT05GSUdfREVCVUdfVk0NCj4g
-KwlXQVJOX09OQ0UocGdwcm90X3ZhbChwZ3Byb3QpICE9IG1hc3NhZ2VkX3ZhbCwNCj4gKwkJICAi
-YXR0ZW1wdGVkIHRvIHNldCB1bnN1cHBvcnRlZCBwZ3Byb3Q6ICUwMTZseCAiDQo+ICsJCSAgImJp
-dHM6ICUwMTZseCBzdXBwb3J0ZWQ6ICUwMTZseFxuIiwNCj4gKwkJICBwZ3Byb3RfdmFsKHBncHJv
-dCksDQo+ICsJCSAgcGdwcm90X3ZhbChwZ3Byb3QpIF4gbWFzc2FnZWRfdmFsLA0KPiArCQkgIF9f
-c3VwcG9ydGVkX3B0ZV9tYXNrKTsNCj4gKyNlbmRpZg0KV2h5IG5vdCB0byB1c2UgVk1fV0FSTl9P
-Tl9PTkNFKCkgYW5kIGF2b2lkIHRoZSBpZmRlZj8NCg0K
+On Fri, Mar 23, 2018 at 12:06:18PM -0700, Matthew Wilcox wrote:
+> On Fri, Mar 23, 2018 at 02:00:24PM -0400, Rich Felker wrote:
+> > On Fri, Mar 23, 2018 at 05:48:06AM -0700, Matthew Wilcox wrote:
+> > > On Thu, Mar 22, 2018 at 07:36:36PM +0300, Ilya Smith wrote:
+> > > > Current implementation doesn't randomize address returned by mmap.
+> > > > All the entropy ends with choosing mmap_base_addr at the process
+> > > > creation. After that mmap build very predictable layout of address
+> > > > space. It allows to bypass ASLR in many cases. This patch make
+> > > > randomization of address on any mmap call.
+> > > 
+> > > Why should this be done in the kernel rather than libc?  libc is perfectly
+> > > capable of specifying random numbers in the first argument of mmap.
+> > 
+> > Generally libc does not have a view of the current vm maps, and thus
+> > in passing "random numbers", they would have to be uniform across the
+> > whole vm space and thus non-uniform once the kernel rounds up to avoid
+> > existing mappings.
+> 
+> I'm aware that you're the musl author, but glibc somehow manages to
+> provide etext, edata and end, demonstrating that it does know where at
+> least some of the memory map lies.
+
+Yes, but that's pretty minimal info.
+
+> Virtually everything after that is
+> brought into the address space via mmap, which at least glibc intercepts,
+
+There's also vdso, the program interpreter (ldso), and theoretically
+other things the kernel might add. I agree you _could_ track most of
+this (and all if you want to open /proc/self/maps), but it seems
+hackish and wrong (violating clean boundaries between userspace and
+kernel responsibility).
+
+> > Also this would impose requirements that libc be
+> > aware of the kernel's use of the virtual address space and what's
+> > available to userspace -- for example, on 32-bit archs whether 2GB,
+> > 3GB, or full 4GB (for 32-bit-user-on-64-bit-kernel) is available, and
+> > on 64-bit archs where fewer than the full 64 bits are actually valid
+> > in addresses, what the actual usable pointer size is. There is
+> > currently no clean way of conveying this information to userspace.
+> 
+> Huh, I thought libc was aware of this.  Also, I'd expect a libc-based
+> implementation to restrict itself to, eg, only loading libraries in
+> the bottom 1GB to avoid applications who want to map huge things from
+> running out of unfragmented address space.
+
+That seems like a rather arbitrary expectation and I'm not sure why
+you'd expect it to result in less fragmentation rather than more. For
+example if it started from 1GB and worked down, you'd immediately
+reduce the contiguous free space from ~3GB to ~2GB, and if it started
+from the bottom and worked up, brk would immediately become
+unavailable, increasing mmap pressure elsewhere.
+
+Rich
