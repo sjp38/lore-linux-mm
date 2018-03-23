@@ -1,306 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A9E4C6B0011
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:20:10 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id d5so6760656pfn.12
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 08:20:10 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0133.outbound.protection.outlook.com. [104.47.0.133])
-        by mx.google.com with ESMTPS id k78si7044386pfb.272.2018.03.23.08.20.08
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E5556B000C
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:31:58 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 29so8092449qto.10
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 08:31:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id g6si689576qto.11.2018.03.23.08.31.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 23 Mar 2018 08:20:09 -0700 (PDT)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH v2 4/4] mm/vmscan: Don't mess with pgdat->flags in memcg reclaim.
-Date: Fri, 23 Mar 2018 18:20:29 +0300
-Message-Id: <20180323152029.11084-5-aryabinin@virtuozzo.com>
-In-Reply-To: <20180323152029.11084-1-aryabinin@virtuozzo.com>
-References: <20180323152029.11084-1-aryabinin@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Mar 2018 08:31:57 -0700 (PDT)
+Date: Fri, 23 Mar 2018 11:31:54 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.DEB.2.20.1803230956420.4108@nuc-kabylake>
+Message-ID: <alpine.LRH.2.02.1803231113410.22626@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com> <20180320173512.GA19669@bombadil.infradead.org> <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake> <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake> <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake> <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211354170.13978@nuc-kabylake> <alpine.LRH.2.02.1803211500570.26409@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211508560.17257@nuc-kabylake> <alpine.LRH.2.02.1803211613010.28365@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803230956420.4108@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
 
-memcg reclaim may alter pgdat->flags based on the state of LRU lists
-in cgroup and its children. PGDAT_WRITEBACK may force kswapd to sleep
-congested_wait(), PGDAT_DIRTY may force kswapd to writeback filesystem
-pages. But the worst here is PGDAT_CONGESTED, since it may force all
-direct reclaims to stall in wait_iff_congested(). Note that only kswapd
-have powers to clear any of these bits. This might just never happen if
-cgroup limits configured that way. So all direct reclaims will stall
-as long as we have some congested bdi in the system.
 
-Leave all pgdat->flags manipulations to kswapd. kswapd scans the whole
-pgdat, only kswapd can clear pgdat->flags once node is balance, thus
-it's reasonable to leave all decisions about node state to kswapd.
 
-Moving pgdat->flags manipulation to kswapd, means that cgroup2 recalim
-now loses its congestion throttling mechanism. Add per-cgroup congestion
-state and throttle cgroup2 reclaimers if memcg is in congestion state.
+On Fri, 23 Mar 2018, Christopher Lameter wrote:
 
-Currently there is no need in per-cgroup PGDAT_WRITEBACK and PGDAT_DIRTY
-bits since they alter only kswapd behavior.
+> On Wed, 21 Mar 2018, Mikulas Patocka wrote:
+> 
+> > > +	s->allocflags = allocflags;
+> >
+> > I'd also use "WRITE_ONCE(s->allocflags, allocflags)" here and when writing
+> > s->oo and s->min to avoid some possible compiler misoptimizations.
+> 
+> It only matters that 0 etc is never written.
 
-The problem could be easily demonstrated by creating heavy congestion
-in one cgroup:
+The C11 standard says that reads and writes of the same variable should't 
+race (even if you write the same value as before), and consequently, the 
+compiler can make transformations based on this assumption. For example, 
+the compiler optimization may transform the following code
 
-    echo "+memory" > /sys/fs/cgroup/cgroup.subtree_control
-    mkdir -p /sys/fs/cgroup/congester
-    echo 512M > /sys/fs/cgroup/congester/memory.max
-    echo $$ > /sys/fs/cgroup/congester/cgroup.procs
-    /* generate a lot of diry data on slow HDD */
-    while true; do dd if=/dev/zero of=/mnt/sdb/zeroes bs=1M count=1024; done &
-    ....
-    while true; do dd if=/dev/zero of=/mnt/sdb/zeroes bs=1M count=1024; done &
+>       allocflags = 0;
+>       if (order)
+>               allocflags |= __GFP_COMP;
+>       if (s->flags & SLAB_CACHE_DMA)
+>               allocflags |= GFP_DMA;
+>       if (s->flags & SLAB_RECLAIM_ACCOUNT)
+>               allocflags |= __GFP_RECLAIMABLE;
+>       s->allocflags = allocflags;
 
-and some job in another cgroup:
+back into:
+>	s->allocflags = 0;
+>	if (order)
+>		s->allocflags |= __GFP_COMP;
+>	if (s->flags & SLAB_CACHE_DMA)
+>		s->allocflags |= GFP_DMA;
+>	if (s->flags & SLAB_RECLAIM_ACCOUNT)
+>		s->allocflags |= __GFP_RECLAIMABLE;
 
-    mkdir /sys/fs/cgroup/victim
-    echo 128M > /sys/fs/cgroup/victim/memory.max
+Afaik, gcc currently doesn't do this transformation, but it's better to 
+write standard-compliant code and use the macro WRITE_ONCE for variables 
+that may be concurrently read and written.
 
-    # time cat /dev/sda > /dev/null
-    real    10m15.054s
-    user    0m0.487s
-    sys     1m8.505s
+> > Another problem is that it updates s->oo and later it updates s->max:
+> >         s->oo = oo_make(order, size, s->reserved);
+> >         s->min = oo_make(get_order(size), size, s->reserved);
+> >         if (oo_objects(s->oo) > oo_objects(s->max))
+> >                 s->max = s->oo;
+> > --- so, the concurrently running code could see s->oo > s->max, which
+> > could trigger some memory corruption.
+> 
+> Well s->max is only relevant for code that analyses the details of slab
+> structures for diagnostics.
+> 
+> > s->max is only used in memory allocations -
+> > kmalloc(BITS_TO_LONGS(oo_objects(s->max)) * sizeof(unsigned long)), so
+> > perhaps we could fix the bug by removing s->max at all and always
+> > allocating enough memory for the maximum possible number of objects?
+> >
+> > - kmalloc(BITS_TO_LONGS(oo_objects(s->max)) * sizeof(unsigned long), GFP_KERNEL);
+> > + kmalloc(BITS_TO_LONGS(MAX_OBJS_PER_PAGE) * sizeof(unsigned long), GFP_KERNEL);
+> 
+> MAX_OBJS_PER_PAGE is 32k. So you are looking at contiguous allocations of
+> 256kbyte. Not good.
 
-According to the tracepoint in wait_iff_congested(), the 'cat' spent 50%
-of the time sleeping there.
+I think it's one bit per object, so the total size of the allocation is 
+4k. Allocating 4k shouldn't be a problem.
 
-With the patch, cat don't waste time anymore:
+> The simplest measure would be to disallow the changing of the order while
+> the slab contains objects.
+> 
+> 
+> Subject: slub: Disallow order changes when objects exist in a slab
+> 
+> There seems to be a couple of races that would have to be
+> addressed if the slab order would be changed during active use.
+> 
+> Lets disallow this in the same way as we also do not allow
+> other changes of slab characteristics when objects are active.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c
+> +++ linux/mm/slub.c
+> @@ -4919,6 +4919,9 @@ static ssize_t order_store(struct kmem_c
+>  	unsigned long order;
+>  	int err;
+> 
+> +	if (any_slab_objects(s))
+> +		return -EBUSY;
+> +
+>  	err = kstrtoul(buf, 10, &order);
+>  	if (err)
+>  		return err;
 
-    # time cat /dev/sda > /dev/null
-    real    5m32.911s
-    user    0m0.411s
-    sys     0m56.664s
+This test isn't locked against anything, so it may race with concurrent 
+allocation. "any_slab_objects" may return false and a new object in the 
+slab cache may appear immediatelly after that.
 
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
----
- include/linux/backing-dev.h |  2 +-
- include/linux/memcontrol.h  |  2 ++
- mm/backing-dev.c            | 19 ++++------
- mm/vmscan.c                 | 86 ++++++++++++++++++++++++++++++++-------------
- 4 files changed, 71 insertions(+), 38 deletions(-)
-
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index f8894dbc0b19..539a5cf94fe2 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -175,7 +175,7 @@ static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
- }
- 
- long congestion_wait(int sync, long timeout);
--long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout);
-+long wait_iff_congested(int sync, long timeout);
- 
- static inline bool bdi_cap_synchronous_io(struct backing_dev_info *bdi)
- {
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 4525b4404a9e..44422e1d3def 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -190,6 +190,8 @@ struct mem_cgroup {
- 	/* vmpressure notifications */
- 	struct vmpressure vmpressure;
- 
-+	unsigned long flags;
-+
- 	/*
- 	 * Should the accounting and control be hierarchical, per subtree?
- 	 */
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 2eba1f54b1d3..2fc3f38e4c4f 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -1055,23 +1055,18 @@ EXPORT_SYMBOL(congestion_wait);
- 
- /**
-  * wait_iff_congested - Conditionally wait for a backing_dev to become uncongested or a pgdat to complete writes
-- * @pgdat: A pgdat to check if it is heavily congested
-  * @sync: SYNC or ASYNC IO
-  * @timeout: timeout in jiffies
-  *
-- * In the event of a congested backing_dev (any backing_dev) and the given
-- * @pgdat has experienced recent congestion, this waits for up to @timeout
-- * jiffies for either a BDI to exit congestion of the given @sync queue
-- * or a write to complete.
-- *
-- * In the absence of pgdat congestion, cond_resched() is called to yield
-- * the processor if necessary but otherwise does not sleep.
-+ * In the event of a congested backing_dev (any backing_dev) this waits
-+ * for up to @timeout jiffies for either a BDI to exit congestion of the
-+ * given @sync queue or a write to complete.
-  *
-  * The return value is 0 if the sleep is for the full timeout. Otherwise,
-  * it is the number of jiffies that were still remaining when the function
-  * returned. return_value == timeout implies the function did not sleep.
-  */
--long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout)
-+long wait_iff_congested(int sync, long timeout)
- {
- 	long ret;
- 	unsigned long start = jiffies;
-@@ -1079,12 +1074,10 @@ long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout)
- 	wait_queue_head_t *wqh = &congestion_wqh[sync];
- 
- 	/*
--	 * If there is no congestion, or heavy congestion is not being
--	 * encountered in the current pgdat, yield if necessary instead
-+	 * If there is no congestion, yield if necessary instead
- 	 * of sleeping on the congestion queue
- 	 */
--	if (atomic_read(&nr_wb_congested[sync]) == 0 ||
--	    !test_bit(PGDAT_CONGESTED, &pgdat->flags)) {
-+	if (atomic_read(&nr_wb_congested[sync]) == 0) {
- 		cond_resched();
- 
- 		/* In case we scheduled, work out time remaining */
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2134b3ac8fa0..1e6e047e10fd 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -199,6 +199,18 @@ static bool sane_reclaim(struct scan_control *sc)
- #endif
- 	return false;
- }
-+
-+static void set_memcg_bit(enum pgdat_flags flag,
-+			struct mem_cgroup *memcg)
-+{
-+	set_bit(flag, &memcg->flags);
-+}
-+
-+static int test_memcg_bit(enum pgdat_flags flag,
-+			struct mem_cgroup *memcg)
-+{
-+	return test_bit(flag, &memcg->flags);
-+}
- #else
- static bool global_reclaim(struct scan_control *sc)
- {
-@@ -209,6 +221,17 @@ static bool sane_reclaim(struct scan_control *sc)
- {
- 	return true;
- }
-+
-+static inline void set_memcg_bit(enum pgdat_flags flag,
-+				struct mem_cgroup *memcg)
-+{
-+}
-+
-+static inline int test_memcg_bit(enum pgdat_flags flag,
-+				struct mem_cgroup *memcg)
-+{
-+	return 0;
-+}
- #endif
- 
- /*
-@@ -2472,6 +2495,12 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
- 	return true;
- }
- 
-+static bool pgdat_memcg_congested(pg_data_t *pgdat, struct mem_cgroup *memcg)
-+{
-+	return test_bit(PGDAT_CONGESTED, &pgdat->flags) ||
-+		(memcg && test_memcg_bit(PGDAT_CONGESTED, memcg));
-+}
-+
- static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- {
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
-@@ -2554,29 +2583,28 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 		if (sc->nr_reclaimed - nr_reclaimed)
- 			reclaimable = true;
- 
--		/*
--		 * If reclaim is isolating dirty pages under writeback, it
--		 * implies that the long-lived page allocation rate is exceeding
--		 * the page laundering rate. Either the global limits are not
--		 * being effective at throttling processes due to the page
--		 * distribution throughout zones or there is heavy usage of a
--		 * slow backing device. The only option is to throttle from
--		 * reclaim context which is not ideal as there is no guarantee
--		 * the dirtying process is throttled in the same way
--		 * balance_dirty_pages() manages.
--		 *
--		 * Once a node is flagged PGDAT_WRITEBACK, kswapd will count the
--		 * number of pages under pages flagged for immediate reclaim and
--		 * stall if any are encountered in the nr_immediate check below.
--		 */
--		if (sc->nr.writeback && sc->nr.writeback == sc->nr.file_taken)
--			set_bit(PGDAT_WRITEBACK, &pgdat->flags);
-+		if (current_is_kswapd()) {
-+			/*
-+			 * If reclaim is isolating dirty pages under writeback,
-+			 * it implies that the long-lived page allocation rate
-+			 * is exceeding the page laundering rate. Either the
-+			 * global limits are not being effective at throttling
-+			 * processes due to the page distribution throughout
-+			 * zones or there is heavy usage of a slow backing
-+			 * device. The only option is to throttle from reclaim
-+			 * context which is not ideal as there is no guarantee
-+			 * the dirtying process is throttled in the same way
-+			 * balance_dirty_pages() manages.
-+			 *
-+			 * Once a node is flagged PGDAT_WRITEBACK, kswapd will
-+			 * count the number of pages under pages flagged for
-+			 * immediate reclaim and stall if any are encountered
-+			 * in the nr_immediate check below.
-+			 */
-+			if (sc->nr.writeback &&
-+			    sc->nr.writeback == sc->nr.file_taken)
-+				set_bit(PGDAT_WRITEBACK, &pgdat->flags);
- 
--		/*
--		 * Legacy memcg will stall in page writeback so avoid forcibly
--		 * stalling here.
--		 */
--		if (sane_reclaim(sc)) {
- 			/*
- 			 * Tag a node as congested if all the dirty pages
- 			 * scanned were backed by a congested BDI and
-@@ -2599,6 +2627,14 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 				congestion_wait(BLK_RW_ASYNC, HZ/10);
- 		}
- 
-+		/*
-+		 * Legacy memcg will stall in page writeback so avoid forcibly
-+		 * stalling in wait_iff_congested().
-+		 */
-+		if (!global_reclaim(sc) && sane_reclaim(sc) &&
-+		    sc->nr.dirty && sc->nr.dirty == sc->nr.congested)
-+			set_memcg_bit(PGDAT_CONGESTED, root);
-+
- 		/*
- 		 * Stall direct reclaim for IO completions if underlying BDIs
- 		 * and node is congested. Allow kswapd to continue until it
-@@ -2606,8 +2642,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 		 * the LRU too quickly.
- 		 */
- 		if (!sc->hibernation_mode && !current_is_kswapd() &&
--		    current_may_throttle())
--			wait_iff_congested(pgdat, BLK_RW_ASYNC, HZ/10);
-+		   current_may_throttle() && pgdat_memcg_congested(pgdat, root))
-+			wait_iff_congested(BLK_RW_ASYNC, HZ/10);
- 
- 	} while (should_continue_reclaim(pgdat, sc->nr_reclaimed - nr_reclaimed,
- 					 sc->nr_scanned - nr_scanned, sc));
-@@ -3047,6 +3083,7 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
- 	 * the priority and make it zero.
- 	 */
- 	shrink_node_memcg(pgdat, memcg, &sc, &lru_pages);
-+	clear_bit(PGDAT_CONGESTED, &memcg->flags);
- 
- 	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
- 
-@@ -3092,6 +3129,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 	noreclaim_flag = memalloc_noreclaim_save();
- 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
- 	memalloc_noreclaim_restore(noreclaim_flag);
-+	clear_bit(PGDAT_CONGESTED, &memcg->flags);
- 
- 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
- 
--- 
-2.16.1
+Mikulas
