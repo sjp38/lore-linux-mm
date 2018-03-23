@@ -1,94 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 040056B0023
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 20:50:21 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id h89so6792039qtd.18
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 17:50:20 -0700 (PDT)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 212C46B0025
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 20:55:50 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id d7so6813909qtm.6
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 17:55:50 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 129si5186624qki.431.2018.03.22.17.50.19
+        by mx.google.com with ESMTPS id o188si5377643qkb.328.2018.03.22.17.55.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 17:50:19 -0700 (PDT)
-Date: Thu, 22 Mar 2018 20:50:17 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 04/15] mm/hmm: unregister mmu_notifier when last HMM
- client quit v2
-Message-ID: <20180323005017.GB5011@redhat.com>
-References: <20180320020038.3360-5-jglisse@redhat.com>
- <20180321181614.9968-1-jglisse@redhat.com>
- <a9ba54c5-a2d9-49f6-16ad-46b79525b93c@nvidia.com>
- <20180321234110.GK3214@redhat.com>
- <cbc9dcba-0707-e487-d360-f6f7c8d5cb23@nvidia.com>
- <20180322233715.GA5011@redhat.com>
- <b858d92a-3a38-bfff-fe66-697c64ea2053@nvidia.com>
+        Thu, 22 Mar 2018 17:55:49 -0700 (PDT)
+From: jglisse@redhat.com
+Subject: [PATCH 00/15] hmm: fixes and documentations v4
+Date: Thu, 22 Mar 2018 20:55:12 -0400
+Message-Id: <20180323005527.758-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <b858d92a-3a38-bfff-fe66-697c64ea2053@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-On Thu, Mar 22, 2018 at 05:13:14PM -0700, John Hubbard wrote:
-> On 03/22/2018 04:37 PM, Jerome Glisse wrote:
-> > On Thu, Mar 22, 2018 at 03:47:16PM -0700, John Hubbard wrote:
-> >> On 03/21/2018 04:41 PM, Jerome Glisse wrote:
-> >>> On Wed, Mar 21, 2018 at 04:22:49PM -0700, John Hubbard wrote:
-> >>>> On 03/21/2018 11:16 AM, jglisse@redhat.com wrote:
-> >>>>> From: Jerome Glisse <jglisse@redhat.com>
-> 
-> <snip>
-> 
-> >>>
-> >>> No this code is correct. hmm->mm is set after hmm struct is allocated
-> >>> and before it is public so no one can race with that. It is clear in
-> >>> hmm_mirror_unregister() under the write lock hence checking it here
-> >>> under that same lock is correct.
-> >>
-> >> Are you implying that code that calls hmm_mirror_register() should do 
-> >> it's own locking, to prevent simultaneous calls to that function? Because
-> >> as things are right now, multiple threads can arrive at this point. The
-> >> fact that mirror->hmm is not "public" is irrelevant; what matters is that
-> >>> 1 thread can change it simultaneously.
-> > 
-> > The content of struct hmm_mirror should not be modified by code outside
-> > HMM after hmm_mirror_register() and before hmm_mirror_unregister(). This
-> > is a private structure to HMM and the driver should not touch it, ie it
-> > should be considered as read only/const from driver code point of view.
-> 
-> Yes, that point is clear and obvious.
-> 
-> > 
-> > It is also expected (which was obvious to me) that driver only call once
-> > and only once hmm_mirror_register(), and only once hmm_mirror_unregister()
-> > for any given hmm_mirror struct. Note that driver can register multiple
-> > _different_ mirror struct to same mm or differents mm.
-> > 
-> > There is no need of locking on the driver side whatsoever as long as the
-> > above rules are respected. I am puzzle if they were not obvious :)
-> 
-> Those rules were not obvious. It's unusual to claim that register and unregister
-> can run concurrently, but regiser and register cannot. Let's please document
-> the rules a bit in the comments.
+From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-I am really surprise this was not obvious. All existing _register API
-in the kernel follow this. You register something once only and doing
-it twice for same structure (ie unique struct hmm_mirror *mirror pointer
-value) leads to serious bugs (doing so concurently or not).
+Fixes and improvement to HMM only impact HMM user. Changes since the
+last posting:
 
-For instance if you call mmu_notifier_register() twice (concurrently
-or not) with same pointer value for struct mmu_notifier *mn then bad
-thing will happen. Same for driver_register() but this one actualy
-have sanity check and complain loudly if that happens. I doubt there
-is any single *_register/unregister() in the kernel that does not
-follow this.
+Allow release callback to wait on any device driver workqueue which
+is processing fault without having to worry for deadlock. Some driver
+do call migrate_vma() from their page fault workqueue which itself
+will trigger calls to mmu_notifier callback. If we take and keep the
+HMM semaphore in write mode while calling device driver release call
+back then those can not wait on their page fault workqueue as the
+workqueue might end up deadlocking (waiting to be able to take the
+HMM semaphore in read mode). Avoid this by dropping HMM semaphore
+while calling the device driver release callback.
 
-Note that doing register/unregister concurrently for the same unique
-hmm_mirror struct is also illegal. However concurrent register and
-unregister of different hmm_mirror struct is legal and this is the
-reasons for races we were discussing.
+Other changes from previous post are solely typos fixes (in comment
+not in code), s/pfns/pfn for one function argument, and usual patch
+formatting fixes (also added review tag for review receive so far).
 
-Cheers,
-Jerome
+Below are previous cover letter (everything in them are still true):
+
+----------------------------------------------------------------------
+cover letter for v3:
+
+Added a patch to fix zombie mm_struct (missing call to mmu notifier
+unregister) this was lost in translation at some point. Included all
+typos and comments received so far (and even more typos fixes). Added
+more comments. Updated individual patch version to reflect changes.
+
+----------------------------------------------------------------------
+cover letter for v2:
+
+Removed pointless VM_BUG_ON() cced stable when appropriate and splited
+the last patch into _many_ smaller patches to make it easier to review.
+The end result is same modulo comments i received so far and the extra
+documentation i added while splitting thing up. Below is previous cover
+letter (everything in it is still true):
+----------------------------------------------------------------------
+cover letter for v1:
+
+All patches only impact HMM user, there is no implication outside HMM.
+
+First patch improve documentation to better reflect what HMM is. Second
+patch fix #if/#else placement in hmm.h. The third patch add a call on
+mm release which helps device driver who use HMM to clean up early when
+a process quit. Finaly last patch modify the CPU snapshot and page fault
+helper to simplify device driver. The nouveau patchset i posted last
+week already depends on all of those patches.
+
+You can find them in a hmm-for-4.17 branch:
+
+git://people.freedesktop.org/~glisse/linux
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-for-4.17
+
+JA(C)rA'me Glisse (13):
+  mm/hmm: fix header file if/else/endif maze v2
+  mm/hmm: unregister mmu_notifier when last HMM client quit v3
+  mm/hmm: hmm_pfns_bad() was accessing wrong struct
+  mm/hmm: use struct for hmm_vma_fault(), hmm_vma_get_pfns() parameters
+    v2
+  mm/hmm: remove HMM_PFN_READ flag and ignore peculiar architecture v2
+  mm/hmm: use uint64_t for HMM pfn instead of defining hmm_pfn_t to
+    ulong v2
+  mm/hmm: cleanup special vma handling (VM_SPECIAL)
+  mm/hmm: do not differentiate between empty entry or missing directory
+    v3
+  mm/hmm: rename HMM_PFN_DEVICE_UNADDRESSABLE to HMM_PFN_DEVICE_PRIVATE
+  mm/hmm: move hmm_pfns_clear() closer to where it is use
+  mm/hmm: factor out pte and pmd handling to simplify hmm_vma_walk_pmd()
+    v2
+  mm/hmm: change hmm_vma_fault() to allow write fault on page basis
+  mm/hmm: use device driver encoding for HMM pfn v2
+
+Ralph Campbell (2):
+  mm/hmm: documentation editorial update to HMM documentation
+  mm/hmm: HMM should have a callback before MM is destroyed v3
+
+ Documentation/vm/hmm.txt | 360 +++++++++++++++---------------
+ MAINTAINERS              |   1 +
+ include/linux/hmm.h      | 201 ++++++++++-------
+ mm/hmm.c                 | 556 +++++++++++++++++++++++++++++++----------------
+ 4 files changed, 675 insertions(+), 443 deletions(-)
+
+-- 
+2.14.3
