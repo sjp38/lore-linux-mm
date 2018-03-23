@@ -1,70 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CBAD6B0023
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 08:29:05 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p2so5946749wre.19
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 05:29:05 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 34si6352266wrd.123.2018.03.23.05.29.03
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AF936B0010
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 08:50:02 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a4so6587655pff.2
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 05:50:02 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id e92-v6si4557535plb.519.2018.03.23.05.50.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Mar 2018 05:29:03 -0700 (PDT)
-Date: Fri, 23 Mar 2018 13:29:02 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: =?utf-8?B?562U5aSNOiDnrZTlpI06IOetlA==?=
- =?utf-8?B?5aSNOiBbUEFUQ0g=?= =?utf-8?Q?=5D?= mm/memcontrol.c: speed up to
- force empty a memory cgroup
-Message-ID: <20180323122902.GR23100@dhcp22.suse.cz>
-References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
- <20180319085355.GQ23100@dhcp22.suse.cz>
- <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
- <20180319103756.GV23100@dhcp22.suse.cz>
- <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
- <2AD939572F25A448A3AE3CAEA61328C2374832C1@BC-MAIL-M28.internal.baidu.com>
- <20180323100839.GO23100@dhcp22.suse.cz>
- <2AD939572F25A448A3AE3CAEA61328C2374EC73E@BC-MAIL-M28.internal.baidu.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 23 Mar 2018 05:50:00 -0700 (PDT)
+Date: Fri, 23 Mar 2018 05:48:06 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
+Message-ID: <20180323124806.GA5624@bombadil.infradead.org>
+References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2AD939572F25A448A3AE3CAEA61328C2374EC73E@BC-MAIL-M28.internal.baidu.com>
+In-Reply-To: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li,Rongqing" <lirongqing@baidu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Ilya Smith <blackzert@gmail.com>
+Cc: rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, jhogan@kernel.org, ralf@linux-mips.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, mhocko@suse.com, hughd@google.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, akpm@linux-foundation.org, steve.capper@arm.com, punit.agrawal@arm.com, paul.burton@mips.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, keescook@chromium.org, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, jglisse@redhat.com, aarcange@redhat.com, oleg@redhat.com, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 23-03-18 12:04:16, Li,Rongqing wrote:
-[...]
-> shrink_slab does not reclaim any memory, but take lots of time to
-> count lru
->
-> maybe we can use the returning of shrink_slab to control if next
-> shrink_slab should be called?
+On Thu, Mar 22, 2018 at 07:36:36PM +0300, Ilya Smith wrote:
+> Current implementation doesn't randomize address returned by mmap.
+> All the entropy ends with choosing mmap_base_addr at the process
+> creation. After that mmap build very predictable layout of address
+> space. It allows to bypass ASLR in many cases. This patch make
+> randomization of address on any mmap call.
 
-How? Different memcgs might have different amount of shrinkable memory.
-
-> Or define a slight list_lru_empty to check if sb->s_dentry_lru is
-> empty before calling list_lru_shrink_count, like below
-
-Does it really help to improve numbers?
- 
-> diff --git a/fs/super.c b/fs/super.c
-> index 672538ca9831..954c22338833 100644
-> --- a/fs/super.c
-> +++ b/fs/super.c
-> @@ -130,8 +130,10 @@ static unsigned long super_cache_count(struct shrinker *shrink,
->         if (sb->s_op && sb->s_op->nr_cached_objects)
->                 total_objects = sb->s_op->nr_cached_objects(sb, sc);
->  
-> -       total_objects += list_lru_shrink_count(&sb->s_dentry_lru, sc);
-> -       total_objects += list_lru_shrink_count(&sb->s_inode_lru, sc);
-> +       if (!list_lru_empty(sb->s_dentry_lru))
-> +               total_objects += list_lru_shrink_count(&sb->s_dentry_lru, sc);
-> +       if (!list_lru_empty(sb->s_inode_lru))
-> +               total_objects += list_lru_shrink_count(&sb->s_inode_lru, sc);
->  
->         total_objects = vfs_pressure_ratio(total_objects);
->         return total_objects;
-
--- 
-Michal Hocko
-SUSE Labs
+Why should this be done in the kernel rather than libc?  libc is perfectly
+capable of specifying random numbers in the first argument of mmap.
