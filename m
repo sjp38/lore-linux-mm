@@ -1,100 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AF4F6B0025
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 05:07:08 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 65so5581002wrn.7
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 02:07:08 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 88si6352984wrp.56.2018.03.23.02.07.07
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 242746B0010
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 05:19:28 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t19so667294wmh.3
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 02:19:28 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z11sor5958693edh.50.2018.03.23.02.19.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Mar 2018 02:07:07 -0700 (PDT)
-Date: Fri, 23 Mar 2018 10:07:04 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memcg, thp: do not invoke oom killer on thp charges
-Message-ID: <20180323090704.GK23100@dhcp22.suse.cz>
-References: <20180321205928.22240-1-mhocko@kernel.org>
- <alpine.DEB.2.20.1803211418170.107059@chino.kir.corp.google.com>
- <20180321214104.GT23100@dhcp22.suse.cz>
- <alpine.DEB.2.20.1803220106010.175961@chino.kir.corp.google.com>
- <20180322085611.GY23100@dhcp22.suse.cz>
- <alpine.DEB.2.20.1803221304160.3268@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Fri, 23 Mar 2018 02:19:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1803221304160.3268@chino.kir.corp.google.com>
+In-Reply-To: <20180323083847.GJ23100@dhcp22.suse.cz>
+References: <1521791852-7048-1-git-send-email-zhaoyang.huang@spreadtrum.com> <20180323083847.GJ23100@dhcp22.suse.cz>
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Date: Fri, 23 Mar 2018 17:19:26 +0800
+Message-ID: <CAGWkznHxTaymoEuFEQ+nN0ZvpPLhdE_fbwpT3pbDf+NQyHw-3g@mail.gmail.com>
+Subject: Re: [PATCH v1] mm: help the ALLOC_HARDER allocation pass the
+ watermarki when CMA on
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, vel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org
 
-On Thu 22-03-18 13:29:37, David Rientjes wrote:
-> On Thu, 22 Mar 2018, Michal Hocko wrote:
-[...]
-> > They simply cannot because kmalloc performs the change under the cover.
-> > So you would have to use kmalloc(gfp|__GFP_NORETRY) to be absolutely
-> > sure to not trigger _any_ oom killer. This is just wrong thing to do.
-> > 
-> 
-> Examples of where this isn't already done?  It certainly wasn't a problem 
-> before __GFP_NORETRY was dropped in commit 2516035499b9 but you suspect 
-> it's a problem now.
-
-It is not a problem _right now_ as I've already pointed out few
-times. We do not trigger the OOM killer for anything but #PF path. But
-this is an implementation detail which can change in future and there is
-actually some demand for the change. Once we start triggering the oom
-killer for all charges then we do not really want to have the disparity.
-
-> > > You're diverging from it because the memcg charge path has never had this 
-> > > heuristic.
-> > 
-> > Which is arguably a bug which just didn't matter because we do not
-> > have costly order oom eligible charges in general and THP was subtly
-> > different and turned out to be error prone.
-> > 
-> 
-> It was inadvertently dropped from commit 2516035499b9.  There were no 
-> high-order charge oom kill problems before this commit.  People know how 
-> to use __GFP_NORETRY or leave it off, which you don't trust them to do 
-> because you're hardcoding a heuristic in the charge path.
-
-No. Just read what I wrote. I am worried that the current disparity
-between the page allocator and the memcg charging will _force_ them to
-do hacks and sometimes (e.g. kmalloc) they will not have any option but
-using __GFP_NORETRY even when that is not really needed and it has a
-different semantic than they would like.
-
-Behavior on with and without memcgs should be as similar as possible
-otherwise you will see different sets of bugs when running under the
-memcg and without. I really fail to see what is so hard about this to
-understand.
-
-[...]
-
-> > > Your change is broken and I wouldn't push it to Linus for rc7 if my life 
-> > > depended on it.  What is the response when someone complains that they 
-> > > start getting a ton of MEMCG_OOM notifications for every thp fallback?
-> > > They will, because yours is a broken implementation.
-> > 
-> > I fail to see what is broken. Could you be more specific?
-> >  
-> 
-> I said MEMCG_OOM notifications on thp fallback.  You modified 
-> mem_cgroup_oom().  What is called before mem_cgroup_oom()?  
-> mem_cgroup_event(mem_over_limit, MEMCG_OOM).  That increments the 
-> MEMCG_OOM event and anybody waiting on the events file gets notified it 
-> changed.  They read a MEMCG_OOM event.  It's thp fallback, it's not memcg 
-> oom.
-
-MEMCG_OOM doesn't count the number of oom killer invocations. That has
-never been the case.
-
-> Really, I can't continue to write 100 emails in this thread.
-
-Then try to read and even try to understand concerns expressed in those
-emails. Repeating the same set of arguments and ignoring the rest is not
-really helpful.
--- 
-Michal Hocko
-SUSE Labs
+On Fri, Mar 23, 2018 at 4:38 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Fri 23-03-18 15:57:32, Zhaoyang Huang wrote:
+>> For the type of 'ALLOC_HARDER' page allocation, there is an express
+>> highway for the whole process which lead the allocation reach __rmqueue_xxx
+>> easier than other type.
+>> However, when CMA is enabled, the free_page within zone_watermark_ok() will
+>> be deducted for number the pages in CMA type, which may cause the watermark
+>> check fail, but there are possible enough HighAtomic or Unmovable and
+>> Reclaimable pages in the zone. So add 'alloc_harder' here to
+>> count CMA pages in to clean the obstacles on the way to the final.
+>
+> This is no longer the case in the current mmotm tree. Have a look at
+> Joonsoo's zone movable based CMA patchset http://lkml.kernel.org/r/1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com
+>
+Thanks for the information. However, I can't find the commit in the
+latest mainline, is it merged?
+>> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
+>> ---
+>>  mm/page_alloc.c | 7 +++++--
+>>  1 file changed, 5 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 635d7dd..cc18620 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -3045,8 +3045,11 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+>>
+>>
+>>  #ifdef CONFIG_CMA
+>> -     /* If allocation can't use CMA areas don't use free CMA pages */
+>> -     if (!(alloc_flags & ALLOC_CMA))
+>> +     /*
+>> +      * If allocation can't use CMA areas and no alloc_harder set for none
+>> +      * order0 allocation, don't use free CMA pages.
+>> +      */
+>> +     if (!(alloc_flags & ALLOC_CMA) && (!alloc_harder || !order))
+>>               free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+>>  #endif
+>>
+>> --
+>> 1.9.1
+>>
+>
+> --
+> Michal Hocko
+> SUSE Labs
