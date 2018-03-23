@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 692F16B0062
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 14:11:09 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id m18so6330764pgu.14
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:11:09 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id c72si4637583pfk.369.2018.03.23.11.11.08
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BB0C6B0277
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 14:11:11 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id y10so6339931pge.2
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 11:11:11 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id j62si6283908pge.747.2018.03.23.11.11.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Mar 2018 11:11:08 -0700 (PDT)
-Subject: [PATCH 1/9] x86, pkeys: do not special case protection key 0
+        Fri, 23 Mar 2018 11:11:09 -0700 (PDT)
+Subject: [PATCH 2/9] x86, pkeys, selftests: save off 'prot' for allocations
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 23 Mar 2018 11:09:05 -0700
+Date: Fri, 23 Mar 2018 11:09:07 -0700
 References: <20180323180903.33B17168@viggo.jf.intel.com>
 In-Reply-To: <20180323180903.33B17168@viggo.jf.intel.com>
-Message-Id: <20180323180905.B40984E6@viggo.jf.intel.com>
+Message-Id: <20180323180907.2CA27831@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,18 +23,12 @@ Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linuxram@us.i
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-mm_pkey_is_allocated() treats pkey 0 as unallocated.  That is
-inconsistent with the manpages, and also inconsistent with
-mm->context.pkey_allocation_map.  Stop special casing it and only
-disallow values that are actually bad (< 0).
+This makes it possible to to tell what 'prot' a given allocation
+is supposed to have.  That way, if we want to change just the
+pkey, we know what 'prot' to pass to mprotect_pkey().
 
-The end-user visible effect of this is that you can now use
-mprotect_pkey() to set pkey=0.
-
-This is a bit nicer than what Ram proposed because it is simpler
-and removes special-casing for pkey 0.  On the other hand, it does
-allow applciations to pkey_free() pkey-0, but that's just a silly
-thing to do, so we are not going to protect against it.
+Also, keep a record of the most recent allocation so the tests
+can easily find it.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Ram Pai <linuxram@us.ibm.com>
@@ -42,41 +36,73 @@ Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Michael Ellermen <mpe@ellerman.id.au>
 Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>p
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Shuah Khan <shuah@kernel.org>
 ---
 
- b/arch/x86/include/asm/mmu_context.h |    2 +-
- b/arch/x86/include/asm/pkeys.h       |    6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ b/tools/testing/selftests/x86/protection_keys.c |   14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
 
-diff -puN arch/x86/include/asm/mmu_context.h~x86-pkey-0-default-allocated arch/x86/include/asm/mmu_context.h
---- a/arch/x86/include/asm/mmu_context.h~x86-pkey-0-default-allocated	2018-03-21 15:47:48.182198927 -0700
-+++ b/arch/x86/include/asm/mmu_context.h	2018-03-21 15:47:48.187198927 -0700
-@@ -192,7 +192,7 @@ static inline int init_new_context(struc
- 
- #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
- 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
--		/* pkey 0 is the default and always allocated */
-+		/* pkey 0 is the default and allocated implicitly */
- 		mm->context.pkey_allocation_map = 0x1;
- 		/* -1 means unallocated or invalid */
- 		mm->context.execute_only_pkey = -1;
-diff -puN arch/x86/include/asm/pkeys.h~x86-pkey-0-default-allocated arch/x86/include/asm/pkeys.h
---- a/arch/x86/include/asm/pkeys.h~x86-pkey-0-default-allocated	2018-03-21 15:47:48.184198927 -0700
-+++ b/arch/x86/include/asm/pkeys.h	2018-03-21 15:47:48.188198927 -0700
-@@ -49,10 +49,10 @@ bool mm_pkey_is_allocated(struct mm_stru
+diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-update-selftests-store-malloc-record tools/testing/selftests/x86/protection_keys.c
+--- a/tools/testing/selftests/x86/protection_keys.c~pkeys-update-selftests-store-malloc-record	2018-03-21 15:47:48.740198925 -0700
++++ b/tools/testing/selftests/x86/protection_keys.c	2018-03-21 15:47:48.743198925 -0700
+@@ -674,10 +674,12 @@ int mprotect_pkey(void *ptr, size_t size
+ struct pkey_malloc_record {
+ 	void *ptr;
+ 	long size;
++	int prot;
+ };
+ struct pkey_malloc_record *pkey_malloc_records;
++struct pkey_malloc_record *pkey_last_malloc_record;
+ long nr_pkey_malloc_records;
+-void record_pkey_malloc(void *ptr, long size)
++void record_pkey_malloc(void *ptr, long size, int prot)
  {
- 	/*
- 	 * "Allocated" pkeys are those that have been returned
--	 * from pkey_alloc().  pkey 0 is special, and never
--	 * returned from pkey_alloc().
-+	 * from pkey_alloc() or pkey 0 which is allocated
-+	 * implicitly when the mm is created.
- 	 */
--	if (pkey <= 0)
-+	if (pkey < 0)
- 		return false;
- 	if (pkey >= arch_max_pkey())
- 		return false;
+ 	long i;
+ 	struct pkey_malloc_record *rec = NULL;
+@@ -709,6 +711,8 @@ void record_pkey_malloc(void *ptr, long
+ 		(int)(rec - pkey_malloc_records), rec, ptr, size);
+ 	rec->ptr = ptr;
+ 	rec->size = size;
++	rec->prot = prot;
++	pkey_last_malloc_record = rec;
+ 	nr_pkey_malloc_records++;
+ }
+ 
+@@ -753,7 +757,7 @@ void *malloc_pkey_with_mprotect(long siz
+ 	pkey_assert(ptr != (void *)-1);
+ 	ret = mprotect_pkey((void *)ptr, PAGE_SIZE, prot, pkey);
+ 	pkey_assert(!ret);
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 	rdpkru();
+ 
+ 	dprintf1("%s() for pkey %d @ %p\n", __func__, pkey, ptr);
+@@ -774,7 +778,7 @@ void *malloc_pkey_anon_huge(long size, i
+ 	size = ALIGN_UP(size, HPAGE_SIZE * 2);
+ 	ptr = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+ 	pkey_assert(ptr != (void *)-1);
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 	mprotect_pkey(ptr, size, prot, pkey);
+ 
+ 	dprintf1("unaligned ptr: %p\n", ptr);
+@@ -847,7 +851,7 @@ void *malloc_pkey_hugetlb(long size, int
+ 	pkey_assert(ptr != (void *)-1);
+ 	mprotect_pkey(ptr, size, prot, pkey);
+ 
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 
+ 	dprintf1("mmap()'d hugetlbfs for pkey %d @ %p\n", pkey, ptr);
+ 	return ptr;
+@@ -869,7 +873,7 @@ void *malloc_pkey_mmap_dax(long size, in
+ 
+ 	mprotect_pkey(ptr, size, prot, pkey);
+ 
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 
+ 	dprintf1("mmap()'d for pkey %d @ %p\n", pkey, ptr);
+ 	close(fd);
 _
