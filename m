@@ -1,116 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F70C6B026E
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 20:56:20 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id l128so1849592qkb.7
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 17:56:20 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id r3si7802709qkd.367.2018.03.22.17.56.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Mar 2018 17:56:19 -0700 (PDT)
-Subject: Re: [PATCH 04/15] mm/hmm: unregister mmu_notifier when last HMM
- client quit v2
-References: <20180320020038.3360-5-jglisse@redhat.com>
- <20180321181614.9968-1-jglisse@redhat.com>
- <a9ba54c5-a2d9-49f6-16ad-46b79525b93c@nvidia.com>
- <20180321234110.GK3214@redhat.com>
- <cbc9dcba-0707-e487-d360-f6f7c8d5cb23@nvidia.com>
- <20180322233715.GA5011@redhat.com>
- <b858d92a-3a38-bfff-fe66-697c64ea2053@nvidia.com>
- <20180323005017.GB5011@redhat.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <45076a33-1dab-d4c0-d0b3-ea8e9782975f@nvidia.com>
-Date: Thu, 22 Mar 2018 17:56:17 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180323005017.GB5011@redhat.com>
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5046B0012
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2018 22:59:28 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id d187so9104526iog.6
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2018 19:59:28 -0700 (PDT)
+Received: from baidu.com ([220.181.50.185])
+        by mx.google.com with ESMTP id z3-v6si6243638itf.145.2018.03.22.19.59.23
+        for <linux-mm@kvack.org>;
+        Thu, 22 Mar 2018 19:59:23 -0700 (PDT)
+From: "Li,Rongqing" <lirongqing@baidu.com>
+Subject: =?utf-8?B?562U5aSNOiDnrZTlpI06IFtQQVRDSF0gbW0vbWVtY29udHJvbC5jOiBzcGVl?=
+ =?utf-8?Q?d_up_to_force_empty_a_memory_cgroup?=
+Date: Fri, 23 Mar 2018 02:58:36 +0000
+Message-ID: <2AD939572F25A448A3AE3CAEA61328C2374832C1@BC-MAIL-M28.internal.baidu.com>
+References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
+ <20180319085355.GQ23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
+ <20180319103756.GV23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
+In-Reply-To: <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
+Content-Language: zh-CN
 Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>
+To: "Li,Rongqing" <lirongqing@baidu.com>, Michal Hocko <mhocko@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On 03/22/2018 05:50 PM, Jerome Glisse wrote:
-> On Thu, Mar 22, 2018 at 05:13:14PM -0700, John Hubbard wrote:
->> On 03/22/2018 04:37 PM, Jerome Glisse wrote:
->>> On Thu, Mar 22, 2018 at 03:47:16PM -0700, John Hubbard wrote:
->>>> On 03/21/2018 04:41 PM, Jerome Glisse wrote:
->>>>> On Wed, Mar 21, 2018 at 04:22:49PM -0700, John Hubbard wrote:
->>>>>> On 03/21/2018 11:16 AM, jglisse@redhat.com wrote:
->>>>>>> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->>
->> <snip>
->>
->>>>>
->>>>> No this code is correct. hmm->mm is set after hmm struct is allocated
->>>>> and before it is public so no one can race with that. It is clear in
->>>>> hmm_mirror_unregister() under the write lock hence checking it here
->>>>> under that same lock is correct.
->>>>
->>>> Are you implying that code that calls hmm_mirror_register() should do=
-=20
->>>> it's own locking, to prevent simultaneous calls to that function? Beca=
-use
->>>> as things are right now, multiple threads can arrive at this point. Th=
-e
->>>> fact that mirror->hmm is not "public" is irrelevant; what matters is t=
-hat
->>>>> 1 thread can change it simultaneously.
->>>
->>> The content of struct hmm_mirror should not be modified by code outside
->>> HMM after hmm_mirror_register() and before hmm_mirror_unregister(). Thi=
-s
->>> is a private structure to HMM and the driver should not touch it, ie it
->>> should be considered as read only/const from driver code point of view.
->>
->> Yes, that point is clear and obvious.
->>
->>>
->>> It is also expected (which was obvious to me) that driver only call onc=
-e
->>> and only once hmm_mirror_register(), and only once hmm_mirror_unregiste=
-r()
->>> for any given hmm_mirror struct. Note that driver can register multiple
->>> _different_ mirror struct to same mm or differents mm.
->>>
->>> There is no need of locking on the driver side whatsoever as long as th=
-e
->>> above rules are respected. I am puzzle if they were not obvious :)
->>
->> Those rules were not obvious. It's unusual to claim that register and un=
-register
->> can run concurrently, but regiser and register cannot. Let's please docu=
-ment
->> the rules a bit in the comments.
->=20
-> I am really surprise this was not obvious. All existing _register API
-> in the kernel follow this. You register something once only and doing
-> it twice for same structure (ie unique struct hmm_mirror *mirror pointer
-> value) leads to serious bugs (doing so concurently or not).
->=20
-> For instance if you call mmu_notifier_register() twice (concurrently
-> or not) with same pointer value for struct mmu_notifier *mn then bad
-> thing will happen. Same for driver_register() but this one actualy
-> have sanity check and complain loudly if that happens. I doubt there
-> is any single *_register/unregister() in the kernel that does not
-> follow this.
-
-OK, then I guess no need to document it. In any case we know what to
-expect here, so no problem there.
-
-thanks,
---=20
-John Hubbard
-NVIDIA
-
->=20
-> Note that doing register/unregister concurrently for the same unique
-> hmm_mirror struct is also illegal. However concurrent register and
-> unregister of different hmm_mirror struct is legal and this is the
-> reasons for races we were discussing.
->=20
-> Cheers,
-> J=C3=A9r=C3=B4me
->=20
+DQoNCj4gLS0tLS3pgq7ku7bljp/ku7YtLS0tLQ0KPiDlj5Hku7bkuro6IGxpbnV4LWtlcm5lbC1v
+d25lckB2Z2VyLmtlcm5lbC5vcmcNCj4gW21haWx0bzpsaW51eC1rZXJuZWwtb3duZXJAdmdlci5r
+ZXJuZWwub3JnXSDku6PooaggTGksUm9uZ3FpbmcNCj4g5Y+R6YCB5pe26Ze0OiAyMDE45bm0M+ac
+iDE55pelIDE4OjUyDQo+IOaUtuS7tuS6ujogTWljaGFsIEhvY2tvIDxtaG9ja29Aa2VybmVsLm9y
+Zz4NCj4g5oqE6YCBOiBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBsaW51eC1tbUBrdmFj
+ay5vcmc7DQo+IGNncm91cHNAdmdlci5rZXJuZWwub3JnOyBoYW5uZXNAY21weGNoZy5vcmc7IEFu
+ZHJleSBSeWFiaW5pbg0KPiA8YXJ5YWJpbmluQHZpcnR1b3p6by5jb20+DQo+IOS4u+mimDog562U
+5aSNOiDnrZTlpI06IFtQQVRDSF0gbW0vbWVtY29udHJvbC5jOiBzcGVlZCB1cCB0byBmb3JjZSBl
+bXB0eSBhDQo+IG1lbW9yeSBjZ3JvdXANCj4gDQo+IA0KPiANCj4gPiAtLS0tLemCruS7tuWOn+S7
+ti0tLS0tDQo+ID4g5Y+R5Lu25Lq6OiBNaWNoYWwgSG9ja28gW21haWx0bzptaG9ja29Aa2VybmVs
+Lm9yZ10NCj4gPiDlj5HpgIHml7bpl7Q6IDIwMTjlubQz5pyIMTnml6UgMTg6MzgNCj4gPiDmlLbk
+u7bkuro6IExpLFJvbmdxaW5nIDxsaXJvbmdxaW5nQGJhaWR1LmNvbT4NCj4gPiDmioTpgIE6IGxp
+bnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZzsNCj4gPiBjZ3Jv
+dXBzQHZnZXIua2VybmVsLm9yZzsgaGFubmVzQGNtcHhjaGcub3JnOyBBbmRyZXkgUnlhYmluaW4N
+Cj4gPiA8YXJ5YWJpbmluQHZpcnR1b3p6by5jb20+DQo+ID4g5Li76aKYOiBSZTog562U5aSNOiBb
+UEFUQ0hdIG1tL21lbWNvbnRyb2wuYzogc3BlZWQgdXAgdG8gZm9yY2UgZW1wdHkgYQ0KPiBtZW1v
+cnkNCj4gPiBjZ3JvdXANCj4gPg0KPiA+IE9uIE1vbiAxOS0wMy0xOCAxMDowMDo0MSwgTGksUm9u
+Z3Fpbmcgd3JvdGU6DQo+ID4gPg0KPiA+ID4NCj4gPiA+ID4gLS0tLS3pgq7ku7bljp/ku7YtLS0t
+LQ0KPiA+ID4gPiDlj5Hku7bkuro6IE1pY2hhbCBIb2NrbyBbbWFpbHRvOm1ob2Nrb0BrZXJuZWwu
+b3JnXQ0KPiA+ID4gPiDlj5HpgIHml7bpl7Q6IDIwMTjlubQz5pyIMTnml6UgMTY6NTQNCj4gPiA+
+ID4g5pS25Lu25Lq6OiBMaSxSb25ncWluZyA8bGlyb25ncWluZ0BiYWlkdS5jb20+DQo+ID4gPiA+
+IOaKhOmAgTogbGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZzsgbGludXgtbW1Aa3ZhY2sub3Jn
+Ow0KPiA+ID4gPiBjZ3JvdXBzQHZnZXIua2VybmVsLm9yZzsgaGFubmVzQGNtcHhjaGcub3JnOyBB
+bmRyZXkgUnlhYmluaW4NCj4gPiA+ID4gPGFyeWFiaW5pbkB2aXJ0dW96em8uY29tPg0KPiA+ID4g
+PiDkuLvpopg6IFJlOiBbUEFUQ0hdIG1tL21lbWNvbnRyb2wuYzogc3BlZWQgdXAgdG8gZm9yY2Ug
+ZW1wdHkgYQ0KPiA+IG1lbW9yeQ0KPiA+ID4gPiBjZ3JvdXANCj4gPiA+ID4NCj4gPiA+ID4gT24g
+TW9uIDE5LTAzLTE4IDE2OjI5OjMwLCBMaSBSb25nUWluZyB3cm90ZToNCj4gPiA+ID4gPiBtZW1f
+Y2dyb3VwX2ZvcmNlX2VtcHR5KCkgdHJpZXMgdG8gZnJlZSBvbmx5IDMyDQo+ID4gKFNXQVBfQ0xV
+U1RFUl9NQVgpDQo+ID4gPiA+ID4gcGFnZXMgb24gZWFjaCBpdGVyYXRpb24sIGlmIGEgbWVtb3J5
+IGNncm91cCBoYXMgbG90cyBvZiBwYWdlDQo+ID4gPiA+ID4gY2FjaGUsIGl0IHdpbGwgdGFrZSBt
+YW55IGl0ZXJhdGlvbnMgdG8gZW1wdHkgYWxsIHBhZ2UgY2FjaGUsIHNvDQo+ID4gPiA+ID4gaW5j
+cmVhc2UgdGhlIHJlY2xhaW1lZCBudW1iZXIgcGVyIGl0ZXJhdGlvbiB0byBzcGVlZCBpdCB1cC4g
+c2FtZQ0KPiA+ID4gPiA+IGFzIGluDQo+ID4gPiA+ID4gbWVtX2Nncm91cF9yZXNpemVfbGltaXQo
+KQ0KPiA+ID4gPiA+DQo+ID4gPiA+ID4gYSBzaW1wbGUgdGVzdCBzaG93Og0KPiA+ID4gPiA+DQo+
+ID4gPiA+ID4gICAkZGQgaWY9YWFhICBvZj1iYmIgIGJzPTFrIGNvdW50PTM4ODYwODANCj4gPiA+
+ID4gPiAgICRybSAtZiBiYmINCj4gPiA+ID4gPiAgICR0aW1lIGVjaG8NCj4gPiAxMDAwMDAwMDAg
+Pi9jZ3JvdXAvbWVtb3J5L3Rlc3QvbWVtb3J5LmxpbWl0X2luX2J5dGVzDQo+ID4gPiA+ID4NCj4g
+PiA+ID4gPiBCZWZvcmU6IDBtMC4yNTJzID09PT4gYWZ0ZXI6IDBtMC4xNzhzDQo+ID4gPiA+DQo+
+ID4gPiA+IEFuZHJleSB3YXMgcHJvcG9zaW5nIHNvbWV0aGluZyBzaW1pbGFyIFsxXS4gTXkgbWFp
+biBvYmplY3Rpb24gd2FzDQo+ID4gPiA+IHRoYXQgaGlzIGFwcHJvYWNoIG1pZ2h0IGxlYWQgdG8g
+b3Zlci1yZWNsYWltLiBZb3VyIGFwcHJvYWNoIGlzDQo+ID4gPiA+IG1vcmUgY29uc2VydmF0aXZl
+IGJlY2F1c2UgaXQganVzdCBpbmNyZWFzZXMgdGhlIGJhdGNoIHNpemUuIFRoZQ0KPiA+ID4gPiBz
+aXplIGlzIHN0aWxsIHJhdGhlciBhcmJpdHJhcnkuIFNhbWUgYXMgU1dBUF9DTFVTVEVSX01BWCBi
+dXQgdGhhdA0KPiA+ID4gPiBvbmUgaXMgYSBjb21tb25seSB1c2VkIHVuaXQgb2YgcmVjbGFpbSBp
+biB0aGUgTU0gY29kZS4NCj4gPiA+ID4NCj4gPiA+ID4gSSB3b3VsZCBiZSByZWFsbHkgY3VyaW91
+cyBhYm91dCBtb3JlIGRldGFpbGVkIGV4cGxhbmF0aW9uIHdoeQ0KPiA+ID4gPiBoYXZpbmcgYSBs
+YXJnZXIgYmF0Y2ggeWllbGRzIHRvIGEgYmV0dGVyIHBlcmZvcm1hbmNlIGJlY2F1c2Ugd2UNCj4g
+PiA+ID4gYXJlIGRvaW5nZyBTV0FQX0NMVVNURVJfTUFYIGJhdGNoZXMgYXQgdGhlIGxvd2VyIHJl
+Y2xhaW0gbGV2ZWwNCj4gYW55d2F5Lg0KPiA+ID4gPg0KPiA+ID4NCj4gPiA+IEFsdGhvdWdoIFNX
+QVBfQ0xVU1RFUl9NQVggaXMgdXNlZCBhdCB0aGUgbG93ZXIgbGV2ZWwsIGJ1dCB0aGUgY2FsbA0K
+PiA+ID4gc3RhY2sgb2YgdHJ5X3RvX2ZyZWVfbWVtX2Nncm91cF9wYWdlcyBpcyB0b28gbG9uZywg
+aW5jcmVhc2UgdGhlDQo+ID4gPiBucl90b19yZWNsYWltIGNhbiByZWR1Y2UgdGltZXMgb2YgY2Fs
+bGluZw0KPiA+ID4gZnVuY3Rpb25bZG9fdHJ5X3RvX2ZyZWVfcGFnZXMsIHNocmlua196b25lcywg
+aHJpbmtfbm9kZSBdDQo+ID4gPg0KPiA+ID4gbWVtX2Nncm91cF9yZXNpemVfbGltaXQNCj4gPiA+
+IC0tLT50cnlfdG9fZnJlZV9tZW1fY2dyb3VwX3BhZ2VzOiAgLm5yX3RvX3JlY2xhaW0gPSBtYXgo
+MTAyNCwNCj4gPiA+IC0tLT5TV0FQX0NMVVNURVJfTUFYKSwNCj4gPiA+ICAgIC0tLT4gZG9fdHJ5
+X3RvX2ZyZWVfcGFnZXMNCj4gPiA+ICAgICAgLS0tPiBzaHJpbmtfem9uZXMNCj4gPiA+ICAgICAg
+IC0tLT5zaHJpbmtfbm9kZQ0KPiA+ID4gICAgICAgIC0tLT4gc2hyaW5rX25vZGVfbWVtY2cNCj4g
+PiA+ICAgICAgICAgIC0tLT4gc2hyaW5rX2xpc3QgICAgICAgICAgPC0tLS0tLS1sb29wIHdpbGwg
+aGFwcGVuIGluIHRoaXMgcGxhY2UNCj4gPiBbdGltZXM9MTAyNC8zMl0NCj4gPiA+ICAgICAgICAg
+ICAgLS0tPiBzaHJpbmtfcGFnZV9saXN0DQo+ID4NCj4gPiBDYW4geW91IGFjdHVhbGx5IG1lYXN1
+cmUgdGhpcyB0byBiZSB0aGUgY3VscHJpdC4gQmVjYXVzZSB3ZSBzaG91bGQNCj4gPiByZXRoaW5r
+IG91ciBjYWxsIHBhdGggaWYgaXQgaXMgdG9vIGNvbXBsaWNhdGVkL2RlZXAgdG8gcGVyZm9ybSB3
+ZWxsLg0KPiA+IEFkZGluZyBhcmJpdHJhcnkgYmF0Y2ggc2l6ZXMgZG9lc24ndCBzb3VuZCBsaWtl
+IGEgZ29vZCB3YXkgdG8gZ28gdG8gbWUuDQo+IA0KPiBPaywgSSB3aWxsIHRyeQ0KPiANCmh0dHA6
+Ly9wYXN0ZWQuY28vNGVkYmNmZmYNCg0KVGhpcyBpcyByZXN1bHQgZnJvbSBmdHJhY2UgZ3JhcGgs
+IGl0IG1heWJlIHByb3ZlIHRoYXQgdGhlIGRlZXAgY2FsbCBwYXRoIGxlYWRzIHRvIGxvdyBwZXJm
+b3JtYW5jZS4NCg0KQW5kIHdoZW4gaW5jcmVhc2UgcmVjbGFpbWluZyBwYWdlIGluIHRyeV90b19m
+cmVlX21lbV9jZ3JvdXBfcGFnZXMsIGl0IGNhbiByZWR1Y2UgY2FsbGluZyBvZiBzaHJpbmtfc2xh
+Yiwgd2hpY2ggc2F2ZSB0aW1lcywgaW4gbXkgY2FzZXMsIHBhZ2UgY2FjaGVzIG9jY3VweSBtb3N0
+IG1lbW9yeSwgc2xhYiBpcyBsaXR0bGUsIGJ1dCBzaHJpbmtfc2xhYiB3aWxsIGJlIGNhbGxlZCBl
+dmVyeXRpbWUNCg0KTXV0ZXhfbG9jayAxIHVzDQoNCnRyeV90b19mcmVlX21lbV9jZ3JvdXBfcGFn
+ZXMNCiAgZG9fdHJ5X3RvX2ZyZWVfcGFnZXMgISAxODUuMDIwIHVzDQogICAgc2hyaW5rX25vZGUg
+ICEgMTE2LjUyOSB1cw0KICAgICAgc2hyaW5rX25vZGVfbWVtY2cgICAzOS4yMDMNCiAgICAgICAg
+ICBzaHJpbmtfaW5hY3RpdmVfbGlzdCAgMzMuOTYwDQogICAgICBzaHJpbmtfc2xhYiAgIDcyLjk1
+NQ0KDQogICAgc2hyaW5rX25vZGUgIDYxLjUwMiB1cw0KICAgICAgc2hyaW5rX25vZGVfbWVtY2cg
+ICAzLjk1NQ0KICAgICAgc2hyaW5rX3NsYWIgICA1NC4yOTYgdXMNCg0KLVJvbmdRaW5nDQoNCj4g
+LVJvbmdRaW5nDQo+ID4gLS0NCj4gPiBNaWNoYWwgSG9ja28NCj4gPiBTVVNFIExhYnMNCg==
