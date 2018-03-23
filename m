@@ -1,60 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EEA396B000E
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 16:04:10 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id w5-v6so8243764plz.23
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 13:04:10 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 73si5357482pfz.20.2018.03.23.13.04.09
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B4D036B0006
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 17:08:19 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 139so7293873pfw.7
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 14:08:19 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id q4-v6si8986988plr.365.2018.03.23.14.08.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Mar 2018 13:04:09 -0700 (PDT)
-Date: Fri, 23 Mar 2018 13:04:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v1] mm: help the ALLOC_HARDER allocation pass the
- watermarki when CMA on
-Message-Id: <20180323130408.0c6451fac02c49b535ec7485@linux-foundation.org>
-In-Reply-To: <20180323093327.GM23100@dhcp22.suse.cz>
-References: <1521791852-7048-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-	<20180323083847.GJ23100@dhcp22.suse.cz>
-	<CAGWkznHxTaymoEuFEQ+nN0ZvpPLhdE_fbwpT3pbDf+NQyHw-3g@mail.gmail.com>
-	<20180323093327.GM23100@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 23 Mar 2018 14:08:18 -0700 (PDT)
+Date: Fri, 23 Mar 2018 21:08:12 +0000
+From: James Hogan <jhogan@kernel.org>
+Subject: Re: [PATCH V3] ZBOOT: fix stack protector in compressed boot phase
+Message-ID: <20180323210811.GD11796@saruman>
+References: <1521186916-13745-1-git-send-email-chenhc@lemote.com>
+ <20180322222107.GJ13126@saruman>
+ <1521777055.1510.9.camel@flygoat.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="MAH+hnPXVZWQ5cD/"
+Content-Disposition: inline
+In-Reply-To: <1521777055.1510.9.camel@flygoat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, zhaoyang.huang@spreadtrum.com, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, vel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Jiaxun Yang <jiaxun.yang@flygoat.com>
+Cc: Huacai Chen <chenhc@lemote.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, stable@vger.kernel.org
 
-On Fri, 23 Mar 2018 10:33:27 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-> On Fri 23-03-18 17:19:26, Zhaoyang Huang wrote:
-> > On Fri, Mar 23, 2018 at 4:38 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > > On Fri 23-03-18 15:57:32, Zhaoyang Huang wrote:
-> > >> For the type of 'ALLOC_HARDER' page allocation, there is an express
-> > >> highway for the whole process which lead the allocation reach __rmqueue_xxx
-> > >> easier than other type.
-> > >> However, when CMA is enabled, the free_page within zone_watermark_ok() will
-> > >> be deducted for number the pages in CMA type, which may cause the watermark
-> > >> check fail, but there are possible enough HighAtomic or Unmovable and
-> > >> Reclaimable pages in the zone. So add 'alloc_harder' here to
-> > >> count CMA pages in to clean the obstacles on the way to the final.
-> > >
-> > > This is no longer the case in the current mmotm tree. Have a look at
-> > > Joonsoo's zone movable based CMA patchset http://lkml.kernel.org/r/1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com
-> > >
-> > Thanks for the information. However, I can't find the commit in the
-> > latest mainline, is it merged?
-> 
-> Not yet. It is still sitting in the mmomt tree. I am not sure what is
-> the merge plan but I guess it is still waiting for some review feedback.
+--MAH+hnPXVZWQ5cD/
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-http://lkml.kernel.org/r/20171222001113.GA1729@js1304-P5Q-DELUXE
+On Fri, Mar 23, 2018 at 11:50:55AM +0800, Jiaxun Yang wrote:
+> =E5=9C=A8 2018-03-22=E5=9B=9B=E7=9A=84 22:21 +0000=EF=BC=8CJames Hogan=E5=
+=86=99=E9=81=93=EF=BC=9A
+> > Also I think it worth mentioning in the commit message the MIPS
+> > configuration you hit this with, presumably a Loongson one? For me
+> > decompress_kernel() gets a stack guard on loongson3_defconfig, but
+> > not
+> > malta_defconfig or malta_defconfig + 64-bit. I presume its sensitive
+> > to
+> > the compiler inlining stuff into decompress_kernel() or something
+> > such
+> > that it suddenly qualifies for a stack guard.
+>=20
+> Have you tested with CONFIG_CC_STACKPROTECTOR_STRONG=3Dy ?
 
-That patchset has been floating about since December and still has
-unresolved issues.
+Yes. for malta_defconfig I could only reproduce by adding an array to
+decompress_kernel() so that it would get the guard.
 
-Joonsoo, can you please let us know the status?
+Cheers
+James
 
-Thanks.
+--MAH+hnPXVZWQ5cD/
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEd80NauSabkiESfLYbAtpk944dnoFAlq1bLsACgkQbAtpk944
+dnqRoRAAgQ9jkBNRCrcD5HNMyD7XNnyB4QBm9KgvsYASAFF2b9bzC1qaFsv7ogMe
++yUEgTbXYGvVyBKMRr/D0d0ndlTSPCwVJHwtwgBVp+PizfWmBTF6j1IvbQ1YnQfH
+vYfFm72xW0L0awtmXV2tbo/Y/AQopzAaWL09sFhrqSt9tWRmPDnlx0r+DfPp3wVP
+I5mA+BftMiVSjqOiwU5QAmj2JVFRpkfKCAftdjG6UFQE0l7aw+4EFHpYiI+8Ai6A
+XiFyf+GQu6Bh0GK+mdTSa0pb+UMEhf1Q4Y5BlJca6zThYTdlZKJoAwIPjHh+Pn4M
+hsKYqKczPJd0hlDSFG5/LC7tp5ySoRGTP/kFQoodjjOf774FkdTTY73/8JDcHc7n
+Jb8UMrMiwWLOPwyqjS9SD2sBcnHVAUZvGhIS5pJHzEiAIKNVVeXpjWYTTwQ2nKiN
+r240w2CjnH/l8C4iwUChu2xvoXV/3EYJLibTIaLbAyGu0TTeW8nGQR4m3wRIL3ig
+Dg9C3tgQY4NJMaTXWRyJGEf58cezFSkDvHRAmNqO6r4IkXjJ4VXlqCvUj0p+KThw
+2oKS6aDj7ZU25DrTAPmb24SCUS9A61Ktwo463YznQdv2WUppc++dRUoBnJ5j89iP
+o4ngC6M2GKsRrL2SRphyLz4Pyi+alDWvXm+tQnKD7Uy940M8SF0=
+=0EHR
+-----END PGP SIGNATURE-----
+
+--MAH+hnPXVZWQ5cD/--
