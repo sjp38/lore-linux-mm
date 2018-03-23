@@ -1,228 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C3EB6B0008
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 09:42:04 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id z11-v6so7677352plo.21
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 06:42:04 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C38AB6B0008
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 09:45:08 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l23so993227wmh.1
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 06:45:08 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x8-v6si8273430pln.682.2018.03.23.06.42.02
+        by mx.google.com with ESMTPS id o135si6167581wmg.53.2018.03.23.06.45.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Mar 2018 06:42:03 -0700 (PDT)
-Date: Fri, 23 Mar 2018 14:42:00 +0100
+        Fri, 23 Mar 2018 06:45:07 -0700 (PDT)
+Date: Fri, 23 Mar 2018 14:45:05 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, vmscan, tracing: Use pointer to reclaim_stat struct
- in trace event
-Message-ID: <20180323134200.GT23100@dhcp22.suse.cz>
-References: <20180322121003.4177af15@gandalf.local.home>
+Subject: Re: [PATCH] mm, slab: eagerly delete inactive offlined SLABs
+Message-ID: <20180323134505.GU23100@dhcp22.suse.cz>
+References: <20180321224301.142879-1-shakeelb@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180322121003.4177af15@gandalf.local.home>
+In-Reply-To: <20180321224301.142879-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Alexei Starovoitov <ast@fb.com>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Thu 22-03-18 12:10:03, Steven Rostedt wrote:
-> 
-> The trace event trace_mm_vmscan_lru_shrink_inactive() currently has 12
-> parameters! Seven of them are from the reclaim_stat structure. This
-> structure is currently local to mm/vmscan.c. By moving it to the global
-> vmstat.h header, we can also reference it from the vmscan tracepoints. In
-> moving it, it brings down the overhead of passing so many arguments to the
-> trace event. In the future, we may limit the number of arguments that a
-> trace event may pass (ideally just 6, but more realistically it may be 8).
+[Cc Vladimir]
 
-Yes, the number of parameter is large. struct reclaim_stat is an
-internal stuff so I didn't want to export it. I do not have strong
-objections to add it somewhere tracing can find it though.
-
-> Before this patch, the code to call the trace event is this:
+On Wed 21-03-18 15:43:01, Shakeel Butt wrote:
+> With kmem cgroup support, high memcgs churn can leave behind a lot of
+> empty kmem_caches. Usually such kmem_caches will be destroyed when the
+> corresponding memcg gets released but the memcg release can be
+> arbitrarily delayed. These empty kmem_caches wastes cache_reaper's time.
+> So, the reaper should destroy such empty offlined kmem_caches.
 > 
->  0f 83 aa fe ff ff       jae    ffffffff811e6261 <shrink_inactive_list+0x1e1>
->  48 8b 45 a0             mov    -0x60(%rbp),%rax
->  45 8b 64 24 20          mov    0x20(%r12),%r12d
->  44 8b 6d d4             mov    -0x2c(%rbp),%r13d
->  8b 4d d0                mov    -0x30(%rbp),%ecx
->  44 8b 75 cc             mov    -0x34(%rbp),%r14d
->  44 8b 7d c8             mov    -0x38(%rbp),%r15d
->  48 89 45 90             mov    %rax,-0x70(%rbp)
->  8b 83 b8 fe ff ff       mov    -0x148(%rbx),%eax
->  8b 55 c0                mov    -0x40(%rbp),%edx
->  8b 7d c4                mov    -0x3c(%rbp),%edi
->  8b 75 b8                mov    -0x48(%rbp),%esi
->  89 45 80                mov    %eax,-0x80(%rbp)
->  65 ff 05 e4 f7 e2 7e    incl   %gs:0x7ee2f7e4(%rip)        # 15bd0 <__preempt_count>
->  48 8b 05 75 5b 13 01    mov    0x1135b75(%rip),%rax        # ffffffff8231bf68 <__tracepoint_mm_vmscan_lru_shrink_inactive+0x28>
->  48 85 c0                test   %rax,%rax
->  74 72                   je     ffffffff811e646a <shrink_inactive_list+0x3ea>
->  48 89 c3                mov    %rax,%rbx
->  4c 8b 10                mov    (%rax),%r10
->  89 f8                   mov    %edi,%eax
->  48 89 85 68 ff ff ff    mov    %rax,-0x98(%rbp)
->  89 f0                   mov    %esi,%eax
->  48 89 85 60 ff ff ff    mov    %rax,-0xa0(%rbp)
->  89 c8                   mov    %ecx,%eax
->  48 89 85 78 ff ff ff    mov    %rax,-0x88(%rbp)
->  89 d0                   mov    %edx,%eax
->  48 89 85 70 ff ff ff    mov    %rax,-0x90(%rbp)
->  8b 45 8c                mov    -0x74(%rbp),%eax
->  48 8b 7b 08             mov    0x8(%rbx),%rdi
->  48 83 c3 18             add    $0x18,%rbx
->  50                      push   %rax
->  41 54                   push   %r12
->  41 55                   push   %r13
->  ff b5 78 ff ff ff       pushq  -0x88(%rbp)
->  41 56                   push   %r14
->  41 57                   push   %r15
->  ff b5 70 ff ff ff       pushq  -0x90(%rbp)
->  4c 8b 8d 68 ff ff ff    mov    -0x98(%rbp),%r9
->  4c 8b 85 60 ff ff ff    mov    -0xa0(%rbp),%r8
->  48 8b 4d 98             mov    -0x68(%rbp),%rcx
->  48 8b 55 90             mov    -0x70(%rbp),%rdx
->  8b 75 80                mov    -0x80(%rbp),%esi
->  41 ff d2                callq  *%r10
-> 
-> After the patch:
-> 
->  0f 83 a8 fe ff ff       jae    ffffffff811e626d <shrink_inactive_list+0x1cd>
->  8b 9b b8 fe ff ff       mov    -0x148(%rbx),%ebx
->  45 8b 64 24 20          mov    0x20(%r12),%r12d
->  4c 8b 6d a0             mov    -0x60(%rbp),%r13
->  65 ff 05 f5 f7 e2 7e    incl   %gs:0x7ee2f7f5(%rip)        # 15bd0 <__preempt_count>
->  4c 8b 35 86 5b 13 01    mov    0x1135b86(%rip),%r14        # ffffffff8231bf68 <__tracepoint_mm_vmscan_lru_shrink_inactive+0x28>
->  4d 85 f6                test   %r14,%r14
->  74 2a                   je     ffffffff811e6411 <shrink_inactive_list+0x371>
->  49 8b 06                mov    (%r14),%rax
->  8b 4d 8c                mov    -0x74(%rbp),%ecx
->  49 8b 7e 08             mov    0x8(%r14),%rdi
->  49 83 c6 18             add    $0x18,%r14
->  4c 89 ea                mov    %r13,%rdx
->  45 89 e1                mov    %r12d,%r9d
->  4c 8d 45 b8             lea    -0x48(%rbp),%r8
->  89 de                   mov    %ebx,%esi
->  51                      push   %rcx
->  48 8b 4d 98             mov    -0x68(%rbp),%rcx
->  ff d0                   callq  *%rax
-> 
-> Link: http://lkml.kernel.org/r/2559d7cb-ec60-1200-2362-04fa34fd02bb@fb.com
-> 
-> Reported-by: Alexei Starovoitov <ast@fb.com>
-> Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
 > ---
->  include/linux/vmstat.h        | 11 +++++++++++
->  include/trace/events/vmscan.h | 24 +++++++++---------------
->  mm/vmscan.c                   | 18 +-----------------
->  3 files changed, 21 insertions(+), 32 deletions(-)
+>  mm/slab.c        | 18 ++++++++++++++++--
+>  mm/slab.h        | 15 +++++++++++++++
+>  mm/slab_common.c |  2 +-
+>  3 files changed, 32 insertions(+), 3 deletions(-)
 > 
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> index a4c2317d8b9f..f25cef84b41d 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -20,6 +20,17 @@ extern int sysctl_vm_numa_stat_handler(struct ctl_table *table,
->  		int write, void __user *buffer, size_t *length, loff_t *ppos);
->  #endif
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 66f2db98f026..9c174a799ffb 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -4004,6 +4004,16 @@ static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
+>  	slabs_destroy(cachep, &list);
+>  }
 >  
-> +struct reclaim_stat {
-> +	unsigned nr_dirty;
-> +	unsigned nr_unqueued_dirty;
-> +	unsigned nr_congested;
-> +	unsigned nr_writeback;
-> +	unsigned nr_immediate;
-> +	unsigned nr_activate;
-> +	unsigned nr_ref_keep;
-> +	unsigned nr_unmap_fail;
-> +};
+> +static bool is_slab_active(struct kmem_cache *cachep)
+> +{
+> +	int node;
+> +	struct kmem_cache_node *n;
 > +
->  #ifdef CONFIG_VM_EVENT_COUNTERS
->  /*
->   * Light weight per cpu counter implementation.
-> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> index e0b8b9173e1c..5a7435296d89 100644
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -343,15 +343,9 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
->  
->  	TP_PROTO(int nid,
->  		unsigned long nr_scanned, unsigned long nr_reclaimed,
-> -		unsigned long nr_dirty, unsigned long nr_writeback,
-> -		unsigned long nr_congested, unsigned long nr_immediate,
-> -		unsigned long nr_activate, unsigned long nr_ref_keep,
-> -		unsigned long nr_unmap_fail,
-> -		int priority, int file),
-> +		struct reclaim_stat *stat, int priority, int file),
->  
-> -	TP_ARGS(nid, nr_scanned, nr_reclaimed, nr_dirty, nr_writeback,
-> -		nr_congested, nr_immediate, nr_activate, nr_ref_keep,
-> -		nr_unmap_fail, priority, file),
-> +	TP_ARGS(nid, nr_scanned, nr_reclaimed, stat, priority, file),
->  
->  	TP_STRUCT__entry(
->  		__field(int, nid)
-> @@ -372,13 +366,13 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
->  		__entry->nid = nid;
->  		__entry->nr_scanned = nr_scanned;
->  		__entry->nr_reclaimed = nr_reclaimed;
-> -		__entry->nr_dirty = nr_dirty;
-> -		__entry->nr_writeback = nr_writeback;
-> -		__entry->nr_congested = nr_congested;
-> -		__entry->nr_immediate = nr_immediate;
-> -		__entry->nr_activate = nr_activate;
-> -		__entry->nr_ref_keep = nr_ref_keep;
-> -		__entry->nr_unmap_fail = nr_unmap_fail;
-> +		__entry->nr_dirty = stat->nr_dirty;
-> +		__entry->nr_writeback = stat->nr_writeback;
-> +		__entry->nr_congested = stat->nr_congested;
-> +		__entry->nr_immediate = stat->nr_immediate;
-> +		__entry->nr_activate = stat->nr_activate;
-> +		__entry->nr_ref_keep = stat->nr_ref_keep;
-> +		__entry->nr_unmap_fail = stat->nr_unmap_fail;
->  		__entry->priority = priority;
->  		__entry->reclaim_flags = trace_shrink_flags(file);
->  	),
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index bee53495a829..aaeb86642095 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -865,17 +865,6 @@ static void page_check_dirty_writeback(struct page *page,
->  		mapping->a_ops->is_dirty_writeback(page, dirty, writeback);
->  }
->  
-> -struct reclaim_stat {
-> -	unsigned nr_dirty;
-> -	unsigned nr_unqueued_dirty;
-> -	unsigned nr_congested;
-> -	unsigned nr_writeback;
-> -	unsigned nr_immediate;
-> -	unsigned nr_activate;
-> -	unsigned nr_ref_keep;
-> -	unsigned nr_unmap_fail;
-> -};
-> -
->  /*
->   * shrink_page_list() returns the number of reclaimed pages
+> +	for_each_kmem_cache_node(cachep, node, n)
+> +		if (READ_ONCE(n->total_slabs) - n->free_slabs)
+> +			return true;
+> +	return false;
+> +}
+>  /**
+>   * cache_reap - Reclaim memory from caches.
+>   * @w: work descriptor
+> @@ -4018,7 +4028,7 @@ static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
 >   */
-> @@ -1828,12 +1817,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  		wait_iff_congested(pgdat, BLK_RW_ASYNC, HZ/10);
+>  static void cache_reap(struct work_struct *w)
+>  {
+> -	struct kmem_cache *searchp;
+> +	struct kmem_cache *searchp, *tmp;
+>  	struct kmem_cache_node *n;
+>  	int node = numa_mem_id();
+>  	struct delayed_work *work = to_delayed_work(w);
+> @@ -4027,7 +4037,7 @@ static void cache_reap(struct work_struct *w)
+>  		/* Give up. Setup the next iteration. */
+>  		goto out;
 >  
->  	trace_mm_vmscan_lru_shrink_inactive(pgdat->node_id,
-> -			nr_scanned, nr_reclaimed,
-> -			stat.nr_dirty,  stat.nr_writeback,
-> -			stat.nr_congested, stat.nr_immediate,
-> -			stat.nr_activate, stat.nr_ref_keep,
-> -			stat.nr_unmap_fail,
-> -			sc->priority, file);
-> +			nr_scanned, nr_reclaimed, &stat, sc->priority, file);
->  	return nr_reclaimed;
+> -	list_for_each_entry(searchp, &slab_caches, list) {
+> +	list_for_each_entry_safe(searchp, tmp, &slab_caches, list) {
+>  		check_irq_on();
+>  
+>  		/*
+> @@ -4061,6 +4071,10 @@ static void cache_reap(struct work_struct *w)
+>  				5 * searchp->num - 1) / (5 * searchp->num));
+>  			STATS_ADD_REAPED(searchp, freed);
+>  		}
+> +
+> +		/* Eagerly delete inactive kmem_cache of an offlined memcg. */
+> +		if (!is_memcg_online(searchp) && !is_slab_active(searchp))
+> +			shutdown_cache(searchp);
+>  next:
+>  		cond_resched();
+>  	}
+> diff --git a/mm/slab.h b/mm/slab.h
+> index e8981e811c45..e911b10efae7 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -166,6 +166,7 @@ static inline slab_flags_t kmem_cache_flags(unsigned int object_size,
+>  			      SLAB_TEMPORARY | \
+>  			      SLAB_ACCOUNT)
+>  
+> +int shutdown_cache(struct kmem_cache *s);
+>  int __kmem_cache_shutdown(struct kmem_cache *);
+>  void __kmem_cache_release(struct kmem_cache *);
+>  int __kmem_cache_shrink(struct kmem_cache *);
+> @@ -290,6 +291,15 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
+>  	memcg_kmem_uncharge(page, order);
 >  }
 >  
+> +static __always_inline bool is_memcg_online(struct kmem_cache *s)
+> +{
+> +	if (!memcg_kmem_enabled())
+> +		return true;
+> +	if (is_root_cache(s))
+> +		return true;
+> +	return mem_cgroup_online(s->memcg_params.memcg);
+> +}
+> +
+>  extern void slab_init_memcg_params(struct kmem_cache *);
+>  extern void memcg_link_cache(struct kmem_cache *s);
+>  extern void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
+> @@ -342,6 +352,11 @@ static inline void memcg_uncharge_slab(struct page *page, int order,
+>  {
+>  }
+>  
+> +static inline bool is_memcg_online(struct kmem_cache *s)
+> +{
+> +	return true;
+> +}
+> +
+>  static inline void slab_init_memcg_params(struct kmem_cache *s)
+>  {
+>  }
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 61ab2ca8bea7..d197e878636b 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -573,7 +573,7 @@ static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work)
+>  	}
+>  }
+>  
+> -static int shutdown_cache(struct kmem_cache *s)
+> +int shutdown_cache(struct kmem_cache *s)
+>  {
+>  	/* free asan quarantined objects */
+>  	kasan_cache_shutdown(s);
 > -- 
-> 2.13.6
-> 
+> 2.17.0.rc0.231.g781580f067-goog
 
 -- 
 Michal Hocko
