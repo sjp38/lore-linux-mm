@@ -1,211 +1,288 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 54E9E6B0012
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 07:26:16 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id w23so5825996pgv.17
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 04:26:16 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0136.outbound.protection.outlook.com. [104.47.1.136])
-        by mx.google.com with ESMTPS id x6si6317139pfb.105.2018.03.23.04.26.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 23 Mar 2018 04:26:15 -0700 (PDT)
-Subject: Re: [PATCH 03/10] mm: Assign memcg-aware shrinkers bitmap to memcg
-References: <152163850081.21546.6969747084834474733.stgit@localhost.localdomain>
- <201803231640.37BGHC6o%fengguang.wu@intel.com>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <17882dc4-3799-29f0-96ff-09a787f10bcd@virtuozzo.com>
-Date: Fri, 23 Mar 2018 14:26:04 +0300
+	by kanga.kvack.org (Postfix) with ESMTP id C1CDC6B0012
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 08:04:23 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id v8so5874833pgs.9
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 05:04:23 -0700 (PDT)
+Received: from baidu.com (mx21.baidu.com. [220.181.3.85])
+        by mx.google.com with ESMTP id m22si5913888pgv.643.2018.03.23.05.04.21
+        for <linux-mm@kvack.org>;
+        Fri, 23 Mar 2018 05:04:22 -0700 (PDT)
+From: "Li,Rongqing" <lirongqing@baidu.com>
+Subject: =?utf-8?B?562U5aSNOiDnrZTlpI06IOetlOWkjTogW1BBVENIXSBtbS9tZW1jb250cm9s?=
+ =?utf-8?Q?.c:_speed_up_to_force_empty_a_memory_cgroup?=
+Date: Fri, 23 Mar 2018 12:04:16 +0000
+Message-ID: <2AD939572F25A448A3AE3CAEA61328C2374EC73E@BC-MAIL-M28.internal.baidu.com>
+References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
+ <20180319085355.GQ23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
+ <20180319103756.GV23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
+ <2AD939572F25A448A3AE3CAEA61328C2374832C1@BC-MAIL-M28.internal.baidu.com>
+ <20180323100839.GO23100@dhcp22.suse.cz>
+In-Reply-To: <20180323100839.GO23100@dhcp22.suse.cz>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <201803231640.37BGHC6o%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On 23.03.2018 12:06, kbuild test robot wrote:
-> Hi Kirill,
-> 
-> Thank you for the patch! Perhaps something to improve:
-> 
-> [auto build test WARNING on mmotm/master]
-> [also build test WARNING on v4.16-rc6 next-20180322]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> 
-> url:    https://github.com/0day-ci/linux/commits/Kirill-Tkhai/Improve-shrink_slab-scalability-old-complexity-was-O-n-2-new-is-O-n/20180323-052754
-> base:   git://git.cmpxchg.org/linux-mmotm.git master
-> reproduce:
->         # apt-get install sparse
->         make ARCH=x86_64 allmodconfig
->         make C=1 CF=-D__CHECK_ENDIAN__
-> 
-> 
-> sparse warnings: (new ones prefixed by >>)
-> 
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:79:1: sparse: incorrect type in argument 3 (different base types) @@    expected unsigned long [unsigned] flags @@    got resunsigned long [unsigned] flags @@
->    include/trace/events/vmscan.h:79:1:    expected unsigned long [unsigned] flags
->    include/trace/events/vmscan.h:79:1:    got restricted gfp_t [usertype] gfp_flags
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:106:1: sparse: incorrect type in argument 3 (different base types) @@    expected unsigned long [unsigned] flags @@    got resunsigned long [unsigned] flags @@
->    include/trace/events/vmscan.h:106:1:    expected unsigned long [unsigned] flags
->    include/trace/events/vmscan.h:106:1:    got restricted gfp_t [usertype] gfp_flags
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: cast from restricted gfp_t
->    include/trace/events/vmscan.h:196:1: sparse: too many warnings
->>> mm/vmscan.c:231:15: sparse: incompatible types in conditional expression (different address spaces)
->>> mm/vmscan.c:231:15: sparse: cast from unknown type
->>> mm/vmscan.c:231:15: sparse: incompatible types in conditional expression (different address spaces)
->>> mm/vmscan.c:231:15: sparse: incompatible types in conditional expression (different address spaces)
->>> mm/vmscan.c:231:15: sparse: cast from unknown type
-> 
-> vim +231 mm/vmscan.c
-
-Yeah, thanks for report.
-
-> 
->    205	
->    206	static int memcg_expand_maps(struct mem_cgroup *memcg, int size, int old_size)
->    207	{
->    208		struct shrinkers_map *new, *old;
->    209		int i;
->    210	
->    211		new = kvmalloc(sizeof(*new) + nr_node_ids * sizeof(new->map[0]),
->    212				GFP_KERNEL);
->    213		if (!new)
->    214			return -ENOMEM;
->    215	
->    216		for (i = 0; i < nr_node_ids; i++) {
->    217			new->map[i] = kvmalloc_node(size, GFP_KERNEL, i);
->    218			if (!new->map[i]) {
->    219				while (--i >= 0)
->    220					kvfree(new->map[i]);
->    221				kvfree(new);
->    222				return -ENOMEM;
->    223			}
->    224	
->    225			/* Set all old bits, clear all new bits */
->    226			memset(new->map[i], (int)0xff, old_size);
->    227			memset((void *)new->map[i] + old_size, 0, size - old_size);
->    228		}
->    229	
->    230		lockdep_assert_held(&bitmap_rwsem);
->  > 231		old = rcu_dereference_protected(SHRINKERS_MAP(memcg), true);
->    232	
->    233		/*
->    234		 * We don't want to use rcu_read_lock() in shrink_slab().
->    235		 * Since expansion happens rare, we may just take the lock
->    236		 * here.
->    237		 */
->    238		if (old)
->    239			down_write(&shrinker_rwsem);
->    240	
->    241		if (memcg)
->    242			rcu_assign_pointer(memcg->shrinkers_map, new);
->    243		else
->    244			rcu_assign_pointer(root_shrinkers_map, new);
->    245	
->    246		if (old) {
->    247			up_write(&shrinker_rwsem);
->    248			call_rcu(&old->rcu, kvfree_map_rcu);
->    249		}
->    250	
->    251		return 0;
->    252	}
->    253	
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-> 
+DQoNCj4gLS0tLS3pgq7ku7bljp/ku7YtLS0tLQ0KPiDlj5Hku7bkuro6IE1pY2hhbCBIb2NrbyBb
+bWFpbHRvOm1ob2Nrb0BrZXJuZWwub3JnXQ0KPiDlj5HpgIHml7bpl7Q6IDIwMTjlubQz5pyIMjPm
+l6UgMTg6MDkNCj4g5pS25Lu25Lq6OiBMaSxSb25ncWluZyA8bGlyb25ncWluZ0BiYWlkdS5jb20+
+DQo+IOaKhOmAgTogbGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZzsgbGludXgtbW1Aa3ZhY2su
+b3JnOw0KPiBjZ3JvdXBzQHZnZXIua2VybmVsLm9yZzsgaGFubmVzQGNtcHhjaGcub3JnOyBBbmRy
+ZXkgUnlhYmluaW4NCj4gPGFyeWFiaW5pbkB2aXJ0dW96em8uY29tPg0KPiDkuLvpopg6IFJlOiDn
+rZTlpI06IOetlOWkjTogW1BBVENIXSBtbS9tZW1jb250cm9sLmM6IHNwZWVkIHVwIHRvIGZvcmNl
+IGVtcHR5DQo+IGEgbWVtb3J5IGNncm91cA0KPiANCj4gT24gRnJpIDIzLTAzLTE4IDAyOjU4OjM2
+LCBMaSxSb25ncWluZyB3cm90ZToNCj4gPg0KPiA+DQo+ID4gPiAtLS0tLemCruS7tuWOn+S7ti0t
+LS0tDQo+ID4gPiDlj5Hku7bkuro6IGxpbnV4LWtlcm5lbC1vd25lckB2Z2VyLmtlcm5lbC5vcmcN
+Cj4gPiA+IFttYWlsdG86bGludXgta2VybmVsLW93bmVyQHZnZXIua2VybmVsLm9yZ10g5Luj6KGo
+IExpLFJvbmdxaW5nDQo+ID4gPiDlj5HpgIHml7bpl7Q6IDIwMTjlubQz5pyIMTnml6UgMTg6NTIN
+Cj4gPiA+IOaUtuS7tuS6ujogTWljaGFsIEhvY2tvIDxtaG9ja29Aa2VybmVsLm9yZz4NCj4gPiA+
+IOaKhOmAgTogbGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZzsgbGludXgtbW1Aa3ZhY2sub3Jn
+Ow0KPiA+ID4gY2dyb3Vwc0B2Z2VyLmtlcm5lbC5vcmc7IGhhbm5lc0BjbXB4Y2hnLm9yZzsgQW5k
+cmV5IFJ5YWJpbmluDQo+ID4gPiA8YXJ5YWJpbmluQHZpcnR1b3p6by5jb20+DQo+ID4gPiDkuLvp
+opg6IOetlOWkjTog562U5aSNOiBbUEFUQ0hdIG1tL21lbWNvbnRyb2wuYzogc3BlZWQgdXAgdG8g
+Zm9yY2UNCj4gZW1wdHkgYQ0KPiA+ID4gbWVtb3J5IGNncm91cA0KPiA+ID4NCj4gPiA+DQo+ID4g
+Pg0KPiA+ID4gPiAtLS0tLemCruS7tuWOn+S7ti0tLS0tDQo+ID4gPiA+IOWPkeS7tuS6ujogTWlj
+aGFsIEhvY2tvIFttYWlsdG86bWhvY2tvQGtlcm5lbC5vcmddDQo+ID4gPiA+IOWPkemAgeaXtumX
+tDogMjAxOOW5tDPmnIgxOeaXpSAxODozOA0KPiA+ID4gPiDmlLbku7bkuro6IExpLFJvbmdxaW5n
+IDxsaXJvbmdxaW5nQGJhaWR1LmNvbT4NCj4gPiA+ID4g5oqE6YCBOiBsaW51eC1rZXJuZWxAdmdl
+ci5rZXJuZWwub3JnOyBsaW51eC1tbUBrdmFjay5vcmc7DQo+ID4gPiA+IGNncm91cHNAdmdlci5r
+ZXJuZWwub3JnOyBoYW5uZXNAY21weGNoZy5vcmc7IEFuZHJleSBSeWFiaW5pbg0KPiA+ID4gPiA8
+YXJ5YWJpbmluQHZpcnR1b3p6by5jb20+DQo+ID4gPiA+IOS4u+mimDogUmU6IOetlOWkjTogW1BB
+VENIXSBtbS9tZW1jb250cm9sLmM6IHNwZWVkIHVwIHRvIGZvcmNlIGVtcHR5DQo+IGENCj4gPiA+
+IG1lbW9yeQ0KPiA+ID4gPiBjZ3JvdXANCj4gPiA+ID4NCj4gPiA+ID4gT24gTW9uIDE5LTAzLTE4
+IDEwOjAwOjQxLCBMaSxSb25ncWluZyB3cm90ZToNCj4gPiA+ID4gPg0KPiA+ID4gPiA+DQo+ID4g
+PiA+ID4gPiAtLS0tLemCruS7tuWOn+S7ti0tLS0tDQo+ID4gPiA+ID4gPiDlj5Hku7bkuro6IE1p
+Y2hhbCBIb2NrbyBbbWFpbHRvOm1ob2Nrb0BrZXJuZWwub3JnXQ0KPiA+ID4gPiA+ID4g5Y+R6YCB
+5pe26Ze0OiAyMDE45bm0M+aciDE55pelIDE2OjU0DQo+ID4gPiA+ID4gPiDmlLbku7bkuro6IExp
+LFJvbmdxaW5nIDxsaXJvbmdxaW5nQGJhaWR1LmNvbT4NCj4gPiA+ID4gPiA+IOaKhOmAgTogbGlu
+dXgta2VybmVsQHZnZXIua2VybmVsLm9yZzsgbGludXgtbW1Aa3ZhY2sub3JnOw0KPiA+ID4gPiA+
+ID4gY2dyb3Vwc0B2Z2VyLmtlcm5lbC5vcmc7IGhhbm5lc0BjbXB4Y2hnLm9yZzsgQW5kcmV5IFJ5
+YWJpbmluDQo+ID4gPiA+ID4gPiA8YXJ5YWJpbmluQHZpcnR1b3p6by5jb20+DQo+ID4gPiA+ID4g
+PiDkuLvpopg6IFJlOiBbUEFUQ0hdIG1tL21lbWNvbnRyb2wuYzogc3BlZWQgdXAgdG8gZm9yY2Ug
+ZW1wdHkgYQ0KPiA+ID4gPiBtZW1vcnkNCj4gPiA+ID4gPiA+IGNncm91cA0KPiA+ID4gPiA+ID4N
+Cj4gPiA+ID4gPiA+IE9uIE1vbiAxOS0wMy0xOCAxNjoyOTozMCwgTGkgUm9uZ1Fpbmcgd3JvdGU6
+DQo+ID4gPiA+ID4gPiA+IG1lbV9jZ3JvdXBfZm9yY2VfZW1wdHkoKSB0cmllcyB0byBmcmVlIG9u
+bHkgMzINCj4gPiA+ID4gKFNXQVBfQ0xVU1RFUl9NQVgpDQo+ID4gPiA+ID4gPiA+IHBhZ2VzIG9u
+IGVhY2ggaXRlcmF0aW9uLCBpZiBhIG1lbW9yeSBjZ3JvdXAgaGFzIGxvdHMgb2YgcGFnZQ0KPiA+
+ID4gPiA+ID4gPiBjYWNoZSwgaXQgd2lsbCB0YWtlIG1hbnkgaXRlcmF0aW9ucyB0byBlbXB0eSBh
+bGwgcGFnZSBjYWNoZSwNCj4gPiA+ID4gPiA+ID4gc28gaW5jcmVhc2UgdGhlIHJlY2xhaW1lZCBu
+dW1iZXIgcGVyIGl0ZXJhdGlvbiB0byBzcGVlZCBpdA0KPiA+ID4gPiA+ID4gPiB1cC4gc2FtZSBh
+cyBpbg0KPiA+ID4gPiA+ID4gPiBtZW1fY2dyb3VwX3Jlc2l6ZV9saW1pdCgpDQo+ID4gPiA+ID4g
+PiA+DQo+ID4gPiA+ID4gPiA+IGEgc2ltcGxlIHRlc3Qgc2hvdzoNCj4gPiA+ID4gPiA+ID4NCj4g
+PiA+ID4gPiA+ID4gICAkZGQgaWY9YWFhICBvZj1iYmIgIGJzPTFrIGNvdW50PTM4ODYwODANCj4g
+PiA+ID4gPiA+ID4gICAkcm0gLWYgYmJiDQo+ID4gPiA+ID4gPiA+ICAgJHRpbWUgZWNobw0KPiA+
+ID4gPiAxMDAwMDAwMDAgPi9jZ3JvdXAvbWVtb3J5L3Rlc3QvbWVtb3J5LmxpbWl0X2luX2J5dGVz
+DQo+ID4gPiA+ID4gPiA+DQo+ID4gPiA+ID4gPiA+IEJlZm9yZTogMG0wLjI1MnMgPT09PiBhZnRl
+cjogMG0wLjE3OHMNCj4gPiA+ID4gPiA+DQo+ID4gPiA+ID4gPiBBbmRyZXkgd2FzIHByb3Bvc2lu
+ZyBzb21ldGhpbmcgc2ltaWxhciBbMV0uIE15IG1haW4gb2JqZWN0aW9uDQo+ID4gPiA+ID4gPiB3
+YXMgdGhhdCBoaXMgYXBwcm9hY2ggbWlnaHQgbGVhZCB0byBvdmVyLXJlY2xhaW0uIFlvdXINCj4g
+PiA+ID4gPiA+IGFwcHJvYWNoIGlzIG1vcmUgY29uc2VydmF0aXZlIGJlY2F1c2UgaXQganVzdCBp
+bmNyZWFzZXMgdGhlDQo+ID4gPiA+ID4gPiBiYXRjaCBzaXplLiBUaGUgc2l6ZSBpcyBzdGlsbCBy
+YXRoZXIgYXJiaXRyYXJ5LiBTYW1lIGFzDQo+ID4gPiA+ID4gPiBTV0FQX0NMVVNURVJfTUFYIGJ1
+dCB0aGF0IG9uZSBpcyBhIGNvbW1vbmx5IHVzZWQgdW5pdCBvZg0KPiByZWNsYWltIGluIHRoZSBN
+TSBjb2RlLg0KPiA+ID4gPiA+ID4NCj4gPiA+ID4gPiA+IEkgd291bGQgYmUgcmVhbGx5IGN1cmlv
+dXMgYWJvdXQgbW9yZSBkZXRhaWxlZCBleHBsYW5hdGlvbiB3aHkNCj4gPiA+ID4gPiA+IGhhdmlu
+ZyBhIGxhcmdlciBiYXRjaCB5aWVsZHMgdG8gYSBiZXR0ZXIgcGVyZm9ybWFuY2UgYmVjYXVzZQ0K
+PiA+ID4gPiA+ID4gd2UgYXJlIGRvaW5nZyBTV0FQX0NMVVNURVJfTUFYIGJhdGNoZXMgYXQgdGhl
+IGxvd2VyIHJlY2xhaW0NCj4gPiA+ID4gPiA+IGxldmVsDQo+ID4gPiBhbnl3YXkuDQo+ID4gPiA+
+ID4gPg0KPiA+ID4gPiA+DQo+ID4gPiA+ID4gQWx0aG91Z2ggU1dBUF9DTFVTVEVSX01BWCBpcyB1
+c2VkIGF0IHRoZSBsb3dlciBsZXZlbCwgYnV0IHRoZQ0KPiA+ID4gPiA+IGNhbGwgc3RhY2sgb2Yg
+dHJ5X3RvX2ZyZWVfbWVtX2Nncm91cF9wYWdlcyBpcyB0b28gbG9uZywgaW5jcmVhc2UNCj4gPiA+
+ID4gPiB0aGUgbnJfdG9fcmVjbGFpbSBjYW4gcmVkdWNlIHRpbWVzIG9mIGNhbGxpbmcNCj4gPiA+
+ID4gPiBmdW5jdGlvbltkb190cnlfdG9fZnJlZV9wYWdlcywgc2hyaW5rX3pvbmVzLCBocmlua19u
+b2RlIF0NCj4gPiA+ID4gPg0KPiA+ID4gPiA+IG1lbV9jZ3JvdXBfcmVzaXplX2xpbWl0DQo+ID4g
+PiA+ID4gLS0tPnRyeV90b19mcmVlX21lbV9jZ3JvdXBfcGFnZXM6ICAubnJfdG9fcmVjbGFpbSA9
+IG1heCgxMDI0LA0KPiA+ID4gPiA+IC0tLT5TV0FQX0NMVVNURVJfTUFYKSwNCj4gPiA+ID4gPiAg
+ICAtLS0+IGRvX3RyeV90b19mcmVlX3BhZ2VzDQo+ID4gPiA+ID4gICAgICAtLS0+IHNocmlua196
+b25lcw0KPiA+ID4gPiA+ICAgICAgIC0tLT5zaHJpbmtfbm9kZQ0KPiA+ID4gPiA+ICAgICAgICAt
+LS0+IHNocmlua19ub2RlX21lbWNnDQo+ID4gPiA+ID4gICAgICAgICAgLS0tPiBzaHJpbmtfbGlz
+dCAgICAgICAgICA8LS0tLS0tLWxvb3Agd2lsbCBoYXBwZW4gaW4gdGhpcw0KPiBwbGFjZQ0KPiA+
+ID4gPiBbdGltZXM9MTAyNC8zMl0NCj4gPiA+ID4gPiAgICAgICAgICAgIC0tLT4gc2hyaW5rX3Bh
+Z2VfbGlzdA0KPiA+ID4gPg0KPiA+ID4gPiBDYW4geW91IGFjdHVhbGx5IG1lYXN1cmUgdGhpcyB0
+byBiZSB0aGUgY3VscHJpdC4gQmVjYXVzZSB3ZSBzaG91bGQNCj4gPiA+ID4gcmV0aGluayBvdXIg
+Y2FsbCBwYXRoIGlmIGl0IGlzIHRvbyBjb21wbGljYXRlZC9kZWVwIHRvIHBlcmZvcm0gd2VsbC4N
+Cj4gPiA+ID4gQWRkaW5nIGFyYml0cmFyeSBiYXRjaCBzaXplcyBkb2Vzbid0IHNvdW5kIGxpa2Ug
+YSBnb29kIHdheSB0byBnbyB0byBtZS4NCj4gPiA+DQo+ID4gPiBPaywgSSB3aWxsIHRyeQ0KPiA+
+ID4NCj4gPiBodHRwOi8vcGFzdGVkLmNvLzRlZGJjZmZmDQo+ID4NCj4gPiBUaGlzIGlzIHJlc3Vs
+dCBmcm9tIGZ0cmFjZSBncmFwaCwgaXQgbWF5YmUgcHJvdmUgdGhhdCB0aGUgZGVlcCBjYWxsDQo+
+ID4gcGF0aCBsZWFkcyB0byBsb3cgcGVyZm9ybWFuY2UuDQo+IA0KPiBEb2VzIGl0PyBMZXQncyBo
+YXZlIGEgbG9vayBhdCB0aGUgY29uZGVuc2VkIG91dHB1dDoNCj4gICA2KSAgICAgICAgICAgICAg
+IHwgICAgdHJ5X3RvX2ZyZWVfbWVtX2Nncm91cF9wYWdlcygpIHsNCj4gICA2KSAgICAgICAgICAg
+ICAgIHwgICAgICBtZW1fY2dyb3VwX3NlbGVjdF92aWN0aW1fbm9kZSgpIHsNCj4gICA2KSAgIDAu
+MzIwIHVzICAgIHwgICAgICAgIG1lbV9jZ3JvdXBfbm9kZV9ucl9scnVfcGFnZXMoKTsNCj4gICA2
+KSAgIDAuMTUxIHVzICAgIHwgICAgICAgIG1lbV9jZ3JvdXBfbm9kZV9ucl9scnVfcGFnZXMoKTsN
+Cj4gICA2KSAgIDIuMTkwIHVzICAgIHwgICAgICB9DQo+ICAgNikgICAgICAgICAgICAgICB8ICAg
+ICAgZG9fdHJ5X3RvX2ZyZWVfcGFnZXMoKSB7DQo+ICAgNikgICAgICAgICAgICAgICB8ICAgICAg
+ICBzaHJpbmtfbm9kZSgpIHsNCj4gICA2KSAgICAgICAgICAgICAgIHwgICAgICAgICAgc2hyaW5r
+X25vZGVfbWVtY2coKSB7DQo+ICAgNikgICAgICAgICAgICAgICB8ICAgICAgICAgICAgc2hyaW5r
+X2luYWN0aXZlX2xpc3QoKSB7DQo+ICAgNikgKyAyMy4xMzEgdXMgICB8ICAgICAgICAgICAgICBz
+aHJpbmtfcGFnZV9saXN0KCk7DQo+ICAgNikgKyAzMy45NjAgdXMgICB8ICAgICAgICAgICAgfQ0K
+PiAgIDYpICsgMzkuMjAzIHVzICAgfCAgICAgICAgICB9DQo+ICAgNikgICAgICAgICAgICAgICB8
+ICAgICAgICAgIHNocmlua19zbGFiKCkgew0KPiAgIDYpICsgNzIuOTU1IHVzICAgfCAgICAgICAg
+ICB9DQo+ICAgNikgISAxMTYuNTI5IHVzICB8ICAgICAgICB9DQo+ICAgNikgICAgICAgICAgICAg
+ICB8ICAgICAgICBzaHJpbmtfbm9kZSgpIHsNCj4gICA2KSAgIDAuMDUwIHVzICAgIHwgICAgICAg
+ICAgbWVtX2Nncm91cF9pdGVyKCk7DQo+ICAgNikgICAwLjAzNSB1cyAgICB8ICAgICAgICAgIG1l
+bV9jZ3JvdXBfbG93KCk7DQo+ICAgNikgICAgICAgICAgICAgICB8ICAgICAgICAgIHNocmlua19u
+b2RlX21lbWNnKCkgew0KPiAgIDYpICAgMy45NTUgdXMgICAgfCAgICAgICAgICB9DQo+ICAgNikg
+ICAgICAgICAgICAgICB8ICAgICAgICAgIHNocmlua19zbGFiKCkgew0KPiAgIDYpICsgNTQuMjk2
+IHVzICAgfCAgICAgICAgICB9DQo+ICAgNikgKyA2MS41MDIgdXMgICB8ICAgICAgICB9DQo+ICAg
+NikgISAxODUuMDIwIHVzICB8ICAgICAgfQ0KPiAgIDYpICEgMTg4LjE2NSB1cyAgfCAgICB9DQo+
+IA0KPiB0cnlfdG9fZnJlZV9tZW1fY2dyb3VwX3BhZ2VzIGlzIHRoZSBmdWxsIG1lbWNnIHJlY2xh
+aW0gcGF0aCB0YWtpbmcNCj4gMTg4LDE2NSB1cy4gVGhlIHB1cmUgcmVjbGFpbSBwYXRoIGlzIHNo
+cmlua19ub2RlIGFuZCB0aGF0IHRvb2sgMTE2KzYxID0NCj4gMTc3IHVzLg0KPiBTbyB3ZSBoYXZl
+IDExdXMgc3BlbnQgb24gdGhlIHdheS4gSXMgdGhpcyByZWFsbHkgbWFraW5nIHN1Y2ggYSBkaWZm
+ZXJlbmNlPw0KPiBIb3cgZG9lcyB0aGUgcHJvZmlsZSBsb29rIHdoZW4gd2UgZG8gbGFyZ2VyIGJh
+dGNoZXM/DQo+IA0KPiA+IEFuZCB3aGVuIGluY3JlYXNlIHJlY2xhaW1pbmcgcGFnZSBpbiB0cnlf
+dG9fZnJlZV9tZW1fY2dyb3VwX3BhZ2VzLCBpdA0KPiA+IGNhbiByZWR1Y2UgY2FsbGluZyBvZiBz
+aHJpbmtfc2xhYiwgd2hpY2ggc2F2ZSB0aW1lcywgaW4gbXkgY2FzZXMsIHBhZ2UNCj4gPiBjYWNo
+ZXMgb2NjdXB5IG1vc3QgbWVtb3J5LCBzbGFiIGlzIGxpdHRsZSwgYnV0IHNocmlua19zbGFiIHdp
+bGwgYmUNCj4gPiBjYWxsZWQgZXZlcnl0aW1lDQo+IA0KPiBPSywgdGhhdCBtYWtlcyBtb3JlIHNl
+bnNlISBzaHJpbmtfc2xhYiBpcyBjbGVhcmx5IHZpc2libGUgaGVyZS4gSXQgaXMgbW9yZQ0KPiBl
+eHBlbnNpdmUgdGhhbiB0aGUgcGFnZSByZWNsYWltLiBUaGlzIGlzIHNvbWV0aGluZyB0byBsb29r
+IGludG8uDQo+IA0KDQogIHNocmlua19zbGFiKCkgew0KICA2KSAgIDAuMTc1IHVzICAgIHwgICAg
+ICAgICAgICBkb3duX3JlYWRfdHJ5bG9jaygpOw0KICA2KSAgICAgICAgICAgICAgIHwgICAgICAg
+ICAgICBzdXBlcl9jYWNoZV9jb3VudCgpIHsNCiAgNikgICAwLjY0MiB1cyAgICB8ICAgICAgICAg
+ICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAwLjU4NyB1cyAgICB8ICAgICAgICAg
+ICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAzLjc0MCB1cyAgICB8ICAgICAgICAg
+ICAgfQ0KICA2KSAgICAgICAgICAgICAgIHwgICAgICAgICAgICBzdXBlcl9jYWNoZV9jb3VudCgp
+IHsNCiAgNikgICAwLjYyNSB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUo
+KTsNCiAgNikgICAwLjQ4NSB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUo
+KTsNCiAgNikgICAyLjE0NSB1cyAgICB8ICAgICAgICAgICAgfQ0KICA2KSAgICAgICAgICAgICAg
+IHwgICAgICAgICAgICBzdXBlcl9jYWNoZV9jb3VudCgpIHsNCiAgNikgICAwLjMzMyB1cyAgICB8
+ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAwLjMzNCB1cyAgICB8
+ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAyLjEwOSB1cyAgICB8
+ICAgICAgICAgICAgfQ0KICA2KSAgICAgICAgICAgICAgIHwgICAgICAgICAgICBzdXBlcl9jYWNo
+ZV9jb3VudCgpIHsNCiAgNikgICAwLjA2MiB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9j
+b3VudF9vbmUoKTsNCiAgNikgICAwLjE4OCB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9j
+b3VudF9vbmUoKTsNCiAgNikgICAxLjIxNiB1cyAgICB8ICAgICAgICAgICAgfQ0KICA2KSAgICAg
+ICAgICAgICAgIHwgICAgICAgICAgICBzdXBlcl9jYWNoZV9jb3VudCgpIHsNCiAgNikgICAwLjIx
+NyB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAwLjA1
+NiB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAxLjI4
+MiB1cyAgICB8ICAgICAgICAgICAgfQ0KICA2KSAgICAgICAgICAgICAgIHwgICAgICAgICAgICBz
+dXBlcl9jYWNoZV9jb3VudCgpIHsNCiAgNikgICAwLjIwNCB1cyAgICB8ICAgICAgICAgICAgICBs
+aXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAwLjIwNSB1cyAgICB8ICAgICAgICAgICAgICBs
+aXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAxLjIzNyB1cyAgICB8ICAgICAgICAgICAgfQ0K
+ICA2KSAgICAgICAgICAgICAgIHwgICAgICAgICAgICBzdXBlcl9jYWNoZV9jb3VudCgpIHsNCiAg
+NikgICAwLjU5NiB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAg
+NikgICAwLjQ5MyB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAg
+NikgICAyLjE0MCB1cyAgICB8ICAgICAgICAgICAgfQ0KICA2KSAgICAgICAgICAgICAgIHwgICAg
+ICAgICAgICBzdXBlcl9jYWNoZV9jb3VudCgpIHsNCiAgNikgICAwLjEzMCB1cyAgICB8ICAgICAg
+ICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAwLjA1NiB1cyAgICB8ICAgICAg
+ICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAxLjI2MCB1cyAgICB8ICAgICAg
+ICAgICAgfQ0KICA2KSAgICAgICAgICAgICAgIHwgICAgICAgICAgICBzdXBlcl9jYWNoZV9jb3Vu
+dCgpIHsNCiAgNikgICAwLjM4NSB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9v
+bmUoKTsNCiAgNikgICAwLjA1NCB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9v
+bmUoKTsNCiAgNikgICAxLjE4NiB1cyAgICB8ICAgICAgICAgICAgfQ0KICA2KSAgICAgICAgICAg
+ICAgIHwgICAgICAgICAgICBzdXBlcl9jYWNoZV9jb3VudCgpIHsNCiAgNikgICAwLjMwNCB1cyAg
+ICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAwLjI4NiB1cyAg
+ICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAxLjU1MCB1cyAg
+ICB8ICAgICAgICAgICAgfQ0KICA2KSAgICAgICAgICAgICAgIHwgICAgICAgICAgICBzdXBlcl9j
+YWNoZV9jb3VudCgpIHsNCiAgNikgICAwLjIzMCB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xy
+dV9jb3VudF9vbmUoKTsNCiAgNikgICAwLjEyOCB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xy
+dV9jb3VudF9vbmUoKTsNCiAgNikgICAxLjQwOCB1cyAgICB8ICAgICAgICAgICAgfQ0KICA2KSAg
+ICAgICAgICAgICAgIHwgICAgICAgICAgICBzdXBlcl9jYWNoZV9jb3VudCgpIHsNCiAgNikgICAw
+LjM5MiB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAw
+LjEzMiB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAx
+LjY5NCB1cyAgICB8ICAgICAgICAgICAgfQ0KICA2KSAgICAgICAgICAgICAgIHwgICAgICAgICAg
+ICBzdXBlcl9jYWNoZV9jb3VudCgpIHsNCiAgNikgICAwLjI1NyB1cyAgICB8ICAgICAgICAgICAg
+ICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAwLjI1OCB1cyAgICB8ICAgICAgICAgICAg
+ICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAxLjUxMCB1cyAgICB8ICAgICAgICAgICAg
+fQ0KICA2KSAgICAgICAgICAgICAgIHwgICAgICAgICAgICBzdXBlcl9jYWNoZV9jb3VudCgpIHsN
+CiAgNikgICAwLjEzMiB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsN
+CiAgNikgICAwLjEzMiB1cyAgICB8ICAgICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsN
+CiAgNikgICAxLjM2MSB1cyAgICB8ICAgICAgICAgICAgfQ0KICA2KSAgICAgICAgICAgICAgIHwg
+ICAgICAgICAgICBzdXBlcl9jYWNoZV9jb3VudCgpIHsNCiAgNikgICAwLjEzMCB1cyAgICB8ICAg
+ICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAwLjEzMCB1cyAgICB8ICAg
+ICAgICAgICAgICBsaXN0X2xydV9jb3VudF9vbmUoKTsNCiAgNikgICAxLjI0NiB1cyAgICB8ICAg
+ICAgICAgICAgfQ0KICA2KSAgICAgICAgICAgICAgIHwgICAgICAgICAgICBjb3VudF9zaGFkb3df
+bm9kZXMoKSB7DQogIDYpICAgMC4yMDMgdXMgICAgfCAgICAgICAgICAgICAgbGlzdF9scnVfY291
+bnRfb25lKCk7DQogIDYpICAgMC4wNDIgdXMgICAgfCAgICAgICAgICAgICAgbWVtX2Nncm91cF9u
+b2RlX25yX2xydV9wYWdlcygpOw0KICA2KSAgIDEuMTMxIHVzICAgIHwgICAgICAgICAgICB9DQog
+IDYpICAgICAgICAgICAgICAgfCAgICAgICAgICAgIHN1cGVyX2NhY2hlX2NvdW50KCkgew0KICA2
+KSAgIDAuMjAyIHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2
+KSAgIDAuMDU2IHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2
+KSAgIDEuMTE1IHVzICAgIHwgICAgICAgICAgICB9DQogIDYpICAgICAgICAgICAgICAgfCAgICAg
+ICAgICAgIHN1cGVyX2NhY2hlX2NvdW50KCkgew0KICA2KSAgIDAuMDU1IHVzICAgIHwgICAgICAg
+ICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDAuMTA3IHVzICAgIHwgICAgICAg
+ICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDAuOTU4IHVzICAgIHwgICAgICAg
+ICAgICB9DQogIDYpICAgICAgICAgICAgICAgfCAgICAgICAgICAgIHN1cGVyX2NhY2hlX2NvdW50
+KCkgew0KICA2KSAgIDAuMTQ3IHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29u
+ZSgpOw0KICA2KSAgIDAuMTUwIHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29u
+ZSgpOw0KICA2KSAgIDEuNDc0IHVzICAgIHwgICAgICAgICAgICB9DQogIDYpICAgICAgICAgICAg
+ICAgfCAgICAgICAgICAgIHN1cGVyX2NhY2hlX2NvdW50KCkgew0KICA2KSAgIDAuNDkxIHVzICAg
+IHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDAuNDg1IHVzICAg
+IHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDIuNTY5IHVzICAg
+IHwgICAgICAgICAgICB9DQogIDYpICAgICAgICAgICAgICAgfCAgICAgICAgICAgIHN1cGVyX2Nh
+Y2hlX2NvdW50KCkgew0KICA2KSAgIDAuNjA1IHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1
+X2NvdW50X29uZSgpOw0KICA2KSAgIDAuNTkwIHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1
+X2NvdW50X29uZSgpOw0KICA2KSAgIDIuMTM2IHVzICAgIHwgICAgICAgICAgICB9DQogIDYpICAg
+ICAgICAgICAgICAgfCAgICAgICAgICAgIHN1cGVyX2NhY2hlX2NvdW50KCkgew0KICA2KSAgIDAu
+NTcyIHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDAu
+NDE4IHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDEu
+OTE0IHVzICAgIHwgICAgICAgICAgICB9DQogIDYpICAgICAgICAgICAgICAgfCAgICAgICAgICAg
+IHN1cGVyX2NhY2hlX2NvdW50KCkgew0KICA2KSAgIDAuNDI4IHVzICAgIHwgICAgICAgICAgICAg
+IGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDAuMzU4IHVzICAgIHwgICAgICAgICAgICAg
+IGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDIuMDczIHVzICAgIHwgICAgICAgICAgICB9
+IC8qIHN1cGVyX2NhY2hlX2NvdW50ICovDQogIDYpICAgICAgICAgICAgICAgfCAgICAgICAgICAg
+IHN1cGVyX2NhY2hlX2NvdW50KCkgew0KICA2KSAgIDAuNDIyIHVzICAgIHwgICAgICAgICAgICAg
+IGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDAuNDMzIHVzICAgIHwgICAgICAgICAgICAg
+IGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDEuNjA0IHVzICAgIHwgICAgICAgICAgICB9
+DQogIDYpICAgICAgICAgICAgICAgfCAgICAgICAgICAgIHN1cGVyX2NhY2hlX2NvdW50KCkgew0K
+ICA2KSAgIDAuNTMyIHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0K
+ICA2KSAgIDAuMjgwIHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0K
+ICA2KSAgIDEuNTIzIHVzICAgIHwgICAgICAgICAgICB9DQogIDYpICAgICAgICAgICAgICAgfCAg
+ICAgICAgICAgIHN1cGVyX2NhY2hlX2NvdW50KCkgew0KICA2KSAgIDAuNDIyIHVzICAgIHwgICAg
+ICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDAuNTc0IHVzICAgIHwgICAg
+ICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDEuNTU0IHVzICAgIHwgICAg
+ICAgICAgICB9DQogIDYpICAgICAgICAgICAgICAgfCAgICAgICAgICAgIHN1cGVyX2NhY2hlX2Nv
+dW50KCkgew0KICA2KSAgIDAuNTY1IHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50
+X29uZSgpOw0KICA2KSAgIDAuNTg3IHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50
+X29uZSgpOw0KICA2KSAgIDEuODc4IHVzICAgIHwgICAgICAgICAgICB9DQogIDYpICAgICAgICAg
+ICAgICAgfCAgICAgICAgICAgIHN1cGVyX2NhY2hlX2NvdW50KCkgew0KICA2KSAgIDAuNTYzIHVz
+ICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDAuNTU4IHVz
+ICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDEuOTQ5IHVz
+ICAgIHwgICAgICAgICAgICB9DQogIDYpICAgICAgICAgICAgICAgfCAgICAgICAgICAgIHN1cGVy
+X2NhY2hlX2NvdW50KCkgew0KICA2KSAgIDAuNDY4IHVzICAgIHwgICAgICAgICAgICAgIGxpc3Rf
+bHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDAuNDc2IHVzICAgIHwgICAgICAgICAgICAgIGxpc3Rf
+bHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDIuMTQ5IHVzICAgIHwgICAgICAgICAgICB9DQogIDYp
+ICAgICAgICAgICAgICAgfCAgICAgICAgICAgIHN1cGVyX2NhY2hlX2NvdW50KCkgew0KICA2KSAg
+IDAuNDQzIHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAg
+IDAuNDgzIHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAg
+IDIuMjgzIHVzICAgIHwgICAgICAgICAgICB9DQogIDYpICAgICAgICAgICAgICAgfCAgICAgICAg
+ICAgIHN1cGVyX2NhY2hlX2NvdW50KCkgew0KICA2KSAgIDAuMzMyIHVzICAgIHwgICAgICAgICAg
+ICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDAuMjI4IHVzICAgIHwgICAgICAgICAg
+ICAgIGxpc3RfbHJ1X2NvdW50X29uZSgpOw0KICA2KSAgIDEuMzA3IHVzICAgIHwgICAgICAgICAg
+ICB9DQogIDYpICAgICAgICAgICAgICAgfCAgICAgICAgICAgIHN1cGVyX2NhY2hlX2NvdW50KCkg
+ew0KICA2KSAgIDAuNTMyIHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgp
+Ow0KICA2KSAgIDAuMzY3IHVzICAgIHwgICAgICAgICAgICAgIGxpc3RfbHJ1X2NvdW50X29uZSgp
+Ow0KICA2KSAgIDEuOTU2IHVzICAgIHwgICAgICAgICAgICB9DQogIDYpICAgMC4wMzYgdXMgICAg
+fCAgICAgICAgICAgIHVwX3JlYWQoKTsNCiAgNikgICAwLjAzOCB1cyAgICB8ICAgICAgICAgICAg
+X2NvbmRfcmVzY2hlZCgpOw0KICA2KSArIDcyLjk1NSB1cyAgIHwgICAgICAgICAgfQ0KDQpzaHJp
+bmtfc2xhYiBkb2VzIG5vdCByZWNsYWltIGFueSBtZW1vcnksIGJ1dCB0YWtlIGxvdHMgb2YgdGlt
+ZSB0byBjb3VudCBscnUNCg0KbWF5YmUgd2UgY2FuIHVzZSB0aGUgcmV0dXJuaW5nIG9mIHNocmlu
+a19zbGFiIHRvIGNvbnRyb2wgaWYgbmV4dCBzaHJpbmtfc2xhYiBzaG91bGQgYmUgY2FsbGVkPw0K
+DQoNCk9yIGRlZmluZSBhIHNsaWdodCBsaXN0X2xydV9lbXB0eSB0byBjaGVjayBpZiBzYi0+c19k
+ZW50cnlfbHJ1IGlzIGVtcHR5IGJlZm9yZSBjYWxsaW5nIGxpc3RfbHJ1X3Nocmlua19jb3VudCwg
+bGlrZSBiZWxvdw0KDQpkaWZmIC0tZ2l0IGEvZnMvc3VwZXIuYyBiL2ZzL3N1cGVyLmMNCmluZGV4
+IDY3MjUzOGNhOTgzMS4uOTU0YzIyMzM4ODMzIDEwMDY0NA0KLS0tIGEvZnMvc3VwZXIuYw0KKysr
+IGIvZnMvc3VwZXIuYw0KQEAgLTEzMCw4ICsxMzAsMTAgQEAgc3RhdGljIHVuc2lnbmVkIGxvbmcg
+c3VwZXJfY2FjaGVfY291bnQoc3RydWN0IHNocmlua2VyICpzaHJpbmssDQogICAgICAgIGlmIChz
+Yi0+c19vcCAmJiBzYi0+c19vcC0+bnJfY2FjaGVkX29iamVjdHMpDQogICAgICAgICAgICAgICAg
+dG90YWxfb2JqZWN0cyA9IHNiLT5zX29wLT5ucl9jYWNoZWRfb2JqZWN0cyhzYiwgc2MpOw0KIA0K
+LSAgICAgICB0b3RhbF9vYmplY3RzICs9IGxpc3RfbHJ1X3Nocmlua19jb3VudCgmc2ItPnNfZGVu
+dHJ5X2xydSwgc2MpOw0KLSAgICAgICB0b3RhbF9vYmplY3RzICs9IGxpc3RfbHJ1X3Nocmlua19j
+b3VudCgmc2ItPnNfaW5vZGVfbHJ1LCBzYyk7DQorICAgICAgIGlmICghbGlzdF9scnVfZW1wdHko
+c2ItPnNfZGVudHJ5X2xydSkpDQorICAgICAgICAgICAgICAgdG90YWxfb2JqZWN0cyArPSBsaXN0
+X2xydV9zaHJpbmtfY291bnQoJnNiLT5zX2RlbnRyeV9scnUsIHNjKTsNCisgICAgICAgaWYgKCFs
+aXN0X2xydV9lbXB0eShzYi0+c19pbm9kZV9scnUpKQ0KKyAgICAgICAgICAgICAgIHRvdGFsX29i
+amVjdHMgKz0gbGlzdF9scnVfc2hyaW5rX2NvdW50KCZzYi0+c19pbm9kZV9scnUsIHNjKTsNCiAN
+CiAgICAgICAgdG90YWxfb2JqZWN0cyA9IHZmc19wcmVzc3VyZV9yYXRpbyh0b3RhbF9vYmplY3Rz
+KTsNCiAgICAgICAgcmV0dXJuIHRvdGFsX29iamVjdHM7DQoNCi1Sb25nUWluZw0KDQoNCj4gVGhh
+bmtzIQ0KPiAtLQ0KPiBNaWNoYWwgSG9ja28NCj4gU1VTRSBMYWJzDQo=
