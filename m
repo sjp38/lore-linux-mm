@@ -1,146 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 89F516B0012
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 12:51:46 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id z124so6594724ywd.21
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 09:51:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g5-v6sor4762566ybc.173.2018.03.24.09.51.45
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 990DC6B000C
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 14:24:04 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id q19so10150224qta.17
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 11:24:04 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id r19si5914qki.57.2018.03.24.11.24.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 24 Mar 2018 09:51:45 -0700 (PDT)
-From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 2/2] mm, memcontrol: Implement memory.swap.events
-Date: Sat, 24 Mar 2018 09:51:27 -0700
-Message-Id: <20180324165127.701194-3-tj@kernel.org>
-In-Reply-To: <20180324165127.701194-1-tj@kernel.org>
-References: <20180324165127.701194-1-tj@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 24 Mar 2018 11:24:03 -0700 (PDT)
+Date: Sat, 24 Mar 2018 14:24:00 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
+Message-ID: <20180324182359.GB4928@redhat.com>
+References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
+ <20180321130833.GM23100@dhcp22.suse.cz>
+ <f88deb20-bcce-939f-53a6-1061c39a9f6c@linux.alibaba.com>
+ <20180321172932.GE4780@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180321172932.GE4780@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com
-Cc: guro@fb.com, riel@surriel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, linux-api@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-Add swap max and fail events so that userland can monitor and respond
-to running out of swap.
+On Wed, Mar 21, 2018 at 10:29:32AM -0700, Matthew Wilcox wrote:
+> On Wed, Mar 21, 2018 at 09:31:22AM -0700, Yang Shi wrote:
+> > On 3/21/18 6:08 AM, Michal Hocko wrote:
+> > > Yes, this definitely sucks. One way to work that around is to split the
+> > > unmap to two phases. One to drop all the pages. That would only need
+> > > mmap_sem for read and then tear down the mapping with the mmap_sem for
+> > > write. This wouldn't help for parallel mmap_sem writers but those really
+> > > need a different approach (e.g. the range locking).
+> > 
+> > page fault might sneak in to map a page which has been unmapped before?
+> > 
+> > range locking should help a lot on manipulating small sections of a large
+> > mapping in parallel or multiple small mappings. It may not achieve too much
+> > for single large mapping.
+> 
+> I don't think we need range locking.  What if we do munmap this way:
+> 
+> Take the mmap_sem for write
+> Find the VMA
+>   If the VMA is large(*)
+>     Mark the VMA as deleted
+>     Drop the mmap_sem
+>     zap all of the entries
+>     Take the mmap_sem
+>   Else
+>     zap all of the entries
+> Continue finding VMAs
+> Drop the mmap_sem
+> 
+> Now we need to change everywhere which looks up a VMA to see if it needs
+> to care the the VMA is deleted (page faults, eg will need to SIGBUS; mmap
+> does not care; munmap will need to wait for the existing munmap operation
+> to complete), but it gives us the atomicity, at least on a per-VMA basis.
+> 
 
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Rik van Riel <riel@surriel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-api@vger.kernel.org
----
- Documentation/cgroup-v2.txt | 16 ++++++++++++++++
- include/linux/memcontrol.h  |  5 +++++
- mm/memcontrol.c             | 24 +++++++++++++++++++++++-
- 3 files changed, 44 insertions(+), 1 deletion(-)
+What about something that should fix all issues:
+    struct list_head to_free_puds;
+    ...
+    down_write(&mm->mmap_sem);
+    ...
+    unmap_vmas(&tlb, vma, start, end, &to_free_puds);
+    arch_unmap(mm, vma, start, end);
+    /* Fix up all other VM information */
+    remove_vma_list(mm, vma);
+    ...
+    up_write(&mm->mmap_sem);
+    ...
+    zap_pud_list(rss_update_info, to_free_puds);
+    update_rss(rss_update_info)
 
-diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
-index 74cdeae..b0dda10 100644
---- a/Documentation/cgroup-v2.txt
-+++ b/Documentation/cgroup-v2.txt
-@@ -1199,6 +1199,22 @@ PAGE_SIZE multiple when read back.
- 	Swap usage hard limit.  If a cgroup's swap usage reaches this
- 	limit, anonymous memory of the cgroup will not be swapped out.
- 
-+  memory.swap.events
-+	A read-only flat-keyed file which exists on non-root cgroups.
-+	The following entries are defined.  Unless specified
-+	otherwise, a value change in this file generates a file
-+	modified event.
-+
-+	  max
-+		The number of times the cgroup's swap usage was about
-+		to go over the max boundary and swap allocation
-+		failed.
-+
-+	  fail
-+		The number of times swap allocation failed either
-+		because of running out of swap system-wide or max
-+		limit.
-+
- 
- Usage Guidelines
- ~~~~~~~~~~~~~~~~
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 85a8f00..f198339 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -54,6 +54,8 @@ enum memcg_event_item {
- 	MEMCG_HIGH,
- 	MEMCG_MAX,
- 	MEMCG_OOM,
-+	MEMCG_SWAP_MAX,
-+	MEMCG_SWAP_FAIL,
- 	MEMCG_NR_EVENTS,
- };
- 
-@@ -202,6 +204,9 @@ struct mem_cgroup {
- 	/* handle for "memory.events" */
- 	struct cgroup_file events_file;
- 
-+	/* handle for "memory.swap.events" */
-+	struct cgroup_file swap_events_file;
-+
- 	/* protect arrays of thresholds */
- 	struct mutex thresholds_lock;
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9f9c8a7..1a14d4a4 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5987,13 +5987,17 @@ int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
- 	if (!memcg)
- 		return 0;
- 
--	if (!entry.val)
-+	if (!entry.val) {
-+		mem_cgroup_event(memcg, MEMCG_SWAP_FAIL);
- 		return 0;
-+	}
- 
- 	memcg = mem_cgroup_id_get_online(memcg);
- 
- 	if (!mem_cgroup_is_root(memcg) &&
- 	    !page_counter_try_charge(&memcg->swap, nr_pages, &counter)) {
-+		mem_cgroup_event(memcg, MEMCG_SWAP_MAX);
-+		mem_cgroup_event(memcg, MEMCG_SWAP_FAIL);
- 		mem_cgroup_id_put(memcg);
- 		return -ENOMEM;
- 	}
-@@ -6131,6 +6135,18 @@ static ssize_t swap_max_write(struct kernfs_open_file *of,
- 	return nbytes;
- }
- 
-+static int swap_events_show(struct seq_file *m, void *v)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-+
-+	memcg_stat_flush(memcg);
-+
-+	seq_printf(m, "max %llu\n", memcg->events[MEMCG_SWAP_MAX]);
-+	seq_printf(m, "fail %llu\n", memcg->events[MEMCG_SWAP_FAIL]);
-+
-+	return 0;
-+}
-+
- static struct cftype swap_files[] = {
- 	{
- 		.name = "swap.current",
-@@ -6143,6 +6159,12 @@ static struct cftype swap_files[] = {
- 		.seq_show = swap_max_show,
- 		.write = swap_max_write,
- 	},
-+	{
-+		.name = "swap.events",
-+		.flags = CFTYPE_NOT_ON_ROOT,
-+		.file_offset = offsetof(struct mem_cgroup, swap_events_file),
-+		.seq_show = swap_events_show,
-+	},
- 	{ }	/* terminate */
- };
- 
--- 
-2.9.5
+We collect pud that need to be free/zap we update the page table PUD
+entry to pud_none under the write sem and CPU page table lock, add the
+pud to the list that need zapping. We only collect pud fully cover,
+and usual business for partialy covered pud.
+
+Everything behave as today except that we do not free memory. Care
+must be take with the anon vma and we should probably not free the
+vma struct either before the zap but all other mm struct can be
+updated. The rss_counter would also to be updated post zap pud.
+
+We would need special code to zap pud list, no need to take lock or
+do special arch tlb flushing, ptep_get_clear, ... when walking down
+those puds. So it should scale a lot better too.
+
+Did i miss something ?
+
+Cheers,
+Jerome
