@@ -1,160 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B34C26B0003
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 07:05:39 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id j3so7134697wrb.18
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 04:05:39 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i8sor5482420wre.21.2018.03.24.04.05.37
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AA9C6B0003
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 07:44:58 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id u79-v6so7857478oie.9
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 04:44:58 -0700 (PDT)
+Received: from huawei.com (szxga01-in.huawei.com. [45.249.212.187])
+        by mx.google.com with ESMTPS id l12-v6si920402oth.549.2018.03.24.04.44.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 24 Mar 2018 04:05:37 -0700 (PDT)
-Date: Sat, 24 Mar 2018 12:05:34 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 00/11] Use global pages with PTI
-Message-ID: <20180324110534.t52m5gvn4r7kvmnj@gmail.com>
-References: <20180323174447.55F35636@viggo.jf.intel.com>
- <CA+55aFwEC1O+6qRc35XwpcuLSgJ+0GP6ciqw_1Oc-msX=efLvQ@mail.gmail.com>
- <be2e683c-bf0a-e9ce-2f02-4905f6bd56d3@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 24 Mar 2018 04:44:56 -0700 (PDT)
+From: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
+Subject: Re: [PATCH 3/7] Disable instrumentation for some code
+Date: Sat, 24 Mar 2018 11:39:15 +0000
+Message-ID: <B8AC3E80E903784988AB3003E3E97330C007748D@dggemm510-mbs.china.huawei.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <be2e683c-bf0a-e9ce-2f02-4905f6bd56d3@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?iso-8859-1?Q?J=FCrgen_Gro=DF?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
+To: Marc Zyngier <marc.zyngier@arm.com>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "kstewart@linuxfoundation.org" <kstewart@linuxfoundation.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>
+Cc: "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "linux@rasmusvillemoes.dk" <linux@rasmusvillemoes.dk>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "pombredanne@nexb.com" <pombredanne@nexb.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "nicolas.pitre@linaro.org" <nicolas.pitre@linaro.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "geert@linux-m68k.org" <geert@linux-m68k.org>, "tixy@linaro.org" <tixy@linaro.org>, "mark.rutland@arm.com" <mark.rutland@arm.com>, "james.morse@arm.com" <james.morse@arm.com>, "zhichao.huang@linaro.org" <zhichao.huang@linaro.org>, "jinb.park7@gmail.com" <jinb.park7@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "philip@cog.systems" <philip@cog.systems>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "kvmarm@lists.cs.columbia.edu" <kvmarm@lists.cs.columbia.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-
-* Dave Hansen <dave.hansen@linux.intel.com> wrote:
-
-> This is time doing a modestly-sized kernel compile on a 4-core Skylake
-> desktop.
-> 
->                         User Time       Kernel Time     Clock Elapsed
-> Baseline ( 0 GLB PTEs)  803.79          67.77           237.30
-> w/series (28 GLB PTEs)  807.70 (+0.7%)  68.07 (+0.7%)   238.07 (+0.3%)
-> 
-> Without PCIDs, it behaves the way I would expect.
->
-> I'll ask around, but I'm open to any ideas about what the heck might be
-> causing this.
-
-Hm, so it's a bit weird that while user time and kernel time both increased by 
-about 0.7%, elapsed time only increased by 0.3%? Typically kernel builds are much 
-more parallel for that to be typical, so maybe there's some noise in the 
-measurement?
-
-Before spending too much time on the global-TLB patch angle I'd suggest investing 
-a bit of time into making sure that the regression you are seeing is actually 
-real:
-
-You haven't described how you have measured kernel build times and "+0.7% 
-regression" might turn out to be the real number, but sub-1% accuracy kernel build 
-times are *awfully* susceptible to:
-
- - various sources of noise
-
- - systematic statistical errors which doesn't show up as 
-   measurement-to-measurement noise but which skews the results:
-   such as the boot-to-boot memory layout of the source code and
-   object files.
-
- - cpufreq artifacts
-
-Even repeated builds with 'make clean' inbetween can be misleading because the 
-exact layout of key include files and binaries which get accessed the most often 
-during a build are set into stone once they've been read into the page cache for 
-the first time after bootup. Automated reboots between measurements can be 
-misleading as well, if the file layout after bootup is too deterministic.
-
-So here's a pretty reliable way to measure kernel build time, which tries to avoid 
-the various pitfalls of caching.
-
-First I make sure that cpufreq is set to 'performance':
-
-  for ((cpu=0; cpu<120; cpu++)); do
-    G=/sys/devices/system/cpu/cpu$cpu/cpufreq/scaling_governor
-    [ -f $G ] && echo performance > $G
-  done
-
-[ ... because it can be *really* annoying to discover that an ostensible 
-  performance regression was a cpufreq artifact ... again. ;-) ]
-
-Then I copy a kernel tree to /tmp (ramfs) as root:
-
-	cd /tmp
-	rm -rf linux
-	git clone ~/linux linux
-	cd linux
-	make defconfig >/dev/null
-	
-... and then we can build the kernel in such a loop (as root again):
-
-  perf stat --repeat 10 --null --pre			'\
-	cp -a kernel ../kernel.copy.$(date +%s);	 \
-	rm -rf *;					 \
-	git checkout .;					 \
-	echo 1 > /proc/sys/vm/drop_caches;		 \
-	find ../kernel* -type f | xargs cat >/dev/null;  \
-	make -j kernel >/dev/null;			 \
-	make clean >/dev/null 2>&1;			 \
-	sync						'\
-							 \
-	make -j16 >/dev/null
-
-( I have tested these by pasting them into a terminal. Adjust the ~/linux source 
-  git tree and the '-j16' to your system. )
-
-Notes:
-
- - the 'pre' script portion is not timed by 'perf stat', only the raw build times
-
- - we flush all caches via drop_caches and re-establish everything again, but:
-
- - we also introduce an intentional memory leak by slowly filling up ramfs with 
-   copies of 'kernel/', thus continously changing the layout of free memory, 
-   cached data such as compiler binaries and the source code hierarchy. (Note 
-   that the leak is about 8MB per iteration, so it isn't massive.)
-
-With 10 iterations this is the statistical stability I get this on a big box:
-
- Performance counter stats for 'make -j128 kernel' (10 runs):
-
-      26.346436425 seconds time elapsed    (+- 0.19%)
-
-... which, despite a high iteration count of 10, is still surprisingly noisy, 
-right?
-
-A 0.2% stddev is probably not enough to call a 0.7% regression with good 
-confidence, so I had to use *30* iterations to make measurement noise to be about 
-an order of magnitude lower than the effect I'm trying to measure:
-
- Performance counter stats for 'make -j128' (30 runs):
-
-      26.334767571 seconds time elapsed    (+- 0.09% )
-
-i.e. "26.334 +- 0.023" seconds is a number we can have pretty high confidence in, 
-on this system.
-
-And just to demonstrate that it's all real, I repeated the whole 30-iteration 
-measurement again:
-
- Performance counter stats for 'make -j128' (30 runs):
-
-      26.311166142 seconds time elapsed    (+- 0.07%)
-
-Even if in the end you get a similar result, close to the +0.7% overhead you 
-already measured, we should have more confidence in blaming global TLBs for the 
-performance regression.
-
-BYMMV.
-
-Thanks,
-
-	Ingo
-
-[*] Note that even this doesn't eliminate certain sources of measurement error: 
-    such as the boot-to-boot variance in the layout of certain key kernel data
-    structures - but kernel builds are mostly user-space dominated, so drop_caches 
-    should be good enough.
+T24gMTkvMDMvMjAxOCAxNjozOCwgTWFyYyBaeW5naWVyIHdyb3RlOg0KPllvdSBuZWVkIHRvIGV4
+dGVuZCB0aGlzIGF0IGxlYXN0IHRvIGFyY2gvYXJtL2t2bS9oeXAvTWFrZWZpbGUsIGFzIHRoZQ0K
+PktBU0FOIHNoYWRvdyByZWdpb24gd29uJ3QgYmUgbWFwcGVkIGluIEhZUC4gU2VlIGNvbW1pdCBh
+NmNkZjFjMDhjYmZlIGZvcg0KPm1vcmUgZGV0YWlscyAoYWxsIHRoZSBhcm02NCBjb21tZW50cyBp
+biB0aGlzIHBhdGNoIGFwcGx5IHRvIDMyYml0IGFzIHdlbGwpLg0KVGhhbmtzIGZvciB5b3VyIHJl
+dmlldy4NCkkgd2lsbCBkaXNhYmxlIHRoZSBpbnN0cnVtZW50YXRpb24gb2YgYXJjaC9hcm0va3Zt
+L2h5cCBpbiB0aGUgbmV4dCB2ZXJzaW9uLiANCkp1c3QgbGlrZSB0aGlzOg0KbGl1d2VubGlhbmdA
+bGludXg6L2hvbWUvc29mdF9kaXNrL3lvY3RvL2xpbnV4LWdpdC9saW51eD4gZ2l0IGRpZmYNCmRp
+ZmYgLS1naXQgYS9hcmNoL2FybS9rdm0vaHlwL01ha2VmaWxlIGIvYXJjaC9hcm0va3ZtL2h5cC9N
+YWtlZmlsZQ0KaW5kZXggNjNkNmI0MC4uMGE4YjUwMCAxMDA2NDQNCi0tLSBhL2FyY2gvYXJtL2t2
+bS9oeXAvTWFrZWZpbGUNCisrKyBiL2FyY2gvYXJtL2t2bS9oeXAvTWFrZWZpbGUNCkBAIC0yNCwz
+ICsyNCw3IEBAIG9iai0kKENPTkZJR19LVk1fQVJNX0hPU1QpICs9IGh5cC1lbnRyeS5vDQogb2Jq
+LSQoQ09ORklHX0tWTV9BUk1fSE9TVCkgKz0gc3dpdGNoLm8NCiBDRkxBR1Nfc3dpdGNoLm8gICAg
+ICAgICAgICAgICAgICAgKz0gJChDRkxBR1NfQVJNVjdWRSkNCiBvYmotJChDT05GSUdfS1ZNX0FS
+TV9IT1NUKSArPSBzMi1zZXR1cC5vDQorDQorR0NPVl9QUk9GSUxFCTo9IG4NCitLQVNBTl9TQU5J
+VElaRQk6PSBuDQorVUJTQU5fU0FOSVRJWkUJOj0gbg0K
