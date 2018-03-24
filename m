@@ -1,84 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B283F6B0005
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 04:43:38 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id c1so7075234wri.22
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 01:43:38 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B34C26B0003
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 07:05:39 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id j3so7134697wrb.18
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 04:05:39 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l2sor2385878wra.53.2018.03.24.01.43.37
+        by mx.google.com with SMTPS id i8sor5482420wre.21.2018.03.24.04.05.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 24 Mar 2018 01:43:37 -0700 (PDT)
-Date: Sat, 24 Mar 2018 09:43:32 +0100
+        Sat, 24 Mar 2018 04:05:37 -0700 (PDT)
+Date: Sat, 24 Mar 2018 12:05:34 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC PATCH v2 03/15] khwasan: add CONFIG_KASAN_CLASSIC and
- CONFIG_KASAN_TAGS
-Message-ID: <20180324084332.u6qik7lkdbenqbb2@gmail.com>
-References: <cover.1521828273.git.andreyknvl@google.com>
- <1fb0a050a84d49f5c3b2210337339412475d1688.1521828273.git.andreyknvl@google.com>
+Subject: Re: [PATCH 00/11] Use global pages with PTI
+Message-ID: <20180324110534.t52m5gvn4r7kvmnj@gmail.com>
+References: <20180323174447.55F35636@viggo.jf.intel.com>
+ <CA+55aFwEC1O+6qRc35XwpcuLSgJ+0GP6ciqw_1Oc-msX=efLvQ@mail.gmail.com>
+ <be2e683c-bf0a-e9ce-2f02-4905f6bd56d3@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1fb0a050a84d49f5c3b2210337339412475d1688.1521828273.git.andreyknvl@google.com>
+In-Reply-To: <be2e683c-bf0a-e9ce-2f02-4905f6bd56d3@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Stephen Boyd <stephen.boyd@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?iso-8859-1?Q?J=FCrgen_Gro=DF?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
 
 
-* Andrey Konovalov <andreyknvl@google.com> wrote:
+* Dave Hansen <dave.hansen@linux.intel.com> wrote:
 
-> This commit splits the current CONFIG_KASAN config option into two:
-> 1. CONFIG_KASAN_CLASSIC, that enables the classic KASAN version (the one
->    that exists now);
-> 2. CONFIG_KASAN_TAGS, that enables KHWASAN.
+> This is time doing a modestly-sized kernel compile on a 4-core Skylake
+> desktop.
+> 
+>                         User Time       Kernel Time     Clock Elapsed
+> Baseline ( 0 GLB PTEs)  803.79          67.77           237.30
+> w/series (28 GLB PTEs)  807.70 (+0.7%)  68.07 (+0.7%)   238.07 (+0.3%)
+> 
+> Without PCIDs, it behaves the way I would expect.
+>
+> I'll ask around, but I'm open to any ideas about what the heck might be
+> causing this.
 
-Sorry, but this is pretty obscure naming scheme that doesn't explain the primary 
-difference between these KASAN models to users: that the first one is a pure 
-software implementation and the other is hardware-assisted.
+Hm, so it's a bit weird that while user time and kernel time both increased by 
+about 0.7%, elapsed time only increased by 0.3%? Typically kernel builds are much 
+more parallel for that to be typical, so maybe there's some noise in the 
+measurement?
 
-Reminds me of the transparency of galactic buerocracy in "The Hitchhiker's Guide 
-to the Galaxy":
+Before spending too much time on the global-TLB patch angle I'd suggest investing 
+a bit of time into making sure that the regression you are seeing is actually 
+real:
 
-  a??But look, you found the notice, didna??t you?a??
-  a??Yes,a?? said Arthur, a??yes I did. It was on display in the bottom of a locked filing 
-   cabinet stuck in a disused lavatory with a sign on the door saying a??Beware of the 
-   Leopard.a?? 
+You haven't described how you have measured kernel build times and "+0.7% 
+regression" might turn out to be the real number, but sub-1% accuracy kernel build 
+times are *awfully* susceptible to:
 
-I'd suggest something more expressive, such as:
+ - various sources of noise
 
-	CONFIG_KASAN
-	  CONFIG_KASAN_GENERIC
-	  CONFIG_KASAN_HW_ASSIST
+ - systematic statistical errors which doesn't show up as 
+   measurement-to-measurement noise but which skews the results:
+   such as the boot-to-boot memory layout of the source code and
+   object files.
 
-or so?
+ - cpufreq artifacts
 
-The 'generic' variant will basically run on any CPU. The 'hardware assisted' one 
-needs support from the CPU.
+Even repeated builds with 'make clean' inbetween can be misleading because the 
+exact layout of key include files and binaries which get accessed the most often 
+during a build are set into stone once they've been read into the page cache for 
+the first time after bootup. Automated reboots between measurements can be 
+misleading as well, if the file layout after bootup is too deterministic.
 
-The following ones might also work:
+So here's a pretty reliable way to measure kernel build time, which tries to avoid 
+the various pitfalls of caching.
 
-   CONFIG_KASAN_HWASSIST
-   CONFIG_KASAN_HW_TAGS
-   CONFIG_KASAN_HWTAGS
+First I make sure that cpufreq is set to 'performance':
 
-... or simply CONFIG_KASAN_SW/CONFIG_KASAN_HW.
+  for ((cpu=0; cpu<120; cpu++)); do
+    G=/sys/devices/system/cpu/cpu$cpu/cpufreq/scaling_governor
+    [ -f $G ] && echo performance > $G
+  done
 
-If other types of KASAN hardware acceleration are implemented in the future then 
-the CONFIG_KASAN_HW namespace can be extended:
+[ ... because it can be *really* annoying to discover that an ostensible 
+  performance regression was a cpufreq artifact ... again. ;-) ]
 
-	CONFIG_KASAN_HW_TAGS
-	CONFIG_KASAN_HW_KEYS
-	etc.
+Then I copy a kernel tree to /tmp (ramfs) as root:
 
-> Both CONFIG_KASAN_CLASSIC and CONFIG_KASAN_CLASSIC support both
-> CONFIG_KASAN_INLINE and CONFIG_KASAN_OUTLINE instrumentation modes.
+	cd /tmp
+	rm -rf linux
+	git clone ~/linux linux
+	cd linux
+	make defconfig >/dev/null
+	
+... and then we can build the kernel in such a loop (as root again):
 
-It would be very surprising if that wasn't so!
+  perf stat --repeat 10 --null --pre			'\
+	cp -a kernel ../kernel.copy.$(date +%s);	 \
+	rm -rf *;					 \
+	git checkout .;					 \
+	echo 1 > /proc/sys/vm/drop_caches;		 \
+	find ../kernel* -type f | xargs cat >/dev/null;  \
+	make -j kernel >/dev/null;			 \
+	make clean >/dev/null 2>&1;			 \
+	sync						'\
+							 \
+	make -j16 >/dev/null
 
-Or did you mean 'Both CONFIG_KASAN_CLASSIC and CONFIG_KASAN_TAGS'! ;-)
+( I have tested these by pasting them into a terminal. Adjust the ~/linux source 
+  git tree and the '-j16' to your system. )
+
+Notes:
+
+ - the 'pre' script portion is not timed by 'perf stat', only the raw build times
+
+ - we flush all caches via drop_caches and re-establish everything again, but:
+
+ - we also introduce an intentional memory leak by slowly filling up ramfs with 
+   copies of 'kernel/', thus continously changing the layout of free memory, 
+   cached data such as compiler binaries and the source code hierarchy. (Note 
+   that the leak is about 8MB per iteration, so it isn't massive.)
+
+With 10 iterations this is the statistical stability I get this on a big box:
+
+ Performance counter stats for 'make -j128 kernel' (10 runs):
+
+      26.346436425 seconds time elapsed    (+- 0.19%)
+
+... which, despite a high iteration count of 10, is still surprisingly noisy, 
+right?
+
+A 0.2% stddev is probably not enough to call a 0.7% regression with good 
+confidence, so I had to use *30* iterations to make measurement noise to be about 
+an order of magnitude lower than the effect I'm trying to measure:
+
+ Performance counter stats for 'make -j128' (30 runs):
+
+      26.334767571 seconds time elapsed    (+- 0.09% )
+
+i.e. "26.334 +- 0.023" seconds is a number we can have pretty high confidence in, 
+on this system.
+
+And just to demonstrate that it's all real, I repeated the whole 30-iteration 
+measurement again:
+
+ Performance counter stats for 'make -j128' (30 runs):
+
+      26.311166142 seconds time elapsed    (+- 0.07%)
+
+Even if in the end you get a similar result, close to the +0.7% overhead you 
+already measured, we should have more confidence in blaming global TLBs for the 
+performance regression.
+
+BYMMV.
 
 Thanks,
 
 	Ingo
+
+[*] Note that even this doesn't eliminate certain sources of measurement error: 
+    such as the boot-to-boot variance in the layout of certain key kernel data
+    structures - but kernel builds are mostly user-space dominated, so drop_caches 
+    should be good enough.
