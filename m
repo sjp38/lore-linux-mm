@@ -1,93 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B97E6B0024
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 09:11:36 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id h191-v6so4626794lfg.18
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 06:11:36 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s193-v6sor2688183lfs.43.2018.03.24.06.11.34
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 429DB6B0012
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 09:55:53 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w10so7523504wrg.15
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 06:55:53 -0700 (PDT)
+Received: from huawei.com ([45.249.212.255])
+        by mx.google.com with ESMTPS id 62si8342402wrg.347.2018.03.24.06.55.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 24 Mar 2018 06:11:34 -0700 (PDT)
-Date: Sat, 24 Mar 2018 16:11:31 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH] mm, slab: eagerly delete inactive offlined SLABs
-Message-ID: <20180324131131.blg3eqsfjc6issp2@esperanza>
-References: <20180321224301.142879-1-shakeelb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 24 Mar 2018 06:55:51 -0700 (PDT)
+From: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
+Subject: Re: [PATCH 7/7] Enable KASan for arm
+Date: Sat, 24 Mar 2018 13:55:37 +0000
+Message-ID: <B8AC3E80E903784988AB3003E3E97330C007750D@dggemm510-mbs.china.huawei.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180321224301.142879-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: kbuild test robot <lkp@intel.com>
+Cc: "kbuild-all@01.org" <kbuild-all@01.org>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "marc.zyngier@arm.com" <marc.zyngier@arm.com>, "kstewart@linuxfoundation.org" <kstewart@linuxfoundation.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "linux@rasmusvillemoes.dk" <linux@rasmusvillemoes.dk>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "pombredanne@nexb.com" <pombredanne@nexb.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "nicolas.pitre@linaro.org" <nicolas.pitre@linaro.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "geert@linux-m68k.org" <geert@linux-m68k.org>, "tixy@linaro.org" <tixy@linaro.org>, "mark.rutland@arm.com" <mark.rutland@arm.com>, "james.morse@arm.com" <james.morse@arm.com>, "zhichao.huang@linaro.org" <zhichao.huang@linaro.org>, "jinb.park7@gmail.com" <jinb.park7@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "philip@cog.systems" <philip@cog.systems>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "kvmarm@lists.cs.columbia.edu" <kvmarm@lists.cs.columbia.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hello Shakeel,
+On 03/20/2018 2:30 AM, kbuild test robot wrote:
+>All errors (new ones prefixed by >>):
+>
+>   arch/arm/kernel/entry-common.S: Assembler messages:
+>>> arch/arm/kernel/entry-common.S:85: Error: invalid constant (ffffffffb6e=
+00000) after fixup
 
-The patch makes sense to me, but I have a concern about synchronization
-of cache destruction vs concurrent kmem_cache_free. Please, see my
-comments inline.
-
-On Wed, Mar 21, 2018 at 03:43:01PM -0700, Shakeel Butt wrote:
-> With kmem cgroup support, high memcgs churn can leave behind a lot of
-> empty kmem_caches. Usually such kmem_caches will be destroyed when the
-> corresponding memcg gets released but the memcg release can be
-> arbitrarily delayed. These empty kmem_caches wastes cache_reaper's time.
-> So, the reaper should destroy such empty offlined kmem_caches.
-
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 66f2db98f026..9c174a799ffb 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -4004,6 +4004,16 @@ static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
->  	slabs_destroy(cachep, &list);
->  }
->  
-> +static bool is_slab_active(struct kmem_cache *cachep)
-> +{
-> +	int node;
-> +	struct kmem_cache_node *n;
-> +
-> +	for_each_kmem_cache_node(cachep, node, n)
-> +		if (READ_ONCE(n->total_slabs) - n->free_slabs)
-
-Why READ_ONCE total_slabs, but not free_slabs?
-
-Anyway, AFAIU there's no guarantee that this CPU sees the two fields
-updated in the same order as they were actually updated on another CPU.
-For example, suppose total_slabs is 2 and free_slabs is 1, and another
-CPU is freeing a slab page concurrently from kmem_cache_free, i.e.
-subtracting 1 from both total_slabs and free_slabs. Then this CPU might
-see a transient state, when total_slabs is already updated (set to 1),
-but free_slabs is not (still equals 1), and decide that it's safe to
-destroy this slab cache while in fact it isn't.
-
-Such a race will probably not result in any serious problems, because
-shutdown_cache() checks that the cache is empty and does nothing if it
-isn't, but still it looks suspicious and at least deserves a comment.
-To eliminate the race, we should check total_slabs vs free_slabs with
-kmem_cache_node->list_lock held. Alternatively, I think we could just
-check if total_slabs is 0 - sooner or later cache_reap() will release
-all empty slabs anyway.
-
-> +			return true;
-> +	return false;
-> +}
-
-> @@ -4061,6 +4071,10 @@ static void cache_reap(struct work_struct *w)
->  				5 * searchp->num - 1) / (5 * searchp->num));
->  			STATS_ADD_REAPED(searchp, freed);
->  		}
-> +
-> +		/* Eagerly delete inactive kmem_cache of an offlined memcg. */
-> +		if (!is_memcg_online(searchp) && !is_slab_active(searchp))
-
-I don't think we need to define is_memcg_online in generic code.
-I would merge is_memcg_online and is_slab_active, and call the
-resulting function cache_is_active.
-
-> +			shutdown_cache(searchp);
->  next:
->  		cond_resched();
->  	}
+I'm sorry!
+We need to add the fellowing code to solve the upper error:
+> git diff
+diff --git a/arch/arm/kernel/entry-common.S b/arch/arm/kernel/entry-common.=
+S
+index b7d0c6c..9b728c5 100644
+--- a/arch/arm/kernel/entry-common.S
++++ b/arch/arm/kernel/entry-common.S
+@@ -82,7 +82,8 @@ ret_fast_syscall:
+        str     r0, [sp, #S_R0 + S_OFF]!        @ save returned r0
+        disable_irq_notrace                     @ disable interrupts
+        ldr     r2, [tsk, #TI_ADDR_LIMIT]
+-	cmp     r2, #TASK_SIZE
++	ldr		r1, =3DTASK_SIZE
++	cmp		r2, r1
+        blne    addr_limit_check_failed
+        ldr     r1, [tsk, #TI_FLAGS]            @ re-check for syscall trac=
+ing
+        tst     r1, #_TIF_SYSCALL_WORK | _TIF_WORK_MASK
