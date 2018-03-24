@@ -1,81 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 849776B0028
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 15:45:45 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id u129-v6so4910534lff.9
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 12:45:45 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BA1276B0022
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 16:11:14 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id f194-v6so4808120lff.6
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 13:11:14 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y17sor2909105lji.67.2018.03.24.12.45.43
+        by mx.google.com with SMTPS id t130-v6sor2928048lff.33.2018.03.24.13.11.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 24 Mar 2018 12:45:44 -0700 (PDT)
-Date: Sat, 24 Mar 2018 22:45:40 +0300
+        Sat, 24 Mar 2018 13:11:13 -0700 (PDT)
+Date: Sat, 24 Mar 2018 23:11:10 +0300
 From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 08/10] mm: Set bit in memcg shrinker bitmap on first
- list_lru item apearance
-Message-ID: <20180324194540.rvejbnjg6knkwwia@esperanza>
+Subject: Re: [PATCH 09/10] mm: Iterate only over charged shrinkers during
+ memcg shrink_slab()
+Message-ID: <20180324201109.r4udxibbg4t23apg@esperanza>
 References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
- <152163856059.21546.11414341109878480074.stgit@localhost.localdomain>
+ <152163857170.21546.16040899989532143840.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <152163856059.21546.11414341109878480074.stgit@localhost.localdomain>
+In-Reply-To: <152163857170.21546.16040899989532143840.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kirill Tkhai <ktkhai@virtuozzo.com>
 Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
 
-On Wed, Mar 21, 2018 at 04:22:40PM +0300, Kirill Tkhai wrote:
-> Introduce set_shrinker_bit() function to set shrinker-related
-> bit in memcg shrinker bitmap, and set the bit after the first
-> item is added and in case of reparenting destroyed memcg's items.
+On Wed, Mar 21, 2018 at 04:22:51PM +0300, Kirill Tkhai wrote:
+> Using the preparations made in previous patches, in case of memcg
+> shrink, we may avoid shrinkers, which are not set in memcg's shrinkers
+> bitmap. To do that, we separate iterations over memcg-aware and
+> !memcg-aware shrinkers, and memcg-aware shrinkers are chosen
+> via for_each_set_bit() from the bitmap. In case of big nodes,
+> having many isolated environments, this gives significant
+> performance growth. See next patch for the details.
 > 
-> This will allow next patch to make shrinkers be called only,
-> in case of they have charged objects at the moment, and
-> to improve shrink_slab() performance.
+> Note, that the patch does not respect to empty memcg shrinkers,
+> since we never clear the bitmap bits after we set it once.
+> Their shrinkers will be called again, with no shrinked objects
+> as result. This functionality is provided by next patch.
 > 
 > Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 > ---
->  include/linux/shrinker.h |    7 +++++++
->  mm/list_lru.c            |   22 ++++++++++++++++++++--
->  mm/vmscan.c              |    7 +++++++
->  3 files changed, 34 insertions(+), 2 deletions(-)
+>  mm/vmscan.c |   54 +++++++++++++++++++++++++++++++++++++++++-------------
+>  1 file changed, 41 insertions(+), 13 deletions(-)
 > 
-> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-> index 738de8ef5246..24aeed1bc332 100644
-> --- a/include/linux/shrinker.h
-> +++ b/include/linux/shrinker.h
-> @@ -78,4 +78,11 @@ struct shrinker {
->  
->  extern __must_check int register_shrinker(struct shrinker *);
->  extern void unregister_shrinker(struct shrinker *);
-> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-> +extern void set_shrinker_bit(struct mem_cgroup *, int, int);
-> +#else
-> +static inline void set_shrinker_bit(struct mem_cgroup *memcg, int node, int id)
-> +{
-> +}
-> +#endif
-
-IMO this function, as well as other shrinker bitmap manipulation
-functions, should be defined in memcontrol.[hc] and have mem_cgroup_
-prefix.
-
 > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 9d1df5d90eca..265cf069b470 100644
+> index 265cf069b470..e1fd16bc7a9b 100644
 > --- a/mm/vmscan.c
 > +++ b/mm/vmscan.c
-> @@ -378,6 +378,13 @@ static void del_shrinker(struct shrinker *shrinker)
->  	list_del(&shrinker->list);
+> @@ -327,6 +327,8 @@ static int alloc_shrinker_id(struct shrinker *shrinker)
+>  
+>  	if (!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+>  		return 0;
+> +	BUG_ON(!(shrinker->flags & SHRINKER_NUMA_AWARE));
+> +
+>  retry:
+>  	ida_pre_get(&bitmap_id_ida, GFP_KERNEL);
+>  	down_write(&bitmap_rwsem);
+> @@ -366,7 +368,8 @@ static void add_shrinker(struct shrinker *shrinker)
+>  	down_write(&shrinker_rwsem);
+>  	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
+>  		mcg_shrinkers[shrinker->id] = shrinker;
+> -	list_add_tail(&shrinker->list, &shrinker_list);
+> +	else
+> +		list_add_tail(&shrinker->list, &shrinker_list);
+
+I don't think we should remove per-memcg shrinkers from the global
+shrinker list - this is confusing. It won't be critical if we iterate
+over all shrinkers on global reclaim, will it?
+
 >  	up_write(&shrinker_rwsem);
 >  }
+>  
+> @@ -701,6 +705,39 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>  	if (!down_read_trylock(&shrinker_rwsem))
+>  		goto out;
+>  
+> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> +	if (!memcg_kmem_enabled() || memcg) {
+> +		struct shrinkers_map *map;
+> +		int i;
 > +
-> +void set_shrinker_bit(struct mem_cgroup *memcg, int nid, int nr)
-> +{
-> +	struct shrinkers_map *map = SHRINKERS_MAP(memcg);
+> +		map = rcu_dereference_protected(SHRINKERS_MAP(memcg), true);
+> +		if (map) {
+> +			for_each_set_bit(i, map->map[nid], bitmap_nr_ids) {
+> +				struct shrink_control sc = {
+> +					.gfp_mask = gfp_mask,
+> +					.nid = nid,
+> +					.memcg = memcg,
+> +				};
 > +
-> +	set_bit(nr, map->map[nid]);
-> +}
+> +				shrinker = mcg_shrinkers[i];
+> +				if (!shrinker) {
+> +					clear_bit(i, map->map[nid]);
+> +					continue;
+> +				}
+> +				freed += do_shrink_slab(&sc, shrinker, priority);
+> +
+> +				if (rwsem_is_contended(&shrinker_rwsem)) {
+> +					freed = freed ? : 1;
+> +					goto unlock;
+> +				}
+> +			}
+> +		}
+> +
+> +		if (memcg_kmem_enabled() && memcg)
+> +			goto unlock;
 
-Shouldn't we use rcu_read_lock here? After all, the map can be
-reallocated right from under our feet.
+May be, factor this out to a separate function, say shrink_slab_memcg?
+Just for the sake of code legibility.
