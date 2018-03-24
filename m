@@ -1,77 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B4D036B0006
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 17:08:19 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 139so7293873pfw.7
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 14:08:19 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q4-v6si8986988plr.365.2018.03.23.14.08.18
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BC75A6B000E
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2018 20:36:36 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p10so7519671pfl.22
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2018 17:36:36 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id f10-v6si8476329pln.359.2018.03.23.17.36.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Mar 2018 14:08:18 -0700 (PDT)
-Date: Fri, 23 Mar 2018 21:08:12 +0000
-From: James Hogan <jhogan@kernel.org>
-Subject: Re: [PATCH V3] ZBOOT: fix stack protector in compressed boot phase
-Message-ID: <20180323210811.GD11796@saruman>
-References: <1521186916-13745-1-git-send-email-chenhc@lemote.com>
- <20180322222107.GJ13126@saruman>
- <1521777055.1510.9.camel@flygoat.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="MAH+hnPXVZWQ5cD/"
-Content-Disposition: inline
-In-Reply-To: <1521777055.1510.9.camel@flygoat.com>
+        Fri, 23 Mar 2018 17:36:35 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [PATCH] mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct
+Date: Sat, 24 Mar 2018 08:36:11 +0800
+Message-Id: <1521851771-108673-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiaxun Yang <jiaxun.yang@flygoat.com>
-Cc: Huacai Chen <chenhc@lemote.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, stable@vger.kernel.org
+To: adobriyan@gmail.com, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+mmap_sem is on the hot path of kernel, and it very contended, but it is
+abused too. It is used to protect arg_start|end and evn_start|end when
+reading /proc/$PID/cmdline and /proc/$PID/environ, but it doesn't make
+sense since those proc files just expect to read 4 values atomically and
+not related to VM, they could be set to arbitrary values by C/R.
 
---MAH+hnPXVZWQ5cD/
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+And, the mmap_sem contention may cause unexpected issue like below:
 
-On Fri, Mar 23, 2018 at 11:50:55AM +0800, Jiaxun Yang wrote:
-> =E5=9C=A8 2018-03-22=E5=9B=9B=E7=9A=84 22:21 +0000=EF=BC=8CJames Hogan=E5=
-=86=99=E9=81=93=EF=BC=9A
-> > Also I think it worth mentioning in the commit message the MIPS
-> > configuration you hit this with, presumably a Loongson one? For me
-> > decompress_kernel() gets a stack guard on loongson3_defconfig, but
-> > not
-> > malta_defconfig or malta_defconfig + 64-bit. I presume its sensitive
-> > to
-> > the compiler inlining stuff into decompress_kernel() or something
-> > such
-> > that it suddenly qualifies for a stack guard.
->=20
-> Have you tested with CONFIG_CC_STACKPROTECTOR_STRONG=3Dy ?
+INFO: task ps:14018 blocked for more than 120 seconds.
+       Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+ "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+message.
+ ps              D    0 14018      1 0x00000004
+  ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+  ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+  00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+ Call Trace:
+  [<ffffffff817154d0>] ? __schedule+0x250/0x730
+  [<ffffffff817159e6>] schedule+0x36/0x80
+  [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+  [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+  [<ffffffff81717db0>] down_read+0x20/0x40
+  [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+  [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
+  [<ffffffff81241d87>] __vfs_read+0x37/0x150
+  [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
+  [<ffffffff81242266>] vfs_read+0x96/0x130
+  [<ffffffff812437b5>] SyS_read+0x55/0xc0
+  [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
 
-Yes. for malta_defconfig I could only reproduce by adding an array to
-decompress_kernel() so that it would get the guard.
+Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
+for them to mitigate the abuse of mmap_sem.
 
-Cheers
-James
+So, introduce a new rwlock in mm_struct to protect the concurrent access
+to arg_start|end and env_start|end.
 
---MAH+hnPXVZWQ5cD/
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+---
+ fs/proc/base.c           | 8 ++++----
+ include/linux/mm_types.h | 2 ++
+ kernel/fork.c            | 1 +
+ kernel/sys.c             | 6 ++++++
+ mm/init-mm.c             | 1 +
+ 5 files changed, 14 insertions(+), 4 deletions(-)
 
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEd80NauSabkiESfLYbAtpk944dnoFAlq1bLsACgkQbAtpk944
-dnqRoRAAgQ9jkBNRCrcD5HNMyD7XNnyB4QBm9KgvsYASAFF2b9bzC1qaFsv7ogMe
-+yUEgTbXYGvVyBKMRr/D0d0ndlTSPCwVJHwtwgBVp+PizfWmBTF6j1IvbQ1YnQfH
-vYfFm72xW0L0awtmXV2tbo/Y/AQopzAaWL09sFhrqSt9tWRmPDnlx0r+DfPp3wVP
-I5mA+BftMiVSjqOiwU5QAmj2JVFRpkfKCAftdjG6UFQE0l7aw+4EFHpYiI+8Ai6A
-XiFyf+GQu6Bh0GK+mdTSa0pb+UMEhf1Q4Y5BlJca6zThYTdlZKJoAwIPjHh+Pn4M
-hsKYqKczPJd0hlDSFG5/LC7tp5ySoRGTP/kFQoodjjOf774FkdTTY73/8JDcHc7n
-Jb8UMrMiwWLOPwyqjS9SD2sBcnHVAUZvGhIS5pJHzEiAIKNVVeXpjWYTTwQ2nKiN
-r240w2CjnH/l8C4iwUChu2xvoXV/3EYJLibTIaLbAyGu0TTeW8nGQR4m3wRIL3ig
-Dg9C3tgQY4NJMaTXWRyJGEf58cezFSkDvHRAmNqO6r4IkXjJ4VXlqCvUj0p+KThw
-2oKS6aDj7ZU25DrTAPmb24SCUS9A61Ktwo463YznQdv2WUppc++dRUoBnJ5j89iP
-o4ngC6M2GKsRrL2SRphyLz4Pyi+alDWvXm+tQnKD7Uy940M8SF0=
-=0EHR
------END PGP SIGNATURE-----
-
---MAH+hnPXVZWQ5cD/--
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 28fa852..0bc3107 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -239,12 +239,12 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
+ 		goto out_mmput;
+ 	}
+ 
+-	down_read(&mm->mmap_sem);
++	read_lock(&mm->arg_lock);
+ 	arg_start = mm->arg_start;
+ 	arg_end = mm->arg_end;
+ 	env_start = mm->env_start;
+ 	env_end = mm->env_end;
+-	up_read(&mm->mmap_sem);
++	read_unlock(&mm->arg_lock);
+ 
+ 	BUG_ON(arg_start > arg_end);
+ 	BUG_ON(env_start > env_end);
+@@ -926,10 +926,10 @@ static ssize_t environ_read(struct file *file, char __user *buf,
+ 	if (!mmget_not_zero(mm))
+ 		goto free;
+ 
+-	down_read(&mm->mmap_sem);
++	read_lock(&mm->arg_lock);
+ 	env_start = mm->env_start;
+ 	env_end = mm->env_end;
+-	up_read(&mm->mmap_sem);
++	read_unlock(&mm->arg_lock);
+ 
+ 	while (count > 0) {
+ 		size_t this_len, max_len;
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index cfd0ac4..92bd9cc 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -419,6 +419,8 @@ struct mm_struct {
+ 	unsigned long def_flags;
+ 	unsigned long start_code, end_code, start_data, end_data;
+ 	unsigned long start_brk, brk, start_stack;
++
++	rwlock_t arg_lock; /* protect concurrent access to arg_* and env_* */
+ 	unsigned long arg_start, arg_end, env_start, env_end;
+ 
+ 	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 432eadf..94cdf28 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -823,6 +823,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ 	mm->pinned_vm = 0;
+ 	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
+ 	spin_lock_init(&mm->page_table_lock);
++	rwlock_init(&mm->arg_lock);
+ 	mm_init_cpumask(mm);
+ 	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 83ffd7d..de357e1 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1980,10 +1980,13 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+ 	mm->start_brk	= prctl_map.start_brk;
+ 	mm->brk		= prctl_map.brk;
+ 	mm->start_stack	= prctl_map.start_stack;
++
++	write_lock(&mm->arg_lock);
+ 	mm->arg_start	= prctl_map.arg_start;
+ 	mm->arg_end	= prctl_map.arg_end;
+ 	mm->env_start	= prctl_map.env_start;
+ 	mm->env_end	= prctl_map.env_end;
++	write_unlock(&mm->arg_lock);
+ 
+ 	/*
+ 	 * Note this update of @saved_auxv is lockless thus
+@@ -2149,10 +2152,13 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 	mm->start_brk	= prctl_map.start_brk;
+ 	mm->brk		= prctl_map.brk;
+ 	mm->start_stack	= prctl_map.start_stack;
++
++	write_lock(&mm->arg_lock);
+ 	mm->arg_start	= prctl_map.arg_start;
+ 	mm->arg_end	= prctl_map.arg_end;
+ 	mm->env_start	= prctl_map.env_start;
+ 	mm->env_end	= prctl_map.env_end;
++	write_unlock(&mm->arg_lock);
+ 
+ 	error = 0;
+ out:
+diff --git a/mm/init-mm.c b/mm/init-mm.c
+index f94d5d1..5b2a044 100644
+--- a/mm/init-mm.c
++++ b/mm/init-mm.c
+@@ -23,6 +23,7 @@ struct mm_struct init_mm = {
+ 	.mmap_sem	= __RWSEM_INITIALIZER(init_mm.mmap_sem),
+ 	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
+ 	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
++	.arg_lock	= __RW_LOCK_UNLOCKED(init_mm.arg_lock),
+ 	.user_ns	= &init_user_ns,
+ 	INIT_MM_CONTEXT(init_mm)
+ };
+-- 
+1.8.3.1
