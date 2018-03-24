@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 01EB46B0024
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 12:09:37 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id l188so2198736ywd.6
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 09:09:36 -0700 (PDT)
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AA936B0025
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 12:09:40 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id j8so5907415ywa.0
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 09:09:40 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p11-v6sor2952874ybc.158.2018.03.24.09.09.35
+        by mx.google.com with SMTPS id k6-v6sor4281526ybj.55.2018.03.24.09.09.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 24 Mar 2018 09:09:35 -0700 (PDT)
+        Sat, 24 Mar 2018 09:09:39 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 2/3] mm: memcontrol: Use cgroup_rstat for stat accounting
-Date: Sat, 24 Mar 2018 09:09:00 -0700
-Message-Id: <20180324160901.512135-3-tj@kernel.org>
+Subject: [PATCH 3/3] mm: memcontrol: Remove lruvec_stat
+Date: Sat, 24 Mar 2018 09:09:01 -0700
+Message-Id: <20180324160901.512135-4-tj@kernel.org>
 In-Reply-To: <20180324160901.512135-1-tj@kernel.org>
 References: <20180324160901.512135-1-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,36 +20,7 @@ List-ID: <linux-mm.kvack.org>
 To: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com
 Cc: guro@fb.com, riel@surriel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>
 
-To fix scalability issue, a983b5ebee57 ("mm: memcontrol: fix excessive
-complexity in memory.stat reporting") made the per-cpu counters
-batch-overflow into the global one instead of summing them up on
-reads.
-
-The approach didn't for events and the previous patch switched event
-accounting to cgroup_rstat.  Unlike events, it works for stat
-accounting but switching to cgroup_rstat has the following benefits
-while keeping computational complexity low.
-
-* More accurate accounting.  The accumulated per-cpu errors with the
-  batch approach could add up and cause unintended results with
-  extreme configurations (e.g. balance_dirty_pages misbehavior with
-  very low dirty ratio in a cgroup with a low memory limit).
-
-* Consistency with event accounting.
-
-* Cheaper and simpler access to hierarchical stats.
-
-This patch converts stat accounting to use cgroup_rstat.
-
-* mem_cgroup_stat_cpu->last_count[] and mem_cgroup->pending_stat[] are
-  added to track propagation.  As memcg makes use of both local and
-  hierarchical stats, mem_cgroup->tree_stat[] is added to track
-  hierarchical numbers.
-
-* An rstat flush wrapper, memcg_stat_flush(), is added for memcg stat
-  consumers outside memcg proper.
-
-* Accessors are updated / added.
+lruvec_stat doesn't have any consumer.  Remove it.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -59,336 +30,152 @@ Cc: Roman Gushchin <guro@fb.com>
 Cc: Rik van Riel <riel@surriel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/memcontrol.h | 74 +++++++++++++++++++++++++++++---------
- mm/memcontrol.c            | 90 +++++++++++++++++++++++++---------------------
- mm/vmscan.c                |  4 ++-
- 3 files changed, 110 insertions(+), 58 deletions(-)
+ include/linux/memcontrol.h | 40 ----------------------------------------
+ mm/memcontrol.c            | 36 ++----------------------------------
+ 2 files changed, 2 insertions(+), 74 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index f1afbf6..0cf6d5a 100644
+index 0cf6d5a..85a8f00 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -93,6 +93,7 @@ struct mem_cgroup_stat_cpu {
- 	unsigned long targets[MEM_CGROUP_NTARGETS];
- 
- 	/* for cgroup rstat delta calculation */
-+	unsigned long last_count[MEMCG_NR_STAT];
- 	unsigned long last_events[MEMCG_NR_EVENTS];
+@@ -103,19 +103,12 @@ struct mem_cgroup_reclaim_iter {
+ 	unsigned int generation;
  };
  
-@@ -235,9 +236,12 @@ struct mem_cgroup {
- 	unsigned long		move_lock_flags;
+-struct lruvec_stat {
+-	long count[NR_VM_NODE_STAT_ITEMS];
+-};
+-
+ /*
+  * per-zone information in memory controller.
+  */
+ struct mem_cgroup_per_node {
+ 	struct lruvec		lruvec;
  
- 	struct mem_cgroup_stat_cpu __percpu *stat_cpu;
--	atomic_long_t		stat[MEMCG_NR_STAT];
+-	struct lruvec_stat __percpu *lruvec_stat_cpu;
+-	atomic_long_t		lruvec_stat[NR_VM_NODE_STAT_ITEMS];
+-
+ 	unsigned long		lru_zone_size[MAX_NR_ZONES][NR_LRU_LISTS];
  
--	/* events is managed by cgroup rstat */
-+	/* stat and events are managed by cgroup rstat */
-+	long			stat[MEMCG_NR_STAT];		/* local */
-+	long			tree_stat[MEMCG_NR_STAT];	/* subtree */
-+	long			pending_stat[MEMCG_NR_STAT];	/* propagation */
-+
- 	unsigned long long	events[MEMCG_NR_EVENTS];	/* local */
- 	unsigned long long	tree_events[MEMCG_NR_EVENTS];	/* subtree */
- 	unsigned long long	pending_events[MEMCG_NR_EVENTS];/* propagation */
-@@ -497,11 +501,32 @@ struct mem_cgroup *lock_page_memcg(struct page *page);
- void __unlock_page_memcg(struct mem_cgroup *memcg);
- void unlock_page_memcg(struct page *page);
- 
--/* idx can be of type enum memcg_stat_item or node_stat_item */
--static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
--					     int idx)
-+/**
-+ * memcg_stat_flush - flush stat in a memcg's subtree
-+ * @memcg: target memcg
-+ *
-+ * Flush cgroup_rstat statistics in @memcg's subtree.  This brings @memcg's
-+ * statistics up-to-date.
-+ */
-+static inline void memcg_stat_flush(struct mem_cgroup *memcg)
- {
--	long x = atomic_long_read(&memcg->stat[idx]);
-+	if (!memcg)
-+		memcg = root_mem_cgroup;
-+	cgroup_rstat_flush(memcg->css.cgroup);
-+}
-+
-+/**
-+ * __memcg_page_state - read page state counter without brininging it up-to-date
-+ * @memcg: target memcg
-+ * @idx: page state item to read
-+ *
-+ * Read a memcg page state counter.  @idx can be of type enum
-+ * memcg_stat_item or node_stat_item.  The caller must haved flushed by
-+ * calling memcg_stat_flush() to bring the counter up-to-date.
-+ */
-+static inline unsigned long __memcg_page_state(struct mem_cgroup *memcg, int idx)
-+{
-+	long x = READ_ONCE(memcg->stat[idx]);
- #ifdef CONFIG_SMP
- 	if (x < 0)
- 		x = 0;
-@@ -509,21 +534,30 @@ static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
- 	return x;
+ 	struct mem_cgroup_reclaim_iter	iter[DEF_PRIORITY + 1];
+@@ -602,29 +595,10 @@ static inline void mod_memcg_page_state(struct page *page,
+ 		mod_memcg_state(page->mem_cgroup, idx, val);
  }
  
-+/**
-+ * memcg_page_state - read page state counter after bringing it up-to-date
-+ * @memcg: target memcg
-+ * @idx: page state item to read
-+ *
-+ * __memcg_page_state() with implied flushing.  When reading multiple
-+ * counters in sequence, flushing explicitly and using __memcg_page_state()
-+ * is cheaper.
-+ */
-+static inline unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
-+{
-+	memcg_stat_flush(memcg);
-+	return __memcg_page_state(memcg, idx);
-+}
-+
- /* idx can be of type enum memcg_stat_item or node_stat_item */
- static inline void __mod_memcg_state(struct mem_cgroup *memcg,
- 				     int idx, int val)
- {
+-static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
+-					      enum node_stat_item idx)
+-{
+-	struct mem_cgroup_per_node *pn;
 -	long x;
 -
- 	if (mem_cgroup_disabled())
- 		return;
- 
--	x = val + __this_cpu_read(memcg->stat_cpu->count[idx]);
--	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
--		atomic_long_add(x, &memcg->stat[idx]);
+-	if (mem_cgroup_disabled())
+-		return node_page_state(lruvec_pgdat(lruvec), idx);
+-
+-	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+-	x = atomic_long_read(&pn->lruvec_stat[idx]);
+-#ifdef CONFIG_SMP
+-	if (x < 0)
 -		x = 0;
--	}
--	__this_cpu_write(memcg->stat_cpu->count[idx], x);
-+	__this_cpu_add(memcg->stat_cpu->count[idx], val);
-+	cgroup_rstat_updated(memcg->css.cgroup, smp_processor_id());
- }
- 
- /* idx can be of type enum memcg_stat_item or node_stat_item */
-@@ -895,8 +929,16 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
- 	return false;
- }
- 
--static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
--					     int idx)
-+static inline void memcg_stat_flush(struct mem_cgroup *memcg)
-+{
-+}
-+
-+static inline unsigned long __memcg_page_state(struct mem_cgroup *memcg, int idx)
-+{
-+	return 0;
-+}
-+
-+static inline unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
- {
- 	return 0;
- }
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 82cb532..03d1b30 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -307,6 +307,16 @@ struct workqueue_struct *memcg_kmem_cache_wq;
- 
- #endif /* !CONFIG_SLOB */
- 
-+static unsigned long __memcg_tree_stat(struct mem_cgroup *memcg, int idx)
-+{
-+	long x = READ_ONCE(memcg->tree_stat[idx]);
-+#ifdef CONFIG_SMP
-+	if (x < 0)
-+		x = 0;
-+#endif
-+	return x;
-+}
-+
- /**
-  * mem_cgroup_css_from_page - css of the memcg associated with a page
-  * @page: page of interest
-@@ -1150,6 +1160,8 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- 		K((u64)page_counter_read(&memcg->kmem)),
- 		K((u64)memcg->kmem.limit), memcg->kmem.failcnt);
- 
-+	memcg_stat_flush(memcg);
-+
- 	for_each_mem_cgroup_tree(iter, memcg) {
- 		pr_info("Memory cgroup stats for ");
- 		pr_cont_cgroup_path(iter->css.cgroup);
-@@ -1159,7 +1171,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- 			if (memcg1_stats[i] == MEMCG_SWAP && !do_swap_account)
- 				continue;
- 			pr_cont(" %s:%luKB", memcg1_stat_names[i],
--				K(memcg_page_state(iter, memcg1_stats[i])));
-+				K(__memcg_page_state(iter, memcg1_stats[i])));
- 		}
- 
- 		for (i = 0; i < NR_LRU_LISTS; i++)
-@@ -1812,17 +1824,10 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
- 	for_each_mem_cgroup(memcg) {
- 		int i;
- 
--		for (i = 0; i < MEMCG_NR_STAT; i++) {
-+		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
- 			int nid;
- 			long x;
- 
--			x = this_cpu_xchg(memcg->stat_cpu->count[i], 0);
--			if (x)
--				atomic_long_add(x, &memcg->stat[i]);
--
--			if (i >= NR_VM_NODE_STAT_ITEMS)
--				continue;
--
- 			for_each_node(nid) {
- 				struct mem_cgroup_per_node *pn;
- 
-@@ -2656,32 +2661,16 @@ static int mem_cgroup_hierarchy_write(struct cgroup_subsys_state *css,
- 	return retval;
- }
- 
--static void tree_stat(struct mem_cgroup *memcg, unsigned long *stat)
--{
--	struct mem_cgroup *iter;
--	int i;
--
--	memset(stat, 0, sizeof(*stat) * MEMCG_NR_STAT);
--
--	for_each_mem_cgroup_tree(iter, memcg) {
--		for (i = 0; i < MEMCG_NR_STAT; i++)
--			stat[i] += memcg_page_state(iter, i);
--	}
+-#endif
+-	return x;
 -}
 -
- static unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+ static inline void __mod_lruvec_state(struct lruvec *lruvec,
+ 				      enum node_stat_item idx, int val)
  {
- 	unsigned long val = 0;
+ 	struct mem_cgroup_per_node *pn;
+-	long x;
  
- 	if (mem_cgroup_is_root(memcg)) {
--		struct mem_cgroup *iter;
+ 	/* Update node */
+ 	__mod_node_page_state(lruvec_pgdat(lruvec), idx, val);
+@@ -636,14 +610,6 @@ static inline void __mod_lruvec_state(struct lruvec *lruvec,
+ 
+ 	/* Update memcg */
+ 	__mod_memcg_state(pn->memcg, idx, val);
 -
--		for_each_mem_cgroup_tree(iter, memcg) {
--			val += memcg_page_state(iter, MEMCG_CACHE);
--			val += memcg_page_state(iter, MEMCG_RSS);
--			if (swap)
--				val += memcg_page_state(iter, MEMCG_SWAP);
+-	/* Update lruvec */
+-	x = val + __this_cpu_read(pn->lruvec_stat_cpu->count[idx]);
+-	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
+-		atomic_long_add(x, &pn->lruvec_stat[idx]);
+-		x = 0;
+-	}
+-	__this_cpu_write(pn->lruvec_stat_cpu->count[idx], x);
+ }
+ 
+ static inline void mod_lruvec_state(struct lruvec *lruvec,
+@@ -967,12 +933,6 @@ static inline void mod_memcg_page_state(struct page *page,
+ {
+ }
+ 
+-static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
+-					      enum node_stat_item idx)
+-{
+-	return node_page_state(lruvec_pgdat(lruvec), idx);
+-}
+-
+ static inline void __mod_lruvec_state(struct lruvec *lruvec,
+ 				      enum node_stat_item idx, int val)
+ {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 03d1b30..d5bf01d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1815,30 +1815,7 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
+ 
+ static int memcg_hotplug_cpu_dead(unsigned int cpu)
+ {
+-	struct memcg_stock_pcp *stock;
+-	struct mem_cgroup *memcg;
+-
+-	stock = &per_cpu(memcg_stock, cpu);
+-	drain_stock(stock);
+-
+-	for_each_mem_cgroup(memcg) {
+-		int i;
+-
+-		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
+-			int nid;
+-			long x;
+-
+-			for_each_node(nid) {
+-				struct mem_cgroup_per_node *pn;
+-
+-				pn = mem_cgroup_nodeinfo(memcg, nid);
+-				x = this_cpu_xchg(pn->lruvec_stat_cpu->count[i], 0);
+-				if (x)
+-					atomic_long_add(x, &pn->lruvec_stat[i]);
+-			}
 -		}
-+		memcg_stat_flush(memcg);
-+		val += __memcg_tree_stat(memcg, MEMCG_CACHE);
-+		val += __memcg_tree_stat(memcg, MEMCG_RSS);
-+		if (swap)
-+			val += __memcg_tree_stat(memcg, MEMCG_SWAP);
- 	} else {
- 		if (!swap)
- 			val = page_counter_read(&memcg->memory);
-@@ -3086,7 +3075,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
- 			continue;
- 		seq_printf(m, "%s %lu\n", memcg1_stat_names[i],
--			   memcg_page_state(memcg, memcg1_stats[i]) *
-+			   __memcg_page_state(memcg, memcg1_stats[i]) *
- 			   PAGE_SIZE);
- 	}
- 
-@@ -3111,14 +3100,11 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 			   (u64)memsw * PAGE_SIZE);
- 
- 	for (i = 0; i < ARRAY_SIZE(memcg1_stats); i++) {
--		unsigned long long val = 0;
+-	}
 -
- 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
- 			continue;
--		for_each_mem_cgroup_tree(mi, memcg)
--			val += memcg_page_state(mi, memcg1_stats[i]) *
--			PAGE_SIZE;
--		seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i], val);
-+		seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i],
-+			   (u64)__memcg_tree_stat(memcg, memcg1_stats[i]) *
-+			   PAGE_SIZE);
- 	}
++	drain_stock(&per_cpu(memcg_stock, cpu));
+ 	return 0;
+ }
  
- 	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
-@@ -3592,10 +3578,16 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
- 	struct mem_cgroup *parent;
+@@ -4056,12 +4033,6 @@ static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
+ 	if (!pn)
+ 		return 1;
  
--	*pdirty = memcg_page_state(memcg, NR_FILE_DIRTY);
-+	/*
-+	 * This function is called under a spinlock.  Use the irq-safe
-+	 * version instead of memcg_stat_flush().
-+	 */
-+	cgroup_rstat_flush_irqsafe(memcg->css.cgroup);
-+
-+	*pdirty = __memcg_page_state(memcg, NR_FILE_DIRTY);
+-	pn->lruvec_stat_cpu = alloc_percpu(struct lruvec_stat);
+-	if (!pn->lruvec_stat_cpu) {
+-		kfree(pn);
+-		return 1;
+-	}
+-
+ 	lruvec_init(&pn->lruvec);
+ 	pn->usage_in_excess = 0;
+ 	pn->on_tree = false;
+@@ -4073,10 +4044,7 @@ static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
  
- 	/* this should eventually include NR_UNSTABLE_NFS */
--	*pwriteback = memcg_page_state(memcg, NR_WRITEBACK);
-+	*pwriteback = __memcg_page_state(memcg, NR_WRITEBACK);
- 	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
- 						     (1 << LRU_ACTIVE_FILE));
- 	*pheadroom = PAGE_COUNTER_MAX;
-@@ -4310,6 +4302,23 @@ static void mem_cgroup_css_rstat_flush(struct cgroup_subsys_state *css, int cpu)
- 	unsigned long v, delta;
- 	int i;
- 
-+	for (i = 0; i < MEMCG_NR_STAT; i++) {
-+		/* calculate the delta to propagate and add to local stat */
-+		v = READ_ONCE(statc->count[i]);
-+		delta = v - statc->last_count[i];
-+		statc->last_count[i] = v;
-+		memcg->stat[i] += delta;
-+
-+		/* transfer the pending stat into delta */
-+		delta += memcg->pending_stat[i];
-+		memcg->pending_stat[i] = 0;
-+
-+		/* propagate delta into tree stat and parent's pending */
-+		memcg->tree_stat[i] += delta;
-+		if (parent)
-+			parent->pending_stat[i] += delta;
-+	}
-+
- 	for (i = 0; i < MEMCG_NR_EVENTS; i++) {
- 		/* calculate the delta to propagate and add to local stat */
- 		v = READ_ONCE(statc->events[i]);
-@@ -5207,7 +5216,7 @@ static int memory_events_show(struct seq_file *m, void *v)
- static int memory_stat_show(struct seq_file *m, void *v)
+ static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
  {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
--	unsigned long stat[MEMCG_NR_STAT];
-+	unsigned long *stat = memcg->tree_stat;
- 	unsigned long long *events = memcg->tree_events;
- 	int i;
+-	struct mem_cgroup_per_node *pn = memcg->nodeinfo[node];
+-
+-	free_percpu(pn->lruvec_stat_cpu);
+-	kfree(pn);
++	kfree(memcg->nodeinfo[node]);
+ }
  
-@@ -5222,7 +5231,6 @@ static int memory_stat_show(struct seq_file *m, void *v)
- 	 * Current memory state:
- 	 */
- 
--	tree_stat(memcg, stat);
- 	cgroup_rstat_flush_hold(memcg->css.cgroup);
- 
- 	seq_printf(m, "anon %llu\n",
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bee5349..29bf99f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2738,13 +2738,15 @@ static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
- {
- 	struct mem_cgroup *memcg;
- 
-+	memcg_stat_flush(root_memcg);
-+
- 	memcg = mem_cgroup_iter(root_memcg, NULL, NULL);
- 	do {
- 		unsigned long refaults;
- 		struct lruvec *lruvec;
- 
- 		if (memcg)
--			refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
-+			refaults = __memcg_page_state(memcg, WORKINGSET_ACTIVATE);
- 		else
- 			refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
- 
+ static void __mem_cgroup_free(struct mem_cgroup *memcg)
 -- 
 2.9.5
