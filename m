@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E7EE6B0012
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 12:09:33 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id 126-v6so4338715ybd.18
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 09:09:33 -0700 (PDT)
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 01EB46B0024
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 12:09:37 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id l188so2198736ywd.6
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 09:09:36 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c21sor4199036ywb.438.2018.03.24.09.09.32
+        by mx.google.com with SMTPS id p11-v6sor2952874ybc.158.2018.03.24.09.09.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 24 Mar 2018 09:09:32 -0700 (PDT)
+        Sat, 24 Mar 2018 09:09:35 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 1/3] mm: memcontrol: Use cgroup_rstat for event accounting
-Date: Sat, 24 Mar 2018 09:08:59 -0700
-Message-Id: <20180324160901.512135-2-tj@kernel.org>
+Subject: [PATCH 2/3] mm: memcontrol: Use cgroup_rstat for stat accounting
+Date: Sat, 24 Mar 2018 09:09:00 -0700
+Message-Id: <20180324160901.512135-3-tj@kernel.org>
 In-Reply-To: <20180324160901.512135-1-tj@kernel.org>
 References: <20180324160901.512135-1-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -25,40 +25,31 @@ complexity in memory.stat reporting") made the per-cpu counters
 batch-overflow into the global one instead of summing them up on
 reads.
 
-While the approach works for statistics which don't care about
-controlled errors, it doesn't work for events.  For example, when a
-process in a cgroup is oom killed, a notification is generated on the
-memory.events file.  A user reading the file after receiving the
-notification must be able to see the increased oom_kill event counter
-but often won't be able to due to the per-cpu batching.
+The approach didn't for events and the previous patch switched event
+accounting to cgroup_rstat.  Unlike events, it works for stat
+accounting but switching to cgroup_rstat has the following benefits
+while keeping computational complexity low.
 
-The problem the original commit tried to fix was avoiding excessively
-high complexity on reads.  This can be solved using cgroup_rstat
-instead which has the following properties.
+* More accurate accounting.  The accumulated per-cpu errors with the
+  batch approach could add up and cause unintended results with
+  extreme configurations (e.g. balance_dirty_pages misbehavior with
+  very low dirty ratio in a cgroup with a low memory limit).
 
-* Per-cpu stat updates with a small bookkeeping overhead.
+* Consistency with event accounting.
 
-* Lazy, accurate and on-demand hierarchical stat propagation with the
-  complexity of O(number of cgroups which have been active in the
-  subtree since last read).
+* Cheaper and simpler access to hierarchical stats.
 
-This patch converts event accounting to use cgroup_rstat.
+This patch converts stat accounting to use cgroup_rstat.
 
-* mem_cgroup_stat_cpu->last_events[] and mem_cgroup->pending_events[]
-  are added to track propagation.  As memcg makes use of both local
-  and hierarchical stats, mem_cgroup->tree_events[] is added to track
+* mem_cgroup_stat_cpu->last_count[] and mem_cgroup->pending_stat[] are
+  added to track propagation.  As memcg makes use of both local and
+  hierarchical stats, mem_cgroup->tree_stat[] is added to track
   hierarchical numbers.
 
-* The per-cpu counters are unsigned long and the collected counters
-  are unsigned long long.  This makes stat updates simple while
-  avoiding overflows in the collected counters on 32bit machines.  The
-  existing code used unsigned long longs in some places but didn't
-  cover enough to avoid overflows.
+* An rstat flush wrapper, memcg_stat_flush(), is added for memcg stat
+  consumers outside memcg proper.
 
-* memcg_sum_events() and tree_events() are replaced with direct
-  accesses to mem_cgroup->events[] and ->tree_events[].  The accesses
-  are wrapped between cgroup_rstat_flush_hold() and
-  cgroup_rstat_flush_release().
+* Accessors are updated / added.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -68,285 +59,336 @@ Cc: Roman Gushchin <guro@fb.com>
 Cc: Rik van Riel <riel@surriel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/memcontrol.h |  19 ++++----
- mm/memcontrol.c            | 114 ++++++++++++++++++++++++---------------------
- 2 files changed, 70 insertions(+), 63 deletions(-)
+ include/linux/memcontrol.h | 74 +++++++++++++++++++++++++++++---------
+ mm/memcontrol.c            | 90 +++++++++++++++++++++++++---------------------
+ mm/vmscan.c                |  4 ++-
+ 3 files changed, 110 insertions(+), 58 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index c46016b..f1afbf6 100644
+index f1afbf6..0cf6d5a 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -91,6 +91,9 @@ struct mem_cgroup_stat_cpu {
- 	unsigned long events[MEMCG_NR_EVENTS];
- 	unsigned long nr_page_events;
+@@ -93,6 +93,7 @@ struct mem_cgroup_stat_cpu {
  	unsigned long targets[MEM_CGROUP_NTARGETS];
-+
-+	/* for cgroup rstat delta calculation */
-+	unsigned long last_events[MEMCG_NR_EVENTS];
+ 
+ 	/* for cgroup rstat delta calculation */
++	unsigned long last_count[MEMCG_NR_STAT];
+ 	unsigned long last_events[MEMCG_NR_EVENTS];
  };
  
- struct mem_cgroup_reclaim_iter {
-@@ -233,7 +236,11 @@ struct mem_cgroup {
+@@ -235,9 +236,12 @@ struct mem_cgroup {
+ 	unsigned long		move_lock_flags;
  
  	struct mem_cgroup_stat_cpu __percpu *stat_cpu;
- 	atomic_long_t		stat[MEMCG_NR_STAT];
--	atomic_long_t		events[MEMCG_NR_EVENTS];
+-	atomic_long_t		stat[MEMCG_NR_STAT];
+ 
+-	/* events is managed by cgroup rstat */
++	/* stat and events are managed by cgroup rstat */
++	long			stat[MEMCG_NR_STAT];		/* local */
++	long			tree_stat[MEMCG_NR_STAT];	/* subtree */
++	long			pending_stat[MEMCG_NR_STAT];	/* propagation */
 +
-+	/* events is managed by cgroup rstat */
-+	unsigned long long	events[MEMCG_NR_EVENTS];	/* local */
-+	unsigned long long	tree_events[MEMCG_NR_EVENTS];	/* subtree */
-+	unsigned long long	pending_events[MEMCG_NR_EVENTS];/* propagation */
+ 	unsigned long long	events[MEMCG_NR_EVENTS];	/* local */
+ 	unsigned long long	tree_events[MEMCG_NR_EVENTS];	/* subtree */
+ 	unsigned long long	pending_events[MEMCG_NR_EVENTS];/* propagation */
+@@ -497,11 +501,32 @@ struct mem_cgroup *lock_page_memcg(struct page *page);
+ void __unlock_page_memcg(struct mem_cgroup *memcg);
+ void unlock_page_memcg(struct page *page);
  
- 	unsigned long		socket_pressure;
- 
-@@ -649,17 +656,11 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
- static inline void __count_memcg_events(struct mem_cgroup *memcg,
- 					int idx, unsigned long count)
+-/* idx can be of type enum memcg_stat_item or node_stat_item */
+-static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+-					     int idx)
++/**
++ * memcg_stat_flush - flush stat in a memcg's subtree
++ * @memcg: target memcg
++ *
++ * Flush cgroup_rstat statistics in @memcg's subtree.  This brings @memcg's
++ * statistics up-to-date.
++ */
++static inline void memcg_stat_flush(struct mem_cgroup *memcg)
  {
--	unsigned long x;
+-	long x = atomic_long_read(&memcg->stat[idx]);
++	if (!memcg)
++		memcg = root_mem_cgroup;
++	cgroup_rstat_flush(memcg->css.cgroup);
++}
++
++/**
++ * __memcg_page_state - read page state counter without brininging it up-to-date
++ * @memcg: target memcg
++ * @idx: page state item to read
++ *
++ * Read a memcg page state counter.  @idx can be of type enum
++ * memcg_stat_item or node_stat_item.  The caller must haved flushed by
++ * calling memcg_stat_flush() to bring the counter up-to-date.
++ */
++static inline unsigned long __memcg_page_state(struct mem_cgroup *memcg, int idx)
++{
++	long x = READ_ONCE(memcg->stat[idx]);
+ #ifdef CONFIG_SMP
+ 	if (x < 0)
+ 		x = 0;
+@@ -509,21 +534,30 @@ static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+ 	return x;
+ }
+ 
++/**
++ * memcg_page_state - read page state counter after bringing it up-to-date
++ * @memcg: target memcg
++ * @idx: page state item to read
++ *
++ * __memcg_page_state() with implied flushing.  When reading multiple
++ * counters in sequence, flushing explicitly and using __memcg_page_state()
++ * is cheaper.
++ */
++static inline unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
++{
++	memcg_stat_flush(memcg);
++	return __memcg_page_state(memcg, idx);
++}
++
+ /* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void __mod_memcg_state(struct mem_cgroup *memcg,
+ 				     int idx, int val)
+ {
+-	long x;
 -
  	if (mem_cgroup_disabled())
  		return;
  
--	x = count + __this_cpu_read(memcg->stat_cpu->events[idx]);
--	if (unlikely(x > MEMCG_CHARGE_BATCH)) {
--		atomic_long_add(x, &memcg->events[idx]);
+-	x = val + __this_cpu_read(memcg->stat_cpu->count[idx]);
+-	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
+-		atomic_long_add(x, &memcg->stat[idx]);
 -		x = 0;
 -	}
--	__this_cpu_write(memcg->stat_cpu->events[idx], x);
-+	__this_cpu_add(memcg->stat_cpu->events[idx], count);
+-	__this_cpu_write(memcg->stat_cpu->count[idx], x);
++	__this_cpu_add(memcg->stat_cpu->count[idx], val);
 +	cgroup_rstat_updated(memcg->css.cgroup, smp_processor_id());
  }
  
- static inline void count_memcg_events(struct mem_cgroup *memcg,
+ /* idx can be of type enum memcg_stat_item or node_stat_item */
+@@ -895,8 +929,16 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
+ 	return false;
+ }
+ 
+-static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+-					     int idx)
++static inline void memcg_stat_flush(struct mem_cgroup *memcg)
++{
++}
++
++static inline unsigned long __memcg_page_state(struct mem_cgroup *memcg, int idx)
++{
++	return 0;
++}
++
++static inline unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
+ {
+ 	return 0;
+ }
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 670e99b..82cb532 100644
+index 82cb532..03d1b30 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -542,12 +542,6 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
- 	return mz;
- }
+@@ -307,6 +307,16 @@ struct workqueue_struct *memcg_kmem_cache_wq;
  
--static unsigned long memcg_sum_events(struct mem_cgroup *memcg,
--				      int event)
--{
--	return atomic_long_read(&memcg->events[event]);
--}
--
- static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
- 					 struct page *page,
- 					 bool compound, int nr_pages)
-@@ -1838,14 +1832,6 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
- 					atomic_long_add(x, &pn->lruvec_stat[i]);
- 			}
+ #endif /* !CONFIG_SLOB */
+ 
++static unsigned long __memcg_tree_stat(struct mem_cgroup *memcg, int idx)
++{
++	long x = READ_ONCE(memcg->tree_stat[idx]);
++#ifdef CONFIG_SMP
++	if (x < 0)
++		x = 0;
++#endif
++	return x;
++}
++
+ /**
+  * mem_cgroup_css_from_page - css of the memcg associated with a page
+  * @page: page of interest
+@@ -1150,6 +1160,8 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ 		K((u64)page_counter_read(&memcg->kmem)),
+ 		K((u64)memcg->kmem.limit), memcg->kmem.failcnt);
+ 
++	memcg_stat_flush(memcg);
++
+ 	for_each_mem_cgroup_tree(iter, memcg) {
+ 		pr_info("Memory cgroup stats for ");
+ 		pr_cont_cgroup_path(iter->css.cgroup);
+@@ -1159,7 +1171,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ 			if (memcg1_stats[i] == MEMCG_SWAP && !do_swap_account)
+ 				continue;
+ 			pr_cont(" %s:%luKB", memcg1_stat_names[i],
+-				K(memcg_page_state(iter, memcg1_stats[i])));
++				K(__memcg_page_state(iter, memcg1_stats[i])));
  		}
--
--		for (i = 0; i < MEMCG_NR_EVENTS; i++) {
--			long x;
--
--			x = this_cpu_xchg(memcg->stat_cpu->events[i], 0);
--			if (x)
--				atomic_long_add(x, &memcg->events[i]);
--		}
- 	}
  
- 	return 0;
-@@ -2683,19 +2669,6 @@ static void tree_stat(struct mem_cgroup *memcg, unsigned long *stat)
- 	}
+ 		for (i = 0; i < NR_LRU_LISTS; i++)
+@@ -1812,17 +1824,10 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
+ 	for_each_mem_cgroup(memcg) {
+ 		int i;
+ 
+-		for (i = 0; i < MEMCG_NR_STAT; i++) {
++		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
+ 			int nid;
+ 			long x;
+ 
+-			x = this_cpu_xchg(memcg->stat_cpu->count[i], 0);
+-			if (x)
+-				atomic_long_add(x, &memcg->stat[i]);
+-
+-			if (i >= NR_VM_NODE_STAT_ITEMS)
+-				continue;
+-
+ 			for_each_node(nid) {
+ 				struct mem_cgroup_per_node *pn;
+ 
+@@ -2656,32 +2661,16 @@ static int mem_cgroup_hierarchy_write(struct cgroup_subsys_state *css,
+ 	return retval;
  }
  
--static void tree_events(struct mem_cgroup *memcg, unsigned long *events)
+-static void tree_stat(struct mem_cgroup *memcg, unsigned long *stat)
 -{
 -	struct mem_cgroup *iter;
 -	int i;
 -
--	memset(events, 0, sizeof(*events) * MEMCG_NR_EVENTS);
+-	memset(stat, 0, sizeof(*stat) * MEMCG_NR_STAT);
 -
 -	for_each_mem_cgroup_tree(iter, memcg) {
--		for (i = 0; i < MEMCG_NR_EVENTS; i++)
--			events[i] += memcg_sum_events(iter, i);
+-		for (i = 0; i < MEMCG_NR_STAT; i++)
+-			stat[i] += memcg_page_state(iter, i);
 -	}
 -}
 -
  static unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
  {
  	unsigned long val = 0;
-@@ -3107,6 +3080,8 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 	BUILD_BUG_ON(ARRAY_SIZE(memcg1_stat_names) != ARRAY_SIZE(memcg1_stats));
- 	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
  
-+	cgroup_rstat_flush_hold(memcg->css.cgroup);
-+
- 	for (i = 0; i < ARRAY_SIZE(memcg1_stats); i++) {
+ 	if (mem_cgroup_is_root(memcg)) {
+-		struct mem_cgroup *iter;
+-
+-		for_each_mem_cgroup_tree(iter, memcg) {
+-			val += memcg_page_state(iter, MEMCG_CACHE);
+-			val += memcg_page_state(iter, MEMCG_RSS);
+-			if (swap)
+-				val += memcg_page_state(iter, MEMCG_SWAP);
+-		}
++		memcg_stat_flush(memcg);
++		val += __memcg_tree_stat(memcg, MEMCG_CACHE);
++		val += __memcg_tree_stat(memcg, MEMCG_RSS);
++		if (swap)
++			val += __memcg_tree_stat(memcg, MEMCG_SWAP);
+ 	} else {
+ 		if (!swap)
+ 			val = page_counter_read(&memcg->memory);
+@@ -3086,7 +3075,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
  		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
  			continue;
-@@ -3116,8 +3091,8 @@ static int memcg_stat_show(struct seq_file *m, void *v)
+ 		seq_printf(m, "%s %lu\n", memcg1_stat_names[i],
+-			   memcg_page_state(memcg, memcg1_stats[i]) *
++			   __memcg_page_state(memcg, memcg1_stats[i]) *
+ 			   PAGE_SIZE);
+ 	}
+ 
+@@ -3111,14 +3100,11 @@ static int memcg_stat_show(struct seq_file *m, void *v)
+ 			   (u64)memsw * PAGE_SIZE);
+ 
+ 	for (i = 0; i < ARRAY_SIZE(memcg1_stats); i++) {
+-		unsigned long long val = 0;
+-
+ 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
+ 			continue;
+-		for_each_mem_cgroup_tree(mi, memcg)
+-			val += memcg_page_state(mi, memcg1_stats[i]) *
+-			PAGE_SIZE;
+-		seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i], val);
++		seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i],
++			   (u64)__memcg_tree_stat(memcg, memcg1_stats[i]) *
++			   PAGE_SIZE);
  	}
  
  	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
--		seq_printf(m, "%s %lu\n", memcg1_event_names[i],
--			   memcg_sum_events(memcg, memcg1_events[i]));
-+		seq_printf(m, "%s %llu\n", memcg1_event_names[i],
-+			   memcg->events[memcg1_events[i]]);
+@@ -3592,10 +3578,16 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
+ 	struct mem_cgroup *parent;
  
- 	for (i = 0; i < NR_LRU_LISTS; i++)
- 		seq_printf(m, "%s %lu\n", mem_cgroup_lru_names[i],
-@@ -3146,13 +3121,9 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 		seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i], val);
- 	}
- 
--	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++) {
--		unsigned long long val = 0;
--
--		for_each_mem_cgroup_tree(mi, memcg)
--			val += memcg_sum_events(mi, memcg1_events[i]);
--		seq_printf(m, "total_%s %llu\n", memcg1_event_names[i], val);
--	}
-+	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
-+		seq_printf(m, "total_%s %llu\n", memcg1_event_names[i],
-+			   memcg->tree_events[memcg1_events[i]]);
- 
- 	for (i = 0; i < NR_LRU_LISTS; i++) {
- 		unsigned long long val = 0;
-@@ -3185,7 +3156,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 		seq_printf(m, "recent_scanned_file %lu\n", recent_scanned[1]);
- 	}
- #endif
--
-+	cgroup_rstat_flush_release();
- 	return 0;
- }
- 
-@@ -3538,9 +3509,13 @@ static int mem_cgroup_oom_control_read(struct seq_file *sf, void *v)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(sf));
- 
-+	cgroup_rstat_flush_hold(memcg->css.cgroup);
+-	*pdirty = memcg_page_state(memcg, NR_FILE_DIRTY);
++	/*
++	 * This function is called under a spinlock.  Use the irq-safe
++	 * version instead of memcg_stat_flush().
++	 */
++	cgroup_rstat_flush_irqsafe(memcg->css.cgroup);
 +
- 	seq_printf(sf, "oom_kill_disable %d\n", memcg->oom_kill_disable);
- 	seq_printf(sf, "under_oom %d\n", (bool)memcg->under_oom);
--	seq_printf(sf, "oom_kill %lu\n", memcg_sum_events(memcg, OOM_KILL));
-+	seq_printf(sf, "oom_kill %llu\n", memcg->events[OOM_KILL]);
-+
-+	cgroup_rstat_flush_release();
- 	return 0;
- }
++	*pdirty = __memcg_page_state(memcg, NR_FILE_DIRTY);
  
-@@ -4327,6 +4302,32 @@ static void mem_cgroup_css_reset(struct cgroup_subsys_state *css)
- 	memcg_wb_domain_size_changed(memcg);
- }
- 
-+static void mem_cgroup_css_rstat_flush(struct cgroup_subsys_state *css, int cpu)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-+	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
-+	struct mem_cgroup_stat_cpu *statc = per_cpu_ptr(memcg->stat_cpu, cpu);
-+	unsigned long v, delta;
-+	int i;
-+
-+	for (i = 0; i < MEMCG_NR_EVENTS; i++) {
-+		/* calculate the delta to propagate and add to local stat */
-+		v = READ_ONCE(statc->events[i]);
-+		delta = v - statc->last_events[i];
-+		statc->last_events[i] = v;
-+		memcg->events[i] += delta;
-+
-+		/* transfer the pending stat into delta */
-+		delta += memcg->pending_events[i];
-+		memcg->pending_events[i] = 0;
-+
-+		/* propagate delta into tree stat and parent's pending */
-+		memcg->tree_events[i] += delta;
-+		if (parent)
-+			parent->pending_events[i] += delta;
-+	}
-+}
-+
- #ifdef CONFIG_MMU
- /* Handlers for move charge at task migration. */
- static int mem_cgroup_do_precharge(unsigned long count)
-@@ -5191,12 +5192,15 @@ static int memory_events_show(struct seq_file *m, void *v)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
- 
--	seq_printf(m, "low %lu\n", memcg_sum_events(memcg, MEMCG_LOW));
--	seq_printf(m, "high %lu\n", memcg_sum_events(memcg, MEMCG_HIGH));
--	seq_printf(m, "max %lu\n", memcg_sum_events(memcg, MEMCG_MAX));
--	seq_printf(m, "oom %lu\n", memcg_sum_events(memcg, MEMCG_OOM));
--	seq_printf(m, "oom_kill %lu\n", memcg_sum_events(memcg, OOM_KILL));
-+	cgroup_rstat_flush_hold(memcg->css.cgroup);
-+
-+	seq_printf(m, "low %llu\n", memcg->events[MEMCG_LOW]);
-+	seq_printf(m, "high %llu\n", memcg->events[MEMCG_HIGH]);
-+	seq_printf(m, "max %llu\n", memcg->events[MEMCG_MAX]);
-+	seq_printf(m, "oom %llu\n", memcg->events[MEMCG_OOM]);
-+	seq_printf(m, "oom_kill %llu\n", memcg->events[OOM_KILL]);
- 
-+	cgroup_rstat_flush_release();
- 	return 0;
- }
- 
-@@ -5204,7 +5208,7 @@ static int memory_stat_show(struct seq_file *m, void *v)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
- 	unsigned long stat[MEMCG_NR_STAT];
--	unsigned long events[MEMCG_NR_EVENTS];
-+	unsigned long long *events = memcg->tree_events;
+ 	/* this should eventually include NR_UNSTABLE_NFS */
+-	*pwriteback = memcg_page_state(memcg, NR_WRITEBACK);
++	*pwriteback = __memcg_page_state(memcg, NR_WRITEBACK);
+ 	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
+ 						     (1 << LRU_ACTIVE_FILE));
+ 	*pheadroom = PAGE_COUNTER_MAX;
+@@ -4310,6 +4302,23 @@ static void mem_cgroup_css_rstat_flush(struct cgroup_subsys_state *css, int cpu)
+ 	unsigned long v, delta;
  	int i;
  
- 	/*
-@@ -5219,7 +5223,7 @@ static int memory_stat_show(struct seq_file *m, void *v)
++	for (i = 0; i < MEMCG_NR_STAT; i++) {
++		/* calculate the delta to propagate and add to local stat */
++		v = READ_ONCE(statc->count[i]);
++		delta = v - statc->last_count[i];
++		statc->last_count[i] = v;
++		memcg->stat[i] += delta;
++
++		/* transfer the pending stat into delta */
++		delta += memcg->pending_stat[i];
++		memcg->pending_stat[i] = 0;
++
++		/* propagate delta into tree stat and parent's pending */
++		memcg->tree_stat[i] += delta;
++		if (parent)
++			parent->pending_stat[i] += delta;
++	}
++
+ 	for (i = 0; i < MEMCG_NR_EVENTS; i++) {
+ 		/* calculate the delta to propagate and add to local stat */
+ 		v = READ_ONCE(statc->events[i]);
+@@ -5207,7 +5216,7 @@ static int memory_events_show(struct seq_file *m, void *v)
+ static int memory_stat_show(struct seq_file *m, void *v)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+-	unsigned long stat[MEMCG_NR_STAT];
++	unsigned long *stat = memcg->tree_stat;
+ 	unsigned long long *events = memcg->tree_events;
+ 	int i;
+ 
+@@ -5222,7 +5231,6 @@ static int memory_stat_show(struct seq_file *m, void *v)
+ 	 * Current memory state:
  	 */
  
- 	tree_stat(memcg, stat);
--	tree_events(memcg, events);
-+	cgroup_rstat_flush_hold(memcg->css.cgroup);
+-	tree_stat(memcg, stat);
+ 	cgroup_rstat_flush_hold(memcg->css.cgroup);
  
  	seq_printf(m, "anon %llu\n",
- 		   (u64)stat[MEMCG_RSS] * PAGE_SIZE);
-@@ -5259,18 +5263,18 @@ static int memory_stat_show(struct seq_file *m, void *v)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index bee5349..29bf99f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2738,13 +2738,15 @@ static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
+ {
+ 	struct mem_cgroup *memcg;
  
- 	/* Accumulated memory events */
++	memcg_stat_flush(root_memcg);
++
+ 	memcg = mem_cgroup_iter(root_memcg, NULL, NULL);
+ 	do {
+ 		unsigned long refaults;
+ 		struct lruvec *lruvec;
  
--	seq_printf(m, "pgfault %lu\n", events[PGFAULT]);
--	seq_printf(m, "pgmajfault %lu\n", events[PGMAJFAULT]);
-+	seq_printf(m, "pgfault %llu\n", events[PGFAULT]);
-+	seq_printf(m, "pgmajfault %llu\n", events[PGMAJFAULT]);
+ 		if (memcg)
+-			refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
++			refaults = __memcg_page_state(memcg, WORKINGSET_ACTIVATE);
+ 		else
+ 			refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
  
--	seq_printf(m, "pgrefill %lu\n", events[PGREFILL]);
--	seq_printf(m, "pgscan %lu\n", events[PGSCAN_KSWAPD] +
-+	seq_printf(m, "pgrefill %llu\n", events[PGREFILL]);
-+	seq_printf(m, "pgscan %llu\n", events[PGSCAN_KSWAPD] +
- 		   events[PGSCAN_DIRECT]);
--	seq_printf(m, "pgsteal %lu\n", events[PGSTEAL_KSWAPD] +
-+	seq_printf(m, "pgsteal %llu\n", events[PGSTEAL_KSWAPD] +
- 		   events[PGSTEAL_DIRECT]);
--	seq_printf(m, "pgactivate %lu\n", events[PGACTIVATE]);
--	seq_printf(m, "pgdeactivate %lu\n", events[PGDEACTIVATE]);
--	seq_printf(m, "pglazyfree %lu\n", events[PGLAZYFREE]);
--	seq_printf(m, "pglazyfreed %lu\n", events[PGLAZYFREED]);
-+	seq_printf(m, "pgactivate %llu\n", events[PGACTIVATE]);
-+	seq_printf(m, "pgdeactivate %llu\n", events[PGDEACTIVATE]);
-+	seq_printf(m, "pglazyfree %llu\n", events[PGLAZYFREE]);
-+	seq_printf(m, "pglazyfreed %llu\n", events[PGLAZYFREED]);
- 
- 	seq_printf(m, "workingset_refault %lu\n",
- 		   stat[WORKINGSET_REFAULT]);
-@@ -5279,6 +5283,7 @@ static int memory_stat_show(struct seq_file *m, void *v)
- 	seq_printf(m, "workingset_nodereclaim %lu\n",
- 		   stat[WORKINGSET_NODERECLAIM]);
- 
-+	cgroup_rstat_flush_release();
- 	return 0;
- }
- 
-@@ -5327,6 +5332,7 @@ struct cgroup_subsys memory_cgrp_subsys = {
- 	.css_released = mem_cgroup_css_released,
- 	.css_free = mem_cgroup_css_free,
- 	.css_reset = mem_cgroup_css_reset,
-+	.css_rstat_flush = mem_cgroup_css_rstat_flush,
- 	.can_attach = mem_cgroup_can_attach,
- 	.cancel_attach = mem_cgroup_cancel_attach,
- 	.post_attach = mem_cgroup_move_task,
 -- 
 2.9.5
