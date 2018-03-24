@@ -1,25 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 937606B0005
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 04:29:53 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id v21so1788460wmh.9
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 01:29:53 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B283F6B0005
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 04:43:38 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id c1so7075234wri.22
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 01:43:38 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o138sor2901692wmg.36.2018.03.24.01.29.52
+        by mx.google.com with SMTPS id l2sor2385878wra.53.2018.03.24.01.43.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 24 Mar 2018 01:29:52 -0700 (PDT)
-Date: Sat, 24 Mar 2018 09:29:47 +0100
+        Sat, 24 Mar 2018 01:43:37 -0700 (PDT)
+Date: Sat, 24 Mar 2018 09:43:32 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC PATCH v2 11/15] khwasan, mm: perform untagged pointers
- comparison in krealloc
-Message-ID: <20180324082947.3isostkpsjraefqt@gmail.com>
+Subject: Re: [RFC PATCH v2 03/15] khwasan: add CONFIG_KASAN_CLASSIC and
+ CONFIG_KASAN_TAGS
+Message-ID: <20180324084332.u6qik7lkdbenqbb2@gmail.com>
 References: <cover.1521828273.git.andreyknvl@google.com>
- <6eb08c160ae23eb890bd937ddf8346ba211df09f.1521828274.git.andreyknvl@google.com>
+ <1fb0a050a84d49f5c3b2210337339412475d1688.1521828273.git.andreyknvl@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <6eb08c160ae23eb890bd937ddf8346ba211df09f.1521828274.git.andreyknvl@google.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1fb0a050a84d49f5c3b2210337339412475d1688.1521828273.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Konovalov <andreyknvl@google.com>
@@ -28,34 +29,55 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@googl
 
 * Andrey Konovalov <andreyknvl@google.com> wrote:
 
-> The krealloc function checks where the same buffer was reused or a new one
-> allocated by comparing kernel pointers. KHWASAN changes memory tag on the
-> krealloc'ed chunk of memory and therefore also changes the pointer tag of
-> the returned pointer. Therefore we need to perform comparison on untagged
-> (with tags reset) pointers to check whether it's the same memory region or
-> not.
-> 
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
->  mm/slab_common.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index a33e61315ca6..5911f2194cf7 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -1494,7 +1494,7 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags)
->  	}
->  
->  	ret = __do_krealloc(p, new_size, flags);
-> -	if (ret && p != ret)
-> +	if (ret && khwasan_reset_tag(p) != khwasan_reset_tag(ret))
->  		kfree(p);
+> This commit splits the current CONFIG_KASAN config option into two:
+> 1. CONFIG_KASAN_CLASSIC, that enables the classic KASAN version (the one
+>    that exists now);
+> 2. CONFIG_KASAN_TAGS, that enables KHWASAN.
 
-Small nit:
+Sorry, but this is pretty obscure naming scheme that doesn't explain the primary 
+difference between these KASAN models to users: that the first one is a pure 
+software implementation and the other is hardware-assisted.
 
-If 'reset' here means an all zeroes tag (upper byte) then khwasan_clear_tag() 
-might be a slightly easier to read primitive?
+Reminds me of the transparency of galactic buerocracy in "The Hitchhiker's Guide 
+to the Galaxy":
+
+  a??But look, you found the notice, didna??t you?a??
+  a??Yes,a?? said Arthur, a??yes I did. It was on display in the bottom of a locked filing 
+   cabinet stuck in a disused lavatory with a sign on the door saying a??Beware of the 
+   Leopard.a?? 
+
+I'd suggest something more expressive, such as:
+
+	CONFIG_KASAN
+	  CONFIG_KASAN_GENERIC
+	  CONFIG_KASAN_HW_ASSIST
+
+or so?
+
+The 'generic' variant will basically run on any CPU. The 'hardware assisted' one 
+needs support from the CPU.
+
+The following ones might also work:
+
+   CONFIG_KASAN_HWASSIST
+   CONFIG_KASAN_HW_TAGS
+   CONFIG_KASAN_HWTAGS
+
+... or simply CONFIG_KASAN_SW/CONFIG_KASAN_HW.
+
+If other types of KASAN hardware acceleration are implemented in the future then 
+the CONFIG_KASAN_HW namespace can be extended:
+
+	CONFIG_KASAN_HW_TAGS
+	CONFIG_KASAN_HW_KEYS
+	etc.
+
+> Both CONFIG_KASAN_CLASSIC and CONFIG_KASAN_CLASSIC support both
+> CONFIG_KASAN_INLINE and CONFIG_KASAN_OUTLINE instrumentation modes.
+
+It would be very surprising if that wasn't so!
+
+Or did you mean 'Both CONFIG_KASAN_CLASSIC and CONFIG_KASAN_TAGS'! ;-)
 
 Thanks,
 
