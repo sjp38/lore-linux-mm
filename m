@@ -1,32 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DF3406B000E
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 12:51:42 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id l188so2230769ywd.6
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 09:51:42 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 89F516B0012
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 12:51:46 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id z124so6594724ywd.21
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 09:51:46 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n123sor4233058ywe.371.2018.03.24.09.51.41
+        by mx.google.com with SMTPS id g5-v6sor4762566ybc.173.2018.03.24.09.51.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 24 Mar 2018 09:51:41 -0700 (PDT)
+        Sat, 24 Mar 2018 09:51:45 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 1/2] mm, memcontrol: Move swap charge handling into get_swap_page()
-Date: Sat, 24 Mar 2018 09:51:26 -0700
-Message-Id: <20180324165127.701194-2-tj@kernel.org>
+Subject: [PATCH 2/2] mm, memcontrol: Implement memory.swap.events
+Date: Sat, 24 Mar 2018 09:51:27 -0700
+Message-Id: <20180324165127.701194-3-tj@kernel.org>
 In-Reply-To: <20180324165127.701194-1-tj@kernel.org>
 References: <20180324165127.701194-1-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com
-Cc: guro@fb.com, riel@surriel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>
+Cc: guro@fb.com, riel@surriel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, linux-api@vger.kernel.org
 
-get_swap_page() is always followed by mem_cgroup_try_charge_swap().
-This patch moves mem_cgroup_try_charge_swap() into get_swap_page() and
-makes get_swap_page() call the function even after swap allocation
-failure.
-
-This simplifies the callers and consolidates memcg related logic and
-will ease adding swap related memcg events.
+Add swap max and fail events so that userland can monitor and respond
+to running out of swap.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -35,93 +30,117 @@ Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
 Cc: Roman Gushchin <guro@fb.com>
 Cc: Rik van Riel <riel@surriel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-api@vger.kernel.org
 ---
- mm/memcontrol.c |  3 +++
- mm/shmem.c      |  4 ----
- mm/swap_slots.c | 10 +++++++---
- mm/swap_state.c |  3 ---
- 4 files changed, 10 insertions(+), 10 deletions(-)
+ Documentation/cgroup-v2.txt | 16 ++++++++++++++++
+ include/linux/memcontrol.h  |  5 +++++
+ mm/memcontrol.c             | 24 +++++++++++++++++++++++-
+ 3 files changed, 44 insertions(+), 1 deletion(-)
 
+diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
+index 74cdeae..b0dda10 100644
+--- a/Documentation/cgroup-v2.txt
++++ b/Documentation/cgroup-v2.txt
+@@ -1199,6 +1199,22 @@ PAGE_SIZE multiple when read back.
+ 	Swap usage hard limit.  If a cgroup's swap usage reaches this
+ 	limit, anonymous memory of the cgroup will not be swapped out.
+ 
++  memory.swap.events
++	A read-only flat-keyed file which exists on non-root cgroups.
++	The following entries are defined.  Unless specified
++	otherwise, a value change in this file generates a file
++	modified event.
++
++	  max
++		The number of times the cgroup's swap usage was about
++		to go over the max boundary and swap allocation
++		failed.
++
++	  fail
++		The number of times swap allocation failed either
++		because of running out of swap system-wide or max
++		limit.
++
+ 
+ Usage Guidelines
+ ~~~~~~~~~~~~~~~~
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 85a8f00..f198339 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -54,6 +54,8 @@ enum memcg_event_item {
+ 	MEMCG_HIGH,
+ 	MEMCG_MAX,
+ 	MEMCG_OOM,
++	MEMCG_SWAP_MAX,
++	MEMCG_SWAP_FAIL,
+ 	MEMCG_NR_EVENTS,
+ };
+ 
+@@ -202,6 +204,9 @@ struct mem_cgroup {
+ 	/* handle for "memory.events" */
+ 	struct cgroup_file events_file;
+ 
++	/* handle for "memory.swap.events" */
++	struct cgroup_file swap_events_file;
++
+ 	/* protect arrays of thresholds */
+ 	struct mutex thresholds_lock;
+ 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d5bf01d..9f9c8a7 100644
+index 9f9c8a7..1a14d4a4 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -5987,6 +5987,9 @@ int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
+@@ -5987,13 +5987,17 @@ int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
  	if (!memcg)
  		return 0;
  
-+	if (!entry.val)
-+		return 0;
-+
+-	if (!entry.val)
++	if (!entry.val) {
++		mem_cgroup_event(memcg, MEMCG_SWAP_FAIL);
+ 		return 0;
++	}
+ 
  	memcg = mem_cgroup_id_get_online(memcg);
  
  	if (!mem_cgroup_is_root(memcg) &&
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 1907688..4a07d21 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1313,9 +1313,6 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
- 	if (!swap.val)
- 		goto redirty;
- 
--	if (mem_cgroup_try_charge_swap(page, swap))
--		goto free_swap;
--
- 	/*
- 	 * Add inode to shmem_unuse()'s list of swapped-out inodes,
- 	 * if it's not already there.  Do it now before the page is
-@@ -1344,7 +1341,6 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+ 	    !page_counter_try_charge(&memcg->swap, nr_pages, &counter)) {
++		mem_cgroup_event(memcg, MEMCG_SWAP_MAX);
++		mem_cgroup_event(memcg, MEMCG_SWAP_FAIL);
+ 		mem_cgroup_id_put(memcg);
+ 		return -ENOMEM;
  	}
- 
- 	mutex_unlock(&shmem_swaplist_mutex);
--free_swap:
- 	put_swap_page(page, swap);
- redirty:
- 	set_page_dirty(page);
-diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-index bebc192..7546eb2 100644
---- a/mm/swap_slots.c
-+++ b/mm/swap_slots.c
-@@ -319,7 +319,7 @@ swp_entry_t get_swap_page(struct page *page)
- 	if (PageTransHuge(page)) {
- 		if (IS_ENABLED(CONFIG_THP_SWAP))
- 			get_swap_pages(1, true, &entry);
--		return entry;
-+		goto out;
- 	}
- 
- 	/*
-@@ -349,11 +349,15 @@ swp_entry_t get_swap_page(struct page *page)
- 		}
- 		mutex_unlock(&cache->alloc_lock);
- 		if (entry.val)
--			return entry;
-+			goto out;
- 	}
- 
- 	get_swap_pages(1, false, &entry);
--
-+out:
-+	if (mem_cgroup_try_charge_swap(page, entry)) {
-+		put_swap_page(page, entry);
-+		entry.val = 0;
-+	}
- 	return entry;
+@@ -6131,6 +6135,18 @@ static ssize_t swap_max_write(struct kernfs_open_file *of,
+ 	return nbytes;
  }
  
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 39ae7cf..41f0809 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -216,9 +216,6 @@ int add_to_swap(struct page *page)
- 	if (!entry.val)
- 		return 0;
++static int swap_events_show(struct seq_file *m, void *v)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
++
++	memcg_stat_flush(memcg);
++
++	seq_printf(m, "max %llu\n", memcg->events[MEMCG_SWAP_MAX]);
++	seq_printf(m, "fail %llu\n", memcg->events[MEMCG_SWAP_FAIL]);
++
++	return 0;
++}
++
+ static struct cftype swap_files[] = {
+ 	{
+ 		.name = "swap.current",
+@@ -6143,6 +6159,12 @@ static struct cftype swap_files[] = {
+ 		.seq_show = swap_max_show,
+ 		.write = swap_max_write,
+ 	},
++	{
++		.name = "swap.events",
++		.flags = CFTYPE_NOT_ON_ROOT,
++		.file_offset = offsetof(struct mem_cgroup, swap_events_file),
++		.seq_show = swap_events_show,
++	},
+ 	{ }	/* terminate */
+ };
  
--	if (mem_cgroup_try_charge_swap(page, entry))
--		goto fail;
--
- 	/*
- 	 * Radix-tree node allocations from PF_MEMALLOC contexts could
- 	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
 -- 
 2.9.5
