@@ -1,98 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 990DC6B000C
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 14:24:04 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id q19so10150224qta.17
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 11:24:04 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id r19si5914qki.57.2018.03.24.11.24.03
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CF5F16B0009
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 14:40:14 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p202-v6so4878428lfe.3
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 11:40:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g77-v6sor3021607lfl.87.2018.03.24.11.40.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Mar 2018 11:24:03 -0700 (PDT)
-Date: Sat, 24 Mar 2018 14:24:00 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH 1/8] mm: mmap: unmap large mapping by section
-Message-ID: <20180324182359.GB4928@redhat.com>
-References: <1521581486-99134-1-git-send-email-yang.shi@linux.alibaba.com>
- <1521581486-99134-2-git-send-email-yang.shi@linux.alibaba.com>
- <20180321130833.GM23100@dhcp22.suse.cz>
- <f88deb20-bcce-939f-53a6-1061c39a9f6c@linux.alibaba.com>
- <20180321172932.GE4780@bombadil.infradead.org>
+        (Google Transport Security);
+        Sat, 24 Mar 2018 11:40:12 -0700 (PDT)
+Date: Sat, 24 Mar 2018 21:40:09 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH 01/10] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180324184009.dyjlt4rj4b6y6sz3@esperanza>
+References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
+ <152163847740.21546.16821490541519326725.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180321172932.GE4780@bombadil.infradead.org>
+In-Reply-To: <152163847740.21546.16821490541519326725.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
 
-On Wed, Mar 21, 2018 at 10:29:32AM -0700, Matthew Wilcox wrote:
-> On Wed, Mar 21, 2018 at 09:31:22AM -0700, Yang Shi wrote:
-> > On 3/21/18 6:08 AM, Michal Hocko wrote:
-> > > Yes, this definitely sucks. One way to work that around is to split the
-> > > unmap to two phases. One to drop all the pages. That would only need
-> > > mmap_sem for read and then tear down the mapping with the mmap_sem for
-> > > write. This wouldn't help for parallel mmap_sem writers but those really
-> > > need a different approach (e.g. the range locking).
-> > 
-> > page fault might sneak in to map a page which has been unmapped before?
-> > 
-> > range locking should help a lot on manipulating small sections of a large
-> > mapping in parallel or multiple small mappings. It may not achieve too much
-> > for single large mapping.
+Hello Kirill,
+
+I don't have any objections to the idea behind this patch set.
+Well, at least I don't know how to better tackle the problem you
+describe in the cover letter. Please, see below for my comments
+regarding implementation details.
+
+On Wed, Mar 21, 2018 at 04:21:17PM +0300, Kirill Tkhai wrote:
+> The patch introduces shrinker::id number, which is used to enumerate
+> memcg-aware shrinkers. The number start from 0, and the code tries
+> to maintain it as small as possible.
 > 
-> I don't think we need range locking.  What if we do munmap this way:
+> This will be used as to represent a memcg-aware shrinkers in memcg
+> shrinkers map.
 > 
-> Take the mmap_sem for write
-> Find the VMA
->   If the VMA is large(*)
->     Mark the VMA as deleted
->     Drop the mmap_sem
->     zap all of the entries
->     Take the mmap_sem
->   Else
->     zap all of the entries
-> Continue finding VMAs
-> Drop the mmap_sem
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> ---
+>  include/linux/shrinker.h |    1 +
+>  mm/vmscan.c              |   59 ++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 60 insertions(+)
 > 
-> Now we need to change everywhere which looks up a VMA to see if it needs
-> to care the the VMA is deleted (page faults, eg will need to SIGBUS; mmap
-> does not care; munmap will need to wait for the existing munmap operation
-> to complete), but it gives us the atomicity, at least on a per-VMA basis.
-> 
+> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> index a3894918a436..738de8ef5246 100644
+> --- a/include/linux/shrinker.h
+> +++ b/include/linux/shrinker.h
+> @@ -66,6 +66,7 @@ struct shrinker {
+>  
+>  	/* These are for internal use */
+>  	struct list_head list;
+> +	int id;
 
-What about something that should fix all issues:
-    struct list_head to_free_puds;
-    ...
-    down_write(&mm->mmap_sem);
-    ...
-    unmap_vmas(&tlb, vma, start, end, &to_free_puds);
-    arch_unmap(mm, vma, start, end);
-    /* Fix up all other VM information */
-    remove_vma_list(mm, vma);
-    ...
-    up_write(&mm->mmap_sem);
-    ...
-    zap_pud_list(rss_update_info, to_free_puds);
-    update_rss(rss_update_info)
+This definition could definitely use a comment.
 
-We collect pud that need to be free/zap we update the page table PUD
-entry to pud_none under the write sem and CPU page table lock, add the
-pud to the list that need zapping. We only collect pud fully cover,
-and usual business for partialy covered pud.
+BTW shouldn't we ifdef it?
 
-Everything behave as today except that we do not free memory. Care
-must be take with the anon vma and we should probably not free the
-vma struct either before the zap but all other mm struct can be
-updated. The rss_counter would also to be updated post zap pud.
+>  	/* objs pending delete, per node */
+>  	atomic_long_t *nr_deferred;
+>  };
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 8fcd9f8d7390..91b5120b924f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -159,6 +159,56 @@ unsigned long vm_total_pages;
+>  static LIST_HEAD(shrinker_list);
+>  static DECLARE_RWSEM(shrinker_rwsem);
+>  
+> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> +static DEFINE_IDA(bitmap_id_ida);
+> +static DECLARE_RWSEM(bitmap_rwsem);
 
-We would need special code to zap pud list, no need to take lock or
-do special arch tlb flushing, ptep_get_clear, ... when walking down
-those puds. So it should scale a lot better too.
+Can't we reuse shrinker_rwsem for protecting the ida?
 
-Did i miss something ?
+> +static int bitmap_id_start;
+> +
+> +static int alloc_shrinker_id(struct shrinker *shrinker)
+> +{
+> +	int id, ret;
+> +
+> +	if (!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+> +		return 0;
+> +retry:
+> +	ida_pre_get(&bitmap_id_ida, GFP_KERNEL);
+> +	down_write(&bitmap_rwsem);
+> +	ret = ida_get_new_above(&bitmap_id_ida, bitmap_id_start, &id);
 
-Cheers,
-Jerome
+AFAIK ida always allocates the smallest available id so you don't need
+to keep track of bitmap_id_start.
+
+> +	if (!ret) {
+> +		shrinker->id = id;
+> +		bitmap_id_start = shrinker->id + 1;
+> +	}
+> +	up_write(&bitmap_rwsem);
+> +	if (ret == -EAGAIN)
+> +		goto retry;
+> +
+> +	return ret;
+> +}
