@@ -1,41 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6462A6B0007
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 20:32:35 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id f59-v6so10275209plb.7
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 17:32:35 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id a23si8956225pfn.161.2018.03.24.17.32.33
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 910296B0025
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2018 21:33:06 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id y97-v6so2097343plh.20
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2018 18:33:06 -0700 (PDT)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id n6si8290268pgf.310.2018.03.24.18.33.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Mar 2018 17:32:34 -0700 (PDT)
-Subject: Re: [PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-References: <1521851771-108673-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180324043044.GA22733@bombadil.infradead.org>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <aed7f679-a32f-d8d7-eb59-ec05fc49a70e@linux.alibaba.com>
-Date: Sat, 24 Mar 2018 17:32:24 -0700
+        Sat, 24 Mar 2018 18:33:05 -0700 (PDT)
+Subject: Re: [PATCH 6/8] Pmalloc selftest
+References: <20180313214554.28521-1-igor.stoppa@huawei.com>
+ <20180313214554.28521-7-igor.stoppa@huawei.com>
+ <20180314122512.GF29631@bombadil.infradead.org>
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Message-ID: <ce6e34a4-592d-624c-2353-20e50e321298@huawei.com>
+Date: Sun, 25 Mar 2018 04:32:57 +0300
 MIME-Version: 1.0
-In-Reply-To: <20180324043044.GA22733@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180314122512.GF29631@bombadil.infradead.org>
+Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: adobriyan@gmail.com, mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: david@fromorbit.com, rppt@linux.vnet.ibm.com, keescook@chromium.org, mhocko@kernel.org, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
 
 
-On 3/23/18 9:30 PM, Matthew Wilcox wrote:
->> So, introduce a new rwlock in mm_struct to protect the concurrent access
->> to arg_start|end and env_start|end.
-> I don't think an rwlock makes much sense here.  There is almost no
-> concurrency on the read side, and an rwlock is more expensive than
-> a spinlock.  Just use a spinlock.
+On 14/03/18 14:25, Matthew Wilcox wrote:
+> On Tue, Mar 13, 2018 at 11:45:52PM +0200, Igor Stoppa wrote:
+>> Add basic self-test functionality for pmalloc.
+> 
+> Here're some additional tests for your test-suite:
+> 
+> 	for (i = 1; i; i *= 2)
+> 		pzalloc(pool, i - 1, GFP_KERNEL);
+> 
 
-Thanks for the comment. Yes, actually there is not concurrency on the 
-read side, will change to regular spin lock.
+Ok, I have almost finished the rewrite.
+I still have to address this comment.
 
-Yang
+When I run the test, eventually the system runs out of memory, it keeps
+getting allocation errors from vmalloc, until i finally overflows and
+becomes 0.
+
+Am I supposed to do something about it?
+If pmalloc receives a request that the vmalloc backend cannot satisfy, I
+would prefer that vmalloc itself produces the warning and pmalloc
+returns NULL.
+
+This doesn't look like a test case that one can leave always enabled in
+a build, but maybe I'm missing the point.
+
+--
+igor
