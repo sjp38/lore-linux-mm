@@ -1,36 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C88A6B005A
-	for <linux-mm@kvack.org>; Sun, 25 Mar 2018 18:10:32 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id f3-v6so11656795plf.1
-        for <linux-mm@kvack.org>; Sun, 25 Mar 2018 15:10:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f35-v6sor6097370plh.75.2018.03.25.15.10.31
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FFBF6B0003
+	for <linux-mm@kvack.org>; Sun, 25 Mar 2018 19:56:08 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c5so10099228pfn.17
+        for <linux-mm@kvack.org>; Sun, 25 Mar 2018 16:56:08 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id o15-v6si13230573pli.738.2018.03.25.16.56.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 25 Mar 2018 15:10:31 -0700 (PDT)
-Date: Sun, 25 Mar 2018 15:10:29 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [mm] b1f0502d04: INFO:trying_to_register_non-static_key
-In-Reply-To: <792c0f75-7e7f-cd81-44ae-4205f6e4affc@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.20.1803251510040.80485@chino.kir.corp.google.com>
-References: <20180317075119.u6yuem2bhxvggbz3@inn> <792c0f75-7e7f-cd81-44ae-4205f6e4affc@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 25 Mar 2018 16:56:05 -0700 (PDT)
+Date: Sun, 25 Mar 2018 16:56:03 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 3/4] mm: Add free()
+Message-ID: <20180325235603.GA18737@bombadil.infradead.org>
+References: <20180322195819.24271-1-willy@infradead.org>
+ <20180322195819.24271-4-willy@infradead.org>
+ <6fd1bba1-e60c-e5b3-58be-52e991cda74f@virtuozzo.com>
+ <20180323151421.GC5624@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180323151421.GC5624@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: kernel test robot <fengguang.wu@intel.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, lkp@01.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Wed, 21 Mar 2018, Laurent Dufour wrote:
+On Fri, Mar 23, 2018 at 08:14:21AM -0700, Matthew Wilcox wrote:
+> On Fri, Mar 23, 2018 at 04:33:24PM +0300, Kirill Tkhai wrote:
+> > > +	page = virt_to_head_page(ptr);
+> > > +	if (likely(PageSlab(page)))
+> > > +		return kmem_cache_free(page->slab_cache, (void *)ptr);
+> > 
+> > It seems slab_cache is not generic for all types of slabs. SLOB does not care about it:
+> 
+> Oof.  I was sure I checked that.  You're quite right that it doesn't ...
+> this should fix that problem:
 
-> I found the root cause of this lockdep warning.
-> 
-> In mmap_region(), unmap_region() may be called while vma_link() has not been
-> called. This happens during the error path if call_mmap() failed.
-> 
-> The only to fix that particular case is to call
-> seqcount_init(&vma->vm_sequence) when initializing the vma in mmap_region().
-> 
-
-Ack, although that would require a fixup to dup_mmap() as well.
+This patch was complete rubbish.  The point of SLOB is that it mixes
+sizes within the same page, and doesn't store the size when allocating
+from a slab.  So there is no way to tell.  I'm going to think about this
+some more.
