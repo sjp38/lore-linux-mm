@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D90B6B000A
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 11:44:26 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id g13-v6so3089489otk.5
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 08:44:26 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u1si16032oiv.71.2018.03.26.08.44.25
-        for <linux-mm@kvack.org>;
-        Mon, 26 Mar 2018 08:44:25 -0700 (PDT)
-Date: Mon, 26 Mar 2018 16:44:21 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] mm: kmemleak: wait for scan completion before disabling
- free
-Message-ID: <20180326154421.obk7ikx3h5ko62o5@armageddon.cambridge.arm.com>
-References: <1522063429-18992-1-git-send-email-vinmenon@codeaurora.org>
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C53E76B0009
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 12:06:02 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id 185so17238440iox.21
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 09:06:02 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id i197-v6si11892496ite.127.2018.03.26.09.06.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 26 Mar 2018 09:06:00 -0700 (PDT)
+Date: Mon, 26 Mar 2018 18:05:49 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] lockdep: Show address of "struct lockdep_map" at
+ print_lock().
+Message-ID: <20180326160549.GL4043@hirez.programming.kicks-ass.net>
+References: <1522059513-5461-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1522063429-18992-1-git-send-email-vinmenon@codeaurora.org>
+In-Reply-To: <1522059513-5461-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Borislav Petkov <bp@suse.de>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Mon, Mar 26, 2018 at 04:53:49PM +0530, Vinayak Menon wrote:
-> A crash is observed when kmemleak_scan accesses the
-> object->pointer, likely due to the following race.
-> 
-> TASK A             TASK B                     TASK C
-> kmemleak_write
->  (with "scan" and
->  NOT "scan=on")
-> kmemleak_scan()
->                    create_object
->                    kmem_cache_alloc fails
->                    kmemleak_disable
->                    kmemleak_do_cleanup
->                    kmemleak_free_enabled = 0
->                                               kfree
->                                               kmemleak_free bails out
->                                                (kmemleak_free_enabled is 0)
->                                               slub frees object->pointer
-> update_checksum
-> crash - object->pointer
->  freed (DEBUG_PAGEALLOC)
-> 
-> kmemleak_do_cleanup waits for the scan thread to complete, but not for
-> direct call to kmemleak_scan via kmemleak_write. So add a wait for
-> kmemleak_scan completion before disabling kmemleak_free.
-> 
-> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+On Mon, Mar 26, 2018 at 07:18:33PM +0900, Tetsuo Handa wrote:
+> [  628.863629] 2 locks held by a.out/1165:
+> [  628.867533]  #0: [ffffa3b438472e48] (&mm->mmap_sem){++++}, at: __do_page_fault+0x16f/0x4d0
+> [  628.873570]  #1: [ffffa3b4f2c52ac0] (&mapping->i_mmap_rwsem){++++}, at: rmap_walk_file+0x1d9/0x2a0
 
-It looks fine to me. Maybe Andrew can pick it up.
+Maybe change the string a little, because from the above it's not at all
+effident that the [] thing is the lock instance.
 
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+> diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+> index 12a2805..7835233 100644
+> --- a/kernel/locking/lockdep.c
+> +++ b/kernel/locking/lockdep.c
+> @@ -556,9 +556,9 @@ static void print_lock(struct held_lock *hlock)
+>  		return;
+>  	}
+>  
+> +	printk(KERN_CONT "[%px]", hlock->instance);
 
-Thanks.
+And yeah, what Michal said, that wants to be %p, we're fine with the
+thing being hashed, all we want to do is equivalience, which can be done
+with hashed pinters too.
+
+>  	print_lock_name(lock_classes + class_idx - 1);
+> -	printk(KERN_CONT ", at: [<%px>] %pS\n",
+> -		(void *)hlock->acquire_ip, (void *)hlock->acquire_ip);
+> +	printk(KERN_CONT ", at: %pS\n", (void *)hlock->acquire_ip);
+>  }
+
+Otherwise no real objection to the patch.
