@@ -1,65 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9207F6B0003
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 18:30:42 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c65so4234624pfa.5
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 15:30:42 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j20sor4979339pfa.83.2018.03.26.15.30.41
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D250C6B0006
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 18:36:19 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id m6-v6so13829950pln.8
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 15:36:19 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z7sor5470058pfa.31.2018.03.26.15.36.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 26 Mar 2018 15:30:41 -0700 (PDT)
-Date: Tue, 27 Mar 2018 06:30:34 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 1/2] mm/sparse: pass the __highest_present_section_nr + 1
- to alloc_func()
-Message-ID: <20180326223034.GA78976@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20180326081956.75275-1-richard.weiyang@gmail.com>
- <alpine.DEB.2.20.1803261356380.251389@chino.kir.corp.google.com>
+        Mon, 26 Mar 2018 15:36:18 -0700 (PDT)
+Date: Mon, 26 Mar 2018 15:36:16 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: Use octal not symbolic permissions
+In-Reply-To: <2e032ef111eebcd4c5952bae86763b541d373469.1522102887.git.joe@perches.com>
+Message-ID: <alpine.DEB.2.20.1803261535460.93873@chino.kir.corp.google.com>
+References: <2e032ef111eebcd4c5952bae86763b541d373469.1522102887.git.joe@perches.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1803261356380.251389@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, dave.hansen@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org
+To: Joe Perches <joe@perches.com>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 26, 2018 at 01:56:50PM -0700, David Rientjes wrote:
->On Mon, 26 Mar 2018, Wei Yang wrote:
->
->> In 'commit c4e1be9ec113 ("mm, sparsemem: break out of loops early")',
->> __highest_present_section_nr is introduced to reduce the loop counts for
->> present section. This is also helpful for usemap and memmap allocation.
->> 
->> This patch uses __highest_present_section_nr + 1 to optimize the loop.
->> 
->> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
->> ---
->>  mm/sparse.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->> 
->> diff --git a/mm/sparse.c b/mm/sparse.c
->> index 7af5e7a92528..505050346249 100644
->> --- a/mm/sparse.c
->> +++ b/mm/sparse.c
->> @@ -561,7 +561,7 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
->>  		map_count = 1;
->>  	}
->>  	/* ok, last chunk */
->> -	alloc_func(data, pnum_begin, NR_MEM_SECTIONS,
->> +	alloc_func(data, pnum_begin, __highest_present_section_nr+1,
->>  						map_count, nodeid_begin);
->>  }
->>  
->
->What happens if s/NR_MEM_SECTIONS/pnum/?
+On Mon, 26 Mar 2018, Joe Perches wrote:
 
-I have tried this :-)
+> mm/*.c files use symbolic and octal styles for permissions.
+> 
+> Using octal and not symbolic permissions is preferred by many as more
+> readable.
+> 
+> https://lkml.org/lkml/2016/8/2/1945
+> 
+> Prefer the direct use of octal for permissions.
+> 
+> Done using
+> $ scripts/checkpatch.pl -f --types=SYMBOLIC_PERMS --fix-inplace mm/*.c
+> and some typing.
+> 
+> Before:	 $ git grep -P -w "0[0-7]{3,3}" mm | wc -l
+> 44
+> After:	 $ git grep -P -w "0[0-7]{3,3}" mm | wc -l
+> 86
+> 
+> Miscellanea:
+> 
+> o Whitespace neatening around these conversions.
+> 
+> Signed-off-by: Joe Perches <joe@perches.com>
 
-The last pnum is -1 from next_present_section_nr().
+Acked-by: David Rientjes <rientjes@google.com>
 
--- 
-Wei Yang
-Help you, Help me
+although extending some of these lines to be >80 characters also improves 
+the readability imo.
