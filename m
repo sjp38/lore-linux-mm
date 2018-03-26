@@ -1,87 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CB236B0009
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:36:36 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id v131so4099405wmv.6
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 07:36:36 -0700 (PDT)
-Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:67c:670:201:290:27ff:fe1d:cc33])
-        by mx.google.com with ESMTPS id r28si544989wra.382.2018.03.26.07.36.34
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A2536B0009
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:49:28 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id w19-v6so13209123plq.2
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 07:49:28 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p11si11312820pfh.247.2018.03.26.07.49.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 26 Mar 2018 07:36:34 -0700 (PDT)
-Message-ID: <1522074988.1196.1.camel@pengutronix.de>
-Subject: Re: [RFC] Per file OOM badness
-From: Lucas Stach <l.stach@pengutronix.de>
-Date: Mon, 26 Mar 2018 16:36:28 +0200
-In-Reply-To: <20180130102855.GY21609@dhcp22.suse.cz>
-References: <20180118170006.GG6584@dhcp22.suse.cz>
-	 <20180123152659.GA21817@castle.DHCP.thefacebook.com>
-	 <20180123153631.GR1526@dhcp22.suse.cz>
-	 <ccac4870-ced3-f169-17df-2ab5da468bf0@daenzer.net>
-	 <20180124092847.GI1526@dhcp22.suse.cz>
-	 <583f328e-ff46-c6a4-8548-064259995766@daenzer.net>
-	 <20180124110141.GA28465@dhcp22.suse.cz>
-	 <36b49523-792d-45f9-8617-32b6d9d77418@daenzer.net>
-	 <20180124115059.GC28465@dhcp22.suse.cz>
-	 <60e18da8-4d6e-dec9-7aef-ff003605d513@daenzer.net>
-	 <20180130102855.GY21609@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Mar 2018 07:49:27 -0700 (PDT)
+Subject: Re: [PATCH] mm: introduce arg_lock to protect arg_start|end and
+ env_start|end in mm_struct
+References: <1521851771-108673-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180324043044.GA22733@bombadil.infradead.org>
+ <aed7f679-a32f-d8d7-eb59-ec05fc49a70e@linux.alibaba.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <a766b98b-80b4-5f1b-9588-dd1c5506cbdc@i-love.sakura.ne.jp>
+Date: Mon, 26 Mar 2018 23:49:18 +0900
+MIME-Version: 1.0
+In-Reply-To: <aed7f679-a32f-d8d7-eb59-ec05fc49a70e@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Michel =?ISO-8859-1?Q?D=E4nzer?= <michel@daenzer.net>
-Cc: linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org, Christian.Koenig@amd.com, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, Roman Gushchin <guro@fb.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>, Matthew Wilcox <willy@infradead.org>
+Cc: adobriyan@gmail.com, mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi all,
-
-Am Dienstag, den 30.01.2018, 11:28 +0100 schrieb Michal Hocko:
-> On Tue 30-01-18 10:29:10, Michel DA?nzer wrote:
-> > On 2018-01-24 12:50 PM, Michal Hocko wrote:
-> > > On Wed 24-01-18 12:23:10, Michel DA?nzer wrote:
-> > > > On 2018-01-24 12:01 PM, Michal Hocko wrote:
-> > > > > On Wed 24-01-18 11:27:15, Michel DA?nzer wrote:
-> > > 
-> > > [...]
-> > > > > > 2. If the OOM killer kills a process which is sharing BOs
-> > > > > > with another
-> > > > > > process, this should result in the other process dropping
-> > > > > > its references
-> > > > > > to the BOs as well, at which point the memory is released.
-> > > > > 
-> > > > > OK. How exactly are those BOs mapped to the userspace?
-> > > > 
-> > > > I'm not sure what you're asking. Userspace mostly uses a GEM
-> > > > handle to
-> > > > refer to a BO. There can also be userspace CPU mappings of the
-> > > > BO's
-> > > > memory, but userspace doesn't need CPU mappings for all BOs and
-> > > > only
-> > > > creates them as needed.
-> > > 
-> > > OK, I guess you have to bear with me some more. This whole stack
-> > > is a
-> > > complete uknonwn. I am mostly after finding a boundary where you
-> > > can
-> > > charge the allocated memory to the process so that the oom killer
-> > > can
-> > > consider it. Is there anything like that? Except for the proposed
-> > > file
-> > > handle hack?
-> > 
-> > How about the other way around: what APIs can we use to charge /
-> > "uncharge" memory to a process? If we have those, we can experiment
-> > with
-> > different places to call them.
+On 2018/03/24 9:36, Yang Shi wrote:
+> And, the mmap_sem contention may cause unexpected issue like below:
 > 
-> add_mm_counter() and I would add a new counter e.g. MM_KERNEL_PAGES.
+> INFO: task ps:14018 blocked for more than 120 seconds.
+>        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+>  "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+> message.
+>  ps              D    0 14018      1 0x00000004
+>   ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+>   ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+>   00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+>  Call Trace:
+>   [<ffffffff817154d0>] ? __schedule+0x250/0x730
+>   [<ffffffff817159e6>] schedule+0x36/0x80
+>   [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+>   [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+>   [<ffffffff81717db0>] down_read+0x20/0x40
+>   [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+>   [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
+>   [<ffffffff81241d87>] __vfs_read+0x37/0x150
+>   [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
+>   [<ffffffff81242266>] vfs_read+0x96/0x130
+>   [<ffffffff812437b5>] SyS_read+0x55/0xc0
+>   [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
 
-So is anyone still working on this? This is hurting us bad enough that
-I don't want to keep this topic rotting for another year.
+Yes, but
 
-If no one is currently working on this I would volunteer to give the
-simple "just account private, non-shared buffers in process RSS" a
-spin.
+> 
+> Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
+> for them to mitigate the abuse of mmap_sem.
+> 
+> So, introduce a new rwlock in mm_struct to protect the concurrent access
+> to arg_start|end and env_start|end.
 
-Regards,
-Lucas
+does arg_lock really help?
+
+I wonder whether per "struct mm_struct" granularity is needed if arg_lock
+protects only a few atomic reads. A global lock would be sufficient.
+
+Also, even if we succeeded to avoid mmap_sem contention at that location,
+won't we after all get mmap_sem contention messages a bit later, for
+access_remote_vm() holds mmap_sem which would lead to traces like above
+if mmap_sem is already contended?
+
+> 
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> Cc: Alexey Dobriyan <adobriyan@gmail.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> ---
+>  fs/proc/base.c           | 8 ++++----
+>  include/linux/mm_types.h | 2 ++
+>  kernel/fork.c            | 1 +
+>  kernel/sys.c             | 6 ++++++
+>  mm/init-mm.c             | 1 +
+>  5 files changed, 14 insertions(+), 4 deletions(-)
