@@ -1,97 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 112E16B0033
-	for <linux-mm@kvack.org>; Sun, 25 Mar 2018 23:03:52 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 2so10369469pft.4
-        for <linux-mm@kvack.org>; Sun, 25 Mar 2018 20:03:52 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f125sor3632201pgc.434.2018.03.25.20.03.50
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 06CC26B0009
+	for <linux-mm@kvack.org>; Sun, 25 Mar 2018 23:25:43 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id f59-v6so12125288plb.7
+        for <linux-mm@kvack.org>; Sun, 25 Mar 2018 20:25:42 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 134si9707093pgd.709.2018.03.25.20.25.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 25 Mar 2018 20:03:50 -0700 (PDT)
-From: Jia He <hejianet@gmail.com>
-Subject: [PATCH v3 5/5] mm: page_alloc: reduce unnecessary binary search in early_pfn_valid()
-Date: Sun, 25 Mar 2018 20:02:19 -0700
-Message-Id: <1522033340-6575-6-git-send-email-hejianet@gmail.com>
-In-Reply-To: <1522033340-6575-1-git-send-email-hejianet@gmail.com>
-References: <1522033340-6575-1-git-send-email-hejianet@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 25 Mar 2018 20:25:41 -0700 (PDT)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [PATCH v29 3/4] mm/page_poison: expose page_poisoning_enabled
+ to kernel modules
+Date: Mon, 26 Mar 2018 03:24:00 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F739485741@shsmsx102.ccr.corp.intel.com>
+References: <1522031994-7246-1-git-send-email-wei.w.wang@intel.com>
+ <1522031994-7246-4-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1522031994-7246-4-git-send-email-wei.w.wang@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Jia He <hejianet@gmail.com>, Jia He <jia.he@hxt-semitech.com>
+To: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "huangzhichao@huawei.com" <huangzhichao@huawei.com>
 
-Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-where possible") optimized the loop in memmap_init_zone(). But there is
-still some room for improvement. E.g. in early_pfn_valid(), if pfn and
-pfn+1 are in the same memblock region, we can record the last returned
-memblock region index and check check pfn++ is still in the same region.
+On Monday, March 26, 2018 10:40 AM, Wang, Wei W wrote:
+> Subject: [PATCH v29 3/4] mm/page_poison: expose page_poisoning_enabled
+> to kernel modules
+>=20
+> In some usages, e.g. virtio-balloon, a kernel module needs to know if pag=
+e
+> poisoning is in use. This patch exposes the page_poisoning_enabled functi=
+on
+> to kernel modules.
+>=20
+> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Michael S. Tsirkin <mst@redhat.com>
+> ---
+>  mm/page_poison.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+>=20
+> diff --git a/mm/page_poison.c b/mm/page_poison.c index e83fd44..762b472
+> 100644
+> --- a/mm/page_poison.c
+> +++ b/mm/page_poison.c
+> @@ -17,6 +17,11 @@ static int early_page_poison_param(char *buf)  }
+> early_param("page_poison", early_page_poison_param);
+>=20
+> +/**
+> + * page_poisoning_enabled - check if page poisoning is enabled
+> + *
+> + * Return true if page poisoning is enabled, or false if not.
+> + */
+>  bool page_poisoning_enabled(void)
+>  {
+>  	/*
+> @@ -29,6 +34,7 @@ bool page_poisoning_enabled(void)
+>=20
+> 	(!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC) &&
+>  		debug_pagealloc_enabled()));
+>  }
+> +EXPORT_SYMBOL_GPL(page_poisoning_enabled);
+>=20
+>  static void poison_page(struct page *page)  {
+> --
+> 2.7.4
 
-Currently it only improve the performance on arm64 and will have no
-impact on other arches.
 
-Signed-off-by: Jia He <jia.he@hxt-semitech.com>
----
- arch/x86/include/asm/mmzone_32.h |  2 +-
- include/linux/mmzone.h           | 12 +++++++++---
- mm/page_alloc.c                  |  2 +-
- 3 files changed, 11 insertions(+), 5 deletions(-)
+Could we get a review of this patch? We've reviewed other parts, and this o=
+ne seems to be the last part of this feature. Thanks.
 
-diff --git a/arch/x86/include/asm/mmzone_32.h b/arch/x86/include/asm/mmzone_32.h
-index 73d8dd1..329d3ba 100644
---- a/arch/x86/include/asm/mmzone_32.h
-+++ b/arch/x86/include/asm/mmzone_32.h
-@@ -49,7 +49,7 @@ static inline int pfn_valid(int pfn)
- 	return 0;
- }
- 
--#define early_pfn_valid(pfn)	pfn_valid((pfn))
-+#define early_pfn_valid(pfn, last_region_idx)	pfn_valid((pfn))
- 
- #endif /* CONFIG_DISCONTIGMEM */
- 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index d797716..3a686af 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1267,9 +1267,15 @@ static inline int pfn_present(unsigned long pfn)
- })
- #else
- #define pfn_to_nid(pfn)		(0)
--#endif
-+#endif /*CONFIG_NUMA*/
-+
-+#ifdef CONFIG_HAVE_ARCH_PFN_VALID
-+#define early_pfn_valid(pfn, last_region_idx) \
-+				pfn_valid_region(pfn, last_region_idx)
-+#else
-+#define early_pfn_valid(pfn, last_region_idx)	pfn_valid(pfn)
-+#endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
- 
--#define early_pfn_valid(pfn)	pfn_valid(pfn)
- void sparse_init(void);
- #else
- #define sparse_init()	do {} while (0)
-@@ -1288,7 +1294,7 @@ struct mminit_pfnnid_cache {
- };
- 
- #ifndef early_pfn_valid
--#define early_pfn_valid(pfn)	(1)
-+#define early_pfn_valid(pfn, last_region_idx)	(1)
- #endif
- 
- void memory_present(int nid, unsigned long start, unsigned long end);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0bb0274..debccf3 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5484,7 +5484,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		if (context != MEMMAP_EARLY)
- 			goto not_early;
- 
--		if (!early_pfn_valid(pfn)) {
-+		if (!early_pfn_valid(pfn, &idx)) {
- #if (defined CONFIG_HAVE_MEMBLOCK) && (defined CONFIG_HAVE_ARCH_PFN_VALID)
- 			/*
- 			 * Skip to the pfn preceding the next valid one (or
--- 
-2.7.4
+Best,
+Wei
