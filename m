@@ -1,46 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C63A56B0011
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 04:20:06 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id b9so8460063pgu.13
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 01:20:06 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 872BB6B0022
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 04:21:03 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id t10-v6so607083ply.13
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 01:21:03 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f11sor4532146pfn.123.2018.03.26.01.20.05
+        by mx.google.com with SMTPS id r27sor4522668pfi.60.2018.03.26.01.21.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 26 Mar 2018 01:20:05 -0700 (PDT)
+        Mon, 26 Mar 2018 01:21:02 -0700 (PDT)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH 1/2] mm/sparse: pass the __highest_present_section_nr + 1 to alloc_func()
-Date: Mon, 26 Mar 2018 16:19:55 +0800
-Message-Id: <20180326081956.75275-1-richard.weiyang@gmail.com>
+Subject: [PATCH 2/2] mm/sparse: check __highest_present_section_nr only for a present section
+Date: Mon, 26 Mar 2018 16:19:56 +0800
+Message-Id: <20180326081956.75275-2-richard.weiyang@gmail.com>
+In-Reply-To: <20180326081956.75275-1-richard.weiyang@gmail.com>
+References: <20180326081956.75275-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dave.hansen@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com
 Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-In 'commit c4e1be9ec113 ("mm, sparsemem: break out of loops early")',
-__highest_present_section_nr is introduced to reduce the loop counts for
-present section. This is also helpful for usemap and memmap allocation.
+When searching a present section, there are two boundaries:
 
-This patch uses __highest_present_section_nr + 1 to optimize the loop.
+    * __highest_present_section_nr
+    * NR_MEM_SECTIONS
+
+And it is konwn, __highest_present_section_nr is a more strict boundary
+than NR_MEM_SECTIONS. This means it would be necessary to check
+__highest_present_section_nr only.
 
 Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- mm/sparse.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/sparse.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
 diff --git a/mm/sparse.c b/mm/sparse.c
-index 7af5e7a92528..505050346249 100644
+index 505050346249..b6560029a16c 100644
 --- a/mm/sparse.c
 +++ b/mm/sparse.c
-@@ -561,7 +561,7 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
- 		map_count = 1;
- 	}
- 	/* ok, last chunk */
--	alloc_func(data, pnum_begin, NR_MEM_SECTIONS,
-+	alloc_func(data, pnum_begin, __highest_present_section_nr+1,
- 						map_count, nodeid_begin);
+@@ -190,15 +190,13 @@ static inline int next_present_section_nr(int section_nr)
+ 		section_nr++;
+ 		if (present_section_nr(section_nr))
+ 			return section_nr;
+-	} while ((section_nr < NR_MEM_SECTIONS) &&
+-		 (section_nr <= __highest_present_section_nr));
++	} while ((section_nr <= __highest_present_section_nr));
+ 
+ 	return -1;
  }
+ #define for_each_present_section_nr(start, section_nr)		\
+ 	for (section_nr = next_present_section_nr(start-1);	\
+ 	     ((section_nr >= 0) &&				\
+-	      (section_nr < NR_MEM_SECTIONS) &&			\
+ 	      (section_nr <= __highest_present_section_nr));	\
+ 	     section_nr = next_present_section_nr(section_nr))
  
 -- 
 2.15.1
