@@ -1,154 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CEA2F6B000E
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 04:53:23 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id q10so4691391wre.6
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 01:53:23 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f184sor4530540wmd.3.2018.03.26.01.53.22
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Mar 2018 01:53:22 -0700 (PDT)
-Date: Mon, 26 Mar 2018 10:53:13 +0200
-From: Andrea Parri <andrea.parri@amarulasolutions.com>
-Subject: Re: [PATCH 2/2] smp: introduce kick_active_cpus_sync()
-Message-ID: <20180326085313.GA4016@andrea>
-References: <20180325175004.28162-1-ynorov@caviumnetworks.com>
- <20180325175004.28162-3-ynorov@caviumnetworks.com>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F05F56B000C
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 05:36:33 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id r132-v6so3021902oig.16
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 02:36:33 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id i46-v6si4822246otb.122.2018.03.26.02.36.32
+        for <linux-mm@kvack.org>;
+        Mon, 26 Mar 2018 02:36:32 -0700 (PDT)
+Date: Mon, 26 Mar 2018 10:36:18 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [RFC PATCH 11/14] khwasan: add brk handler for inline
+ instrumentation
+Message-ID: <20180326093241.lba7k4pdjskr4gsv@lakrids.cambridge.arm.com>
+References: <cover.1520017438.git.andreyknvl@google.com>
+ <f22726f1f4343a091f263edd4c988f12b414c752.1520017438.git.andreyknvl@google.com>
+ <20180305145111.bbycnzpgzkir2dz4@lakrids.cambridge.arm.com>
+ <CAAeHK+zHfgSfZtKhOnfFVa35uB=PSsPiN65BDd9RVNK63f_G0w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180325175004.28162-3-ynorov@caviumnetworks.com>
+In-Reply-To: <CAAeHK+zHfgSfZtKhOnfFVa35uB=PSsPiN65BDd9RVNK63f_G0w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yury Norov <ynorov@caviumnetworks.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Chris Metcalf <cmetcalf@mellanox.com>, Christopher Lameter <cl@linux.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, Mark Rutland <mark.rutland@arm.com>, Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Steve Capper <steve.capper@arm.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Paul Lawrence <paullawrence@google.com>, David Woodhouse <dwmw@amazon.co.uk>, Kees Cook <keescook@chromium.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-ext4@vger.kernel.org, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-Hi Yury,
+On Fri, Mar 23, 2018 at 04:59:36PM +0100, Andrey Konovalov wrote:
+> On Mon, Mar 5, 2018 at 3:51 PM, Mark Rutland <mark.rutland@arm.com> wrote:
+> > On Fri, Mar 02, 2018 at 08:44:30PM +0100, Andrey Konovalov wrote:
+> >> +static int khwasan_handler(struct pt_regs *regs, unsigned int esr)
+> >> +{
 
-On Sun, Mar 25, 2018 at 08:50:04PM +0300, Yury Norov wrote:
-> kick_all_cpus_sync() forces all CPUs to sync caches by sending broadcast IPI.
-> If CPU is in extended quiescent state (idle task or nohz_full userspace), this
-> work may be done at the exit of this state. Delaying synchronization helps to
-> save power if CPU is in idle state and decrease latency for real-time tasks.
+> >> +     /* If thread survives, skip over the BUG instruction and continue: */
+> >> +     arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+> >
+> > This is for fast-forwarding user instruction streams, and isn't correct
+> > to call for kernel faults (as it'll mess up the userspace single step
+> > logic).
 > 
-> This patch introduces kick_active_cpus_sync() and uses it in mm/slab and arm64
-> code to delay syncronization.
-> 
-> For task isolation (https://lkml.org/lkml/2017/11/3/589), IPI to the CPU running
-> isolated task would be fatal, as it breaks isolation. The approach with delaying
-> of synchronization work helps to maintain isolated state.
-> 
-> I've tested it with test from task isolation series on ThunderX2 for more than
-> 10 hours (10k giga-ticks) without breaking isolation.
-> 
-> Signed-off-by: Yury Norov <ynorov@caviumnetworks.com>
-> ---
->  arch/arm64/kernel/insn.c |  2 +-
->  include/linux/smp.h      |  2 ++
->  kernel/smp.c             | 24 ++++++++++++++++++++++++
->  mm/slab.c                |  2 +-
->  4 files changed, 28 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/arm64/kernel/insn.c b/arch/arm64/kernel/insn.c
-> index 2718a77da165..9d7c492e920e 100644
-> --- a/arch/arm64/kernel/insn.c
-> +++ b/arch/arm64/kernel/insn.c
-> @@ -291,7 +291,7 @@ int __kprobes aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt)
->  			 * synchronization.
->  			 */
->  			ret = aarch64_insn_patch_text_nosync(addrs[0], insns[0]);
-> -			kick_all_cpus_sync();
-> +			kick_active_cpus_sync();
->  			return ret;
->  		}
->  	}
-> diff --git a/include/linux/smp.h b/include/linux/smp.h
-> index 9fb239e12b82..27215e22240d 100644
-> --- a/include/linux/smp.h
-> +++ b/include/linux/smp.h
-> @@ -105,6 +105,7 @@ int smp_call_function_any(const struct cpumask *mask,
->  			  smp_call_func_t func, void *info, int wait);
->  
->  void kick_all_cpus_sync(void);
-> +void kick_active_cpus_sync(void);
->  void wake_up_all_idle_cpus(void);
->  
->  /*
-> @@ -161,6 +162,7 @@ smp_call_function_any(const struct cpumask *mask, smp_call_func_t func,
->  }
->  
->  static inline void kick_all_cpus_sync(void) {  }
-> +static inline void kick_active_cpus_sync(void) {  }
->  static inline void wake_up_all_idle_cpus(void) {  }
->  
->  #ifdef CONFIG_UP_LATE_INIT
-> diff --git a/kernel/smp.c b/kernel/smp.c
-> index 084c8b3a2681..0358d6673850 100644
-> --- a/kernel/smp.c
-> +++ b/kernel/smp.c
-> @@ -724,6 +724,30 @@ void kick_all_cpus_sync(void)
->  }
->  EXPORT_SYMBOL_GPL(kick_all_cpus_sync);
->  
-> +/**
-> + * kick_active_cpus_sync - Force CPUs that are not in extended
-> + * quiescent state (idle or nohz_full userspace) sync by sending
-> + * IPI. Extended quiescent state CPUs will sync at the exit of
-> + * that state.
-> + */
-> +void kick_active_cpus_sync(void)
-> +{
-> +	int cpu;
-> +	struct cpumask kernel_cpus;
-> +
-> +	smp_mb();
+> I saw BUG handler using this (which also inserts a brk), so I used it
+> as well. 
 
-(A general remark only:)
+Ah; I think that's broken today.
 
-checkpatch.pl should have warned about the fact that this barrier is
-missing an accompanying comment (which accesses are being "ordered",
-what is the pairing barrier, etc.).
+> What should I do instead to jump over the faulting brk instruction?
 
-Moreover if, as your reply above suggested, your patch is relying on
-"implicit barriers" (something I would not recommend) then even more
-so you should comment on these requirements.
+I don't think we have anything to do this properly today.
 
-This could: (a) force you to reason about the memory ordering stuff,
-(b) easy the task of reviewing and adopting your patch, (c) easy the
-task of preserving those requirements (as implementations changes).
+The simplest fix would be to split arm64_skip_faulting_instruction()
+into separate functions for user/kernel, something like the below.
 
-  Andrea
+It would be nice to drop _user_ in the name of the userspace-specific
+helper, though.
 
+Thanks
+Mark.
 
-> +
-> +	cpumask_clear(&kernel_cpus);
-> +	preempt_disable();
-> +	for_each_online_cpu(cpu) {
-> +		if (!rcu_eqs_special_set(cpu))
-> +			cpumask_set_cpu(cpu, &kernel_cpus);
-> +	}
-> +	smp_call_function_many(&kernel_cpus, do_nothing, NULL, 1);
-> +	preempt_enable();
-> +}
-> +EXPORT_SYMBOL_GPL(kick_active_cpus_sync);
-> +
->  /**
->   * wake_up_all_idle_cpus - break all cpus out of idle
->   * wake_up_all_idle_cpus try to break all cpus which is in idle state even
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 324446621b3e..678d5dbd6f46 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -3856,7 +3856,7 @@ static int __do_tune_cpucache(struct kmem_cache *cachep, int limit,
->  	 * cpus, so skip the IPIs.
->  	 */
->  	if (prev)
-> -		kick_all_cpus_sync();
-> +		kick_active_cpus_sync();
->  
->  	check_irq_on();
->  	cachep->batchcount = batchcount;
-> -- 
-> 2.14.1
-> 
+---->8----
+diff --git a/arch/arm64/kernel/traps.c b/arch/arm64/kernel/traps.c
+index eb2d15147e8d..101e3d4ed6c8 100644
+--- a/arch/arm64/kernel/traps.c
++++ b/arch/arm64/kernel/traps.c
+@@ -235,9 +235,14 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
+        }
+ }
+ 
+-void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
++void __arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
+ {
+        regs->pc += size;
++}
++
++void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
++{
++       __arm64_skip_faulting_instruction(regs, size);
+ 
+        /*
+         * If we were single stepping, we want to get the step exception after
+@@ -761,7 +766,7 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
+        }
+ 
+        /* If thread survives, skip over the BUG instruction and continue: */
+-       arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
++       __arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+        return DBG_HOOK_HANDLED;
+ }
+ 
