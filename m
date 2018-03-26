@@ -1,97 +1,266 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C20326B000A
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 15:39:09 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id e15so2512944wrj.14
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 12:39:09 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id o56si1318833edc.525.2018.03.26.12.39.07
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CACF06B000A
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 15:42:17 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id z15so9044607ywg.20
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 12:42:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id c43si14687274qte.243.2018.03.26.12.42.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 12:39:08 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2QJZOUt006147
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 15:39:06 -0400
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2gy48sfbk2-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 15:39:06 -0400
-Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bauerman@linux.vnet.ibm.com>;
-	Mon, 26 Mar 2018 15:39:05 -0400
-References: <1519264541-7621-1-git-send-email-linuxram@us.ibm.com> <1519264541-7621-5-git-send-email-linuxram@us.ibm.com> <00081300-e891-3381-3acd-e3312e54fb58@intel.com>
-From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
-Subject: Re: [PATCH v12 04/22] selftests/vm: typecast the pkey register
-In-reply-to: <00081300-e891-3381-3acd-e3312e54fb58@intel.com>
-Date: Mon, 26 Mar 2018 16:38:51 -0300
+        Mon, 26 Mar 2018 12:42:16 -0700 (PDT)
+Date: Mon, 26 Mar 2018 21:42:11 +0200
+From: Mateusz Guzik <mguzik@redhat.com>
+Subject: Re: [v2 PATCH] mm: introduce arg_lock to protect arg_start|end and
+ env_start|end in mm_struct
+Message-ID: <20180326194210.7bf6u2wo44oh4n7z@mguzik>
+References: <1522088439-105930-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87h8p239v8.fsf@morokweng.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1522088439-105930-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@redhat.com, akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, ebiederm@xmission.com, arnd@arndb.de
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: adobriyan@gmail.com, mhocko@kernel.org, willy@infradead.org, gorcunov@openvz.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Tue, Mar 27, 2018 at 02:20:39AM +0800, Yang Shi wrote:
+> mmap_sem is on the hot path of kernel, and it very contended, but it is
+> abused too. It is used to protect arg_start|end and evn_start|end when
+> reading /proc/$PID/cmdline and /proc/$PID/environ, but it doesn't make
+> sense since those proc files just expect to read 4 values atomically and
+> not related to VM, they could be set to arbitrary values by C/R.
+> 
 
-Dave Hansen <dave.hansen@intel.com> writes:
+They are not arbitrary - there is basic validation performed when
+setting them.
 
-> On 02/21/2018 05:55 PM, Ram Pai wrote:
->> -static inline unsigned int _rdpkey_reg(int line)
->> +static inline pkey_reg_t _rdpkey_reg(int line)
->>  {
->> -	unsigned int pkey_reg = __rdpkey_reg();
->> +	pkey_reg_t pkey_reg = __rdpkey_reg();
->>
->> -	dprintf4("rdpkey_reg(line=%d) pkey_reg: %x shadow: %x\n",
->> +	dprintf4("rdpkey_reg(line=%d) pkey_reg: %016lx shadow: %016lx\n",
->>  			line, pkey_reg, shadow_pkey_reg);
->>  	assert(pkey_reg == shadow_pkey_reg);
->
-> Hmm.  So we're using %lx for an int?  Doesn't the compiler complain
-> about this?
+> And, the mmap_sem contention may cause unexpected issue like below:
+> 
+> INFO: task ps:14018 blocked for more than 120 seconds.
+>        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+>  "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+> message.
+>  ps              D    0 14018      1 0x00000004
+>   ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+>   ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+>   00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+>  Call Trace:
+>   [<ffffffff817154d0>] ? __schedule+0x250/0x730
+>   [<ffffffff817159e6>] schedule+0x36/0x80
+>   [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+>   [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+>   [<ffffffff81717db0>] down_read+0x20/0x40
+>   [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+>   [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
+>   [<ffffffff81241d87>] __vfs_read+0x37/0x150
+>   [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
+>   [<ffffffff81242266>] vfs_read+0x96/0x130
+>   [<ffffffff812437b5>] SyS_read+0x55/0xc0
+>   [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+> 
+> Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
+> for them to mitigate the abuse of mmap_sem.
+> 
 
-It doesn't because dprintf4() doesn't have the annotation that tells the
-compiler that it takes printf-like arguments. Once I add it:
+While switching to arg spinlock here will relieve mmap_sem to an extent,
+it wont help with the problem you are seeing here.
 
---- a/tools/testing/selftests/vm/pkey-helpers.h
-+++ b/tools/testing/selftests/vm/pkey-helpers.h
-@@ -54,6 +54,10 @@
- #define DPRINT_IN_SIGNAL_BUF_SIZE 4096
- extern int dprint_in_signal;
- extern char dprint_in_signal_buffer[DPRINT_IN_SIGNAL_BUF_SIZE];
-+
-+#ifdef __GNUC__
-+__attribute__((format(printf, 1, 2)))
-+#endif
- static inline void sigsafe_printf(const char *format, ...)
- {
- 	va_list ap;
+proc_pid_cmdline_read -> access_process_vm -> __access_remote_vm and you
+got yet another down_read(&mm->mmap_sem);.
 
-Then it does complain about it. I'm working on a fix where each arch
-will define a format string to use for its pkey_reg_t and use it like
-this:
+i.e. the issue you ran into is well known and predates my change.
 
---- a/tools/testing/selftests/vm/pkey-helpers.h
-+++ b/tools/testing/selftests/vm/pkey-helpers.h
-@@ -19,6 +19,7 @@
- #define u32 uint32_t
- #define u64 uint64_t
- #define pkey_reg_t u32
-+#define PKEY_REG_FMT "%016x"
+The problem does not stem from contention either, but blocking for a
+long time while holding the lock - the most common example is dealing
+with dead nfs mount vs mmaped areas.
 
- #ifdef __i386__
- #ifndef SYS_mprotect_key
-@@ -112,7 +113,8 @@ static inline pkey_reg_t _read_pkey_reg(int line)
- {
- 	pkey_reg_t pkey_reg = __read_pkey_reg();
+I don't have good ideas how to fix the problem. The least bad I came up
+with was to trylock with a timeout - after a failure either return an
+error or resort to returning p_comm. ps/top could be modified to
+fallback to snatching the name from /status.
 
--	dprintf4("read_pkey_reg(line=%d) pkey_reg: %016lx shadow: %016lx\n",
-+	dprintf4("read_pkey_reg(line=%d) pkey_reg: "PKEY_REG_FMT
-+			" shadow: "PKEY_REG_FMT"\n",
- 			line, pkey_reg, shadow_pkey_reg);
- 	assert(pkey_reg == shadow_pkey_reg);
+Since the lock owner is now being stored in the semaphore, perhaps the
+above routine can happily spin until it grabs the lock or the owner is
+detected to have gone into uninterruptible sleep and react accordingly. 
 
---
-Thiago Jung Bauermann
-IBM Linux Technology Center
+I don't know whether it is feasible to somehow avoid the mmap lock
+altogether.
+
+If it has to be there no matter what the code can be refactored to grab
+it once and relock only if copyout would fault. This would in particular
+reduce the number of times it is taken to begin with and still provide
+the current synchronisation against prctl. But the fundamental problem
+will remain.
+
+That said, refactoring above will have the same effect as your patch and
+will avoid growing mm_struct.
+
+That's my $0,03. MM overlords have to comment on what to do with this.
+
+> So, introduce a new spinlock in mm_struct to protect the concurrent access
+> to arg_start|end and env_start|end.
+> 
+> And, commit ddf1d398e517e660207e2c807f76a90df543a217 ("prctl: take mmap
+> sem for writing to protect against others") changed down_read to
+> down_write to avoid write race condition in prctl_set_mm(). Since we
+> already have dedicated lock to protect them, it is safe to change back
+> to down_read.
+> 
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> Cc: Alexey Dobriyan <adobriyan@gmail.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Mateusz Guzik <mguzik@redhat.com>
+> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+> ---
+> v1 --> v2:
+> * Use spinlock instead of rwlock per Mattew's suggestion
+> * Replace down_write to down_read in prctl_set_mm (see commit log for details)
+> 
+>  fs/proc/base.c           |  8 ++++----
+>  include/linux/mm_types.h |  2 ++
+>  kernel/fork.c            |  1 +
+>  kernel/sys.c             | 14 ++++++++++----
+>  mm/init-mm.c             |  1 +
+>  5 files changed, 18 insertions(+), 8 deletions(-)
+> 
+> diff --git a/fs/proc/base.c b/fs/proc/base.c
+> index 9298324..e0282b6 100644
+> --- a/fs/proc/base.c
+> +++ b/fs/proc/base.c
+> @@ -242,12 +242,12 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
+>  		goto out_mmput;
+>  	}
+>  
+> -	down_read(&mm->mmap_sem);
+> +	spin_lock(&mm->arg_lock);
+>  	arg_start = mm->arg_start;
+>  	arg_end = mm->arg_end;
+>  	env_start = mm->env_start;
+>  	env_end = mm->env_end;
+> -	up_read(&mm->mmap_sem);
+> +	spin_unlock(&mm->arg_lock);
+>  
+>  	BUG_ON(arg_start > arg_end);
+>  	BUG_ON(env_start > env_end);
+> @@ -929,10 +929,10 @@ static ssize_t environ_read(struct file *file, char __user *buf,
+>  	if (!mmget_not_zero(mm))
+>  		goto free;
+>  
+> -	down_read(&mm->mmap_sem);
+> +	spin_lock(&mm->arg_lock);
+>  	env_start = mm->env_start;
+>  	env_end = mm->env_end;
+> -	up_read(&mm->mmap_sem);
+> +	spin_unlock(&mm->arg_lock);
+>  
+>  	while (count > 0) {
+>  		size_t this_len, max_len;
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index fd1af6b..3be4588 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -413,6 +413,8 @@ struct mm_struct {
+>  	unsigned long def_flags;
+>  	unsigned long start_code, end_code, start_data, end_data;
+>  	unsigned long start_brk, brk, start_stack;
+> +
+> +	spinlock_t arg_lock; /* protect concurrent access to arg_* and env_* */
+>  	unsigned long arg_start, arg_end, env_start, env_end;
+>  
+>  	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index e5d9d40..6540ae7 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -898,6 +898,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+>  	mm->pinned_vm = 0;
+>  	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
+>  	spin_lock_init(&mm->page_table_lock);
+> +	spin_lock_init(&mm->arg_lock);
+>  	mm_init_cpumask(mm);
+>  	mm_init_aio(mm);
+>  	mm_init_owner(mm, p);
+> diff --git a/kernel/sys.c b/kernel/sys.c
+> index f2289de..17bddd2 100644
+> --- a/kernel/sys.c
+> +++ b/kernel/sys.c
+> @@ -1959,7 +1959,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+>  			return error;
+>  	}
+>  
+> -	down_write(&mm->mmap_sem);
+> +	down_read(&mm->mmap_sem);
+>  
+>  	/*
+>  	 * We don't validate if these members are pointing to
+> @@ -1980,10 +1980,13 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+>  	mm->start_brk	= prctl_map.start_brk;
+>  	mm->brk		= prctl_map.brk;
+>  	mm->start_stack	= prctl_map.start_stack;
+> +
+> +	spin_lock(&mm->arg_lock);
+>  	mm->arg_start	= prctl_map.arg_start;
+>  	mm->arg_end	= prctl_map.arg_end;
+>  	mm->env_start	= prctl_map.env_start;
+>  	mm->env_end	= prctl_map.env_end;
+> +	spin_unlock(&mm->arg_lock);
+>  
+>  	/*
+>  	 * Note this update of @saved_auxv is lockless thus
+> @@ -1996,7 +1999,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+>  	if (prctl_map.auxv_size)
+>  		memcpy(mm->saved_auxv, user_auxv, sizeof(user_auxv));
+>  
+> -	up_write(&mm->mmap_sem);
+> +	up_read(&mm->mmap_sem);
+>  	return 0;
+>  }
+>  #endif /* CONFIG_CHECKPOINT_RESTORE */
+> @@ -2063,7 +2066,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
+>  
+>  	error = -EINVAL;
+>  
+> -	down_write(&mm->mmap_sem);
+> +	down_read(&mm->mmap_sem);
+>  	vma = find_vma(mm, addr);
+>  
+>  	prctl_map.start_code	= mm->start_code;
+> @@ -2149,14 +2152,17 @@ static int prctl_set_mm(int opt, unsigned long addr,
+>  	mm->start_brk	= prctl_map.start_brk;
+>  	mm->brk		= prctl_map.brk;
+>  	mm->start_stack	= prctl_map.start_stack;
+> +
+> +	spin_lock(&mm->arg_lock);
+>  	mm->arg_start	= prctl_map.arg_start;
+>  	mm->arg_end	= prctl_map.arg_end;
+>  	mm->env_start	= prctl_map.env_start;
+>  	mm->env_end	= prctl_map.env_end;
+> +	spin_unlock(&mm->arg_lock);
+>  
+>  	error = 0;
+>  out:
+> -	up_write(&mm->mmap_sem);
+> +	up_read(&mm->mmap_sem);
+>  	return error;
+>  }
+>  
+> diff --git a/mm/init-mm.c b/mm/init-mm.c
+> index f94d5d1..66cce4c 100644
+> --- a/mm/init-mm.c
+> +++ b/mm/init-mm.c
+> @@ -23,6 +23,7 @@ struct mm_struct init_mm = {
+>  	.mmap_sem	= __RWSEM_INITIALIZER(init_mm.mmap_sem),
+>  	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
+>  	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
+> +	.arg_lock	= __SPIN_LOCK_UNLOCKED(init_mm.arg_lock),
+>  	.user_ns	= &init_user_ns,
+>  	INIT_MM_CONTEXT(init_mm)
+>  };
+> -- 
+> 1.8.3.1
+> 
+
+-- 
+Mateusz Guzik
