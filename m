@@ -1,84 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A2536B0009
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:49:28 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id w19-v6so13209123plq.2
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 07:49:28 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id p11si11312820pfh.247.2018.03.26.07.49.26
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 07:49:27 -0700 (PDT)
-Subject: Re: [PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-References: <1521851771-108673-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180324043044.GA22733@bombadil.infradead.org>
- <aed7f679-a32f-d8d7-eb59-ec05fc49a70e@linux.alibaba.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <a766b98b-80b4-5f1b-9588-dd1c5506cbdc@i-love.sakura.ne.jp>
-Date: Mon, 26 Mar 2018 23:49:18 +0900
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D468D6B000C
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:54:35 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id m3-v6so2661352ybk.19
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 07:54:35 -0700 (PDT)
+Date: Mon, 26 Mar 2018 07:54:31 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 4/8] HMM: Remove superflous RCU protection around radix
+ tree lookup
+Message-ID: <20180326145431.GC1840639@devbig577.frc2.facebook.com>
+References: <20180314194205.1651587-1-tj@kernel.org>
+ <20180314194515.1661824-1-tj@kernel.org>
+ <20180314194515.1661824-4-tj@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <aed7f679-a32f-d8d7-eb59-ec05fc49a70e@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180314194515.1661824-4-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>, Matthew Wilcox <willy@infradead.org>
-Cc: adobriyan@gmail.com, mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: security@kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, linux-mm@kvack.org, torvalds@linux-foundation.org, jannh@google.com, paulmck@linux.vnet.ibm.com, bcrl@kvack.org, viro@zeniv.linux.org.uk, kent.overstreet@gmail.com
 
-On 2018/03/24 9:36, Yang Shi wrote:
-> And, the mmap_sem contention may cause unexpected issue like below:
+Hello, Andrew.
+
+Do you mind picking up the following patch?  I can't find a good tree
+to route this through.  The raw patch can be found at
+
+  https://marc.info/?l=linux-mm&m=152105674112496&q=raw
+
+Thank you very much.
+
+On Wed, Mar 14, 2018 at 12:45:11PM -0700, Tejun Heo wrote:
+> hmm_devmem_find() requires rcu_read_lock_held() but there's nothing
+> which actually uses the RCU protection.  The only caller is
+> hmm_devmem_pages_create() which already grabs the mutex and does
+> superflous rcu_read_lock/unlock() around the function.
 > 
-> INFO: task ps:14018 blocked for more than 120 seconds.
->        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->  "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-> message.
->  ps              D    0 14018      1 0x00000004
->   ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->   ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->   00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->  Call Trace:
->   [<ffffffff817154d0>] ? __schedule+0x250/0x730
->   [<ffffffff817159e6>] schedule+0x36/0x80
->   [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->   [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->   [<ffffffff81717db0>] down_read+0x20/0x40
->   [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
->   [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
->   [<ffffffff81241d87>] __vfs_read+0x37/0x150
->   [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
->   [<ffffffff81242266>] vfs_read+0x96/0x130
->   [<ffffffff812437b5>] SyS_read+0x55/0xc0
->   [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
-
-Yes, but
-
+> This doesn't add anything and just adds to confusion.  Remove the RCU
+> protection and open-code the radix tree lookup.  If this needs to
+> become more sophisticated in the future, let's add them back when
+> necessary.
 > 
-> Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
-> for them to mitigate the abuse of mmap_sem.
-> 
-> So, introduce a new rwlock in mm_struct to protect the concurrent access
-> to arg_start|end and env_start|end.
-
-does arg_lock really help?
-
-I wonder whether per "struct mm_struct" granularity is needed if arg_lock
-protects only a few atomic reads. A global lock would be sufficient.
-
-Also, even if we succeeded to avoid mmap_sem contention at that location,
-won't we after all get mmap_sem contention messages a bit later, for
-access_remote_vm() holds mmap_sem which would lead to traces like above
-if mmap_sem is already contended?
-
-> 
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: Alexey Dobriyan <adobriyan@gmail.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+> Cc: linux-mm@kvack.org
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
 > ---
->  fs/proc/base.c           | 8 ++++----
->  include/linux/mm_types.h | 2 ++
->  kernel/fork.c            | 1 +
->  kernel/sys.c             | 6 ++++++
->  mm/init-mm.c             | 1 +
->  5 files changed, 14 insertions(+), 4 deletions(-)
+> Hello,
+> 
+> Jerome, how do you want to route this patch?  If you prefer, I can
+> route it together with other patches.
+> 
+> Thanks.
+> 
+>  mm/hmm.c | 12 ++----------
+>  1 file changed, 2 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 320545b98..d4627c5 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -845,13 +845,6 @@ static void hmm_devmem_release(struct device *dev, void *data)
+>  	hmm_devmem_radix_release(resource);
+>  }
+>  
+> -static struct hmm_devmem *hmm_devmem_find(resource_size_t phys)
+> -{
+> -	WARN_ON_ONCE(!rcu_read_lock_held());
+> -
+> -	return radix_tree_lookup(&hmm_devmem_radix, phys >> PA_SECTION_SHIFT);
+> -}
+> -
+>  static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+>  {
+>  	resource_size_t key, align_start, align_size, align_end;
+> @@ -892,9 +885,8 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+>  	for (key = align_start; key <= align_end; key += PA_SECTION_SIZE) {
+>  		struct hmm_devmem *dup;
+>  
+> -		rcu_read_lock();
+> -		dup = hmm_devmem_find(key);
+> -		rcu_read_unlock();
+> +		dup = radix_tree_lookup(&hmm_devmem_radix,
+> +					key >> PA_SECTION_SHIFT);
+>  		if (dup) {
+>  			dev_err(device, "%s: collides with mapping for %s\n",
+>  				__func__, dev_name(dup->device));
+> -- 
+> 2.9.5
+> 
+
+-- 
+tejun
