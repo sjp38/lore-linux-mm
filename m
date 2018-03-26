@@ -1,96 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 432EE6B000C
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 11:31:27 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id i137so5517263pfe.0
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 08:31:27 -0700 (PDT)
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id z16-v6si15904448pll.36.2018.03.26.08.31.18
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ABB9E6B0009
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 11:33:43 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id g61-v6so10007097plb.10
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 08:33:43 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0096.outbound.protection.outlook.com. [104.47.0.96])
+        by mx.google.com with ESMTPS id t18-v6si43388plo.190.2018.03.26.08.33.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 08:31:26 -0700 (PDT)
-Subject: Re: [PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-References: <1521851771-108673-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180324043044.GA22733@bombadil.infradead.org>
- <aed7f679-a32f-d8d7-eb59-ec05fc49a70e@linux.alibaba.com>
- <a766b98b-80b4-5f1b-9588-dd1c5506cbdc@i-love.sakura.ne.jp>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <579be4ee-58d0-1ffd-6b73-0202c7b28f08@linux.alibaba.com>
-Date: Mon, 26 Mar 2018 11:31:03 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 26 Mar 2018 08:33:42 -0700 (PDT)
+Subject: Re: [PATCH 09/10] mm: Iterate only over charged shrinkers during
+ memcg shrink_slab()
+References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
+ <152163857170.21546.16040899989532143840.stgit@localhost.localdomain>
+ <20180324201109.r4udxibbg4t23apg@esperanza>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <161e6bcb-82d9-ae19-0eb7-d3e913d139ff@virtuozzo.com>
+Date: Mon, 26 Mar 2018 18:33:34 +0300
 MIME-Version: 1.0
-In-Reply-To: <a766b98b-80b4-5f1b-9588-dd1c5506cbdc@i-love.sakura.ne.jp>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180324201109.r4udxibbg4t23apg@esperanza>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Matthew Wilcox <willy@infradead.org>
-Cc: adobriyan@gmail.com, mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
 
-
-
-On 3/26/18 10:49 AM, Tetsuo Handa wrote:
-> On 2018/03/24 9:36, Yang Shi wrote:
->> And, the mmap_sem contention may cause unexpected issue like below:
+On 24.03.2018 23:11, Vladimir Davydov wrote:
+> On Wed, Mar 21, 2018 at 04:22:51PM +0300, Kirill Tkhai wrote:
+>> Using the preparations made in previous patches, in case of memcg
+>> shrink, we may avoid shrinkers, which are not set in memcg's shrinkers
+>> bitmap. To do that, we separate iterations over memcg-aware and
+>> !memcg-aware shrinkers, and memcg-aware shrinkers are chosen
+>> via for_each_set_bit() from the bitmap. In case of big nodes,
+>> having many isolated environments, this gives significant
+>> performance growth. See next patch for the details.
 >>
->> INFO: task ps:14018 blocked for more than 120 seconds.
->>         Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->>   "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
->> message.
->>   ps              D    0 14018      1 0x00000004
->>    ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->>    ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->>    00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->>   Call Trace:
->>    [<ffffffff817154d0>] ? __schedule+0x250/0x730
->>    [<ffffffff817159e6>] schedule+0x36/0x80
->>    [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->>    [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->>    [<ffffffff81717db0>] down_read+0x20/0x40
->>    [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
->>    [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
->>    [<ffffffff81241d87>] __vfs_read+0x37/0x150
->>    [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
->>    [<ffffffff81242266>] vfs_read+0x96/0x130
->>    [<ffffffff812437b5>] SyS_read+0x55/0xc0
->>    [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
-> Yes, but
->
->> Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
->> for them to mitigate the abuse of mmap_sem.
+>> Note, that the patch does not respect to empty memcg shrinkers,
+>> since we never clear the bitmap bits after we set it once.
+>> Their shrinkers will be called again, with no shrinked objects
+>> as result. This functionality is provided by next patch.
 >>
->> So, introduce a new rwlock in mm_struct to protect the concurrent access
->> to arg_start|end and env_start|end.
-> does arg_lock really help?
->
-> I wonder whether per "struct mm_struct" granularity is needed if arg_lock
-> protects only a few atomic reads. A global lock would be sufficient.
-
-However, a global lock might be hard to know what it is used for, and 
-might be abused again.
-
-And, it may introduce unexpected contention for parallel reading for /proc
-
->
-> Also, even if we succeeded to avoid mmap_sem contention at that location,
-> won't we after all get mmap_sem contention messages a bit later, for
-> access_remote_vm() holds mmap_sem which would lead to traces like above
-> if mmap_sem is already contended?
-
-Yes, definitely, this patch is aimed to remove the abuse to mmap_sem. 
-The mmap_sem contention will be addressed separately.
-
-Yang
-
->
->> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
->> Cc: Alexey Dobriyan <adobriyan@gmail.com>
->> Cc: Michal Hocko <mhocko@kernel.org>
+>> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 >> ---
->>   fs/proc/base.c           | 8 ++++----
->>   include/linux/mm_types.h | 2 ++
->>   kernel/fork.c            | 1 +
->>   kernel/sys.c             | 6 ++++++
->>   mm/init-mm.c             | 1 +
->>   5 files changed, 14 insertions(+), 4 deletions(-)
+>>  mm/vmscan.c |   54 +++++++++++++++++++++++++++++++++++++++++-------------
+>>  1 file changed, 41 insertions(+), 13 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 265cf069b470..e1fd16bc7a9b 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -327,6 +327,8 @@ static int alloc_shrinker_id(struct shrinker *shrinker)
+>>  
+>>  	if (!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+>>  		return 0;
+>> +	BUG_ON(!(shrinker->flags & SHRINKER_NUMA_AWARE));
+>> +
+>>  retry:
+>>  	ida_pre_get(&bitmap_id_ida, GFP_KERNEL);
+>>  	down_write(&bitmap_rwsem);
+>> @@ -366,7 +368,8 @@ static void add_shrinker(struct shrinker *shrinker)
+>>  	down_write(&shrinker_rwsem);
+>>  	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
+>>  		mcg_shrinkers[shrinker->id] = shrinker;
+>> -	list_add_tail(&shrinker->list, &shrinker_list);
+>> +	else
+>> +		list_add_tail(&shrinker->list, &shrinker_list);
+> 
+> I don't think we should remove per-memcg shrinkers from the global
+> shrinker list - this is confusing. It won't be critical if we iterate
+> over all shrinkers on global reclaim, will it?
+
+It depends on number of all shrinkers. And this is excess actions, we have to do.
+Accessing their memory we flush cpu caches in some way. So, if there is no a reason
+we really need them, I'd removed them from the list.
+
+>>  	up_write(&shrinker_rwsem);
+>>  }
+>>  
+>> @@ -701,6 +705,39 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>>  	if (!down_read_trylock(&shrinker_rwsem))
+>>  		goto out;
+>>  
+>> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+>> +	if (!memcg_kmem_enabled() || memcg) {
+>> +		struct shrinkers_map *map;
+>> +		int i;
+>> +
+>> +		map = rcu_dereference_protected(SHRINKERS_MAP(memcg), true);
+>> +		if (map) {
+>> +			for_each_set_bit(i, map->map[nid], bitmap_nr_ids) {
+>> +				struct shrink_control sc = {
+>> +					.gfp_mask = gfp_mask,
+>> +					.nid = nid,
+>> +					.memcg = memcg,
+>> +				};
+>> +
+>> +				shrinker = mcg_shrinkers[i];
+>> +				if (!shrinker) {
+>> +					clear_bit(i, map->map[nid]);
+>> +					continue;
+>> +				}
+>> +				freed += do_shrink_slab(&sc, shrinker, priority);
+>> +
+>> +				if (rwsem_is_contended(&shrinker_rwsem)) {
+>> +					freed = freed ? : 1;
+>> +					goto unlock;
+>> +				}
+>> +			}
+>> +		}
+>> +
+>> +		if (memcg_kmem_enabled() && memcg)
+>> +			goto unlock;
+> 
+> May be, factor this out to a separate function, say shrink_slab_memcg?
+> Just for the sake of code legibility.
+
+Good idea, thanks.
+
+Kirill
