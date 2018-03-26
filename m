@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C58316B0024
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 13:29:44 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a4so11489690pff.2
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:29:44 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id l1-v6si15294339pld.312.2018.03.26.10.29.43
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B2EC36B0024
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 13:29:46 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id q6so9745475pgv.12
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:29:46 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id az8-v6si6273391plb.665.2018.03.26.10.29.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 10:29:43 -0700 (PDT)
-Subject: [PATCH 6/9] x86, pkeys, selftests: fix pkey exhaustion test off-by-one
+        Mon, 26 Mar 2018 10:29:45 -0700 (PDT)
+Subject: [PATCH 7/9] x86, pkeys, selftests: factor out "instruction page"
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Mon, 26 Mar 2018 10:27:30 -0700
+Date: Mon, 26 Mar 2018 10:27:31 -0700
 References: <20180326172721.D5B2CBB4@viggo.jf.intel.com>
 In-Reply-To: <20180326172721.D5B2CBB4@viggo.jf.intel.com>
-Message-Id: <20180326172730.48EE82DF@viggo.jf.intel.com>
+Message-Id: <20180326172731.10725AC5@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,15 +23,10 @@ Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linuxram@us.i
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-In our "exhaust all pkeys" test, we make sure that there
-is the expected number available.  Turns out that the
-test did not cover the execute-only key, but discussed
-it anyway.  It did *not* discuss the test-allocated
-key.
-
-Now that we have a test for the mprotect(PROT_EXEC) case,
-this off-by-one issue showed itself.  Correct the off-by-
-one and add the explanation for the case we missed.
+We currently have an execute-only test, but it is for
+the explicit mprotect_pkey() interface.  We will soon
+add a test for the implicit mprotect(PROT_EXEC)
+enterface.  We need this code in both tests.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Ram Pai <linuxram@us.ibm.com>
@@ -43,31 +38,48 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Shuah Khan <shuah@kernel.org>
 ---
 
- b/tools/testing/selftests/x86/protection_keys.c |   13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ b/tools/testing/selftests/x86/protection_keys.c |   21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)
 
-diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-exhaust-off-by-one tools/testing/selftests/x86/protection_keys.c
---- a/tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-exhaust-off-by-one	2018-03-26 10:22:36.477170190 -0700
-+++ b/tools/testing/selftests/x86/protection_keys.c	2018-03-26 10:22:36.480170190 -0700
-@@ -1155,12 +1155,15 @@ void test_pkey_alloc_exhaust(int *ptr, u
- 	pkey_assert(i < NR_PKEYS*2);
+diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-get_pointer_to_instructions tools/testing/selftests/x86/protection_keys.c
+--- a/tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-get_pointer_to_instructions	2018-03-26 10:22:37.012170189 -0700
++++ b/tools/testing/selftests/x86/protection_keys.c	2018-03-26 10:22:37.015170189 -0700
+@@ -1277,12 +1277,9 @@ void test_ptrace_of_child(int *ptr, u16
+ 	free(plain_ptr_unaligned);
+ }
  
- 	/*
--	 * There are 16 pkeys supported in hardware.  One is taken
--	 * up for the default (0) and another can be taken up by
--	 * an execute-only mapping.  Ensure that we can allocate
--	 * at least 14 (16-2).
-+	 * There are 16 pkeys supported in hardware.  Three are
-+	 * allocated by the time we get here:
-+	 *   1. The default key (0)
-+	 *   2. One possibly consumed by an execute-only mapping.
-+	 *   3. One allocated by the test code and passed in via
-+	 *      'pkey' to this function.
-+	 * Ensure that we can allocate at least another 13 (16-3).
- 	 */
--	pkey_assert(i >= NR_PKEYS-2);
-+	pkey_assert(i >= NR_PKEYS-3);
+-void test_executing_on_unreadable_memory(int *ptr, u16 pkey)
++void *get_pointer_to_instructions(void)
+ {
+ 	void *p1;
+-	int scratch;
+-	int ptr_contents;
+-	int ret;
  
- 	for (i = 0; i < nr_allocated_pkeys; i++) {
- 		err = sys_pkey_free(allocated_pkeys[i]);
+ 	p1 = ALIGN_PTR_UP(&lots_o_noops_around_write, PAGE_SIZE);
+ 	dprintf3("&lots_o_noops: %p\n", &lots_o_noops_around_write);
+@@ -1292,7 +1289,23 @@ void test_executing_on_unreadable_memory
+ 	/* Point 'p1' at the *second* page of the function: */
+ 	p1 += PAGE_SIZE;
+ 
++	/*
++	 * Try to ensure we fault this in on next touch to ensure
++	 * we get an instruction fault as opposed to a data one
++	 */
+ 	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
++
++	return p1;
++}
++
++void test_executing_on_unreadable_memory(int *ptr, u16 pkey)
++{
++	void *p1;
++	int scratch;
++	int ptr_contents;
++	int ret;
++
++	p1 = get_pointer_to_instructions();
+ 	lots_o_noops_around_write(&scratch);
+ 	ptr_contents = read_ptr(p1);
+ 	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
 _
