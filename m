@@ -1,35 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 665E06B0003
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 17:44:51 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id s23-v6so2069983plr.15
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 14:44:51 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h6sor593448pgn.102.2018.03.26.14.44.50
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4230C6B000D
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 17:59:27 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id 19so13910592qkk.13
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 14:59:27 -0700 (PDT)
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id c185si5984836qke.132.2018.03.26.14.59.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Mar 2018 14:44:50 -0700 (PDT)
-Date: Mon, 26 Mar 2018 14:44:48 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v9 21/24] perf tools: Add support for the SPF perf
- event
-In-Reply-To: <1520963994-28477-22-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.20.1803261443560.255554@chino.kir.corp.google.com>
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-22-git-send-email-ldufour@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Mar 2018 14:59:26 -0700 (PDT)
+Message-ID: <1522101564.6308.61.camel@surriel.com>
+Subject: Re: [PATCH] sched/numa: Avoid trapping faults and attempting
+ migration of file-backed dirty pages
+From: Rik van Riel <riel@surriel.com>
+Date: Mon, 26 Mar 2018 17:59:24 -0400
+In-Reply-To: <20180326094334.zserdec62gwmmfqf@techsingularity.net>
+References: <20180326094334.zserdec62gwmmfqf@techsingularity.net>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-lkDaE80EkYbqJxgLlovg"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 13 Mar 2018, Laurent Dufour wrote:
 
-> Add support for the new speculative faults event.
-> 
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+--=-lkDaE80EkYbqJxgLlovg
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Acked-by: David Rientjes <rientjes@google.com>
+On Mon, 2018-03-26 at 10:43 +0100, Mel Gorman wrote:
+> change_pte_range is called from task work context to mark PTEs for
+> receiving
+> NUMA faulting hints. If the marked pages are dirty then migration may
+> fail.
+> Some filesystems cannot migrate dirty pages without blocking so are
+> skipped
+> in MIGRATE_ASYNC mode which just wastes CPU. Even when they can, it
+> can
+> be a waste of cycles when the pages are shared forcing higher scan
+> rates.
 
-Aside: should there be a new spec_flt field for struct task_struct that 
-complements maj_flt and min_flt and be exported through /proc/pid/stat?
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+
+Reviewed-by: Rik van Riel <riel@surriel.com>
+
+--=20
+All Rights Reversed.
+--=-lkDaE80EkYbqJxgLlovg
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlq5bTwACgkQznnekoTE
+3oO4GQgAska7SC8vKLTmrk/8EU21o2WNzG/XPPoHUtd3VnhdpfURDAM+vfX7NTko
+axrtXsTPil7o8VIS1Ycu/bHASOBIQjOMpNXAOJ66AaEK68w19lgPgvpuSzwWvvqw
+ajJtBmIuuDJW/DftIhf2IoC52oi7iMRN0aLTmYV6JBH5PH81HpQKMTPL7VmQQ9qx
+EiYtlHr8r2AugK0qzH86XCGQ804TMvyof3rvNGwzxKkCta2ZYY9Q9EnkFTIFDFct
+dq8xjGOHwsqle60tP5dRKV9vDs42KRHwC1NsL0YFZzKMl/TS3c9Qvbq4VykZoNqe
+LCQlkn7MbsE/exnLrRtbHBU+izxblw==
+=5Feq
+-----END PGP SIGNATURE-----
+
+--=-lkDaE80EkYbqJxgLlovg--
