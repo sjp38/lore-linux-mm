@@ -1,104 +1,263 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 649486B0009
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 13:48:54 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id i205-v6so9184920ita.3
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:48:54 -0700 (PDT)
-Received: from mailout.easymail.ca (mailout.easymail.ca. [64.68.200.34])
-        by mx.google.com with ESMTPS id e124si4378834ioa.235.2018.03.26.10.48.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 10:48:53 -0700 (PDT)
-Subject: Re: [PATCH 1/9] x86, pkeys: do not special case protection key 0
-References: <20180326172721.D5B2CBB4@viggo.jf.intel.com>
- <20180326172722.8CC08307@viggo.jf.intel.com>
-From: Shuah Khan <shuah@kernel.org>
-Message-ID: <9c2de5f6-d9e2-3647-7aa8-86102e9fa6c3@kernel.org>
-Date: Mon, 26 Mar 2018 11:47:26 -0600
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 26C616B000A
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 13:49:10 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id r132-v6so3760325oig.16
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:49:10 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id z132si4227243oia.379.2018.03.26.10.49.08
+        for <linux-mm@kvack.org>;
+        Mon, 26 Mar 2018 10:49:08 -0700 (PDT)
+Subject: Re: [PATCH v2 05/11] arm64: KVM/mm: Move SEA handling behind a single
+ 'claim' interface
+References: <20180322181445.23298-1-james.morse@arm.com>
+ <20180322181445.23298-6-james.morse@arm.com>
+From: Marc Zyngier <marc.zyngier@arm.com>
+Message-ID: <08744114-27c0-dc8c-0943-df3dcb80f4a6@arm.com>
+Date: Mon, 26 Mar 2018 18:49:00 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180326172722.8CC08307@viggo.jf.intel.com>
+In-Reply-To: <20180322181445.23298-6-james.morse@arm.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, stable@kernel.org, linuxram@us.ibm.com, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, Shuah Khan <shuahkh@osg.samsung.com>, Shuah Khan <shuah@kernel.org>
+To: James Morse <james.morse@arm.com>, linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>
 
-On 03/26/2018 11:27 AM, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+On 22/03/18 18:14, James Morse wrote:
+> To ensure APEI always takes the same locks when processing a notification
+> we need the nmi-like callers to always call APEI in_nmi(). Add a helper
+> to do the work and claim the notification.
 > 
-> mm_pkey_is_allocated() treats pkey 0 as unallocated.  That is
-> inconsistent with the manpages, and also inconsistent with
-> mm->context.pkey_allocation_map.  Stop special casing it and only
-> disallow values that are actually bad (< 0).
+> When KVM or the arch code takes an exception that might be a RAS
+> notification, it asks the APEI firmware-first code whether it wants
+> to claim the exception. We can then go on to see if (a future)
+> kernel-first mechanism wants to claim the notification, before
+> falling through to the existing default behaviour.
 > 
-> The end-user visible effect of this is that you can now use
-> mprotect_pkey() to set pkey=0.
+> The NOTIFY_SEA code was merged before we had multiple, possibly
+> interacting, NMI-like notifications and the need to consider kernel
+> first in the future. Make the 'claiming' behaviour explicit.
 > 
-> This is a bit nicer than what Ram proposed because it is simpler
-> and removes special-casing for pkey 0.  On the other hand, it does
-> allow applciations to pkey_free() pkey-0, but that's just a silly
-
-applications - typo.
-
-> thing to do, so we are not going to protect against it.
-
-If you plan to compare proposals, it would be nicer to include the
-details of what Ram proposed as well in the commit log or link to the
-discussion.
-
-Also what happens "pkey_free() pkey-0" - can you elaborate more on that
-"silliness consequences"
-
+> As we're restructuring the APEI code to allow multiple NMI-like
+> notifications, any notification that might interrupt interrupts-masked
+> code must always be wrapped in nmi_enter()/nmi_exit(). This allows APEI
+> to use in_nmi() to choose between the raw/regular spinlock routines.
 > 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Fixes: 58ab9a088dda ("x86/pkeys: Check against max pkey to avoid overflows")
-> Cc: stable@kernel.org
-> Cc: Ram Pai <linuxram@us.ibm.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Michael Ellermen <mpe@ellerman.id.au>
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>p
-> Cc: Shuah Khan <shuah@kernel.org>
+> We mask SError over this window to prevent an asynchronous RAS error
+> arriving and tripping 'nmi_enter()'s BUG_ON(in_nmi()).
+> 
+> Signed-off-by: James Morse <james.morse@arm.com>
 > ---
+> Why does apei_claim_sea() take a pt_regs? This gets used later to take
+> APEI by the hand through NMI->IRQ context, depending on what we
+> interrupted. See patch 11.
 > 
->  b/arch/x86/include/asm/mmu_context.h |    2 +-
->  b/arch/x86/include/asm/pkeys.h       |    6 +++---
->  2 files changed, 4 insertions(+), 4 deletions(-)
+> Changes since v1:
+>  * Tinkered with the commit message
 > 
-> diff -puN arch/x86/include/asm/mmu_context.h~x86-pkey-0-default-allocated arch/x86/include/asm/mmu_context.h
-> --- a/arch/x86/include/asm/mmu_context.h~x86-pkey-0-default-allocated	2018-03-26 10:22:33.742170197 -0700
-> +++ b/arch/x86/include/asm/mmu_context.h	2018-03-26 10:22:33.747170197 -0700
-> @@ -192,7 +192,7 @@ static inline int init_new_context(struc
+>  arch/arm64/include/asm/acpi.h      |  3 +++
+>  arch/arm64/include/asm/daifflags.h |  1 +
+>  arch/arm64/include/asm/kvm_ras.h   | 20 +++++++++++++++++++-
+>  arch/arm64/kernel/acpi.c           | 30 ++++++++++++++++++++++++++++++
+>  arch/arm64/mm/fault.c              | 31 +++++++------------------------
+>  5 files changed, 60 insertions(+), 25 deletions(-)
+> 
+> diff --git a/arch/arm64/include/asm/acpi.h b/arch/arm64/include/asm/acpi.h
+> index 32f465a80e4e..256811cd4b8b 100644
+> --- a/arch/arm64/include/asm/acpi.h
+> +++ b/arch/arm64/include/asm/acpi.h
+> @@ -16,6 +16,7 @@
+>  #include <linux/psci.h>
 >  
->  #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
->  	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
-> -		/* pkey 0 is the default and always allocated */
-> +		/* pkey 0 is the default and allocated implicitly */
->  		mm->context.pkey_allocation_map = 0x1;
->  		/* -1 means unallocated or invalid */
->  		mm->context.execute_only_pkey = -1;
-> diff -puN arch/x86/include/asm/pkeys.h~x86-pkey-0-default-allocated arch/x86/include/asm/pkeys.h
-> --- a/arch/x86/include/asm/pkeys.h~x86-pkey-0-default-allocated	2018-03-26 10:22:33.744170197 -0700
-> +++ b/arch/x86/include/asm/pkeys.h	2018-03-26 10:22:33.747170197 -0700
-> @@ -49,10 +49,10 @@ bool mm_pkey_is_allocated(struct mm_stru
+>  #include <asm/cputype.h>
+> +#include <asm/ptrace.h>
+>  #include <asm/smp_plat.h>
+>  #include <asm/tlbflush.h>
+>  
+> @@ -94,6 +95,8 @@ void __init acpi_init_cpus(void);
+>  static inline void acpi_init_cpus(void) { }
+>  #endif /* CONFIG_ACPI */
+>  
+> +int apei_claim_sea(struct pt_regs *regs);
+> +
+>  #ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
+>  bool acpi_parking_protocol_valid(int cpu);
+>  void __init
+> diff --git a/arch/arm64/include/asm/daifflags.h b/arch/arm64/include/asm/daifflags.h
+> index 22e4c83de5a5..cbd753855bf3 100644
+> --- a/arch/arm64/include/asm/daifflags.h
+> +++ b/arch/arm64/include/asm/daifflags.h
+> @@ -20,6 +20,7 @@
+>  
+>  #define DAIF_PROCCTX		0
+>  #define DAIF_PROCCTX_NOIRQ	PSR_I_BIT
+> +#define DAIF_ERRCTX		(PSR_I_BIT | PSR_A_BIT)
+>  
+>  /* mask/save/unmask/restore all exceptions, including interrupts. */
+>  static inline void local_daif_mask(void)
+> diff --git a/arch/arm64/include/asm/kvm_ras.h b/arch/arm64/include/asm/kvm_ras.h
+> index 5f72b07b7912..9d52bc333110 100644
+> --- a/arch/arm64/include/asm/kvm_ras.h
+> +++ b/arch/arm64/include/asm/kvm_ras.h
+> @@ -4,8 +4,26 @@
+>  #ifndef __ARM64_KVM_RAS_H__
+>  #define __ARM64_KVM_RAS_H__
+>  
+> +#include <linux/acpi.h>
+> +#include <linux/errno.h>
+>  #include <linux/types.h>
+>  
+> -int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr);
+> +#include <asm/acpi.h>
+> +
+> +/*
+> + * Was this synchronous external abort a RAS notification?
+> + * Returns '0' for errors handled by some RAS subsystem, or -ENOENT.
+> + *
+> + * Call with irqs unmaksed.
+> + */
+> +static inline int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr)
+> +{
+> +	int ret = -ENOENT;
+> +
+> +	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA))
+> +		ret = apei_claim_sea(NULL);
+
+Nit: it is a bit odd to see this "IS_ENABLED(CONFIG_ACPI_APEI_SEA)"
+check both in this function and in the only other function this calls
+(apei_claim_sea). Could this somehow be improved by having a dummy
+apei_claim_sea if CONFIG_ACPI_APEI doesn't exist?
+
+> +
+> +	return ret;
+> +}
+>  
+>  #endif /* __ARM64_KVM_RAS_H__ */
+> diff --git a/arch/arm64/kernel/acpi.c b/arch/arm64/kernel/acpi.c
+> index 7b09487ff8fb..6a4823a3eb5e 100644
+> --- a/arch/arm64/kernel/acpi.c
+> +++ b/arch/arm64/kernel/acpi.c
+> @@ -33,6 +33,8 @@
+>  
+>  #ifdef CONFIG_ACPI_APEI
+>  # include <linux/efi.h>
+> +# include <acpi/ghes.h>
+> +# include <asm/daifflags.h>
+>  # include <asm/pgtable.h>
+>  #endif
+>  
+> @@ -261,4 +263,32 @@ pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
+>  		return __pgprot(PROT_NORMAL_NC);
+>  	return __pgprot(PROT_DEVICE_nGnRnE);
+>  }
+> +
+> +
+> +/*
+> + * Claim Synchronous External Aborts as a firmware first notification.
+> + *
+> + * Used by KVM and the arch do_sea handler.
+> + * @regs may be NULL when called from process context.
+> + */
+> +int apei_claim_sea(struct pt_regs *regs)
+> +{
+> +	int err = -ENOENT;
+> +	unsigned long current_flags = arch_local_save_flags();
+> +
+> +	if (!IS_ENABLED(CONFIG_ACPI_APEI_SEA))
+> +		return err;
+> +
+> +	/*
+> +	 * APEI expects an NMI-like notification to always be called
+> +	 * in NMI context.
+> +	 */
+> +	local_daif_restore(DAIF_ERRCTX);
+> +	nmi_enter();
+> +	err = ghes_notify_sea();
+> +	nmi_exit();
+> +	local_daif_restore(current_flags);
+> +
+> +	return err;
+> +}
+>  #endif
+> diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+> index adac28ce9be3..303c8b425c82 100644
+> --- a/arch/arm64/mm/fault.c
+> +++ b/arch/arm64/mm/fault.c
+> @@ -18,6 +18,7 @@
+>   * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+>   */
+>  
+> +#include <linux/acpi.h>
+>  #include <linux/extable.h>
+>  #include <linux/signal.h>
+>  #include <linux/mm.h>
+> @@ -33,6 +34,7 @@
+>  #include <linux/preempt.h>
+>  #include <linux/hugetlb.h>
+>  
+> +#include <asm/acpi.h>
+>  #include <asm/bug.h>
+>  #include <asm/cmpxchg.h>
+>  #include <asm/cpufeature.h>
+> @@ -44,8 +46,6 @@
+>  #include <asm/pgtable.h>
+>  #include <asm/tlbflush.h>
+>  
+> -#include <acpi/ghes.h>
+> -
+>  struct fault_info {
+>  	int	(*fn)(unsigned long addr, unsigned int esr,
+>  		      struct pt_regs *regs);
+> @@ -579,19 +579,12 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
+>  	pr_err("Synchronous External Abort: %s (0x%08x) at 0x%016lx\n",
+>  		inf->name, esr, addr);
+>  
+> -	/*
+> -	 * Synchronous aborts may interrupt code which had interrupts masked.
+> -	 * Before calling out into the wider kernel tell the interested
+> -	 * subsystems.
+> -	 */
+>  	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA)) {
+> -		if (interrupts_enabled(regs))
+> -			nmi_enter();
+> -
+> -		ghes_notify_sea();
+> -
+> -		if (interrupts_enabled(regs))
+> -			nmi_exit();
+> +		/*
+> +		 * Return value ignored as we rely on signal merging.
+> +		 * Future patches will make this more robust.
+> +		 */
+> +		apei_claim_sea(regs);
+>  	}
+>  
+>  	info.si_signo = SIGBUS;
+> @@ -673,16 +666,6 @@ static const struct fault_info fault_info[] = {
+>  	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 63"			},
+>  };
+>  
+> -int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr)
+> -{
+> -	int ret = -ENOENT;
+> -
+> -	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA))
+> -		ret = ghes_notify_sea();
+> -
+> -	return ret;
+> -}
+> -
+>  asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
+>  					 struct pt_regs *regs)
 >  {
->  	/*
->  	 * "Allocated" pkeys are those that have been returned
-> -	 * from pkey_alloc().  pkey 0 is special, and never
-> -	 * returned from pkey_alloc().
-> +	 * from pkey_alloc() or pkey 0 which is allocated
-> +	 * implicitly when the mm is created.
->  	 */
-> -	if (pkey <= 0)
-> +	if (pkey < 0)
->  		return false;
->  	if (pkey >= arch_max_pkey())
->  		return false;
-> _
 > 
 
-thanks,
--- Shuah
+Otherwise:
+
+Acked-by: Marc Zyngier <marc.zyngier@arm.com>
+
+	M.
+-- 
+Jazz is not dead. It just smells funny...
