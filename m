@@ -1,43 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 248C96B0009
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 13:59:04 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u188so11519689pfb.6
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:59:04 -0700 (PDT)
-Received: from osg.samsung.com (osg.samsung.com. [64.30.133.232])
-        by mx.google.com with ESMTP id e6si10276936pgt.198.2018.03.26.10.59.02
-        for <linux-mm@kvack.org>;
-        Mon, 26 Mar 2018 10:59:02 -0700 (PDT)
-Subject: Re: [PATCH 1/9] x86, pkeys: do not special case protection key 0
-References: <20180326172721.D5B2CBB4@viggo.jf.intel.com>
- <20180326172722.8CC08307@viggo.jf.intel.com>
- <9c2de5f6-d9e2-3647-7aa8-86102e9fa6c3@kernel.org>
- <b54257c2-138c-7ac9-8176-0dc4868093ef@intel.com>
-From: Shuah Khan <shuahkh@osg.samsung.com>
-Message-ID: <19a54db9-b0bd-5661-de2a-c5ee76e733d9@osg.samsung.com>
-Date: Mon, 26 Mar 2018 11:58:59 -0600
-MIME-Version: 1.0
-In-Reply-To: <b54257c2-138c-7ac9-8176-0dc4868093ef@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BD786B0009
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 14:21:03 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 1-v6so13524589plv.6
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 11:21:03 -0700 (PDT)
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id q6si10501884pgt.130.2018.03.26.11.21.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Mar 2018 11:21:01 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [v2 PATCH] mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct
+Date: Tue, 27 Mar 2018 02:20:39 +0800
+Message-Id: <1522088439-105930-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Shuah Khan <shuah@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, stable@kernel.org, linuxram@us.ibm.com, tglx@linutronix.de, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, Shuah Khan <shuahkh@osg.samsung.com>Shuah Khan <shuahkh@osg.samsung.com>
+To: adobriyan@gmail.com, mhocko@kernel.org, willy@infradead.org, mguzik@redhat.com, gorcunov@openvz.org, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/26/2018 11:53 AM, Dave Hansen wrote:
-> On 03/26/2018 10:47 AM, Shuah Khan wrote:
->>
->> Also what happens "pkey_free() pkey-0" - can you elaborate more on that
->> "silliness consequences"
-> 
-> It's just what happens if you free any other pkey that is in use: it
-> might get reallocated later.  The most likely scenario is that you will
-> get pkey-0 back from pkey_alloc(), you will set an access-disable or
-> write-disable bit in PKRU for it, and your next stack access will SIGSEGV.
-> 
+mmap_sem is on the hot path of kernel, and it very contended, but it is
+abused too. It is used to protect arg_start|end and evn_start|end when
+reading /proc/$PID/cmdline and /proc/$PID/environ, but it doesn't make
+sense since those proc files just expect to read 4 values atomically and
+not related to VM, they could be set to arbitrary values by C/R.
 
-Thanks. This will good information to include in the commit log.
+And, the mmap_sem contention may cause unexpected issue like below:
 
--- Shuah
+INFO: task ps:14018 blocked for more than 120 seconds.
+       Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
+ "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
+message.
+ ps              D    0 14018      1 0x00000004
+  ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
+  ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
+  00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
+ Call Trace:
+  [<ffffffff817154d0>] ? __schedule+0x250/0x730
+  [<ffffffff817159e6>] schedule+0x36/0x80
+  [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
+  [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
+  [<ffffffff81717db0>] down_read+0x20/0x40
+  [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
+  [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
+  [<ffffffff81241d87>] __vfs_read+0x37/0x150
+  [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
+  [<ffffffff81242266>] vfs_read+0x96/0x130
+  [<ffffffff812437b5>] SyS_read+0x55/0xc0
+  [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+
+Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
+for them to mitigate the abuse of mmap_sem.
+
+So, introduce a new spinlock in mm_struct to protect the concurrent access
+to arg_start|end and env_start|end.
+
+And, commit ddf1d398e517e660207e2c807f76a90df543a217 ("prctl: take mmap
+sem for writing to protect against others") changed down_read to
+down_write to avoid write race condition in prctl_set_mm(). Since we
+already have dedicated lock to protect them, it is safe to change back
+to down_read.
+
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Mateusz Guzik <mguzik@redhat.com>
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+---
+v1 --> v2:
+* Use spinlock instead of rwlock per Mattew's suggestion
+* Replace down_write to down_read in prctl_set_mm (see commit log for details)
+
+ fs/proc/base.c           |  8 ++++----
+ include/linux/mm_types.h |  2 ++
+ kernel/fork.c            |  1 +
+ kernel/sys.c             | 14 ++++++++++----
+ mm/init-mm.c             |  1 +
+ 5 files changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 9298324..e0282b6 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -242,12 +242,12 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
+ 		goto out_mmput;
+ 	}
+ 
+-	down_read(&mm->mmap_sem);
++	spin_lock(&mm->arg_lock);
+ 	arg_start = mm->arg_start;
+ 	arg_end = mm->arg_end;
+ 	env_start = mm->env_start;
+ 	env_end = mm->env_end;
+-	up_read(&mm->mmap_sem);
++	spin_unlock(&mm->arg_lock);
+ 
+ 	BUG_ON(arg_start > arg_end);
+ 	BUG_ON(env_start > env_end);
+@@ -929,10 +929,10 @@ static ssize_t environ_read(struct file *file, char __user *buf,
+ 	if (!mmget_not_zero(mm))
+ 		goto free;
+ 
+-	down_read(&mm->mmap_sem);
++	spin_lock(&mm->arg_lock);
+ 	env_start = mm->env_start;
+ 	env_end = mm->env_end;
+-	up_read(&mm->mmap_sem);
++	spin_unlock(&mm->arg_lock);
+ 
+ 	while (count > 0) {
+ 		size_t this_len, max_len;
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index fd1af6b..3be4588 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -413,6 +413,8 @@ struct mm_struct {
+ 	unsigned long def_flags;
+ 	unsigned long start_code, end_code, start_data, end_data;
+ 	unsigned long start_brk, brk, start_stack;
++
++	spinlock_t arg_lock; /* protect concurrent access to arg_* and env_* */
+ 	unsigned long arg_start, arg_end, env_start, env_end;
+ 
+ 	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
+diff --git a/kernel/fork.c b/kernel/fork.c
+index e5d9d40..6540ae7 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -898,6 +898,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ 	mm->pinned_vm = 0;
+ 	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
+ 	spin_lock_init(&mm->page_table_lock);
++	spin_lock_init(&mm->arg_lock);
+ 	mm_init_cpumask(mm);
+ 	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
+diff --git a/kernel/sys.c b/kernel/sys.c
+index f2289de..17bddd2 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1959,7 +1959,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+ 			return error;
+ 	}
+ 
+-	down_write(&mm->mmap_sem);
++	down_read(&mm->mmap_sem);
+ 
+ 	/*
+ 	 * We don't validate if these members are pointing to
+@@ -1980,10 +1980,13 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+ 	mm->start_brk	= prctl_map.start_brk;
+ 	mm->brk		= prctl_map.brk;
+ 	mm->start_stack	= prctl_map.start_stack;
++
++	spin_lock(&mm->arg_lock);
+ 	mm->arg_start	= prctl_map.arg_start;
+ 	mm->arg_end	= prctl_map.arg_end;
+ 	mm->env_start	= prctl_map.env_start;
+ 	mm->env_end	= prctl_map.env_end;
++	spin_unlock(&mm->arg_lock);
+ 
+ 	/*
+ 	 * Note this update of @saved_auxv is lockless thus
+@@ -1996,7 +1999,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+ 	if (prctl_map.auxv_size)
+ 		memcpy(mm->saved_auxv, user_auxv, sizeof(user_auxv));
+ 
+-	up_write(&mm->mmap_sem);
++	up_read(&mm->mmap_sem);
+ 	return 0;
+ }
+ #endif /* CONFIG_CHECKPOINT_RESTORE */
+@@ -2063,7 +2066,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 
+ 	error = -EINVAL;
+ 
+-	down_write(&mm->mmap_sem);
++	down_read(&mm->mmap_sem);
+ 	vma = find_vma(mm, addr);
+ 
+ 	prctl_map.start_code	= mm->start_code;
+@@ -2149,14 +2152,17 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 	mm->start_brk	= prctl_map.start_brk;
+ 	mm->brk		= prctl_map.brk;
+ 	mm->start_stack	= prctl_map.start_stack;
++
++	spin_lock(&mm->arg_lock);
+ 	mm->arg_start	= prctl_map.arg_start;
+ 	mm->arg_end	= prctl_map.arg_end;
+ 	mm->env_start	= prctl_map.env_start;
+ 	mm->env_end	= prctl_map.env_end;
++	spin_unlock(&mm->arg_lock);
+ 
+ 	error = 0;
+ out:
+-	up_write(&mm->mmap_sem);
++	up_read(&mm->mmap_sem);
+ 	return error;
+ }
+ 
+diff --git a/mm/init-mm.c b/mm/init-mm.c
+index f94d5d1..66cce4c 100644
+--- a/mm/init-mm.c
++++ b/mm/init-mm.c
+@@ -23,6 +23,7 @@ struct mm_struct init_mm = {
+ 	.mmap_sem	= __RWSEM_INITIALIZER(init_mm.mmap_sem),
+ 	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
+ 	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
++	.arg_lock	= __SPIN_LOCK_UNLOCKED(init_mm.arg_lock),
+ 	.user_ns	= &init_user_ns,
+ 	INIT_MM_CONTEXT(init_mm)
+ };
+-- 
+1.8.3.1
