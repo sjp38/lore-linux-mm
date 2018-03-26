@@ -1,139 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 736BC6B000C
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 05:43:37 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id p2so9868232wre.19
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 02:43:37 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id y7si1250438edm.292.2018.03.26.02.43.35
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 724B86B000C
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 06:00:24 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id y97-v6so4498557plh.20
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 03:00:24 -0700 (PDT)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id 3-v6si14223917plc.700.2018.03.26.03.00.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 02:43:35 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 7CDA61C1468
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:43:35 +0100 (IST)
-Date: Mon, 26 Mar 2018 10:43:34 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] sched/numa: Avoid trapping faults and attempting migration
- of file-backed dirty pages
-Message-ID: <20180326094334.zserdec62gwmmfqf@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+        Mon, 26 Mar 2018 03:00:23 -0700 (PDT)
+Received: from epcas5p2.samsung.com (unknown [182.195.41.40])
+	by mailout4.samsung.com (KnoxPortal) with ESMTP id 20180326100021epoutp04b3f8f0e9b0e03b3c55fe3f73817be2bc~fcBH3MsXR0879308793epoutp04I
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 10:00:21 +0000 (GMT)
+From: Maninder Singh <maninder1.s@samsung.com>
+Subject: [PATCH v2] mm/page_owner: ignore everything below the IRQ entry
+ point
+Date: Mon, 26 Mar 2018 15:28:24 +0530
+Message-Id: <1522058304-35934-1-git-send-email-maninder1.s@samsung.com>
+Content-Type: text/plain; charset="utf-8"
+References: <CGME20180326100020epcas5p2b50b7541e66dccf4e49db634e5fe6b41@epcas5p2.samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: aryabinin@virtuozzo.com, glider@google.com, dvyukov@google.com, kstewart@linuxfoundation.org, tglx@linutronix.de, pombredanne@nexb.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, vbabka@suse.cz, sfr@canb.auug.org.au, mhocko@suse.com, vinmenon@codeaurora.org, gomonovych@gmail.com, ayush.m@samsung.com
+Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, a.sahrawat@samsung.com, pankaj.m@samsung.com, v.narang@samsung.com, Maninder Singh <maninder1.s@samsung.com>
 
-change_pte_range is called from task work context to mark PTEs for receiving
-NUMA faulting hints. If the marked pages are dirty then migration may fail.
-Some filesystems cannot migrate dirty pages without blocking so are skipped
-in MIGRATE_ASYNC mode which just wastes CPU. Even when they can, it can
-be a waste of cycles when the pages are shared forcing higher scan rates.
-This patch avoids marking shared dirty pages for hinting faults but also
-will skip a migration if the page was dirtied after the scanner updated
-a clean page.
+Check whether the allocation happens in an IRQ handler.
+This lets us strip everything below the IRQ entry point to reduce the
+number of unique stack traces needed to be stored.
 
-This is most noticable running the NASA Parallel Benchmark when backed by
-btrfs, the default root filesystem for some distributions, but also noticable
-when using XFS.
+so moved code of KASAN in generic file so that page_owner can also
+do same filteration.
 
-The following are results from a 4-socket machine running a 4.16-rc4 kernel
-with some scheduler patches that are pending for the next merge window.
+Initial KASAN commit
+id=be7635e7287e0e8013af3c89a6354a9e0182594c
 
-                      4.16.0-rc4             4.16.0-rc4
-               schedtip-20180309          nodirty-v1
-Time cg.D      459.07 (   0.00%)      444.21 (   3.24%)
-Time ep.D       76.96 (   0.00%)       77.69 (  -0.95%)
-Time is.D       25.55 (   0.00%)       27.85 (  -9.00%)
-Time lu.D      601.58 (   0.00%)      596.87 (   0.78%)
-Time mg.D      107.73 (   0.00%)      108.22 (  -0.45%)
+original:- 
+__alloc_pages_nodemask+0xfc/0x220
+ page_frag_alloc+0x84/0x140
+ __napi_alloc_skb+0x83/0xe0
+ rtl8169_poll+0x1e5/0x670
+ net_rx_action+0x132/0x3a0
+ __do_softirq+0xce/0x298
+ irq_exit+0xa3/0xb0
+ do_IRQ+0x72/0xc0
+ ret_from_intr+0x0/0x18
+ cpuidle_enter_state+0x96/0x290
+ do_idle+0x163/0x1a0
 
-is.D regresses slightly in terms of absolute time but note that that
-particular load varies quite a bit from run to run. The more relevant
-observation is the total system CPU usage.
+After patch:-
+ __alloc_pages_nodemask+0xfc/0x220
+ page_frag_alloc+0x84/0x140
+ __napi_alloc_skb+0x83/0xe0
+ rtl8169_poll+0x1e5/0x670
+ net_rx_action+0x132/0x3a0
+ __do_softirq+0xce/0x298
 
-          4.16.0-rc4  4.16.0-rc4
-        schedtip-20180309 nodirty-v1
-User        71471.91    70627.04
-System      11078.96     8256.13
-Elapsed       661.66      632.74
+Signed-off-by: Vaneet Narang <v.narang@samsung.com>
+Signed-off-by: Maninder Singh <maninder1.s@samsung.com>
+---
+v1->v2: fix build break for tile and blackfin
+(https://lkml.org/lkml/2017/12/3/287, verified for blackfin)
 
-That is a substantial drop in system CPU usage and overall the workload
-completes faster. The NUMA balancing statistics are also interesting
+ include/linux/stacktrace.h | 26 ++++++++++++++++++++++++++
+ mm/kasan/kasan.c           | 22 ----------------------
+ mm/page_owner.c            |  1 +
+ 3 files changed, 27 insertions(+), 22 deletions(-)
 
-NUMA base PTE updates        111407972   139848884
-NUMA huge PMD updates           206506      264869
-NUMA page range updates      217139044   275461812
-NUMA hint faults               4300924     3719784
-NUMA hint local faults         3012539     3416618
-NUMA hint local percent             70          91
-NUMA pages migrated            1517487     1358420
-
-While more PTEs are scanned due to changes in what faults are gathered,
-it's clear that a far higher percentage of faults are local as the bulk
-of the remote hits were dirty pages that, in this case with btrfs, had
-no chance of migrating.
-
-The following is a comparison when using XFS as that is a more realistic
-filesystem choice for a data partition
-
-                      4.16.0-rc4             4.16.0-rc4
-               schedtip-20180309          nodirty-v1r47
-Time cg.D      485.28 (   0.00%)      442.62 (   8.79%)
-Time ep.D       77.68 (   0.00%)       77.54 (   0.18%)
-Time is.D       26.44 (   0.00%)       24.79 (   6.24%)
-Time lu.D      597.46 (   0.00%)      597.11 (   0.06%)
-Time mg.D      142.65 (   0.00%)      105.83 (  25.81%)
-
-That is a reasonable gain on two relatively long-lived workloads. While
-not presented, there is also a substantial drop in system CPu usage and
-the NUMA balancing stats show similar improvements in locality as btrfs did.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 1e5525a25691..d26832f0723b 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1955,6 +1955,13 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
- 	    (vma->vm_flags & VM_EXEC))
- 		goto out;
+diff --git a/include/linux/stacktrace.h b/include/linux/stacktrace.h
+index ba29a06..3d3e49d 100644
+--- a/include/linux/stacktrace.h
++++ b/include/linux/stacktrace.h
+@@ -4,6 +4,8 @@
  
-+	/*
-+	 * Also do not migrate dirty pages as not all filesystems can move
-+	 * dirty pages in MIGRATE_ASYNC mode which is a waste of cycles.
-+	 */
-+	if (page_is_file_cache(page) && PageDirty(page))
-+		goto out;
-+
- 	/*
- 	 * Rate-limit the amount of data that is being migrated to a node.
- 	 * Optimal placement is no good if the memory bus is saturated and
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index e3309fcf586b..3cfd095e2bb0 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -27,6 +27,7 @@
- #include <linux/pkeys.h>
- #include <linux/ksm.h>
- #include <linux/uaccess.h>
-+#include <linux/mm_inline.h>
- #include <asm/pgtable.h>
- #include <asm/cacheflush.h>
- #include <asm/mmu_context.h>
-@@ -89,6 +90,14 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				    page_mapcount(page) != 1)
- 					continue;
+ #include <linux/types.h>
  
-+				/*
-+				 * While migration can move some dirty pages,
-+				 * it cannot move them all from MIGRATE_ASYNC
-+				 * context.
-+				 */
-+				if (page_is_file_cache(page) && PageDirty(page))
-+					continue;
++extern char __irqentry_text_start[], __irqentry_text_end[];
++extern char __softirqentry_text_start[], __softirqentry_text_end[];
+ struct task_struct;
+ struct pt_regs;
+ 
+@@ -26,6 +28,28 @@ extern int save_stack_trace_tsk_reliable(struct task_struct *tsk,
+ extern int snprint_stack_trace(char *buf, size_t size,
+ 			struct stack_trace *trace, int spaces);
+ 
++static inline int in_irqentry_text(unsigned long ptr)
++{
++	return (ptr >= (unsigned long)&__irqentry_text_start &&
++		ptr < (unsigned long)&__irqentry_text_end) ||
++		(ptr >= (unsigned long)&__softirqentry_text_start &&
++		 ptr < (unsigned long)&__softirqentry_text_end);
++}
 +
- 				/* Avoid TLB flush if possible */
- 				if (pte_protnone(oldpte))
- 					continue;
++static inline void filter_irq_stacks(struct stack_trace *trace)
++{
++	int i;
++
++	if (!trace->nr_entries)
++		return;
++	for (i = 0; i < trace->nr_entries; i++)
++		if (in_irqentry_text(trace->entries[i])) {
++			/* Include the irqentry function into the stack. */
++			trace->nr_entries = i + 1;
++			break;
++		}
++}
++
+ #ifdef CONFIG_USER_STACKTRACE_SUPPORT
+ extern void save_stack_trace_user(struct stack_trace *trace);
+ #else
+@@ -38,6 +62,8 @@ extern int snprint_stack_trace(char *buf, size_t size,
+ # define save_stack_trace_user(trace)			do { } while (0)
+ # define print_stack_trace(trace, spaces)		do { } while (0)
+ # define snprint_stack_trace(buf, size, trace, spaces)	do { } while (0)
++# define filter_irq_stacks(trace)			do { } while (0)
++# define in_irqentry_text(ptr)				do { } while (0)
+ # define save_stack_trace_tsk_reliable(tsk, trace)	({ -ENOSYS; })
+ #endif /* CONFIG_STACKTRACE */
+ 
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 405bba4..129e7b8 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -412,28 +412,6 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
+ 			KASAN_KMALLOC_REDZONE);
+ }
+ 
+-static inline int in_irqentry_text(unsigned long ptr)
+-{
+-	return (ptr >= (unsigned long)&__irqentry_text_start &&
+-		ptr < (unsigned long)&__irqentry_text_end) ||
+-		(ptr >= (unsigned long)&__softirqentry_text_start &&
+-		 ptr < (unsigned long)&__softirqentry_text_end);
+-}
+-
+-static inline void filter_irq_stacks(struct stack_trace *trace)
+-{
+-	int i;
+-
+-	if (!trace->nr_entries)
+-		return;
+-	for (i = 0; i < trace->nr_entries; i++)
+-		if (in_irqentry_text(trace->entries[i])) {
+-			/* Include the irqentry function into the stack. */
+-			trace->nr_entries = i + 1;
+-			break;
+-		}
+-}
+-
+ static inline depot_stack_handle_t save_stack(gfp_t flags)
+ {
+ 	unsigned long entries[KASAN_STACK_DEPTH];
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 8602fb4..30e9cb2 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -148,6 +148,7 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
+ 	depot_stack_handle_t handle;
+ 
+ 	save_stack_trace(&trace);
++	filter_irq_stacks(&trace);
+ 	if (trace.nr_entries != 0 &&
+ 	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
+ 		trace.nr_entries--;
+-- 
+1.9.1
