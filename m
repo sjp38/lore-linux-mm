@@ -1,78 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 06CC26B0009
-	for <linux-mm@kvack.org>; Sun, 25 Mar 2018 23:25:43 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id f59-v6so12125288plb.7
-        for <linux-mm@kvack.org>; Sun, 25 Mar 2018 20:25:42 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id 134si9707093pgd.709.2018.03.25.20.25.41
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 05A6C6B000C
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 04:14:01 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id w10so9765097wrg.15
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 01:14:00 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l1si9836473wmb.261.2018.03.26.01.13.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Mar 2018 20:25:41 -0700 (PDT)
-From: "Wang, Wei W" <wei.w.wang@intel.com>
-Subject: RE: [PATCH v29 3/4] mm/page_poison: expose page_poisoning_enabled
- to kernel modules
-Date: Mon, 26 Mar 2018 03:24:00 +0000
-Message-ID: <286AC319A985734F985F78AFA26841F739485741@shsmsx102.ccr.corp.intel.com>
-References: <1522031994-7246-1-git-send-email-wei.w.wang@intel.com>
- <1522031994-7246-4-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1522031994-7246-4-git-send-email-wei.w.wang@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Mar 2018 01:13:59 -0700 (PDT)
+Date: Mon, 26 Mar 2018 10:13:56 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 0/3] mmu_notifier contextual information
+Message-ID: <20180326081356.GA5652@dhcp22.suse.cz>
+References: <20180323171748.20359-1-jglisse@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180323171748.20359-1-jglisse@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "huangzhichao@huawei.com" <huangzhichao@huawei.com>
+To: jglisse@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Dan Williams <dan.j.williams@intel.com>, Joerg Roedel <joro@8bytes.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Paolo Bonzini <pbonzini@redhat.com>, Leon Romanovsky <leonro@mellanox.com>, Artemy Kovalyov <artemyko@mellanox.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Alex Deucher <alexander.deucher@amd.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>
 
-On Monday, March 26, 2018 10:40 AM, Wang, Wei W wrote:
-> Subject: [PATCH v29 3/4] mm/page_poison: expose page_poisoning_enabled
-> to kernel modules
->=20
-> In some usages, e.g. virtio-balloon, a kernel module needs to know if pag=
-e
-> poisoning is in use. This patch exposes the page_poisoning_enabled functi=
-on
-> to kernel modules.
->=20
-> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Michael S. Tsirkin <mst@redhat.com>
-> ---
->  mm/page_poison.c | 6 ++++++
->  1 file changed, 6 insertions(+)
->=20
-> diff --git a/mm/page_poison.c b/mm/page_poison.c index e83fd44..762b472
-> 100644
-> --- a/mm/page_poison.c
-> +++ b/mm/page_poison.c
-> @@ -17,6 +17,11 @@ static int early_page_poison_param(char *buf)  }
-> early_param("page_poison", early_page_poison_param);
->=20
-> +/**
-> + * page_poisoning_enabled - check if page poisoning is enabled
-> + *
-> + * Return true if page poisoning is enabled, or false if not.
-> + */
->  bool page_poisoning_enabled(void)
->  {
->  	/*
-> @@ -29,6 +34,7 @@ bool page_poisoning_enabled(void)
->=20
-> 	(!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC) &&
->  		debug_pagealloc_enabled()));
->  }
-> +EXPORT_SYMBOL_GPL(page_poisoning_enabled);
->=20
->  static void poison_page(struct page *page)  {
-> --
-> 2.7.4
+I haven't read through the whole thread, I just wanted to clarify the
+OOM aspect.
+On Fri 23-03-18 13:17:45, jglisse@redhat.com wrote:
+[...]
+> OOM is also an interesting case, recently a patchset was added to
+> avoid OOM on a mm if a blocking mmu_notifier listener have been
+> registered [1].
 
+This is not quite right. We only skip oom _reaper_ (aka async oom victim
+address space tear down). We still do allow such a task to be selected
+as an OOM victim and killed. So the worst case that we might kill
+another task if the current victim is not able to make a forward
+progress on its own.
 
-Could we get a review of this patch? We've reviewed other parts, and this o=
-ne seems to be the last part of this feature. Thanks.
+> This can be improve by adding a new OOM event type and
+> having listener take special path on those. All mmu_notifier i know
+> can easily have a special path for OOM that do not block (beside
+> taking a short lived, across driver, spinlock). If mmu_notifier usage
+> grows (from a point of view of more process using devices that rely on
+> them) then we should also make sure OOM can do its bidding.
 
-Best,
-Wei
+If we can distinguish the OOM path and enforce no locks or indirect
+dependencies on the memory allocation the the situation would improve
+for sure.
+-- 
+Michal Hocko
+SUSE Labs
