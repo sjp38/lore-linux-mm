@@ -1,101 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F6416B0024
-	for <linux-mm@kvack.org>; Sun, 25 Mar 2018 22:58:54 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id bi1-v6so3747433plb.11
-        for <linux-mm@kvack.org>; Sun, 25 Mar 2018 19:58:54 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id u126si9687952pgb.628.2018.03.25.19.58.52
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 521766B0026
+	for <linux-mm@kvack.org>; Sun, 25 Mar 2018 23:02:47 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 203so7443598pfz.19
+        for <linux-mm@kvack.org>; Sun, 25 Mar 2018 20:02:47 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id g8si9453328pgv.740.2018.03.25.20.02.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Mar 2018 19:58:52 -0700 (PDT)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v29 4/4] virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
-Date: Mon, 26 Mar 2018 10:39:54 +0800
-Message-Id: <1522031994-7246-5-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1522031994-7246-1-git-send-email-wei.w.wang@intel.com>
-References: <1522031994-7246-1-git-send-email-wei.w.wang@intel.com>
+        Sun, 25 Mar 2018 20:02:46 -0700 (PDT)
+Date: Mon, 26 Mar 2018 11:03:45 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [PATCH v4 2/3] mm/free_pcppages_bulk: do not hold lock when
+ picking pages to free
+Message-ID: <20180326030344.GA30075@intel.com>
+References: <20180301062845.26038-1-aaron.lu@intel.com>
+ <20180301062845.26038-3-aaron.lu@intel.com>
+ <9cad642d-9fe5-b2c3-456c-279065c32337@suse.cz>
+ <20180313033453.GB13782@intel.com>
+ <20180322151719.GA28468@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180322151719.GA28468@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>
 
-The VIRTIO_BALLOON_F_PAGE_POISON feature bit is used to indicate if the
-guest is using page poisoning. Guest writes to the poison_val config
-field to tell host about the page poisoning value in use.
+On Thu, Mar 22, 2018 at 08:17:19AM -0700, Matthew Wilcox wrote:
+> On Tue, Mar 13, 2018 at 11:34:53AM +0800, Aaron Lu wrote:
+> > I wish there is a data structure that has the flexibility of list while
+> > at the same time we can locate the Nth element in the list without the
+> > need to iterate. That's what I'm looking for when developing clustered
+> > allocation for order 0 pages. In the end, I had to use another place to
+> > record where the Nth element is. I hope to send out v2 of that RFC
+> > series soon but I'm still collecting data for it. I would appreciate if
+> > people could take a look then :-)
+> 
+> Sorry, I missed this.  There is such a data structure -- the IDR, or
+> possibly a bare radix tree, or we can build a better data structure on
+> top of the radix tree (I talked about one called the XQueue a while ago).
+> 
+> The IDR will automatically grow to whatever needed size, it stores
+> pointers, you can find out quickly where the last allocated index is,
+> you can remove from the middle of the array.  Disadvantage is that it
+> requires memory allocation to store the array of pointers, *but* it
+> can always hold at least one entry.  So if you have no memory, you can
+> always return the one element in your IDR to the free pool and allocate
+> from that page.
 
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- drivers/virtio/virtio_balloon.c     | 10 ++++++++++
- include/uapi/linux/virtio_balloon.h |  3 +++
- 2 files changed, 13 insertions(+)
-
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 18d24a4..6de9339 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -699,6 +699,7 @@ static struct file_system_type balloon_fs = {
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
-+	__u32 poison_val;
- 	int err;
- 
- 	if (!vdev->config->get) {
-@@ -744,6 +745,11 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 		vb->stop_cmd_id = cpu_to_virtio32(vb->vdev,
- 				VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
- 		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
-+		if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON)) {
-+			memset(&poison_val, PAGE_POISON, sizeof(poison_val));
-+			virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-+				      poison_val, &poison_val);
-+		}
- 	}
- 
- 	vb->nb.notifier_call = virtballoon_oom_notify;
-@@ -862,6 +868,9 @@ static int virtballoon_restore(struct virtio_device *vdev)
- 
- static int virtballoon_validate(struct virtio_device *vdev)
- {
-+	if (!page_poisoning_enabled())
-+		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
-+
- 	__virtio_clear_bit(vdev, VIRTIO_F_IOMMU_PLATFORM);
- 	return 0;
- }
-@@ -871,6 +880,7 @@ static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
- 	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
-+	VIRTIO_BALLOON_F_PAGE_POISON,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index b2d86c2..8b93581 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -35,6 +35,7 @@
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
- #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
-+#define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
-@@ -47,6 +48,8 @@ struct virtio_balloon_config {
- 	__u32 actual;
- 	/* Free page report command id, readonly by guest */
- 	__u32 free_page_report_cmd_id;
-+	/* Stores PAGE_POISON if page poisoning is in use */
-+	__u32 poison_val;
- };
- 
- #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
--- 
-2.7.4
+Thanks for the pointer, will take a look later.
+Currently I'm focusing on finding real workloads that have zone lock
+contention issue.
