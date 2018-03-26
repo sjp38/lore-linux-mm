@@ -1,66 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FF046B0010
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 16:59:13 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f19-v6so3594980plr.23
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 13:59:13 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 853396B0010
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 17:10:40 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id l67-v6so5986440oif.23
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 14:10:40 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id a10-v6si11628084pls.695.2018.03.26.13.59.12
+        by mx.google.com with ESMTPS id m14-v6si5011458oth.466.2018.03.26.14.10.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 13:59:12 -0700 (PDT)
-Subject: Re: [PATCH] lockdep: Show address of "struct lockdep_map" at print_lock().
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1522059513-5461-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20180326160549.GL4043@hirez.programming.kicks-ass.net>
-In-Reply-To: <20180326160549.GL4043@hirez.programming.kicks-ass.net>
-Message-Id: <201803270558.HCA41032.tVFJOFOMOFLHSQ@I-love.SAKURA.ne.jp>
-Date: Tue, 27 Mar 2018 05:58:49 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Mon, 26 Mar 2018 14:10:39 -0700 (PDT)
+Subject: Re: [v2 PATCH] mm: introduce arg_lock to protect arg_start|end and
+ env_start|end in mm_struct
+References: <1522088439-105930-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180326183725.GB27373@bombadil.infradead.org>
+ <20180326192132.GE2236@uranus>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <0bfa8943-a2fe-b0ab-99a2-347094a2bcec@i-love.sakura.ne.jp>
+Date: Tue, 27 Mar 2018 06:10:09 +0900
+MIME-Version: 1.0
+In-Reply-To: <20180326192132.GE2236@uranus>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org
-Cc: mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bp@suse.de, rientjes@google.com, mhocko@suse.com, tglx@linutronix.de
+To: Cyrill Gorcunov <gorcunov@gmail.com>, Matthew Wilcox <willy@infradead.org>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, adobriyan@gmail.com, mhocko@kernel.org, mguzik@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Peter Zijlstra wrote:
-> On Mon, Mar 26, 2018 at 07:18:33PM +0900, Tetsuo Handa wrote:
-> > [  628.863629] 2 locks held by a.out/1165:
-> > [  628.867533]  #0: [ffffa3b438472e48] (&mm->mmap_sem){++++}, at: __do_page_fault+0x16f/0x4d0
-> > [  628.873570]  #1: [ffffa3b4f2c52ac0] (&mapping->i_mmap_rwsem){++++}, at: rmap_walk_file+0x1d9/0x2a0
-> 
-> Maybe change the string a little, because from the above it's not at all
-> effident that the [] thing is the lock instance.
-> 
-> > diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-> > index 12a2805..7835233 100644
-> > --- a/kernel/locking/lockdep.c
-> > +++ b/kernel/locking/lockdep.c
-> > @@ -556,9 +556,9 @@ static void print_lock(struct held_lock *hlock)
-> >  		return;
-> >  	}
-> >  
-> > +	printk(KERN_CONT "[%px]", hlock->instance);
-> 
-> And yeah, what Michal said, that wants to be %p, we're fine with the
-> thing being hashed, all we want to do is equivalience, which can be done
-> with hashed pinters too.
-> 
-> >  	print_lock_name(lock_classes + class_idx - 1);
-> > -	printk(KERN_CONT ", at: [<%px>] %pS\n",
-> > -		(void *)hlock->acquire_ip, (void *)hlock->acquire_ip);
-> > +	printk(KERN_CONT ", at: %pS\n", (void *)hlock->acquire_ip);
-> >  }
-> 
-> Otherwise no real objection to the patch.
-> 
+On 2018/03/27 4:21, Cyrill Gorcunov wrote:
+> That said I think using read-lock here would be a bug.
 
-I see. What about plain
+If I understand correctly, the caller can't set both fields atomically, for
+prctl() does not receive both fields at one call.
 
--	printk(KERN_CONT "[%px]", hlock->instance);
-+	printk(KERN_CONT "%p", hlock->instance);
+  prctl(PR_SET_MM, PR_SET_MM_ARG_START xor PR_SET_MM_ARG_END xor PR_SET_MM_ENV_START xor PR_SET_MM_ENV_END, new value, 0, 0);
 
-because we don't need to use [] ?
-
-I'm trying to remove "[<%px>]" for hlock->acquire_ip field in order to
-reduce amount of output, for debug_show_all_locks() prints a lot.
+Then, I wonder whether reading arg_start|end and env_start|end atomically makes
+sense. Just retry reading if arg_start > env_end or env_start > env_end is fine?
