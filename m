@@ -1,47 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CDA1B6B000D
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 11:38:38 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u8so2176721pfm.21
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 08:38:38 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0090.outbound.protection.outlook.com. [104.47.1.90])
-        by mx.google.com with ESMTPS id a12-v6si16416380plt.606.2018.03.26.08.38.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 26 Mar 2018 08:38:37 -0700 (PDT)
-Subject: Re: [PATCH 01/10] mm: Assign id to every memcg-aware shrinker
-References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
- <152163847740.21546.16821490541519326725.stgit@localhost.localdomain>
- <20180324184009.dyjlt4rj4b6y6sz3@esperanza>
- <0db2d93f-12cd-d703-fce7-4c3b8df5bc12@virtuozzo.com>
- <20180326151406.GE10912@bombadil.infradead.org>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <a0152b4b-28f9-5970-a972-8649a2b81a6a@virtuozzo.com>
-Date: Mon, 26 Mar 2018 18:38:29 +0300
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D90B6B000A
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 11:44:26 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id g13-v6so3089489otk.5
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 08:44:26 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id u1si16032oiv.71.2018.03.26.08.44.25
+        for <linux-mm@kvack.org>;
+        Mon, 26 Mar 2018 08:44:25 -0700 (PDT)
+Date: Mon, 26 Mar 2018 16:44:21 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] mm: kmemleak: wait for scan completion before disabling
+ free
+Message-ID: <20180326154421.obk7ikx3h5ko62o5@armageddon.cambridge.arm.com>
+References: <1522063429-18992-1-git-send-email-vinmenon@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <20180326151406.GE10912@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1522063429-18992-1-git-send-email-vinmenon@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 26.03.2018 18:14, Matthew Wilcox wrote:
-> On Mon, Mar 26, 2018 at 06:09:35PM +0300, Kirill Tkhai wrote:
->>> AFAIK ida always allocates the smallest available id so you don't need
->>> to keep track of bitmap_id_start.
->>
->> I saw mnt_alloc_group_id() does the same, so this was the reason, the additional
->> variable was used. Doesn't this gives a good advise to ida and makes it find
->> a free id faster?
+On Mon, Mar 26, 2018 at 04:53:49PM +0530, Vinayak Menon wrote:
+> A crash is observed when kmemleak_scan accesses the
+> object->pointer, likely due to the following race.
 > 
-> No, it doesn't help the IDA in the slightest.  I have a patch in my
-> tree to delete that silliness from mnt_alloc_group_id(); just haven't
-> submitted it yet.
+> TASK A             TASK B                     TASK C
+> kmemleak_write
+>  (with "scan" and
+>  NOT "scan=on")
+> kmemleak_scan()
+>                    create_object
+>                    kmem_cache_alloc fails
+>                    kmemleak_disable
+>                    kmemleak_do_cleanup
+>                    kmemleak_free_enabled = 0
+>                                               kfree
+>                                               kmemleak_free bails out
+>                                                (kmemleak_free_enabled is 0)
+>                                               slub frees object->pointer
+> update_checksum
+> crash - object->pointer
+>  freed (DEBUG_PAGEALLOC)
+> 
+> kmemleak_do_cleanup waits for the scan thread to complete, but not for
+> direct call to kmemleak_scan via kmemleak_write. So add a wait for
+> kmemleak_scan completion before disabling kmemleak_free.
+> 
+> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
 
-Ok, then I'll remove this trick.
+It looks fine to me. Maybe Andrew can pick it up.
 
-Thanks,
-Kirill
+Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+
+Thanks.
