@@ -1,56 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 395976B000C
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 11:11:29 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id w4-v6so11678062ote.8
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 08:11:29 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 73si818457oii.428.2018.03.26.08.11.28
-        for <linux-mm@kvack.org>;
-        Mon, 26 Mar 2018 08:11:28 -0700 (PDT)
-Subject: Re: [PATCH v2 04/11] KVM: arm/arm64: Add kvm_ras.h to collect kvm
- specific RAS plumbing
-References: <20180322181445.23298-1-james.morse@arm.com>
- <20180322181445.23298-5-james.morse@arm.com>
-From: Marc Zyngier <marc.zyngier@arm.com>
-Message-ID: <790d3e45-26c2-6095-7adf-1d59fda4541e@arm.com>
-Date: Mon, 26 Mar 2018 16:11:22 +0100
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B9206B000C
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 11:15:43 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id q22so4523678pfh.20
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 08:15:43 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z62si11437593pfb.305.2018.03.26.08.15.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 26 Mar 2018 08:15:42 -0700 (PDT)
+Date: Mon, 26 Mar 2018 08:14:06 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 01/10] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180326151406.GE10912@bombadil.infradead.org>
+References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
+ <152163847740.21546.16821490541519326725.stgit@localhost.localdomain>
+ <20180324184009.dyjlt4rj4b6y6sz3@esperanza>
+ <0db2d93f-12cd-d703-fce7-4c3b8df5bc12@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20180322181445.23298-5-james.morse@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0db2d93f-12cd-d703-fce7-4c3b8df5bc12@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>, linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 22/03/18 18:14, James Morse wrote:
-> To split up APEIs in_nmi() path, we need any nmi-like callers to always
-> be in_nmi(). KVM shouldn't have to know about this, pull the RAS plumbing
-> out into a header file.
+On Mon, Mar 26, 2018 at 06:09:35PM +0300, Kirill Tkhai wrote:
+> > AFAIK ida always allocates the smallest available id so you don't need
+> > to keep track of bitmap_id_start.
 > 
-> Currently guest synchronous external aborts are claimed as RAS
-> notifications by handle_guest_sea(), which is hidden in the arch codes
-> mm/fault.c. 32bit gets a dummy declaration in system_misc.h.
-> 
-> There is going to be more of this in the future if/when we support
-> the SError-based firmware-first notification mechanism and/or
-> kernel-first notifications for both synchronous external abort and
-> SError. Each of these will come with some Kconfig symbols and a
-> handful of header files.
-> 
-> Create a header file for all this.
-> 
-> This patch gives handle_guest_sea() a 'kvm_' prefix, and moves the
-> declarations to kvm_ras.h as preparation for a future patch that moves
-> the ACPI-specific RAS code out of mm/fault.c.
-> 
-> Signed-off-by: James Morse <james.morse@arm.com>
-> Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
+> I saw mnt_alloc_group_id() does the same, so this was the reason, the additional
+> variable was used. Doesn't this gives a good advise to ida and makes it find
+> a free id faster?
 
-Acked-by: Marc Zyngier <marc.zyngier@arm.com>
-
-	M.
--- 
-Jazz is not dead. It just smells funny...
+No, it doesn't help the IDA in the slightest.  I have a patch in my
+tree to delete that silliness from mnt_alloc_group_id(); just haven't
+submitted it yet.
