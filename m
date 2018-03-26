@@ -1,73 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DFE9F6B000E
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 04:15:14 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id n11so4016263wmg.0
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 01:15:14 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z73si383287wmc.219.2018.03.26.01.15.13
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C63A56B0011
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 04:20:06 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id b9so8460063pgu.13
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 01:20:06 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f11sor4532146pfn.123.2018.03.26.01.20.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Mar 2018 01:15:13 -0700 (PDT)
-Date: Mon, 26 Mar 2018 10:15:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/3] mmu_notifier contextual information
-Message-ID: <20180326081512.GB5652@dhcp22.suse.cz>
-References: <20180323171748.20359-1-jglisse@redhat.com>
- <e22988c5-2d58-45bb-e2f7-c7ca7bdb9e49@amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <e22988c5-2d58-45bb-e2f7-c7ca7bdb9e49@amd.com>
+        (Google Transport Security);
+        Mon, 26 Mar 2018 01:20:05 -0700 (PDT)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH 1/2] mm/sparse: pass the __highest_present_section_nr + 1 to alloc_func()
+Date: Mon, 26 Mar 2018 16:19:55 +0800
+Message-Id: <20180326081956.75275-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
-Cc: jglisse@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Dan Williams <dan.j.williams@intel.com>, Joerg Roedel <joro@8bytes.org>, Paolo Bonzini <pbonzini@redhat.com>, Leon Romanovsky <leonro@mellanox.com>, Artemy Kovalyov <artemyko@mellanox.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Alex Deucher <alexander.deucher@amd.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>
+To: dave.hansen@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com
+Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Fri 23-03-18 19:34:04, Christian Konig wrote:
-> Am 23.03.2018 um 18:17 schrieb jglisse@redhat.com:
-> > From: Jerome Glisse <jglisse@redhat.com>
-> > 
-> > This patchset are the improvements to mmu_notifier i wish to discuss
-> > at next LSF/MM. I am sending now to give time to people to look at
-> > them and think about them.
-> > 
-> > git://people.freedesktop.org/~glisse/linux mmu-notifier-rfc
-> > https://cgit.freedesktop.org/~glisse/linux/log/?h=mmu-notifier-rfc
-> > 
-> > First patch just use a struct for invalidate_range_start/end arguments
-> > this make the other 2 patches easier and smaller.
-> > 
-> > The idea is to provide more information to mmu_notifier listener on
-> > the context of each invalidation. When a range is invalidated this
-> > can be for various reasons (munmap, protection change, OOM, ...). If
-> > listener can distinguish between those it can take better action.
-> > 
-> > For instance if device driver allocate structure to track a range of
-> > virtual address prior to this patch it always have to assume that it
-> > has to free those on each mmu_notifieir callback (having to assume it
-> > is a munmap) and reallocate those latter when the device try to do
-> > something with that range again.
-> > 
-> > OOM is also an interesting case, recently a patchset was added to
-> > avoid OOM on a mm if a blocking mmu_notifier listener have been
-> > registered [1]. This can be improve by adding a new OOM event type and
-> > having listener take special path on those. All mmu_notifier i know
-> > can easily have a special path for OOM that do not block (beside
-> > taking a short lived, across driver, spinlock). If mmu_notifier usage
-> > grows (from a point of view of more process using devices that rely on
-> > them) then we should also make sure OOM can do its bidding.
-> 
-> +1 for better handling that.
-> 
-> The fact that the OOM killer now avoids processes which might sleep during
-> their MM destruction gave me a few sleepless night recently.
+In 'commit c4e1be9ec113 ("mm, sparsemem: break out of loops early")',
+__highest_present_section_nr is introduced to reduce the loop counts for
+present section. This is also helpful for usemap and memmap allocation.
 
-I have tried to clarify this [1] but could you be more specific about
-the issue you were seeing?
+This patch uses __highest_present_section_nr + 1 to optimize the loop.
 
-[1] http://lkml.kernel.org/r/20180326081356.GA5652@dhcp22.suse.cz
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+ mm/sparse.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 7af5e7a92528..505050346249 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -561,7 +561,7 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
+ 		map_count = 1;
+ 	}
+ 	/* ok, last chunk */
+-	alloc_func(data, pnum_begin, NR_MEM_SECTIONS,
++	alloc_func(data, pnum_begin, __highest_present_section_nr+1,
+ 						map_count, nodeid_begin);
+ }
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.15.1
