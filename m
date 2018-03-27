@@ -1,97 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EF1EC6B0023
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 06:00:52 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id g13-v6so7033492lfl.15
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 03:00:52 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f62-v6sor201370lfl.59.2018.03.27.03.00.50
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Mar 2018 03:00:51 -0700 (PDT)
-Date: Tue, 27 Mar 2018 13:00:47 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 03/10] mm: Assign memcg-aware shrinkers bitmap to memcg
-Message-ID: <20180327100047.gj4gtmt3necmtpzw@esperanza>
-References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
- <152163850081.21546.6969747084834474733.stgit@localhost.localdomain>
- <20180324192521.my7akysvj7wtudan@esperanza>
- <09663190-12dd-4353-668d-f4fc2f27c2d7@virtuozzo.com>
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 07C526B0011
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 06:21:09 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id v20-v6so8601697otd.10
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 03:21:09 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b13-v6si255884oih.293.2018.03.27.03.21.07
+        for <linux-mm@kvack.org>;
+        Tue, 27 Mar 2018 03:21:07 -0700 (PDT)
+Date: Tue, 27 Mar 2018 11:21:17 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 2/2] smp: introduce kick_active_cpus_sync()
+Message-ID: <20180327102116.GA2464@arm.com>
+References: <20180325175004.28162-1-ynorov@caviumnetworks.com>
+ <20180325175004.28162-3-ynorov@caviumnetworks.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <09663190-12dd-4353-668d-f4fc2f27c2d7@virtuozzo.com>
+In-Reply-To: <20180325175004.28162-3-ynorov@caviumnetworks.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
+To: Yury Norov <ynorov@caviumnetworks.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Chris Metcalf <cmetcalf@mellanox.com>, Christopher Lameter <cl@linux.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, Mark Rutland <mark.rutland@arm.com>, Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Catalin Marinas <catalin.marinas@arm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 26, 2018 at 06:29:05PM +0300, Kirill Tkhai wrote:
-> >> @@ -182,6 +187,9 @@ struct mem_cgroup {
-> >>  	unsigned long low;
-> >>  	unsigned long high;
-> >>  
-> >> +	/* Bitmap of shrinker ids suitable to call for this memcg */
-> >> +	struct shrinkers_map __rcu *shrinkers_map;
-> >> +
-> > 
-> > We keep all per-node data in mem_cgroup_per_node struct. I think this
-> > bitmap should be defined there as well.
+On Sun, Mar 25, 2018 at 08:50:04PM +0300, Yury Norov wrote:
+> kick_all_cpus_sync() forces all CPUs to sync caches by sending broadcast IPI.
+> If CPU is in extended quiescent state (idle task or nohz_full userspace), this
+> work may be done at the exit of this state. Delaying synchronization helps to
+> save power if CPU is in idle state and decrease latency for real-time tasks.
 > 
-> But them we'll have to have struct rcu_head for every node to free the map
-> via rcu. This is the only reason I did that. But if you think it's not a problem,
-> I'll agree with you.
-
-I think it's OK. It'd be consistent with how list_lru handles
-list_lru_memcg reallocations.
-
-> >> @@ -4487,6 +4490,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
-> >>  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-> >>  	struct mem_cgroup_event *event, *tmp;
-> >>  
-> >> +	free_shrinker_maps(memcg);
-> >> +
-> > 
-> > AFAIU this can race with shrink_slab accessing the map, resulting in
-> > use-after-free. IMO it would be safer to free the bitmap from css_free.
+> This patch introduces kick_active_cpus_sync() and uses it in mm/slab and arm64
+> code to delay syncronization.
 > 
-> But doesn't shrink_slab() iterate only online memcg?
-
-Well, yes, shrink_slab() bails out if the memcg is offline, but I
-suspect there might be a race condition between shrink_slab and
-css_offline when shrink_slab calls shrinkers for an offline cgroup.
-
+> For task isolation (https://lkml.org/lkml/2017/11/3/589), IPI to the CPU running
+> isolated task would be fatal, as it breaks isolation. The approach with delaying
+> of synchronization work helps to maintain isolated state.
 > 
-> >>  	/*
-> >>  	 * Unregister events and notify userspace.
-> >>  	 * Notify userspace about cgroup removing only after rmdir of cgroup
-> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> index 97ce4f342fab..9d1df5d90eca 100644
-> >> --- a/mm/vmscan.c
-> >> +++ b/mm/vmscan.c
-> >> @@ -165,6 +165,10 @@ static DECLARE_RWSEM(bitmap_rwsem);
-> >>  static int bitmap_id_start;
-> >>  static int bitmap_nr_ids;
-> >>  static struct shrinker **mcg_shrinkers;
-> >> +struct shrinkers_map *__rcu root_shrinkers_map;
-> > 
-> > Why do you need root_shrinkers_map? AFAIR the root memory cgroup doesn't
-> > have kernel memory accounting enabled.
-> But we can charge the corresponding lru and iterate it over global reclaim,
-> don't we?
-
-Yes, I guess you're right. But do we need to care about it? Would it be
-OK if we iterated over all shrinkers for the root cgroup? Dunno...
-
-Anyway, please try to handle the root cgroup consistently with other
-cgroups. I mean, nothing like this root_shrinkers_map should exist.
-It should be either a part of root_mem_cgroup or we should iterate over
-all shrinkers for the root cgroup.
-
+> I've tested it with test from task isolation series on ThunderX2 for more than
+> 10 hours (10k giga-ticks) without breaking isolation.
 > 
-> struct list_lru_node {
-> 	...
->         /* global list, used for the root cgroup in cgroup aware lrus */
->         struct list_lru_one     lru;
-> 	...
-> };
+> Signed-off-by: Yury Norov <ynorov@caviumnetworks.com>
+> ---
+>  arch/arm64/kernel/insn.c |  2 +-
+>  include/linux/smp.h      |  2 ++
+>  kernel/smp.c             | 24 ++++++++++++++++++++++++
+>  mm/slab.c                |  2 +-
+>  4 files changed, 28 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/arm64/kernel/insn.c b/arch/arm64/kernel/insn.c
+> index 2718a77da165..9d7c492e920e 100644
+> --- a/arch/arm64/kernel/insn.c
+> +++ b/arch/arm64/kernel/insn.c
+> @@ -291,7 +291,7 @@ int __kprobes aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt)
+>  			 * synchronization.
+>  			 */
+>  			ret = aarch64_insn_patch_text_nosync(addrs[0], insns[0]);
+> -			kick_all_cpus_sync();
+> +			kick_active_cpus_sync();
+>  			return ret;
+>  		}
+>  	}
+
+I think this means that runtime modifications to the kernel text might not
+be picked up by CPUs coming out of idle. Shouldn't we add an ISB on that
+path to avoid executing stale instructions?
+
+Will
