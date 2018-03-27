@@ -1,95 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D207F6B0012
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 15:24:18 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id z83so168042wmc.2
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 12:24:18 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.20])
-        by mx.google.com with ESMTPS id d37si1509796wma.151.2018.03.27.12.24.16
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B8B76B0012
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 15:38:23 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id k13-v6so35235oib.4
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 12:38:23 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 186-v6sor770977oie.46.2018.03.27.12.38.21
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 27 Mar 2018 12:38:21 -0700 (PDT)
+Received: from ?IPv6:2601:602:9802:a8dc:4eb2:6dae:ab32:e5b0? ([2601:602:9802:a8dc:4eb2:6dae:ab32:e5b0])
+        by smtp.gmail.com with ESMTPSA id n96-v6sm1014560otn.80.2018.03.27.12.38.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Mar 2018 12:24:17 -0700 (PDT)
-Date: Tue, 27 Mar 2018 21:24:10 +0200
-From: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>
-Subject: Re: [PATCH 3/5] powerpc/mm/32: Use page_is_ram to check for RAM
-Message-ID: <20180327192410.nvu6s4ekctuuybnn@latitude>
-References: <20180222121516.23415-1-j.neuschaefer@gmx.net>
- <20180222121516.23415-4-j.neuschaefer@gmx.net>
- <874llcha6p.fsf@concordia.ellerman.id.au>
- <87y3iofh2z.fsf@concordia.ellerman.id.au>
+        Tue, 27 Mar 2018 12:38:19 -0700 (PDT)
+From: Laura Abbott <labbott@redhat.com>
+Subject: Free swap negative?
+Message-ID: <4a181da3-8ce4-dc3c-60de-e6ad6f2a296a@redhat.com>
+Date: Tue, 27 Mar 2018 12:38:18 -0700
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="odiormwvl2eyppks"
-Content-Disposition: inline
-In-Reply-To: <87y3iofh2z.fsf@concordia.ellerman.id.au>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Jonathan =?utf-8?Q?Neusch=C3=A4fer?= <j.neuschaefer@gmx.net>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, Joel Stanley <joel@jms.id.au>, Guenter Roeck <linux@roeck-us.net>
-
-
---odiormwvl2eyppks
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+To: Linux-MM <linux-mm@kvack.org>
 
 Hi,
 
-On Mon, Mar 19, 2018 at 10:19:32PM +1100, Michael Ellerman wrote:
-> Michael Ellerman <mpe@ellerman.id.au> writes:
-> > Jonathan Neusch=C3=A4fer <j.neuschaefer@gmx.net> writes:
-[...]
-> >> -	if (slab_is_available() && (p < virt_to_phys(high_memory)) &&
-> >> +	if (page_is_ram(__phys_to_pfn(p)) &&
-> >>  	    !(__allow_ioremap_reserved && memblock_is_region_reserved(p, siz=
-e))) {
-> >>  		printk("__ioremap(): phys addr 0x%llx is RAM lr %ps\n",
-> >>  		       (unsigned long long)p, __builtin_return_address(0));
-> >
-> >
-> > This is killing my p5020ds (Freescale e5500) unfortunately:
->=20
-> Duh, I should actually read the patch :)
->=20
-> This is a 32-bit system with 4G of RAM, so not all of RAM is mapped,
-> some of it is highem which is why removing the test against high_memory
-> above breaks it.
->=20
-> So I need the high_memory test on this system.
+Fedora got a bug report of an OOM which listed a negative number of swap
+pages on 4.16-rc4
 
-This is an oversight on my part. I thought I wouldn't need this test
-because the memblock-based test is more accurate, but I didn't think
-through how high memory actually works.
+[ 2201.781891] localhost-live kernel: Free swap  = -245804kB
+[ 2201.781892] localhost-live kernel: Total swap = 0kB
+[ 2201.781894] localhost-live kernel: 458615 pages RAM
 
-> I'm not clear why it was a problem for you on the Wii, do you even build
-> the Wii kernel with HIGHMEM enabled?
+The setup itself was unusual, virt with 1792M RAM + 2G swap.
+This apparently used to work but the test case was installation
+media which is a bit painful to bisect. Full oom output is below:
 
-No. The Wii works fine with the p < virt_to_phys(high_memory) test, and
-doesn't use CONFIG_HIGHMEM.  I'll send a version two of this patchset.
+  anaconda invoked oom-killer: gfp_mask=0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null), order=0, oom_score_adj=0
+  anaconda cpuset=/ mems_allowed=0
+  CPU: 1 PID: 4928 Comm: anaconda Not tainted 4.16.0-0.rc4.git0.1.fc28.x86_64 #1
+  Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-2.fc27 04/01/2014
+  Call Trace:
+   dump_stack+0x5c/0x85
+   dump_header+0x6e/0x275
+   oom_kill_process.cold.28+0xb/0x3c9
+   oom_badness+0xe1/0x160
+   ? out_of_memory+0x1ca/0x4c0
+   ? __alloc_pages_slowpath+0xca5/0xd80
+   ? __alloc_pages_nodemask+0x28e/0x2b0
+   ? alloc_pages_vma+0x74/0x1e0
+   ? __read_swap_cache_async+0x14c/0x220
+   ? read_swap_cache_async+0x28/0x60
+   ? try_to_unuse+0x135/0x760
+   ? swapcache_free_entries+0x11d/0x180
+   ? drain_slots_cache_cpu.constprop.1+0x8a/0xd0
+   ? SyS_swapoff+0x1d6/0x6b0
+   ? do_syscall_64+0x74/0x180
+   ? entry_SYSCALL_64_after_hwframe+0x3d/0xa2
+  Mem-Info:
+  active_anon:98024 inactive_anon:167006 isolated_anon:0
+             active_file:138 inactive_file:226 isolated_file:0
+             unevictable:118208 dirty:0 writeback:0 unstable:0
+             slab_reclaimable:7506 slab_unreclaimable:18839
+             mapped:1889 shmem:2744 pagetables:10605 bounce:0
+             free:12856 free_pcp:235 free_cma:0
+  Node 0 active_anon:392096kB inactive_anon:668024kB active_file:552kB inactive_file:904kB unevictable:472832kB isolated(anon):0kB isolated(file):0kB mapped:7556kB dirty:0kB writeback:0kB shmem:10976kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 0kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
+  Node 0 DMA free:7088kB min:412kB low:512kB high:612kB active_anon:2428kB inactive_anon:3120kB active_file:0kB inactive_file:0kB unevictable:2428kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB kernel_stack:0kB pagetables:40kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+  lowmem_reserve[]: 0 1670 1670 1670 1670
+  Node 0 DMA32 free:44336kB min:44640kB low:55800kB high:66960kB active_anon:389668kB inactive_anon:664904kB active_file:552kB inactive_file:984kB unevictable:470404kB writepending:0kB present:1818468kB managed:1766292kB mlocked:16kB kernel_stack:7840kB pagetables:42380kB bounce:0kB free_pcp:940kB local_pcp:736kB free_cma:0kB
+  lowmem_reserve[]: 0 0 0 0 0
+  Node 0 DMA: 6*4kB (UME) 19*8kB (UME) 12*16kB (UE) 4*32kB (UE) 29*64kB (ME) 11*128kB (UME) 3*256kB (ME) 3*512kB (UME) 1*1024kB (M) 0*2048kB 0*4096kB = 7088kB
+  Node 0 DMA32: 986*4kB (UMEH) 815*8kB (UMEH) 359*16kB (UMEH) 113*32kB (UMEH) 229*64kB (UMEH) 51*128kB (UMEH) 7*256kB (UMEH) 3*512kB (ME) 0*1024kB 0*2048kB 0*4096kB = 44336kB
+  Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+  122508 total pagecache pages
+  1176 pages in swap cache
+  Swap cache stats: add 222119, delete 220943, find 18522/25378
+  Free swap  = -245804kB
+  Total swap = 0kB
+  458615 pages RAM
+  0 pages HighMem/MovableOnly
+  13065 pages reserved
+  0 pages cma reserved
+  0 pages hwpoisoned
 
+Any suggestions?
 
-Thanks for testing,
-Jonathan Neusch=C3=A4fer
-
---odiormwvl2eyppks
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAABAgAGBQJauppRAAoJEAgwRJqO81/b5NYP/jkaQNZCNCajFmaHnqWkrQvb
-AxOfaAW6X8ovEeTBfDzuw95k9IggHnK8I5q0+BBiAaW+Sr3DSfvVAU7s7yskIyw9
-+VoblsmJblgCRbE7O5Z+gn7eDJwEtZsssBbq1jo2SVfoo+h/mKyt+sHfdNFGHf80
-nZy4O66uL43VHqc7F5ZLXfPe2hhjepnfCMu3vZhaIM7jeAKxL1yUyvD8j/iKVFm7
-7MnyksFbUemVpM+R/Vs52Cn8Pg1bipNX2cqqc7ewEdl0cELz+TU+k66Rd7JXVTCt
-9o9xTSIC67BSks6JvwTuHX3Z76cWFY85vKZ7WKlt+Z1idIdZZH2kVEZ+C0efegit
-DXX0hcxWJKx2XUp4O0NeFk9IDF6bJ0LwQ7J7waf1TGeASFobgABx+hUK7mvtfifg
-OmrN2/59KVswGWxA7vkIx/HK8aWlA2YPposb99LIlHS7N4aQjCTHaSm9nyO+vQvN
-ROJQ3vthGSWeE+v83CXgtLLpu5sLN10IZNCavlVLNhiMRg4GkkfsMu34J7l+bEn3
-dvYAuY9fppNe7B/+0zNeaoZpJAko3zly851wqHx//l+glUbBOPTyCOJmc3LC9Git
-INjN1o0BHOK9AB717V/bP+5R9la7AaYxM012vs9VfB+Aa2UUsgyHweHb/4TDK0c2
-ewozCrRV9FEJ4WXWzIcB
-=e+pw
------END PGP SIGNATURE-----
-
---odiormwvl2eyppks--
+Thanks,
+Laura
