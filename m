@@ -1,54 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B52CF6B000D
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 16:24:00 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id m6-v6so95230pln.8
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 13:24:00 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C5B7F6B000A
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 17:18:21 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id z5-v6so169191plo.21
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 14:18:21 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e39-v6sor873786plg.124.2018.03.27.13.23.59
+        by mx.google.com with SMTPS id e14sor644996pgt.350.2018.03.27.14.18.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 27 Mar 2018 13:23:59 -0700 (PDT)
-Date: Tue, 27 Mar 2018 13:23:57 -0700 (PDT)
+        Tue, 27 Mar 2018 14:18:20 -0700 (PDT)
+Date: Tue, 27 Mar 2018 14:18:17 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] lockdep: Show address of "struct lockdep_map" at
- print_lock().
-In-Reply-To: <201803271941.GBE57310.tVSOJLQOFFOHFM@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.20.1803271323130.5082@chino.kir.corp.google.com>
-References: <1522059513-5461-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <20180326160549.GL4043@hirez.programming.kicks-ass.net> <201803270558.HCA41032.tVFJOFOMOFLHSQ@I-love.SAKURA.ne.jp> <201803271941.GBE57310.tVSOJLQOFFOHFM@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH v9 06/24] mm: make pte_unmap_same compatible with SPF
+In-Reply-To: <1520963994-28477-7-git-send-email-ldufour@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.20.1803271417510.31115@chino.kir.corp.google.com>
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-7-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: peterz@infradead.org, mhocko@suse.com, mingo@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bp@suse.de, tglx@linutronix.de
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Tue, 27 Mar 2018, Tetsuo Handa wrote:
+On Tue, 13 Mar 2018, Laurent Dufour wrote:
 
-> Since "struct lockdep_map" is embedded into lock objects, we can know
-> which instance of a lock object is acquired using hlock->instance field.
-> This will help finding which threads are causing a lock contention.
-> 
-> Currently, print_lock() is printing hlock->acquire_ip field in both
-> "[<%px>]" and "%pS" format. But "[<%px>]" is little useful nowadays, for
-> we use scripts/faddr2line which receives "%pS" for finding the location
-> in the source code. And I want to reduce amount of output, for
-> debug_show_all_locks() might print a lot.
-> 
-> Therefore, this patch replaces "[<%px>]" for printing hlock->acquire_ip
-> field with "%p" for printing hlock->instance field.
-> 
-> [  251.305475] 3 locks held by a.out/31106:
-> [  251.308949]  #0: 00000000b0f753ba (&mm->mmap_sem){++++}, at: copy_process.part.41+0x10d5/0x1fe0
-> [  251.314283]  #1: 00000000ef64d539 (&mm->mmap_sem/1){+.+.}, at: copy_process.part.41+0x10fe/0x1fe0
-> [  251.319618]  #2: 00000000b41a282e (&mapping->i_mmap_rwsem){++++}, at: copy_process.part.41+0x12f2/0x1fe0
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Borislav Petkov <bp@suse.de>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Michal Hocko <mhocko@suse.com>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 2f3e98edc94a..b6432a261e63 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1199,6 +1199,7 @@ static inline void clear_page_pfmemalloc(struct page *page)
+>  #define VM_FAULT_NEEDDSYNC  0x2000	/* ->fault did not modify page tables
+>  					 * and needs fsync() to complete (for
+>  					 * synchronous page faults in DAX) */
+> +#define VM_FAULT_PTNOTSAME 0x4000	/* Page table entries have changed */
+>  
+>  #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
+>  			 VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 21b1212a0892..4bc7b0bdcb40 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2309,21 +2309,29 @@ static bool pte_map_lock(struct vm_fault *vmf)
+>   * parts, do_swap_page must check under lock before unmapping the pte and
+>   * proceeding (but do_wp_page is only called after already making such a check;
+>   * and do_anonymous_page can safely check later on).
+> + *
+> + * pte_unmap_same() returns:
+> + *	0			if the PTE are the same
+> + *	VM_FAULT_PTNOTSAME	if the PTE are different
+> + *	VM_FAULT_RETRY		if the VMA has changed in our back during
+> + *				a speculative page fault handling.
+>   */
+> -static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
+> -				pte_t *page_table, pte_t orig_pte)
+> +static inline int pte_unmap_same(struct vm_fault *vmf)
+>  {
+> -	int same = 1;
+> +	int ret = 0;
+> +
+>  #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
+>  	if (sizeof(pte_t) > sizeof(unsigned long)) {
+> -		spinlock_t *ptl = pte_lockptr(mm, pmd);
+> -		spin_lock(ptl);
+> -		same = pte_same(*page_table, orig_pte);
+> -		spin_unlock(ptl);
+> +		if (pte_spinlock(vmf)) {
+> +			if (!pte_same(*vmf->pte, vmf->orig_pte))
+> +				ret = VM_FAULT_PTNOTSAME;
+> +			spin_unlock(vmf->ptl);
+> +		} else
+> +			ret = VM_FAULT_RETRY;
+>  	}
+>  #endif
+> -	pte_unmap(page_table);
+> -	return same;
+> +	pte_unmap(vmf->pte);
+> +	return ret;
+>  }
+>  
+>  static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
+> @@ -2913,7 +2921,8 @@ int do_swap_page(struct vm_fault *vmf)
+>  	int exclusive = 0;
+>  	int ret = 0;
+
+Initialization is now unneeded.
+
+Otherwise:
 
 Acked-by: David Rientjes <rientjes@google.com>
