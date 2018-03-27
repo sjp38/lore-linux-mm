@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 176CD6B0026
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 09:52:21 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id o4so10102681ywc.16
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 06:52:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n130-v6sor168635yba.72.2018.03.27.06.52.20
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ED5F76B0011
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 10:21:53 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 1-v6so15494203plv.6
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 07:21:53 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id m137si946384pga.382.2018.03.27.07.21.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Mar 2018 06:52:20 -0700 (PDT)
-Date: Tue, 27 Mar 2018 06:52:17 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCHSET] mm, memcontrol: Implement memory.swap.events
-Message-ID: <20180327135217.GI1840639@devbig577.frc2.facebook.com>
-References: <20180324165127.701194-1-tj@kernel.org>
- <20180326143931.41a15320fd4d4af26c86d42e@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 27 Mar 2018 07:21:52 -0700 (PDT)
+Date: Tue, 27 Mar 2018 07:21:50 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 1/3] fs: Perform writebacks under memalloc_nofs
+Message-ID: <20180327142150.GA13604@bombadil.infradead.org>
+References: <20180321224429.15860-1-rgoldwyn@suse.de>
+ <20180321224429.15860-2-rgoldwyn@suse.de>
+ <20180322070808.GU23100@dhcp22.suse.cz>
+ <d44ff1ea-e618-4cf6-b9b5-3e8fc7f03c14@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180326143931.41a15320fd4d4af26c86d42e@linux-foundation.org>
+In-Reply-To: <d44ff1ea-e618-4cf6-b9b5-3e8fc7f03c14@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com, guro@fb.com, riel@surriel.com, linux-kernel@vger.kernel.org, kernel-team@fb.com, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Goldwyn Rodrigues <rgoldwyn@suse.de>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, david@fromorbit.com, Goldwyn Rodrigues <rgoldwyn@suse.com>
 
-On Mon, Mar 26, 2018 at 02:39:31PM -0700, Andrew Morton wrote:
-> On Sat, 24 Mar 2018 09:51:25 -0700 Tejun Heo <tj@kernel.org> wrote:
+On Tue, Mar 27, 2018 at 07:52:48AM -0500, Goldwyn Rodrigues wrote:
+> I am not sure if I missed a condition in the code, but here is one of
+> the call lineup:
 > 
-> > This patchset implements memory.swap.events which contains max and
-> > fail events so that userland can monitor and respond to swap running
-> > out.  It contains the following two patches.
-> > 
-> >  0001-mm-memcontrol-Move-swap-charge-handling-into-get_swa.patch
-> >  0002-mm-memcontrol-Implement-memory.swap.events.patch
-> > 
-> > This patchset is on top of the "cgroup/for-4.17: Make cgroup_rstat
-> > available to controllers" patchset[1] and "mm, memcontrol: Make
-> > cgroup_rstat available to controllers" patchset[2] and also available
-> > in the following git branch.
-> > 
-> >  git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-memcg-swap.events
+> writepages() -> writepage() -> kmalloc() -> __alloc_pages() ->
+> __alloc_pages_nodemask -> __alloc_pages_slowpath ->
+> __alloc_pages_direct_reclaim() -> try_to_free_pages() ->
+> do_try_to_free_pages() -> shrink_zones() -> shrink_node() ->
+> shrink_slab() -> do_shrink_slab() -> shrinker.scan_objects() ->
+> super_cache_scan() -> prune_icache_sb() -> fs/inode.c:dispose_list() ->
+> evict(inode) -> evict_inode() for ext4 ->  filemap_write_and_wait() ->
+> filemap_fdatawrite(mapping) -> __filemap_fdatawrite_range() ->
+> do_writepages -> writepages()
 > 
-> This doesn't appear to be in linux-next yet.  It should be by now if it's
-> targeted at 4.17?
+> Please note, most filesystems currently have a safeguard in writepage()
+> which will return if the PF_MEMALLOC is set. The other safeguard is
+> __GFP_FS which we are trying to eliminate.
 
-You're right.  It's too late for 4.17.  Let's aim for 4.18.
+But is that harmful?  ext4_writepage() (for example) says that it will
+not deadlock in that circumstance:
 
-Thanks.
+ * We can get recursively called as show below.
+ *
+ *      ext4_writepage() -> kmalloc() -> __alloc_pages() -> page_launder() ->
+ *              ext4_writepage()
+ *
+ * But since we don't do any block allocation we should not deadlock.
+ * Page also have the dirty flag cleared so we don't get recurive page_lock.
 
--- 
-tejun
+One might well argue that it's not *useful*; if we've gone into
+writepage already, there's no point in re-entering writepage.  And the
+last thing we want to do is 
+But I could see filesystems behaving differently when entered
+for writepage-for-regularly-scheduled-writeback versus
+writepage-for-shrinking, so maybe they can make progress.
+
+Maybe no real filesystem behaves that way.  We need feedback from
+filesystem people.
