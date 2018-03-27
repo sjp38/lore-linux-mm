@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B3A416B0006
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 18:17:20 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id i16-v6so204390ybk.21
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 15:17:20 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id b125si484925ywf.609.2018.03.27.15.17.19
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F76D6B0008
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 18:47:43 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id n15-v6so302594plp.22
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 15:47:43 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 135si1703486pfc.21.2018.03.27.15.47.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 27 Mar 2018 15:17:19 -0700 (PDT)
-Date: Tue, 27 Mar 2018 18:16:35 -0400
-From: "Theodore Y. Ts'o" <tytso@mit.edu>
-Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
-Message-ID: <20180327221635.GA3790@thunk.org>
-References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
- <20180323124806.GA5624@bombadil.infradead.org>
- <651E0DB6-4507-4DA1-AD46-9C26ED9792A8@gmail.com>
- <20180326084650.GC5652@dhcp22.suse.cz>
- <01A133F4-27DF-4AE2-80D6-B0368BF758CD@gmail.com>
- <20180327072432.GY5652@dhcp22.suse.cz>
- <0549F29C-12FC-4401-9E85-A430BC11DA78@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <0549F29C-12FC-4401-9E85-A430BC11DA78@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Mar 2018 15:47:42 -0700 (PDT)
+Date: Tue, 27 Mar 2018 15:47:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/page_alloc: break on the first hit of mem range
+Message-Id: <20180327154740.9a7713a74a383254b51f4d1a@linux-foundation.org>
+In-Reply-To: <20180327035707.84113-1-richard.weiyang@gmail.com>
+References: <20180327035707.84113-1-richard.weiyang@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ilya Smith <blackzert@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, ralf@linux-mips.org, jejb@parisc-linux.org, Helge Deller <deller@gmx.de>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, Hugh Dickins <hughd@google.com>, kstewart@linuxfoundation.org, pombredanne@nexb.com, Andrew Morton <akpm@linux-foundation.org>, steve.capper@arm.com, punit.agrawal@arm.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, Kees Cook <keescook@chromium.org>, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, ross.zwisler@linux.intel.com, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-alpha@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-snps-arc@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: mhocko@suse.com, tj@kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 27, 2018 at 04:51:08PM +0300, Ilya Smith wrote:
-> > /dev/[u]random is not sufficient?
+On Tue, 27 Mar 2018 11:57:07 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+
+> find_min_pfn_for_node() iterate on pfn range to find the minimum pfn for a
+> node. The memblock_region in memblock_type are already ordered, which means
+> the first hit in iteration is the minimum pfn.
 > 
-> Using /dev/[u]random makes 3 syscalls - open, read, close. This is a performance
-> issue.
-
-You may want to take a look at the getrandom(2) system call, which is
-the recommended way getting secure random numbers from the kernel.
-
-> > Well, I am pretty sure userspace can implement proper free ranges
-> > trackinga?|
+> This patch returns the fist hit instead of iterating the whole regions.
 > 
-> I think we need to know what libc developers will say on implementing ASLR in 
-> user-mode. I am pretty sure they will say a??nethera?? or a??some-daya??. And problem 
-> of ASLR will stay forever.
+> ...
+>
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6365,14 +6365,14 @@ unsigned long __init node_map_pfn_alignment(void)
+>  /* Find the lowest pfn for a node */
+>  static unsigned long __init find_min_pfn_for_node(int nid)
+>  {
+> -	unsigned long min_pfn = ULONG_MAX;
+> -	unsigned long start_pfn;
+> +	unsigned long min_pfn;
+>  	int i;
+>  
+> -	for_each_mem_pfn_range(i, nid, &start_pfn, NULL, NULL)
+> -		min_pfn = min(min_pfn, start_pfn);
+> +	for_each_mem_pfn_range(i, nid, &min_pfn, NULL, NULL) {
+> +		break;
+> +	}
 
-Why can't you send patches to the libc developers?
+That would be the weirdest-looking code snippet in mm/!
 
-Regards,
+Can't we just use a single and simple call to __next_mem_pfn_range(),
+or something like that?
 
-						- Ted
+>
+> ...
+>
