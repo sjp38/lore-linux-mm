@@ -1,62 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 734576B0012
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 13:26:06 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id v8so1112351wmv.1
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 10:26:06 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id 93si1300886wra.239.2018.03.27.10.26.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Mar 2018 10:26:04 -0700 (PDT)
-Date: Tue, 27 Mar 2018 19:25:10 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's
- add/remove and notify code
-Message-ID: <20180327172510.GB32184@pd.tnic>
-References: <20180215185606.26736-1-james.morse@arm.com>
- <20180215185606.26736-3-james.morse@arm.com>
- <20180301150144.GA4215@pd.tnic>
- <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com>
- <20180301223529.GA28811@pd.tnic>
- <5AA02C26.10803@arm.com>
- <20180308104408.GB21166@pd.tnic>
- <5AAFC939.3010309@arm.com>
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 60A5F6B0012
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 13:49:32 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id g36-v6so14175691ote.14
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 10:49:32 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 15-v6si461010ois.553.2018.03.27.10.49.30
+        for <linux-mm@kvack.org>;
+        Tue, 27 Mar 2018 10:49:31 -0700 (PDT)
+Date: Tue, 27 Mar 2018 18:49:27 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] mm: kmemleak: wait for scan completion before disabling
+ free
+Message-ID: <20180327174927.o5lhb7yyl4gjkkxl@armageddon.cambridge.arm.com>
+References: <1522063429-18992-1-git-send-email-vinmenon@codeaurora.org>
+ <20180326154421.obk7ikx3h5ko62o5@armageddon.cambridge.arm.com>
+ <20180326122611.acbfe1bfe6f7c1792b42a3a7@linux-foundation.org>
+ <b3fa4377-edf8-10c4-c40a-45bb53096145@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <5AAFC939.3010309@arm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <b3fa4377-edf8-10c4-c40a-45bb53096145@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Hi James,
+On Tue, Mar 27, 2018 at 10:59:31AM +0530, Vinayak Menon wrote:
+> On 3/27/2018 12:56 AM, Andrew Morton wrote:
+> > On Mon, 26 Mar 2018 16:44:21 +0100 Catalin Marinas <catalin.marinas@arm.com> wrote:
+> >> On Mon, Mar 26, 2018 at 04:53:49PM +0530, Vinayak Menon wrote:
+> >>> A crash is observed when kmemleak_scan accesses the
+> >>> object->pointer, likely due to the following race.
+> >>>
+> >>> TASK A             TASK B                     TASK C
+> >>> kmemleak_write
+> >>>  (with "scan" and
+> >>>  NOT "scan=on")
+> >>> kmemleak_scan()
+> >>>                    create_object
+> >>>                    kmem_cache_alloc fails
+> >>>                    kmemleak_disable
+> >>>                    kmemleak_do_cleanup
+> >>>                    kmemleak_free_enabled = 0
+> >>>                                               kfree
+> >>>                                               kmemleak_free bails out
+> >>>                                                (kmemleak_free_enabled is 0)
+> >>>                                               slub frees object->pointer
+> >>> update_checksum
+> >>> crash - object->pointer
+> >>>  freed (DEBUG_PAGEALLOC)
+> >>>
+> >>> kmemleak_do_cleanup waits for the scan thread to complete, but not for
+> >>> direct call to kmemleak_scan via kmemleak_write. So add a wait for
+> >>> kmemleak_scan completion before disabling kmemleak_free.
+> >>>
+> >>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+> >> It looks fine to me. Maybe Andrew can pick it up.
+> >>
+> >> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+> > Well, the comment says:
+> >
+> > /*
+> >  * Stop the automatic memory scanning thread. This function must be called
+> >  * with the scan_mutex held.
+> >  */
+> > static void stop_scan_thread(void)
+> >
+> >
+> > So shouldn't we do it this way?
+> 
+> Earlier it was done the way you mentioned. But that was changed to fix
+> a deadlock by
+> 
+> commit 5f369f374ba4889fe3c17883402db5ee8d254216
+> Author: Catalin Marinas <catalin.marinas@arm.com>
+> Date:   Wed Jun 24 16:58:31 2015 -0700
+> 
+>     mm: kmemleak: do not acquire scan_mutex in kmemleak_do_cleanup()
+> 
+> Not able to see a reason why stop_scan_thread must be called with
+> scan_mutex held. The comment needs a fix ?
 
-On Mon, Mar 19, 2018 at 02:29:13PM +0000, James Morse wrote:
-> I don't think the die_lock really helps here, do we really want to wait for a
-> remote CPU to finish printing an OOPs about user-space's bad memory accesses,
-> before we bring the machine down due to this system-wide fatal RAS error? The
-> presence of firmware-first means we know this error, and any other oops are
-> unrelated.
+Indeed, the comment needs fixing as waiting on the mutex here may lead
+deadlock. Would you mind sending an updated patch? Feel free to keep my
+reviewed-by tag.
 
-Hmm, now that you put it this way...
-
-> I'd like to leave this under the x86-ifdef for now. For arm64 it would be an
-> APEI specific arch hook to stop the arch code from printing some messages,
-
-... I'm thinking we should ignore the whole serializing of oopses and
-really dump that hw error ASAP. If it really is a fatal error, our main
-and only goal is to get it out as fast as possible so that it has the
-highest chance to appear on some screen or logging facility and thus the
-system can be serviced successfully.
-
-And the other oopses have lower prio.
-
-Hmmm?
+Thanks.
 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Catalin
