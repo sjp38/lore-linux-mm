@@ -1,108 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D7276B0009
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 20:29:06 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id c42-v6so10000143itf.2
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 17:29:06 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id q63si12327099ioi.240.2018.03.26.17.29.04
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F31026B0009
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 21:02:22 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id bi1-v6so5804596plb.11
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 18:02:22 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v8sor17515pff.38.2018.03.26.18.02.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 17:29:04 -0700 (PDT)
-Date: Mon, 26 Mar 2018 17:28:41 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH v9 05/61] Export __set_page_dirty
-Message-ID: <20180327002841.GI4807@magnolia>
-References: <20180313132639.17387-1-willy@infradead.org>
- <20180313132639.17387-6-willy@infradead.org>
+        (Google Transport Security);
+        Mon, 26 Mar 2018 18:02:21 -0700 (PDT)
+Date: Tue, 27 Mar 2018 09:02:13 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH v3 0/5] optimize memblock_next_valid_pfn and
+ early_pfn_valid
+Message-ID: <20180327010213.GA80447@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <1522033340-6575-1-git-send-email-hejianet@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180313132639.17387-6-willy@infradead.org>
+In-Reply-To: <1522033340-6575-1-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org
+To: Jia He <hejianet@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>
 
-On Tue, Mar 13, 2018 at 06:25:43AM -0700, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
-> 
-> XFS currently contains a copy-and-paste of __set_page_dirty().  Export
-> it from buffer.c instead.
-> 
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> Acked-by: Jeff Layton <jlayton@kernel.org>
+On Sun, Mar 25, 2018 at 08:02:14PM -0700, Jia He wrote:
+>Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+>where possible") tried to optimize the loop in memmap_init_zone(). But
+>there is still some room for improvement.
+>
+>Patch 1 remain the memblock_next_valid_pfn when CONFIG_HAVE_ARCH_PFN_VALID
+>        is enabled
+>Patch 2 optimizes the memblock_next_valid_pfn()
+>Patch 3~5 optimizes the early_pfn_valid(), I have to split it into parts
+>        because the changes are located across subsystems.
+>
+>I tested the pfn loop process in memmap_init(), the same as before.
+>As for the performance improvement, after this set, I can see the time
+>overhead of memmap_init() is reduced from 41313 us to 24345 us in my
+>armv8a server(QDF2400 with 96G memory).
+>
+>Attached the memblock region information in my server.
+>[   86.956758] Zone ranges:
+>[   86.959452]   DMA      [mem 0x0000000000200000-0x00000000ffffffff]
+>[   86.966041]   Normal   [mem 0x0000000100000000-0x00000017ffffffff]
+>[   86.972631] Movable zone start for each node
+>[   86.977179] Early memory node ranges
+>[   86.980985]   node   0: [mem 0x0000000000200000-0x000000000021ffff]
+>[   86.987666]   node   0: [mem 0x0000000000820000-0x000000000307ffff]
+>[   86.994348]   node   0: [mem 0x0000000003080000-0x000000000308ffff]
+>[   87.001029]   node   0: [mem 0x0000000003090000-0x00000000031fffff]
+>[   87.007710]   node   0: [mem 0x0000000003200000-0x00000000033fffff]
+>[   87.014392]   node   0: [mem 0x0000000003410000-0x000000000563ffff]
+>[   87.021073]   node   0: [mem 0x0000000005640000-0x000000000567ffff]
+>[   87.027754]   node   0: [mem 0x0000000005680000-0x00000000056dffff]
+>[   87.034435]   node   0: [mem 0x00000000056e0000-0x00000000086fffff]
+>[   87.041117]   node   0: [mem 0x0000000008700000-0x000000000871ffff]
+>[   87.047798]   node   0: [mem 0x0000000008720000-0x000000000894ffff]
+>[   87.054479]   node   0: [mem 0x0000000008950000-0x0000000008baffff]
+>[   87.061161]   node   0: [mem 0x0000000008bb0000-0x0000000008bcffff]
+>[   87.067842]   node   0: [mem 0x0000000008bd0000-0x0000000008c4ffff]
+>[   87.074524]   node   0: [mem 0x0000000008c50000-0x0000000008e2ffff]
+>[   87.081205]   node   0: [mem 0x0000000008e30000-0x0000000008e4ffff]
+>[   87.087886]   node   0: [mem 0x0000000008e50000-0x0000000008fcffff]
+>[   87.094568]   node   0: [mem 0x0000000008fd0000-0x000000000910ffff]
+>[   87.101249]   node   0: [mem 0x0000000009110000-0x00000000092effff]
+>[   87.107930]   node   0: [mem 0x00000000092f0000-0x000000000930ffff]
+>[   87.114612]   node   0: [mem 0x0000000009310000-0x000000000963ffff]
+>[   87.121293]   node   0: [mem 0x0000000009640000-0x000000000e61ffff]
+>[   87.127975]   node   0: [mem 0x000000000e620000-0x000000000e64ffff]
+>[   87.134657]   node   0: [mem 0x000000000e650000-0x000000000fffffff]
+>[   87.141338]   node   0: [mem 0x0000000010800000-0x0000000017feffff]
+>[   87.148019]   node   0: [mem 0x000000001c000000-0x000000001c00ffff]
+>[   87.154701]   node   0: [mem 0x000000001c010000-0x000000001c7fffff]
+>[   87.161383]   node   0: [mem 0x000000001c810000-0x000000007efbffff]
+>[   87.168064]   node   0: [mem 0x000000007efc0000-0x000000007efdffff]
+>[   87.174746]   node   0: [mem 0x000000007efe0000-0x000000007efeffff]
+>[   87.181427]   node   0: [mem 0x000000007eff0000-0x000000007effffff]
+>[   87.188108]   node   0: [mem 0x000000007f000000-0x00000017ffffffff]
 
-Looks ok,
-Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
+Hi, Jia
 
---D
+I haven't taken a deep look into your code, just one curious question on your
+memory layout.
 
-> ---
->  fs/buffer.c        |  3 ++-
->  fs/xfs/xfs_aops.c  | 15 ++-------------
->  include/linux/mm.h |  1 +
->  3 files changed, 5 insertions(+), 14 deletions(-)
-> 
-> diff --git a/fs/buffer.c b/fs/buffer.c
-> index 17f13191a552..62bf5445c921 100644
-> --- a/fs/buffer.c
-> +++ b/fs/buffer.c
-> @@ -594,7 +594,7 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
->   *
->   * The caller must hold lock_page_memcg().
->   */
-> -static void __set_page_dirty(struct page *page, struct address_space *mapping,
-> +void __set_page_dirty(struct page *page, struct address_space *mapping,
->  			     int warn)
->  {
->  	unsigned long flags;
-> @@ -608,6 +608,7 @@ static void __set_page_dirty(struct page *page, struct address_space *mapping,
->  	}
->  	spin_unlock_irqrestore(&mapping->tree_lock, flags);
->  }
-> +EXPORT_SYMBOL_GPL(__set_page_dirty);
->  
->  /*
->   * Add a page to the dirty page list.
-> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> index a0afb6411417..f51350cb98a7 100644
-> --- a/fs/xfs/xfs_aops.c
-> +++ b/fs/xfs/xfs_aops.c
-> @@ -1473,19 +1473,8 @@ xfs_vm_set_page_dirty(
->  	newly_dirty = !TestSetPageDirty(page);
->  	spin_unlock(&mapping->private_lock);
->  
-> -	if (newly_dirty) {
-> -		/* sigh - __set_page_dirty() is static, so copy it here, too */
-> -		unsigned long flags;
-> -
-> -		spin_lock_irqsave(&mapping->tree_lock, flags);
-> -		if (page->mapping) {	/* Race with truncate? */
-> -			WARN_ON_ONCE(!PageUptodate(page));
-> -			account_page_dirtied(page, mapping);
-> -			radix_tree_tag_set(&mapping->page_tree,
-> -					page_index(page), PAGECACHE_TAG_DIRTY);
-> -		}
-> -		spin_unlock_irqrestore(&mapping->tree_lock, flags);
-> -	}
-> +	if (newly_dirty)
-> +		__set_page_dirty(page, mapping, 1);
->  	unlock_page_memcg(page);
->  	if (newly_dirty)
->  		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 4d02524a7998..7f7bb4c28497 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1456,6 +1456,7 @@ extern int try_to_release_page(struct page * page, gfp_t gfp_mask);
->  extern void do_invalidatepage(struct page *page, unsigned int offset,
->  			      unsigned int length);
->  
-> +void __set_page_dirty(struct page *, struct address_space *, int warn);
->  int __set_page_dirty_nobuffers(struct page *page);
->  int __set_page_dirty_no_writeback(struct page *page);
->  int redirty_page_for_writepage(struct writeback_control *wbc,
-> -- 
-> 2.16.1
-> 
+The log above is printed out in free_area_init_nodes(), which iterates on
+memblock.memory and prints them. If I am not wrong, memory regions added to
+memblock.memory are ordered and merged if possible.
+
+While from your log, I see many regions could be merged but are isolated. For
+example, the last two region:
+
+  node   0: [mem 0x000000007eff0000-0x000000007effffff]
+  node   0: [mem 0x000000007f000000-0x00000017ffffffff]
+
+So I am curious why they are isolated instead of combined to one.
+
+>From the code, the possible reason is the region's flag differs from each
+other. If you have time, would you mind taking a look into this?
+
+-- 
+Wei Yang
+Help you, Help me
