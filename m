@@ -1,96 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A14226B0012
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 16:02:29 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id w10so42382wrg.15
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 13:02:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a4sor671410wmc.55.2018.03.27.13.02.28
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 486B96B000D
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 16:07:24 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z15so50888wrh.10
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 13:07:24 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v63sor755370wma.21.2018.03.27.13.07.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 27 Mar 2018 13:02:28 -0700 (PDT)
-Date: Tue, 27 Mar 2018 22:02:23 +0200
+        Tue, 27 Mar 2018 13:07:22 -0700 (PDT)
+Date: Tue, 27 Mar 2018 22:07:19 +0200
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC PATCH v2 03/15] khwasan: add CONFIG_KASAN_CLASSIC and
- CONFIG_KASAN_TAGS
-Message-ID: <20180327200223.5ku2eqkppi7z3sd2@gmail.com>
-References: <cover.1521828273.git.andreyknvl@google.com>
- <1fb0a050a84d49f5c3b2210337339412475d1688.1521828273.git.andreyknvl@google.com>
- <20180324084332.u6qik7lkdbenqbb2@gmail.com>
- <CAAeHK+za1Zg2+1_CFrQbdn_Hwa9o_nZkHuMLaekV18W380jAoQ@mail.gmail.com>
+Subject: Re: [PATCH 00/11] Use global pages with PTI
+Message-ID: <20180327200719.lvdomez6hszpmo4s@gmail.com>
+References: <20180323174447.55F35636@viggo.jf.intel.com>
+ <CA+55aFwEC1O+6qRc35XwpcuLSgJ+0GP6ciqw_1Oc-msX=efLvQ@mail.gmail.com>
+ <be2e683c-bf0a-e9ce-2f02-4905f6bd56d3@linux.intel.com>
+ <alpine.DEB.2.21.1803271526260.1964@nanos.tec.linutronix.de>
+ <c0e7ca0b-dcb5-66e2-9df6-f53e4eb22781@linux.intel.com>
+ <alpine.DEB.2.21.1803271949250.1618@nanos.tec.linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAAeHK+za1Zg2+1_CFrQbdn_Hwa9o_nZkHuMLaekV18W380jAoQ@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.21.1803271949250.1618@nanos.tec.linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Stephen Boyd <stephen.boyd@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?iso-8859-1?Q?J=FCrgen_Gro=DF?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
 
 
-* Andrey Konovalov <andreyknvl@google.com> wrote:
+* Thomas Gleixner <tglx@linutronix.de> wrote:
 
-> On Sat, Mar 24, 2018 at 9:43 AM, Ingo Molnar <mingo@kernel.org> wrote:
-> >
-> > * Andrey Konovalov <andreyknvl@google.com> wrote:
-> >
-> >> This commit splits the current CONFIG_KASAN config option into two:
-> >> 1. CONFIG_KASAN_CLASSIC, that enables the classic KASAN version (the one
-> >>    that exists now);
-> >> 2. CONFIG_KASAN_TAGS, that enables KHWASAN.
-> >
-> > Sorry, but this is pretty obscure naming scheme that doesn't explain the primary
-> > difference between these KASAN models to users: that the first one is a pure
-> > software implementation and the other is hardware-assisted.
-> >
-> > Reminds me of the transparency of galactic buerocracy in "The Hitchhiker's Guide
-> > to the Galaxy":
-> >
-> >   a??But look, you found the notice, didna??t you?a??
-> >   a??Yes,a?? said Arthur, a??yes I did. It was on display in the bottom of a locked filing
-> >    cabinet stuck in a disused lavatory with a sign on the door saying a??Beware of the
-> >    Leopard.a??
-> >
-> > I'd suggest something more expressive, such as:
-> >
-> >         CONFIG_KASAN
-> >           CONFIG_KASAN_GENERIC
-> >           CONFIG_KASAN_HW_ASSIST
-> >
-> > or so?
-> >
-> > The 'generic' variant will basically run on any CPU. The 'hardware assisted' one
-> > needs support from the CPU.
-> >
-> > The following ones might also work:
-> >
-> >    CONFIG_KASAN_HWASSIST
-> >    CONFIG_KASAN_HW_TAGS
-> >    CONFIG_KASAN_HWTAGS
-> >
-> > ... or simply CONFIG_KASAN_SW/CONFIG_KASAN_HW.
-> >
-> > If other types of KASAN hardware acceleration are implemented in the future then
-> > the CONFIG_KASAN_HW namespace can be extended:
-> >
-> >         CONFIG_KASAN_HW_TAGS
-> >         CONFIG_KASAN_HW_KEYS
-> >         etc.
+> > systems.  Atoms are going to be the easiest thing to get my hands on,
+> > but I tend to shy away from them for performance work.
 > 
-> How about these two:
-> 
-> CONFIG_KASAN_GENERIC
-> CONFIG_KASAN_HW
-> 
-> ?
-> 
-> Shorter config name looks better to me and I think it makes sense to
-> name the new config just HW, as there's only one HW implementation
-> right now. When (and if) there are more, we can expand the config name
-> as you suggested (CONFIG_KASAN_HW_TAGS, CONFIG_KASAN_HW_KEYS, etc).
+> What I have in mind is that I wonder whether the whole circus is worth it
+> when there is no performance advantage on PCID systems.
 
-Sure, sounds good to me!
+I'd still love to:
+
+ - To see at minimum stddev numbers, to make sure we are not looking at some weird
+   statistical artifact. (I also outlined a more robust measurement method.)
+
+ - If the numbers are right, a CPU engineer should have a look if possible, 
+   because frankly this effect is not expected and is not intuitive. Where global 
+   pages can be used safely they are almost always an unconditional win.
+   Maybe we are missing some limitation or some interaction with PCID.
+
+Since we'll be using PCID even on Meltdown-fixed hardware, maybe the same negative 
+performance effect already exists on non-PTI kernels as well, we just never 
+noticed?
+
+I.e. there are multiple grounds to get to the bottom of this.
 
 Thanks,
 
