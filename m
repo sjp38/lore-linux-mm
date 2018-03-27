@@ -1,47 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D0796B0010
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 12:07:25 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id r190so490561qkc.21
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 09:07:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id g1si1681456qtc.426.2018.03.27.09.07.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Mar 2018 09:07:24 -0700 (PDT)
-Date: Tue, 27 Mar 2018 19:07:22 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v29 1/4] mm: support reporting free page blocks
-Message-ID: <20180327190635-mutt-send-email-mst@kernel.org>
-References: <1522031994-7246-1-git-send-email-wei.w.wang@intel.com>
- <1522031994-7246-2-git-send-email-wei.w.wang@intel.com>
- <20180326142254.c4129c3a54ade686ee2a5e21@linux-foundation.org>
- <5AB9E377.30900@intel.com>
- <20180327063322.GW5652@dhcp22.suse.cz>
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C2F426B0010
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 12:12:51 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id e196-v6so2261700ybf.3
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 09:12:51 -0700 (PDT)
+Date: Tue, 27 Mar 2018 12:12:45 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 4/8] HMM: Remove superflous RCU protection around radix
+ tree lookup
+Message-ID: <20180327161244.GA4251@redhat.com>
+References: <20180314194205.1651587-1-tj@kernel.org>
+ <20180314194515.1661824-1-tj@kernel.org>
+ <20180314194515.1661824-4-tj@kernel.org>
+ <20180326145431.GC1840639@devbig577.frc2.facebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20180327063322.GW5652@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180326145431.GC1840639@devbig577.frc2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Wang <wei.w.wang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, security@kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, linux-mm@kvack.org, torvalds@linux-foundation.org, jannh@google.com, paulmck@linux.vnet.ibm.com, bcrl@kvack.org, viro@zeniv.linux.org.uk, kent.overstreet@gmail.com
 
-On Tue, Mar 27, 2018 at 08:33:22AM +0200, Michal Hocko wrote:
-> > > > + * The function itself might sleep so it cannot be called from atomic
-> > > > + * contexts.
-> > > I don't see how walk_free_mem_block() can sleep.
-> > 
-> > OK, it would be better to remove this sentence for the current version. But
-> > I think we could probably keep it if we decide to add cond_resched() below.
+On Mon, Mar 26, 2018 at 07:54:31AM -0700, Tejun Heo wrote:
+> Hello, Andrew.
 > 
-> The point of this sentence was to make any user aware that the function
-> might sleep from the very begining rather than chase existing callers
-> when we need to add cond_resched or sleep for any other reason. So I
-> would rather keep it.
+> Do you mind picking up the following patch?  I can't find a good tree
+> to route this through.  The raw patch can be found at
+> 
+>   https://marc.info/?l=linux-mm&m=152105674112496&q=raw
+> 
+> Thank you very much.
 
-Let's say what it is then - "will be changed to sleep in the future".
+I am fine with which ever route there is low probability of conflict
+when merging HMM through different tree.
 
+
+> 
+> On Wed, Mar 14, 2018 at 12:45:11PM -0700, Tejun Heo wrote:
+> > hmm_devmem_find() requires rcu_read_lock_held() but there's nothing
+> > which actually uses the RCU protection.  The only caller is
+> > hmm_devmem_pages_create() which already grabs the mutex and does
+> > superflous rcu_read_lock/unlock() around the function.
+> > 
+> > This doesn't add anything and just adds to confusion.  Remove the RCU
+> > protection and open-code the radix tree lookup.  If this needs to
+> > become more sophisticated in the future, let's add them back when
+> > necessary.
+> > 
+> > Signed-off-by: Tejun Heo <tj@kernel.org>
+> > Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+> > Cc: linux-mm@kvack.org
+> > Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> > ---
+> > Hello,
+> > 
+> > Jerome, how do you want to route this patch?  If you prefer, I can
+> > route it together with other patches.
+> > 
+> > Thanks.
+> > 
+> >  mm/hmm.c | 12 ++----------
+> >  1 file changed, 2 insertions(+), 10 deletions(-)
+> > 
+> > diff --git a/mm/hmm.c b/mm/hmm.c
+> > index 320545b98..d4627c5 100644
+> > --- a/mm/hmm.c
+> > +++ b/mm/hmm.c
+> > @@ -845,13 +845,6 @@ static void hmm_devmem_release(struct device *dev, void *data)
+> >  	hmm_devmem_radix_release(resource);
+> >  }
+> >  
+> > -static struct hmm_devmem *hmm_devmem_find(resource_size_t phys)
+> > -{
+> > -	WARN_ON_ONCE(!rcu_read_lock_held());
+> > -
+> > -	return radix_tree_lookup(&hmm_devmem_radix, phys >> PA_SECTION_SHIFT);
+> > -}
+> > -
+> >  static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+> >  {
+> >  	resource_size_t key, align_start, align_size, align_end;
+> > @@ -892,9 +885,8 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+> >  	for (key = align_start; key <= align_end; key += PA_SECTION_SIZE) {
+> >  		struct hmm_devmem *dup;
+> >  
+> > -		rcu_read_lock();
+> > -		dup = hmm_devmem_find(key);
+> > -		rcu_read_unlock();
+> > +		dup = radix_tree_lookup(&hmm_devmem_radix,
+> > +					key >> PA_SECTION_SHIFT);
+> >  		if (dup) {
+> >  			dev_err(device, "%s: collides with mapping for %s\n",
+> >  				__func__, dev_name(dup->device));
+> > -- 
+> > 2.9.5
+> > 
+> 
 > -- 
-> Michal Hocko
-> SUSE Labs
+> tejun
