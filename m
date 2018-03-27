@@ -1,65 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 13D7E6B0006
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 22:27:33 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id v11so4831906wri.13
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 19:27:33 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 94si395546edk.445.2018.03.26.19.27.30
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 44F466B0006
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 22:31:18 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u188so12188054pfb.6
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 19:31:18 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id s61-v6si217193plb.16.2018.03.26.19.31.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 19:27:31 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2R2OVir081010
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 22:27:29 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2gyac65btc-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 22:27:29 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Tue, 27 Mar 2018 03:27:27 +0100
-Date: Mon, 26 Mar 2018 19:27:18 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH 1/9] x86, pkeys: do not special case protection key 0
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <20180323180903.33B17168@viggo.jf.intel.com>
- <20180323180905.B40984E6@viggo.jf.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 26 Mar 2018 19:31:17 -0700 (PDT)
+Date: Mon, 26 Mar 2018 19:31:10 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 3/6] Protectable Memory
+Message-ID: <20180327023110.GD10054@bombadil.infradead.org>
+References: <20180327015524.14318-1-igor.stoppa@huawei.com>
+ <20180327015524.14318-4-igor.stoppa@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180323180905.B40984E6@viggo.jf.intel.com>
-Message-Id: <20180327022718.GD5743@ram.oc3035372033.ibm.com>
+In-Reply-To: <20180327015524.14318-4-igor.stoppa@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: keescook@chromium.org, mhocko@kernel.org, david@fromorbit.com, rppt@linux.vnet.ibm.com, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, igor.stoppa@gmail.com
 
-On Fri, Mar 23, 2018 at 11:09:05AM -0700, Dave Hansen wrote:
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> mm_pkey_is_allocated() treats pkey 0 as unallocated.  That is
-> inconsistent with the manpages, and also inconsistent with
-> mm->context.pkey_allocation_map.  Stop special casing it and only
-> disallow values that are actually bad (< 0).
-> 
-> The end-user visible effect of this is that you can now use
-> mprotect_pkey() to set pkey=0.
-> 
-> This is a bit nicer than what Ram proposed because it is simpler
-> and removes special-casing for pkey 0.  On the other hand, it does
-> allow applciations to pkey_free() pkey-0, but that's just a silly
-> thing to do, so we are not going to protect against it.
+On Tue, Mar 27, 2018 at 04:55:21AM +0300, Igor Stoppa wrote:
+> +static inline void *pmalloc_array_align(struct pmalloc_pool *pool,
+> +					size_t n, size_t size,
+> +					short int align_order)
+> +{
 
-The more I think about this, the more I feel we are opening up a can
-of worms.  I am ok with a bad application, shooting itself in its feet.
-But I am worried about all the bug reports and support requests we
-will encounter when applications inadvertently shoot themselves 
-and blame it on the kernel.
+You're missing:
 
-a warning in dmesg logs indicating a free-of-pkey-0 can help deflect
-the blame from the kernel.
+        if (size != 0 && n > SIZE_MAX / size)
+                return NULL;
 
-RP
+> +	return pmalloc_align(pool, n * size, align_order);
+> +}
+
+> +static inline void *pcalloc_align(struct pmalloc_pool *pool, size_t n,
+> +				  size_t size, short int align_order)
+> +{
+> +	return pzalloc_align(pool, n * size, align_order);
+> +}
+
+Ditto.
+
+> +static inline void *pcalloc(struct pmalloc_pool *pool, size_t n,
+> +			    size_t size)
+> +{
+> +	return pzalloc_align(pool, n * size, PMALLOC_ALIGN_DEFAULT);
+> +}
+
+If you make this one:
+
+	return pcalloc_align(pool, n, size, PMALLOC_ALIGN_DEFAULT)
+
+then you don't need the check in this function.
+
+Also, do we really need 'align' as a parameter to the allocator functions
+rather than to the pool?
+
+I'd just reuse ARCH_KMALLOC_MINALIGN from slab.h as the alignment, and
+then add the special alignment options when we have a real user for them.
