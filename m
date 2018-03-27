@@ -1,323 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 00A776B0023
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 05:41:26 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id w19-v6so15055846plq.2
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 02:41:25 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0102.outbound.protection.outlook.com. [104.47.0.102])
-        by mx.google.com with ESMTPS id q2si625651pgc.401.2018.03.27.02.41.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 27 Mar 2018 02:41:24 -0700 (PDT)
-Subject: =?UTF-8?Q?Re:_=e7=ad=94=e5=a4=8d:_[PATCH]_mm/list=5flru:_replace_sp?=
- =?UTF-8?Q?inlock_with_RCU_in_=5f=5flist=5flru=5fcount=5fone?=
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 93F676B0023
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 05:47:17 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id b9so10241086pgu.13
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 02:47:17 -0700 (PDT)
+Received: from baidu.com ([61.135.165.120])
+        by mx.google.com with ESMTP id z123si636234pgb.466.2018.03.27.02.47.15
+        for <linux-mm@kvack.org>;
+        Tue, 27 Mar 2018 02:47:16 -0700 (PDT)
+From: "Li,Rongqing" <lirongqing@baidu.com>
+Subject: =?gb2312?B?tPC4tDogtPC4tDogW1BBVENIXSBtbS9saXN0X2xydTogcmVwbGFjZSBzcGlu?=
+ =?gb2312?B?bG9jayB3aXRoIFJDVSBpbiBfX2xpc3RfbHJ1X2NvdW50X29uZQ==?=
+Date: Tue, 27 Mar 2018 09:47:07 +0000
+Message-ID: <2AD939572F25A448A3AE3CAEA61328C23750E857@BC-MAIL-M28.internal.baidu.com>
 References: <1522137544-27496-1-git-send-email-lirongqing@baidu.com>
  <20180327081546.GZ5652@dhcp22.suse.cz>
  <20180327090841.ujscbnb54cepencf@esperanza>
  <2AD939572F25A448A3AE3CAEA61328C23750D637@BC-MAIL-M28.internal.baidu.com>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <f384fb51-22e6-ddd8-b957-4f358fe1e03a@virtuozzo.com>
-Date: Tue, 27 Mar 2018 12:41:16 +0300
+ <f384fb51-22e6-ddd8-b957-4f358fe1e03a@virtuozzo.com>
+In-Reply-To: <f384fb51-22e6-ddd8-b957-4f358fe1e03a@virtuozzo.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <2AD939572F25A448A3AE3CAEA61328C23750D637@BC-MAIL-M28.internal.baidu.com>
-Content-Type: text/plain; charset=gbk
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li,Rongqing" <lirongqing@baidu.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <david@fromorbit.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Dave
+ Chinner <david@fromorbit.com>
 
-On 27.03.2018 12:30, Li,Rongqing wrote:
-> 
-> 
->> -----OE 1/4 thO- 1/4 th-----
->> .c 1/4 thEE: Vladimir Davydov [mailto:vdavydov.dev@gmail.com]
->> .cEIE+- 1/4 a: 2018Ae3OA27EO 17:09
->> EO 1/4 thEE: Michal Hocko <mhocko@kernel.org>
->> 3-EI: Li,Rongqing <lirongqing@baidu.com>; linux-kernel@vger.kernel.org;
->> linux-mm@kvack.org; Andrew Morton <akpm@linux-foundation.org>;
->> Johannes Weiner <hannes@cmpxchg.org>; Dave Chinner
->> <david@fromorbit.com>; Kirill Tkhai <ktkhai@virtuozzo.com>
->> O/Ia: Re: [PATCH] mm/list_lru: replace spinlock with RCU in
->> __list_lru_count_one
->>
->> [Cc Kirill]
->>
->> AFAIU this has already been fixed in exactly the same fashion by Kirill
->> (mmotm commit 8e7d1201ec71 "mm: make counting of
->> list_lru_one::nr_items lockless"). Kirill is working on further optimizations
->> right now, see
->>
->>
-> 
-> Ok, thanks
-
-Thanks Vladimir, for CCing me.
-
-Rong, if your are interested I may start to add you to CC on further iterations
-of https://marc.info/?i=152163840790.21546.980703278415599202.stgit%40localhost.localdomain
-since there are many people which meet such the problem.
-
-Kirill
-
-> 
->> https://lkml.kernel.org/r/152163840790.21546.980703278415599202.stgit
->> @localhost.localdomain
->>
->> On Tue, Mar 27, 2018 at 10:15:46AM +0200, Michal Hocko wrote:
->>> [CC Dave]
->>>
->>> On Tue 27-03-18 15:59:04, Li RongQing wrote:
->>>> when reclaim memory, shink_slab will take lots of time even if no
->>>> memory is reclaimed, since list_lru_count_one called by it needs to
->>>> take a spinlock
->>>>
->>>> try to optimize it by replacing spinlock with RCU in
->>>> __list_lru_count_one
->>>
->>> Isn't the RCU overkill here? Why cannot we simply do an optimistic
->>> lockless check for nr_items? It would be racy but does it actually
->>> matter? We should be able to tolerate occasional 0 to non-zero and
->>> vice versa transitions AFAICS.
->>>
->>>>
->>>>     $dd if=aaa  of=bbb  bs=1k count=3886080
->>>>     $rm -f bbb
->>>>     $time echo
->> 100000000 >/cgroup/memory/test/memory.limit_in_bytes
->>>>
->>>> Before: 0m0.415s ===> after: 0m0.395s
->>>>
->>>> Signed-off-by: Li RongQing <lirongqing@baidu.com>
->>>> ---
->>>>  include/linux/list_lru.h |  2 ++
->>>>  mm/list_lru.c            | 69
->> ++++++++++++++++++++++++++++++++++--------------
->>>>  2 files changed, 51 insertions(+), 20 deletions(-)
->>>>
->>>> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
->>>> index bb8129a3474d..ae472538038e 100644
->>>> --- a/include/linux/list_lru.h
->>>> +++ b/include/linux/list_lru.h
->>>> @@ -29,6 +29,7 @@ struct list_lru_one {
->>>>  	struct list_head	list;
->>>>  	/* may become negative during memcg reparenting */
->>>>  	long			nr_items;
->>>> +	struct rcu_head		rcu;
->>>>  };
->>>>
->>>>  struct list_lru_memcg {
->>>> @@ -46,6 +47,7 @@ struct list_lru_node {
->>>>  	struct list_lru_memcg	*memcg_lrus;
->>>>  #endif
->>>>  	long nr_items;
->>>> +	struct rcu_head		rcu;
->>>>  } ____cacheline_aligned_in_smp;
->>>>
->>>>  struct list_lru {
->>>> diff --git a/mm/list_lru.c b/mm/list_lru.c index
->>>> fd41e969ede5..4c58ed861729 100644
->>>> --- a/mm/list_lru.c
->>>> +++ b/mm/list_lru.c
->>>> @@ -52,13 +52,13 @@ static inline bool list_lru_memcg_aware(struct
->>>> list_lru *lru)  static inline struct list_lru_one *
->>>> list_lru_from_memcg_idx(struct list_lru_node *nlru, int idx)  {
->>>> -	/*
->>>> -	 * The lock protects the array of per cgroup lists from relocation
->>>> -	 * (see memcg_update_list_lru_node).
->>>> -	 */
->>>> -	lockdep_assert_held(&nlru->lock);
->>>> -	if (nlru->memcg_lrus && idx >= 0)
->>>> -		return nlru->memcg_lrus->lru[idx];
->>>> +	struct list_lru_memcg *tmp;
->>>> +
->>>> +	WARN_ON_ONCE(!rcu_read_lock_held());
->>>> +
->>>> +	tmp = rcu_dereference(nlru->memcg_lrus);
->>>> +	if (tmp && idx >= 0)
->>>> +		return rcu_dereference(tmp->lru[idx]);
->>>>
->>>>  	return &nlru->lru;
->>>>  }
->>>> @@ -113,14 +113,17 @@ bool list_lru_add(struct list_lru *lru, struct
->> list_head *item)
->>>>  	struct list_lru_one *l;
->>>>
->>>>  	spin_lock(&nlru->lock);
->>>> +	rcu_read_lock();
->>>>  	if (list_empty(item)) {
->>>>  		l = list_lru_from_kmem(nlru, item);
->>>>  		list_add_tail(item, &l->list);
->>>>  		l->nr_items++;
->>>>  		nlru->nr_items++;
->>>> +		rcu_read_unlock();
->>>>  		spin_unlock(&nlru->lock);
->>>>  		return true;
->>>>  	}
->>>> +	rcu_read_unlock();
->>>>  	spin_unlock(&nlru->lock);
->>>>  	return false;
->>>>  }
->>>> @@ -133,14 +136,17 @@ bool list_lru_del(struct list_lru *lru, struct
->> list_head *item)
->>>>  	struct list_lru_one *l;
->>>>
->>>>  	spin_lock(&nlru->lock);
->>>> +	rcu_read_lock();
->>>>  	if (!list_empty(item)) {
->>>>  		l = list_lru_from_kmem(nlru, item);
->>>>  		list_del_init(item);
->>>>  		l->nr_items--;
->>>>  		nlru->nr_items--;
->>>> +		rcu_read_unlock();
->>>>  		spin_unlock(&nlru->lock);
->>>>  		return true;
->>>>  	}
->>>> +	rcu_read_unlock();
->>>>  	spin_unlock(&nlru->lock);
->>>>  	return false;
->>>>  }
->>>> @@ -166,12 +172,13 @@ static unsigned long
->>>> __list_lru_count_one(struct list_lru *lru,  {
->>>>  	struct list_lru_node *nlru = &lru->node[nid];
->>>>  	struct list_lru_one *l;
->>>> -	unsigned long count;
->>>> +	unsigned long count = 0;
->>>>
->>>> -	spin_lock(&nlru->lock);
->>>> +	rcu_read_lock();
->>>>  	l = list_lru_from_memcg_idx(nlru, memcg_idx);
->>>> -	count = l->nr_items;
->>>> -	spin_unlock(&nlru->lock);
->>>> +	if (l)
->>>> +		count = l->nr_items;
->>>> +	rcu_read_unlock();
->>>>
->>>>  	return count;
->>>>  }
->>>> @@ -204,6 +211,7 @@ __list_lru_walk_one(struct list_lru *lru, int nid,
->> int memcg_idx,
->>>>  	unsigned long isolated = 0;
->>>>
->>>>  	spin_lock(&nlru->lock);
->>>> +	rcu_read_lock();
->>>>  	l = list_lru_from_memcg_idx(nlru, memcg_idx);
->>>>  restart:
->>>>  	list_for_each_safe(item, n, &l->list) { @@ -250,6 +258,7 @@
->>>> __list_lru_walk_one(struct list_lru *lru, int nid, int memcg_idx,
->>>>  		}
->>>>  	}
->>>>
->>>> +	rcu_read_unlock();
->>>>  	spin_unlock(&nlru->lock);
->>>>  	return isolated;
->>>>  }
->>>> @@ -296,9 +305,14 @@ static void
->> __memcg_destroy_list_lru_node(struct list_lru_memcg *memcg_lrus,
->>>>  					  int begin, int end)
->>>>  {
->>>>  	int i;
->>>> +	struct list_lru_one *tmp;
->>>>
->>>> -	for (i = begin; i < end; i++)
->>>> -		kfree(memcg_lrus->lru[i]);
->>>> +	for (i = begin; i < end; i++) {
->>>> +		tmp = memcg_lrus->lru[i];
->>>> +		rcu_assign_pointer(memcg_lrus->lru[i], NULL);
->>>> +		if (tmp)
->>>> +			kfree_rcu(tmp, rcu);
->>>> +	}
->>>>  }
->>>>
->>>>  static int __memcg_init_list_lru_node(struct list_lru_memcg
->>>> *memcg_lrus, @@ -314,7 +328,7 @@ static int
->> __memcg_init_list_lru_node(struct list_lru_memcg *memcg_lrus,
->>>>  			goto fail;
->>>>
->>>>  		init_one_lru(l);
->>>> -		memcg_lrus->lru[i] = l;
->>>> +		rcu_assign_pointer(memcg_lrus->lru[i], l);
->>>>  	}
->>>>  	return 0;
->>>>  fail:
->>>> @@ -325,25 +339,37 @@ static int __memcg_init_list_lru_node(struct
->>>> list_lru_memcg *memcg_lrus,  static int
->>>> memcg_init_list_lru_node(struct list_lru_node *nlru)  {
->>>>  	int size = memcg_nr_cache_ids;
->>>> +	struct list_lru_memcg *tmp;
->>>>
->>>> -	nlru->memcg_lrus = kvmalloc(size * sizeof(void *), GFP_KERNEL);
->>>> -	if (!nlru->memcg_lrus)
->>>> +	tmp = kvmalloc(size * sizeof(void *), GFP_KERNEL);
->>>> +	if (!tmp)
->>>>  		return -ENOMEM;
->>>>
->>>> -	if (__memcg_init_list_lru_node(nlru->memcg_lrus, 0, size)) {
->>>> -		kvfree(nlru->memcg_lrus);
->>>> +	if (__memcg_init_list_lru_node(tmp, 0, size)) {
->>>> +		kvfree(tmp);
->>>>  		return -ENOMEM;
->>>>  	}
->>>>
->>>> +	rcu_assign_pointer(nlru->memcg_lrus, tmp);
->>>> +
->>>>  	return 0;
->>>>  }
->>>>
->>>> -static void memcg_destroy_list_lru_node(struct list_lru_node *nlru)
->>>> +static void memcg_destroy_list_lru_node_rcu(struct rcu_head *rcu)
->>>>  {
->>>> +	struct list_lru_node *nlru;
->>>> +
->>>> +	nlru = container_of(rcu, struct list_lru_node, rcu);
->>>> +
->>>>  	__memcg_destroy_list_lru_node(nlru->memcg_lrus, 0,
->> memcg_nr_cache_ids);
->>>>  	kvfree(nlru->memcg_lrus);
->>>>  }
->>>>
->>>> +static void memcg_destroy_list_lru_node(struct list_lru_node *nlru)
->>>> +{
->>>> +	call_rcu(&nlru->rcu, memcg_destroy_list_lru_node_rcu); }
->>>> +
->>>>  static int memcg_update_list_lru_node(struct list_lru_node *nlru,
->>>>  				      int old_size, int new_size)  { @@ -371,9
->> +397,10 @@
->>>> static int memcg_update_list_lru_node(struct list_lru_node *nlru,
->>>>  	 * we have to use IRQ-safe primitives here to avoid deadlock.
->>>>  	 */
->>>>  	spin_lock_irq(&nlru->lock);
->>>> -	nlru->memcg_lrus = new;
->>>> +	rcu_assign_pointer(nlru->memcg_lrus, new);
->>>>  	spin_unlock_irq(&nlru->lock);
->>>>
->>>> +	synchronize_rcu();
->>>>  	kvfree(old);
->>>>  	return 0;
->>>>  }
->>>> @@ -487,6 +514,7 @@ static void memcg_drain_list_lru_node(struct
->> list_lru_node *nlru,
->>>>  	 * we have to use IRQ-safe primitives here to avoid deadlock.
->>>>  	 */
->>>>  	spin_lock_irq(&nlru->lock);
->>>> +	rcu_read_lock();
->>>>
->>>>  	src = list_lru_from_memcg_idx(nlru, src_idx);
->>>>  	dst = list_lru_from_memcg_idx(nlru, dst_idx); @@ -495,6 +523,7
->> @@
->>>> static void memcg_drain_list_lru_node(struct list_lru_node *nlru,
->>>>  	dst->nr_items += src->nr_items;
->>>>  	src->nr_items = 0;
->>>>
->>>> +	rcu_read_unlock();
->>>>  	spin_unlock_irq(&nlru->lock);
->>>>  }
->>>>
->>>> --
->>>> 2.11.0
->>>
->>> --
->>> Michal Hocko
->>> SUSE Labs
->>>
+DQoNCj4gLS0tLS3Tyrz+1K28/i0tLS0tDQo+ILeivP7IyzogbGludXgta2VybmVsLW93bmVyQHZn
+ZXIua2VybmVsLm9yZw0KPiBbbWFpbHRvOmxpbnV4LWtlcm5lbC1vd25lckB2Z2VyLmtlcm5lbC5v
+cmddILT6se0gS2lyaWxsIFRraGFpDQo+ILeiy83KsbzkOiAyMDE4xOoz1MIyN8jVIDE3OjQxDQo+
+IMrVvP7IyzogTGksUm9uZ3FpbmcgPGxpcm9uZ3FpbmdAYmFpZHUuY29tPjsgVmxhZGltaXIgRGF2
+eWRvdg0KPiA8dmRhdnlkb3YuZGV2QGdtYWlsLmNvbT47IE1pY2hhbCBIb2NrbyA8bWhvY2tvQGtl
+cm5lbC5vcmc+DQo+ILOty806IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1t
+QGt2YWNrLm9yZzsgQW5kcmV3IE1vcnRvbg0KPiA8YWtwbUBsaW51eC1mb3VuZGF0aW9uLm9yZz47
+IEpvaGFubmVzIFdlaW5lciA8aGFubmVzQGNtcHhjaGcub3JnPjsNCj4gRGF2ZSBDaGlubmVyIDxk
+YXZpZEBmcm9tb3JiaXQuY29tPg0KPiDW98ziOiBSZTogtPC4tDogW1BBVENIXSBtbS9saXN0X2xy
+dTogcmVwbGFjZSBzcGlubG9jayB3aXRoIFJDVSBpbg0KPiBfX2xpc3RfbHJ1X2NvdW50X29uZQ0K
+PiANCj4gT24gMjcuMDMuMjAxOCAxMjozMCwgTGksUm9uZ3Fpbmcgd3JvdGU6DQo+ID4NCj4gPg0K
+PiA+PiAtLS0tLdPKvP7Urbz+LS0tLS0NCj4gPj4gt6K8/sjLOiBWbGFkaW1pciBEYXZ5ZG92IFtt
+YWlsdG86dmRhdnlkb3YuZGV2QGdtYWlsLmNvbV0NCj4gPj4gt6LLzcqxvOQ6IDIwMTjE6jPUwjI3
+yNUgMTc6MDkNCj4gPj4gytW8/sjLOiBNaWNoYWwgSG9ja28gPG1ob2Nrb0BrZXJuZWwub3JnPg0K
+PiA+PiCzrcvNOiBMaSxSb25ncWluZyA8bGlyb25ncWluZ0BiYWlkdS5jb20+Ow0KPiBsaW51eC1r
+ZXJuZWxAdmdlci5rZXJuZWwub3JnOw0KPiA+PiBsaW51eC1tbUBrdmFjay5vcmc7IEFuZHJldyBN
+b3J0b24gPGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+Ow0KPiA+PiBKb2hhbm5lcyBXZWluZXIg
+PGhhbm5lc0BjbXB4Y2hnLm9yZz47IERhdmUgQ2hpbm5lcg0KPiA+PiA8ZGF2aWRAZnJvbW9yYml0
+LmNvbT47IEtpcmlsbCBUa2hhaSA8a3RraGFpQHZpcnR1b3p6by5jb20+DQo+ID4+INb3zOI6IFJl
+OiBbUEFUQ0hdIG1tL2xpc3RfbHJ1OiByZXBsYWNlIHNwaW5sb2NrIHdpdGggUkNVIGluDQo+ID4+
+IF9fbGlzdF9scnVfY291bnRfb25lDQo+ID4+DQo+ID4+IFtDYyBLaXJpbGxdDQo+ID4+DQo+ID4+
+IEFGQUlVIHRoaXMgaGFzIGFscmVhZHkgYmVlbiBmaXhlZCBpbiBleGFjdGx5IHRoZSBzYW1lIGZh
+c2hpb24gYnkNCj4gPj4gS2lyaWxsIChtbW90bSBjb21taXQgOGU3ZDEyMDFlYzcxICJtbTogbWFr
+ZSBjb3VudGluZyBvZg0KPiA+PiBsaXN0X2xydV9vbmU6Om5yX2l0ZW1zIGxvY2tsZXNzIikuIEtp
+cmlsbCBpcyB3b3JraW5nIG9uIGZ1cnRoZXINCj4gPj4gb3B0aW1pemF0aW9ucyByaWdodCBub3cs
+IHNlZQ0KPiA+Pg0KPiA+Pg0KPiA+DQo+ID4gT2ssIHRoYW5rcw0KPiANCj4gVGhhbmtzIFZsYWRp
+bWlyLCBmb3IgQ0NpbmcgbWUuDQo+IA0KPiBSb25nLCBpZiB5b3VyIGFyZSBpbnRlcmVzdGVkIEkg
+bWF5IHN0YXJ0IHRvIGFkZCB5b3UgdG8gQ0Mgb24gZnVydGhlciBpdGVyYXRpb25zDQo+IG9mDQo+
+IGh0dHBzOi8vbWFyYy5pbmZvLz9pPTE1MjE2Mzg0MDc5MC4yMTU0Ni45ODA3MDMyNzg0MTU1OTky
+MDIuc3RnaXQlNDANCj4gbG9jYWxob3N0LmxvY2FsZG9tYWluDQo+IHNpbmNlIHRoZXJlIGFyZSBt
+YW55IHBlb3BsZSB3aGljaCBtZWV0IHN1Y2ggdGhlIHByb2JsZW0uDQo+IA0KPiBLaXJpbGwNCg0K
+DQpPaywgcGxlYXNlIGFkZCBtZQ0KDQp0aGFuayB5b3UNCg0KLVJvbmdRaW5nDQoNCj4gDQo+ID4N
+Cj4gPj4NCj4gaHR0cHM6Ly9sa21sLmtlcm5lbC5vcmcvci8xNTIxNjM4NDA3OTAuMjE1NDYuOTgw
+NzAzMjc4NDE1NTk5MjAyLnN0Z2l0DQo+ID4+IEBsb2NhbGhvc3QubG9jYWxkb21haW4NCj4gPj4N
+Cj4gPj4gT24gVHVlLCBNYXIgMjcsIDIwMTggYXQgMTA6MTU6NDZBTSArMDIwMCwgTWljaGFsIEhv
+Y2tvIHdyb3RlOg0KPiA+Pj4gW0NDIERhdmVdDQo+ID4+Pg0KPiA+Pj4gT24gVHVlIDI3LTAzLTE4
+IDE1OjU5OjA0LCBMaSBSb25nUWluZyB3cm90ZToNCj4gPj4+PiB3aGVuIHJlY2xhaW0gbWVtb3J5
+LCBzaGlua19zbGFiIHdpbGwgdGFrZSBsb3RzIG9mIHRpbWUgZXZlbiBpZiBubw0KPiA+Pj4+IG1l
+bW9yeSBpcyByZWNsYWltZWQsIHNpbmNlIGxpc3RfbHJ1X2NvdW50X29uZSBjYWxsZWQgYnkgaXQg
+bmVlZHMgdG8NCj4gPj4+PiB0YWtlIGEgc3BpbmxvY2sNCj4gPj4+Pg0KPiA+Pj4+IHRyeSB0byBv
+cHRpbWl6ZSBpdCBieSByZXBsYWNpbmcgc3BpbmxvY2sgd2l0aCBSQ1UgaW4NCj4gPj4+PiBfX2xp
+c3RfbHJ1X2NvdW50X29uZQ0KPiA+Pj4NCj4gPj4+IElzbid0IHRoZSBSQ1Ugb3ZlcmtpbGwgaGVy
+ZT8gV2h5IGNhbm5vdCB3ZSBzaW1wbHkgZG8gYW4gb3B0aW1pc3RpYw0KPiA+Pj4gbG9ja2xlc3Mg
+Y2hlY2sgZm9yIG5yX2l0ZW1zPyBJdCB3b3VsZCBiZSByYWN5IGJ1dCBkb2VzIGl0IGFjdHVhbGx5
+DQo+ID4+PiBtYXR0ZXI/IFdlIHNob3VsZCBiZSBhYmxlIHRvIHRvbGVyYXRlIG9jY2FzaW9uYWwg
+MCB0byBub24temVybyBhbmQNCj4gPj4+IHZpY2UgdmVyc2EgdHJhbnNpdGlvbnMgQUZBSUNTLg0K
+PiA+Pj4NCj4gPj4+Pg0KPiA+Pj4+ICAgICAkZGQgaWY9YWFhICBvZj1iYmIgIGJzPTFrIGNvdW50
+PTM4ODYwODANCj4gPj4+PiAgICAgJHJtIC1mIGJiYg0KPiA+Pj4+ICAgICAkdGltZSBlY2hvDQo+
+ID4+IDEwMDAwMDAwMCA+L2Nncm91cC9tZW1vcnkvdGVzdC9tZW1vcnkubGltaXRfaW5fYnl0ZXMN
+Cj4gPj4+Pg0KPiA+Pj4+IEJlZm9yZTogMG0wLjQxNXMgPT09PiBhZnRlcjogMG0wLjM5NXMNCj4g
+Pj4+Pg0KPiA+Pj4+IFNpZ25lZC1vZmYtYnk6IExpIFJvbmdRaW5nIDxsaXJvbmdxaW5nQGJhaWR1
+LmNvbT4NCj4gPj4+PiAtLS0NCj4gPj4+PiAgaW5jbHVkZS9saW51eC9saXN0X2xydS5oIHwgIDIg
+KysNCj4gPj4+PiAgbW0vbGlzdF9scnUuYyAgICAgICAgICAgIHwgNjkNCj4gPj4gKysrKysrKysr
+KysrKysrKysrKysrKysrKysrKysrKysrKy0tLS0tLS0tLS0tLS0tDQo+ID4+Pj4gIDIgZmlsZXMg
+Y2hhbmdlZCwgNTEgaW5zZXJ0aW9ucygrKSwgMjAgZGVsZXRpb25zKC0pDQo+ID4+Pj4NCj4gPj4+
+PiBkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9saXN0X2xydS5oIGIvaW5jbHVkZS9saW51eC9s
+aXN0X2xydS5oDQo+ID4+Pj4gaW5kZXggYmI4MTI5YTM0NzRkLi5hZTQ3MjUzODAzOGUgMTAwNjQ0
+DQo+ID4+Pj4gLS0tIGEvaW5jbHVkZS9saW51eC9saXN0X2xydS5oDQo+ID4+Pj4gKysrIGIvaW5j
+bHVkZS9saW51eC9saXN0X2xydS5oDQo+ID4+Pj4gQEAgLTI5LDYgKzI5LDcgQEAgc3RydWN0IGxp
+c3RfbHJ1X29uZSB7DQo+ID4+Pj4gIAlzdHJ1Y3QgbGlzdF9oZWFkCWxpc3Q7DQo+ID4+Pj4gIAkv
+KiBtYXkgYmVjb21lIG5lZ2F0aXZlIGR1cmluZyBtZW1jZyByZXBhcmVudGluZyAqLw0KPiA+Pj4+
+ICAJbG9uZwkJCW5yX2l0ZW1zOw0KPiA+Pj4+ICsJc3RydWN0IHJjdV9oZWFkCQlyY3U7DQo+ID4+
+Pj4gIH07DQo+ID4+Pj4NCj4gPj4+PiAgc3RydWN0IGxpc3RfbHJ1X21lbWNnIHsNCj4gPj4+PiBA
+QCAtNDYsNiArNDcsNyBAQCBzdHJ1Y3QgbGlzdF9scnVfbm9kZSB7DQo+ID4+Pj4gIAlzdHJ1Y3Qg
+bGlzdF9scnVfbWVtY2cJKm1lbWNnX2xydXM7DQo+ID4+Pj4gICNlbmRpZg0KPiA+Pj4+ICAJbG9u
+ZyBucl9pdGVtczsNCj4gPj4+PiArCXN0cnVjdCByY3VfaGVhZAkJcmN1Ow0KPiA+Pj4+ICB9IF9f
+X19jYWNoZWxpbmVfYWxpZ25lZF9pbl9zbXA7DQo+ID4+Pj4NCj4gPj4+PiAgc3RydWN0IGxpc3Rf
+bHJ1IHsNCj4gPj4+PiBkaWZmIC0tZ2l0IGEvbW0vbGlzdF9scnUuYyBiL21tL2xpc3RfbHJ1LmMg
+aW5kZXgNCj4gPj4+PiBmZDQxZTk2OWVkZTUuLjRjNThlZDg2MTcyOSAxMDA2NDQNCj4gPj4+PiAt
+LS0gYS9tbS9saXN0X2xydS5jDQo+ID4+Pj4gKysrIGIvbW0vbGlzdF9scnUuYw0KPiA+Pj4+IEBA
+IC01MiwxMyArNTIsMTMgQEAgc3RhdGljIGlubGluZSBib29sIGxpc3RfbHJ1X21lbWNnX2F3YXJl
+KHN0cnVjdA0KPiA+Pj4+IGxpc3RfbHJ1ICpscnUpICBzdGF0aWMgaW5saW5lIHN0cnVjdCBsaXN0
+X2xydV9vbmUgKg0KPiA+Pj4+IGxpc3RfbHJ1X2Zyb21fbWVtY2dfaWR4KHN0cnVjdCBsaXN0X2xy
+dV9ub2RlICpubHJ1LCBpbnQgaWR4KSAgew0KPiA+Pj4+IC0JLyoNCj4gPj4+PiAtCSAqIFRoZSBs
+b2NrIHByb3RlY3RzIHRoZSBhcnJheSBvZiBwZXIgY2dyb3VwIGxpc3RzIGZyb20gcmVsb2NhdGlv
+bg0KPiA+Pj4+IC0JICogKHNlZSBtZW1jZ191cGRhdGVfbGlzdF9scnVfbm9kZSkuDQo+ID4+Pj4g
+LQkgKi8NCj4gPj4+PiAtCWxvY2tkZXBfYXNzZXJ0X2hlbGQoJm5scnUtPmxvY2spOw0KPiA+Pj4+
+IC0JaWYgKG5scnUtPm1lbWNnX2xydXMgJiYgaWR4ID49IDApDQo+ID4+Pj4gLQkJcmV0dXJuIG5s
+cnUtPm1lbWNnX2xydXMtPmxydVtpZHhdOw0KPiA+Pj4+ICsJc3RydWN0IGxpc3RfbHJ1X21lbWNn
+ICp0bXA7DQo+ID4+Pj4gKw0KPiA+Pj4+ICsJV0FSTl9PTl9PTkNFKCFyY3VfcmVhZF9sb2NrX2hl
+bGQoKSk7DQo+ID4+Pj4gKw0KPiA+Pj4+ICsJdG1wID0gcmN1X2RlcmVmZXJlbmNlKG5scnUtPm1l
+bWNnX2xydXMpOw0KPiA+Pj4+ICsJaWYgKHRtcCAmJiBpZHggPj0gMCkNCj4gPj4+PiArCQlyZXR1
+cm4gcmN1X2RlcmVmZXJlbmNlKHRtcC0+bHJ1W2lkeF0pOw0KPiA+Pj4+DQo+ID4+Pj4gIAlyZXR1
+cm4gJm5scnUtPmxydTsNCj4gPj4+PiAgfQ0KPiA+Pj4+IEBAIC0xMTMsMTQgKzExMywxNyBAQCBi
+b29sIGxpc3RfbHJ1X2FkZChzdHJ1Y3QgbGlzdF9scnUgKmxydSwNCj4gPj4+PiBzdHJ1Y3QNCj4g
+Pj4gbGlzdF9oZWFkICppdGVtKQ0KPiA+Pj4+ICAJc3RydWN0IGxpc3RfbHJ1X29uZSAqbDsNCj4g
+Pj4+Pg0KPiA+Pj4+ICAJc3Bpbl9sb2NrKCZubHJ1LT5sb2NrKTsNCj4gPj4+PiArCXJjdV9yZWFk
+X2xvY2soKTsNCj4gPj4+PiAgCWlmIChsaXN0X2VtcHR5KGl0ZW0pKSB7DQo+ID4+Pj4gIAkJbCA9
+IGxpc3RfbHJ1X2Zyb21fa21lbShubHJ1LCBpdGVtKTsNCj4gPj4+PiAgCQlsaXN0X2FkZF90YWls
+KGl0ZW0sICZsLT5saXN0KTsNCj4gPj4+PiAgCQlsLT5ucl9pdGVtcysrOw0KPiA+Pj4+ICAJCW5s
+cnUtPm5yX2l0ZW1zKys7DQo+ID4+Pj4gKwkJcmN1X3JlYWRfdW5sb2NrKCk7DQo+ID4+Pj4gIAkJ
+c3Bpbl91bmxvY2soJm5scnUtPmxvY2spOw0KPiA+Pj4+ICAJCXJldHVybiB0cnVlOw0KPiA+Pj4+
+ICAJfQ0KPiA+Pj4+ICsJcmN1X3JlYWRfdW5sb2NrKCk7DQo+ID4+Pj4gIAlzcGluX3VubG9jaygm
+bmxydS0+bG9jayk7DQo+ID4+Pj4gIAlyZXR1cm4gZmFsc2U7DQo+ID4+Pj4gIH0NCj4gPj4+PiBA
+QCAtMTMzLDE0ICsxMzYsMTcgQEAgYm9vbCBsaXN0X2xydV9kZWwoc3RydWN0IGxpc3RfbHJ1ICps
+cnUsDQo+ID4+Pj4gc3RydWN0DQo+ID4+IGxpc3RfaGVhZCAqaXRlbSkNCj4gPj4+PiAgCXN0cnVj
+dCBsaXN0X2xydV9vbmUgKmw7DQo+ID4+Pj4NCj4gPj4+PiAgCXNwaW5fbG9jaygmbmxydS0+bG9j
+ayk7DQo+ID4+Pj4gKwlyY3VfcmVhZF9sb2NrKCk7DQo+ID4+Pj4gIAlpZiAoIWxpc3RfZW1wdHko
+aXRlbSkpIHsNCj4gPj4+PiAgCQlsID0gbGlzdF9scnVfZnJvbV9rbWVtKG5scnUsIGl0ZW0pOw0K
+PiA+Pj4+ICAJCWxpc3RfZGVsX2luaXQoaXRlbSk7DQo+ID4+Pj4gIAkJbC0+bnJfaXRlbXMtLTsN
+Cj4gPj4+PiAgCQlubHJ1LT5ucl9pdGVtcy0tOw0KPiA+Pj4+ICsJCXJjdV9yZWFkX3VubG9jaygp
+Ow0KPiA+Pj4+ICAJCXNwaW5fdW5sb2NrKCZubHJ1LT5sb2NrKTsNCj4gPj4+PiAgCQlyZXR1cm4g
+dHJ1ZTsNCj4gPj4+PiAgCX0NCj4gPj4+PiArCXJjdV9yZWFkX3VubG9jaygpOw0KPiA+Pj4+ICAJ
+c3Bpbl91bmxvY2soJm5scnUtPmxvY2spOw0KPiA+Pj4+ICAJcmV0dXJuIGZhbHNlOw0KPiA+Pj4+
+ICB9DQo+ID4+Pj4gQEAgLTE2NiwxMiArMTcyLDEzIEBAIHN0YXRpYyB1bnNpZ25lZCBsb25nDQo+
+ID4+Pj4gX19saXN0X2xydV9jb3VudF9vbmUoc3RydWN0IGxpc3RfbHJ1ICpscnUsICB7DQo+ID4+
+Pj4gIAlzdHJ1Y3QgbGlzdF9scnVfbm9kZSAqbmxydSA9ICZscnUtPm5vZGVbbmlkXTsNCj4gPj4+
+PiAgCXN0cnVjdCBsaXN0X2xydV9vbmUgKmw7DQo+ID4+Pj4gLQl1bnNpZ25lZCBsb25nIGNvdW50
+Ow0KPiA+Pj4+ICsJdW5zaWduZWQgbG9uZyBjb3VudCA9IDA7DQo+ID4+Pj4NCj4gPj4+PiAtCXNw
+aW5fbG9jaygmbmxydS0+bG9jayk7DQo+ID4+Pj4gKwlyY3VfcmVhZF9sb2NrKCk7DQo+ID4+Pj4g
+IAlsID0gbGlzdF9scnVfZnJvbV9tZW1jZ19pZHgobmxydSwgbWVtY2dfaWR4KTsNCj4gPj4+PiAt
+CWNvdW50ID0gbC0+bnJfaXRlbXM7DQo+ID4+Pj4gLQlzcGluX3VubG9jaygmbmxydS0+bG9jayk7
+DQo+ID4+Pj4gKwlpZiAobCkNCj4gPj4+PiArCQljb3VudCA9IGwtPm5yX2l0ZW1zOw0KPiA+Pj4+
+ICsJcmN1X3JlYWRfdW5sb2NrKCk7DQo+ID4+Pj4NCj4gPj4+PiAgCXJldHVybiBjb3VudDsNCj4g
+Pj4+PiAgfQ0KPiA+Pj4+IEBAIC0yMDQsNiArMjExLDcgQEAgX19saXN0X2xydV93YWxrX29uZShz
+dHJ1Y3QgbGlzdF9scnUgKmxydSwgaW50DQo+ID4+Pj4gbmlkLA0KPiA+PiBpbnQgbWVtY2dfaWR4
+LA0KPiA+Pj4+ICAJdW5zaWduZWQgbG9uZyBpc29sYXRlZCA9IDA7DQo+ID4+Pj4NCj4gPj4+PiAg
+CXNwaW5fbG9jaygmbmxydS0+bG9jayk7DQo+ID4+Pj4gKwlyY3VfcmVhZF9sb2NrKCk7DQo+ID4+
+Pj4gIAlsID0gbGlzdF9scnVfZnJvbV9tZW1jZ19pZHgobmxydSwgbWVtY2dfaWR4KTsNCj4gPj4+
+PiAgcmVzdGFydDoNCj4gPj4+PiAgCWxpc3RfZm9yX2VhY2hfc2FmZShpdGVtLCBuLCAmbC0+bGlz
+dCkgeyBAQCAtMjUwLDYgKzI1OCw3IEBADQo+ID4+Pj4gX19saXN0X2xydV93YWxrX29uZShzdHJ1
+Y3QgbGlzdF9scnUgKmxydSwgaW50IG5pZCwgaW50IG1lbWNnX2lkeCwNCj4gPj4+PiAgCQl9DQo+
+ID4+Pj4gIAl9DQo+ID4+Pj4NCj4gPj4+PiArCXJjdV9yZWFkX3VubG9jaygpOw0KPiA+Pj4+ICAJ
+c3Bpbl91bmxvY2soJm5scnUtPmxvY2spOw0KPiA+Pj4+ICAJcmV0dXJuIGlzb2xhdGVkOw0KPiA+
+Pj4+ICB9DQo+ID4+Pj4gQEAgLTI5Niw5ICszMDUsMTQgQEAgc3RhdGljIHZvaWQNCj4gPj4gX19t
+ZW1jZ19kZXN0cm95X2xpc3RfbHJ1X25vZGUoc3RydWN0IGxpc3RfbHJ1X21lbWNnICptZW1jZ19s
+cnVzLA0KPiA+Pj4+ICAJCQkJCSAgaW50IGJlZ2luLCBpbnQgZW5kKQ0KPiA+Pj4+ICB7DQo+ID4+
+Pj4gIAlpbnQgaTsNCj4gPj4+PiArCXN0cnVjdCBsaXN0X2xydV9vbmUgKnRtcDsNCj4gPj4+Pg0K
+PiA+Pj4+IC0JZm9yIChpID0gYmVnaW47IGkgPCBlbmQ7IGkrKykNCj4gPj4+PiAtCQlrZnJlZSht
+ZW1jZ19scnVzLT5scnVbaV0pOw0KPiA+Pj4+ICsJZm9yIChpID0gYmVnaW47IGkgPCBlbmQ7IGkr
+Kykgew0KPiA+Pj4+ICsJCXRtcCA9IG1lbWNnX2xydXMtPmxydVtpXTsNCj4gPj4+PiArCQlyY3Vf
+YXNzaWduX3BvaW50ZXIobWVtY2dfbHJ1cy0+bHJ1W2ldLCBOVUxMKTsNCj4gPj4+PiArCQlpZiAo
+dG1wKQ0KPiA+Pj4+ICsJCQlrZnJlZV9yY3UodG1wLCByY3UpOw0KPiA+Pj4+ICsJfQ0KPiA+Pj4+
+ICB9DQo+ID4+Pj4NCj4gPj4+PiAgc3RhdGljIGludCBfX21lbWNnX2luaXRfbGlzdF9scnVfbm9k
+ZShzdHJ1Y3QgbGlzdF9scnVfbWVtY2cNCj4gPj4+PiAqbWVtY2dfbHJ1cywgQEAgLTMxNCw3ICsz
+MjgsNyBAQCBzdGF0aWMgaW50DQo+ID4+IF9fbWVtY2dfaW5pdF9saXN0X2xydV9ub2RlKHN0cnVj
+dCBsaXN0X2xydV9tZW1jZyAqbWVtY2dfbHJ1cywNCj4gPj4+PiAgCQkJZ290byBmYWlsOw0KPiA+
+Pj4+DQo+ID4+Pj4gIAkJaW5pdF9vbmVfbHJ1KGwpOw0KPiA+Pj4+IC0JCW1lbWNnX2xydXMtPmxy
+dVtpXSA9IGw7DQo+ID4+Pj4gKwkJcmN1X2Fzc2lnbl9wb2ludGVyKG1lbWNnX2xydXMtPmxydVtp
+XSwgbCk7DQo+ID4+Pj4gIAl9DQo+ID4+Pj4gIAlyZXR1cm4gMDsNCj4gPj4+PiAgZmFpbDoNCj4g
+Pj4+PiBAQCAtMzI1LDI1ICszMzksMzcgQEAgc3RhdGljIGludA0KPiBfX21lbWNnX2luaXRfbGlz
+dF9scnVfbm9kZShzdHJ1Y3QNCj4gPj4+PiBsaXN0X2xydV9tZW1jZyAqbWVtY2dfbHJ1cywgIHN0
+YXRpYyBpbnQNCj4gPj4+PiBtZW1jZ19pbml0X2xpc3RfbHJ1X25vZGUoc3RydWN0IGxpc3RfbHJ1
+X25vZGUgKm5scnUpICB7DQo+ID4+Pj4gIAlpbnQgc2l6ZSA9IG1lbWNnX25yX2NhY2hlX2lkczsN
+Cj4gPj4+PiArCXN0cnVjdCBsaXN0X2xydV9tZW1jZyAqdG1wOw0KPiA+Pj4+DQo+ID4+Pj4gLQlu
+bHJ1LT5tZW1jZ19scnVzID0ga3ZtYWxsb2Moc2l6ZSAqIHNpemVvZih2b2lkICopLCBHRlBfS0VS
+TkVMKTsNCj4gPj4+PiAtCWlmICghbmxydS0+bWVtY2dfbHJ1cykNCj4gPj4+PiArCXRtcCA9IGt2
+bWFsbG9jKHNpemUgKiBzaXplb2Yodm9pZCAqKSwgR0ZQX0tFUk5FTCk7DQo+ID4+Pj4gKwlpZiAo
+IXRtcCkNCj4gPj4+PiAgCQlyZXR1cm4gLUVOT01FTTsNCj4gPj4+Pg0KPiA+Pj4+IC0JaWYgKF9f
+bWVtY2dfaW5pdF9saXN0X2xydV9ub2RlKG5scnUtPm1lbWNnX2xydXMsIDAsIHNpemUpKSB7DQo+
+ID4+Pj4gLQkJa3ZmcmVlKG5scnUtPm1lbWNnX2xydXMpOw0KPiA+Pj4+ICsJaWYgKF9fbWVtY2df
+aW5pdF9saXN0X2xydV9ub2RlKHRtcCwgMCwgc2l6ZSkpIHsNCj4gPj4+PiArCQlrdmZyZWUodG1w
+KTsNCj4gPj4+PiAgCQlyZXR1cm4gLUVOT01FTTsNCj4gPj4+PiAgCX0NCj4gPj4+Pg0KPiA+Pj4+
+ICsJcmN1X2Fzc2lnbl9wb2ludGVyKG5scnUtPm1lbWNnX2xydXMsIHRtcCk7DQo+ID4+Pj4gKw0K
+PiA+Pj4+ICAJcmV0dXJuIDA7DQo+ID4+Pj4gIH0NCj4gPj4+Pg0KPiA+Pj4+IC1zdGF0aWMgdm9p
+ZCBtZW1jZ19kZXN0cm95X2xpc3RfbHJ1X25vZGUoc3RydWN0IGxpc3RfbHJ1X25vZGUNCj4gPj4+
+PiAqbmxydSkNCj4gPj4+PiArc3RhdGljIHZvaWQgbWVtY2dfZGVzdHJveV9saXN0X2xydV9ub2Rl
+X3JjdShzdHJ1Y3QgcmN1X2hlYWQgKnJjdSkNCj4gPj4+PiAgew0KPiA+Pj4+ICsJc3RydWN0IGxp
+c3RfbHJ1X25vZGUgKm5scnU7DQo+ID4+Pj4gKw0KPiA+Pj4+ICsJbmxydSA9IGNvbnRhaW5lcl9v
+ZihyY3UsIHN0cnVjdCBsaXN0X2xydV9ub2RlLCByY3UpOw0KPiA+Pj4+ICsNCj4gPj4+PiAgCV9f
+bWVtY2dfZGVzdHJveV9saXN0X2xydV9ub2RlKG5scnUtPm1lbWNnX2xydXMsIDAsDQo+ID4+IG1l
+bWNnX25yX2NhY2hlX2lkcyk7DQo+ID4+Pj4gIAlrdmZyZWUobmxydS0+bWVtY2dfbHJ1cyk7DQo+
+ID4+Pj4gIH0NCj4gPj4+Pg0KPiA+Pj4+ICtzdGF0aWMgdm9pZCBtZW1jZ19kZXN0cm95X2xpc3Rf
+bHJ1X25vZGUoc3RydWN0IGxpc3RfbHJ1X25vZGUNCj4gPj4+PiArKm5scnUpIHsNCj4gPj4+PiAr
+CWNhbGxfcmN1KCZubHJ1LT5yY3UsIG1lbWNnX2Rlc3Ryb3lfbGlzdF9scnVfbm9kZV9yY3UpOyB9
+DQo+ID4+Pj4gKw0KPiA+Pj4+ICBzdGF0aWMgaW50IG1lbWNnX3VwZGF0ZV9saXN0X2xydV9ub2Rl
+KHN0cnVjdCBsaXN0X2xydV9ub2RlICpubHJ1LA0KPiA+Pj4+ICAJCQkJICAgICAgaW50IG9sZF9z
+aXplLCBpbnQgbmV3X3NpemUpICB7IEBAIC0zNzEsOQ0KPiA+PiArMzk3LDEwIEBADQo+ID4+Pj4g
+c3RhdGljIGludCBtZW1jZ191cGRhdGVfbGlzdF9scnVfbm9kZShzdHJ1Y3QgbGlzdF9scnVfbm9k
+ZSAqbmxydSwNCj4gPj4+PiAgCSAqIHdlIGhhdmUgdG8gdXNlIElSUS1zYWZlIHByaW1pdGl2ZXMg
+aGVyZSB0byBhdm9pZCBkZWFkbG9jay4NCj4gPj4+PiAgCSAqLw0KPiA+Pj4+ICAJc3Bpbl9sb2Nr
+X2lycSgmbmxydS0+bG9jayk7DQo+ID4+Pj4gLQlubHJ1LT5tZW1jZ19scnVzID0gbmV3Ow0KPiA+
+Pj4+ICsJcmN1X2Fzc2lnbl9wb2ludGVyKG5scnUtPm1lbWNnX2xydXMsIG5ldyk7DQo+ID4+Pj4g
+IAlzcGluX3VubG9ja19pcnEoJm5scnUtPmxvY2spOw0KPiA+Pj4+DQo+ID4+Pj4gKwlzeW5jaHJv
+bml6ZV9yY3UoKTsNCj4gPj4+PiAgCWt2ZnJlZShvbGQpOw0KPiA+Pj4+ICAJcmV0dXJuIDA7DQo+
+ID4+Pj4gIH0NCj4gPj4+PiBAQCAtNDg3LDYgKzUxNCw3IEBAIHN0YXRpYyB2b2lkIG1lbWNnX2Ry
+YWluX2xpc3RfbHJ1X25vZGUoc3RydWN0DQo+ID4+IGxpc3RfbHJ1X25vZGUgKm5scnUsDQo+ID4+
+Pj4gIAkgKiB3ZSBoYXZlIHRvIHVzZSBJUlEtc2FmZSBwcmltaXRpdmVzIGhlcmUgdG8gYXZvaWQg
+ZGVhZGxvY2suDQo+ID4+Pj4gIAkgKi8NCj4gPj4+PiAgCXNwaW5fbG9ja19pcnEoJm5scnUtPmxv
+Y2spOw0KPiA+Pj4+ICsJcmN1X3JlYWRfbG9jaygpOw0KPiA+Pj4+DQo+ID4+Pj4gIAlzcmMgPSBs
+aXN0X2xydV9mcm9tX21lbWNnX2lkeChubHJ1LCBzcmNfaWR4KTsNCj4gPj4+PiAgCWRzdCA9IGxp
+c3RfbHJ1X2Zyb21fbWVtY2dfaWR4KG5scnUsIGRzdF9pZHgpOyBAQCAtNDk1LDYgKzUyMyw3DQo+
+ID4+IEBADQo+ID4+Pj4gc3RhdGljIHZvaWQgbWVtY2dfZHJhaW5fbGlzdF9scnVfbm9kZShzdHJ1
+Y3QgbGlzdF9scnVfbm9kZSAqbmxydSwNCj4gPj4+PiAgCWRzdC0+bnJfaXRlbXMgKz0gc3JjLT5u
+cl9pdGVtczsNCj4gPj4+PiAgCXNyYy0+bnJfaXRlbXMgPSAwOw0KPiA+Pj4+DQo+ID4+Pj4gKwly
+Y3VfcmVhZF91bmxvY2soKTsNCj4gPj4+PiAgCXNwaW5fdW5sb2NrX2lycSgmbmxydS0+bG9jayk7
+DQo+ID4+Pj4gIH0NCj4gPj4+Pg0KPiA+Pj4+IC0tDQo+ID4+Pj4gMi4xMS4wDQo+ID4+Pg0KPiA+
+Pj4gLS0NCj4gPj4+IE1pY2hhbCBIb2Nrbw0KPiA+Pj4gU1VTRSBMYWJzDQo+ID4+Pg0K
