@@ -1,100 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 95EE66B0003
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 01:29:40 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u8so3243807pfm.21
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 22:29:40 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id e92-v6si489920pld.736.2018.03.26.22.29.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 22:29:39 -0700 (PDT)
-Subject: Re: [PATCH] mm: kmemleak: wait for scan completion before disabling
- free
-References: <1522063429-18992-1-git-send-email-vinmenon@codeaurora.org>
- <20180326154421.obk7ikx3h5ko62o5@armageddon.cambridge.arm.com>
- <20180326122611.acbfe1bfe6f7c1792b42a3a7@linux-foundation.org>
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Message-ID: <b3fa4377-edf8-10c4-c40a-45bb53096145@codeaurora.org>
-Date: Tue, 27 Mar 2018 10:59:31 +0530
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D186E6B0003
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 02:11:12 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id m6-v6so14586688pln.8
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 23:11:12 -0700 (PDT)
+Received: from baidu.com ([220.181.50.185])
+        by mx.google.com with ESMTP id t135si393966pgb.24.2018.03.26.23.11.10
+        for <linux-mm@kvack.org>;
+        Mon, 26 Mar 2018 23:11:11 -0700 (PDT)
+From: "Li,Rongqing" <lirongqing@baidu.com>
+Subject: =?gb2312?B?tPC4tDogtPC4tDogtPC4tDogtPC4tDogW1BBVENIXSBtbS9tZW1jb250cm9s?=
+ =?gb2312?Q?.c:_speed_up_to_force_empty_a_memory_cgroup?=
+Date: Tue, 27 Mar 2018 06:11:03 +0000
+Message-ID: <2AD939572F25A448A3AE3CAEA61328C2375076CC@BC-MAIL-M28.internal.baidu.com>
+References: <1521448170-19482-1-git-send-email-lirongqing@baidu.com>
+ <20180319085355.GQ23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C23745764B@BC-MAIL-M28.internal.baidu.com>
+ <20180319103756.GV23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C2374589DC@BC-MAIL-M28.internal.baidu.com>
+ <2AD939572F25A448A3AE3CAEA61328C2374832C1@BC-MAIL-M28.internal.baidu.com>
+ <20180323100839.GO23100@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C2374EC73E@BC-MAIL-M28.internal.baidu.com>
+ <20180323122902.GR23100@dhcp22.suse.cz>
+In-Reply-To: <20180323122902.GR23100@dhcp22.suse.cz>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20180326122611.acbfe1bfe6f7c1792b42a3a7@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-
-On 3/27/2018 12:56 AM, Andrew Morton wrote:
-> On Mon, 26 Mar 2018 16:44:21 +0100 Catalin Marinas <catalin.marinas@arm.com> wrote:
->
->> On Mon, Mar 26, 2018 at 04:53:49PM +0530, Vinayak Menon wrote:
->>> A crash is observed when kmemleak_scan accesses the
->>> object->pointer, likely due to the following race.
->>>
->>> TASK A             TASK B                     TASK C
->>> kmemleak_write
->>>  (with "scan" and
->>>  NOT "scan=on")
->>> kmemleak_scan()
->>>                    create_object
->>>                    kmem_cache_alloc fails
->>>                    kmemleak_disable
->>>                    kmemleak_do_cleanup
->>>                    kmemleak_free_enabled = 0
->>>                                               kfree
->>>                                               kmemleak_free bails out
->>>                                                (kmemleak_free_enabled is 0)
->>>                                               slub frees object->pointer
->>> update_checksum
->>> crash - object->pointer
->>>  freed (DEBUG_PAGEALLOC)
->>>
->>> kmemleak_do_cleanup waits for the scan thread to complete, but not for
->>> direct call to kmemleak_scan via kmemleak_write. So add a wait for
->>> kmemleak_scan completion before disabling kmemleak_free.
->>>
->>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
->> It looks fine to me. Maybe Andrew can pick it up.
->>
->> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-> Well, the comment says:
->
-> /*
->  * Stop the automatic memory scanning thread. This function must be called
->  * with the scan_mutex held.
->  */
-> static void stop_scan_thread(void)
->
->
-> So shouldn't we do it this way?
-
-Earlier it was done the way you mentioned. But that was changed to fix a deadlock by
-
-commit 5f369f374ba4889fe3c17883402db5ee8d254216
-Author: Catalin Marinas <catalin.marinas@arm.com>
-Date:A A  Wed Jun 24 16:58:31 2015 -0700
-
-A A A  mm: kmemleak: do not acquire scan_mutex in kmemleak_do_cleanup()
-
-Not able to see a reason why stop_scan_thread must be called with scan_mutex held. The comment needs a fix ?
-
->
-> --- a/mm/kmemleak.c~mm-kmemleak-wait-for-scan-completion-before-disabling-free-fix
-> +++ a/mm/kmemleak.c
-> @@ -1919,9 +1919,9 @@ static void __kmemleak_do_cleanup(void)
->   */
->  static void kmemleak_do_cleanup(struct work_struct *work)
->  {
-> +	mutex_lock(&scan_mutex);
->  	stop_scan_thread();
->  
-> -	mutex_lock(&scan_mutex);
->  	/*
->  	 * Once it is made sure that kmemleak_scan has stopped, it is safe to no
->  	 * longer track object freeing. Ordering of the scan thread stopping and
-> _
->
+DQoNCj4gLS0tLS3Tyrz+1K28/i0tLS0tDQo+ILeivP7IyzogbGludXgta2VybmVsLW93bmVyQHZn
+ZXIua2VybmVsLm9yZw0KPiBbbWFpbHRvOmxpbnV4LWtlcm5lbC1vd25lckB2Z2VyLmtlcm5lbC5v
+cmddILT6se0gTWljaGFsIEhvY2tvDQo+ILeiy83KsbzkOiAyMDE4xOoz1MIyM8jVIDIwOjI5DQo+
+IMrVvP7IyzogTGksUm9uZ3FpbmcgPGxpcm9uZ3FpbmdAYmFpZHUuY29tPg0KPiCzrcvNOiBsaW51
+eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBsaW51eC1tbUBrdmFjay5vcmc7DQo+IGNncm91cHNA
+dmdlci5rZXJuZWwub3JnOyBoYW5uZXNAY21weGNoZy5vcmc7IEFuZHJleSBSeWFiaW5pbg0KPiA8
+YXJ5YWJpbmluQHZpcnR1b3p6by5jb20+DQo+INb3zOI6IFJlOiC08Li0OiC08Li0OiC08Li0OiBb
+UEFUQ0hdIG1tL21lbWNvbnRyb2wuYzogc3BlZWQgdXAgdG8gZm9yY2UNCj4gZW1wdHkgYSBtZW1v
+cnkgY2dyb3VwDQo+IA0KPiBPbiBGcmkgMjMtMDMtMTggMTI6MDQ6MTYsIExpLFJvbmdxaW5nIHdy
+b3RlOg0KPiBbLi4uXQ0KPiA+IHNocmlua19zbGFiIGRvZXMgbm90IHJlY2xhaW0gYW55IG1lbW9y
+eSwgYnV0IHRha2UgbG90cyBvZiB0aW1lIHRvDQo+ID4gY291bnQgbHJ1DQo+ID4NCj4gPiBtYXli
+ZSB3ZSBjYW4gdXNlIHRoZSByZXR1cm5pbmcgb2Ygc2hyaW5rX3NsYWIgdG8gY29udHJvbCBpZiBu
+ZXh0DQo+ID4gc2hyaW5rX3NsYWIgc2hvdWxkIGJlIGNhbGxlZD8NCj4gDQo+IEhvdz8gRGlmZmVy
+ZW50IG1lbWNncyBtaWdodCBoYXZlIGRpZmZlcmVudCBhbW91bnQgb2Ygc2hyaW5rYWJsZSBtZW1v
+cnkuDQo+IA0KDQptYXliZSB0aGVyZSBpcyBub3QgYSBlYXN5IHdheSB0byBpbXBsZW1lbnQgaXQN
+Cg0KaW4gdGhpcyBjYXNlLCBzaHJpbmtfc2xhYiBjYWxsIG1hbnkgdGltZXMgbGlzdF9scnVfY291
+bnRfb25lLCB3aGljaCBpcyBjYWxsaW5nIGxpc3RfbHJ1X2NvdW50X29uZSwgd2hpY2ggdXNlIHNw
+aW5sb2NrLCBtYXliZSByZXBsYWNlIHNwaW5sb2NrIHdpdGggUkNVLCB0byBvcHRpbWl6ZQ0KDQoN
+Ci1Sb25nUWluZw0KDQoNCj4gPiBPciBkZWZpbmUgYSBzbGlnaHQgbGlzdF9scnVfZW1wdHkgdG8g
+Y2hlY2sgaWYgc2ItPnNfZGVudHJ5X2xydSBpcw0KPiA+IGVtcHR5IGJlZm9yZSBjYWxsaW5nIGxp
+c3RfbHJ1X3Nocmlua19jb3VudCwgbGlrZSBiZWxvdw0KPiANCj4gRG9lcyBpdCByZWFsbHkgaGVs
+cCB0byBpbXByb3ZlIG51bWJlcnM/DQo+IA0KPiA+IGRpZmYgLS1naXQgYS9mcy9zdXBlci5jIGIv
+ZnMvc3VwZXIuYw0KPiA+IGluZGV4IDY3MjUzOGNhOTgzMS4uOTU0YzIyMzM4ODMzIDEwMDY0NA0K
+PiA+IC0tLSBhL2ZzL3N1cGVyLmMNCj4gPiArKysgYi9mcy9zdXBlci5jDQo+ID4gQEAgLTEzMCw4
+ICsxMzAsMTAgQEAgc3RhdGljIHVuc2lnbmVkIGxvbmcgc3VwZXJfY2FjaGVfY291bnQoc3RydWN0
+DQo+IHNocmlua2VyICpzaHJpbmssDQo+ID4gICAgICAgICBpZiAoc2ItPnNfb3AgJiYgc2ItPnNf
+b3AtPm5yX2NhY2hlZF9vYmplY3RzKQ0KPiA+ICAgICAgICAgICAgICAgICB0b3RhbF9vYmplY3Rz
+ID0gc2ItPnNfb3AtPm5yX2NhY2hlZF9vYmplY3RzKHNiLCBzYyk7DQo+ID4NCj4gPiAtICAgICAg
+IHRvdGFsX29iamVjdHMgKz0gbGlzdF9scnVfc2hyaW5rX2NvdW50KCZzYi0+c19kZW50cnlfbHJ1
+LCBzYyk7DQo+ID4gLSAgICAgICB0b3RhbF9vYmplY3RzICs9IGxpc3RfbHJ1X3Nocmlua19jb3Vu
+dCgmc2ItPnNfaW5vZGVfbHJ1LCBzYyk7DQo+ID4gKyAgICAgICBpZiAoIWxpc3RfbHJ1X2VtcHR5
+KHNiLT5zX2RlbnRyeV9scnUpKQ0KPiA+ICsgICAgICAgICAgICAgICB0b3RhbF9vYmplY3RzICs9
+DQo+IGxpc3RfbHJ1X3Nocmlua19jb3VudCgmc2ItPnNfZGVudHJ5X2xydSwgc2MpOw0KPiA+ICsg
+ICAgICAgaWYgKCFsaXN0X2xydV9lbXB0eShzYi0+c19pbm9kZV9scnUpKQ0KPiA+ICsgICAgICAg
+ICAgICAgICB0b3RhbF9vYmplY3RzICs9DQo+ID4gKyBsaXN0X2xydV9zaHJpbmtfY291bnQoJnNi
+LT5zX2lub2RlX2xydSwgc2MpOw0KPiA+DQo+ID4gICAgICAgICB0b3RhbF9vYmplY3RzID0gdmZz
+X3ByZXNzdXJlX3JhdGlvKHRvdGFsX29iamVjdHMpOw0KPiA+ICAgICAgICAgcmV0dXJuIHRvdGFs
+X29iamVjdHM7DQo+IA0KPiAtLQ0KPiBNaWNoYWwgSG9ja28NCj4gU1VTRSBMYWJzDQo=
