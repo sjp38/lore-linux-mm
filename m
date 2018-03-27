@@ -1,58 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 91ECB6B0012
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 14:25:02 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id w23so11563712pgv.17
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 11:25:02 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id r7si1211342pgp.212.2018.03.27.11.25.01
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 61DEF6B0025
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 14:38:24 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id j8so13445047pfh.13
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 11:38:24 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id c15si1235176pgv.251.2018.03.27.11.38.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Mar 2018 11:25:01 -0700 (PDT)
-Subject: Re: dma-mapping: clearing GFP_ZERO flag caused crashes of Ethernet on
- arc/hsdk board.
-References: <1522170774.2593.9.camel@synopsys.com>
- <CAHp75VeZSsdR1=ZhOM6jseYCP3m0GyE=8EjJUxWosze9BBw9rQ@mail.gmail.com>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <a4bc637f-9464-c585-c6d2-663e2e38f18f@synopsys.com>
-Date: Tue, 27 Mar 2018 11:24:51 -0700
+        Tue, 27 Mar 2018 11:38:22 -0700 (PDT)
+Subject: Re: [v2 PATCH] mm: introduce arg_lock to protect arg_start|end and
+ env_start|end in mm_struct
+References: <1522088439-105930-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180327062939.GV5652@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <95a107ac-5e5b-92d7-dbde-2e961d85de28@linux.alibaba.com>
+Date: Tue, 27 Mar 2018 14:38:11 -0400
 MIME-Version: 1.0
-In-Reply-To: <CAHp75VeZSsdR1=ZhOM6jseYCP3m0GyE=8EjJUxWosze9BBw9rQ@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
+In-Reply-To: <20180327062939.GV5652@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Shevchenko <andy.shevchenko@gmail.com>, hch@lst.de
-Cc: Evgeniy Didin <Evgeniy.Didin@synopsys.com>, "jesper.nilsson@axis.com" <jesper.nilsson@axis.com>, Alexey Brodkin <Alexey.Brodkin@synopsys.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "geert@linux-m68k.org" <geert@linux-m68k.org>, "dmaengine@vger.kernel.org" <dmaengine@vger.kernel.org>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>, Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: adobriyan@gmail.com, willy@infradead.org, mguzik@redhat.com, gorcunov@openvz.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Christoph, Andy
 
-On 03/27/2018 11:11 AM, Andy Shevchenko wrote:
-> On Tue, Mar 27, 2018 at 8:12 PM, Evgeniy Didin
-> <Evgeniy.Didin@synopsys.com> wrote:
->> Hello,
->>
->> After commit  57bf5a8963f8 ("dma-mapping: clear harmful GFP_* flags in common code")  we noticed problems with Ethernet controller on one of our platforms (namely ARC HSDK).
->> I
->> n particular we see that removal of __GFP_ZERO flag in function dma_alloc_attrs() was the culprit because in our implementation of arc_dma_alloc() we only allocate zeroed pages if
->> that flag is explicitly set by the caller. Now with unconditional removal of that flag in dma_alloc_attrs() we allocate non-zeroed pages and that seem to cause problems.
->>
->> From
->> mentioned commit message I may conclude that architectural code is supposed to always allocate zeroed pages but I cannot find any requirement of that in kernel's documentation.
->> Coul
->> d you please point me to that requirement if that exists at all, then we'll implement a fix in our arch code like that:
 
-[snip]
+On 3/27/18 2:29 AM, Michal Hocko wrote:
+> On Tue 27-03-18 02:20:39, Yang Shi wrote:
+> [...]
+> The patch looks reasonable to me. Maybe it would be better to be more
+> explicit about the purpose of the patch. As others noticed, this alone
+> wouldn't solve the mmap_sem contention issues. I _think_ that if you
+> were more explicit about the mmap_sem abuse it would trigger less
+> questions.
 
-> Another question why caller can't ask for zero pages explicitly?
+Yes, sure.
 
-Question to whom ? The caller can ask for it - but the problem here is generic dma 
-API code is clearing out GFP_ZERO and expecting arch code to memst unconditionally 
-- is that expected of arch code - and is documented ?
+>
+> I have just one more question. Now that you are touching this area,
+> would you be willing to remove the following ugliness?
+>
+>> diff --git a/kernel/sys.c b/kernel/sys.c
+>> index f2289de..17bddd2 100644
+>> --- a/kernel/sys.c
+>> +++ b/kernel/sys.c
+>> @@ -1959,7 +1959,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+>>   			return error;
+>>   	}
+>>   
+>> -	down_write(&mm->mmap_sem);
+>> +	down_read(&mm->mmap_sem);
+> Why do we need to hold mmap_sem here and call find_vma, when only
+> PR_SET_MM_ENV_END: is consuming it? I guess we can replace it wit the
+> new lock and take the mmap_sem only for PR_SET_MM_ENV_END.
 
-That is broken to begin with - arch dma_alloc* simply passes thru gfp flags to 
-page allocator and doesn't muck around with them. We could in theory but doesn't 
-seem like the right thing to do IMO.
+Actually, I didn't think of why. It looks prctl_set_mm() checks if vma 
+does exist when it tries to set stack_start, argv_* and env_*, btw not 
+only env_end.
 
--Vineet
+Cyrill may be able to give us some hint since C/R is the main user of 
+this API.
+
+Yang
+
+>
+> Thanks!
