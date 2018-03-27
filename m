@@ -1,102 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C2F426B0010
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 12:12:51 -0400 (EDT)
-Received: by mail-yb0-f200.google.com with SMTP id e196-v6so2261700ybf.3
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 09:12:51 -0700 (PDT)
-Date: Tue, 27 Mar 2018 12:12:45 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 4/8] HMM: Remove superflous RCU protection around radix
- tree lookup
-Message-ID: <20180327161244.GA4251@redhat.com>
-References: <20180314194205.1651587-1-tj@kernel.org>
- <20180314194515.1661824-1-tj@kernel.org>
- <20180314194515.1661824-4-tj@kernel.org>
- <20180326145431.GC1840639@devbig577.frc2.facebook.com>
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 179F06B0012
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 12:23:30 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id w197so5668287iod.23
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 09:23:30 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w5-v6sor864711itb.70.2018.03.27.09.23.29
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 27 Mar 2018 09:23:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180326145431.GC1840639@devbig577.frc2.facebook.com>
+In-Reply-To: <20180324084332.u6qik7lkdbenqbb2@gmail.com>
+References: <cover.1521828273.git.andreyknvl@google.com> <1fb0a050a84d49f5c3b2210337339412475d1688.1521828273.git.andreyknvl@google.com>
+ <20180324084332.u6qik7lkdbenqbb2@gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 27 Mar 2018 18:23:27 +0200
+Message-ID: <CAAeHK+za1Zg2+1_CFrQbdn_Hwa9o_nZkHuMLaekV18W380jAoQ@mail.gmail.com>
+Subject: Re: [RFC PATCH v2 03/15] khwasan: add CONFIG_KASAN_CLASSIC and CONFIG_KASAN_TAGS
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, security@kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, linux-mm@kvack.org, torvalds@linux-foundation.org, jannh@google.com, paulmck@linux.vnet.ibm.com, bcrl@kvack.org, viro@zeniv.linux.org.uk, kent.overstreet@gmail.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Stephen Boyd <stephen.boyd@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-On Mon, Mar 26, 2018 at 07:54:31AM -0700, Tejun Heo wrote:
-> Hello, Andrew.
-> 
-> Do you mind picking up the following patch?  I can't find a good tree
-> to route this through.  The raw patch can be found at
-> 
->   https://marc.info/?l=linux-mm&m=152105674112496&q=raw
-> 
-> Thank you very much.
+On Sat, Mar 24, 2018 at 9:43 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Andrey Konovalov <andreyknvl@google.com> wrote:
+>
+>> This commit splits the current CONFIG_KASAN config option into two:
+>> 1. CONFIG_KASAN_CLASSIC, that enables the classic KASAN version (the one
+>>    that exists now);
+>> 2. CONFIG_KASAN_TAGS, that enables KHWASAN.
+>
+> Sorry, but this is pretty obscure naming scheme that doesn't explain the =
+primary
+> difference between these KASAN models to users: that the first one is a p=
+ure
+> software implementation and the other is hardware-assisted.
+>
+> Reminds me of the transparency of galactic buerocracy in "The Hitchhiker'=
+s Guide
+> to the Galaxy":
+>
+>   =E2=80=9CBut look, you found the notice, didn=E2=80=99t you?=E2=80=9D
+>   =E2=80=9CYes,=E2=80=9D said Arthur, =E2=80=9Cyes I did. It was on displ=
+ay in the bottom of a locked filing
+>    cabinet stuck in a disused lavatory with a sign on the door saying =E2=
+=80=98Beware of the
+>    Leopard.=E2=80=9D
+>
+> I'd suggest something more expressive, such as:
+>
+>         CONFIG_KASAN
+>           CONFIG_KASAN_GENERIC
+>           CONFIG_KASAN_HW_ASSIST
+>
+> or so?
+>
+> The 'generic' variant will basically run on any CPU. The 'hardware assist=
+ed' one
+> needs support from the CPU.
+>
+> The following ones might also work:
+>
+>    CONFIG_KASAN_HWASSIST
+>    CONFIG_KASAN_HW_TAGS
+>    CONFIG_KASAN_HWTAGS
+>
+> ... or simply CONFIG_KASAN_SW/CONFIG_KASAN_HW.
+>
+> If other types of KASAN hardware acceleration are implemented in the futu=
+re then
+> the CONFIG_KASAN_HW namespace can be extended:
+>
+>         CONFIG_KASAN_HW_TAGS
+>         CONFIG_KASAN_HW_KEYS
+>         etc.
 
-I am fine with which ever route there is low probability of conflict
-when merging HMM through different tree.
+How about these two:
 
+CONFIG_KASAN_GENERIC
+CONFIG_KASAN_HW
 
-> 
-> On Wed, Mar 14, 2018 at 12:45:11PM -0700, Tejun Heo wrote:
-> > hmm_devmem_find() requires rcu_read_lock_held() but there's nothing
-> > which actually uses the RCU protection.  The only caller is
-> > hmm_devmem_pages_create() which already grabs the mutex and does
-> > superflous rcu_read_lock/unlock() around the function.
-> > 
-> > This doesn't add anything and just adds to confusion.  Remove the RCU
-> > protection and open-code the radix tree lookup.  If this needs to
-> > become more sophisticated in the future, let's add them back when
-> > necessary.
-> > 
-> > Signed-off-by: Tejun Heo <tj@kernel.org>
-> > Reviewed-by: Jerome Glisse <jglisse@redhat.com>
-> > Cc: linux-mm@kvack.org
-> > Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> > ---
-> > Hello,
-> > 
-> > Jerome, how do you want to route this patch?  If you prefer, I can
-> > route it together with other patches.
-> > 
-> > Thanks.
-> > 
-> >  mm/hmm.c | 12 ++----------
-> >  1 file changed, 2 insertions(+), 10 deletions(-)
-> > 
-> > diff --git a/mm/hmm.c b/mm/hmm.c
-> > index 320545b98..d4627c5 100644
-> > --- a/mm/hmm.c
-> > +++ b/mm/hmm.c
-> > @@ -845,13 +845,6 @@ static void hmm_devmem_release(struct device *dev, void *data)
-> >  	hmm_devmem_radix_release(resource);
-> >  }
-> >  
-> > -static struct hmm_devmem *hmm_devmem_find(resource_size_t phys)
-> > -{
-> > -	WARN_ON_ONCE(!rcu_read_lock_held());
-> > -
-> > -	return radix_tree_lookup(&hmm_devmem_radix, phys >> PA_SECTION_SHIFT);
-> > -}
-> > -
-> >  static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
-> >  {
-> >  	resource_size_t key, align_start, align_size, align_end;
-> > @@ -892,9 +885,8 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
-> >  	for (key = align_start; key <= align_end; key += PA_SECTION_SIZE) {
-> >  		struct hmm_devmem *dup;
-> >  
-> > -		rcu_read_lock();
-> > -		dup = hmm_devmem_find(key);
-> > -		rcu_read_unlock();
-> > +		dup = radix_tree_lookup(&hmm_devmem_radix,
-> > +					key >> PA_SECTION_SHIFT);
-> >  		if (dup) {
-> >  			dev_err(device, "%s: collides with mapping for %s\n",
-> >  				__func__, dev_name(dup->device));
-> > -- 
-> > 2.9.5
-> > 
-> 
-> -- 
-> tejun
+?
+
+Shorter config name looks better to me and I think it makes sense to
+name the new config just HW, as there's only one HW implementation
+right now. When (and if) there are more, we can expand the config name
+as you suggested (CONFIG_KASAN_HW_TAGS, CONFIG_KASAN_HW_KEYS, etc).
+
+>
+>> Both CONFIG_KASAN_CLASSIC and CONFIG_KASAN_CLASSIC support both
+>> CONFIG_KASAN_INLINE and CONFIG_KASAN_OUTLINE instrumentation modes.
+>
+> It would be very surprising if that wasn't so!
+>
+> Or did you mean 'Both CONFIG_KASAN_CLASSIC and CONFIG_KASAN_TAGS'! ;-)
+>
+> Thanks,
+>
+>         Ingo
