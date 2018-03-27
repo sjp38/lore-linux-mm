@@ -1,85 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A2406B0006
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 21:57:15 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 140-v6so10209315itg.4
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 18:57:15 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id e2-v6si288645itb.58.2018.03.26.18.57.14
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 54E936B0008
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 21:57:30 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id i64so4792550wmd.8
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 18:57:30 -0700 (PDT)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id s37si70157wrc.554.2018.03.26.18.57.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 18:57:14 -0700 (PDT)
-Subject: Re: [PATCH 1/2] Move kfree_call_rcu() to slab_common.c
-References: <1514923898-2495-1-git-send-email-rao.shoaib@oracle.com>
- <20180102222341.GB20405@bombadil.infradead.org>
- <3be609d4-800e-a89e-f885-7e0f5d288862@oracle.com>
- <20180104013807.GA31392@tardis>
- <be1abd24-56c8-45bc-fecc-3f0c5b978678@oracle.com>
- <64ca3929-4044-9393-a6ca-70c0a2589a35@oracle.com>
- <20180104214658.GA20740@bombadil.infradead.org>
- <3e4ea0b9-686f-7e36-d80c-8577401517e2@oracle.com>
- <20180104231307.GA794@bombadil.infradead.org>
- <20180104234732.GM9671@linux.vnet.ibm.com>
- <20180105000707.GA22237@bombadil.infradead.org>
- <1515134773.21222.13.camel@perches.com>
-From: Rao Shoaib <rao.shoaib@oracle.com>
-Message-ID: <1e8c4382-b97f-659a-59fa-07c71efad970@oracle.com>
-Date: Mon, 26 Mar 2018 18:56:51 -0700
+        Mon, 26 Mar 2018 18:57:29 -0700 (PDT)
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Subject: [PATCH 5/6] lkdtm: crash on overwriting protected pmalloc var
+Date: Tue, 27 Mar 2018 04:55:23 +0300
+Message-ID: <20180327015524.14318-6-igor.stoppa@huawei.com>
+In-Reply-To: <20180327015524.14318-1-igor.stoppa@huawei.com>
+References: <20180327015524.14318-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <1515134773.21222.13.camel@perches.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Boqun Feng <boqun.feng@gmail.com>, linux-kernel@vger.kernel.org, brouer@redhat.com, linux-mm@kvack.org
+To: willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
+Cc: david@fromorbit.com, rppt@linux.vnet.ibm.com, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, igor.stoppa@gmail.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-Folks,
+Verify that pmalloc read-only protection is in place: trying to
+overwrite a protected variable will crash the kernel.
 
-Is anyone working on resolving the check patch issue as I am waiting to 
-resubmit my patch. Will it be fine if I submitted the patch with the 
-original macro as the check is in-correct.
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+---
+ drivers/misc/lkdtm.h       |  1 +
+ drivers/misc/lkdtm_core.c  |  3 +++
+ drivers/misc/lkdtm_perms.c | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 32 insertions(+)
 
-I do not speak perl but I can do the process work. If folks think Joe's 
-fix is fine I can submit it and perhaps someone can review it ?
-
-Regards,
-
-Shoaib
-
-
-On 01/04/2018 10:46 PM, Joe Perches wrote:
-> On Thu, 2018-01-04 at 16:07 -0800, Matthew Wilcox wrote:
->> On Thu, Jan 04, 2018 at 03:47:32PM -0800, Paul E. McKenney wrote:
->>> I was under the impression that typeof did not actually evaluate its
->>> argument, but rather only returned its type.  And there are a few macros
->>> with this pattern in mainline.
->>>
->>> Or am I confused about what typeof does?
->> I think checkpatch is confused by the '*' in the typeof argument:
->>
->> $ git diff |./scripts/checkpatch.pl --strict
->> CHECK: Macro argument reuse 'ptr' - possible side-effects?
->> #29: FILE: include/linux/rcupdate.h:896:
->> +#define kfree_rcu(ptr, rcu_head)                                        \
->> +	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
->>
->> If one removes the '*', the warning goes away.
->>
->> I'm no perlista, but Joe, would this regexp modification make sense?
->>
->> +++ b/scripts/checkpatch.pl
->> @@ -4957,7 +4957,7 @@ sub process {
->>                                  next if ($arg =~ /\.\.\./);
->>                                  next if ($arg =~ /^type$/i);
->>                                  my $tmp_stmt = $define_stmt;
->> -                               $tmp_stmt =~ s/\b(typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*\s*$arg\s*\)*\b//g;
->> +                               $tmp_stmt =~ s/\b(typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*\**\(*\s*$arg\s*\)*\b//g;
-> I supposed ideally it'd be more like
->
-> $tmp_stmt =~ s/\b(?:typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*(?:\s*\*\s*)*\s*\(*\s*$arg\s*\)*\b//g;
->
-> Adding ?: at the start to not capture and
-> (?:\s*\*\s*)* for any number of * with any
-> surrounding spacings.
+diff --git a/drivers/misc/lkdtm.h b/drivers/misc/lkdtm.h
+index 9e513dcfd809..dcda3ae76ceb 100644
+--- a/drivers/misc/lkdtm.h
++++ b/drivers/misc/lkdtm.h
+@@ -38,6 +38,7 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void);
+ void __init lkdtm_perms_init(void);
+ void lkdtm_WRITE_RO(void);
+ void lkdtm_WRITE_RO_AFTER_INIT(void);
++void lkdtm_WRITE_RO_PMALLOC(void);
+ void lkdtm_WRITE_KERN(void);
+ void lkdtm_EXEC_DATA(void);
+ void lkdtm_EXEC_STACK(void);
+diff --git a/drivers/misc/lkdtm_core.c b/drivers/misc/lkdtm_core.c
+index 2154d1bfd18b..c9fd42bda6ee 100644
+--- a/drivers/misc/lkdtm_core.c
++++ b/drivers/misc/lkdtm_core.c
+@@ -155,6 +155,9 @@ static const struct crashtype crashtypes[] = {
+ 	CRASHTYPE(ACCESS_USERSPACE),
+ 	CRASHTYPE(WRITE_RO),
+ 	CRASHTYPE(WRITE_RO_AFTER_INIT),
++#ifdef CONFIG_PROTECTABLE_MEMORY
++	CRASHTYPE(WRITE_RO_PMALLOC),
++#endif
+ 	CRASHTYPE(WRITE_KERN),
+ 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
+ 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
+diff --git a/drivers/misc/lkdtm_perms.c b/drivers/misc/lkdtm_perms.c
+index 53b85c9d16b8..0ac9023fd2b0 100644
+--- a/drivers/misc/lkdtm_perms.c
++++ b/drivers/misc/lkdtm_perms.c
+@@ -9,6 +9,7 @@
+ #include <linux/vmalloc.h>
+ #include <linux/mman.h>
+ #include <linux/uaccess.h>
++#include <linux/pmalloc.h>
+ #include <asm/cacheflush.h>
+ 
+ /* Whether or not to fill the target memory area with do_nothing(). */
+@@ -104,6 +105,33 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
+ 	*ptr ^= 0xabcd1234;
+ }
+ 
++#ifdef CONFIG_PROTECTABLE_MEMORY
++void lkdtm_WRITE_RO_PMALLOC(void)
++{
++	struct gen_pool *pool;
++	int *i;
++
++	pool = pmalloc_create_pool("pool", 0);
++	if (unlikely(!pool)) {
++		pr_info("Failed preparing pool for pmalloc test.");
++		return;
++	}
++
++	i = (int *)pmalloc(pool, sizeof(int), GFP_KERNEL);
++	if (unlikely(!i)) {
++		pr_info("Failed allocating memory for pmalloc test.");
++		pmalloc_destroy_pool(pool);
++		return;
++	}
++
++	*i = INT_MAX;
++	pmalloc_protect_pool(pool);
++
++	pr_info("attempting bad pmalloc write at %p\n", i);
++	*i = 0;
++}
++#endif
++
+ void lkdtm_WRITE_KERN(void)
+ {
+ 	size_t size;
+-- 
+2.14.1
