@@ -1,154 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 89A636B0009
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 21:57:45 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id e15so2908844wrj.14
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 18:57:45 -0700 (PDT)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id 62si258387wml.81.2018.03.26.18.57.44
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AE456B0006
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 22:06:19 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id k17-v6so10233105ita.1
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 19:06:19 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0096.hostedemail.com. [216.40.44.96])
+        by mx.google.com with ESMTPS id c65si95277iof.340.2018.03.26.19.06.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 18:57:44 -0700 (PDT)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 6/6] Documentation for Pmalloc
-Date: Tue, 27 Mar 2018 04:55:24 +0300
-Message-ID: <20180327015524.14318-7-igor.stoppa@huawei.com>
-In-Reply-To: <20180327015524.14318-1-igor.stoppa@huawei.com>
-References: <20180327015524.14318-1-igor.stoppa@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Mon, 26 Mar 2018 19:06:18 -0700 (PDT)
+Message-ID: <1522116373.12357.42.camel@perches.com>
+Subject: Re: [PATCH 1/2] Move kfree_call_rcu() to slab_common.c
+From: Joe Perches <joe@perches.com>
+Date: Mon, 26 Mar 2018 19:06:13 -0700
+In-Reply-To: <1e8c4382-b97f-659a-59fa-07c71efad970@oracle.com>
+References: <1514923898-2495-1-git-send-email-rao.shoaib@oracle.com>
+	 <20180102222341.GB20405@bombadil.infradead.org>
+	 <3be609d4-800e-a89e-f885-7e0f5d288862@oracle.com>
+	 <20180104013807.GA31392@tardis>
+	 <be1abd24-56c8-45bc-fecc-3f0c5b978678@oracle.com>
+	 <64ca3929-4044-9393-a6ca-70c0a2589a35@oracle.com>
+	 <20180104214658.GA20740@bombadil.infradead.org>
+	 <3e4ea0b9-686f-7e36-d80c-8577401517e2@oracle.com>
+	 <20180104231307.GA794@bombadil.infradead.org>
+	 <20180104234732.GM9671@linux.vnet.ibm.com>
+	 <20180105000707.GA22237@bombadil.infradead.org>
+	 <1515134773.21222.13.camel@perches.com>
+	 <1e8c4382-b97f-659a-59fa-07c71efad970@oracle.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
-Cc: david@fromorbit.com, rppt@linux.vnet.ibm.com, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, igor.stoppa@gmail.com, Igor Stoppa <igor.stoppa@huawei.com>
+To: Rao Shoaib <rao.shoaib@oracle.com>, Matthew Wilcox <willy@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Boqun Feng <boqun.feng@gmail.com>, linux-kernel@vger.kernel.org, brouer@redhat.com, linux-mm@kvack.org
 
-Detailed documentation about the protectable memory allocator.
+On Mon, 2018-03-26 at 18:56 -0700, Rao Shoaib wrote:
+> Folks,
+> 
+> Is anyone working on resolving the check patch issue as I am waiting to 
+> resubmit my patch. Will it be fine if I submitted the patch with the 
+> original macro as the check is in-correct.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
----
- Documentation/core-api/index.rst   |   1 +
- Documentation/core-api/pmalloc.rst | 101 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 102 insertions(+)
- create mode 100644 Documentation/core-api/pmalloc.rst
+Yes.  Of course.  Anytime a person knows better,
+checkpatch output should be ignored.
 
-diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-index c670a8031786..8f5de42d6571 100644
---- a/Documentation/core-api/index.rst
-+++ b/Documentation/core-api/index.rst
-@@ -25,6 +25,7 @@ Core utilities
-    genalloc
-    errseq
-    printk-formats
-+   pmalloc
- 
- Interfaces for kernel debugging
- ===============================
-diff --git a/Documentation/core-api/pmalloc.rst b/Documentation/core-api/pmalloc.rst
-new file mode 100644
-index 000000000000..3d2c19e5deaf
---- /dev/null
-+++ b/Documentation/core-api/pmalloc.rst
-@@ -0,0 +1,101 @@
-+.. SPDX-License-Identifier: GPL-2.0
-+
-+.. _pmalloc:
-+
-+Protectable memory allocator
-+============================
-+
-+Purpose
-+-------
-+
-+The pmalloc library is meant to provide read-only status to data that,
-+for some reason, could neither be declared as constant, nor could it take
-+advantage of the qualifier __ro_after_init, but is write-once and
-+read-only in spirit.
-+It protects data from both accidental and malicious overwrites.
-+
-+Example: A policy that is loaded from userspace.
-+
-+
-+Concept
-+-------
-+
-+The MMU available in the system can be used to write protect memory pages.
-+Unfortunately this feature cannot be used as-it-is, to protect sensitive
-+data, because it is typically interleaved with data that must stay
-+writeable.
-+
-+pmalloc introduces the concept of protectable memory pools.
-+Each pool contains a list of areas of virtually contiguous pages of
-+memory. An area is the minimum amount of memory that pmalloc allows to
-+protect, because the data it contains can be larger than a single page.
-+
-+When an allocation is performed, if there is not enough memory already
-+available in the pool, a new area of suitable size is allocated.
-+The size chosen is the largest between the roundup (to PAGE_SIZE) of
-+the request from pmalloc and friends and the refill parameter specified
-+when creating the pool.
-+
-+When a pool is created, it is possible to specify two parameters:
-+- refill size: the minimum size of the memory area to allocate when needed
-+- align_order: the default alignment to use when returning to pmalloc
-+
-+Caveats
-+-------
-+
-+- To facilitate the conversion of existing code to pmalloc pools, several
-+  helper functions are provided, mirroring their k/vmalloc counterparts.
-+  In particular, pfree(), which is mostly meant for error paths, when one
-+  or more previous allocations must be rolled back.
-+
-+- Whatever memory was still available in the previous area (where
-+  applicable) is relinquished.
-+
-+- Freeing of memory is not supported. Pages will be returned to the
-+  system upon destruction of the memory pool.
-+
-+- Considering that not much data is supposed to be dynamically allocated
-+  and then marked as read-only, it shouldn't be an issue that the address
-+  range for pmalloc is limited, on 32-bit systems.
-+
-+- Regarding SMP systems, the allocations are expected to happen mostly
-+  during an initial transient, after which there should be no more need to
-+  perform cross-processor synchronizations of page tables.
-+
-+
-+Use
-+---
-+
-+The typical sequence, when using pmalloc, is:
-+
-+#. create a pool
-+
-+   :c:func:`pmalloc_create_pool`
-+
-+#. [optional] pre-allocate some memory in the pool
-+
-+   :c:func:`pmalloc_prealloc`
-+
-+#. issue one or more allocation requests to the pool with locking as needed
-+
-+   :c:func:`pmalloc`
-+
-+   :c:func:`pzalloc`
-+
-+#. initialize the memory obtained with desired values
-+
-+#. write-protect the memory so far allocated
-+
-+   :c::func:`pmalloc_protect_pool`
-+
-+#. iterate over the last 3 points as needed
-+
-+#. [optional] destroy the pool
-+
-+   :c:func:`pmalloc_destroy_pool`
-+
-+API
-+---
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+.. kernel-doc:: mm/pmalloc.c
--- 
-2.14.1
+> I do not speak perl but I can do the process work. If folks think Joe's 
+> fix is fine I can submit it and perhaps someone can review it ?
+
+I think it's fine too ;)
+Submit away...
