@@ -1,94 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A7F226B002B
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 11:13:58 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id i4so363508wrh.4
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 08:13:58 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m200si1213117wmb.23.2018.03.27.08.13.57
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D2E36B0010
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 11:17:42 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c65so5562254pfa.5
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 08:17:42 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30131.outbound.protection.outlook.com. [40.107.3.131])
+        by mx.google.com with ESMTPS id w68si1020532pgb.602.2018.03.27.08.17.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Mar 2018 08:13:57 -0700 (PDT)
-Subject: Re: [PATCH 1/3] fs: Perform writebacks under memalloc_nofs
-References: <20180321224429.15860-1-rgoldwyn@suse.de>
- <20180321224429.15860-2-rgoldwyn@suse.de>
- <20180322070808.GU23100@dhcp22.suse.cz>
- <d44ff1ea-e618-4cf6-b9b5-3e8fc7f03c14@suse.de>
- <20180327142150.GA13604@bombadil.infradead.org>
-From: Goldwyn Rodrigues <rgoldwyn@suse.de>
-Message-ID: <3a96b6ff-7d55-9bb6-8a30-f32f5dd0b054@suse.de>
-Date: Tue, 27 Mar 2018 10:13:53 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 27 Mar 2018 08:17:40 -0700 (PDT)
+Subject: Re: [PATCH 03/10] mm: Assign memcg-aware shrinkers bitmap to memcg
+References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
+ <152163850081.21546.6969747084834474733.stgit@localhost.localdomain>
+ <20180324192521.my7akysvj7wtudan@esperanza>
+ <09663190-12dd-4353-668d-f4fc2f27c2d7@virtuozzo.com>
+ <20180327100047.gj4gtmt3necmtpzw@esperanza>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <830e05f4-5105-be40-6414-9a90b610d5cc@virtuozzo.com>
+Date: Tue, 27 Mar 2018 18:17:31 +0300
 MIME-Version: 1.0
-In-Reply-To: <20180327142150.GA13604@bombadil.infradead.org>
+In-Reply-To: <20180327100047.gj4gtmt3necmtpzw@esperanza>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Goldwyn Rodrigues <rgoldwyn@suse.de>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, david@fromorbit.com
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
 
-
-
-On 03/27/2018 09:21 AM, Matthew Wilcox wrote:
-> On Tue, Mar 27, 2018 at 07:52:48AM -0500, Goldwyn Rodrigues wrote:
->> I am not sure if I missed a condition in the code, but here is one of
->> the call lineup:
+On 27.03.2018 13:00, Vladimir Davydov wrote:
+> On Mon, Mar 26, 2018 at 06:29:05PM +0300, Kirill Tkhai wrote:
+>>>> @@ -182,6 +187,9 @@ struct mem_cgroup {
+>>>>  	unsigned long low;
+>>>>  	unsigned long high;
+>>>>  
+>>>> +	/* Bitmap of shrinker ids suitable to call for this memcg */
+>>>> +	struct shrinkers_map __rcu *shrinkers_map;
+>>>> +
+>>>
+>>> We keep all per-node data in mem_cgroup_per_node struct. I think this
+>>> bitmap should be defined there as well.
 >>
->> writepages() -> writepage() -> kmalloc() -> __alloc_pages() ->
->> __alloc_pages_nodemask -> __alloc_pages_slowpath ->
->> __alloc_pages_direct_reclaim() -> try_to_free_pages() ->
->> do_try_to_free_pages() -> shrink_zones() -> shrink_node() ->
->> shrink_slab() -> do_shrink_slab() -> shrinker.scan_objects() ->
->> super_cache_scan() -> prune_icache_sb() -> fs/inode.c:dispose_list() ->
->> evict(inode) -> evict_inode() for ext4 ->  filemap_write_and_wait() ->
->> filemap_fdatawrite(mapping) -> __filemap_fdatawrite_range() ->
->> do_writepages -> writepages()
+>> But them we'll have to have struct rcu_head for every node to free the map
+>> via rcu. This is the only reason I did that. But if you think it's not a problem,
+>> I'll agree with you.
+> 
+> I think it's OK. It'd be consistent with how list_lru handles
+> list_lru_memcg reallocations.
+> 
+>>>> @@ -4487,6 +4490,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+>>>>  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+>>>>  	struct mem_cgroup_event *event, *tmp;
+>>>>  
+>>>> +	free_shrinker_maps(memcg);
+>>>> +
+>>>
+>>> AFAIU this can race with shrink_slab accessing the map, resulting in
+>>> use-after-free. IMO it would be safer to free the bitmap from css_free.
 >>
->> Please note, most filesystems currently have a safeguard in writepage()
->> which will return if the PF_MEMALLOC is set. The other safeguard is
->> __GFP_FS which we are trying to eliminate.
+>> But doesn't shrink_slab() iterate only online memcg?
 > 
-> But is that harmful?  ext4_writepage() (for example) says that it will
-> not deadlock in that circumstance:
-
-No, it is not harmful.
-
+> Well, yes, shrink_slab() bails out if the memcg is offline, but I
+> suspect there might be a race condition between shrink_slab and
+> css_offline when shrink_slab calls shrinkers for an offline cgroup.
 > 
->  * We can get recursively called as show below.
->  *
->  *      ext4_writepage() -> kmalloc() -> __alloc_pages() -> page_launder() ->
->  *              ext4_writepage()
->  *
->  * But since we don't do any block allocation we should not deadlock.
->  * Page also have the dirty flag cleared so we don't get recurive page_lock.
-
-Yes, and it avoids this by checking for PF_MEMALLOC flag.
-
+>>
+>>>>  	/*
+>>>>  	 * Unregister events and notify userspace.
+>>>>  	 * Notify userspace about cgroup removing only after rmdir of cgroup
+>>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>>>> index 97ce4f342fab..9d1df5d90eca 100644
+>>>> --- a/mm/vmscan.c
+>>>> +++ b/mm/vmscan.c
+>>>> @@ -165,6 +165,10 @@ static DECLARE_RWSEM(bitmap_rwsem);
+>>>>  static int bitmap_id_start;
+>>>>  static int bitmap_nr_ids;
+>>>>  static struct shrinker **mcg_shrinkers;
+>>>> +struct shrinkers_map *__rcu root_shrinkers_map;
+>>>
+>>> Why do you need root_shrinkers_map? AFAIR the root memory cgroup doesn't
+>>> have kernel memory accounting enabled.
+>> But we can charge the corresponding lru and iterate it over global reclaim,
+>> don't we?
 > 
-> One might well argue that it's not *useful*; if we've gone into
-> writepage already, there's no point in re-entering writepage.  And the
-> last thing we want to do is 
+> Yes, I guess you're right. But do we need to care about it? Would it be
+> OK if we iterated over all shrinkers for the root cgroup? Dunno...
 
-?
+In case of 2000 shrinkers, this will flush the cache. This is the reason :)
 
-> But I could see filesystems behaving differently when entered
-> for writepage-for-regularly-scheduled-writeback versus
-> writepage-for-shrinking, so maybe they can make progress.
-> 
+> Anyway, please try to handle the root cgroup consistently with other
+> cgroups. I mean, nothing like this root_shrinkers_map should exist.
+> It should be either a part of root_mem_cgroup or we should iterate over
+> all shrinkers for the root cgroup.
 
-do_writepages() is the same for both, and hence the memalloc_* API patch.
+It's not possible. root_mem_cgroup does not exist always. Even if CONFIG_MEMCG
+is enabled, memcg may be prohibited by boot params. 
 
-> Maybe no real filesystem behaves that way.  We need feedback from
-> filesystem people.
+In case of it's not prohibited, there are some shrinkers, which are registered
+before it's initialized, while memory_cgrp_subsys can't has .early_init = 1.
 
-The idea is to:
-* Keep a central location for check, rather than individual filesystem
-writepage(). It should reduce code as well.
-* Filesystem developers call memory allocations without thinking twice
-about which GFP flag to use: GFP_KERNEL or GFP_NOFS. In essence
-eliminate GFP_NOFS.
+>>
+>> struct list_lru_node {
+>> 	...
+>>         /* global list, used for the root cgroup in cgroup aware lrus */
+>>         struct list_lru_one     lru;
+>> 	...
+>> };
 
-
--- 
-Goldwyn
+Kirill
