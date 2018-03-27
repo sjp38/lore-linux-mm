@@ -1,92 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B8B76B0012
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 15:38:23 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id k13-v6so35235oib.4
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 12:38:23 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 186-v6sor770977oie.46.2018.03.27.12.38.21
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A29BD6B000D
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 16:01:57 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id e15so41821wrj.14
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 13:01:57 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l2sor744092wmh.8.2018.03.27.13.01.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 27 Mar 2018 12:38:21 -0700 (PDT)
-Received: from ?IPv6:2601:602:9802:a8dc:4eb2:6dae:ab32:e5b0? ([2601:602:9802:a8dc:4eb2:6dae:ab32:e5b0])
-        by smtp.gmail.com with ESMTPSA id n96-v6sm1014560otn.80.2018.03.27.12.38.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Mar 2018 12:38:19 -0700 (PDT)
-From: Laura Abbott <labbott@redhat.com>
-Subject: Free swap negative?
-Message-ID: <4a181da3-8ce4-dc3c-60de-e6ad6f2a296a@redhat.com>
-Date: Tue, 27 Mar 2018 12:38:18 -0700
+        Tue, 27 Mar 2018 13:01:55 -0700 (PDT)
+Date: Tue, 27 Mar 2018 22:01:50 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC PATCH v2 11/15] khwasan, mm: perform untagged pointers
+ comparison in krealloc
+Message-ID: <20180327200150.cadizr7wsfjnfta7@gmail.com>
+References: <cover.1521828273.git.andreyknvl@google.com>
+ <6eb08c160ae23eb890bd937ddf8346ba211df09f.1521828274.git.andreyknvl@google.com>
+ <20180324082947.3isostkpsjraefqt@gmail.com>
+ <CAAeHK+xUBOt0hh-r5JhjVFcjYDOOyjUKGeN8OxSfnMpOnaWvFQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAeHK+xUBOt0hh-r5JhjVFcjYDOOyjUKGeN8OxSfnMpOnaWvFQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-Hi,
 
-Fedora got a bug report of an OOM which listed a negative number of swap
-pages on 4.16-rc4
+* Andrey Konovalov <andreyknvl@google.com> wrote:
 
-[ 2201.781891] localhost-live kernel: Free swap  = -245804kB
-[ 2201.781892] localhost-live kernel: Total swap = 0kB
-[ 2201.781894] localhost-live kernel: 458615 pages RAM
+> On Sat, Mar 24, 2018 at 9:29 AM, Ingo Molnar <mingo@kernel.org> wrote:
+> >
+> > * Andrey Konovalov <andreyknvl@google.com> wrote:
+> >
+> >> The krealloc function checks where the same buffer was reused or a new one
+> >> allocated by comparing kernel pointers. KHWASAN changes memory tag on the
+> >> krealloc'ed chunk of memory and therefore also changes the pointer tag of
+> >> the returned pointer. Therefore we need to perform comparison on untagged
+> >> (with tags reset) pointers to check whether it's the same memory region or
+> >> not.
+> >>
+> >> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> >> ---
+> >>  mm/slab_common.c | 2 +-
+> >>  1 file changed, 1 insertion(+), 1 deletion(-)
+> >>
+> >> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> >> index a33e61315ca6..5911f2194cf7 100644
+> >> --- a/mm/slab_common.c
+> >> +++ b/mm/slab_common.c
+> >> @@ -1494,7 +1494,7 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags)
+> >>       }
+> >>
+> >>       ret = __do_krealloc(p, new_size, flags);
+> >> -     if (ret && p != ret)
+> >> +     if (ret && khwasan_reset_tag(p) != khwasan_reset_tag(ret))
+> >>               kfree(p);
+> >
+> > Small nit:
+> >
+> > If 'reset' here means an all zeroes tag (upper byte) then khwasan_clear_tag()
+> > might be a slightly easier to read primitive?
+> 
+> 'Reset' means to set the upper byte to the value that is native for
+> kernel pointers, and that is 0xFF. So it sets the tag to all ones, not
+> all zeroes. I can still rename it to khwasan_clear_tag(), if you think
+> that makes sense in this case as well.
 
-The setup itself was unusual, virt with 1792M RAM + 2G swap.
-This apparently used to work but the test case was installation
-media which is a bit painful to bisect. Full oom output is below:
-
-  anaconda invoked oom-killer: gfp_mask=0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null), order=0, oom_score_adj=0
-  anaconda cpuset=/ mems_allowed=0
-  CPU: 1 PID: 4928 Comm: anaconda Not tainted 4.16.0-0.rc4.git0.1.fc28.x86_64 #1
-  Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-2.fc27 04/01/2014
-  Call Trace:
-   dump_stack+0x5c/0x85
-   dump_header+0x6e/0x275
-   oom_kill_process.cold.28+0xb/0x3c9
-   oom_badness+0xe1/0x160
-   ? out_of_memory+0x1ca/0x4c0
-   ? __alloc_pages_slowpath+0xca5/0xd80
-   ? __alloc_pages_nodemask+0x28e/0x2b0
-   ? alloc_pages_vma+0x74/0x1e0
-   ? __read_swap_cache_async+0x14c/0x220
-   ? read_swap_cache_async+0x28/0x60
-   ? try_to_unuse+0x135/0x760
-   ? swapcache_free_entries+0x11d/0x180
-   ? drain_slots_cache_cpu.constprop.1+0x8a/0xd0
-   ? SyS_swapoff+0x1d6/0x6b0
-   ? do_syscall_64+0x74/0x180
-   ? entry_SYSCALL_64_after_hwframe+0x3d/0xa2
-  Mem-Info:
-  active_anon:98024 inactive_anon:167006 isolated_anon:0
-             active_file:138 inactive_file:226 isolated_file:0
-             unevictable:118208 dirty:0 writeback:0 unstable:0
-             slab_reclaimable:7506 slab_unreclaimable:18839
-             mapped:1889 shmem:2744 pagetables:10605 bounce:0
-             free:12856 free_pcp:235 free_cma:0
-  Node 0 active_anon:392096kB inactive_anon:668024kB active_file:552kB inactive_file:904kB unevictable:472832kB isolated(anon):0kB isolated(file):0kB mapped:7556kB dirty:0kB writeback:0kB shmem:10976kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 0kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
-  Node 0 DMA free:7088kB min:412kB low:512kB high:612kB active_anon:2428kB inactive_anon:3120kB active_file:0kB inactive_file:0kB unevictable:2428kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB kernel_stack:0kB pagetables:40kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-  lowmem_reserve[]: 0 1670 1670 1670 1670
-  Node 0 DMA32 free:44336kB min:44640kB low:55800kB high:66960kB active_anon:389668kB inactive_anon:664904kB active_file:552kB inactive_file:984kB unevictable:470404kB writepending:0kB present:1818468kB managed:1766292kB mlocked:16kB kernel_stack:7840kB pagetables:42380kB bounce:0kB free_pcp:940kB local_pcp:736kB free_cma:0kB
-  lowmem_reserve[]: 0 0 0 0 0
-  Node 0 DMA: 6*4kB (UME) 19*8kB (UME) 12*16kB (UE) 4*32kB (UE) 29*64kB (ME) 11*128kB (UME) 3*256kB (ME) 3*512kB (UME) 1*1024kB (M) 0*2048kB 0*4096kB = 7088kB
-  Node 0 DMA32: 986*4kB (UMEH) 815*8kB (UMEH) 359*16kB (UMEH) 113*32kB (UMEH) 229*64kB (UMEH) 51*128kB (UMEH) 7*256kB (UMEH) 3*512kB (ME) 0*1024kB 0*2048kB 0*4096kB = 44336kB
-  Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
-  122508 total pagecache pages
-  1176 pages in swap cache
-  Swap cache stats: add 222119, delete 220943, find 18522/25378
-  Free swap  = -245804kB
-  Total swap = 0kB
-  458615 pages RAM
-  0 pages HighMem/MovableOnly
-  13065 pages reserved
-  0 pages cma reserved
-  0 pages hwpoisoned
-
-Any suggestions?
+Ok, if it's not 0 then I agree that 'reset' is the better name. 'clear' would in 
+fact be actively confusing.
 
 Thanks,
-Laura
+
+	Ingo
