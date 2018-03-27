@@ -1,71 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E8EA6B0010
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 11:30:41 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id k17so13185144pfj.10
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 08:30:41 -0700 (PDT)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20096.outbound.protection.outlook.com. [40.107.2.96])
-        by mx.google.com with ESMTPS id r13si1024825pgp.504.2018.03.27.08.30.37
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A3A46B0010
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 11:38:21 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id v189so3585763wmf.4
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 08:38:20 -0700 (PDT)
+Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id 99si1258179wrb.60.2018.03.27.08.38.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 27 Mar 2018 08:30:38 -0700 (PDT)
-Subject: Re: [PATCH 02/10] mm: Maintain memcg-aware shrinkers in mcg_shrinkers
- array
-References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
- <152163848990.21546.2153496613786165374.stgit@localhost.localdomain>
- <20180324184516.rogvydnnupr7ah2l@esperanza>
- <448bb904-a861-c2ae-0d3f-427e6a26f61e@virtuozzo.com>
- <20180327091850.ybql6l6gavhdieqg@esperanza>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <6660e4c1-7a52-9203-e901-fc87be328c8b@virtuozzo.com>
-Date: Tue, 27 Mar 2018 18:30:22 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Mar 2018 08:38:19 -0700 (PDT)
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Subject: [RFC PATCH v21 0/6] mm: security: ro protection for dynamic data
+Date: Tue, 27 Mar 2018 18:37:36 +0300
+Message-ID: <20180327153742.17328-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20180327091850.ybql6l6gavhdieqg@esperanza>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
+To: willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
+Cc: david@fromorbit.com, rppt@linux.vnet.ibm.com, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, igor.stoppa@gmail.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-On 27.03.2018 12:18, Vladimir Davydov wrote:
-> On Mon, Mar 26, 2018 at 06:20:55PM +0300, Kirill Tkhai wrote:
->> On 24.03.2018 21:45, Vladimir Davydov wrote:
->>> On Wed, Mar 21, 2018 at 04:21:29PM +0300, Kirill Tkhai wrote:
->>>> The patch introduces mcg_shrinkers array to keep memcg-aware
->>>> shrinkers in order of their shrinker::id.
->>>>
->>>> This allows to access the shrinkers dirrectly by the id,
->>>> without iteration over shrinker_list list.
->>>
->>> Why don't you simply use idr instead of ida? With idr you wouldn't need
->>> the array mapping shrinker id to shrinker ptr. AFAIU you need this
->>> mapping to look up the shrinker by id in shrink_slab. The latter doesn't
->>> seem to be a hot path so using idr there should be acceptable. Since we
->>> already have shrinker_rwsem, which is taken for reading by shrink_slab,
->>> we wouldn't even need any additional locking for it.
->>
->> The reason is ida may allocate memory, and since list_lru_add() can't fail,
->> we can't do that there. If we allocate all the ida memory at the time of
->> memcg creation (i.e., preallocate it), this is not different to the way
->> the bitmap makes.
->>
->> While bitmap has the agvantage, since it's simplest data structure (while
->> ida has some radix tree overhead).
->>
->> Also, bitmap does not require a lock, there is single atomic operation
->> to set or clear a bit, and it scales better, when anything.
-> 
-> I didn't mean the per-memcg bitmaps - I think it's OK to use plain
-> arrays for them and reallocate them with the aid of RCU.
-> 
-> What I actually mean is the mapping shrink_id => shrinker. AFAIU it
-> isn't accessed from list_lru, it is only needed to look up a shrinker
-> by id from shrink_slab(). The latter is rather a slow path so I think
-> we can use an IDR for this mapping instead of IDA + plain array.
+This patch-set introduces the possibility of protecting memory that has
+been allocated dynamically.
 
-This is good idea.
+The memory is managed in pools: when a memory pool is protected, all the
+memory that is currently part of it, will become R/O.
 
-Thanks,
-Kirill
+A R/O pool can be expanded (adding more protectable memory).
+It can also be destroyed, to recover its memory, but it cannot be
+turned back into R/W mode.
+
+This is intentional. This feature is meant for data that doesn't need
+further modifications after initialization.
+
+However the data might need to be released, for example as part of module
+unloading. The pool, therefore, can be destroyed.
+
+An example is provided, in the form of self-testing.
+
+Changes since v20:
+
+[http://www.openwall.com/lists/kernel-hardening/2018/03/27/2]
+
+* removed the align_order parameter from allocation functions
+* improved documentation with more explanation
+* fixed lkdt test
+* reworked the destroy function, removing a possible race with
+  use-after-free code.
+
+
+Igor Stoppa (6):
+  struct page: add field for vm_struct
+  vmalloc: rename llist field in vmap_area
+  Protectable Memory
+  Pmalloc selftest
+  lkdtm: crash on overwriting protected pmalloc var
+  Documentation for Pmalloc
+
+ Documentation/core-api/index.rst   |   1 +
+ Documentation/core-api/pmalloc.rst | 107 +++++++++++++++
+ drivers/misc/lkdtm.h               |   1 +
+ drivers/misc/lkdtm_core.c          |   3 +
+ drivers/misc/lkdtm_perms.c         |  25 ++++
+ include/linux/mm_types.h           |   1 +
+ include/linux/pmalloc.h            | 166 +++++++++++++++++++++++
+ include/linux/test_pmalloc.h       |  24 ++++
+ include/linux/vmalloc.h            |   5 +-
+ init/main.c                        |   2 +
+ mm/Kconfig                         |  16 +++
+ mm/Makefile                        |   2 +
+ mm/pmalloc.c                       | 264 +++++++++++++++++++++++++++++++++++++
+ mm/test_pmalloc.c                  | 136 +++++++++++++++++++
+ mm/usercopy.c                      |  33 +++++
+ mm/vmalloc.c                       |  10 +-
+ 16 files changed, 791 insertions(+), 5 deletions(-)
+ create mode 100644 Documentation/core-api/pmalloc.rst
+ create mode 100644 include/linux/pmalloc.h
+ create mode 100644 include/linux/test_pmalloc.h
+ create mode 100644 mm/pmalloc.c
+ create mode 100644 mm/test_pmalloc.c
+
+-- 
+2.14.1
