@@ -1,57 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BB45A6B0009
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 23:57:17 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id f3-v6so14452863plf.1
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 20:57:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b36-v6sor151294pli.45.2018.03.26.20.57.16
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AF9896B0003
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 00:11:50 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id q6so10475015pgv.12
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 21:11:50 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id b8-v6si408551pll.146.2018.03.26.21.11.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 26 Mar 2018 20:57:16 -0700 (PDT)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH] mm/page_alloc: break on the first hit of mem range
-Date: Tue, 27 Mar 2018 11:57:07 +0800
-Message-Id: <20180327035707.84113-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Mar 2018 21:11:49 -0700 (PDT)
+Subject: Re: [PATCH 1/9] x86, pkeys: do not special case protection key 0
+References: <20180323180903.33B17168@viggo.jf.intel.com>
+ <20180323180905.B40984E6@viggo.jf.intel.com>
+ <20180327022718.GD5743@ram.oc3035372033.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <0f990ce6-0eac-bd77-18d8-e2e3fdd5fb43@intel.com>
+Date: Mon, 26 Mar 2018 21:11:48 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180327022718.GD5743@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, tj@kernel.org
-Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
+To: Ram Pai <linuxram@us.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
 
-find_min_pfn_for_node() iterate on pfn range to find the minimum pfn for a
-node. The memblock_region in memblock_type are already ordered, which means
-the first hit in iteration is the minimum pfn.
+On 03/26/2018 07:27 PM, Ram Pai wrote:
+>> This is a bit nicer than what Ram proposed because it is simpler
+>> and removes special-casing for pkey 0.  On the other hand, it does
+>> allow applciations to pkey_free() pkey-0, but that's just a silly
+>> thing to do, so we are not going to protect against it.
+> The more I think about this, the more I feel we are opening up a can
+> of worms.  I am ok with a bad application, shooting itself in its feet.
+> But I am worried about all the bug reports and support requests we
+> will encounter when applications inadvertently shoot themselves 
+> and blame it on the kernel.
+> 
+> a warning in dmesg logs indicating a free-of-pkey-0 can help deflect
+> the blame from the kernel.
 
-This patch returns the fist hit instead of iterating the whole regions.
+I think it's OK to leave it.  A legit, very careful app could decide not
+to use pkey 0.  It might even be fun to write that in the selftests for
+sheer entertainment value.
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- mm/page_alloc.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 635d7dd29d7f..a65de1ec4b91 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6365,14 +6365,14 @@ unsigned long __init node_map_pfn_alignment(void)
- /* Find the lowest pfn for a node */
- static unsigned long __init find_min_pfn_for_node(int nid)
- {
--	unsigned long min_pfn = ULONG_MAX;
--	unsigned long start_pfn;
-+	unsigned long min_pfn;
- 	int i;
- 
--	for_each_mem_pfn_range(i, nid, &start_pfn, NULL, NULL)
--		min_pfn = min(min_pfn, start_pfn);
-+	for_each_mem_pfn_range(i, nid, &min_pfn, NULL, NULL) {
-+		break;
-+	}
- 
--	if (min_pfn == ULONG_MAX) {
-+	if (i == -1) {
- 		pr_warn("Could not find start_pfn for node %d\n", nid);
- 		return 0;
- 	}
--- 
-2.15.1
+Although, it _could_ be a bit more debuggable than it is now.  A
+tracepoint that dumps out the pkey that got faulted on along with the
+PKRU value at fault time might be nice to have.  That's mildly difficult
+to do from outside the app.
