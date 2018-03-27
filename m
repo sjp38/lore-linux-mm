@@ -1,160 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A2B756B0012
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 11:42:34 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 3so12129990wrb.5
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 08:42:34 -0700 (PDT)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id p21si1181435wmc.127.2018.03.27.08.42.32
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B9386B0027
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 11:48:34 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id i14-v6so7342259lfh.1
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 08:48:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e13-v6sor421089lfc.36.2018.03.27.08.48.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Mar 2018 08:42:32 -0700 (PDT)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 6/6] Documentation for Pmalloc
-Date: Tue, 27 Mar 2018 18:37:42 +0300
-Message-ID: <20180327153742.17328-7-igor.stoppa@huawei.com>
-In-Reply-To: <20180327153742.17328-1-igor.stoppa@huawei.com>
-References: <20180327153742.17328-1-igor.stoppa@huawei.com>
+        (Google Transport Security);
+        Tue, 27 Mar 2018 08:48:32 -0700 (PDT)
+Date: Tue, 27 Mar 2018 18:48:28 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH 01/10] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180327154828.udezpkwkwzcftnqn@esperanza>
+References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
+ <152163847740.21546.16821490541519326725.stgit@localhost.localdomain>
+ <20180324184009.dyjlt4rj4b6y6sz3@esperanza>
+ <0db2d93f-12cd-d703-fce7-4c3b8df5bc12@virtuozzo.com>
+ <20180327091504.zcqvr3mkuznlgwux@esperanza>
+ <5828e99c-74d2-6208-5ec2-3361899dd36a@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5828e99c-74d2-6208-5ec2-3361899dd36a@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
-Cc: david@fromorbit.com, rppt@linux.vnet.ibm.com, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, igor.stoppa@gmail.com, Igor Stoppa <igor.stoppa@huawei.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
 
-Detailed documentation about the protectable memory allocator.
+On Tue, Mar 27, 2018 at 06:09:20PM +0300, Kirill Tkhai wrote:
+> >>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >>>> index 8fcd9f8d7390..91b5120b924f 100644
+> >>>> --- a/mm/vmscan.c
+> >>>> +++ b/mm/vmscan.c
+> >>>> @@ -159,6 +159,56 @@ unsigned long vm_total_pages;
+> >>>>  static LIST_HEAD(shrinker_list);
+> >>>>  static DECLARE_RWSEM(shrinker_rwsem);
+> >>>>  
+> >>>> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> >>>> +static DEFINE_IDA(bitmap_id_ida);
+> >>>> +static DECLARE_RWSEM(bitmap_rwsem);
+> >>>
+> >>> Can't we reuse shrinker_rwsem for protecting the ida?
+> >>
+> >> I think it won't be better, since we allocate memory under this semaphore.
+> >> After we use shrinker_rwsem, we'll have to allocate the memory with GFP_ATOMIC,
+> >> which does not seems good. Currently, the patchset makes shrinker_rwsem be taken
+> >> for a small time, just to assign already allocated memory to maps.
+> > 
+> > AFAIR it's OK to sleep under an rwsem so GFP_ATOMIC wouldn't be
+> > necessary. Anyway, we only need to allocate memory when we extend
+> > shrinker bitmaps, which is rare. In fact, there can only be a limited
+> > number of such calls, as we never shrink these bitmaps (which is fine
+> > by me).
+> 
+> We take bitmap_rwsem for writing to expand shrinkers maps. If we replace
+> it with shrinker_rwsem and the memory allocation get into reclaim, there
+> will be deadlock.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
----
- Documentation/core-api/index.rst   |   1 +
- Documentation/core-api/pmalloc.rst | 107 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 108 insertions(+)
- create mode 100644 Documentation/core-api/pmalloc.rst
+Hmm, AFAICS we use down_read_trylock() in shrink_slab() so no deadlock
+would be possible. We wouldn't be able to reclaim slabs though, that's
+true, but I don't think it would be a problem for small allocations.
 
-diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-index c670a8031786..8f5de42d6571 100644
---- a/Documentation/core-api/index.rst
-+++ b/Documentation/core-api/index.rst
-@@ -25,6 +25,7 @@ Core utilities
-    genalloc
-    errseq
-    printk-formats
-+   pmalloc
- 
- Interfaces for kernel debugging
- ===============================
-diff --git a/Documentation/core-api/pmalloc.rst b/Documentation/core-api/pmalloc.rst
-new file mode 100644
-index 000000000000..c14907485137
---- /dev/null
-+++ b/Documentation/core-api/pmalloc.rst
-@@ -0,0 +1,107 @@
-+.. SPDX-License-Identifier: GPL-2.0
-+
-+.. _pmalloc:
-+
-+Protectable memory allocator
-+============================
-+
-+Purpose
-+-------
-+
-+The pmalloc library is meant to provide read-only status to data that,
-+for some reason, could neither be declared as constant, nor could it take
-+advantage of the qualifier __ro_after_init, but is write-once and
-+read-only in spirit. At least as long as it doesn't get teared down.
-+It protects data from both accidental and malicious overwrites.
-+
-+Example: A policy that is loaded from userspace.
-+
-+
-+Concept
-+-------
-+
-+The MMU available in the system can be used to write protect memory pages.
-+Unfortunately this feature cannot be used as-it-is, to protect sensitive
-+data, because this potentially read-only data is typically interleaved
-+with other data, which must stay writeable.
-+
-+pmalloc introduces the concept of protectable memory pools.
-+A pool contains a list of areas of virtually contiguous pages of
-+memory. An area is the minimum amount of memory that pmalloc allows to
-+protect, because the user might have allocated a memory range that
-+crosses the boundary between pages.
-+
-+When an allocation is performed, if there is not enough memory already
-+available in the pool, a new area of suitable size is grabbed.
-+The size chosen is the largest between the roundup (to PAGE_SIZE) of
-+the request from pmalloc and friends and the refill parameter specified
-+when creating the pool.
-+
-+When a pool is created, it is possible to specify two parameters:
-+- refill size: the minimum size of the memory area to allocate when needed
-+- align_order: the default alignment to use when reserving memory
-+
-+To facilitate the conversion of existing code to pmalloc pools, several
-+helper functions are provided, mirroring their k/vmalloc counterparts.
-+However one is missing. There is no pfree() because the memory protected
-+by a pool will be released exclusively when the pool is destroyed.
-+
-+
-+
-+Caveats
-+-------
-+
-+- When a pool is protected, whatever memory would be still available in
-+  the current vmap_area (from which allocations are performed) is
-+  relinquished.
-+
-+- As already explained, freeing of memory is not supported. Pages will be
-+  returned to the system upon destruction of the memory pool that they
-+  belong to.
-+
-+- The address range available for vmalloc (and thus for pmalloc too) is
-+  limited, on 32-bit systems. However it shouldn't be an issue, since not
-+  much data is expected tobe dynamically allocated and turned into
-+  read-only.
-+
-+- Regarding SMP systems, the allocations are expected to happen mostly
-+  during an initial transient, after which there should be no more need
-+  to perform cross-processor synchronizations of page tables.
-+  Loading of kernel modules is an exception to this, but it's not expected
-+  to happen with such high frequency to become a problem.
-+
-+
-+Use
-+---
-+
-+The typical sequence, when using pmalloc, is:
-+
-+#. create a pool
-+
-+   :c:func:`pmalloc_create_pool`
-+
-+#. issue one or more allocation requests to the pool
-+
-+   :c:func:`pmalloc`
-+
-+   or
-+
-+   :c:func:`pzalloc`
-+
-+#. initialize the memory obtained, with the desired values
-+
-+#. write-protect the memory so far allocated
-+
-+   :c::func:`pmalloc_protect_pool`
-+
-+#. iterate over the last 3 points as needed
-+
-+#. [optional] destroy the pool
-+
-+   :c:func:`pmalloc_destroy_pool`
-+
-+API
-+---
-+
-+.. kernel-doc:: include/linux/pmalloc.h
-+.. kernel-doc:: mm/pmalloc.c
--- 
-2.14.1
+That's how I see this. We use shrinker_rwsem to protect IDR mapping
+shrink_id => shrinker (I still insist on IDR). It may allocate, but the
+allocation size is going to be fairly small so it's OK that we don't
+call shrinkers there. After we allocated a shrinker ID, we release
+shrinker_rwsem and call mem_cgroup_grow_shrinker_map (or whatever it
+will be called), which checks if per-memcg shrinker bitmaps need growing
+and if they do it takes its own mutex used exclusively for protecting
+the bitmaps and reallocates the bitmaps (we will need the mutex anyway
+to synchronize css_online vs shrinker bitmap reallocation as the
+shrinker_rwsem is private to vmscan.c and we don't want to export it
+to memcontrol.c).
