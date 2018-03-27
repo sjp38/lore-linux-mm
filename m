@@ -1,265 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B714C6B000C
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 21:57:10 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 3so11081952wrb.5
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 18:57:10 -0700 (PDT)
-Received: from huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id m126si236238wmg.68.2018.03.26.18.57.08
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A2406B0006
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2018 21:57:15 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 140-v6so10209315itg.4
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2018 18:57:15 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id e2-v6si288645itb.58.2018.03.26.18.57.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Mar 2018 18:57:09 -0700 (PDT)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 4/6] Pmalloc selftest
-Date: Tue, 27 Mar 2018 04:55:22 +0300
-Message-ID: <20180327015524.14318-5-igor.stoppa@huawei.com>
-In-Reply-To: <20180327015524.14318-1-igor.stoppa@huawei.com>
-References: <20180327015524.14318-1-igor.stoppa@huawei.com>
+        Mon, 26 Mar 2018 18:57:14 -0700 (PDT)
+Subject: Re: [PATCH 1/2] Move kfree_call_rcu() to slab_common.c
+References: <1514923898-2495-1-git-send-email-rao.shoaib@oracle.com>
+ <20180102222341.GB20405@bombadil.infradead.org>
+ <3be609d4-800e-a89e-f885-7e0f5d288862@oracle.com>
+ <20180104013807.GA31392@tardis>
+ <be1abd24-56c8-45bc-fecc-3f0c5b978678@oracle.com>
+ <64ca3929-4044-9393-a6ca-70c0a2589a35@oracle.com>
+ <20180104214658.GA20740@bombadil.infradead.org>
+ <3e4ea0b9-686f-7e36-d80c-8577401517e2@oracle.com>
+ <20180104231307.GA794@bombadil.infradead.org>
+ <20180104234732.GM9671@linux.vnet.ibm.com>
+ <20180105000707.GA22237@bombadil.infradead.org>
+ <1515134773.21222.13.camel@perches.com>
+From: Rao Shoaib <rao.shoaib@oracle.com>
+Message-ID: <1e8c4382-b97f-659a-59fa-07c71efad970@oracle.com>
+Date: Mon, 26 Mar 2018 18:56:51 -0700
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1515134773.21222.13.camel@perches.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org, keescook@chromium.org, mhocko@kernel.org
-Cc: david@fromorbit.com, rppt@linux.vnet.ibm.com, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, igor.stoppa@gmail.com, Igor Stoppa <igor.stoppa@huawei.com>
+To: Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Boqun Feng <boqun.feng@gmail.com>, linux-kernel@vger.kernel.org, brouer@redhat.com, linux-mm@kvack.org
 
-Add basic self-test functionality for pmalloc.
+Folks,
 
-The testing is introduced as early as possible, right after the main
-dependency, genalloc, has passed successfully, so that it can help
-diagnosing failures in pmalloc users.
+Is anyone working on resolving the check patch issue as I am waiting to 
+resubmit my patch. Will it be fine if I submitted the patch with the 
+original macro as the check is in-correct.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
----
- include/linux/test_pmalloc.h |  24 ++++++++
- init/main.c                  |   2 +
- mm/Kconfig                   |  10 ++++
- mm/Makefile                  |   1 +
- mm/test_pmalloc.c            | 136 +++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 173 insertions(+)
- create mode 100644 include/linux/test_pmalloc.h
- create mode 100644 mm/test_pmalloc.c
+I do not speak perl but I can do the process work. If folks think Joe's 
+fix is fine I can submit it and perhaps someone can review it ?
 
-diff --git a/include/linux/test_pmalloc.h b/include/linux/test_pmalloc.h
-new file mode 100644
-index 000000000000..c7e2e451c17c
---- /dev/null
-+++ b/include/linux/test_pmalloc.h
-@@ -0,0 +1,24 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+/*
-+ * test_pmalloc.h
-+ *
-+ * (C) Copyright 2018 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ */
-+
-+
-+#ifndef __LINUX_TEST_PMALLOC_H
-+#define __LINUX_TEST_PMALLOC_H
-+
-+
-+#ifdef CONFIG_TEST_PROTECTABLE_MEMORY
-+
-+void test_pmalloc(void);
-+
-+#else
-+
-+static inline void test_pmalloc(void){};
-+
-+#endif
-+
-+#endif
-diff --git a/init/main.c b/init/main.c
-index 21efbf6ace93..c63c41a33c9b 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -90,6 +90,7 @@
- #include <linux/cache.h>
- #include <linux/rodata_test.h>
- #include <linux/jump_label.h>
-+#include <linux/test_pmalloc.h>
- 
- #include <asm/io.h>
- #include <asm/bugs.h>
-@@ -661,6 +662,7 @@ asmlinkage __visible void __init start_kernel(void)
- 	 */
- 	mem_encrypt_init();
- 
-+	test_pmalloc();
- #ifdef CONFIG_BLK_DEV_INITRD
- 	if (initrd_start && !initrd_below_start_ok &&
- 	    page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 1ac1dfc60c22..246f66c7e694 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -766,3 +766,13 @@ config PROTECTABLE_MEMORY
-     depends on MMU
-     depends on ARCH_HAS_SET_MEMORY
-     default y
-+
-+config TEST_PROTECTABLE_MEMORY
-+	bool "Run self test for pmalloc memory allocator"
-+        depends on MMU
-+	depends on ARCH_HAS_SET_MEMORY
-+	select PROTECTABLE_MEMORY
-+	default n
-+	help
-+	  Tries to verify that pmalloc works correctly and that the memory
-+	  is effectively protected.
-diff --git a/mm/Makefile b/mm/Makefile
-index 959fdbdac118..1de4be5fd0bc 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -66,6 +66,7 @@ obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
- obj-$(CONFIG_SLOB) += slob.o
- obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
- obj-$(CONFIG_PROTECTABLE_MEMORY) += pmalloc.o
-+obj-$(CONFIG_TEST_PROTECTABLE_MEMORY) += test_pmalloc.o
- obj-$(CONFIG_KSM) += ksm.o
- obj-$(CONFIG_PAGE_POISONING) += page_poison.o
- obj-$(CONFIG_SLAB) += slab.o
-diff --git a/mm/test_pmalloc.c b/mm/test_pmalloc.c
-new file mode 100644
-index 000000000000..08274b0324f9
---- /dev/null
-+++ b/mm/test_pmalloc.c
-@@ -0,0 +1,136 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * test_pmalloc.c
-+ *
-+ * (C) Copyright 2018 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ */
-+
-+#include <linux/pmalloc.h>
-+#include <linux/mm.h>
-+#include <linux/test_pmalloc.h>
-+#include <linux/bug.h>
-+
-+#define SIZE_1 (PAGE_SIZE * 3)
-+#define SIZE_2 1000
-+
-+
-+/* wrapper for is_pmalloc_object() with messages */
-+static inline bool validate_alloc(bool expected, void *addr,
-+				  unsigned long size)
-+{
-+	bool test;
-+
-+	test = is_pmalloc_object(addr, size) > 0;
-+	pr_notice("must be %s: %s",
-+		  expected ? "ok" : "no", test ? "ok" : "no");
-+	return test == expected;
-+}
-+
-+
-+#define is_alloc_ok(variable, size)	\
-+	validate_alloc(true, variable, size)
-+
-+
-+#define is_alloc_no(variable, size)	\
-+	validate_alloc(false, variable, size)
-+
-+/* tests the basic life-cycle of a pool */
-+static bool create_and_destroy_pool(void)
-+{
-+	static struct pmalloc_pool *pool;
-+
-+	pr_notice("Testing pool creation and destruction capability");
-+
-+	pool = pmalloc_create_pool();
-+	if (WARN(!pool, "Cannot allocate memory for pmalloc selftest."))
-+		return false;
-+	pmalloc_destroy_pool(pool);
-+	return true;
-+}
-+
-+
-+/*  verifies that it's possible to allocate from the pool */
-+static bool test_alloc(void)
-+{
-+	static struct pmalloc_pool *pool;
-+	static void *p;
-+
-+	pr_notice("Testing allocation capability");
-+	pool = pmalloc_create_pool();
-+	if (WARN(!pool, "Unable to allocate memory for pmalloc selftest."))
-+		return false;
-+	p = pmalloc(pool,  SIZE_1 - 1);
-+	pmalloc_protect_pool(pool);
-+	pmalloc_destroy_pool(pool);
-+	if (WARN(!p, "Failed to allocate memory from the pool"))
-+		return false;
-+	return true;
-+}
-+
-+
-+/* tests the identification of pmalloc ranges */
-+static bool test_is_pmalloc_object(void)
-+{
-+	struct pmalloc_pool *pool;
-+	void *pmalloc_p;
-+	void *vmalloc_p;
-+	bool retval = false;
-+
-+	pr_notice("Test correctness of is_pmalloc_object()");
-+
-+	vmalloc_p = vmalloc(SIZE_1);
-+	if (WARN(!vmalloc_p,
-+		 "Unable to allocate memory for pmalloc selftest."))
-+		return false;
-+	pool = pmalloc_create_pool();
-+	if (WARN(!pool, "Unable to allocate memory for pmalloc selftest."))
-+		return false;
-+	pmalloc_p = pmalloc(pool,  SIZE_1 - 1);
-+	if (WARN(!pmalloc_p, "Failed to allocate memory from the pool"))
-+		goto error;
-+	if (WARN_ON(unlikely(!is_alloc_ok(pmalloc_p, 10))) ||
-+	    WARN_ON(unlikely(!is_alloc_ok(pmalloc_p, SIZE_1))) ||
-+	    WARN_ON(unlikely(!is_alloc_ok(pmalloc_p, PAGE_SIZE))) ||
-+	    WARN_ON(unlikely(!is_alloc_no(pmalloc_p, SIZE_1 + 1))) ||
-+	    WARN_ON(unlikely(!is_alloc_no(vmalloc_p, 10))))
-+		goto error;
-+	retval = true;
-+error:
-+	pmalloc_protect_pool(pool);
-+	pmalloc_destroy_pool(pool);
-+	return retval;
-+}
-+
-+/* Test out of virtually contiguous memory */
-+static void test_oovm(void)
-+{
-+	struct pmalloc_pool *pool;
-+	int i;
-+
-+	pr_notice("Exhaust vmalloc memory with doubling allocations.");
-+	pool = pmalloc_create_pool();
-+	if (WARN(!pool, "Failed to create pool"))
-+		return;
-+	for (i = 1; i; i *= 2)
-+		if (unlikely(!pzalloc(pool, i - 1)))
-+			break;
-+	pr_notice("vmalloc oom at %d allocation", i - 1);
-+	pmalloc_protect_pool(pool);
-+	pmalloc_destroy_pool(pool);
-+}
-+
-+/**
-+ * test_pmalloc()  -main entry point for running the test cases
-+ */
-+void test_pmalloc(void)
-+{
-+
-+	pr_notice("pmalloc-selftest");
-+
-+	if (unlikely(!(create_and_destroy_pool() &&
-+		       test_alloc() &&
-+		       test_is_pmalloc_object())))
-+		return;
-+	test_oovm();
-+}
--- 
-2.14.1
+Regards,
+
+Shoaib
+
+
+On 01/04/2018 10:46 PM, Joe Perches wrote:
+> On Thu, 2018-01-04 at 16:07 -0800, Matthew Wilcox wrote:
+>> On Thu, Jan 04, 2018 at 03:47:32PM -0800, Paul E. McKenney wrote:
+>>> I was under the impression that typeof did not actually evaluate its
+>>> argument, but rather only returned its type.  And there are a few macros
+>>> with this pattern in mainline.
+>>>
+>>> Or am I confused about what typeof does?
+>> I think checkpatch is confused by the '*' in the typeof argument:
+>>
+>> $ git diff |./scripts/checkpatch.pl --strict
+>> CHECK: Macro argument reuse 'ptr' - possible side-effects?
+>> #29: FILE: include/linux/rcupdate.h:896:
+>> +#define kfree_rcu(ptr, rcu_head)                                        \
+>> +	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+>>
+>> If one removes the '*', the warning goes away.
+>>
+>> I'm no perlista, but Joe, would this regexp modification make sense?
+>>
+>> +++ b/scripts/checkpatch.pl
+>> @@ -4957,7 +4957,7 @@ sub process {
+>>                                  next if ($arg =~ /\.\.\./);
+>>                                  next if ($arg =~ /^type$/i);
+>>                                  my $tmp_stmt = $define_stmt;
+>> -                               $tmp_stmt =~ s/\b(typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*\s*$arg\s*\)*\b//g;
+>> +                               $tmp_stmt =~ s/\b(typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*\**\(*\s*$arg\s*\)*\b//g;
+> I supposed ideally it'd be more like
+>
+> $tmp_stmt =~ s/\b(?:typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*(?:\s*\*\s*)*\s*\(*\s*$arg\s*\)*\b//g;
+>
+> Adding ?: at the start to not capture and
+> (?:\s*\*\s*)* for any number of * with any
+> surrounding spacings.
