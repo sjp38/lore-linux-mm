@@ -1,205 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 437CC6B002A
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 05:09:55 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id m3so8346089qte.2
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 02:09:55 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FFA16B002C
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 05:15:09 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id h92-v6so6842313lfi.21
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 02:15:09 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o4sor876808qta.5.2018.03.27.02.09.54
+        by mx.google.com with SMTPS id v6sor184883ljg.22.2018.03.27.02.15.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 27 Mar 2018 02:09:54 -0700 (PDT)
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v13 3/3] mm, x86, powerpc: display pkey in smaps only if arch supports pkeys
-Date: Tue, 27 Mar 2018 02:09:28 -0700
-Message-Id: <1522141768-25485-4-git-send-email-linuxram@us.ibm.com>
-In-Reply-To: <1522141768-25485-1-git-send-email-linuxram@us.ibm.com>
-References: <1522141768-25485-1-git-send-email-linuxram@us.ibm.com>
+        Tue, 27 Mar 2018 02:15:07 -0700 (PDT)
+Date: Tue, 27 Mar 2018 12:15:04 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH 01/10] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180327091504.zcqvr3mkuznlgwux@esperanza>
+References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
+ <152163847740.21546.16821490541519326725.stgit@localhost.localdomain>
+ <20180324184009.dyjlt4rj4b6y6sz3@esperanza>
+ <0db2d93f-12cd-d703-fce7-4c3b8df5bc12@virtuozzo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0db2d93f-12cd-d703-fce7-4c3b8df5bc12@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com, corbet@lwn.net, arnd@arndb.de
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
 
-Currently the  architecture  specific code is expected to
-display  the  protection  keys  in  smap  for a given vma.
-This can lead to redundant code and possibly to divergent
-formats in which the key gets displayed.
+On Mon, Mar 26, 2018 at 06:09:35PM +0300, Kirill Tkhai wrote:
+> Hi, Vladimir,
+> 
+> thanks for your review!
+> 
+> On 24.03.2018 21:40, Vladimir Davydov wrote:
+> > Hello Kirill,
+> > 
+> > I don't have any objections to the idea behind this patch set.
+> > Well, at least I don't know how to better tackle the problem you
+> > describe in the cover letter. Please, see below for my comments
+> > regarding implementation details.
+> > 
+> > On Wed, Mar 21, 2018 at 04:21:17PM +0300, Kirill Tkhai wrote:
+> >> The patch introduces shrinker::id number, which is used to enumerate
+> >> memcg-aware shrinkers. The number start from 0, and the code tries
+> >> to maintain it as small as possible.
+> >>
+> >> This will be used as to represent a memcg-aware shrinkers in memcg
+> >> shrinkers map.
+> >>
+> >> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> >> ---
+> >>  include/linux/shrinker.h |    1 +
+> >>  mm/vmscan.c              |   59 ++++++++++++++++++++++++++++++++++++++++++++++
+> >>  2 files changed, 60 insertions(+)
+> >>
+> >> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> >> index a3894918a436..738de8ef5246 100644
+> >> --- a/include/linux/shrinker.h
+> >> +++ b/include/linux/shrinker.h
+> >> @@ -66,6 +66,7 @@ struct shrinker {
+> >>  
+> >>  	/* These are for internal use */
+> >>  	struct list_head list;
+> >> +	int id;
+> > 
+> > This definition could definitely use a comment.
+> > 
+> > BTW shouldn't we ifdef it?
+> 
+> Ok
+> 
+> >>  	/* objs pending delete, per node */
+> >>  	atomic_long_t *nr_deferred;
+> >>  };
+> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >> index 8fcd9f8d7390..91b5120b924f 100644
+> >> --- a/mm/vmscan.c
+> >> +++ b/mm/vmscan.c
+> >> @@ -159,6 +159,56 @@ unsigned long vm_total_pages;
+> >>  static LIST_HEAD(shrinker_list);
+> >>  static DECLARE_RWSEM(shrinker_rwsem);
+> >>  
+> >> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> >> +static DEFINE_IDA(bitmap_id_ida);
+> >> +static DECLARE_RWSEM(bitmap_rwsem);
+> > 
+> > Can't we reuse shrinker_rwsem for protecting the ida?
+> 
+> I think it won't be better, since we allocate memory under this semaphore.
+> After we use shrinker_rwsem, we'll have to allocate the memory with GFP_ATOMIC,
+> which does not seems good. Currently, the patchset makes shrinker_rwsem be taken
+> for a small time, just to assign already allocated memory to maps.
 
-This  patch  changes  the implementation. It displays the
-pkey only if the architecture support pkeys, i.e
-arch_pkeys_enabled() returns true.  This patch
-provides x86 implementation for arch_pkeys_enabled().
+AFAIR it's OK to sleep under an rwsem so GFP_ATOMIC wouldn't be
+necessary. Anyway, we only need to allocate memory when we extend
+shrinker bitmaps, which is rare. In fact, there can only be a limited
+number of such calls, as we never shrink these bitmaps (which is fine
+by me).
 
-x86 arch_show_smap() function is not needed anymore.
-Deleting it.
+> 
+> >> +static int bitmap_id_start;
+> >> +
+> >> +static int alloc_shrinker_id(struct shrinker *shrinker)
+> >> +{
+> >> +	int id, ret;
+> >> +
+> >> +	if (!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+> >> +		return 0;
+> >> +retry:
+> >> +	ida_pre_get(&bitmap_id_ida, GFP_KERNEL);
+> >> +	down_write(&bitmap_rwsem);
+> >> +	ret = ida_get_new_above(&bitmap_id_ida, bitmap_id_start, &id);
+> > 
+> > AFAIK ida always allocates the smallest available id so you don't need
+> > to keep track of bitmap_id_start.
+> 
+> I saw mnt_alloc_group_id() does the same, so this was the reason, the additional
+> variable was used. Doesn't this gives a good advise to ida and makes it find
+> a free id faster?
 
-cc: Michael Ellermen <mpe@ellerman.id.au>
-cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-cc: Andrew Morton <akpm@linux-foundation.org>
-Reviewed-by: Dave Hansen <dave.hansen@intel.com>
-Signed-off-by: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
-(fixed compilation errors for x86 configs)
-Acked-by: Michal Hocko <mhocko@suse.com>
-Reviewed-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Ram Pai <linuxram@us.ibm.com>
----
- arch/powerpc/include/asm/mmu_context.h |    5 -----
- arch/x86/include/asm/mmu_context.h     |    5 -----
- arch/x86/include/asm/pkeys.h           |    1 +
- arch/x86/kernel/fpu/xstate.c           |    5 +++++
- arch/x86/kernel/setup.c                |    8 --------
- fs/proc/task_mmu.c                     |   10 +++++-----
- include/linux/pkeys.h                  |    7 ++++++-
- 7 files changed, 17 insertions(+), 24 deletions(-)
-
-diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
-index 051b3d6..566b3c2 100644
---- a/arch/powerpc/include/asm/mmu_context.h
-+++ b/arch/powerpc/include/asm/mmu_context.h
-@@ -203,11 +203,6 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
- #define thread_pkey_regs_restore(new_thread, old_thread)
- #define thread_pkey_regs_init(thread)
- 
--static inline int vma_pkey(struct vm_area_struct *vma)
--{
--	return 0;
--}
--
- static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
- {
- 	return 0x0UL;
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 1de72ce..e597d09 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -295,11 +295,6 @@ static inline int vma_pkey(struct vm_area_struct *vma)
- 
- 	return (vma->vm_flags & vma_pkey_mask) >> VM_PKEY_SHIFT;
- }
--#else
--static inline int vma_pkey(struct vm_area_struct *vma)
--{
--	return 0;
--}
- #endif
- 
- /*
-diff --git a/arch/x86/include/asm/pkeys.h b/arch/x86/include/asm/pkeys.h
-index a0ba1ff..f6c287b 100644
---- a/arch/x86/include/asm/pkeys.h
-+++ b/arch/x86/include/asm/pkeys.h
-@@ -6,6 +6,7 @@
- 
- extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 		unsigned long init_val);
-+extern bool arch_pkeys_enabled(void);
- 
- /*
-  * Try to dedicate one of the protection keys to be used as an
-diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
-index 87a57b7..4f566e9 100644
---- a/arch/x86/kernel/fpu/xstate.c
-+++ b/arch/x86/kernel/fpu/xstate.c
-@@ -945,6 +945,11 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 
- 	return 0;
- }
-+
-+bool arch_pkeys_enabled(void)
-+{
-+	return boot_cpu_has(X86_FEATURE_OSPKE);
-+}
- #endif /* ! CONFIG_ARCH_HAS_PKEYS */
- 
- /*
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 4c616be..117ed01 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1307,11 +1307,3 @@ static int __init register_kernel_offset_dumper(void)
- 	return 0;
- }
- __initcall(register_kernel_offset_dumper);
--
--void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
--{
--	if (!boot_cpu_has(X86_FEATURE_OSPKE))
--		return;
--
--	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
--}
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 6d83bb7..70aa912 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -18,10 +18,12 @@
- #include <linux/page_idle.h>
- #include <linux/shmem_fs.h>
- #include <linux/uaccess.h>
-+#include <linux/pkeys.h>
- 
- #include <asm/elf.h>
- #include <asm/tlb.h>
- #include <asm/tlbflush.h>
-+#include <asm/mmu_context.h>
- #include "internal.h"
- 
- void task_mem(struct seq_file *m, struct mm_struct *mm)
-@@ -733,10 +735,6 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
- }
- #endif /* HUGETLB_PAGE */
- 
--void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
--{
--}
--
- static int show_smap(struct seq_file *m, void *v, int is_pid)
- {
- 	struct proc_maps_private *priv = m->private;
-@@ -856,9 +854,11 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 			   (unsigned long)(mss->pss >> (10 + PSS_SHIFT)));
- 
- 	if (!rollup_mode) {
--		arch_show_smap(m, vma);
-+		if (arch_pkeys_enabled())
-+			seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
- 		show_smap_vma_flags(m, vma);
- 	}
-+
- 	m_cache_vma(m, vma);
- 	return ret;
- }
-diff --git a/include/linux/pkeys.h b/include/linux/pkeys.h
-index 0794ca7..49dff15 100644
---- a/include/linux/pkeys.h
-+++ b/include/linux/pkeys.h
-@@ -3,7 +3,6 @@
- #define _LINUX_PKEYS_H
- 
- #include <linux/mm_types.h>
--#include <asm/mmu_context.h>
- 
- #ifdef CONFIG_ARCH_HAS_PKEYS
- #include <asm/pkeys.h>
-@@ -13,6 +12,7 @@
- #define arch_override_mprotect_pkey(vma, prot, pkey) (0)
- #define PKEY_DEDICATED_EXECUTE_ONLY 0
- #define ARCH_VM_PKEY_FLAGS 0
-+#define vma_pkey(vma) 0
- 
- static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
- {
-@@ -35,6 +35,11 @@ static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 	return 0;
- }
- 
-+static inline bool arch_pkeys_enabled(void)
-+{
-+	return false;
-+}
-+
- static inline void copy_init_pkru_to_fpregs(void)
- {
- }
--- 
-1.7.1
+As Matthew pointed out, this is rather pointless.
