@@ -1,73 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CDBB6B000A
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:58:31 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id d14-v6so1521834plj.4
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 03:58:31 -0700 (PDT)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0055.outbound.protection.outlook.com. [104.47.42.55])
-        by mx.google.com with ESMTPS id k3si2335733pgq.426.2018.03.28.03.58.29
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 09C436B000A
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 07:03:03 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id t2-v6so623440lfk.8
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 04:03:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e2-v6sor876582lfg.71.2018.03.28.04.02.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Mar 2018 03:58:30 -0700 (PDT)
-Date: Wed, 28 Mar 2018 13:58:13 +0300
-From: Yury Norov <ynorov@caviumnetworks.com>
-Subject: Re: [PATCH 2/2] smp: introduce kick_active_cpus_sync()
-Message-ID: <20180328105813.arilhcxi6hawd34n@yury-thinkpad>
-References: <20180325175004.28162-1-ynorov@caviumnetworks.com>
- <20180325175004.28162-3-ynorov@caviumnetworks.com>
- <20180327102116.GA2464@arm.com>
+        (Google Transport Security);
+        Wed, 28 Mar 2018 04:02:55 -0700 (PDT)
+Date: Wed, 28 Mar 2018 14:02:51 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH 01/10] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180328110251.5wl3kwjhcuizyz6n@esperanza>
+References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
+ <152163847740.21546.16821490541519326725.stgit@localhost.localdomain>
+ <20180324184009.dyjlt4rj4b6y6sz3@esperanza>
+ <0db2d93f-12cd-d703-fce7-4c3b8df5bc12@virtuozzo.com>
+ <20180327091504.zcqvr3mkuznlgwux@esperanza>
+ <5828e99c-74d2-6208-5ec2-3361899dd36a@virtuozzo.com>
+ <20180327154828.udezpkwkwzcftnqn@esperanza>
+ <635e8bdf-9280-c872-49c3-d3e293e1b332@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180327102116.GA2464@arm.com>
+In-Reply-To: <635e8bdf-9280-c872-49c3-d3e293e1b332@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Chris Metcalf <cmetcalf@mellanox.com>, Christopher Lameter <cl@linux.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, Mark Rutland <mark.rutland@arm.com>, Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Catalin Marinas <catalin.marinas@arm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
 
-On Tue, Mar 27, 2018 at 11:21:17AM +0100, Will Deacon wrote:
-> On Sun, Mar 25, 2018 at 08:50:04PM +0300, Yury Norov wrote:
-> > kick_all_cpus_sync() forces all CPUs to sync caches by sending broadcast IPI.
-> > If CPU is in extended quiescent state (idle task or nohz_full userspace), this
-> > work may be done at the exit of this state. Delaying synchronization helps to
-> > save power if CPU is in idle state and decrease latency for real-time tasks.
+On Wed, Mar 28, 2018 at 01:30:20PM +0300, Kirill Tkhai wrote:
+> On 27.03.2018 18:48, Vladimir Davydov wrote:
+> > On Tue, Mar 27, 2018 at 06:09:20PM +0300, Kirill Tkhai wrote:
+> >>>>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >>>>>> index 8fcd9f8d7390..91b5120b924f 100644
+> >>>>>> --- a/mm/vmscan.c
+> >>>>>> +++ b/mm/vmscan.c
+> >>>>>> @@ -159,6 +159,56 @@ unsigned long vm_total_pages;
+> >>>>>>  static LIST_HEAD(shrinker_list);
+> >>>>>>  static DECLARE_RWSEM(shrinker_rwsem);
+> >>>>>>  
+> >>>>>> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> >>>>>> +static DEFINE_IDA(bitmap_id_ida);
+> >>>>>> +static DECLARE_RWSEM(bitmap_rwsem);
+> >>>>>
+> >>>>> Can't we reuse shrinker_rwsem for protecting the ida?
+> >>>>
+> >>>> I think it won't be better, since we allocate memory under this semaphore.
+> >>>> After we use shrinker_rwsem, we'll have to allocate the memory with GFP_ATOMIC,
+> >>>> which does not seems good. Currently, the patchset makes shrinker_rwsem be taken
+> >>>> for a small time, just to assign already allocated memory to maps.
+> >>>
+> >>> AFAIR it's OK to sleep under an rwsem so GFP_ATOMIC wouldn't be
+> >>> necessary. Anyway, we only need to allocate memory when we extend
+> >>> shrinker bitmaps, which is rare. In fact, there can only be a limited
+> >>> number of such calls, as we never shrink these bitmaps (which is fine
+> >>> by me).
+> >>
+> >> We take bitmap_rwsem for writing to expand shrinkers maps. If we replace
+> >> it with shrinker_rwsem and the memory allocation get into reclaim, there
+> >> will be deadlock.
 > > 
-> > This patch introduces kick_active_cpus_sync() and uses it in mm/slab and arm64
-> > code to delay syncronization.
+> > Hmm, AFAICS we use down_read_trylock() in shrink_slab() so no deadlock
+> > would be possible. We wouldn't be able to reclaim slabs though, that's
+> > true, but I don't think it would be a problem for small allocations.
 > > 
-> > For task isolation (https://lkml.org/lkml/2017/11/3/589), IPI to the CPU running
-> > isolated task would be fatal, as it breaks isolation. The approach with delaying
-> > of synchronization work helps to maintain isolated state.
-> > 
-> > I've tested it with test from task isolation series on ThunderX2 for more than
-> > 10 hours (10k giga-ticks) without breaking isolation.
-> > 
-> > Signed-off-by: Yury Norov <ynorov@caviumnetworks.com>
-> > ---
-> >  arch/arm64/kernel/insn.c |  2 +-
-> >  include/linux/smp.h      |  2 ++
-> >  kernel/smp.c             | 24 ++++++++++++++++++++++++
-> >  mm/slab.c                |  2 +-
-> >  4 files changed, 28 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/arch/arm64/kernel/insn.c b/arch/arm64/kernel/insn.c
-> > index 2718a77da165..9d7c492e920e 100644
-> > --- a/arch/arm64/kernel/insn.c
-> > +++ b/arch/arm64/kernel/insn.c
-> > @@ -291,7 +291,7 @@ int __kprobes aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt)
-> >  			 * synchronization.
-> >  			 */
-> >  			ret = aarch64_insn_patch_text_nosync(addrs[0], insns[0]);
-> > -			kick_all_cpus_sync();
-> > +			kick_active_cpus_sync();
-> >  			return ret;
-> >  		}
-> >  	}
+> > That's how I see this. We use shrinker_rwsem to protect IDR mapping
+> > shrink_id => shrinker (I still insist on IDR). It may allocate, but the
+> > allocation size is going to be fairly small so it's OK that we don't
+> > call shrinkers there. After we allocated a shrinker ID, we release
+> > shrinker_rwsem and call mem_cgroup_grow_shrinker_map (or whatever it
+> > will be called), which checks if per-memcg shrinker bitmaps need growing
+> > and if they do it takes its own mutex used exclusively for protecting
+> > the bitmaps and reallocates the bitmaps (we will need the mutex anyway
+> > to synchronize css_online vs shrinker bitmap reallocation as the
+> > shrinker_rwsem is private to vmscan.c and we don't want to export it
+> > to memcontrol.c).
 > 
-> I think this means that runtime modifications to the kernel text might not
-> be picked up by CPUs coming out of idle. Shouldn't we add an ISB on that
-> path to avoid executing stale instructions?
+> But what the profit of prohibiting reclaim during shrinker id allocation?
+> In case of this is a IDR, it still may require 1 page, and still may get
+> in after fast reclaim. If we prohibit reclaim, we'll fail to register
+> the shrinker.
+> 
+> It's not a rare situation, when all the memory is occupied by page cache.
 
-Thanks, Will, for the hint. I'll do that.
+shrinker_rwsem doesn't block page cache reclaim, only dcache reclaim.
+I don't think that dcache can occupy all available memory.
 
-Yury
+> So, we will fail to mount something in some situation.
+> 
+> What the advantages do we have to be more significant, than this disadvantage?
+
+The main advantage is code simplicity.
