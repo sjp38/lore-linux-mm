@@ -1,90 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 61E396B000E
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 23:44:44 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 30-v6so799301ple.19
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 20:44:44 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 9C09D6B002A
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 23:48:14 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id t1-v6so820515plb.5
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 20:48:14 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w8sor929239pfk.42.2018.03.27.20.44.42
+        by mx.google.com with SMTPS id y38-v6sor1204650plh.37.2018.03.27.20.48.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 27 Mar 2018 20:44:42 -0700 (PDT)
-Date: Wed, 28 Mar 2018 11:44:34 +0800
+        Tue, 27 Mar 2018 20:48:13 -0700 (PDT)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: break on the first hit of mem range
-Message-ID: <20180328034434.GB94065@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20180327035707.84113-1-richard.weiyang@gmail.com>
- <20180327154740.9a7713a74a383254b51f4d1a@linux-foundation.org>
- <20180328005142.GC91956@WeideMacBook-Pro.local>
- <20180327183757.f66f5fc200109c06b7a4b620@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: [PATCH] mm/page_alloc: optimize find_min_pfn_for_node() by geting the minimal pfn directly
+Date: Wed, 28 Mar 2018 11:47:52 +0800
+Message-Id: <20180328034752.96146-1-richard.weiyang@gmail.com>
 In-Reply-To: <20180327183757.f66f5fc200109c06b7a4b620@linux-foundation.org>
+References: <20180327183757.f66f5fc200109c06b7a4b620@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, tj@kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, tj@kernel.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Tue, Mar 27, 2018 at 06:37:57PM -0700, Andrew Morton wrote:
->On Wed, 28 Mar 2018 08:51:42 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
->
->> On Tue, Mar 27, 2018 at 03:47:40PM -0700, Andrew Morton wrote:
->> >On Tue, 27 Mar 2018 11:57:07 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
->> >
->> >> find_min_pfn_for_node() iterate on pfn range to find the minimum pfn for a
->> >> node. The memblock_region in memblock_type are already ordered, which means
->> >> the first hit in iteration is the minimum pfn.
->> >> 
->> >> This patch returns the fist hit instead of iterating the whole regions.
->> >> 
->> >> ...
->> >>
->> >> --- a/mm/page_alloc.c
->> >> +++ b/mm/page_alloc.c
->> >> @@ -6365,14 +6365,14 @@ unsigned long __init node_map_pfn_alignment(void)
->> >>  /* Find the lowest pfn for a node */
->> >>  static unsigned long __init find_min_pfn_for_node(int nid)
->> >>  {
->> >> -	unsigned long min_pfn = ULONG_MAX;
->> >> -	unsigned long start_pfn;
->> >> +	unsigned long min_pfn;
->> >>  	int i;
->> >>  
->> >> -	for_each_mem_pfn_range(i, nid, &start_pfn, NULL, NULL)
->> >> -		min_pfn = min(min_pfn, start_pfn);
->> >> +	for_each_mem_pfn_range(i, nid, &min_pfn, NULL, NULL) {
->> >> +		break;
->> >> +	}
->> >
->> >That would be the weirdest-looking code snippet in mm/!
->> >
->> 
->> You mean the only break in a for_each loop? Hmm..., this is really not that
->> nice. Haven't noticed could get a "best" in this way :-)
->
->I guess we can make it nicer by adding a comment along the lines of
->
->	/*
->	 * Use for_each_mem_pfn_range() to locate the lowest valid pfn in the
->	 * range.  We only need to iterate a single time, as the pfn's are
->	 * sorted in ascending order.
->	 */
->
->Because adding a call to the obviously-internal __next_mem_pfn_range()
->isn't very nice either.
+find_min_pfn_for_node() iterates on pfn range to find the minimum pfn for a
+node, while this process could be optimized. The memblock_region in
+memblock_type are already in ascending order, so the first one is the
+minimal one.
 
-Yep, you are right.
+For example, if there are 30 memory regions, the original version would
+iterate all 30 regions, while the new version just need iterate a single
+time.
 
->
->Anyway, please have a think, see what we can come up with.
+This patch does a trivial optimization by adding first_mem_pfn() and use
+this to get the minimal pfn directly.
 
-My approach is to add a macro fist_mem_pfn() as a self-explain wrapper of
-__next_mem_pfn_range().
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 
-Hope you would like this :-)
+---
+v2:
+    * add first_mem_pfn() and use it to replace for_each_mem_pfn_ragne()
+    * some more meaningful words in change log
+---
+ include/linux/memblock.h |  9 +++++++++
+ mm/page_alloc.c          | 14 ++++++++------
+ 2 files changed, 17 insertions(+), 6 deletions(-)
 
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 8be5077efb5f..22932f45538f 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -189,6 +189,15 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+ 			  unsigned long *out_end_pfn, int *out_nid);
+ unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
+ 
++/**
++ * first_mem_pfn - get the first memory pfn
++ * @i: an integer used as an indicator
++ * @nid: node selector, %MAX_NUMNODES for all nodes
++ * @p_first: ptr to ulong for first pfn of the range, can be %NULL
++ */
++#define first_mem_pfn(i, nid, p_first)				\
++	__next_mem_pfn_range(&i, nid, p_first, NULL, NULL)
++
+ /**
+  * for_each_mem_pfn_range - early memory pfn range iterator
+  * @i: an integer used as loop variable
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 635d7dd29d7f..8c964dcc3a9e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6365,14 +6365,16 @@ unsigned long __init node_map_pfn_alignment(void)
+ /* Find the lowest pfn for a node */
+ static unsigned long __init find_min_pfn_for_node(int nid)
+ {
+-	unsigned long min_pfn = ULONG_MAX;
+-	unsigned long start_pfn;
+-	int i;
++	unsigned long min_pfn;
++	int i = -1;
+ 
+-	for_each_mem_pfn_range(i, nid, &start_pfn, NULL, NULL)
+-		min_pfn = min(min_pfn, start_pfn);
++	/*
++	 * The first pfn on nid node is the minimal one, as the pfn's are
++	 * stored in ascending order.
++	 */
++	first_mem_pfn(i, nid, &min_pfn);
+ 
+-	if (min_pfn == ULONG_MAX) {
++	if (i == -1) {
+ 		pr_warn("Could not find start_pfn for node %d\n", nid);
+ 		return 0;
+ 	}
 -- 
-Wei Yang
-Help you, Help me
+2.15.1
