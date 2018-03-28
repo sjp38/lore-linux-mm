@@ -1,110 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AABD6B0023
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 01:41:19 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id e15so590698wrj.14
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 22:41:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v13sor1388562wrf.0.2018.03.27.22.41.17
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 549E16B0023
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 02:51:09 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id n15-v6so1089438plp.22
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 23:51:09 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id x10si2083921pgt.109.2018.03.27.23.51.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 27 Mar 2018 22:41:17 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Mar 2018 23:51:08 -0700 (PDT)
+Subject: Re: [PATCH] mm: kmemleak: wait for scan completion before disabling
+ free
+References: <1522063429-18992-1-git-send-email-vinmenon@codeaurora.org>
+ <20180326154421.obk7ikx3h5ko62o5@armageddon.cambridge.arm.com>
+ <20180326122611.acbfe1bfe6f7c1792b42a3a7@linux-foundation.org>
+ <b3fa4377-edf8-10c4-c40a-45bb53096145@codeaurora.org>
+ <20180327174927.o5lhb7yyl4gjkkxl@armageddon.cambridge.arm.com>
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Message-ID: <1c6787e5-71f8-e135-8bfa-0d72bc2dd51a@codeaurora.org>
+Date: Wed, 28 Mar 2018 12:21:01 +0530
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1803271715310.8944@chino.kir.corp.google.com>
-References: <20180327230603.54721-1-shakeelb@google.com> <alpine.DEB.2.20.1803271715310.8944@chino.kir.corp.google.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 27 Mar 2018 22:41:15 -0700
-Message-ID: <CALvZod5x+mYBaa_x_a00WVGGDGX55AwTcuFdeVQStUo2Db6f3w@mail.gmail.com>
-Subject: Re: [PATCH] slab, slub: skip unnecessary kasan_cache_shutdown()
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180327174927.o5lhb7yyl4gjkkxl@armageddon.cambridge.arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Alexander Potapenko <glider@google.com>, Greg Thelen <gthelen@google.com>, Dmitry Vyukov <dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Tue, Mar 27, 2018 at 5:16 PM, David Rientjes <rientjes@google.com> wrote:
-> On Tue, 27 Mar 2018, Shakeel Butt wrote:
->
->> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
->> index 49fffb0ca83b..135ce2838c89 100644
->> --- a/mm/kasan/kasan.c
->> +++ b/mm/kasan/kasan.c
->> @@ -382,7 +382,8 @@ void kasan_cache_shrink(struct kmem_cache *cache)
+On 3/27/2018 11:19 PM, Catalin Marinas wrote:
+> On Tue, Mar 27, 2018 at 10:59:31AM +0530, Vinayak Menon wrote:
+>> On 3/27/2018 12:56 AM, Andrew Morton wrote:
+>>> On Mon, 26 Mar 2018 16:44:21 +0100 Catalin Marinas <catalin.marinas@arm.com> wrote:
+>>>> On Mon, Mar 26, 2018 at 04:53:49PM +0530, Vinayak Menon wrote:
+>>>>> A crash is observed when kmemleak_scan accesses the
+>>>>> object->pointer, likely due to the following race.
+>>>>>
+>>>>> TASK A             TASK B                     TASK C
+>>>>> kmemleak_write
+>>>>>  (with "scan" and
+>>>>>  NOT "scan=on")
+>>>>> kmemleak_scan()
+>>>>>                    create_object
+>>>>>                    kmem_cache_alloc fails
+>>>>>                    kmemleak_disable
+>>>>>                    kmemleak_do_cleanup
+>>>>>                    kmemleak_free_enabled = 0
+>>>>>                                               kfree
+>>>>>                                               kmemleak_free bails out
+>>>>>                                                (kmemleak_free_enabled is 0)
+>>>>>                                               slub frees object->pointer
+>>>>> update_checksum
+>>>>> crash - object->pointer
+>>>>>  freed (DEBUG_PAGEALLOC)
+>>>>>
+>>>>> kmemleak_do_cleanup waits for the scan thread to complete, but not for
+>>>>> direct call to kmemleak_scan via kmemleak_write. So add a wait for
+>>>>> kmemleak_scan completion before disabling kmemleak_free.
+>>>>>
+>>>>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+>>>> It looks fine to me. Maybe Andrew can pick it up.
+>>>>
+>>>> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+>>> Well, the comment says:
+>>>
+>>> /*
+>>>  * Stop the automatic memory scanning thread. This function must be called
+>>>  * with the scan_mutex held.
+>>>  */
+>>> static void stop_scan_thread(void)
+>>>
+>>>
+>>> So shouldn't we do it this way?
+>> Earlier it was done the way you mentioned. But that was changed to fix
+>> a deadlock by
 >>
->>  void kasan_cache_shutdown(struct kmem_cache *cache)
->>  {
->> -     quarantine_remove_cache(cache);
->> +     if (!__kmem_cache_empty(cache))
->> +             quarantine_remove_cache(cache);
->>  }
+>> commit 5f369f374ba4889fe3c17883402db5ee8d254216
+>> Author: Catalin Marinas <catalin.marinas@arm.com>
+>> Date:A A  Wed Jun 24 16:58:31 2015 -0700
 >>
->>  size_t kasan_metadata_size(struct kmem_cache *cache)
->> diff --git a/mm/slab.c b/mm/slab.c
->> index 9212c64bb705..b59f2cdf28d1 100644
->> --- a/mm/slab.c
->> +++ b/mm/slab.c
->> @@ -2291,6 +2291,18 @@ static int drain_freelist(struct kmem_cache *cache,
->>       return nr_freed;
->>  }
+>> A A A  mm: kmemleak: do not acquire scan_mutex in kmemleak_do_cleanup()
 >>
->> +bool __kmem_cache_empty(struct kmem_cache *s)
->> +{
->> +     int node;
->> +     struct kmem_cache_node *n;
->> +
->> +     for_each_kmem_cache_node(s, node, n)
->> +             if (!list_empty(&n->slabs_full) ||
->> +                 !list_empty(&n->slabs_partial))
->> +                     return false;
->> +     return true;
->> +}
->> +
->>  int __kmem_cache_shrink(struct kmem_cache *cachep)
->>  {
->>       int ret = 0;
->> diff --git a/mm/slab.h b/mm/slab.h
->> index e8981e811c45..68bdf498da3b 100644
->> --- a/mm/slab.h
->> +++ b/mm/slab.h
->> @@ -166,6 +166,7 @@ static inline slab_flags_t kmem_cache_flags(unsigned int object_size,
->>                             SLAB_TEMPORARY | \
->>                             SLAB_ACCOUNT)
->>
->> +bool __kmem_cache_empty(struct kmem_cache *);
->>  int __kmem_cache_shutdown(struct kmem_cache *);
->>  void __kmem_cache_release(struct kmem_cache *);
->>  int __kmem_cache_shrink(struct kmem_cache *);
->> diff --git a/mm/slub.c b/mm/slub.c
->> index 1edc8d97c862..44aa7847324a 100644
->> --- a/mm/slub.c
->> +++ b/mm/slub.c
->> @@ -3707,6 +3707,17 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
->>               discard_slab(s, page);
->>  }
->>
->> +bool __kmem_cache_empty(struct kmem_cache *s)
->> +{
->> +     int node;
->> +     struct kmem_cache_node *n;
->> +
->> +     for_each_kmem_cache_node(s, node, n)
->> +             if (n->nr_partial || slabs_node(s, node))
->> +                     return false;
->> +     return true;
->> +}
->> +
->>  /*
->>   * Release all resources used by a slab cache.
->>   */
->
-> Any reason not to just make quarantine_remove_cache() part of
-> __kmem_cache_shutdown() instead of duplicating its logic?
+>> Not able to see a reason why stop_scan_thread must be called with
+>> scan_mutex held. The comment needs a fix ?
+> Indeed, the comment needs fixing as waiting on the mutex here may lead
+> deadlock. Would you mind sending an updated patch? Feel free to keep my
+> reviewed-by tag.
 
-Can you please explain what you mean by making
-quarantine_remove_cache() part of __kmem_cache_shutdown()? Do you mean
-calling quarantine_remove_cache() inside __kmem_cache_shutdown()? The
-__kmem_cache_shutdown() of both SLAB & SLUB does per-cpu
-draining/flushing and we want the free the quarantined objects before
-that. So, I am not sure how to incorporate  quarantine_remove_cache()
-into __kmem_cache_shutdown() without duplicating the for-loop &
-if-condition.
+Sure. done.
+
+>
+> Thanks.
+>
