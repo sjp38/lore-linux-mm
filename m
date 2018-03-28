@@ -1,78 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F1476B005A
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:17:00 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id w125-v6so2008126itf.0
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 03:17:00 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u66-v6sor1647568itd.102.2018.03.28.03.16.59
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0839A6B005C
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:17:40 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id z5so959860qti.4
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 03:17:40 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id o21si3414161qtm.98.2018.03.28.03.17.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 28 Mar 2018 03:16:59 -0700 (PDT)
-Date: Wed, 28 Mar 2018 03:16:55 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v9 01/24] mm: Introduce CONFIG_SPECULATIVE_PAGE_FAULT
-In-Reply-To: <32c80b6a-28c6-bf63-ed7b-6a042ae18e8f@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.20.1803280310380.68839@chino.kir.corp.google.com>
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-2-git-send-email-ldufour@linux.vnet.ibm.com> <alpine.DEB.2.20.1803251442090.80485@chino.kir.corp.google.com>
- <32c80b6a-28c6-bf63-ed7b-6a042ae18e8f@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Mar 2018 03:17:38 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2SAFxND132809
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:17:37 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2h07cfmb42-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:17:37 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 28 Mar 2018 11:17:34 +0100
+Date: Wed, 28 Mar 2018 13:17:29 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [RFC PATCH] userfaultfd: add UFFDIO_TRY_COW
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Message-Id: <20180328101729.GB1743@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-api <linux-api@vger.kernel.org>
 
-On Wed, 28 Mar 2018, Laurent Dufour wrote:
+Hi,
 
-> >> This configuration variable will be used to build the code needed to
-> >> handle speculative page fault.
-> >>
-> >> By default it is turned off, and activated depending on architecture
-> >> support.
-> >>
-> >> Suggested-by: Thomas Gleixner <tglx@linutronix.de>
-> >> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> >> ---
-> >>  mm/Kconfig | 3 +++
-> >>  1 file changed, 3 insertions(+)
-> >>
-> >> diff --git a/mm/Kconfig b/mm/Kconfig
-> >> index abefa573bcd8..07c566c88faf 100644
-> >> --- a/mm/Kconfig
-> >> +++ b/mm/Kconfig
-> >> @@ -759,3 +759,6 @@ config GUP_BENCHMARK
-> >>  	  performance of get_user_pages_fast().
-> >>  
-> >>  	  See tools/testing/selftests/vm/gup_benchmark.c
-> >> +
-> >> +config SPECULATIVE_PAGE_FAULT
-> >> +       bool
-> > 
-> > Should this be configurable even if the arch supports it?
-> 
-> Actually, this is not configurable unless by manually editing the .config file.
-> 
-> I made it this way on the Thomas's request :
-> https://lkml.org/lkml/2018/1/15/969
-> 
-> That sounds to be the smarter way to achieve that, isn't it ?
-> 
+This is an initial attempt to implement COW with userfaultfd.
+It's not yet complete, but I'd like to get an early feedback to see I'm not
+talking complete nonsense.
 
-Putting this in mm/Kconfig is definitely the right way to go about it 
-instead of any generic option in arch/*.
+It was possible to extend UFFDIO_COPY with UFFDIO_COPY_MODE_COW,  but I've
+preferred to add the COW'ing of the pages as a new ioctl because otherwise
+I would need to extend uffdio_copy structure to hold an additional
+parameter.
 
-My question, though, was making this configurable by the user:
-
-config SPECULATIVE_PAGE_FAULT
-	bool "Speculative page faults"
-	depends on X86_64 || PPC
-	default y
-	help
-	  ..
-
-It's a question about whether we want this always enabled on x86_64 and 
-power or whether the user should be able to disable it (right now they 
-can't).  With a large feature like this, you may want to offer something 
-simple (disable CONFIG_SPECULATIVE_PAGE_FAULT) if someone runs into 
-regressions.
+--
+Sincerely yours,
+Mike.
