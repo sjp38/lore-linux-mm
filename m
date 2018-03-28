@@ -1,53 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 899E06B0028
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 23:24:43 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id d186-v6so1352850itg.7
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 20:24:43 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b135-v6sor1403325itc.113.2018.03.27.20.24.42
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 61E396B000E
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 23:44:44 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 30-v6so799301ple.19
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 20:44:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w8sor929239pfk.42.2018.03.27.20.44.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 27 Mar 2018 20:24:42 -0700 (PDT)
+        Tue, 27 Mar 2018 20:44:42 -0700 (PDT)
+Date: Wed, 28 Mar 2018 11:44:34 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm/page_alloc: break on the first hit of mem range
+Message-ID: <20180328034434.GB94065@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20180327035707.84113-1-richard.weiyang@gmail.com>
+ <20180327154740.9a7713a74a383254b51f4d1a@linux-foundation.org>
+ <20180328005142.GC91956@WeideMacBook-Pro.local>
+ <20180327183757.f66f5fc200109c06b7a4b620@linux-foundation.org>
 MIME-Version: 1.0
-From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Date: Wed, 28 Mar 2018 08:24:26 +0500
-Message-ID: <CABXGCsOtMbRwZcyBRXWq+a2j4K7Q=JMPEC=xikrFCSqUypJyxA@mail.gmail.com>
-Subject: BUG: sleeping function called from invalid context at net/core/sock.c:2768
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180327183757.f66f5fc200109c06b7a4b620@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-bluetooth@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, tj@kernel.org, linux-mm@kvack.org
 
-$ uname -r
-4.16.0-rc7
+On Tue, Mar 27, 2018 at 06:37:57PM -0700, Andrew Morton wrote:
+>On Wed, 28 Mar 2018 08:51:42 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+>
+>> On Tue, Mar 27, 2018 at 03:47:40PM -0700, Andrew Morton wrote:
+>> >On Tue, 27 Mar 2018 11:57:07 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+>> >
+>> >> find_min_pfn_for_node() iterate on pfn range to find the minimum pfn for a
+>> >> node. The memblock_region in memblock_type are already ordered, which means
+>> >> the first hit in iteration is the minimum pfn.
+>> >> 
+>> >> This patch returns the fist hit instead of iterating the whole regions.
+>> >> 
+>> >> ...
+>> >>
+>> >> --- a/mm/page_alloc.c
+>> >> +++ b/mm/page_alloc.c
+>> >> @@ -6365,14 +6365,14 @@ unsigned long __init node_map_pfn_alignment(void)
+>> >>  /* Find the lowest pfn for a node */
+>> >>  static unsigned long __init find_min_pfn_for_node(int nid)
+>> >>  {
+>> >> -	unsigned long min_pfn = ULONG_MAX;
+>> >> -	unsigned long start_pfn;
+>> >> +	unsigned long min_pfn;
+>> >>  	int i;
+>> >>  
+>> >> -	for_each_mem_pfn_range(i, nid, &start_pfn, NULL, NULL)
+>> >> -		min_pfn = min(min_pfn, start_pfn);
+>> >> +	for_each_mem_pfn_range(i, nid, &min_pfn, NULL, NULL) {
+>> >> +		break;
+>> >> +	}
+>> >
+>> >That would be the weirdest-looking code snippet in mm/!
+>> >
+>> 
+>> You mean the only break in a for_each loop? Hmm..., this is really not that
+>> nice. Haven't noticed could get a "best" in this way :-)
+>
+>I guess we can make it nicer by adding a comment along the lines of
+>
+>	/*
+>	 * Use for_each_mem_pfn_range() to locate the lowest valid pfn in the
+>	 * range.  We only need to iterate a single time, as the pfn's are
+>	 * sorted in ascending order.
+>	 */
+>
+>Because adding a call to the obviously-internal __next_mem_pfn_range()
+>isn't very nice either.
 
-[85044.650045] Bluetooth: hci0: last event is not cmd complete (0x0f)
-[85057.544598] usb 1-9.2: USB disconnect, device number 12
-[85060.640035] Bluetooth: hci0: last event is not cmd complete (0x0f)
-[85065.025725] BUG: sleeping function called from invalid context at
-net/core/sock.c:2768
-[85065.025729] in_atomic(): 1, irqs_disabled(): 0, pid: 2084, name: krfcommd
-[85065.025730] INFO: lockdep is turned off.
-[85065.025733] CPU: 6 PID: 2084 Comm: krfcommd Not tainted 4.16.0-rc7 #1
-[85065.025735] Hardware name: Gigabyte Technology Co., Ltd.
-Z87M-D3H/Z87M-D3H, BIOS F11 08/12/2014
-[85065.025736] Call Trace:
-[85065.025743]  dump_stack+0x85/0xbf
-[85065.025747]  ___might_sleep+0x15b/0x240
-[85065.025751]  lock_sock_nested+0x29/0xa0
-[85065.025764]  bt_accept_enqueue+0x3c/0xb0 [bluetooth]
-[85065.025770]  rfcomm_connect_ind+0x227/0x250 [rfcomm]
-[85065.025774]  rfcomm_run+0x155a/0x1860 [rfcomm]
-[85065.025778]  ? do_wait_intr_irq+0xb0/0xb0
-[85065.025783]  ? rfcomm_check_accept+0xa0/0xa0 [rfcomm]
-[85065.025786]  kthread+0x121/0x140
-[85065.025789]  ? kthread_create_worker_on_cpu+0x70/0x70
-[85065.025792]  ret_from_fork+0x3a/0x50
-[85069.642058] Bluetooth: hci0: last event is not cmd complete (0x0f)
+Yep, you are right.
 
+>
+>Anyway, please have a think, see what we can come up with.
 
+My approach is to add a macro fist_mem_pfn() as a self-explain wrapper of
+__next_mem_pfn_range().
 
---
-Best Regards,
-Mike Gavrilov.
+Hope you would like this :-)
+
+-- 
+Wei Yang
+Help you, Help me
