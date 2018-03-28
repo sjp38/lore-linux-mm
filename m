@@ -1,98 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DD83B6B0027
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 11:21:22 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id v25so1424738pgn.20
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 08:21:22 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g7-v6si4184199plm.539.2018.03.28.08.21.21
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7765F6B002B
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 11:44:57 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id e9so2692596ioj.18
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 08:44:57 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0172.hostedemail.com. [216.40.44.172])
+        by mx.google.com with ESMTPS id c189-v6si3152734ith.120.2018.03.28.08.44.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Mar 2018 08:21:21 -0700 (PDT)
-Date: Wed, 28 Mar 2018 16:21:15 +0100
-From: James Hogan <jhogan@kernel.org>
-Subject: Re: [PATCH V4 Resend] ZBOOT: fix stack protector in compressed boot
- phase
-Message-ID: <20180328152115.GB1991@saruman>
-References: <1522226933-29317-1-git-send-email-chenhc@lemote.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="oC1+HKm2/end4ao3"
-Content-Disposition: inline
-In-Reply-To: <1522226933-29317-1-git-send-email-chenhc@lemote.com>
+        Wed, 28 Mar 2018 08:44:56 -0700 (PDT)
+Message-ID: <1522251891.12357.102.camel@perches.com>
+Subject: Re: [PATCH] mm: Use octal not symbolic permissions
+From: Joe Perches <joe@perches.com>
+Date: Wed, 28 Mar 2018 08:44:51 -0700
+In-Reply-To: <20180328130623.GB8976@dhcp22.suse.cz>
+References: 
+	<2e032ef111eebcd4c5952bae86763b541d373469.1522102887.git.joe@perches.com>
+	 <20180328130623.GB8976@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huacai Chen <chenhc@lemote.com>, Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org, stable@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+On Wed, 2018-03-28 at 15:06 +0200, Michal Hocko wrote:
+> On Mon 26-03-18 15:22:32, Joe Perches wrote:
+> > mm/*.c files use symbolic and octal styles for permissions.
+> > 
+> > Using octal and not symbolic permissions is preferred by many as more
+> > readable.
+> > 
+> > https://lkml.org/lkml/2016/8/2/1945
+> > 
+> > Prefer the direct use of octal for permissions.
+> > 
+> > Done using
+> > $ scripts/checkpatch.pl -f --types=SYMBOLIC_PERMS --fix-inplace mm/*.c
+> > and some typing.
+> > 
+> > Before:	 $ git grep -P -w "0[0-7]{3,3}" mm | wc -l
+> > 44
+> > After:	 $ git grep -P -w "0[0-7]{3,3}" mm | wc -l
+> > 86
+> 
 
---oC1+HKm2/end4ao3
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> Ohh, I absolutely detest those symbolic names. I always have to check
+> what they actually mean to be sure. Octal representation is quite
+> natural to read. So for once I am really happy about such a clean up
+> change.
+> 
+> Btw. something like this should be quite easy to automate via
+> coccinelle AFAIU. 
 
-On Wed, Mar 28, 2018 at 04:48:53PM +0800, Huacai Chen wrote:
-> diff --git a/arch/mips/boot/compressed/decompress.c b/arch/mips/boot/comp=
-ressed/decompress.c
-> index fdf99e9..81df904 100644
-> --- a/arch/mips/boot/compressed/decompress.c
-> +++ b/arch/mips/boot/compressed/decompress.c
-> @@ -76,12 +76,7 @@ void error(char *x)
->  #include "../../../../lib/decompress_unxz.c"
->  #endif
-> =20
-> -unsigned long __stack_chk_guard;
-> -
-> -void __stack_chk_guard_setup(void)
-> -{
-> -	__stack_chk_guard =3D 0x000a0dff;
-> -}
-> +const unsigned long __stack_chk_guard =3D 0x000a0dff;
-> =20
->  void __stack_chk_fail(void)
->  {
-> @@ -92,8 +87,6 @@ void decompress_kernel(unsigned long boot_heap_start)
->  {
->  	unsigned long zimage_start, zimage_size;
-> =20
-> -	__stack_chk_guard_setup();
-> -
->  	zimage_start =3D (unsigned long)(&__image_begin);
->  	zimage_size =3D (unsigned long)(&__image_end) -
->  	    (unsigned long)(&__image_begin);
+checkpatch is currently better at this, for some
+definition of better, than Coccinelle.
 
-This looks good to me, though I've Cc'd Kees as apparently the original
-author from commit 8779657d29c0 ("stackprotector: Introduce
-CONFIG_CC_STACKPROTECTOR_STRONG") in case there was a particular reason
-this wasn't done in the first place.
+Julia and I had a discussion about it awhile ago.
+https://lkml.org/lkml/2017/2/4/140
 
-Acked-by: James Hogan <jhogan@kernel.org>
+S_<FOO> groupings need to be combined and can
+appear in arbitrary order.
 
-(Happy to apply with acks from Kees and ARM, SH maintainers if nobody
-else does).
+Coccinelle would need the same octal addition in
+some code path as checkpatch already has.
 
-Cheers
-James
+> > Miscellanea:
+> > 
+> > o Whitespace neatening around these conversions.
+> > 
+> > Signed-off-by: Joe Perches <joe@perches.com>
+> 
+> I hope I haven't overlooked any potential mismatch...
 
---oC1+HKm2/end4ao3
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEd80NauSabkiESfLYbAtpk944dnoFAlq7suoACgkQbAtpk944
-dnrxJxAAlrAgDS3oDkev9n/dI09IAb5AGksi/hRV8rvWiOecvAyIYE7RG0rthOmS
-0loNyQOkdrydZy5n4BUO+OxjV8UJQnGazAeDPM5/gOqHZiuouSPg8JvfspH9dbCP
-MJ09R/ig3biJiSNRYlW8L+cD6Zo4Iy/aEfusc0i+cRAC2kHJDJe6D0XoXHYSk2mj
-Vx9jj9GoLTROXwtMhYRjsFb1qTfKL5NBY+66zMPV2pVnsQoV8PSMftdYz1RCU/VC
-iNVFI5/pus+YVNL2nTqhUXRQUNDvOGqMt08yk4P1gyMLPHzEUf3uKHn12pMYslI2
-H+LGmfe8MdwVG+Mb554Y1di245/kGybclsAdqMUK1RtbzrfuDOYv6u8GAop/d6cg
-gjgnHstbImtbIyTGcT4aY4ntY/HftPJ/s7kTbIdFZGV0Pkzi4aCOiJSVqO/lLX0h
-FzM5sFf/YcGyDMw8zCDlL9OfRWImuzIn89xvwdsEtorZvtgI9syxPZSLU8fNNwAy
-jmPMm6PC1l5i+BwfO0UJO2M0HtIO/L9P3a67xdjrWZbMAFfp3X6PEGs1fu5c3QV1
-MJ6SF316yu1pOnIbqLImqsY4/DYnHkhT3/evZAA5n4/Rxz3ICp+8OKYEbGmmbXV+
-Bv7VIDn2vv+MlmIVDYELo1v+LWmX833VssiwXcHPlSS7s4XjT4w=
-=au7i
------END PGP SIGNATURE-----
-
---oC1+HKm2/end4ao3--
+Doubtful as the conversion is completely automated.
