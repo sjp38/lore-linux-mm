@@ -1,109 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 403186B0005
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 12:33:00 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id u16-v6so1612555oiv.10
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 09:33:00 -0700 (PDT)
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E4796B0007
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 12:33:46 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id g13-v6so1718644otk.5
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 09:33:46 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p20-v6si1213851otf.437.2018.03.28.09.32.57
+        by mx.google.com with ESMTP id p188-v6si1124222oic.263.2018.03.28.09.33.44
         for <linux-mm@kvack.org>;
-        Wed, 28 Mar 2018 09:32:58 -0700 (PDT)
-Subject: Re: [PATCH v2 05/11] arm64: KVM/mm: Move SEA handling behind a single
- 'claim' interface
-References: <20180322181445.23298-1-james.morse@arm.com>
- <20180322181445.23298-6-james.morse@arm.com>
- <08744114-27c0-dc8c-0943-df3dcb80f4a6@arm.com>
+        Wed, 28 Mar 2018 09:33:45 -0700 (PDT)
+Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's
+ add/remove and notify code
+References: <20180215185606.26736-1-james.morse@arm.com>
+ <20180215185606.26736-3-james.morse@arm.com> <20180301150144.GA4215@pd.tnic>
+ <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com>
+ <20180301223529.GA28811@pd.tnic> <5AA02C26.10803@arm.com>
+ <20180308104408.GB21166@pd.tnic> <5AAFC939.3010309@arm.com>
+ <20180327172510.GB32184@pd.tnic>
 From: James Morse <james.morse@arm.com>
-Message-ID: <b9f16902-1aed-bcbb-3e13-d852c766baef@arm.com>
-Date: Wed, 28 Mar 2018 17:30:07 +0100
+Message-ID: <d15ba145-479c-ffde-14ad-ab7170d0f06e@arm.com>
+Date: Wed, 28 Mar 2018 17:30:55 +0100
 MIME-Version: 1.0
-In-Reply-To: <08744114-27c0-dc8c-0943-df3dcb80f4a6@arm.com>
+In-Reply-To: <20180327172510.GB32184@pd.tnic>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Zyngier <marc.zyngier@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
 
-Hi Marc,
+Hi Borislav,
 
-On 26/03/18 18:49, Marc Zyngier wrote:
-> On 22/03/18 18:14, James Morse wrote:
->> To ensure APEI always takes the same locks when processing a notification
->> we need the nmi-like callers to always call APEI in_nmi(). Add a helper
->> to do the work and claim the notification.
->>
->> When KVM or the arch code takes an exception that might be a RAS
->> notification, it asks the APEI firmware-first code whether it wants
->> to claim the exception. We can then go on to see if (a future)
->> kernel-first mechanism wants to claim the notification, before
->> falling through to the existing default behaviour.
->>
->> The NOTIFY_SEA code was merged before we had multiple, possibly
->> interacting, NMI-like notifications and the need to consider kernel
->> first in the future. Make the 'claiming' behaviour explicit.
->>
->> As we're restructuring the APEI code to allow multiple NMI-like
->> notifications, any notification that might interrupt interrupts-masked
->> code must always be wrapped in nmi_enter()/nmi_exit(). This allows APEI
->> to use in_nmi() to choose between the raw/regular spinlock routines.
->>
->> We mask SError over this window to prevent an asynchronous RAS error
->> arriving and tripping 'nmi_enter()'s BUG_ON(in_nmi()).
-
->> diff --git a/arch/arm64/include/asm/kvm_ras.h b/arch/arm64/include/asm/kvm_ras.h
->> index 5f72b07b7912..9d52bc333110 100644
->> --- a/arch/arm64/include/asm/kvm_ras.h
->> +++ b/arch/arm64/include/asm/kvm_ras.h
->> @@ -4,8 +4,26 @@
->>  #ifndef __ARM64_KVM_RAS_H__
->>  #define __ARM64_KVM_RAS_H__
->>  
->> +#include <linux/acpi.h>
->> +#include <linux/errno.h>
->>  #include <linux/types.h>
->>  
->> -int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr);
->> +#include <asm/acpi.h>
->> +
->> +/*
->> + * Was this synchronous external abort a RAS notification?
->> + * Returns '0' for errors handled by some RAS subsystem, or -ENOENT.
->> + *
->> + * Call with irqs unmaksed.
-
-Self-Nit: unmasked.
-
->> + */
->> +static inline int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr)
->> +{
->> +	int ret = -ENOENT;
->> +
->> +	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA))
->> +		ret = apei_claim_sea(NULL);
+On 27/03/18 18:25, Borislav Petkov wrote:
+> On Mon, Mar 19, 2018 at 02:29:13PM +0000, James Morse wrote:
+>> I don't think the die_lock really helps here, do we really want to wait for a
+>> remote CPU to finish printing an OOPs about user-space's bad memory accesses,
+>> before we bring the machine down due to this system-wide fatal RAS error? The
+>> presence of firmware-first means we know this error, and any other oops are
+>> unrelated.
 > 
-> Nit: it is a bit odd to see this "IS_ENABLED(CONFIG_ACPI_APEI_SEA)"
-> check both in this function and in the only other function this calls
-> (apei_claim_sea). Could this somehow be improved by having a dummy
-> apei_claim_sea if CONFIG_ACPI_APEI doesn't exist?
+> Hmm, now that you put it this way...
 
-Good point. Your suggestion also avoids more #ifdefs in the C file, which is
-what I was trying to avoid.
-
-
->> +
->> +	return ret;
->> +}
->>  
->>  #endif /* __ARM64_KVM_RAS_H__ */
-
-
-> Otherwise:
+>> I'd like to leave this under the x86-ifdef for now. For arm64 it would be an
+>> APEI specific arch hook to stop the arch code from printing some messages,
 > 
-> Acked-by: Marc Zyngier <marc.zyngier@arm.com>
+> ... I'm thinking we should ignore the whole serializing of oopses and
+> really dump that hw error ASAP. If it really is a fatal error, our main
+> and only goal is to get it out as fast as possible so that it has the
+> highest chance to appear on some screen or logging facility and thus the
+> system can be serviced successfully.
+> 
+> And the other oopses have lower prio.
 
-Thanks!
+> Hmmm?
 
+Yes, I agree. With firmware-first we know that errors the firmware takes first,
+then notifies by NMI causing us to panic() must be a higher priority than
+another oops.
+
+I'll add a patch[0] to v3 making this argument and removing the #ifdef'd
+oops_begin().
+
+
+Thanks,
 
 James
+
+
+[0]
+-----------------%<-----------------
+    ACPI / APEI: don't wait to serialise with oops messages when panic()ing
+
+    oops_begin() exists to group printk() messages with the oops message
+    printed by die(). To reach this caller we know that platform firmware
+    took this error first, then notified the OS via NMI with a 'panic'
+    severity.
+
+    Don't wait for another CPU to release the die-lock before we can
+    panic(), our only goal is to print this fatal error and panic().
+
+    This code is always called in_nmi(), and since 42a0bb3f7138 ("printk/nmi:
+    generic solution for safe printk in NMI"), it has been safe to call
+    printk() from this context. Messages are batched in a per-cpu buffer
+    and printed via irq-work, or a call back from panic().
+
+    Signed-off-by: James Morse <james.morse@arm.com>
+
+diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+index 22f6ea5b9ad5..f348e6540960 100644
+--- a/drivers/acpi/apei/ghes.c
++++ b/drivers/acpi/apei/ghes.c
+@@ -34,7 +34,6 @@
+ #include <linux/interrupt.h>
+ #include <linux/timer.h>
+ #include <linux/cper.h>
+-#include <linux/kdebug.h>
+ #include <linux/platform_device.h>
+ #include <linux/mutex.h>
+ #include <linux/ratelimit.h>
+@@ -736,9 +735,6 @@ static int _in_nmi_notify_one(struct ghes *ghes)
+
+        sev = ghes_severity(ghes->estatus->error_severity);
+        if (sev >= GHES_SEV_PANIC) {
+-#ifdef CONFIG_X86
+-               oops_begin();
+-#endif
+                ghes_print_queued_estatus();
+                __ghes_panic(ghes);
+        }
+-----------------%<-----------------
