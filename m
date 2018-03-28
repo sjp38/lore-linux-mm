@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B68776B0011
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 22:09:32 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id i127so477190pgc.22
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 19:09:32 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 59DDF6B0024
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2018 22:10:54 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id f3-v6so669809plf.1
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2018 19:10:54 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 32-v6sor1234743plb.6.2018.03.27.19.09.30
+        by mx.google.com with SMTPS id a33-v6sor1247313pld.51.2018.03.27.19.10.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 27 Mar 2018 19:09:31 -0700 (PDT)
-Subject: Re: [PATCH v3 2/5] mm: page_alloc: reduce unnecessary binary search
- in memblock_next_valid_pfn()
+        Tue, 27 Mar 2018 19:10:53 -0700 (PDT)
+Subject: Re: [PATCH v3 5/5] mm: page_alloc: reduce unnecessary binary search
+ in early_pfn_valid()
 References: <1522033340-6575-1-git-send-email-hejianet@gmail.com>
- <1522033340-6575-3-git-send-email-hejianet@gmail.com>
- <CACjP9X-+gBPy=w6YAjO_2=WEz0hS-FGFvhSJjJas8n9n3xkpew@mail.gmail.com>
+ <1522033340-6575-6-git-send-email-hejianet@gmail.com>
+ <CACjP9X_MNrL_4VdR+oMVb4nAfwAmWrUy-cK88V_i0ft71S2bJA@mail.gmail.com>
 From: Jia He <hejianet@gmail.com>
-Message-ID: <f8679af1-b439-e0e1-8aa7-445023beb187@gmail.com>
-Date: Wed, 28 Mar 2018 10:09:03 +0800
+Message-ID: <55b15841-bac7-7576-6da8-edff0fe0e9b2@gmail.com>
+Date: Wed, 28 Mar 2018 10:10:25 +0800
 MIME-Version: 1.0
-In-Reply-To: <CACjP9X-+gBPy=w6YAjO_2=WEz0hS-FGFvhSJjJas8n9n3xkpew@mail.gmail.com>
+In-Reply-To: <CACjP9X_MNrL_4VdR+oMVb4nAfwAmWrUy-cK88V_i0ft71S2bJA@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,158 +28,101 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, C
 
 
 
-On 3/28/2018 1:17 AM, Daniel Vacek Wrote:
+On 3/28/2018 1:51 AM, Daniel Vacek Wrote:
 > On Mon, Mar 26, 2018 at 5:02 AM, Jia He <hejianet@gmail.com> wrote:
 >> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
 >> where possible") optimized the loop in memmap_init_zone(). But there is
->> still some room for improvement. E.g. if pfn and pfn+1 are in the same
->> memblock region, we can simply pfn++ instead of doing the binary search
->> in memblock_next_valid_pfn. This patch only works when
->> CONFIG_HAVE_ARCH_PFN_VALID is enable.
+>> still some room for improvement. E.g. in early_pfn_valid(), if pfn and
+>> pfn+1 are in the same memblock region, we can record the last returned
+>> memblock region index and check check pfn++ is still in the same region.
+>>
+>> Currently it only improve the performance on arm64 and will have no
+>> impact on other arches.
 >>
 >> Signed-off-by: Jia He <jia.he@hxt-semitech.com>
 >> ---
->>   include/linux/memblock.h |  2 +-
->>   mm/memblock.c            | 73 +++++++++++++++++++++++++++++-------------------
->>   mm/page_alloc.c          |  3 +-
->>   3 files changed, 47 insertions(+), 31 deletions(-)
+>>   arch/x86/include/asm/mmzone_32.h |  2 +-
+>>   include/linux/mmzone.h           | 12 +++++++++---
+>>   mm/page_alloc.c                  |  2 +-
+>>   3 files changed, 11 insertions(+), 5 deletions(-)
 >>
->> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
->> index efbbe4b..a8fb2ab 100644
->> --- a/include/linux/memblock.h
->> +++ b/include/linux/memblock.h
->> @@ -204,7 +204,7 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
->>   #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+>> diff --git a/arch/x86/include/asm/mmzone_32.h b/arch/x86/include/asm/mmzone_32.h
+>> index 73d8dd1..329d3ba 100644
+>> --- a/arch/x86/include/asm/mmzone_32.h
+>> +++ b/arch/x86/include/asm/mmzone_32.h
+>> @@ -49,7 +49,7 @@ static inline int pfn_valid(int pfn)
+>>          return 0;
+>>   }
 >>
->>   #ifdef CONFIG_HAVE_ARCH_PFN_VALID
->> -unsigned long memblock_next_valid_pfn(unsigned long pfn);
->> +unsigned long memblock_next_valid_pfn(unsigned long pfn, int *idx);
+>> -#define early_pfn_valid(pfn)   pfn_valid((pfn))
+>> +#define early_pfn_valid(pfn, last_region_idx)  pfn_valid((pfn))
+>>
+>>   #endif /* CONFIG_DISCONTIGMEM */
+>>
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index d797716..3a686af 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -1267,9 +1267,15 @@ static inline int pfn_present(unsigned long pfn)
+>>   })
+>>   #else
+>>   #define pfn_to_nid(pfn)                (0)
+>> -#endif
+>> +#endif /*CONFIG_NUMA*/
+>> +
+>> +#ifdef CONFIG_HAVE_ARCH_PFN_VALID
+>> +#define early_pfn_valid(pfn, last_region_idx) \
+>> +                               pfn_valid_region(pfn, last_region_idx)
+>> +#else
+>> +#define early_pfn_valid(pfn, last_region_idx)  pfn_valid(pfn)
+>> +#endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
+>>
+>> -#define early_pfn_valid(pfn)   pfn_valid(pfn)
+>>   void sparse_init(void);
+>>   #else
+>>   #define sparse_init()  do {} while (0)
+>> @@ -1288,7 +1294,7 @@ struct mminit_pfnnid_cache {
+>>   };
+>>
+>>   #ifndef early_pfn_valid
+>> -#define early_pfn_valid(pfn)   (1)
+>> +#define early_pfn_valid(pfn, last_region_idx)  (1)
 >>   #endif
 >>
->>   /**
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index bea5a9c..06c1a08 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -1102,35 +1102,6 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
->>                  *out_nid = r->nid;
->>   }
->>
->> -#ifdef CONFIG_HAVE_ARCH_PFN_VALID
->> -unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn)
->> -{
->> -       struct memblock_type *type = &memblock.memory;
->> -       unsigned int right = type->cnt;
->> -       unsigned int mid, left = 0;
->> -       phys_addr_t addr = PFN_PHYS(++pfn);
->> -
->> -       do {
->> -               mid = (right + left) / 2;
->> -
->> -               if (addr < type->regions[mid].base)
->> -                       right = mid;
->> -               else if (addr >= (type->regions[mid].base +
->> -                                 type->regions[mid].size))
->> -                       left = mid + 1;
->> -               else {
->> -                       /* addr is within the region, so pfn is valid */
->> -                       return pfn;
->> -               }
->> -       } while (left < right);
->> -
->> -       if (right == type->cnt)
->> -               return -1UL;
->> -       else
->> -               return PHYS_PFN(type->regions[right].base);
->> -}
->> -#endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
->> -
->>   /**
->>    * memblock_set_node - set node ID on memblock regions
->>    * @base: base of area to set node ID for
->> @@ -1162,6 +1133,50 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
->>   }
->>   #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->>
->> +#ifdef CONFIG_HAVE_ARCH_PFN_VALID
->> +unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
->> +                                                       int *last_idx)
->> +{
->> +       struct memblock_type *type = &memblock.memory;
->> +       unsigned int right = type->cnt;
->> +       unsigned int mid, left = 0;
->> +       unsigned long start_pfn, end_pfn;
->> +       phys_addr_t addr = PFN_PHYS(++pfn);
->> +
->> +       /* fast path, return pfh+1 if next pfn is in the same region */
->> +       if (*last_idx != -1) {
->> +               start_pfn = PFN_DOWN(type->regions[*last_idx].base);
->> +               end_pfn = PFN_DOWN(type->regions[*last_idx].base +
->> +                               type->regions[*last_idx].size);
->> +
->> +               if (pfn < end_pfn && pfn > start_pfn)
->> +                       return pfn;
->> +       }
->> +
->> +       /* slow path, do the binary searching */
->> +       do {
->> +               mid = (right + left) / 2;
->> +
->> +               if (addr < type->regions[mid].base)
->> +                       right = mid;
->> +               else if (addr >= (type->regions[mid].base +
->> +                                 type->regions[mid].size))
->> +                       left = mid + 1;
->> +               else {
->> +                       *last_idx = mid;
->> +                       return pfn;
->> +               }
->> +       } while (left < right);
->> +
->> +       if (right == type->cnt)
->> +               return -1UL;
->> +
->> +       *last_idx = right;
->> +
->> +       return PHYS_PFN(type->regions[*last_idx].base);
->> +}
->> +#endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
->> +
->>   static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
->>                                          phys_addr_t align, phys_addr_t start,
->>                                          phys_addr_t end, int nid, ulong flags)
+>>   void memory_present(int nid, unsigned long start, unsigned long end);
 >> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 2a967f7..0bb0274 100644
+>> index 0bb0274..debccf3 100644
 >> --- a/mm/page_alloc.c
 >> +++ b/mm/page_alloc.c
->> @@ -5459,6 +5459,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>          unsigned long end_pfn = start_pfn + size;
->>          pg_data_t *pgdat = NODE_DATA(nid);
->>          unsigned long pfn;
->> +       int idx = -1;
->>          unsigned long nr_initialised = 0;
->>          struct page *page;
->>   #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->> @@ -5490,7 +5491,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>                           * end_pfn), such that we hit a valid pfn (or end_pfn)
->>                           * on our next iteration of the loop.
->>                           */
->> -                       pfn = memblock_next_valid_pfn(pfn) - 1;
->> +                       pfn = memblock_next_valid_pfn(pfn, &idx) - 1;
->>   #endif
->>                          continue;
->>                  }
+>> @@ -5484,7 +5484,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>>                  if (context != MEMMAP_EARLY)
+>>                          goto not_early;
+>>
+>> -               if (!early_pfn_valid(pfn)) {
+>> +               if (!early_pfn_valid(pfn, &idx)) {
+>>   #if (defined CONFIG_HAVE_MEMBLOCK) && (defined CONFIG_HAVE_ARCH_PFN_VALID)
+>>                          /*
+>>                           * Skip to the pfn preceding the next valid one (or
 >> --
 >> 2.7.4
 >>
-> So the function is only defined with CONFIG_HAVE_ARCH_PFN_VALID but
-> it's called with CONFIG_HAVE_MEMBLOCK_NODE_MAP? The definition should
-> likely depend on both options as the function really depends on both
-> conditions. Otherwise it should be defined nop.
+> Hmm, what about making index global variable instead of changing all
+> the prototypes? Similar to early_pfnnid_cache for example. Something
+> like:
+>
+> #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+> extern int early_region_idx __meminitdata;
+> #define early_pfn_valid(pfn) \
+>                                 pfn_valid_region(pfn, &early_region_idx)
+> #else
+> #define early_pfn_valid(pfn)  pfn_valid(pfn)
+> #endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
+>
+> And move this to arch/arm64/include/asm/page.h ?
 >
 > --nX
 >
-Yes, thanks
+Yes. ok with me
 
 -- 
 Cheers,
