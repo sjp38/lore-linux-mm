@@ -1,32 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EFFA6B0025
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 05:14:09 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j8so1096916pfh.13
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 02:14:09 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 97A426B0029
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 05:18:09 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id u1-v6so1356422pls.16
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 02:18:09 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m6sor971311pfm.141.2018.03.28.02.14.07
+        by mx.google.com with SMTPS id f20-v6sor1526904plj.18.2018.03.28.02.18.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 28 Mar 2018 02:14:07 -0700 (PDT)
-Date: Wed, 28 Mar 2018 17:13:57 +0800
+        Wed, 28 Mar 2018 02:18:08 -0700 (PDT)
+Date: Wed, 28 Mar 2018 17:18:00 +0800
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH v2 1/5] mm: page_alloc: remain memblock_next_valid_pfn()
+Subject: Re: [PATCH v3 1/5] mm: page_alloc: remain memblock_next_valid_pfn()
  when CONFIG_HAVE_ARCH_PFN_VALID is enable
-Message-ID: <20180328091357.GA97260@WeideMacBook-Pro.local>
+Message-ID: <20180328091800.GB97260@WeideMacBook-Pro.local>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <1521894282-6454-1-git-send-email-hejianet@gmail.com>
- <1521894282-6454-2-git-send-email-hejianet@gmail.com>
+References: <1522033340-6575-1-git-send-email-hejianet@gmail.com>
+ <1522033340-6575-2-git-send-email-hejianet@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1521894282-6454-2-git-send-email-hejianet@gmail.com>
+In-Reply-To: <1522033340-6575-2-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jia He <hejianet@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steve Capper <steve.capper@arm.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Jia He <jia.he@hxt-semitech.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Jia He <jia.he@hxt-semitech.com>
 
-On Sat, Mar 24, 2018 at 05:24:38AM -0700, Jia He wrote:
+Oops, I should reply this thread. Forget about the reply on another thread.
+
+On Sun, Mar 25, 2018 at 08:02:15PM -0700, Jia He wrote:
 >Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
 >where possible") optimized the loop in memmap_init_zone(). But it causes
 >possible panic bug. So Daniel Vacek reverted it later.
@@ -38,7 +40,7 @@ If the audience could know the potential risk, it would be helpful to review
 the code and decide whether to take it back.
 
 >But memblock_next_valid_pfn is valid when CONFIG_HAVE_ARCH_PFN_VALID is
->enabled. And as verified by Eugeniu Rosca, arm can benifit from this
+>enable. And as verified by Eugeniu Rosca, arm can benifit from this
 >commit. So remain the memblock_next_valid_pfn.
 >
 >Signed-off-by: Jia He <jia.he@hxt-semitech.com>
@@ -118,7 +120,6 @@ the code and decide whether to take it back.
 In commit b92df1de5d28, it use CONFIG_HAVE_MEMBLOCK_NODE_MAP.
 
 Not get the point of your change.
-
 
 >+			/*
 >+			 * Skip to the pfn preceding the next valid one (or
