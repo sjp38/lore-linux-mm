@@ -1,95 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 09C436B000A
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 07:03:03 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id t2-v6so623440lfk.8
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 04:03:02 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e2-v6sor876582lfg.71.2018.03.28.04.02.55
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3551F6B002F
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 07:05:17 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id e15so1000325wrj.14
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 04:05:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u32si2753228wrf.52.2018.03.28.04.05.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 28 Mar 2018 04:02:55 -0700 (PDT)
-Date: Wed, 28 Mar 2018 14:02:51 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 01/10] mm: Assign id to every memcg-aware shrinker
-Message-ID: <20180328110251.5wl3kwjhcuizyz6n@esperanza>
-References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
- <152163847740.21546.16821490541519326725.stgit@localhost.localdomain>
- <20180324184009.dyjlt4rj4b6y6sz3@esperanza>
- <0db2d93f-12cd-d703-fce7-4c3b8df5bc12@virtuozzo.com>
- <20180327091504.zcqvr3mkuznlgwux@esperanza>
- <5828e99c-74d2-6208-5ec2-3361899dd36a@virtuozzo.com>
- <20180327154828.udezpkwkwzcftnqn@esperanza>
- <635e8bdf-9280-c872-49c3-d3e293e1b332@virtuozzo.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 28 Mar 2018 04:05:15 -0700 (PDT)
+Date: Wed, 28 Mar 2018 13:05:13 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: Introduce i_mmap_lock_write_killable().
+Message-ID: <20180328110513.GH9275@dhcp22.suse.cz>
+References: <1522149570-4517-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180327145220.GJ5652@dhcp22.suse.cz>
+ <201803281923.EFF26009.OFOtJSMFHQFLVO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <635e8bdf-9280-c872-49c3-d3e293e1b332@virtuozzo.com>
+In-Reply-To: <201803281923.EFF26009.OFOtJSMFHQFLVO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, riel@redhat.com
 
-On Wed, Mar 28, 2018 at 01:30:20PM +0300, Kirill Tkhai wrote:
-> On 27.03.2018 18:48, Vladimir Davydov wrote:
-> > On Tue, Mar 27, 2018 at 06:09:20PM +0300, Kirill Tkhai wrote:
-> >>>>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >>>>>> index 8fcd9f8d7390..91b5120b924f 100644
-> >>>>>> --- a/mm/vmscan.c
-> >>>>>> +++ b/mm/vmscan.c
-> >>>>>> @@ -159,6 +159,56 @@ unsigned long vm_total_pages;
-> >>>>>>  static LIST_HEAD(shrinker_list);
-> >>>>>>  static DECLARE_RWSEM(shrinker_rwsem);
-> >>>>>>  
-> >>>>>> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-> >>>>>> +static DEFINE_IDA(bitmap_id_ida);
-> >>>>>> +static DECLARE_RWSEM(bitmap_rwsem);
-> >>>>>
-> >>>>> Can't we reuse shrinker_rwsem for protecting the ida?
-> >>>>
-> >>>> I think it won't be better, since we allocate memory under this semaphore.
-> >>>> After we use shrinker_rwsem, we'll have to allocate the memory with GFP_ATOMIC,
-> >>>> which does not seems good. Currently, the patchset makes shrinker_rwsem be taken
-> >>>> for a small time, just to assign already allocated memory to maps.
-> >>>
-> >>> AFAIR it's OK to sleep under an rwsem so GFP_ATOMIC wouldn't be
-> >>> necessary. Anyway, we only need to allocate memory when we extend
-> >>> shrinker bitmaps, which is rare. In fact, there can only be a limited
-> >>> number of such calls, as we never shrink these bitmaps (which is fine
-> >>> by me).
-> >>
-> >> We take bitmap_rwsem for writing to expand shrinkers maps. If we replace
-> >> it with shrinker_rwsem and the memory allocation get into reclaim, there
-> >> will be deadlock.
+On Wed 28-03-18 19:23:20, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Tue 27-03-18 20:19:30, Tetsuo Handa wrote:
+> > > If the OOM victim is holding mm->mmap_sem held for write, and if the OOM
+> > > victim can interrupt operations which need mm->mmap_sem held for write,
+> > > we can downgrade mm->mmap_sem upon SIGKILL and the OOM reaper will be
+> > > able to reap the OOM victim's memory.
 > > 
-> > Hmm, AFAICS we use down_read_trylock() in shrink_slab() so no deadlock
-> > would be possible. We wouldn't be able to reclaim slabs though, that's
-> > true, but I don't think it would be a problem for small allocations.
-> > 
-> > That's how I see this. We use shrinker_rwsem to protect IDR mapping
-> > shrink_id => shrinker (I still insist on IDR). It may allocate, but the
-> > allocation size is going to be fairly small so it's OK that we don't
-> > call shrinkers there. After we allocated a shrinker ID, we release
-> > shrinker_rwsem and call mem_cgroup_grow_shrinker_map (or whatever it
-> > will be called), which checks if per-memcg shrinker bitmaps need growing
-> > and if they do it takes its own mutex used exclusively for protecting
-> > the bitmaps and reallocates the bitmaps (we will need the mutex anyway
-> > to synchronize css_online vs shrinker bitmap reallocation as the
-> > shrinker_rwsem is private to vmscan.c and we don't want to export it
-> > to memcontrol.c).
+> > This really begs for much better explanation. Why is it safe?
 > 
-> But what the profit of prohibiting reclaim during shrinker id allocation?
-> In case of this is a IDR, it still may require 1 page, and still may get
-> in after fast reclaim. If we prohibit reclaim, we'll fail to register
-> the shrinker.
+> Basic idea is
 > 
-> It's not a rare situation, when all the memory is occupied by page cache.
-
-shrinker_rwsem doesn't block page cache reclaim, only dcache reclaim.
-I don't think that dcache can occupy all available memory.
-
-> So, we will fail to mount something in some situation.
+>   bool downgraded = false;
+>   down_write(mmap_sem);
+>   for (something_1_that_might_depend_mmap_sem_held_for_write;
+>        something_2_that_might_depend_mmap_sem_held_for_write;
+>        something_3_that_might_depend_mmap_sem_held_for_write) {
+>      something_4_that_might_depend_mmap_sem_held_for_write();
+>      if (fatal_signal_pending(current)) {
+>         downgrade_write(mmap_sem);
+>         downgraded = true;
+>         break;
+>      }
+>      something_5_that_might_depend_mmap_sem_held_for_write();
+>   }
+>   if (!downgraded)
+>     up_write(mmap_sem);
+>   else
+>     up_read(mmap_sem);
 > 
-> What the advantages do we have to be more significant, than this disadvantage?
+> . That is, try to interrupt critical sections at locations where it is
+> known to be safe and consistent.
 
-The main advantage is code simplicity.
+Please explain why those places are safe to interrupt.
+
+> >                                                               Are you
+> > assuming that the killed task will not perform any changes on the
+> > address space?
+> 
+> If somebody drops mmap_sem held for write is not safe, how can the OOM
+> reaper work safely?
+> 
+> The OOM reaper is assuming that the thread who got mmap_sem held for write
+> is responsible to complete critical sections before dropping mmap_sem held
+> for write, isn't it?
+> 
+> Then, how an attempt to perform changes on the address space can become a
+> problem given that the thread who got mmap_sem held for write is responsible
+> to complete critical sections before dropping mmap_sem held for write?
+
+ENOPARSE. How does this have anything to do with oom_reaper. Sure you
+want to _help_ the oom_reaper to do its job but you are dropping the
+lock in the downgrading the lock in the middle of dup_mmap and that is
+what we are dicussing here. So please explain why it is safe. It is
+really not straightforward.
+
+> >                What about ongoing page faults or other operations deeper
+> > in the call chain.
+> 
+> Even if there are ongoing page faults or other operations deeper in the call
+> chain, there should be no problem as long as the thread who got mmap_sem
+> held for write is responsible to complete critical sections before dropping
+> mmap_sem held for write.
+> 
+> >                    Why they are safe to change things for the child
+> > during the copy?
+> 
+> In this patch, the current thread who got mmap_sem held for write (which is
+> likely an OOM victim thread) downgrades mmap_sem, with an assumption that
+> current thread no longer accesses memory which might depend on mmap_sem held
+> for write.
+> 
+> dup_mmap() duplicates current->mm and to-be-duplicated mm is not visible yet.
+> If dup_mmap() failed, to-be-duplicated incomplete mm is discarded via mmput()
+> in dup_mm() rather than assigned to the child. Thus, this patch should not
+> change things which are visible to the child during the copy.
+> 
+> What we need to be careful is making changes to current->mm.
+> I'm assuming that current->mm->mmap_sem held for read is enough for
+> i_mmap_lock_write()/flush_dcache_mmap_lock()/vma_interval_tree_insert_after()/
+> flush_dcache_mmap_unlock()/i_mmap_unlock_write()/is_vm_hugetlb_page()/
+> reset_vma_resv_huge_pages()/__vma_link_rb(). But I'm not sure.
+
+But as soon as you downgrade the lock then all other threads can
+interfere and perform page faults or update respecive mappings. Does
+this matter? If not then why?
+
+> > I am not saying this is wrong, I would have to think about that much
+> > more because mmap_sem tends to be used on many surprising places and the
+> > write lock just hide them all.
+> 
+> Then, an alternative approach which interrupts without downgrading is shown
+> below. But I'm not sure.
+
+Failing the whole dup_mmap might be quite reasonable, yes. I haven't
+checked your particular patch because this code path needs much more
+time than I can give this, though.
+-- 
+Michal Hocko
+SUSE Labs
