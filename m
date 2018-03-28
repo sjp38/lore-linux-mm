@@ -1,88 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 799936B0031
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 09:17:27 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id g22so1270974pgv.16
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:17:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p3sor957485pga.31.2018.03.28.06.17.26
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5627C6B0012
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 09:31:39 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id v205so1020704ywa.12
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:31:39 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id r17si4071296qtb.373.2018.03.28.06.31.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 28 Mar 2018 06:17:26 -0700 (PDT)
-Date: Wed, 28 Mar 2018 21:17:14 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: break on the first hit of mem range
-Message-ID: <20180328131714.GA543@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20180327035707.84113-1-richard.weiyang@gmail.com>
- <20180327105821.GF5652@dhcp22.suse.cz>
- <20180328003936.GB91956@WeideMacBook-Pro.local>
- <20180328070200.GC9275@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Mar 2018 06:31:37 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2SDUucZ061653
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 09:31:36 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2h0bpe955s-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 09:31:22 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 28 Mar 2018 14:30:19 +0100
+Subject: Re: [mm] b1f0502d04: INFO:trying_to_register_non-static_key
+References: <20180317075119.u6yuem2bhxvggbz3@inn>
+ <792c0f75-7e7f-cd81-44ae-4205f6e4affc@linux.vnet.ibm.com>
+ <alpine.DEB.2.20.1803251510040.80485@chino.kir.corp.google.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 28 Mar 2018 15:30:08 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180328070200.GC9275@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.20.1803251510040.80485@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <aa6f2ff1-ff67-106a-e0e4-522ac82a7bf0@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, tj@kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: kernel test robot <fengguang.wu@intel.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, lkp@01.org
 
-On Wed, Mar 28, 2018 at 09:02:00AM +0200, Michal Hocko wrote:
->On Wed 28-03-18 08:39:36, Wei Yang wrote:
->> On Tue, Mar 27, 2018 at 12:58:21PM +0200, Michal Hocko wrote:
->> >On Tue 27-03-18 11:57:07, Wei Yang wrote:
->> >> find_min_pfn_for_node() iterate on pfn range to find the minimum pfn for a
->> >> node. The memblock_region in memblock_type are already ordered, which means
->> >> the first hit in iteration is the minimum pfn.
->> >
->> >I haven't looked at the code yet but the changelog should contain the
->> >motivation why it exists. It seems like this is an optimization. If so,
->> >what is the impact?
->> >
->> 
->> Yep, this is a trivial optimization on searching the minimal pfn on a special
->> node. It would be better for audience to understand if I put some words in
->> change log.
->> 
->> The impact of this patch is it would accelerate the searching process when
->> there are many memory ranges in memblock.
->> 
->> For example, in the case https://lkml.org/lkml/2018/3/25/291, there are around
->> 30 memory ranges on node 0. The original code need to iterate all those ranges
->> to find the minimal pfn, while after optimization it just need once.
->
->Then show us some numbers to justify the change.
+On 26/03/2018 00:10, David Rientjes wrote:
+> On Wed, 21 Mar 2018, Laurent Dufour wrote:
+> 
+>> I found the root cause of this lockdep warning.
+>>
+>> In mmap_region(), unmap_region() may be called while vma_link() has not been
+>> called. This happens during the error path if call_mmap() failed.
+>>
+>> The only to fix that particular case is to call
+>> seqcount_init(&vma->vm_sequence) when initializing the vma in mmap_region().
+>>
+> 
+> Ack, although that would require a fixup to dup_mmap() as well.
 
-Oops, I don't have any data to prove this.
+You're right, I'll fix that too.
 
-My test machine just has 7 memory regions and only one node. So it reduce
-iteration from 7 to 1, which I don't think will have some visible effect.
-
-While we can do some calculation to estimate the effect.
-
-Assume there are N memory regions and M nodes and each node has equal number
-of memory regions.
-
-So before the change, there are
-
-	N * M    iterations
-
-After this optimization, there are
-
-        (N / 2) * M   iterations
-
-So the expected improvement of this change is half the iterations for finding
-the minimal pfn.
-
-Last but not the least, as I know, usually there are less than 100 memory
-regions on a machine. This improvement is really limited on current systems.
-The more memory regions and node a system has, the more improvement it will
-has.
-
->-- 
->Michal Hocko
->SUSE Labs
-
--- 
-Wei Yang
-Help you, Help me
+Thanks a lot.
+Laurent.
