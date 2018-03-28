@@ -1,127 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3551F6B002F
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 07:05:17 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id e15so1000325wrj.14
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 04:05:17 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u32si2753228wrf.52.2018.03.28.04.05.15
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 018926B002D
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 07:15:42 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t19so1060158wmh.3
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 04:15:42 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j30si2938739edc.316.2018.03.28.04.15.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Mar 2018 04:05:15 -0700 (PDT)
-Date: Wed, 28 Mar 2018 13:05:13 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Introduce i_mmap_lock_write_killable().
-Message-ID: <20180328110513.GH9275@dhcp22.suse.cz>
-References: <1522149570-4517-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180327145220.GJ5652@dhcp22.suse.cz>
- <201803281923.EFF26009.OFOtJSMFHQFLVO@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Mar 2018 04:15:41 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2SBF6Gt066515
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 07:15:40 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2h090djpp7-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 07:15:39 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 28 Mar 2018 12:15:37 +0100
+Subject: Re: [PATCH v9 01/24] mm: Introduce CONFIG_SPECULATIVE_PAGE_FAULT
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1520963994-28477-2-git-send-email-ldufour@linux.vnet.ibm.com>
+ <alpine.DEB.2.20.1803251442090.80485@chino.kir.corp.google.com>
+ <32c80b6a-28c6-bf63-ed7b-6a042ae18e8f@linux.vnet.ibm.com>
+ <alpine.DEB.2.20.1803280310380.68839@chino.kir.corp.google.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 28 Mar 2018 13:15:25 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201803281923.EFF26009.OFOtJSMFHQFLVO@I-love.SAKURA.ne.jp>
+In-Reply-To: <alpine.DEB.2.20.1803280310380.68839@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <aa678038-9c5c-a8cb-0aed-ef19bde5d623@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, riel@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Wed 28-03-18 19:23:20, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Tue 27-03-18 20:19:30, Tetsuo Handa wrote:
-> > > If the OOM victim is holding mm->mmap_sem held for write, and if the OOM
-> > > victim can interrupt operations which need mm->mmap_sem held for write,
-> > > we can downgrade mm->mmap_sem upon SIGKILL and the OOM reaper will be
-> > > able to reap the OOM victim's memory.
-> > 
-> > This really begs for much better explanation. Why is it safe?
-> 
-> Basic idea is
-> 
->   bool downgraded = false;
->   down_write(mmap_sem);
->   for (something_1_that_might_depend_mmap_sem_held_for_write;
->        something_2_that_might_depend_mmap_sem_held_for_write;
->        something_3_that_might_depend_mmap_sem_held_for_write) {
->      something_4_that_might_depend_mmap_sem_held_for_write();
->      if (fatal_signal_pending(current)) {
->         downgrade_write(mmap_sem);
->         downgraded = true;
->         break;
->      }
->      something_5_that_might_depend_mmap_sem_held_for_write();
->   }
->   if (!downgraded)
->     up_write(mmap_sem);
->   else
->     up_read(mmap_sem);
-> 
-> . That is, try to interrupt critical sections at locations where it is
-> known to be safe and consistent.
 
-Please explain why those places are safe to interrupt.
 
-> >                                                               Are you
-> > assuming that the killed task will not perform any changes on the
-> > address space?
+On 28/03/2018 12:16, David Rientjes wrote:
+> On Wed, 28 Mar 2018, Laurent Dufour wrote:
 > 
-> If somebody drops mmap_sem held for write is not safe, how can the OOM
-> reaper work safely?
+>>>> This configuration variable will be used to build the code needed to
+>>>> handle speculative page fault.
+>>>>
+>>>> By default it is turned off, and activated depending on architecture
+>>>> support.
+>>>>
+>>>> Suggested-by: Thomas Gleixner <tglx@linutronix.de>
+>>>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>>>> ---
+>>>>  mm/Kconfig | 3 +++
+>>>>  1 file changed, 3 insertions(+)
+>>>>
+>>>> diff --git a/mm/Kconfig b/mm/Kconfig
+>>>> index abefa573bcd8..07c566c88faf 100644
+>>>> --- a/mm/Kconfig
+>>>> +++ b/mm/Kconfig
+>>>> @@ -759,3 +759,6 @@ config GUP_BENCHMARK
+>>>>  	  performance of get_user_pages_fast().
+>>>>  
+>>>>  	  See tools/testing/selftests/vm/gup_benchmark.c
+>>>> +
+>>>> +config SPECULATIVE_PAGE_FAULT
+>>>> +       bool
+>>>
+>>> Should this be configurable even if the arch supports it?
+>>
+>> Actually, this is not configurable unless by manually editing the .config file.
+>>
+>> I made it this way on the Thomas's request :
+>> https://lkml.org/lkml/2018/1/15/969
+>>
+>> That sounds to be the smarter way to achieve that, isn't it ?
+>>
 > 
-> The OOM reaper is assuming that the thread who got mmap_sem held for write
-> is responsible to complete critical sections before dropping mmap_sem held
-> for write, isn't it?
+> Putting this in mm/Kconfig is definitely the right way to go about it 
+> instead of any generic option in arch/*.
 > 
-> Then, how an attempt to perform changes on the address space can become a
-> problem given that the thread who got mmap_sem held for write is responsible
-> to complete critical sections before dropping mmap_sem held for write?
+> My question, though, was making this configurable by the user:
+> 
+> config SPECULATIVE_PAGE_FAULT
+> 	bool "Speculative page faults"
+> 	depends on X86_64 || PPC
+> 	default y
+> 	help
+> 	  ..
+> 
+> It's a question about whether we want this always enabled on x86_64 and 
+> power or whether the user should be able to disable it (right now they 
+> can't).  With a large feature like this, you may want to offer something 
+> simple (disable CONFIG_SPECULATIVE_PAGE_FAULT) if someone runs into 
+> regressions.
 
-ENOPARSE. How does this have anything to do with oom_reaper. Sure you
-want to _help_ the oom_reaper to do its job but you are dropping the
-lock in the downgrading the lock in the middle of dup_mmap and that is
-what we are dicussing here. So please explain why it is safe. It is
-really not straightforward.
+I agree, but I think it would be important to get the per architecture
+enablement to avoid complex check here. For instance in the case of powerPC
+this is only supported for PPC_BOOK3S_64.
 
-> >                What about ongoing page faults or other operations deeper
-> > in the call chain.
-> 
-> Even if there are ongoing page faults or other operations deeper in the call
-> chain, there should be no problem as long as the thread who got mmap_sem
-> held for write is responsible to complete critical sections before dropping
-> mmap_sem held for write.
-> 
-> >                    Why they are safe to change things for the child
-> > during the copy?
-> 
-> In this patch, the current thread who got mmap_sem held for write (which is
-> likely an OOM victim thread) downgrades mmap_sem, with an assumption that
-> current thread no longer accesses memory which might depend on mmap_sem held
-> for write.
-> 
-> dup_mmap() duplicates current->mm and to-be-duplicated mm is not visible yet.
-> If dup_mmap() failed, to-be-duplicated incomplete mm is discarded via mmput()
-> in dup_mm() rather than assigned to the child. Thus, this patch should not
-> change things which are visible to the child during the copy.
-> 
-> What we need to be careful is making changes to current->mm.
-> I'm assuming that current->mm->mmap_sem held for read is enough for
-> i_mmap_lock_write()/flush_dcache_mmap_lock()/vma_interval_tree_insert_after()/
-> flush_dcache_mmap_unlock()/i_mmap_unlock_write()/is_vm_hugetlb_page()/
-> reset_vma_resv_huge_pages()/__vma_link_rb(). But I'm not sure.
+To avoid exposing such per architecture define here, what do you think about
+having supporting architectures setting ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+and the SPECULATIVE_PAGE_FAULT depends on this, like this:
 
-But as soon as you downgrade the lock then all other threads can
-interfere and perform page faults or update respecive mappings. Does
-this matter? If not then why?
+In mm/Kconfig:
+config SPECULATIVE_PAGE_FAULT
+ 	bool "Speculative page faults"
+ 	depends on ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT && SMP
+ 	default y
+ 	help
+		...
 
-> > I am not saying this is wrong, I would have to think about that much
-> > more because mmap_sem tends to be used on many surprising places and the
-> > write lock just hide them all.
-> 
-> Then, an alternative approach which interrupts without downgrading is shown
-> below. But I'm not sure.
+In arch/powerpc/Kconfig:
+config PPC
+	...
+	select ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT	if PPC_BOOK3S_64
 
-Failing the whole dup_mmap might be quite reasonable, yes. I haven't
-checked your particular patch because this code path needs much more
-time than I can give this, though.
--- 
-Michal Hocko
-SUSE Labs
+In arch/x86/Kconfig:
+config X86_64
+	...
+	select ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
