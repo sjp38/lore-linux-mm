@@ -1,92 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C14936B002B
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:30:31 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id y97-v6so1466125plh.20
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 03:30:31 -0700 (PDT)
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10098.outbound.protection.outlook.com. [40.107.1.98])
-        by mx.google.com with ESMTPS id k6-v6si3484656pln.103.2018.03.28.03.30.29
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A0D096B002F
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:42:51 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id i9-v6so1128000oth.3
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 03:42:51 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w19-v6sor1432741otw.190.2018.03.28.03.42.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 28 Mar 2018 03:30:30 -0700 (PDT)
-Subject: Re: [PATCH 01/10] mm: Assign id to every memcg-aware shrinker
-References: <152163840790.21546.980703278415599202.stgit@localhost.localdomain>
- <152163847740.21546.16821490541519326725.stgit@localhost.localdomain>
- <20180324184009.dyjlt4rj4b6y6sz3@esperanza>
- <0db2d93f-12cd-d703-fce7-4c3b8df5bc12@virtuozzo.com>
- <20180327091504.zcqvr3mkuznlgwux@esperanza>
- <5828e99c-74d2-6208-5ec2-3361899dd36a@virtuozzo.com>
- <20180327154828.udezpkwkwzcftnqn@esperanza>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <635e8bdf-9280-c872-49c3-d3e293e1b332@virtuozzo.com>
-Date: Wed, 28 Mar 2018 13:30:20 +0300
+        (Google Transport Security);
+        Wed, 28 Mar 2018 03:42:50 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180327154828.udezpkwkwzcftnqn@esperanza>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <113cb8cf-7c59-4fbb-5ad2-4ae6eeb1193c@gmail.com>
+References: <1521894282-6454-1-git-send-email-hejianet@gmail.com>
+ <1521894282-6454-2-git-send-email-hejianet@gmail.com> <CACjP9X-zvGa5OQpuJ1bUp+V=_eTOUDLfKkT1sbT84k5zJz=epA@mail.gmail.com>
+ <113cb8cf-7c59-4fbb-5ad2-4ae6eeb1193c@gmail.com>
+From: Daniel Vacek <neelx@redhat.com>
+Date: Wed, 28 Mar 2018 12:42:49 +0200
+Message-ID: <CACjP9X8_=ZsM9fK51+EdTGLLq2izfBBaGnPiPbuBV2TYPhEPyA@mail.gmail.com>
+Subject: Re: [PATCH v2 1/5] mm: page_alloc: remain memblock_next_valid_pfn()
+ when CONFIG_HAVE_ARCH_PFN_VALID is enable
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, shakeelb@google.com, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
+To: Jia He <hejianet@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steve Capper <steve.capper@arm.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Jia He <jia.he@hxt-semitech.com>
 
-
-
-On 27.03.2018 18:48, Vladimir Davydov wrote:
-> On Tue, Mar 27, 2018 at 06:09:20PM +0300, Kirill Tkhai wrote:
->>>>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>>>>> index 8fcd9f8d7390..91b5120b924f 100644
->>>>>> --- a/mm/vmscan.c
->>>>>> +++ b/mm/vmscan.c
->>>>>> @@ -159,6 +159,56 @@ unsigned long vm_total_pages;
->>>>>>  static LIST_HEAD(shrinker_list);
->>>>>>  static DECLARE_RWSEM(shrinker_rwsem);
->>>>>>  
->>>>>> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
->>>>>> +static DEFINE_IDA(bitmap_id_ida);
->>>>>> +static DECLARE_RWSEM(bitmap_rwsem);
->>>>>
->>>>> Can't we reuse shrinker_rwsem for protecting the ida?
->>>>
->>>> I think it won't be better, since we allocate memory under this semaphore.
->>>> After we use shrinker_rwsem, we'll have to allocate the memory with GFP_ATOMIC,
->>>> which does not seems good. Currently, the patchset makes shrinker_rwsem be taken
->>>> for a small time, just to assign already allocated memory to maps.
->>>
->>> AFAIR it's OK to sleep under an rwsem so GFP_ATOMIC wouldn't be
->>> necessary. Anyway, we only need to allocate memory when we extend
->>> shrinker bitmaps, which is rare. In fact, there can only be a limited
->>> number of such calls, as we never shrink these bitmaps (which is fine
->>> by me).
+On Wed, Mar 28, 2018 at 11:26 AM, Jia He <hejianet@gmail.com> wrote:
+>
+>
+> On 3/28/2018 12:52 AM, Daniel Vacek Wrote:
 >>
->> We take bitmap_rwsem for writing to expand shrinkers maps. If we replace
->> it with shrinker_rwsem and the memory allocation get into reclaim, there
->> will be deadlock.
-> 
-> Hmm, AFAICS we use down_read_trylock() in shrink_slab() so no deadlock
-> would be possible. We wouldn't be able to reclaim slabs though, that's
-> true, but I don't think it would be a problem for small allocations.
-> 
-> That's how I see this. We use shrinker_rwsem to protect IDR mapping
-> shrink_id => shrinker (I still insist on IDR). It may allocate, but the
-> allocation size is going to be fairly small so it's OK that we don't
-> call shrinkers there. After we allocated a shrinker ID, we release
-> shrinker_rwsem and call mem_cgroup_grow_shrinker_map (or whatever it
-> will be called), which checks if per-memcg shrinker bitmaps need growing
-> and if they do it takes its own mutex used exclusively for protecting
-> the bitmaps and reallocates the bitmaps (we will need the mutex anyway
-> to synchronize css_online vs shrinker bitmap reallocation as the
-> shrinker_rwsem is private to vmscan.c and we don't want to export it
-> to memcontrol.c).
+>> On Sat, Mar 24, 2018 at 1:24 PM, Jia He <hejianet@gmail.com> wrote:
+>>>
+>>> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+>>> where possible") optimized the loop in memmap_init_zone(). But it causes
+>>> possible panic bug. So Daniel Vacek reverted it later.
+>>>
+>>> But memblock_next_valid_pfn is valid when CONFIG_HAVE_ARCH_PFN_VALID is
+>>> enabled. And as verified by Eugeniu Rosca, arm can benifit from this
+>>> commit. So remain the memblock_next_valid_pfn.
+>>
+>> It is not dependent on CONFIG_HAVE_ARCH_PFN_VALID option but on
+>> arm(64) implementation of pfn_valid() function, IIUC. So it should
+>> really be moved from generic source file to arm specific location. I'd
+>> say somewhere close to the pfn_valid() implementation. Such as to
+>> arch/arm{,64}/mm/ init.c-ish?
+>>
+>> --nX
+>
+> Hi Daniel
+> I didn't catch the reason why "It is not dependent on
+> CONFIG_HAVE_ARCH_PFN_VALID option but
+> on arm(64) implementation of pfn_valid() function"? Can you explain more
+> about it? Thanks
 
-But what the profit of prohibiting reclaim during shrinker id allocation?
-In case of this is a IDR, it still may require 1 page, and still may get
-in after fast reclaim. If we prohibit reclaim, we'll fail to register
-the shrinker.
+Arm implementation of pfn_valid() is actually based on memblock as
+HAVE_MEMBLOCK is mandatory for arm so memblock is guaranteed to always
+be available, IIUC. Correct me if I am wrong here.
+With that said, you are fine with using memblock to skip gaps and
+finding next valid frame.
 
-It's not a rare situation, when all the memory is occupied by page cache.
-So, we will fail to mount something in some situation.
+Though the generic version of pfn_valid() is based on mem sections and
+memblock_next_valid_pfn() does not always return the next valid one
+but skips more resulting in some valid frames to be skipped (as if
+they were invalid). And that's why kernel was eventually crashing on
+some !arm machines.
 
-What the advantages do we have to be more significant, than this disadvantage?
+Now, if any other architecture defines CONFIG_HAVE_ARCH_PFN_VALID and
+implements it's own version of pfn_valid(), there is no guarantee that
+it will be based on memblock data or somehow equivalent to the arm
+implementation, right?
 
-Kirill
+At this moment only arm implements CONFIG_HAVE_ARCH_PFN_VALID. Maybe
+it could be generalized to something like CONFIG_MEMBLOCK_PFN_VALID
+and moved to generic code. And then you can base your changes on that.
+But I am not sure if that is possible.
+
+> What's your thought if I changed the codes as followed?
+> in include/linux/memblock.h
+> #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+> extern unsigned long memblock_next_valid_pfn(unsigned long pfn);
+> #else
+> #define memblock_next_valid_pfn(pfn) (pfn + 1)
+> #endif
+
+I think I'd rather do something like this:
+
+                if (!early_pfn_valid(pfn)) {
+                        pfn = skip_to_last_invalid_pfn(pfn);
+                        continue;
+                }
+
+And than for arm define:
+
+#if (defined CONFIG_HAVE_MEMBLOCK) && (defined CONFIG_HAVE_ARCH_PFN_VALID)
+#define skip_to_last_invalid_pfn(pfn) (memblock_next_valid_pfn(pfn,
+&early_idx) - 1)
+#endif
+
+And for the generic fallback:
+
+#ifndef skip_to_last_invalid_pfn
+#define skip_to_last_invalid_pfn(pfn) (pfn)
+#endif
+
+--nX
+
+> Cheers,
+> Jia
+>
+>>
+>>> Signed-off-by: Jia He <jia.he@hxt-semitech.com>
+>>> ---
+>>>   include/linux/memblock.h |  4 ++++
+>>>   mm/memblock.c            | 29 +++++++++++++++++++++++++++++
+>>>   mm/page_alloc.c          | 11 ++++++++++-
+>>>   3 files changed, 43 insertions(+), 1 deletion(-)
+>>>
+>>> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+>>> index 0257aee..efbbe4b 100644
+>>> --- a/include/linux/memblock.h
+>>> +++ b/include/linux/memblock.h
+>>> @@ -203,6 +203,10 @@ void __next_mem_pfn_range(int *idx, int nid,
+>>> unsigned long *out_start_pfn,
+>>>               i >= 0; __next_mem_pfn_range(&i, nid, p_start, p_end,
+>>> p_nid))
+>>>   #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+>>>
+>>> +#ifdef CONFIG_HAVE_ARCH_PFN_VALID
+>>> +unsigned long memblock_next_valid_pfn(unsigned long pfn);
+>>> +#endif
+>>> +
+>>>   /**
+>>>    * for_each_free_mem_range - iterate through free memblock areas
+>>>    * @i: u64 used as loop variable
+>>> diff --git a/mm/memblock.c b/mm/memblock.c
+>>> index ba7c878..bea5a9c 100644
+>>> --- a/mm/memblock.c
+>>> +++ b/mm/memblock.c
+>>> @@ -1102,6 +1102,35 @@ void __init_memblock __next_mem_pfn_range(int
+>>> *idx, int nid,
+>>>                  *out_nid = r->nid;
+>>>   }
+>>>
+>>> +#ifdef CONFIG_HAVE_ARCH_PFN_VALID
+>>> +unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn)
+>>> +{
+>>> +       struct memblock_type *type = &memblock.memory;
+>>> +       unsigned int right = type->cnt;
+>>> +       unsigned int mid, left = 0;
+>>> +       phys_addr_t addr = PFN_PHYS(++pfn);
+>>> +
+>>> +       do {
+>>> +               mid = (right + left) / 2;
+>>> +
+>>> +               if (addr < type->regions[mid].base)
+>>> +                       right = mid;
+>>> +               else if (addr >= (type->regions[mid].base +
+>>> +                                 type->regions[mid].size))
+>>> +                       left = mid + 1;
+>>> +               else {
+>>> +                       /* addr is within the region, so pfn is valid */
+>>> +                       return pfn;
+>>> +               }
+>>> +       } while (left < right);
+>>> +
+>>> +       if (right == type->cnt)
+>>> +               return -1UL;
+>>> +       else
+>>> +               return PHYS_PFN(type->regions[right].base);
+>>> +}
+>>> +#endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
+>>> +
+>>>   /**
+>>>    * memblock_set_node - set node ID on memblock regions
+>>>    * @base: base of area to set node ID for
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index c19f5ac..2a967f7 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -5483,8 +5483,17 @@ void __meminit memmap_init_zone(unsigned long
+>>> size, int nid, unsigned long zone,
+>>>                  if (context != MEMMAP_EARLY)
+>>>                          goto not_early;
+>>>
+>>> -               if (!early_pfn_valid(pfn))
+>>> +               if (!early_pfn_valid(pfn)) {
+>>> +#if (defined CONFIG_HAVE_MEMBLOCK) && (defined
+>>> CONFIG_HAVE_ARCH_PFN_VALID)
+>>> +                       /*
+>>> +                        * Skip to the pfn preceding the next valid one
+>>> (or
+>>> +                        * end_pfn), such that we hit a valid pfn (or
+>>> end_pfn)
+>>> +                        * on our next iteration of the loop.
+>>> +                        */
+>>> +                       pfn = memblock_next_valid_pfn(pfn) - 1;
+>>> +#endif
+>>>                          continue;
+>>> +               }
+>>>                  if (!early_pfn_in_nid(pfn, nid))
+>>>                          continue;
+>>>                  if (!update_defer_init(pgdat, pfn, end_pfn,
+>>> &nr_initialised))
+>>> --
+>>> 2.7.4
+>>>
+>
+> --
+> Cheers,
+> Jia
+>
