@@ -1,57 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5627C6B0012
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 09:31:39 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id v205so1020704ywa.12
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:31:39 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id r17si4071296qtb.373.2018.03.28.06.31.37
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C05D6B0022
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 09:35:11 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id u188so1436085pfb.6
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 06:35:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x19sor1024673pgv.407.2018.03.28.06.35.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Mar 2018 06:31:37 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w2SDUucZ061653
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 09:31:36 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2h0bpe955s-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2018 09:31:22 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 28 Mar 2018 14:30:19 +0100
-Subject: Re: [mm] b1f0502d04: INFO:trying_to_register_non-static_key
-References: <20180317075119.u6yuem2bhxvggbz3@inn>
- <792c0f75-7e7f-cd81-44ae-4205f6e4affc@linux.vnet.ibm.com>
- <alpine.DEB.2.20.1803251510040.80485@chino.kir.corp.google.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 28 Mar 2018 15:30:08 +0200
+        (Google Transport Security);
+        Wed, 28 Mar 2018 06:35:09 -0700 (PDT)
+Date: Wed, 28 Mar 2018 21:34:56 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm/page_alloc: optimize find_min_pfn_for_node() by
+ geting the minimal pfn directly
+Message-ID: <20180328133456.GB543@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20180327183757.f66f5fc200109c06b7a4b620@linux-foundation.org>
+ <20180328034752.96146-1-richard.weiyang@gmail.com>
+ <20180328115853.GI9275@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1803251510040.80485@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <aa6f2ff1-ff67-106a-e0e4-522ac82a7bf0@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180328115853.GI9275@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kernel test robot <fengguang.wu@intel.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, lkp@01.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, tj@kernel.org, linux-mm@kvack.org
 
-On 26/03/2018 00:10, David Rientjes wrote:
-> On Wed, 21 Mar 2018, Laurent Dufour wrote:
-> 
->> I found the root cause of this lockdep warning.
->>
->> In mmap_region(), unmap_region() may be called while vma_link() has not been
->> called. This happens during the error path if call_mmap() failed.
->>
->> The only to fix that particular case is to call
->> seqcount_init(&vma->vm_sequence) when initializing the vma in mmap_region().
->>
-> 
-> Ack, although that would require a fixup to dup_mmap() as well.
+On Wed, Mar 28, 2018 at 01:58:53PM +0200, Michal Hocko wrote:
+>On Wed 28-03-18 11:47:52, Wei Yang wrote:
+>[...]
+>> +/**
+>> + * first_mem_pfn - get the first memory pfn
+>> + * @i: an integer used as an indicator
+>> + * @nid: node selector, %MAX_NUMNODES for all nodes
+>> + * @p_first: ptr to ulong for first pfn of the range, can be %NULL
+>> + */
+>> +#define first_mem_pfn(i, nid, p_first)				\
+>> +	__next_mem_pfn_range(&i, nid, p_first, NULL, NULL)
+>> +
+>
+>Is this really something that we want to export to all users? And if
+>that is the case is the documenation really telling user how to use it?
+>
 
-You're right, I'll fix that too.
+Yep, I am not good at the documentation. I really struggled a while on it, but
+you know it still looks not that good.
 
-Thanks a lot.
-Laurent.
+How about changing the document to the following in case this macro is still
+alive.
+
+/**
+ * first_mem_pfn - get the first memory pfn after index i on node nid
+ * @i: index to memblock.memory.regions
+ * @nid: node selector, %MAX_NUMNODES for all nodes
+ * @p_first: ptr to ulong for first pfn of the range, can be %NULL
+ */
+
+>>  /**
+>>   * for_each_mem_pfn_range - early memory pfn range iterator
+>>   * @i: an integer used as loop variable
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 635d7dd29d7f..8c964dcc3a9e 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -6365,14 +6365,16 @@ unsigned long __init node_map_pfn_alignment(void)
+>>  /* Find the lowest pfn for a node */
+>>  static unsigned long __init find_min_pfn_for_node(int nid)
+>>  {
+>> -	unsigned long min_pfn = ULONG_MAX;
+>> -	unsigned long start_pfn;
+>> -	int i;
+>> +	unsigned long min_pfn;
+>> +	int i = -1;
+>>  
+>> -	for_each_mem_pfn_range(i, nid, &start_pfn, NULL, NULL)
+>> -		min_pfn = min(min_pfn, start_pfn);
+>> +	/*
+>> +	 * The first pfn on nid node is the minimal one, as the pfn's are
+>> +	 * stored in ascending order.
+>> +	 */
+>> +	first_mem_pfn(i, nid, &min_pfn);
+>>  
+>> -	if (min_pfn == ULONG_MAX) {
+>> +	if (i == -1) {
+>>  		pr_warn("Could not find start_pfn for node %d\n", nid);
+>>  		return 0;
+>>  	}
+>
+>I would just open code it. Other than that I strongly suspect this will
+>not have any measurable impact becauser we usually only have handfull of
+>memory ranges but why not. Just make the new implementation less ugly
+>than it is cuurrently - e.g. opencode first_mem_pfn and you can add
+
+Open code here means use __next_mem_pfn_range() directly instead of using
+first_mem_pfn()?
+
+>Acked-by: Michal Hocko <mhocko@suse.com>
+>-- 
+>Michal Hocko
+>SUSE Labs
+
+-- 
+Wei Yang
+Help you, Help me
