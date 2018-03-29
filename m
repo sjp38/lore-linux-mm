@@ -1,60 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DE306B0009
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 16:50:40 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id v14so4910949pgq.11
-        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 13:50:40 -0700 (PDT)
-Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
-        by mx.google.com with ESMTPS id r68si5123564pfi.413.2018.03.29.13.50.38
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C5F256B0003
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 17:30:06 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e13so5444074pfn.16
+        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 14:30:06 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id b2-v6si1973644pls.379.2018.03.29.14.30.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Mar 2018 13:50:38 -0700 (PDT)
-Date: Thu, 29 Mar 2018 14:50:36 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [RFC PATCH v21 0/6] mm: security: ro protection for dynamic
- data
-Message-ID: <20180329145036.00155b1e@lwn.net>
-In-Reply-To: <5b2a6d5d-5e33-614b-c362-c02a99509def@gmail.com>
-References: <20180327153742.17328-1-igor.stoppa@huawei.com>
-	<20180327105509.62ec0d4d@lwn.net>
-	<5b2a6d5d-5e33-614b-c362-c02a99509def@gmail.com>
-MIME-Version: 1.0
+        Thu, 29 Mar 2018 14:30:05 -0700 (PDT)
+Date: Thu, 29 Mar 2018 14:30:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Check for SIGKILL inside dup_mmap() loop.
+Message-Id: <20180329143003.c52ada618be599c5358e8ca2@linux-foundation.org>
+In-Reply-To: <1522322870-4335-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1522322870-4335-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@gmail.com>
-Cc: Igor Stoppa <igor.stoppa@huawei.com>, willy@infradead.org, keescook@chromium.org, mhocko@kernel.org, david@fromorbit.com, rppt@linux.vnet.ibm.com, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Rik van Riel <riel@redhat.com>
 
-On Fri, 30 Mar 2018 00:25:22 +0400
-Igor Stoppa <igor.stoppa@gmail.com> wrote:
+On Thu, 29 Mar 2018 20:27:50 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
 
-> On 27/03/18 20:55, Jonathan Corbet wrote:
-> > On Tue, 27 Mar 2018 18:37:36 +0300
-> > Igor Stoppa <igor.stoppa@huawei.com> wrote:
-> >   
-> >> This patch-set introduces the possibility of protecting memory that has
-> >> been allocated dynamically.  
-> > 
-> > One thing that jumps out at me as I look at the patch set is: you do not
-> > include any users of this functionality.  Where do you expect this
-> > allocator to be used?  Actually seeing the API in action would be a useful
-> > addition, I think.  
-> 
-> Yes, this is very true.
-> Initially I had in mind to use LSM hooks as easy example, but sadly they 
-> seem to be in an almost constant flux.
-> 
-> My real use case is to secure both those and the SELinux policy DB.
-> I have said this few times, but it didn't seem to be worth mentioning in 
-> the cover letter.
+> Theoretically it is possible that an mm_struct with 60000+ vmas loops
+> with potentially allocating memory, with mm->mmap_sem held for write by
+> the current thread. Unless I overlooked that fatal_signal_pending() is
+> somewhere in the loop, this is bad if current thread was selected as an
+> OOM victim, for the current thread will continue allocations using memory
+> reserves while the OOM reaper is unable to reclaim memory.
 
-In general, it is quite hard to merge a new API without users to go along
-with it.  Among other things, that's how reviewers can see how well the
-API works in real-world use.  I am certainly not the one who will make the
-decision on whether this goes in, but I suspect that whoever *does* make
-that decision would prefer to see some users.
+All of which implies to me that this patch fixes a problem which is not
+known to exist!  
 
-Thanks,
+> But there is no point with continuing the loop from the beginning if
+> current thread is killed. If there were __GFP_KILLABLE (or something
+> like memalloc_nofs_save()/memalloc_nofs_restore()), we could apply it
+> to all allocations inside the loop. But since we don't have such flag,
+> this patch uses fatal_signal_pending() check inside the loop.
 
-jon
+Dumb question: if a thread has been oom-killed and then tries to
+allocate memory, should the page allocator just fail the allocation
+attempt?  I suppose there are all sorts of reasons why not :(
+
+In which case, yes, setting a new
+PF_MEMALLOC_MAY_FAIL_IF_I_WAS_OOMKILLED around such code might be a
+tidy enough solution.  It would be a bit sad to add another test in the
+hot path (should_fail_alloc_page()?), but geeze we do a lot of junk
+already.
+
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -440,6 +440,10 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
+>  			continue;
+>  		}
+>  		charge = 0;
+> +		if (fatal_signal_pending(current)) {
+> +			retval = -EINTR;
+> +			goto out;
+> +		}
+>  		if (mpnt->vm_flags & VM_ACCOUNT) {
+>  			unsigned long len = vma_pages(mpnt);
+
+I think a comment explaining why we're doing this would help.
+
+Better would be to add a new function "current_is_oom_killed()" or
+such, which becomes self-documenting.  Because there are other reasons
+why a task may have a fatal signal pending.
