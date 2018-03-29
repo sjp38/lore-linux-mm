@@ -1,128 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D7B216B0007
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 10:33:54 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id e15so2886032wrj.14
-        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 07:33:54 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n15sor3372159edl.11.2018.03.29.07.33.53
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 38B556B0007
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 10:37:18 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id i205-v6so5358884ita.3
+        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 07:37:18 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id g129si4183088iof.38.2018.03.29.07.37.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 29 Mar 2018 07:33:53 -0700 (PDT)
-Date: Thu, 29 Mar 2018 17:33:16 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv2 06/14] mm/page_alloc: Propagate encryption KeyID
- through page allocator
-Message-ID: <20180329143316.2qreoaw6dng2kvct@node.shutemov.name>
-References: <20180328165540.648-1-kirill.shutemov@linux.intel.com>
- <20180328165540.648-7-kirill.shutemov@linux.intel.com>
- <20180329112034.GE31039@dhcp22.suse.cz>
- <20180329123712.zlo6qmstj3zm5v27@node.shutemov.name>
- <20180329125227.GF31039@dhcp22.suse.cz>
- <20180329131308.cq64n3dvnre2wcz5@node.shutemov.name>
- <20180329133700.GG31039@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180329133700.GG31039@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Mar 2018 07:37:16 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] mm,oom: Do not unfreeze OOM victim thread.
+Date: Thu, 29 Mar 2018 23:36:58 +0900
+Message-Id: <1522334218-4268-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-pm@vger.kernel.org, linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Pavel Machek <pavel@ucw.cz>, "Rafael J. Wysocki" <rjw@rjwysocki.net>
 
-On Thu, Mar 29, 2018 at 03:37:00PM +0200, Michal Hocko wrote:
-> On Thu 29-03-18 16:13:08, Kirill A. Shutemov wrote:
-> > On Thu, Mar 29, 2018 at 02:52:27PM +0200, Michal Hocko wrote:
-> > > On Thu 29-03-18 15:37:12, Kirill A. Shutemov wrote:
-> > > > On Thu, Mar 29, 2018 at 01:20:34PM +0200, Michal Hocko wrote:
-> > > > > On Wed 28-03-18 19:55:32, Kirill A. Shutemov wrote:
-> > > > > > Modify several page allocation routines to pass down encryption KeyID to
-> > > > > > be used for the allocated page.
-> > > > > > 
-> > > > > > There are two basic use cases:
-> > > > > > 
-> > > > > >  - alloc_page_vma() use VMA's KeyID to allocate the page.
-> > > > > > 
-> > > > > >  - Page migration and NUMA balancing path use KeyID of original page as
-> > > > > >    KeyID for newly allocated page.
-> > > > > 
-> > > > > I am sorry but I am out of time to look closer but this just raised my
-> > > > > eyebrows. This looks like a no-go. The basic allocator has no business
-> > > > > in fancy stuff like a encryption key. If you need something like that
-> > > > > then just build a special allocator API on top. This looks like a no-go
-> > > > > to me.
-> > > > 
-> > > > The goal is to make memory encryption first class citizen in memory
-> > > > management and not to invent parallel subsysustem (as we did with hugetlb).
-> > > 
-> > > How do you get a page_keyid for random kernel allocation?
-> > 
-> > Initial feature enabling only targets userspace anonymous memory, but we
-> > can definately use the same technology in the future for kernel hardening
-> > if we would choose so.
-> 
-> So what kind of key are you going to use for those allocations.
+Currently, mark_oom_victim() calls __thaw_task() on the OOM victim
+threads and freezing_slow_path() unfreezes the OOM victim thread.
+But I think this exceptional behavior makes little sense nowadays.
 
-KeyID zero is default. You can think about this as do-not-encrypt.
+The OOM killer kills only userspace processes. All userspace processes
+except current thread which calls oom_killer_disable() and !TIF_MEMDIE
+threads are already frozen by the time oom_killer_disable() is called.
+If the freezer does not unfreeze TIF_MEMDIE threads, oom_killer_disable()
+does not need to wait for TIF_MEMDIE threads.
 
-In MKTME case it means that this memory is encrypted with TME key (random
-generated at boot).
+Since CONFIG_MMU=y kernels have the OOM reaper, we can reclaim memory
+without unfreezing TIF_MEMDIE threads. Even if memory cannot be
+reclaimed (e.g. CONFIG_MMU=n), as long as freeze operation is using
+timeout, OOM livelock will disappear eventually.
 
-> Moreover why cannot you simply wrap those few places which are actually
-> using the encryption now?
+I think that nobody is testing situations where oom_killer_disable()
+needs to wait for TIF_MEMDIE threads to call exit_oom_victim().
+Therefore, by relying on timeout for freeze operation, this patch
+stops unfreezing TIF_MEMDIE threads.
 
-We can wrap these few places. And I tried this approach. It proved to be
-slow.
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Rafael J. Wysocki <rjw@rjwysocki.net>
+Cc: Pavel Machek <pavel@ucw.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+---
+ include/linux/oom.h |  2 +-
+ kernel/freezer.c    |  3 ---
+ mm/oom_kill.c       | 32 +-------------------------------
+ 3 files changed, 2 insertions(+), 35 deletions(-)
 
-Hardware doesn't enforce coherency between mappings of the same physical
-page with different KeyIDs. OS is responsible for cache management: the
-cache has flushed before switching the page to other KeyID.
-
-As we allocate encrypted and unencrypted pages from the same pool, the
-approach with wrapper forces us to flush cache on allocation (to switch it
-non-zero KeyID) *and* freeing (to switch it back to KeyID-0) encrypted page.
-We don't know if the page will be allocated next time using wrapper or
-not, so we have to play safe.
-
-This way it's about 4-6 times slower to allocate-free encrypted page
-comparing to unencrypted one. On macrobenchmark, I see about 15% slowdown.
-
-With approach I propose we can often avoid cache flushing: we can only
-flush the cache on allocation and only if the page had different KeyID
-last time it was allocated. It brings slowdown on macrobenchmark to 3.6%
-which is more reasonable (more optimizations possible).
-
-Other way to keep separate pool of encrypted pages within page allocator.
-I think it would cause more troubles...
-
-I would be glad to find less intrusive way to get reasonable performance.
-Any suggestions?
-
-> > For anonymous memory, we can get KeyID from VMA or from other page
-> > (migration case).
-> > 
-> > > > Making memory encryption integral part of Linux VM would involve handing
-> > > > encrypted page everywhere we expect anonymous page to appear.
-> > > 
-> > > How many architectures will implement this feature?
-> > 
-> > I can't read the future.
-> 
-> Fair enough, only few of us can, but you are proposing a generic code
-> changes based on a single architecture design so we should better make
-> sure other architectures can work with that approach without a major
-> refactoring.
-
-I tried to keep the implementation as generic as possible: VMA may be
-encrypted, you can point to deseried key with an integer (KeyID),
-allocation of encrypted page *may* require special handling.
-
-Ther only assumption I made is that KeyID 0 is special, meaning
-no-encryption. I think it's reasonable assumption, but easily
-fixable if proved to be wrong.
-
-If you see other places I made the abstaction too tied to specific HW
-implementation, let me know.
-
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index d4d41c0..a9ac384 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -114,7 +114,7 @@ extern unsigned long oom_badness(struct task_struct *p,
+ extern int register_oom_notifier(struct notifier_block *nb);
+ extern int unregister_oom_notifier(struct notifier_block *nb);
+ 
+-extern bool oom_killer_disable(signed long timeout);
++extern bool oom_killer_disable(void);
+ extern void oom_killer_enable(void);
+ 
+ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
+diff --git a/kernel/freezer.c b/kernel/freezer.c
+index 6f56a9e..969cae4 100644
+--- a/kernel/freezer.c
++++ b/kernel/freezer.c
+@@ -42,9 +42,6 @@ bool freezing_slow_path(struct task_struct *p)
+ 	if (p->flags & (PF_NOFREEZE | PF_SUSPEND_TASK))
+ 		return false;
+ 
+-	if (test_tsk_thread_flag(p, TIF_MEMDIE))
+-		return false;
+-
+ 	if (pm_nosig_freezing || cgroup_freezing(p))
+ 		return true;
+ 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index dfd3705..ebb7d75 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -441,12 +441,6 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+ 		dump_tasks(oc->memcg, oc->nodemask);
+ }
+ 
+-/*
+- * Number of OOM victims in flight
+- */
+-static atomic_t oom_victims = ATOMIC_INIT(0);
+-static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);
+-
+ static bool oom_killer_disabled __read_mostly;
+ 
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+@@ -674,7 +668,6 @@ static void mark_oom_victim(struct task_struct *tsk)
+ {
+ 	struct mm_struct *mm = tsk->mm;
+ 
+-	WARN_ON(oom_killer_disabled);
+ 	/* OOM killer might race with memcg OOM */
+ 	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+ 		return;
+@@ -685,14 +678,6 @@ static void mark_oom_victim(struct task_struct *tsk)
+ 		set_bit(MMF_OOM_VICTIM, &mm->flags);
+ 	}
+ 
+-	/*
+-	 * Make sure that the task is woken up from uninterruptible sleep
+-	 * if it is frozen because OOM killer wouldn't be able to free
+-	 * any memory and livelock. freezing_slow_path will tell the freezer
+-	 * that TIF_MEMDIE tasks should be ignored.
+-	 */
+-	__thaw_task(tsk);
+-	atomic_inc(&oom_victims);
+ 	trace_mark_victim(tsk->pid);
+ }
+ 
+@@ -702,9 +687,6 @@ static void mark_oom_victim(struct task_struct *tsk)
+ void exit_oom_victim(void)
+ {
+ 	clear_thread_flag(TIF_MEMDIE);
+-
+-	if (!atomic_dec_return(&oom_victims))
+-		wake_up_all(&oom_victims_wait);
+ }
+ 
+ /**
+@@ -721,8 +703,6 @@ void oom_killer_enable(void)
+  * @timeout: maximum timeout to wait for oom victims in jiffies
+  *
+  * Forces all page allocations to fail rather than trigger OOM killer.
+- * Will block and wait until all OOM victims are killed or the given
+- * timeout expires.
+  *
+  * The function cannot be called when there are runnable user tasks because
+  * the userspace would see unexpected allocation failures as a result. Any
+@@ -731,10 +711,8 @@ void oom_killer_enable(void)
+  * Returns true if successful and false if the OOM killer cannot be
+  * disabled.
+  */
+-bool oom_killer_disable(signed long timeout)
++bool oom_killer_disable(void)
+ {
+-	signed long ret;
+-
+ 	/*
+ 	 * Make sure to not race with an ongoing OOM killer. Check that the
+ 	 * current is not killed (possibly due to sharing the victim's memory).
+@@ -743,15 +721,7 @@ bool oom_killer_disable(signed long timeout)
+ 		return false;
+ 	oom_killer_disabled = true;
+ 	mutex_unlock(&oom_lock);
+-
+-	ret = wait_event_interruptible_timeout(oom_victims_wait,
+-			!atomic_read(&oom_victims), timeout);
+-	if (ret <= 0) {
+-		oom_killer_enable();
+-		return false;
+-	}
+ 	pr_info("OOM killer disabled.\n");
+-
+ 	return true;
+ }
+ 
 -- 
- Kirill A. Shutemov
+1.8.3.1
