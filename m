@@ -1,44 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 096016B0008
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 08:11:13 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u133so2562416wmf.4
-        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 05:11:12 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l8si705266wmb.37.2018.03.29.05.11.11
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8755C6B0005
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 08:37:50 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v77so2632392wrc.18
+        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 05:37:50 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 26sor3543689edw.43.2018.03.29.05.37.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 29 Mar 2018 05:11:11 -0700 (PDT)
-Date: Thu, 29 Mar 2018 13:11:09 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm/page_alloc: call set_pageblock_order() once for each
- node
-Message-ID: <20180329121109.xg5tfk6dyqzkrgrh@suse.de>
-References: <20180329033607.8440-1-richard.weiyang@gmail.com>
+        (Google Transport Security);
+        Thu, 29 Mar 2018 05:37:48 -0700 (PDT)
+Date: Thu, 29 Mar 2018 15:37:12 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 06/14] mm/page_alloc: Propagate encryption KeyID
+ through page allocator
+Message-ID: <20180329123712.zlo6qmstj3zm5v27@node.shutemov.name>
+References: <20180328165540.648-1-kirill.shutemov@linux.intel.com>
+ <20180328165540.648-7-kirill.shutemov@linux.intel.com>
+ <20180329112034.GE31039@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180329033607.8440-1-richard.weiyang@gmail.com>
+In-Reply-To: <20180329112034.GE31039@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Mar 29, 2018 at 11:36:07AM +0800, Wei Yang wrote:
-> set_pageblock_order() is a standalone function which sets pageblock_order,
-> while current implementation calls this function on each ZONE of each node
-> in free_area_init_core().
+On Thu, Mar 29, 2018 at 01:20:34PM +0200, Michal Hocko wrote:
+> On Wed 28-03-18 19:55:32, Kirill A. Shutemov wrote:
+> > Modify several page allocation routines to pass down encryption KeyID to
+> > be used for the allocated page.
+> > 
+> > There are two basic use cases:
+> > 
+> >  - alloc_page_vma() use VMA's KeyID to allocate the page.
+> > 
+> >  - Page migration and NUMA balancing path use KeyID of original page as
+> >    KeyID for newly allocated page.
 > 
-> Since free_area_init_node() is the only user of free_area_init_core(),
-> this patch moves set_pageblock_order() up one level to invoke
-> set_pageblock_order() only once on each node.
-> 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> I am sorry but I am out of time to look closer but this just raised my
+> eyebrows. This looks like a no-go. The basic allocator has no business
+> in fancy stuff like a encryption key. If you need something like that
+> then just build a special allocator API on top. This looks like a no-go
+> to me.
 
-The patch looks ok but given that set_pageblock_order returns immediately
-if it has already been called, I expect the benefit is marginal. Was any
-improvement in boot time measured?
+The goal is to make memory encryption first class citizen in memory
+management and not to invent parallel subsysustem (as we did with hugetlb).
+
+Making memory encryption integral part of Linux VM would involve handing
+encrypted page everywhere we expect anonymous page to appear.
+
+We can deal with encrypted page allocation with wrappers but it doesn't
+make sense if we going to use them instead of original API everywhere.
 
 -- 
-Mel Gorman
-SUSE Labs
+ Kirill A. Shutemov
