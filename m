@@ -1,63 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D59A06B0003
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 01:32:49 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p189so3313346pfp.1
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2018 22:32:49 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id o1-v6si5105892plb.459.2018.03.28.22.32.48
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E26186B0005
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 03:01:10 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id j25so2061983wmh.1
+        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 00:01:10 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b83si817258wme.168.2018.03.29.00.01.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Mar 2018 22:32:48 -0700 (PDT)
-Subject: Re: [PATCHv2 08/14] mm/page_ext: Drop definition of unused
- PAGE_EXT_DEBUG_POISON
-References: <20180328165540.648-1-kirill.shutemov@linux.intel.com>
- <20180328165540.648-9-kirill.shutemov@linux.intel.com>
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Message-ID: <765cf3b4-a2dd-39d4-6bf6-0096a9b6e818@codeaurora.org>
-Date: Thu, 29 Mar 2018 11:02:42 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 29 Mar 2018 00:01:09 -0700 (PDT)
+Date: Thu, 29 Mar 2018 09:01:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/3] fs: Perform writebacks under memalloc_nofs
+Message-ID: <20180329070108.GB31039@dhcp22.suse.cz>
+References: <20180321224429.15860-1-rgoldwyn@suse.de>
+ <20180321224429.15860-2-rgoldwyn@suse.de>
+ <20180322070808.GU23100@dhcp22.suse.cz>
+ <d44ff1ea-e618-4cf6-b9b5-3e8fc7f03c14@suse.de>
+ <20180327142150.GA13604@bombadil.infradead.org>
+ <3a96b6ff-7d55-9bb6-8a30-f32f5dd0b054@suse.de>
+ <20180328070113.GA9275@dhcp22.suse.cz>
+ <20180328235702.GE1150@dastard>
 MIME-Version: 1.0
-In-Reply-To: <20180328165540.648-9-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180328235702.GE1150@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Goldwyn Rodrigues <rgoldwyn@suse.de>, Matthew Wilcox <willy@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 3/28/2018 10:25 PM, Kirill A. Shutemov wrote:
-> After bd33ef368135 ("mm: enable page poisoning early at boot")
-> PAGE_EXT_DEBUG_POISON is not longer used. Remove it.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Vinayak Menon <vinmenon@codeaurora.org>
-> ---
->  include/linux/page_ext.h | 11 -----------
->  1 file changed, 11 deletions(-)
->
-> diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-> index ca5461efae2f..bbec618a614b 100644
-> --- a/include/linux/page_ext.h
-> +++ b/include/linux/page_ext.h
-> @@ -16,18 +16,7 @@ struct page_ext_operations {
->  
->  #ifdef CONFIG_PAGE_EXTENSION
->  
-> -/*
-> - * page_ext->flags bits:
-> - *
-> - * PAGE_EXT_DEBUG_POISON is set for poisoned pages. This is used to
-> - * implement generic debug pagealloc feature. The pages are filled with
-> - * poison patterns and set this flag after free_pages(). The poisoned
-> - * pages are verified whether the patterns are not corrupted and clear
-> - * the flag before alloc_pages().
-> - */
-> -
->  enum page_ext_flags {
-> -	PAGE_EXT_DEBUG_POISON,		/* Page is poisoned */
->  	PAGE_EXT_DEBUG_GUARD,
->  	PAGE_EXT_OWNER,
->  #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
+On Thu 29-03-18 10:57:02, Dave Chinner wrote:
+> On Wed, Mar 28, 2018 at 09:01:13AM +0200, Michal Hocko wrote:
+> > On Tue 27-03-18 10:13:53, Goldwyn Rodrigues wrote:
+> > > 
+> > > 
+> > > On 03/27/2018 09:21 AM, Matthew Wilcox wrote:
+> > [...]
+> > > > Maybe no real filesystem behaves that way.  We need feedback from
+> > > > filesystem people.
+> > > 
+> > > The idea is to:
+> > > * Keep a central location for check, rather than individual filesystem
+> > > writepage(). It should reduce code as well.
+> > > * Filesystem developers call memory allocations without thinking twice
+> > > about which GFP flag to use: GFP_KERNEL or GFP_NOFS. In essence
+> > > eliminate GFP_NOFS.
+> > 
+> > I do not think this is the right approach. We do want to eliminate
+> > explicit GFP_NOFS usage, but we also want to reduce the overal GFP_NOFS
+> > usage as well. The later requires that we drop the __GFP_FS only for
+> > those contexts that really might cause reclaim recursion problems.
+> 
+> As I've said before, moving to a scoped API will not reduce the
+> number of GFP_NOFS scope allocation points - removing individual
+> GFP_NOFS annotations doesn't do anything to avoid the deadlock paths
+> it protects against.
 
-Reviewed-by: Vinayak Menon <vinmenon@codeaurora.org>
+Maybe it doesn't for some filesystems like xfs but I am quite sure it
+will for some others which overuse GFP_NOFS just to be sure. E.g. btrfs.
+
+> The issue is that GFP_NOFS is a big hammer - it stops reclaim from
+> all filesystem scopes, not just the one we hold locks on and are
+> doing the allocation for. i.e. we can be in one filesystem and quite
+> safely do reclaim from other filesystems. The global scope of
+> GFP_NOFS just doesn't allow this sort of fine-grained control to be
+> expressed in reclaim.
+
+Agreed!
+
+> IOWs, if we want to reduce the scope of GFP_NOFS, we need a context
+> to be passed from allocation to reclaim so that the reclaim context
+> can check that it's a safe allocation context to reclaim from. e.g.
+> for GFP_NOFS, we can use the superblock of the allocating filesystem
+> as the context, and check it against the superblock that the current
+> reclaim context (e.g. shrinker invocation) belongs to. If they
+> match, we skip it. If they don't match, then we can perform reclaim
+> on that context.
+
+Agreed again. But this is hardly doable without actually defining what
+those scopes are. Once we have them we can expand to add more context.
+
+-- 
+Michal Hocko
+SUSE Labs
