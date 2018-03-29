@@ -1,71 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C5F256B0003
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 17:30:06 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e13so5444074pfn.16
-        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 14:30:06 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b2-v6si1973644pls.379.2018.03.29.14.30.05
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0466B0007
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 17:46:10 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v17so5463470pff.9
+        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 14:46:10 -0700 (PDT)
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id 19si5226298pfi.285.2018.03.29.14.46.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Mar 2018 14:30:05 -0700 (PDT)
-Date: Thu, 29 Mar 2018 14:30:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Check for SIGKILL inside dup_mmap() loop.
-Message-Id: <20180329143003.c52ada618be599c5358e8ca2@linux-foundation.org>
-In-Reply-To: <1522322870-4335-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1522322870-4335-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-Mime-Version: 1.0
+        Thu, 29 Mar 2018 14:46:09 -0700 (PDT)
+Date: Thu, 29 Mar 2018 15:46:07 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH 00/32] docs/vm: convert to ReST format
+Message-ID: <20180329154607.3d8bda75@lwn.net>
+In-Reply-To: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Rik van Riel <riel@redhat.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 29 Mar 2018 20:27:50 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
+On Wed, 21 Mar 2018 21:22:16 +0200
+Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
 
-> Theoretically it is possible that an mm_struct with 60000+ vmas loops
-> with potentially allocating memory, with mm->mmap_sem held for write by
-> the current thread. Unless I overlooked that fatal_signal_pending() is
-> somewhere in the loop, this is bad if current thread was selected as an
-> OOM victim, for the current thread will continue allocations using memory
-> reserves while the OOM reaper is unable to reclaim memory.
+> These patches convert files in Documentation/vm to ReST format, add an
+> initial index and link it to the top level documentation.
+> 
+> There are no contents changes in the documentation, except few spelling
+> fixes. The relatively large diffstat stems from the indentation and
+> paragraph wrapping changes.
+> 
+> I've tried to keep the formatting as consistent as possible, but I could
+> miss some places that needed markup and add some markup where it was not
+> necessary.
 
-All of which implies to me that this patch fixes a problem which is not
-known to exist!  
+So I've been pondering on these for a bit.  It looks like a reasonable and
+straightforward RST conversion, no real complaints there.  But I do have a
+couple of concerns...
 
-> But there is no point with continuing the loop from the beginning if
-> current thread is killed. If there were __GFP_KILLABLE (or something
-> like memalloc_nofs_save()/memalloc_nofs_restore()), we could apply it
-> to all allocations inside the loop. But since we don't have such flag,
-> this patch uses fatal_signal_pending() check inside the loop.
+One is that, as we move documentation into RST, I'm really trying to
+organize it a bit so that it is better tuned to the various audiences we
+have.  For example, ksm.txt is going to be of interest to sysadmin types,
+who might want to tune it.  mmu_notifier.txt is of interest to ...
+somebody, but probably nobody who is thinking in user space.  And so on.
 
-Dumb question: if a thread has been oom-killed and then tries to
-allocate memory, should the page allocator just fail the allocation
-attempt?  I suppose there are all sorts of reasons why not :(
+So I would really like to see this material split up and put into the
+appropriate places in the RST hierarchy - admin-guide for administrative
+stuff, core-api for kernel development topics, etc.  That, of course,
+could be done separately from the RST conversion, but I suspect I know
+what will (or will not) happen if we agree to defer that for now :)
 
-In which case, yes, setting a new
-PF_MEMALLOC_MAY_FAIL_IF_I_WAS_OOMKILLED around such code might be a
-tidy enough solution.  It would be a bit sad to add another test in the
-hot path (should_fail_alloc_page()?), but geeze we do a lot of junk
-already.
+The other is the inevitable merge conflicts that changing that many doc
+files will create.  Sending the patches through Andrew could minimize
+that, I guess, or at least make it his problem.  Alternatively, we could
+try to do it as an end-of-merge-window sort of thing.  I can try to manage
+that, but an ack or two from the mm crowd would be nice to have.
 
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -440,6 +440,10 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
->  			continue;
->  		}
->  		charge = 0;
-> +		if (fatal_signal_pending(current)) {
-> +			retval = -EINTR;
-> +			goto out;
-> +		}
->  		if (mpnt->vm_flags & VM_ACCOUNT) {
->  			unsigned long len = vma_pages(mpnt);
+Thanks,
 
-I think a comment explaining why we're doing this would help.
-
-Better would be to add a new function "current_is_oom_killed()" or
-such, which becomes self-documenting.  Because there are other reasons
-why a task may have a fatal signal pending.
+jon
