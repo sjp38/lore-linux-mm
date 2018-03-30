@@ -1,44 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FA9F6B0010
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 09:37:32 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id m67so6018491qkl.10
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 06:37:32 -0700 (PDT)
-Received: from brightrain.aerifal.cx (216-12-86-13.cv.mvl.ntelos.net. [216.12.86.13])
-        by mx.google.com with ESMTP id 34si292571qks.5.2018.03.30.06.37.31
-        for <linux-mm@kvack.org>;
-        Fri, 30 Mar 2018 06:37:31 -0700 (PDT)
-Date: Fri, 30 Mar 2018 09:33:48 -0400
-From: Rich Felker <dalias@libc.org>
-Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
-Message-ID: <20180330133348.GR1436@brightrain.aerifal.cx>
-References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
- <20180330075508.GA21798@amd>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3204A6B0012
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 10:20:43 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p189so7575789pfp.1
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 07:20:43 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id t4-v6si8716621plb.641.2018.03.30.07.20.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Mar 2018 07:20:41 -0700 (PDT)
+Date: Fri, 30 Mar 2018 10:20:38 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
+Message-ID: <20180330102038.2378925b@gandalf.local.home>
+In-Reply-To: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180330075508.GA21798@amd>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Ilya Smith <blackzert@gmail.com>, rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, jhogan@kernel.org, ralf@linux-mips.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, mhocko@suse.com, hughd@google.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, akpm@linux-foundation.org, steve.capper@arm.com, punit.agrawal@arm.com, paul.burton@mips.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, keescook@chromium.org, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, jglisse@redhat.com, willy@infradead.org, aarcange@redhat.com, oleg@redhat.com, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
+To: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
 
-On Fri, Mar 30, 2018 at 09:55:08AM +0200, Pavel Machek wrote:
-> Hi!
-> 
-> > Current implementation doesn't randomize address returned by mmap.
-> > All the entropy ends with choosing mmap_base_addr at the process
-> > creation. After that mmap build very predictable layout of address
-> > space. It allows to bypass ASLR in many cases. This patch make
-> > randomization of address on any mmap call.
-> 
-> How will this interact with people debugging their application, and
-> getting different behaviours based on memory layout?
-> 
-> strace, strace again, get different results?
 
-Normally gdb disables ASLR for the process when invoking a program to
-debug. I don't see why that would be terribly useful with strace but
-you can do the same if you want.
+[ Adding memory management folks to discuss the issue ]
 
-Rich
+On Thu, 29 Mar 2018 18:41:44 +0800
+Zhaoyang Huang <huangzhaoyang@gmail.com> wrote:
+
+> It is reported that some user app would like to echo a huge
+> number to "/sys/kernel/debug/tracing/buffer_size_kb" regardless
+>  of the available memory, which will cause the coinstantaneous
+> page allocation failed and introduce OOM. The commit checking the
+> val against the available mem first to avoid the consequence allocation.
+> 
+> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
+> ---
+>  kernel/trace/trace.c | 39 ++++++++++++++++++++++++++++++++++++++-
+>  1 file changed, 38 insertions(+), 1 deletion(-)
+> 
+> diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
+> index 2d0ffcc..a4a4237 100644
+> --- a/kernel/trace/trace.c
+> +++ b/kernel/trace/trace.c
+> @@ -43,6 +43,8 @@
+>  #include <linux/trace.h>
+>  #include <linux/sched/rt.h>
+>  
+> +#include <linux/mm.h>
+> +#include <linux/swap.h>
+>  #include "trace.h"
+>  #include "trace_output.h"
+>  
+> @@ -5967,6 +5969,39 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
+>  	return ret;
+>  }
+>  
+> +static long get_available_mem(void)
+> +{
+> +	struct sysinfo i;
+> +	long available;
+> +	unsigned long pagecache;
+> +	unsigned long wmark_low = 0;
+> +	unsigned long pages[NR_LRU_LISTS];
+> +	struct zone *zone;
+> +	int lru;
+> +
+> +	si_meminfo(&i);
+> +	si_swapinfo(&i);
+> +
+> +	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
+> +		pages[lru] = global_page_state(NR_LRU_BASE + lru);
+> +
+> +	for_each_zone(zone)
+> +		wmark_low += zone->watermark[WMARK_LOW];
+> +
+> +	available = i.freeram - wmark_low;
+> +
+> +	pagecache = pages[LRU_ACTIVE_FILE] + pages[LRU_INACTIVE_FILE];
+> +	pagecache -= min(pagecache / 2, wmark_low);
+> +	available += pagecache;
+> +
+> +	available += global_page_state(NR_SLAB_RECLAIMABLE) -
+> +		min(global_page_state(NR_SLAB_RECLAIMABLE) / 2, wmark_low);
+> +
+> +	if (available < 0)
+> +		available = 0;
+> +	return available;
+> +}
+> +
+
+As I stated in my other reply, the above function does not belong in
+tracing.
+
+That said, it appears you are having issues that were caused by the
+change by commit 848618857d2 ("tracing/ring_buffer: Try harder to
+allocate"), where we replaced NORETRY with RETRY_MAYFAIL. The point of
+NORETRY was to keep allocations of the tracing ring-buffer from causing
+OOMs. But the RETRY was too strong in that case, because there were
+those that wanted to allocate large ring buffers but it would fail due
+to memory being used that could be reclaimed. Supposedly, RETRY_MAYFAIL
+is to allocate with reclaim but still allow to fail, and isn't suppose
+to trigger an OOM. From my own tests, this is obviously not the case.
+
+Perhaps this is because the ring buffer allocates one page at a time,
+and by doing so, it can get every last available page, and if anything
+in the mean time does an allocation without MAYFAIL, it will cause an
+OOM. For example, when I stressed this I triggered this:
+
+ pool invoked oom-killer: gfp_mask=0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null), order=0, oom_score_adj=0
+ pool cpuset=/ mems_allowed=0
+ CPU: 7 PID: 1040 Comm: pool Not tainted 4.16.0-rc4-test+ #663
+ Hardware name: Hewlett-Packard HP Compaq Pro 6300 SFF/339A, BIOS K01 v03.03 07/14/2016
+ Call Trace:
+  dump_stack+0x8e/0xce
+  dump_header.isra.30+0x6e/0x28f
+  ? _raw_spin_unlock_irqrestore+0x30/0x60
+  oom_kill_process+0x218/0x400
+  ? has_capability_noaudit+0x17/0x20
+  out_of_memory+0xe3/0x5c0
+  __alloc_pages_slowpath+0xa8e/0xe50
+  __alloc_pages_nodemask+0x206/0x220
+  alloc_pages_current+0x6a/0xe0
+  __page_cache_alloc+0x6a/0xa0
+  filemap_fault+0x208/0x5f0
+  ? __might_sleep+0x4a/0x80
+  ext4_filemap_fault+0x31/0x44
+  __do_fault+0x20/0xd0
+  __handle_mm_fault+0xc08/0x1160
+  handle_mm_fault+0x76/0x110
+  __do_page_fault+0x299/0x580
+  do_page_fault+0x2d/0x110
+  ? page_fault+0x2f/0x50
+  page_fault+0x45/0x50
+
+I wonder if I should have the ring buffer allocate groups of pages, to
+avoid this. Or try to allocate with NORETRY, one page at a time, and
+when that fails, allocate groups of pages with RETRY_MAYFAIL, and that
+may keep it from causing an OOM?
+
+Thoughts?
+
+-- Steve
+
+
+
+>  static ssize_t
+>  tracing_entries_write(struct file *filp, const char __user *ubuf,
+>  		      size_t cnt, loff_t *ppos)
+> @@ -5975,13 +6010,15 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
+>  	struct trace_array *tr = inode->i_private;
+>  	unsigned long val;
+>  	int ret;
+> +	long available;
+>  
+> +	available = get_available_mem();
+>  	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
+>  	if (ret)
+>  		return ret;
+>  
+>  	/* must have at least 1 entry */
+> -	if (!val)
+> +	if (!val || (val > available))
+>  		return -EINVAL;
+>  
+>  	/* value is in KB */
