@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AFD5E6B0062
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:43:01 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u188so6239257pfb.6
-        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:43:01 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 811EB6B0253
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:43:02 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id u188so6239284pfb.6
+        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:43:02 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b59-v6si7329948plb.530.2018.03.29.20.42.59
+        by mx.google.com with ESMTPS id q2-v6si7542373plh.259.2018.03.29.20.43.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 29 Mar 2018 20:42:59 -0700 (PDT)
+        Thu, 29 Mar 2018 20:43:00 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v10 60/62] dax: Convert page fault handlers to XArray
-Date: Thu, 29 Mar 2018 20:42:43 -0700
-Message-Id: <20180330034245.10462-61-willy@infradead.org>
+Subject: [PATCH v10 62/62] radix tree: Remove unused functions
+Date: Thu, 29 Mar 2018 20:42:45 -0700
+Message-Id: <20180330034245.10462-63-willy@infradead.org>
 In-Reply-To: <20180330034245.10462-1-willy@infradead.org>
 References: <20180330034245.10462-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,645 +22,820 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This is the last part of DAX to be converted to the XArray so
-remove all the old helper functions.
+The following functions are (now) unused:
+ - __radix_tree_delete_node
+ - radix_tree_gang_lookup_slot
+ - radix_tree_join
+ - radix_tree_maybe_preload_order
+ - radix_tree_split
+ - radix_tree_split_preload
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/dax.c | 368 ++++++++++++++++-----------------------------------------------
- 1 file changed, 92 insertions(+), 276 deletions(-)
+ include/linux/radix-tree.h            |  16 +-
+ lib/radix-tree.c                      | 306 +---------------------------------
+ tools/testing/radix-tree/benchmark.c  |  91 ----------
+ tools/testing/radix-tree/multiorder.c | 247 ---------------------------
+ 4 files changed, 4 insertions(+), 656 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 3de12a065e05..f05e819dd69f 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -93,10 +93,9 @@ static unsigned long dax_to_pfn(void *entry)
- 	return xa_to_value(entry) >> DAX_SHIFT;
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index f64beb9ba175..eb2ae901f2ec 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -147,12 +147,11 @@ static inline unsigned int iter_shift(const struct radix_tree_iter *iter)
+  * radix_tree_lookup_slot
+  * radix_tree_tag_get
+  * radix_tree_gang_lookup
+- * radix_tree_gang_lookup_slot
+  * radix_tree_gang_lookup_tag
+  * radix_tree_gang_lookup_tag_slot
+  * radix_tree_tagged
+  *
+- * The first 8 functions are able to be called locklessly, using RCU. The
++ * The first 7 functions are able to be called locklessly, using RCU. The
+  * caller must ensure calls to these functions are made within rcu_read_lock()
+  * regions. Other readers (lock-free or otherwise) and modifications may be
+  * running concurrently.
+@@ -254,9 +253,6 @@ void radix_tree_iter_replace(struct radix_tree_root *,
+ 		const struct radix_tree_iter *, void __rcu **slot, void *entry);
+ void radix_tree_replace_slot(struct radix_tree_root *,
+ 			     void __rcu **slot, void *entry);
+-void __radix_tree_delete_node(struct radix_tree_root *,
+-			      struct radix_tree_node *,
+-			      radix_tree_update_node_t update_node);
+ void radix_tree_iter_delete(struct radix_tree_root *,
+ 			struct radix_tree_iter *iter, void __rcu **slot);
+ void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
+@@ -266,12 +262,8 @@ void radix_tree_clear_tags(struct radix_tree_root *, struct radix_tree_node *,
+ unsigned int radix_tree_gang_lookup(const struct radix_tree_root *,
+ 			void **results, unsigned long first_index,
+ 			unsigned int max_items);
+-unsigned int radix_tree_gang_lookup_slot(const struct radix_tree_root *,
+-			void __rcu ***results, unsigned long *indices,
+-			unsigned long first_index, unsigned int max_items);
+ int radix_tree_preload(gfp_t gfp_mask);
+ int radix_tree_maybe_preload(gfp_t gfp_mask);
+-int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order);
+ void radix_tree_init(void);
+ void *radix_tree_tag_set(struct radix_tree_root *,
+ 			unsigned long index, unsigned int tag);
+@@ -296,12 +288,6 @@ static inline void radix_tree_preload_end(void)
+ 	preempt_enable();
  }
  
--static void *dax_mk_locked(unsigned long pfn, unsigned long flags)
-+static void *dax_mk_entry(pfn_t pfn, unsigned long flags)
- {
--	return xa_mk_value(flags | ((unsigned long)pfn << DAX_SHIFT) |
--			DAX_ENTRY_LOCK);
-+	return xa_mk_value(flags | (pfn_t_to_pfn(pfn) << DAX_SHIFT));
- }
- 
- static bool dax_is_locked(void *entry)
-@@ -144,23 +143,16 @@ struct wait_exceptional_entry_queue {
- 	struct exceptional_entry_key key;
- };
- 
--static wait_queue_head_t *dax_entry_waitqueue(struct xarray *xa,
--		pgoff_t index, void *entry, struct exceptional_entry_key *key)
-+static wait_queue_head_t *dax_entry_waitqueue(struct xa_state *xas,
-+		struct exceptional_entry_key *key)
- {
- 	unsigned long hash;
-+	unsigned long index = xas->xa_index;
- 
--	/*
--	 * If 'entry' is a PMD, align the 'index' that we use for the wait
--	 * queue to the start of that PMD.  This ensures that all offsets in
--	 * the range covered by the PMD map to the same bit lock.
--	 */
--	if (dax_is_pmd_entry(entry))
--		index &= ~PG_PMD_COLOUR;
+-int radix_tree_split_preload(unsigned old_order, unsigned new_order, gfp_t);
+-int radix_tree_split(struct radix_tree_root *, unsigned long index,
+-			unsigned new_order);
+-int radix_tree_join(struct radix_tree_root *, unsigned long index,
+-			unsigned new_order, void *);
 -
--	key->xa = xa;
-+	key->xa = xas->xa;
- 	key->entry_start = index;
+ void __rcu **idr_get_free(struct radix_tree_root *root,
+ 			      struct radix_tree_iter *iter, gfp_t gfp,
+ 			      unsigned long max);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 71697bd25140..5a1f2b052194 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -41,9 +41,6 @@
+ #include <linux/xarray.h>
  
--	hash = hash_long((unsigned long)xa ^ index, DAX_WAIT_TABLE_BITS);
-+	hash = hash_long((unsigned long)xas->xa ^ index, DAX_WAIT_TABLE_BITS);
- 	return wait_table + hash;
- }
  
-@@ -182,13 +174,12 @@ static int wake_exceptional_entry_func(wait_queue_entry_t *wait,
-  * The important information it's conveying is whether the entry at
-  * this index used to be a PMD entry.
-  */
--static void dax_wake_mapping_entry_waiter(struct xarray *xa,
--		pgoff_t index, void *entry, bool wake_all)
-+static void dax_wake_entry(struct xa_state *xas, bool wake_all)
- {
- 	struct exceptional_entry_key key;
- 	wait_queue_head_t *wq;
- 
--	wq = dax_entry_waitqueue(xa, index, entry, &key);
-+	wq = dax_entry_waitqueue(xas, &key);
- 
- 	/*
- 	 * Checking for locked entry and prepare_to_wait_exclusive() happens
-@@ -200,12 +191,6 @@ static void dax_wake_mapping_entry_waiter(struct xarray *xa,
- 		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
- }
- 
--static void dax_wake_entry(struct xa_state *xas, bool wake_all)
--{
--	return dax_wake_mapping_entry_waiter(xas->xa, xas->xa_index, NULL,
--								wake_all);
--}
+-/* Number of nodes in fully populated tree of given height */
+-static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
 -
  /*
-  * Look up entry in page cache, wait for it to become unlocked if it
-  * is a DAX entry and return it.  The caller must subsequently call
-@@ -230,8 +215,7 @@ static void *get_unlocked_entry(struct xa_state *xas)
- 				!dax_is_locked(entry))
- 			return entry;
+  * Radix tree node cache.
+  */
+@@ -463,73 +460,6 @@ int radix_tree_maybe_preload(gfp_t gfp_mask)
+ }
+ EXPORT_SYMBOL(radix_tree_maybe_preload);
  
--		wq = dax_entry_waitqueue(xas->xa, xas->xa_index, entry,
--				&ewait.key);
-+		wq = dax_entry_waitqueue(xas, &ewait.key);
- 		prepare_to_wait_exclusive(wq, &ewait.wait,
- 					  TASK_UNINTERRUPTIBLE);
- 		xas_unlock_irq(xas);
-@@ -273,119 +257,6 @@ static void dax_lock_entry(struct xa_state *xas, void *entry)
- 	xas_store(xas, xa_mk_value(v | DAX_ENTRY_LOCK));
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-/*
+- * Preload with enough objects to ensure that we can split a single entry
+- * of order @old_order into many entries of size @new_order
+- */
+-int radix_tree_split_preload(unsigned int old_order, unsigned int new_order,
+-							gfp_t gfp_mask)
+-{
+-	unsigned top = 1 << (old_order % RADIX_TREE_MAP_SHIFT);
+-	unsigned layers = (old_order / RADIX_TREE_MAP_SHIFT) -
+-				(new_order / RADIX_TREE_MAP_SHIFT);
+-	unsigned nr = 0;
+-
+-	WARN_ON_ONCE(!gfpflags_allow_blocking(gfp_mask));
+-	BUG_ON(new_order >= old_order);
+-
+-	while (layers--)
+-		nr = nr * RADIX_TREE_MAP_SIZE + 1;
+-	return __radix_tree_preload(gfp_mask, top * nr);
+-}
+-#endif
+-
+-/*
+- * The same as function above, but preload number of nodes required to insert
+- * (1 << order) continuous naturally-aligned elements.
+- */
+-int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
+-{
+-	unsigned long nr_subtrees;
+-	int nr_nodes, subtree_height;
+-
+-	/* Preloading doesn't help anything with this gfp mask, skip it */
+-	if (!gfpflags_allow_blocking(gfp_mask)) {
+-		preempt_disable();
+-		return 0;
+-	}
+-
+-	/*
+-	 * Calculate number and height of fully populated subtrees it takes to
+-	 * store (1 << order) elements.
+-	 */
+-	nr_subtrees = 1 << order;
+-	for (subtree_height = 0; nr_subtrees > RADIX_TREE_MAP_SIZE;
+-			subtree_height++)
+-		nr_subtrees >>= RADIX_TREE_MAP_SHIFT;
+-
+-	/*
+-	 * The worst case is zero height tree with a single item at index 0 and
+-	 * then inserting items starting at ULONG_MAX - (1 << order).
+-	 *
+-	 * This requires RADIX_TREE_MAX_PATH nodes to build branch from root to
+-	 * 0-index item.
+-	 */
+-	nr_nodes = RADIX_TREE_MAX_PATH;
+-
+-	/* Plus branch to fully populated subtrees. */
+-	nr_nodes += RADIX_TREE_MAX_PATH - subtree_height;
+-
+-	/* Root node is shared. */
+-	nr_nodes--;
+-
+-	/* Plus nodes required to build subtrees. */
+-	nr_nodes += nr_subtrees * height_to_maxnodes[subtree_height];
+-
+-	return __radix_tree_preload(gfp_mask, nr_nodes);
+-}
+-
+ static unsigned radix_tree_load_root(const struct radix_tree_root *root,
+ 		struct radix_tree_node **nodep, unsigned long *maxindex)
+ {
+@@ -1138,7 +1068,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
+  * @slot:	pointer to slot
+  * @item:	new item to store in the slot.
+  *
+- * For use with radix_tree_lookup_slot(), radix_tree_gang_lookup_slot(),
++ * For use with radix_tree_lookup_slot() and
+  * radix_tree_gang_lookup_tag_slot().  Caller must hold tree write locked
+  * across slot lookup and replacement.
+  *
+@@ -1161,8 +1091,8 @@ EXPORT_SYMBOL(radix_tree_replace_slot);
+  * @slot:	pointer to slot
+  * @item:	new item to store in the slot.
+  *
+- * For use with radix_tree_split() and radix_tree_for_each_slot().
+- * Caller must hold tree write locked across split and replacement.
++ * For use with radix_tree_for_each_slot().
++ * Caller must hold tree write locked.
+  */
+ void radix_tree_iter_replace(struct radix_tree_root *root,
+ 				const struct radix_tree_iter *iter,
+@@ -1171,151 +1101,6 @@ void radix_tree_iter_replace(struct radix_tree_root *root,
+ 	__radix_tree_replace(root, iter->node, slot, item, NULL);
  }
  
--/*
-- * Check whether the given slot is locked.  Must be called with the i_pages
-- * lock held.
-- */
--static inline int slot_locked(struct address_space *mapping, void **slot)
--{
--	unsigned long entry = xa_to_value(
--		radix_tree_deref_slot_protected(slot, &mapping->i_pages.xa_lock));
--	return entry & DAX_ENTRY_LOCK;
--}
--
--/*
-- * Mark the given slot as locked.  Must be called with the i_pages lock held.
-- */
--static inline void *lock_slot(struct address_space *mapping, void **slot)
--{
--	unsigned long v = xa_to_value(
--		radix_tree_deref_slot_protected(slot, &mapping->i_pages.xa_lock));
--	void *entry = xa_mk_value(v | DAX_ENTRY_LOCK);
--	radix_tree_replace_slot(&mapping->i_pages, slot, entry);
--	return entry;
--}
--
--/*
-- * Mark the given slot as unlocked.  Must be called with the i_pages lock held.
-- */
--static inline void *unlock_slot(struct address_space *mapping, void **slot)
--{
--	unsigned long v = xa_to_value(
--		radix_tree_deref_slot_protected(slot, &mapping->i_pages.xa_lock));
--	void *entry = xa_mk_value(v & ~DAX_ENTRY_LOCK);
--	radix_tree_replace_slot(&mapping->i_pages, slot, entry);
--	return entry;
--}
--
--/*
-- * Lookup entry in page cache, wait for it to become unlocked if it is
-- * a DAX entry and return it. The caller must call
-- * put_unlocked_mapping_entry() when he decided not to lock the entry or
-- * put_locked_mapping_entry() when he locked the entry and now wants to
-- * unlock it.
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-/**
+- * radix_tree_join - replace multiple entries with one multiorder entry
+- * @root: radix tree root
+- * @index: an index inside the new entry
+- * @order: order of the new entry
+- * @item: new entry
 - *
-- * Must be called with the i_pages lock held.
+- * Call this function to replace several entries with one larger entry.
+- * The existing entries are presumed to not need freeing as a result of
+- * this call.
+- *
+- * The replacement entry will have all the tags set on it that were set
+- * on any of the entries it is replacing.
 - */
--static void *get_unlocked_mapping_entry(struct address_space *mapping,
--					pgoff_t index, void ***slotp)
+-int radix_tree_join(struct radix_tree_root *root, unsigned long index,
+-			unsigned order, void *item)
 -{
--	void *entry, **slot;
--	struct wait_exceptional_entry_queue ewait;
--	wait_queue_head_t *wq;
+-	struct radix_tree_node *node;
+-	void __rcu **slot;
+-	int error;
 -
--	init_wait(&ewait.wait);
--	ewait.wait.func = wake_exceptional_entry_func;
+-	BUG_ON(radix_tree_is_internal_node(item));
+-
+-	error = __radix_tree_create(root, index, order, &node, &slot);
+-	if (!error)
+-		error = insert_entries(node, slot, item, order, true);
+-	if (error > 0)
+-		error = 0;
+-
+-	return error;
+-}
+-
+-/**
+- * radix_tree_split - Split an entry into smaller entries
+- * @root: radix tree root
+- * @index: An index within the large entry
+- * @order: Order of new entries
+- *
+- * Call this function as the first step in replacing a multiorder entry
+- * with several entries of lower order.  After this function returns,
+- * loop over the relevant portion of the tree using radix_tree_for_each_slot()
+- * and call radix_tree_iter_replace() to set up each new entry.
+- *
+- * The tags from this entry are replicated to all the new entries.
+- *
+- * The radix tree should be locked against modification during the entire
+- * replacement operation.  Lock-free lookups will see RADIX_TREE_RETRY which
+- * should prompt RCU walkers to restart the lookup from the root.
+- */
+-int radix_tree_split(struct radix_tree_root *root, unsigned long index,
+-				unsigned order)
+-{
+-	struct radix_tree_node *parent, *node, *child;
+-	void __rcu **slot;
+-	unsigned int offset, end;
+-	unsigned n, tag, tags = 0;
+-	gfp_t gfp = root_gfp_mask(root);
+-
+-	if (!__radix_tree_lookup(root, index, &parent, &slot))
+-		return -ENOENT;
+-	if (!parent)
+-		return -ENOENT;
+-
+-	offset = get_slot_offset(parent, slot);
+-
+-	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+-		if (tag_get(parent, tag, offset))
+-			tags |= 1 << tag;
+-
+-	for (end = offset + 1; end < RADIX_TREE_MAP_SIZE; end++) {
+-		if (!xa_is_sibling(rcu_dereference_raw(parent->slots[end])))
+-			break;
+-		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+-			if (tags & (1 << tag))
+-				tag_set(parent, tag, end);
+-		/* rcu_assign_pointer ensures tags are set before RETRY */
+-		rcu_assign_pointer(parent->slots[end], RADIX_TREE_RETRY);
+-	}
+-	rcu_assign_pointer(parent->slots[offset], RADIX_TREE_RETRY);
+-	parent->nr_values -= (end - offset);
+-
+-	if (order == parent->shift)
+-		return 0;
+-	if (order > parent->shift) {
+-		while (offset < end)
+-			offset += insert_entries(parent, &parent->slots[offset],
+-					RADIX_TREE_RETRY, order, true);
+-		return 0;
+-	}
+-
+-	node = parent;
 -
 -	for (;;) {
--		entry = __radix_tree_lookup(&mapping->i_pages, index, NULL,
--					  &slot);
--		if (!entry ||
--		    WARN_ON_ONCE(!xa_is_value(entry)) ||
--		    !slot_locked(mapping, slot)) {
--			if (slotp)
--				*slotp = slot;
--			return entry;
+-		if (node->shift > order) {
+-			child = radix_tree_node_alloc(gfp, node, root,
+-					node->shift - RADIX_TREE_MAP_SHIFT,
+-					offset, 0, 0);
+-			if (!child)
+-				goto nomem;
+-			if (node != parent) {
+-				node->count++;
+-				rcu_assign_pointer(node->slots[offset],
+-							node_to_entry(child));
+-				for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+-					if (tags & (1 << tag))
+-						tag_set(node, tag, offset);
+-			}
+-
+-			node = child;
+-			offset = 0;
+-			continue;
 -		}
 -
--		wq = dax_entry_waitqueue(&mapping->i_pages, index, entry,
--				&ewait.key);
--		prepare_to_wait_exclusive(wq, &ewait.wait,
--					  TASK_UNINTERRUPTIBLE);
--		xa_unlock_irq(&mapping->i_pages);
--		schedule();
--		finish_wait(wq, &ewait.wait);
--		xa_lock_irq(&mapping->i_pages);
+-		n = insert_entries(node, &node->slots[offset],
+-					RADIX_TREE_RETRY, order, false);
+-		BUG_ON(n > RADIX_TREE_MAP_SIZE);
+-
+-		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+-			if (tags & (1 << tag))
+-				tag_set(node, tag, offset);
+-		offset += n;
+-
+-		while (offset == RADIX_TREE_MAP_SIZE) {
+-			if (node == parent)
+-				break;
+-			offset = node->offset;
+-			child = node;
+-			node = node->parent;
+-			rcu_assign_pointer(node->slots[offset],
+-						node_to_entry(child));
+-			offset++;
+-		}
+-		if ((node == parent) && (offset == end))
+-			return 0;
+-	}
+-
+- nomem:
+-	/* Shouldn't happen; did user forget to preload? */
+-	/* TODO: free all the allocated nodes */
+-	WARN_ON(1);
+-	return -ENOMEM;
+-}
+-#endif
+-
+ static void node_tag_set(struct radix_tree_root *root,
+ 				struct radix_tree_node *node,
+ 				unsigned int tag, unsigned int offset)
+@@ -1772,48 +1557,6 @@ radix_tree_gang_lookup(const struct radix_tree_root *root, void **results,
+ }
+ EXPORT_SYMBOL(radix_tree_gang_lookup);
+ 
+-/**
+- *	radix_tree_gang_lookup_slot - perform multiple slot lookup on radix tree
+- *	@root:		radix tree root
+- *	@results:	where the results of the lookup are placed
+- *	@indices:	where their indices should be placed (but usually NULL)
+- *	@first_index:	start the lookup from this key
+- *	@max_items:	place up to this many items at *results
+- *
+- *	Performs an index-ascending scan of the tree for present items.  Places
+- *	their slots at *@results and returns the number of items which were
+- *	placed at *@results.
+- *
+- *	The implementation is naive.
+- *
+- *	Like radix_tree_gang_lookup as far as RCU and locking goes. Slots must
+- *	be dereferenced with radix_tree_deref_slot, and if using only RCU
+- *	protection, radix_tree_deref_slot may fail requiring a retry.
+- */
+-unsigned int
+-radix_tree_gang_lookup_slot(const struct radix_tree_root *root,
+-			void __rcu ***results, unsigned long *indices,
+-			unsigned long first_index, unsigned int max_items)
+-{
+-	struct radix_tree_iter iter;
+-	void __rcu **slot;
+-	unsigned int ret = 0;
+-
+-	if (unlikely(!max_items))
+-		return 0;
+-
+-	radix_tree_for_each_slot(slot, root, &iter, first_index) {
+-		results[ret] = slot;
+-		if (indices)
+-			indices[ret] = iter.index;
+-		if (++ret == max_items)
+-			break;
+-	}
+-
+-	return ret;
+-}
+-EXPORT_SYMBOL(radix_tree_gang_lookup_slot);
+-
+ /**
+  *	radix_tree_gang_lookup_tag - perform multiple lookup on a radix tree
+  *	                             based on a tag
+@@ -1890,23 +1633,6 @@ radix_tree_gang_lookup_tag_slot(const struct radix_tree_root *root,
+ }
+ EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
+ 
+-/**
+- *	__radix_tree_delete_node    -    try to free node after clearing a slot
+- *	@root:		radix tree root
+- *	@node:		node containing @index
+- *	@update_node:	callback for changing leaf nodes
+- *
+- *	After clearing the slot at @index in @node from radix tree
+- *	rooted at @root, call this function to attempt freeing the
+- *	node and shrinking the tree.
+- */
+-void __radix_tree_delete_node(struct radix_tree_root *root,
+-			      struct radix_tree_node *node,
+-			      radix_tree_update_node_t update_node)
+-{
+-	delete_node(root, node, update_node);
+-}
+-
+ static bool __radix_tree_delete(struct radix_tree_root *root,
+ 				struct radix_tree_node *node, void __rcu **slot)
+ {
+@@ -2161,31 +1887,6 @@ radix_tree_node_ctor(void *arg)
+ 	INIT_LIST_HEAD(&node->private_list);
+ }
+ 
+-static __init unsigned long __maxindex(unsigned int height)
+-{
+-	unsigned int width = height * RADIX_TREE_MAP_SHIFT;
+-	int shift = RADIX_TREE_INDEX_BITS - width;
+-
+-	if (shift < 0)
+-		return ~0UL;
+-	if (shift >= BITS_PER_LONG)
+-		return 0UL;
+-	return ~0UL >> shift;
+-}
+-
+-static __init void radix_tree_init_maxnodes(void)
+-{
+-	unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH + 1];
+-	unsigned int i, j;
+-
+-	for (i = 0; i < ARRAY_SIZE(height_to_maxindex); i++)
+-		height_to_maxindex[i] = __maxindex(i);
+-	for (i = 0; i < ARRAY_SIZE(height_to_maxnodes); i++) {
+-		for (j = i; j > 0; j--)
+-			height_to_maxnodes[i] += height_to_maxindex[j - 1] + 1;
 -	}
 -}
 -
--static void dax_unlock_mapping_entry(struct address_space *mapping,
--				     pgoff_t index)
+ static int radix_tree_cpu_dead(unsigned int cpu)
+ {
+ 	struct radix_tree_preload *rtp;
+@@ -2215,7 +1916,6 @@ void __init radix_tree_init(void)
+ 			sizeof(struct radix_tree_node), 0,
+ 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
+ 			radix_tree_node_ctor);
+-	radix_tree_init_maxnodes();
+ 	ret = cpuhp_setup_state_nocalls(CPUHP_RADIX_DEAD, "lib/radix:dead",
+ 					NULL, radix_tree_cpu_dead);
+ 	WARN_ON(ret < 0);
+diff --git a/tools/testing/radix-tree/benchmark.c b/tools/testing/radix-tree/benchmark.c
+index 99c40f3ed133..35741b9c2a4a 100644
+--- a/tools/testing/radix-tree/benchmark.c
++++ b/tools/testing/radix-tree/benchmark.c
+@@ -146,90 +146,6 @@ static void benchmark_size(unsigned long size, unsigned long step, int order)
+ 	rcu_barrier();
+ }
+ 
+-static long long  __benchmark_split(unsigned long index,
+-				    int old_order, int new_order)
 -{
--	void *entry, **slot;
+-	struct timespec start, finish;
+-	long long nsec;
+-	RADIX_TREE(tree, GFP_ATOMIC);
 -
--	xa_lock_irq(&mapping->i_pages);
--	entry = __radix_tree_lookup(&mapping->i_pages, index, NULL, &slot);
--	if (WARN_ON_ONCE(!entry || !xa_is_value(entry) ||
--			 !slot_locked(mapping, slot))) {
--		xa_unlock_irq(&mapping->i_pages);
--		return;
--	}
--	unlock_slot(mapping, slot);
--	xa_unlock_irq(&mapping->i_pages);
--	dax_wake_mapping_entry_waiter(&mapping->i_pages, index, entry, false);
+-	item_insert_order(&tree, index, old_order);
+-
+-	clock_gettime(CLOCK_MONOTONIC, &start);
+-	radix_tree_split(&tree, index, new_order);
+-	clock_gettime(CLOCK_MONOTONIC, &finish);
+-	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
+-	       (finish.tv_nsec - start.tv_nsec);
+-
+-	item_kill_tree(&tree);
+-
+-	return nsec;
+-
 -}
 -
--static void put_locked_mapping_entry(struct address_space *mapping,
--		pgoff_t index)
+-static void benchmark_split(unsigned long size, unsigned long step)
 -{
--	dax_unlock_mapping_entry(mapping, index);
+-	int i, j, idx;
+-	long long nsec = 0;
+-
+-
+-	for (idx = 0; idx < size; idx += step) {
+-		for (i = 3; i < 11; i++) {
+-			for (j = 0; j < i; j++) {
+-				nsec += __benchmark_split(idx, i, j);
+-			}
+-		}
+-	}
+-
+-	printv(2, "Size %8ld, step %8ld, split time %10lld ns\n",
+-			size, step, nsec);
+-
+-}
+-
+-static long long  __benchmark_join(unsigned long index,
+-			     unsigned order1, unsigned order2)
+-{
+-	unsigned long loc;
+-	struct timespec start, finish;
+-	long long nsec;
+-	void *item, *item2 = item_create(index + 1, order1);
+-	RADIX_TREE(tree, GFP_KERNEL);
+-
+-	item_insert_order(&tree, index, order2);
+-	item = radix_tree_lookup(&tree, index);
+-
+-	clock_gettime(CLOCK_MONOTONIC, &start);
+-	radix_tree_join(&tree, index + 1, order1, item2);
+-	clock_gettime(CLOCK_MONOTONIC, &finish);
+-	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
+-		(finish.tv_nsec - start.tv_nsec);
+-
+-	loc = find_item(&tree, item);
+-	if (loc == -1)
+-		free(item);
+-
+-	item_kill_tree(&tree);
+-
+-	return nsec;
+-}
+-
+-static void benchmark_join(unsigned long step)
+-{
+-	int i, j, idx;
+-	long long nsec = 0;
+-
+-	for (idx = 0; idx < 1 << 10; idx += step) {
+-		for (i = 1; i < 15; i++) {
+-			for (j = 0; j < i; j++) {
+-				nsec += __benchmark_join(idx, i, j);
+-			}
+-		}
+-	}
+-
+-	printv(2, "Size %8d, step %8ld, join time %10lld ns\n",
+-			1 << 10, step, nsec);
+-}
+-
+ void benchmark(void)
+ {
+ 	unsigned long size[] = {1 << 10, 1 << 20, 0};
+@@ -247,11 +163,4 @@ void benchmark(void)
+ 	for (c = 0; size[c]; c++)
+ 		for (s = 0; step[s]; s++)
+ 			benchmark_size(size[c], step[s] << 9, 9);
+-
+-	for (c = 0; size[c]; c++)
+-		for (s = 0; step[s]; s++)
+-			benchmark_split(size[c], step[s]);
+-
+-	for (s = 0; step[s]; s++)
+-		benchmark_join(step[s]);
+ }
+diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
+index ed51edc008fd..146b490d5823 100644
+--- a/tools/testing/radix-tree/multiorder.c
++++ b/tools/testing/radix-tree/multiorder.c
+@@ -355,251 +355,6 @@ void multiorder_tagged_iteration(void)
+ 	item_kill_tree(&tree);
+ }
+ 
+-/*
+- * Basic join checks: make sure we can't find an entry in the tree after
+- * a larger entry has replaced it
+- */
+-static void multiorder_join1(unsigned long index,
+-				unsigned order1, unsigned order2)
+-{
+-	unsigned long loc;
+-	void *item, *item2 = item_create(index + 1, order1);
+-	RADIX_TREE(tree, GFP_KERNEL);
+-
+-	item_insert_order(&tree, index, order2);
+-	item = radix_tree_lookup(&tree, index);
+-	radix_tree_join(&tree, index + 1, order1, item2);
+-	loc = find_item(&tree, item);
+-	if (loc == -1)
+-		free(item);
+-	item = radix_tree_lookup(&tree, index + 1);
+-	assert(item == item2);
+-	item_kill_tree(&tree);
 -}
 -
 -/*
-- * Called when we are done with page cache entry we looked up via
-- * get_unlocked_mapping_entry() and which we didn't lock in the end.
+- * Check that the accounting of inline data entries is handled correctly
+- * by joining a data entry to a normal pointer.
 - */
--static void put_unlocked_mapping_entry(struct address_space *mapping,
--				       pgoff_t index, void *entry)
+-static void multiorder_join2(unsigned order1, unsigned order2)
 -{
--	if (!entry)
--		return;
+-	RADIX_TREE(tree, GFP_KERNEL);
+-	struct radix_tree_node *node;
+-	void *item1 = item_create(0, order1);
+-	void *item2;
 -
--	/* We have to wake up next waiter for the page cache entry lock */
--	dax_wake_mapping_entry_waiter(&mapping->i_pages, index, entry, false);
+-	item_insert_order(&tree, 0, order2);
+-	radix_tree_insert(&tree, 1 << order2, xa_mk_value(5));
+-	item2 = __radix_tree_lookup(&tree, 1 << order2, &node, NULL);
+-	assert(item2 == xa_mk_value(5));
+-	assert(node->nr_values == 1);
+-
+-	item2 = radix_tree_lookup(&tree, 0);
+-	free(item2);
+-
+-	radix_tree_join(&tree, 0, order1, item1);
+-	item2 = __radix_tree_lookup(&tree, 1 << order2, &node, NULL);
+-	assert(item2 == item1);
+-	assert(node->nr_values == 0);
+-	item_kill_tree(&tree);
 -}
 -
- static unsigned long dax_entry_size(void *entry)
- {
- 	if (dax_is_zero_entry(entry))
-@@ -473,28 +344,31 @@ static struct page *dax_busy_page(void *entry)
-  * Note: Unlike filemap_fault() we don't honor FAULT_FLAG_RETRY flags. For
-  * persistent memory the benefit is doubtful. We can add that later if we can
-  * show it helps.
-+ *
-+ * On error, this function does not return an ERR_PTR.  Instead it returns
-+ * a VM_FAULT code, encoded as an xarray internal entry.  The ERR_PTR values
-+ * overlap with legitimate entries.
-  */
--static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
--		unsigned long size_flag)
-+static
-+void *grab_mapping_entry(struct xa_state *xas, struct address_space *mapping)
- {
- 	bool pmd_downgrade = false; /* splitting 2MiB entry into 4k entries? */
--	void *entry, **slot;
-+	void *entry;
- 
- restart:
--	xa_lock_irq(&mapping->i_pages);
--	entry = get_unlocked_mapping_entry(mapping, index, &slot);
-+	xas_lock_irq(xas);
-+	entry = get_unlocked_entry(xas);
- 
--	if (WARN_ON_ONCE(entry && !xa_is_value(entry))) {
--		entry = ERR_PTR(-EIO);
-+	if (WARN_ON_ONCE(entry && xa_is_value(entry))) {
-+		entry = xa_mk_internal(VM_FAULT_SIGBUS);
- 		goto out_unlock;
- 	}
- 
- 	if (entry) {
--		if (size_flag & DAX_PMD) {
--			if (dax_is_pte_entry(entry)) {
--				put_unlocked_mapping_entry(mapping, index,
--						entry);
--				entry = ERR_PTR(-EEXIST);
-+		if (xas->xa_shift) {
-+			if (xa_is_internal(entry) || dax_is_pte_entry(entry)) {
-+				put_unlocked_entry(xas, entry);
-+				entry = xa_mk_internal(VM_FAULT_FALLBACK);
- 				goto out_unlock;
- 			}
- 		} else { /* trying to grab a PTE entry */
-@@ -506,87 +380,41 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
- 		}
- 	}
- 
--	/* No entry for given index? Make sure radix tree is big enough. */
--	if (!entry || pmd_downgrade) {
--		int err;
+-/*
+- * This test revealed an accounting bug for inline data entries at one point.
+- * Nodes were being freed back into the pool with an elevated exception count
+- * by radix_tree_join() and then radix_tree_split() was failing to zero the
+- * count of value entries.
+- */
+-static void multiorder_join3(unsigned int order)
+-{
+-	RADIX_TREE(tree, GFP_KERNEL);
+-	struct radix_tree_node *node;
+-	void **slot;
+-	struct radix_tree_iter iter;
+-	unsigned long i;
 -
--		if (pmd_downgrade) {
--			/*
--			 * Make sure 'entry' remains valid while we drop
--			 * the i_pages lock.
--			 */
--			entry = lock_slot(mapping, slot);
--		}
--
--		xa_unlock_irq(&mapping->i_pages);
-+	if (pmd_downgrade) {
-+		dax_lock_entry(xas, entry);
- 		/*
- 		 * Besides huge zero pages the only other thing that gets
- 		 * downgraded are empty entries which don't need to be
- 		 * unmapped.
- 		 */
--		if (pmd_downgrade && dax_is_zero_entry(entry))
--			unmap_mapping_pages(mapping, index & ~PG_PMD_COLOUR,
-+		if (dax_is_zero_entry(entry)) {
-+			xas_unlock_irq(xas);
-+			unmap_mapping_pages(mapping, xas->xa_index,
- 							PG_PMD_NR, false);
--
--		err = radix_tree_preload(
--				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
--		if (err) {
--			if (pmd_downgrade)
--				put_locked_mapping_entry(mapping, index);
--			return ERR_PTR(err);
--		}
--		xa_lock_irq(&mapping->i_pages);
--
--		if (!entry) {
--			/*
--			 * We needed to drop the i_pages lock while calling
--			 * radix_tree_preload() and we didn't have an entry to
--			 * lock.  See if another thread inserted an entry at
--			 * our index during this time.
--			 */
--			entry = __radix_tree_lookup(&mapping->i_pages, index,
--					NULL, &slot);
--			if (entry) {
--				radix_tree_preload_end();
--				xa_unlock_irq(&mapping->i_pages);
--				goto restart;
--			}
-+			xas_reset(xas);
-+			xas_lock_irq(xas);
- 		}
- 
--		if (pmd_downgrade) {
--			dax_disassociate_entry(entry, mapping, false);
--			radix_tree_delete(&mapping->i_pages, index);
--			mapping->nrexceptional--;
--			dax_wake_mapping_entry_waiter(&mapping->i_pages,
--					index, entry, true);
--		}
--
--		entry = dax_mk_locked(0, size_flag | DAX_EMPTY);
--
--		err = __radix_tree_insert(&mapping->i_pages, index,
--				dax_entry_order(entry), entry);
--		radix_tree_preload_end();
--		if (err) {
--			xa_unlock_irq(&mapping->i_pages);
--			/*
--			 * Our insertion of a DAX entry failed, most likely
--			 * because we were inserting a PMD entry and it
--			 * collided with a PTE sized entry at a different
--			 * index in the PMD range.  We haven't inserted
--			 * anything into the radix tree and have no waiters to
--			 * wake.
--			 */
--			return ERR_PTR(err);
--		}
--		/* Good, we have inserted empty locked entry into the tree. */
--		mapping->nrexceptional++;
--		xa_unlock_irq(&mapping->i_pages);
--		return entry;
-+		dax_disassociate_entry(entry, mapping, false);
-+		xas_store(xas, NULL);
-+		mapping->nrexceptional--;
-+		dax_wake_entry(xas, true);
-+	}
-+	if (!entry || pmd_downgrade) {
-+		entry = dax_mk_entry(pfn_to_pfn_t(0), DAX_EMPTY);
-+		dax_lock_entry(xas, entry);
-+		if (!xas_error(xas))
-+			mapping->nrexceptional++;
-+	} else {
-+		dax_lock_entry(xas, entry);
- 	}
--	entry = lock_slot(mapping, slot);
-  out_unlock:
--	xa_unlock_irq(&mapping->i_pages);
--	return entry;
-+	xas_unlock_irq(xas);
-+	if (xas_nomem(xas, GFP_NOIO))
-+		goto restart;
-+	if (!xas_error(xas))
-+		return entry;
-+	return xa_mk_internal(VM_FAULT_OOM);
- }
- 
- /**
-@@ -741,29 +569,25 @@ static int copy_user_dax(struct block_device *bdev, struct dax_device *dax_dev,
-  * already in the tree, we will skip the insertion and just dirty the PMD as
-  * appropriate.
-  */
--static void *dax_insert_entry(struct address_space *mapping,
--				struct vm_fault *vmf, void *entry, pfn_t pfn_t,
--				unsigned long flags, bool dirty)
-+static void *dax_insert_entry(struct xa_state *xas,
-+		struct address_space *mapping, void *entry, pfn_t pfn_t,
-+		unsigned long flags, bool dirty)
- {
--	struct radix_tree_root *pages = &mapping->i_pages;
--	unsigned long pfn = pfn_t_to_pfn(pfn_t);
--	pgoff_t index = vmf->pgoff;
--	void *new_entry;
--
-+	void *new_entry = dax_mk_entry(pfn_t, flags);
- 	if (dirty)
- 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
- 
- 	if (dax_is_zero_entry(entry) && !(flags & DAX_ZERO_PAGE)) {
-+		unsigned long index = xas->xa_index;
- 		/* we are replacing a zero page with block mapping */
- 		if (dax_is_pmd_entry(entry))
--			unmap_mapping_pages(mapping, index & ~PG_PMD_COLOUR,
--							PG_PMD_NR, false);
-+			unmap_mapping_pages(mapping, index, PG_PMD_NR, false);
- 		else /* pte entry */
--			unmap_mapping_pages(mapping, vmf->pgoff, 1, false);
-+			unmap_mapping_pages(mapping, index, 1, false);
- 	}
- 
--	xa_lock_irq(pages);
--	new_entry = dax_mk_locked(pfn, flags);
-+	xas_reset(xas);
-+	xas_lock_irq(xas);
- 	if (dax_entry_size(entry) != dax_entry_size(new_entry)) {
- 		dax_disassociate_entry(entry, mapping, false);
- 		dax_associate_entry(new_entry, mapping);
-@@ -778,21 +602,16 @@ static void *dax_insert_entry(struct address_space *mapping,
- 		 * existing entry is a PMD, we will just leave the PMD in the
- 		 * tree and dirty it if necessary.
- 		 */
--		struct radix_tree_node *node;
--		void **slot;
--		void *ret;
--
--		ret = __radix_tree_lookup(pages, index, &node, &slot);
--		WARN_ON_ONCE(ret != entry);
--		__radix_tree_replace(pages, node, slot,
--				     new_entry, NULL);
-+		dax_lock_entry(xas, new_entry);
- 		entry = new_entry;
- 	}
- 
--	if (dirty)
--		radix_tree_tag_set(pages, index, PAGECACHE_TAG_DIRTY);
-+	if (dirty) {
-+		xas_load(xas);	/* Walk the xa_state */
-+		xas_set_tag(xas, PAGECACHE_TAG_DIRTY);
-+	}
- 
--	xa_unlock_irq(pages);
-+	xas_unlock_irq(xas);
- 	return entry;
- }
- 
-@@ -1060,15 +879,16 @@ static int dax_iomap_pfn(struct iomap *iomap, loff_t pos, size_t size,
-  * If this page is ever written to we will re-fault and change the mapping to
-  * point to real DAX storage instead.
-  */
--static int dax_load_hole(struct address_space *mapping, void *entry,
--			 struct vm_fault *vmf)
-+static int dax_load_hole(struct xa_state *xas, struct address_space *mapping,
-+		void **entry, struct vm_fault *vmf)
- {
- 	struct inode *inode = mapping->host;
- 	unsigned long vaddr = vmf->address;
- 	int ret = VM_FAULT_NOPAGE;
- 	pfn_t pfn = pfn_to_pfn_t(my_zero_pfn(vaddr));
- 
--	dax_insert_entry(mapping, vmf, entry, pfn, DAX_ZERO_PAGE, false);
-+	*entry = dax_insert_entry(xas, mapping, *entry, pfn, DAX_ZERO_PAGE,
-+			false);
- 
- 	vm_insert_mixed(vmf->vma, vaddr, pfn);
- 	trace_dax_load_hole(inode, vmf, ret);
-@@ -1277,6 +1097,7 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
- {
- 	struct vm_area_struct *vma = vmf->vma;
- 	struct address_space *mapping = vma->vm_file->f_mapping;
-+	XA_STATE(xas, &mapping->i_pages, vmf->pgoff);
- 	struct inode *inode = mapping->host;
- 	unsigned long vaddr = vmf->address;
- 	loff_t pos = (loff_t)vmf->pgoff << PAGE_SHIFT;
-@@ -1303,9 +1124,9 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 	if (write && !vmf->cow_page)
- 		flags |= IOMAP_WRITE;
- 
--	entry = grab_mapping_entry(mapping, vmf->pgoff, 0);
--	if (IS_ERR(entry)) {
--		vmf_ret = dax_fault_return(PTR_ERR(entry));
-+	entry = grab_mapping_entry(&xas, mapping);
-+	if (xa_is_internal(entry)) {
-+		vmf_ret = xa_to_internal(entry);
- 		goto out;
- 	}
- 
-@@ -1378,7 +1199,7 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 		if (error < 0)
- 			goto error_finish_iomap;
- 
--		entry = dax_insert_entry(mapping, vmf, entry, pfn,
-+		entry = dax_insert_entry(&xas, mapping, entry, pfn,
- 						 0, write && !sync);
- 
- 		/*
-@@ -1409,7 +1230,7 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 	case IOMAP_UNWRITTEN:
- 	case IOMAP_HOLE:
- 		if (!write) {
--			vmf_ret = dax_load_hole(mapping, entry, vmf);
-+			vmf_ret = dax_load_hole(&xas, mapping, &entry, vmf);
- 			goto finish_iomap;
- 		}
- 		/*FALLTHRU*/
-@@ -1436,21 +1257,20 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 		ops->iomap_end(inode, pos, PAGE_SIZE, copied, flags, &iomap);
- 	}
-  unlock_entry:
--	put_locked_mapping_entry(mapping, vmf->pgoff);
-+	put_locked_entry(&xas, entry);
-  out:
- 	trace_dax_pte_fault_done(inode, vmf, vmf_ret);
- 	return vmf_ret;
- }
- 
- #ifdef CONFIG_FS_DAX_PMD
--static int dax_pmd_load_hole(struct vm_fault *vmf, struct iomap *iomap,
--		void *entry)
-+static int dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
-+		struct iomap *iomap, void **entry)
- {
- 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
- 	unsigned long pmd_addr = vmf->address & PMD_MASK;
- 	struct inode *inode = mapping->host;
- 	struct page *zero_page;
--	void *ret = NULL;
- 	spinlock_t *ptl;
- 	pmd_t pmd_entry;
- 	pfn_t pfn;
-@@ -1461,7 +1281,7 @@ static int dax_pmd_load_hole(struct vm_fault *vmf, struct iomap *iomap,
- 		goto fallback;
- 
- 	pfn = page_to_pfn_t(zero_page);
--	ret = dax_insert_entry(mapping, vmf, entry, pfn,
-+	*entry = dax_insert_entry(xas, mapping, *entry, pfn,
- 			DAX_PMD | DAX_ZERO_PAGE, false);
- 
- 	ptl = pmd_lock(vmf->vma->vm_mm, vmf->pmd);
-@@ -1474,11 +1294,11 @@ static int dax_pmd_load_hole(struct vm_fault *vmf, struct iomap *iomap,
- 	pmd_entry = pmd_mkhuge(pmd_entry);
- 	set_pmd_at(vmf->vma->vm_mm, pmd_addr, vmf->pmd, pmd_entry);
- 	spin_unlock(ptl);
--	trace_dax_pmd_load_hole(inode, vmf, zero_page, ret);
-+	trace_dax_pmd_load_hole(inode, vmf, zero_page, *entry);
- 	return VM_FAULT_NOPAGE;
- 
- fallback:
--	trace_dax_pmd_load_hole_fallback(inode, vmf, zero_page, ret);
-+	trace_dax_pmd_load_hole_fallback(inode, vmf, zero_page, *entry);
- 	return VM_FAULT_FALLBACK;
- }
- 
-@@ -1487,6 +1307,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
- {
- 	struct vm_area_struct *vma = vmf->vma;
- 	struct address_space *mapping = vma->vm_file->f_mapping;
-+	XA_STATE_ORDER(xas, &mapping->i_pages, vmf->pgoff, PMD_ORDER);
- 	unsigned long pmd_addr = vmf->address & PMD_MASK;
- 	bool write = vmf->flags & FAULT_FLAG_WRITE;
- 	bool sync;
-@@ -1494,7 +1315,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 	struct inode *inode = mapping->host;
- 	int result = VM_FAULT_FALLBACK;
- 	struct iomap iomap = { 0 };
--	pgoff_t max_pgoff, pgoff;
-+	pgoff_t max_pgoff;
- 	void *entry;
- 	loff_t pos;
- 	int error;
-@@ -1505,7 +1326,6 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 	 * supposed to hold locks serializing us with truncate / punch hole so
- 	 * this is a reliable test.
- 	 */
--	pgoff = linear_page_index(vma, pmd_addr);
- 	max_pgoff = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
- 
- 	trace_dax_pmd_fault(inode, vmf, max_pgoff, 0);
-@@ -1530,13 +1350,8 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 	if ((pmd_addr + PMD_SIZE) > vma->vm_end)
- 		goto fallback;
- 
--	if (pgoff >= max_pgoff) {
--		result = VM_FAULT_SIGBUS;
--		goto out;
+-	for (i = 0; i < (1 << order); i++) {
+-		radix_tree_insert(&tree, i, xa_mk_value(5));
 -	}
 -
- 	/* If the PMD would extend beyond the file size */
--	if ((pgoff | PG_PMD_COLOUR) >= max_pgoff)
-+	if ((xas.xa_index | PG_PMD_COLOUR) >= max_pgoff)
- 		goto fallback;
+-	radix_tree_join(&tree, 0, order, xa_mk_value(7));
+-	rcu_barrier();
+-
+-	radix_tree_split(&tree, 0, 0);
+-
+-	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+-		radix_tree_iter_replace(&tree, &iter, slot, xa_mk_value(5));
+-	}
+-
+-	__radix_tree_lookup(&tree, 0, &node, NULL);
+-	assert(node->nr_values == node->count);
+-
+-	item_kill_tree(&tree);
+-}
+-
+-static void multiorder_join(void)
+-{
+-	int i, j, idx;
+-
+-	for (idx = 0; idx < 1024; idx = idx * 2 + 3) {
+-		for (i = 1; i < 15; i++) {
+-			for (j = 0; j < i; j++) {
+-				multiorder_join1(idx, i, j);
+-			}
+-		}
+-	}
+-
+-	for (i = 1; i < 15; i++) {
+-		for (j = 0; j < i; j++) {
+-			multiorder_join2(i, j);
+-		}
+-	}
+-
+-	for (i = 3; i < 10; i++) {
+-		multiorder_join3(i);
+-	}
+-}
+-
+-static void check_mem(unsigned old_order, unsigned new_order, unsigned alloc)
+-{
+-	struct radix_tree_preload *rtp = &radix_tree_preloads;
+-	if (rtp->nr != 0)
+-		printv(2, "split(%u %u) remaining %u\n", old_order, new_order,
+-							rtp->nr);
+-	/*
+-	 * Can't check for equality here as some nodes may have been
+-	 * RCU-freed while we ran.  But we should never finish with more
+-	 * nodes allocated since they should have all been preloaded.
+-	 */
+-	if (nr_allocated > alloc)
+-		printv(2, "split(%u %u) allocated %u %u\n", old_order, new_order,
+-							alloc, nr_allocated);
+-}
+-
+-static void __multiorder_split(int old_order, int new_order)
+-{
+-	RADIX_TREE(tree, GFP_ATOMIC);
+-	void **slot;
+-	struct radix_tree_iter iter;
+-	unsigned alloc;
+-	struct item *item;
+-
+-	radix_tree_preload(GFP_KERNEL);
+-	assert(item_insert_order(&tree, 0, old_order) == 0);
+-	radix_tree_preload_end();
+-
+-	/* Wipe out the preloaded cache or it'll confuse check_mem() */
+-	radix_tree_cpu_dead(0);
+-
+-	item = radix_tree_tag_set(&tree, 0, 2);
+-
+-	radix_tree_split_preload(old_order, new_order, GFP_KERNEL);
+-	alloc = nr_allocated;
+-	radix_tree_split(&tree, 0, new_order);
+-	check_mem(old_order, new_order, alloc);
+-	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+-		radix_tree_iter_replace(&tree, &iter, slot,
+-					item_create(iter.index, new_order));
+-	}
+-	radix_tree_preload_end();
+-
+-	item_kill_tree(&tree);
+-	free(item);
+-}
+-
+-static void __multiorder_split2(int old_order, int new_order)
+-{
+-	RADIX_TREE(tree, GFP_KERNEL);
+-	void **slot;
+-	struct radix_tree_iter iter;
+-	struct radix_tree_node *node;
+-	void *item;
+-
+-	__radix_tree_insert(&tree, 0, old_order, xa_mk_value(5));
+-
+-	item = __radix_tree_lookup(&tree, 0, &node, NULL);
+-	assert(item == xa_mk_value(5));
+-	assert(node->nr_values > 0);
+-
+-	radix_tree_split(&tree, 0, new_order);
+-	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+-		radix_tree_iter_replace(&tree, &iter, slot,
+-					item_create(iter.index, new_order));
+-	}
+-
+-	item = __radix_tree_lookup(&tree, 0, &node, NULL);
+-	assert(item != xa_mk_value(5));
+-	assert(node->nr_values == 0);
+-
+-	item_kill_tree(&tree);
+-}
+-
+-static void __multiorder_split3(int old_order, int new_order)
+-{
+-	RADIX_TREE(tree, GFP_KERNEL);
+-	void **slot;
+-	struct radix_tree_iter iter;
+-	struct radix_tree_node *node;
+-	void *item;
+-
+-	__radix_tree_insert(&tree, 0, old_order, xa_mk_value(5));
+-
+-	item = __radix_tree_lookup(&tree, 0, &node, NULL);
+-	assert(item == xa_mk_value(5));
+-	assert(node->nr_values > 0);
+-
+-	radix_tree_split(&tree, 0, new_order);
+-	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+-		radix_tree_iter_replace(&tree, &iter, slot, xa_mk_value(7));
+-	}
+-
+-	item = __radix_tree_lookup(&tree, 0, &node, NULL);
+-	assert(item == xa_mk_value(7));
+-	assert(node->nr_values > 0);
+-
+-	item_kill_tree(&tree);
+-
+-	__radix_tree_insert(&tree, 0, old_order, xa_mk_value(5));
+-
+-	item = __radix_tree_lookup(&tree, 0, &node, NULL);
+-	assert(item == xa_mk_value(5));
+-	assert(node->nr_values > 0);
+-
+-	radix_tree_split(&tree, 0, new_order);
+-	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+-		if (iter.index == (1 << new_order))
+-			radix_tree_iter_replace(&tree, &iter, slot,
+-						xa_mk_value(7));
+-		else
+-			radix_tree_iter_replace(&tree, &iter, slot, NULL);
+-	}
+-
+-	item = __radix_tree_lookup(&tree, 1 << new_order, &node, NULL);
+-	assert(item == xa_mk_value(7));
+-	assert(node->count == node->nr_values);
+-	do {
+-		node = node->parent;
+-		if (!node)
+-			break;
+-		assert(node->count == 1);
+-		assert(node->nr_values == 0);
+-	} while (1);
+-
+-	item_kill_tree(&tree);
+-}
+-
+-static void multiorder_split(void)
+-{
+-	int i, j;
+-
+-	for (i = 3; i < 11; i++)
+-		for (j = 0; j < i; j++) {
+-			__multiorder_split(i, j);
+-			__multiorder_split2(i, j);
+-			__multiorder_split3(i, j);
+-		}
+-}
+-
+ static void multiorder_account(void)
+ {
+ 	RADIX_TREE(tree, GFP_KERNEL);
+@@ -640,8 +395,6 @@ void multiorder_checks(void)
+ 	multiorder_tag_tests();
+ 	multiorder_iteration();
+ 	multiorder_tagged_iteration();
+-	multiorder_join();
+-	multiorder_split();
+ 	multiorder_account();
  
- 	/*
-@@ -1545,9 +1360,11 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 	 * is already in the tree, for instance), it will return -EEXIST and
- 	 * we just fall back to 4k entries.
- 	 */
--	entry = grab_mapping_entry(mapping, pgoff, DAX_PMD);
--	if (IS_ERR(entry))
-+	entry = grab_mapping_entry(&xas, mapping);
-+	if (xa_is_internal(entry)) {
-+		result = xa_to_internal(entry);
- 		goto fallback;
-+	}
- 
- 	/*
- 	 * It is possible, particularly with mixed reads & writes to private
-@@ -1566,7 +1383,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 	 * setting up a mapping, so really we're using iomap_begin() as a way
- 	 * to look up our filesystem block.
- 	 */
--	pos = (loff_t)pgoff << PAGE_SHIFT;
-+	pos = (loff_t)xas.xa_index << PAGE_SHIFT;
- 	error = ops->iomap_begin(inode, pos, PMD_SIZE, iomap_flags, &iomap);
- 	if (error)
- 		goto unlock_entry;
-@@ -1582,7 +1399,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 		if (error < 0)
- 			goto finish_iomap;
- 
--		entry = dax_insert_entry(mapping, vmf, entry, pfn,
-+		entry = dax_insert_entry(&xas, mapping, entry, pfn,
- 						DAX_PMD, write && !sync);
- 
- 		/*
-@@ -1607,7 +1424,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 	case IOMAP_HOLE:
- 		if (WARN_ON_ONCE(write))
- 			break;
--		result = dax_pmd_load_hole(vmf, &iomap, entry);
-+		result = dax_pmd_load_hole(&xas, vmf, &iomap, &entry);
- 		break;
- 	default:
- 		WARN_ON_ONCE(1);
-@@ -1630,13 +1447,12 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 				&iomap);
- 	}
-  unlock_entry:
--	put_locked_mapping_entry(mapping, pgoff);
-+	put_locked_entry(&xas, entry);
-  fallback:
- 	if (result == VM_FAULT_FALLBACK) {
- 		split_huge_pmd(vma, vmf->pmd, vmf->address);
- 		count_vm_event(THP_FAULT_FALLBACK);
- 	}
--out:
- 	trace_dax_pmd_fault_done(inode, vmf, max_pgoff, result);
- 	return result;
- }
+ 	radix_tree_cpu_dead(0);
 -- 
 2.16.2
