@@ -1,59 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9672E6B000E
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:31:23 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id x81so5682596pgx.21
-        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:31:23 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h2-v6sor3358448plr.151.2018.03.29.20.31.22
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 707D86B0011
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:42:56 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id v25so5708090pgn.20
+        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:42:56 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id y11si4881294pgo.735.2018.03.29.20.42.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 29 Mar 2018 20:31:22 -0700 (PDT)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH] mm/memblock: fix potential issue in memblock_search_pfn_nid()
-Date: Fri, 30 Mar 2018 11:30:55 +0800
-Message-Id: <20180330033055.22340-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 29 Mar 2018 20:42:54 -0700 (PDT)
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH v10 34/62] mm: Convert khugepaged_scan_shmem to XArray
+Date: Thu, 29 Mar 2018 20:42:17 -0700
+Message-Id: <20180330034245.10462-35-willy@infradead.org>
+In-Reply-To: <20180330034245.10462-1-willy@infradead.org>
+References: <20180330034245.10462-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, yinghai@kernel.org
-Cc: linux-mm@kvack.org, hejianet@gmail.com, Wei Yang <richard.weiyang@gmail.com>, "3 . 12+" <stable@vger.kernel.org>
+To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-memblock_search_pfn_nid() returns the nid and the [start|end]_pfn of the
-memory region where pfn sits in. While the calculation of start_pfn has
-potential issue when the regions base is not page aligned.
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-For example, we assume PAGE_SHIFT is 12 and base is 0x1234. Current
-implementation would return 1 while this is not correct.
+Slightly shorter and easier to read code.
 
-This patch fixes this by using PFN_UP().
-
-The original commit is commit e76b63f80d93 ("memblock, numa: binary search
-node id") and merged in v3.12.
-
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-Cc: 3.12+ <stable@vger.kernel.org>
-
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
-* add He Jia in cc
-* fix the mm mail list address
-* Cc: 3.12+
+ mm/khugepaged.c | 17 +++++------------
+ 1 file changed, 5 insertions(+), 12 deletions(-)
 
----
- mm/memblock.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index b6ba6b7adadc..de768307696d 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1673,7 +1673,7 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
- 	if (mid == -1)
- 		return -1;
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 193bacac91a8..7c6343db7de0 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1542,8 +1542,7 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
+ 		pgoff_t start, struct page **hpage)
+ {
+ 	struct page *page = NULL;
+-	struct radix_tree_iter iter;
+-	void **slot;
++	XA_STATE(xas, &mapping->i_pages, start);
+ 	int present, swap;
+ 	int node = NUMA_NO_NODE;
+ 	int result = SCAN_SUCCEED;
+@@ -1552,17 +1551,11 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
+ 	swap = 0;
+ 	memset(khugepaged_node_load, 0, sizeof(khugepaged_node_load));
+ 	rcu_read_lock();
+-	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
+-		if (iter.index >= start + HPAGE_PMD_NR)
+-			break;
+-
+-		page = radix_tree_deref_slot(slot);
+-		if (radix_tree_deref_retry(page)) {
+-			slot = radix_tree_iter_retry(&iter);
++	xas_for_each(&xas, page, start + HPAGE_PMD_NR - 1) {
++		if (xas_retry(&xas, page))
+ 			continue;
+-		}
  
--	*start_pfn = PFN_DOWN(type->regions[mid].base);
-+	*start_pfn = PFN_UP(type->regions[mid].base);
- 	*end_pfn = PFN_DOWN(type->regions[mid].base + type->regions[mid].size);
+-		if (radix_tree_exception(page)) {
++		if (xa_is_value(page)) {
+ 			if (++swap > khugepaged_max_ptes_swap) {
+ 				result = SCAN_EXCEED_SWAP_PTE;
+ 				break;
+@@ -1601,7 +1594,7 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
+ 		present++;
  
- 	return type->regions[mid].nid;
+ 		if (need_resched()) {
+-			slot = radix_tree_iter_resume(slot, &iter);
++			xas_pause(&xas);
+ 			cond_resched_rcu();
+ 		}
+ 	}
 -- 
-2.15.1
+2.16.2
