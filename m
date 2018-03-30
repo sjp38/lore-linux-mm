@@ -1,145 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A9D916B0027
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 05:24:28 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id y10-v6so4552985oia.15
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 02:24:28 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p189-v6sor3201421oih.28.2018.03.30.02.24.27
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B593D6B0027
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 05:57:37 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z15so3989280wrh.10
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 02:57:37 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id d15si3007695wma.224.2018.03.30.02.57.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 30 Mar 2018 02:24:27 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Mar 2018 02:57:36 -0700 (PDT)
+Date: Fri, 30 Mar 2018 11:57:35 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
+Message-ID: <20180330095735.GA15641@amd>
+References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
+ <20180330075508.GA21798@amd>
+ <95EECC28-7349-4FB4-88BF-26E4CF087A0B@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1522397755-33393-5-git-send-email-hejianet@gmail.com>
-References: <1522397755-33393-1-git-send-email-hejianet@gmail.com> <1522397755-33393-5-git-send-email-hejianet@gmail.com>
-From: Daniel Vacek <neelx@redhat.com>
-Date: Fri, 30 Mar 2018 11:24:26 +0200
-Message-ID: <CACjP9X94DSJZOAgbjw+suRQJZ-X2dN3WrJaKNDLUBPjP8PFv1w@mail.gmail.com>
-Subject: Re: [PATCH v4 4/5] arm64: introduce pfn_valid_region()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="KsGdsel6WgEHnImy"
+Content-Disposition: inline
+In-Reply-To: <95EECC28-7349-4FB4-88BF-26E4CF087A0B@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jia He <hejianet@gmail.com>
-Cc: Russell King <linux@armlinux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Steve Capper <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, richard.weiyang@gmail.com, Jia He <jia.he@hxt-semitech.com>
+To: Ilya Smith <blackzert@gmail.com>
+Cc: rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, jhogan@kernel.org, ralf@linux-mips.org, jejb@parisc-linux.org, Helge Deller <deller@gmx.de>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, Michal Hocko <mhocko@suse.com>, hughd@google.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, akpm@linux-foundation.org, steve.capper@arm.com, punit.agrawal@arm.com, paul.burton@mips.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, keescook@chromium.org, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, jglisse@redhat.com, willy@infradead.org, aarcange@redhat.com, oleg@redhat.com, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Mar 30, 2018 at 10:15 AM, Jia He <hejianet@gmail.com> wrote:
-> This is the preparation for further optimizing in early_pfn_valid
-> on arm and arm64.
->
-> Signed-off-by: Jia He <jia.he@hxt-semitech.com>
-> ---
->  arch/arm/include/asm/page.h   |  3 ++-
->  arch/arm/mm/init.c            | 23 +++++++++++++++++++++++
->  arch/arm64/include/asm/page.h |  3 ++-
->  arch/arm64/mm/init.c          | 23 +++++++++++++++++++++++
->  4 files changed, 50 insertions(+), 2 deletions(-)
->
-> diff --git a/arch/arm/include/asm/page.h b/arch/arm/include/asm/page.h
-> index 7a0404f..559b414 100644
-> --- a/arch/arm/include/asm/page.h
-> +++ b/arch/arm/include/asm/page.h
-> @@ -158,7 +158,8 @@ typedef struct page *pgtable_t;
->
->  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
->  extern int early_region_idx;
-> -extern int pfn_valid(unsigned long);
-> +extern int pfn_valid(unsigned long pfn);
-> +extern int pfn_valid_region(unsigned long pfn, int *last_idx);
->  #endif
->
->  #include <asm/memory.h>
-> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-> index 7779804..11f9b82 100644
-> --- a/arch/arm/mm/init.c
-> +++ b/arch/arm/mm/init.c
-> @@ -201,6 +201,29 @@ int pfn_valid(unsigned long pfn)
->  }
->  EXPORT_SYMBOL(pfn_valid);
->
-> +int pfn_valid_region(unsigned long pfn, int *last_idx)
-> +{
-> +       unsigned long start_pfn, end_pfn;
-> +       struct memblock_type *type = &memblock.memory;
-> +       struct memblock_region *regions = type->regions;
-> +
-> +       if (*last_idx != -1) {
-> +               start_pfn = PFN_DOWN(regions[*last_idx].base);
-> +               end_pfn = PFN_DOWN(regions[*last_idx].base +
-> +                                       regions[*last_idx].size);
-> +
-> +               if (pfn >= start_pfn && pfn < end_pfn)
-> +                       return !memblock_is_nomap(&regions[*last_idx]);
-> +       }
-> +
-> +       *last_idx = memblock_search_pfn_regions(pfn);
-> +       if (*last_idx == -1)
-> +               return false;
-> +
-> +       return !memblock_is_nomap(&regions[*last_idx]);
-> +}
-> +EXPORT_SYMBOL(pfn_valid_region);
-> +
->  /* HAVE_MEMBLOCK is always enabled on arm */
->  unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
->                                                         int *last_idx)
 
-Since you have both functions in the same file, can you make the
-early_region_idx global static here and get rid of the arguments,
-perhaps?
+--KsGdsel6WgEHnImy
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> diff --git a/arch/arm64/include/asm/page.h b/arch/arm64/include/asm/page.h
-> index 84b503a..27892d5 100644
-> --- a/arch/arm64/include/asm/page.h
-> +++ b/arch/arm64/include/asm/page.h
-> @@ -39,7 +39,8 @@ typedef struct page *pgtable_t;
->
->  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
->  extern int early_region_idx;
-> -extern int pfn_valid(unsigned long);
-> +extern int pfn_valid(unsigned long pfn);
-> +extern int pfn_valid_region(unsigned long pfn, int *last_idx);
->  #endif
->
->  #include <asm/memory.h>
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> index cd9b473..6dedd77 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -293,6 +293,29 @@ int pfn_valid(unsigned long pfn)
->  }
->  EXPORT_SYMBOL(pfn_valid);
->
-> +int pfn_valid_region(unsigned long pfn, int *last_idx)
-> +{
-> +       unsigned long start_pfn, end_pfn;
-> +       struct memblock_type *type = &memblock.memory;
-> +       struct memblock_region *regions = type->regions;
-> +
-> +       if (*last_idx != -1) {
-> +               start_pfn = PFN_DOWN(regions[*last_idx].base);
-> +               end_pfn = PFN_DOWN(regions[*last_idx].base +
-> +                               regions[*last_idx].size);
-> +
-> +               if (pfn >= start_pfn && pfn < end_pfn)
-> +                       return !memblock_is_nomap(&regions[*last_idx]);
-> +       }
-> +
-> +       *last_idx = memblock_search_pfn_regions(pfn);
-> +       if (*last_idx == -1)
-> +               return false;
-> +
-> +       return !memblock_is_nomap(&regions[*last_idx]);
-> +}
-> +EXPORT_SYMBOL(pfn_valid_region);
-> +
->  /* HAVE_MEMBLOCK is always enabled on arm64 */
->  unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
->                                                         int *last_idx)
+On Fri 2018-03-30 12:07:58, Ilya Smith wrote:
+> Hi
+>=20
+> > On 30 Mar 2018, at 10:55, Pavel Machek <pavel@ucw.cz> wrote:
+> >=20
+> > Hi!
+> >=20
+> >> Current implementation doesn't randomize address returned by mmap.
+> >> All the entropy ends with choosing mmap_base_addr at the process
+> >> creation. After that mmap build very predictable layout of address
+> >> space. It allows to bypass ASLR in many cases. This patch make
+> >> randomization of address on any mmap call.
+> >=20
+> > How will this interact with people debugging their application, and
+> > getting different behaviours based on memory layout?
+> >=20
+> > strace, strace again, get different results?
+> >=20
+>=20
+> Honestly I=E2=80=99m confused about your question. If the only one way fo=
+r debugging=20
+> application is to use predictable mmap behaviour, then something went wro=
+ng in=20
+> this live and we should stop using computers at all.
 
-Ditto.
+I'm not saying "only way". I'm saying one way, and you are breaking
+that. There's advanced stuff like debuggers going "back in time".
 
---nX
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
 
-> --
-> 2.7.4
->
+--KsGdsel6WgEHnImy
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAlq+Cg8ACgkQMOfwapXb+vJu0QCdEsEH77ETyX2HVZNSmFfJe/v+
+DCwAnjMGWij1bTYek7//IiDd4px1ZWUT
+=qmNi
+-----END PGP SIGNATURE-----
+
+--KsGdsel6WgEHnImy--
