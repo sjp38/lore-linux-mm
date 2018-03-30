@@ -1,81 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C5F436B000D
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 07:10:27 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id g15-v6so2620567lfj.16
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 04:10:27 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 566056B0010
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 08:09:25 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id c1so4045565wri.22
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 05:09:25 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d5sor1903656ljc.84.2018.03.30.04.10.25
+        by mx.google.com with SMTPS id i30sor3893893wra.37.2018.03.30.05.09.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 30 Mar 2018 04:10:25 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
-Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
-From: Ilya Smith <blackzert@gmail.com>
-In-Reply-To: <20180330095735.GA15641@amd>
-Date: Fri, 30 Mar 2018 14:10:21 +0300
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <4F529F89-6595-4DE9-87C2-C3D971C76658@gmail.com>
-References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
- <20180330075508.GA21798@amd> <95EECC28-7349-4FB4-88BF-26E4CF087A0B@gmail.com>
- <20180330095735.GA15641@amd>
+        Fri, 30 Mar 2018 05:09:23 -0700 (PDT)
+Date: Fri, 30 Mar 2018 14:09:20 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/11] Use global pages with PTI
+Message-ID: <20180330120920.btobga44wqytlkoe@gmail.com>
+References: <20180323174447.55F35636@viggo.jf.intel.com>
+ <CA+55aFwEC1O+6qRc35XwpcuLSgJ+0GP6ciqw_1Oc-msX=efLvQ@mail.gmail.com>
+ <be2e683c-bf0a-e9ce-2f02-4905f6bd56d3@linux.intel.com>
+ <alpine.DEB.2.21.1803271526260.1964@nanos.tec.linutronix.de>
+ <c0e7ca0b-dcb5-66e2-9df6-f53e4eb22781@linux.intel.com>
+ <alpine.DEB.2.21.1803271949250.1618@nanos.tec.linutronix.de>
+ <20180327200719.lvdomez6hszpmo4s@gmail.com>
+ <0d6ea030-ec3b-d649-bad7-89ff54094e25@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0d6ea030-ec3b-d649-bad7-89ff54094e25@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, jhogan@kernel.org, ralf@linux-mips.org, jejb@parisc-linux.org, Helge Deller <deller@gmx.de>, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, Michal Hocko <mhocko@suse.com>, hughd@google.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, akpm@linux-foundation.org, steve.capper@arm.com, punit.agrawal@arm.com, paul.burton@mips.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, keescook@chromium.org, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, jglisse@redhat.com, willy@infradead.org, aarcange@redhat.com, oleg@redhat.com, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?iso-8859-1?Q?J=FCrgen_Gro=DF?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
 
 
-> On 30 Mar 2018, at 12:57, Pavel Machek <pavel@ucw.cz> wrote:
->=20
-> On Fri 2018-03-30 12:07:58, Ilya Smith wrote:
->> Hi
->>=20
->>> On 30 Mar 2018, at 10:55, Pavel Machek <pavel@ucw.cz> wrote:
->>>=20
->>> Hi!
->>>=20
->>>> Current implementation doesn't randomize address returned by mmap.
->>>> All the entropy ends with choosing mmap_base_addr at the process
->>>> creation. After that mmap build very predictable layout of address
->>>> space. It allows to bypass ASLR in many cases. This patch make
->>>> randomization of address on any mmap call.
->>>=20
->>> How will this interact with people debugging their application, and
->>> getting different behaviours based on memory layout?
->>>=20
->>> strace, strace again, get different results?
->>>=20
->>=20
->> Honestly I=E2=80=99m confused about your question. If the only one =
-way for debugging=20
->> application is to use predictable mmap behaviour, then something went =
-wrong in=20
->> this live and we should stop using computers at all.
->=20
-> I'm not saying "only way". I'm saying one way, and you are breaking
-> that. There's advanced stuff like debuggers going "back in time".
->=20
+* Dave Hansen <dave.hansen@linux.intel.com> wrote:
 
-Correct me if I wrong, when you run gdb for instance and try to debug =
-some=20
-application, gdb will disable randomization. This behaviour works with =
-gdb=20
-command: set disable-randomization on. As I know, gdb remove flag =
-PF_RANDOMIZE=20
-from current personality thats how it disables ASLR for debugging =
-process.=20
-According to my patch, flag PF_RANDOMIZE is checked before calling=20
-unmapped_area_random. So I don=E2=80=99t breaking debugging. If you =
-talking about the=20
-case, when your application crashes under customer environment and you =
-want to
-debug it; in this case layout of memory is what you don=E2=80=99t =
-control at all and=20
-you have to understand what is where. So for debugging memory process =
-layout is
-not what you should care of.
+> On 03/27/2018 01:07 PM, Ingo Molnar wrote:
+> > * Thomas Gleixner <tglx@linutronix.de> wrote:
+> >>> systems.  Atoms are going to be the easiest thing to get my hands on,
+> >>> but I tend to shy away from them for performance work.
+> >> What I have in mind is that I wonder whether the whole circus is worth it
+> >> when there is no performance advantage on PCID systems.
+> 
+> I was waiting on trying to find a relatively recent Atom system (they
+> actually come in reasonably sized servers [1]), but I'm hitting a snag
+> there, so I figured I'd just share a kernel compile using Ingo's
+> perf-based methodology on a Skylake desktop system with PCIDs.
+>
+> Here's the kernel compile:
+> 
+> No Global pages (baseline): 186.951 seconds time elapsed  ( +-  0.35% )
+> 28 Global pages (this set): 185.756 seconds time elapsed  ( +-  0.09% )
+>                              -1.195 seconds (-0.64%)
+> 
+> Lower is better here, obviously.
+> 
+> I also re-checked everything using will-it-scale's llseek1 test[2] which
+> is basically a microbenchmark of a halfway reasonable syscall.  Higher
+> here is better.
+> 
+> No Global pages (baseline): 15783951 lseeks/sec
+> 28 Global pages (this set): 16054688 lseeks/sec
+> 			     +270737 lseeks/sec (+1.71%)
+> 
+> So, both the kernel compile and the microbenchmark got measurably faster.
+
+Ok, cool, this is much better!
+
+Mind re-sending the patch-set against latest -tip so it can be merged?
+
+At this point !PCID Intel hardware is not a primary concern, if something bad 
+happens on them with global pages we can quirk global pages off on them in some 
+way, or so.
 
 Thanks,
-Ilya
+
+	Ingo
