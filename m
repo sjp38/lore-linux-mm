@@ -1,54 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 169A46B025F
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 17:42:14 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id o9so1692144pgv.8
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 14:42:14 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x7-v6si4189302pln.175.2018.03.30.14.42.12
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 94F6D6B026A
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 19:38:55 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 140-v6so9249369itg.4
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 16:38:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z64sor3917005ioz.158.2018.03.30.16.38.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Mar 2018 14:42:12 -0700 (PDT)
-Date: Fri, 30 Mar 2018 17:42:09 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180330174209.4cb77003@gandalf.local.home>
-In-Reply-To: <20180330173031.257a491a@gandalf.local.home>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-	<20180330102038.2378925b@gandalf.local.home>
-	<20180330205356.GA13332@bombadil.infradead.org>
-	<20180330173031.257a491a@gandalf.local.home>
+        (Google Transport Security);
+        Fri, 30 Mar 2018 16:38:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180330174209.4cb77003@gandalf.local.home>
+References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+ <20180330102038.2378925b@gandalf.local.home> <20180330205356.GA13332@bombadil.infradead.org>
+ <20180330173031.257a491a@gandalf.local.home> <20180330174209.4cb77003@gandalf.local.home>
+From: Joel Fernandes <joelaf@google.com>
+Date: Fri, 30 Mar 2018 16:38:52 -0700
+Message-ID: <CAJWu+orx=NZrkAf7x_HqttnrMssmW7DPZOL1fxR=N6D_-fbmtw@mail.gmail.com>
+Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
 
-On Fri, 30 Mar 2018 17:30:31 -0400
-Steven Rostedt <rostedt@goodmis.org> wrote:
+Hi Steven,
 
-> I'll take a look at si_mem_available() that Joel suggested and see if
-> we can make that work.
+On Fri, Mar 30, 2018 at 2:42 PM, Steven Rostedt <rostedt@goodmis.org> wrote:
+> On Fri, 30 Mar 2018 17:30:31 -0400
+> Steven Rostedt <rostedt@goodmis.org> wrote:
+>
+>> I'll take a look at si_mem_available() that Joel suggested and see if
+>> we can make that work.
+>
+> Wow, this appears to work great! Joel and Zhaoyang, can you test this?
+>
+> -- Steve
+>
+> diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
+> index a2fd3893cc02..32a803626ee2 100644
+> --- a/kernel/trace/ring_buffer.c
+> +++ b/kernel/trace/ring_buffer.c
+> @@ -1164,6 +1164,11 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
+>         struct buffer_page *bpage, *tmp;
+>         long i;
+>
+> +       /* Check if the available memory is there first */
+> +       i = si_mem_available();
+> +       if (i < nr_pages)
 
-Wow, this appears to work great! Joel and Zhaoyang, can you test this?
+Does it make sense to add a small margin here so that after ftrace
+finishes allocating, we still have some memory left for the system?
+But then then we have to define a magic number :-|
 
--- Steve
+> +               return -ENOMEM;
+> +
 
-diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
-index a2fd3893cc02..32a803626ee2 100644
---- a/kernel/trace/ring_buffer.c
-+++ b/kernel/trace/ring_buffer.c
-@@ -1164,6 +1164,11 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
- 	struct buffer_page *bpage, *tmp;
- 	long i;
- 
-+	/* Check if the available memory is there first */
-+	i = si_mem_available();
-+	if (i < nr_pages)
-+		return -ENOMEM;
-+
- 	for (i = 0; i < nr_pages; i++) {
- 		struct page *page;
- 		/*
+I tested in Qemu with 1GB memory, I am always able to get it to fail
+allocation even without this patch without causing an OOM. Maybe I am
+not running enough allocations in parallel or something :)
+
+The patch you shared using si_mem_available is working since I'm able
+to allocate till the end without a page allocation failure:
+
+bash-4.3# echo 237800 > /d/tracing/buffer_size_kb
+bash: echo: write error: Cannot allocate memory
+bash-4.3# echo 237700 > /d/tracing/buffer_size_kb
+bash-4.3# free -m
+             total         used         free       shared      buffers
+Mem:           985          977            7           10            0
+-/+ buffers:                977            7
+Swap:            0            0            0
+bash-4.3#
+
+I think this patch is still good to have, since IMO we should not go
+and get page allocation failure (even if its a non-OOM) and subsequent
+stack dump from mm's allocator, if we can avoid it.
+
+Tested-by: Joel Fernandes <joelaf@google.com>
+
+thanks,
+
+- Joel
