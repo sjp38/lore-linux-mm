@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 35A356B0025
+	by kanga.kvack.org (Postfix) with ESMTP id 69D2E6B0022
 	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:42:57 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g66so6249968pfj.11
+Received: by mail-pf0-f198.google.com with SMTP id q11so6212894pfd.8
         for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:42:57 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w6-v6si6647871plp.477.2018.03.29.20.42.55
+        by mx.google.com with ESMTPS id f5-v6si2714894plo.410.2018.03.29.20.42.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 29 Mar 2018 20:42:55 -0700 (PDT)
+        Thu, 29 Mar 2018 20:42:54 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v10 45/62] shmem: Comment fixups
-Date: Thu, 29 Mar 2018 20:42:28 -0700
-Message-Id: <20180330034245.10462-46-willy@infradead.org>
+Subject: [PATCH v10 41/62] shmem: Convert shmem_free_swap to XArray
+Date: Thu, 29 Mar 2018 20:42:24 -0700
+Message-Id: <20180330034245.10462-42-willy@infradead.org>
 In-Reply-To: <20180330034245.10462-1-willy@infradead.org>
 References: <20180330034245.10462-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,65 +22,36 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Remove the last mentions of radix tree from various comments.
+This is a perfect use for xa_cmpxchg().  Note the use of 0 for GFP
+flags; we won't be allocating memory.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ mm/shmem.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
 
 diff --git a/mm/shmem.c b/mm/shmem.c
-index cffb3b6294b7..4735f8ebeb46 100644
+index aa7e92b24c19..be8c6d43b4aa 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -752,7 +752,7 @@ void shmem_unlock_mapping(struct address_space *mapping)
+@@ -644,16 +644,13 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
  }
  
  /*
-- * Remove range of pages and swap entries from radix tree, and free them.
-+ * Remove range of pages and swap entries from page cache, and free them.
-  * If !unfalloc, truncate or punch hole; if unfalloc, undo failed fallocate.
+- * Remove swap entry from radix tree, free the swap and its page cache.
++ * Remove swap entry from page cache, free the swap and its page cache.
   */
- static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
-@@ -1127,10 +1127,10 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
- 		 * We needed to drop mutex to make that restrictive page
- 		 * allocation, but the inode might have been freed while we
- 		 * dropped it: although a racing shmem_evict_inode() cannot
--		 * complete without emptying the radix_tree, our page lock
-+		 * complete without emptying the page cache, our page lock
- 		 * on this swapcache page is not enough to prevent that -
- 		 * free_swap_and_cache() of our swap entry will only
--		 * trylock_page(), removing swap from radix_tree whatever.
-+		 * trylock_page(), removing swap from page cache whatever.
- 		 *
- 		 * We must not proceed to shmem_add_to_page_cache() if the
- 		 * inode has been freed, but of course we cannot rely on
-@@ -1196,7 +1196,7 @@ int shmem_unuse(swp_entry_t swap, struct page *page)
- 			false);
- 	if (error)
- 		goto out;
--	/* No radix_tree_preload: swap entry keeps a place for page in tree */
-+	/* No memory allocation: swap entry occupies the slot for the page */
- 	error = -EAGAIN;
+ static int shmem_free_swap(struct address_space *mapping,
+ 			   pgoff_t index, void *radswap)
+ {
+-	void *old;
++	void *old = xa_cmpxchg(&mapping->i_pages, index, radswap, NULL, 0);
  
- 	mutex_lock(&shmem_swaplist_mutex);
-@@ -1875,7 +1875,7 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, inode,
- 		spin_unlock_irq(&info->lock);
- 		goto repeat;
- 	}
--	if (error == -EEXIST)	/* from above or from radix_tree_insert */
-+	if (error == -EEXIST)
- 		goto repeat;
- 	return error;
- }
-@@ -2487,7 +2487,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
- }
- 
- /*
-- * llseek SEEK_DATA or SEEK_HOLE through the radix_tree.
-+ * llseek SEEK_DATA or SEEK_HOLE through the page cache.
-  */
- static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
- 				    pgoff_t index, pgoff_t end, int whence)
+-	xa_lock_irq(&mapping->i_pages);
+-	old = radix_tree_delete_item(&mapping->i_pages, index, radswap);
+-	xa_unlock_irq(&mapping->i_pages);
+ 	if (old != radswap)
+ 		return -ENOENT;
+ 	free_swap_and_cache(radix_to_swp_entry(radswap));
 -- 
 2.16.2
