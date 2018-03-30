@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CED3F6B0024
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:42:56 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m18so5717336pgu.14
-        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:42:56 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 155076B0022
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:42:57 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id n2so5718017pgs.2
+        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:42:57 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id i1si4871583pgv.591.2018.03.29.20.42.54
+        by mx.google.com with ESMTPS id s18si5081190pgd.631.2018.03.29.20.42.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Thu, 29 Mar 2018 20:42:54 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v10 29/62] mm: Convert delete_from_swap_cache to XArray
-Date: Thu, 29 Mar 2018 20:42:12 -0700
-Message-Id: <20180330034245.10462-30-willy@infradead.org>
+Subject: [PATCH v10 01/62] page cache: Use xa_lock
+Date: Thu, 29 Mar 2018 20:41:44 -0700
+Message-Id: <20180330034245.10462-2-willy@infradead.org>
 In-Reply-To: <20180330034245.10462-1-willy@infradead.org>
 References: <20180330034245.10462-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,104 +22,63 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Both callers of __delete_from_swap_cache have the swp_entry_t already,
-so pass that in to make constructing the XA_STATE easier.
+Remove the address_space ->tree_lock and use the xa_lock newly added to
+the radix_tree_root.  Rename the address_space ->page_tree to ->i_pages,
+since we don't really care that it's a tree.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Acked-by: Jeff Layton <jlayton@redhat.com>
+Reviewed-by: Josef Bacik <jbacik@fb.com>
 ---
- include/linux/swap.h |  5 +++--
- mm/swap_state.c      | 24 ++++++++++--------------
- mm/vmscan.c          |  2 +-
- 3 files changed, 14 insertions(+), 17 deletions(-)
+ arch/nds32/include/asm/cacheflush.h | 4 ++--
+ fs/dax.c                            | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index dab96af23d96..0b6a47a46c55 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -404,7 +404,7 @@ extern void show_swap_cache_info(void);
- extern int add_to_swap(struct page *page);
- extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
- extern int __add_to_swap_cache(struct page *page, swp_entry_t entry);
--extern void __delete_from_swap_cache(struct page *);
-+extern void __delete_from_swap_cache(struct page *, swp_entry_t entry);
- extern void delete_from_swap_cache(struct page *);
- extern void free_page_and_swap_cache(struct page *);
- extern void free_pages_and_swap_cache(struct page **, int);
-@@ -564,7 +564,8 @@ static inline int add_to_swap_cache(struct page *page, swp_entry_t entry,
- 	return -1;
+diff --git a/arch/nds32/include/asm/cacheflush.h b/arch/nds32/include/asm/cacheflush.h
+index 7b9b20a381cb..1240f148ec0f 100644
+--- a/arch/nds32/include/asm/cacheflush.h
++++ b/arch/nds32/include/asm/cacheflush.h
+@@ -34,8 +34,8 @@ void flush_anon_page(struct vm_area_struct *vma,
+ void flush_kernel_dcache_page(struct page *page);
+ void flush_icache_range(unsigned long start, unsigned long end);
+ void flush_icache_page(struct vm_area_struct *vma, struct page *page);
+-#define flush_dcache_mmap_lock(mapping)   spin_lock_irq(&(mapping)->tree_lock)
+-#define flush_dcache_mmap_unlock(mapping) spin_unlock_irq(&(mapping)->tree_lock)
++#define flush_dcache_mmap_lock(mapping)   xa_lock_irq(&(mapping)->i_pages)
++#define flush_dcache_mmap_unlock(mapping) xa_unlock_irq(&(mapping)->i_pages)
+ 
+ #else
+ #include <asm-generic/cacheflush.h>
+diff --git a/fs/dax.c b/fs/dax.c
+index eeedecc8367b..9dc7337ef571 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -584,7 +584,7 @@ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
+ 	void *entry;
+ 	struct radix_tree_root *pages = &mapping->i_pages;
+ 
+-	xa_lock_irq(&mapping->i_pages);
++	xa_lock_irq(pages);
+ 	entry = get_unlocked_mapping_entry(mapping, index, NULL);
+ 	if (!entry || WARN_ON_ONCE(!radix_tree_exceptional_entry(entry)))
+ 		goto out;
+@@ -598,7 +598,7 @@ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
+ 	ret = 1;
+ out:
+ 	put_unlocked_mapping_entry(mapping, index, entry);
+-	xa_unlock_irq(&mapping->i_pages);
++	xa_unlock_irq(pages);
+ 	return ret;
  }
- 
--static inline void __delete_from_swap_cache(struct page *page)
-+static inline void __delete_from_swap_cache(struct page *page,
-+							swp_entry_t entry)
- {
- }
- 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 53e27894c1bc..a0a562fbc65f 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -154,23 +154,22 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
-  * This must be called only on pages that have
-  * been verified to be in the swap cache.
-  */
--void __delete_from_swap_cache(struct page *page)
-+void __delete_from_swap_cache(struct page *page, swp_entry_t entry)
- {
--	struct address_space *address_space;
-+	struct address_space *address_space = swap_address_space(entry);
- 	int i, nr = hpage_nr_pages(page);
--	swp_entry_t entry;
--	pgoff_t idx;
-+	pgoff_t idx = swp_offset(entry);
-+	XA_STATE(xas, &address_space->i_pages, idx);
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
- 	VM_BUG_ON_PAGE(PageWriteback(page), page);
- 
--	entry.val = page_private(page);
--	address_space = swap_address_space(entry);
--	idx = swp_offset(entry);
- 	for (i = 0; i < nr; i++) {
--		radix_tree_delete(&address_space->i_pages, idx + i);
-+		void *entry = xas_store(&xas, NULL);
-+		VM_BUG_ON_PAGE(entry != page + i, entry);
- 		set_page_private(page + i, 0);
-+		xas_next(&xas);
+ /*
+@@ -685,7 +685,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
+ 			unmap_mapping_pages(mapping, vmf->pgoff, 1, false);
  	}
- 	ClearPageSwapCache(page);
- 	address_space->nrpages -= nr;
-@@ -246,14 +245,11 @@ int add_to_swap(struct page *page)
-  */
- void delete_from_swap_cache(struct page *page)
- {
--	swp_entry_t entry;
--	struct address_space *address_space;
--
--	entry.val = page_private(page);
-+	swp_entry_t entry = { .val = page_private(page) };
-+	struct address_space *address_space = swap_address_space(entry);
  
--	address_space = swap_address_space(entry);
- 	xa_lock_irq(&address_space->i_pages);
--	__delete_from_swap_cache(page);
-+	__delete_from_swap_cache(page, entry);
- 	xa_unlock_irq(&address_space->i_pages);
- 
- 	put_swap_page(page, entry);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4e57f97c579b..e42d3fdb38fe 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -721,7 +721,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
- 	if (PageSwapCache(page)) {
- 		swp_entry_t swap = { .val = page_private(page) };
- 		mem_cgroup_swapout(page, swap);
--		__delete_from_swap_cache(page);
-+		__delete_from_swap_cache(page, swap);
- 		xa_unlock_irqrestore(&mapping->i_pages, flags);
- 		put_swap_page(page, swap);
- 	} else {
+-	xa_lock_irq(&mapping->i_pages);
++	xa_lock_irq(pages);
+ 	new_entry = dax_radix_locked_entry(pfn, flags);
+ 	if (dax_entry_size(entry) != dax_entry_size(new_entry)) {
+ 		dax_disassociate_entry(entry, mapping, false);
 -- 
 2.16.2
