@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 912DE6B027B
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:44:15 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id y19so5676975pgv.18
-        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:44:15 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 43EF16B027B
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:44:16 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p10so6238203pfl.22
+        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:44:16 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w12-v6si7342276pld.99.2018.03.29.20.42.54
+        by mx.google.com with ESMTPS id b34-v6si7440019pld.249.2018.03.29.20.42.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 29 Mar 2018 20:42:54 -0700 (PDT)
+        Thu, 29 Mar 2018 20:42:58 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v10 17/62] page cache: Rearrange address_space
-Date: Thu, 29 Mar 2018 20:42:00 -0700
-Message-Id: <20180330034245.10462-18-willy@infradead.org>
+Subject: [PATCH v10 56/62] dax: Convert dax_insert_pfn_mkwrite to XArray
+Date: Thu, 29 Mar 2018 20:42:39 -0700
+Message-Id: <20180330034245.10462-57-willy@infradead.org>
 In-Reply-To: <20180330034245.10462-1-willy@infradead.org>
 References: <20180330034245.10462-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,74 +22,238 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Change i_pages from a radix_tree_root to an xarray, convert the
-documentation into kernel-doc format and change the order of the elements
-to pack them better on 64-bit systems.
+Add some XArray-based helper functions to replace the radix tree based
+metaphors currently in use.  The biggest change is that converted code
+doesn't see its own lock bit; get_unlocked_entry() always returns an
+entry with the lock bit clear, and locking the entry now returns void.
+So we don't have to mess around loading the current entry and clearing
+the lock bit; we can just store the entry that we were using.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/fs.h | 46 +++++++++++++++++++++++++++++++---------------
- 1 file changed, 31 insertions(+), 15 deletions(-)
+ fs/dax.c | 146 +++++++++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 115 insertions(+), 31 deletions(-)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 364f217c278d..d41df4e6ce04 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -389,24 +389,40 @@ int pagecache_write_end(struct file *, struct address_space *mapping,
- 				loff_t pos, unsigned len, unsigned copied,
- 				struct page *page, void *fsdata);
+diff --git a/fs/dax.c b/fs/dax.c
+index 2d6e21e41567..54ec283f5031 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -38,6 +38,17 @@
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/fs_dax.h>
  
-+/**
-+ * struct address_space - Contents of a cacheable, mappable object.
-+ * @host: Owner, either the inode or the block_device.
-+ * @i_pages: Cached pages.
-+ * @gfp_mask: Memory allocation flags to use for allocating pages.
-+ * @i_mmap_writable: Number of VM_SHARED mappings.
-+ * @i_mmap: Tree of private and shared mappings.
-+ * @i_mmap_rwsem: Protects @i_mmap and @i_mmap_writable.
-+ * @nrpages: Number of page entries, protected by the i_pages lock.
-+ * @nrexceptional: Shadow or DAX entries, protected by the i_pages lock.
-+ * @writeback_index: Writeback starts here.
-+ * @a_ops: Methods.
-+ * @flags: Error bits and flags (AS_*).
-+ * @wb_err: The most recent error which has occurred.
-+ * @private_lock: For use by the owner of the address_space.
-+ * @private_list: For use by the owner of the address_space.
-+ * @private_data: For use by the owner of the address_space.
++static inline unsigned int pe_order(enum page_entry_size pe_size)
++{
++	if (pe_size == PE_SIZE_PTE)
++		return PAGE_SHIFT - PAGE_SHIFT;
++	if (pe_size == PE_SIZE_PMD)
++		return PMD_SHIFT - PAGE_SHIFT;
++	if (pe_size == PE_SIZE_PUD)
++		return PUD_SHIFT - PAGE_SHIFT;
++	return ~0;
++}
++
+ /* We choose 4096 entries - same as per-zone page wait tables */
+ #define DAX_WAIT_TABLE_BITS 12
+ #define DAX_WAIT_TABLE_ENTRIES (1 << DAX_WAIT_TABLE_BITS)
+@@ -46,6 +57,9 @@
+ #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
+ #define PG_PMD_NR	(PMD_SIZE >> PAGE_SHIFT)
+ 
++/* The order of a PMD entry */
++#define PMD_ORDER	(PMD_SHIFT - PAGE_SHIFT)
++
+ static wait_queue_head_t wait_table[DAX_WAIT_TABLE_ENTRIES];
+ 
+ static int __init init_dax_wait_table(void)
+@@ -85,10 +99,15 @@ static void *dax_mk_locked(unsigned long pfn, unsigned long flags)
+ 			DAX_ENTRY_LOCK);
+ }
+ 
++static bool dax_is_locked(void *entry)
++{
++	return xa_to_value(entry) & DAX_ENTRY_LOCK;
++}
++
+ static unsigned int dax_entry_order(void *entry)
+ {
+ 	if (xa_to_value(entry) & DAX_PMD)
+-		return PMD_SHIFT - PAGE_SHIFT;
++		return PMD_ORDER;
+ 	return 0;
+ }
+ 
+@@ -181,6 +200,79 @@ static void dax_wake_mapping_entry_waiter(struct xarray *xa,
+ 		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
+ }
+ 
++static void dax_wake_entry(struct xa_state *xas, bool wake_all)
++{
++	return dax_wake_mapping_entry_waiter(xas->xa, xas->xa_index, NULL,
++								wake_all);
++}
++
++/*
++ * Look up entry in page cache, wait for it to become unlocked if it
++ * is a DAX entry and return it.  The caller must subsequently call
++ * put_unlocked_entry() if it did not lock the entry or put_locked_entry()
++ * if it did.
++ *
++ * Must be called with the i_pages lock held.
 + */
- struct address_space {
--	struct inode		*host;		/* owner: inode, block_device */
--	struct radix_tree_root	i_pages;	/* cached pages */
--	atomic_t		i_mmap_writable;/* count VM_SHARED mappings */
--	struct rb_root_cached	i_mmap;		/* tree of private and shared mappings */
--	struct rw_semaphore	i_mmap_rwsem;	/* protect tree, count, list */
--	/* Protected by the i_pages lock */
--	unsigned long		nrpages;	/* number of total pages */
--	/* number of shadow or DAX exceptional entries */
-+	struct inode		*host;
-+	struct xarray		i_pages;
-+	gfp_t			gfp_mask;
-+	atomic_t		i_mmap_writable;
-+	struct rb_root_cached	i_mmap;
-+	struct rw_semaphore	i_mmap_rwsem;
-+	unsigned long		nrpages;
- 	unsigned long		nrexceptional;
--	pgoff_t			writeback_index;/* writeback starts here */
--	const struct address_space_operations *a_ops;	/* methods */
--	unsigned long		flags;		/* error bits */
--	spinlock_t		private_lock;	/* for use by the address_space */
--	gfp_t			gfp_mask;	/* implicit gfp mask for allocations */
--	struct list_head	private_list;	/* for use by the address_space */
--	void			*private_data;	/* ditto */
-+	pgoff_t			writeback_index;
-+	const struct address_space_operations *a_ops;
-+	unsigned long		flags;
- 	errseq_t		wb_err;
-+	spinlock_t		private_lock;
-+	struct list_head	private_list;
-+	void			*private_data;
- } __attribute__((aligned(sizeof(long)))) __randomize_layout;
- 	/*
- 	 * On most architectures that alignment is already the case; but
++static void *get_unlocked_entry(struct xa_state *xas)
++{
++	void *entry;
++	struct wait_exceptional_entry_queue ewait;
++	wait_queue_head_t *wq;
++
++	init_wait(&ewait.wait);
++	ewait.wait.func = wake_exceptional_entry_func;
++
++	for (;;) {
++		entry = xas_load(xas);
++		if (!entry || xa_is_internal(entry) ||
++				WARN_ON_ONCE(!xa_is_value(entry)) ||
++				!dax_is_locked(entry))
++			return entry;
++
++		wq = dax_entry_waitqueue(xas->xa, xas->xa_index, entry,
++				&ewait.key);
++		prepare_to_wait_exclusive(wq, &ewait.wait,
++					  TASK_UNINTERRUPTIBLE);
++		xas_unlock_irq(xas);
++		xas_reset(xas);
++		schedule();
++		finish_wait(wq, &ewait.wait);
++		xas_lock_irq(xas);
++	}
++}
++
++static void put_unlocked_entry(struct xa_state *xas, void *entry)
++{
++	/* We wake all waiters whenever we store a NULL entry */
++	if (!entry)
++		return;
++	dax_wake_entry(xas, false);
++}
++
++/*
++ * We must have used the xa_state to get the entry, but then we locked the
++ * entry and dropped the xa_lock, so we know the xa_state is stale and must
++ * be reset before use.
++ */
++static void put_locked_entry(struct xa_state *xas, void *entry)
++{
++	void *old;
++
++	xas_reset(xas);
++	xas_lock_irq(xas);
++	old = xas_store(xas, entry);
++	xas_unlock_irq(xas);
++	BUG_ON(!dax_is_locked(old));
++	dax_wake_entry(xas, false);
++}
++
++static void dax_lock_entry(struct xa_state *xas, void *entry)
++{
++	unsigned long v = xa_to_value(entry);
++	xas_store(xas, xa_mk_value(v | DAX_ENTRY_LOCK));
++}
++
+ /*
+  * Check whether the given slot is locked.  Must be called with the i_pages
+  * lock held.
+@@ -1606,51 +1698,48 @@ EXPORT_SYMBOL_GPL(dax_iomap_fault);
+ /*
+  * dax_insert_pfn_mkwrite - insert PTE or PMD entry into page tables
+  * @vmf: The description of the fault
+- * @pe_size: Size of entry to be inserted
+  * @pfn: PFN to insert
++ * @order: Order of entry to insert.
+  *
+  * This function inserts a writeable PTE or PMD entry into the page tables
+  * for an mmaped DAX file.  It also marks the page cache entry as dirty.
+  */
+-static int dax_insert_pfn_mkwrite(struct vm_fault *vmf,
+-				  enum page_entry_size pe_size,
+-				  pfn_t pfn)
++static
++int dax_insert_pfn_mkwrite(struct vm_fault *vmf, pfn_t pfn, unsigned int order)
+ {
+ 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
+-	void *entry, **slot;
+-	pgoff_t index = vmf->pgoff;
++	XA_STATE_ORDER(xas, &mapping->i_pages, vmf->pgoff, order);
++	void *entry;
+ 	int vmf_ret, error;
+ 
+-	xa_lock_irq(&mapping->i_pages);
+-	entry = get_unlocked_mapping_entry(mapping, index, &slot);
++	xas_lock_irq(&xas);
++	entry = get_unlocked_entry(&xas);
+ 	/* Did we race with someone splitting entry or so? */
+ 	if (!entry ||
+-	    (pe_size == PE_SIZE_PTE && !dax_is_pte_entry(entry)) ||
+-	    (pe_size == PE_SIZE_PMD && !dax_is_pmd_entry(entry))) {
+-		put_unlocked_mapping_entry(mapping, index, entry);
+-		xa_unlock_irq(&mapping->i_pages);
++	    (order == 0 && !dax_is_pte_entry(entry)) ||
++	    (order == PMD_ORDER && (xa_is_internal(entry) ||
++				    !dax_is_pmd_entry(entry)))) {
++		put_unlocked_entry(&xas, entry);
++		xas_unlock_irq(&xas);
+ 		trace_dax_insert_pfn_mkwrite_no_entry(mapping->host, vmf,
+ 						      VM_FAULT_NOPAGE);
+ 		return VM_FAULT_NOPAGE;
+ 	}
+-	radix_tree_tag_set(&mapping->i_pages, index, PAGECACHE_TAG_DIRTY);
+-	entry = lock_slot(mapping, slot);
+-	xa_unlock_irq(&mapping->i_pages);
+-	switch (pe_size) {
+-	case PE_SIZE_PTE:
++	xas_set_tag(&xas, PAGECACHE_TAG_DIRTY);
++	dax_lock_entry(&xas, entry);
++	xas_unlock_irq(&xas);
++	if (order == 0) {
+ 		error = vm_insert_mixed_mkwrite(vmf->vma, vmf->address, pfn);
+ 		vmf_ret = dax_fault_return(error);
+-		break;
+ #ifdef CONFIG_FS_DAX_PMD
+-	case PE_SIZE_PMD:
++	} else if (order == PMD_ORDER) {
+ 		vmf_ret = vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
+ 			pfn, true);
+-		break;
+ #endif
+-	default:
++	} else {
+ 		vmf_ret = VM_FAULT_FALLBACK;
+ 	}
+-	put_locked_mapping_entry(mapping, index);
++	put_locked_entry(&xas, entry);
+ 	trace_dax_insert_pfn_mkwrite(mapping->host, vmf, vmf_ret);
+ 	return vmf_ret;
+ }
+@@ -1670,17 +1759,12 @@ int dax_finish_sync_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+ {
+ 	int err;
+ 	loff_t start = ((loff_t)vmf->pgoff) << PAGE_SHIFT;
+-	size_t len = 0;
++	unsigned int order = pe_order(pe_size);
++	size_t len = PAGE_SIZE << order;
+ 
+-	if (pe_size == PE_SIZE_PTE)
+-		len = PAGE_SIZE;
+-	else if (pe_size == PE_SIZE_PMD)
+-		len = PMD_SIZE;
+-	else
+-		WARN_ON_ONCE(1);
+ 	err = vfs_fsync_range(vmf->vma->vm_file, start, start + len - 1, 1);
+ 	if (err)
+ 		return VM_FAULT_SIGBUS;
+-	return dax_insert_pfn_mkwrite(vmf, pe_size, pfn);
++	return dax_insert_pfn_mkwrite(vmf, pfn, order);
+ }
+ EXPORT_SYMBOL_GPL(dax_finish_sync_fault);
 -- 
 2.16.2
