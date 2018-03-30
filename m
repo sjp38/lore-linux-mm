@@ -1,71 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E34C76B025E
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 16:37:26 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 137-v6so7724978itj.2
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 13:37:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w99sor3368431ioi.223.2018.03.30.13.37.25
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C17D6B0260
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 16:54:06 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id u188so8336017pfb.6
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 13:54:06 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id p29si6154039pgd.392.2018.03.30.13.54.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 30 Mar 2018 13:37:25 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180330151037.30d2ac6d@gandalf.local.home>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
- <20180330102038.2378925b@gandalf.local.home> <CAJWu+ooMPz_nFtULMXp6CnLvM8JFJrSnBGNgPHXKs1k97FQU5Q@mail.gmail.com>
- <20180330151037.30d2ac6d@gandalf.local.home>
-From: Joel Fernandes <joelaf@google.com>
-Date: Fri, 30 Mar 2018 13:37:24 -0700
-Message-ID: <CAJWu+ooihz7KJG6Av2THBda2mUd=u-zsNVeB4V7XrQNSwxaHNA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 30 Mar 2018 13:54:05 -0700 (PDT)
+Date: Fri, 30 Mar 2018 13:53:56 -0700
+From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20180330205356.GA13332@bombadil.infradead.org>
+References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+ <20180330102038.2378925b@gandalf.local.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180330102038.2378925b@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
 
-Hi Steve,
+On Fri, Mar 30, 2018 at 10:20:38AM -0400, Steven Rostedt wrote:
+> That said, it appears you are having issues that were caused by the
+> change by commit 848618857d2 ("tracing/ring_buffer: Try harder to
+> allocate"), where we replaced NORETRY with RETRY_MAYFAIL. The point of
+> NORETRY was to keep allocations of the tracing ring-buffer from causing
+> OOMs. But the RETRY was too strong in that case, because there were
+> those that wanted to allocate large ring buffers but it would fail due
+> to memory being used that could be reclaimed. Supposedly, RETRY_MAYFAIL
+> is to allocate with reclaim but still allow to fail, and isn't suppose
+> to trigger an OOM. From my own tests, this is obviously not the case.
 
-On Fri, Mar 30, 2018 at 12:10 PM, Steven Rostedt <rostedt@goodmis.org> wrote:
-[..]
->> > I wonder if I should have the ring buffer allocate groups of pages, to
->> > avoid this. Or try to allocate with NORETRY, one page at a time, and
->> > when that fails, allocate groups of pages with RETRY_MAYFAIL, and that
->> > may keep it from causing an OOM?
->> >
->>
->> I don't see immediately how that can prevent an OOM in other
->> applications here? If ftrace allocates lots of memory with
->> RETRY_MAYFAIL, then we would still OOM in other applications if memory
->> isn't available. Sorry if I missed something.
->
-> Here's the idea.
->
-> Allocate one page at a time with NORETRY. If that fails, then allocate
-> larger amounts (higher order of pages) with RETRY_MAYFAIL. Then if it
-> can't get all the memory it needs, it wont take up all memory in the
-> system before it finds out that it can't have any more.
->
-> Or perhaps the memory management system can provide a
-> get_available_mem() function that ftrace could call before it tries to
-> increase the ring buffer and take up all the memory of the system
-> before it realizes that it can't get all the memory it wants.
->
-> The main problem I have with Zhaoyang's patch is that
-> get_available_mem() does not belong in the tracing code. It should be
-> something that the mm subsystem provides.
->
+That's not exactly what the comment says in gfp.h:
 
-Cool. Personally I like the getting of available memory solution and
-use that, since its simpler.
+ * __GFP_RETRY_MAYFAIL: The VM implementation will retry memory reclaim
+ *   procedures that have previously failed if there is some indication
+ *   that progress has been made else where.  It can wait for other
+ *   tasks to attempt high level approaches to freeing memory such as
+ *   compaction (which removes fragmentation) and page-out.
+ *   There is still a definite limit to the number of retries, but it is
+ *   a larger limit than with __GFP_NORETRY.
+ *   Allocations with this flag may fail, but only when there is
+ *   genuinely little unused memory. While these allocations do not
+ *   directly trigger the OOM killer, their failure indicates that
+ *   the system is likely to need to use the OOM killer soon.  The
+ *   caller must handle failure, but can reasonably do so by failing
+ *   a higher-level request, or completing it only in a much less
+ *   efficient manner.
+ *   If the allocation does fail, and the caller is in a position to
+ *   free some non-essential memory, doing so could benefit the system
+ *   as a whole.
 
-MM already provides it through si_mem_available since the commit
-"mm/page_alloc.c: calculate 'available' memory in a separate function"
-(sha d02bd27b). Maybe we could just use that?
+It seems to me that what you're asking for at the moment is
+lower-likelihood-of-failure-than-GFP_KERNEL, and it's not entirely
+clear to me why your allocation is so much more important than other
+allocations in the kernel.
 
-MemAvailable was initially added in commit "/proc/meminfo: provide
-estimated available memory" (sha 34e431b0ae39)
-
-thanks,
-
-- Joel
+Also, the pattern you have is very close to that of vmalloc.  You're
+allocating one page at a time to satisfy a multi-page request.  In lieu
+of actually thinking about what you should do, I might recommend using the
+same GFP flags as vmalloc() which works out to GFP_KERNEL | __GFP_NOWARN
+(possibly | __GFP_HIGHMEM if you can tolerate having to kmap the pages
+when accessed from within the kernel).
