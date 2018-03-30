@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CFA726B026B
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 17:30:36 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j8so8410602pfh.13
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 14:30:36 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c13si6782267pfb.373.2018.03.30.14.30.35
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 18D356B005C
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 17:40:14 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id k17so8428440pfj.10
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 14:40:14 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id v12si2220078pfe.164.2018.03.30.14.40.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Mar 2018 14:30:35 -0700 (PDT)
-Date: Fri, 30 Mar 2018 17:30:31 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180330173031.257a491a@gandalf.local.home>
-In-Reply-To: <20180330205356.GA13332@bombadil.infradead.org>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-	<20180330102038.2378925b@gandalf.local.home>
-	<20180330205356.GA13332@bombadil.infradead.org>
+        Fri, 30 Mar 2018 14:40:12 -0700 (PDT)
+Subject: Re: [PATCH 00/11] Use global pages with PTI
+References: <20180323174447.55F35636@viggo.jf.intel.com>
+ <CA+55aFwEC1O+6qRc35XwpcuLSgJ+0GP6ciqw_1Oc-msX=efLvQ@mail.gmail.com>
+ <be2e683c-bf0a-e9ce-2f02-4905f6bd56d3@linux.intel.com>
+ <alpine.DEB.2.21.1803271526260.1964@nanos.tec.linutronix.de>
+ <c0e7ca0b-dcb5-66e2-9df6-f53e4eb22781@linux.intel.com>
+ <alpine.DEB.2.21.1803271949250.1618@nanos.tec.linutronix.de>
+ <20180327200719.lvdomez6hszpmo4s@gmail.com>
+ <0d6ea030-ec3b-d649-bad7-89ff54094e25@linux.intel.com>
+ <20180330120920.btobga44wqytlkoe@gmail.com>
+ <20180330121725.zcklh36ulg7crydw@gmail.com>
+ <3cdc23a2-99eb-6f93-6934-f7757fa30a3e@linux.intel.com>
+ <alpine.DEB.2.21.1803302230560.1479@nanos.tec.linutronix.de>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <62a0dbae-75eb-6737-6029-4aaf72ebd199@linux.intel.com>
+Date: Fri, 30 Mar 2018 14:40:11 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.21.1803302230560.1479@nanos.tec.linutronix.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
 
-On Fri, 30 Mar 2018 13:53:56 -0700
-Matthew Wilcox <willy@infradead.org> wrote:
-
-> It seems to me that what you're asking for at the moment is
-> lower-likelihood-of-failure-than-GFP_KERNEL, and it's not entirely
-> clear to me why your allocation is so much more important than other
-> allocations in the kernel.
-
-The ring buffer is for fast tracing and is allocated when a user
-requests it. Usually there's plenty of memory, but when a user wants a
-lot of tracing events stored, they may increase it themselves.
-
+On 03/30/2018 01:32 PM, Thomas Gleixner wrote:
+> On Fri, 30 Mar 2018, Dave Hansen wrote:
 > 
-> Also, the pattern you have is very close to that of vmalloc.  You're
-> allocating one page at a time to satisfy a multi-page request.  In lieu
-> of actually thinking about what you should do, I might recommend using the
-> same GFP flags as vmalloc() which works out to GFP_KERNEL | __GFP_NOWARN
-> (possibly | __GFP_HIGHMEM if you can tolerate having to kmap the pages
-> when accessed from within the kernel).
+>> On 03/30/2018 05:17 AM, Ingo Molnar wrote:
+>>> BTW., the expectation on !PCID Intel hardware would be for global pages to help 
+>>> even more than the 0.6% and 1.7% you measured on PCID hardware: PCID already 
+>>> _reduces_ the cost of TLB flushes - so if there's not even PCID then global pages 
+>>> should help even more.
+>>>
+>>> In theory at least. Would still be nice to measure it.
+>>
+>> I did the lseek test on a modern, non-PCID system:
+>>
+>> No Global pages (baseline): 6077741 lseeks/sec
+>> 94 Global pages (this set): 8433111 lseeks/sec
+>> 			   +2355370 lseeks/sec (+38.8%)
+> 
+> That's all kernel text, right? What's the result for the case where global
+> is only set for all user/kernel shared pages?
 
-When the ring buffer was first created, we couldn't use vmalloc because
-vmalloc access wasn't working in NMIs (that has recently changed with
-lots of work to handle faults). But the ring buffer is broken up into
-pages (that are sent to the user or to the network), and allocating one
-page at a time makes everything work fine.
+Yes, that's all kernel text (94 global entries).  Here's the number with
+just the entry data/text set global (88 global entries on this system):
 
-The issue that happens when someone allocates a large ring buffer is
-that it will allocate all memory in the system before it fails. This
-means that there's a short time that any allocation will cause an OOM
-(which is what is happening).
-
-I think I agree with Joel and Zhaoyang, that we shouldn't allocate a
-ring buffer if there's not going to be enough memory to do it. If we
-can see the available memory before we start allocating one page at a
-time, and if the available memory isn't going to be sufficient, there's
-no reason to try to do the allocation, and simply send to the use
--ENOMEM, and let them try something smaller.
-
-I'll take a look at si_mem_available() that Joel suggested and see if
-we can make that work.
-
--- Steve
+No Global pages (baseline): 6077741 lseeks/sec
+88 Global Pages (kentry  ): 7528609 lseeks/sec (+23.9%)
+94 Global pages (this set): 8433111 lseeks/sec (+38.8%)
