@@ -1,168 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3204A6B0012
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 10:20:43 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p189so7575789pfp.1
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 07:20:43 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id t4-v6si8716621plb.641.2018.03.30.07.20.41
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC256B0024
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 10:27:46 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id a207so6074026qkb.23
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 07:27:46 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id v57si2759403qtj.209.2018.03.30.07.27.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Mar 2018 07:20:41 -0700 (PDT)
-Date: Fri, 30 Mar 2018 10:20:38 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180330102038.2378925b@gandalf.local.home>
-In-Reply-To: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+        Fri, 30 Mar 2018 07:27:45 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 0/4] Eliminate zone->lock contention for
+ will-it-scale/page_fault1 and parallel free
+References: <20180320085452.24641-1-aaron.lu@intel.com>
+ <2606b76f-be64-4cef-b1f7-055732d09251@oracle.com>
+ <20180330014217.GA28440@intel.com>
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Message-ID: <baef3e5c-439b-3cd4-d0f4-3b384bc8d2c9@oracle.com>
+Date: Fri, 30 Mar 2018 10:27:24 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180330014217.GA28440@intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>
 
 
-[ Adding memory management folks to discuss the issue ]
 
-On Thu, 29 Mar 2018 18:41:44 +0800
-Zhaoyang Huang <huangzhaoyang@gmail.com> wrote:
-
-> It is reported that some user app would like to echo a huge
-> number to "/sys/kernel/debug/tracing/buffer_size_kb" regardless
->  of the available memory, which will cause the coinstantaneous
-> page allocation failed and introduce OOM. The commit checking the
-> val against the available mem first to avoid the consequence allocation.
+On 03/29/2018 09:42 PM, Aaron Lu wrote:
+> On Thu, Mar 29, 2018 at 03:19:46PM -0400, Daniel Jordan wrote:
+>> On 03/20/2018 04:54 AM, Aaron Lu wrote:
+>>> This series is meant to improve zone->lock scalability for order 0 pages.
+>>> With will-it-scale/page_fault1 workload, on a 2 sockets Intel Skylake
+>>> server with 112 CPUs, CPU spend 80% of its time spinning on zone->lock.
+>>> Perf profile shows the most time consuming part under zone->lock is the
+>>> cache miss on "struct page", so here I'm trying to avoid those cache
+>>> misses.
+>>
+>> I ran page_fault1 comparing 4.16-rc5 to your recent work, these four patches
+>> plus the three others from your github branch zone_lock_rfc_v2. Out of
+>> curiosity I also threw in another 4.16-rc5 with the pcp batch size adjusted
+>> so high (10922 pages) that we always stay in the pcp lists and out of buddy
+>> completely.  I used your patch[*] in this last kernel.
+>>
+>> This was on a 2-socket, 20-core broadwell server.
+>>
+>> There were some small regressions a bit outside the noise at low process
+>> counts (2-5) but I'm not sure they're repeatable.  Anyway, it does improve
+>> the microbenchmark across the board.
 > 
-> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
-> ---
->  kernel/trace/trace.c | 39 ++++++++++++++++++++++++++++++++++++++-
->  1 file changed, 38 insertions(+), 1 deletion(-)
+> Thanks for the result.
 > 
-> diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-> index 2d0ffcc..a4a4237 100644
-> --- a/kernel/trace/trace.c
-> +++ b/kernel/trace/trace.c
-> @@ -43,6 +43,8 @@
->  #include <linux/trace.h>
->  #include <linux/sched/rt.h>
->  
-> +#include <linux/mm.h>
-> +#include <linux/swap.h>
->  #include "trace.h"
->  #include "trace_output.h"
->  
-> @@ -5967,6 +5969,39 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
->  	return ret;
->  }
->  
-> +static long get_available_mem(void)
-> +{
-> +	struct sysinfo i;
-> +	long available;
-> +	unsigned long pagecache;
-> +	unsigned long wmark_low = 0;
-> +	unsigned long pages[NR_LRU_LISTS];
-> +	struct zone *zone;
-> +	int lru;
-> +
-> +	si_meminfo(&i);
-> +	si_swapinfo(&i);
-> +
-> +	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
-> +		pages[lru] = global_page_state(NR_LRU_BASE + lru);
-> +
-> +	for_each_zone(zone)
-> +		wmark_low += zone->watermark[WMARK_LOW];
-> +
-> +	available = i.freeram - wmark_low;
-> +
-> +	pagecache = pages[LRU_ACTIVE_FILE] + pages[LRU_INACTIVE_FILE];
-> +	pagecache -= min(pagecache / 2, wmark_low);
-> +	available += pagecache;
-> +
-> +	available += global_page_state(NR_SLAB_RECLAIMABLE) -
-> +		min(global_page_state(NR_SLAB_RECLAIMABLE) / 2, wmark_low);
-> +
-> +	if (available < 0)
-> +		available = 0;
-> +	return available;
-> +}
-> +
+> The limited improvement is expected since lock contention only shifts,
+> not entirely gone. So what is interesting to see is how it performs with
+> v4.16-rc5 + my_zone_lock_patchset + your_lru_lock_patchset
 
-As I stated in my other reply, the above function does not belong in
-tracing.
-
-That said, it appears you are having issues that were caused by the
-change by commit 848618857d2 ("tracing/ring_buffer: Try harder to
-allocate"), where we replaced NORETRY with RETRY_MAYFAIL. The point of
-NORETRY was to keep allocations of the tracing ring-buffer from causing
-OOMs. But the RETRY was too strong in that case, because there were
-those that wanted to allocate large ring buffers but it would fail due
-to memory being used that could be reclaimed. Supposedly, RETRY_MAYFAIL
-is to allocate with reclaim but still allow to fail, and isn't suppose
-to trigger an OOM. From my own tests, this is obviously not the case.
-
-Perhaps this is because the ring buffer allocates one page at a time,
-and by doing so, it can get every last available page, and if anything
-in the mean time does an allocation without MAYFAIL, it will cause an
-OOM. For example, when I stressed this I triggered this:
-
- pool invoked oom-killer: gfp_mask=0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null), order=0, oom_score_adj=0
- pool cpuset=/ mems_allowed=0
- CPU: 7 PID: 1040 Comm: pool Not tainted 4.16.0-rc4-test+ #663
- Hardware name: Hewlett-Packard HP Compaq Pro 6300 SFF/339A, BIOS K01 v03.03 07/14/2016
- Call Trace:
-  dump_stack+0x8e/0xce
-  dump_header.isra.30+0x6e/0x28f
-  ? _raw_spin_unlock_irqrestore+0x30/0x60
-  oom_kill_process+0x218/0x400
-  ? has_capability_noaudit+0x17/0x20
-  out_of_memory+0xe3/0x5c0
-  __alloc_pages_slowpath+0xa8e/0xe50
-  __alloc_pages_nodemask+0x206/0x220
-  alloc_pages_current+0x6a/0xe0
-  __page_cache_alloc+0x6a/0xa0
-  filemap_fault+0x208/0x5f0
-  ? __might_sleep+0x4a/0x80
-  ext4_filemap_fault+0x31/0x44
-  __do_fault+0x20/0xd0
-  __handle_mm_fault+0xc08/0x1160
-  handle_mm_fault+0x76/0x110
-  __do_page_fault+0x299/0x580
-  do_page_fault+0x2d/0x110
-  ? page_fault+0x2f/0x50
-  page_fault+0x45/0x50
-
-I wonder if I should have the ring buffer allocate groups of pages, to
-avoid this. Or try to allocate with NORETRY, one page at a time, and
-when that fails, allocate groups of pages with RETRY_MAYFAIL, and that
-may keep it from causing an OOM?
-
-Thoughts?
-
--- Steve
-
-
-
->  static ssize_t
->  tracing_entries_write(struct file *filp, const char __user *ubuf,
->  		      size_t cnt, loff_t *ppos)
-> @@ -5975,13 +6010,15 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
->  	struct trace_array *tr = inode->i_private;
->  	unsigned long val;
->  	int ret;
-> +	long available;
->  
-> +	available = get_available_mem();
->  	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
->  	if (ret)
->  		return ret;
->  
->  	/* must have at least 1 entry */
-> -	if (!val)
-> +	if (!val || (val > available))
->  		return -EINVAL;
->  
->  	/* value is in KB */
+Yep, that's 'coming soon.'
