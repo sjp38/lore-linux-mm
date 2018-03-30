@@ -1,49 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 171346B0268
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 16:57:31 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id b2so7614306pgt.6
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 13:57:31 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g1-v6si8906271plt.54.2018.03.30.13.57.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CFA726B026B
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 17:30:36 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j8so8410602pfh.13
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 14:30:36 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id c13si6782267pfb.373.2018.03.30.14.30.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Mar 2018 13:57:29 -0700 (PDT)
-Date: Fri, 30 Mar 2018 13:57:27 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/memblock: fix potential issue in
- memblock_search_pfn_nid()
-Message-Id: <20180330135727.67251c7ea8c2db28b404e0e1@linux-foundation.org>
-In-Reply-To: <20180330033055.22340-1-richard.weiyang@gmail.com>
-References: <20180330033055.22340-1-richard.weiyang@gmail.com>
-Mime-Version: 1.0
+        Fri, 30 Mar 2018 14:30:35 -0700 (PDT)
+Date: Fri, 30 Mar 2018 17:30:31 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
+Message-ID: <20180330173031.257a491a@gandalf.local.home>
+In-Reply-To: <20180330205356.GA13332@bombadil.infradead.org>
+References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+	<20180330102038.2378925b@gandalf.local.home>
+	<20180330205356.GA13332@bombadil.infradead.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: mhocko@suse.com, yinghai@kernel.org, linux-mm@kvack.org, hejianet@gmail.com, "3 . 12+" <stable@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
 
-On Fri, 30 Mar 2018 11:30:55 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+On Fri, 30 Mar 2018 13:53:56 -0700
+Matthew Wilcox <willy@infradead.org> wrote:
 
-> memblock_search_pfn_nid() returns the nid and the [start|end]_pfn of the
-> memory region where pfn sits in. While the calculation of start_pfn has
-> potential issue when the regions base is not page aligned.
+> It seems to me that what you're asking for at the moment is
+> lower-likelihood-of-failure-than-GFP_KERNEL, and it's not entirely
+> clear to me why your allocation is so much more important than other
+> allocations in the kernel.
+
+The ring buffer is for fast tracing and is allocated when a user
+requests it. Usually there's plenty of memory, but when a user wants a
+lot of tracing events stored, they may increase it themselves.
+
 > 
-> For example, we assume PAGE_SHIFT is 12 and base is 0x1234. Current
-> implementation would return 1 while this is not correct.
+> Also, the pattern you have is very close to that of vmalloc.  You're
+> allocating one page at a time to satisfy a multi-page request.  In lieu
+> of actually thinking about what you should do, I might recommend using the
+> same GFP flags as vmalloc() which works out to GFP_KERNEL | __GFP_NOWARN
+> (possibly | __GFP_HIGHMEM if you can tolerate having to kmap the pages
+> when accessed from within the kernel).
 
-Why is this not correct?  The caller might want the pfn of the page
-which covers the base?
+When the ring buffer was first created, we couldn't use vmalloc because
+vmalloc access wasn't working in NMIs (that has recently changed with
+lots of work to handle faults). But the ring buffer is broken up into
+pages (that are sent to the user or to the network), and allocating one
+page at a time makes everything work fine.
 
-> This patch fixes this by using PFN_UP().
-> 
-> The original commit is commit e76b63f80d93 ("memblock, numa: binary search
-> node id") and merged in v3.12.
-> 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> Cc: 3.12+ <stable@vger.kernel.org>
+The issue that happens when someone allocates a large ring buffer is
+that it will allocate all memory in the system before it fails. This
+means that there's a short time that any allocation will cause an OOM
+(which is what is happening).
 
-Please fully describe the runtime effects of a bug when fixing that
-bug.  This description doesn't give enough justification for merging
-the patch into mainline, let alone -stable.
+I think I agree with Joel and Zhaoyang, that we shouldn't allocate a
+ring buffer if there's not going to be enough memory to do it. If we
+can see the available memory before we start allocating one page at a
+time, and if the available memory isn't going to be sufficient, there's
+no reason to try to do the allocation, and simply send to the use
+-ENOMEM, and let them try something smaller.
+
+I'll take a look at si_mem_available() that Joel suggested and see if
+we can make that work.
+
+-- Steve
