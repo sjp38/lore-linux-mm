@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 639FA6B02C3
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:49:12 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id s21so6259979pfm.15
-        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:49:12 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 202866B02C5
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:49:31 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 203so6253770pfz.19
+        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:49:31 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q5-v6si7120266pll.348.2018.03.29.20.42.54
+        by mx.google.com with ESMTPS id bj5-v6si7153129plb.712.2018.03.29.20.42.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 29 Mar 2018 20:42:54 -0700 (PDT)
+        Thu, 29 Mar 2018 20:42:56 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v10 12/62] xarray: Add xa_extract
-Date: Thu, 29 Mar 2018 20:41:55 -0700
-Message-Id: <20180330034245.10462-13-willy@infradead.org>
+Subject: [PATCH v10 47/62] fs: Convert buffer to XArray
+Date: Thu, 29 Mar 2018 20:42:30 -0700
+Message-Id: <20180330034245.10462-48-willy@infradead.org>
 In-Reply-To: <20180330034245.10462-1-willy@infradead.org>
 References: <20180330034245.10462-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,119 +22,58 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This function combines the functionality of radix_tree_gang_lookup() and
-radix_tree_gang_lookup_tagged().  It extracts entries matching the
-specified filter into a normal array.
+Mostly comment fixes, but one use of __xa_set_tag.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/xarray.h |  2 ++
- lib/xarray.c           | 80 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 82 insertions(+)
+ fs/buffer.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index c8b3645c6760..864f16660785 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -227,6 +227,8 @@ void *xa_find(struct xarray *xa, unsigned long *index,
- 		unsigned long max, xa_tag_t) __attribute__((nonnull(2)));
- void *xa_find_after(struct xarray *xa, unsigned long *index,
- 		unsigned long max, xa_tag_t) __attribute__((nonnull(2)));
-+unsigned int xa_extract(struct xarray *, void **dst, unsigned long start,
-+		unsigned long max, unsigned int n, xa_tag_t);
+diff --git a/fs/buffer.c b/fs/buffer.c
+index f3059f929dd6..5c798ecf7a39 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -585,7 +585,7 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
+ EXPORT_SYMBOL(mark_buffer_dirty_inode);
  
- /**
-  * xa_init() - Initialise an empty XArray.
-diff --git a/lib/xarray.c b/lib/xarray.c
-index 73cf4c984c2d..77133bc5419f 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -1402,6 +1402,86 @@ void *xa_find_after(struct xarray *xa, unsigned long *indexp,
+ /*
+- * Mark the page dirty, and set it dirty in the radix tree, and mark the inode
++ * Mark the page dirty, and set it dirty in the page cache, and mark the inode
+  * dirty.
+  *
+  * If warn is true, then emit a warning if the page is not uptodate and has
+@@ -602,8 +602,8 @@ void __set_page_dirty(struct page *page, struct address_space *mapping,
+ 	if (page->mapping) {	/* Race with truncate? */
+ 		WARN_ON_ONCE(warn && !PageUptodate(page));
+ 		account_page_dirtied(page, mapping);
+-		radix_tree_tag_set(&mapping->i_pages,
+-				page_index(page), PAGECACHE_TAG_DIRTY);
++		__xa_set_tag(&mapping->i_pages, page_index(page),
++				PAGECACHE_TAG_DIRTY);
+ 	}
+ 	xa_unlock_irqrestore(&mapping->i_pages, flags);
  }
- EXPORT_SYMBOL(xa_find_after);
- 
-+static unsigned int xas_extract_present(struct xa_state *xas, void **dst,
-+			unsigned long max, unsigned int n)
-+{
-+	void *entry;
-+	unsigned int i = 0;
-+
-+	rcu_read_lock();
-+	xas_for_each(xas, entry, max) {
-+		if (xas_retry(xas, entry))
-+			continue;
-+		dst[i++] = entry;
-+		if (i == n)
-+			break;
-+	}
-+	rcu_read_unlock();
-+
-+	return i;
-+}
-+
-+static unsigned int xas_extract_tag(struct xa_state *xas, void **dst,
-+			unsigned long max, unsigned int n, xa_tag_t tag)
-+{
-+	void *entry;
-+	unsigned int i = 0;
-+
-+	rcu_read_lock();
-+	xas_for_each_tag(xas, entry, max, tag) {
-+		if (xas_retry(xas, entry))
-+			continue;
-+		dst[i++] = entry;
-+		if (i == n)
-+			break;
-+	}
-+	rcu_read_unlock();
-+
-+	return i;
-+}
-+
-+/**
-+ * xa_extract() - Copy selected entries from the XArray into a normal array.
-+ * @xa: The source XArray to copy from.
-+ * @dst: The buffer to copy entries into.
-+ * @start: The first index in the XArray eligible to be selected.
-+ * @max: The last index in the XArray eligible to be selected.
-+ * @n: The maximum number of entries to copy.
-+ * @filter: Selection criterion.
-+ *
-+ * Copies up to @n entries that match @filter from the XArray.  The
-+ * copied entries will have indices between @start and @max, inclusive.
-+ *
-+ * The @filter may be an XArray tag value, in which case entries which are
-+ * tagged with that tag will be copied.  It may also be %XA_PRESENT, in
-+ * which case non-NULL entries will be copied.
-+ *
-+ * The entries returned may not represent a snapshot of the XArray at a
-+ * moment in time.  For example, if another thread stores to index 5, then
-+ * index 10, calling xa_extract() may return the old contents of index 5
-+ * and the new contents of index 10.  Indices not modified while this
-+ * function is running will not be skipped.
-+ *
-+ * If you need stronger guarantees, holding the xa_lock across calls to this
-+ * function will prevent concurrent modification.
-+ *
-+ * Context: Any context.  Takes and releases the RCU lock.
-+ * Return: The number of entries copied.
-+ */
-+unsigned int xa_extract(struct xarray *xa, void **dst, unsigned long start,
-+			unsigned long max, unsigned int n, xa_tag_t filter)
-+{
-+	XA_STATE(xas, xa, start);
-+
-+	if (!n)
-+		return 0;
-+
-+	if ((__force unsigned int)filter < XA_MAX_TAGS)
-+		return xas_extract_tag(&xas, dst, max, n, filter);
-+	return xas_extract_present(&xas, dst, max, n);
-+}
-+EXPORT_SYMBOL(xa_extract);
-+
- #ifdef XA_DEBUG
- void xa_dump_node(const struct xa_node *node)
- {
+@@ -1066,7 +1066,7 @@ __getblk_slow(struct block_device *bdev, sector_t block,
+  * The relationship between dirty buffers and dirty pages:
+  *
+  * Whenever a page has any dirty buffers, the page's dirty bit is set, and
+- * the page is tagged dirty in its radix tree.
++ * the page is tagged dirty in the page cache.
+  *
+  * At all times, the dirtiness of the buffers represents the dirtiness of
+  * subsections of the page.  If the page has buffers, the page dirty bit is
+@@ -1089,9 +1089,9 @@ __getblk_slow(struct block_device *bdev, sector_t block,
+  * mark_buffer_dirty - mark a buffer_head as needing writeout
+  * @bh: the buffer_head to mark dirty
+  *
+- * mark_buffer_dirty() will set the dirty bit against the buffer, then set its
+- * backing page dirty, then tag the page as dirty in its address_space's radix
+- * tree and then attach the address_space's inode to its superblock's dirty
++ * mark_buffer_dirty() will set the dirty bit against the buffer, then set
++ * its backing page dirty, then tag the page as dirty in the page cache
++ * and then attach the address_space's inode to its superblock's dirty
+  * inode list.
+  *
+  * mark_buffer_dirty() is atomic.  It takes bh->b_page->mapping->private_lock,
 -- 
 2.16.2
