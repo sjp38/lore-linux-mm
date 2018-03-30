@@ -1,79 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 202866B02C5
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:49:31 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 203so6253770pfz.19
-        for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:49:31 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id bj5-v6si7153129plb.712.2018.03.29.20.42.56
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 543CD6B0276
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 03:55:11 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id i15so2887388wre.15
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 00:55:11 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id n1si5819245wri.5.2018.03.30.00.55.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 29 Mar 2018 20:42:56 -0700 (PDT)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v10 47/62] fs: Convert buffer to XArray
-Date: Thu, 29 Mar 2018 20:42:30 -0700
-Message-Id: <20180330034245.10462-48-willy@infradead.org>
-In-Reply-To: <20180330034245.10462-1-willy@infradead.org>
-References: <20180330034245.10462-1-willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Mar 2018 00:55:09 -0700 (PDT)
+Date: Fri, 30 Mar 2018 09:55:08 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
+Message-ID: <20180330075508.GA21798@amd>
+References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="9amGYk9869ThD9tj"
+Content-Disposition: inline
+In-Reply-To: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Ilya Smith <blackzert@gmail.com>
+Cc: rth@twiddle.net, ink@jurassic.park.msu.ru, mattst88@gmail.com, vgupta@synopsys.com, linux@armlinux.org.uk, tony.luck@intel.com, fenghua.yu@intel.com, jhogan@kernel.org, ralf@linux-mips.org, jejb@parisc-linux.org, deller@gmx.de, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, ysato@users.sourceforge.jp, dalias@libc.org, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, nyc@holomorphy.com, viro@zeniv.linux.org.uk, arnd@arndb.de, gregkh@linuxfoundation.org, deepa.kernel@gmail.com, mhocko@suse.com, hughd@google.com, kstewart@linuxfoundation.org, pombredanne@nexb.com, akpm@linux-foundation.org, steve.capper@arm.com, punit.agrawal@arm.com, paul.burton@mips.com, aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, keescook@chromium.org, bhsharma@redhat.com, riel@redhat.com, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, jglisse@redhat.com, willy@infradead.org, aarcange@redhat.com, oleg@redhat.com, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linux-metag@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Mostly comment fixes, but one use of __xa_set_tag.
+--9amGYk9869ThD9tj
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- fs/buffer.c | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+Hi!
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index f3059f929dd6..5c798ecf7a39 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -585,7 +585,7 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
- EXPORT_SYMBOL(mark_buffer_dirty_inode);
- 
- /*
-- * Mark the page dirty, and set it dirty in the radix tree, and mark the inode
-+ * Mark the page dirty, and set it dirty in the page cache, and mark the inode
-  * dirty.
-  *
-  * If warn is true, then emit a warning if the page is not uptodate and has
-@@ -602,8 +602,8 @@ void __set_page_dirty(struct page *page, struct address_space *mapping,
- 	if (page->mapping) {	/* Race with truncate? */
- 		WARN_ON_ONCE(warn && !PageUptodate(page));
- 		account_page_dirtied(page, mapping);
--		radix_tree_tag_set(&mapping->i_pages,
--				page_index(page), PAGECACHE_TAG_DIRTY);
-+		__xa_set_tag(&mapping->i_pages, page_index(page),
-+				PAGECACHE_TAG_DIRTY);
- 	}
- 	xa_unlock_irqrestore(&mapping->i_pages, flags);
- }
-@@ -1066,7 +1066,7 @@ __getblk_slow(struct block_device *bdev, sector_t block,
-  * The relationship between dirty buffers and dirty pages:
-  *
-  * Whenever a page has any dirty buffers, the page's dirty bit is set, and
-- * the page is tagged dirty in its radix tree.
-+ * the page is tagged dirty in the page cache.
-  *
-  * At all times, the dirtiness of the buffers represents the dirtiness of
-  * subsections of the page.  If the page has buffers, the page dirty bit is
-@@ -1089,9 +1089,9 @@ __getblk_slow(struct block_device *bdev, sector_t block,
-  * mark_buffer_dirty - mark a buffer_head as needing writeout
-  * @bh: the buffer_head to mark dirty
-  *
-- * mark_buffer_dirty() will set the dirty bit against the buffer, then set its
-- * backing page dirty, then tag the page as dirty in its address_space's radix
-- * tree and then attach the address_space's inode to its superblock's dirty
-+ * mark_buffer_dirty() will set the dirty bit against the buffer, then set
-+ * its backing page dirty, then tag the page as dirty in the page cache
-+ * and then attach the address_space's inode to its superblock's dirty
-  * inode list.
-  *
-  * mark_buffer_dirty() is atomic.  It takes bh->b_page->mapping->private_lock,
--- 
-2.16.2
+> Current implementation doesn't randomize address returned by mmap.
+> All the entropy ends with choosing mmap_base_addr at the process
+> creation. After that mmap build very predictable layout of address
+> space. It allows to bypass ASLR in many cases. This patch make
+> randomization of address on any mmap call.
+
+How will this interact with people debugging their application, and
+getting different behaviours based on memory layout?
+
+strace, strace again, get different results?
+
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--9amGYk9869ThD9tj
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAlq97VwACgkQMOfwapXb+vI6UQCdF4AyQJZJhtFyHLBBqwpvR1q8
+v88AnRJDGP+1mNMTwfSngE35HzilPhGr
+=dXPW
+-----END PGP SIGNATURE-----
+
+--9amGYk9869ThD9tj--
