@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 43EF16B027B
+	by kanga.kvack.org (Postfix) with ESMTP id 9CBC76B027B
 	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:44:16 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p10so6238203pfl.22
+Received: by mail-pf0-f197.google.com with SMTP id c5so6247646pfn.17
         for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:44:16 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b34-v6si7440019pld.249.2018.03.29.20.42.58
+        by mx.google.com with ESMTPS id a18si2802275pff.107.2018.03.29.20.42.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 29 Mar 2018 20:42:58 -0700 (PDT)
+        Thu, 29 Mar 2018 20:42:54 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v10 56/62] dax: Convert dax_insert_pfn_mkwrite to XArray
-Date: Thu, 29 Mar 2018 20:42:39 -0700
-Message-Id: <20180330034245.10462-57-willy@infradead.org>
+Subject: [PATCH v10 35/62] pagevec: Use xa_tag_t
+Date: Thu, 29 Mar 2018 20:42:18 -0700
+Message-Id: <20180330034245.10462-36-willy@infradead.org>
 In-Reply-To: <20180330034245.10462-1-willy@infradead.org>
 References: <20180330034245.10462-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,238 +22,129 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Add some XArray-based helper functions to replace the radix tree based
-metaphors currently in use.  The biggest change is that converted code
-doesn't see its own lock bit; get_unlocked_entry() always returns an
-entry with the lock bit clear, and locking the entry now returns void.
-So we don't have to mess around loading the current entry and clearing
-the lock bit; we can just store the entry that we were using.
+Removes sparse warnings.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/dax.c | 146 +++++++++++++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 115 insertions(+), 31 deletions(-)
+ fs/btrfs/extent_io.c    | 4 ++--
+ fs/ext4/inode.c         | 2 +-
+ fs/f2fs/data.c          | 2 +-
+ fs/gfs2/aops.c          | 2 +-
+ include/linux/pagevec.h | 8 +++++---
+ mm/swap.c               | 4 ++--
+ 6 files changed, 12 insertions(+), 10 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 2d6e21e41567..54ec283f5031 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -38,6 +38,17 @@
- #define CREATE_TRACE_POINTS
- #include <trace/events/fs_dax.h>
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 6cd562a0cd03..8694f414dcdf 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -3791,7 +3791,7 @@ int btree_write_cache_pages(struct address_space *mapping,
+ 	pgoff_t index;
+ 	pgoff_t end;		/* Inclusive */
+ 	int scanned = 0;
+-	int tag;
++	xa_tag_t tag;
  
-+static inline unsigned int pe_order(enum page_entry_size pe_size)
-+{
-+	if (pe_size == PE_SIZE_PTE)
-+		return PAGE_SHIFT - PAGE_SHIFT;
-+	if (pe_size == PE_SIZE_PMD)
-+		return PMD_SHIFT - PAGE_SHIFT;
-+	if (pe_size == PE_SIZE_PUD)
-+		return PUD_SHIFT - PAGE_SHIFT;
-+	return ~0;
-+}
+ 	pagevec_init(&pvec);
+ 	if (wbc->range_cyclic) {
+@@ -3916,7 +3916,7 @@ static int extent_write_cache_pages(struct address_space *mapping,
+ 	pgoff_t done_index;
+ 	int range_whole = 0;
+ 	int scanned = 0;
+-	int tag;
++	xa_tag_t tag;
+ 
+ 	/*
+ 	 * We have to hold onto the inode so that ordered extents can do their
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index 7af0ddf2f8e2..47da626c0067 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -2615,7 +2615,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
+ 	long left = mpd->wbc->nr_to_write;
+ 	pgoff_t index = mpd->first_page;
+ 	pgoff_t end = mpd->last_page;
+-	int tag;
++	xa_tag_t tag;
+ 	int i, err = 0;
+ 	int blkbits = mpd->inode->i_blkbits;
+ 	ext4_lblk_t lblk;
+diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
+index 02237d4d91f5..d836bfc160f1 100644
+--- a/fs/f2fs/data.c
++++ b/fs/f2fs/data.c
+@@ -1874,7 +1874,7 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
+ 	pgoff_t last_idx = ULONG_MAX;
+ 	int cycled;
+ 	int range_whole = 0;
+-	int tag;
++	xa_tag_t tag;
+ 
+ 	pagevec_init(&pvec);
+ 
+diff --git a/fs/gfs2/aops.c b/fs/gfs2/aops.c
+index f58716567972..8376d1358379 100644
+--- a/fs/gfs2/aops.c
++++ b/fs/gfs2/aops.c
+@@ -371,7 +371,7 @@ static int gfs2_write_cache_jdata(struct address_space *mapping,
+ 	pgoff_t done_index;
+ 	int cycled;
+ 	int range_whole = 0;
+-	int tag;
++	xa_tag_t tag;
+ 
+ 	pagevec_init(&pvec);
+ 	if (wbc->range_cyclic) {
+diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
+index 6dc456ac6136..955bd6425903 100644
+--- a/include/linux/pagevec.h
++++ b/include/linux/pagevec.h
+@@ -9,6 +9,8 @@
+ #ifndef _LINUX_PAGEVEC_H
+ #define _LINUX_PAGEVEC_H
+ 
++#include <linux/xarray.h>
 +
- /* We choose 4096 entries - same as per-zone page wait tables */
- #define DAX_WAIT_TABLE_BITS 12
- #define DAX_WAIT_TABLE_ENTRIES (1 << DAX_WAIT_TABLE_BITS)
-@@ -46,6 +57,9 @@
- #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
- #define PG_PMD_NR	(PMD_SIZE >> PAGE_SHIFT)
+ /* 15 pointers + header align the pagevec structure to a power of two */
+ #define PAGEVEC_SIZE	15
  
-+/* The order of a PMD entry */
-+#define PMD_ORDER	(PMD_SHIFT - PAGE_SHIFT)
-+
- static wait_queue_head_t wait_table[DAX_WAIT_TABLE_ENTRIES];
+@@ -40,12 +42,12 @@ static inline unsigned pagevec_lookup(struct pagevec *pvec,
  
- static int __init init_dax_wait_table(void)
-@@ -85,10 +99,15 @@ static void *dax_mk_locked(unsigned long pfn, unsigned long flags)
- 			DAX_ENTRY_LOCK);
- }
- 
-+static bool dax_is_locked(void *entry)
-+{
-+	return xa_to_value(entry) & DAX_ENTRY_LOCK;
-+}
-+
- static unsigned int dax_entry_order(void *entry)
+ unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
+ 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
+-		int tag);
++		xa_tag_t tag);
+ unsigned pagevec_lookup_range_nr_tag(struct pagevec *pvec,
+ 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
+-		int tag, unsigned max_pages);
++		xa_tag_t tag, unsigned max_pages);
+ static inline unsigned pagevec_lookup_tag(struct pagevec *pvec,
+-		struct address_space *mapping, pgoff_t *index, int tag)
++		struct address_space *mapping, pgoff_t *index, xa_tag_t tag)
  {
- 	if (xa_to_value(entry) & DAX_PMD)
--		return PMD_SHIFT - PAGE_SHIFT;
-+		return PMD_ORDER;
- 	return 0;
+ 	return pagevec_lookup_range_tag(pvec, mapping, index, (pgoff_t)-1, tag);
  }
+diff --git a/mm/swap.c b/mm/swap.c
+index 4c5c7fcc6e46..a7ff602213a9 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -1002,7 +1002,7 @@ EXPORT_SYMBOL(pagevec_lookup_range);
  
-@@ -181,6 +200,79 @@ static void dax_wake_mapping_entry_waiter(struct xarray *xa,
- 		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
- }
- 
-+static void dax_wake_entry(struct xa_state *xas, bool wake_all)
-+{
-+	return dax_wake_mapping_entry_waiter(xas->xa, xas->xa_index, NULL,
-+								wake_all);
-+}
-+
-+/*
-+ * Look up entry in page cache, wait for it to become unlocked if it
-+ * is a DAX entry and return it.  The caller must subsequently call
-+ * put_unlocked_entry() if it did not lock the entry or put_locked_entry()
-+ * if it did.
-+ *
-+ * Must be called with the i_pages lock held.
-+ */
-+static void *get_unlocked_entry(struct xa_state *xas)
-+{
-+	void *entry;
-+	struct wait_exceptional_entry_queue ewait;
-+	wait_queue_head_t *wq;
-+
-+	init_wait(&ewait.wait);
-+	ewait.wait.func = wake_exceptional_entry_func;
-+
-+	for (;;) {
-+		entry = xas_load(xas);
-+		if (!entry || xa_is_internal(entry) ||
-+				WARN_ON_ONCE(!xa_is_value(entry)) ||
-+				!dax_is_locked(entry))
-+			return entry;
-+
-+		wq = dax_entry_waitqueue(xas->xa, xas->xa_index, entry,
-+				&ewait.key);
-+		prepare_to_wait_exclusive(wq, &ewait.wait,
-+					  TASK_UNINTERRUPTIBLE);
-+		xas_unlock_irq(xas);
-+		xas_reset(xas);
-+		schedule();
-+		finish_wait(wq, &ewait.wait);
-+		xas_lock_irq(xas);
-+	}
-+}
-+
-+static void put_unlocked_entry(struct xa_state *xas, void *entry)
-+{
-+	/* We wake all waiters whenever we store a NULL entry */
-+	if (!entry)
-+		return;
-+	dax_wake_entry(xas, false);
-+}
-+
-+/*
-+ * We must have used the xa_state to get the entry, but then we locked the
-+ * entry and dropped the xa_lock, so we know the xa_state is stale and must
-+ * be reset before use.
-+ */
-+static void put_locked_entry(struct xa_state *xas, void *entry)
-+{
-+	void *old;
-+
-+	xas_reset(xas);
-+	xas_lock_irq(xas);
-+	old = xas_store(xas, entry);
-+	xas_unlock_irq(xas);
-+	BUG_ON(!dax_is_locked(old));
-+	dax_wake_entry(xas, false);
-+}
-+
-+static void dax_lock_entry(struct xa_state *xas, void *entry)
-+{
-+	unsigned long v = xa_to_value(entry);
-+	xas_store(xas, xa_mk_value(v | DAX_ENTRY_LOCK));
-+}
-+
- /*
-  * Check whether the given slot is locked.  Must be called with the i_pages
-  * lock held.
-@@ -1606,51 +1698,48 @@ EXPORT_SYMBOL_GPL(dax_iomap_fault);
- /*
-  * dax_insert_pfn_mkwrite - insert PTE or PMD entry into page tables
-  * @vmf: The description of the fault
-- * @pe_size: Size of entry to be inserted
-  * @pfn: PFN to insert
-+ * @order: Order of entry to insert.
-  *
-  * This function inserts a writeable PTE or PMD entry into the page tables
-  * for an mmaped DAX file.  It also marks the page cache entry as dirty.
-  */
--static int dax_insert_pfn_mkwrite(struct vm_fault *vmf,
--				  enum page_entry_size pe_size,
--				  pfn_t pfn)
-+static
-+int dax_insert_pfn_mkwrite(struct vm_fault *vmf, pfn_t pfn, unsigned int order)
+ unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
+ 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
+-		int tag)
++		xa_tag_t tag)
  {
- 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
--	void *entry, **slot;
--	pgoff_t index = vmf->pgoff;
-+	XA_STATE_ORDER(xas, &mapping->i_pages, vmf->pgoff, order);
-+	void *entry;
- 	int vmf_ret, error;
+ 	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
+ 					PAGEVEC_SIZE, pvec->pages);
+@@ -1012,7 +1012,7 @@ EXPORT_SYMBOL(pagevec_lookup_range_tag);
  
--	xa_lock_irq(&mapping->i_pages);
--	entry = get_unlocked_mapping_entry(mapping, index, &slot);
-+	xas_lock_irq(&xas);
-+	entry = get_unlocked_entry(&xas);
- 	/* Did we race with someone splitting entry or so? */
- 	if (!entry ||
--	    (pe_size == PE_SIZE_PTE && !dax_is_pte_entry(entry)) ||
--	    (pe_size == PE_SIZE_PMD && !dax_is_pmd_entry(entry))) {
--		put_unlocked_mapping_entry(mapping, index, entry);
--		xa_unlock_irq(&mapping->i_pages);
-+	    (order == 0 && !dax_is_pte_entry(entry)) ||
-+	    (order == PMD_ORDER && (xa_is_internal(entry) ||
-+				    !dax_is_pmd_entry(entry)))) {
-+		put_unlocked_entry(&xas, entry);
-+		xas_unlock_irq(&xas);
- 		trace_dax_insert_pfn_mkwrite_no_entry(mapping->host, vmf,
- 						      VM_FAULT_NOPAGE);
- 		return VM_FAULT_NOPAGE;
- 	}
--	radix_tree_tag_set(&mapping->i_pages, index, PAGECACHE_TAG_DIRTY);
--	entry = lock_slot(mapping, slot);
--	xa_unlock_irq(&mapping->i_pages);
--	switch (pe_size) {
--	case PE_SIZE_PTE:
-+	xas_set_tag(&xas, PAGECACHE_TAG_DIRTY);
-+	dax_lock_entry(&xas, entry);
-+	xas_unlock_irq(&xas);
-+	if (order == 0) {
- 		error = vm_insert_mixed_mkwrite(vmf->vma, vmf->address, pfn);
- 		vmf_ret = dax_fault_return(error);
--		break;
- #ifdef CONFIG_FS_DAX_PMD
--	case PE_SIZE_PMD:
-+	} else if (order == PMD_ORDER) {
- 		vmf_ret = vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
- 			pfn, true);
--		break;
- #endif
--	default:
-+	} else {
- 		vmf_ret = VM_FAULT_FALLBACK;
- 	}
--	put_locked_mapping_entry(mapping, index);
-+	put_locked_entry(&xas, entry);
- 	trace_dax_insert_pfn_mkwrite(mapping->host, vmf, vmf_ret);
- 	return vmf_ret;
- }
-@@ -1670,17 +1759,12 @@ int dax_finish_sync_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+ unsigned pagevec_lookup_range_nr_tag(struct pagevec *pvec,
+ 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
+-		int tag, unsigned max_pages)
++		xa_tag_t tag, unsigned max_pages)
  {
- 	int err;
- 	loff_t start = ((loff_t)vmf->pgoff) << PAGE_SHIFT;
--	size_t len = 0;
-+	unsigned int order = pe_order(pe_size);
-+	size_t len = PAGE_SIZE << order;
- 
--	if (pe_size == PE_SIZE_PTE)
--		len = PAGE_SIZE;
--	else if (pe_size == PE_SIZE_PMD)
--		len = PMD_SIZE;
--	else
--		WARN_ON_ONCE(1);
- 	err = vfs_fsync_range(vmf->vma->vm_file, start, start + len - 1, 1);
- 	if (err)
- 		return VM_FAULT_SIGBUS;
--	return dax_insert_pfn_mkwrite(vmf, pe_size, pfn);
-+	return dax_insert_pfn_mkwrite(vmf, pfn, order);
- }
- EXPORT_SYMBOL_GPL(dax_finish_sync_fault);
+ 	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
+ 		min_t(unsigned int, max_pages, PAGEVEC_SIZE), pvec->pages);
 -- 
 2.16.2
