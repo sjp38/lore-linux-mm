@@ -1,63 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 18D356B005C
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 17:40:14 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id k17so8428440pfj.10
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 14:40:14 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id v12si2220078pfe.164.2018.03.30.14.40.12
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 169A46B025F
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 17:42:14 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id o9so1692144pgv.8
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 14:42:14 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id x7-v6si4189302pln.175.2018.03.30.14.42.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Mar 2018 14:40:12 -0700 (PDT)
-Subject: Re: [PATCH 00/11] Use global pages with PTI
-References: <20180323174447.55F35636@viggo.jf.intel.com>
- <CA+55aFwEC1O+6qRc35XwpcuLSgJ+0GP6ciqw_1Oc-msX=efLvQ@mail.gmail.com>
- <be2e683c-bf0a-e9ce-2f02-4905f6bd56d3@linux.intel.com>
- <alpine.DEB.2.21.1803271526260.1964@nanos.tec.linutronix.de>
- <c0e7ca0b-dcb5-66e2-9df6-f53e4eb22781@linux.intel.com>
- <alpine.DEB.2.21.1803271949250.1618@nanos.tec.linutronix.de>
- <20180327200719.lvdomez6hszpmo4s@gmail.com>
- <0d6ea030-ec3b-d649-bad7-89ff54094e25@linux.intel.com>
- <20180330120920.btobga44wqytlkoe@gmail.com>
- <20180330121725.zcklh36ulg7crydw@gmail.com>
- <3cdc23a2-99eb-6f93-6934-f7757fa30a3e@linux.intel.com>
- <alpine.DEB.2.21.1803302230560.1479@nanos.tec.linutronix.de>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <62a0dbae-75eb-6737-6029-4aaf72ebd199@linux.intel.com>
-Date: Fri, 30 Mar 2018 14:40:11 -0700
+        Fri, 30 Mar 2018 14:42:12 -0700 (PDT)
+Date: Fri, 30 Mar 2018 17:42:09 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
+Message-ID: <20180330174209.4cb77003@gandalf.local.home>
+In-Reply-To: <20180330173031.257a491a@gandalf.local.home>
+References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+	<20180330102038.2378925b@gandalf.local.home>
+	<20180330205356.GA13332@bombadil.infradead.org>
+	<20180330173031.257a491a@gandalf.local.home>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1803302230560.1479@nanos.tec.linutronix.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
 
-On 03/30/2018 01:32 PM, Thomas Gleixner wrote:
-> On Fri, 30 Mar 2018, Dave Hansen wrote:
-> 
->> On 03/30/2018 05:17 AM, Ingo Molnar wrote:
->>> BTW., the expectation on !PCID Intel hardware would be for global pages to help 
->>> even more than the 0.6% and 1.7% you measured on PCID hardware: PCID already 
->>> _reduces_ the cost of TLB flushes - so if there's not even PCID then global pages 
->>> should help even more.
->>>
->>> In theory at least. Would still be nice to measure it.
->>
->> I did the lseek test on a modern, non-PCID system:
->>
->> No Global pages (baseline): 6077741 lseeks/sec
->> 94 Global pages (this set): 8433111 lseeks/sec
->> 			   +2355370 lseeks/sec (+38.8%)
-> 
-> That's all kernel text, right? What's the result for the case where global
-> is only set for all user/kernel shared pages?
+On Fri, 30 Mar 2018 17:30:31 -0400
+Steven Rostedt <rostedt@goodmis.org> wrote:
 
-Yes, that's all kernel text (94 global entries).  Here's the number with
-just the entry data/text set global (88 global entries on this system):
+> I'll take a look at si_mem_available() that Joel suggested and see if
+> we can make that work.
 
-No Global pages (baseline): 6077741 lseeks/sec
-88 Global Pages (kentry  ): 7528609 lseeks/sec (+23.9%)
-94 Global pages (this set): 8433111 lseeks/sec (+38.8%)
+Wow, this appears to work great! Joel and Zhaoyang, can you test this?
+
+-- Steve
+
+diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
+index a2fd3893cc02..32a803626ee2 100644
+--- a/kernel/trace/ring_buffer.c
++++ b/kernel/trace/ring_buffer.c
+@@ -1164,6 +1164,11 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
+ 	struct buffer_page *bpage, *tmp;
+ 	long i;
+ 
++	/* Check if the available memory is there first */
++	i = si_mem_available();
++	if (i < nr_pages)
++		return -ENOMEM;
++
+ 	for (i = 0; i < nr_pages; i++) {
+ 		struct page *page;
+ 		/*
