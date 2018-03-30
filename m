@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 69D2E6B0022
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 968826B0029
 	for <linux-mm@kvack.org>; Thu, 29 Mar 2018 23:42:57 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q11so6212894pfd.8
+Received: by mail-pg0-f69.google.com with SMTP id u23so4495956pgv.7
         for <linux-mm@kvack.org>; Thu, 29 Mar 2018 20:42:57 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f5-v6si2714894plo.410.2018.03.29.20.42.54
+        by mx.google.com with ESMTPS id c8si5027451pgt.225.2018.03.29.20.42.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Thu, 29 Mar 2018 20:42:54 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v10 41/62] shmem: Convert shmem_free_swap to XArray
-Date: Thu, 29 Mar 2018 20:42:24 -0700
-Message-Id: <20180330034245.10462-42-willy@infradead.org>
+Subject: [PATCH v10 20/62] page cache: Convert page deletion to XArray
+Date: Thu, 29 Mar 2018 20:42:03 -0700
+Message-Id: <20180330034245.10462-21-willy@infradead.org>
 In-Reply-To: <20180330034245.10462-1-willy@infradead.org>
 References: <20180330034245.10462-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,36 +22,69 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This is a perfect use for xa_cmpxchg().  Note the use of 0 for GFP
-flags; we won't be allocating memory.
+The code is slightly shorter and simpler.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ mm/filemap.c | 30 ++++++++++++++----------------
+ 1 file changed, 14 insertions(+), 16 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index aa7e92b24c19..be8c6d43b4aa 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -644,16 +644,13 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 0e19ea454cba..bdda1beda932 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -111,30 +111,28 @@
+  *   ->tasklist_lock            (memory_failure, collect_procs_ao)
+  */
+ 
+-static void page_cache_tree_delete(struct address_space *mapping,
++static void page_cache_delete(struct address_space *mapping,
+ 				   struct page *page, void *shadow)
+ {
+-	int i, nr;
++	XA_STATE(xas, &mapping->i_pages, page->index);
++	unsigned int i, nr;
+ 
+-	/* hugetlb pages are represented by one entry in the radix tree */
++	mapping_set_update(&xas, mapping);
++
++	/* hugetlb pages are represented by a single entry in the xarray */
+ 	nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
+ 
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
+ 
+-	for (i = 0; i < nr; i++) {
+-		struct radix_tree_node *node;
+-		void **slot;
+-
+-		__radix_tree_lookup(&mapping->i_pages, page->index + i,
+-				    &node, &slot);
+-
+-		VM_BUG_ON_PAGE(!node && nr != 1, page);
+-
+-		radix_tree_clear_tags(&mapping->i_pages, node, slot);
+-		__radix_tree_replace(&mapping->i_pages, node, slot, shadow,
+-				workingset_lookup_update(mapping));
++	i = nr;
++repeat:
++	xas_store(&xas, shadow);
++	xas_init_tags(&xas);
++	if (--i) {
++		xas_next(&xas);
++		goto repeat;
+ 	}
+ 
+ 	page->mapping = NULL;
+@@ -234,7 +232,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
+ 	trace_mm_filemap_delete_from_page_cache(page);
+ 
+ 	unaccount_page_cache_page(mapping, page);
+-	page_cache_tree_delete(mapping, page, shadow);
++	page_cache_delete(mapping, page, shadow);
  }
  
- /*
-- * Remove swap entry from radix tree, free the swap and its page cache.
-+ * Remove swap entry from page cache, free the swap and its page cache.
-  */
- static int shmem_free_swap(struct address_space *mapping,
- 			   pgoff_t index, void *radswap)
- {
--	void *old;
-+	void *old = xa_cmpxchg(&mapping->i_pages, index, radswap, NULL, 0);
- 
--	xa_lock_irq(&mapping->i_pages);
--	old = radix_tree_delete_item(&mapping->i_pages, index, radswap);
--	xa_unlock_irq(&mapping->i_pages);
- 	if (old != radswap)
- 		return -ENOENT;
- 	free_swap_and_cache(radix_to_swp_entry(radswap));
+ static void page_cache_free_page(struct address_space *mapping,
 -- 
 2.16.2
