@@ -1,176 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 200E66B005A
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 12:38:01 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id 185so8145320iox.21
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 09:38:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o75-v6sor1777771ito.98.2018.03.30.09.37.59
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F2026B002F
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 13:46:48 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id m18so7301418pgu.14
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 10:46:48 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0134.outbound.protection.outlook.com. [104.47.2.134])
+        by mx.google.com with ESMTPS id 3-v6si8853693plx.589.2018.03.30.10.46.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 30 Mar 2018 09:37:59 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 30 Mar 2018 10:46:46 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 13/15] khwasan: add hooks implementation
+References: <cover.1521828273.git.andreyknvl@google.com>
+ <ba4a74ba1bc48dd66a3831143c3119d13c291fe3.1521828274.git.andreyknvl@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <805d1e85-2d3c-2327-6e6c-f14a56dc0b67@virtuozzo.com>
+Date: Fri, 30 Mar 2018 20:47:19 +0300
 MIME-Version: 1.0
-In-Reply-To: <20180330102038.2378925b@gandalf.local.home>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com> <20180330102038.2378925b@gandalf.local.home>
-From: Joel Fernandes <joelaf@google.com>
-Date: Fri, 30 Mar 2018 09:37:58 -0700
-Message-ID: <CAJWu+ooMPz_nFtULMXp6CnLvM8JFJrSnBGNgPHXKs1k97FQU5Q@mail.gmail.com>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <ba4a74ba1bc48dd66a3831143c3119d13c291fe3.1521828274.git.andreyknvl@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+To: Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-Hi Steve,
+On 03/23/2018 09:05 PM, Andrey Konovalov wrote:
+> This commit adds KHWASAN hooks implementation.
+> 
+> 1. When a new slab cache is created, KHWASAN rounds up the size of the
+>    objects in this cache to KASAN_SHADOW_SCALE_SIZE (== 16).
+> 
+> 2. On each kmalloc KHWASAN generates a random tag, sets the shadow memory,
+>    that corresponds to this object to this tag, and embeds this tag value
+>    into the top byte of the returned pointer.
+> 
+> 3. On each kfree KHWASAN poisons the shadow memory with a random tag to
+>    allow detection of use-after-free bugs.
+> 
+> The rest of the logic of the hook implementation is very much similar to
+> the one provided by KASAN. KHWASAN saves allocation and free stack metadata
+> to the slab object the same was KASAN does this.
+> 
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  mm/kasan/khwasan.c | 200 ++++++++++++++++++++++++++++++++++++++++++++-
+>  1 file changed, 197 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/kasan/khwasan.c b/mm/kasan/khwasan.c
+> index da4b17997c71..e8bed5a078c7 100644
+> --- a/mm/kasan/khwasan.c
+> +++ b/mm/kasan/khwasan.c
+> @@ -90,69 +90,260 @@ void *khwasan_reset_tag(const void *addr)
+>  	return reset_tag(addr);
+>  }
+>  
+> +void kasan_poison_shadow(const void *address, size_t size, u8 value)
+> +{
+> +	void *shadow_start, *shadow_end;
+> +
+> +	/* Perform shadow offset calculation based on untagged address */
+> +	address = reset_tag(address);
+> +
+> +	shadow_start = kasan_mem_to_shadow(address);
+> +	shadow_end = kasan_mem_to_shadow(address + size);
+> +
+> +	memset(shadow_start, value, shadow_end - shadow_start);
+> +}
+> +
+>  void kasan_unpoison_shadow(const void *address, size_t size)
+>  {
+> +	/* KHWASAN only allows 16-byte granularity */
+> +	size = round_up(size, KASAN_SHADOW_SCALE_SIZE);
+> +	kasan_poison_shadow(address, size, get_tag(address));
+>  }
+>  
 
-On Fri, Mar 30, 2018 at 7:20 AM, Steven Rostedt <rostedt@goodmis.org> wrote:
->
-> [ Adding memory management folks to discuss the issue ]
->
-> On Thu, 29 Mar 2018 18:41:44 +0800
-> Zhaoyang Huang <huangzhaoyang@gmail.com> wrote:
->
->> It is reported that some user app would like to echo a huge
->> number to "/sys/kernel/debug/tracing/buffer_size_kb" regardless
->>  of the available memory, which will cause the coinstantaneous
->> page allocation failed and introduce OOM. The commit checking the
->> val against the available mem first to avoid the consequence allocation.
->>
->> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
->> ---
->>  kernel/trace/trace.c | 39 ++++++++++++++++++++++++++++++++++++++-
->>  1 file changed, 38 insertions(+), 1 deletion(-)
->>
->> diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
->> index 2d0ffcc..a4a4237 100644
->> --- a/kernel/trace/trace.c
->> +++ b/kernel/trace/trace.c
->> @@ -43,6 +43,8 @@
->>  #include <linux/trace.h>
->>  #include <linux/sched/rt.h>
->>
->> +#include <linux/mm.h>
->> +#include <linux/swap.h>
->>  #include "trace.h"
->>  #include "trace_output.h"
->>
->> @@ -5967,6 +5969,39 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
->>       return ret;
->>  }
->>
->> +static long get_available_mem(void)
->> +{
->> +     struct sysinfo i;
->> +     long available;
->> +     unsigned long pagecache;
->> +     unsigned long wmark_low = 0;
->> +     unsigned long pages[NR_LRU_LISTS];
->> +     struct zone *zone;
->> +     int lru;
->> +
->> +     si_meminfo(&i);
->> +     si_swapinfo(&i);
->> +
->> +     for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
->> +             pages[lru] = global_page_state(NR_LRU_BASE + lru);
->> +
->> +     for_each_zone(zone)
->> +             wmark_low += zone->watermark[WMARK_LOW];
->> +
->> +     available = i.freeram - wmark_low;
->> +
->> +     pagecache = pages[LRU_ACTIVE_FILE] + pages[LRU_INACTIVE_FILE];
->> +     pagecache -= min(pagecache / 2, wmark_low);
->> +     available += pagecache;
->> +
->> +     available += global_page_state(NR_SLAB_RECLAIMABLE) -
->> +             min(global_page_state(NR_SLAB_RECLAIMABLE) / 2, wmark_low);
->> +
->> +     if (available < 0)
->> +             available = 0;
->> +     return available;
->> +}
->> +
->
-> As I stated in my other reply, the above function does not belong in
-> tracing.
->
-> That said, it appears you are having issues that were caused by the
-> change by commit 848618857d2 ("tracing/ring_buffer: Try harder to
-> allocate"), where we replaced NORETRY with RETRY_MAYFAIL. The point of
-> NORETRY was to keep allocations of the tracing ring-buffer from causing
-> OOMs. But the RETRY was too strong in that case, because there were
 
-Yes this was discussed with -mm folks. Basically the problem we were
-seeing is devices with tonnes of free memory (but free as in free but
-used by page cache)  were not being used so it was unnecessarily
-failing to allocate ring buffer on the system with otherwise lots of
-memory.
+This is way too much of copy-paste/code duplication. Ideally, you should have only
+check_memory_region() stuff separated, the rest (poisoning/unpoisoning, slabs management) should be
+in common.c code.
 
-> those that wanted to allocate large ring buffers but it would fail due
-> to memory being used that could be reclaimed. Supposedly, RETRY_MAYFAIL
-> is to allocate with reclaim but still allow to fail, and isn't suppose
-> to trigger an OOM. From my own tests, this is obviously not the case.
->
+So it should be something like this:
 
-IIRC, the OOM that my patch was trying to avoid, was being triggered
-in the path/context of the write to buffer_size_kb itself (when not
-doing the NORETRY),  not by other processes.
+in kasan.h
+...
+#ifdef CONFIG_KASAN_CLASSIC
+#define KASAN_FREE_PAGE         0xFF  /* page was freed */
+#define KASAN_PAGE_REDZONE      0xFE  /* redzone for kmalloc_large allocations */
+#define KASAN_KMALLOC_REDZONE   0xFC  /* redzone inside slub object */
+#define KASAN_KMALLOC_FREE      0xFB  /* object was freed (kmem_cache_free/kfree) */
+#else
+#define KASAN_FREE_PAGE         0xFE
+#define KASAN_PAGE_REDZONE      0xFE
+#define KASAN_KMALLOC_REDZONE   0xFE
+#define KASAN_KMALLOC_FREE      0xFE
+#endif
 
-> Perhaps this is because the ring buffer allocates one page at a time,
-> and by doing so, it can get every last available page, and if anything
-> in the mean time does an allocation without MAYFAIL, it will cause an
-> OOM. For example, when I stressed this I triggered this:
->
->  pool invoked oom-killer: gfp_mask=0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null), order=0, oom_score_adj=0
->  pool cpuset=/ mems_allowed=0
->  CPU: 7 PID: 1040 Comm: pool Not tainted 4.16.0-rc4-test+ #663
->  Hardware name: Hewlett-Packard HP Compaq Pro 6300 SFF/339A, BIOS K01 v03.03 07/14/2016
->  Call Trace:
->   dump_stack+0x8e/0xce
->   dump_header.isra.30+0x6e/0x28f
->   ? _raw_spin_unlock_irqrestore+0x30/0x60
->   oom_kill_process+0x218/0x400
->   ? has_capability_noaudit+0x17/0x20
->   out_of_memory+0xe3/0x5c0
->   __alloc_pages_slowpath+0xa8e/0xe50
->   __alloc_pages_nodemask+0x206/0x220
->   alloc_pages_current+0x6a/0xe0
->   __page_cache_alloc+0x6a/0xa0
->   filemap_fault+0x208/0x5f0
->   ? __might_sleep+0x4a/0x80
->   ext4_filemap_fault+0x31/0x44
->   __do_fault+0x20/0xd0
->   __handle_mm_fault+0xc08/0x1160
->   handle_mm_fault+0x76/0x110
->   __do_page_fault+0x299/0x580
->   do_page_fault+0x2d/0x110
->   ? page_fault+0x2f/0x50
->   page_fault+0x45/0x50
+...
 
-But this OOM is not in the path of the buffer_size_kb write, right? So
-then what does it have to do with buffer_size_kb write failure?
+#ifdef CONFIG_KASAN_CLASSIC
+static inline void *reset_tag(const void *addr)
+{
+	return (void *)addr;
+}
+static inline u8 get_tag(const void *addr)
+{
+	return 0;
+}
+#else
+static inline u8 get_tag(const void *addr)
+{
+	return (u8)((u64)addr >> KHWASAN_TAG_SHIFT);
+}
 
-I guess the original issue reported is that the buffer_size_kb write
-causes *other* applications to fail allocation. So in that case,
-capping the amount that ftrace writes makes sense. Basically my point
-is I don't see how the patch you mentioned introduces the problem here
-- in the sense the patch just makes ftrace allocate from memory it
-couldn't before and to try harder.
+static inline void *reset_tag(const void *addr)
+{
+	return set_tag(addr, KHWASAN_TAG_KERNEL);
+}
+#endif
 
->
-> I wonder if I should have the ring buffer allocate groups of pages, to
-> avoid this. Or try to allocate with NORETRY, one page at a time, and
-> when that fails, allocate groups of pages with RETRY_MAYFAIL, and that
-> may keep it from causing an OOM?
->
 
-I don't see immediately how that can prevent an OOM in other
-applications here? If ftrace allocates lots of memory with
-RETRY_MAYFAIL, then we would still OOM in other applications if memory
-isn't available. Sorry if I missed something.
+in kasan/common.c:
 
-Thanks,
 
-- Joel
+void kasan_poison_shadow(const void *address, size_t size, u8 value)
+{
+	void *shadow_start, *shadow_end;
+
+	address = reset_tag(address);
+
+	shadow_start = kasan_mem_to_shadow(address);
+	shadow_end = kasan_mem_to_shadow(address + size);
+
+	memset(shadow_start, value, shadow_end - shadow_start);
+}
+
+void kasan_unpoison_shadow(const void *address, size_t size)
+{
+
+	kasan_poison_shadow(address, size, get_tag(address));
+
+	if (size & KASAN_SHADOW_MASK) {
+		u8 *shadow = (u8 *)kasan_mem_to_shadow(address + size);
+
+		if (IS_ENABLED(CONFIG_KASAN_TAGS)
+			*shadow = get_tag(address);
+		else
+			*shadow = size & KASAN_SHADOW_MASK;
+	}
+}
+
+void kasan_free_pages(struct page *page, unsigned int order)
+{
+	if (likely(!PageHighMem(page)))
+		kasan_poison_shadow(page_address(page),
+				PAGE_SIZE << order,
+				KASAN_FREE_PAGE);
+}
+
+etc.
+
+
+
+>  void check_memory_region(unsigned long addr, size_t size, bool write,
+>  				unsigned long ret_ip)
+>  {
+> +	u8 tag;
+> +	u8 *shadow_first, *shadow_last, *shadow;
+> +	void *untagged_addr;
+> +
+> +	tag = get_tag((const void *)addr);
+> +
+> +	/* Ignore accesses for pointers tagged with 0xff (native kernel
+> +	 * pointer tag) to suppress false positives caused by kmap.
+> +	 *
+> +	 * Some kernel code was written to account for archs that don't keep
+> +	 * high memory mapped all the time, but rather map and unmap particular
+> +	 * pages when needed. Instead of storing a pointer to the kernel memory,
+> +	 * this code saves the address of the page structure and offset within
+> +	 * that page for later use. Those pages are then mapped and unmapped
+> +	 * with kmap/kunmap when necessary and virt_to_page is used to get the
+> +	 * virtual address of the page. For arm64 (that keeps the high memory
+> +	 * mapped all the time), kmap is turned into a page_address call.
+> +
+> +	 * The issue is that with use of the page_address + virt_to_page
+> +	 * sequence the top byte value of the original pointer gets lost (gets
+> +	 * set to 0xff.
+> +	 */
+> +	if (tag == 0xff)
+> +		return;
+
+You can save tag somewhere in page struct and make page_address() return tagged address.
+
+I'm not sure it might be even possible to squeeze the tag into page->flags on some configurations,
+see include/linux/page-flags-layout.h
+
+
+>  void *kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
+>  {
+> +	if (!READ_ONCE(khwasan_enabled))
+> +		return object;
+
+...
+
+>  void *kasan_kmalloc(struct kmem_cache *cache, const void *object,
+>  			size_t size, gfp_t flags)
+>  {
+
+> +	if (!READ_ONCE(khwasan_enabled))
+> +		return (void *)object;
+> +
+
+...
+
+>  void *kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
+>  {
+
+...
+
+> +
+> +	if (!READ_ONCE(khwasan_enabled))
+> +		return (void *)ptr;
+> +
+
+I don't see any possible way of khwasan_enabled being 0 here.
