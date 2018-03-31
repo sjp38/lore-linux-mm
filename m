@@ -1,54 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C0E386B0276
-	for <linux-mm@kvack.org>; Sat, 31 Mar 2018 01:44:53 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 12-v6so9350807itv.9
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 22:44:53 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v190sor4439385ioe.190.2018.03.30.22.44.52
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D0CF6B027A
+	for <linux-mm@kvack.org>; Sat, 31 Mar 2018 14:19:51 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id v8so9238123pgs.9
+        for <linux-mm@kvack.org>; Sat, 31 Mar 2018 11:19:51 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id o14si7359716pgn.655.2018.03.31.11.19.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 30 Mar 2018 22:44:52 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 31 Mar 2018 11:19:49 -0700 (PDT)
+Subject: Re: [PATCH 00/11] Use global pages with PTI
+References: <alpine.DEB.2.21.1803271526260.1964@nanos.tec.linutronix.de>
+ <c0e7ca0b-dcb5-66e2-9df6-f53e4eb22781@linux.intel.com>
+ <alpine.DEB.2.21.1803271949250.1618@nanos.tec.linutronix.de>
+ <20180327200719.lvdomez6hszpmo4s@gmail.com>
+ <0d6ea030-ec3b-d649-bad7-89ff54094e25@linux.intel.com>
+ <20180330120920.btobga44wqytlkoe@gmail.com>
+ <20180330121725.zcklh36ulg7crydw@gmail.com>
+ <3cdc23a2-99eb-6f93-6934-f7757fa30a3e@linux.intel.com>
+ <alpine.DEB.2.21.1803302230560.1479@nanos.tec.linutronix.de>
+ <62a0dbae-75eb-6737-6029-4aaf72ebd199@linux.intel.com>
+ <20180331053956.uts5yhxfy7ud4bpf@gmail.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <2607b1b1-89a7-635c-0c5d-da9f558241f4@linux.intel.com>
+Date: Sat, 31 Mar 2018 11:19:48 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180330230733.2bf010f2@gandalf.local.home>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
- <20180330102038.2378925b@gandalf.local.home> <20180330205356.GA13332@bombadil.infradead.org>
- <20180330173031.257a491a@gandalf.local.home> <20180330174209.4cb77003@gandalf.local.home>
- <CAJWu+orx=NZrkAf7x_HqttnrMssmW7DPZOL1fxR=N6D_-fbmtw@mail.gmail.com>
- <20180330214151.415e90ea@gandalf.local.home> <20180331021857.GD13332@bombadil.infradead.org>
- <20180330230733.2bf010f2@gandalf.local.home>
-From: Joel Fernandes <joelaf@google.com>
-Date: Fri, 30 Mar 2018 22:44:51 -0700
-Message-ID: <CAJWu+oovOOVX9UEw41L61NQ4Wyj+t513+E_tDfAqKik2+EP-Tg@mail.gmail.com>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180331053956.uts5yhxfy7ud4bpf@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
 
-On Fri, Mar 30, 2018 at 8:07 PM, Steven Rostedt <rostedt@goodmis.org> wrote:
-> On Fri, 30 Mar 2018 19:18:57 -0700
-> Matthew Wilcox <willy@infradead.org> wrote:
->
->> Again though, this is the same pattern as vmalloc.  There are any number
->> of places where userspace can cause an arbitrarily large vmalloc to be
->> attempted (grep for kvmalloc_array for a list of promising candidates).
->> I'm pretty sure that just changing your GFP flags to GFP_KERNEL |
->> __GFP_NOWARN will give you the exact behaviour that you want with no
->> need to grub around in the VM to find out if your huge allocation is
->> likely to succeed.
->
-> Not sure how this helps. Note, I don't care about consecutive pages, so
-> this is not an array. It's a link list of thousands of pages. How do
-> you suggest allocating them? The ring buffer is a link list of pages.
+On 03/30/2018 10:39 PM, Ingo Molnar wrote:
+> There were a couple of valid review comments which need to be addressed as well, 
+> but other than that it all looks good to me and I plan to apply the next 
+> iteration.
 
-Yeah I didn't understand the suggestion either. If I remember
-correctly, not using either NO_RETRY or RETRY_MAY_FAIL, and just plain
-GFP_KERNEL was precisely causing the buffer_size_kb write to cause an
-OOM in my testing. So I think Steven's patch does the right thing in
-checking in advance.
+Testing on that non-PCID systems showed an oddity with parts of the
+kernel image that are modified later in boot (when we set the kernel
+image read-only).  We split a few of the PMD entries and the the old
+(early boot) values were being used for userspace.
 
-thanks,
-
-- Joel
+I don't think this is a big deal.  The most annoying thing is that it
+makes it harder to quickly validate that all of the things we set to
+global *should* be global.  I'll put some examples of how this looks in
+the patch when I repost.
