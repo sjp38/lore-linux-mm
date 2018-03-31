@@ -1,74 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D7856B0278
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 23:07:39 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id i128so5932986pfg.2
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 20:07:39 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b17si7445385pfd.155.2018.03.30.20.07.37
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 143E96B0273
+	for <linux-mm@kvack.org>; Sat, 31 Mar 2018 01:40:02 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id u13so5042467wre.1
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 22:40:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x18sor168808wrd.87.2018.03.30.22.39.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Mar 2018 20:07:37 -0700 (PDT)
-Date: Fri, 30 Mar 2018 23:07:33 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180330230733.2bf010f2@gandalf.local.home>
-In-Reply-To: <20180331021857.GD13332@bombadil.infradead.org>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-	<20180330102038.2378925b@gandalf.local.home>
-	<20180330205356.GA13332@bombadil.infradead.org>
-	<20180330173031.257a491a@gandalf.local.home>
-	<20180330174209.4cb77003@gandalf.local.home>
-	<CAJWu+orx=NZrkAf7x_HqttnrMssmW7DPZOL1fxR=N6D_-fbmtw@mail.gmail.com>
-	<20180330214151.415e90ea@gandalf.local.home>
-	<20180331021857.GD13332@bombadil.infradead.org>
+        (Google Transport Security);
+        Fri, 30 Mar 2018 22:40:00 -0700 (PDT)
+Date: Sat, 31 Mar 2018 07:39:56 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/11] Use global pages with PTI
+Message-ID: <20180331053956.uts5yhxfy7ud4bpf@gmail.com>
+References: <alpine.DEB.2.21.1803271526260.1964@nanos.tec.linutronix.de>
+ <c0e7ca0b-dcb5-66e2-9df6-f53e4eb22781@linux.intel.com>
+ <alpine.DEB.2.21.1803271949250.1618@nanos.tec.linutronix.de>
+ <20180327200719.lvdomez6hszpmo4s@gmail.com>
+ <0d6ea030-ec3b-d649-bad7-89ff54094e25@linux.intel.com>
+ <20180330120920.btobga44wqytlkoe@gmail.com>
+ <20180330121725.zcklh36ulg7crydw@gmail.com>
+ <3cdc23a2-99eb-6f93-6934-f7757fa30a3e@linux.intel.com>
+ <alpine.DEB.2.21.1803302230560.1479@nanos.tec.linutronix.de>
+ <62a0dbae-75eb-6737-6029-4aaf72ebd199@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <62a0dbae-75eb-6737-6029-4aaf72ebd199@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Joel Fernandes <joelaf@google.com>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "open
- list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?iso-8859-1?Q?J=FCrgen_Gro=DF?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
 
-On Fri, 30 Mar 2018 19:18:57 -0700
-Matthew Wilcox <willy@infradead.org> wrote:
 
-> Again though, this is the same pattern as vmalloc.  There are any number
-> of places where userspace can cause an arbitrarily large vmalloc to be
-> attempted (grep for kvmalloc_array for a list of promising candidates).
-> I'm pretty sure that just changing your GFP flags to GFP_KERNEL |
-> __GFP_NOWARN will give you the exact behaviour that you want with no
-> need to grub around in the VM to find out if your huge allocation is
-> likely to succeed.
+* Dave Hansen <dave.hansen@linux.intel.com> wrote:
 
-Not sure how this helps. Note, I don't care about consecutive pages, so
-this is not an array. It's a link list of thousands of pages. How do
-you suggest allocating them? The ring buffer is a link list of pages.
+> On 03/30/2018 01:32 PM, Thomas Gleixner wrote:
+> > On Fri, 30 Mar 2018, Dave Hansen wrote:
+> > 
+> >> On 03/30/2018 05:17 AM, Ingo Molnar wrote:
+> >>> BTW., the expectation on !PCID Intel hardware would be for global pages to help 
+> >>> even more than the 0.6% and 1.7% you measured on PCID hardware: PCID already 
+> >>> _reduces_ the cost of TLB flushes - so if there's not even PCID then global pages 
+> >>> should help even more.
+> >>>
+> >>> In theory at least. Would still be nice to measure it.
+> >>
+> >> I did the lseek test on a modern, non-PCID system:
+> >>
+> >> No Global pages (baseline): 6077741 lseeks/sec
+> >> 94 Global pages (this set): 8433111 lseeks/sec
+> >> 			   +2355370 lseeks/sec (+38.8%)
+> > 
+> > That's all kernel text, right? What's the result for the case where global
+> > is only set for all user/kernel shared pages?
+> 
+> Yes, that's all kernel text (94 global entries).  Here's the number with
+> just the entry data/text set global (88 global entries on this system):
+> 
+> No Global pages (baseline): 6077741 lseeks/sec
+> 88 Global Pages (kentry  ): 7528609 lseeks/sec (+23.9%)
+> 94 Global pages (this set): 8433111 lseeks/sec (+38.8%)
 
-What I currently do is to see how many more pages I need. Allocate them
-one at a time and put them in a temporary list, if it succeeds I add
-them to the ring buffer, if not, I free the entire list (it's an all or
-nothing operation).
+Very impressive!
 
-The allocation I'm making doesn't warn. The problem is the
-GFP_RETRY_MAYFAIL, which will try to allocate any possible memory in
-the system. When it succeeds, the ring buffer allocation logic will
-then try to allocate another page. If we add too many pages, we will
-allocate all possible pages and then try to allocate more. This
-allocation will fail without causing an OOM. That's not the problem.
-The problem is if the system is active during this time, and something
-else tries to do any allocation, after all memory has been consumed,
-that allocation will fail. Then it will trigger an OOM.
+Please incorporate the performance numbers in patches #9 and #11.
 
-I showed this in my Call Trace, that the allocation that failed during
-my test was something completely unrelated, and that failure caused an
-OOM.
+There were a couple of valid review comments which need to be addressed as well, 
+but other than that it all looks good to me and I plan to apply the next 
+iteration.
 
-What this last patch does is see if there's space available before it
-even starts the process.
+In fact I think I'll try to put it into the backporting tree: as PGE was really 
+the pre PTI status quo and thus we should expect few quirks/bugs in this area, 
+plus we still want to share as much core PTI logic with the -stable kernels as 
+possible. The performance plus doesn't hurt either ... after so much lost 
+performance.
 
-Maybe I'm missing something, but I don't see how NOWARN can help. My
-allocations are not what is giving the warning.
+Thanks,
 
--- Steve
+	Ingo
