@@ -1,50 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D0CF6B027A
-	for <linux-mm@kvack.org>; Sat, 31 Mar 2018 14:19:51 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id v8so9238123pgs.9
-        for <linux-mm@kvack.org>; Sat, 31 Mar 2018 11:19:51 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id o14si7359716pgn.655.2018.03.31.11.19.49
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 08B766B0003
+	for <linux-mm@kvack.org>; Sat, 31 Mar 2018 16:47:07 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id q74so10709542iod.14
+        for <linux-mm@kvack.org>; Sat, 31 Mar 2018 13:47:07 -0700 (PDT)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id 132sor5136769ioo.62.2018.03.31.13.47.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 31 Mar 2018 11:19:49 -0700 (PDT)
-Subject: Re: [PATCH 00/11] Use global pages with PTI
-References: <alpine.DEB.2.21.1803271526260.1964@nanos.tec.linutronix.de>
- <c0e7ca0b-dcb5-66e2-9df6-f53e4eb22781@linux.intel.com>
- <alpine.DEB.2.21.1803271949250.1618@nanos.tec.linutronix.de>
- <20180327200719.lvdomez6hszpmo4s@gmail.com>
- <0d6ea030-ec3b-d649-bad7-89ff54094e25@linux.intel.com>
- <20180330120920.btobga44wqytlkoe@gmail.com>
- <20180330121725.zcklh36ulg7crydw@gmail.com>
- <3cdc23a2-99eb-6f93-6934-f7757fa30a3e@linux.intel.com>
- <alpine.DEB.2.21.1803302230560.1479@nanos.tec.linutronix.de>
- <62a0dbae-75eb-6737-6029-4aaf72ebd199@linux.intel.com>
- <20180331053956.uts5yhxfy7ud4bpf@gmail.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <2607b1b1-89a7-635c-0c5d-da9f558241f4@linux.intel.com>
-Date: Sat, 31 Mar 2018 11:19:48 -0700
+        (Google Transport Security);
+        Sat, 31 Mar 2018 13:47:05 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180331053956.uts5yhxfy7ud4bpf@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Date: Sat, 31 Mar 2018 13:47:05 -0700
+Message-ID: <001a113fe4c0a623b10568bb75ea@google.com>
+Subject: general protection fault in __mem_cgroup_free
+From: syzbot <syzbot+8a5de3cce7cdc70e9ebe@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
+To: cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
 
-On 03/30/2018 10:39 PM, Ingo Molnar wrote:
-> There were a couple of valid review comments which need to be addressed as well, 
-> but other than that it all looks good to me and I plan to apply the next 
-> iteration.
+Hello,
 
-Testing on that non-PCID systems showed an oddity with parts of the
-kernel image that are modified later in boot (when we set the kernel
-image read-only).  We split a few of the PMD entries and the the old
-(early boot) values were being used for userspace.
+syzbot hit the following crash on upstream commit
+9dd2326890d89a5179967c947dab2bab34d7ddee (Fri Mar 30 17:29:47 2018 +0000)
+Merge tag 'ceph-for-4.16-rc8' of git://github.com/ceph/ceph-client
+syzbot dashboard link:  
+https://syzkaller.appspot.com/bug?extid=8a5de3cce7cdc70e9ebe
 
-I don't think this is a big deal.  The most annoying thing is that it
-makes it harder to quickly validate that all of the things we set to
-global *should* be global.  I'll put some examples of how this looks in
-the patch when I repost.
+So far this crash happened 14 times on upstream.
+C reproducer: https://syzkaller.appspot.com/x/repro.c?id=5578311367393280
+syzkaller reproducer:  
+https://syzkaller.appspot.com/x/repro.syz?id=5708657048158208
+Raw console output:  
+https://syzkaller.appspot.com/x/log.txt?id=6693821748346880
+Kernel config:  
+https://syzkaller.appspot.com/x/.config?id=-2760467897697295172
+compiler: gcc (GCC) 7.1.1 20170620
+
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+8a5de3cce7cdc70e9ebe@syzkaller.appspotmail.com
+It will help syzbot understand when the bug is fixed. See footer for  
+details.
+If you forward the report, please keep this part and the footer.
+
+RBP: 00000000006dcc20 R08: 0000000000000002 R09: 0000000000003335
+R10: 0000000000000000 R11: 0000000000000246 R12: 0030656c69662f2e
+R13: 00007f1747954d80 R14: ffffffffffffffff R15: 0000000000000006
+kasan: CONFIG_KASAN_INLINE enabled
+kasan: GPF could be caused by NULL-ptr deref or user memory access
+general protection fault: 0000 [#1] SMP KASAN
+Dumping ftrace buffer:
+    (ftrace buffer empty)
+Modules linked in:
+CPU: 0 PID: 4422 Comm: syzkaller101598 Not tainted 4.16.0-rc7+ #372
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+RIP: 0010:free_mem_cgroup_per_node_info mm/memcontrol.c:4111 [inline]
+RIP: 0010:__mem_cgroup_free+0x71/0x110 mm/memcontrol.c:4120
+RSP: 0018:ffff8801accf75a8 EFLAGS: 00010206
+RAX: 0000000000000011 RBX: 0000000000000000 RCX: ffffffff8310cdfd
+RDX: 0000000000000000 RSI: 0000000000000040 RDI: 0000000000000088
+RBP: ffff8801accf75c8 R08: 0000000000000000 R09: ffff8801accf73a0
+R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
+R13: ffff8801ad210d40 R14: dffffc0000000000 R15: ffff8801ad210d40
+FS:  00007f1747955700(0000) GS:ffff8801db000000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000460000 CR3: 00000001cb367004 CR4: 00000000001606f0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+Call Trace:
+  mem_cgroup_free mm/memcontrol.c:4128 [inline]
+  mem_cgroup_css_alloc+0x403/0x19c0 mm/memcontrol.c:4239
+  css_create kernel/cgroup/cgroup.c:4729 [inline]
+  cgroup_apply_control_enable+0x44d/0xbc0 kernel/cgroup/cgroup.c:2916
+  cgroup_mkdir+0x56f/0xfc0 kernel/cgroup/cgroup.c:4938
+  kernfs_iop_mkdir+0x153/0x1e0 fs/kernfs/dir.c:1099
+  vfs_mkdir+0x390/0x600 fs/namei.c:3800
+  SYSC_mkdirat fs/namei.c:3823 [inline]
+  SyS_mkdirat+0x22b/0x2b0 fs/namei.c:3807
+  do_syscall_64+0x281/0x940 arch/x86/entry/common.c:287
+  entry_SYSCALL_64_after_hwframe+0x42/0xb7
+RIP: 0033:0x44a0c9
+RSP: 002b:00007f1747954d78 EFLAGS: 00000246 ORIG_RAX: 0000000000000102
+RAX: ffffffffffffffda RBX: 00000000006dcc24 RCX: 000000000044a0c9
+RDX: 0000000000000020 RSI: 0000000020000280 RDI: 0000000000000005
+RBP: 00000000006dcc20 R08: 0000000000000002 R09: 0000000000003335
+R10: 0000000000000000 R11: 0000000000000246 R12: 0030656c69662f2e
+R13: 00007f1747954d80 R14: ffffffffffffffff R15: 0000000000000006
+Code: 00 00 48 89 f8 48 c1 e8 03 42 80 3c 30 00 0f 85 99 00 00 00 4f 8b a4  
+e5 f0 09 00 00 49 8d bc 24 88 00 00 00 48 89 f8 48 c1 e8 03 <42> 80 3c 30  
+00 0f 85 88 00 00 00 49 8b bc 24 88 00 00 00 e8 77
+RIP: free_mem_cgroup_per_node_info mm/memcontrol.c:4111 [inline] RSP:  
+ffff8801accf75a8
+RIP: __mem_cgroup_free+0x71/0x110 mm/memcontrol.c:4120 RSP: ffff8801accf75a8
+---[ end trace 57ac07c30502ef78 ]---
+Kernel panic - not syncing: Fatal exception
+Dumping ftrace buffer:
+    (ftrace buffer empty)
+Kernel Offset: disabled
+Rebooting in 86400 seconds..
+
+
+---
+This bug is generated by a dumb bot. It may contain errors.
+See https://goo.gl/tpsmEJ for details.
+Direct all questions to syzkaller@googlegroups.com.
+
+syzbot will keep track of this bug report.
+If you forgot to add the Reported-by tag, once the fix for this bug is  
+merged
+into any tree, please reply to this email with:
+#syz fix: exact-commit-title
+If you want to test a patch for this bug, please reply with:
+#syz test: git://repo/address.git branch
+and provide the patch inline or as an attachment.
+To mark this as a duplicate of another syzbot report, please reply with:
+#syz dup: exact-subject-of-another-report
+If it's a one-off invalid bug report, please reply with:
+#syz invalid
+Note: if the crash happens again, it will cause creation of a new bug  
+report.
+Note: all commands must start from beginning of the line in the email body.
