@@ -1,128 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 55E546B0068
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 20:33:56 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id i205-v6so9002550ita.3
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 17:33:56 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id l15si7025181ioi.0.2018.03.30.17.33.55
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7765B6B0272
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 21:41:56 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id b2so8027114pgt.6
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 18:41:56 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id i71si6369023pgc.718.2018.03.30.18.41.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Mar 2018 17:33:55 -0700 (PDT)
-Subject: Re: [PATCH v10 43/62] memfd: Convert shmem_tag_pins to XArray
-References: <20180330034245.10462-1-willy@infradead.org>
- <20180330034245.10462-44-willy@infradead.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <39ea3393-c3d7-07c3-a072-344f3a65cef3@oracle.com>
-Date: Fri, 30 Mar 2018 17:05:05 -0700
+        Fri, 30 Mar 2018 18:41:54 -0700 (PDT)
+Date: Fri, 30 Mar 2018 21:41:51 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
+Message-ID: <20180330214151.415e90ea@gandalf.local.home>
+In-Reply-To: <CAJWu+orx=NZrkAf7x_HqttnrMssmW7DPZOL1fxR=N6D_-fbmtw@mail.gmail.com>
+References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+	<20180330102038.2378925b@gandalf.local.home>
+	<20180330205356.GA13332@bombadil.infradead.org>
+	<20180330173031.257a491a@gandalf.local.home>
+	<20180330174209.4cb77003@gandalf.local.home>
+	<CAJWu+orx=NZrkAf7x_HqttnrMssmW7DPZOL1fxR=N6D_-fbmtw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180330034245.10462-44-willy@infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>
+To: Joel Fernandes <joelaf@google.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "open
+ list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
 
-On 03/29/2018 08:42 PM, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
+On Fri, 30 Mar 2018 16:38:52 -0700
+Joel Fernandes <joelaf@google.com> wrote:
+
+> > --- a/kernel/trace/ring_buffer.c
+> > +++ b/kernel/trace/ring_buffer.c
+> > @@ -1164,6 +1164,11 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
+> >         struct buffer_page *bpage, *tmp;
+> >         long i;
+> >
+> > +       /* Check if the available memory is there first */
+> > +       i = si_mem_available();
+> > +       if (i < nr_pages)  
 > 
-> Simplify the locking by taking the spinlock while we walk the tree on
-> the assumption that many acquires and releases of the lock will be
-> worse than holding the lock for a (potentially) long time.
+> Does it make sense to add a small margin here so that after ftrace
+> finishes allocating, we still have some memory left for the system?
+> But then then we have to define a magic number :-|
 
-I see this change made in several of the patches and do not have a
-specific issue with it.  As part of the XArray implementation you
-have XA_CHECK_SCHED = 4096.   So, we drop locks and do a cond_resched
-after XA_CHECK_SCHED iterations.  Just curious how you came up with
-that number.  Apologies in advance if this was discussed in a previous
-round of reviews.
+I don't think so. The memory is allocated by user defined numbers. They
+can do "free" to see what is available. The original patch from
+Zhaoyang was due to a script that would just try a very large number
+and cause issues.
+
+If the memory is available, I just say let them have it. This is
+borderline user space issue and not a kernel one.
+
+> > +  
+> 
+> I tested in Qemu with 1GB memory, I am always able to get it to fail
+> allocation even without this patch without causing an OOM. Maybe I am
+> not running enough allocations in parallel or something :)
+
+Try just echoing in "1000000" into buffer_size_kb and see what happens.
 
 > 
-> We could replicate the same locking behaviour with the xarray, but would
-> have to be careful that the xa_node wasn't RCU-freed under us before we
-> took the lock.
+> The patch you shared using si_mem_available is working since I'm able
+> to allocate till the end without a page allocation failure:
 > 
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-
-I did not do a detailed review of the XArray implementation.  Only looked
-at the provided interfaces and their intended uses.  If the interfaces work
-as specified, the changes here are fine.
-
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-
--- 
-Mike Kravetz
-
-> ---
->  mm/memfd.c | 43 ++++++++++++++++++-------------------------
->  1 file changed, 18 insertions(+), 25 deletions(-)
+> bash-4.3# echo 237800 > /d/tracing/buffer_size_kb
+> bash: echo: write error: Cannot allocate memory
+> bash-4.3# echo 237700 > /d/tracing/buffer_size_kb
+> bash-4.3# free -m
+>              total         used         free       shared      buffers
+> Mem:           985          977            7           10            0
+> -/+ buffers:                977            7
+> Swap:            0            0            0
+> bash-4.3#
 > 
-> diff --git a/mm/memfd.c b/mm/memfd.c
-> index 4cf7401cb09c..3b299d72df78 100644
-> --- a/mm/memfd.c
-> +++ b/mm/memfd.c
-> @@ -21,7 +21,7 @@
->  #include <uapi/linux/memfd.h>
->  
->  /*
-> - * We need a tag: a new tag would expand every radix_tree_node by 8 bytes,
-> + * We need a tag: a new tag would expand every xa_node by 8 bytes,
->   * so reuse a tag which we firmly believe is never set or cleared on shmem.
->   */
->  #define SHMEM_TAG_PINNED        PAGECACHE_TAG_TOWRITE
-> @@ -29,35 +29,28 @@
->  
->  static void shmem_tag_pins(struct address_space *mapping)
->  {
-> -	struct radix_tree_iter iter;
-> -	void __rcu **slot;
-> -	pgoff_t start;
-> +	XA_STATE(xas, &mapping->i_pages, 0);
->  	struct page *page;
-> +	unsigned int tagged = 0;
->  
->  	lru_add_drain();
-> -	start = 0;
-> -	rcu_read_lock();
-> -
-> -	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
-> -		page = radix_tree_deref_slot(slot);
-> -		if (!page || radix_tree_exception(page)) {
-> -			if (radix_tree_deref_retry(page)) {
-> -				slot = radix_tree_iter_retry(&iter);
-> -				continue;
-> -			}
-> -		} else if (page_count(page) - page_mapcount(page) > 1) {
-> -			xa_lock_irq(&mapping->i_pages);
-> -			radix_tree_tag_set(&mapping->i_pages, iter.index,
-> -					   SHMEM_TAG_PINNED);
-> -			xa_unlock_irq(&mapping->i_pages);
-> -		}
->  
-> -		if (need_resched()) {
-> -			slot = radix_tree_iter_resume(slot, &iter);
-> -			cond_resched_rcu();
-> -		}
-> +	xas_lock_irq(&xas);
-> +	xas_for_each(&xas, page, ULONG_MAX) {
-> +		if (xa_is_value(page))
-> +			continue;
-> +		if (page_count(page) - page_mapcount(page) > 1)
-> +			xas_set_tag(&xas, SHMEM_TAG_PINNED);
-> +
-> +		if (++tagged % XA_CHECK_SCHED)
-> +			continue;
-> +
-> +		xas_pause(&xas);
-> +		xas_unlock_irq(&xas);
-> +		cond_resched();
-> +		xas_lock_irq(&xas);
->  	}
-> -	rcu_read_unlock();
-> +	xas_unlock_irq(&xas);
->  }
->  
->  /*
+> I think this patch is still good to have, since IMO we should not go
+> and get page allocation failure (even if its a non-OOM) and subsequent
+> stack dump from mm's allocator, if we can avoid it.
 > 
+> Tested-by: Joel Fernandes <joelaf@google.com>
+
+Great thanks! I'll make it into a formal patch.
+
+-- Steve
