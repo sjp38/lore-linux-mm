@@ -1,164 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E6EC56B0007
-	for <linux-mm@kvack.org>; Sat, 31 Mar 2018 16:47:09 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id e9so10462085ioj.18
-        for <linux-mm@kvack.org>; Sat, 31 Mar 2018 13:47:09 -0700 (PDT)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id k11sor5198020ioe.80.2018.03.31.13.47.08
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 31 Mar 2018 13:47:08 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DF63D6B0003
+	for <linux-mm@kvack.org>; Sat, 31 Mar 2018 17:23:02 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id o9so3399381pgv.8
+        for <linux-mm@kvack.org>; Sat, 31 Mar 2018 14:23:02 -0700 (PDT)
+Received: from ipmail03.adl6.internode.on.net (ipmail03.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id c12-v6si4109066plo.216.2018.03.31.14.23.00
+        for <linux-mm@kvack.org>;
+        Sat, 31 Mar 2018 14:23:01 -0700 (PDT)
+Date: Sun, 1 Apr 2018 07:21:51 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/3] fs: Perform writebacks under memalloc_nofs
+Message-ID: <20180331212151.GF1150@dastard>
+References: <20180321224429.15860-1-rgoldwyn@suse.de>
+ <20180321224429.15860-2-rgoldwyn@suse.de>
+ <20180322070808.GU23100@dhcp22.suse.cz>
+ <d44ff1ea-e618-4cf6-b9b5-3e8fc7f03c14@suse.de>
+ <20180327142150.GA13604@bombadil.infradead.org>
+ <3a96b6ff-7d55-9bb6-8a30-f32f5dd0b054@suse.de>
+ <20180328070113.GA9275@dhcp22.suse.cz>
+ <20180328235702.GE1150@dastard>
+ <20180329070108.GB31039@dhcp22.suse.cz>
 MIME-Version: 1.0
-Date: Sat, 31 Mar 2018 13:47:08 -0700
-Message-ID: <94eb2c054604d4ac000568bb758c@google.com>
-Subject: WARNING: refcount bug in put_pid_ns
-From: syzbot <syzbot+66a731f39da94bb14930@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180329070108.GB31039@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Goldwyn Rodrigues <rgoldwyn@suse.de>, Matthew Wilcox <willy@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Hello,
+On Thu, Mar 29, 2018 at 09:01:08AM +0200, Michal Hocko wrote:
+> On Thu 29-03-18 10:57:02, Dave Chinner wrote:
+> > On Wed, Mar 28, 2018 at 09:01:13AM +0200, Michal Hocko wrote:
+> > > On Tue 27-03-18 10:13:53, Goldwyn Rodrigues wrote:
+> > > > 
+> > > > 
+> > > > On 03/27/2018 09:21 AM, Matthew Wilcox wrote:
+> > > [...]
+> > > > > Maybe no real filesystem behaves that way.  We need feedback from
+> > > > > filesystem people.
+> > > > 
+> > > > The idea is to:
+> > > > * Keep a central location for check, rather than individual filesystem
+> > > > writepage(). It should reduce code as well.
+> > > > * Filesystem developers call memory allocations without thinking twice
+> > > > about which GFP flag to use: GFP_KERNEL or GFP_NOFS. In essence
+> > > > eliminate GFP_NOFS.
+> > > 
+> > > I do not think this is the right approach. We do want to eliminate
+> > > explicit GFP_NOFS usage, but we also want to reduce the overal GFP_NOFS
+> > > usage as well. The later requires that we drop the __GFP_FS only for
+> > > those contexts that really might cause reclaim recursion problems.
+> > 
+> > As I've said before, moving to a scoped API will not reduce the
+> > number of GFP_NOFS scope allocation points - removing individual
+> > GFP_NOFS annotations doesn't do anything to avoid the deadlock paths
+> > it protects against.
+> 
+> Maybe it doesn't for some filesystems like xfs but I am quite sure it
+> will for some others which overuse GFP_NOFS just to be sure. E.g. btrfs.
+> 
+> > The issue is that GFP_NOFS is a big hammer - it stops reclaim from
+> > all filesystem scopes, not just the one we hold locks on and are
+> > doing the allocation for. i.e. we can be in one filesystem and quite
+> > safely do reclaim from other filesystems. The global scope of
+> > GFP_NOFS just doesn't allow this sort of fine-grained control to be
+> > expressed in reclaim.
+> 
+> Agreed!
+> 
+> > IOWs, if we want to reduce the scope of GFP_NOFS, we need a context
+> > to be passed from allocation to reclaim so that the reclaim context
+> > can check that it's a safe allocation context to reclaim from. e.g.
+> > for GFP_NOFS, we can use the superblock of the allocating filesystem
+> > as the context, and check it against the superblock that the current
+> > reclaim context (e.g. shrinker invocation) belongs to. If they
+> > match, we skip it. If they don't match, then we can perform reclaim
+> > on that context.
+> 
+> Agreed again. But this is hardly doable without actually defining what
+> those scopes are. Once we have them we can expand to add more context.
 
-syzbot hit the following crash on upstream commit
-9dd2326890d89a5179967c947dab2bab34d7ddee (Fri Mar 30 17:29:47 2018 +0000)
-Merge tag 'ceph-for-4.16-rc8' of git://github.com/ceph/ceph-client
-syzbot dashboard link:  
-https://syzkaller.appspot.com/bug?extid=66a731f39da94bb14930
+Some filesystems already have well defined scopes (e.g. XFS's
+transaction scope) - all we need is the infrastructure that passes
+the scope pointer to reclaim rather than having the allocation code
+intercept PF_MEMALLOC_NOFS and turn it into GFP_NOFS allocation
+context...
 
-So far this crash happened 6 times on upstream.
-syzkaller reproducer:  
-https://syzkaller.appspot.com/x/repro.syz?id=6405492943355904
-Raw console output:  
-https://syzkaller.appspot.com/x/log.txt?id=5483914026024960
-Kernel config:  
-https://syzkaller.appspot.com/x/.config?id=-2760467897697295172
-compiler: gcc (GCC) 7.1.1 20170620
+Cheers,
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+66a731f39da94bb14930@syzkaller.appspotmail.com
-It will help syzbot understand when the bug is fixed. See footer for  
-details.
-If you forward the report, please keep this part and the footer.
-
-  __dump_stack lib/dump_stack.c:17 [inline]
-  dump_stack+0x194/0x24d lib/dump_stack.c:53
-  fail_dump lib/fault-inject.c:51 [inline]
-  should_fail+0x8c0/0xa40 lib/fault-inject.c:149
-refcount_t: underflow; use-after-free.
-WARNING: CPU: 0 PID: 4478 at lib/refcount.c:187  
-refcount_sub_and_test+0x167/0x1b0 lib/refcount.c:187
-  should_failslab+0xec/0x120 mm/failslab.c:32
-Kernel panic - not syncing: panic_on_warn set ...
-
-  slab_pre_alloc_hook mm/slab.h:422 [inline]
-  slab_alloc mm/slab.c:3366 [inline]
-  kmem_cache_alloc+0x47/0x760 mm/slab.c:3540
-  kmem_cache_zalloc include/linux/slab.h:691 [inline]
-  fill_pool lib/debugobjects.c:110 [inline]
-  __debug_object_init+0xa99/0x1040 lib/debugobjects.c:339
-  debug_object_init+0x17/0x20 lib/debugobjects.c:391
-  __init_work+0x2b/0x60 kernel/workqueue.c:506
-  __memcg_schedule_kmem_cache_create mm/memcontrol.c:2203 [inline]
-  memcg_schedule_kmem_cache_create mm/memcontrol.c:2223 [inline]
-  memcg_kmem_get_cache+0x571/0x890 mm/memcontrol.c:2285
-  slab_pre_alloc_hook mm/slab.h:427 [inline]
-  slab_alloc mm/slab.c:3366 [inline]
-  kmem_cache_alloc+0x186/0x760 mm/slab.c:3540
-  proc_alloc_inode+0x1b/0x190 fs/proc/inode.c:63
-  alloc_inode+0x65/0x180 fs/inode.c:209
-  new_inode_pseudo+0x69/0x190 fs/inode.c:890
-  proc_get_inode+0x20/0x620 fs/proc/inode.c:436
-  proc_fill_super+0x1dd/0x300 fs/proc/inode.c:502
-  mount_ns+0xc4/0x190 fs/super.c:1036
-  proc_mount+0x7a/0x90 fs/proc/root.c:101
-  mount_fs+0x66/0x2d0 fs/super.c:1222
-  vfs_kern_mount.part.26+0xc6/0x4a0 fs/namespace.c:1037
-  vfs_kern_mount fs/namespace.c:3292 [inline]
-  kern_mount_data+0x50/0xb0 fs/namespace.c:3292
-  pid_ns_prepare_proc+0x1e/0x80 fs/proc/root.c:222
-  alloc_pid+0x87e/0xa00 kernel/pid.c:208
-  copy_process.part.38+0x2516/0x4bd0 kernel/fork.c:1807
-  copy_process kernel/fork.c:1606 [inline]
-  _do_fork+0x1f7/0xf70 kernel/fork.c:2087
-  SYSC_clone kernel/fork.c:2194 [inline]
-  SyS_clone+0x37/0x50 kernel/fork.c:2188
-  do_syscall_64+0x281/0x940 arch/x86/entry/common.c:287
-  entry_SYSCALL_64_after_hwframe+0x42/0xb7
-RIP: 0033:0x454e79
-RSP: 002b:00007fe845e3ec68 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
-RAX: ffffffffffffffda RBX: 00007fe845e3f6d4 RCX: 0000000000454e79
-RDX: 00000000200008c0 RSI: 0000000020000800 RDI: 000000002000c100
-RBP: 000000000072bea0 R08: 0000000020000940 R09: 0000000000000000
-R10: 0000000020000900 R11: 0000000000000246 R12: 0000000000000004
-R13: 0000000000000051 R14: 00000000006f2838 R15: 0000000000000028
-CPU: 0 PID: 4478 Comm: syz-executor1 Not tainted 4.16.0-rc7+ #372
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:17 [inline]
-  dump_stack+0x194/0x24d lib/dump_stack.c:53
-  panic+0x1e4/0x41c kernel/panic.c:183
-IPVS: ftp: loaded support on port[0] = 21
-IPVS: ftp: loaded support on port[0] = 21
-  __warn+0x1dc/0x200 kernel/panic.c:547
-  report_bug+0x1f4/0x2b0 lib/bug.c:186
-  fixup_bug.part.10+0x37/0x80 arch/x86/kernel/traps.c:178
-  fixup_bug arch/x86/kernel/traps.c:247 [inline]
-  do_error_trap+0x2d7/0x3e0 arch/x86/kernel/traps.c:296
-  do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:315
-  invalid_op+0x1b/0x40 arch/x86/entry/entry_64.S:986
-RIP: 0010:refcount_sub_and_test+0x167/0x1b0 lib/refcount.c:187
-RSP: 0018:ffff8801ad017318 EFLAGS: 00010282
-RAX: dffffc0000000008 RBX: 0000000000000000 RCX: ffffffff815b193e
-RDX: 0000000000000000 RSI: 1ffff10035a02e13 RDI: 1ffff10035a02de8
-RBP: ffff8801ad0173a8 R08: 0000000000000000 R09: 0000000000000000
-R10: ffff8801ad0172d0 R11: 0000000000000000 R12: 1ffff10035a02e64
-R13: 00000000ffffffff R14: 0000000000000001 R15: ffff8801ad2b0630
-  refcount_dec_and_test+0x1a/0x20 lib/refcount.c:212
-  kref_put include/linux/kref.h:69 [inline]
-  put_pid_ns+0x9d/0xc0 kernel/pid_namespace.c:192
-  free_nsproxy+0xfa/0x1f0 kernel/nsproxy.c:182
-  switch_task_namespaces+0x9d/0xc0 kernel/nsproxy.c:229
-  exit_task_namespaces+0x17/0x20 kernel/nsproxy.c:234
-  copy_process.part.38+0x3aba/0x4bd0 kernel/fork.c:1988
-  copy_process kernel/fork.c:1606 [inline]
-  _do_fork+0x1f7/0xf70 kernel/fork.c:2087
-  SYSC_clone kernel/fork.c:2194 [inline]
-  SyS_clone+0x37/0x50 kernel/fork.c:2188
-  do_syscall_64+0x281/0x940 arch/x86/entry/common.c:287
-  entry_SYSCALL_64_after_hwframe+0x42/0xb7
-RIP: 0033:0x454e79
-RSP: 002b:00007f64a187cc68 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
-RAX: ffffffffffffffda RBX: 00007f64a187d6d4 RCX: 0000000000454e79
-RDX: 00000000200008c0 RSI: 0000000020000800 RDI: 000000002000c100
-RBP: 000000000072bea0 R08: 0000000020000940 R09: 0000000000000000
-R10: 0000000020000900 R11: 0000000000000246 R12: 0000000000000004
-R13: 0000000000000051 R14: 00000000006f2838 R15: 0000000000000028
-Dumping ftrace buffer:
-    (ftrace buffer empty)
-Kernel Offset: disabled
-Rebooting in 86400 seconds..
-
-
----
-This bug is generated by a dumb bot. It may contain errors.
-See https://goo.gl/tpsmEJ for details.
-Direct all questions to syzkaller@googlegroups.com.
-
-syzbot will keep track of this bug report.
-If you forgot to add the Reported-by tag, once the fix for this bug is  
-merged
-into any tree, please reply to this email with:
-#syz fix: exact-commit-title
-If you want to test a patch for this bug, please reply with:
-#syz test: git://repo/address.git branch
-and provide the patch inline or as an attachment.
-To mark this as a duplicate of another syzbot report, please reply with:
-#syz dup: exact-subject-of-another-report
-If it's a one-off invalid bug report, please reply with:
-#syz invalid
-Note: if the crash happens again, it will cause creation of a new bug  
-report.
-Note: all commands must start from beginning of the line in the email body.
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
