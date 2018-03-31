@@ -1,84 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 94F6D6B026A
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 19:38:55 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 140-v6so9249369itg.4
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 16:38:55 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z64sor3917005ioz.158.2018.03.30.16.38.54
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 31CEF6B0270
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 20:17:39 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id i205-v6so8985511ita.3
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 17:17:39 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id m11si6981967iog.120.2018.03.30.17.17.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 30 Mar 2018 16:38:54 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Mar 2018 17:17:38 -0700 (PDT)
+Subject: Re: [PATCH v10 44/62] memfd: Convert shmem_wait_for_pins to XArray
+References: <20180330034245.10462-1-willy@infradead.org>
+ <20180330034245.10462-45-willy@infradead.org>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <4b70ad17-a176-9510-5525-30da01eba18e@oracle.com>
+Date: Fri, 30 Mar 2018 17:07:34 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180330174209.4cb77003@gandalf.local.home>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
- <20180330102038.2378925b@gandalf.local.home> <20180330205356.GA13332@bombadil.infradead.org>
- <20180330173031.257a491a@gandalf.local.home> <20180330174209.4cb77003@gandalf.local.home>
-From: Joel Fernandes <joelaf@google.com>
-Date: Fri, 30 Mar 2018 16:38:52 -0700
-Message-ID: <CAJWu+orx=NZrkAf7x_HqttnrMssmW7DPZOL1fxR=N6D_-fbmtw@mail.gmail.com>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180330034245.10462-45-willy@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>
 
-Hi Steven,
+On 03/29/2018 08:42 PM, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> As with shmem_tag_pins(), hold the lock around the entire loop instead
+> of acquiring & dropping it for each entry we're going to untag.
+> 
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 
-On Fri, Mar 30, 2018 at 2:42 PM, Steven Rostedt <rostedt@goodmis.org> wrote:
-> On Fri, 30 Mar 2018 17:30:31 -0400
-> Steven Rostedt <rostedt@goodmis.org> wrote:
->
->> I'll take a look at si_mem_available() that Joel suggested and see if
->> we can make that work.
->
-> Wow, this appears to work great! Joel and Zhaoyang, can you test this?
->
-> -- Steve
->
-> diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
-> index a2fd3893cc02..32a803626ee2 100644
-> --- a/kernel/trace/ring_buffer.c
-> +++ b/kernel/trace/ring_buffer.c
-> @@ -1164,6 +1164,11 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
->         struct buffer_page *bpage, *tmp;
->         long i;
->
-> +       /* Check if the available memory is there first */
-> +       i = si_mem_available();
-> +       if (i < nr_pages)
+Same comments as with with the previous shmem_tag_pins patch.
 
-Does it make sense to add a small margin here so that after ftrace
-finishes allocating, we still have some memory left for the system?
-But then then we have to define a magic number :-|
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+-- 
+Mike Kravetz
 
-> +               return -ENOMEM;
+> ---
+>  mm/memfd.c | 61 +++++++++++++++++++++++++------------------------------------
+>  1 file changed, 25 insertions(+), 36 deletions(-)
+> 
+> diff --git a/mm/memfd.c b/mm/memfd.c
+> index 3b299d72df78..0e0835e63af2 100644
+> --- a/mm/memfd.c
+> +++ b/mm/memfd.c
+> @@ -64,9 +64,7 @@ static void shmem_tag_pins(struct address_space *mapping)
+>   */
+>  static int shmem_wait_for_pins(struct address_space *mapping)
+>  {
+> -	struct radix_tree_iter iter;
+> -	void __rcu **slot;
+> -	pgoff_t start;
+> +	XA_STATE(xas, &mapping->i_pages, 0);
+>  	struct page *page;
+>  	int error, scan;
+>  
+> @@ -74,7 +72,9 @@ static int shmem_wait_for_pins(struct address_space *mapping)
+>  
+>  	error = 0;
+>  	for (scan = 0; scan <= LAST_SCAN; scan++) {
+> -		if (!radix_tree_tagged(&mapping->i_pages, SHMEM_TAG_PINNED))
+> +		unsigned int tagged = 0;
 > +
-
-I tested in Qemu with 1GB memory, I am always able to get it to fail
-allocation even without this patch without causing an OOM. Maybe I am
-not running enough allocations in parallel or something :)
-
-The patch you shared using si_mem_available is working since I'm able
-to allocate till the end without a page allocation failure:
-
-bash-4.3# echo 237800 > /d/tracing/buffer_size_kb
-bash: echo: write error: Cannot allocate memory
-bash-4.3# echo 237700 > /d/tracing/buffer_size_kb
-bash-4.3# free -m
-             total         used         free       shared      buffers
-Mem:           985          977            7           10            0
--/+ buffers:                977            7
-Swap:            0            0            0
-bash-4.3#
-
-I think this patch is still good to have, since IMO we should not go
-and get page allocation failure (even if its a non-OOM) and subsequent
-stack dump from mm's allocator, if we can avoid it.
-
-Tested-by: Joel Fernandes <joelaf@google.com>
-
-thanks,
-
-- Joel
+> +		if (!xas_tagged(&xas, SHMEM_TAG_PINNED))
+>  			break;
+>  
+>  		if (!scan)
+> @@ -82,45 +82,34 @@ static int shmem_wait_for_pins(struct address_space *mapping)
+>  		else if (schedule_timeout_killable((HZ << scan) / 200))
+>  			scan = LAST_SCAN;
+>  
+> -		start = 0;
+> -		rcu_read_lock();
+> -		radix_tree_for_each_tagged(slot, &mapping->i_pages, &iter,
+> -					   start, SHMEM_TAG_PINNED) {
+> -
+> -			page = radix_tree_deref_slot(slot);
+> -			if (radix_tree_exception(page)) {
+> -				if (radix_tree_deref_retry(page)) {
+> -					slot = radix_tree_iter_retry(&iter);
+> -					continue;
+> -				}
+> -
+> -				page = NULL;
+> -			}
+> -
+> -			if (page &&
+> -			    page_count(page) - page_mapcount(page) != 1) {
+> -				if (scan < LAST_SCAN)
+> -					goto continue_resched;
+> -
+> +		xas_set(&xas, 0);
+> +		xas_lock_irq(&xas);
+> +		xas_for_each_tag(&xas, page, ULONG_MAX, SHMEM_TAG_PINNED) {
+> +			bool clear = true;
+> +			if (xa_is_value(page))
+> +				continue;
+> +			if (page_count(page) - page_mapcount(page) != 1) {
+>  				/*
+>  				 * On the last scan, we clean up all those tags
+>  				 * we inserted; but make a note that we still
+>  				 * found pages pinned.
+>  				 */
+> -				error = -EBUSY;
+> -			}
+> -
+> -			xa_lock_irq(&mapping->i_pages);
+> -			radix_tree_tag_clear(&mapping->i_pages,
+> -					     iter.index, SHMEM_TAG_PINNED);
+> -			xa_unlock_irq(&mapping->i_pages);
+> -continue_resched:
+> -			if (need_resched()) {
+> -				slot = radix_tree_iter_resume(slot, &iter);
+> -				cond_resched_rcu();
+> +				if (scan == LAST_SCAN)
+> +					error = -EBUSY;
+> +				else
+> +					clear = false;
+>  			}
+> +			if (clear)
+> +				xas_clear_tag(&xas, SHMEM_TAG_PINNED);
+> +			if (++tagged % XA_CHECK_SCHED)
+> +				continue;
+> +
+> +			xas_pause(&xas);
+> +			xas_unlock_irq(&xas);
+> +			cond_resched();
+> +			xas_lock_irq(&xas);
+>  		}
+> -		rcu_read_unlock();
+> +		xas_unlock_irq(&xas);
+>  	}
+>  
+>  	return error;
+> 
