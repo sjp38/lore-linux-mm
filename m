@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 31CEF6B0270
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 20:17:39 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id i205-v6so8985511ita.3
-        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 17:17:39 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id m11si6981967iog.120.2018.03.30.17.17.37
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 55E546B0068
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2018 20:33:56 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id i205-v6so9002550ita.3
+        for <linux-mm@kvack.org>; Fri, 30 Mar 2018 17:33:56 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id l15si7025181ioi.0.2018.03.30.17.33.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Mar 2018 17:17:38 -0700 (PDT)
-Subject: Re: [PATCH v10 44/62] memfd: Convert shmem_wait_for_pins to XArray
+        Fri, 30 Mar 2018 17:33:55 -0700 (PDT)
+Subject: Re: [PATCH v10 43/62] memfd: Convert shmem_tag_pins to XArray
 References: <20180330034245.10462-1-willy@infradead.org>
- <20180330034245.10462-45-willy@infradead.org>
+ <20180330034245.10462-44-willy@infradead.org>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <4b70ad17-a176-9510-5525-30da01eba18e@oracle.com>
-Date: Fri, 30 Mar 2018 17:07:34 -0700
+Message-ID: <39ea3393-c3d7-07c3-a072-344f3a65cef3@oracle.com>
+Date: Fri, 30 Mar 2018 17:05:05 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180330034245.10462-45-willy@infradead.org>
+In-Reply-To: <20180330034245.10462-44-willy@infradead.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -28,112 +28,101 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 On 03/29/2018 08:42 PM, Matthew Wilcox wrote:
 > From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> As with shmem_tag_pins(), hold the lock around the entire loop instead
-> of acquiring & dropping it for each entry we're going to untag.
+> Simplify the locking by taking the spinlock while we walk the tree on
+> the assumption that many acquires and releases of the lock will be
+> worse than holding the lock for a (potentially) long time.
+
+I see this change made in several of the patches and do not have a
+specific issue with it.  As part of the XArray implementation you
+have XA_CHECK_SCHED = 4096.   So, we drop locks and do a cond_resched
+after XA_CHECK_SCHED iterations.  Just curious how you came up with
+that number.  Apologies in advance if this was discussed in a previous
+round of reviews.
+
+> 
+> We could replicate the same locking behaviour with the xarray, but would
+> have to be careful that the xa_node wasn't RCU-freed under us before we
+> took the lock.
 > 
 > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 
-Same comments as with with the previous shmem_tag_pins patch.
+I did not do a detailed review of the XArray implementation.  Only looked
+at the provided interfaces and their intended uses.  If the interfaces work
+as specified, the changes here are fine.
 
 Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+
 -- 
 Mike Kravetz
 
 > ---
->  mm/memfd.c | 61 +++++++++++++++++++++++++------------------------------------
->  1 file changed, 25 insertions(+), 36 deletions(-)
+>  mm/memfd.c | 43 ++++++++++++++++++-------------------------
+>  1 file changed, 18 insertions(+), 25 deletions(-)
 > 
 > diff --git a/mm/memfd.c b/mm/memfd.c
-> index 3b299d72df78..0e0835e63af2 100644
+> index 4cf7401cb09c..3b299d72df78 100644
 > --- a/mm/memfd.c
 > +++ b/mm/memfd.c
-> @@ -64,9 +64,7 @@ static void shmem_tag_pins(struct address_space *mapping)
+> @@ -21,7 +21,7 @@
+>  #include <uapi/linux/memfd.h>
+>  
+>  /*
+> - * We need a tag: a new tag would expand every radix_tree_node by 8 bytes,
+> + * We need a tag: a new tag would expand every xa_node by 8 bytes,
+>   * so reuse a tag which we firmly believe is never set or cleared on shmem.
 >   */
->  static int shmem_wait_for_pins(struct address_space *mapping)
+>  #define SHMEM_TAG_PINNED        PAGECACHE_TAG_TOWRITE
+> @@ -29,35 +29,28 @@
+>  
+>  static void shmem_tag_pins(struct address_space *mapping)
 >  {
 > -	struct radix_tree_iter iter;
 > -	void __rcu **slot;
 > -	pgoff_t start;
 > +	XA_STATE(xas, &mapping->i_pages, 0);
 >  	struct page *page;
->  	int error, scan;
+> +	unsigned int tagged = 0;
 >  
-> @@ -74,7 +72,9 @@ static int shmem_wait_for_pins(struct address_space *mapping)
->  
->  	error = 0;
->  	for (scan = 0; scan <= LAST_SCAN; scan++) {
-> -		if (!radix_tree_tagged(&mapping->i_pages, SHMEM_TAG_PINNED))
-> +		unsigned int tagged = 0;
-> +
-> +		if (!xas_tagged(&xas, SHMEM_TAG_PINNED))
->  			break;
->  
->  		if (!scan)
-> @@ -82,45 +82,34 @@ static int shmem_wait_for_pins(struct address_space *mapping)
->  		else if (schedule_timeout_killable((HZ << scan) / 200))
->  			scan = LAST_SCAN;
->  
-> -		start = 0;
-> -		rcu_read_lock();
-> -		radix_tree_for_each_tagged(slot, &mapping->i_pages, &iter,
-> -					   start, SHMEM_TAG_PINNED) {
+>  	lru_add_drain();
+> -	start = 0;
+> -	rcu_read_lock();
 > -
-> -			page = radix_tree_deref_slot(slot);
-> -			if (radix_tree_exception(page)) {
-> -				if (radix_tree_deref_retry(page)) {
-> -					slot = radix_tree_iter_retry(&iter);
-> -					continue;
-> -				}
-> -
-> -				page = NULL;
+> -	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
+> -		page = radix_tree_deref_slot(slot);
+> -		if (!page || radix_tree_exception(page)) {
+> -			if (radix_tree_deref_retry(page)) {
+> -				slot = radix_tree_iter_retry(&iter);
+> -				continue;
 > -			}
-> -
-> -			if (page &&
-> -			    page_count(page) - page_mapcount(page) != 1) {
-> -				if (scan < LAST_SCAN)
-> -					goto continue_resched;
-> -
-> +		xas_set(&xas, 0);
-> +		xas_lock_irq(&xas);
-> +		xas_for_each_tag(&xas, page, ULONG_MAX, SHMEM_TAG_PINNED) {
-> +			bool clear = true;
-> +			if (xa_is_value(page))
-> +				continue;
-> +			if (page_count(page) - page_mapcount(page) != 1) {
->  				/*
->  				 * On the last scan, we clean up all those tags
->  				 * we inserted; but make a note that we still
->  				 * found pages pinned.
->  				 */
-> -				error = -EBUSY;
-> -			}
-> -
+> -		} else if (page_count(page) - page_mapcount(page) > 1) {
 > -			xa_lock_irq(&mapping->i_pages);
-> -			radix_tree_tag_clear(&mapping->i_pages,
-> -					     iter.index, SHMEM_TAG_PINNED);
+> -			radix_tree_tag_set(&mapping->i_pages, iter.index,
+> -					   SHMEM_TAG_PINNED);
 > -			xa_unlock_irq(&mapping->i_pages);
-> -continue_resched:
-> -			if (need_resched()) {
-> -				slot = radix_tree_iter_resume(slot, &iter);
-> -				cond_resched_rcu();
-> +				if (scan == LAST_SCAN)
-> +					error = -EBUSY;
-> +				else
-> +					clear = false;
->  			}
-> +			if (clear)
-> +				xas_clear_tag(&xas, SHMEM_TAG_PINNED);
-> +			if (++tagged % XA_CHECK_SCHED)
-> +				continue;
-> +
-> +			xas_pause(&xas);
-> +			xas_unlock_irq(&xas);
-> +			cond_resched();
-> +			xas_lock_irq(&xas);
->  		}
-> -		rcu_read_unlock();
-> +		xas_unlock_irq(&xas);
->  	}
+> -		}
 >  
->  	return error;
+> -		if (need_resched()) {
+> -			slot = radix_tree_iter_resume(slot, &iter);
+> -			cond_resched_rcu();
+> -		}
+> +	xas_lock_irq(&xas);
+> +	xas_for_each(&xas, page, ULONG_MAX) {
+> +		if (xa_is_value(page))
+> +			continue;
+> +		if (page_count(page) - page_mapcount(page) > 1)
+> +			xas_set_tag(&xas, SHMEM_TAG_PINNED);
+> +
+> +		if (++tagged % XA_CHECK_SCHED)
+> +			continue;
+> +
+> +		xas_pause(&xas);
+> +		xas_unlock_irq(&xas);
+> +		cond_resched();
+> +		xas_lock_irq(&xas);
+>  	}
+> -	rcu_read_unlock();
+> +	xas_unlock_irq(&xas);
+>  }
+>  
+>  /*
 > 
