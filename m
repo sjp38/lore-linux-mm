@@ -1,97 +1,54 @@
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [RFC PATCH v2 4/6] mm, arm64: untag user addresses in mm/gup.c
-Date: Tue, 27 Mar 2018 18:57:40 +0200
-Message-ID: <e5892d12e3faef27da4e71be5b3d31a5e8958370.1522169685.git.andreyknvl__40018.3719270446$1522169941$gmane$org@google.com>
-References: <cover.1522169685.git.andreyknvl@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org>
-In-Reply-To: <cover.1522169685.git.andreyknvl@google.com>
-In-Reply-To: <cover.1522169685.git.andreyknvl@google.com>
-References: <cover.1522169685.git.andreyknvl@google.com>
-List-Unsubscribe: <http://lists.infradead.org/mailman/options/linux-arm-kernel>,
- <mailto:linux-arm-kernel-request@lists.infradead.org?subject=unsubscribe>
-List-Archive: <http://lists.infradead.org/pipermail/linux-arm-kernel/>
-List-Post: <mailto:linux-arm-kernel@lists.infradead.org>
-List-Help: <mailto:linux-arm-kernel-request@lists.infradead.org?subject=help>
-List-Subscribe: <http://lists.infradead.org/mailman/listinfo/linux-arm-kernel>,
- <mailto:linux-arm-kernel-request@lists.infradead.org?subject=subscribe>
-Sender: "linux-arm-kernel" <linux-arm-kernel-bounces@lists.infradead.org>
-Errors-To: linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrey Konovalov <andreyknvl@google.com>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.orglin
-Cc: Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 473406B0003
+	for <linux-mm@kvack.org>; Sun,  1 Apr 2018 01:09:37 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id e4so11082491iof.7
+        for <linux-mm@kvack.org>; Sat, 31 Mar 2018 22:09:37 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id k16-v6si5530868ita.82.2018.03.31.22.09.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 31 Mar 2018 22:09:36 -0700 (PDT)
+From: rao.shoaib@oracle.com
+Subject: [PATCH 1/1] MACRO_ARG_REUSE in checkpatch.pl is confused about * in typeof
+Date: Sat, 31 Mar 2018 22:04:05 -0700
+Message-Id: <1522559045-18105-1-git-send-email-rao.shoaib@oracle.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: paulmck@linux.vnet.ibm.com, joe@perches.com, willy@infradead.org, brouer@redhat.com, linux-mm@kvack.org, Rao Shoaib <rao.shoaib@oracle.com>
 
-mm/gup.c provides a kernel interface that accepts user addresses and
-manipulates user pages directly (for example get_user_pages, that is used
-by the futex syscall). Here we also need to handle the case of tagged user
-pointers.
+From: Rao Shoaib <rao.shoaib@oracle.com>
 
-Untag addresses passed to this interface.
+Example:
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+CHECK: Macro argument reuse 'ptr' - possible side-effects?
++#define kfree_rcu(ptr, rcu_name)       \
++       do {                            \
++               unsigned long __off = offsetof(typeof(*(ptr)), rcu_name); \
++               struct rcu_head *__rptr = (void *)ptr + __off; \
++               __kfree_rcu(__rptr, __off); \
++       } while (0)
+
+Fix supplied by Joe Perches.
+
+Signed-off-by: Rao Shoaib <rao.shoaib@oracle.com>
 ---
- mm/gup.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ scripts/checkpatch.pl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 6afae32571ca..9c4afcf50dfa 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -386,6 +386,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
- 	struct page *page;
- 	struct mm_struct *mm = vma->vm_mm;
- 
-+	address = untagged_addr(address);
-+
- 	*page_mask = 0;
- 
- 	/* make this handle hugepd */
-@@ -647,6 +649,8 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 	if (!nr_pages)
- 		return 0;
- 
-+	start = untagged_addr(start);
-+
- 	VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
- 
- 	/*
-@@ -801,6 +805,8 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
- 	struct vm_area_struct *vma;
- 	int ret, major = 0;
- 
-+	address = untagged_addr(address);
-+
- 	if (unlocked)
- 		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
- 
-@@ -854,6 +860,8 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
- 	long ret, pages_done;
- 	bool lock_dropped;
- 
-+	start = untagged_addr(start);
-+
- 	if (locked) {
- 		/* if VM_FAULT_RETRY can be returned, vmas become invalid */
- 		BUG_ON(vmas);
-@@ -1749,6 +1757,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	unsigned long flags;
- 	int nr = 0;
- 
-+	start = untagged_addr(start);
-+
- 	start &= PAGE_MASK;
- 	addr = start;
- 	len = (unsigned long) nr_pages << PAGE_SHIFT;
-@@ -1801,6 +1811,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	unsigned long addr, len, end;
- 	int nr = 0, ret = 0;
- 
-+	start = untagged_addr(start);
-+
- 	start &= PAGE_MASK;
- 	addr = start;
- 	len = (unsigned long) nr_pages << PAGE_SHIFT;
+diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+index 3d40403..def6bb2 100755
+--- a/scripts/checkpatch.pl
++++ b/scripts/checkpatch.pl
+@@ -4998,7 +4998,7 @@ sub process {
+ 			        next if ($arg =~ /\.\.\./);
+ 			        next if ($arg =~ /^type$/i);
+ 				my $tmp_stmt = $define_stmt;
+-				$tmp_stmt =~ s/\b(typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*\s*$arg\s*\)*\b//g;
++				$tmp_stmt =~ s/\b(?:typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*(?:\s*\*\s*)*\s*\(*\s*$arg\s*\)*\b//g;
+ 				$tmp_stmt =~ s/\#+\s*$arg\b//g;
+ 				$tmp_stmt =~ s/\b$arg\s*\#\#//g;
+ 				my $use_cnt = $tmp_stmt =~ s/\b$arg\b//g;
 -- 
-2.17.0.rc0.231.g781580f067-goog
+2.7.4
