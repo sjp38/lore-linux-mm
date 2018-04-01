@@ -1,268 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A77176B0003
-	for <linux-mm@kvack.org>; Sun,  1 Apr 2018 07:11:29 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id k2so9418pfi.23
-        for <linux-mm@kvack.org>; Sun, 01 Apr 2018 04:11:29 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0076.outbound.protection.outlook.com. [104.47.34.76])
-        by mx.google.com with ESMTPS id t18-v6si682186ply.709.2018.04.01.04.11.27
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 005016B0005
+	for <linux-mm@kvack.org>; Sun,  1 Apr 2018 07:12:16 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id b16so1048417pgv.14
+        for <linux-mm@kvack.org>; Sun, 01 Apr 2018 04:12:15 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id f11si8272007pgn.420.2018.04.01.04.12.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 01 Apr 2018 04:11:27 -0700 (PDT)
-Date: Sun, 1 Apr 2018 14:11:08 +0300
-From: Yury Norov <ynorov@caviumnetworks.com>
-Subject: Re: [PATCH 2/2] smp: introduce kick_active_cpus_sync()
-Message-ID: <20180401111108.mudkiewzn33sifvk@yury-thinkpad>
-References: <20180325175004.28162-1-ynorov@caviumnetworks.com>
- <20180325175004.28162-3-ynorov@caviumnetworks.com>
- <20180327102116.GA2464@arm.com>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 01 Apr 2018 04:12:14 -0700 (PDT)
+Subject: Re: WARNING: refcount bug in should_fail
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <001a113f6736499d1c0566363863@google.com>
+	<201803041457.GBJ69774.OVOSOLFHQMJFFt@I-love.SAKURA.ne.jp>
+	<CACT4Y+aSEsoS60A0O0Ypg=kwRZV10SzUELbcG7KEkaTV7aMU5Q@mail.gmail.com>
+	<CACT4Y+ZgkV5BF24BYptq5rDYo0oTJq4oHw6_808vLTmMZBmE8A@mail.gmail.com>
+In-Reply-To: <CACT4Y+ZgkV5BF24BYptq5rDYo0oTJq4oHw6_808vLTmMZBmE8A@mail.gmail.com>
+Message-Id: <201804012011.ABI74044.MJtOFVSHFQFOOL@I-love.SAKURA.ne.jp>
+Date: Sun, 1 Apr 2018 20:11:41 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180327102116.GA2464@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Chris Metcalf <cmetcalf@mellanox.com>, Christopher Lameter <cl@linux.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, Mark Rutland <mark.rutland@arm.com>, Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Catalin Marinas <catalin.marinas@arm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: dvyukov@google.com
+Cc: viro@zeniv.linux.org.uk, ebiederm@xmission.com, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, syzbot+84371b6062cb639d797e@syzkaller.appspotmail.com
 
-On Tue, Mar 27, 2018 at 11:21:17AM +0100, Will Deacon wrote:
-> On Sun, Mar 25, 2018 at 08:50:04PM +0300, Yury Norov wrote:
-> > kick_all_cpus_sync() forces all CPUs to sync caches by sending broadcast IPI.
-> > If CPU is in extended quiescent state (idle task or nohz_full userspace), this
-> > work may be done at the exit of this state. Delaying synchronization helps to
-> > save power if CPU is in idle state and decrease latency for real-time tasks.
-> > 
-> > This patch introduces kick_active_cpus_sync() and uses it in mm/slab and arm64
-> > code to delay syncronization.
-> > 
-> > For task isolation (https://lkml.org/lkml/2017/11/3/589), IPI to the CPU running
-> > isolated task would be fatal, as it breaks isolation. The approach with delaying
-> > of synchronization work helps to maintain isolated state.
-> > 
-> > I've tested it with test from task isolation series on ThunderX2 for more than
-> > 10 hours (10k giga-ticks) without breaking isolation.
-> > 
-> > Signed-off-by: Yury Norov <ynorov@caviumnetworks.com>
-> > ---
-> >  arch/arm64/kernel/insn.c |  2 +-
-> >  include/linux/smp.h      |  2 ++
-> >  kernel/smp.c             | 24 ++++++++++++++++++++++++
-> >  mm/slab.c                |  2 +-
-> >  4 files changed, 28 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/arch/arm64/kernel/insn.c b/arch/arm64/kernel/insn.c
-> > index 2718a77da165..9d7c492e920e 100644
-> > --- a/arch/arm64/kernel/insn.c
-> > +++ b/arch/arm64/kernel/insn.c
-> > @@ -291,7 +291,7 @@ int __kprobes aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt)
-> >  			 * synchronization.
-> >  			 */
-> >  			ret = aarch64_insn_patch_text_nosync(addrs[0], insns[0]);
-> > -			kick_all_cpus_sync();
-> > +			kick_active_cpus_sync();
-> >  			return ret;
-> >  		}
-> >  	}
+Dmitry Vyukov wrote:
+> On Sun, Apr 1, 2018 at 12:32 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> > On Sun, Mar 4, 2018 at 6:57 AM, Tetsuo Handa
+> > <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> >> Switching from mm to fsdevel, for this report says that put_net(net) in
+> >> rpc_kill_sb() made net->count < 0 when mount_ns() failed due to
+> >> register_shrinker() failure.
+> >>
+> >> Relevant commits will be
+> >> commit 9ee332d99e4d5a97 ("sget(): handle failures of register_shrinker()") and
+> >> commit d91ee87d8d85a080 ("vfs: Pass data, ns, and ns->userns to mount_ns.").
+> >>
+> >> When sget_userns() in mount_ns() failed, mount_ns() returns an error code to
+> >> the caller without calling fill_super(). That is, get_net(sb->s_fs_info) was
+> >> not called by rpc_fill_super() (via fill_super callback passed to mount_ns())
+> >> but put_net(sb->s_fs_info) is called by rpc_kill_sb() (via fs->kill_sb() from
+> >> deactivate_locked_super()).
+> >>
+> >> ----------
+> >> static struct dentry *
+> >> rpc_mount(struct file_system_type *fs_type,
+> >>                 int flags, const char *dev_name, void *data)
+> >> {
+> >>         struct net *net = current->nsproxy->net_ns;
+> >>         return mount_ns(fs_type, flags, data, net, net->user_ns, rpc_fill_super);
+> >> }
+> >> ----------
+> >
+> > Messed kernel output, this is definitely not in should_fail.
+> >
+> > #syz dup: WARNING: refcount bug in sk_alloc
 > 
-> I think this means that runtime modifications to the kernel text might not
-> be picked up by CPUs coming out of idle. Shouldn't we add an ISB on that
-> path to avoid executing stale instructions?
+> Please don't drop reporter (syzbot) email from CC.
 > 
-> Will
+> #syz dup: WARNING: refcount bug in sk_alloc
+> 
 
-commit 153ae9d5667e7baab4d48c48e8ec30fbcbd86f1e
-Author: Yury Norov <ynorov@caviumnetworks.com>
-Date:   Sat Mar 31 15:05:23 2018 +0300
+Excuse me? This "refcount bug in should_fail" is talking about sget_userns() versus rpc_fill_super().
+I think we need to fix either 9ee332d99e4d5a97 or d91ee87d8d85a080.
 
-Hi Will, Paul,
-
-On my system there are 3 paths that go thru rcu_dynticks_eqs_exit(),
-and so require isb().
-
-First path starts at gic_handle_irq() on secondary_start_kernel stack.
-gic_handle_irq() already issues isb(), and so we can do nothing.
-
-Second path starts at el0_svc entry; and third path is the exit from
-do_idle() on secondary_start_kernel stack.
-
-For do_idle() path there is arch_cpu_idle_exit() hook that is not used by
-arm64 at now, so I picked it. And for el0_svc, I've introduced isb_if_eqs
-macro and call it at the beginning of el0_svc_naked.
-
-I've tested it on ThunderX2 machine, and it works for me.
-
-Below is my call traces and patch for them. If you OK with it, I think I'm
-ready to submit v2 (but maybe split this patch for better readability).
-
-Yury
-
-[  585.412095] Call trace:
-[  585.412097] [<fffffc00080878d8>] dump_backtrace+0x0/0x380
-[  585.412099] [<fffffc0008087c6c>] show_stack+0x14/0x20
-[  585.412101] [<fffffc0008a091ec>] dump_stack+0x98/0xbc
-[  585.412104] [<fffffc0008122080>] rcu_dynticks_eqs_exit+0x68/0x70
-[  585.412105] [<fffffc00081260f0>] rcu_irq_enter+0x48/0x50
-[  585.412106] [<fffffc00080c92c4>] irq_enter+0xc/0x70
-[  585.412108] [<fffffc0008113a64>] __handle_domain_irq+0x3c/0x120
-[  585.412109] [<fffffc00080816c4>] gic_handle_irq+0xc4/0x180
-[  585.412110] Exception stack(0xfffffc001130fe20 to 0xfffffc001130ff60)
-[  585.412112] fe20: 00000000000000a0 0000000000000000 0000000000000001 0000000000000000
-[  585.412113] fe40: 0000028f6f0b0000 0000000000000020 0013cd6f53963b31 0000000000000000
-[  585.412144] fe60: 0000000000000002 fffffc001130fed0 0000000000000b80 0000000000003400
-[  585.412146] fe80: 0000000000000000 0000000000000001 0000000000000000 00000000000001db
-[  585.412147] fea0: fffffc0008247a78 000003ff86dc61f8 0000000000000014 fffffc0008fc0000
-[  585.412149] fec0: fffffc00090143e8 fffffc0009014000 fffffc0008fc94a0 0000000000000000
-[  585.412150] fee0: 0000000000000000 fffffe8f46bb1700 0000000000000000 0000000000000000
-[  585.412152] ff00: 0000000000000000 fffffc001130ff60 fffffc0008085034 fffffc001130ff60
-[  585.412153] ff20: fffffc0008085038 0000000000400149 fffffc0009014000 fffffc0008fc94a0
-[  585.412155] ff40: ffffffffffffffff 0000000000000000 fffffc001130ff60 fffffc0008085038
-[  585.412156] [<fffffc0008082fb0>] el1_irq+0xb0/0x124
-[  585.412158] [<fffffc0008085038>] arch_cpu_idle+0x10/0x18
-[  585.412159] [<fffffc00080ff38c>] do_idle+0x10c/0x1d8
-[  585.412160] [<fffffc00080ff5ec>] cpu_startup_entry+0x24/0x28
-[  585.412162] [<fffffc000808db04>] secondary_start_kernel+0x15c/0x1a0
-[  585.412164] CPU: 1 PID: 0 Comm: swapper/1 Not tainted 4.14.0-isolation-160735-g59b71c1-dirty #18
-
-[  585.412058] Call trace:
-[  585.412060] [<fffffc00080878d8>] dump_backtrace+0x0/0x380
-[  585.412062] [<fffffc0008087c6c>] show_stack+0x14/0x20
-[  585.412064] [<fffffc0008a091ec>] dump_stack+0x98/0xbc
-[  585.412066] [<fffffc0008122080>] rcu_dynticks_eqs_exit+0x68/0x70
-[  585.412068] [<fffffc00081232bc>] rcu_eqs_exit.isra.23+0x64/0x80
-[  585.412069] [<fffffc000812609c>] rcu_user_exit+0xc/0x18
-[  585.412071] [<fffffc000817c34c>] __context_tracking_exit.part.2+0x74/0x98
-[  585.412072] [<fffffc000817c3e0>] context_tracking_exit.part.3+0x40/0x50
-[  585.412074] [<fffffc000817c4e0>] context_tracking_user_exit+0x30/0x38
-[  585.412075] Exception stack(0xfffffc00385afec0 to 0xfffffc00385b0000)
-[  585.412076] fec0: 00000000000000b1 000002aacd702420 0000000000000200 00000000000001f4
-[  585.412078] fee0: 0000000000000000 0000000000000008 000002aabec9af17 ffffffffffffffff
-[  585.412079] ff00: 0000000000000016 ffffffffffffffff 000003ffe7619470 0000000000000057
-[  585.412081] ff20: a3d70a3d70a3d70b 000000000000016d 2ce33e6c02ce33e7 00000000000001db
-[  585.412082] ff40: 000002aabec7d260 000003ff86dc61f8 0000000000000014 00000000000001f4
-[  585.412083] ff60: 0000000000000000 000002aabecab000 000002aacd6e2830 0000000000000001
-[  585.412085] ff80: 000002aacd6e2830 000002aabec58380 0000000000000054 000002aabebccf50
-[  585.412086] ffa0: 0000000000000054 000003ffe7619540 000002aabebcf538 000003ffe7619540
-[  585.412088] ffc0: 000003ff86dc6410 0000000060000000 00000000000000b1 0000000000000016
-[  585.412089] ffe0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
-[  585.412091] [<fffffc0008083498>] el0_svc_naked+0xc/0x3c
-[  585.446067] CPU: 68 PID: 0 Comm: swapper/68 Not tainted 4.14.0-isolation-160735-g59b71c1-dirty #18
-
-[  585.412038] Call trace:
-[  585.412041] [<fffffc00080878d8>] dump_backtrace+0x0/0x380
-[  585.412042] [<fffffc0008087c6c>] show_stack+0x14/0x20
-[  585.412045] [<fffffc0008a091ec>] dump_stack+0x98/0xbc
-[  585.412047] [<fffffc0008122080>] rcu_dynticks_eqs_exit+0x68/0x70
-[  585.412049] [<fffffc00081232bc>] rcu_eqs_exit.isra.23+0x64/0x80
-[  585.412050] [<fffffc0008126080>] rcu_idle_exit+0x18/0x28
-[  585.412052] [<fffffc00080ff398>] do_idle+0x118/0x1d8
-[  585.412053] [<fffffc00080ff5ec>] cpu_startup_entry+0x24/0x28
-[  585.412055] [<fffffc000808db04>] secondary_start_kernel+0x15c/0x1a0
-[  585.412057] CPU: 22 PID: 4315 Comm: nginx Not tainted 4.14.0-isolation-160735-g59b71c1-dirty #18
-    
-diff --git a/arch/arm64/kernel/entry.S b/arch/arm64/kernel/entry.S
-index e1c59d4008a8..efa5060a2f1c 100644
---- a/arch/arm64/kernel/entry.S
-+++ b/arch/arm64/kernel/entry.S
-@@ -35,22 +35,29 @@
- #include <asm/unistd.h>
- 
- /*
-- * Context tracking subsystem.  Used to instrument transitions
-- * between user and kernel mode.
-+ * Save/restore needed during syscalls.  Restore syscall arguments from
-+ * the values already saved on stack during kernel_entry.
-  */
--	.macro ct_user_exit, syscall = 0
--#ifdef CONFIG_CONTEXT_TRACKING
--	bl	context_tracking_user_exit
--	.if \syscall == 1
--	/*
--	 * Save/restore needed during syscalls.  Restore syscall arguments from
--	 * the values already saved on stack during kernel_entry.
--	 */
-+	.macro __restore_syscall_args
- 	ldp	x0, x1, [sp]
- 	ldp	x2, x3, [sp, #S_X2]
- 	ldp	x4, x5, [sp, #S_X4]
- 	ldp	x6, x7, [sp, #S_X6]
--	.endif
-+	.endm
-+
-+	.macro el0_svc_restore_syscall_args
-+#if !defined(CONFIG_TINY_RCU) || defined(CONFIG_CONTEXT_TRACKING)
-+	__restore_syscall_args
-+#endif
-+	.endm
-+
-+/*
-+ * Context tracking subsystem.  Used to instrument transitions
-+ * between user and kernel mode.
-+ */
-+	.macro ct_user_exit
-+#ifdef CONFIG_CONTEXT_TRACKING
-+	bl	context_tracking_user_exit
- #endif
- 	.endm
- 
-@@ -433,6 +440,20 @@ __bad_stack:
- 	ASM_BUG()
- 	.endm
- 
-+/*
-+ * Flush I-cache if CPU is in extended quiescent state
-+ */
-+	.macro	isb_if_eqs
-+#ifndef CONFIG_TINY_RCU
-+	bl	rcu_is_watching
-+	tst	w0, #0xff
-+	b.ne	1f
-+	/* Pairs with aarch64_insn_patch_text for EQS CPUs. */
-+	isb
-+1:
-+#endif
-+	.endm
-+
- el0_sync_invalid:
- 	inv_entry 0, BAD_SYNC
- ENDPROC(el0_sync_invalid)
-@@ -840,8 +861,10 @@ el0_svc:
- 	mov	wsc_nr, #__NR_syscalls
- el0_svc_naked:					// compat entry point
- 	stp	x0, xscno, [sp, #S_ORIG_X0]	// save the original x0 and syscall number
-+	isb_if_eqs
- 	enable_dbg_and_irq
--	ct_user_exit 1
-+	ct_user_exit
-+	el0_svc_restore_syscall_args
- 
- 	ldr	x16, [tsk, #TSK_TI_FLAGS]	// check for syscall hooks
- 	tst	x16, #_TIF_SYSCALL_WORK
-@@ -874,10 +897,7 @@ __sys_trace:
- 	mov	x1, sp				// pointer to regs
- 	cmp	wscno, wsc_nr			// check upper syscall limit
- 	b.hs	__ni_sys_trace
--	ldp	x0, x1, [sp]			// restore the syscall args
--	ldp	x2, x3, [sp, #S_X2]
--	ldp	x4, x5, [sp, #S_X4]
--	ldp	x6, x7, [sp, #S_X6]
-+	__restore_syscall_args
- 	ldr	x16, [stbl, xscno, lsl #3]	// address in the syscall table
- 	blr	x16				// call sys_* routine
- 
-diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
-index 2dc0f8482210..f11afd2aa33a 100644
---- a/arch/arm64/kernel/process.c
-+++ b/arch/arm64/kernel/process.c
-@@ -88,6 +88,12 @@ void arch_cpu_idle(void)
- 	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, smp_processor_id());
- }
- 
-+void arch_cpu_idle_exit(void)
-+{
-+	if (!rcu_is_watching())
-+		isb();
-+}
-+
- #ifdef CONFIG_HOTPLUG_CPU
- void arch_cpu_idle_dead(void)
- {
+> 
+> >> syzbot wrote:
+> >>> Hello,
+> >>>
+> >>> syzbot hit the following crash on bpf-next commit
+> >>> 6f1b5a2b58d8470e5a8b25ab29f5fdb4616ffff8 (Tue Feb 27 04:11:23 2018 +0000)
+> >>> Merge branch 'bpf-kselftest-improvements'
+> >>>
+> >>> C reproducer is attached.
+> >>> syzkaller reproducer is attached.
+> >>> Raw console output is attached.
+> >>> compiler: gcc (GCC) 7.1.1 20170620
+> >>> .config is attached.
+> >>>
+> >>> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> >>> Reported-by: syzbot+84371b6062cb639d797e@syzkaller.appspotmail.com
+> >>> It will help syzbot understand when the bug is fixed. See footer for
+> >>> details.
+> >>> If you forward the report, please keep this part and the footer.
+> >>>
+> >>> ------------[ cut here ]------------
+> >>> FAULT_INJECTION: forcing a failure.
+> >>> name failslab, interval 1, probability 0, space 0, times 0
+> >>> refcount_t: underflow; use-after-free.
+> >>> CPU: 1 PID: 4239 Comm: syzkaller149381 Not tainted 4.16.0-rc2+ #20
+> >>> WARNING: CPU: 0 PID: 4237 at lib/refcount.c:187
+> >>> refcount_sub_and_test+0x167/0x1b0 lib/refcount.c:187
+> >>> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> >>> Google 01/01/2011
+> >>> Call Trace:
+> >>> Kernel panic - not syncing: panic_on_warn set ...
+> >>>
+> >>>   __dump_stack lib/dump_stack.c:17 [inline]
+> >>>   dump_stack+0x194/0x24d lib/dump_stack.c:53
+> >>>   fail_dump lib/fault-inject.c:51 [inline]
+> >>>   should_fail+0x8c0/0xa40 lib/fault-inject.c:149
+> >>>   should_failslab+0xec/0x120 mm/failslab.c:32
+> >>>   slab_pre_alloc_hook mm/slab.h:422 [inline]
+> >>>   slab_alloc mm/slab.c:3365 [inline]
+> >>>   __do_kmalloc mm/slab.c:3703 [inline]
+> >>>   __kmalloc+0x63/0x760 mm/slab.c:3714
+> >>>   kmalloc include/linux/slab.h:517 [inline]
+> >>>   kzalloc include/linux/slab.h:701 [inline]
+> >>>   register_shrinker+0x10e/0x2d0 mm/vmscan.c:268
+> >>>   sget_userns+0xbbf/0xe40 fs/super.c:520
+> >>>   mount_ns+0x6d/0x190 fs/super.c:1029
+> >>>   rpc_mount+0x9e/0xd0 net/sunrpc/rpc_pipe.c:1451
+> >>>   mount_fs+0x66/0x2d0 fs/super.c:1222
+> >>>   vfs_kern_mount.part.26+0xc6/0x4a0 fs/namespace.c:1037
+> >>>   vfs_kern_mount fs/namespace.c:2509 [inline]
+> >>>   do_new_mount fs/namespace.c:2512 [inline]
+> >>>   do_mount+0xea4/0x2bb0 fs/namespace.c:2842
+> >>>   SYSC_mount fs/namespace.c:3058 [inline]
+> >>>   SyS_mount+0xab/0x120 fs/namespace.c:3035
+> >>>   do_syscall_64+0x280/0x940 arch/x86/entry/common.c:287
+> >>>   entry_SYSCALL_64_after_hwframe+0x42/0xb7
+> >>> RIP: 0033:0x4460f9
+> >>> RSP: 002b:00007fbcd769ad78 EFLAGS: 00000246 ORIG_RAX: 00000000000000a5
+> >>> RAX: ffffffffffffffda RBX: 00000000006dcc6c RCX: 00000000004460f9
+> >>> RDX: 0000000020000080 RSI: 0000000020000040 RDI: 0000000020000000
+> >>> RBP: 00007fbcd769ad80 R08: 00000000200000c0 R09: 0000000000003131
+> >>> R10: 0000000000000000 R11: 0000000000000246 R12: 00000000006dcc68
+> >>> R13: ffffffffffffffff R14: 0000000000000037 R15: 0030656c69662f2e
+> >>> CPU: 0 PID: 4237 Comm: syzkaller149381 Not tainted 4.16.0-rc2+ #20
+> >>> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> >>> Google 01/01/2011
+> >>> Call Trace:
+> >>>   __dump_stack lib/dump_stack.c:17 [inline]
+> >>>   dump_stack+0x194/0x24d lib/dump_stack.c:53
+> >>>   panic+0x1e4/0x41c kernel/panic.c:183
+> >>>   __warn+0x1dc/0x200 kernel/panic.c:547
+> >>>   report_bug+0x211/0x2d0 lib/bug.c:184
+> >>>   fixup_bug.part.11+0x37/0x80 arch/x86/kernel/traps.c:178
+> >>>   fixup_bug arch/x86/kernel/traps.c:247 [inline]
+> >>>   do_error_trap+0x2d7/0x3e0 arch/x86/kernel/traps.c:296
+> >>>   do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:315
+> >>>   invalid_op+0x58/0x80 arch/x86/entry/entry_64.S:957
+> >>> RIP: 0010:refcount_sub_and_test+0x167/0x1b0 lib/refcount.c:187
+> >>> RSP: 0018:ffff8801b164f6d8 EFLAGS: 00010286
+> >>> RAX: dffffc0000000008 RBX: 0000000000000000 RCX: ffffffff815ac30e
+> >>> RDX: 0000000000000000 RSI: 1ffff100362c9e8b RDI: 1ffff100362c9e60
+> >>> RBP: ffff8801b164f768 R08: 0000000000000000 R09: 0000000000000000
+> >>> R10: ffff8801b164f610 R11: 0000000000000000 R12: 1ffff100362c9edc
+> >>> R13: 00000000ffffffff R14: 0000000000000001 R15: ffff8801ae924044
+> >>>   refcount_dec_and_test+0x1a/0x20 lib/refcount.c:212
+> >>>   put_net include/net/net_namespace.h:220 [inline]
+> >>>   rpc_kill_sb+0x253/0x3c0 net/sunrpc/rpc_pipe.c:1473
+> >>>   deactivate_locked_super+0x88/0xd0 fs/super.c:312
+> >>>   sget_userns+0xbda/0xe40 fs/super.c:522
+> >>>   mount_ns+0x6d/0x190 fs/super.c:1029
+> >>>   rpc_mount+0x9e/0xd0 net/sunrpc/rpc_pipe.c:1451
+> >>>   mount_fs+0x66/0x2d0 fs/super.c:1222
+> >>>   vfs_kern_mount.part.26+0xc6/0x4a0 fs/namespace.c:1037
+> >>>   vfs_kern_mount fs/namespace.c:2509 [inline]
+> >>>   do_new_mount fs/namespace.c:2512 [inline]
+> >>>   do_mount+0xea4/0x2bb0 fs/namespace.c:2842
+> >>>   SYSC_mount fs/namespace.c:3058 [inline]
+> >>>   SyS_mount+0xab/0x120 fs/namespace.c:3035
+> >>>   do_syscall_64+0x280/0x940 arch/x86/entry/common.c:287
+> >>>   entry_SYSCALL_64_after_hwframe+0x42/0xb7
+> >>> RIP: 0033:0x4460f9
+> >>> RSP: 002b:00007fbcd76dcd78 EFLAGS: 00000246 ORIG_RAX: 00000000000000a5
+> >>> RAX: ffffffffffffffda RBX: 00000000006dcc3c RCX: 00000000004460f9
+> >>> RDX: 0000000020000080 RSI: 0000000020000040 RDI: 0000000020000000
+> >>> RBP: 00007fbcd76dcd80 R08: 00000000200000c0 R09: 0000000000003131
+> >>> R10: 0000000000000000 R11: 0000000000000246 R12: 00000000006dcc38
+> >>> R13: ffffffffffffffff R14: 0000000000000028 R15: 0030656c69662f2e
+> >>> Dumping ftrace buffer:
+> >>>     (ftrace buffer empty)
+> >>> Kernel Offset: disabled
+> >>> Rebooting in 86400 seconds..
+> >>>
+> >>>
+> >>> ---
+> >>> This bug is generated by a dumb bot. It may contain errors.
+> >>> See https://goo.gl/tpsmEJ for details.
+> >>> Direct all questions to syzkaller@googlegroups.com.
+> >>>
+> >>> syzbot will keep track of this bug report.
+> >>> If you forgot to add the Reported-by tag, once the fix for this bug is
+> >>> merged
+> >>> into any tree, please reply to this email with:
+> >>> #syz fix: exact-commit-title
+> >>> If you want to test a patch for this bug, please reply with:
+> >>> #syz test: git://repo/address.git branch
+> >>> and provide the patch inline or as an attachment.
+> >>> To mark this as a duplicate of another syzbot report, please reply with:
+> >>> #syz dup: exact-subject-of-another-report
+> >>> If it's a one-off invalid bug report, please reply with:
+> >>> #syz invalid
+> >>> Note: if the crash happens again, it will cause creation of a new bug
+> >>> report.
+> >>> Note: all commands must start from beginning of the line in the email body.
+> >>>
+> >>
+> >> --
+> >> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
+> >> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> >> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/201803041457.GBJ69774.OVOSOLFHQMJFFt%40I-love.SAKURA.ne.jp.
+> >> For more options, visit https://groups.google.com/d/optout.
+> 
