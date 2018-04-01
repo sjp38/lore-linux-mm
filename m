@@ -1,54 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 473406B0003
-	for <linux-mm@kvack.org>; Sun,  1 Apr 2018 01:09:37 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id e4so11082491iof.7
-        for <linux-mm@kvack.org>; Sat, 31 Mar 2018 22:09:37 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id k16-v6si5530868ita.82.2018.03.31.22.09.35
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E20086B0003
+	for <linux-mm@kvack.org>; Sun,  1 Apr 2018 02:39:13 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id v21so4779675wmh.9
+        for <linux-mm@kvack.org>; Sat, 31 Mar 2018 23:39:13 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d16si2403683edn.14.2018.03.31.23.39.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 31 Mar 2018 22:09:36 -0700 (PDT)
-From: rao.shoaib@oracle.com
-Subject: [PATCH 1/1] MACRO_ARG_REUSE in checkpatch.pl is confused about * in typeof
-Date: Sat, 31 Mar 2018 22:04:05 -0700
-Message-Id: <1522559045-18105-1-git-send-email-rao.shoaib@oracle.com>
+        Sat, 31 Mar 2018 23:39:12 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w316TZoY028595
+	for <linux-mm@kvack.org>; Sun, 1 Apr 2018 02:39:11 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2h2rbjuapv-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 01 Apr 2018 02:39:10 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Sun, 1 Apr 2018 07:39:08 +0100
+Date: Sun, 1 Apr 2018 09:38:58 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH 00/32] docs/vm: convert to ReST format
+References: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180329154607.3d8bda75@lwn.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180329154607.3d8bda75@lwn.net>
+Message-Id: <20180401063857.GA3357@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: paulmck@linux.vnet.ibm.com, joe@perches.com, willy@infradead.org, brouer@redhat.com, linux-mm@kvack.org, Rao Shoaib <rao.shoaib@oracle.com>
+To: Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-From: Rao Shoaib <rao.shoaib@oracle.com>
+(added akpm)
 
-Example:
+On Thu, Mar 29, 2018 at 03:46:07PM -0600, Jonathan Corbet wrote:
+> On Wed, 21 Mar 2018 21:22:16 +0200
+> Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> 
+> > These patches convert files in Documentation/vm to ReST format, add an
+> > initial index and link it to the top level documentation.
+> > 
+> > There are no contents changes in the documentation, except few spelling
+> > fixes. The relatively large diffstat stems from the indentation and
+> > paragraph wrapping changes.
+> > 
+> > I've tried to keep the formatting as consistent as possible, but I could
+> > miss some places that needed markup and add some markup where it was not
+> > necessary.
+> 
+> So I've been pondering on these for a bit.  It looks like a reasonable and
+> straightforward RST conversion, no real complaints there.  But I do have a
+> couple of concerns...
+> 
+> One is that, as we move documentation into RST, I'm really trying to
+> organize it a bit so that it is better tuned to the various audiences we
+> have.  For example, ksm.txt is going to be of interest to sysadmin types,
+> who might want to tune it.  mmu_notifier.txt is of interest to ...
+> somebody, but probably nobody who is thinking in user space.  And so on.
+> 
+> So I would really like to see this material split up and put into the
+> appropriate places in the RST hierarchy - admin-guide for administrative
+> stuff, core-api for kernel development topics, etc.  That, of course,
+> could be done separately from the RST conversion, but I suspect I know
+> what will (or will not) happen if we agree to defer that for now :)
 
-CHECK: Macro argument reuse 'ptr' - possible side-effects?
-+#define kfree_rcu(ptr, rcu_name)       \
-+       do {                            \
-+               unsigned long __off = offsetof(typeof(*(ptr)), rcu_name); \
-+               struct rcu_head *__rptr = (void *)ptr + __off; \
-+               __kfree_rcu(__rptr, __off); \
-+       } while (0)
+Well, I was actually planning on doing that ;-)
 
-Fix supplied by Joe Perches.
+My thinking was to start with mechanical RST conversion and then to start
+working on the contents and ordering of the documentation. Some of the
+existing files, e.g. ksm.txt, can be moved as is into the appropriate
+places, others, like transhuge.txt should be at least split into admin/user
+and developer guides.
 
-Signed-off-by: Rao Shoaib <rao.shoaib@oracle.com>
----
- scripts/checkpatch.pl | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Another problem with many of the existing mm docs is that they are rather
+developer notes and it wouldn't be really straight forward to assign them
+to a particular topic.
 
-diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
-index 3d40403..def6bb2 100755
---- a/scripts/checkpatch.pl
-+++ b/scripts/checkpatch.pl
-@@ -4998,7 +4998,7 @@ sub process {
- 			        next if ($arg =~ /\.\.\./);
- 			        next if ($arg =~ /^type$/i);
- 				my $tmp_stmt = $define_stmt;
--				$tmp_stmt =~ s/\b(typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*\s*$arg\s*\)*\b//g;
-+				$tmp_stmt =~ s/\b(?:typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*(?:\s*\*\s*)*\s*\(*\s*$arg\s*\)*\b//g;
- 				$tmp_stmt =~ s/\#+\s*$arg\b//g;
- 				$tmp_stmt =~ s/\b$arg\s*\#\#//g;
- 				my $use_cnt = $tmp_stmt =~ s/\b$arg\b//g;
+I believe that keeping the mm docs together will give better visibility of
+what (little) mm documentation we have and will make the updates easier.
+The documents that fit well into a certain topic could be linked there. For
+instance:
+
+-------------------------
+diff --git a/Documentation/admin-guide/index.rst b/Documentation/admin-guide/index.rst
+index 5bb9161..8f6c6e6 100644
+--- a/Documentation/admin-guide/index.rst
++++ b/Documentation/admin-guide/index.rst
+@@ -63,6 +63,7 @@ configure specific aspects of kernel behavior to your liking.
+    pm/index
+    thunderbolt
+    LSM/index
++   vm/index
+ 
+ .. only::  subproject and html
+ 
+diff --git a/Documentation/admin-guide/vm/index.rst b/Documentation/admin-guide/vm/index.rst
+new file mode 100644
+index 0000000..d86f1c8
+--- /dev/null
++++ b/Documentation/admin-guide/vm/index.rst
+@@ -0,0 +1,5 @@
++==============================================
++Knobs and Buttons for Memory Management Tuning
++==============================================
++
++* :ref:`ksm <ksm>`
+-------------------------
+
+> The other is the inevitable merge conflicts that changing that many doc
+> files will create.  Sending the patches through Andrew could minimize
+> that, I guess, or at least make it his problem.  Alternatively, we could
+> try to do it as an end-of-merge-window sort of thing.  I can try to manage
+> that, but an ack or two from the mm crowd would be nice to have.
+
+I can rebase on top of Andrew's tree if that would help to minimize the
+merge conflicts.
+ 
+> Thanks,
+> 
+> jon
+> 
+
 -- 
-2.7.4
+Sincerely yours,
+Mike.
