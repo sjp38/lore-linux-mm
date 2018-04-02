@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BBFEF6B0011
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 01:31:32 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id t18so10473131ioa.9
-        for <linux-mm@kvack.org>; Sun, 01 Apr 2018 22:31:32 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id h34si9914672ioi.220.2018.04.01.22.31.31
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 552C56B0022
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 01:31:34 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id y64-v6so13027187itd.4
+        for <linux-mm@kvack.org>; Sun, 01 Apr 2018 22:31:34 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id s81si9582756iod.137.2018.04.01.22.31.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 01 Apr 2018 22:31:31 -0700 (PDT)
+        Sun, 01 Apr 2018 22:31:32 -0700 (PDT)
 From: rao.shoaib@oracle.com
-Subject: [PATCH 1/2] Move kfree_call_rcu() to slab_common.c
-Date: Sun,  1 Apr 2018 22:31:03 -0700
-Message-Id: <1522647064-27167-2-git-send-email-rao.shoaib@oracle.com>
+Subject: [PATCH 2/2] kfree_rcu() should use kfree_bulk() interface
+Date: Sun,  1 Apr 2018 22:31:04 -0700
+Message-Id: <1522647064-27167-3-git-send-email-rao.shoaib@oracle.com>
 In-Reply-To: <1522647064-27167-1-git-send-email-rao.shoaib@oracle.com>
 References: <1522647064-27167-1-git-send-email-rao.shoaib@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,212 +22,327 @@ Cc: paulmck@linux.vnet.ibm.com, joe@perches.com, willy@infradead.org, brouer@red
 
 From: Rao Shoaib <rao.shoaib@oracle.com>
 
-kfree_call_rcu does not belong in linux/rcupdate.h and should be moved to
-slab_common.c
+kfree_rcu() should use the new kfree_bulk() interface for freeing
+rcu structures as it is more efficient.
 
 Signed-off-by: Rao Shoaib <rao.shoaib@oracle.com>
 ---
- include/linux/rcupdate.h | 43 +++----------------------------------------
- include/linux/rcutree.h  |  2 --
- include/linux/slab.h     | 42 ++++++++++++++++++++++++++++++++++++++++++
- kernel/rcu/tree.c        | 24 ++++++++++--------------
- mm/slab_common.c         | 10 ++++++++++
- 5 files changed, 65 insertions(+), 56 deletions(-)
+ include/linux/mm.h      |   5 ++
+ include/linux/rcutiny.h |   8 ++-
+ kernel/sysctl.c         |  40 ++++++++++++
+ mm/slab.h               |  23 +++++++
+ mm/slab_common.c        | 164 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 238 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
-index 043d047..6338fb6 100644
---- a/include/linux/rcupdate.h
-+++ b/include/linux/rcupdate.h
-@@ -55,6 +55,9 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func);
- #define	call_rcu	call_rcu_sched
- #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ad06d42..fb1e54c 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2673,5 +2673,10 @@ void __init setup_nr_node_ids(void);
+ static inline void setup_nr_node_ids(void) {}
+ #endif
  
-+/* only for use by kfree_call_rcu() */
-+void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func);
++extern int sysctl_kfree_rcu_drain_limit;
++extern int sysctl_kfree_rcu_poll_limit;
++extern int sysctl_kfree_rcu_empty_limit;
++extern int sysctl_kfree_rcu_caching_allowed;
 +
- void call_rcu_bh(struct rcu_head *head, rcu_callback_t func);
- void call_rcu_sched(struct rcu_head *head, rcu_callback_t func);
- void synchronize_sched(void);
-@@ -837,45 +840,6 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
- #define __is_kfree_rcu_offset(offset) ((offset) < 4096)
- 
- /*
-- * Helper macro for kfree_rcu() to prevent argument-expansion eyestrain.
-- */
--#define __kfree_rcu(head, offset) \
--	do { \
--		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
--		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
--	} while (0)
--
--/**
-- * kfree_rcu() - kfree an object after a grace period.
-- * @ptr:	pointer to kfree
-- * @rcu_head:	the name of the struct rcu_head within the type of @ptr.
-- *
-- * Many rcu callbacks functions just call kfree() on the base structure.
-- * These functions are trivial, but their size adds up, and furthermore
-- * when they are used in a kernel module, that module must invoke the
-- * high-latency rcu_barrier() function at module-unload time.
-- *
-- * The kfree_rcu() function handles this issue.  Rather than encoding a
-- * function address in the embedded rcu_head structure, kfree_rcu() instead
-- * encodes the offset of the rcu_head structure within the base structure.
-- * Because the functions are not allowed in the low-order 4096 bytes of
-- * kernel virtual memory, offsets up to 4095 bytes can be accommodated.
-- * If the offset is larger than 4095 bytes, a compile-time error will
-- * be generated in __kfree_rcu().  If this error is triggered, you can
-- * either fall back to use of call_rcu() or rearrange the structure to
-- * position the rcu_head structure into the first 4096 bytes.
-- *
-- * Note that the allowable offset might decrease in the future, for example,
-- * to allow something like kmem_cache_free_rcu().
-- *
-- * The BUILD_BUG_ON check must not involve any function calls, hence the
-- * checks are done in macros here.
-- */
--#define kfree_rcu(ptr, rcu_head)					\
--	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
--
--
--/*
-  * Place this after a lock-acquisition primitive to guarantee that
-  * an UNLOCK+LOCK pair acts as a full barrier.  This guarantee applies
-  * if the UNLOCK and LOCK are executed by the same CPU or if the
-@@ -887,5 +851,4 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
- #define smp_mb__after_unlock_lock()	do { } while (0)
- #endif /* #else #ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE */
- 
--
- #endif /* __LINUX_RCUPDATE_H */
-diff --git a/include/linux/rcutree.h b/include/linux/rcutree.h
-index fd996cd..567ef58 100644
---- a/include/linux/rcutree.h
-+++ b/include/linux/rcutree.h
-@@ -48,8 +48,6 @@ void synchronize_rcu_bh(void);
- void synchronize_sched_expedited(void);
- void synchronize_rcu_expedited(void);
- 
--void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
--
- /**
-  * synchronize_rcu_bh_expedited - Brute-force RCU-bh grace period
-  *
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 231abc8..116e870 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -355,6 +355,48 @@ void *__kmalloc(size_t size, gfp_t flags) __assume_kmalloc_alignment __malloc;
- void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags) __assume_slab_alignment __malloc;
- void kmem_cache_free(struct kmem_cache *, void *);
- 
-+void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
-+
-+/* Helper macro for kfree_rcu() to prevent argument-expansion eyestrain. */
-+#define __kfree_rcu(head, offset) \
-+	do { \
-+		unsigned long __of = (unsigned long)offset;	\
-+		BUILD_BUG_ON(!__is_kfree_rcu_offset(__of)); \
-+		kfree_call_rcu(head, (rcu_callback_t)(__of));	\
-+	} while (0)
-+
-+/**
-+ * kfree_rcu() - kfree an object after a grace period.
-+ * @ptr:	pointer to kfree
-+ * @rcu_name:	the name of the struct rcu_head within the type of @ptr.
-+ *
-+ * Many rcu callbacks functions just call kfree() on the base structure.
-+ * These functions are trivial, but their size adds up, and furthermore
-+ * when they are used in a kernel module, that module must invoke the
-+ * high-latency rcu_barrier() function at module-unload time.
-+ *
-+ * The kfree_rcu() function handles this issue.  Rather than encoding a
-+ * function address in the embedded rcu_head structure, kfree_rcu() instead
-+ * encodes the offset of the rcu_head structure within the base structure.
-+ * Because the functions are not allowed in the low-order 4096 bytes of
-+ * kernel virtual memory, offsets up to 4095 bytes can be accommodated.
-+ * If the offset is larger than 4095 bytes, a compile-time error will
-+ * be generated in __kfree_rcu().  If this error is triggered, you can
-+ * either fall back to use of call_rcu() or rearrange the structure to
-+ * position the rcu_head structure into the first 4096 bytes.
-+ *
-+ * Note that the allowable offset might decrease in the future, for example,
-+ * to allow something like kmem_cache_free_rcu().
-+ *
-+ * The BUILD_BUG_ON check must not involve any function calls, hence the
-+ * checks are done in macros here.
-+ */
-+#define kfree_rcu(ptr, rcu_name)	\
-+	do {				\
-+		unsigned long __off = offsetof(typeof(*(ptr)), rcu_name); \
-+		struct rcu_head *__rptr = (void *)ptr + __off; \
-+		__kfree_rcu(__rptr, __off); \
-+	} while (0)
- /*
-  * Bulk allocation and freeing operations. These are accelerated in an
-  * allocator specific way to avoid taking locks repeatedly or building
-diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
-index 491bdf3..e40f014 100644
---- a/kernel/rcu/tree.c
-+++ b/kernel/rcu/tree.c
-@@ -3101,6 +3101,16 @@ void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_H */
+diff --git a/include/linux/rcutiny.h b/include/linux/rcutiny.h
+index ce9beec..b9e9025 100644
+--- a/include/linux/rcutiny.h
++++ b/include/linux/rcutiny.h
+@@ -84,10 +84,16 @@ static inline void synchronize_sched_expedited(void)
+ 	synchronize_sched();
  }
- EXPORT_SYMBOL_GPL(call_rcu_sched);
  
-+/* Queue an RCU callback for lazy invocation after a grace period.
-+ * Currently there is no way of tagging the lazy RCU callbacks in the
-+ * list of pending callbacks. Until then, this function may only be
-+ * called from kfree_call_rcu().
-+ */
-+void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func)
++static inline void call_rcu_lazy(struct rcu_head *head,
++				 rcu_callback_t func)
 +{
-+	__call_rcu(head, func, rcu_state_p, -1, 1);
++	call_rcu(head, func);
 +}
 +
- /**
-  * call_rcu_bh() - Queue an RCU for invocation after a quicker grace period.
-  * @head: structure to be used for queueing the RCU updates.
-@@ -3130,20 +3140,6 @@ void call_rcu_bh(struct rcu_head *head, rcu_callback_t func)
- EXPORT_SYMBOL_GPL(call_rcu_bh);
+ static inline void kfree_call_rcu(struct rcu_head *head,
+ 				  rcu_callback_t func)
+ {
+-	call_rcu(head, func);
++	call_rcu_lazy(head, func);
+ }
  
- /*
-- * Queue an RCU callback for lazy invocation after a grace period.
-- * This will likely be later named something like "call_rcu_lazy()",
-- * but this change will require some way of tagging the lazy RCU
-- * callbacks in the list of pending callbacks. Until then, this
-- * function may only be called from __kfree_rcu().
-- */
--void kfree_call_rcu(struct rcu_head *head,
--		    rcu_callback_t func)
--{
--	__call_rcu(head, func, rcu_state_p, -1, 1);
--}
--EXPORT_SYMBOL_GPL(kfree_call_rcu);
--
--/*
-  * Because a context switch is a grace period for RCU-sched and RCU-bh,
-  * any blocking grace-period wait automatically implies a grace period
-  * if there is only one CPU online at any point time during execution
+ #define rcu_note_context_switch(preempt) \
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index f98f28c..ab70c99 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1650,6 +1650,46 @@ static struct ctl_table vm_table[] = {
+ 		.extra2		= (void *)&mmap_rnd_compat_bits_max,
+ 	},
+ #endif
++	{
++		.procname	= "kfree_rcu_drain_limit",
++		.data		= &sysctl_kfree_rcu_drain_limit,
++		.maxlen		= sizeof(sysctl_kfree_rcu_drain_limit),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= &one,
++		.extra2		= &one_hundred,
++	},
++
++	{
++		.procname	= "kfree_rcu_poll_limit",
++		.data		= &sysctl_kfree_rcu_poll_limit,
++		.maxlen		= sizeof(sysctl_kfree_rcu_poll_limit),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= &one,
++		.extra2		= &one_hundred,
++	},
++
++	{
++		.procname	= "kfree_rcu_empty_limit",
++		.data		= &sysctl_kfree_rcu_empty_limit,
++		.maxlen		= sizeof(sysctl_kfree_rcu_empty_limit),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= &zero,
++		.extra2		= &four,
++	},
++
++	{
++		.procname	= "kfree_rcu_caching_allowed",
++		.data		= &sysctl_kfree_rcu_caching_allowed,
++		.maxlen		= sizeof(sysctl_kfree_rcu_caching_allowed),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= &zero,
++		.extra2		= &one,
++	},
++
+ 	{ }
+ };
+ 
+diff --git a/mm/slab.h b/mm/slab.h
+index 5181323..a332ea6 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -80,6 +80,29 @@ extern const struct kmalloc_info_struct {
+ 	unsigned long size;
+ } kmalloc_info[];
+ 
++#define	RCU_MAX_ACCUMULATE_SIZE	25
++
++struct rcu_bulk_free_container {
++	struct	rcu_head rbfc_rcu;
++	int	rbfc_entries;
++	void	*rbfc_data[RCU_MAX_ACCUMULATE_SIZE];
++	struct	rcu_bulk_free *rbfc_rbf;
++};
++
++struct rcu_bulk_free {
++	struct	rcu_head rbf_rcu; /* used to schedule monitor process */
++	spinlock_t	rbf_lock;
++	struct		rcu_bulk_free_container *rbf_container;
++	struct		rcu_bulk_free_container *rbf_cached_container;
++	struct		rcu_head *rbf_list_head;
++	int		rbf_list_size;
++	int		rbf_cpu;
++	int		rbf_empty;
++	int		rbf_polled;
++	bool		rbf_init;
++	bool		rbf_monitor;
++};
++
+ #ifndef CONFIG_SLOB
+ /* Kmalloc array related functions */
+ void setup_kmalloc_cache_index_table(void);
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 10f127b..2ea9866 100644
+index 2ea9866..6e8afff 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -1525,6 +1525,16 @@ void kzfree(const void *p)
+@@ -20,6 +20,7 @@
+ #include <asm/tlbflush.h>
+ #include <asm/page.h>
+ #include <linux/memcontrol.h>
++#include <linux/types.h>
+ 
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/kmem.h>
+@@ -1525,13 +1526,174 @@ void kzfree(const void *p)
  }
  EXPORT_SYMBOL(kzfree);
  
-+/*
-+ * Queue Memory to be freed by RCU after a grace period.
-+ */
-+void kfree_call_rcu(struct rcu_head *head,
-+		    rcu_callback_t func)
-+{
-+	call_rcu_lazy(head, func);
-+}
-+EXPORT_SYMBOL_GPL(kfree_call_rcu);
++static DEFINE_PER_CPU(struct rcu_bulk_free, cpu_rbf);
 +
- /* Tracepoints definitions. */
- EXPORT_TRACEPOINT_SYMBOL(kmalloc);
- EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
++/* drain if atleast these many objects */
++int sysctl_kfree_rcu_drain_limit __read_mostly = 10;
++
++/* time to poll if fewer than drain_limit */
++int sysctl_kfree_rcu_poll_limit __read_mostly = 5;
++
++/* num of times to check bfr exit */
++int sysctl_kfree_rcu_empty_limit __read_mostly = 2;
++
++int sysctl_kfree_rcu_caching_allowed __read_mostly = 1;
++
++/* RCU call back function. Frees the memory */
++static void __rcu_bulk_free_impl(struct rcu_head *rbfc_rcu)
++{
++	struct rcu_bulk_free *rbf = NULL;
++	struct rcu_bulk_free_container *rbfc = container_of(rbfc_rcu,
++	    struct rcu_bulk_free_container, rbfc_rcu);
++
++	kfree_bulk(rbfc->rbfc_entries, rbfc->rbfc_data);
++
++	rbf = rbfc->rbfc_rbf;
++	if (!sysctl_kfree_rcu_caching_allowed ||
++	    cmpxchg(&rbf->rbf_cached_container, NULL, rbfc)) {
++		kfree(rbfc);
++	}
++}
++
++/* processes list of rcu structures
++ * used when conatiner can not be allocated
++ */
++static void __rcu_bulk_schedule_list(struct rcu_bulk_free *rbf)
++{
++	int i;
++
++	for (i = 0; i < rbf->rbf_list_size; i++) {
++		struct rcu_head *free_head;
++
++		free_head = rbf->rbf_list_head;
++		rbf->rbf_list_head = free_head->next;
++		free_head->next = NULL;
++		call_rcu(free_head, free_head->func);
++	}
++	rbf->rbf_list_size = 0;
++}
++
++/* RCU monitoring function -- submits elements for RCU reclaim */
++static void __rcu_bulk_free_monitor(struct rcu_head *rbf_rcu)
++{
++	struct rcu_bulk_free *rbf = NULL;
++	struct rcu_bulk_free_container *rbfc = NULL;
++
++	rbf = container_of(rbf_rcu, struct rcu_bulk_free, rbf_rcu);
++
++	spin_lock(&rbf->rbf_lock);
++
++	rbfc = rbf->rbf_container;
++
++	rbf->rbf_polled++;
++	if (rbf->rbf_list_size > 0) {
++		if (rbf->rbf_list_size >= sysctl_kfree_rcu_drain_limit ||
++		    rbf->rbf_polled >= sysctl_kfree_rcu_poll_limit) {
++			rbf->rbf_polled = 0;
++			__rcu_bulk_schedule_list(rbf);
++		}
++	} else if (rbfc) {
++		if (rbfc->rbfc_entries >= sysctl_kfree_rcu_drain_limit ||
++		    rbf->rbf_polled >= sysctl_kfree_rcu_poll_limit) {
++			rbf->rbf_polled = 0;
++			call_rcu(&rbfc->rbfc_rcu, __rcu_bulk_free_impl);
++			rbf->rbf_container = NULL;
++		}
++	} else if (rbf->rbf_polled >= sysctl_kfree_rcu_empty_limit) {
++		rbf->rbf_monitor = false;
++		rbf->rbf_polled = 0;
++	}
++
++	spin_unlock(&rbf->rbf_lock);
++
++	if (rbf->rbf_monitor)
++		call_rcu(&rbf->rbf_rcu, __rcu_bulk_free_monitor);
++}
++
++/* Main RCU function that is called to free RCU structures */
++static void __rcu_bulk_free(struct rcu_head *head, rcu_callback_t func)
++{
++	unsigned long offset;
++	void *ptr;
++	struct rcu_bulk_free *rbf;
++	struct rcu_bulk_free_container *rbfc = NULL;
++
++	preempt_disable();
++	rbf = this_cpu_ptr(&cpu_rbf);
++
++	if (unlikely(!rbf->rbf_init)) {
++		spin_lock_init(&rbf->rbf_lock);
++		rbf->rbf_cpu = smp_processor_id();
++		rbf->rbf_init = true;
++	}
++
++	/* hold lock to protect against other cpu's */
++	spin_lock_bh(&rbf->rbf_lock);
++
++	rbfc = rbf->rbf_container;
++
++	if (!rbfc) {
++		if (!rbf->rbf_cached_container) {
++			rbf->rbf_container =
++			    kmalloc(sizeof(struct rcu_bulk_free_container),
++				    GFP_ATOMIC);
++		} else {
++			rbf->rbf_container =
++			    READ_ONCE(rbf->rbf_cached_container);
++			cmpxchg(&rbf->rbf_cached_container,
++				rbf->rbf_container, NULL);
++		}
++
++		if (unlikely(!rbf->rbf_container)) {
++			/* Memory allocation failed maintain a list */
++
++			head->func = (void *)func;
++			head->next = rbf->rbf_list_head;
++			rbf->rbf_list_head = head;
++			rbf->rbf_list_size++;
++			if (rbf->rbf_list_size == RCU_MAX_ACCUMULATE_SIZE)
++				__rcu_bulk_schedule_list(rbf);
++
++			goto done;
++		}
++
++		rbfc = rbf->rbf_container;
++		rbfc->rbfc_rbf = rbf;
++		rbfc->rbfc_entries = 0;
++
++		if (!rbf->rbf_list_head)
++			__rcu_bulk_schedule_list(rbf);
++	}
++
++	offset = (unsigned long)func;
++	ptr = (void *)head - offset;
++
++	rbfc->rbfc_data[rbfc->rbfc_entries++] = ptr;
++	if (rbfc->rbfc_entries == RCU_MAX_ACCUMULATE_SIZE) {
++		rbf->rbf_container = NULL;
++		spin_unlock_bh(&rbf->rbf_lock);
++		call_rcu_lazy(&rbfc->rbfc_rcu, __rcu_bulk_free_impl);
++		preempt_enable();
++		return;
++	}
++
++done:
++	if (!rbf->rbf_monitor) {
++		call_rcu_lazy(&rbf->rbf_rcu, __rcu_bulk_free_monitor);
++		rbf->rbf_monitor = true;
++	}
++
++	spin_unlock_bh(&rbf->rbf_lock);
++	preempt_enable();
++}
++
+ /*
+  * Queue Memory to be freed by RCU after a grace period.
+  */
+ void kfree_call_rcu(struct rcu_head *head,
+ 		    rcu_callback_t func)
+ {
+-	call_rcu_lazy(head, func);
++	__rcu_bulk_free(head, func);
+ }
+ EXPORT_SYMBOL_GPL(kfree_call_rcu);
+ 
 -- 
 2.7.4
