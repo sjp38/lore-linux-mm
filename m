@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BD8CF6B0027
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 08:25:05 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id q22so12497069pfh.20
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 05:25:05 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F15C6B0027
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 08:25:06 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e9so1932767pfn.16
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 05:25:06 -0700 (PDT)
 Received: from huawei.com ([45.249.212.35])
-        by mx.google.com with ESMTPS id t20si179587pfj.320.2018.04.02.05.25.03
+        by mx.google.com with ESMTPS id t135si169975pgb.24.2018.04.02.05.25.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 02 Apr 2018 05:25:04 -0700 (PDT)
 From: Abbott Liu <liuwenliang@huawei.com>
-Subject: [PATCH v3 5/6] Initialize the mapping of KASan shadow memory
-Date: Mon, 2 Apr 2018 20:04:39 +0800
-Message-ID: <20180402120440.31900-6-liuwenliang@huawei.com>
+Subject: [PATCH v3 1/6] Add TTBR operator for kasan_init
+Date: Mon, 2 Apr 2018 20:04:35 +0800
+Message-ID: <20180402120440.31900-2-liuwenliang@huawei.com>
 In-Reply-To: <20180402120440.31900-1-liuwenliang@huawei.com>
 References: <20180402120440.31900-1-liuwenliang@huawei.com>
 MIME-Version: 1.0
@@ -21,529 +21,277 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: aryabinin@virtuozzo.com, dvyukov@google.com, corbet@lwn.net, linux@armlinux.org.uk, christoffer.dall@linaro.org, marc.zyngier@arm.com, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, f.fainelli@gmail.com, liuwenliang@huawei.com, akpm@linux-foundation.org, linux@rasmusvillemoes.dk, mawilcox@microsoft.com, pombredanne@nexb.com, ard.biesheuvel@linaro.org, vladimir.murzin@arm.com, alexander.levin@verizon.com, nicolas.pitre@linaro.org, tglx@linutronix.de, thgarnie@google.com, dhowells@redhat.com, keescook@chromium.org, arnd@arndb.de, geert@linux-m68k.org, tixy@linaro.org, julien.thierry@arm.com, mark.rutland@arm.com, james.morse@arm.com, zhichao.huang@linaro.org, jinb.park7@gmail.com, labbott@redhat.com, philip@cog.systems, grygorii.strashko@linaro.org, catalin.marinas@arm.com, opendmb@gmail.com, kirill.shutemov@linux.intel.com, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvmarm@lists.cs.columbia.edu, linux-mm@kvack.org
 
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-
-This patch initializes KASan shadow region's page table and memory.
-There are two stage for KASan initializing:
-1. At early boot stage the whole shadow region is mapped to just
-   one physical page (kasan_zero_page). It's finished by the function
-   kasan_early_init which is called by __mmap_switched(arch/arm/kernel/
-   head-common.S)
-             ---Andrey Ryabinin <a.ryabinin@samsung.com>
-
-2. After the calling of paging_init, we use kasan_zero_page as zero
-   shadow for some memory that KASan don't need to track, and we alloc
-   new shadow space for the other memory that KASan need to track. These
-   issues are finished by the function kasan_init which is call by
-   setup_arch.
-            ---Andrey Ryabinin <a.ryabinin@samsung.com>
-
-3. Add support arm LPAE
-   If LPAE is enabled, KASan shadow region's mapping table need be copyed
-   in pgd_alloc function.
-            ---Abbott Liu <liuwenliang@huawei.com>
-
-4. In 64bit machine, size_t is unsigned long, but int 32bit machine,
-   size_t is unsigned int, so we need type conversion in
-   the function of kasan_cache_create.
-            ---Abbott Liu <liuwenliang@huawei.com>
-
-5. Change kasan_pte_populate,kasan_pmd_populate,kasan_pud_populate,
-   kasan_pgd_populate from .meminit.text section to .init.text section.
-           ---Reported by: Florian Fainelli <f.fainelli@gmail.com>
-           ---Signed off by: Abbott Liu <liuwenliang@huawei.com>
+The purpose of this patch is to provide set_ttbr0/get_ttbr0
+to kasan_init function. The definitions of cp15 registers
+should be in arch/arm/include/asm/cp15.h rather than
+arch/arm/include/asm/kvm_hyp.h, so move them.
 
 Cc: Andrey Ryabinin <a.ryabinin@samsung.com>
-Co-Developed-by: Abbott Liu <liuwenliang@huawei.com>
+Reviewed-by: Marc Zyngier <marc.zyngier@arm.com>
 Reviewed-by: Russell King - ARM Linux <linux@armlinux.org.uk>
-Reviewed-by: Florian Fainelli <f.fainelli@gmail.com>
-Reported-by: Florian Fainelli <f.fainelli@gmail.com>
+Reviewed-by: Christoffer Dall <cdall@linaro.org>
+Acked-by: Mark Rutland <mark.rutland@arm.com>
 Tested-by: Florian Fainelli <f.fainelli@gmail.com>
 Tested-by: Joel Stanley <joel@jms.id.au>
 Tested-by: Abbott Liu <liuwenliang@huawei.com>
 Signed-off-by: Abbott Liu <liuwenliang@huawei.com>
 ---
- arch/arm/include/asm/kasan.h       |  35 +++++
- arch/arm/include/asm/pgalloc.h     |   7 +-
- arch/arm/include/asm/thread_info.h |   4 +
- arch/arm/kernel/head-common.S      |   3 +
- arch/arm/kernel/setup.c            |   2 +
- arch/arm/mm/Makefile               |   3 +
- arch/arm/mm/kasan_init.c           | 302 +++++++++++++++++++++++++++++++++++++
- arch/arm/mm/pgd.c                  |  14 ++
- mm/kasan/kasan.c                   |   5 +-
- 9 files changed, 371 insertions(+), 4 deletions(-)
- create mode 100644 arch/arm/include/asm/kasan.h
- create mode 100644 arch/arm/mm/kasan_init.c
+ arch/arm/include/asm/cp15.h    | 104 +++++++++++++++++++++++++++++++++++++++++
+ arch/arm/include/asm/kvm_hyp.h |  52 ---------------------
+ arch/arm/kvm/hyp/cp15-sr.c     |  12 ++---
+ arch/arm/kvm/hyp/switch.c      |   6 +--
+ 4 files changed, 113 insertions(+), 61 deletions(-)
 
-diff --git a/arch/arm/include/asm/kasan.h b/arch/arm/include/asm/kasan.h
-new file mode 100644
-index 0000000..1801f4d
---- /dev/null
-+++ b/arch/arm/include/asm/kasan.h
-@@ -0,0 +1,35 @@
-+/*
-+ * arch/arm/include/asm/kasan.h
-+ *
-+ * Copyright (c) 2015 Samsung Electronics Co., Ltd.
-+ * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ *
-+ */
+diff --git a/arch/arm/include/asm/cp15.h b/arch/arm/include/asm/cp15.h
+index 4c9fa72..99ebb31 100644
+--- a/arch/arm/include/asm/cp15.h
++++ b/arch/arm/include/asm/cp15.h
+@@ -3,6 +3,7 @@
+ #define __ASM_ARM_CP15_H
+ 
+ #include <asm/barrier.h>
++#include <linux/stringify.h>
+ 
+ /*
+  * CR1 bits (CP#15 CR1)
+@@ -65,8 +66,111 @@
+ #define __write_sysreg(v, r, w, c, t)	asm volatile(w " " c : : "r" ((t)(v)))
+ #define write_sysreg(v, ...)		__write_sysreg(v, __VA_ARGS__)
+ 
++#define TTBR0_32	__ACCESS_CP15(c2, 0, c0, 0)
++#define TTBR1_32	__ACCESS_CP15(c2, 0, c0, 1)
++#define PAR_32		__ACCESS_CP15(c7, 0, c4, 0)
++#define TTBR0_64	__ACCESS_CP15_64(0, c2)
++#define TTBR1_64	__ACCESS_CP15_64(1, c2)
++#define PAR_64		__ACCESS_CP15_64(0, c7)
++#define VTTBR		__ACCESS_CP15_64(6, c2)
++#define CNTV_CVAL	__ACCESS_CP15_64(3, c14)
++#define CNTVOFF		__ACCESS_CP15_64(4, c14)
 +
-+#ifndef __ASM_KASAN_H
-+#define __ASM_KASAN_H
++#define MIDR		__ACCESS_CP15(c0, 0, c0, 0)
++#define CSSELR		__ACCESS_CP15(c0, 2, c0, 0)
++#define VPIDR		__ACCESS_CP15(c0, 4, c0, 0)
++#define VMPIDR		__ACCESS_CP15(c0, 4, c0, 5)
++#define SCTLR		__ACCESS_CP15(c1, 0, c0, 0)
++#define CPACR		__ACCESS_CP15(c1, 0, c0, 2)
++#define HCR		__ACCESS_CP15(c1, 4, c1, 0)
++#define HDCR		__ACCESS_CP15(c1, 4, c1, 1)
++#define HCPTR		__ACCESS_CP15(c1, 4, c1, 2)
++#define HSTR		__ACCESS_CP15(c1, 4, c1, 3)
++#define TTBCR		__ACCESS_CP15(c2, 0, c0, 2)
++#define HTCR		__ACCESS_CP15(c2, 4, c0, 2)
++#define VTCR		__ACCESS_CP15(c2, 4, c1, 2)
++#define DACR		__ACCESS_CP15(c3, 0, c0, 0)
++#define DFSR		__ACCESS_CP15(c5, 0, c0, 0)
++#define IFSR		__ACCESS_CP15(c5, 0, c0, 1)
++#define ADFSR		__ACCESS_CP15(c5, 0, c1, 0)
++#define AIFSR		__ACCESS_CP15(c5, 0, c1, 1)
++#define HSR		__ACCESS_CP15(c5, 4, c2, 0)
++#define DFAR		__ACCESS_CP15(c6, 0, c0, 0)
++#define IFAR		__ACCESS_CP15(c6, 0, c0, 2)
++#define HDFAR		__ACCESS_CP15(c6, 4, c0, 0)
++#define HIFAR		__ACCESS_CP15(c6, 4, c0, 2)
++#define HPFAR		__ACCESS_CP15(c6, 4, c0, 4)
++#define ICIALLUIS	__ACCESS_CP15(c7, 0, c1, 0)
++#define BPIALLIS	__ACCESS_CP15(c7, 0, c1, 6)
++#define ICIMVAU		__ACCESS_CP15(c7, 0, c5, 1)
++#define ATS1CPR		__ACCESS_CP15(c7, 0, c8, 0)
++#define TLBIALLIS	__ACCESS_CP15(c8, 0, c3, 0)
++#define TLBIALL		__ACCESS_CP15(c8, 0, c7, 0)
++#define TLBIALLNSNHIS	__ACCESS_CP15(c8, 4, c3, 4)
++#define PRRR		__ACCESS_CP15(c10, 0, c2, 0)
++#define NMRR		__ACCESS_CP15(c10, 0, c2, 1)
++#define AMAIR0		__ACCESS_CP15(c10, 0, c3, 0)
++#define AMAIR1		__ACCESS_CP15(c10, 0, c3, 1)
++#define VBAR		__ACCESS_CP15(c12, 0, c0, 0)
++#define CID		__ACCESS_CP15(c13, 0, c0, 1)
++#define TID_URW		__ACCESS_CP15(c13, 0, c0, 2)
++#define TID_URO		__ACCESS_CP15(c13, 0, c0, 3)
++#define TID_PRIV	__ACCESS_CP15(c13, 0, c0, 4)
++#define HTPIDR		__ACCESS_CP15(c13, 4, c0, 2)
++#define CNTKCTL		__ACCESS_CP15(c14, 0, c1, 0)
++#define CNTV_CTL	__ACCESS_CP15(c14, 0, c3, 1)
++#define CNTHCTL		__ACCESS_CP15(c14, 4, c1, 0)
 +
-+#ifdef CONFIG_KASAN
+ extern unsigned long cr_alignment;	/* defined in entry-armv.S */
+ 
++static inline void set_par(u64 val)
++{
++	if (IS_ENABLED(CONFIG_ARM_LPAE))
++		write_sysreg(val, PAR_64);
++	else
++		write_sysreg(val, PAR_32);
++}
 +
-+#include <asm/kasan_def.h>
++static inline u64 get_par(void)
++{
++	if (IS_ENABLED(CONFIG_ARM_LPAE))
++		return read_sysreg(PAR_64);
++	else
++		return read_sysreg(PAR_32);
++}
 +
-+#define KASAN_SHADOW_SCALE_SHIFT 3
++static inline void set_ttbr0(u64 val)
++{
++	if (IS_ENABLED(CONFIG_ARM_LPAE))
++		write_sysreg(val, TTBR0_64);
++	else
++		write_sysreg(val, TTBR0_32);
++}
 +
-+/*
-+ * Compiler uses shadow offset assuming that addresses start
-+ * from 0. Kernel addresses don't start from 0, so shadow
-+ * for kernel really starts from 'compiler's shadow offset' +
-+ * ('kernel address space start' >> KASAN_SHADOW_SCALE_SHIFT)
-+ */
++static inline u64 get_ttbr0(void)
++{
++	if (IS_ENABLED(CONFIG_ARM_LPAE))
++		return read_sysreg(TTBR0_64);
++	else
++		return read_sysreg(TTBR0_32);
++}
 +
-+extern void kasan_init(void);
++static inline void set_ttbr1(u64 val)
++{
++	if (IS_ENABLED(CONFIG_ARM_LPAE))
++		write_sysreg(val, TTBR1_64);
++	else
++		write_sysreg(val, TTBR1_32);
++}
 +
-+#else
-+static inline void kasan_init(void) { }
-+#endif
++static inline u64 get_ttbr1(void)
++{
++	if (IS_ENABLED(CONFIG_ARM_LPAE))
++		return read_sysreg(TTBR1_64);
++	else
++		return read_sysreg(TTBR1_32);
++}
 +
-+#endif
-diff --git a/arch/arm/include/asm/pgalloc.h b/arch/arm/include/asm/pgalloc.h
-index 2d7344f..f170659 100644
---- a/arch/arm/include/asm/pgalloc.h
-+++ b/arch/arm/include/asm/pgalloc.h
-@@ -50,8 +50,11 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
-  */
- #define pmd_alloc_one(mm,addr)		({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm, pmd)		do { } while (0)
--#define pud_populate(mm,pmd,pte)	BUG()
+ static inline unsigned long get_cr(void)
+ {
+ 	unsigned long val;
+diff --git a/arch/arm/include/asm/kvm_hyp.h b/arch/arm/include/asm/kvm_hyp.h
+index 1ab8329..8e8592e 100644
+--- a/arch/arm/include/asm/kvm_hyp.h
++++ b/arch/arm/include/asm/kvm_hyp.h
+@@ -36,58 +36,6 @@
+ 	__val;							\
+ })
+ 
+-#define TTBR0		__ACCESS_CP15_64(0, c2)
+-#define TTBR1		__ACCESS_CP15_64(1, c2)
+-#define VTTBR		__ACCESS_CP15_64(6, c2)
+-#define PAR		__ACCESS_CP15_64(0, c7)
+-#define CNTV_CVAL	__ACCESS_CP15_64(3, c14)
+-#define CNTVOFF		__ACCESS_CP15_64(4, c14)
 -
-+#ifndef CONFIG_KASAN
-+#define pud_populate(mm, pmd, pte)	BUG()
-+#else
-+#define pud_populate(mm, pmd, pte)	do { } while (0)
-+#endif
- #endif	/* CONFIG_ARM_LPAE */
+-#define MIDR		__ACCESS_CP15(c0, 0, c0, 0)
+-#define CSSELR		__ACCESS_CP15(c0, 2, c0, 0)
+-#define VPIDR		__ACCESS_CP15(c0, 4, c0, 0)
+-#define VMPIDR		__ACCESS_CP15(c0, 4, c0, 5)
+-#define SCTLR		__ACCESS_CP15(c1, 0, c0, 0)
+-#define CPACR		__ACCESS_CP15(c1, 0, c0, 2)
+-#define HCR		__ACCESS_CP15(c1, 4, c1, 0)
+-#define HDCR		__ACCESS_CP15(c1, 4, c1, 1)
+-#define HCPTR		__ACCESS_CP15(c1, 4, c1, 2)
+-#define HSTR		__ACCESS_CP15(c1, 4, c1, 3)
+-#define TTBCR		__ACCESS_CP15(c2, 0, c0, 2)
+-#define HTCR		__ACCESS_CP15(c2, 4, c0, 2)
+-#define VTCR		__ACCESS_CP15(c2, 4, c1, 2)
+-#define DACR		__ACCESS_CP15(c3, 0, c0, 0)
+-#define DFSR		__ACCESS_CP15(c5, 0, c0, 0)
+-#define IFSR		__ACCESS_CP15(c5, 0, c0, 1)
+-#define ADFSR		__ACCESS_CP15(c5, 0, c1, 0)
+-#define AIFSR		__ACCESS_CP15(c5, 0, c1, 1)
+-#define HSR		__ACCESS_CP15(c5, 4, c2, 0)
+-#define DFAR		__ACCESS_CP15(c6, 0, c0, 0)
+-#define IFAR		__ACCESS_CP15(c6, 0, c0, 2)
+-#define HDFAR		__ACCESS_CP15(c6, 4, c0, 0)
+-#define HIFAR		__ACCESS_CP15(c6, 4, c0, 2)
+-#define HPFAR		__ACCESS_CP15(c6, 4, c0, 4)
+-#define ICIALLUIS	__ACCESS_CP15(c7, 0, c1, 0)
+-#define BPIALLIS	__ACCESS_CP15(c7, 0, c1, 6)
+-#define ICIMVAU		__ACCESS_CP15(c7, 0, c5, 1)
+-#define ATS1CPR		__ACCESS_CP15(c7, 0, c8, 0)
+-#define TLBIALLIS	__ACCESS_CP15(c8, 0, c3, 0)
+-#define TLBIALL		__ACCESS_CP15(c8, 0, c7, 0)
+-#define TLBIALLNSNHIS	__ACCESS_CP15(c8, 4, c3, 4)
+-#define PRRR		__ACCESS_CP15(c10, 0, c2, 0)
+-#define NMRR		__ACCESS_CP15(c10, 0, c2, 1)
+-#define AMAIR0		__ACCESS_CP15(c10, 0, c3, 0)
+-#define AMAIR1		__ACCESS_CP15(c10, 0, c3, 1)
+-#define VBAR		__ACCESS_CP15(c12, 0, c0, 0)
+-#define CID		__ACCESS_CP15(c13, 0, c0, 1)
+-#define TID_URW		__ACCESS_CP15(c13, 0, c0, 2)
+-#define TID_URO		__ACCESS_CP15(c13, 0, c0, 3)
+-#define TID_PRIV	__ACCESS_CP15(c13, 0, c0, 4)
+-#define HTPIDR		__ACCESS_CP15(c13, 4, c0, 2)
+-#define CNTKCTL		__ACCESS_CP15(c14, 0, c1, 0)
+-#define CNTV_CTL	__ACCESS_CP15(c14, 0, c3, 1)
+-#define CNTHCTL		__ACCESS_CP15(c14, 4, c1, 0)
+-
+ #define VFP_FPEXC	__ACCESS_VFP(FPEXC)
  
- extern pgd_t *pgd_alloc(struct mm_struct *mm);
-diff --git a/arch/arm/include/asm/thread_info.h b/arch/arm/include/asm/thread_info.h
-index e71cc35..bc681a0 100644
---- a/arch/arm/include/asm/thread_info.h
-+++ b/arch/arm/include/asm/thread_info.h
-@@ -16,7 +16,11 @@
- #include <asm/fpstate.h>
- #include <asm/page.h>
+ /* AArch64 compatibility macros, only for the timer so far */
+diff --git a/arch/arm/kvm/hyp/cp15-sr.c b/arch/arm/kvm/hyp/cp15-sr.c
+index c478281..d365e3c 100644
+--- a/arch/arm/kvm/hyp/cp15-sr.c
++++ b/arch/arm/kvm/hyp/cp15-sr.c
+@@ -31,8 +31,8 @@ void __hyp_text __sysreg_save_state(struct kvm_cpu_context *ctxt)
+ 	ctxt->cp15[c0_CSSELR]		= read_sysreg(CSSELR);
+ 	ctxt->cp15[c1_SCTLR]		= read_sysreg(SCTLR);
+ 	ctxt->cp15[c1_CPACR]		= read_sysreg(CPACR);
+-	*cp15_64(ctxt, c2_TTBR0)	= read_sysreg(TTBR0);
+-	*cp15_64(ctxt, c2_TTBR1)	= read_sysreg(TTBR1);
++	*cp15_64(ctxt, c2_TTBR0)	= read_sysreg(TTBR0_64);
++	*cp15_64(ctxt, c2_TTBR1)	= read_sysreg(TTBR1_64);
+ 	ctxt->cp15[c2_TTBCR]		= read_sysreg(TTBCR);
+ 	ctxt->cp15[c3_DACR]		= read_sysreg(DACR);
+ 	ctxt->cp15[c5_DFSR]		= read_sysreg(DFSR);
+@@ -41,7 +41,7 @@ void __hyp_text __sysreg_save_state(struct kvm_cpu_context *ctxt)
+ 	ctxt->cp15[c5_AIFSR]		= read_sysreg(AIFSR);
+ 	ctxt->cp15[c6_DFAR]		= read_sysreg(DFAR);
+ 	ctxt->cp15[c6_IFAR]		= read_sysreg(IFAR);
+-	*cp15_64(ctxt, c7_PAR)		= read_sysreg(PAR);
++	*cp15_64(ctxt, c7_PAR)		= read_sysreg(PAR_64);
+ 	ctxt->cp15[c10_PRRR]		= read_sysreg(PRRR);
+ 	ctxt->cp15[c10_NMRR]		= read_sysreg(NMRR);
+ 	ctxt->cp15[c10_AMAIR0]		= read_sysreg(AMAIR0);
+@@ -60,8 +60,8 @@ void __hyp_text __sysreg_restore_state(struct kvm_cpu_context *ctxt)
+ 	write_sysreg(ctxt->cp15[c0_CSSELR],	CSSELR);
+ 	write_sysreg(ctxt->cp15[c1_SCTLR],	SCTLR);
+ 	write_sysreg(ctxt->cp15[c1_CPACR],	CPACR);
+-	write_sysreg(*cp15_64(ctxt, c2_TTBR0),	TTBR0);
+-	write_sysreg(*cp15_64(ctxt, c2_TTBR1),	TTBR1);
++	write_sysreg(*cp15_64(ctxt, c2_TTBR0),	TTBR0_64);
++	write_sysreg(*cp15_64(ctxt, c2_TTBR1),	TTBR1_64);
+ 	write_sysreg(ctxt->cp15[c2_TTBCR],	TTBCR);
+ 	write_sysreg(ctxt->cp15[c3_DACR],	DACR);
+ 	write_sysreg(ctxt->cp15[c5_DFSR],	DFSR);
+@@ -70,7 +70,7 @@ void __hyp_text __sysreg_restore_state(struct kvm_cpu_context *ctxt)
+ 	write_sysreg(ctxt->cp15[c5_AIFSR],	AIFSR);
+ 	write_sysreg(ctxt->cp15[c6_DFAR],	DFAR);
+ 	write_sysreg(ctxt->cp15[c6_IFAR],	IFAR);
+-	write_sysreg(*cp15_64(ctxt, c7_PAR),	PAR);
++	write_sysreg(*cp15_64(ctxt, c7_PAR),	PAR_64);
+ 	write_sysreg(ctxt->cp15[c10_PRRR],	PRRR);
+ 	write_sysreg(ctxt->cp15[c10_NMRR],	NMRR);
+ 	write_sysreg(ctxt->cp15[c10_AMAIR0],	AMAIR0);
+diff --git a/arch/arm/kvm/hyp/switch.c b/arch/arm/kvm/hyp/switch.c
+index ae45ae9..94d5bb9 100644
+--- a/arch/arm/kvm/hyp/switch.c
++++ b/arch/arm/kvm/hyp/switch.c
+@@ -134,12 +134,12 @@ static bool __hyp_text __populate_fault_info(struct kvm_vcpu *vcpu)
+ 	if (!(hsr & HSR_DABT_S1PTW) && (hsr & HSR_FSC_TYPE) == FSC_PERM) {
+ 		u64 par, tmp;
  
-+#ifdef CONFIG_KASAN
-+#define THREAD_SIZE_ORDER	2
-+#else
- #define THREAD_SIZE_ORDER	1
-+#endif
- #define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
- #define THREAD_START_SP		(THREAD_SIZE - 8)
+-		par = read_sysreg(PAR);
++		par = read_sysreg(PAR_64);
+ 		write_sysreg(far, ATS1CPR);
+ 		isb();
  
-diff --git a/arch/arm/kernel/head-common.S b/arch/arm/kernel/head-common.S
-index c79b829..20161e2 100644
---- a/arch/arm/kernel/head-common.S
-+++ b/arch/arm/kernel/head-common.S
-@@ -115,6 +115,9 @@ __mmap_switched:
- 	str	r8, [r2]			@ Save atags pointer
- 	cmp	r3, #0
- 	strne	r10, [r3]			@ Save control register values
-+#ifdef CONFIG_KASAN
-+	bl	kasan_early_init
-+#endif
- 	mov	lr, #0
- 	b	start_kernel
- ENDPROC(__mmap_switched)
-diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
-index fc40a2b..81c3e9df 100644
---- a/arch/arm/kernel/setup.c
-+++ b/arch/arm/kernel/setup.c
-@@ -62,6 +62,7 @@
- #include <asm/unwind.h>
- #include <asm/memblock.h>
- #include <asm/virt.h>
-+#include <asm/kasan.h>
+-		tmp = read_sysreg(PAR);
+-		write_sysreg(par, PAR);
++		tmp = read_sysreg(PAR_64);
++		write_sysreg(par, PAR_64);
  
- #include "atags.h"
- 
-@@ -1118,6 +1119,7 @@ void __init setup_arch(char **cmdline_p)
- 	early_ioremap_reset();
- 
- 	paging_init(mdesc);
-+	kasan_init();
- 	request_standard_resources(mdesc);
- 
- 	if (mdesc->restart)
-diff --git a/arch/arm/mm/Makefile b/arch/arm/mm/Makefile
-index 9dbb849..573203e 100644
---- a/arch/arm/mm/Makefile
-+++ b/arch/arm/mm/Makefile
-@@ -111,3 +111,6 @@ obj-$(CONFIG_CACHE_L2X0_PMU)	+= cache-l2x0-pmu.o
- obj-$(CONFIG_CACHE_XSC3L2)	+= cache-xsc3l2.o
- obj-$(CONFIG_CACHE_TAUROS2)	+= cache-tauros2.o
- obj-$(CONFIG_CACHE_UNIPHIER)	+= cache-uniphier.o
-+
-+KASAN_SANITIZE_kasan_init.o    := n
-+obj-$(CONFIG_KASAN)            += kasan_init.o
-diff --git a/arch/arm/mm/kasan_init.c b/arch/arm/mm/kasan_init.c
-new file mode 100644
-index 0000000..461cc85
---- /dev/null
-+++ b/arch/arm/mm/kasan_init.c
-@@ -0,0 +1,302 @@
-+/*
-+ * This file contains kasan initialization code for ARM.
-+ *
-+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
-+ * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ *
-+ */
-+
-+#include <linux/bootmem.h>
-+#include <linux/kasan.h>
-+#include <linux/kernel.h>
-+#include <linux/memblock.h>
-+#include <linux/start_kernel.h>
-+#include <asm/cputype.h>
-+#include <asm/highmem.h>
-+#include <asm/mach/map.h>
-+#include <asm/memory.h>
-+#include <asm/page.h>
-+#include <asm/pgalloc.h>
-+#include <asm/pgtable.h>
-+#include <asm/procinfo.h>
-+#include <asm/proc-fns.h>
-+#include <asm/tlbflush.h>
-+#include <asm/cp15.h>
-+#include <linux/sched/task.h>
-+
-+#include "mm.h"
-+
-+static pgd_t tmp_pgd_table[PTRS_PER_PGD] __initdata __aligned(1ULL << 14);
-+
-+pmd_t tmp_pmd_table[PTRS_PER_PMD] __page_aligned_bss;
-+
-+static __init void *kasan_alloc_block(size_t size, int node)
-+{
-+	return memblock_virt_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
-+					BOOTMEM_ALLOC_ACCESSIBLE, node);
-+}
-+
-+static void __init kasan_early_pmd_populate(unsigned long start,
-+					unsigned long end, pud_t *pud)
-+{
-+	unsigned long addr;
-+	unsigned long next;
-+	pmd_t *pmd;
-+
-+	pmd = pmd_offset(pud, start);
-+	for (addr = start; addr < end;) {
-+		pmd_populate_kernel(&init_mm, pmd, kasan_zero_pte);
-+		next = pmd_addr_end(addr, end);
-+		addr = next;
-+		flush_pmd_entry(pmd);
-+		pmd++;
-+	}
-+}
-+
-+static void __init kasan_early_pud_populate(unsigned long start,
-+				unsigned long end, pgd_t *pgd)
-+{
-+	unsigned long addr;
-+	unsigned long next;
-+	pud_t *pud;
-+
-+	pud = pud_offset(pgd, start);
-+	for (addr = start; addr < end;) {
-+		next = pud_addr_end(addr, end);
-+		kasan_early_pmd_populate(addr, next, pud);
-+		addr = next;
-+		pud++;
-+	}
-+}
-+
-+void __init kasan_map_early_shadow(pgd_t *pgdp)
-+{
-+	int i;
-+	unsigned long start = KASAN_SHADOW_START;
-+	unsigned long end = KASAN_SHADOW_END;
-+	unsigned long addr;
-+	unsigned long next;
-+	pgd_t *pgd;
-+
-+	for (i = 0; i < PTRS_PER_PTE; i++)
-+		set_pte_at(&init_mm, KASAN_SHADOW_START + i*PAGE_SIZE,
-+			&kasan_zero_pte[i], pfn_pte(
-+				virt_to_pfn(kasan_zero_page),
-+				__pgprot(_L_PTE_DEFAULT | L_PTE_DIRTY
-+					| L_PTE_XN)));
-+
-+	pgd = pgd_offset_k(start);
-+	for (addr = start; addr < end;) {
-+		next = pgd_addr_end(addr, end);
-+		kasan_early_pud_populate(addr, next, pgd);
-+		addr = next;
-+		pgd++;
-+	}
-+}
-+
-+extern struct proc_info_list *lookup_processor_type(unsigned int);
-+
-+void __init kasan_early_init(void)
-+{
-+	struct proc_info_list *list;
-+
-+	/*
-+	 * locate processor in the list of supported processor
-+	 * types.  The linker builds this table for us from the
-+	 * entries in arch/arm/mm/proc-*.S
-+	 */
-+	list = lookup_processor_type(read_cpuid_id());
-+	if (list) {
-+#ifdef MULTI_CPU
-+		processor = *list->proc;
-+#endif
-+	}
-+
-+	BUILD_BUG_ON((KASAN_SHADOW_END - (1UL << 29)) != KASAN_SHADOW_OFFSET);
-+	kasan_map_early_shadow(swapper_pg_dir);
-+}
-+
-+static void __init clear_pgds(unsigned long start,
-+			unsigned long end)
-+{
-+	for (; start && start < end; start += PMD_SIZE)
-+		pmd_clear(pmd_off_k(start));
-+}
-+
-+pte_t * __init kasan_pte_populate(pmd_t *pmd, unsigned long addr, int node)
-+{
-+	pte_t *pte = pte_offset_kernel(pmd, addr);
-+
-+	if (pte_none(*pte)) {
-+		pte_t entry;
-+		void *p = kasan_alloc_block(PAGE_SIZE, node);
-+
-+		if (!p)
-+			return NULL;
-+		entry = pfn_pte(virt_to_pfn(p),
-+			__pgprot(pgprot_val(PAGE_KERNEL)));
-+		set_pte_at(&init_mm, addr, pte, entry);
-+	}
-+	return pte;
-+}
-+
-+pmd_t * __init kasan_pmd_populate(pud_t *pud, unsigned long addr, int node)
-+{
-+	pmd_t *pmd = pmd_offset(pud, addr);
-+
-+	if (pmd_none(*pmd)) {
-+		void *p = kasan_alloc_block(PAGE_SIZE, node);
-+
-+		if (!p)
-+			return NULL;
-+		pmd_populate_kernel(&init_mm, pmd, p);
-+	}
-+	return pmd;
-+}
-+
-+pud_t * __init kasan_pud_populate(pgd_t *pgd, unsigned long addr, int node)
-+{
-+	pud_t *pud = pud_offset(pgd, addr);
-+
-+	if (pud_none(*pud)) {
-+		void *p = kasan_alloc_block(PAGE_SIZE, node);
-+
-+		if (!p)
-+			return NULL;
-+		pr_err("populating pud addr %lx\n", addr);
-+		pud_populate(&init_mm, pud, p);
-+	}
-+	return pud;
-+}
-+
-+pgd_t * __init kasan_pgd_populate(unsigned long addr, int node)
-+{
-+	pgd_t *pgd = pgd_offset_k(addr);
-+
-+	if (pgd_none(*pgd)) {
-+		void *p = kasan_alloc_block(PAGE_SIZE, node);
-+
-+		if (!p)
-+			return NULL;
-+		pgd_populate(&init_mm, pgd, p);
-+	}
-+	return pgd;
-+}
-+
-+static int __init create_mapping(unsigned long start, unsigned long end,
-+				int node)
-+{
-+	unsigned long addr = start;
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *pte;
-+
-+	pr_info("populating shadow for %lx, %lx\n", start, end);
-+
-+	for (; addr < end; addr += PAGE_SIZE) {
-+		pgd = kasan_pgd_populate(addr, node);
-+		if (!pgd)
-+			return -ENOMEM;
-+
-+		pud = kasan_pud_populate(pgd, addr, node);
-+		if (!pud)
-+			return -ENOMEM;
-+
-+		pmd = kasan_pmd_populate(pud, addr, node);
-+		if (!pmd)
-+			return -ENOMEM;
-+
-+		pte = kasan_pte_populate(pmd, addr, node);
-+		if (!pte)
-+			return -ENOMEM;
-+	}
-+	return 0;
-+}
-+
-+
-+void __init kasan_init(void)
-+{
-+	struct memblock_region *reg;
-+	u64 orig_ttbr0;
-+	int i;
-+
-+	/*
-+	 * We are going to perform proper setup of shadow memory.
-+	 * At first we should unmap early shadow (clear_pgds() call bellow).
-+	 * However, instrumented code couldn't execute without shadow memory.
-+	 * tmp_pgd_table and tmp_pmd_table used to keep early shadow mapped
-+	 * until full shadow setup will be finished.
-+	 */
-+	orig_ttbr0 = get_ttbr0();
-+
-+#ifdef CONFIG_ARM_LPAE
-+	memcpy(tmp_pmd_table,
-+		pgd_page_vaddr(*pgd_offset_k(KASAN_SHADOW_START)),
-+		sizeof(tmp_pmd_table));
-+	memcpy(tmp_pgd_table, swapper_pg_dir, sizeof(tmp_pgd_table));
-+	set_pgd(&tmp_pgd_table[pgd_index(KASAN_SHADOW_START)],
-+		__pgd(__pa(tmp_pmd_table) | PMD_TYPE_TABLE | L_PGD_SWAPPER));
-+	set_ttbr0(__pa(tmp_pgd_table));
-+#else
-+	memcpy(tmp_pgd_table, swapper_pg_dir, sizeof(tmp_pgd_table));
-+	set_ttbr0((u64)__pa(tmp_pgd_table));
-+#endif
-+	flush_cache_all();
-+	local_flush_bp_all();
-+	local_flush_tlb_all();
-+
-+	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
-+
-+	kasan_populate_zero_shadow(kasan_mem_to_shadow((void *)VMALLOC_START),
-+				kasan_mem_to_shadow((void *)-1UL) + 1);
-+
-+	for_each_memblock(memory, reg) {
-+		void *start = __va(reg->base);
-+		void *end = __va(reg->base + reg->size);
-+
-+		if (reg->base + reg->size > arm_lowmem_limit)
-+			end = __va(arm_lowmem_limit);
-+		if (start >= end)
-+			break;
-+
-+		create_mapping((unsigned long)kasan_mem_to_shadow(start),
-+			(unsigned long)kasan_mem_to_shadow(end),
-+			NUMA_NO_NODE);
-+	}
-+
-+	/*1.the module's global variable is in MODULES_VADDR ~ MODULES_END,
-+	 *  so we need mapping.
-+	 *2.PKMAP_BASE ~ PKMAP_BASE+PMD_SIZE's shadow and MODULES_VADDR
-+	 *  ~ MODULES_END's shadow is in the same PMD_SIZE, so we cant
-+	 *  use kasan_populate_zero_shadow.
-+	 */
-+	create_mapping(
-+		(unsigned long)kasan_mem_to_shadow((void *)MODULES_VADDR),
-+
-+		(unsigned long)kasan_mem_to_shadow((void *)(PKMAP_BASE +
-+							PMD_SIZE)),
-+		NUMA_NO_NODE);
-+
-+	/*
-+	 * KAsan may reuse the contents of kasan_zero_pte directly, so we
-+	 * should make sure that it maps the zero page read-only.
-+	 */
-+	for (i = 0; i < PTRS_PER_PTE; i++)
-+		set_pte_at(&init_mm, KASAN_SHADOW_START + i*PAGE_SIZE,
-+			&kasan_zero_pte[i],
-+			pfn_pte(virt_to_pfn(kasan_zero_page),
-+				__pgprot(pgprot_val(PAGE_KERNEL)
-+					| L_PTE_RDONLY)));
-+	memset(kasan_zero_page, 0, PAGE_SIZE);
-+	set_ttbr0(orig_ttbr0);
-+	flush_cache_all();
-+	local_flush_bp_all();
-+	local_flush_tlb_all();
-+	pr_info("Kernel address sanitizer initialized\n");
-+	init_task.kasan_depth = 0;
-+}
-diff --git a/arch/arm/mm/pgd.c b/arch/arm/mm/pgd.c
-index 61e281c..4644a21 100644
---- a/arch/arm/mm/pgd.c
-+++ b/arch/arm/mm/pgd.c
-@@ -64,6 +64,20 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
- 	new_pmd = pmd_alloc(mm, new_pud, 0);
- 	if (!new_pmd)
- 		goto no_pmd;
-+#ifdef CONFIG_KASAN
-+	/*
-+	 *Copy PMD table for KASAN shadow mappings.
-+	 */
-+	init_pgd = pgd_offset_k(TASK_SIZE);
-+	init_pud = pud_offset(init_pgd, TASK_SIZE);
-+	init_pmd = pmd_offset(init_pud, TASK_SIZE);
-+	new_pmd = pmd_offset(new_pud, TASK_SIZE);
-+	memcpy(new_pmd, init_pmd,
-+		(pmd_index(MODULES_VADDR)-pmd_index(TASK_SIZE))
-+		* sizeof(pmd_t));
-+	clean_dcache_area(new_pmd, PTRS_PER_PMD*sizeof(pmd_t));
-+#endif
-+
- #endif
- 
- 	if (!vectors_high()) {
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index e13d911..6d32623 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -358,8 +358,9 @@ void kasan_cache_create(struct kmem_cache *cache, size_t *size,
- 	if (redzone_adjust > 0)
- 		*size += redzone_adjust;
- 
--	*size = min(KMALLOC_MAX_SIZE, max(*size, cache->object_size +
--					optimal_redzone(cache->object_size)));
-+	*size = min_t(unsigned long, KMALLOC_MAX_SIZE,
-+			max(*size, cache->object_size +
-+				optimal_redzone(cache->object_size)));
- 
- 	/*
- 	 * If the metadata doesn't fit, don't enable KASAN at all.
+ 		if (unlikely(tmp & 1))
+ 			return false; /* Translation failed, back to guest */
 -- 
 2.9.0
