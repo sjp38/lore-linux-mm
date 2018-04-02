@@ -1,79 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 707736B000E
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 16:32:07 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 1-v6so6548974plv.6
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 13:32:07 -0700 (PDT)
-Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
-        by mx.google.com with ESMTPS id p7si735709pgq.8.2018.04.02.13.32.06
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CF636B000E
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 16:41:59 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id c2-v6so3091872plo.21
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 13:41:59 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id w33-v6si1105407plb.176.2018.04.02.13.41.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Apr 2018 13:32:06 -0700 (PDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <CACT4Y+aSEsoS60A0O0Ypg=kwRZV10SzUELbcG7KEkaTV7aMU5Q@mail.gmail.com>
-	<94eb2c0b816e88bfc50568c6fed5@google.com>
-	<201804011941.IAE69652.OHMVJLFtSOFFQO@I-love.SAKURA.ne.jp>
-Date: Mon, 02 Apr 2018 15:30:56 -0500
-In-Reply-To: <201804011941.IAE69652.OHMVJLFtSOFFQO@I-love.SAKURA.ne.jp>
-	(Tetsuo Handa's message of "Sun, 1 Apr 2018 19:41:06 +0900")
-Message-ID: <87lge5z6yn.fsf@xmission.com>
+        Mon, 02 Apr 2018 13:41:58 -0700 (PDT)
+Subject: Re: [PATCH 09/11] x86/pti: enable global pages for shared areas
+References: <20180402172700.65CAE838@viggo.jf.intel.com>
+ <20180402172713.B7D6F0C0@viggo.jf.intel.com>
+ <CA+55aFx5GCahkr_-Y0qF5S=USCXhNcvWZ6gr_TxpvUVAh46STA@mail.gmail.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <503339cf-7e54-0888-1767-c8ac87ce2130@linux.intel.com>
+Date: Mon, 2 Apr 2018 13:41:57 -0700
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: WARNING: refcount bug in should_fail
+In-Reply-To: <CA+55aFx5GCahkr_-Y0qF5S=USCXhNcvWZ6gr_TxpvUVAh46STA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: syzbot+@syzkaller.appspotmail.com, syzkaller-bugs@googlegroups.com, dvyukov@google.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, viro@zeniv.linux.org.uk
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
 
-Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> writes:
+On 04/02/2018 10:56 AM, Linus Torvalds wrote:
+> On Mon, Apr 2, 2018 at 10:27 AM, Dave Hansen
+> <dave.hansen@linux.intel.com> wrote:
+>> +       /*
+>> +        * The cpu_entry_area is shared between the user and kernel
+>> +        * page tables.  All of its ptes can safely be global.
+>> +        */
+>> +       if (boot_cpu_has(X86_FEATURE_PGE))
+>> +               pte = pte_set_flags(pte, _PAGE_GLOBAL);
+> So this is where the quesion of "why is this conditional" is valid.
+> 
+> We could set _PAGE_GLOBAL unconditionally, not bothering with testing
+> X86_FEATURE_PGE.
 
-> syzbot wrote:
->> > On Sun, Mar 4, 2018 at 6:57 AM, Tetsuo Handa
->> > <penguin-kernel@i-love.sakura.ne.jp> wrote:
->> >> Switching from mm to fsdevel, for this report says that put_net(net) in
->> >> rpc_kill_sb() made net->count < 0 when mount_ns() failed due to
->> >> register_shrinker() failure.
->> 
->> >> Relevant commits will be
->> >> commit 9ee332d99e4d5a97 ("sget(): handle failures of  
->> >> register_shrinker()") and
->> >> commit d91ee87d8d85a080 ("vfs: Pass data, ns, and ns->userns to  
->> >> mount_ns.").
->> 
->> >> When sget_userns() in mount_ns() failed, mount_ns() returns an error  
->> >> code to
->> >> the caller without calling fill_super(). That is, get_net(sb->s_fs_info)  
->> >> was
->> >> not called by rpc_fill_super() (via fill_super callback passed to  
->> >> mount_ns())
->> >> but put_net(sb->s_fs_info) is called by rpc_kill_sb() (via fs->kill_sb()  
->> >> from
->> >> deactivate_locked_super()).
->> 
->> >> ----------
->> >> static struct dentry *
->> >> rpc_mount(struct file_system_type *fs_type,
->> >>                  int flags, const char *dev_name, void *data)
->> >> {
->> >>          struct net *net = current->nsproxy->net_ns;
->> >>          return mount_ns(fs_type, flags, data, net, net->user_ns,  
->> >> rpc_fill_super);
->> >> }
->> >> ----------
->> 
->> > Messed kernel output, this is definitely not in should_fail.
->> 
->> > #syz dup: WARNING: refcount bug in sk_alloc
->> 
->> Can't find the corresponding bug.
->> 
-> I don't think this is a dup of existing bug.
-> We need to fix either 9ee332d99e4d5a97 or d91ee87d8d85a080.
+I think we should just keep the check for now.  Before this patch set,
+on !X86_FEATURE_PGE systems, we cleared _PAGE_GLOBAL in virtually all
+places due to masking via __supported_pte_mask.
 
-Even if expanding mount_ns to more filesystems was magically fixed,
-proc would still have this issue with the pid namespace rather than
-the net namespace.
-
-This is a mess.  I will take a look and see if I can see a a fix.
-
-Eric
+It is rather harmless either way, but being _consistent_ (by keeping the
+check) with all of our PTEs is nice.
