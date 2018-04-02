@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E95D36B000A
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 19:18:17 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id b11-v6so4870584pla.19
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 16:18:17 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2A5D46B0003
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 19:57:07 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 61-v6so3716453plz.20
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 16:57:07 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z14sor204004pfe.108.2018.04.02.16.18.16
+        by mx.google.com with SMTPS id i124sor362708pgc.177.2018.04.02.16.57.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 02 Apr 2018 16:18:17 -0700 (PDT)
-Date: Mon, 2 Apr 2018 16:18:15 -0700 (PDT)
+        Mon, 02 Apr 2018 16:57:06 -0700 (PDT)
+Date: Mon, 2 Apr 2018 16:57:03 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v9 15/24] mm: Introduce __vm_normal_page()
-In-Reply-To: <1520963994-28477-16-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.20.1804021616370.104195@chino.kir.corp.google.com>
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-16-git-send-email-ldufour@linux.vnet.ibm.com>
+Subject: Re: [PATCH v9 16/24] mm: Introduce __page_add_new_anon_rmap()
+In-Reply-To: <1520963994-28477-17-git-send-email-ldufour@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.20.1804021655100.253461@chino.kir.corp.google.com>
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-17-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,44 +24,42 @@ Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org,
 
 On Tue, 13 Mar 2018, Laurent Dufour wrote:
 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index a84ddc218bbd..73b8b99f482b 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1263,8 +1263,11 @@ struct zap_details {
->  	pgoff_t last_index;			/* Highest page->index to unmap */
->  };
->  
-> -struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
-> -			     pte_t pte, bool with_public_device);
-> +struct page *__vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
-> +			      pte_t pte, bool with_public_device,
-> +			      unsigned long vma_flags);
-> +#define _vm_normal_page(vma, addr, pte, with_public_device) \
-> +	__vm_normal_page(vma, addr, pte, with_public_device, (vma)->vm_flags)
->  #define vm_normal_page(vma, addr, pte) _vm_normal_page(vma, addr, pte, false)
->  
->  struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
+> When dealing with speculative page fault handler, we may race with VMA
+> being split or merged. In this case the vma->vm_start and vm->vm_end
+> fields may not match the address the page fault is occurring.
+> 
+> This can only happens when the VMA is split but in that case, the
+> anon_vma pointer of the new VMA will be the same as the original one,
+> because in __split_vma the new->anon_vma is set to src->anon_vma when
+> *new = *vma.
+> 
+> So even if the VMA boundaries are not correct, the anon_vma pointer is
+> still valid.
+> 
+> If the VMA has been merged, then the VMA in which it has been merged
+> must have the same anon_vma pointer otherwise the merge can't be done.
+> 
+> So in all the case we know that the anon_vma is valid, since we have
+> checked before starting the speculative page fault that the anon_vma
+> pointer is valid for this VMA and since there is an anon_vma this
+> means that at one time a page has been backed and that before the VMA
+> is cleaned, the page table lock would have to be grab to clean the
+> PTE, and the anon_vma field is checked once the PTE is locked.
+> 
+> This patch introduce a new __page_add_new_anon_rmap() service which
+> doesn't check for the VMA boundaries, and create a new inline one
+> which do the check.
+> 
+> When called from a page fault handler, if this is not a speculative one,
+> there is a guarantee that vm_start and vm_end match the faulting address,
+> so this check is useless. In the context of the speculative page fault
+> handler, this check may be wrong but anon_vma is still valid as explained
+> above.
+> 
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-If _vm_normal_page() is a static inline function does it break somehow?  
-It's nice to avoid the #define's.
-
-> diff --git a/mm/memory.c b/mm/memory.c
-> index af0338fbc34d..184a0d663a76 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -826,8 +826,9 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
->  #else
->  # define HAVE_PTE_SPECIAL 0
->  #endif
-> -struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
-> -			     pte_t pte, bool with_public_device)
-> +struct page *__vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
-> +			      pte_t pte, bool with_public_device,
-> +			      unsigned long vma_flags)
->  {
->  	unsigned long pfn = pte_pfn(pte);
->  
-
-Would it be possible to update the comment since the function itself is no 
-longer named vm_normal_page?
+I'm indifferent on this: it could be argued both sides that the new 
+function and its variant for a simple VM_BUG_ON() isn't worth it and it 
+would should rather be done in the callers of page_add_new_anon_rmap().  
+It feels like it would be better left to the caller and add a comment to 
+page_add_anon_rmap() itself in mm/rmap.c.
