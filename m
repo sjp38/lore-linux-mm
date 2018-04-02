@@ -1,85 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 740A76B0023
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E0DDB6B0026
 	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 05:25:03 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id l81so10608596vkd.18
+Received: by mail-qt0-f199.google.com with SMTP id h4so10724354qtj.11
         for <linux-mm@kvack.org>; Mon, 02 Apr 2018 02:25:03 -0700 (PDT)
 Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id i6si5427986vkg.253.2018.04.02.02.25.01
+        by mx.google.com with ESMTPS id m10si13719411qke.25.2018.04.02.02.25.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 02 Apr 2018 02:25:01 -0700 (PDT)
 From: Buddy Lumpkin <buddy.lumpkin@oracle.com>
-Subject: [RFC PATCH 0/1] mm: Support multiple kswapd threads per node
-Date: Mon,  2 Apr 2018 09:24:21 +0000
-Message-Id: <1522661062-39745-1-git-send-email-buddy.lumpkin@oracle.com>
+Subject: [RFC PATCH 1/1] vmscan: Support multiple kswapd threads per node
+Date: Mon,  2 Apr 2018 09:24:22 +0000
+Message-Id: <1522661062-39745-2-git-send-email-buddy.lumpkin@oracle.com>
+In-Reply-To: <1522661062-39745-1-git-send-email-buddy.lumpkin@oracle.com>
+References: <1522661062-39745-1-git-send-email-buddy.lumpkin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: buddy.lumpkin@oracle.com, hannes@cmpxchg.org, riel@surriel.com, mgorman@suse.de, willy@infradead.org, akpm@linux-foundation.org
 
-I created this patch to address performance problems we are seeing in 
-Oracle Cloud Infrastructure. We run the Oracle Linux UEK4 kernel
-internally, which is based on upstream 4.1. I created and tested this
-patch for the latest upstream kernel and UEK4. I was able to show
-substantial benefits in both kernels, using workloads that provide a
-mix of anonymous memory allocations with filesystem writes.
+Page replacement is handled in the Linux Kernel in one of two ways:
 
-As I went through the process of getting this patch approved internally, I 
-learned that it was hard to come up with a concise set of test results 
-that clearly demonstrate that devoting more threads toward proactive page 
-replacement is actually necessary. I was more focused on the impact that 
-direct reclaims had on latency at the time, so I came up with a systemtap 
-script that measures the latency of direct reclaims. On systems that were 
-doing large volumes of filesystem IO, I saw order 0 allocations regularly 
-taking over 10ms, and occasionally over 100ms. Since we were seeing large 
-volumes of direct reclaims triggered as a side effect of filesystem IO, I 
-figured this had to have a substantial impact on throughput.
+1) Asynchronously via kswapd
+2) Synchronously, via direct reclaim
 
-I compared the maximum read throughput that could be obtained using direct 
-IO streams to standard filesystem IO through the page cache on one of the 
-dense storage systems that we vend. Direct IO was 55% higher in throughput 
-than standard filesystem IO. I can't remember the last time I measured 
-this but I know it was over 15 years ago, and I am quite sure the number 
-was no more than 10%. I was pretty sure that direct reclaims were to blame 
-for most of this and it would only take a few more tests to prove it. At 
-23GB/s, it only takes 32.6 seconds to fill the page cache on one of these 
-systems, but that is enough time to measure throughput without any page 
-replacement occuring. In this case direct IO throughput was only 13.5% 
-higher. It was pretty clear that direct reclaims were causing a 
-substantial reduction in throughput. I decided this would be the ideal way 
-to show the benefits of threading kswapd.
+At page allocation time the allocating task is immediately given a page
+from the zone free list allowing it to go right back to work doing
+whatever it was doing; Probably directly or indirectly executing business
+logic.
 
-On the UEK4 kernel, six kswapd threads provided a 48% increase over one.
-When I ran the same tests on upstream kernel version 4.16.0-rc7, I only
-saw a 20% increase with 6 threads and the numbers fluctuated quite a bit
-when I watched with iostat with a 2 second sample interval. The output
-stalled periodically as well. When I profiled the system using perf, I
-saw that 70% of the CPU time was being spent in a single function, it was
-native_queued_spin_lock_slowpath(). 38% was during shrink_inactive_list()
-and another 34% was spent during __lru_cache_add()
+Just prior to satisfying the allocation, free pages is checked to see if
+it has reached the zone low watermark and if so, kswapd is awakened.
+Kswapd will start scanning pages looking for inactive pages to evict to
+make room for new page allocations. The work of kswapd allows tasks to
+continue allocating memory from their respective zone free list without
+incurring any delay.
 
-I eventually determined that my tests were presenting a difficult pattern 
-for the logic that uses shadow entries to periodically resize the LRU 
-lists. This was not a problem in the UEK4 kernel which also has shadow 
-entries, so something has changed in that regard. I have not had time to 
-really dig into this particular problem however, I assume those that are 
-more familiar with the code might see the test results below and have an 
-idea about what is going on.
+When the demand for free pages exceeds the rate that kswapd tasks can
+supply them, page allocation works differently. Once the allocating task
+finds that the number of free pages is at or below the zone min watermark,
+the task will no longer pull pages from the free list. Instead, the task
+will run the same CPU-bound routines as kswapd to satisfy its own
+allocation by scanning and evicting pages. This is called a direct reclaim.
 
-I have appended a small patch to the end of this cover letter that 
-effectively disables most of the routines in mm/workingset.c so that 
-filesystem IO can be used to demonstrate the benefits of a threaded 
-kswapd. I am not suggesting that this is the correct solution for this 
-problem.
+The time spent performing a direct reclaim can be substantial, often
+taking tens to hundreds of milliseconds for small order0 allocations to
+half a second or more for order9 huge-page allocations. In fact, kswapd is
+not actually required on a linux system. It exists for the sole purpose of
+optimizing performance by preventing direct reclaims.
 
-Test results below are the same that were run to demonstrate threaded 
-kswapd performance. For more context, read the patch commit log before 
-continuing and the test results below will make more sense
+When memory shortfall is sufficient to trigger direct reclaims, they can
+occur in any task that is running on the system. A single aggressive
+memory allocating task can set the stage for collateral damage to occur in
+small tasks that rarely allocate additional memory. Consider the impact of
+injecting an additional 100ms of latency when nscd allocates memory to
+facilitate caching of a DNS query.
 
-Direct IO results are roughly the same as expected ...
+The presence of direct reclaims 10 years ago was a fairly reliable
+indicator that too much was being asked of a Linux system. Kswapd was
+likely wasting time scanning pages that were ineligible for eviction.
+Adding RAM or reducing the working set size would usually make the problem
+go away. Since then hardware has evolved to bring a new struggle for
+kswapd. Storage speeds have increased by orders of magnitude while CPU
+clock speeds stayed the same or even slowed down in exchange for more
+cores per package. This presents a throughput problem for a single
+threaded kswapd that will get worse with each generation of new hardware.
 
-Test #1: Direct IO - shadow entries enabled
+Test Details
+
+NOTE: The tests below were run with shadow entries disabled. See the
+associated patch and cover letter for details
+
+The tests below were designed with the assumption that a kswapd bottleneck
+is best demonstrated using filesystem reads. This way, the inactive list
+will be full of clean pages, simplifying the analysis and allowing kswapd
+to achieve the highest possible steal rate. Maximum steal rates for kswapd
+are likely to be the same or lower for any other mix of page types on the
+system.
+
+Tests were run on a 2U Oracle X7-2L with 52 Intel Xeon Skylake 2GHz cores,
+756GB of RAM and 8 x 3.6 TB NVMe Solid State Disk drives. Each drive has
+an XFS file system mounted separately as /d0 through /d7. SSD drives
+require multiple concurrent streams to show their potential, so I created
+eleven 250GB zero-filled files on each drive so that I could test with
+parallel reads.
+
+The test script runs in multiple stages. At each stage, the number of dd
+tasks run concurrently is increased by 2. I did not include all of the
+test output for brevity.
+
+During each stage dd tasks are launched to read from each drive in a round
+robin fashion until the specified number of tasks for the stage has been
+reached. Then iostat, vmstat and top are started in the background with 10
+second intervals. After five minutes, all of the dd tasks are killed and
+the iostat, vmstat and top output is parsed in order to report the
+following:
+
+CPU consumption
+- sy - aggregate kernel mode CPU consumption from vmstat output. The value
+       doesn't tend to fluctuate much so I just grab the highest value.
+       Each sample is averaged over 10 seconds
+- dd_cpu - for all of the dd tasks averaged across the top samples since
+           there is a lot of variation.
+
+Throughput
+- in Kbytes
+- Command is iostat -x -d 10 -g total
+
+This first test performs reads using O_DIRECT in order to show the maximum
+throughput that can be obtained using these drives. It also demonstrates
+how rapidly throughput scales as the number of dd tasks are increased.
+
+The dd command for this test looks like this:
+
+Command Used: dd iflag=direct if=/d${i}/$n of=/dev/null bs=4M
+
+Test #1: Direct IO
 dd sy dd_cpu throughput
 6  0  2.33   14726026.40
 10 1  2.95   19954974.80
@@ -98,29 +135,51 @@ dd sy dd_cpu throughput
 88 1  1.07   26253770.00
 90 1  1.04   26252406.40
 
-Going through the pagecache is a different story entirely. Let's look at 
-throughput with a single kswapd thread with shadow entries enabled, vs 
-disabled:
+Throughput was close to peak with only 22 dd tasks. Very little system CPU
+was consumed as expected as the drives DMA directly into the user address
+space when using direct IO.
 
-shadow entries ENABLED, 1 kswapd thread per node
-dd sy dd_cpu kswapd0 kswapd1 throughput  dr     pgscan_kswapd pgscan_direct
-10 5  27.96  35.52   34.94   7964174.80  0      460161197     0
-16 8  40.75  84.86   81.92   11143540.00 0      907793664     0
-22 12 45.01  99.96   99.98   12790778.40 6751   884827215     162344947
-28 18 49.10  99.97   99.97   14410621.02 17989  719328362     536886953
-34 22 52.87  99.80   99.98   14331978.80 25180  609680315     661201785
-40 26 55.66  99.90   99.96   14612901.20 26843  449047388     810399311
-46 28 56.37  99.74   99.96   15831410.40 33854  518952367     807944791
-52 37 59.78  99.80   99.97   15264190.80 37042  372258422     881626890
-58 50 71.90  99.44   99.53   14979692.40 45761  190511392     1114810023
-64 53 72.14  99.84   99.95   14747164.80 83665  168461850     1013498958
-70 50 68.09  99.80   99.90   15176129.60 113546 203506041     1008655113
-76 59 73.77  99.73   99.96   14947922.40 98798  137174015     1057487320
-82 66 79.25  99.66   99.98   14624100.40 100242 101830859     1074332196
-88 73 81.26  98.85   99.98   14827533.60 101262 90402914      1086186724
-90 78 85.48  99.55   99.98   14469963.20 101063 75722196      1083603245
+In this next test, the iflag=direct option is removed and we only run the
+test until the pgscan_kswapd from /proc/vmstat starts to increment. At
+that point metrics are parsed and reported and the pagecache contents are
+dropped prior to the next test. Lather, rinse, repeat.
 
-shadow entries DISABLED, 1 kswapd thread per node
+Test #2: standard file system IO, no page replacement
+dd sy dd_cpu throughput
+6  2  28.78  5134316.40
+10 3  31.40  8051218.40
+16 5  34.73  11438106.80
+22 7  33.65  14140596.40
+28 8  31.24  16393455.20
+34 10 29.88  18219463.60
+40 11 28.33  19644159.60
+46 11 25.05  20802497.60
+52 13 26.92  22092370.00
+58 13 23.29  22884881.20
+64 14 23.12  23452248.80
+70 15 22.40  23916468.00
+76 16 22.06  24328737.20
+82 17 20.97  24718693.20
+88 16 18.57  25149404.40
+90 16 18.31  25245565.60
+
+Each read has to pause after the buffer in kernel space is populated while
+those pages are added to the pagecache and copied into the user address
+space. For this reason, more parallel streams are required to achieve peak
+throughput. The copy operation consumes substantially more CPU than direct
+IO as expected.
+
+The next test measures throughput after kswapd starts running. This is the
+same test only we wait for kswapd to wake up before we start collecting
+metrics. The script actually keeps track of a few things that were not
+mentioned earlier. It tracks direct reclaims and page scans by watching
+the metrics in /proc/vmstat. CPU consumption for kswapd is tracked the
+same way it is tracked for dd.
+
+Since the test is 100% reads, you can assume that the page steal rate for
+kswapd and direct reclaims is almost identical to the scan rate.
+
+Test #3: 1 kswapd thread per node
 dd sy dd_cpu kswapd0 kswapd1 throughput  dr    pgscan_kswapd pgscan_direct
 10 4  26.07  28.56   27.03   7355924.40  0     459316976     0
 16 7  34.94  69.33   69.66   10867895.20 0     872661643     0
@@ -138,82 +197,360 @@ dd sy dd_cpu kswapd0 kswapd1 throughput  dr    pgscan_kswapd pgscan_direct
 88 42 47.41  53.75   47.62   16930911.20 51521 195449924     1180442208
 90 43 47.18  51.40   50.59   16864428.00 51618 190758156     1183203901
 
-When shadow entries are disabled, kernel mode CPU consumption drops and 
-peak throughput increases by 13.7%
+In the previous test where kswapd was not involved, the system-wide kernel
+mode CPU consumption with 90 dd tasks was 16%. In this test CPU consumption
+with 90 tasks is at 43%. With 52 cores, and two kswapd tasks (one per NUMA
+node), kswapd can only be responsible for a little over 4% of the increase.
+The rest is likely caused by 51,618 direct reclaims that scanned 1.2
+billion pages over the five minute time period of the test.
 
-Here is the same test with 4 kswapd threads:
+Same test, more kswapd tasks:
 
-shadow entries ENABLED, 4 kswapd threads per node
-dd sy dd_cpu kswapd0 kswapd1 throughput  dr    pgscan_kswapd pgscan_direct
-10 6  30.09  17.36   16.82   7692440.40  0     460386412     0
-16 11 42.86  34.35   33.86   10836456.80 23    885908695     550482
-22 14 46.00  55.30   50.53   13125285.20 0     1075382922    0
-28 17 43.74  87.18   44.18   15298355.20 0     1254927179    0
-34 26 53.78  99.88   89.93   16203179.20 3443  1247514636    80817567
-40 35 62.99  99.88   97.58   16653526.80 15376 960519369     369681969
-46 36 51.66  99.85   90.87   18668439.60 10907 1239045416    259575692
-52 46 66.96  99.61   99.96   16970211.60 24264 751180033     577278765
-58 52 76.53  99.91   99.97   15336601.60 30676 513418729     725394427
-64 58 78.20  99.79   99.96   15266654.40 33466 450869495     791218349
-70 65 82.98  99.93   99.98   15285421.60 35647 370270673     843608871
-76 69 81.52  99.87   99.87   15681812.00 37625 358457523     889023203
-82 78 85.68  99.97   99.98   15370775.60 39010 302132025     921379809
-88 85 88.52  99.88   99.56   15410439.20 40100 267031806     947441566
-90 88 90.11  99.67   99.41   15400593.20 40443 249090848     953893493
-
-shadow entries DISABLED, 4 kswapd threads per node
+Test #4: 4 kswapd threads per node
 dd sy dd_cpu kswapd0 kswapd1 throughput  dr    pgscan_kswapd pgscan_direct
 10 5  27.09  16.65   14.17   7842605.60  0     459105291     0
 16 10 37.12  26.02   24.85   11352920.40 15    920527796     358515
-22 11 36.94  37.13   35.82   13771869.60 0     1132169011    0
-28 13 35.23  48.43   46.86   16089746.00 0     1312902070    0
-34 15 33.37  53.02   55.69   18314856.40 0     1476169080    0
-40 19 35.90  69.60   64.41   19836126.80 0     1629999149    0
-46 22 36.82  88.55   57.20   20740216.40 0     1708478106    0
-52 24 34.38  93.76   68.34   21758352.00 0     1794055559    0
-58 24 30.51  79.20   82.33   22735594.00 0     1872794397    0
-64 26 30.21  97.12   76.73   23302203.60 176   1916593721    4206821
-70 33 32.92  92.91   92.87   23776588.00 3575  1817685086    85574159
-76 37 31.62  91.20   89.83   24308196.80 4752  1812262569    113981763
-82 29 25.53  93.23   92.33   24802791.20 306   2032093122    7350704
-88 43 37.12  76.18   77.01   25145694.40 20310 1253204719    487048202
-90 42 38.56  73.90   74.57   22516787.60 22774 1193637495    545463615
+22 11 36.94  37.13   35.82   13771869.60 0     1132169011     0
+28 13 35.23  48.43   46.86   16089746.00 0     1312902070     0
+34 15 33.37  53.02   55.69   18314856.40 0     1476169080     0
+40 19 35.90  69.60   64.41   19836126.80 0     1629999149     0
+46 22 36.82  88.55   57.20   20740216.40 0     1708478106     0
+52 24 34.38  93.76   68.34   21758352.00 0     1794055559     0
+58 24 30.51  79.20   82.33   22735594.00 0     1872794397     0
+64 26 30.21  97.12   76.73   23302203.60 176   1916593721     4206821
+70 33 32.92  92.91   92.87   23776588.00 3575  1817685086     85574159
+76 37 31.62  91.20   89.83   24308196.80 4752  1812262569     113981763
+82 29 25.53  93.23   92.33   24802791.20 306   2032093122     7350704
+88 43 37.12  76.18   77.01   25145694.40 20310 1253204719     487048202
+90 42 38.56  73.90   74.57   22516787.60 22774 1193637495     545463615
 
-With four kswapd threads, the effects are more pronounced. Kernel mode CPU 
-consumption is substantially higher with shadow entries enabled while 
-throughput is substantially lower. 
+By increasing the number of kswapd threads, throughput increased by ~50%
+while kernel mode CPU utilization decreased or stayed the same, likely due
+to a decrease in the number of parallel tasks at any given time doing page
+replacement.
 
-When shadow entries are disabled, additional kswapd tasks increase 
-throughput while kernel mode CPU consumption stays roughly the same 
-
+Signed-off-by: Buddy Lumpkin <buddy.lumpkin@oracle.com>
 ---
- mm/workingset.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/workingset.c b/mm/workingset.c
-index b7d616a3bbbe..656451ce2d5e 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -213,6 +213,7 @@ void *workingset_eviction(struct address_space *mapping, struct page *page)
- 	unsigned long eviction;
- 	struct lruvec *lruvec;
- 
-+	return NULL;
- 	/* Page is fully exclusive and pins page->mem_cgroup */
- 	VM_BUG_ON_PAGE(PageLRU(page), page);
- 	VM_BUG_ON_PAGE(page_count(page), page);
--- 
-
-Buddy Lumpkin (1):
-  vmscan: Support multiple kswapd threads per node
-
- Documentation/sysctl/vm.txt |  21 ++++++++
+ Documentation/sysctl/vm.txt |  23 +++++++++
  include/linux/mm.h          |   2 +
  include/linux/mmzone.h      |  10 +++-
  kernel/sysctl.c             |  10 ++++
  mm/page_alloc.c             |  15 ++++++
  mm/vmscan.c                 | 116 +++++++++++++++++++++++++++++++++++++-------
- 6 files changed, 155 insertions(+), 19 deletions(-)
+ 6 files changed, 157 insertions(+), 19 deletions(-)
 
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index ff234d229cbb..aa54cbc14dd9 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -31,6 +31,7 @@ Currently, these files are in /proc/sys/vm:
+ - drop_caches
+ - extfrag_threshold
+ - hugetlb_shm_group
++- kswapd_threads
+ - laptop_mode
+ - legacy_va_layout
+ - lowmem_reserve_ratio
+@@ -267,6 +268,28 @@ shared memory segment using hugetlb page.
+ 
+ ==============================================================
+ 
++kswapd_threads
++
++kswapd_threads allows you to control the number of kswapd threads per node
++running on the system. This provides the ability to devote additional CPU
++resources toward proactive page replacement with the goal of reducing
++direct reclaims. When direct reclaims are prevented, the CPU consumed
++by them is prevented as well. Depending on the workload, the result can
++cause aggregate CPU usage on the system to go up, down or stay the same. 
++
++More aggressive page replacement can reduce direct reclaims which cause
++latency for tasks and decrease throughput when doing filesystem IO through
++the pagecache. Direct reclaims are recorded using the allocstall counter
++in /proc/vmstat.
++
++The default value is 1 and the range of acceptible values are 1-16.
++Always start with lower values in the 2-6 range. Higher values should
++be justified with testing. If direct reclaims occur in spite of high
++values, the cost of direct reclaims (in latency) that occur can be
++higher due to increased lock contention.
++
++==============================================================
++
+ laptop_mode
+ 
+ laptop_mode is a knob that controls "laptop mode". All the things that are
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ad06d42adb1a..e25b8da76f7d 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2078,6 +2078,7 @@ static inline void zero_resv_unavail(void) {}
+ extern void memmap_init_zone(unsigned long, int, unsigned long, unsigned long,
+ 		enum memmap_context, struct vmem_altmap *);
+ extern void setup_per_zone_wmarks(void);
++extern void update_kswapd_threads(void);
+ extern int __meminit init_per_zone_wmark_min(void);
+ extern void mem_init(void);
+ extern void __init mmap_init(void);
+@@ -2098,6 +2099,7 @@ extern __printf(3, 4)
+ extern void zone_pcp_reset(struct zone *zone);
+ 
+ /* page_alloc.c */
++extern int kswapd_threads;
+ extern int min_free_kbytes;
+ extern int watermark_scale_factor;
+ 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 7522a6987595..ad36a5b5c3b8 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -36,6 +36,8 @@
+  */
+ #define PAGE_ALLOC_COSTLY_ORDER 3
+ 
++#define MAX_KSWAPD_THREADS 16
++
+ enum migratetype {
+ 	MIGRATE_UNMOVABLE,
+ 	MIGRATE_MOVABLE,
+@@ -653,8 +655,10 @@ struct zonelist {
+ 	int node_id;
+ 	wait_queue_head_t kswapd_wait;
+ 	wait_queue_head_t pfmemalloc_wait;
+-	struct task_struct *kswapd;	/* Protected by
+-					   mem_hotplug_begin/end() */
++	/*
++	 * Protected by mem_hotplug_begin/end()
++	 */
++	struct task_struct *kswapd[MAX_KSWAPD_THREADS];
+ 	int kswapd_order;
+ 	enum zone_type kswapd_classzone_idx;
+ 
+@@ -882,6 +886,8 @@ static inline int is_highmem(struct zone *zone)
+ 
+ /* These two functions are used to setup the per zone pages min values */
+ struct ctl_table;
++int kswapd_threads_sysctl_handler(struct ctl_table *, int,
++					void __user *, size_t *, loff_t *);
+ int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
+ 					void __user *, size_t *, loff_t *);
+ int watermark_scale_factor_sysctl_handler(struct ctl_table *, int,
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index f98f28c12020..3cef65ce1d46 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -134,6 +134,7 @@
+ #ifdef CONFIG_PERF_EVENTS
+ static int six_hundred_forty_kb = 640 * 1024;
+ #endif
++static int max_kswapd_threads = MAX_KSWAPD_THREADS;
+ 
+ /* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
+ static unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
+@@ -1437,6 +1438,15 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
+ 		.extra1		= &zero,
+ 	},
+ 	{
++		.procname	= "kswapd_threads",
++		.data		= &kswapd_threads,
++		.maxlen		= sizeof(kswapd_threads),
++		.mode		= 0644,
++		.proc_handler	= kswapd_threads_sysctl_handler,
++		.extra1		= &one,
++		.extra2		= &max_kswapd_threads,
++	},
++	{
+ 		.procname	= "watermark_scale_factor",
+ 		.data		= &watermark_scale_factor,
+ 		.maxlen		= sizeof(watermark_scale_factor),
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1741dd23e7c1..de30683aeb0f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7143,6 +7143,21 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
+ 	return 0;
+ }
+ 
++int kswapd_threads_sysctl_handler(struct ctl_table *table, int write,
++	void __user *buffer, size_t *length, loff_t *ppos)
++{
++	int rc;
++
++	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
++	if (rc)
++		return rc;
++
++	if (write)
++		update_kswapd_threads();
++
++	return 0;
++}
++
+ int watermark_scale_factor_sysctl_handler(struct ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index cd5dc3faaa57..663ff14080e7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -118,6 +118,14 @@ struct scan_control {
+ 	unsigned long nr_reclaimed;
+ };
+ 
++
++/*
++ * Number of active kswapd threads
++ */
++#define DEF_KSWAPD_THREADS_PER_NODE 1
++int kswapd_threads = DEF_KSWAPD_THREADS_PER_NODE;
++int kswapd_threads_current = DEF_KSWAPD_THREADS_PER_NODE;
++
+ #ifdef ARCH_HAS_PREFETCH
+ #define prefetch_prev_lru_page(_page, _base, _field)			\
+ 	do {								\
+@@ -3624,21 +3632,83 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+    restore their cpu bindings. */
+ static int kswapd_cpu_online(unsigned int cpu)
+ {
+-	int nid;
++	int nid, hid;
++	int nr_threads = kswapd_threads_current;
+ 
+ 	for_each_node_state(nid, N_MEMORY) {
+ 		pg_data_t *pgdat = NODE_DATA(nid);
+ 		const struct cpumask *mask;
+ 
+ 		mask = cpumask_of_node(pgdat->node_id);
+-
+-		if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
+-			/* One of our CPUs online: restore mask */
+-			set_cpus_allowed_ptr(pgdat->kswapd, mask);
++		if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids) {
++			for (hid = 0; hid < nr_threads; hid++) {
++				/* One of our CPUs online: restore mask */
++				set_cpus_allowed_ptr(pgdat->kswapd[hid], mask);
++			}
++		}
+ 	}
+ 	return 0;
+ }
+ 
++static void update_kswapd_threads_node(int nid)
++{
++	pg_data_t *pgdat;
++	int drop, increase;
++	int last_idx, start_idx, hid;
++	int nr_threads = kswapd_threads_current;
++
++	pgdat = NODE_DATA(nid);
++	last_idx = nr_threads - 1;
++	if (kswapd_threads < nr_threads) {
++		drop = nr_threads - kswapd_threads;
++		for (hid = last_idx; hid > (last_idx - drop); hid--) {
++			if (pgdat->kswapd[hid]) {
++				kthread_stop(pgdat->kswapd[hid]);
++				pgdat->kswapd[hid] = NULL;
++			}
++		}
++	} else {
++		increase = kswapd_threads - nr_threads;
++		start_idx = last_idx + 1;
++		for (hid = start_idx; hid < (start_idx + increase); hid++) {
++			pgdat->kswapd[hid] = kthread_run(kswapd, pgdat,
++						"kswapd%d:%d", nid, hid);
++			if (IS_ERR(pgdat->kswapd[hid])) {
++				pr_err("Failed to start kswapd%d on node %d\n",
++					hid, nid);
++				pgdat->kswapd[hid] = NULL;
++				/*
++				 * We are out of resources. Do not start any
++				 * more threads.
++				 */
++				break;
++			}
++		}
++	}
++}
++
++void update_kswapd_threads(void)
++{
++	int nid;
++
++	if (kswapd_threads_current == kswapd_threads)
++		return;
++
++	/*
++	 * Hold the memory hotplug lock to avoid racing with memory
++	 * hotplug initiated updates
++	 */
++	mem_hotplug_begin();
++	for_each_node_state(nid, N_MEMORY)
++		update_kswapd_threads_node(nid);
++
++	pr_info("kswapd_thread count changed, old:%d new:%d\n",
++		kswapd_threads_current, kswapd_threads);
++	kswapd_threads_current = kswapd_threads;
++	mem_hotplug_done();
++}
++
++
+ /*
+  * This kswapd start function will be called by init and node-hot-add.
+  * On node-hot-add, kswapd will moved to proper cpus if cpus are hot-added.
+@@ -3647,18 +3717,25 @@ int kswapd_run(int nid)
+ {
+ 	pg_data_t *pgdat = NODE_DATA(nid);
+ 	int ret = 0;
++	int hid, nr_threads;
+ 
+-	if (pgdat->kswapd)
++	if (pgdat->kswapd[0])
+ 		return 0;
+ 
+-	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
+-	if (IS_ERR(pgdat->kswapd)) {
+-		/* failure at boot is fatal */
+-		BUG_ON(system_state < SYSTEM_RUNNING);
+-		pr_err("Failed to start kswapd on node %d\n", nid);
+-		ret = PTR_ERR(pgdat->kswapd);
+-		pgdat->kswapd = NULL;
++	nr_threads = kswapd_threads;
++	for (hid = 0; hid < nr_threads; hid++) {
++		pgdat->kswapd[hid] = kthread_run(kswapd, pgdat, "kswapd%d:%d",
++							nid, hid);
++		if (IS_ERR(pgdat->kswapd[hid])) {
++			/* failure at boot is fatal */
++			BUG_ON(system_state < SYSTEM_RUNNING);
++			pr_err("Failed to start kswapd%d on node %d\n",
++				hid, nid);
++			ret = PTR_ERR(pgdat->kswapd[hid]);
++			pgdat->kswapd[hid] = NULL;
++		}
+ 	}
++	kswapd_threads_current = nr_threads;
+ 	return ret;
+ }
+ 
+@@ -3668,11 +3745,16 @@ int kswapd_run(int nid)
+  */
+ void kswapd_stop(int nid)
+ {
+-	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
++	struct task_struct *kswapd;
++	int hid;
++	int nr_threads = kswapd_threads_current;
+ 
+-	if (kswapd) {
+-		kthread_stop(kswapd);
+-		NODE_DATA(nid)->kswapd = NULL;
++	for (hid = 0; hid < nr_threads; hid++) {
++		kswapd = NODE_DATA(nid)->kswapd[hid];
++		if (kswapd) {
++			kthread_stop(kswapd);
++			NODE_DATA(nid)->kswapd[hid] = NULL;
++		}
+ 	}
+ }
+ 
 -- 
 1.8.3.1
