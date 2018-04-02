@@ -1,205 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DE9DB6B0025
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 04:01:26 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id x69-v6so8404373oia.21
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 01:01:26 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F7EE6B0023
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 04:12:44 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id f3-v6so4766087plf.1
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 01:12:44 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r12-v6sor5305019otr.112.2018.04.02.01.01.25
+        by mx.google.com with SMTPS id x63sor3848621pgb.204.2018.04.02.01.12.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 02 Apr 2018 01:01:25 -0700 (PDT)
+        Mon, 02 Apr 2018 01:12:42 -0700 (PDT)
+Date: Mon, 2 Apr 2018 16:12:33 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH v3 1/5] mm: page_alloc: remain memblock_next_valid_pfn()
+ when CONFIG_HAVE_ARCH_PFN_VALID is enable
+Message-ID: <20180402081233.GA38180@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <1522033340-6575-1-git-send-email-hejianet@gmail.com>
+ <1522033340-6575-2-git-send-email-hejianet@gmail.com>
+ <20180328091800.GB97260@WeideMacBook-Pro.local>
+ <f8e7eaca-e9f1-0ed1-a9f9-1dff81b13814@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1522636236-12625-3-git-send-email-hejianet@gmail.com>
-References: <1522636236-12625-1-git-send-email-hejianet@gmail.com> <1522636236-12625-3-git-send-email-hejianet@gmail.com>
-From: Daniel Vacek <neelx@redhat.com>
-Date: Mon, 2 Apr 2018 10:01:25 +0200
-Message-ID: <CACjP9X-kwbMY2uHgfTthz0ozxsEKqJUX7KFUEbMqVLjs__r6Xw@mail.gmail.com>
-Subject: Re: [PATCH v5 2/5] arm: arm64: page_alloc: reduce unnecessary binary
- search in memblock_next_valid_pfn()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f8e7eaca-e9f1-0ed1-a9f9-1dff81b13814@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jia He <hejianet@gmail.com>
-Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, Grygorii Strashko <grygorii.strashko@linaro.org>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Jia He <jia.he@hxt-semitech.com>
 
-On Mon, Apr 2, 2018 at 4:30 AM, Jia He <hejianet@gmail.com> wrote:
-> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-> where possible") optimized the loop in memmap_init_zone(). But there is
-> still some room for improvement. E.g. if pfn and pfn+1 are in the same
-> memblock region, we can simply pfn++ instead of doing the binary search
-> in memblock_next_valid_pfn.
+On Wed, Mar 28, 2018 at 05:49:23PM +0800, Jia He wrote:
 >
-> Signed-off-by: Jia He <jia.he@hxt-semitech.com>
-> ---
->  arch/arm/include/asm/page.h   |  1 +
->  arch/arm/mm/init.c            | 28 ++++++++++++++++++++++------
->  arch/arm64/include/asm/page.h |  1 +
->  arch/arm64/mm/init.c          | 28 ++++++++++++++++++++++------
->  4 files changed, 46 insertions(+), 12 deletions(-)
 >
-> diff --git a/arch/arm/include/asm/page.h b/arch/arm/include/asm/page.h
-> index 489875c..f38909c 100644
-> --- a/arch/arm/include/asm/page.h
-> +++ b/arch/arm/include/asm/page.h
-> @@ -157,6 +157,7 @@ extern void copy_page(void *to, const void *from);
->  typedef struct page *pgtable_t;
+>On 3/28/2018 5:18 PM, Wei Yang Wrote:
+>> Oops, I should reply this thread. Forget about the reply on another thread.
+>> 
+>> On Sun, Mar 25, 2018 at 08:02:15PM -0700, Jia He wrote:
+>> > Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+>> > where possible") optimized the loop in memmap_init_zone(). But it causes
+>> > possible panic bug. So Daniel Vacek reverted it later.
+>> > 
+>> Why this has a bug? Do you have some link about it?
+>> 
+>> If the audience could know the potential risk, it would be helpful to review
+>> the code and decide whether to take it back.
+>Hi Wei
+>Paul firstly submit a commit b92df1de5 to improve the loop in
+>memmap_init_zone.
+>And Daniel tried to fix a bug_on panic issue on X86 in commit 864b75f9d6b
+>because
+>there is evidence that this bug_on was caused by b92df1de5 [1].
 >
->  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
-> +extern int early_region_idx;
+>But things didn't get better, 864b75f9d6b caused booting hang issue on
+>arm{64} [2]
+>So maintainer decided to reverted both b92df1de5 and 864b75f9d6b
+>
+>[1] https://patchwork.kernel.org/patch/10251145/
+>[2] https://lkml.org/lkml/2018/3/14/469
 
-I believe this is not needed anymore.
+I took some time to look into the discussion, while the root cause seems not
+clear now?
 
->  extern int pfn_valid(unsigned long);
->  extern unsigned long memblock_next_valid_pfn(unsigned long pfn);
->  #define skip_to_last_invalid_pfn(pfn) (memblock_next_valid_pfn(pfn) - 1)
-> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-> index 0fb85ca..06ed190 100644
-> --- a/arch/arm/mm/init.c
-> +++ b/arch/arm/mm/init.c
-> @@ -193,6 +193,8 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
->  }
->
->  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
-> +int early_region_idx __meminitdata = -1;
-
-static?
-
-> +
->  int pfn_valid(unsigned long pfn)
->  {
->         return memblock_is_map_memory(__pfn_to_phys(pfn));
-> @@ -203,28 +205,42 @@ EXPORT_SYMBOL(pfn_valid);
->  unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn)
->  {
->         struct memblock_type *type = &memblock.memory;
-> +       struct memblock_region *regions = type->regions;
->         unsigned int right = type->cnt;
->         unsigned int mid, left = 0;
-> +       unsigned long start_pfn, end_pfn;
->         phys_addr_t addr = PFN_PHYS(++pfn);
->
-> +       /* fast path, return pfn+1 if next pfn is in the same region */
-> +       if (early_region_idx != -1) {
-> +               start_pfn = PFN_DOWN(regions[early_region_idx].base);
-> +               end_pfn = PFN_DOWN(regions[early_region_idx].base +
-> +                               regions[early_region_idx].size);
-> +
-> +               if (pfn >= start_pfn && pfn < end_pfn)
-> +                       return pfn;
-> +       }
-> +
-> +       /* slow path, do the binary searching */
->         do {
->                 mid = (right + left) / 2;
->
-> -               if (addr < type->regions[mid].base)
-> +               if (addr < regions[mid].base)
->                         right = mid;
-> -               else if (addr >= (type->regions[mid].base +
-> -                                 type->regions[mid].size))
-> +               else if (addr >= (regions[mid].base + regions[mid].size))
->                         left = mid + 1;
->                 else {
-> -                       /* addr is within the region, so pfn is valid */
-> +                       early_region_idx = mid;
->                         return pfn;
->                 }
->         } while (left < right);
->
->         if (right == type->cnt)
->                 return -1UL;
-> -       else
-> -               return PHYS_PFN(type->regions[right].base);
-> +
-> +       early_region_idx = right;
-> +
-> +       return PHYS_PFN(regions[early_region_idx].base);
->  }
->  EXPORT_SYMBOL(memblock_next_valid_pfn);
->  #endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
-> diff --git a/arch/arm64/include/asm/page.h b/arch/arm64/include/asm/page.h
-> index e57d3f2..f0d8c8e5 100644
-> --- a/arch/arm64/include/asm/page.h
-> +++ b/arch/arm64/include/asm/page.h
-> @@ -38,6 +38,7 @@ extern void clear_page(void *to);
->  typedef struct page *pgtable_t;
->
->  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
-> +extern int early_region_idx;
-
-ditto
-
->  extern int pfn_valid(unsigned long);
->  extern unsigned long memblock_next_valid_pfn(unsigned long pfn);
->  #define skip_to_last_invalid_pfn(pfn) (memblock_next_valid_pfn(pfn) - 1)
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> index 13e43ff..342e4e2 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -285,6 +285,8 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
->  #endif /* CONFIG_NUMA */
->
->  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
-> +int early_region_idx __meminitdata = -1;
-
-ditto
-
---nX
-
-> +
->  int pfn_valid(unsigned long pfn)
->  {
->         return memblock_is_map_memory(pfn << PAGE_SHIFT);
-> @@ -295,28 +297,42 @@ EXPORT_SYMBOL(pfn_valid);
->  unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn)
->  {
->         struct memblock_type *type = &memblock.memory;
-> +       struct memblock_region *regions = type->regions;
->         unsigned int right = type->cnt;
->         unsigned int mid, left = 0;
-> +       unsigned long start_pfn, end_pfn;
->         phys_addr_t addr = PFN_PHYS(++pfn);
->
-> +       /* fast path, return pfn+1 if next pfn is in the same region */
-> +       if (early_region_idx != -1) {
-> +               start_pfn = PFN_DOWN(regions[early_region_idx].base);
-> +               end_pfn = PFN_DOWN(regions[early_region_idx].base +
-> +                               regions[early_region_idx].size);
-> +
-> +               if (pfn >= start_pfn && pfn < end_pfn)
-> +                       return pfn;
-> +       }
-> +
-> +       /* slow path, do the binary searching */
->         do {
->                 mid = (right + left) / 2;
->
-> -               if (addr < type->regions[mid].base)
-> +               if (addr < regions[mid].base)
->                         right = mid;
-> -               else if (addr >= (type->regions[mid].base +
-> -                                 type->regions[mid].size))
-> +               else if (addr >= (regions[mid].base + regions[mid].size))
->                         left = mid + 1;
->                 else {
-> -                       /* addr is within the region, so pfn is valid */
-> +                       early_region_idx = mid;
->                         return pfn;
->                 }
->         } while (left < right);
->
->         if (right == type->cnt)
->                 return -1UL;
-> -       else
-> -               return PHYS_PFN(type->regions[right].base);
-> +
-> +       early_region_idx = right;
-> +
-> +       return PHYS_PFN(regions[early_region_idx].base);
->  }
->  EXPORT_SYMBOL(memblock_next_valid_pfn);
->  #endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
-> --
-> 2.7.4
->
+-- 
+Wei Yang
+Help you, Help me
