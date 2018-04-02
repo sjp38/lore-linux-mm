@@ -1,187 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5330D6B0023
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 05:47:10 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id k17so12305140pfj.10
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 02:47:10 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 2-v6si12521256pla.436.2018.04.02.02.47.08
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DD82E6B0024
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 06:41:01 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j8so12372417pfh.13
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 03:41:01 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id f5si35538pgr.723.2018.04.02.03.40.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Apr 2018 02:47:09 -0700 (PDT)
-Date: Mon, 2 Apr 2018 17:45:48 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH 1/2] Move kfree_call_rcu() to slab_common.c
-Message-ID: <201804021616.HByAT8F9%fengguang.wu@intel.com>
-References: <1522647064-27167-2-git-send-email-rao.shoaib@oracle.com>
+        Mon, 02 Apr 2018 03:41:00 -0700 (PDT)
+Subject: Re: general protection fault in kernfs_kill_sb
+References: <94eb2c0546040ebb4d0568cc6bdb@google.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <821c80d2-0b55-287a-09aa-d004f4ac4215@I-love.SAKURA.ne.jp>
+Date: Mon, 2 Apr 2018 19:40:22 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1522647064-27167-2-git-send-email-rao.shoaib@oracle.com>
+In-Reply-To: <94eb2c0546040ebb4d0568cc6bdb@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rao.shoaib@oracle.com
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, joe@perches.com, willy@infradead.org, brouer@redhat.com, linux-mm@kvack.org
+To: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: syzbot <syzbot+151de3f2be6b40ac8026@syzkaller.appspotmail.com>, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, linux-fsdevel@vger.kernel.org
 
-Hi Rao,
+On 2018/04/02 2:01, syzbot wrote:
+> Hello,
+> 
+> syzbot hit the following crash on bpf-next commit
+> 7828f20e3779e4e85e55371e0e43f5006a15fb41 (Sat Mar 31 00:17:57 2018 +0000)
+> Merge branch 'bpf-cgroup-bind-connect'
+> syzbot dashboard link: https://syzkaller.appspot.com/bug?extid=151de3f2be6b40ac8026
+> 
+> So far this crash happened 3 times on bpf-next.
+> C reproducer: https://syzkaller.appspot.com/x/repro.c?id=4857382450495488
+> syzkaller reproducer: https://syzkaller.appspot.com/x/repro.syz?id=4644052230209536
+> Raw console output: https://syzkaller.appspot.com/x/log.txt?id=5798498637185024
+> Kernel config: https://syzkaller.appspot.com/x/.config?id=5909223872832634926
+> compiler: gcc (GCC) 7.1.1 20170620
 
-Thank you for the patch! Perhaps something to improve:
+Al, I think this is another example of crash triggered by
+commit 9ee332d99e4d5a97 ("sget(): handle failures of register_shrinker()").
 
-[auto build test WARNING on rcu/rcu/next]
-[also build test WARNING on v4.16 next-20180329]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+----------------------------------------
+[   23.407545] FAULT_INJECTION: forcing a failure.
+[   23.407545] name failslab, interval 1, probability 0, space 0, times 1
+[   23.414735] CPU: 1 PID: 4471 Comm: syzkaller129261 Not tainted 4.16.0-rc6+ #43
+[   23.433147] Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+[   23.442491] Call Trace:
+[   23.445074]  dump_stack+0x194/0x24d
+[   23.448689]  ? arch_local_irq_restore+0x53/0x53
+[   23.453347]  ? find_held_lock+0x35/0x1d0
+[   23.457401]  should_fail+0x8c0/0xa40
+[   23.461100]  ? __list_lru_init+0x352/0x750
+[   23.465331]  ? fault_create_debugfs_attr+0x1f0/0x1f0
+[   23.470453]  ? find_held_lock+0x35/0x1d0
+[   23.474503]  ? __lock_is_held+0xb6/0x140
+[   23.478556]  ? check_same_owner+0x320/0x320
+[   23.482870]  ? rcu_note_context_switch+0x710/0x710
+[   23.487785]  ? find_held_lock+0x35/0x1d0
+[   23.491931]  should_failslab+0xec/0x120
+[   23.495895]  __kmalloc+0x63/0x760
+[   23.499332]  ? lock_downgrade+0x980/0x980
+[   23.503469]  ? _raw_spin_unlock+0x22/0x30
+[   23.507605]  ? register_shrinker+0x10e/0x2d0
+[   23.511999]  ? trace_event_raw_event_module_request+0x320/0x320
+[   23.518044]  register_shrinker+0x10e/0x2d0
+[   23.522265]  ? __bpf_trace_mm_vmscan_wakeup_kswapd+0x40/0x40
+[   23.528051]  ? memcpy+0x45/0x50
+[   23.531588]  sget_userns+0xbbf/0xe40
+[   23.535296]  ? kernfs_sop_show_path+0x190/0x190
+[   23.539959]  ? kernfs_sop_show_options+0x180/0x180
+[   23.544876]  ? destroy_unused_super.part.6+0xd0/0xd0
+[   23.549972]  ? check_same_owner+0x320/0x320
+[   23.554281]  ? rcu_pm_notify+0xc0/0xc0
+[   23.558161]  ? rcu_read_lock_sched_held+0x108/0x120
+[   23.563168]  ? kmem_cache_alloc_trace+0x459/0x740
+[   23.567997]  ? lock_downgrade+0x980/0x980
+[   23.572142]  kernfs_mount_ns+0x13d/0x8b0
+[   23.576192]  ? kernfs_super_ns+0x70/0x70
+[   23.580244]  sysfs_mount+0xc2/0x1c0
+----------------------------------------
 
-url:    https://github.com/0day-ci/linux/commits/rao-shoaib-oracle-com/Move-kfree_rcu-out-of-rcu-code-and-use-kfree_bulk/20180402-135939
-base:   https://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git rcu/next
-reproduce:
-        # apt-get install sparse
-        make ARCH=x86_64 allmodconfig
-        make C=1 CF=-D__CHECK_ENDIAN__
+That commit assumes that calling kill_sb() from deactivate_locked_super(s)
+without corresponding fill_super() is safe. We have so far crashed with
+rpc_mount() and kernfs_mount_ns(). Is that really safe?
 
+Also, I think
 
-sparse warnings: (new ones prefixed by >>)
+----------------------------------------
+struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
+                               struct kernfs_root *root, unsigned long magic,
+                               bool *new_sb_created, const void *ns)
+{
+(...snipped...)
+	if (!sb->s_root) {
+		struct kernfs_super_info *info = kernfs_info(sb);
 
-   include/linux/init.h:134:6: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/init.h:135:5: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/init.h:268:6: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/init.h:269:6: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/printk.h:200:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/mem_encrypt.h:32:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/mem_encrypt.h:34:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/mem_encrypt.h:37:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/mem_encrypt.h:38:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/mem_encrypt.h:40:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/mem_encrypt.h:42:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/mem_encrypt.h:43:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/mem_encrypt.h:45:5: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/mem_encrypt.h:46:5: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/mem_encrypt.h:49:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/qspinlock.h:53:32: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/workqueue.h:646:5: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/workqueue.h:647:5: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/wait_bit.h:41:13: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/numa.h:34:12: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/numa.h:35:13: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/numa.h:62:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/vmalloc.h:64:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/vmalloc.h:173:8: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/vmalloc.h:174:8: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/fixmap.h:174:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/fixmap.h:176:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/fixmap.h:178:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/fixmap.h:180:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/apic.h:254:13: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/apic.h:430:13: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/io_apic.h:184:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/smp.h:113:6: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/smp.h:125:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/smp.h:126:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/percpu.h:110:33: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/percpu.h:112:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/percpu.h:114:12: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/percpu.h:118:12: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/percpu.h:126:12: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/fs.h:63:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/fs.h:64:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/fs.h:65:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/fs.h:66:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/memory_hotplug.h:221:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/mmzone.h:1292:15: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/fs.h:2421:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/fs.h:2422:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/fs.h:3329:5: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/hrtimer.h:497:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/kmemleak.h:29:33: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/kasan.h:29:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/kasan.h:30:6: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/pgtable.h:28:5: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/slab.h:135:6: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/slab.h:758:6: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/mm.h:1753:6: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/mm.h:1941:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/mm.h:2083:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/mm.h:2671:6: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/swiotlb.h:39:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/swiotlb.h:124:13: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/swiotlb.h:9:12: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/swiotlb.h:10:12: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/swiotlb.h:11:13: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/swiotlb.h:12:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/dma-contiguous.h:85:5: sparse: attribute 'indirect_branch': unknown attribute
-   arch/x86/include/asm/vdso.h:44:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/cred.h:167:13: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/nsproxy.h:74:5: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/io.h:47:6: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/netdevice.h:302:5: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/netdevice.h:4056:5: sparse: attribute 'indirect_branch': unknown attribute
-   include/linux/ftrace.h:462:6: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/bpf.h:59:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/bpf.h:95:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/bpf.h:120:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/bpf.h:150:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/bpf.h:191:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/bpf.h:231:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/bpf.h:285:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/bpf.h:315:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/xdp.h:28:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/xdp.h:53:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/xdp.h:155:1: sparse: attribute 'indirect_branch': unknown attribute
-   include/trace/events/xdp.h:190:1: sparse: attribute 'indirect_branch': unknown attribute
-   kernel/bpf/core.c:1546:31: sparse: incorrect type in return expression (different address spaces) @@    expected struct bpf_prog_array [noderef] <asn:4>* @@    got sn:4>* @@
-   kernel/bpf/core.c:1546:31:    expected struct bpf_prog_array [noderef] <asn:4>*
-   kernel/bpf/core.c:1546:31:    got void *
-   kernel/bpf/core.c:1550:17: sparse: incorrect type in return expression (different address spaces) @@    expected struct bpf_prog_array [noderef] <asn:4>* @@    got rray [noderef] <asn:4>* @@
-   kernel/bpf/core.c:1550:17:    expected struct bpf_prog_array [noderef] <asn:4>*
-   kernel/bpf/core.c:1550:17:    got struct bpf_prog_array *<noident>
->> kernel/bpf/core.c:1558:9: sparse: cast removes address space of expression
-   kernel/bpf/core.c:1621:34: sparse: incorrect type in initializer (different address spaces) @@    expected struct bpf_prog **prog @@    got struct bpf_prog *struct bpf_prog **prog @@
-   kernel/bpf/core.c:1621:34:    expected struct bpf_prog **prog
-   kernel/bpf/core.c:1621:34:    got struct bpf_prog *[noderef] <asn:4>*<noident>
-   kernel/bpf/core.c:1644:31: sparse: incorrect type in assignment (different address spaces) @@    expected struct bpf_prog **existing_prog @@    got struct bpf_prog *struct bpf_prog **existing_prog @@
-   kernel/bpf/core.c:1644:31:    expected struct bpf_prog **existing_prog
-   kernel/bpf/core.c:1644:31:    got struct bpf_prog *[noderef] <asn:4>*<noident>
-   kernel/bpf/core.c:1666:15: sparse: incorrect type in assignment (different address spaces) @@    expected struct bpf_prog_array *array @@    got struct bpf_prog_astruct bpf_prog_array *array @@
-   kernel/bpf/core.c:1666:15:    expected struct bpf_prog_array *array
-   kernel/bpf/core.c:1666:15:    got struct bpf_prog_array [noderef] <asn:4>*
-   kernel/bpf/core.c:1672:31: sparse: incorrect type in assignment (different address spaces) @@    expected struct bpf_prog **[assigned] existing_prog @@    got structstruct bpf_prog **[assigned] existing_prog @@
-   kernel/bpf/core.c:1672:31:    expected struct bpf_prog **[assigned] existing_prog
-   kernel/bpf/core.c:1672:31:    got struct bpf_prog *[noderef] <asn:4>*<noident>
-   include/trace/events/bpf.h:59:1: sparse: Using plain integer as NULL pointer
-   include/trace/events/bpf.h:95:1: sparse: Using plain integer as NULL pointer
-   include/trace/events/bpf.h:120:1: sparse: Using plain integer as NULL pointer
-   include/trace/events/bpf.h:191:1: sparse: Using plain integer as NULL pointer
-   include/trace/events/bpf.h:231:1: sparse: Using plain integer as NULL pointer
-   include/trace/events/bpf.h:285:1: sparse: Using plain integer as NULL pointer
-   include/trace/events/bpf.h:315:1: sparse: too many warnings
+		error = kernfs_fill_super(sb, magic);
+		if (error) {
+			deactivate_locked_super(sb); // <= this call
+			return ERR_PTR(error);
+		}
+		sb->s_flags |= SB_ACTIVE;
 
-vim +1558 kernel/bpf/core.c
+		mutex_lock(&kernfs_mutex);
+		list_add(&info->node, &root->supers);
+		mutex_unlock(&kernfs_mutex);
+	}
+(...snipped...)
+}
+----------------------------------------
 
-324bda9e6c Alexei Starovoitov 2017-10-02  1542  
-324bda9e6c Alexei Starovoitov 2017-10-02  1543  struct bpf_prog_array __rcu *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags)
-324bda9e6c Alexei Starovoitov 2017-10-02  1544  {
-324bda9e6c Alexei Starovoitov 2017-10-02  1545  	if (prog_cnt)
-324bda9e6c Alexei Starovoitov 2017-10-02 @1546  		return kzalloc(sizeof(struct bpf_prog_array) +
-324bda9e6c Alexei Starovoitov 2017-10-02  1547  			       sizeof(struct bpf_prog *) * (prog_cnt + 1),
-324bda9e6c Alexei Starovoitov 2017-10-02  1548  			       flags);
-324bda9e6c Alexei Starovoitov 2017-10-02  1549  
-324bda9e6c Alexei Starovoitov 2017-10-02  1550  	return &empty_prog_array.hdr;
-324bda9e6c Alexei Starovoitov 2017-10-02  1551  }
-324bda9e6c Alexei Starovoitov 2017-10-02  1552  
-324bda9e6c Alexei Starovoitov 2017-10-02  1553  void bpf_prog_array_free(struct bpf_prog_array __rcu *progs)
-324bda9e6c Alexei Starovoitov 2017-10-02  1554  {
-324bda9e6c Alexei Starovoitov 2017-10-02  1555  	if (!progs ||
-324bda9e6c Alexei Starovoitov 2017-10-02  1556  	    progs == (struct bpf_prog_array __rcu *)&empty_prog_array.hdr)
-324bda9e6c Alexei Starovoitov 2017-10-02  1557  		return;
-324bda9e6c Alexei Starovoitov 2017-10-02 @1558  	kfree_rcu(progs, rcu);
-324bda9e6c Alexei Starovoitov 2017-10-02  1559  }
-324bda9e6c Alexei Starovoitov 2017-10-02  1560  
+is not safe, for list_del() is called via kill_sb() without
+corresponding list_add().
 
-:::::: The code at line 1558 was first introduced by commit
-:::::: 324bda9e6c5add86ba2e1066476481c48132aca0 bpf: multi program support for cgroup+bpf
+----------------------------------------
+void kernfs_kill_sb(struct super_block *sb)
+{
+	struct kernfs_super_info *info = kernfs_info(sb);
 
-:::::: TO: Alexei Starovoitov <ast@fb.com>
-:::::: CC: David S. Miller <davem@davemloft.net>
+	mutex_lock(&kernfs_mutex);
+	list_del(&info->node); // <= NULL pointer dereference
+	mutex_unlock(&kernfs_mutex);
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+	/*
+	 * Remove the superblock from fs_supers/s_instances
+	 * so we can't find it, before freeing kernfs_super_info.
+	 */
+	kill_anon_super(sb);
+	kfree(info);
+}
+----------------------------------------
+
+> 
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+151de3f2be6b40ac8026@syzkaller.appspotmail.com
+> It will help syzbot understand when the bug is fixed. See footer for details.
+> If you forward the report, please keep this part and the footer.
+> 
+> kasan: GPF could be caused by NULL-ptr deref or user memory access
+>  should_failslab+0xec/0x120 mm/failslab.c:32
+>  slab_pre_alloc_hook mm/slab.h:422 [inline]
+>  slab_alloc mm/slab.c:3365 [inline]
+>  __do_kmalloc mm/slab.c:3703 [inline]
+>  __kmalloc+0x63/0x760 mm/slab.c:3714
+> general protection fault: 0000 [#1] SMP KASAN
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+>  kmalloc include/linux/slab.h:517 [inline]
+>  kzalloc include/linux/slab.h:701 [inline]
+>  register_shrinker+0x10e/0x2d0 mm/vmscan.c:268
+> Modules linked in:
+> CPU: 1 PID: 4471 Comm: syzkaller129261 Not tainted 4.16.0-rc6+ #43
+>  sget_userns+0xbbf/0xe40 fs/super.c:520
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+> RIP: 0010:__list_del_entry_valid+0x7e/0x150 lib/list_debug.c:51
+> RSP: 0018:ffff8801ae017658 EFLAGS: 00010246
+> RAX: dffffc0000000000 RBX: 0000000000000000 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: ffff8801d97a6e98 RDI: ffff8801d97a6ea0
+> RBP: ffff8801ae017670 R08: ffffffff81d39d22 R09: 0000000000000004
+> R10: ffff8801ae017670 R11: 0000000000000000 R12: 0000000000000000
+> R13: ffff8801d91dec00 R14: ffff8801ae017700 R15: ffff8801d97a6e98
+> FS:  0000000001569880(0000) GS:ffff8801db100000(0000) knlGS:0000000000000000
+>  kernfs_mount_ns+0x13d/0x8b0 fs/kernfs/mount.c:320
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00000000006d0188 CR3: 00000001da40c005 CR4: 00000000001606e0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+>  sysfs_mount+0xc2/0x1c0 fs/sysfs/mount.c:36
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  __list_del_entry include/linux/list.h:117 [inline]
+>  list_del include/linux/list.h:125 [inline]
+>  kernfs_kill_sb+0x9e/0x330 fs/kernfs/mount.c:361
+>  mount_fs+0x66/0x2d0 fs/super.c:1222
+>  vfs_kern_mount.part.26+0xc6/0x4a0 fs/namespace.c:1037
+>  sysfs_kill_sb+0x22/0x40 fs/sysfs/mount.c:50
+>  vfs_kern_mount fs/namespace.c:2509 [inline]
+>  do_new_mount fs/namespace.c:2512 [inline]
+>  do_mount+0xea4/0x2bb0 fs/namespace.c:2842
+>  deactivate_locked_super+0x88/0xd0 fs/super.c:312
+>  sget_userns+0xbda/0xe40 fs/super.c:522
+>  SYSC_mount fs/namespace.c:3058 [inline]
+>  SyS_mount+0xab/0x120 fs/namespace.c:3035
+>  do_syscall_64+0x281/0x940 arch/x86/entry/common.c:287
+>  kernfs_mount_ns+0x13d/0x8b0 fs/kernfs/mount.c:320
+>  sysfs_mount+0xc2/0x1c0 fs/sysfs/mount.c:36
+>  mount_fs+0x66/0x2d0 fs/super.c:1222
+>  entry_SYSCALL_64_after_hwframe+0x42/0xb7
+>  vfs_kern_mount.part.26+0xc6/0x4a0 fs/namespace.c:1037
+> RIP: 0033:0x442609
+> RSP: 002b:00007fff40a278e8 EFLAGS: 00000246 ORIG_RAX: 00000000000000a5
+> RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000442609
+> RDX: 0000000020000140 RSI: 0000000020000040 RDI: 0000000020000000
+> RBP: 00007fff40a28190 R08: 00000000200002c0 R09: 0000000300000000
+>  vfs_kern_mount fs/namespace.c:2509 [inline]
+>  do_new_mount fs/namespace.c:2512 [inline]
+>  do_mount+0xea4/0x2bb0 fs/namespace.c:2842
+> R10: 0000000000000000 R11: 0000000000000246 R12: ffffffffffffffff
+> R13: 0000000000000003 R14: 0000000000001380 R15: 00007fff40a27a28
+>  SYSC_mount fs/namespace.c:3058 [inline]
+>  SyS_mount+0xab/0x120 fs/namespace.c:3035
+>  do_syscall_64+0x281/0x940 arch/x86/entry/common.c:287
+>  entry_SYSCALL_64_after_hwframe+0x42/0xb7
+> RIP: 0033:0x442609
+> RSP: 002b:00007fff40a278e8 EFLAGS: 00000246 ORIG_RAX: 00000000000000a5
+> RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000442609
+> RDX: 0000000020000140 RSI: 0000000020000040 RDI: 0000000020000000
+> RBP: 00007fff40a28190 R08: 00000000200002c0 R09: 0000000300000000
+> R10: 0000000000000000 R11: 0000000000000246 R12: ffffffffffffffff
+> R13: 0000000000000003 R14: 0000000000001380 R15: 00007fff40a27a28
+> Code: 00 00 00 00 ad de 49 39 c4 74 66 48 b8 00 02 00 00 00 00 ad de 48 89 da 48 39 c3 74 65 48 c1 ea 03 48 b8 00 00 00 00 00 fc ff df <80> 3c 02 00 75 7b 48 8b 13 48 39 f2 75 57 49 8d 7c 24 08 48 b8
+> RIP: __list_del_entry_valid+0x7e/0x150 lib/list_debug.c:51 RSP: ffff8801ae017658
+> ---[ end trace b14d521943ecadbd ]---
+> 
+> 
+> ---
+> This bug is generated by a dumb bot. It may contain errors.
+> See https://goo.gl/tpsmEJ for details.
+> Direct all questions to syzkaller@googlegroups.com.
+> 
+> syzbot will keep track of this bug report.
+> If you forgot to add the Reported-by tag, once the fix for this bug is merged
+> into any tree, please reply to this email with:
+> #syz fix: exact-commit-title
+> If you want to test a patch for this bug, please reply with:
+> #syz test: git://repo/address.git branch
+> and provide the patch inline or as an attachment.
+> To mark this as a duplicate of another syzbot report, please reply with:
+> #syz dup: exact-subject-of-another-report
+> If it's a one-off invalid bug report, please reply with:
+> #syz invalid
+> Note: if the crash happens again, it will cause creation of a new bug report.
+> Note: all commands must start from beginning of the line in the email body.
+> 
