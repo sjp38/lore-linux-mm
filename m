@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F46D6B0009
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 13:52:36 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id r19so1660443iod.7
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 10:52:36 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C376B6B0009
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 13:56:28 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id r141so3320955ior.15
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 10:56:28 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 191sor412069ioe.271.2018.04.02.10.52.35
+        by mx.google.com with SMTPS id g186-v6sor533137itg.76.2018.04.02.10.56.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 02 Apr 2018 10:52:35 -0700 (PDT)
+        Mon, 02 Apr 2018 10:56:27 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180402172701.5D4CA7DD@viggo.jf.intel.com>
-References: <20180402172700.65CAE838@viggo.jf.intel.com> <20180402172701.5D4CA7DD@viggo.jf.intel.com>
+In-Reply-To: <20180402172713.B7D6F0C0@viggo.jf.intel.com>
+References: <20180402172700.65CAE838@viggo.jf.intel.com> <20180402172713.B7D6F0C0@viggo.jf.intel.com>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 2 Apr 2018 10:52:34 -0700
-Message-ID: <CA+55aFw7mLJrr+VqvEY-T3KqR2-xaYSoyU2Jg7VY1Sb1cu1L-w@mail.gmail.com>
-Subject: Re: [PATCH 01/11] x86/mm: factor out pageattr _PAGE_GLOBAL setting
+Date: Mon, 2 Apr 2018 10:56:26 -0700
+Message-ID: <CA+55aFx5GCahkr_-Y0qF5S=USCXhNcvWZ6gr_TxpvUVAh46STA@mail.gmail.com>
+Subject: Re: [PATCH 09/11] x86/pti: enable global pages for shared areas
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -25,15 +25,16 @@ Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm
 On Mon, Apr 2, 2018 at 10:27 AM, Dave Hansen
 <dave.hansen@linux.intel.com> wrote:
 >
-> Aside: _PAGE_GLOBAL is ignored when CR4.PGE=1, so why do we
-> even go to the trouble of filtering it anywhere?
+> +       /*
+> +        * The cpu_entry_area is shared between the user and kernel
+> +        * page tables.  All of its ptes can safely be global.
+> +        */
+> +       if (boot_cpu_has(X86_FEATURE_PGE))
+> +               pte = pte_set_flags(pte, _PAGE_GLOBAL);
 
-I'm assuming this is a typo, and you mean "when CR4.PGE=0".
+So this is where the quesion of "why is this conditional" is valid.
 
-The question you raise may be valid, but within the particular context
-of *this* patch it is not.
+We could set _PAGE_GLOBAL unconditionally, not bothering with testing
+X86_FEATURE_PGE.
 
-In the context of this particular patch, the issue is that we use
-_PAGE_GLOBAL as _PAGE_BIT_PROTNONE when the present bit isn't set.
-
-       Linus
+                Linus
