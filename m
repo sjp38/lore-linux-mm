@@ -1,71 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CF8E6B002D
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 13:29:54 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id t8-v6so3884245ply.22
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 10:29:54 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id r2-v6si779823pls.399.2018.04.02.10.29.52
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D12EE6B002E
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 13:29:55 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id o33-v6so3892423plb.16
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 10:29:55 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id g3-v6si752410pld.513.2018.04.02.10.29.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Apr 2018 10:29:53 -0700 (PDT)
-Subject: [PATCH 08/11] x86/mm: do not forbid _PAGE_RW before init for __ro_after_init
+        Mon, 02 Apr 2018 10:29:54 -0700 (PDT)
+Subject: [PATCH 02/11] x86/mm: undo double _PAGE_PSE clearing
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Mon, 02 Apr 2018 10:27:11 -0700
+Date: Mon, 02 Apr 2018 10:27:03 -0700
 References: <20180402172700.65CAE838@viggo.jf.intel.com>
 In-Reply-To: <20180402172700.65CAE838@viggo.jf.intel.com>
-Message-Id: <20180402172711.D207F038@viggo.jf.intel.com>
+Message-Id: <20180402172703.351D8E8A@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, keescook@chromium.org, aarcange@redhat.com, luto@kernel.org, torvalds@linux-foundation.org, hughd@google.com, jgross@suse.com, x86@kernel.org, namit@vmware.com
+Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, aarcange@redhat.com, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org, namit@vmware.com
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-__ro_after_init data gets stuck in the .rodata section.  That's normally
-fine because the kernel itself manages the R/W properties.
+When clearing _PAGE_PRESENT on a huge page, we need to be careful
+to also clear _PAGE_PSE, otherwise it might still get confused
+for a valid large page table entry.
 
-But, if we run __change_page_attr() on an area which is __ro_after_init,
-the .rodata checks will trigger and force the area to be immediately
-read-only, even if it is early-ish in boot.  This caused problems when
-trying to clear the _PAGE_GLOBAL bit for these area in the PTI code:
-it cleared _PAGE_GLOBAL like I asked, but also took it up on itself
-to clear _PAGE_RW.  The kernel then oopses the next time it wrote to
-a __ro_after_init data structure.
+We do that near the spot where we *set* _PAGE_PSE.  That's fine,
+but it's unnecessary.  pgprot_large_2_4k() already did it.
 
-To fix this, add the kernel_set_to_readonly check, just like we have
-for kernel text, just a few lines below in this function.
+BTW, I also noticed that pgprot_large_2_4k() and
+pgprot_4k_2_large() are not symmetric.  pgprot_large_2_4k() clears
+_PAGE_PSE (because it is aliased to _PAGE_PAT) but
+pgprot_4k_2_large() does not put _PAGE_PSE back.  Bummer.
+
+Also, add some comments and change "promote" to "move".  "Promote"
+seems an odd word to move when we are logically moving a bit to a
+lower bit position.  Also add an extra line return to make it clear
+to which line the comment applies.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Acked-by: Kees Cook <keescook@chromium.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Kees Cook <keescook@google.com>
 Cc: Hugh Dickins <hughd@google.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: x86@kernel.org
 Cc: Nadav Amit <namit@vmware.com>
 ---
 
- b/arch/x86/mm/pageattr.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ b/arch/x86/mm/pageattr.c |    9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
-diff -puN arch/x86/mm/pageattr.c~check-kernel_set_to_readonly arch/x86/mm/pageattr.c
---- a/arch/x86/mm/pageattr.c~check-kernel_set_to_readonly	2018-04-02 10:26:46.648661208 -0700
-+++ b/arch/x86/mm/pageattr.c	2018-04-02 10:26:46.652661208 -0700
-@@ -298,9 +298,11 @@ static inline pgprot_t static_protection
+diff -puN arch/x86/mm/pageattr.c~kpti-undo-double-_PAGE_PSE-clear arch/x86/mm/pageattr.c
+--- a/arch/x86/mm/pageattr.c~kpti-undo-double-_PAGE_PSE-clear	2018-04-02 10:26:43.152661217 -0700
++++ b/arch/x86/mm/pageattr.c	2018-04-02 10:26:43.156661217 -0700
+@@ -583,6 +583,7 @@ try_preserve_large_page(pte_t *kpte, uns
+ 	 * up accordingly.
+ 	 */
+ 	old_pte = *kpte;
++	/* Clear PSE (aka _PAGE_PAT) and move PAT bit to correct position */
+ 	req_prot = pgprot_large_2_4k(old_prot);
+ 
+ 	pgprot_val(req_prot) &= ~pgprot_val(cpa->mask_clr);
+@@ -597,8 +598,6 @@ try_preserve_large_page(pte_t *kpte, uns
+ 	req_prot = pgprot_clear_protnone_bits(req_prot);
+         if (pgprot_val(req_prot) & _PAGE_PRESENT)
+ 		pgprot_val(req_prot) |= _PAGE_PSE;
+-	else
+-		pgprot_val(req_prot) &= ~_PAGE_PSE;
+ 	req_prot = canon_pgprot(req_prot);
  
  	/*
- 	 * The .rodata section needs to be read-only. Using the pfn
--	 * catches all aliases.
-+	 * catches all aliases.  This also includes __ro_after_init,
-+	 * so do not enforce until kernel_set_to_readonly is true.
- 	 */
--	if (within(pfn, __pa_symbol(__start_rodata) >> PAGE_SHIFT,
-+	if (kernel_set_to_readonly &&
-+	    within(pfn, __pa_symbol(__start_rodata) >> PAGE_SHIFT,
- 		   __pa_symbol(__end_rodata) >> PAGE_SHIFT))
- 		pgprot_val(forbidden) |= _PAGE_RW;
+@@ -684,8 +683,12 @@ __split_large_page(struct cpa_data *cpa,
+ 	switch (level) {
+ 	case PG_LEVEL_2M:
+ 		ref_prot = pmd_pgprot(*(pmd_t *)kpte);
+-		/* clear PSE and promote PAT bit to correct position */
++		/*
++		 * Clear PSE (aka _PAGE_PAT) and move
++		 * PAT bit to correct position.
++		 */
+ 		ref_prot = pgprot_large_2_4k(ref_prot);
++
+ 		ref_pfn = pmd_pfn(*(pmd_t *)kpte);
+ 		break;
  
 _
