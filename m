@@ -1,83 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CA1576B000C
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 07:17:00 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id e15so9399895wrj.14
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 04:17:00 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id o7sor1479257edi.15.2018.04.03.04.16.59
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E28806B000D
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 07:17:15 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id q12-v6so7285395plr.17
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 04:17:15 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0101.outbound.protection.outlook.com. [104.47.2.101])
+        by mx.google.com with ESMTPS id k6si1821018pgo.689.2018.04.03.04.17.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Apr 2018 04:16:59 -0700 (PDT)
-Date: Tue, 3 Apr 2018 14:16:18 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v1] mm: consider non-anonymous thp as unmovable page
-Message-ID: <20180403111618.o2w44gtcfzvu3yjv@node.shutemov.name>
-References: <1522730788-24530-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20180403075928.GC5501@dhcp22.suse.cz>
- <20180403082405.GA23809@hori1.linux.bs1.fc.nec.co.jp>
- <20180403083451.GG5501@dhcp22.suse.cz>
- <20180403105411.hknofkbn6rzs26oz@node.shutemov.name>
- <20180403105815.GL5501@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 03 Apr 2018 04:17:14 -0700 (PDT)
+Subject: Re: general protection fault in __mem_cgroup_free
+References: <001a113fe4c0a623b10568bb75ea@google.com>
+ <20180403093733.GI5501@dhcp22.suse.cz> <20180403094329.GJ5501@dhcp22.suse.cz>
+ <20180403105048.GK5501@dhcp22.suse.cz>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <a91a520d-f56d-56bf-d784-89fb4562ef3c@virtuozzo.com>
+Date: Tue, 3 Apr 2018 14:18:00 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180403105815.GL5501@dhcp22.suse.cz>
+In-Reply-To: <20180403105048.GK5501@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, syzbot <syzbot+8a5de3cce7cdc70e9ebe@syzkaller.appspotmail.com>
+Cc: cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
 
-On Tue, Apr 03, 2018 at 12:58:15PM +0200, Michal Hocko wrote:
-> On Tue 03-04-18 13:54:11, Kirill A. Shutemov wrote:
-> > On Tue, Apr 03, 2018 at 10:34:51AM +0200, Michal Hocko wrote:
-> > > On Tue 03-04-18 08:24:06, Naoya Horiguchi wrote:
-> > > > On Tue, Apr 03, 2018 at 09:59:28AM +0200, Michal Hocko wrote:
-> > > > > On Tue 03-04-18 13:46:28, Naoya Horiguchi wrote:
-> > > > > > My testing for the latest kernel supporting thp migration found out an
-> > > > > > infinite loop in offlining the memory block that is filled with shmem
-> > > > > > thps.  We can get out of the loop with a signal, but kernel should
-> > > > > > return with failure in this case.
-> > > > > >
-> > > > > > What happens in the loop is that scan_movable_pages() repeats returning
-> > > > > > the same pfn without any progress. That's because page migration always
-> > > > > > fails for shmem thps.
-> > > > >
-> > > > > Why does it fail? Shmem pages should be movable without any issues.
-> > > > 
-> > > > .. because try_to_unmap_one() explicitly skips unmapping for migration.
-> > > > 
-> > > >   #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> > > >                   /* PMD-mapped THP migration entry */
-> > > >                   if (!pvmw.pte && (flags & TTU_MIGRATION)) {
-> > > >                           VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
-> > > >   
-> > > >                           if (!PageAnon(page))
-> > > >                                   continue;
-> > > >   
-> > > >                           set_pmd_migration_entry(&pvmw, page);
-> > > >                           continue;
-> > > >                   }
-> > > >   #endif
-> > > > 
-> > > > When I implemented this code, I felt hard to work on both of anon thp
-> > > > and shmem thp at one time, so I separated the proposal into smaller steps.
-> > > > Shmem uses pagecache so we need some non-trivial effort (including testing)
-> > > > to extend thp migration for shmem. But I think it's a reasonable next step.
-> > > 
-> > > OK, I see. I have forgot about this part. Please be explicit about that
-> > > in the changelog. Also the proper fix is to not use movable zone for
-> > > shmem page THP rather than hack around it in the hotplug specific code
-> > > IMHO.
-> > 
-> > No. We should just split the page before running
-> > try_to_unmap(TTU_MIGRATION) on the page.
+On 04/03/2018 01:50 PM, Michal Hocko wrote:
+> Here we go
 > 
-> If splitting is a preffered way then I do not have any objection. We
-> just cannot keep unmovable objects in the zone movable.
+> From 38f0f08a3f9f19c106ae53350e43dc97e2e3a4d8 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Tue, 3 Apr 2018 12:40:41 +0200
+> Subject: [PATCH] memcg: fix per_node_info cleanup
+> 
+> syzbot has triggered a NULL ptr dereference when allocation fault
+> injection enforces a failure and alloc_mem_cgroup_per_node_info
+> initializes memcg->nodeinfo only half way through. __mem_cgroup_free
+> still tries to free all per-node data and dereferences pn->lruvec_stat_cpu
+> unconditioanlly even if the specific per-node data hasn't been
+> initialized.
+> 
+> The bug is quite unlikely to hit because small allocations do not fail
+> and we would need quite some numa nodes to make struct mem_cgroup_per_node
+> large enough to cross the costly order.
+> 
+> Reported-by: syzbot+8a5de3cce7cdc70e9ebe@syzkaller.appspotmail.com
+> Fixes: 00f3ca2c2d66 ("mm: memcontrol: per-lruvec stats infrastructure")
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-We had anon-thp in movable zone for ages, long before THP migration was
-implemented.
+Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 
--- 
- Kirill A. Shutemov
+> ---
+>  mm/memcontrol.c | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e3d5a0a7917f..0a9c4d5194f3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4340,6 +4340,9 @@ static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
+>  {
+>  	struct mem_cgroup_per_node *pn = memcg->nodeinfo[node];
+>  
+> +	if (!pn)
+> +		return;
+> +
+>  	free_percpu(pn->lruvec_stat_cpu);
+>  	kfree(pn);
+>  }
+> 
