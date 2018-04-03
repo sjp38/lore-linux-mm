@@ -1,156 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 04CC36B0006
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 10:17:58 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id x8-v6so9992130pln.9
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 07:17:57 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id o69si2253678pfj.329.2018.04.03.07.17.56
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 10D776B0003
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 10:43:15 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id 184so16835137iow.19
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 07:43:15 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y11sor1129779iod.36.2018.04.03.07.43.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Apr 2018 07:17:56 -0700 (PDT)
-Date: Tue, 3 Apr 2018 10:17:53 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180403101753.3391a639@gandalf.local.home>
-In-Reply-To: <20180403135607.GC5501@dhcp22.suse.cz>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-	<20180330102038.2378925b@gandalf.local.home>
-	<20180403110612.GM5501@dhcp22.suse.cz>
-	<20180403075158.0c0a2795@gandalf.local.home>
-	<20180403121614.GV5501@dhcp22.suse.cz>
-	<20180403082348.28cd3c1c@gandalf.local.home>
-	<20180403123514.GX5501@dhcp22.suse.cz>
-	<20180403093245.43e7e77c@gandalf.local.home>
-	<20180403135607.GC5501@dhcp22.suse.cz>
+        (Google Transport Security);
+        Tue, 03 Apr 2018 07:43:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <2ab69c9c-6e80-ea79-e72e-012753ed3db0@virtuozzo.com>
+References: <cover.1521828273.git.andreyknvl@google.com> <774016f707e494da419a2d0d8a03409e6befcaf8.1521828274.git.andreyknvl@google.com>
+ <2ab69c9c-6e80-ea79-e72e-012753ed3db0@virtuozzo.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 3 Apr 2018 16:43:10 +0200
+Message-ID: <CAAeHK+z37yRzK1Q6F32G=eB6_k+s_YQOoR8LLqNppxZsKMWiZg@mail.gmail.com>
+Subject: Re: [RFC PATCH v2 05/15] khwasan: initialize shadow to 0xff
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Stephen Boyd <stephen.boyd@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-On Tue, 3 Apr 2018 15:56:07 +0200
-Michal Hocko <mhocko@kernel.org> wrote:
+On Fri, Mar 30, 2018 at 6:07 PM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+> On 03/23/2018 09:05 PM, Andrey Konovalov wrote:
+>> A KHWASAN shadow memory cell contains a memory tag, that corresponds to
+>> the tag in the top byte of the pointer, that points to that memory. The
+>> native top byte value of kernel pointers is 0xff, so with KHWASAN we
+>> need to initialize shadow memory to 0xff. This commit does that.
+>>
+>> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+>> ---
+>>  arch/arm64/mm/kasan_init.c | 11 ++++++++++-
+>>  include/linux/kasan.h      |  8 ++++++++
+>>  mm/kasan/common.c          |  7 +++++++
+>>  3 files changed, 25 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+>> index dabfc1ecda3d..d4bceba60010 100644
+>> --- a/arch/arm64/mm/kasan_init.c
+>> +++ b/arch/arm64/mm/kasan_init.c
+>> @@ -90,6 +90,10 @@ static void __init kasan_pte_populate(pmd_t *pmdp, unsigned long addr,
+>>       do {
+>>               phys_addr_t page_phys = early ? __pa_symbol(kasan_zero_page)
+>>                                             : kasan_alloc_zeroed_page(node);
+>> +#if KASAN_SHADOW_INIT != 0
+>> +             if (!early)
+>> +                     memset(__va(page_phys), KASAN_SHADOW_INIT, PAGE_SIZE);
+>> +#endif
+>
+> Less ugly way to do the same:
+>         if (KASAN_SHADOW_INIT != 0 && !early)
+>                 memset(__va(page_phys), KASAN_SHADOW_INIT, PAGE_SIZE);
+>
+>
+> But the right approach here would be allocating uninitialized memory (see memblock_virt_alloc_try_nid_raw())
+> and do "if (!early) memset(.., KASAN_SHADOW_INIT, ..)" afterwards.
 
-> On Tue 03-04-18 09:32:45, Steven Rostedt wrote:
-> > On Tue, 3 Apr 2018 14:35:14 +0200
-> > Michal Hocko <mhocko@kernel.org> wrote:  
-> [...]
-> > > Being clever is OK if it doesn't add a tricky code. And relying on
-> > > si_mem_available is definitely tricky and obscure.  
-> > 
-> > Can we get the mm subsystem to provide a better method to know if an
-> > allocation will possibly succeed or not before trying it? It doesn't
-> > have to be free of races. Just "if I allocate this many pages right
-> > now, will it work?" If that changes from the time it asks to the time
-> > it allocates, that's fine. I'm not trying to prevent OOM to never
-> > trigger. I just don't want to to trigger consistently.  
-> 
-> How do you do that without an actuall allocation request? And more
-> fundamentally, what if your _particular_ request is just fine but it
-> will get us so close to the OOM edge that the next legit allocation
-> request simply goes OOM? There is simply no sane interface I can think
-> of that would satisfy a safe/sensible "will it cause OOM" semantic.
+Will do!
 
-That's where I'm fine with the admin shooting herself in the foot. If
-they ask for almost all memory, and then the system needs more, that's
-not our problem.
+>
+>
+>>               next = addr + PAGE_SIZE;
+>>               set_pte(ptep, pfn_pte(__phys_to_pfn(page_phys), PAGE_KERNEL));
+>>       } while (ptep++, addr = next, addr != end && pte_none(READ_ONCE(*ptep)));
+>> @@ -139,6 +143,11 @@ asmlinkage void __init kasan_early_init(void)
+>>               KASAN_SHADOW_END - (1UL << (64 - KASAN_SHADOW_SCALE_SHIFT)));
+>>       BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PGDIR_SIZE));
+>>       BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
+>> +
+>> +#if KASAN_SHADOW_INIT != 0
+>> +     memset(kasan_zero_page, KASAN_SHADOW_INIT, PAGE_SIZE);
+>> +#endif
+>> +
+>
+>  if (KASAN_SHADOW_INIT)
+>         memset(...)
+>
+> Note that, if poisoning of stack variables will work in the same fashion as classic
+> KASAN (compiler generated code writes to shadow in function prologue) than content
+> of this page will be ruined very fast. Which makes this initialization questionable.
 
-I'm more worried about putting in a couple of extra zeros by mistake,
-which will pretty much guarantee an OOM on an active system.
+I think I agree with you on this. Since this page immediately gets
+dirty and we ignore all reports until proper shadow is set up anyway,
+there's no need to initialize it.
 
->  
-> > > > Perhaps I should try to allocate a large group of pages with
-> > > > RETRY_MAYFAIL, and if that fails go back to NORETRY, with the thinking
-> > > > that the large allocation may reclaim some memory that would allow the
-> > > > NORETRY to succeed with smaller allocations (one page at a time)?    
-> > > 
-> > > That again relies on a subtle dependencies of the current
-> > > implementation. So I would rather ask whether this is something that
-> > > really deserves special treatment. If admin asks for a buffer of a
-> > > certain size then try to do so. If we get OOM then bad luck you cannot
-> > > get large memory buffers for free...  
-> > 
-> > That is not acceptable to me nor to the people asking for this.
-> > 
-> > The problem is known. The ring buffer allocates memory page by page,
-> > and this can allow it to easily take all memory in the system before it
-> > fails to allocate and free everything it had done.  
-> 
-> Then do not allow buffers that are too large. How often do you need
-> buffers that are larger than few megs or small % of the available
-> memory? Consuming excessive amount of memory just to trace workload
-> which will need some memory on its own sounds just dubious to me.
+>
+>
+>
+>>       kasan_pgd_populate(KASAN_SHADOW_START, KASAN_SHADOW_END, NUMA_NO_NODE,
+>>                          true);
+>>  }
+>> @@ -235,7 +244,7 @@ void __init kasan_init(void)
+>>               set_pte(&kasan_zero_pte[i],
+>>                       pfn_pte(sym_to_pfn(kasan_zero_page), PAGE_KERNEL_RO));
+>>
+>> -     memset(kasan_zero_page, 0, PAGE_SIZE);
+>> +     memset(kasan_zero_page, KASAN_SHADOW_INIT, PAGE_SIZE);
+>>       cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
+>>
+>>       /* At this point kasan is fully initialized. Enable error messages */
+>> diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+>> index 3c45e273a936..700734dff218 100644
+>> --- a/include/linux/kasan.h
+>> +++ b/include/linux/kasan.h
+>> @@ -139,6 +139,8 @@ static inline size_t kasan_metadata_size(struct kmem_cache *cache) { return 0; }
+>>
+>>  #ifdef CONFIG_KASAN_CLASSIC
+>>
+>> +#define KASAN_SHADOW_INIT 0
+>> +
+>>  void kasan_cache_shrink(struct kmem_cache *cache);
+>>  void kasan_cache_shutdown(struct kmem_cache *cache);
+>>
+>> @@ -149,4 +151,10 @@ static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
+>>
+>>  #endif /* CONFIG_KASAN_CLASSIC */
+>>
+>> +#ifdef CONFIG_KASAN_TAGS
+>> +
+>> +#define KASAN_SHADOW_INIT 0xFF
+>> +
+>> +#endif /* CONFIG_KASAN_TAGS */
+>> +
+>>  #endif /* LINUX_KASAN_H */
+>> diff --git a/mm/kasan/common.c b/mm/kasan/common.c
+>> index 08f6c8cb9f84..f4ccb9425655 100644
+>> --- a/mm/kasan/common.c
+>> +++ b/mm/kasan/common.c
+>> @@ -253,6 +253,9 @@ int kasan_module_alloc(void *addr, size_t size)
+>>                       __builtin_return_address(0));
+>>
+>>       if (ret) {
+>> +#if KASAN_SHADOW_INIT != 0
+>> +             __memset(ret, KASAN_SHADOW_INIT, shadow_size);
+>> +#endif
+>
+> Drop __GFP_ZERO from above and remove this #if/#endif.
 
-For recording 100s of million events per second, it requires hundreds
-of megs of memory. Large buffers are required for tracing. That's
-extremely common.
+Will do!
 
-> 
-> > If you don't like the use of si_mem_available() I'll do the larger
-> > pages method. Yes it depends on the current implementation of memory
-> > allocation. It will depend on RETRY_MAYFAIL trying to allocate a large
-> > number of pages, and fail if it can't (leaving memory for other
-> > allocations to succeed).
-> > 
-> > The allocation of the ring buffer isn't critical. It can fail to
-> > expand, and we can tell the user -ENOMEM. I original had NORETRY
-> > because I rather have it fail than cause an OOM. But there's folks
-> > (like Joel) that want it to succeed when there's available memory in
-> > page caches.  
-> 
-> Then implement a retry logic on top of NORETRY. You can control how hard
-> to retry to satisfy the request yourself. You still risk that your
-> allocation will get us close to OOM for _somebody_ else though.
-> 
-> > I'm fine if the admin shoots herself in the foot if the ring buffer
-> > gets big enough to start causing OOMs, but I don't want it to cause
-> > OOMs if there's not even enough memory to fulfill the ring buffer size
-> > itself.  
-> 
-> I simply do not see the difference between the two. Both have the same
-> deadly effect in the end. The direct OOM has an arguable advantage that
-> the effect is immediate rather than subtle with potential performance
-> side effects until the machine OOMs after crawling for quite some time.
+>
+>
+>>               find_vm_area(addr)->flags |= VM_KASAN;
+>>               kmemleak_ignore(ret);
+>>               return 0;
+>> @@ -297,6 +300,10 @@ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
+>>               if (!ret)
+>>                       return NOTIFY_BAD;
+>>
+>> +#if KASAN_SHADOW_INIT != 0
+>> +             __memset(ret, KASAN_SHADOW_INIT, shadow_end - shadow_start);
+>> +#endif
+>> +
+>
+> No need to initialize anything here, kasan_free_pages() will do this later.
 
-The difference is if the allocation succeeds or not. If it doesn't
-succeed, we free all memory that we tried to allocate. If it succeeds
-and causes issues, then yes, that's the admins fault. I'm worried about
-the accidental putting in too big of a number, either by an admin by
-mistake, or some stupid script that just thinks the current machines
-has terabytes of memory.
+OK, will fix this!
 
-I'm under the assumption that if I allocate an allocation of 32 pages
-with RETRY_MAYFAIL, and there's 2 pages available, but not 32, and
-while my allocation is reclaiming memory, and another task comes in and
-asks for a single page, it can still succeed. This would be why I would
-be using RETRY_MAYFAIL with higher orders of pages, that it doesn't
-take all memory in the system if it fails. Is this assumption incorrect?
+>
+>
+>>               kmemleak_ignore(ret);
+>>               return NOTIFY_OK;
+>>       }
+>>
 
-The current approach of allocating 1 page at a time with RETRY_MAYFAIL
-is that it will succeed to get any pages that are available, until
-there are none, and if some unlucky task asks for memory during that
-time, it is guaranteed to fail its allocation triggering an OOM.
-
-I was thinking of doing something like:
-
-	large_pages = nr_pages / 32;
-	if (large_pages) {
-		pages = alloc_pages_node(cpu_to_node(cpu),
-				GFP_KERNEL | __GFP_RETRY_MAYFAIL, 5);
-		if (pages)
-			/* break up pages */
-		else
-			/* try to allocate with NORETRY */
-	}
-
-Now it will allocate memory in 32 page chunks using reclaim. If it
-fails to allocate them, it would not have taken up any smaller chunks
-that were available, leaving them for other users. It would then go
-back to singe pages, allocating with RETRY. Or I could just say screw
-it, and make the allocation of the ring buffer always be 32 page chunks
-(or at least make it user defined).
-
--- Steve
+Thanks!
