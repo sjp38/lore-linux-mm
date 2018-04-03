@@ -1,55 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A1676B0006
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 07:52:02 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id m6-v6so9476736pln.8
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 04:52:02 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 19si2087737pfi.285.2018.04.03.04.52.01
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C88BA6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 07:59:01 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 1-v6so9547176plv.6
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 04:59:01 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d70si2093127pfl.219.2018.04.03.04.59.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Apr 2018 04:52:01 -0700 (PDT)
-Date: Tue, 3 Apr 2018 07:51:58 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180403075158.0c0a2795@gandalf.local.home>
-In-Reply-To: <20180403110612.GM5501@dhcp22.suse.cz>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-	<20180330102038.2378925b@gandalf.local.home>
-	<20180403110612.GM5501@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 03 Apr 2018 04:59:00 -0700 (PDT)
+Date: Tue, 3 Apr 2018 04:58:57 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: Check for SIGKILL inside dup_mmap() loop.
+Message-ID: <20180403115857.GC5832@bombadil.infradead.org>
+References: <1522322870-4335-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180329143003.c52ada618be599c5358e8ca2@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180329143003.c52ada618be599c5358e8ca2@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Rik van Riel <riel@redhat.com>
 
-On Tue, 3 Apr 2018 13:06:12 +0200
-Michal Hocko <mhocko@kernel.org> wrote:
-
-> > I wonder if I should have the ring buffer allocate groups of pages, to
-> > avoid this. Or try to allocate with NORETRY, one page at a time, and
-> > when that fails, allocate groups of pages with RETRY_MAYFAIL, and that
-> > may keep it from causing an OOM?  
+On Thu, Mar 29, 2018 at 02:30:03PM -0700, Andrew Morton wrote:
+> > @@ -440,6 +440,10 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
+> >  			continue;
+> >  		}
+> >  		charge = 0;
+> > +		if (fatal_signal_pending(current)) {
+> > +			retval = -EINTR;
+> > +			goto out;
+> > +		}
+> >  		if (mpnt->vm_flags & VM_ACCOUNT) {
+> >  			unsigned long len = vma_pages(mpnt);
 > 
-> I wonder why it really matters. The interface is root only and we expect
-> some sanity from an admin, right? So allocating such a large ring buffer
-> that it sends the system to the OOM is a sign that the admin should be
-> more careful. Balancing on the OOM edge is always a risk and the result
-> will highly depend on the workload running in parallel.
+> I think a comment explaining why we're doing this would help.
+> 
+> Better would be to add a new function "current_is_oom_killed()" or
+> such, which becomes self-documenting.  Because there are other reasons
+> why a task may have a fatal signal pending.
 
-This came up because there's scripts or programs that set the size of
-the ring buffer. The complaint was that the application would just set
-the size to something bigger than what was available and cause an OOM
-killing other applications. The final solution is to simply check the
-available memory before allocating the ring buffer:
+I disagree that we need a comment here, or to create an alias.  Someone
+who knows nothing of the oom-killer (like, er, me) reading that code sees
+"Oh, we're checking for fatal signals here.  I guess it doesn't make sense
+to continue forking a process if it's already received a fatal signal."
 
-	/* Check if the available memory is there first */
-	i = si_mem_available();
-	if (i < nr_pages)
-		return -ENOMEM;
-
-And it works well.
-
--- Steve
+One might speculate about the causes of the fatal signal having been
+received and settle on reasons which make sense even without thinking
+of the OOM case.  Because it's why it was introduced, I always think
+about a task blocked on a dead NFS mount.  If it's multithreaded and
+one of the threads called fork() while another thread was blocked on a
+page fault and the dup_mmap() had to wait for the page fault to finish
+... that would make some kind of sense.
