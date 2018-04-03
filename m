@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E64B6B0003
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 16:40:22 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id t8-v6so9059274ply.22
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 13:40:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i190sor851824pge.333.2018.04.03.13.40.20
+	by kanga.kvack.org (Postfix) with ESMTP id 7E63C6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 16:45:21 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id d6-v6so9085997plo.2
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 13:45:21 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s36-v6sor1400960pld.69.2018.04.03.13.45.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 03 Apr 2018 13:40:20 -0700 (PDT)
-Date: Tue, 3 Apr 2018 13:40:18 -0700 (PDT)
+        Tue, 03 Apr 2018 13:45:20 -0700 (PDT)
+Date: Tue, 3 Apr 2018 13:45:18 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v9 06/24] mm: make pte_unmap_same compatible with SPF
-In-Reply-To: <20180403191005.GC5935@redhat.com>
-Message-ID: <alpine.DEB.2.20.1804031338260.172772@chino.kir.corp.google.com>
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-7-git-send-email-ldufour@linux.vnet.ibm.com> <20180403191005.GC5935@redhat.com>
+Subject: Re: [PATCH v9 15/24] mm: Introduce __vm_normal_page()
+In-Reply-To: <20180403193927.GD5935@redhat.com>
+Message-ID: <alpine.DEB.2.20.1804031343360.172772@chino.kir.corp.google.com>
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-16-git-send-email-ldufour@linux.vnet.ibm.com> <20180403193927.GD5935@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,77 +24,21 @@ Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, pet
 
 On Tue, 3 Apr 2018, Jerome Glisse wrote:
 
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > index 21b1212a0892..4bc7b0bdcb40 100644
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -2309,21 +2309,29 @@ static bool pte_map_lock(struct vm_fault *vmf)
-> >   * parts, do_swap_page must check under lock before unmapping the pte and
-> >   * proceeding (but do_wp_page is only called after already making such a check;
-> >   * and do_anonymous_page can safely check later on).
-> > + *
-> > + * pte_unmap_same() returns:
-> > + *	0			if the PTE are the same
-> > + *	VM_FAULT_PTNOTSAME	if the PTE are different
-> > + *	VM_FAULT_RETRY		if the VMA has changed in our back during
-> > + *				a speculative page fault handling.
-> >   */
-> > -static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
-> > -				pte_t *page_table, pte_t orig_pte)
-> > +static inline int pte_unmap_same(struct vm_fault *vmf)
-> >  {
-> > -	int same = 1;
-> > +	int ret = 0;
-> > +
-> >  #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
-> >  	if (sizeof(pte_t) > sizeof(unsigned long)) {
-> > -		spinlock_t *ptl = pte_lockptr(mm, pmd);
-> > -		spin_lock(ptl);
-> > -		same = pte_same(*page_table, orig_pte);
-> > -		spin_unlock(ptl);
-> > +		if (pte_spinlock(vmf)) {
-> > +			if (!pte_same(*vmf->pte, vmf->orig_pte))
-> > +				ret = VM_FAULT_PTNOTSAME;
-> > +			spin_unlock(vmf->ptl);
-> > +		} else
-> > +			ret = VM_FAULT_RETRY;
-> >  	}
-> >  #endif
-> > -	pte_unmap(page_table);
-> > -	return same;
-> > +	pte_unmap(vmf->pte);
-> > +	return ret;
-> >  }
-> >  
-> >  static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
-> > @@ -2913,7 +2921,8 @@ int do_swap_page(struct vm_fault *vmf)
-> >  	int exclusive = 0;
-> >  	int ret = 0;
-> >  
-> > -	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte))
-> > +	ret = pte_unmap_same(vmf);
-> > +	if (ret)
-> >  		goto out;
-> >  
+> > When dealing with the speculative fault path we should use the VMA's field
+> > cached value stored in the vm_fault structure.
+> > 
+> > Currently vm_normal_page() is using the pointer to the VMA to fetch the
+> > vm_flags value. This patch provides a new __vm_normal_page() which is
+> > receiving the vm_flags flags value as parameter.
+> > 
+> > Note: The speculative path is turned on for architecture providing support
+> > for special PTE flag. So only the first block of vm_normal_page is used
+> > during the speculative path.
 > 
-> This change what do_swap_page() returns ie before it was returning 0
-> when locked pte lookup was different from orig_pte. After this patch
-> it returns VM_FAULT_PTNOTSAME but this is a new return value for
-> handle_mm_fault() (the do_swap_page() return value is what ultimately
-> get return by handle_mm_fault())
-> 
-> Do we really want that ? This might confuse some existing user of
-> handle_mm_fault() and i am not sure of the value of that information
-> to caller.
-> 
-> Note i do understand that you want to return retry if anything did
-> change from underneath and thus need to differentiate from when the
-> pte value are not the same.
-> 
+> Might be a good idea to explicitly have SPECULATIVE Kconfig option depends
+> on ARCH_PTE_SPECIAL and a comment for !HAVE_PTE_SPECIAL in the function
+> explaining that speculative page fault should never reach that point.
 
-I think VM_FAULT_RETRY should be handled appropriately for any user of 
-handle_mm_fault() already, and would be surprised to learn differently.  
-Khugepaged has the appropriate handling.  I think the concern is whether a 
-user is handling anything other than VM_FAULT_RETRY and VM_FAULT_ERROR 
-(which VM_FAULT_PTNOTSAME is not set in)?  I haven't done a full audit of 
-the users.
+Yeah, I think that's appropriate but in a follow-up patch since this is 
+only propagating vma_flags.  It will require that __HAVE_ARCH_PTE_SPECIAL 
+become an actual Kconfig entry, however.
