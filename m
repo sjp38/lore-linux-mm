@@ -1,101 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E0636B0011
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 04:28:56 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id w9-v6so6736583plp.0
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 01:28:56 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id l69si1804425pfk.180.2018.04.03.01.28.54
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BE3C6B0022
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 04:29:36 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 31so9140623wrr.2
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 01:29:36 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n8si1643637wrj.450.2018.04.03.01.29.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Apr 2018 01:28:55 -0700 (PDT)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v30 4/4] virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
-Date: Wed,  4 Apr 2018 00:10:05 +0800
-Message-Id: <1522771805-78927-5-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1522771805-78927-1-git-send-email-wei.w.wang@intel.com>
-References: <1522771805-78927-1-git-send-email-wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Apr 2018 01:29:35 -0700 (PDT)
+Date: Tue, 3 Apr 2018 10:29:34 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: =?utf-8?B?562U5aSN?= =?utf-8?Q?=3A?= [PATCH] mm: limit a process
+ RSS
+Message-ID: <20180403082934.GF5501@dhcp22.suse.cz>
+References: <1522655119-6317-1-git-send-email-lirongqing@baidu.com>
+ <20180403073657.GA5501@dhcp22.suse.cz>
+ <2AD939572F25A448A3AE3CAEA61328C23756E480@BC-MAIL-M28.internal.baidu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <2AD939572F25A448A3AE3CAEA61328C23756E480@BC-MAIL-M28.internal.baidu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: "Li,Rongqing" <lirongqing@baidu.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, "minchan@kernel.org" <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-The VIRTIO_BALLOON_F_PAGE_POISON feature bit is used to indicate if the
-guest is using page poisoning. Guest writes to the poison_val config
-field to tell host about the page poisoning value in use.
+On Tue 03-04-18 08:20:05, Li,Rongqing wrote:
+> 
+> 
+> > -----e?(R)a>>?a??a>>?-----
+> > a??a>>?aoo: Michal Hocko [mailto:mhocko@kernel.org]
+> > a??e??ae??e?': 2018a1'4ae??3ae?JPY 15:37
+> > ae??a>>?aoo: Li,Rongqing <lirongqing@baidu.com>
+> > ae??e??: akpm@linux-foundation.org; kirill.shutemov@linux.intel.com;
+> > jglisse@redhat.com; minchan@kernel.org; linux-mm@kvack.org
+> > a,>>ec?: Re: [PATCH] mm: limit a process RSS
+> > 
+> > On Mon 02-04-18 15:45:19, Li RongQing wrote:
+> > > we cannot limit a process RSS although there is ulimit -m, not sure
+> > > why and when ulimit -m is not working, make it work
+> > 
+> > Could you be more specific about why do you need this functionality?
+> > The RSS limit has never been implemented AFAIK and the main reason is that
+> > the semantic is quite weak to be useful (e.g. the shared memory accounting,
+> > resident memory that is not mapped etc.).
+> 
+> avoid some buggy process will exhaust memory, sometime the engineer
+> did not sure if an application has bug since lots of conditions are
+> needed to trigger bug, like an application will take more and more
+> memory when lots of request arrived.
+> 
+> This method give user an alternative
 
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- drivers/virtio/virtio_balloon.c     | 10 ++++++++++
- include/uapi/linux/virtio_balloon.h |  3 +++
- 2 files changed, 13 insertions(+)
+Which will not work in general.
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 18d24a4..6de9339 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -699,6 +699,7 @@ static struct dentry *balloon_mount(struct file_system_type *fs_type,
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
-+	__u32 poison_val;
- 	int err;
- 
- 	if (!vdev->config->get) {
-@@ -744,6 +745,11 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 		vb->stop_cmd_id = cpu_to_virtio32(vb->vdev,
- 				VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
- 		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
-+		if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON)) {
-+			memset(&poison_val, PAGE_POISON, sizeof(poison_val));
-+			virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-+				      poison_val, &poison_val);
-+		}
- 	}
- 
- 	vb->nb.notifier_call = virtballoon_oom_notify;
-@@ -862,6 +868,9 @@ static int virtballoon_restore(struct virtio_device *vdev)
- 
- static int virtballoon_validate(struct virtio_device *vdev)
- {
-+	if (!page_poisoning_enabled())
-+		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
-+
- 	__virtio_clear_bit(vdev, VIRTIO_F_IOMMU_PLATFORM);
- 	return 0;
- }
-@@ -871,6 +880,7 @@ static int virtballoon_validate(struct virtio_device *vdev)
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
- 	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
-+	VIRTIO_BALLOON_F_PAGE_POISON,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index b2d86c2..8b93581 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -35,6 +35,7 @@
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
- #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
-+#define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
-@@ -47,6 +48,8 @@ struct virtio_balloon_config {
- 	__u32 actual;
- 	/* Free page report command id, readonly by guest */
- 	__u32 free_page_report_cmd_id;
-+	/* Stores PAGE_POISON if page poisoning is in use */
-+	__u32 poison_val;
- };
- 
- #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
+> > 
+> > We have memory cgroup controller as an alternative.
+> 
+> Memory cgroup is to control a group processes, But this method only
+> control a process, if every process has a different limit, lots of
+> cgroup need to create, if lots of cgroup, I think the cgroup maybe not
+> efficient.
+
+Why does each process need a separate limit? Processes usually run in
+sessions with other related processes. If you have a standalone process
+then nothing really prevents it from running inside a dedicated cgroup.
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
