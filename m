@@ -1,127 +1,451 @@
 Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Tue, 3 Apr 2018 23:59:13 +0200
+From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+Subject: [RFC PATCH] mm: use rbtree for page-wait
+Message-ID: <20180403215912.pcnam27taalnl7nh@breakpoint.cc>
 MIME-Version: 1.0
-Date: Sun, 01 Apr 2018 10:01:02 -0700
-Message-ID: <001a113ff9ca1684ab0568cc6bb6@google.com>
-Subject: WARNING in account_page_dirtied
-From: syzbot <syzbot+b7772c65a1d88bfd8fca@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, axboe@kernel.dk, hannes@cmpxchg.org, jack@suse.cz, jlayton@redhat.com, keescook@chromium.org, laoar.shao@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, syzkaller-bugs@googlegroups.com, tytso@mit.edu
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Kan Liang <kan.liang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+I noticed commit 2554db916586 ("sched/wait: Break up long wake list
+walk") in which it is claimed that
+|We saw page wait list that are up to 3700+ entries long in tests of
+|large 4 and 8 socket systems.
 
-syzbot hit the following crash on upstream commit
-10b84daddbec72c6b440216a69de9a9605127f7a (Sat Mar 31 17:59:00 2018 +0000)
-Merge branch 'perf-urgent-for-linus' of  
-git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
-syzbot dashboard link:  
-https://syzkaller.appspot.com/bug?extid=b7772c65a1d88bfd8fca
+Here is another approach: instead of a waitlist a rbtree is used. The
+tree is ordered by page and bit_nr that it waits for. A wake up request
+for specific page + bit_nr combination does not need to browse through
+the whole set of waiters but does only look for the specific waiter(s).
+For the actual wake up wake_q mechanism is used. That means we enqueue
+all to-be-woken tasks on a queue and perform the actual wakeup without
+holding the queue lock.
 
-C reproducer: https://syzkaller.appspot.com/x/repro.c?id=5705587757154304
-syzkaller reproducer:  
-https://syzkaller.appspot.com/x/repro.syz?id=5644332530925568
-Raw console output:  
-https://syzkaller.appspot.com/x/log.txt?id=5472755969425408
-Kernel config:  
-https://syzkaller.appspot.com/x/.config?id=-2760467897697295172
-compiler: gcc (GCC) 7.1.1 20170620
+add_page_wait_queue() is currently not wired up which means it breaks
+the one user we have right now. Instead of fixing that I would be
+interrested in some specific benchmark to see if that is any help or
+just making things worse.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+b7772c65a1d88bfd8fca@syzkaller.appspotmail.com
-It will help syzbot understand when the bug is fixed. See footer for  
-details.
-If you forward the report, please keep this part and the footer.
-
-gfs2: fsid=loop0.0: jid=0, already locked for use
-gfs2: fsid=loop0.0: jid=0: Looking at journal...
-gfs2: fsid=loop0.0: jid=0: Done
-gfs2: fsid=loop0.0: first mount done, others may mount
-gfs2: fsid=loop0.0: found 1 quota changes
-WARNING: CPU: 0 PID: 4469 at ./include/linux/backing-dev.h:341 inode_to_wb  
-include/linux/backing-dev.h:338 [inline]
-WARNING: CPU: 0 PID: 4469 at ./include/linux/backing-dev.h:341  
-account_page_dirtied+0x8f9/0xcb0 mm/page-writeback.c:2416
-Kernel panic - not syncing: panic_on_warn set ...
-
-CPU: 0 PID: 4469 Comm: syzkaller368843 Not tainted 4.16.0-rc7+ #9
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:17 [inline]
-  dump_stack+0x194/0x24d lib/dump_stack.c:53
-  panic+0x1e4/0x41c kernel/panic.c:183
-  __warn+0x1dc/0x200 kernel/panic.c:547
-  report_bug+0x1f4/0x2b0 lib/bug.c:186
-  fixup_bug.part.10+0x37/0x80 arch/x86/kernel/traps.c:178
-  fixup_bug arch/x86/kernel/traps.c:247 [inline]
-  do_error_trap+0x2d7/0x3e0 arch/x86/kernel/traps.c:296
-  do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:315
-  invalid_op+0x1b/0x40 arch/x86/entry/entry_64.S:986
-RIP: 0010:inode_to_wb include/linux/backing-dev.h:338 [inline]
-RIP: 0010:account_page_dirtied+0x8f9/0xcb0 mm/page-writeback.c:2416
-RSP: 0018:ffff8801d966e5c0 EFLAGS: 00010093
-RAX: ffff8801acb7e600 RBX: 1ffff1003b2cdcba RCX: ffffffff818f47a9
-RDX: 0000000000000000 RSI: ffff8801d3338148 RDI: 0000000000000082
-RBP: ffff8801d966e698 R08: 1ffff1003b2cdc13 R09: 000000000000000c
-R10: ffff8801d966e558 R11: 0000000000000002 R12: ffff8801c96f0368
-R13: ffffea0006b12780 R14: ffff8801c96f01d8 R15: ffff8801c96f01d8
-  __set_page_dirty+0x100/0x4b0 fs/buffer.c:605
-  mark_buffer_dirty+0x454/0x5d0 fs/buffer.c:1126
-  gfs2_unpin+0x143/0x12c0 fs/gfs2/lops.c:108
-  buf_lo_after_commit+0x273/0x430 fs/gfs2/lops.c:512
-  lops_after_commit fs/gfs2/lops.h:67 [inline]
-  gfs2_log_flush+0xe2a/0x2750 fs/gfs2/log.c:809
-  do_sync+0x666/0xe40 fs/gfs2/quota.c:958
-  gfs2_quota_sync+0x2cc/0x570 fs/gfs2/quota.c:1301
-  gfs2_sync_fs+0x46/0xb0 fs/gfs2/super.c:956
-  __sync_filesystem fs/sync.c:39 [inline]
-  sync_filesystem+0x188/0x2e0 fs/sync.c:64
-  generic_shutdown_super+0xd5/0x540 fs/super.c:425
-  kill_block_super+0x9b/0xf0 fs/super.c:1146
-  gfs2_kill_sb+0x133/0x1b0 fs/gfs2/ops_fstype.c:1392
-  deactivate_locked_super+0x88/0xd0 fs/super.c:312
-  deactivate_super+0x141/0x1b0 fs/super.c:343
-  cleanup_mnt+0xb2/0x150 fs/namespace.c:1173
-  __cleanup_mnt+0x16/0x20 fs/namespace.c:1180
-  task_work_run+0x199/0x270 kernel/task_work.c:113
-  exit_task_work include/linux/task_work.h:22 [inline]
-  do_exit+0x9bb/0x1ad0 kernel/exit.c:865
-  do_group_exit+0x149/0x400 kernel/exit.c:968
-  SYSC_exit_group kernel/exit.c:979 [inline]
-  SyS_exit_group+0x1d/0x20 kernel/exit.c:977
-  do_syscall_64+0x281/0x940 arch/x86/entry/common.c:287
-  entry_SYSCALL_64_after_hwframe+0x42/0xb7
-RIP: 0033:0x456c29
-RSP: 002b:00007fff74938dc8 EFLAGS: 00000202 ORIG_RAX: 00000000000000e7
-RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000456c29
-RDX: 00000000004170e0 RSI: 0000000000000000 RDI: 0000000000000001
-RBP: 0000000000000003 R08: 000000000000000a R09: 0000000000418100
-R10: 00000000200a9300 R11: 0000000000000202 R12: 0000000000000004
-R13: 0000000000418100 R14: 0000000000000000 R15: 0000000000000000
-Dumping ftrace buffer:
-    (ftrace buffer empty)
-Kernel Offset: disabled
-Rebooting in 86400 seconds..
-
-
+Cc: Kan Liang <kan.liang@intel.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
 ---
-This bug is generated by a dumb bot. It may contain errors.
-See https://goo.gl/tpsmEJ for details.
-Direct all questions to syzkaller@googlegroups.com.
+ mm/filemap.c | 286 +++++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 208 insertions(+), 78 deletions(-)
 
-syzbot will keep track of this bug report.
-If you forgot to add the Reported-by tag, once the fix for this bug is  
-merged
-into any tree, please reply to this email with:
-#syz fix: exact-commit-title
-If you want to test a patch for this bug, please reply with:
-#syz test: git://repo/address.git branch
-and provide the patch inline or as an attachment.
-To mark this as a duplicate of another syzbot report, please reply with:
-#syz dup: exact-subject-of-another-report
-If it's a one-off invalid bug report, please reply with:
-#syz invalid
-Note: if the crash happens again, it will cause creation of a new bug  
-report.
-Note: all commands must start from beginning of the line in the email body.
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 693f62212a59..6f44eaac1a53 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -36,6 +36,7 @@
+ #include <linux/cleancache.h>
+ #include <linux/shmem_fs.h>
+ #include <linux/rmap.h>
++#include <linux/sched/wake_q.h>
+ #include "internal.h"
+ 
+ #define CREATE_TRACE_POINTS
+@@ -957,11 +958,15 @@ EXPORT_SYMBOL(__page_cache_alloc);
+  * at a cost of "thundering herd" phenomena during rare hash
+  * collisions.
+  */
++struct page_wait_rb {
++	struct rb_root	tree;
++	spinlock_t	lock;
++};
++
+ #define PAGE_WAIT_TABLE_BITS 8
+ #define PAGE_WAIT_TABLE_SIZE (1 << PAGE_WAIT_TABLE_BITS)
+-static wait_queue_head_t page_wait_table[PAGE_WAIT_TABLE_SIZE] __cacheline_aligned;
+-
+-static wait_queue_head_t *page_waitqueue(struct page *page)
++static struct page_wait_rb page_wait_table[PAGE_WAIT_TABLE_SIZE] __cacheline_aligned;
++static struct page_wait_rb *page_waitqueue(struct page *page)
+ {
+ 	return &page_wait_table[hash_ptr(page, PAGE_WAIT_TABLE_BITS)];
+ }
+@@ -970,77 +975,134 @@ void __init pagecache_init(void)
+ {
+ 	int i;
+ 
+-	for (i = 0; i < PAGE_WAIT_TABLE_SIZE; i++)
+-		init_waitqueue_head(&page_wait_table[i]);
++	for (i = 0; i < PAGE_WAIT_TABLE_SIZE; i++) {
++		spin_lock_init(&page_wait_table[i].lock);
++		page_wait_table[i].tree = RB_ROOT;
++	}
+ 
+ 	page_writeback_init();
+ }
+ 
+ /* This has the same layout as wait_bit_key - see fs/cachefiles/rdwr.c */
+-struct wait_page_key {
+-	struct page *page;
+-	int bit_nr;
+-	int page_match;
+-};
+-
+ struct wait_page_queue {
++	struct rb_node node;
+ 	struct page *page;
+ 	int bit_nr;
+-	wait_queue_entry_t wait;
++	bool one;
++	bool dequeued;
++	struct task_struct *task;
++	struct list_head queue;
++	struct list_head head;
+ };
+ 
+-static int wake_page_function(wait_queue_entry_t *wait, unsigned mode, int sync, void *arg)
++static int wake_page_match(struct page *page, int bit_nr,
++			   struct wait_page_queue *page_q, bool *page_match)
+ {
+-	struct wait_page_key *key = arg;
+-	struct wait_page_queue *wait_page
+-		= container_of(wait, struct wait_page_queue, wait);
+-
+-	if (wait_page->page != key->page)
+-	       return 0;
+-	key->page_match = 1;
+-
+-	if (wait_page->bit_nr != key->bit_nr)
+-		return 0;
+-
+-	/* Stop walking if it's locked */
+-	if (test_bit(key->bit_nr, &key->page->flags))
++	if ((unsigned long)page < (unsigned long)page_q->page)
+ 		return -1;
+ 
+-	return autoremove_wake_function(wait, mode, sync, key);
++	if ((unsigned long)page > (unsigned long)page_q->page)
++		return 1;
++
++	/* page hit */
++	*page_match = true;
++
++	if (bit_nr < page_q->bit_nr)
++		return -1;
++
++	if (bit_nr > page_q->bit_nr)
++		return 1;
++
++	return 0;
++}
++
++static struct rb_node *find_wake_page(struct page_wait_rb *rb,
++				      struct page *page, int bit_nr,
++				      bool *page_match)
++{
++	struct rb_node *node;
++
++	node = rb->tree.rb_node;
++	while (node) {
++		struct wait_page_queue *page_q;
++		int match;
++
++		page_q = rb_entry(node, struct wait_page_queue, node);
++		match = wake_page_match(page, bit_nr, page_q, page_match);
++
++		if (match < 0)
++			node = node->rb_left;
++		else if (match > 0)
++			node = node->rb_right;
++		else
++			break;
++	}
++	return node;
++}
++
++static void wake_up_rb(struct page_wait_rb *rb, struct wake_q_head *wake_q,
++		       struct wait_page_queue *page_q)
++{
++	struct wait_page_queue *next;
++	struct rb_node *node = &page_q->node;
++
++	while (1) {
++		struct task_struct *t;
++		bool one;
++
++		if (list_empty(&page_q->head)) {
++
++			rb_erase(node, &rb->tree);
++			RB_CLEAR_NODE(node);
++
++			t = READ_ONCE(page_q->task);
++			/* full barrier in wake_q_add() */
++			page_q->dequeued = true;
++			wake_q_add(wake_q, t);
++			break;
++		}
++
++		next = list_first_entry(&page_q->head, struct wait_page_queue,
++					queue);
++
++		list_del_init(&next->queue);
++		list_splice_init(&page_q->head, &next->head);
++
++		rb_replace_node(node, &next->node, &rb->tree);
++		RB_CLEAR_NODE(node);
++		t = READ_ONCE(page_q->task);
++		one = READ_ONCE(page_q->one);
++
++		/* full barrier in wake_q_add() */
++		page_q->dequeued = true;
++		wake_q_add(wake_q, t);
++		if (one == true)
++			break;
++		page_q = next;
++		node = &page_q->node;
++	}
+ }
+ 
+ static void wake_up_page_bit(struct page *page, int bit_nr)
+ {
+-	wait_queue_head_t *q = page_waitqueue(page);
+-	struct wait_page_key key;
++	struct page_wait_rb *rb = page_waitqueue(page);
++	struct wait_page_queue *page_q;
++	struct rb_node *node;
+ 	unsigned long flags;
+-	wait_queue_entry_t bookmark;
++	bool page_match = false;
++	DEFINE_WAKE_Q(wake_q);
+ 
+-	key.page = page;
+-	key.bit_nr = bit_nr;
+-	key.page_match = 0;
++	spin_lock_irqsave(&rb->lock, flags);
+ 
+-	bookmark.flags = 0;
+-	bookmark.private = NULL;
+-	bookmark.func = NULL;
+-	INIT_LIST_HEAD(&bookmark.entry);
++	node = find_wake_page(rb, page, bit_nr, &page_match);
++	if (node) {
+ 
+-	spin_lock_irqsave(&q->lock, flags);
+-	__wake_up_locked_key_bookmark(q, TASK_NORMAL, &key, &bookmark);
+-
+-	while (bookmark.flags & WQ_FLAG_BOOKMARK) {
+-		/*
+-		 * Take a breather from holding the lock,
+-		 * allow pages that finish wake up asynchronously
+-		 * to acquire the lock and remove themselves
+-		 * from wait queue
+-		 */
+-		spin_unlock_irqrestore(&q->lock, flags);
+-		cpu_relax();
+-		spin_lock_irqsave(&q->lock, flags);
+-		__wake_up_locked_key_bookmark(q, TASK_NORMAL, &key, &bookmark);
++		page_q = rb_entry(node, struct wait_page_queue, node);
++		/* Stop walking if it's locked */
++		if (test_bit(bit_nr, &page->flags))
++			goto no_wakeup;
++		wake_up_rb(rb, &wake_q, page_q);
+ 	}
+-
+ 	/*
+ 	 * It is possible for other pages to have collided on the waitqueue
+ 	 * hash, so in that case check for a page match. That prevents a long-
+@@ -1050,7 +1112,7 @@ static void wake_up_page_bit(struct page *page, int bit_nr)
+ 	 * and removed them from the waitqueue, but there are still other
+ 	 * page waiters.
+ 	 */
+-	if (!waitqueue_active(q) || !key.page_match) {
++	if (!page_match || RB_EMPTY_ROOT(&rb->tree)) {
+ 		ClearPageWaiters(page);
+ 		/*
+ 		 * It's possible to miss clearing Waiters here, when we woke
+@@ -1060,7 +1122,10 @@ static void wake_up_page_bit(struct page *page, int bit_nr)
+ 		 * That's okay, it's a rare case. The next waker will clear it.
+ 		 */
+ 	}
+-	spin_unlock_irqrestore(&q->lock, flags);
++no_wakeup:
++
++	spin_unlock_irqrestore(&rb->lock, flags);
++	wake_up_q(&wake_q);
+ }
+ 
+ static void wake_up_page(struct page *page, int bit)
+@@ -1070,30 +1135,63 @@ static void wake_up_page(struct page *page, int bit)
+ 	wake_up_page_bit(page, bit);
+ }
+ 
+-static inline int wait_on_page_bit_common(wait_queue_head_t *q,
+-		struct page *page, int bit_nr, int state, bool lock)
++static int wait_on_page_bit_common(struct page_wait_rb *rb, struct page *page,
++				   int bit_nr, int state, bool lock)
+ {
+-	struct wait_page_queue wait_page;
+-	wait_queue_entry_t *wait = &wait_page.wait;
++	struct wait_page_queue page_q;
++	struct rb_node *node = &page_q.node;
++	struct rb_node **p;
++	struct rb_node *parent;
+ 	int ret = 0;
+ 
+-	init_wait(wait);
+-	wait->flags = lock ? WQ_FLAG_EXCLUSIVE : 0;
+-	wait->func = wake_page_function;
+-	wait_page.page = page;
+-	wait_page.bit_nr = bit_nr;
++	page_q.page = page;
++	page_q.bit_nr = bit_nr;
++	page_q.task = current;
++	page_q.one = lock;
++	INIT_LIST_HEAD(&page_q.queue);
++	INIT_LIST_HEAD(&page_q.head);
++	RB_CLEAR_NODE(&page_q.node);
+ 
+ 	for (;;) {
+-		spin_lock_irq(&q->lock);
++		spin_lock_irq(&rb->lock);
+ 
+-		if (likely(list_empty(&wait->entry))) {
+-			__add_wait_queue_entry_tail(q, wait);
+-			SetPageWaiters(page);
++		if (likely(RB_EMPTY_NODE(node)) &&
++			list_empty(&page_q.queue)) {
++
++			page_q.dequeued = false;
++
++			p = &rb->tree.rb_node;
++			parent = NULL;
++			while (*p) {
++				struct wait_page_queue *tmp;
++				int match;
++				bool page_match;
++
++				parent = *p;
++				tmp = rb_entry(parent, struct wait_page_queue, node);
++
++				match = wake_page_match(page, bit_nr, tmp, &page_match);
++
++				if (match < 0) {
++					p = &parent->rb_left;
++
++				} else if (match > 0) {
++					p = &parent->rb_right;
++				} else {
++					list_add_tail(&page_q.queue,
++						      &tmp->head);
++					break;
++				}
++			}
++			if (list_empty(&page_q.queue)) {
++				rb_link_node(node, parent, p);
++				rb_insert_color(node, &rb->tree);
++			}
+ 		}
+-
++		SetPageWaiters(page);
+ 		set_current_state(state);
+ 
+-		spin_unlock_irq(&q->lock);
++		spin_unlock_irq(&rb->lock);
+ 
+ 		if (likely(test_bit(bit_nr, &page->flags))) {
+ 			io_schedule();
+@@ -1112,8 +1210,34 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
+ 			break;
+ 		}
+ 	}
++	__set_current_state(TASK_RUNNING);
+ 
+-	finish_wait(q, wait);
++	/* paired with the full barrier in wake_q_add() */
++	smp_rmb();
++	if (!page_q.dequeued) {
++		spin_lock_irq(&rb->lock);
++
++		if (!list_empty(&page_q.queue))
++			list_del_init(&page_q.queue);
++
++		if (!list_empty(&page_q.head)) {
++			struct wait_page_queue *tmp;
++
++			BUG_ON(RB_EMPTY_NODE(node));
++
++			tmp = list_first_entry(&page_q.head,
++					       struct wait_page_queue,
++					       queue);
++			list_del_init(&tmp->queue);
++			list_splice(&page_q.head, &tmp->head);
++
++			rb_replace_node(node, &tmp->node, &rb->tree);
++
++		} else if (!RB_EMPTY_NODE(node)) {
++			rb_erase(node, &rb->tree);
++		}
++		spin_unlock_irq(&rb->lock);
++	}
+ 
+ 	/*
+ 	 * A signal could leave PageWaiters set. Clearing it here if
+@@ -1128,18 +1252,21 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
+ 
+ void wait_on_page_bit(struct page *page, int bit_nr)
+ {
+-	wait_queue_head_t *q = page_waitqueue(page);
+-	wait_on_page_bit_common(q, page, bit_nr, TASK_UNINTERRUPTIBLE, false);
++	struct page_wait_rb *rb = page_waitqueue(page);
++
++	wait_on_page_bit_common(rb, page, bit_nr, TASK_UNINTERRUPTIBLE, false);
+ }
+ EXPORT_SYMBOL(wait_on_page_bit);
+ 
+ int wait_on_page_bit_killable(struct page *page, int bit_nr)
+ {
+-	wait_queue_head_t *q = page_waitqueue(page);
+-	return wait_on_page_bit_common(q, page, bit_nr, TASK_KILLABLE, false);
++	struct page_wait_rb *rb = page_waitqueue(page);
++
++	return wait_on_page_bit_common(rb, page, bit_nr, TASK_KILLABLE, false);
+ }
+ EXPORT_SYMBOL(wait_on_page_bit_killable);
+ 
++#if 0
+ /**
+  * add_page_wait_queue - Add an arbitrary waiter to a page's wait queue
+  * @page: Page defining the wait queue of interest
+@@ -1158,6 +1285,7 @@ void add_page_wait_queue(struct page *page, wait_queue_entry_t *waiter)
+ 	spin_unlock_irqrestore(&q->lock, flags);
+ }
+ EXPORT_SYMBOL_GPL(add_page_wait_queue);
++#endif
+ 
+ #ifndef clear_bit_unlock_is_negative_byte
+ 
+@@ -1268,16 +1396,18 @@ EXPORT_SYMBOL_GPL(page_endio);
+ void __lock_page(struct page *__page)
+ {
+ 	struct page *page = compound_head(__page);
+-	wait_queue_head_t *q = page_waitqueue(page);
+-	wait_on_page_bit_common(q, page, PG_locked, TASK_UNINTERRUPTIBLE, true);
++	struct page_wait_rb *rb = page_waitqueue(page);
++
++	wait_on_page_bit_common(rb, page, PG_locked, TASK_UNINTERRUPTIBLE, true);
+ }
+ EXPORT_SYMBOL(__lock_page);
+ 
+ int __lock_page_killable(struct page *__page)
+ {
+ 	struct page *page = compound_head(__page);
+-	wait_queue_head_t *q = page_waitqueue(page);
+-	return wait_on_page_bit_common(q, page, PG_locked, TASK_KILLABLE, true);
++	struct page_wait_rb *rb = page_waitqueue(page);
++
++	return wait_on_page_bit_common(rb, page, PG_locked, TASK_KILLABLE, true);
+ }
+ EXPORT_SYMBOL_GPL(__lock_page_killable);
+ 
+-- 
+2.16.3
