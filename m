@@ -1,48 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 85BE96B0006
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 09:06:31 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e185so7431718wmg.5
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 06:06:31 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 12si2111682wmy.271.2018.04.03.06.06.29
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 110C96B0006
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 09:10:28 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id o2-v6so7313036plk.14
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 06:10:28 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id s66si1936892pgb.59.2018.04.03.06.10.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Apr 2018 06:06:30 -0700 (PDT)
-Date: Tue, 3 Apr 2018 15:06:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Check for SIGKILL inside dup_mmap() loop.
-Message-ID: <20180403130628.GZ5501@dhcp22.suse.cz>
-References: <1522322870-4335-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180329143003.c52ada618be599c5358e8ca2@linux-foundation.org>
- <201803301934.DHF12420.SOFFJQMLVtHOOF@I-love.SAKURA.ne.jp>
- <20180403121414.GD5832@bombadil.infradead.org>
- <20180403121950.GW5501@dhcp22.suse.cz>
- <201804032129.HIH05759.FJOFOQLtVHMFSO@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 03 Apr 2018 06:10:26 -0700 (PDT)
+Date: Tue, 3 Apr 2018 06:10:25 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: Signal handling in a page fault handler
+Message-ID: <20180403131025.GF5832@bombadil.infradead.org>
+References: <20180402141058.GL13332@bombadil.infradead.org>
+ <152275879566.32747.9293394837417347482@mail.alporthouse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201804032129.HIH05759.FJOFOQLtVHMFSO@I-love.SAKURA.ne.jp>
+In-Reply-To: <152275879566.32747.9293394837417347482@mail.alporthouse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: willy@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, kirill.shutemov@linux.intel.com, riel@redhat.com
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Souptick Joarder <jrdr.linux@gmail.com>, linux-kernel@vger.kernel.org
 
-On Tue 03-04-18 21:29:52, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-[...]
-> > Please be aware that we _do_ allocate in the exit path. I have a strong
-> > suspicion that even while fatal signal is pending. Do we really want
-> > fail those really easily.
+On Tue, Apr 03, 2018 at 01:33:15PM +0100, Chris Wilson wrote:
+> Quoting Matthew Wilcox (2018-04-02 15:10:58)
+> > Souptick and I have been auditing the various page fault handler routines
+> > and we've noticed that graphics drivers assume that a signal should be
+> > able to interrupt a page fault.  In contrast, the page cache takes great
+> > care to allow only fatal signals to interrupt a page fault.
+> > 
+> > I believe (but have not verified) that a non-fatal signal being delivered
+> > to a task which is in the middle of a page fault may well end up in an
+> > infinite loop, attempting to handle the page fault and failing forever.
+> > 
+> > Here's one of the simpler ones:
+> > 
+> >         ret = mutex_lock_interruptible(&etnaviv_obj->lock);
+> >         if (ret)
+> >                 return VM_FAULT_NOPAGE;
+> > 
+> > (many other drivers do essentially the same thing including i915)
+> > 
+> > On seeing NOPAGE, the fault handler believes the PTE is in the page
+> > table, so does nothing before it returns to arch code at which point
+> > I get lost in the magic assembler macros.  I believe it will end up
+> > returning to userspace if the signal is non-fatal, at which point it'll
+> > go right back into the page fault handler, and mutex_lock_interruptible()
+> > will immediately fail.  So we've converted a sleeping lock into the most
+> > expensive spinlock.
 > 
-> Does the exit path mean inside do_exit() ? If yes, fatal signals are already
-> cleared before reaching do_exit().
+> I'll ask the obvious question: why isn't the signal handled on return to
+> userspace?
 
-They usually are. But we can send a SIGKILL on an already killed task
-after it removed the previously deadly signal already AFAIR. Maybe I
-mis-remember of course. Signal handling code always makes my head
-explode and I tend to forget all the details. Anyway relying on
-fatal_signal_pending for some allocator semantic is just too subtle.
--- 
-Michal Hocko
-SUSE Labs
+As I said, I don't know exactly how it works due to getting lost in the
+assembler parts of kernel entry/exit.  But if it did work, then wouldn't
+the page cache use it, rather than taking such great pains to only handle
+fatal signals?  See commit 37b23e0525d393d48a7d59f870b3bc061a30ccdb
+which introduced it.
+
+One thing I did come up with is: What if the signal handler is the
+one touching the page that needs to be faulted in?  And for the page
+cache case, what if the page that needs to be faulted in is the page
+containing the text of the signal handler?  (I don't think we support
+mapping graphics memory PROT_EXEC ;-)
+
+> > I don't think the graphics drivers really want to be interrupted by
+> > any signal.
+> 
+> Assume the worst case and we may block for 10s. Even a 10ms delay may be
+> unacceptable to some signal handlers (one presumes). For the number one
+> ^C usecase, yes that may be reduced to only bother if it's killable, but
+> I wonder if there are not timing loops (e.g. sigitimer in Xorg < 1.19)
+> that want to be able to interrupt random blockages.
+
+Ah, setitimer / SIGALRM.  So what do we want to have happen if that
+signal handler touches the mmaped device memory?
