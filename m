@@ -1,64 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DCD556B0005
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 08:16:18 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id s23-v6so9606155plr.15
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 05:16:18 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 406E56B0007
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 08:19:53 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id g61-v6so9612625plb.10
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 05:19:53 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y11si1806527pgo.735.2018.04.03.05.16.17
+        by mx.google.com with ESMTPS id x7si2130777pfk.311.2018.04.03.05.19.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Apr 2018 05:16:18 -0700 (PDT)
-Date: Tue, 3 Apr 2018 14:16:14 +0200
+        Tue, 03 Apr 2018 05:19:52 -0700 (PDT)
+Date: Tue, 3 Apr 2018 14:19:50 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180403121614.GV5501@dhcp22.suse.cz>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
- <20180330102038.2378925b@gandalf.local.home>
- <20180403110612.GM5501@dhcp22.suse.cz>
- <20180403075158.0c0a2795@gandalf.local.home>
+Subject: Re: [PATCH] mm: Check for SIGKILL inside dup_mmap() loop.
+Message-ID: <20180403121950.GW5501@dhcp22.suse.cz>
+References: <1522322870-4335-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180329143003.c52ada618be599c5358e8ca2@linux-foundation.org>
+ <201803301934.DHF12420.SOFFJQMLVtHOOF@I-love.SAKURA.ne.jp>
+ <20180403121414.GD5832@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180403075158.0c0a2795@gandalf.local.home>
+In-Reply-To: <20180403121414.GD5832@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, kirill.shutemov@linux.intel.com, riel@redhat.com
 
-On Tue 03-04-18 07:51:58, Steven Rostedt wrote:
-> On Tue, 3 Apr 2018 13:06:12 +0200
-> Michal Hocko <mhocko@kernel.org> wrote:
+On Tue 03-04-18 05:14:14, Matthew Wilcox wrote:
+> On Fri, Mar 30, 2018 at 07:34:59PM +0900, Tetsuo Handa wrote:
+> > Maybe we can make "give up by default upon SIGKILL" and let callers
+> > explicitly say "do not give up upon SIGKILL".
 > 
-> > > I wonder if I should have the ring buffer allocate groups of pages, to
-> > > avoid this. Or try to allocate with NORETRY, one page at a time, and
-> > > when that fails, allocate groups of pages with RETRY_MAYFAIL, and that
-> > > may keep it from causing an OOM?  
-> > 
-> > I wonder why it really matters. The interface is root only and we expect
-> > some sanity from an admin, right? So allocating such a large ring buffer
-> > that it sends the system to the OOM is a sign that the admin should be
-> > more careful. Balancing on the OOM edge is always a risk and the result
-> > will highly depend on the workload running in parallel.
+> I really strongly disapprove of this patch.  This GFP flag will be abused
+> like every other GFP flag.
 > 
-> This came up because there's scripts or programs that set the size of
-> the ring buffer. The complaint was that the application would just set
-> the size to something bigger than what was available and cause an OOM
-> killing other applications. The final solution is to simply check the
-> available memory before allocating the ring buffer:
+> > +++ b/mm/page_alloc.c
+> > @@ -4183,6 +4183,13 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+> >  	if (current->flags & PF_MEMALLOC)
+> >  		goto nopage;
+> >  
+> > +	/* Can give up if caller is willing to give up upon fatal signals */
+> > +	if (fatal_signal_pending(current) &&
+> > +	    !(gfp_mask & (__GFP_UNKILLABLE | __GFP_NOFAIL))) {
+> > +		gfp_mask |= __GFP_NOWARN;
+> > +		goto nopage;
+> > +	}
+> > +
+> >  	/* Try direct reclaim and then allocating */
 > 
-> 	/* Check if the available memory is there first */
-> 	i = si_mem_available();
-> 	if (i < nr_pages)
-> 		return -ENOMEM;
+> This part is superficially tempting, although without the UNKILLABLE.  ie:
 > 
-> And it works well.
+> +	if (fatal_signal_pending(current) && !(gfp_mask & __GFP_NOFAIL)) {
+> +		gfp_mask |= __GFP_NOWARN;
+> +		goto nopage;
+> +	}
+> 
+> It makes some sense to me to prevent tasks with a fatal signal pending
+> from being able to trigger reclaim.  But I'm worried about what memory
+> allocation failures it might trigger on paths that aren't accustomed to
+> seeing failures.
 
-Except that it doesn't work. si_mem_available is not really suitable for
-any allocation estimations. Its only purpose is to provide a very rough
-estimation for userspace. Any other use is basically abuse. The
-situation can change really quickly. Really it is really hard to be
-clever here with the volatility the memory allocations can cause.
+Please be aware that we _do_ allocate in the exit path. I have a strong
+suspicion that even while fatal signal is pending. Do we really want
+fail those really easily.
 -- 
 Michal Hocko
 SUSE Labs
