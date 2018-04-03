@@ -1,204 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E75156B0003
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 16:37:24 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id k135so13364063qke.6
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 13:37:24 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 26si1506836qtm.314.2018.04.03.13.37.23
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E64B6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 16:40:22 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id t8-v6so9059274ply.22
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 13:40:22 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i190sor851824pge.333.2018.04.03.13.40.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Apr 2018 13:37:23 -0700 (PDT)
-Date: Tue, 3 Apr 2018 16:37:18 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH v9 00/24] Speculative page faults
-Message-ID: <20180403203718.GE5935@redhat.com>
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Tue, 03 Apr 2018 13:40:20 -0700 (PDT)
+Date: Tue, 3 Apr 2018 13:40:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v9 06/24] mm: make pte_unmap_same compatible with SPF
+In-Reply-To: <20180403191005.GC5935@redhat.com>
+Message-ID: <alpine.DEB.2.20.1804031338260.172772@chino.kir.corp.google.com>
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-7-git-send-email-ldufour@linux.vnet.ibm.com> <20180403191005.GC5935@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Tue, Mar 13, 2018 at 06:59:30PM +0100, Laurent Dufour wrote:
-> This is a port on kernel 4.16 of the work done by Peter Zijlstra to
-> handle page fault without holding the mm semaphore [1].
+On Tue, 3 Apr 2018, Jerome Glisse wrote:
+
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 21b1212a0892..4bc7b0bdcb40 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -2309,21 +2309,29 @@ static bool pte_map_lock(struct vm_fault *vmf)
+> >   * parts, do_swap_page must check under lock before unmapping the pte and
+> >   * proceeding (but do_wp_page is only called after already making such a check;
+> >   * and do_anonymous_page can safely check later on).
+> > + *
+> > + * pte_unmap_same() returns:
+> > + *	0			if the PTE are the same
+> > + *	VM_FAULT_PTNOTSAME	if the PTE are different
+> > + *	VM_FAULT_RETRY		if the VMA has changed in our back during
+> > + *				a speculative page fault handling.
+> >   */
+> > -static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
+> > -				pte_t *page_table, pte_t orig_pte)
+> > +static inline int pte_unmap_same(struct vm_fault *vmf)
+> >  {
+> > -	int same = 1;
+> > +	int ret = 0;
+> > +
+> >  #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
+> >  	if (sizeof(pte_t) > sizeof(unsigned long)) {
+> > -		spinlock_t *ptl = pte_lockptr(mm, pmd);
+> > -		spin_lock(ptl);
+> > -		same = pte_same(*page_table, orig_pte);
+> > -		spin_unlock(ptl);
+> > +		if (pte_spinlock(vmf)) {
+> > +			if (!pte_same(*vmf->pte, vmf->orig_pte))
+> > +				ret = VM_FAULT_PTNOTSAME;
+> > +			spin_unlock(vmf->ptl);
+> > +		} else
+> > +			ret = VM_FAULT_RETRY;
+> >  	}
+> >  #endif
+> > -	pte_unmap(page_table);
+> > -	return same;
+> > +	pte_unmap(vmf->pte);
+> > +	return ret;
+> >  }
+> >  
+> >  static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
+> > @@ -2913,7 +2921,8 @@ int do_swap_page(struct vm_fault *vmf)
+> >  	int exclusive = 0;
+> >  	int ret = 0;
+> >  
+> > -	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte))
+> > +	ret = pte_unmap_same(vmf);
+> > +	if (ret)
+> >  		goto out;
+> >  
 > 
-> The idea is to try to handle user space page faults without holding the
-> mmap_sem. This should allow better concurrency for massively threaded
-> process since the page fault handler will not wait for other threads memory
-> layout change to be done, assuming that this change is done in another part
-> of the process's memory space. This type page fault is named speculative
-> page fault. If the speculative page fault fails because of a concurrency is
-> detected or because underlying PMD or PTE tables are not yet allocating, it
-> is failing its processing and a classic page fault is then tried.
+> This change what do_swap_page() returns ie before it was returning 0
+> when locked pte lookup was different from orig_pte. After this patch
+> it returns VM_FAULT_PTNOTSAME but this is a new return value for
+> handle_mm_fault() (the do_swap_page() return value is what ultimately
+> get return by handle_mm_fault())
 > 
-> The speculative page fault (SPF) has to look for the VMA matching the fault
-> address without holding the mmap_sem, this is done by introducing a rwlock
-> which protects the access to the mm_rb tree. Previously this was done using
-> SRCU but it was introducing a lot of scheduling to process the VMA's
-> freeing
-> operation which was hitting the performance by 20% as reported by Kemi Wang
-> [2].Using a rwlock to protect access to the mm_rb tree is limiting the
-> locking contention to these operations which are expected to be in a O(log
-> n)
-> order. In addition to ensure that the VMA is not freed in our back a
-> reference count is added and 2 services (get_vma() and put_vma()) are
-> introduced to handle the reference count. When a VMA is fetch from the RB
-> tree using get_vma() is must be later freeed using put_vma(). Furthermore,
-> to allow the VMA to be used again by the classic page fault handler a
-> service is introduced can_reuse_spf_vma(). This service is expected to be
-> called with the mmap_sem hold. It checked that the VMA is still matching
-> the specified address and is releasing its reference count as the mmap_sem
-> is hold it is ensure that it will not be freed in our back. In general, the
-> VMA's reference count could be decremented when holding the mmap_sem but it
-> should not be increased as holding the mmap_sem is ensuring that the VMA is
-> stable. I can't see anymore the overhead I got while will-it-scale
-> benchmark anymore.
+> Do we really want that ? This might confuse some existing user of
+> handle_mm_fault() and i am not sure of the value of that information
+> to caller.
 > 
-> The VMA's attributes checked during the speculative page fault processing
-> have to be protected against parallel changes. This is done by using a per
-> VMA sequence lock. This sequence lock allows the speculative page fault
-> handler to fast check for parallel changes in progress and to abort the
-> speculative page fault in that case.
+> Note i do understand that you want to return retry if anything did
+> change from underneath and thus need to differentiate from when the
+> pte value are not the same.
 > 
-> Once the VMA is found, the speculative page fault handler would check for
-> the VMA's attributes to verify that the page fault has to be handled
-> correctly or not. Thus the VMA is protected through a sequence lock which
-> allows fast detection of concurrent VMA changes. If such a change is
-> detected, the speculative page fault is aborted and a *classic* page fault
-> is tried.  VMA sequence lockings are added when VMA attributes which are
-> checked during the page fault are modified.
-> 
-> When the PTE is fetched, the VMA is checked to see if it has been changed,
-> so once the page table is locked, the VMA is valid, so any other changes
-> leading to touching this PTE will need to lock the page table, so no
-> parallel change is possible at this time.
 
-What would have been nice is some pseudo highlevel code before all the
-above detailed description. Something like:
-  speculative_fault(addr) {
-    mm_lock_for_vma_snapshot()
-    vma_snapshot = snapshot_vma_infos(addr)
-    mm_unlock_for_vma_snapshot()
-    ...
-    if (!vma_can_speculatively_fault(vma_snapshot, addr))
-        return;
-    ...
-    /* Do fault ie alloc memory, read from file ... */
-    page = ...;
-
-    preempt_disable();
-    if (vma_snapshot_still_valid(vma_snapshot, addr) &&
-        vma_pte_map_lock(vma_snapshot, addr)) {
-        if (pte_same(ptep, orig_pte)) {
-            /* Setup new pte */
-            page = NULL;
-        }
-    }
-    preempt_enable();
-    if (page)
-        put(page)
-  }
-
-I just find pseudo code easier for grasping the highlevel view of the
-expected code flow.
-
-
-> 
-> The locking of the PTE is done with interrupts disabled, this allows to
-> check for the PMD to ensure that there is not an ongoing collapsing
-> operation. Since khugepaged is firstly set the PMD to pmd_none and then is
-> waiting for the other CPU to have catch the IPI interrupt, if the pmd is
-> valid at the time the PTE is locked, we have the guarantee that the
-> collapsing opertion will have to wait on the PTE lock to move foward. This
-> allows the SPF handler to map the PTE safely. If the PMD value is different
-> than the one recorded at the beginning of the SPF operation, the classic
-> page fault handler will be called to handle the operation while holding the
-> mmap_sem. As the PTE lock is done with the interrupts disabled, the lock is
-> done using spin_trylock() to avoid dead lock when handling a page fault
-> while a TLB invalidate is requested by an other CPU holding the PTE.
-> 
-> Support for THP is not done because when checking for the PMD, we can be
-> confused by an in progress collapsing operation done by khugepaged. The
-> issue is that pmd_none() could be true either if the PMD is not already
-> populated or if the underlying PTE are in the way to be collapsed. So we
-> cannot safely allocate a PMD if pmd_none() is true.
-
-Might be a good topic fo LSF/MM, should we set the pmd to something
-else then 0 when collapsing pmd (apply to pud too) ? This would allow
-support THP.
-
-[...]
-
-> 
-> Ebizzy:
-> -------
-> The test is counting the number of records per second it can manage, the
-> higher is the best. I run it like this 'ebizzy -mTRp'. To get consistent
-> result I repeated the test 100 times and measure the average result. The
-> number is the record processes per second, the higher is the best.
-> 
->   		BASE		SPF		delta	
-> 16 CPUs x86 VM	14902.6		95905.16	543.55%
-> 80 CPUs P8 node	37240.24	78185.67	109.95%
-
-I find those results interesting as it seems that SPF do not scale well
-on big configuration. Note that it still have a sizeable improvement so
-it is still a very interesting feature i believe.
-
-Still understanding what is happening here might a good idea. From the
-numbers below it seems there is 2 causes to the scaling issue. First
-pte lock contention (kind of expected i guess). Second changes to vma
-while faulting.
-
-Have you thought about this ? Do i read those numbers in the wrong way ?
-
-> 
-> Here are the performance counter read during a run on a 16 CPUs x86 VM:
->  Performance counter stats for './ebizzy -mRTp':
->             888157      faults
->             884773      spf
->                 92      pagefault:spf_pte_lock
->               2379      pagefault:spf_vma_changed
->                  0      pagefault:spf_vma_noanon
->                 80      pagefault:spf_vma_notsup
->                  0      pagefault:spf_vma_access
->                  0      pagefault:spf_pmd_changed
-> 
-> And the ones captured during a run on a 80 CPUs Power node:
->  Performance counter stats for './ebizzy -mRTp':
->             762134      faults
->             728663      spf
->              19101      pagefault:spf_pte_lock
->              13969      pagefault:spf_vma_changed
->                  0      pagefault:spf_vma_noanon
->                272      pagefault:spf_vma_notsup
->                  0      pagefault:spf_vma_access
->                  0      pagefault:spf_pmd_changed
-
-
-There is one aspect that i would like to see cover. Maybe i am not
-understanding something fundamental, but it seems to me that SPF can
-trigger OOM or at very least over stress page allocation.
-
-Assume you have a lot of concurrent SPF to anonymous vma and they all
-allocate new pages, then you might overallocate for a single address
-by a factor correlated with the number of CPUs in your system. Now,
-multiply this for several distinc address and you might be allocating
-a lot of memory transiently ie just for a short period time. While
-the fact that you quickly free when you fail should prevent the OOM
-reaper. But still this might severly stress the memory allocation
-path.
-
-Am i missing something in how this all work ? Or is the above some-
-thing that might be of concern ? Should there be some boundary on the
-maximum number of concurrent SPF (and thus boundary on maximum page
-temporary page allocation) ?
-
-Cheers,
-Jerome
+I think VM_FAULT_RETRY should be handled appropriately for any user of 
+handle_mm_fault() already, and would be surprised to learn differently.  
+Khugepaged has the appropriate handling.  I think the concern is whether a 
+user is handling anything other than VM_FAULT_RETRY and VM_FAULT_ERROR 
+(which VM_FAULT_PTNOTSAME is not set in)?  I haven't done a full audit of 
+the users.
