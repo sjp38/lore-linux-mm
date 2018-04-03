@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A5D46B0003
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 19:57:07 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 61-v6so3716453plz.20
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 16:57:07 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8108D6B0003
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 20:11:45 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id q12-v6so5020881plr.17
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 17:11:45 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i124sor362708pgc.177.2018.04.02.16.57.06
+        by mx.google.com with SMTPS id u13-v6sor642181plq.11.2018.04.02.17.11.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 02 Apr 2018 16:57:06 -0700 (PDT)
-Date: Mon, 2 Apr 2018 16:57:03 -0700 (PDT)
+        Mon, 02 Apr 2018 17:11:44 -0700 (PDT)
+Date: Mon, 2 Apr 2018 17:11:42 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v9 16/24] mm: Introduce __page_add_new_anon_rmap()
-In-Reply-To: <1520963994-28477-17-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.20.1804021655100.253461@chino.kir.corp.google.com>
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-17-git-send-email-ldufour@linux.vnet.ibm.com>
+Subject: Re: [PATCH v9 17/24] mm: Protect mm_rb tree with a rwlock
+In-Reply-To: <1520963994-28477-18-git-send-email-ldufour@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.20.1804021711090.34466@chino.kir.corp.google.com>
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-18-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,42 +24,53 @@ Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org,
 
 On Tue, 13 Mar 2018, Laurent Dufour wrote:
 
-> When dealing with speculative page fault handler, we may race with VMA
-> being split or merged. In this case the vma->vm_start and vm->vm_end
-> fields may not match the address the page fault is occurring.
+> This change is inspired by the Peter's proposal patch [1] which was
+> protecting the VMA using SRCU. Unfortunately, SRCU is not scaling well in
+> that particular case, and it is introducing major performance degradation
+> due to excessive scheduling operations.
 > 
-> This can only happens when the VMA is split but in that case, the
-> anon_vma pointer of the new VMA will be the same as the original one,
-> because in __split_vma the new->anon_vma is set to src->anon_vma when
-> *new = *vma.
+> To allow access to the mm_rb tree without grabbing the mmap_sem, this patch
+> is protecting it access using a rwlock.  As the mm_rb tree is a O(log n)
+> search it is safe to protect it using such a lock.  The VMA cache is not
+> protected by the new rwlock and it should not be used without holding the
+> mmap_sem.
 > 
-> So even if the VMA boundaries are not correct, the anon_vma pointer is
-> still valid.
+> To allow the picked VMA structure to be used once the rwlock is released, a
+> use count is added to the VMA structure. When the VMA is allocated it is
+> set to 1.  Each time the VMA is picked with the rwlock held its use count
+> is incremented. Each time the VMA is released it is decremented. When the
+> use count hits zero, this means that the VMA is no more used and should be
+> freed.
 > 
-> If the VMA has been merged, then the VMA in which it has been merged
-> must have the same anon_vma pointer otherwise the merge can't be done.
+> This patch is preparing for 2 kind of VMA access :
+>  - as usual, under the control of the mmap_sem,
+>  - without holding the mmap_sem for the speculative page fault handler.
 > 
-> So in all the case we know that the anon_vma is valid, since we have
-> checked before starting the speculative page fault that the anon_vma
-> pointer is valid for this VMA and since there is an anon_vma this
-> means that at one time a page has been backed and that before the VMA
-> is cleaned, the page table lock would have to be grab to clean the
-> PTE, and the anon_vma field is checked once the PTE is locked.
+> Access done under the control the mmap_sem doesn't require to grab the
+> rwlock to protect read access to the mm_rb tree, but access in write must
+> be done under the protection of the rwlock too. This affects inserting and
+> removing of elements in the RB tree.
 > 
-> This patch introduce a new __page_add_new_anon_rmap() service which
-> doesn't check for the VMA boundaries, and create a new inline one
-> which do the check.
+> The patch is introducing 2 new functions:
+>  - vma_get() to find a VMA based on an address by holding the new rwlock.
+>  - vma_put() to release the VMA when its no more used.
+> These services are designed to be used when access are made to the RB tree
+> without holding the mmap_sem.
 > 
-> When called from a page fault handler, if this is not a speculative one,
-> there is a guarantee that vm_start and vm_end match the faulting address,
-> so this check is useless. In the context of the speculative page fault
-> handler, this check may be wrong but anon_vma is still valid as explained
-> above.
+> When a VMA is removed from the RB tree, its vma->vm_rb field is cleared and
+> we rely on the WMB done when releasing the rwlock to serialize the write
+> with the RMB done in a later patch to check for the VMA's validity.
 > 
+> When free_vma is called, the file associated with the VMA is closed
+> immediately, but the policy and the file structure remained in used until
+> the VMA's use count reach 0, which may happens later when exiting an
+> in progress speculative page fault.
+> 
+> [1] https://patchwork.kernel.org/patch/5108281/
+> 
+> Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
+> Cc: Matthew Wilcox <willy@infradead.org>
 > Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-I'm indifferent on this: it could be argued both sides that the new 
-function and its variant for a simple VM_BUG_ON() isn't worth it and it 
-would should rather be done in the callers of page_add_new_anon_rmap().  
-It feels like it would be better left to the caller and add a comment to 
-page_add_anon_rmap() itself in mm/rmap.c.
+Can __free_vma() be generalized for mm/nommu.c's delete_vma() and 
+do_mmap()?
