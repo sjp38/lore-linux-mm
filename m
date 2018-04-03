@@ -1,52 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A921F6B0003
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 04:20:12 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id d6-v6so6705076plo.2
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 01:20:12 -0700 (PDT)
-Received: from baidu.com (mx20.baidu.com. [111.202.115.85])
-        by mx.google.com with ESMTP id q3si1606003pgs.516.2018.04.03.01.20.11
-        for <linux-mm@kvack.org>;
-        Tue, 03 Apr 2018 01:20:11 -0700 (PDT)
-From: "Li,Rongqing" <lirongqing@baidu.com>
-Subject: =?gb2312?B?tPC4tDogW1BBVENIXSBtbTogbGltaXQgYSBwcm9jZXNzIFJTUw==?=
-Date: Tue, 3 Apr 2018 08:20:05 +0000
-Message-ID: <2AD939572F25A448A3AE3CAEA61328C23756E480@BC-MAIL-M28.internal.baidu.com>
-References: <1522655119-6317-1-git-send-email-lirongqing@baidu.com>
- <20180403073657.GA5501@dhcp22.suse.cz>
-In-Reply-To: <20180403073657.GA5501@dhcp22.suse.cz>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 28A1B6B0006
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 04:26:35 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id p131-v6so7441432oig.10
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 01:26:35 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id 42-v6si758983otu.545.2018.04.03.01.26.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Apr 2018 01:26:34 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v1] mm: consider non-anonymous thp as unmovable page
+Date: Tue, 3 Apr 2018 08:24:06 +0000
+Message-ID: <20180403082405.GA23809@hori1.linux.bs1.fc.nec.co.jp>
+References: <1522730788-24530-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20180403075928.GC5501@dhcp22.suse.cz>
+In-Reply-To: <20180403075928.GC5501@dhcp22.suse.cz>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <95C456C3C9681E43A23D653F1A98C7B7@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, "minchan@kernel.org" <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-DQoNCj4gLS0tLS3Tyrz+1K28/i0tLS0tDQo+ILeivP7IyzogTWljaGFsIEhvY2tvIFttYWlsdG86
-bWhvY2tvQGtlcm5lbC5vcmddDQo+ILeiy83KsbzkOiAyMDE4xOo01MIzyNUgMTU6MzcNCj4gytW8
-/sjLOiBMaSxSb25ncWluZyA8bGlyb25ncWluZ0BiYWlkdS5jb20+DQo+ILOty806IGFrcG1AbGlu
-dXgtZm91bmRhdGlvbi5vcmc7IGtpcmlsbC5zaHV0ZW1vdkBsaW51eC5pbnRlbC5jb207DQo+IGpn
-bGlzc2VAcmVkaGF0LmNvbTsgbWluY2hhbkBrZXJuZWwub3JnOyBsaW51eC1tbUBrdmFjay5vcmcN
-Cj4g1vfM4jogUmU6IFtQQVRDSF0gbW06IGxpbWl0IGEgcHJvY2VzcyBSU1MNCj4gDQo+IE9uIE1v
-biAwMi0wNC0xOCAxNTo0NToxOSwgTGkgUm9uZ1Fpbmcgd3JvdGU6DQo+ID4gd2UgY2Fubm90IGxp
-bWl0IGEgcHJvY2VzcyBSU1MgYWx0aG91Z2ggdGhlcmUgaXMgdWxpbWl0IC1tLCBub3Qgc3VyZQ0K
-PiA+IHdoeSBhbmQgd2hlbiB1bGltaXQgLW0gaXMgbm90IHdvcmtpbmcsIG1ha2UgaXQgd29yaw0K
-PiANCj4gQ291bGQgeW91IGJlIG1vcmUgc3BlY2lmaWMgYWJvdXQgd2h5IGRvIHlvdSBuZWVkIHRo
-aXMgZnVuY3Rpb25hbGl0eT8NCj4gVGhlIFJTUyBsaW1pdCBoYXMgbmV2ZXIgYmVlbiBpbXBsZW1l
-bnRlZCBBRkFJSyBhbmQgdGhlIG1haW4gcmVhc29uIGlzIHRoYXQNCj4gdGhlIHNlbWFudGljIGlz
-IHF1aXRlIHdlYWsgdG8gYmUgdXNlZnVsIChlLmcuIHRoZSBzaGFyZWQgbWVtb3J5IGFjY291bnRp
-bmcsDQo+IHJlc2lkZW50IG1lbW9yeSB0aGF0IGlzIG5vdCBtYXBwZWQgZXRjLikuDQoNCmF2b2lk
-IHNvbWUgYnVnZ3kgcHJvY2VzcyB3aWxsIGV4aGF1c3QgbWVtb3J5LCBzb21ldGltZSB0aGUgZW5n
-aW5lZXIgZGlkIG5vdCBzdXJlIGlmIGFuIGFwcGxpY2F0aW9uIGhhcyBidWcgc2luY2UgbG90cyBv
-ZiBjb25kaXRpb25zIGFyZSBuZWVkZWQgdG8gdHJpZ2dlciBidWcsIGxpa2UgYW4gYXBwbGljYXRp
-b24gd2lsbCB0YWtlIG1vcmUgYW5kIG1vcmUgbWVtb3J5IHdoZW4gbG90cyBvZiByZXF1ZXN0IGFy
-cml2ZWQuDQoNClRoaXMgbWV0aG9kIGdpdmUgdXNlciBhbiBhbHRlcm5hdGl2ZQ0KDQo+IA0KPiBX
-ZSBoYXZlIG1lbW9yeSBjZ3JvdXAgY29udHJvbGxlciBhcyBhbiBhbHRlcm5hdGl2ZS4NCg0KTWVt
-b3J5IGNncm91cCBpcyB0byBjb250cm9sIGEgZ3JvdXAgcHJvY2Vzc2VzLCBCdXQgdGhpcyBtZXRo
-b2Qgb25seSBjb250cm9sIGEgcHJvY2VzcywgaWYgZXZlcnkgcHJvY2VzcyBoYXMgYSBkaWZmZXJl
-bnQgbGltaXQsIGxvdHMgb2YgY2dyb3VwIG5lZWQgdG8gY3JlYXRlLCBpZiBsb3RzIG9mIGNncm91
-cCwgSSB0aGluayB0aGUgY2dyb3VwIG1heWJlIG5vdCBlZmZpY2llbnQuIA0KDQpUaGlzIG1ldGhv
-ZCBkaWQgbm90IGNvdW50IHBhZ2VjYWNoZSwgYW5kIHRoaXMgbWV0aG9kIHRha2VzIGxlc3MgY3B1
-Lg0KDQotUm9uZ1FpbmcNCj4gLS0NCj4gTWljaGFsIEhvY2tvDQo+IFNVU0UgTGFicw0K
+On Tue, Apr 03, 2018 at 09:59:28AM +0200, Michal Hocko wrote:
+> On Tue 03-04-18 13:46:28, Naoya Horiguchi wrote:
+> > My testing for the latest kernel supporting thp migration found out an
+> > infinite loop in offlining the memory block that is filled with shmem
+> > thps.  We can get out of the loop with a signal, but kernel should
+> > return with failure in this case.
+> >
+> > What happens in the loop is that scan_movable_pages() repeats returning
+> > the same pfn without any progress. That's because page migration always
+> > fails for shmem thps.
+>
+> Why does it fail? Shmem pages should be movable without any issues.
+
+.. because try_to_unmap_one() explicitly skips unmapping for migration.
+
+  #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+                  /* PMD-mapped THP migration entry */
+                  if (!pvmw.pte && (flags & TTU_MIGRATION)) {
+                          VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompou=
+nd(page), page);
+ =20
+                          if (!PageAnon(page))
+                                  continue;
+ =20
+                          set_pmd_migration_entry(&pvmw, page);
+                          continue;
+                  }
+  #endif
+
+When I implemented this code, I felt hard to work on both of anon thp
+and shmem thp at one time, so I separated the proposal into smaller steps.
+Shmem uses pagecache so we need some non-trivial effort (including testing)
+to extend thp migration for shmem. But I think it's a reasonable next step.
+
+Thanks,
+Naoya Horiguchi=
