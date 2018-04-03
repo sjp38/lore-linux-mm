@@ -1,65 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C8196B0003
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 04:05:06 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id v11so9081946wri.13
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 01:05:06 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b55si1604940wrb.523.2018.04.03.01.05.05
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Apr 2018 01:05:05 -0700 (PDT)
-Date: Tue, 3 Apr 2018 10:05:03 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: avoid the unnecessary waiting when force empty a
- cgroup
-Message-ID: <20180403080503.GE5501@dhcp22.suse.cz>
-References: <1522739529-5602-1-git-send-email-lirongqing@baidu.com>
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A921F6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 04:20:12 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id d6-v6so6705076plo.2
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 01:20:12 -0700 (PDT)
+Received: from baidu.com (mx20.baidu.com. [111.202.115.85])
+        by mx.google.com with ESMTP id q3si1606003pgs.516.2018.04.03.01.20.11
+        for <linux-mm@kvack.org>;
+        Tue, 03 Apr 2018 01:20:11 -0700 (PDT)
+From: "Li,Rongqing" <lirongqing@baidu.com>
+Subject: =?gb2312?B?tPC4tDogW1BBVENIXSBtbTogbGltaXQgYSBwcm9jZXNzIFJTUw==?=
+Date: Tue, 3 Apr 2018 08:20:05 +0000
+Message-ID: <2AD939572F25A448A3AE3CAEA61328C23756E480@BC-MAIL-M28.internal.baidu.com>
+References: <1522655119-6317-1-git-send-email-lirongqing@baidu.com>
+ <20180403073657.GA5501@dhcp22.suse.cz>
+In-Reply-To: <20180403073657.GA5501@dhcp22.suse.cz>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1522739529-5602-1-git-send-email-lirongqing@baidu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li RongQing <lirongqing@baidu.com>
-Cc: hannes@cmpxchg.org, vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "jglisse@redhat.com" <jglisse@redhat.com>, "minchan@kernel.org" <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue 03-04-18 15:12:09, Li RongQing wrote:
-> The number of writeback and dirty page can be read out from memcg,
-> the unnecessary waiting can be avoided by these counts
-
-This changelog doesn't explain the problem and how the patch fixes it.
-Why do wee another throttling when we do already throttle in the reclaim
-path?
-
-> Signed-off-by: Li RongQing <lirongqing@baidu.com>
-> ---
->  mm/memcontrol.c | 8 ++++++--
->  1 file changed, 6 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 9ec024b862ac..5258651bd4ec 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2613,9 +2613,13 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
->  		progress = try_to_free_mem_cgroup_pages(memcg, 1,
->  							GFP_KERNEL, true);
->  		if (!progress) {
-> +			unsigned long num;
-> +
-> +			num = memcg_page_state(memcg, NR_WRITEBACK) +
-> +					memcg_page_state(memcg, NR_FILE_DIRTY);
->  			nr_retries--;
-> -			/* maybe some writeback is necessary */
-> -			congestion_wait(BLK_RW_ASYNC, HZ/10);
-> +			if (num)
-> +				congestion_wait(BLK_RW_ASYNC, HZ/10);
->  		}
->  
->  	}
-> -- 
-> 2.11.0
-
--- 
-Michal Hocko
-SUSE Labs
+DQoNCj4gLS0tLS3Tyrz+1K28/i0tLS0tDQo+ILeivP7IyzogTWljaGFsIEhvY2tvIFttYWlsdG86
+bWhvY2tvQGtlcm5lbC5vcmddDQo+ILeiy83KsbzkOiAyMDE4xOo01MIzyNUgMTU6MzcNCj4gytW8
+/sjLOiBMaSxSb25ncWluZyA8bGlyb25ncWluZ0BiYWlkdS5jb20+DQo+ILOty806IGFrcG1AbGlu
+dXgtZm91bmRhdGlvbi5vcmc7IGtpcmlsbC5zaHV0ZW1vdkBsaW51eC5pbnRlbC5jb207DQo+IGpn
+bGlzc2VAcmVkaGF0LmNvbTsgbWluY2hhbkBrZXJuZWwub3JnOyBsaW51eC1tbUBrdmFjay5vcmcN
+Cj4g1vfM4jogUmU6IFtQQVRDSF0gbW06IGxpbWl0IGEgcHJvY2VzcyBSU1MNCj4gDQo+IE9uIE1v
+biAwMi0wNC0xOCAxNTo0NToxOSwgTGkgUm9uZ1Fpbmcgd3JvdGU6DQo+ID4gd2UgY2Fubm90IGxp
+bWl0IGEgcHJvY2VzcyBSU1MgYWx0aG91Z2ggdGhlcmUgaXMgdWxpbWl0IC1tLCBub3Qgc3VyZQ0K
+PiA+IHdoeSBhbmQgd2hlbiB1bGltaXQgLW0gaXMgbm90IHdvcmtpbmcsIG1ha2UgaXQgd29yaw0K
+PiANCj4gQ291bGQgeW91IGJlIG1vcmUgc3BlY2lmaWMgYWJvdXQgd2h5IGRvIHlvdSBuZWVkIHRo
+aXMgZnVuY3Rpb25hbGl0eT8NCj4gVGhlIFJTUyBsaW1pdCBoYXMgbmV2ZXIgYmVlbiBpbXBsZW1l
+bnRlZCBBRkFJSyBhbmQgdGhlIG1haW4gcmVhc29uIGlzIHRoYXQNCj4gdGhlIHNlbWFudGljIGlz
+IHF1aXRlIHdlYWsgdG8gYmUgdXNlZnVsIChlLmcuIHRoZSBzaGFyZWQgbWVtb3J5IGFjY291bnRp
+bmcsDQo+IHJlc2lkZW50IG1lbW9yeSB0aGF0IGlzIG5vdCBtYXBwZWQgZXRjLikuDQoNCmF2b2lk
+IHNvbWUgYnVnZ3kgcHJvY2VzcyB3aWxsIGV4aGF1c3QgbWVtb3J5LCBzb21ldGltZSB0aGUgZW5n
+aW5lZXIgZGlkIG5vdCBzdXJlIGlmIGFuIGFwcGxpY2F0aW9uIGhhcyBidWcgc2luY2UgbG90cyBv
+ZiBjb25kaXRpb25zIGFyZSBuZWVkZWQgdG8gdHJpZ2dlciBidWcsIGxpa2UgYW4gYXBwbGljYXRp
+b24gd2lsbCB0YWtlIG1vcmUgYW5kIG1vcmUgbWVtb3J5IHdoZW4gbG90cyBvZiByZXF1ZXN0IGFy
+cml2ZWQuDQoNClRoaXMgbWV0aG9kIGdpdmUgdXNlciBhbiBhbHRlcm5hdGl2ZQ0KDQo+IA0KPiBX
+ZSBoYXZlIG1lbW9yeSBjZ3JvdXAgY29udHJvbGxlciBhcyBhbiBhbHRlcm5hdGl2ZS4NCg0KTWVt
+b3J5IGNncm91cCBpcyB0byBjb250cm9sIGEgZ3JvdXAgcHJvY2Vzc2VzLCBCdXQgdGhpcyBtZXRo
+b2Qgb25seSBjb250cm9sIGEgcHJvY2VzcywgaWYgZXZlcnkgcHJvY2VzcyBoYXMgYSBkaWZmZXJl
+bnQgbGltaXQsIGxvdHMgb2YgY2dyb3VwIG5lZWQgdG8gY3JlYXRlLCBpZiBsb3RzIG9mIGNncm91
+cCwgSSB0aGluayB0aGUgY2dyb3VwIG1heWJlIG5vdCBlZmZpY2llbnQuIA0KDQpUaGlzIG1ldGhv
+ZCBkaWQgbm90IGNvdW50IHBhZ2VjYWNoZSwgYW5kIHRoaXMgbWV0aG9kIHRha2VzIGxlc3MgY3B1
+Lg0KDQotUm9uZ1FpbmcNCj4gLS0NCj4gTWljaGFsIEhvY2tvDQo+IFNVU0UgTGFicw0K
