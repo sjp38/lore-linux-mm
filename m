@@ -1,69 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1207E6B0006
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 20:12:52 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f137so1894264wme.5
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 17:12:52 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c4sor374865ljd.99.2018.04.02.17.12.50
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 756946B0008
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 20:14:10 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id q12-v6so5028329plr.17
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 17:14:10 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g15sor376823pgu.353.2018.04.02.17.14.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 02 Apr 2018 17:12:50 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
-Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
-From: Ilya Smith <blackzert@gmail.com>
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F7B3B8BC5@ORSMSX110.amr.corp.intel.com>
-Date: Tue, 3 Apr 2018 03:11:50 +0300
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <D9173B50-39D6-4EE5-AF8B-3EB50D0C9A3B@gmail.com>
-References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
- <20180323124806.GA5624@bombadil.infradead.org>
- <651E0DB6-4507-4DA1-AD46-9C26ED9792A8@gmail.com>
- <20180326084650.GC5652@dhcp22.suse.cz>
- <01A133F4-27DF-4AE2-80D6-B0368BF758CD@gmail.com>
- <20180327072432.GY5652@dhcp22.suse.cz>
- <0549F29C-12FC-4401-9E85-A430BC11DA78@gmail.com>
- <CAGXu5j+XXufprMaJ9GbHxD3mZ7iqUuu60-tTMC6wo2x1puYzMQ@mail.gmail.com>
- <20180327234904.GA27734@bombadil.infradead.org>
- <20180328000025.GM1436@brightrain.aerifal.cx>
- <3908561D78D1C84285E8C5FCA982C28F7B3B8BC5@ORSMSX110.amr.corp.intel.com>
+        Mon, 02 Apr 2018 17:14:09 -0700 (PDT)
+Date: Tue, 3 Apr 2018 08:14:01 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH v3 1/5] mm: page_alloc: remain memblock_next_valid_pfn()
+ when CONFIG_HAVE_ARCH_PFN_VALID is enable
+Message-ID: <20180403001401.GA45531@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <1522033340-6575-1-git-send-email-hejianet@gmail.com>
+ <1522033340-6575-2-git-send-email-hejianet@gmail.com>
+ <20180328091800.GB97260@WeideMacBook-Pro.local>
+ <f8e7eaca-e9f1-0ed1-a9f9-1dff81b13814@gmail.com>
+ <20180402081233.GA38180@WeideMacBook-Pro.local>
+ <7288ce7c-7535-a5a1-7c7c-18456e431648@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7288ce7c-7535-a5a1-7c7c-18456e431648@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Rich Felker <dalias@libc.org>, Matthew Wilcox <willy@infradead.org>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@kernel.org>, Richard Henderson <rth@twiddle.net>, "ink@jurassic.park.msu.ru" <ink@jurassic.park.msu.ru>, "mattst88@gmail.com" <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, "Yu, Fenghua" <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, "nyc@holomorphy.com" <nyc@holomorphy.com>, Al Viro <viro@zeniv.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Greg KH <gregkh@linuxfoundation.org>, Deepa Dinamani <deepa.kernel@gmail.com>, Hugh Dickins <hughd@google.com>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Steve Capper <steve.capper@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Nick Piggin <npiggin@gmail.com>, Bhupesh Sharma <bhsharma@redhat.com>, Rik van Riel <riel@redhat.com>, "nitin.m.gupta@oracle.com" <nitin.m.gupta@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Williams, Dan J" <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "linux-alpha@vger.kernel.org" <linux-alpha@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linux-metag@vger.kernel.org" <linux-metag@vger.kernel.org>, Linux MIPS Mailing List <linux-mips@linux-mips.org>, linux-parisc <linux-parisc@vger.kernel.org>, PowerPC <linuxppc-dev@lists.ozlabs.org>, linux-s390 <linux-s390@vger.kernel.org>, linux-sh <linux-sh@vger.kernel.org>, sparclinux <sparclinux@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Jia He <hejianet@gmail.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Gioh Kim <gi-oh.kim@profitbricks.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, x86@kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Jia He <jia.he@hxt-semitech.com>
 
-> On 29 Mar 2018, at 00:07, Luck, Tony <tony.luck@intel.com> wrote:
->=20
->> The default limit of only 65536 VMAs will also quickly come into play
->> if consecutive anon mmaps don't get merged. Of course this can be
->> raised, but it has significant resource and performance (fork) costs.
->=20
-> Could the random mmap address chooser look for how many existing
-> VMAs have space before/after and the right attributes to merge with =
-the
-> new one you want to create? If this is above some threshold (100?) =
-then
-> pick one of them randomly and allocate the new address so that it will
-> merge from below/above with an existing one.
->=20
-> That should still give you a very high degree of randomness, but =
-prevent
-> out of control numbers of VMAs from being created.
+On Mon, Apr 02, 2018 at 05:17:35PM +0800, Jia He wrote:
+>
+>
+>On 4/2/2018 4:12 PM, Wei Yang Wrote:
+>> On Wed, Mar 28, 2018 at 05:49:23PM +0800, Jia He wrote:
+>> > 
+>> > On 3/28/2018 5:18 PM, Wei Yang Wrote:
+>> > > Oops, I should reply this thread. Forget about the reply on another thread.
+>> > > 
+>> > > On Sun, Mar 25, 2018 at 08:02:15PM -0700, Jia He wrote:
+>> > > > Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+>> > > > where possible") optimized the loop in memmap_init_zone(). But it causes
+>> > > > possible panic bug. So Daniel Vacek reverted it later.
+>> > > > 
+>> > > Why this has a bug? Do you have some link about it?
+>> > > 
+>> > > If the audience could know the potential risk, it would be helpful to review
+>> > > the code and decide whether to take it back.
+>> > Hi Wei
+>> > Paul firstly submit a commit b92df1de5 to improve the loop in
+>> > memmap_init_zone.
+>> > And Daniel tried to fix a bug_on panic issue on X86 in commit 864b75f9d6b
+>> > because
+>> > there is evidence that this bug_on was caused by b92df1de5 [1].
+>> > 
+>> > But things didn't get better, 864b75f9d6b caused booting hang issue on
+>> > arm{64} [2]
+>> > So maintainer decided to reverted both b92df1de5 and 864b75f9d6b
+>> > 
+>> > [1] https://patchwork.kernel.org/patch/10251145/
+>> > [2] https://lkml.org/lkml/2018/3/14/469
+>> I took some time to look into the discussion, while the root cause seems not
+>> clear now?
+>> 
+>Frankly speaking, to me the root cause of that bug_on is not completedly
+>clear :-) Daniel ever gave me some hints as followed, but currently I have
+>no x86 platform to understand the details.
+>
+>"On arm and arm64, memblock is used by default. But generic version of
+>pfn_valid() is based on mem sections and memblock_next_valid_pfn()
+>does not always return the next valid one but skips more resulting in
+>some valid frames to be skipped (as if they were invalid). And that's
+>why kernel was eventually crashing on some !arm machines."
+>
 
-I think this wouldn=E2=80=99t work. For example these 100 allocation may =
-happened on=20
-process initialization. But when attacker come to the server all his=20
-allocations would be made on the predictable offsets from each other. So =
-in=20
-result we did nothing just decrease performance of first 100 =
-allocations. I=20
-think I can make ioctl to turn off this randomization per process and it =
-could=20
-be used if needed. For example if application going to allocate big =
-chunk or=20
-make big memory pressure, etc.
+This means a system with memblock is safe to use this function?
 
-Best regards,
-Ilya
+As I know, mem_section is based on memblock, so in which case
+memblock_next_valid_pfn() skips a valid pfn? A little confused.
+
+>-- 
+>Cheers,
+>Jia
+
+-- 
+Wei Yang
+Help you, Help me
