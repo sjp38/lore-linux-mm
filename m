@@ -1,63 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 08E8D6B0005
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 17:12:57 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 1-v6so11320294plv.6
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 14:12:57 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a59-v6si1454966pla.497.2018.04.03.14.12.55
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BCEC76B0005
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 17:57:23 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id f3-v6so11465169plf.1
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 14:57:23 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a59-v6sor1721271plc.65.2018.04.03.14.57.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 03 Apr 2018 14:12:55 -0700 (PDT)
-Date: Tue, 3 Apr 2018 14:12:53 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH 1/1] vmscan: Support multiple kswapd threads per node
-Message-ID: <20180403211253.GC30145@bombadil.infradead.org>
-References: <1522661062-39745-1-git-send-email-buddy.lumpkin@oracle.com>
- <1522661062-39745-2-git-send-email-buddy.lumpkin@oracle.com>
- <20180403133115.GA5501@dhcp22.suse.cz>
- <20180403190759.GB6779@bombadil.infradead.org>
- <A1EF8129-7F59-49CB-BEEC-E615FB878CE2@oracle.com>
+        (Google Transport Security);
+        Tue, 03 Apr 2018 14:57:22 -0700 (PDT)
+Date: Tue, 3 Apr 2018 14:57:20 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v9 04/24] mm: Prepare for FAULT_FLAG_SPECULATIVE
+In-Reply-To: <361fa6e7-3c17-e1b8-8046-af72c4459613@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.20.1804031449130.153232@chino.kir.corp.google.com>
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-5-git-send-email-ldufour@linux.vnet.ibm.com> <alpine.DEB.2.20.1803251426120.80485@chino.kir.corp.google.com>
+ <361fa6e7-3c17-e1b8-8046-af72c4459613@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <A1EF8129-7F59-49CB-BEEC-E615FB878CE2@oracle.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Buddy Lumpkin <buddy.lumpkin@oracle.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, riel@surriel.com, mgorman@suse.de, akpm@linux-foundation.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Tue, Apr 03, 2018 at 01:49:25PM -0700, Buddy Lumpkin wrote:
-> > Yes, very much this.  If you have a single-threaded workload which is
-> > using the entirety of memory and would like to use even more, then it
-> > makes sense to use as many CPUs as necessary getting memory out of its
-> > way.  If you have N CPUs and N-1 threads happily occupying themselves in
-> > their own reasonably-sized working sets with one monster process trying
-> > to use as much RAM as possible, then I'd be pretty unimpressed to see
-> > the N-1 well-behaved threads preempted by kswapd.
+On Wed, 28 Mar 2018, Laurent Dufour wrote:
+
+> >> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> >> index 4d02524a7998..2f3e98edc94a 100644
+> >> --- a/include/linux/mm.h
+> >> +++ b/include/linux/mm.h
+> >> @@ -300,6 +300,7 @@ extern pgprot_t protection_map[16];
+> >>  #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
+> >>  #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
+> >>  #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
+> >> +#define FAULT_FLAG_SPECULATIVE	0x200	/* Speculative fault, not holding mmap_sem */
+> >>  
+> >>  #define FAULT_FLAG_TRACE \
+> >>  	{ FAULT_FLAG_WRITE,		"WRITE" }, \
+> > 
+> > I think FAULT_FLAG_SPECULATIVE should be introduced in the patch that 
+> > actually uses it.
 > 
-> The default value provides one kswapd thread per NUMA node, the same
-> it was without the patch. Also, I would point out that just because you devote
-> more threads to kswapd, doesna??t mean they are busy. If multiple kswapd threads
-> are busy, they are almost certainly doing work that would have resulted in
-> direct reclaims, which are often substantially more expensive than a couple
-> extra context switches due to preemption.
+> I think you're right, I'll move down this define in the series.
+> 
+> >> diff --git a/mm/memory.c b/mm/memory.c
+> >> index e0ae4999c824..8ac241b9f370 100644
+> >> --- a/mm/memory.c
+> >> +++ b/mm/memory.c
+> >> @@ -2288,6 +2288,13 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
+> >>  }
+> >>  EXPORT_SYMBOL_GPL(apply_to_page_range);
+> >>  
+> >> +static bool pte_map_lock(struct vm_fault *vmf)
+> > 
+> > inline?
+> 
+> Agreed.
+> 
 
-[...]
+Ignore this, the final form of the function after the full patchset 
+shouldn't be inline.
 
-> In my previous response to Michal Hocko, I described
-> how I think we could scale watermarks in response to direct reclaims, and
-> launch more kswapd threads when kswapd peaks at 100% CPU usage.
+> >> +{
+> >> +	vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd,
+> >> +				       vmf->address, &vmf->ptl);
+> >> +	return true;
+> >> +}
+> >> +
+> >>  /*
+> >>   * handle_pte_fault chooses page fault handler according to an entry which was
+> >>   * read non-atomically.  Before making any commitment, on those architectures
+> >> @@ -2477,6 +2484,7 @@ static int wp_page_copy(struct vm_fault *vmf)
+> >>  	const unsigned long mmun_start = vmf->address & PAGE_MASK;
+> >>  	const unsigned long mmun_end = mmun_start + PAGE_SIZE;
+> >>  	struct mem_cgroup *memcg;
+> >> +	int ret = VM_FAULT_OOM;
+> >>  
+> >>  	if (unlikely(anon_vma_prepare(vma)))
+> >>  		goto oom;
+> >> @@ -2504,7 +2512,11 @@ static int wp_page_copy(struct vm_fault *vmf)
+> >>  	/*
+> >>  	 * Re-check the pte - we dropped the lock
+> >>  	 */
+> >> -	vmf->pte = pte_offset_map_lock(mm, vmf->pmd, vmf->address, &vmf->ptl);
+> >> +	if (!pte_map_lock(vmf)) {
+> >> +		mem_cgroup_cancel_charge(new_page, memcg, false);
+> >> +		ret = VM_FAULT_RETRY;
+> >> +		goto oom_free_new;
+> >> +	}
+> > 
+> > Ugh, but we aren't oom here, so maybe rename oom_free_new so that it makes 
+> > sense for return values other than VM_FAULT_OOM?
+> 
+> You're right, now this label name is not correct, I'll rename it to
+> "out_free_new" and rename also the label "oom" to "out" since it is generic too
+> now.
+> 
 
-I think you're missing my point about the workload ... kswapd isn't
-"nice", so it will compete with the N-1 threads which are chugging along
-at 100% CPU inside their working sets.  In this scenario, we _don't_
-want to kick off kswapd at all; we want the monster thread to clean up
-its own mess.  If we have idle CPUs, then yes, absolutely, lets have
-them clean up for the monster, but otherwise, I want my N-1 threads
-doing their own thing.
+I think it would just be better to introduce a out_uncharge that handles 
+the mem_cgroup_cancel_charge() in the exit path.
 
-Maybe we should renice kswapd anyway ... thoughts?  We don't seem to have
-had a nice'd kswapd since 2.6.12, but maybe we played with that earlier
-and discovered it was a bad idea?
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2645,9 +2645,8 @@ static int wp_page_copy(struct vm_fault *vmf)
+ 	 * Re-check the pte - we dropped the lock
+ 	 */
+ 	if (!pte_map_lock(vmf)) {
+-		mem_cgroup_cancel_charge(new_page, memcg, false);
+ 		ret = VM_FAULT_RETRY;
+-		goto oom_free_new;
++		goto out_uncharge;
+ 	}
+ 	if (likely(pte_same(*vmf->pte, vmf->orig_pte))) {
+ 		if (old_page) {
+@@ -2735,6 +2734,8 @@ static int wp_page_copy(struct vm_fault *vmf)
+ 		put_page(old_page);
+ 	}
+ 	return page_copied ? VM_FAULT_WRITE : 0;
++out_uncharge:
++	mem_cgroup_cancel_charge(new_page, memcg, false);
+ oom_free_new:
+ 	put_page(new_page);
+ oom:
