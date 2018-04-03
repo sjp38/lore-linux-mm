@@ -1,61 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CD0156B0010
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 11:12:24 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e82so3645991wmc.3
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 08:12:24 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f13sor1643510edn.35.2018.04.03.08.12.23
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E0BB6B0006
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 11:55:13 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 31so9801257wrr.2
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 08:55:13 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t24si2996009edb.353.2018.04.03.08.55.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Apr 2018 08:12:23 -0700 (PDT)
-Date: Tue, 3 Apr 2018 17:12:20 +0200
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: Signal handling in a page fault handler
-Message-ID: <20180403151220.GW3881@phenom.ffwll.local>
-References: <20180402141058.GL13332@bombadil.infradead.org>
- <152275879566.32747.9293394837417347482@mail.alporthouse.com>
- <e10f5e18-299b-57fd-4ba7-800caa1a105d@shipmail.org>
- <20180403144829.GB28565@bombadil.infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Apr 2018 08:55:11 -0700 (PDT)
+Date: Tue, 3 Apr 2018 17:55:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] memcg, thp: do not invoke oom killer on thp charges
+Message-ID: <20180403155509.GD5501@dhcp22.suse.cz>
+References: <20180321205928.22240-1-mhocko@kernel.org>
+ <20180403145853.GB21411@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180403144829.GB28565@bombadil.infradead.org>
+In-Reply-To: <20180403145853.GB21411@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Thomas Hellstrom <thomas@shipmail.org>, Chris Wilson <chris@chris-wilson.co.uk>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Souptick Joarder <jrdr.linux@gmail.com>, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Apr 03, 2018 at 07:48:29AM -0700, Matthew Wilcox wrote:
-> On Tue, Apr 03, 2018 at 03:12:35PM +0200, Thomas Hellstrom wrote:
-> > I think the TTM page fault handler originally set the standard for this.
-> > First, IMO any critical section that waits for the GPU (like typically the
-> > page fault handler does), should be locked at least killable. The need for
-> > interruptible locks came from the X server's silken mouse relying on signals
-> > for smooth mouse operations: You didn't want the X server to be stuck in the
-> > kernel waiting for GPU completion when it should handle the cursor move
-> > request.. Now that doesn't seem to be the case anymore but to reiterate
-> > Chris' question, why would the signal persist once returned to user-space?
+On Tue 03-04-18 10:58:53, Johannes Weiner wrote:
+> On Wed, Mar 21, 2018 at 09:59:28PM +0100, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > David has noticed that THP memcg charge can trigger the oom killer
+> > since 2516035499b9 ("mm, thp: remove __GFP_NORETRY from khugepaged and
+> > madvised allocations"). We have used an explicit __GFP_NORETRY
+> > previously which ruled the OOM killer automagically.
+> > 
+> > Memcg charge path should be semantically compliant with the allocation
+> > path and that means that if we do not trigger the OOM killer for costly
+> > orders which should do the same in the memcg charge path as well.
+> > Otherwise we are forcing callers to distinguish the two and use
+> > different gfp masks which is both non-intuitive and bug prone. Not to
+> > mention the maintenance burden.
+> > 
+> > Teach mem_cgroup_oom to bail out on costly order requests to fix the THP
+> > issue as well as any other costly OOM eligible allocations to be added
+> > in future.
+> > 
+> > Fixes: 2516035499b9 ("mm, thp: remove __GFP_NORETRY from khugepaged and madvised allocations")
+> > Reported-by: David Rientjes <rientjes@google.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> Yeah, you graphics people have had to deal with much more recalcitrant
-> hardware than most of the rest of us ... and less reasonable user
-> expectations ("My graphics card was doing something and I expected
-> everything else to keep going" vs "My hard drive died and my kernel
-> paniced, oh well.")
+> I also prefer this fix over having separate OOM behaviors (which is
+> user-visible, and not just about technical ability to satisfy the
+> allocation) between the allocator and memcg.
 > 
-> I don't know exactly how the signal code works at the delivery end;
-> I'm not sure when TIF_SIGPENDING gets cleared.  I just get concerned
-> when I see one bit of kernel code doing things in a very complicated
-> and careful manner and another bit of kernel code blithely assuming
-> that everything's going to be OK.
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-I think you last line pretty much sums up the proper attitude when writing
-gpu drivers:
+I will repost the patch with the currently merged THP specific handling
+reverted (see below). While 9d3c3354bb85 might have been an appropriate
+quick fix, we shouldn't keep it longterm for 4.17+ IMHO.
 
-https://i.imgflip.com/27nm7w.jpg
-
-Cheers, Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-http://blog.ffwll.ch
+Does you ack apply to that patch as well?
+---
