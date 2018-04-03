@@ -1,72 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E28806B000D
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 07:17:15 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id q12-v6so7285395plr.17
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 04:17:15 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0101.outbound.protection.outlook.com. [104.47.2.101])
-        by mx.google.com with ESMTPS id k6si1821018pgo.689.2018.04.03.04.17.13
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A33936B0003
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 07:28:04 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id w9-v6so7327557plp.0
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 04:28:04 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y2-v6sor479426pli.110.2018.04.03.04.28.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 03 Apr 2018 04:17:14 -0700 (PDT)
-Subject: Re: general protection fault in __mem_cgroup_free
-References: <001a113fe4c0a623b10568bb75ea@google.com>
- <20180403093733.GI5501@dhcp22.suse.cz> <20180403094329.GJ5501@dhcp22.suse.cz>
- <20180403105048.GK5501@dhcp22.suse.cz>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <a91a520d-f56d-56bf-d784-89fb4562ef3c@virtuozzo.com>
-Date: Tue, 3 Apr 2018 14:18:00 +0300
+        (Google Transport Security);
+        Tue, 03 Apr 2018 04:28:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180403105048.GK5501@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180403052009.GH30522@ZenIV.linux.org.uk>
+References: <CACT4Y+aSEsoS60A0O0Ypg=kwRZV10SzUELbcG7KEkaTV7aMU5Q@mail.gmail.com>
+ <94eb2c0b816e88bfc50568c6fed5@google.com> <201804011941.IAE69652.OHMVJLFtSOFFQO@I-love.SAKURA.ne.jp>
+ <87lge5z6yn.fsf@xmission.com> <20180402215212.GF30522@ZenIV.linux.org.uk>
+ <20180402215934.GG30522@ZenIV.linux.org.uk> <20180403052009.GH30522@ZenIV.linux.org.uk>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 3 Apr 2018 13:27:42 +0200
+Message-ID: <CACT4Y+YM9m+t7cDPMYpK93mMi1mcq+3-WutYu23db7KiwU8MrQ@mail.gmail.com>
+Subject: Re: WARNING: refcount bug in should_fail
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, syzbot <syzbot+8a5de3cce7cdc70e9ebe@syzkaller.appspotmail.com>
-Cc: cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
+To: Al Viro <viro@zeniv.linux.org.uk>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, syzbot <syzbot+@syzkaller.appspotmail.com>, syzkaller-bugs@googlegroups.com, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>
 
-On 04/03/2018 01:50 PM, Michal Hocko wrote:
-> Here we go
-> 
-> From 38f0f08a3f9f19c106ae53350e43dc97e2e3a4d8 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Tue, 3 Apr 2018 12:40:41 +0200
-> Subject: [PATCH] memcg: fix per_node_info cleanup
-> 
-> syzbot has triggered a NULL ptr dereference when allocation fault
-> injection enforces a failure and alloc_mem_cgroup_per_node_info
-> initializes memcg->nodeinfo only half way through. __mem_cgroup_free
-> still tries to free all per-node data and dereferences pn->lruvec_stat_cpu
-> unconditioanlly even if the specific per-node data hasn't been
-> initialized.
-> 
-> The bug is quite unlikely to hit because small allocations do not fail
-> and we would need quite some numa nodes to make struct mem_cgroup_per_node
-> large enough to cross the costly order.
-> 
-> Reported-by: syzbot+8a5de3cce7cdc70e9ebe@syzkaller.appspotmail.com
-> Fixes: 00f3ca2c2d66 ("mm: memcontrol: per-lruvec stats infrastructure")
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Tue, Apr 3, 2018 at 7:20 AM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+> On Mon, Apr 02, 2018 at 10:59:34PM +0100, Al Viro wrote:
+>
+>> FWIW, I'm going through the ->kill_sb() instances, fixing that sort
+>> of bugs (most of them preexisting, but I should've checked instead
+>> of assuming that everything's fine).  Will push out later tonight.
+>
+> OK, see vfs.git#for-linus.  Caught: 4 old bugs (allocation failure
+> in fill_super oopses ->kill_sb() in hypfs, jffs2 and orangefs resp.
+> and double-dput in late failure exit in rpc_fill_super())
+> and 5 regressions from register_shrinker() failure recovery.
 
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-
-> ---
->  mm/memcontrol.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e3d5a0a7917f..0a9c4d5194f3 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4340,6 +4340,9 @@ static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
->  {
->  	struct mem_cgroup_per_node *pn = memcg->nodeinfo[node];
->  
-> +	if (!pn)
-> +		return;
-> +
->  	free_percpu(pn->lruvec_stat_cpu);
->  	kfree(pn);
->  }
-> 
+Nice!
