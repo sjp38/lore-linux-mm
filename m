@@ -1,38 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D9C26B0003
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 03:37:01 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id d37so8967888wrd.21
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 00:37:01 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C0AB6B0006
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 03:57:40 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id k6so7498781wmi.6
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 00:57:40 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r17si1494105wrg.64.2018.04.03.00.36.59
+        by mx.google.com with ESMTPS id l14si1603640wre.77.2018.04.03.00.57.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Apr 2018 00:37:00 -0700 (PDT)
-Date: Tue, 3 Apr 2018 09:36:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: limit a process RSS
-Message-ID: <20180403073657.GA5501@dhcp22.suse.cz>
-References: <1522655119-6317-1-git-send-email-lirongqing@baidu.com>
+        Tue, 03 Apr 2018 00:57:38 -0700 (PDT)
+Date: Tue, 3 Apr 2018 09:57:37 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm/page_alloc: call set_pageblock_order() once for each
+ node
+Message-ID: <20180403075737.GB5501@dhcp22.suse.cz>
+References: <20180329033607.8440-1-richard.weiyang@gmail.com>
+ <20180329121109.xg5tfk6dyqzkrgrh@suse.de>
+ <20180330010243.GA14446@WeideMacBook-Pro.local>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1522655119-6317-1-git-send-email-lirongqing@baidu.com>
+In-Reply-To: <20180330010243.GA14446@WeideMacBook-Pro.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li RongQing <lirongqing@baidu.com>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, jglisse@redhat.com, minchan@kernel.org, linux-mm@kvack.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Mon 02-04-18 15:45:19, Li RongQing wrote:
-> we cannot limit a process RSS although there is ulimit -m,
-> not sure why and when ulimit -m is not working, make it work
+On Fri 30-03-18 09:02:43, Wei Yang wrote:
+> On Thu, Mar 29, 2018 at 01:11:09PM +0100, Mel Gorman wrote:
+> >On Thu, Mar 29, 2018 at 11:36:07AM +0800, Wei Yang wrote:
+> >> set_pageblock_order() is a standalone function which sets pageblock_order,
+> >> while current implementation calls this function on each ZONE of each node
+> >> in free_area_init_core().
+> >> 
+> >> Since free_area_init_node() is the only user of free_area_init_core(),
+> >> this patch moves set_pageblock_order() up one level to invoke
+> >> set_pageblock_order() only once on each node.
+> >> 
+> >> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> >
+> >The patch looks ok but given that set_pageblock_order returns immediately
+> >if it has already been called, I expect the benefit is marginal. Was any
+> >improvement in boot time measured?
+> 
+> No, I don't expect measurable improvement from this since the number of nodes
+> and zones are limited.
+> 
+> This is just a code refine from logic point of view.
 
-Could you be more specific about why do you need this functionality?
-The RSS limit has never been implemented AFAIK and the main reason is
-that the semantic is quite weak to be useful (e.g. the shared memory
-accounting, resident memory that is not mapped etc.).
+Then, please make sure it is a real refinement. Calling this function
+per node is only half way to get there as the function is by no means
+per node.
 
-We have memory cgroup controller as an alternative.
 -- 
 Michal Hocko
 SUSE Labs
