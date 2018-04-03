@@ -1,48 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E2BE6B0007
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 10:48:33 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id u7-v6so6438448plr.13
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 07:48:33 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id p1-v6si3043910pld.412.2018.04.03.07.48.32
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EF7E6B0008
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 10:52:53 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id v8so6574536wmv.1
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 07:52:53 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id t4si1991195edt.195.2018.04.03.07.52.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 03 Apr 2018 07:48:32 -0700 (PDT)
-Date: Tue, 3 Apr 2018 07:48:29 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: Signal handling in a page fault handler
-Message-ID: <20180403144829.GB28565@bombadil.infradead.org>
-References: <20180402141058.GL13332@bombadil.infradead.org>
- <152275879566.32747.9293394837417347482@mail.alporthouse.com>
- <e10f5e18-299b-57fd-4ba7-800caa1a105d@shipmail.org>
+        Tue, 03 Apr 2018 07:52:52 -0700 (PDT)
+Date: Tue, 3 Apr 2018 10:54:08 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg, thp: do not invoke oom killer on thp charges
+Message-ID: <20180403145408.GA21411@cmpxchg.org>
+References: <20180321205928.22240-1-mhocko@kernel.org>
+ <alpine.DEB.2.20.1803211418170.107059@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e10f5e18-299b-57fd-4ba7-800caa1a105d@shipmail.org>
+In-Reply-To: <alpine.DEB.2.20.1803211418170.107059@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Hellstrom <thomas@shipmail.org>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Souptick Joarder <jrdr.linux@gmail.com>, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, Apr 03, 2018 at 03:12:35PM +0200, Thomas Hellstrom wrote:
-> I think the TTM page fault handler originally set the standard for this.
-> First, IMO any critical section that waits for the GPU (like typically the
-> page fault handler does), should be locked at least killable. The need for
-> interruptible locks came from the X server's silken mouse relying on signals
-> for smooth mouse operations: You didn't want the X server to be stuck in the
-> kernel waiting for GPU completion when it should handle the cursor move
-> request.. Now that doesn't seem to be the case anymore but to reiterate
-> Chris' question, why would the signal persist once returned to user-space?
+On Wed, Mar 21, 2018 at 02:22:13PM -0700, David Rientjes wrote:
+> PAGE_ALLOC_COSTLY_ORDER is a heuristic used by the page allocator because 
+> it cannot free high-order contiguous memory.  Memcg just needs to reclaim 
+> a number of pages.  Two order-3 charges can cause a memcg oom kill but now 
+> an order-4 charge cannot.  It's an unfair bias against high-order charges 
+> that are not explicitly using __GFP_NORETRY.
 
-Yeah, you graphics people have had to deal with much more recalcitrant
-hardware than most of the rest of us ... and less reasonable user
-expectations ("My graphics card was doing something and I expected
-everything else to keep going" vs "My hard drive died and my kernel
-paniced, oh well.")
+I agree with your premise: unlike the page allocator, memcg could OOM
+kill to help satisfy higher order allocations.
 
-I don't know exactly how the signal code works at the delivery end;
-I'm not sure when TIF_SIGPENDING gets cleared.  I just get concerned
-when I see one bit of kernel code doing things in a very complicated
-and careful manner and another bit of kernel code blithely assuming
-that everything's going to be OK.
+Technically.
+
+But the semantics and expectations matter too.
+
+Because of the allocator's restriction, we've been telling and
+teaching callsites to fail gracefully and implement fallbacks forever,
+and that makes costly-order allocations inherently speculative and to
+a certain extent often optional. They've been written with that in
+mind forever.
+
+OOM is not graceful failure, though. We don't want to OOM kill when an
+the callsite can easily fallback to smaller allocations, trigger a
+packet resend, fail the syscall, what have you.
+
+We could argue what the default should be if callsites aren't
+specifically annotated - and whether we should change it.
+
+But the page allocator has established the default behavior already,
+and this is a bugfix. I prefer this fix not fundamentally change
+semantics for costly-order allocations.
