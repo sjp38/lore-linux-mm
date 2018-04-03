@@ -1,76 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8108D6B0003
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 20:11:45 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id q12-v6so5020881plr.17
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 17:11:45 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u13-v6sor642181plq.11.2018.04.02.17.11.44
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1207E6B0006
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2018 20:12:52 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id f137so1894264wme.5
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2018 17:12:52 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id c4sor374865ljd.99.2018.04.02.17.12.50
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 02 Apr 2018 17:11:44 -0700 (PDT)
-Date: Mon, 2 Apr 2018 17:11:42 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v9 17/24] mm: Protect mm_rb tree with a rwlock
-In-Reply-To: <1520963994-28477-18-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.20.1804021711090.34466@chino.kir.corp.google.com>
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com> <1520963994-28477-18-git-send-email-ldufour@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 02 Apr 2018 17:12:50 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
+Subject: Re: [RFC PATCH v2 0/2] Randomization of address chosen by mmap.
+From: Ilya Smith <blackzert@gmail.com>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F7B3B8BC5@ORSMSX110.amr.corp.intel.com>
+Date: Tue, 3 Apr 2018 03:11:50 +0300
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <D9173B50-39D6-4EE5-AF8B-3EB50D0C9A3B@gmail.com>
+References: <1521736598-12812-1-git-send-email-blackzert@gmail.com>
+ <20180323124806.GA5624@bombadil.infradead.org>
+ <651E0DB6-4507-4DA1-AD46-9C26ED9792A8@gmail.com>
+ <20180326084650.GC5652@dhcp22.suse.cz>
+ <01A133F4-27DF-4AE2-80D6-B0368BF758CD@gmail.com>
+ <20180327072432.GY5652@dhcp22.suse.cz>
+ <0549F29C-12FC-4401-9E85-A430BC11DA78@gmail.com>
+ <CAGXu5j+XXufprMaJ9GbHxD3mZ7iqUuu60-tTMC6wo2x1puYzMQ@mail.gmail.com>
+ <20180327234904.GA27734@bombadil.infradead.org>
+ <20180328000025.GM1436@brightrain.aerifal.cx>
+ <3908561D78D1C84285E8C5FCA982C28F7B3B8BC5@ORSMSX110.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Rich Felker <dalias@libc.org>, Matthew Wilcox <willy@infradead.org>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@kernel.org>, Richard Henderson <rth@twiddle.net>, "ink@jurassic.park.msu.ru" <ink@jurassic.park.msu.ru>, "mattst88@gmail.com" <mattst88@gmail.com>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, "Yu, Fenghua" <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, "nyc@holomorphy.com" <nyc@holomorphy.com>, Al Viro <viro@zeniv.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Greg KH <gregkh@linuxfoundation.org>, Deepa Dinamani <deepa.kernel@gmail.com>, Hugh Dickins <hughd@google.com>, Kate Stewart <kstewart@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Steve Capper <steve.capper@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Nick Piggin <npiggin@gmail.com>, Bhupesh Sharma <bhsharma@redhat.com>, Rik van Riel <riel@redhat.com>, "nitin.m.gupta@oracle.com" <nitin.m.gupta@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Williams, Dan J" <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "linux-alpha@vger.kernel.org" <linux-alpha@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linux-metag@vger.kernel.org" <linux-metag@vger.kernel.org>, Linux MIPS Mailing List <linux-mips@linux-mips.org>, linux-parisc <linux-parisc@vger.kernel.org>, PowerPC <linuxppc-dev@lists.ozlabs.org>, linux-s390 <linux-s390@vger.kernel.org>, linux-sh <linux-sh@vger.kernel.org>, sparclinux <sparclinux@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Tue, 13 Mar 2018, Laurent Dufour wrote:
+> On 29 Mar 2018, at 00:07, Luck, Tony <tony.luck@intel.com> wrote:
+>=20
+>> The default limit of only 65536 VMAs will also quickly come into play
+>> if consecutive anon mmaps don't get merged. Of course this can be
+>> raised, but it has significant resource and performance (fork) costs.
+>=20
+> Could the random mmap address chooser look for how many existing
+> VMAs have space before/after and the right attributes to merge with =
+the
+> new one you want to create? If this is above some threshold (100?) =
+then
+> pick one of them randomly and allocate the new address so that it will
+> merge from below/above with an existing one.
+>=20
+> That should still give you a very high degree of randomness, but =
+prevent
+> out of control numbers of VMAs from being created.
 
-> This change is inspired by the Peter's proposal patch [1] which was
-> protecting the VMA using SRCU. Unfortunately, SRCU is not scaling well in
-> that particular case, and it is introducing major performance degradation
-> due to excessive scheduling operations.
-> 
-> To allow access to the mm_rb tree without grabbing the mmap_sem, this patch
-> is protecting it access using a rwlock.  As the mm_rb tree is a O(log n)
-> search it is safe to protect it using such a lock.  The VMA cache is not
-> protected by the new rwlock and it should not be used without holding the
-> mmap_sem.
-> 
-> To allow the picked VMA structure to be used once the rwlock is released, a
-> use count is added to the VMA structure. When the VMA is allocated it is
-> set to 1.  Each time the VMA is picked with the rwlock held its use count
-> is incremented. Each time the VMA is released it is decremented. When the
-> use count hits zero, this means that the VMA is no more used and should be
-> freed.
-> 
-> This patch is preparing for 2 kind of VMA access :
->  - as usual, under the control of the mmap_sem,
->  - without holding the mmap_sem for the speculative page fault handler.
-> 
-> Access done under the control the mmap_sem doesn't require to grab the
-> rwlock to protect read access to the mm_rb tree, but access in write must
-> be done under the protection of the rwlock too. This affects inserting and
-> removing of elements in the RB tree.
-> 
-> The patch is introducing 2 new functions:
->  - vma_get() to find a VMA based on an address by holding the new rwlock.
->  - vma_put() to release the VMA when its no more used.
-> These services are designed to be used when access are made to the RB tree
-> without holding the mmap_sem.
-> 
-> When a VMA is removed from the RB tree, its vma->vm_rb field is cleared and
-> we rely on the WMB done when releasing the rwlock to serialize the write
-> with the RMB done in a later patch to check for the VMA's validity.
-> 
-> When free_vma is called, the file associated with the VMA is closed
-> immediately, but the policy and the file structure remained in used until
-> the VMA's use count reach 0, which may happens later when exiting an
-> in progress speculative page fault.
-> 
-> [1] https://patchwork.kernel.org/patch/5108281/
-> 
-> Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+I think this wouldn=E2=80=99t work. For example these 100 allocation may =
+happened on=20
+process initialization. But when attacker come to the server all his=20
+allocations would be made on the predictable offsets from each other. So =
+in=20
+result we did nothing just decrease performance of first 100 =
+allocations. I=20
+think I can make ioctl to turn off this randomization per process and it =
+could=20
+be used if needed. For example if application going to allocate big =
+chunk or=20
+make big memory pressure, etc.
 
-Can __free_vma() be generalized for mm/nommu.c's delete_vma() and 
-do_mmap()?
+Best regards,
+Ilya
