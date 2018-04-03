@@ -1,64 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AB9E56B0007
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 08:23:52 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id f19-v6so9551138plr.23
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 05:23:52 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d1si1903921pgu.357.2018.04.03.05.23.51
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DCCF6B0007
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 08:25:37 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id t1-v6so9638838plb.5
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 05:25:37 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id g18-v6si450444plo.647.2018.04.03.05.25.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Apr 2018 05:23:51 -0700 (PDT)
-Date: Tue, 3 Apr 2018 08:23:48 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180403082348.28cd3c1c@gandalf.local.home>
-In-Reply-To: <20180403121614.GV5501@dhcp22.suse.cz>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-	<20180330102038.2378925b@gandalf.local.home>
-	<20180403110612.GM5501@dhcp22.suse.cz>
-	<20180403075158.0c0a2795@gandalf.local.home>
-	<20180403121614.GV5501@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 03 Apr 2018 05:25:36 -0700 (PDT)
+Date: Tue, 3 Apr 2018 05:25:35 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: Check for SIGKILL inside dup_mmap() loop.
+Message-ID: <20180403122535.GE5832@bombadil.infradead.org>
+References: <1522322870-4335-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180329143003.c52ada618be599c5358e8ca2@linux-foundation.org>
+ <201803301934.DHF12420.SOFFJQMLVtHOOF@I-love.SAKURA.ne.jp>
+ <20180403121414.GD5832@bombadil.infradead.org>
+ <20180403121950.GW5501@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180403121950.GW5501@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, kirill.shutemov@linux.intel.com, riel@redhat.com
 
-On Tue, 3 Apr 2018 14:16:14 +0200
-Michal Hocko <mhocko@kernel.org> wrote:
-
-> > This came up because there's scripts or programs that set the size of
-> > the ring buffer. The complaint was that the application would just set
-> > the size to something bigger than what was available and cause an OOM
-> > killing other applications. The final solution is to simply check the
-> > available memory before allocating the ring buffer:
+On Tue, Apr 03, 2018 at 02:19:50PM +0200, Michal Hocko wrote:
+> On Tue 03-04-18 05:14:14, Matthew Wilcox wrote:
+> > On Fri, Mar 30, 2018 at 07:34:59PM +0900, Tetsuo Handa wrote:
+> > > Maybe we can make "give up by default upon SIGKILL" and let callers
+> > > explicitly say "do not give up upon SIGKILL".
 > > 
-> > 	/* Check if the available memory is there first */
-> > 	i = si_mem_available();
-> > 	if (i < nr_pages)
-> > 		return -ENOMEM;
+> > I really strongly disapprove of this patch.  This GFP flag will be abused
+> > like every other GFP flag.
 > > 
-> > And it works well.  
+> > > +++ b/mm/page_alloc.c
+> > > @@ -4183,6 +4183,13 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+> > >  	if (current->flags & PF_MEMALLOC)
+> > >  		goto nopage;
+> > >  
+> > > +	/* Can give up if caller is willing to give up upon fatal signals */
+> > > +	if (fatal_signal_pending(current) &&
+> > > +	    !(gfp_mask & (__GFP_UNKILLABLE | __GFP_NOFAIL))) {
+> > > +		gfp_mask |= __GFP_NOWARN;
+> > > +		goto nopage;
+> > > +	}
+> > > +
+> > >  	/* Try direct reclaim and then allocating */
+> > 
+> > This part is superficially tempting, although without the UNKILLABLE.  ie:
+> > 
+> > +	if (fatal_signal_pending(current) && !(gfp_mask & __GFP_NOFAIL)) {
+> > +		gfp_mask |= __GFP_NOWARN;
+> > +		goto nopage;
+> > +	}
+> > 
+> > It makes some sense to me to prevent tasks with a fatal signal pending
+> > from being able to trigger reclaim.  But I'm worried about what memory
+> > allocation failures it might trigger on paths that aren't accustomed to
+> > seeing failures.
 > 
-> Except that it doesn't work. si_mem_available is not really suitable for
-> any allocation estimations. Its only purpose is to provide a very rough
-> estimation for userspace. Any other use is basically abuse. The
-> situation can change really quickly. Really it is really hard to be
-> clever here with the volatility the memory allocations can cause.
+> Please be aware that we _do_ allocate in the exit path. I have a strong
+> suspicion that even while fatal signal is pending. Do we really want
+> fail those really easily.
 
-OK, then what do you suggest? Because currently, it appears to work. A
-rough estimate may be good enough.
-
-If we use NORETRY, then we have those that complain that we do not try
-hard enough to reclaim memory. If we use RETRY_MAYFAIL we have this
-issue of taking up all memory before we get what we want.
-
-Perhaps I should try to allocate a large group of pages with
-RETRY_MAYFAIL, and if that fails go back to NORETRY, with the thinking
-that the large allocation may reclaim some memory that would allow the
-NORETRY to succeed with smaller allocations (one page at a time)?
-
--- Steve
+I agree.  The allocations I'm thinking about are NFS wanting to send
+I/Os in order to fsync each file that gets closed.  We probably don't
+want those to fail.  And we definitely don't want to chase around the
+kernel adding __GFP_KILLABLE to each place that we discover needs to
+allocate on the exit path.
