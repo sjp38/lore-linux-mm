@@ -1,70 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AE0B86B0006
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 07:38:40 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id p18so3524458wmh.2
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 04:38:40 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i18si1889795wrh.152.2018.04.03.04.38.39
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ADAD16B0007
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 07:39:27 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id b17so9428112wrf.20
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 04:39:27 -0700 (PDT)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id c48si1946999wrg.151.2018.04.03.04.39.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Apr 2018 04:38:39 -0700 (PDT)
-Date: Tue, 3 Apr 2018 13:38:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Check for SIGKILL inside dup_mmap() loop.
-Message-ID: <20180403113837.GR5501@dhcp22.suse.cz>
-References: <1522322870-4335-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20180329143003.c52ada618be599c5358e8ca2@linux-foundation.org>
- <20180403111640.GN5501@dhcp22.suse.cz>
- <201804032032.GHF09826.MLOQFtSOFHJOFV@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Apr 2018 04:39:26 -0700 (PDT)
+Date: Tue, 3 Apr 2018 12:38:37 +0100
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
+Subject: Re: [PATCH v3 2/6] Disable instrumentation for some code
+Message-ID: <20180403113837.GK16141@n2100.armlinux.org.uk>
+References: <20180402120440.31900-1-liuwenliang@huawei.com>
+ <20180402120440.31900-3-liuwenliang@huawei.com>
+ <7837103a-bcf0-6b00-14d6-bd6b80649886@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201804032032.GHF09826.MLOQFtSOFHJOFV@I-love.SAKURA.ne.jp>
+In-Reply-To: <7837103a-bcf0-6b00-14d6-bd6b80649886@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, kirill.shutemov@linux.intel.com, riel@redhat.com
+To: Marc Zyngier <marc.zyngier@arm.com>
+Cc: Abbott Liu <liuwenliang@huawei.com>, aryabinin@virtuozzo.com, dvyukov@google.com, corbet@lwn.net, christoffer.dall@linaro.org, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, f.fainelli@gmail.com, akpm@linux-foundation.org, linux@rasmusvillemoes.dk, mawilcox@microsoft.com, pombredanne@nexb.com, ard.biesheuvel@linaro.org, vladimir.murzin@arm.com, alexander.levin@verizon.com, nicolas.pitre@linaro.org, tglx@linutronix.de, thgarnie@google.com, dhowells@redhat.com, keescook@chromium.org, arnd@arndb.de, geert@linux-m68k.org, tixy@linaro.org, julien.thierry@arm.com, mark.rutland@arm.com, james.morse@arm.com, zhichao.huang@linaro.org, jinb.park7@gmail.com, labbott@redhat.com, philip@cog.systems, grygorii.strashko@linaro.org, catalin.marinas@arm.com, opendmb@gmail.com, kirill.shutemov@linux.intel.com, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvmarm@lists.cs.columbia.edu, linux-mm@kvack.org
 
-On Tue 03-04-18 20:32:39, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Thu 29-03-18 14:30:03, Andrew Morton wrote:
-> > [...]
-> > > Dumb question: if a thread has been oom-killed and then tries to
-> > > allocate memory, should the page allocator just fail the allocation
-> > > attempt?  I suppose there are all sorts of reasons why not :(
+On Tue, Apr 03, 2018 at 12:30:42PM +0100, Marc Zyngier wrote:
+> On 02/04/18 13:04, Abbott Liu wrote:
+> > From: Andrey Ryabinin <a.ryabinin@samsung.com>
 > > 
-> > We give those tasks access to memory reserves to move on (see
-> > oom_reserves_allowed) and fail allocation if reserves do not help
+> > Disable instrumentation for arch/arm/boot/compressed/*
+> > ,arch/arm/kvm/hyp/* and arch/arm/vdso/* because those
+> > code won't linkd with kernel image.
 > > 
-> > 	if (tsk_is_oom_victim(current) &&
-> > 	    (alloc_flags == ALLOC_OOM ||
-> > 	     (gfp_mask & __GFP_NOMEMALLOC)))
-> > 		goto nopage;
-> > So we...
+> > Disable kasan check in the function unwind_pop_register
+> > because it doesn't matter that kasan checks failed when
+> > unwind_pop_register read stack memory of task.
 > > 
-> > > In which case, yes, setting a new
-> > > PF_MEMALLOC_MAY_FAIL_IF_I_WAS_OOMKILLED around such code might be a
-> > > tidy enough solution.  It would be a bit sad to add another test in the
-> > > hot path (should_fail_alloc_page()?), but geeze we do a lot of junk
-> > > already.
-> > 
-> > ... do not need this.
+> > Reviewed-by: Russell King - ARM Linux <linux@armlinux.org.uk>
+> > Reviewed-by: Florian Fainelli <f.fainelli@gmail.com>
+> > Reviewed-by: Marc Zyngier <marc.zyngier@arm.com>
 > 
-> Excuse me? But that check is after
+> Just because I replied to this patch doesn't mean you can stick my
+> Reviewed-by tag on it. Please drop this tag until I explicitly say that
+> you can add it (see Documentation/process/submitting-patches.rst,
+> section 11).
 > 
-> 	/* Reclaim has failed us, start killing things */
-> 	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
-> 	if (page)
-> 		goto got_pg;
-> 
-> which means that tsk_is_oom_victim(current) && alloc_flags == ALLOC_OOM threads
-> can still trigger the OOM killer as soon as the OOM reaper sets MMF_OOM_SKIP.
+> Same goes for patch 1.
 
-Races are possible and I do not see them as critical _right now_. If
-that turnes out to be not the case we can think of a more robust way.
-The thing is that we have "bail out for OOM victims already".
+Same goes for that reviewed-by line for me.  From my records, I never
+even looked at patch 2 from the first posting, and I don't appear to
+have the second posting in my mailbox (it's probably been classed as
+spam by dspam.)  So these reviewed-by lines seem to be totally
+misleading.
 
 -- 
-Michal Hocko
-SUSE Labs
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
+According to speedtest.net: 8.21Mbps down 510kbps up
