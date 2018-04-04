@@ -1,233 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 59FF26B0009
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 13:05:37 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id p18so5598676wmh.2
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 10:05:37 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id r11si109376edb.99.2018.04.04.10.05.35
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 202FA6B0003
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 13:45:28 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id y4so20157567iod.5
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 10:45:28 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m23sor2283568iob.292.2018.04.04.10.45.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 04 Apr 2018 10:05:35 -0700 (PDT)
-Date: Wed, 4 Apr 2018 13:07:00 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC] mm: memory.low heirarchical behavior
-Message-ID: <20180404170700.GA2161@cmpxchg.org>
-References: <20180320223353.5673-1-guro@fb.com>
- <20180321182308.GA28232@cmpxchg.org>
- <20180321190801.GA22452@castle.DHCP.thefacebook.com>
+        (Google Transport Security);
+        Wed, 04 Apr 2018 10:45:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180321190801.GA22452@castle.DHCP.thefacebook.com>
+In-Reply-To: <20180404162433.GB16142@bombadil.infradead.org>
+References: <20180402141058.GL13332@bombadil.infradead.org>
+ <20180404093254.GC3881@phenom.ffwll.local> <20180404143900.GA1777@bombadil.infradead.org>
+ <CAKMK7uEb0e4ifxMkqbp4DBNFnuWk0T5k8z0SU=U95Y6pe39Z+g@mail.gmail.com> <20180404162433.GB16142@bombadil.infradead.org>
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date: Wed, 4 Apr 2018 19:45:23 +0200
+Message-ID: <CAKMK7uGb=G=6r0gntqGxev8cMemYqjpJurRjXbf1F5pKmrtMvg@mail.gmail.com>
+Subject: Re: Signal handling in a page fault handler
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: dri-devel <dri-devel@lists.freedesktop.org>, Linux MM <linux-mm@kvack.org>, Souptick Joarder <jrdr.linux@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Wed, Mar 21, 2018 at 07:08:06PM +0000, Roman Gushchin wrote:
-> > On Tue, Mar 20, 2018 at 10:33:53PM +0000, Roman Gushchin wrote:
-> > > This patch aims to address an issue in current memory.low semantics,
-> > > which makes it hard to use it in a hierarchy, where some leaf memory
-> > > cgroups are more valuable than others.
-> > > 
-> > > For example, there are memcgs A, A/B, A/C, A/D and A/E:
-> > > 
-> > >   A      A/memory.low = 2G, A/memory.current = 6G
-> > >  //\\
-> > > BC  DE   B/memory.low = 3G  B/memory.usage = 2G
-> > >          C/memory.low = 1G  C/memory.usage = 2G
-> > >          D/memory.low = 0   D/memory.usage = 2G
-> > > 	 E/memory.low = 10G E/memory.usage = 0
-> > > 
-> > > If we apply memory pressure, B, C and D are reclaimed at
-> > > the same pace while A's usage exceeds 2G.
-> > > This is obviously wrong, as B's usage is fully below B's memory.low,
-> > > and C has 1G of protection as well.
-> > > Also, A is pushed to the size, which is less than A's 2G memory.low,
-> > > which is also wrong.
-> > > 
-> > > A simple bash script (provided below) can be used to reproduce
-> > > the problem. Current results are:
-> > >   A:    1430097920
-> > >   A/B:  711929856
-> > >   A/C:  717426688
-> > >   A/D:  741376
-> > >   A/E:  0
-> > 
-> > Yes, this is a problem. And the behavior with your patch looks much
-> > preferable over the status quo.
-> > 
-> > > To address the issue a concept of effective memory.low is introduced.
-> > > Effective memory.low is always equal or less than original memory.low.
-> > > In a case, when there is no memory.low overcommittment (and also for
-> > > top-level cgroups), these two values are equal.
-> > > Otherwise it's a part of parent's effective memory.low, calculated as
-> > > a cgroup's memory.low usage divided by sum of sibling's memory.low
-> > > usages (under memory.low usage I mean the size of actually protected
-> > > memory: memory.current if memory.current < memory.low, 0 otherwise).
-> > 
-> > This hurts my brain.
-> > 
-> > Why is memory.current == memory.low (which should fully protect
-> > memory.current) a low usage of 0?
-> > 
-> > Why is memory.current > memory.low not a low usage of memory.low?
-> > 
-> > I.e. shouldn't this be low_usage = min(memory.current, memory.low)?
-> 
-> This is really the non-trivial part.
-> 
-> Let's look at an example:
-> memcg A   (memory.current = 4G, memory.low = 2G)
-> memcg A/B (memory.current = 2G, memory.low = 2G)
-> memcg A/C (memory.current = 2G, memory.low = 1G)
-> 
-> If we'll calculate effective memory.low using your definition
-> before any reclaim, we end up with the following:
-> A/B  2G * 2G / (2G + 1G) = 4/3G
-> A/C  2G * 1G / (2G + 1G) = 2/3G
-> 
-> Looks good, but both cgroups are below their effective limits.
-> When memory pressure is applied, both are reclaimed at the same pace.
-> While both B and C are getting smaller and smaller, their weights
-> and effective low limits are getting closer and closer, but
-> still below their usages. This ends up when both cgroups will
-> have size of 1G, which is obviously wrong.
-> 
-> Fundamentally the problem is that memory.low doesn't define
-> the reclaim speed, just yes or no. So, if there are children cgroups,
-> some of which are below their memory.low, and some above (as in the example),
-> it's crucially important to reclaim unprotected memory first.
-> 
-> This is exactly what my code does: as soon as memory.current is larger
-> than memory.low, we don't treat cgroup's memory as protected at all,
-> so it doesn't affect effective limits of sibling cgroups.
+On Wed, Apr 4, 2018 at 6:24 PM, Matthew Wilcox <willy@infradead.org> wrote:
+> On Wed, Apr 04, 2018 at 05:15:46PM +0200, Daniel Vetter wrote:
+>> On Wed, Apr 4, 2018 at 4:39 PM, Matthew Wilcox <willy@infradead.org> wrote:
+>> > I actually have plans to allow mutex_lock_{interruptible,killable} to
+>> > return -EWOULDBLOCK if a flag is set.  So this doesn't seem entirely
+>> > unrelated.  Something like this perhaps:
+>> >
+>> >  struct task_struct {
+>> > +       unsigned int sleep_state;
+>> >  };
+>> >
+>> >  static noinline int __sched
+>> > -__mutex_lock_interruptible_slowpath(struct mutex *lock)
+>> > +__mutex_lock_slowpath(struct mutex *lock, long state)
+>> >  {
+>> > -       return __mutex_lock(lock, TASK_INTERRUPTIBLE, 0, NULL, _RET_IP_);
+>> > +       if (state == TASK_NOBLOCK)
+>> > +               return -EWOULDBLOCK;
+>> > +       return __mutex_lock(lock, state, 0, NULL, _RET_IP_);
+>> >  }
+>> >
+>> > +int __sched mutex_lock_state(struct mutex *lock, long state)
+>> > +{
+>> > +       might_sleep();
+>> > +
+>> > +       if (__mutex_trylock_fast(lock))
+>> > +               return 0;
+>> > +
+>> > +       return __mutex_lock_slowpath(lock, state);
+>> > +}
+>> > +EXPORT_SYMBOL(mutex_lock_state);
+>> >
+>> > Then the page fault handler can do something like:
+>> >
+>> >         old_state = current->sleep_state;
+>> >         current->sleep_state = TASK_INTERRUPTIBLE;
+>> >         ...
+>> >         current->sleep_state = old_state;
+>> >
+>> >
+>> > This has the page-fault-in-a-signal-handler problem.  I don't know if
+>> > there's a way to determine if we're already in a signal handler and use
+>> > a different sleep_state ...?
+>>
+>> Not sure what problem you're trying to solve, but I don't think that's
+>> the one we have. The only way what we do goes wrong is if the fault
+>> originates from kernel context. For faults from the signal handler I
+>> think you just get to keep the pieces. Faults form kernel we can
+>> detect through FAULT_FLAG_USER.
+>
+> Gah, I didn't explain well enough ;-(
+>
+> From the get_user_pages (and similar) handlers, we'd do
+>
+>          old_state = current->sleep_state;
+>          current->sleep_state = TASK_KILLABLE;
+>          ...
+>          current->sleep_state = old_state;
+>
+> So you wouldn't need to discriminate on whether FAULT_FLAG_USER was set,
+> but could just use current->sleep_state.
+>
+>> The issue I'm seeing is the following:
+>> 1. Some kernel code does copy_*_user, and it points at a gpu mmap region.
+>> 2. We fault and go into the gpu driver fault handler. That refuses to
+>> insert the pte because a signal is pending (because of all the
+>> interruptible waits and locks).
+>> 3. Fixup section runs, which afaict tries to do the copy once more
+>> using copy_user_handle_tail.
+>> 4. We fault again, because the pte is still not present.
+>> 5. GPU driver is still refusing to install the pte because signals are pending.
+>> 6. Fixup section for copy_user_handle_tail just bails out.
+>> 7. copy_*_user returns and indicates that that not all bytes have been copied.
+>> 8. syscall (or whatever it is) bails out and returns to userspace,
+>> most likely with -EFAULT (but this ofc depends upon the syscall and
+>> what it should do when userspace access faults.
+>> 9. Signal finally gets handled, but the syscall already failed, and no
+>> one will restart it. If userspace is prudent, it might fail (or maybe
+>> hit an assert or something).
+>
+> I think my patch above fixes this.  It makes the syscall killable rather
+> than interruptible, so it can never observe the short read / -EFAULT
+> return if it gets a fatal signal, and the non-fatal signal will be held
+> off until the syscall completes.
+>
+>> Or maybe I'm confused by your diff, since nothing seems to use
+>> current->sleep_state. The problem is also that it's any sleep we do
+>> (they all tend to be interruptible, at least when waiting for the gpu
+>> or taking any locks that might be held while waiting for the gpu, or
+>> anything else that might be blocked waiting for the gpu really). So
+>> only patching mutex_lock won't fix this.
+>
+> Sure, I was only patching mutex_lock_state in as an illustration.
+> I've also got a 'state' equivalent for wait_on_page_bit() (although
+> I'm not sure you care ...).
+>
+> Looks like you'd need wait_for_completion_state() and
+> wait_event_state_timeout() as well.
 
-Okay, that explanation makes sense to me. Once you're in excess, your
-memory is generally unprotected wrt your siblings until you're reigned
-in again.
+Yeah, plus ww_mutex_lock_state, and same for the dma_fence wait
+functions, but we can patch those once the core stuff has landed.
 
-It should still be usage <= low rather than usage < low, right? Since
-you're protected up to and including what that number says.
+The part I'm wondering about, that you didn't really illustrate: Are
+mutex_lock_interruptible&friends supposed to automatically use
+current->sleep_state, or are we somehow supposed to pass that through
+the call stack? Or is the idea that we'd mass-convert all the gpu code
+that can be reached from the fault handlers to use the new _state
+variants, which will internally consult sleep_state?
 
-> > > @@ -1726,6 +1756,7 @@ static void drain_stock(struct memcg_stock_pcp *stock)
-> > >  		page_counter_uncharge(&old->memory, stock->nr_pages);
-> > >  		if (do_memsw_account())
-> > >  			page_counter_uncharge(&old->memsw, stock->nr_pages);
-> > > +		memcg_update_low(old);
-> > >  		css_put_many(&old->css, stock->nr_pages);
-> > >  		stock->nr_pages = 0;
-> > 
-> > The function is called every time the page counter changes and walks
-> > up the hierarchy exactly the same. That is a good sign that the low
-> > usage tracking should really be part of the page counter code itself.
-> 
-> I thought about it, but the problem is that page counters are used for
-> accounting swap, kmem, tcpmem (for v1), where low limit calculations are
-> not applicable. I've no idea, how to add them nicely and without excessive
-> overhead.
-> Also, good news are that it's possible to avoid any tracking until
-> a user actually overcommits memory.low guarantees. I plan to implement
-> this optimization in a separate patch.
+Asking since the former would be best for us: Most paths can do
+interruptible, but some can't, so changing the current->state logic to
+take the most limiting of both the explicitly passed sleep_state and
+the one set in current->sleep_state would be best. Otrherwise if you
+have a path that can at most do killable waits, but it's context might
+either allow fully interruptible or killable or even neither, then
+there's still some fragile code around.
 
-Hm, I'm not too worried about swap (not a sensitive path) or the other
-users (per-cpu batched). It just adds a branch. How about the below?
-
-diff --git a/include/linux/page_counter.h b/include/linux/page_counter.h
-index c15ab80ad32d..95bdbca86751 100644
---- a/include/linux/page_counter.h
-+++ b/include/linux/page_counter.h
-@@ -9,8 +9,13 @@
- struct page_counter {
- 	atomic_long_t count;
- 	unsigned long limit;
-+	unsigned long protected;
- 	struct page_counter *parent;
- 
-+	/* Hierarchical, proportional protection */
-+	atomic_long_t protected_count;
-+	atomic_long_t children_protected_count;
-+
- 	/* legacy */
- 	unsigned long watermark;
- 	unsigned long failcnt;
-@@ -42,6 +47,7 @@ bool page_counter_try_charge(struct page_counter *counter,
- 			     struct page_counter **fail);
- void page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages);
- int page_counter_limit(struct page_counter *counter, unsigned long limit);
-+void page_counter_protect(struct page_counter *counter, unsigned long protected);
- int page_counter_memparse(const char *buf, const char *max,
- 			  unsigned long *nr_pages);
- 
-diff --git a/mm/page_counter.c b/mm/page_counter.c
-index 2a8df3ad60a4..e6f7665d13e3 100644
---- a/mm/page_counter.c
-+++ b/mm/page_counter.c
-@@ -13,6 +13,29 @@
- #include <linux/bug.h>
- #include <asm/page.h>
- 
-+static void propagate_protected(struct page_counter *c, unsigned long count)
-+{
-+	unsigned long protected_count;
-+	unsigned long delta;
-+	unsigned long old;
-+
-+	if (!c->parent)
-+		return;
-+
-+	if (!c->protected && !atomic_long_read(&c->protected_count))
-+		return;
-+
-+	if (count <= c->protected)
-+		protected_count = count;
-+	else
-+		protected_count = 0;
-+
-+	old = atomic_long_xchg(&c->protected_count, protected_count);
-+	delta = protected_count - old;
-+	if (delta)
-+		atomic_long_add(delta, &c->parent->children_protected_count);
-+}
-+
- /**
-  * page_counter_cancel - take pages out of the local counter
-  * @counter: counter
-@@ -23,6 +46,7 @@ void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
- 	long new;
- 
- 	new = atomic_long_sub_return(nr_pages, &counter->count);
-+	propagate_protected(counter, new);
- 	/* More uncharges than charges? */
- 	WARN_ON_ONCE(new < 0);
- }
-@@ -42,6 +66,7 @@ void page_counter_charge(struct page_counter *counter, unsigned long nr_pages)
- 		long new;
- 
- 		new = atomic_long_add_return(nr_pages, &c->count);
-+		propagate_protected(c, new);
- 		/*
- 		 * This is indeed racy, but we can live with some
- 		 * inaccuracy in the watermark.
-@@ -93,6 +118,7 @@ bool page_counter_try_charge(struct page_counter *counter,
- 			*fail = c;
- 			goto failed;
- 		}
-+		propagate_protected(c, new);
- 		/*
- 		 * Just like with failcnt, we can live with some
- 		 * inaccuracy in the watermark.
-@@ -164,6 +190,12 @@ int page_counter_limit(struct page_counter *counter, unsigned long limit)
- 	}
- }
- 
-+void page_counter_protect(struct page_counter *counter, unsigned long protected)
-+{
-+	c->protected = protected;
-+	propagate_protected(counter, atomic_long_read(&counter->count));
-+}
-+
- /**
-  * page_counter_memparse - memparse() for page counter limits
-  * @buf: string to parse
+Bonus points if you could even nest assignemtns to
+current->sleep_state (even when there's not really all that many
+options), similar to how preempt_disable and other atomic sections
+nest.
+-Daniel
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
