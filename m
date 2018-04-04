@@ -1,82 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1216E6B0006
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 10:43:00 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id o3-v6so12525747pls.11
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 07:43:00 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C6AF6B0006
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 10:47:38 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id v8so8664513wmv.1
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 07:47:38 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t83si4196965pfj.167.2018.04.04.07.42.58
+        by mx.google.com with ESMTPS id 69si2317218wmp.44.2018.04.04.07.47.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 04 Apr 2018 07:42:59 -0700 (PDT)
-Date: Wed, 4 Apr 2018 16:42:55 +0200
+        Wed, 04 Apr 2018 07:47:36 -0700 (PDT)
+Date: Wed, 4 Apr 2018 16:47:35 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180404144255.GK6312@dhcp22.suse.cz>
-References: <20180403123514.GX5501@dhcp22.suse.cz>
+Message-ID: <20180404144735.GL6312@dhcp22.suse.cz>
+References: <20180403121614.GV5501@dhcp22.suse.cz>
+ <20180403082348.28cd3c1c@gandalf.local.home>
+ <20180403123514.GX5501@dhcp22.suse.cz>
  <20180403093245.43e7e77c@gandalf.local.home>
  <20180403135607.GC5501@dhcp22.suse.cz>
- <20180403101753.3391a639@gandalf.local.home>
- <20180403161119.GE5501@dhcp22.suse.cz>
- <20180403185627.6bf9ea9b@gandalf.local.home>
- <20180404062039.GC6312@dhcp22.suse.cz>
- <20180404085901.5b54fe32@gandalf.local.home>
- <20180404141052.GH6312@dhcp22.suse.cz>
- <20180404102527.763250b4@gandalf.local.home>
+ <CAGWkznH-yfAu=fMo1YWU9zo-DomHY8YP=rw447rUTgzvVH4RpQ@mail.gmail.com>
+ <20180404062340.GD6312@dhcp22.suse.cz>
+ <20180404101149.08f6f881@gandalf.local.home>
+ <20180404142329.GI6312@dhcp22.suse.cz>
+ <20180404103111.2ea16efa@gandalf.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180404102527.763250b4@gandalf.local.home>
+In-Reply-To: <20180404103111.2ea16efa@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Steven Rostedt <rostedt@goodmis.org>
 Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed 04-04-18 10:25:27, Steven Rostedt wrote:
-> On Wed, 4 Apr 2018 16:10:52 +0200
+On Wed 04-04-18 10:31:11, Steven Rostedt wrote:
+> On Wed, 4 Apr 2018 16:23:29 +0200
 > Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> > On Wed 04-04-18 08:59:01, Steven Rostedt wrote:
-> > [...]
-> > > +       /*
-> > > +        * Check if the available memory is there first.
-> > > +        * Note, si_mem_available() only gives us a rough estimate of available
-> > > +        * memory. It may not be accurate. But we don't care, we just want
-> > > +        * to prevent doing any allocation when it is obvious that it is
-> > > +        * not going to succeed.
-> > > +        */
-> > > +       i = si_mem_available();
-> > > +       if (i < nr_pages)
-> > > +               return -ENOMEM;
-> > > +
+> > On Wed 04-04-18 10:11:49, Steven Rostedt wrote:
+> > > On Wed, 4 Apr 2018 08:23:40 +0200
+> > > Michal Hocko <mhocko@kernel.org> wrote:
+> > >   
+> > > > If you are afraid of that then you can have a look at {set,clear}_current_oom_origin()
+> > > > which will automatically select the current process as an oom victim and
+> > > > kill it.  
 > > > 
-> > > Better?  
+> > > Would it even receive the signal? Does alloc_pages_node() even respond
+> > > to signals? Because the OOM happens while the allocation loop is
+> > > running.  
 > > 
-> > I must be really missing something here. How can that work at all for
-> > e.g. the zone_{highmem/movable}. You will get false on the above tests
-> > even when you will have hard time to allocate anything from your
-> > destination zones.
+> > Well, you would need to do something like:
+> > 
+> > > 
+> > > I tried it out, I did the following:
+> > > 
+> > > 	set_current_oom_origin();
+> > > 	for (i = 0; i < nr_pages; i++) {
+> > > 		struct page *page;
+> > > 		/*
+> > > 		 * __GFP_RETRY_MAYFAIL flag makes sure that the allocation fails
+> > > 		 * gracefully without invoking oom-killer and the system is not
+> > > 		 * destabilized.
+> > > 		 */
+> > > 		bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
+> > > 				    GFP_KERNEL | __GFP_RETRY_MAYFAIL,
+> > > 				    cpu_to_node(cpu));
+> > > 		if (!bpage)
+> > > 			goto free_pages;
+> > > 
+> > > 		list_add(&bpage->list, pages);
+> > > 
+> > > 		page = alloc_pages_node(cpu_to_node(cpu),
+> > > 					GFP_KERNEL | __GFP_RETRY_MAYFAIL, 0);
+> > > 		if (!page)
+> > > 			goto free_pages;  
+> > 
+> > 		if (fatal_signal_pending())
+> > 			fgoto free_pages;
 > 
-> You mean we will get true on the above tests?  Again, the current
-> method is to just say screw it and try to allocate.
+> But wouldn't page be NULL in this case?
 
-No, you will get false on that test. Say that you have a system with
-large ZONE_MOVABLE. Now your kernel allocations can fit only into
-!movable zones (say we have 1G for !movable and 3G for movable). Now say
-that !movable zones are getting close to the edge while movable zones
-are full of reclaimable pages. si_mem_available will tell you there is a
-_lot_ of memory available while your GFP_KERNEL request will happily
-consume the rest of !movable zones and trigger OOM. See?
+__GFP_RETRY_MAYFAIL itself fails rather than triggers the OOM killer.
+You still might get killed from other allocation context which can
+trigger the OOM killer though. In any case you would back off and fail,
+no?
 
-[...]
-> I'm looking for something where "yes" means "there may be enough, but
-> there may not be, buyer beware", and "no" means "forget it, don't even
-> start, because you just asked for more than possible".
+> > > 		bpage->page = page_address(page);
+> > > 		rb_init_page(bpage->page);
+> > > 	}
+> > > 	clear_current_oom_origin();  
+> > 
+> > If you use __GFP_RETRY_MAYFAIL it would have to be somedy else to
+> > trigger the OOM killer and this user context would get killed. If you
+> > drop __GFP_RETRY_MAYFAIL it would be this context to trigger the OOM but
+> > it would still be the selected victim.
+> 
+> Then we guarantee to kill the process instead of just sending a
+> -ENOMEM, which would change user space ABI, and is a NO NO.
 
-We do not have _that_ something other than try to opportunistically
-allocate and see what happens. Sucks? Maybe yes but I really cannot
-think of an interface with sane semantic that would catch all the
-different scenarios.
+I see. Although I would expect it would be echo writing to a file most
+of the time. But I am not really familiar what traces usually do so I
+will not speculate.
+
+> Ideally, we want to avoid an OOM. I could add the above as well, when
+> si_mem_avaiable() returns something that is greater than what is
+> available, and at least this is the process that will get the OOM if it
+> fails to allocate.
+> 
+> Would that work for you?
+
+I have responded wrt si_mem_avaiable in other email but yes, using the
+oom_origin would reduce the immediate damage at least.
 -- 
 Michal Hocko
 SUSE Labs
