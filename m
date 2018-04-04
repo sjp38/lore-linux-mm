@@ -1,79 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A1FA6B0005
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 21:27:44 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id s23-v6so12114490plr.15
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 18:27:44 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 726036B0006
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 21:34:07 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id o33-v6so9990092plb.16
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 18:34:07 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i15sor994695pgp.155.2018.04.03.18.27.43
+        by mx.google.com with SMTPS id 101-v6sor1603040ple.72.2018.04.03.18.34.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 03 Apr 2018 18:27:43 -0700 (PDT)
-Date: Wed, 4 Apr 2018 09:27:34 +0800
+        Tue, 03 Apr 2018 18:34:06 -0700 (PDT)
+Date: Wed, 4 Apr 2018 09:33:57 +0800
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: call set_pageblock_order() once for each
- node
-Message-ID: <20180404012734.GA1841@WeideMacBook-Pro.local>
+Subject: Re: [PATCH] mm/memblock: fix potential issue in
+ memblock_search_pfn_nid()
+Message-ID: <20180404013357.GB1841@WeideMacBook-Pro.local>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20180329033607.8440-1-richard.weiyang@gmail.com>
- <20180329121109.xg5tfk6dyqzkrgrh@suse.de>
- <20180330010243.GA14446@WeideMacBook-Pro.local>
- <20180403075737.GB5501@dhcp22.suse.cz>
+References: <20180330033055.22340-1-richard.weiyang@gmail.com>
+ <20180330135727.67251c7ea8c2db28b404e0e1@linux-foundation.org>
+ <20180402015026.GA32938@WeideMacBook-Pro.local>
+ <20180403113041.GP5501@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180403075737.GB5501@dhcp22.suse.cz>
+In-Reply-To: <20180403113041.GP5501@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, yinghai@kernel.org, linux-mm@kvack.org, hejianet@gmail.com, "3 . 12+" <stable@vger.kernel.org>
 
-On Tue, Apr 03, 2018 at 09:57:37AM +0200, Michal Hocko wrote:
->On Fri 30-03-18 09:02:43, Wei Yang wrote:
->> On Thu, Mar 29, 2018 at 01:11:09PM +0100, Mel Gorman wrote:
->> >On Thu, Mar 29, 2018 at 11:36:07AM +0800, Wei Yang wrote:
->> >> set_pageblock_order() is a standalone function which sets pageblock_order,
->> >> while current implementation calls this function on each ZONE of each node
->> >> in free_area_init_core().
+On Tue, Apr 03, 2018 at 01:30:41PM +0200, Michal Hocko wrote:
+>On Mon 02-04-18 09:50:26, Wei Yang wrote:
+>> On Fri, Mar 30, 2018 at 01:57:27PM -0700, Andrew Morton wrote:
+>> >On Fri, 30 Mar 2018 11:30:55 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+>> >
+>> >> memblock_search_pfn_nid() returns the nid and the [start|end]_pfn of the
+>> >> memory region where pfn sits in. While the calculation of start_pfn has
+>> >> potential issue when the regions base is not page aligned.
 >> >> 
->> >> Since free_area_init_node() is the only user of free_area_init_core(),
->> >> this patch moves set_pageblock_order() up one level to invoke
->> >> set_pageblock_order() only once on each node.
+>> >> For example, we assume PAGE_SHIFT is 12 and base is 0x1234. Current
+>> >> implementation would return 1 while this is not correct.
+>> >
+>> >Why is this not correct?  The caller might want the pfn of the page
+>> >which covers the base?
+>> >
+>> 
+>> Hmm... the only caller of memblock_search_pfn_nid() is __early_pfn_to_nid(),
+>> which returns the nid of a pfn and save the [start_pfn, end_pfn] with in the
+>> same memory region to a cache. So this looks not a good practice to store
+>> un-exact pfn in the cache.
+>> 
+>> >> This patch fixes this by using PFN_UP().
+>> >> 
+>> >> The original commit is commit e76b63f80d93 ("memblock, numa: binary search
+>> >> node id") and merged in v3.12.
 >> >> 
 >> >> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+>> >> Cc: 3.12+ <stable@vger.kernel.org>
 >> >
->> >The patch looks ok but given that set_pageblock_order returns immediately
->> >if it has already been called, I expect the benefit is marginal. Was any
->> >improvement in boot time measured?
+>> >Please fully describe the runtime effects of a bug when fixing that
+>> >bug.  This description doesn't give enough justification for merging
+>> >the patch into mainline, let alone -stable.
 >> 
->> No, I don't expect measurable improvement from this since the number of nodes
->> and zones are limited.
->> 
->> This is just a code refine from logic point of view.
+>> Since PFN_UP() and PFN_DOWN() differs when the address is not page aligned, in
+>> theory we may have two situations like below.
 >
->Then, please make sure it is a real refinement. Calling this function
->per node is only half way to get there as the function is by no means
->per node.
->
+>Have you ever seen a HW that would report page unaligned memory ranges?
+>Is this even possible?
 
-Hi, Michal
-
-I guess you are willing to see this function is only called once for the whole
-system.
-
-Yes, that is the ideal way, well I don't come up with an elegant way. The best
-way is to move this to free_area_init_nodes(), while you can see not all arch
-use this function.
-
-Then I have two options:
-
-A: Move this to free_area_init_nodes() for those arch using it. Call it
-specifically for those arch not using free_area_init_nodes().
-
-B: call it before setup_arch() in start_kernel()
-
-Hmm... which one you would prefer? If you have a better idea, that would be
-great.
+No, so we don't need to handle this case?
 
 >-- 
 >Michal Hocko
