@@ -1,73 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E4806B0006
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 05:08:39 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id j1-v6so6658711oiw.22
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 02:08:39 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v10-v6si1420990oif.337.2018.04.04.02.08.38
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D5A26B0007
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 05:09:31 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b23so7118603wme.3
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 02:09:31 -0700 (PDT)
+Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
+        by mx.google.com with ESMTP id o20si3276527wro.121.2018.04.04.02.09.29
         for <linux-mm@kvack.org>;
-        Wed, 04 Apr 2018 02:08:38 -0700 (PDT)
-Date: Wed, 4 Apr 2018 10:08:32 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH 2/2] smp: introduce kick_active_cpus_sync()
-Message-ID: <20180404090831.62dtaqo4ojrmozj7@lakrids.cambridge.arm.com>
-References: <20180325175004.28162-1-ynorov@caviumnetworks.com>
- <20180325175004.28162-3-ynorov@caviumnetworks.com>
- <20180327102116.GA2464@arm.com>
- <20180401111108.mudkiewzn33sifvk@yury-thinkpad>
- <20180403134832.2cdae64uwuot6ryz@lakrids.cambridge.arm.com>
- <20180404033625.gkn4q7kb2xf6d6mo@yury-thinkpad>
+        Wed, 04 Apr 2018 02:09:29 -0700 (PDT)
+Subject: Re: [RFC] Per file OOM badness
+References: <20180118170006.GG6584@dhcp22.suse.cz>
+ <20180123152659.GA21817@castle.DHCP.thefacebook.com>
+ <20180123153631.GR1526@dhcp22.suse.cz>
+ <ccac4870-ced3-f169-17df-2ab5da468bf0@daenzer.net>
+ <20180124092847.GI1526@dhcp22.suse.cz>
+ <583f328e-ff46-c6a4-8548-064259995766@daenzer.net>
+ <20180124110141.GA28465@dhcp22.suse.cz>
+ <36b49523-792d-45f9-8617-32b6d9d77418@daenzer.net>
+ <20180124115059.GC28465@dhcp22.suse.cz>
+ <60e18da8-4d6e-dec9-7aef-ff003605d513@daenzer.net>
+ <20180130102855.GY21609@dhcp22.suse.cz>
+ <1522074988.1196.1.camel@pengutronix.de>
+From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
+Message-ID: <3778a205-8b30-d147-b1f6-0a93d1de8beb@daenzer.net>
+Date: Wed, 4 Apr 2018 11:09:25 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180404033625.gkn4q7kb2xf6d6mo@yury-thinkpad>
+In-Reply-To: <1522074988.1196.1.camel@pengutronix.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yury Norov <ynorov@caviumnetworks.com>
-Cc: Will Deacon <will.deacon@arm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Chris Metcalf <cmetcalf@mellanox.com>, Christopher Lameter <cl@linux.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Catalin Marinas <catalin.marinas@arm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lucas Stach <l.stach@pengutronix.de>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, Christian.Koenig@amd.com, linux-mm@kvack.org, amd-gfx@lists.freedesktop.org, Roman Gushchin <guro@fb.com>
 
-On Wed, Apr 04, 2018 at 06:36:25AM +0300, Yury Norov wrote:
-> On Tue, Apr 03, 2018 at 02:48:32PM +0100, Mark Rutland wrote:
-> > On Sun, Apr 01, 2018 at 02:11:08PM +0300, Yury Norov wrote:
-> > > @@ -840,8 +861,10 @@ el0_svc:
-> > >  	mov	wsc_nr, #__NR_syscalls
-> > >  el0_svc_naked:					// compat entry point
-> > >  	stp	x0, xscno, [sp, #S_ORIG_X0]	// save the original x0 and syscall number
-> > > +	isb_if_eqs
-> > >  	enable_dbg_and_irq
-> > > -	ct_user_exit 1
-> > > +	ct_user_exit
-> > 
-> > I don't think this is safe. here we issue the ISB *before* exiting a
-> > quiesecent state, so I think we can race with another CPU that calls
-> > kick_all_active_cpus_sync, e.g.
-> > 
-> > 	CPU0				CPU1
-> > 
-> > 	ISB
-> > 					patch_some_text()
-> > 					kick_all_active_cpus_sync()
-> > 	ct_user_exit
-> > 
-> > 	// not synchronized!
-> > 	use_of_patched_text()
-> > 
-> > ... and therefore the ISB has no effect, which could be disasterous.
-> > 
-> > I believe we need the ISB *after* we transition into a non-quiescent
-> > state, so that we can't possibly miss a context synchronization event.
->  
-> I decided to put isb() in entry because there's a chance that there will
-> be patched code prior to exiting a quiescent state.
+On 2018-03-26 04:36 PM, Lucas Stach wrote:
+> Am Dienstag, den 30.01.2018, 11:28 +0100 schrieb Michal Hocko:
+>> On Tue 30-01-18 10:29:10, Michel DA?nzer wrote:
+>>> On 2018-01-24 12:50 PM, Michal Hocko wrote:
+>>>> On Wed 24-01-18 12:23:10, Michel DA?nzer wrote:
+>>>>> On 2018-01-24 12:01 PM, Michal Hocko wrote:
+>>>>>> On Wed 24-01-18 11:27:15, Michel DA?nzer wrote:
+>>>>
+>>>> [...]
+>>>>>>> 2. If the OOM killer kills a process which is sharing BOs
+>>>>>>> with another
+>>>>>>> process, this should result in the other process dropping
+>>>>>>> its references
+>>>>>>> to the BOs as well, at which point the memory is released.
+>>>>>>
+>>>>>> OK. How exactly are those BOs mapped to the userspace?
+>>>>>
+>>>>> I'm not sure what you're asking. Userspace mostly uses a GEM
+>>>>> handle to
+>>>>> refer to a BO. There can also be userspace CPU mappings of the
+>>>>> BO's
+>>>>> memory, but userspace doesn't need CPU mappings for all BOs and
+>>>>> only
+>>>>> creates them as needed.
+>>>>
+>>>> OK, I guess you have to bear with me some more. This whole stack
+>>>> is a
+>>>> complete uknonwn. I am mostly after finding a boundary where you
+>>>> can
+>>>> charge the allocated memory to the process so that the oom killer
+>>>> can
+>>>> consider it. Is there anything like that? Except for the proposed
+>>>> file
+>>>> handle hack?
+>>>
+>>> How about the other way around: what APIs can we use to charge /
+>>> "uncharge" memory to a process? If we have those, we can experiment
+>>> with
+>>> different places to call them.
+>>
+>> add_mm_counter() and I would add a new counter e.g. MM_KERNEL_PAGES.
+> 
+> So is anyone still working on this? This is hurting us bad enough that
+> I don't want to keep this topic rotting for another year.
+> 
+> If no one is currently working on this I would volunteer to give the
+> simple "just account private, non-shared buffers in process RSS" a
+> spin.
 
-If we do patch entry text, then I think we have no option but to use
-kick_all_active_cpus_sync(), or we risk races similar to the above.
+Sounds good. FWIW, I think shared buffers can also be easily handled by
+accounting them in each process which has a reference. But that's more
+of a detail, shouldn't make a big difference overall either way.
 
-> But after some headscratching, I think it's safe. I'll do like you
-> suggested here.
 
-Sounds good.
-
-Thanks,
-Mark.
+-- 
+Earthling Michel DA?nzer               |               http://www.amd.com
+Libre software enthusiast             |             Mesa and X developer
