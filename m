@@ -1,178 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 108E16B000C
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 05:53:34 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id v6so4700128qkd.23
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 02:53:34 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c6si3610986qtg.258.2018.04.04.02.53.32
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4207B6B0005
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 06:07:26 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id r83so7404830vkf.7
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 03:07:26 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id m66si1981300vkd.293.2018.04.04.03.07.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 02:53:33 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w349qDPP143750
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2018 05:53:32 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2h4uw1shv4-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 04 Apr 2018 05:53:31 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 4 Apr 2018 10:53:28 +0100
-Subject: Re: [PATCH v9 06/24] mm: make pte_unmap_same compatible with SPF
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1520963994-28477-7-git-send-email-ldufour@linux.vnet.ibm.com>
- <20180403191005.GC5935@redhat.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 4 Apr 2018 11:53:18 +0200
-MIME-Version: 1.0
-In-Reply-To: <20180403191005.GC5935@redhat.com>
+        Wed, 04 Apr 2018 03:07:25 -0700 (PDT)
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <04b7be03-b90b-c890-d1bb-6981412a6b10@linux.vnet.ibm.com>
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: [RFC PATCH 1/1] vmscan: Support multiple kswapd threads per node
+From: Buddy Lumpkin <buddy.lumpkin@oracle.com>
+In-Reply-To: <20180403211253.GC30145@bombadil.infradead.org>
+Date: Wed, 4 Apr 2018 03:07:01 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <2D4C5B98-6B19-4430-AFA0-83C9D72DB86C@oracle.com>
+References: <1522661062-39745-1-git-send-email-buddy.lumpkin@oracle.com>
+ <1522661062-39745-2-git-send-email-buddy.lumpkin@oracle.com>
+ <20180403133115.GA5501@dhcp22.suse.cz>
+ <20180403190759.GB6779@bombadil.infradead.org>
+ <A1EF8129-7F59-49CB-BEEC-E615FB878CE2@oracle.com>
+ <20180403211253.GC30145@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, riel@surriel.com, mgorman@suse.de, akpm@linux-foundation.org
 
 
+> On Apr 3, 2018, at 2:12 PM, Matthew Wilcox <willy@infradead.org> =
+wrote:
+>=20
+> On Tue, Apr 03, 2018 at 01:49:25PM -0700, Buddy Lumpkin wrote:
+>>> Yes, very much this.  If you have a single-threaded workload which =
+is
+>>> using the entirety of memory and would like to use even more, then =
+it
+>>> makes sense to use as many CPUs as necessary getting memory out of =
+its
+>>> way.  If you have N CPUs and N-1 threads happily occupying =
+themselves in
+>>> their own reasonably-sized working sets with one monster process =
+trying
+>>> to use as much RAM as possible, then I'd be pretty unimpressed to =
+see
+>>> the N-1 well-behaved threads preempted by kswapd.
+>>=20
+>> The default value provides one kswapd thread per NUMA node, the same
+>> it was without the patch. Also, I would point out that just because =
+you devote
+>> more threads to kswapd, doesn=E2=80=99t mean they are busy. If =
+multiple kswapd threads
+>> are busy, they are almost certainly doing work that would have =
+resulted in
+>> direct reclaims, which are often substantially more expensive than a =
+couple
+>> extra context switches due to preemption.
+>=20
+> [...]
+>=20
+>> In my previous response to Michal Hocko, I described
+>> how I think we could scale watermarks in response to direct reclaims, =
+and
+>> launch more kswapd threads when kswapd peaks at 100% CPU usage.
+>=20
+> I think you're missing my point about the workload ... kswapd isn't
+> "nice", so it will compete with the N-1 threads which are chugging =
+along
+> at 100% CPU inside their working sets.  In this scenario, we _don't_
+> want to kick off kswapd at all; we want the monster thread to clean up
+> its own mess.  If we have idle CPUs, then yes, absolutely, lets have
+> them clean up for the monster, but otherwise, I want my N-1 threads
+> doing their own thing.
 
-On 03/04/2018 21:10, Jerome Glisse wrote:
-> On Tue, Mar 13, 2018 at 06:59:36PM +0100, Laurent Dufour wrote:
->> pte_unmap_same() is making the assumption that the page table are still
->> around because the mmap_sem is held.
->> This is no more the case when running a speculative page fault and
->> additional check must be made to ensure that the final page table are still
->> there.
->>
->> This is now done by calling pte_spinlock() to check for the VMA's
->> consistency while locking for the page tables.
->>
->> This is requiring passing a vm_fault structure to pte_unmap_same() which is
->> containing all the needed parameters.
->>
->> As pte_spinlock() may fail in the case of a speculative page fault, if the
->> VMA has been touched in our back, pte_unmap_same() should now return 3
->> cases :
->> 	1. pte are the same (0)
->> 	2. pte are different (VM_FAULT_PTNOTSAME)
->> 	3. a VMA's changes has been detected (VM_FAULT_RETRY)
->>
->> The case 2 is handled by the introduction of a new VM_FAULT flag named
->> VM_FAULT_PTNOTSAME which is then trapped in cow_user_page().
->> If VM_FAULT_RETRY is returned, it is passed up to the callers to retry the
->> page fault while holding the mmap_sem.
->>
->> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
->> ---
->>  include/linux/mm.h |  1 +
->>  mm/memory.c        | 29 +++++++++++++++++++----------
->>  2 files changed, 20 insertions(+), 10 deletions(-)
->>
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 2f3e98edc94a..b6432a261e63 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -1199,6 +1199,7 @@ static inline void clear_page_pfmemalloc(struct page *page)
->>  #define VM_FAULT_NEEDDSYNC  0x2000	/* ->fault did not modify page tables
->>  					 * and needs fsync() to complete (for
->>  					 * synchronous page faults in DAX) */
->> +#define VM_FAULT_PTNOTSAME 0x4000	/* Page table entries have changed */
->>  
->>  #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
->>  			 VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
->> diff --git a/mm/memory.c b/mm/memory.c
->> index 21b1212a0892..4bc7b0bdcb40 100644
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -2309,21 +2309,29 @@ static bool pte_map_lock(struct vm_fault *vmf)
->>   * parts, do_swap_page must check under lock before unmapping the pte and
->>   * proceeding (but do_wp_page is only called after already making such a check;
->>   * and do_anonymous_page can safely check later on).
->> + *
->> + * pte_unmap_same() returns:
->> + *	0			if the PTE are the same
->> + *	VM_FAULT_PTNOTSAME	if the PTE are different
->> + *	VM_FAULT_RETRY		if the VMA has changed in our back during
->> + *				a speculative page fault handling.
->>   */
->> -static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
->> -				pte_t *page_table, pte_t orig_pte)
->> +static inline int pte_unmap_same(struct vm_fault *vmf)
->>  {
->> -	int same = 1;
->> +	int ret = 0;
->> +
->>  #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
->>  	if (sizeof(pte_t) > sizeof(unsigned long)) {
->> -		spinlock_t *ptl = pte_lockptr(mm, pmd);
->> -		spin_lock(ptl);
->> -		same = pte_same(*page_table, orig_pte);
->> -		spin_unlock(ptl);
->> +		if (pte_spinlock(vmf)) {
->> +			if (!pte_same(*vmf->pte, vmf->orig_pte))
->> +				ret = VM_FAULT_PTNOTSAME;
->> +			spin_unlock(vmf->ptl);
->> +		} else
->> +			ret = VM_FAULT_RETRY;
->>  	}
->>  #endif
->> -	pte_unmap(page_table);
->> -	return same;
->> +	pte_unmap(vmf->pte);
->> +	return ret;
->>  }
->>  
->>  static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
->> @@ -2913,7 +2921,8 @@ int do_swap_page(struct vm_fault *vmf)
->>  	int exclusive = 0;
->>  	int ret = 0;
->>  
->> -	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte))
->> +	ret = pte_unmap_same(vmf);
->> +	if (ret)
->>  		goto out;
->>  
-> 
-> This change what do_swap_page() returns ie before it was returning 0
-> when locked pte lookup was different from orig_pte. After this patch
-> it returns VM_FAULT_PTNOTSAME but this is a new return value for
-> handle_mm_fault() (the do_swap_page() return value is what ultimately
-> get return by handle_mm_fault())
-> 
-> Do we really want that ? This might confuse some existing user of
-> handle_mm_fault() and i am not sure of the value of that information
-> to caller.
-> 
-> Note i do understand that you want to return retry if anything did
-> change from underneath and thus need to differentiate from when the
-> pte value are not the same.
+For the scenario you describe above. I have my own opinions, but I would =
+rather not
+speculate on what happens. Tomorrow I will try to simulate this =
+situation and i=E2=80=99ll
+report back on the results. I think this actually makes a case for =
+accepting the patch=20
+as-is for now.  Please hear me out on this:
 
-You're right, do_swap_page() should still return 0 in the case the lookup pte
-is different from orig_pte, assuming that the swap operation has been handled
-in our back by another concurrent thread.
+You mentioned being concerned that an admin will do the wrong thing with =
+this
+tunable. I worked in the System Administrator/System Engineering job =
+families for
+many years and even though I transitioned to spending most of my time on
+performance and kernel work, I still maintain an active role in System =
+Engineering
+related projects, hiring and mentoring.
 
-So in do_swap_page(), VM_FAULT_PTNOTSAME should be translated in ret = 0.
+The kswapd_threads tunable defaults to a value of one, which is the =
+current default
+behavior. I think there are plenty of sysctls that are more confusing =
+than this one.=20
+If you want to make a comparison, I would say that Transparent Hugepages =
+is one
+of the best examples of a feature that has confused System =
+Administrators. I am sure
+it works a lot better today, but it has a history of really sharp edges, =
+and it has been
+shipping enabled by default for a long time in the OS distributions I am =
+familiar with.
+I am hopeful that it works better in later kernels as I think we need =
+more features
+like it. Specifically, features that bring high performance to naive =
+third party apps
+that do not make use of advanced features like hugetlbfs, spoke, direct =
+IO, or clumsy
+interfaces like posix_fadvise. But until they are absolutely polished, I =
+wish these kinds
+of features would not be turned on by default. This includes =
+kswapd_threads.
 
-	ret = pte_unmap_same(vmf);
-	if (ret) {
-		/*
-		 * If pte != orig_pte, this means another thread did the
-		 * swap operation in our back.
-		 * So nothing else to do.
-		 */
-		if (ret == VM_FAULT_PTNOTSAME)
-			ret = 0;
-		goto out;
-	}
+More reasons why implementing this tunable makes sense for now:
+- A feature like this is a lot easier to reason about after it has been =
+used in the field
+   for a while. This includes trying to auto-tune it
+- We need an answer for this problem today. Today there are single NVMe =
+drives
+   capable of 10GB/s and larger systems than the system I used for =
+testing
+- In the scenario you describe above, an admin would have no reason to =
+touch
+  this sysctl
+- I think I mentioned this before. I honestly thought a lot of tuning =
+would be necessary
+  after implementing this but so far that hasn=E2=80=99t been the case. =
+It works pretty well.
 
-This means that VM_FAULT_PTNOTSAME will never been reported up and limited to
-do_swap_page().
 
-Doing this will make easier to understand why when pte_unmap_same() is
-returning 0, do_swap_page() is done.
-
-Cheers,
-Laurent.
+>=20
+> Maybe we should renice kswapd anyway ... thoughts?  We don't seem to =
+have
+> had a nice'd kswapd since 2.6.12, but maybe we played with that =
+earlier
+> and discovered it was a bad idea?
+>=20
