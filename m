@@ -1,80 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0DA6B0005
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 07:02:45 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id v8so8186870wmv.1
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 04:02:45 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.10])
-        by mx.google.com with ESMTPS id k32si3750663wrf.11.2018.04.04.04.02.43
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EAC276B0005
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 08:21:52 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id d186so6220997iog.10
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 05:21:52 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p143sor2304910ioe.132.2018.04.04.05.21.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 04:02:44 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] mm/hmm: fix header file if/else/endif maze, again
-Date: Wed,  4 Apr 2018 13:02:15 +0200
-Message-Id: <20180404110236.804484-1-arnd@arndb.de>
+        (Google Transport Security);
+        Wed, 04 Apr 2018 05:21:51 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180404062039.GC6312@dhcp22.suse.cz>
+References: <20180403110612.GM5501@dhcp22.suse.cz> <20180403075158.0c0a2795@gandalf.local.home>
+ <20180403121614.GV5501@dhcp22.suse.cz> <20180403082348.28cd3c1c@gandalf.local.home>
+ <20180403123514.GX5501@dhcp22.suse.cz> <20180403093245.43e7e77c@gandalf.local.home>
+ <20180403135607.GC5501@dhcp22.suse.cz> <20180403101753.3391a639@gandalf.local.home>
+ <20180403161119.GE5501@dhcp22.suse.cz> <20180403185627.6bf9ea9b@gandalf.local.home>
+ <20180404062039.GC6312@dhcp22.suse.cz>
+From: Joel Fernandes <joelaf@google.com>
+Date: Wed, 4 Apr 2018 05:21:49 -0700
+Message-ID: <CAJWu+oo8LE6ZzPaz0KgT4C5a3vYJS2SkohHMObj3pWN9BZMN=A@mail.gmail.com>
+Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, John Hubbard <jhubbard@nvidia.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
 
-The last fix was still wrong, as we need the inline dummy functions
-also for the case that CONFIG_HMM is enabled but CONFIG_HMM_MIRROR
-is not:
+On Tue, Apr 3, 2018 at 11:20 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Tue 03-04-18 18:56:27, Steven Rostedt wrote:
+> [...]
+>> From your earlier email:
+>>
+>> > Except that it doesn't work. si_mem_available is not really suitable for
+>> > any allocation estimations. Its only purpose is to provide a very rough
+>> > estimation for userspace. Any other use is basically abuse. The
+>> > situation can change really quickly. Really it is really hard to be
+>> > clever here with the volatility the memory allocations can cause.
+>>
+>> Now can you please explain to me why si_mem_available is not suitable
+>> for my purpose.
+>
+> Several problems. It is overly optimistic especially when we are close
+> to OOM. The available pagecache or slab reclaimable objects might be pinned
+> long enough that your allocation based on that estimation will just make
+> the situation worse and result in OOM. More importantly though, your
+> allocations are GFP_KERNEL, right, that means that such an allocation
+> will not reach to ZONE_MOVABLE or ZONE_HIGMEM (32b systems) while the
+> pagecache will. So you will get an overestimate of how much you can
+> allocate.
 
-kernel/fork.o: In function `__mmdrop':
-fork.c:(.text+0x14f6): undefined reference to `hmm_mm_destroy'
+Yes, but right now it is assumed that there is all the memory in the
+world to allocate. Clearly an overestimate is better than that. Right
+now ftrace will just allocate memory until it actually fails to
+allocate, at which point it may have caused other processes to be
+likely to OOM. As Steve pointed out, it doesn't need to be accurate
+but does solve the problem here.. (or some other similar method seems
+to be needed to solve it).
 
-This adds back the second copy of the dummy functions, hopefully
-this time in the right place.
+>
+> Really si_mem_available is for proc/meminfo and a rough estimate of the
+> free memory because users tend to be confused by seeing MemFree too low
+> and complaining that the system has eaten all their memory. I have some
 
-Fixes: 8900d06a277a ("mm/hmm: fix header file if/else/endif maze")
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
----
- include/linux/hmm.h | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
+By why is a rough estimate not good in this case, that's what I don't get.
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 5d26e0a223d9..39988924de3a 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -376,8 +376,18 @@ bool hmm_vma_range_done(struct hmm_range *range);
-  * See the function description in mm/hmm.c for further documentation.
-  */
- int hmm_vma_fault(struct hmm_range *range, bool block);
--#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
- 
-+/* Below are for HMM internal use only! Not to be used by device driver! */
-+void hmm_mm_destroy(struct mm_struct *mm);
-+
-+static inline void hmm_mm_init(struct mm_struct *mm)
-+{
-+	mm->hmm = NULL;
-+}
-+#else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
-+static inline void hmm_mm_destroy(struct mm_struct *mm) {}
-+static inline void hmm_mm_init(struct mm_struct *mm) {}
-+#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
- 
- #if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLIC)
- struct hmm_devmem;
-@@ -550,16 +560,9 @@ struct hmm_device {
- struct hmm_device *hmm_device_new(void *drvdata);
- void hmm_device_put(struct hmm_device *hmm_device);
- #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
--
--/* Below are for HMM internal use only! Not to be used by device driver! */
--void hmm_mm_destroy(struct mm_struct *mm);
--
--static inline void hmm_mm_init(struct mm_struct *mm)
--{
--	mm->hmm = NULL;
--}
- #else /* IS_ENABLED(CONFIG_HMM) */
- static inline void hmm_mm_destroy(struct mm_struct *mm) {}
- static inline void hmm_mm_init(struct mm_struct *mm) {}
- #endif /* IS_ENABLED(CONFIG_HMM) */
-+
- #endif /* LINUX_HMM_H */
--- 
-2.9.0
+> skepticism about how useful it is in practice apart from showing it in
+> top or alike tools. The memory is simply not usable immediately or
+> without an overall and visible effect on the whole system.
+
+Sure there can be false positives but it does reduce the problem for
+the most part I feel. May be we can use this as an interim solution
+(better than leaving the issue hanging)? Or you could propose a
+solution of how to get an estimate and prevent other tasks from
+experiencing memory pressure for no reason.
+
+Another thing we could do is check how much total memory there is on
+the system and cap by that (which will prevent impossibly large
+allocations) but that still doesn't address the problem completely.
+
+thanks,
+
+- Joel
