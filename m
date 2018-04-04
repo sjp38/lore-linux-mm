@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 21A626B0005
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 19:45:25 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id q12-v6so9600821plr.17
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 16:45:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j5si1105216pgq.406.2018.04.03.16.45.23
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 381626B0005
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 20:24:09 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b23so6607607wme.3
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 17:24:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r18sor1812210wrl.2.2018.04.03.17.24.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Apr 2018 16:45:24 -0700 (PDT)
-Date: Tue, 3 Apr 2018 16:45:22 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/migrate: properly preserve write attribute in
- special migrate entry
-Message-Id: <20180403164522.657185a44e8ada1b741f0a9e@linux-foundation.org>
-In-Reply-To: <20180403230336.GH5935@redhat.com>
-References: <20180402023506.12180-1-jglisse@redhat.com>
-	<20180403153046.88cae4ab18646e8e23a648ce@linux-foundation.org>
-	<20180403230336.GH5935@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Tue, 03 Apr 2018 17:24:07 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170914132452.d5klyizce72rhjaa@dhcp22.suse.cz>
+References: <1504672525-17915-1-git-send-email-iamjoonsoo.kim@lge.com> <20170914132452.d5klyizce72rhjaa@dhcp22.suse.cz>
+From: Joonsoo Kim <js1304@gmail.com>
+Date: Wed, 4 Apr 2018 09:24:06 +0900
+Message-ID: <CAAmzW4NGv7RyCYyokPoj4aR3ySKub4jaBZ3k=pt_YReFbByvsw@mail.gmail.com>
+Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralph Campbell <rcampbell@nvidia.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-api@vger.kernel.org
 
-On Tue, 3 Apr 2018 19:03:36 -0400 Jerome Glisse <jglisse@redhat.com> wrote:
+Hello, Michal.
 
-> > That sounds a bit serious.  Was a -stable backport considered?
-> 
-> Like discuss previously with Michal, for lack of upstream user yet
-> (and PowerPC users of this code are not upstream either yet AFAIK).
-> 
-> Once i get HMM inside nouveau upstream, i will evaluate if people
-> wants all fixes to be back ported to stable.
-> 
-> Finaly this one isn't too bad, it just burn CPU cycles by forcing
-> CPU to take a second fault on write access ie double fault the same
-> address. There is no corruption or incorrect states (it behave as
-> a COWed page from a fork with a mapcount of 1).
+Sorry for a really long delay.
 
-OK, I updated the changelog with this info.
+2017-09-14 22:24 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+> [Sorry for a later reply]
+>
+> On Wed 06-09-17 13:35:25, Joonsoo Kim wrote:
+>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>
+>> Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
+>> important to reserve.
+>
+> I am still not convinced this is a good idea. I do agree that reserving
+> memory in both HIGHMEM and MOVABLE is just wasting memory but removing
+> the reserve from the highmem as well will result that an oom victim will
+> allocate from lower zones and that might have unexpected side effects.
 
-> Do you still want me to be more aggressive with stable backport ?
-> I don't mind either way. I expect to get HMM nouveau upstream over
-> next couple release cycle.
+Looks like you are confused.
 
-I guess that doing a single, better-organized cherrypick at a suitable
-time in the future is a good approach.  You might want to discuss this
-plan with Greg before committing too far.
+This patch only affects the situation that ZONE_HIGHMEM and ZONE_MOVABLE is
+used at the same time. In that case, before this patch, ZONE_HIGHMEM has
+reserve for GFP_HIGHMEM | GFP_MOVABLE request, but, with this patch,  no reserve
+in ZONE_HIGHMEM for GFP_HIGHMEM | GFP_MOVABLE request. This perfectly
+matchs with your hope. :)
+
+> Can we simply leave HIGHMEM reserve and only remove it from the movable
+> zone if both are present?
+
+There is no higher zone than ZONE_MOVABLE so ZONE_MOVABLE has no reserve
+with/without this patch. To save memory, we need to remove the reserve in
+ZONE_HIGHMEM.
+
+Thanks.
