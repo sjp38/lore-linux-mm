@@ -1,88 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DE67B6B0006
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 10:39:02 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id 91-v6so14612037pla.18
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 07:39:02 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y6si4119051pfe.248.2018.04.04.07.39.01
+	by kanga.kvack.org (Postfix) with ESMTP id 1216E6B0006
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 10:43:00 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id o3-v6so12525747pls.11
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 07:43:00 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t83si4196965pfj.167.2018.04.04.07.42.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 04 Apr 2018 07:39:01 -0700 (PDT)
-Date: Wed, 4 Apr 2018 07:39:00 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: Signal handling in a page fault handler
-Message-ID: <20180404143900.GA1777@bombadil.infradead.org>
-References: <20180402141058.GL13332@bombadil.infradead.org>
- <20180404093254.GC3881@phenom.ffwll.local>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 04 Apr 2018 07:42:59 -0700 (PDT)
+Date: Wed, 4 Apr 2018 16:42:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
+Message-ID: <20180404144255.GK6312@dhcp22.suse.cz>
+References: <20180403123514.GX5501@dhcp22.suse.cz>
+ <20180403093245.43e7e77c@gandalf.local.home>
+ <20180403135607.GC5501@dhcp22.suse.cz>
+ <20180403101753.3391a639@gandalf.local.home>
+ <20180403161119.GE5501@dhcp22.suse.cz>
+ <20180403185627.6bf9ea9b@gandalf.local.home>
+ <20180404062039.GC6312@dhcp22.suse.cz>
+ <20180404085901.5b54fe32@gandalf.local.home>
+ <20180404141052.GH6312@dhcp22.suse.cz>
+ <20180404102527.763250b4@gandalf.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180404093254.GC3881@phenom.ffwll.local>
+In-Reply-To: <20180404102527.763250b4@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Souptick Joarder <jrdr.linux@gmail.com>, linux-kernel@vger.kernel.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, Apr 04, 2018 at 11:32:54AM +0200, Daniel Vetter wrote:
-> So we've done some experiments for the case where the fault originated
-> from kernel context (copy_to|from_user and friends). The fixup code seems
-> to retry the copy once after the fault (in copy_user_handle_tail), if that
-> fails again we get a short read/write. This might result in an -EFAULT,
-> short read()/write() or anything else really, depending upon the syscall
-> api.
+On Wed 04-04-18 10:25:27, Steven Rostedt wrote:
+> On Wed, 4 Apr 2018 16:10:52 +0200
+> Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Except in some code paths in gpu drivers where we convert anything into
-> -ERESTARTSYS/EINTR if there's a signal pending it won't ever result in the
-> syscall getting restarted (well except maybe short read/writes if
-> userspace bothers with that).
+> > On Wed 04-04-18 08:59:01, Steven Rostedt wrote:
+> > [...]
+> > > +       /*
+> > > +        * Check if the available memory is there first.
+> > > +        * Note, si_mem_available() only gives us a rough estimate of available
+> > > +        * memory. It may not be accurate. But we don't care, we just want
+> > > +        * to prevent doing any allocation when it is obvious that it is
+> > > +        * not going to succeed.
+> > > +        */
+> > > +       i = si_mem_available();
+> > > +       if (i < nr_pages)
+> > > +               return -ENOMEM;
+> > > +
+> > > 
+> > > Better?  
+> > 
+> > I must be really missing something here. How can that work at all for
+> > e.g. the zone_{highmem/movable}. You will get false on the above tests
+> > even when you will have hard time to allocate anything from your
+> > destination zones.
 > 
-> So I guess gpu fault handlers indeed break the kernel's expectations, but
-> then I think we're getting away with that because the inner workings of
-> gpu memory objects is all heavily abstracted away by opengl/vulkan and
-> friends.
-> 
-> I guess what we could do is try to only do killable sleeps if it's a
-> kernel fault, but that means wiring a flag through all the callchains. Not
-> pretty. Except when there's a magic set of functions that would convert
-> all interruptible sleeps to killable ones only for us.
+> You mean we will get true on the above tests?  Again, the current
+> method is to just say screw it and try to allocate.
 
-I actually have plans to allow mutex_lock_{interruptible,killable} to
-return -EWOULDBLOCK if a flag is set.  So this doesn't seem entirely
-unrelated.  Something like this perhaps:
+No, you will get false on that test. Say that you have a system with
+large ZONE_MOVABLE. Now your kernel allocations can fit only into
+!movable zones (say we have 1G for !movable and 3G for movable). Now say
+that !movable zones are getting close to the edge while movable zones
+are full of reclaimable pages. si_mem_available will tell you there is a
+_lot_ of memory available while your GFP_KERNEL request will happily
+consume the rest of !movable zones and trigger OOM. See?
 
- struct task_struct {
-+	unsigned int sleep_state;
- };
+[...]
+> I'm looking for something where "yes" means "there may be enough, but
+> there may not be, buyer beware", and "no" means "forget it, don't even
+> start, because you just asked for more than possible".
 
- static noinline int __sched
--__mutex_lock_interruptible_slowpath(struct mutex *lock)
-+__mutex_lock_slowpath(struct mutex *lock, long state)
- {
--	return __mutex_lock(lock, TASK_INTERRUPTIBLE, 0, NULL, _RET_IP_);
-+	if (state == TASK_NOBLOCK)
-+		return -EWOULDBLOCK;
-+	return __mutex_lock(lock, state, 0, NULL, _RET_IP_);
- }
-
-+int __sched mutex_lock_state(struct mutex *lock, long state)
-+{
-+	might_sleep();
-+
-+	if (__mutex_trylock_fast(lock))
-+		return 0;
-+
-+	return __mutex_lock_slowpath(lock, state);
-+}
-+EXPORT_SYMBOL(mutex_lock_state);
-
-Then the page fault handler can do something like:
-
-	old_state = current->sleep_state;
-	current->sleep_state = TASK_INTERRUPTIBLE;
-	...
-	current->sleep_state = old_state;
-
-
-This has the page-fault-in-a-signal-handler problem.  I don't know if
-there's a way to determine if we're already in a signal handler and use
-a different sleep_state ...?
+We do not have _that_ something other than try to opportunistically
+allocate and see what happens. Sucks? Maybe yes but I really cannot
+think of an interface with sane semantic that would catch all the
+different scenarios.
+-- 
+Michal Hocko
+SUSE Labs
