@@ -1,59 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B87856B0005
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 20:48:37 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id t1-v6so11979445plb.5
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 17:48:37 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u7-v6sor1563786plq.61.2018.04.03.17.48.36
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Apr 2018 17:48:36 -0700 (PDT)
-Date: Tue, 3 Apr 2018 17:48:34 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [mm] b1f0502d04: INFO:trying_to_register_non-static_key
-In-Reply-To: <aa6f2ff1-ff67-106a-e0e4-522ac82a7bf0@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.20.1804031748120.27686@chino.kir.corp.google.com>
-References: <20180317075119.u6yuem2bhxvggbz3@inn> <792c0f75-7e7f-cd81-44ae-4205f6e4affc@linux.vnet.ibm.com> <alpine.DEB.2.20.1803251510040.80485@chino.kir.corp.google.com> <aa6f2ff1-ff67-106a-e0e4-522ac82a7bf0@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 420226B0005
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 20:52:20 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 91-v6so11911239pla.18
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 17:52:20 -0700 (PDT)
+Received: from m12-18.163.com (m12-18.163.com. [220.181.12.18])
+        by mx.google.com with ESMTP id b9-v6si4219825pla.32.2018.04.03.17.52.18
+        for <linux-mm@kvack.org>;
+        Tue, 03 Apr 2018 17:52:19 -0700 (PDT)
+From: Xidong Wang <wangxidong_97@163.com>
+Subject: [PATCH 1/1] z3fold: fix memory leak
+Date: Wed,  4 Apr 2018 08:51:51 +0800
+Message-Id: <1522803111-29209-1-git-send-email-wangxidong_97@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: kernel test robot <fengguang.wu@intel.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, lkp@01.org
+To: Andrew Morton <akpm@linux-foundation.org>, Vitaly Wool <vitalywool@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: wangxidong_97@163.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 28 Mar 2018, Laurent Dufour wrote:
+In function z3fold_create_pool(), the memory allocated by
+__alloc_percpu() is not released on the error path that pool->compact_wq
+, which holds the return value of create_singlethread_workqueue(), is NULL.
+This will result in a memory leak bug.
 
-> On 26/03/2018 00:10, David Rientjes wrote:
-> > On Wed, 21 Mar 2018, Laurent Dufour wrote:
-> > 
-> >> I found the root cause of this lockdep warning.
-> >>
-> >> In mmap_region(), unmap_region() may be called while vma_link() has not been
-> >> called. This happens during the error path if call_mmap() failed.
-> >>
-> >> The only to fix that particular case is to call
-> >> seqcount_init(&vma->vm_sequence) when initializing the vma in mmap_region().
-> >>
-> > 
-> > Ack, although that would require a fixup to dup_mmap() as well.
-> 
-> You're right, I'll fix that too.
-> 
+Signed-off-by: Xidong Wang <wangxidong_97@163.com>
+---
+ mm/z3fold.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-I also think the following is needed:
-
-diff --git a/fs/exec.c b/fs/exec.c
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -312,6 +312,10 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
- 	vma->vm_flags = VM_SOFTDIRTY | VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
- 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
- 	INIT_LIST_HEAD(&vma->anon_vma_chain);
-+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-+	seqcount_init(&vma->vm_sequence);
-+	atomic_set(&vma->vm_ref_count, 0);
-+#endif
- 
- 	err = insert_vm_struct(mm, vma);
- 	if (err)
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index d589d31..b987cc5 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -490,6 +490,7 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp,
+ out_wq:
+ 	destroy_workqueue(pool->compact_wq);
+ out:
++	free_percpu(pool->unbuddied);
+ 	kfree(pool);
+ 	return NULL;
+ }
+-- 
+2.7.4
