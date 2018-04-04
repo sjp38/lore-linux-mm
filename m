@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A0D1B6B0009
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 22:57:35 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id x8-v6so12451276pln.9
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 19:57:35 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8D66B6B0005
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 22:57:48 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id m6-v6so12374231pln.8
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 19:57:48 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b193sor1021880pga.251.2018.04.03.19.57.34
+        by mx.google.com with SMTPS id q13sor996724pfi.39.2018.04.03.19.57.47
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 03 Apr 2018 19:57:34 -0700 (PDT)
+        Tue, 03 Apr 2018 19:57:47 -0700 (PDT)
 From: Jia He <hejianet@gmail.com>
-Subject: [PATCH v6 4/5] arm: arm64: introduce pfn_valid_region()
-Date: Tue,  3 Apr 2018 19:56:18 -0700
-Message-Id: <1522810579-7466-5-git-send-email-hejianet@gmail.com>
+Subject: [PATCH v6 5/5] mm: page_alloc: reduce unnecessary binary search in early_pfn_valid()
+Date: Tue,  3 Apr 2018 19:56:19 -0700
+Message-Id: <1522810579-7466-6-git-send-email-hejianet@gmail.com>
 In-Reply-To: <1522810579-7466-1-git-send-email-hejianet@gmail.com>
 References: <1522810579-7466-1-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,50 +24,42 @@ Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
 where possible") optimized the loop in memmap_init_zone(). But there is
 still some room for improvement. E.g. in early_pfn_valid(), if pfn and
 pfn+1 are in the same memblock region, we can record the last returned
-memblock region index and check pfn++ is still in the same region. Thus
-we can avoid do the slow binary searches.
+memblock region index and check check pfn++ is still in the same region.
 
-Currently it only improve the performance on arm/arm64 and will have no
+Currently it only improve the performance on arm64 and will have no
 impact on other arches.
+
+For the performance improvement, after this set, I can see the time
+overhead of memmap_init() is reduced from 41313 us to 24345 us in my
+armv8a server(QDF2400 with 96G memory).
 
 Signed-off-by: Jia He <jia.he@hxt-semitech.com>
 ---
- include/linux/arm96_common.h | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ include/linux/mmzone.h | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/arm96_common.h b/include/linux/arm96_common.h
-index 2f4dea4..bb86bd3 100644
---- a/include/linux/arm96_common.h
-+++ b/include/linux/arm96_common.h
-@@ -48,5 +48,29 @@ ulong __init_memblock memblock_next_valid_pfn(ulong pfn)
- 	return PHYS_PFN(regions[early_region_idx].base);
- }
- EXPORT_SYMBOL(memblock_next_valid_pfn);
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index a517d43..516ffb49 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1271,11 +1271,16 @@ static inline int pfn_present(unsigned long pfn)
+ #define pfn_to_nid(pfn)		(0)
+ #endif
+ 
+-#define early_pfn_valid(pfn)	pfn_valid(pfn)
+ #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+ extern ulong memblock_next_valid_pfn(ulong pfn);
+ #define next_valid_pfn(pfn)	memblock_next_valid_pfn(pfn)
+-#endif
 +
-+int pfn_valid_region(ulong pfn)
-+{
-+	ulong start_pfn, end_pfn;
-+	struct memblock_type *type = &memblock.memory;
-+	struct memblock_region *regions = type->regions;
++extern int pfn_valid_region(ulong pfn);
++#define early_pfn_valid(pfn)	pfn_valid_region(pfn)
++#else
++#define early_pfn_valid(pfn)    pfn_valid(pfn)
++#endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
 +
-+	if (early_region_idx != -1) {
-+		start_pfn = PFN_DOWN(regions[early_region_idx].base);
-+		end_pfn = PFN_DOWN(regions[early_region_idx].base +
-+					regions[early_region_idx].size);
-+
-+		if (pfn >= start_pfn && pfn < end_pfn)
-+			return !memblock_is_nomap(
-+					&regions[early_region_idx]);
-+	}
-+
-+	early_region_idx = memblock_search_pfn_regions(pfn);
-+	if (early_region_idx == -1)
-+		return false;
-+
-+	return !memblock_is_nomap(&regions[early_region_idx]);
-+}
-+EXPORT_SYMBOL(pfn_valid_region);
- #endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
- #endif /*__ARM96_COMMON_H*/
+ void sparse_init(void);
+ #else
+ #define sparse_init()	do {} while (0)
 -- 
 2.7.4
