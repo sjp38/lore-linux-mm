@@ -1,105 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A77D6B0006
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 22:58:41 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id x20so3952431wmc.0
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 19:58:41 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l10sor1786209edn.47.2018.04.03.19.58.39
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 28CB86B0005
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 23:23:13 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id u7-v6so8883065plr.13
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 20:23:13 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id 1-v6si2065921ply.119.2018.04.03.20.23.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Apr 2018 19:58:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180403135607.GC5501@dhcp22.suse.cz>
-References: <1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com>
- <20180330102038.2378925b@gandalf.local.home> <20180403110612.GM5501@dhcp22.suse.cz>
- <20180403075158.0c0a2795@gandalf.local.home> <20180403121614.GV5501@dhcp22.suse.cz>
- <20180403082348.28cd3c1c@gandalf.local.home> <20180403123514.GX5501@dhcp22.suse.cz>
- <20180403093245.43e7e77c@gandalf.local.home> <20180403135607.GC5501@dhcp22.suse.cz>
-From: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Date: Wed, 4 Apr 2018 10:58:39 +0800
-Message-ID: <CAGWkznH-yfAu=fMo1YWU9zo-DomHY8YP=rw447rUTgzvVH4RpQ@mail.gmail.com>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Apr 2018 20:23:11 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm] mm, gup: prevent pmd checking race in follow_pmd_mask()
+Date: Wed,  4 Apr 2018 11:22:57 +0800
+Message-Id: <20180404032257.11422-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Al Viro <viro@zeniv.linux.org.uk>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Apr 3, 2018 at 9:56 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Tue 03-04-18 09:32:45, Steven Rostedt wrote:
->> On Tue, 3 Apr 2018 14:35:14 +0200
->> Michal Hocko <mhocko@kernel.org> wrote:
-> [...]
->> > Being clever is OK if it doesn't add a tricky code. And relying on
->> > si_mem_available is definitely tricky and obscure.
->>
->> Can we get the mm subsystem to provide a better method to know if an
->> allocation will possibly succeed or not before trying it? It doesn't
->> have to be free of races. Just "if I allocate this many pages right
->> now, will it work?" If that changes from the time it asks to the time
->> it allocates, that's fine. I'm not trying to prevent OOM to never
->> trigger. I just don't want to to trigger consistently.
->
-> How do you do that without an actuall allocation request? And more
-> fundamentally, what if your _particular_ request is just fine but it
-> will get us so close to the OOM edge that the next legit allocation
-> request simply goes OOM? There is simply no sane interface I can think
-> of that would satisfy a safe/sensible "will it cause OOM" semantic.
->
-The point is the app which try to allocate the size over the line will escape
-the OOM and let other innocent to be sacrificed. However, the one which you
-mentioned above will be possibly selected by OOM that triggered by consequnce
-failed allocation.
+From: Huang Ying <ying.huang@intel.com>
 
->> > > Perhaps I should try to allocate a large group of pages with
->> > > RETRY_MAYFAIL, and if that fails go back to NORETRY, with the thinking
->> > > that the large allocation may reclaim some memory that would allow the
->> > > NORETRY to succeed with smaller allocations (one page at a time)?
->> >
->> > That again relies on a subtle dependencies of the current
->> > implementation. So I would rather ask whether this is something that
->> > really deserves special treatment. If admin asks for a buffer of a
->> > certain size then try to do so. If we get OOM then bad luck you cannot
->> > get large memory buffers for free...
->>
->> That is not acceptable to me nor to the people asking for this.
->>
->> The problem is known. The ring buffer allocates memory page by page,
->> and this can allow it to easily take all memory in the system before it
->> fails to allocate and free everything it had done.
->
-> Then do not allow buffers that are too large. How often do you need
-> buffers that are larger than few megs or small % of the available
-> memory? Consuming excessive amount of memory just to trace workload
-> which will need some memory on its own sounds just dubious to me.
->
->> If you don't like the use of si_mem_available() I'll do the larger
->> pages method. Yes it depends on the current implementation of memory
->> allocation. It will depend on RETRY_MAYFAIL trying to allocate a large
->> number of pages, and fail if it can't (leaving memory for other
->> allocations to succeed).
->>
->> The allocation of the ring buffer isn't critical. It can fail to
->> expand, and we can tell the user -ENOMEM. I original had NORETRY
->> because I rather have it fail than cause an OOM. But there's folks
->> (like Joel) that want it to succeed when there's available memory in
->> page caches.
->
-> Then implement a retry logic on top of NORETRY. You can control how hard
-> to retry to satisfy the request yourself. You still risk that your
-> allocation will get us close to OOM for _somebody_ else though.
->
->> I'm fine if the admin shoots herself in the foot if the ring buffer
->> gets big enough to start causing OOMs, but I don't want it to cause
->> OOMs if there's not even enough memory to fulfill the ring buffer size
->> itself.
->
-> I simply do not see the difference between the two. Both have the same
-> deadly effect in the end. The direct OOM has an arguable advantage that
-> the effect is immediate rather than subtle with potential performance
-> side effects until the machine OOMs after crawling for quite some time.
->
-> --
-> Michal Hocko
-> SUSE Labs
+mmap_sem will be read locked when calling follow_pmd_mask().  But this
+cannot prevent PMD from being changed for all cases when PTL is
+unlocked, for example, from pmd_trans_huge() to pmd_none() via
+MADV_DONTNEED.  So it is possible for the pmd_present() check in
+follow_pmd_mask() encounter a none PMD.  This may cause incorrect
+VM_BUG_ON() or infinite loop.  Fixed this via reading PMD entry again
+but only once and checking the local variable and pmd_none() in the
+retry loop.
+
+As Kirill pointed out, with PTL unlocked, the *pmd may be changed
+under us, so read it directly again and again may incur weird bugs.
+So although using *pmd directly other than pmd_present() checking may
+be safe, it is still better to replace them to read *pmd once and
+check the local variable for multiple times.
+
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+ # When PTL unlocked, replace all *pmd with local variable
+Suggested-by: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+---
+ mm/gup.c | 30 +++++++++++++++++++-----------
+ 1 file changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/mm/gup.c b/mm/gup.c
+index 2e2df7f3e92d..51734292839b 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -213,53 +213,61 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 				    unsigned long address, pud_t *pudp,
+ 				    unsigned int flags, unsigned int *page_mask)
+ {
+-	pmd_t *pmd;
++	pmd_t *pmd, pmdval;
+ 	spinlock_t *ptl;
+ 	struct page *page;
+ 	struct mm_struct *mm = vma->vm_mm;
+ 
+ 	pmd = pmd_offset(pudp, address);
+-	if (pmd_none(*pmd))
++	pmdval = READ_ONCE(*pmd);
++	if (pmd_none(pmdval))
+ 		return no_page_table(vma, flags);
+-	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB) {
++	if (pmd_huge(pmdval) && vma->vm_flags & VM_HUGETLB) {
+ 		page = follow_huge_pmd(mm, address, pmd, flags);
+ 		if (page)
+ 			return page;
+ 		return no_page_table(vma, flags);
+ 	}
+-	if (is_hugepd(__hugepd(pmd_val(*pmd)))) {
++	if (is_hugepd(__hugepd(pmd_val(pmdval)))) {
+ 		page = follow_huge_pd(vma, address,
+-				      __hugepd(pmd_val(*pmd)), flags,
++				      __hugepd(pmd_val(pmdval)), flags,
+ 				      PMD_SHIFT);
+ 		if (page)
+ 			return page;
+ 		return no_page_table(vma, flags);
+ 	}
+ retry:
+-	if (!pmd_present(*pmd)) {
++	if (!pmd_present(pmdval)) {
+ 		if (likely(!(flags & FOLL_MIGRATION)))
+ 			return no_page_table(vma, flags);
+ 		VM_BUG_ON(thp_migration_supported() &&
+-				  !is_pmd_migration_entry(*pmd));
+-		if (is_pmd_migration_entry(*pmd))
++				  !is_pmd_migration_entry(pmdval));
++		if (is_pmd_migration_entry(pmdval))
+ 			pmd_migration_entry_wait(mm, pmd);
++		pmdval = READ_ONCE(*pmd);
++		if (pmd_none(pmdval))
++			return no_page_table(vma, flags);
+ 		goto retry;
+ 	}
+-	if (pmd_devmap(*pmd)) {
++	if (pmd_devmap(pmdval)) {
+ 		ptl = pmd_lock(mm, pmd);
+ 		page = follow_devmap_pmd(vma, address, pmd, flags);
+ 		spin_unlock(ptl);
+ 		if (page)
+ 			return page;
+ 	}
+-	if (likely(!pmd_trans_huge(*pmd)))
++	if (likely(!pmd_trans_huge(pmdval)))
+ 		return follow_page_pte(vma, address, pmd, flags);
+ 
+-	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
++	if ((flags & FOLL_NUMA) && pmd_protnone(pmdval))
+ 		return no_page_table(vma, flags);
+ 
+ retry_locked:
+ 	ptl = pmd_lock(mm, pmd);
++	if (unlikely(pmd_none(*pmd))) {
++		spin_unlock(ptl);
++		return no_page_table(vma, flags);
++	}
+ 	if (unlikely(!pmd_present(*pmd))) {
+ 		spin_unlock(ptl);
+ 		if (likely(!(flags & FOLL_MIGRATION)))
+-- 
+2.15.1
