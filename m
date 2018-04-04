@@ -1,93 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 289D56B0006
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 11:51:25 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id h190-v6so10016639yba.5
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 08:51:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 30si3695646qtw.445.2018.04.04.08.51.23
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 85B866B0008
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 11:52:39 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id g61-v6so14939868plb.10
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 08:52:39 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id q9-v6si3499841pll.449.2018.04.04.08.52.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 08:51:24 -0700 (PDT)
-Date: Wed, 4 Apr 2018 11:51:20 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH] mm/hmm: fix header file if/else/endif maze, again
-Message-ID: <20180404155120.GA3331@redhat.com>
-References: <20180404110236.804484-1-arnd@arndb.de>
+        Wed, 04 Apr 2018 08:52:38 -0700 (PDT)
+Subject: Re: [PATCH 09/11] x86/pti: enable global pages for shared areas
+References: <20180404010946.6186729B@viggo.jf.intel.com>
+ <20180404011007.A381CC8A@viggo.jf.intel.com>
+ <5DEE9F6E-535C-4DBF-A513-69D9FD5C0235@vmware.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <50385d91-58a9-4b14-06bc-2340b99933c3@linux.intel.com>
+Date: Wed, 4 Apr 2018 08:52:37 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180404110236.804484-1-arnd@arndb.de>
+In-Reply-To: <5DEE9F6E-535C-4DBF-A513-69D9FD5C0235@vmware.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, John Hubbard <jhubbard@nvidia.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Evgeny Baskakov <ebaskakov@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nadav Amit <namit@vmware.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "keescook@google.com" <keescook@google.com>, Hugh Dickins <hughd@google.com>, Juergen Gross <jgross@suse.com>, "x86@kernel.org" <x86@kernel.org>
 
-On Wed, Apr 04, 2018 at 01:02:15PM +0200, Arnd Bergmann wrote:
-> The last fix was still wrong, as we need the inline dummy functions
-> also for the case that CONFIG_HMM is enabled but CONFIG_HMM_MIRROR
-> is not:
+On 04/03/2018 09:45 PM, Nadav Amit wrote:
+> Dave Hansen <dave.hansen@linux.intel.com> wrote:
 > 
-> kernel/fork.o: In function `__mmdrop':
-> fork.c:(.text+0x14f6): undefined reference to `hmm_mm_destroy'
+>>
+>> From: Dave Hansen <dave.hansen@linux.intel.com>
+>>
+>> The entry/exit text and cpu_entry_area are mapped into userspace and
+>> the kernel.  But, they are not _PAGE_GLOBAL.  This creates unnecessary
+>> TLB misses.
+>>
+>> Add the _PAGE_GLOBAL flag for these areas.
+>>
+>> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> Cc: Andy Lutomirski <luto@kernel.org>
+>> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+>> Cc: Kees Cook <keescook@google.com>
+>> Cc: Hugh Dickins <hughd@google.com>
+>> Cc: Juergen Gross <jgross@suse.com>
+>> Cc: x86@kernel.org
+>> Cc: Nadav Amit <namit@vmware.com>
+>> ---
+>>
+>> b/arch/x86/mm/cpu_entry_area.c |   10 +++++++++-
+>> b/arch/x86/mm/pti.c            |   14 +++++++++++++-
+>> 2 files changed, 22 insertions(+), 2 deletions(-)
+>>
+>> diff -puN arch/x86/mm/cpu_entry_area.c~kpti-why-no-global arch/x86/mm/cpu_entry_area.c
+>> --- a/arch/x86/mm/cpu_entry_area.c~kpti-why-no-global	2018-04-02 16:41:17.157605167 -0700
+>> +++ b/arch/x86/mm/cpu_entry_area.c	2018-04-02 16:41:17.162605167 -0700
+>> @@ -27,8 +27,16 @@ EXPORT_SYMBOL(get_cpu_entry_area);
+>> void cea_set_pte(void *cea_vaddr, phys_addr_t pa, pgprot_t flags)
+>> {
+>> 	unsigned long va = (unsigned long) cea_vaddr;
+>> +	pte_t pte = pfn_pte(pa >> PAGE_SHIFT, flags);
+>>
+>> -	set_pte_vaddr(va, pfn_pte(pa >> PAGE_SHIFT, flags));
+>> +	/*
+>> +	 * The cpu_entry_area is shared between the user and kernel
+>> +	 * page tables.  All of its ptes can safely be global.
+>> +	 */
+>> +	if (boot_cpu_has(X86_FEATURE_PGE))
+>> +		pte = pte_set_flags(pte, _PAGE_GLOBAL);
 > 
-> This adds back the second copy of the dummy functions, hopefully
-> this time in the right place.
-> 
-> Fixes: 8900d06a277a ("mm/hmm: fix header file if/else/endif maze")
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> I think it would be safer to check that the PTE is indeed present before
+> setting _PAGE_GLOBAL. For example, percpu_setup_debug_store() sets PAGE_NONE
+> for non-present entries. In this case, since PAGE_NONE and PAGE_GLOBAL use
+> the same bit, everything would be fine, but it might cause bugs one day.
 
-Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+That's a reasonable safety thing to add, I think.
 
-Hopefuly this is the last config combinatorial issue...
+But, looking at it, I am wondering why we did this in
+percpu_setup_debug_store():
 
-> ---
->  include/linux/hmm.h | 21 ++++++++++++---------
->  1 file changed, 12 insertions(+), 9 deletions(-)
+        for (; npages; npages--, cea += PAGE_SIZE)
+                cea_set_pte(cea, 0, PAGE_NONE);
+
+Did we really want that to be PAGE_NONE, or was it supposed to create a
+PTE that returns true for pte_none()?
+
+>> 		/*
+>> +		 * Setting 'target_pmd' below creates a mapping in both
+>> +		 * the user and kernel page tables.  It is effectively
+>> +		 * global, so set it as global in both copies.  Note:
+>> +		 * the X86_FEATURE_PGE check is not _required_ because
+>> +		 * the CPU ignores _PAGE_GLOBAL when PGE is not
+>> +		 * supported.  The check keeps consistentency with
+>> +		 * code that only set this bit when supported.
+>> +		 */
+>> +		if (boot_cpu_has(X86_FEATURE_PGE))
+>> +			*pmd = pmd_set_flags(*pmd, _PAGE_GLOBAL);
 > 
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 5d26e0a223d9..39988924de3a 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -376,8 +376,18 @@ bool hmm_vma_range_done(struct hmm_range *range);
->   * See the function description in mm/hmm.c for further documentation.
->   */
->  int hmm_vma_fault(struct hmm_range *range, bool block);
-> -#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
->  
-> +/* Below are for HMM internal use only! Not to be used by device driver! */
-> +void hmm_mm_destroy(struct mm_struct *mm);
-> +
-> +static inline void hmm_mm_init(struct mm_struct *mm)
-> +{
-> +	mm->hmm = NULL;
-> +}
-> +#else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
-> +static inline void hmm_mm_destroy(struct mm_struct *mm) {}
-> +static inline void hmm_mm_init(struct mm_struct *mm) {}
-> +#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
->  
->  #if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLIC)
->  struct hmm_devmem;
-> @@ -550,16 +560,9 @@ struct hmm_device {
->  struct hmm_device *hmm_device_new(void *drvdata);
->  void hmm_device_put(struct hmm_device *hmm_device);
->  #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
-> -
-> -/* Below are for HMM internal use only! Not to be used by device driver! */
-> -void hmm_mm_destroy(struct mm_struct *mm);
-> -
-> -static inline void hmm_mm_init(struct mm_struct *mm)
-> -{
-> -	mm->hmm = NULL;
-> -}
->  #else /* IS_ENABLED(CONFIG_HMM) */
->  static inline void hmm_mm_destroy(struct mm_struct *mm) {}
->  static inline void hmm_mm_init(struct mm_struct *mm) {}
->  #endif /* IS_ENABLED(CONFIG_HMM) */
-> +
->  #endif /* LINUX_HMM_H */
-> -- 
-> 2.9.0
-> 
+> Same here.
+
+Is there  a reason that the pmd_none() check above this does not work?
