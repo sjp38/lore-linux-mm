@@ -1,79 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 844AB6B0003
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 18:37:06 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id c2-v6so12674150plo.21
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 15:37:06 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g1-v6si4107843plt.520.2018.04.04.15.37.05
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 472CA6B0003
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 19:59:21 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 204-v6so821689itu.6
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 16:59:21 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z3-v6sor1780334ite.82.2018.04.04.16.59.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 15:37:05 -0700 (PDT)
-Date: Wed, 4 Apr 2018 15:37:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v1] mm: help the ALLOC_HARDER allocation pass the
- watermarki when CMA on
-Message-Id: <20180404153703.8f9f04df4c991554f3bf0434@linux-foundation.org>
-In-Reply-To: <20180404003028.GA6628@js1304-desktop>
-References: <1521791852-7048-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-	<20180323083847.GJ23100@dhcp22.suse.cz>
-	<CAGWkznHxTaymoEuFEQ+nN0ZvpPLhdE_fbwpT3pbDf+NQyHw-3g@mail.gmail.com>
-	<20180323093327.GM23100@dhcp22.suse.cz>
-	<20180323130408.0c6451fac02c49b535ec7485@linux-foundation.org>
-	<20180404003028.GA6628@js1304-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 04 Apr 2018 16:59:19 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAJWu+op5-sr=2xWDYcd7FDBeMtrM9Zm96BgGzb4Q31UGBiU3ew@mail.gmail.com>
+References: <20180404115310.6c69e7b9@gandalf.local.home> <20180404120002.6561a5bc@gandalf.local.home>
+ <CAJWu+orC-1JDYHDTQU+DFckGq5ZnXBCCq9wLG-gNK0Nc4-vo7w@mail.gmail.com>
+ <20180404121326.6eca4fa3@gandalf.local.home> <CAJWu+op5-sr=2xWDYcd7FDBeMtrM9Zm96BgGzb4Q31UGBiU3ew@mail.gmail.com>
+From: Joel Fernandes <joelaf@google.com>
+Date: Wed, 4 Apr 2018 16:59:18 -0700
+Message-ID: <CAJWu+opM6RjK-Z1dr35XvQ5cLKaV=cLG5uMu-rLkoO=X03c+FA@mail.gmail.com>
+Subject: Re: [PATCH] ring-buffer: Add set/clear_current_oom_origin() during allocations
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, zhaoyang.huang@spreadtrum.com, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, vel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, 4 Apr 2018 09:31:10 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+Hi Steve,
 
-> On Fri, Mar 23, 2018 at 01:04:08PM -0700, Andrew Morton wrote:
-> > On Fri, 23 Mar 2018 10:33:27 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-> > 
-> > > On Fri 23-03-18 17:19:26, Zhaoyang Huang wrote:
-> > > > On Fri, Mar 23, 2018 at 4:38 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > > > > On Fri 23-03-18 15:57:32, Zhaoyang Huang wrote:
-> > > > >> For the type of 'ALLOC_HARDER' page allocation, there is an express
-> > > > >> highway for the whole process which lead the allocation reach __rmqueue_xxx
-> > > > >> easier than other type.
-> > > > >> However, when CMA is enabled, the free_page within zone_watermark_ok() will
-> > > > >> be deducted for number the pages in CMA type, which may cause the watermark
-> > > > >> check fail, but there are possible enough HighAtomic or Unmovable and
-> > > > >> Reclaimable pages in the zone. So add 'alloc_harder' here to
-> > > > >> count CMA pages in to clean the obstacles on the way to the final.
-> > > > >
-> > > > > This is no longer the case in the current mmotm tree. Have a look at
-> > > > > Joonsoo's zone movable based CMA patchset http://lkml.kernel.org/r/1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com
-> > > > >
-> > > > Thanks for the information. However, I can't find the commit in the
-> > > > latest mainline, is it merged?
-> > > 
-> > > Not yet. It is still sitting in the mmomt tree. I am not sure what is
-> > > the merge plan but I guess it is still waiting for some review feedback.
-> > 
-> > http://lkml.kernel.org/r/20171222001113.GA1729@js1304-P5Q-DELUXE
-> > 
-> > That patchset has been floating about since December and still has
-> > unresolved issues.
-> > 
-> > Joonsoo, can you please let us know the status?
-> 
-> Hello, Andrew.
-> Sorry for a late response.
-> 
-> Today, I finally have answered the question from Michal and it seems
-> that there is no problem at all.
-> 
-> http://lkml.kernel.org/r/CAAmzW4NGv7RyCYyokPoj4aR3ySKub4jaBZ3k=pt_YReFbByvsw@mail.gmail.com
-> 
-> You can merge the patch as is.
-> 
+On Wed, Apr 4, 2018 at 9:18 AM, Joel Fernandes <joelaf@google.com> wrote:
+> On Wed, Apr 4, 2018 at 9:13 AM, Steven Rostedt <rostedt@goodmis.org> wrote:
+> [..]
+>>>
+>>> Also, I agree with the new patch and its nice idea to do that.
+>>
+>> Thanks, want to give it a test too?
 
-hm.
+With the latest tree and the below diff, I can still OOM-kill a victim
+process doing a large buffer_size_kb write:
 
-There was also a performance regression reported:
-http://lkml.kernel.org/r/20180102063528.GG30397@yexl-desktop
+I pulled your ftrace/core and added this:
++       /*
+        i = si_mem_available();
+        if (i < nr_pages)
+                return -ENOMEM;
++       */
+
+Here's a run in Qemu with 4-cores 1GB total memory:
+
+bash-4.3# ./m -m 1M &
+[1] 1056
+bash-4.3#
+bash-4.3#
+bash-4.3#
+bash-4.3# echo 10000000 > /d/tracing/buffer_size_kb
+[   33.213988] Out of memory: Kill process 1042 (bash) score
+1712050900 or sacrifice child
+[   33.215349] Killed process 1056 (m) total-vm:9220kB,
+anon-rss:7564kB, file-rss:4kB, shmem-rss:640kB
+bash: echo: write error: Cannot allocate memory
+[1]+  Killed                  ./m -m 1M
+bash-4.3#
+--
+
+As you can see, OOM killer triggers and kills "m" which is my busy
+memory allocator (it allocates and frees lots of memory and does that
+in a loop)
+
+Here's the m program, sorry if it looks too ugly:
+https://pastebin.com/raw/aG6Qw37Z
+
+Happy to try anything else, BTW when the si_mem_available check
+enabled, this doesn't happen and the buffer_size_kb write fails
+normally without hurting anything else.
+
+- Joel
