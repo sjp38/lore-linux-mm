@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA24F6B0283
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:32 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id w17so15483319qkb.19
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:32 -0700 (PDT)
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0509D6B0281
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:33 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id l16-v6so9320504ybe.11
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:33 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 6si6741663qtx.305.2018.04.04.12.19.29
+        by mx.google.com with ESMTPS id 26si1367760qtd.119.2018.04.04.12.19.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 12:19:29 -0700 (PDT)
+        Wed, 04 Apr 2018 12:19:30 -0700 (PDT)
 From: jglisse@redhat.com
-Subject: [RFC PATCH 70/79] mm: add struct address_space to mark_buffer_dirty()
-Date: Wed,  4 Apr 2018 15:18:22 -0400
-Message-Id: <20180404191831.5378-33-jglisse@redhat.com>
+Subject: [RFC PATCH 71/79] mm: add struct address_space to set_page_dirty()
+Date: Wed,  4 Apr 2018 15:18:23 -0400
+Message-Id: <20180404191831.5378-34-jglisse@redhat.com>
 In-Reply-To: <20180404191831.5378-1-jglisse@redhat.com>
 References: <20180404191831.5378-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -26,40 +26,40 @@ Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
 For the holy crusade to stop relying on struct page mapping field, add
-struct address_space to mark_buffer_dirty() arguments.
+struct address_space to set_page_dirty() arguments.
 
 <---------------------------------------------------------------------
 @@
 identifier I1;
 type T1;
 @@
-void
--mark_buffer_dirty(T1 I1)
-+mark_buffer_dirty(struct address_space *_mapping, T1 I1)
+int
+-set_page_dirty(T1 I1)
++set_page_dirty(struct address_space *_mapping, T1 I1)
 {...}
 
 @@
 type T1;
 @@
-void
--mark_buffer_dirty(T1)
-+mark_buffer_dirty(struct address_space *, T1)
+int
+-set_page_dirty(T1)
++set_page_dirty(struct address_space *, T1)
 ;
 
 @@
 identifier I1;
 type T1;
 @@
-void
--mark_buffer_dirty(T1 I1)
-+mark_buffer_dirty(struct address_space *, T1)
+int
+-set_page_dirty(T1 I1)
++set_page_dirty(struct address_space *, T1)
 ;
 
 @@
 expression E1;
 @@
--mark_buffer_dirty(E1)
-+mark_buffer_dirty(NULL, E1)
+-set_page_dirty(E1)
++set_page_dirty(NULL, E1)
 --------------------------------------------------------------------->
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
@@ -71,2212 +71,1909 @@ Cc: Jan Kara <jack@suse.cz>
 Cc: Josef Bacik <jbacik@fb.com>
 Cc: Mel Gorman <mgorman@techsingularity.net>
 ---
- fs/adfs/dir_f.c             |  2 +-
- fs/affs/bitmap.c            |  6 +++---
- fs/affs/super.c             |  2 +-
- fs/bfs/file.c               |  2 +-
- fs/bfs/inode.c              |  4 ++--
- fs/buffer.c                 | 12 ++++++------
- fs/ext2/balloc.c            |  6 +++---
- fs/ext2/ialloc.c            |  8 ++++----
- fs/ext2/inode.c             |  2 +-
- fs/ext2/super.c             |  4 ++--
- fs/ext2/xattr.c             |  8 ++++----
- fs/ext4/ext4_jbd2.c         |  4 ++--
- fs/ext4/inode.c             |  4 ++--
- fs/ext4/mmp.c               |  2 +-
- fs/ext4/resize.c            |  2 +-
- fs/ext4/super.c             |  2 +-
- fs/fat/inode.c              |  4 ++--
- fs/fat/misc.c               |  2 +-
- fs/gfs2/bmap.c              |  4 ++--
- fs/gfs2/lops.c              |  6 +++---
- fs/hfs/mdb.c                | 10 +++++-----
- fs/hpfs/anode.c             | 34 +++++++++++++++++-----------------
- fs/hpfs/buffer.c            |  8 ++++----
- fs/hpfs/dnode.c             |  4 ++--
- fs/hpfs/ea.c                |  4 ++--
- fs/hpfs/inode.c             |  2 +-
- fs/hpfs/namei.c             | 10 +++++-----
- fs/hpfs/super.c             |  6 +++---
- fs/jbd2/recovery.c          |  2 +-
- fs/jbd2/transaction.c       |  2 +-
- fs/jfs/jfs_imap.c           |  2 +-
- fs/jfs/jfs_mount.c          |  2 +-
- fs/jfs/resize.c             |  6 +++---
- fs/jfs/super.c              |  2 +-
- fs/minix/bitmap.c           | 10 +++++-----
- fs/minix/inode.c            | 12 ++++++------
- fs/nilfs2/alloc.c           | 12 ++++++------
- fs/nilfs2/btnode.c          |  4 ++--
- fs/nilfs2/btree.c           | 38 +++++++++++++++++++-------------------
- fs/nilfs2/cpfile.c          | 24 ++++++++++++------------
- fs/nilfs2/dat.c             |  4 ++--
- fs/nilfs2/gcinode.c         |  2 +-
- fs/nilfs2/ifile.c           |  4 ++--
- fs/nilfs2/inode.c           |  2 +-
- fs/nilfs2/ioctl.c           |  2 +-
- fs/nilfs2/mdt.c             |  2 +-
- fs/nilfs2/segment.c         |  4 ++--
- fs/nilfs2/sufile.c          | 26 +++++++++++++-------------
- fs/ntfs/file.c              |  8 ++++----
- fs/ntfs/super.c             |  2 +-
- fs/ocfs2/alloc.c            |  2 +-
- fs/ocfs2/aops.c             |  4 ++--
- fs/ocfs2/inode.c            |  2 +-
- fs/omfs/bitmap.c            |  6 +++---
- fs/omfs/dir.c               |  8 ++++----
- fs/omfs/file.c              |  4 ++--
- fs/omfs/inode.c             |  4 ++--
- fs/reiserfs/file.c          |  2 +-
- fs/reiserfs/inode.c         |  4 ++--
- fs/reiserfs/journal.c       | 10 +++++-----
- fs/reiserfs/resize.c        |  2 +-
- fs/sysv/balloc.c            |  2 +-
- fs/sysv/ialloc.c            |  2 +-
- fs/sysv/inode.c             |  8 ++++----
- fs/sysv/sysv.h              |  4 ++--
- fs/udf/balloc.c             |  6 +++---
- fs/udf/inode.c              |  2 +-
- fs/udf/partition.c          |  4 ++--
- fs/udf/super.c              |  8 ++++----
- fs/ufs/balloc.c             |  4 ++--
- fs/ufs/ialloc.c             |  4 ++--
- fs/ufs/inode.c              |  8 ++++----
- fs/ufs/util.c               |  2 +-
- include/linux/buffer_head.h |  2 +-
- 74 files changed, 220 insertions(+), 220 deletions(-)
+ drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c            |  2 +-
+ drivers/gpu/drm/drm_gem.c                          |  2 +-
+ drivers/gpu/drm/i915/i915_gem.c                    |  6 ++---
+ drivers/gpu/drm/i915/i915_gem_fence_reg.c          |  2 +-
+ drivers/gpu/drm/i915/i915_gem_userptr.c            |  2 +-
+ drivers/gpu/drm/radeon/radeon_ttm.c                |  2 +-
+ drivers/gpu/drm/ttm/ttm_tt.c                       |  2 +-
+ drivers/infiniband/core/umem_odp.c                 |  2 +-
+ drivers/misc/vmw_vmci/vmci_queue_pair.c            |  2 +-
+ drivers/mtd/devices/block2mtd.c                    |  4 +--
+ drivers/platform/goldfish/goldfish_pipe.c          |  2 +-
+ drivers/sbus/char/oradax.c                         |  2 +-
+ drivers/staging/lustre/lustre/llite/rw26.c         |  2 +-
+ drivers/staging/lustre/lustre/llite/vvp_io.c       |  4 +--
+ .../interface/vchiq_arm/vchiq_2835_arm.c           |  2 +-
+ fs/9p/vfs_addr.c                                   |  2 +-
+ fs/afs/write.c                                     |  2 +-
+ fs/btrfs/extent_io.c                               |  2 +-
+ fs/btrfs/file.c                                    |  2 +-
+ fs/btrfs/inode.c                                   |  6 ++---
+ fs/btrfs/ioctl.c                                   |  2 +-
+ fs/btrfs/relocation.c                              |  2 +-
+ fs/buffer.c                                        |  6 ++---
+ fs/ceph/addr.c                                     |  4 +--
+ fs/cifs/file.c                                     |  4 +--
+ fs/exofs/dir.c                                     |  2 +-
+ fs/exofs/inode.c                                   |  4 +--
+ fs/f2fs/checkpoint.c                               |  4 +--
+ fs/f2fs/data.c                                     |  6 ++---
+ fs/f2fs/dir.c                                      | 10 ++++----
+ fs/f2fs/file.c                                     | 10 ++++----
+ fs/f2fs/gc.c                                       |  6 ++---
+ fs/f2fs/inline.c                                   | 18 ++++++-------
+ fs/f2fs/inode.c                                    |  6 ++---
+ fs/f2fs/node.c                                     | 20 +++++++--------
+ fs/f2fs/node.h                                     |  2 +-
+ fs/f2fs/recovery.c                                 |  2 +-
+ fs/f2fs/segment.c                                  | 12 ++++-----
+ fs/f2fs/xattr.c                                    |  6 ++---
+ fs/fuse/file.c                                     |  2 +-
+ fs/gfs2/file.c                                     |  2 +-
+ fs/hfs/bnode.c                                     | 12 ++++-----
+ fs/hfs/btree.c                                     |  6 ++---
+ fs/hfsplus/bitmap.c                                |  8 +++---
+ fs/hfsplus/bnode.c                                 | 30 +++++++++++-----------
+ fs/hfsplus/btree.c                                 |  6 ++---
+ fs/hfsplus/xattr.c                                 |  2 +-
+ fs/iomap.c                                         |  2 +-
+ fs/jfs/jfs_metapage.c                              |  4 +--
+ fs/libfs.c                                         |  2 +-
+ fs/nfs/direct.c                                    |  2 +-
+ fs/ntfs/attrib.c                                   |  8 +++---
+ fs/ntfs/bitmap.c                                   |  4 +--
+ fs/ntfs/file.c                                     |  2 +-
+ fs/ntfs/lcnalloc.c                                 |  4 +--
+ fs/ntfs/mft.c                                      |  4 +--
+ fs/ntfs/usnjrnl.c                                  |  2 +-
+ fs/udf/file.c                                      |  2 +-
+ fs/ufs/inode.c                                     |  2 +-
+ include/linux/mm.h                                 |  2 +-
+ mm/filemap.c                                       |  2 +-
+ mm/gup.c                                           |  2 +-
+ mm/huge_memory.c                                   |  2 +-
+ mm/hugetlb.c                                       |  2 +-
+ mm/khugepaged.c                                    |  2 +-
+ mm/ksm.c                                           |  2 +-
+ mm/memory.c                                        |  4 +--
+ mm/page-writeback.c                                |  6 ++---
+ mm/page_io.c                                       |  6 ++---
+ mm/rmap.c                                          |  2 +-
+ mm/shmem.c                                         | 18 ++++++-------
+ mm/swap_state.c                                    |  2 +-
+ mm/truncate.c                                      |  2 +-
+ net/rds/ib_rdma.c                                  |  2 +-
+ net/rds/rdma.c                                     |  4 +--
+ 75 files changed, 172 insertions(+), 172 deletions(-)
 
-diff --git a/fs/adfs/dir_f.c b/fs/adfs/dir_f.c
-index 0fbfd0b04ae0..3d92f8d187bc 100644
---- a/fs/adfs/dir_f.c
-+++ b/fs/adfs/dir_f.c
-@@ -434,7 +434,7 @@ adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
- 	}
- #endif
- 	for (i = dir->nr_buffers - 1; i >= 0; i--)
--		mark_buffer_dirty(dir->bh[i]);
-+		mark_buffer_dirty(NULL, dir->bh[i]);
- 
- 	ret = 0;
- out:
-diff --git a/fs/affs/bitmap.c b/fs/affs/bitmap.c
-index 5ba9ef2742f6..59b352075505 100644
---- a/fs/affs/bitmap.c
-+++ b/fs/affs/bitmap.c
-@@ -79,7 +79,7 @@ affs_free_block(struct super_block *sb, u32 block)
- 	tmp = be32_to_cpu(*(__be32 *)bh->b_data);
- 	*(__be32 *)bh->b_data = cpu_to_be32(tmp - mask);
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	affs_mark_sb_dirty(sb);
- 	bm->bm_free++;
- 
-@@ -223,7 +223,7 @@ affs_alloc_block(struct inode *inode, u32 goal)
- 	tmp = be32_to_cpu(*(__be32 *)bh->b_data);
- 	*(__be32 *)bh->b_data = cpu_to_be32(tmp + mask);
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	affs_mark_sb_dirty(sb);
- 
- 	mutex_unlock(&sbi->s_bmlock);
-@@ -338,7 +338,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
- 		((__be32 *)bh->b_data)[offset] = 0;
- 	((__be32 *)bh->b_data)[0] = 0;
- 	((__be32 *)bh->b_data)[0] = cpu_to_be32(-affs_checksum_block(sb, bh));
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 
- 	/* recalculate bitmap count for last block */
- 	bm--;
-diff --git a/fs/affs/super.c b/fs/affs/super.c
-index e602619aed9d..515388985607 100644
---- a/fs/affs/super.c
-+++ b/fs/affs/super.c
-@@ -40,7 +40,7 @@ affs_commit_super(struct super_block *sb, int wait)
- 	affs_fix_checksum(sb, bh);
- 	unlock_buffer(bh);
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	if (wait)
- 		sync_dirty_buffer(bh);
- }
-diff --git a/fs/bfs/file.c b/fs/bfs/file.c
-index 6d66cc137bc3..e74e1b72df80 100644
---- a/fs/bfs/file.c
-+++ b/fs/bfs/file.c
-@@ -40,7 +40,7 @@ static int bfs_move_block(unsigned long from, unsigned long to,
- 		return -EIO;
- 	new = sb_getblk(sb, to);
- 	memcpy(new->b_data, bh->b_data, bh->b_size);
--	mark_buffer_dirty(new);
-+	mark_buffer_dirty(NULL, new);
- 	bforget(sb, bh);
- 	brelse(new);
- 	return 0;
-diff --git a/fs/bfs/inode.c b/fs/bfs/inode.c
-index 9a69392f1fb3..a41edad61187 100644
---- a/fs/bfs/inode.c
-+++ b/fs/bfs/inode.c
-@@ -149,7 +149,7 @@ static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
- 	di->i_eblock = cpu_to_le32(BFS_I(inode)->i_eblock);
- 	di->i_eoffset = cpu_to_le32(i_sblock * BFS_BSIZE + inode->i_size - 1);
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	if (wbc->sync_mode == WB_SYNC_ALL) {
- 		sync_dirty_buffer(bh);
- 		if (buffer_req(bh) && !buffer_uptodate(bh))
-@@ -185,7 +185,7 @@ static void bfs_evict_inode(struct inode *inode)
- 	mutex_lock(&info->bfs_lock);
- 	/* clear on-disk inode */
- 	memset(di, 0, sizeof(struct bfs_inode));
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 
-         if (bi->i_dsk_ino) {
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 27b19c629308..24872b077269 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -574,7 +574,7 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
- 
- 	buffer_mapping = fs_page_mapping_get_with_bh(bh->b_page, bh);
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	if (!mapping->private_data) {
- 		mapping->private_data = buffer_mapping;
- 	} else {
-@@ -1102,7 +1102,7 @@ __getblk_slow(struct block_device *bdev, sector_t block,
-  * mark_buffer_dirty() is atomic.  It takes bh->b_page->mapping->private_lock,
-  * mapping->tree_lock and mapping->host->i_lock.
-  */
--void mark_buffer_dirty(struct buffer_head *bh)
-+void mark_buffer_dirty(struct address_space *_mapping, struct buffer_head *bh)
- {
- 	WARN_ON_ONCE(!buffer_uptodate(bh));
- 
-@@ -1891,7 +1891,7 @@ void page_zero_new_buffers(struct address_space *buffer, struct page *page,
- 				}
- 
- 				clear_buffer_new(bh);
--				mark_buffer_dirty(bh);
-+				mark_buffer_dirty(NULL, bh);
- 			}
- 		}
- 
-@@ -2006,7 +2006,7 @@ int __block_write_begin_int(struct address_space *mapping, struct page *page,
- 				if (PageUptodate(page)) {
- 					clear_buffer_new(bh);
- 					set_buffer_uptodate(bh);
--					mark_buffer_dirty(bh);
-+					mark_buffer_dirty(NULL, bh);
- 					continue;
- 				}
- 				if (block_end > to || block_start < from)
-@@ -2068,7 +2068,7 @@ static int __block_commit_write(struct inode *inode, struct page *page,
- 				partial = 1;
- 		} else {
- 			set_buffer_uptodate(bh);
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 		}
- 		clear_buffer_new(bh);
- 
-@@ -2937,7 +2937,7 @@ int block_truncate_page(struct address_space *mapping,
- 	}
- 
- 	zero_user(page, offset, length);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	err = 0;
- 
- unlock:
-diff --git a/fs/ext2/balloc.c b/fs/ext2/balloc.c
-index 33db13365c5e..e9e4a9f477fe 100644
---- a/fs/ext2/balloc.c
-+++ b/fs/ext2/balloc.c
-@@ -172,7 +172,7 @@ static void group_adjust_blocks(struct super_block *sb, int group_no,
- 		free_blocks = le16_to_cpu(desc->bg_free_blocks_count);
- 		desc->bg_free_blocks_count = cpu_to_le16(free_blocks + count);
- 		spin_unlock(sb_bgl_lock(sbi, group_no));
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 	}
- }
- 
-@@ -547,7 +547,7 @@ void ext2_free_blocks (struct inode * inode, unsigned long block,
- 		}
- 	}
- 
--	mark_buffer_dirty(bitmap_bh);
-+	mark_buffer_dirty(NULL, bitmap_bh);
- 	if (sb->s_flags & SB_SYNCHRONOUS)
- 		sync_dirty_buffer(bitmap_bh);
- 
-@@ -1423,7 +1423,7 @@ ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
- 	group_adjust_blocks(sb, group_no, gdp, gdp_bh, -num);
- 	percpu_counter_sub(&sbi->s_freeblocks_counter, num);
- 
--	mark_buffer_dirty(bitmap_bh);
-+	mark_buffer_dirty(NULL, bitmap_bh);
- 	if (sb->s_flags & SB_SYNCHRONOUS)
- 		sync_dirty_buffer(bitmap_bh);
- 
-diff --git a/fs/ext2/ialloc.c b/fs/ext2/ialloc.c
-index 6484199b35d1..c444c3c1ebcb 100644
---- a/fs/ext2/ialloc.c
-+++ b/fs/ext2/ialloc.c
-@@ -82,7 +82,7 @@ static void ext2_release_inode(struct super_block *sb, int group, int dir)
- 	spin_unlock(sb_bgl_lock(EXT2_SB(sb), group));
- 	if (dir)
- 		percpu_counter_dec(&EXT2_SB(sb)->s_dirs_counter);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- }
- 
- /*
-@@ -144,7 +144,7 @@ void ext2_free_inode (struct inode * inode)
- 			      "bit already cleared for inode %lu", ino);
- 	else
- 		ext2_release_inode(sb, block_group, is_directory);
--	mark_buffer_dirty(bitmap_bh);
-+	mark_buffer_dirty(NULL, bitmap_bh);
- 	if (sb->s_flags & SB_SYNCHRONOUS)
- 		sync_dirty_buffer(bitmap_bh);
- 
-@@ -516,7 +516,7 @@ struct inode *ext2_new_inode(struct inode *dir, umode_t mode,
- 	err = -ENOSPC;
- 	goto fail;
- got:
--	mark_buffer_dirty(bitmap_bh);
-+	mark_buffer_dirty(NULL, bitmap_bh);
- 	if (sb->s_flags & SB_SYNCHRONOUS)
- 		sync_dirty_buffer(bitmap_bh);
- 	brelse(bitmap_bh);
-@@ -547,7 +547,7 @@ struct inode *ext2_new_inode(struct inode *dir, umode_t mode,
- 	}
- 	spin_unlock(sb_bgl_lock(sbi, group));
- 
--	mark_buffer_dirty(bh2);
-+	mark_buffer_dirty(NULL, bh2);
- 	if (test_opt(sb, GRPID)) {
- 		inode->i_mode = mode;
- 		inode->i_uid = current_fsuid();
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index bc12273e393a..4c1782d0d0c0 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -1621,7 +1621,7 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
- 		}
- 	} else for (n = 0; n < EXT2_N_BLOCKS; n++)
- 		raw_inode->i_block[n] = ei->i_data[n];
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	if (do_sync) {
- 		sync_dirty_buffer(bh);
- 		if (buffer_req(bh) && !buffer_uptodate(bh)) {
-diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-index 7666c065b96f..62cab57b448f 100644
---- a/fs/ext2/super.c
-+++ b/fs/ext2/super.c
-@@ -1247,7 +1247,7 @@ void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es,
- 	es->s_wtime = cpu_to_le32(get_seconds());
- 	/* unlock before we do IO */
- 	spin_unlock(&EXT2_SB(sb)->s_lock);
--	mark_buffer_dirty(EXT2_SB(sb)->s_sbh);
-+	mark_buffer_dirty(NULL, EXT2_SB(sb)->s_sbh);
- 	if (wait)
- 		sync_dirty_buffer(EXT2_SB(sb)->s_sbh);
- }
-@@ -1562,7 +1562,7 @@ static ssize_t ext2_quota_write(struct super_block *sb, int type,
- 		memcpy(bh->b_data+offset, data, tocopy);
- 		flush_dcache_page(bh->b_page);
- 		set_buffer_uptodate(bh);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		unlock_buffer(bh);
- 		brelse(bh);
- 		offset = 0;
-diff --git a/fs/ext2/xattr.c b/fs/ext2/xattr.c
-index c77edf9afbce..8f3b1950248b 100644
---- a/fs/ext2/xattr.c
-+++ b/fs/ext2/xattr.c
-@@ -344,7 +344,7 @@ static void ext2_xattr_update_super_block(struct super_block *sb)
- 	spin_lock(&EXT2_SB(sb)->s_lock);
- 	EXT2_SET_COMPAT_FEATURE(sb, EXT2_FEATURE_COMPAT_EXT_ATTR);
- 	spin_unlock(&EXT2_SB(sb)->s_lock);
--	mark_buffer_dirty(EXT2_SB(sb)->s_sbh);
-+	mark_buffer_dirty(NULL, EXT2_SB(sb)->s_sbh);
- }
- 
- /*
-@@ -683,7 +683,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
- 			
- 			ext2_xattr_update_super_block(sb);
- 		}
--		mark_buffer_dirty(new_bh);
-+		mark_buffer_dirty(NULL, new_bh);
- 		if (IS_SYNC(inode)) {
- 			sync_dirty_buffer(new_bh);
- 			error = -EIO;
-@@ -739,7 +739,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
- 			le32_add_cpu(&HDR(old_bh)->h_refcount, -1);
- 			dquot_free_block_nodirty(inode, 1);
- 			mark_inode_dirty(inode);
--			mark_buffer_dirty(old_bh);
-+			mark_buffer_dirty(NULL, old_bh);
- 			ea_bdebug(old_bh, "refcount now=%d",
- 				le32_to_cpu(HDR(old_bh)->h_refcount));
- 		}
-@@ -809,7 +809,7 @@ ext2_xattr_delete_inode(struct inode *inode)
- 		ea_bdebug(bh, "refcount now=%d",
- 			le32_to_cpu(HDR(bh)->h_refcount));
- 		unlock_buffer(bh);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		if (IS_SYNC(inode))
- 			sync_dirty_buffer(bh);
- 		dquot_free_block_nodirty(inode, 1);
-diff --git a/fs/ext4/ext4_jbd2.c b/fs/ext4/ext4_jbd2.c
-index 60fbf5336059..72209e854a19 100644
---- a/fs/ext4/ext4_jbd2.c
-+++ b/fs/ext4/ext4_jbd2.c
-@@ -302,7 +302,7 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
- 		if (inode)
- 			mark_buffer_dirty_inode(bh, inode);
- 		else
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 		if (inode && inode_needs_sync(inode)) {
- 			sync_dirty_buffer(bh);
- 			if (buffer_req(bh) && !buffer_uptodate(bh)) {
-@@ -334,6 +334,6 @@ int __ext4_handle_dirty_super(const char *where, unsigned int line,
- 			ext4_journal_abort_handle(where, line, __func__,
- 						  bh, handle, err);
- 	} else
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 	return err;
- }
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index ef53a57d9768..c0ae0dc7af58 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -1202,7 +1202,7 @@ static int ext4_block_write_begin(struct address_space *mapping,
- 				if (PageUptodate(page)) {
- 					clear_buffer_new(bh);
- 					set_buffer_uptodate(bh);
--					mark_buffer_dirty(bh);
-+					mark_buffer_dirty(NULL, bh);
- 					continue;
- 				}
- 				if (block_end > to || block_start < from)
-@@ -4070,7 +4070,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
- 		err = ext4_handle_dirty_metadata(handle, inode, bh);
- 	} else {
- 		err = 0;
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		if (ext4_should_order_data(inode))
- 			err = ext4_jbd2_inode_add_write(handle, inode);
- 	}
-diff --git a/fs/ext4/mmp.c b/fs/ext4/mmp.c
-index 27b9a76a0dfa..6fcd8d624ef7 100644
---- a/fs/ext4/mmp.c
-+++ b/fs/ext4/mmp.c
-@@ -49,7 +49,7 @@ static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
- 	 */
- 	sb_start_write(sb);
- 	ext4_mmp_csum_set(sb, mmp);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	lock_buffer(bh);
- 	bh->b_end_io = end_buffer_write_sync;
- 	get_bh(bh);
-diff --git a/fs/ext4/resize.c b/fs/ext4/resize.c
-index b6bec270a8e4..398cd8c7dd40 100644
---- a/fs/ext4/resize.c
-+++ b/fs/ext4/resize.c
-@@ -1160,7 +1160,7 @@ static void update_backups(struct super_block *sb, sector_t blk_off, char *data,
- 			     "forcing fsck on next reboot", group, err);
- 		sbi->s_mount_state &= ~EXT4_VALID_FS;
- 		sbi->s_es->s_state &= cpu_to_le16(~EXT4_VALID_FS);
--		mark_buffer_dirty(sbi->s_sbh);
-+		mark_buffer_dirty(NULL, sbi->s_sbh);
- 	}
- }
- 
-diff --git a/fs/ext4/super.c b/fs/ext4/super.c
-index cf2b74137fb2..ebef69e45f74 100644
---- a/fs/ext4/super.c
-+++ b/fs/ext4/super.c
-@@ -4738,7 +4738,7 @@ static int ext4_commit_super(struct super_block *sb, int sync)
- 		clear_buffer_write_io_error(sbh);
- 		set_buffer_uptodate(sbh);
- 	}
--	mark_buffer_dirty(sbh);
-+	mark_buffer_dirty(NULL, sbh);
- 	if (sync) {
- 		unlock_buffer(sbh);
- 		error = __sync_dirty_buffer(sbh,
-diff --git a/fs/fat/inode.c b/fs/fat/inode.c
-index 9e6bc6364468..a5cac466caf2 100644
---- a/fs/fat/inode.c
-+++ b/fs/fat/inode.c
-@@ -695,7 +695,7 @@ static void fat_set_state(struct super_block *sb,
- 			b->fat16.state &= ~FAT_STATE_DIRTY;
- 	}
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	sync_dirty_buffer(bh);
- 	brelse(bh);
- }
-@@ -875,7 +875,7 @@ static int __fat_write_inode(struct inode *inode, int wait)
- 				  &raw_entry->adate, NULL);
- 	}
- 	spin_unlock(&sbi->inode_hash_lock);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	err = 0;
- 	if (wait)
- 		err = sync_dirty_buffer(bh);
-diff --git a/fs/fat/misc.c b/fs/fat/misc.c
-index f9bdc1e01c98..2f1a027684c4 100644
---- a/fs/fat/misc.c
-+++ b/fs/fat/misc.c
-@@ -85,7 +85,7 @@ int fat_clusters_flush(struct super_block *sb)
- 			fsinfo->free_clusters = cpu_to_le32(sbi->free_clusters);
- 		if (sbi->prev_free != -1)
- 			fsinfo->next_cluster = cpu_to_le32(sbi->prev_free);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 	}
- 	brelse(bh);
- 
-diff --git a/fs/gfs2/bmap.c b/fs/gfs2/bmap.c
-index 12e10758b0f2..32028225306a 100644
---- a/fs/gfs2/bmap.c
-+++ b/fs/gfs2/bmap.c
-@@ -90,7 +90,7 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
- 
- 	set_buffer_uptodate(bh);
- 	if (!gfs2_is_jdata(ip))
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 	if (!gfs2_is_writeback(ip))
- 		gfs2_trans_add_data(ip->i_gl, bh);
- 
-@@ -955,7 +955,7 @@ static int gfs2_block_zero_range(struct inode *inode, loff_t from,
- 		gfs2_trans_add_data(ip->i_gl, bh);
- 
- 	zero_user(page, offset, length);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- unlock:
- 	unlock_page(page);
- 	put_page(page);
-diff --git a/fs/gfs2/lops.c b/fs/gfs2/lops.c
-index 3b672378d358..1c7dbf3b1227 100644
---- a/fs/gfs2/lops.c
-+++ b/fs/gfs2/lops.c
-@@ -105,7 +105,7 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
- 	BUG_ON(!buffer_pinned(bh));
- 
- 	lock_buffer(bh);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	clear_buffer_pinned(bh);
- 
- 	if (buffer_is_rgrp(bd))
-@@ -558,7 +558,7 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
- 		if (gfs2_meta_check(sdp, bh_ip))
- 			error = -EIO;
- 		else
--			mark_buffer_dirty(bh_ip);
-+			mark_buffer_dirty(NULL, bh_ip);
- 
- 		brelse(bh_log);
- 		brelse(bh_ip);
-@@ -797,7 +797,7 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
- 			__be32 *eptr = (__be32 *)bh_ip->b_data;
- 			*eptr = cpu_to_be32(GFS2_MAGIC);
- 		}
--		mark_buffer_dirty(bh_ip);
-+		mark_buffer_dirty(NULL, bh_ip);
- 
- 		brelse(bh_log);
- 		brelse(bh_ip);
-diff --git a/fs/hfs/mdb.c b/fs/hfs/mdb.c
-index 460281b1299e..6be25d949b5d 100644
---- a/fs/hfs/mdb.c
-+++ b/fs/hfs/mdb.c
-@@ -218,7 +218,7 @@ int hfs_mdb_get(struct super_block *sb)
- 		be32_add_cpu(&mdb->drWrCnt, 1);
- 		mdb->drLsMod = hfs_mtime();
- 
--		mark_buffer_dirty(HFS_SB(sb)->mdb_bh);
-+		mark_buffer_dirty(NULL, HFS_SB(sb)->mdb_bh);
- 		sync_dirty_buffer(HFS_SB(sb)->mdb_bh);
- 	}
- 
-@@ -274,7 +274,7 @@ void hfs_mdb_commit(struct super_block *sb)
- 		mdb->drDirCnt = cpu_to_be32(HFS_SB(sb)->folder_count);
- 
- 		/* write MDB to disk */
--		mark_buffer_dirty(HFS_SB(sb)->mdb_bh);
-+		mark_buffer_dirty(NULL, HFS_SB(sb)->mdb_bh);
- 	}
- 
- 	/* write the backup MDB, not returning until it is written.
-@@ -293,7 +293,7 @@ void hfs_mdb_commit(struct super_block *sb)
- 		HFS_SB(sb)->alt_mdb->drAtrb &= cpu_to_be16(~HFS_SB_ATTRIB_INCNSTNT);
- 		unlock_buffer(HFS_SB(sb)->alt_mdb_bh);
- 
--		mark_buffer_dirty(HFS_SB(sb)->alt_mdb_bh);
-+		mark_buffer_dirty(NULL, HFS_SB(sb)->alt_mdb_bh);
- 		sync_dirty_buffer(HFS_SB(sb)->alt_mdb_bh);
- 	}
- 
-@@ -320,7 +320,7 @@ void hfs_mdb_commit(struct super_block *sb)
- 			memcpy(bh->b_data + off, ptr, len);
- 			unlock_buffer(bh);
- 
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			brelse(bh);
- 			block++;
- 			off = 0;
-@@ -338,7 +338,7 @@ void hfs_mdb_close(struct super_block *sb)
- 		return;
- 	HFS_SB(sb)->mdb->drAtrb |= cpu_to_be16(HFS_SB_ATTRIB_UNMNT);
- 	HFS_SB(sb)->mdb->drAtrb &= cpu_to_be16(~HFS_SB_ATTRIB_INCNSTNT);
--	mark_buffer_dirty(HFS_SB(sb)->mdb_bh);
-+	mark_buffer_dirty(NULL, HFS_SB(sb)->mdb_bh);
- }
- 
- /*
-diff --git a/fs/hpfs/anode.c b/fs/hpfs/anode.c
-index c14c9a035ee0..38944a8cc677 100644
---- a/fs/hpfs/anode.c
-+++ b/fs/hpfs/anode.c
-@@ -86,7 +86,7 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
- 	if (bp_internal(btree)) {
- 		a = le32_to_cpu(btree->u.internal[n].down);
- 		btree->u.internal[n].file_secno = cpu_to_le32(-1);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		brelse(bh);
- 		if (hpfs_sb(s)->sb_chk)
- 			if (hpfs_stop_cycles(s, a, &c1, &c2, "hpfs_add_sector_to_btree #1")) return -1;
-@@ -104,7 +104,7 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
- 		}
- 		if (hpfs_alloc_if_possible(s, se = le32_to_cpu(btree->u.external[n].disk_secno) + le32_to_cpu(btree->u.external[n].length))) {
- 			le32_add_cpu(&btree->u.external[n].length, 1);
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			brelse(bh);
- 			return se;
- 		}
-@@ -141,7 +141,7 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
- 			btree->first_free = cpu_to_le16((char *)&(btree->u.internal[1]) - (char *)btree);
- 			btree->u.internal[0].file_secno = cpu_to_le32(-1);
- 			btree->u.internal[0].down = cpu_to_le32(na);
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 		} else if (!(ranode = hpfs_alloc_anode(s, /*a*/0, &ra, &bh2))) {
- 			brelse(bh);
- 			brelse(bh1);
-@@ -158,7 +158,7 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
- 	btree->u.external[n].disk_secno = cpu_to_le32(se);
- 	btree->u.external[n].file_secno = cpu_to_le32(fs);
- 	btree->u.external[n].length = cpu_to_le32(1);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 	if ((a == node && fnod) || na == -1) return se;
- 	c2 = 0;
-@@ -179,7 +179,7 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
- 			btree->u.internal[n].file_secno = cpu_to_le32(-1);
- 			btree->u.internal[n].down = cpu_to_le32(na);
- 			btree->u.internal[n-1].file_secno = cpu_to_le32(fs);
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			brelse(bh);
- 			brelse(bh2);
- 			hpfs_free_sectors(s, ra, 1);
-@@ -189,14 +189,14 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
- 					anode->btree.flags |= BP_fnode_parent;
- 				else
- 					anode->btree.flags &= ~BP_fnode_parent;
--				mark_buffer_dirty(bh);
-+				mark_buffer_dirty(NULL, bh);
- 				brelse(bh);
- 			}
- 			return se;
- 		}
- 		up = up != node ? le32_to_cpu(anode->up) : -1;
- 		btree->u.internal[btree->n_used_nodes - 1].file_secno = cpu_to_le32(/*fs*/-1);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		brelse(bh);
- 		a = na;
- 		if ((new_anode = hpfs_alloc_anode(s, a, &na, &bh))) {
-@@ -208,11 +208,11 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
- 			anode->btree.first_free = cpu_to_le16(16);
- 			anode->btree.u.internal[0].down = cpu_to_le32(a);
- 			anode->btree.u.internal[0].file_secno = cpu_to_le32(-1);
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			brelse(bh);
- 			if ((anode = hpfs_map_anode(s, a, &bh))) {
- 				anode->up = cpu_to_le32(na);
--				mark_buffer_dirty(bh);
-+				mark_buffer_dirty(NULL, bh);
- 				brelse(bh);
- 			}
- 		} else na = a;
-@@ -221,7 +221,7 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
- 		anode->up = cpu_to_le32(node);
- 		if (fnod)
- 			anode->btree.flags |= BP_fnode_parent;
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		brelse(bh);
- 	}
- 	if (!fnod) {
-@@ -247,7 +247,7 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
- 		if ((unode = hpfs_map_anode(s, le32_to_cpu(ranode->u.internal[n].down), &bh1))) {
- 			unode->up = cpu_to_le32(ra);
- 			unode->btree.flags &= ~BP_fnode_parent;
--			mark_buffer_dirty(bh1);
-+			mark_buffer_dirty(NULL, bh1);
- 			brelse(bh1);
- 		}
- 	}
-@@ -259,9 +259,9 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
- 	btree->u.internal[0].down = cpu_to_le32(ra);
- 	btree->u.internal[1].file_secno = cpu_to_le32(-1);
- 	btree->u.internal[1].down = cpu_to_le32(na);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
--	mark_buffer_dirty(bh2);
-+	mark_buffer_dirty(NULL, bh2);
- 	brelse(bh2);
- 	return se;
- }
-@@ -375,7 +375,7 @@ int hpfs_ea_write(struct super_block *s, secno a, int ano, unsigned pos,
- 			return -1;
- 		l = 0x200 - (pos & 0x1ff); if (l > len) l = len;
- 		memcpy(data + (pos & 0x1ff), buf, l);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		brelse(bh);
- 		buf += l; pos += l; len -= l;
- 	}
-@@ -419,7 +419,7 @@ void hpfs_truncate_btree(struct super_block *s, secno f, int fno, unsigned secs)
- 			btree->n_used_nodes = 0;
- 			btree->first_free = cpu_to_le16(8);
- 			btree->flags &= ~BP_internal;
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 		} else hpfs_free_sectors(s, f, 1);
- 		brelse(bh);
- 		return;
-@@ -437,7 +437,7 @@ void hpfs_truncate_btree(struct super_block *s, secno f, int fno, unsigned secs)
- 		btree->n_used_nodes = i + 1;
- 		btree->n_free_nodes = nodes - btree->n_used_nodes;
- 		btree->first_free = cpu_to_le16(8 + 8 * btree->n_used_nodes);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		if (btree->u.internal[i].file_secno == cpu_to_le32(secs)) {
- 			brelse(bh);
- 			return;
-@@ -471,7 +471,7 @@ void hpfs_truncate_btree(struct super_block *s, secno f, int fno, unsigned secs)
- 	btree->n_used_nodes = i + 1;
- 	btree->n_free_nodes = nodes - btree->n_used_nodes;
- 	btree->first_free = cpu_to_le16(8 + 12 * btree->n_used_nodes);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- }
- 
-diff --git a/fs/hpfs/buffer.c b/fs/hpfs/buffer.c
-index e285d6b3bba4..dbb0a4d72bc8 100644
---- a/fs/hpfs/buffer.c
-+++ b/fs/hpfs/buffer.c
-@@ -225,8 +225,8 @@ void hpfs_mark_4buffers_dirty(struct quad_buffer_head *qbh)
- 		memcpy(qbh->bh[2]->b_data, qbh->data + 2 * 512, 512);
- 		memcpy(qbh->bh[3]->b_data, qbh->data + 3 * 512, 512);
- 	}
--	mark_buffer_dirty(qbh->bh[0]);
--	mark_buffer_dirty(qbh->bh[1]);
--	mark_buffer_dirty(qbh->bh[2]);
--	mark_buffer_dirty(qbh->bh[3]);
-+	mark_buffer_dirty(NULL, qbh->bh[0]);
-+	mark_buffer_dirty(NULL, qbh->bh[1]);
-+	mark_buffer_dirty(NULL, qbh->bh[2]);
-+	mark_buffer_dirty(NULL, qbh->bh[3]);
- }
-diff --git a/fs/hpfs/dnode.c b/fs/hpfs/dnode.c
-index a4ad18afbdec..6bc5449d0fd1 100644
---- a/fs/hpfs/dnode.c
-+++ b/fs/hpfs/dnode.c
-@@ -359,7 +359,7 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
- 		return 1;
- 	}
- 	fnode->u.external[0].disk_secno = cpu_to_le32(rdno);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 	hpfs_i(i)->i_dno = rdno;
- 	d->up = ad->up = cpu_to_le32(rdno);
-@@ -562,7 +562,7 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
- 			}
- 			if ((fnode = hpfs_map_fnode(i->i_sb, up, &bh))) {
- 				fnode->u.external[0].disk_secno = cpu_to_le32(down);
--				mark_buffer_dirty(bh);
-+				mark_buffer_dirty(NULL, bh);
- 				brelse(bh);
- 			}
- 			hpfs_inode->i_dno = down;
-diff --git a/fs/hpfs/ea.c b/fs/hpfs/ea.c
-index 102ba18e561f..a600bac34172 100644
---- a/fs/hpfs/ea.c
-+++ b/fs/hpfs/ea.c
-@@ -278,7 +278,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
- 		fnode->ea_size_s = cpu_to_le16(0);
- 		fnode->ea_secno = cpu_to_le32(n);
- 		fnode->flags &= ~FNODE_anode;
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		brelse(bh);
- 	}
- 	pos = le32_to_cpu(fnode->ea_size_l) + 5 + strlen(key) + size;
-@@ -331,7 +331,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
- 					}
- 					memcpy(b2, b1, 512);
- 					brelse(bh1);
--					mark_buffer_dirty(bh2);
-+					mark_buffer_dirty(NULL, bh2);
- 					brelse(bh2);
- 				}
- 				hpfs_free_sectors(s, le32_to_cpu(fnode->ea_secno), len);
-diff --git a/fs/hpfs/inode.c b/fs/hpfs/inode.c
-index eb8b4baf0f2e..134313fa85fe 100644
---- a/fs/hpfs/inode.c
-+++ b/fs/hpfs/inode.c
-@@ -253,7 +253,7 @@ void hpfs_write_inode_nolock(struct inode *i)
- 				"directory %08lx doesn't have '.' entry",
- 				(unsigned long)i->i_ino);
- 	}
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- }
- 
-diff --git a/fs/hpfs/namei.c b/fs/hpfs/namei.c
-index e79bd8760f3f..75e2b5597bd6 100644
---- a/fs/hpfs/namei.c
-+++ b/fs/hpfs/namei.c
-@@ -96,7 +96,7 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
- 	de->first = de->directory = 1;
- 	/*de->hidden = de->system = 0;*/
- 	de->fnode = cpu_to_le32(fno);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 	hpfs_mark_4buffers_dirty(&qbh0);
- 	hpfs_brelse4(&qbh0);
-@@ -187,7 +187,7 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, b
- 	fnode->len = len;
- 	memcpy(fnode->name, name, len > 15 ? 15 : len);
- 	fnode->up = cpu_to_le32(dir->i_ino);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 
- 	insert_inode_hash(result);
-@@ -269,7 +269,7 @@ static int hpfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, de
- 	fnode->len = len;
- 	memcpy(fnode->name, name, len > 15 ? 15 : len);
- 	fnode->up = cpu_to_le32(dir->i_ino);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 
- 	insert_inode_hash(result);
- 
-@@ -348,7 +348,7 @@ static int hpfs_symlink(struct inode *dir, struct dentry *dentry, const char *sy
- 	memcpy(fnode->name, name, len > 15 ? 15 : len);
- 	fnode->up = cpu_to_le32(dir->i_ino);
- 	hpfs_set_ea(result, fnode, "SYMLINK", symlink, strlen(symlink));
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 
- 	insert_inode_hash(result);
-@@ -604,7 +604,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
- 		fnode->len = new_len;
- 		memcpy(fnode->name, new_name, new_len>15?15:new_len);
- 		if (new_len < 15) memset(&fnode->name[new_len], 0, 15 - new_len);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		brelse(bh);
- 	}
- end1:
-diff --git a/fs/hpfs/super.c b/fs/hpfs/super.c
-index f2c3ebcd309c..93b9908f300f 100644
---- a/fs/hpfs/super.c
-+++ b/fs/hpfs/super.c
-@@ -27,7 +27,7 @@ static void mark_dirty(struct super_block *s, int remount)
- 		if ((sb = hpfs_map_sector(s, 17, &bh, 0))) {
- 			sb->dirty = 1;
- 			sb->old_wrote = 0;
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			sync_dirty_buffer(bh);
- 			brelse(bh);
- 		}
-@@ -46,7 +46,7 @@ static void unmark_dirty(struct super_block *s)
- 	if ((sb = hpfs_map_sector(s, 17, &bh, 0))) {
- 		sb->dirty = hpfs_sb(s)->sb_chkdsk > 1 - hpfs_sb(s)->sb_was_error;
- 		sb->old_wrote = hpfs_sb(s)->sb_chkdsk >= 2 && !hpfs_sb(s)->sb_was_error;
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		sync_dirty_buffer(bh);
- 		brelse(bh);
- 	}
-@@ -667,7 +667,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
- 	if (!sb_rdonly(s)) {
- 		spareblock->dirty = 1;
- 		spareblock->old_wrote = 0;
--		mark_buffer_dirty(bh2);
-+		mark_buffer_dirty(NULL, bh2);
- 	}
- 
- 	if (le32_to_cpu(spareblock->n_dnode_spares) != le32_to_cpu(spareblock->n_dnode_spares_free)) {
-diff --git a/fs/jbd2/recovery.c b/fs/jbd2/recovery.c
-index f99910b69c78..936d74bf4c40 100644
---- a/fs/jbd2/recovery.c
-+++ b/fs/jbd2/recovery.c
-@@ -631,7 +631,7 @@ static int do_one_pass(journal_t *journal,
- 
- 					BUFFER_TRACE(nbh, "marking dirty");
- 					set_buffer_uptodate(nbh);
--					mark_buffer_dirty(nbh);
-+					mark_buffer_dirty(NULL, nbh);
- 					BUFFER_TRACE(nbh, "marking uptodate");
- 					++info->nr_replays;
- 					/* ll_rw_block(WRITE, 1, &nbh); */
-diff --git a/fs/jbd2/transaction.c b/fs/jbd2/transaction.c
-index 6899e7b4036d..01c31d021b47 100644
---- a/fs/jbd2/transaction.c
-+++ b/fs/jbd2/transaction.c
-@@ -1885,7 +1885,7 @@ static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh)
- 	if (transaction && is_journal_aborted(transaction->t_journal))
- 		clear_buffer_jbddirty(bh);
- 	else if (test_clear_buffer_jbddirty(bh))
--		mark_buffer_dirty(bh);	/* Expose it to the VM */
-+		mark_buffer_dirty(NULL, bh);	/* Expose it to the VM */
- }
- 
- /*
-diff --git a/fs/jfs/jfs_imap.c b/fs/jfs/jfs_imap.c
-index f36ef68905a7..69a10c8d9605 100644
---- a/fs/jfs/jfs_imap.c
-+++ b/fs/jfs/jfs_imap.c
-@@ -3009,7 +3009,7 @@ static void duplicateIXtree(struct super_block *sb, s64 blkno,
- 		j_sb = (struct jfs_superblock *)bh->b_data;
- 		j_sb->s_flag |= cpu_to_le32(JFS_BAD_SAIT);
- 
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		sync_dirty_buffer(bh);
- 		brelse(bh);
- 		return;
-diff --git a/fs/jfs/jfs_mount.c b/fs/jfs/jfs_mount.c
-index d8658607bf46..3cf9d794d08a 100644
---- a/fs/jfs/jfs_mount.c
-+++ b/fs/jfs/jfs_mount.c
-@@ -448,7 +448,7 @@ int updateSuper(struct super_block *sb, uint state)
- 			j_sb->s_flag |= cpu_to_le32(JFS_DASD_PRIME);
- 	}
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	sync_dirty_buffer(bh);
- 	brelse(bh);
- 
-diff --git a/fs/jfs/resize.c b/fs/jfs/resize.c
-index c1f417b94fe6..7d800d80a9d1 100644
---- a/fs/jfs/resize.c
-+++ b/fs/jfs/resize.c
-@@ -247,7 +247,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
- 		PXDlength(&j_sb->s_xlogpxd, newLogSize);
- 
- 		/* synchronously update superblock */
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		sync_dirty_buffer(bh);
- 		brelse(bh);
- 
-@@ -523,13 +523,13 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
- 		j_sb2 = (struct jfs_superblock *)bh2->b_data;
- 		memcpy(j_sb2, j_sb, sizeof (struct jfs_superblock));
- 
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		sync_dirty_buffer(bh2);
- 		brelse(bh2);
- 	}
- 
- 	/* write primary superblock */
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	sync_dirty_buffer(bh);
- 	brelse(bh);
- 
-diff --git a/fs/jfs/super.c b/fs/jfs/super.c
-index 1b9264fd54b6..96cc8c79f0d7 100644
---- a/fs/jfs/super.c
-+++ b/fs/jfs/super.c
-@@ -838,7 +838,7 @@ static ssize_t jfs_quota_write(struct super_block *sb, int type,
- 		memcpy(bh->b_data+offset, data, tocopy);
- 		flush_dcache_page(bh->b_page);
- 		set_buffer_uptodate(bh);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		unlock_buffer(bh);
- 		brelse(bh);
- 		offset = 0;
-diff --git a/fs/minix/bitmap.c b/fs/minix/bitmap.c
-index f4e5e5181a14..61c7f0d4d00a 100644
---- a/fs/minix/bitmap.c
-+++ b/fs/minix/bitmap.c
-@@ -64,7 +64,7 @@ void minix_free_block(struct inode *inode, unsigned long block)
- 		printk("minix_free_block (%s:%lu): bit already cleared\n",
- 		       sb->s_id, block);
- 	spin_unlock(&bitmap_lock);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	return;
- }
- 
-@@ -83,7 +83,7 @@ int minix_new_block(struct inode * inode)
- 		if (j < bits_per_zone) {
- 			minix_set_bit(j, bh->b_data);
- 			spin_unlock(&bitmap_lock);
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			j += i * bits_per_zone + sbi->s_firstdatazone-1;
- 			if (j < sbi->s_firstdatazone || j >= sbi->s_nzones)
- 				break;
-@@ -175,7 +175,7 @@ static void minix_clear_inode(struct inode *inode)
- 		}
- 	}
- 	if (bh) {
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		brelse (bh);
- 	}
- }
-@@ -207,7 +207,7 @@ void minix_free_inode(struct inode * inode)
- 	if (!minix_test_and_clear_bit(bit, bh->b_data))
- 		printk("minix_free_inode: bit %lu already cleared\n", bit);
- 	spin_unlock(&bitmap_lock);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- }
- 
- struct inode *minix_new_inode(const struct inode *dir, umode_t mode, int *error)
-@@ -246,7 +246,7 @@ struct inode *minix_new_inode(const struct inode *dir, umode_t mode, int *error)
- 		return NULL;
- 	}
- 	spin_unlock(&bitmap_lock);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	j += i * bits_per_zone;
- 	if (!j || j > sbi->s_ninodes) {
- 		iput(inode);
-diff --git a/fs/minix/inode.c b/fs/minix/inode.c
-index 450aa4e87cd9..e8550a58fe83 100644
---- a/fs/minix/inode.c
-+++ b/fs/minix/inode.c
-@@ -45,7 +45,7 @@ static void minix_put_super(struct super_block *sb)
- 	if (!sb_rdonly(sb)) {
- 		if (sbi->s_version != MINIX_V3)	 /* s_state is now out from V3 sb */
- 			sbi->s_ms->s_state = sbi->s_mount_state;
--		mark_buffer_dirty(sbi->s_sbh);
-+		mark_buffer_dirty(NULL, sbi->s_sbh);
- 	}
- 	for (i = 0; i < sbi->s_imap_blocks; i++)
- 		brelse(sbi->s_imap[i]);
-@@ -134,7 +134,7 @@ static int minix_remount (struct super_block * sb, int * flags, char * data)
- 		/* Mounting a rw partition read-only. */
- 		if (sbi->s_version != MINIX_V3)
- 			ms->s_state = sbi->s_mount_state;
--		mark_buffer_dirty(sbi->s_sbh);
-+		mark_buffer_dirty(NULL, sbi->s_sbh);
- 	} else {
- 	  	/* Mount a partition which is read-only, read-write. */
- 		if (sbi->s_version != MINIX_V3) {
-@@ -143,7 +143,7 @@ static int minix_remount (struct super_block * sb, int * flags, char * data)
- 		} else {
- 			sbi->s_mount_state = MINIX_VALID_FS;
- 		}
--		mark_buffer_dirty(sbi->s_sbh);
-+		mark_buffer_dirty(NULL, sbi->s_sbh);
- 
- 		if (!(sbi->s_mount_state & MINIX_VALID_FS))
- 			printk("MINIX-fs warning: remounting unchecked fs, "
-@@ -296,7 +296,7 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
- 	if (!sb_rdonly(s)) {
- 		if (sbi->s_version != MINIX_V3) /* s_state is now out from V3 sb */
- 			ms->s_state &= ~MINIX_VALID_FS;
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 	}
- 	if (!(sbi->s_mount_state & MINIX_VALID_FS))
- 		printk("MINIX-fs: mounting unchecked file system, "
-@@ -570,7 +570,7 @@ static struct buffer_head * V1_minix_update_inode(struct inode * inode)
- 		raw_inode->i_zone[0] = old_encode_dev(inode->i_rdev);
- 	else for (i = 0; i < 9; i++)
- 		raw_inode->i_zone[i] = minix_inode->u.i1_data[i];
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	return bh;
- }
- 
-@@ -599,7 +599,7 @@ static struct buffer_head * V2_minix_update_inode(struct inode * inode)
- 		raw_inode->i_zone[0] = old_encode_dev(inode->i_rdev);
- 	else for (i = 0; i < 10; i++)
- 		raw_inode->i_zone[i] = minix_inode->u.i2_data[i];
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	return bh;
- }
- 
-diff --git a/fs/nilfs2/alloc.c b/fs/nilfs2/alloc.c
-index 03b8ba933eb2..7e3d3a8dc3f9 100644
---- a/fs/nilfs2/alloc.c
-+++ b/fs/nilfs2/alloc.c
-@@ -591,8 +591,8 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
- void nilfs_palloc_commit_alloc_entry(struct inode *inode,
- 				     struct nilfs_palloc_req *req)
- {
--	mark_buffer_dirty(req->pr_bitmap_bh);
--	mark_buffer_dirty(req->pr_desc_bh);
-+	mark_buffer_dirty(NULL, req->pr_bitmap_bh);
-+	mark_buffer_dirty(NULL, req->pr_desc_bh);
- 	nilfs_mdt_mark_dirty(inode);
- 
- 	brelse(req->pr_bitmap_bh);
-@@ -632,8 +632,8 @@ void nilfs_palloc_commit_free_entry(struct inode *inode,
- 	kunmap(req->pr_bitmap_bh->b_page);
- 	kunmap(req->pr_desc_bh->b_page);
- 
--	mark_buffer_dirty(req->pr_desc_bh);
--	mark_buffer_dirty(req->pr_bitmap_bh);
-+	mark_buffer_dirty(NULL, req->pr_desc_bh);
-+	mark_buffer_dirty(NULL, req->pr_bitmap_bh);
- 	nilfs_mdt_mark_dirty(inode);
- 
- 	brelse(req->pr_bitmap_bh);
-@@ -810,7 +810,7 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
- 		} while (true);
- 
- 		kunmap(bitmap_bh->b_page);
--		mark_buffer_dirty(bitmap_bh);
-+		mark_buffer_dirty(NULL, bitmap_bh);
- 		brelse(bitmap_bh);
- 
- 		for (k = 0; k < nempties; k++) {
-@@ -828,7 +828,7 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
- 			inode, group, desc_bh, desc_kaddr);
- 		nfree = nilfs_palloc_group_desc_add_entries(desc, lock, n);
- 		kunmap_atomic(desc_kaddr);
--		mark_buffer_dirty(desc_bh);
-+		mark_buffer_dirty(NULL, desc_bh);
- 		nilfs_mdt_mark_dirty(inode);
- 		brelse(desc_bh);
- 
-diff --git a/fs/nilfs2/btnode.c b/fs/nilfs2/btnode.c
-index c21e0b4454a6..a2d7844b1ff4 100644
---- a/fs/nilfs2/btnode.c
-+++ b/fs/nilfs2/btnode.c
-@@ -249,7 +249,7 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
- 				       "invalid oldkey %lld (newkey=%lld)",
- 				       (unsigned long long)oldkey,
- 				       (unsigned long long)newkey);
--		mark_buffer_dirty(obh);
-+		mark_buffer_dirty(NULL, obh);
- 
- 		spin_lock_irq(&btnc->tree_lock);
- 		radix_tree_delete(&btnc->page_tree, oldkey);
-@@ -261,7 +261,7 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
- 		unlock_page(opage);
- 	} else {
- 		nilfs_copy_buffer(nbh, obh);
--		mark_buffer_dirty(nbh);
-+		mark_buffer_dirty(NULL, nbh);
- 
- 		nbh->b_blocknr = newkey;
- 		ctxt->bh = nbh;
-diff --git a/fs/nilfs2/btree.c b/fs/nilfs2/btree.c
-index 16a7a67a11c9..39edf8a267d7 100644
---- a/fs/nilfs2/btree.c
-+++ b/fs/nilfs2/btree.c
-@@ -792,7 +792,7 @@ static void nilfs_btree_promote_key(struct nilfs_bmap *btree,
- 				nilfs_btree_get_nonroot_node(path, level),
- 				path[level].bp_index, key);
- 			if (!buffer_dirty(path[level].bp_bh))
--				mark_buffer_dirty(path[level].bp_bh);
-+				mark_buffer_dirty(NULL, path[level].bp_bh);
- 		} while ((path[level].bp_index == 0) &&
- 			 (++level < nilfs_btree_height(btree) - 1));
- 	}
-@@ -817,7 +817,7 @@ static void nilfs_btree_do_insert(struct nilfs_bmap *btree,
- 		nilfs_btree_node_insert(node, path[level].bp_index,
- 					*keyp, *ptrp, ncblk);
- 		if (!buffer_dirty(path[level].bp_bh))
--			mark_buffer_dirty(path[level].bp_bh);
-+			mark_buffer_dirty(NULL, path[level].bp_bh);
- 
- 		if (path[level].bp_index == 0)
- 			nilfs_btree_promote_key(btree, path, level + 1,
-@@ -855,9 +855,9 @@ static void nilfs_btree_carry_left(struct nilfs_bmap *btree,
- 	nilfs_btree_node_move_left(left, node, n, ncblk, ncblk);
- 
- 	if (!buffer_dirty(path[level].bp_bh))
--		mark_buffer_dirty(path[level].bp_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_bh);
- 	if (!buffer_dirty(path[level].bp_sib_bh))
--		mark_buffer_dirty(path[level].bp_sib_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_sib_bh);
- 
- 	nilfs_btree_promote_key(btree, path, level + 1,
- 				nilfs_btree_node_get_key(node, 0));
-@@ -901,9 +901,9 @@ static void nilfs_btree_carry_right(struct nilfs_bmap *btree,
- 	nilfs_btree_node_move_right(node, right, n, ncblk, ncblk);
- 
- 	if (!buffer_dirty(path[level].bp_bh))
--		mark_buffer_dirty(path[level].bp_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_bh);
- 	if (!buffer_dirty(path[level].bp_sib_bh))
--		mark_buffer_dirty(path[level].bp_sib_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_sib_bh);
- 
- 	path[level + 1].bp_index++;
- 	nilfs_btree_promote_key(btree, path, level + 1,
-@@ -946,9 +946,9 @@ static void nilfs_btree_split(struct nilfs_bmap *btree,
- 	nilfs_btree_node_move_right(node, right, n, ncblk, ncblk);
- 
- 	if (!buffer_dirty(path[level].bp_bh))
--		mark_buffer_dirty(path[level].bp_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_bh);
- 	if (!buffer_dirty(path[level].bp_sib_bh))
--		mark_buffer_dirty(path[level].bp_sib_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_sib_bh);
- 
- 	if (move) {
- 		path[level].bp_index -= nilfs_btree_node_get_nchildren(node);
-@@ -992,7 +992,7 @@ static void nilfs_btree_grow(struct nilfs_bmap *btree,
- 	nilfs_btree_node_set_level(root, level + 1);
- 
- 	if (!buffer_dirty(path[level].bp_sib_bh))
--		mark_buffer_dirty(path[level].bp_sib_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_sib_bh);
- 
- 	path[level].bp_bh = path[level].bp_sib_bh;
- 	path[level].bp_sib_bh = NULL;
-@@ -1267,7 +1267,7 @@ static void nilfs_btree_do_delete(struct nilfs_bmap *btree,
- 		nilfs_btree_node_delete(node, path[level].bp_index,
- 					keyp, ptrp, ncblk);
- 		if (!buffer_dirty(path[level].bp_bh))
--			mark_buffer_dirty(path[level].bp_bh);
-+			mark_buffer_dirty(NULL, path[level].bp_bh);
- 		if (path[level].bp_index == 0)
- 			nilfs_btree_promote_key(btree, path, level + 1,
- 				nilfs_btree_node_get_key(node, 0));
-@@ -1299,9 +1299,9 @@ static void nilfs_btree_borrow_left(struct nilfs_bmap *btree,
- 	nilfs_btree_node_move_right(left, node, n, ncblk, ncblk);
- 
- 	if (!buffer_dirty(path[level].bp_bh))
--		mark_buffer_dirty(path[level].bp_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_bh);
- 	if (!buffer_dirty(path[level].bp_sib_bh))
--		mark_buffer_dirty(path[level].bp_sib_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_sib_bh);
- 
- 	nilfs_btree_promote_key(btree, path, level + 1,
- 				nilfs_btree_node_get_key(node, 0));
-@@ -1331,9 +1331,9 @@ static void nilfs_btree_borrow_right(struct nilfs_bmap *btree,
- 	nilfs_btree_node_move_left(node, right, n, ncblk, ncblk);
- 
- 	if (!buffer_dirty(path[level].bp_bh))
--		mark_buffer_dirty(path[level].bp_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_bh);
- 	if (!buffer_dirty(path[level].bp_sib_bh))
--		mark_buffer_dirty(path[level].bp_sib_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_sib_bh);
- 
- 	path[level + 1].bp_index++;
- 	nilfs_btree_promote_key(btree, path, level + 1,
-@@ -1362,7 +1362,7 @@ static void nilfs_btree_concat_left(struct nilfs_bmap *btree,
- 	nilfs_btree_node_move_left(left, node, n, ncblk, ncblk);
- 
- 	if (!buffer_dirty(path[level].bp_sib_bh))
--		mark_buffer_dirty(path[level].bp_sib_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_sib_bh);
- 
- 	nilfs_btnode_delete(path[level].bp_bh);
- 	path[level].bp_bh = path[level].bp_sib_bh;
-@@ -1388,7 +1388,7 @@ static void nilfs_btree_concat_right(struct nilfs_bmap *btree,
- 	nilfs_btree_node_move_left(node, right, n, ncblk, ncblk);
- 
- 	if (!buffer_dirty(path[level].bp_bh))
--		mark_buffer_dirty(path[level].bp_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_bh);
- 
- 	nilfs_btnode_delete(path[level].bp_sib_bh);
- 	path[level].bp_sib_bh = NULL;
-@@ -1818,7 +1818,7 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *btree,
- 		nilfs_btree_node_init(node, 0, 1, n, ncblk, keys, ptrs);
- 		nilfs_btree_node_insert(node, n, key, dreq->bpr_ptr, ncblk);
- 		if (!buffer_dirty(bh))
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 		if (!nilfs_bmap_dirty(btree))
- 			nilfs_bmap_set_dirty(btree);
- 
-@@ -1896,7 +1896,7 @@ static int nilfs_btree_propagate_p(struct nilfs_bmap *btree,
- {
- 	while ((++level < nilfs_btree_height(btree) - 1) &&
- 	       !buffer_dirty(path[level].bp_bh))
--		mark_buffer_dirty(path[level].bp_bh);
-+		mark_buffer_dirty(NULL, path[level].bp_bh);
- 
- 	return 0;
- }
-@@ -2339,7 +2339,7 @@ static int nilfs_btree_mark(struct nilfs_bmap *btree, __u64 key, int level)
- 	}
- 
- 	if (!buffer_dirty(bh))
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 	if (!nilfs_bmap_dirty(btree))
- 		nilfs_bmap_set_dirty(btree);
-diff --git a/fs/nilfs2/cpfile.c b/fs/nilfs2/cpfile.c
-index a15a1601e931..9e4558a8e4da 100644
---- a/fs/nilfs2/cpfile.c
-+++ b/fs/nilfs2/cpfile.c
-@@ -258,14 +258,14 @@ int nilfs_cpfile_get_checkpoint(struct inode *cpfile,
- 		if (!nilfs_cpfile_is_in_first(cpfile, cno))
- 			nilfs_cpfile_block_add_valid_checkpoints(cpfile, cp_bh,
- 								 kaddr, 1);
--		mark_buffer_dirty(cp_bh);
-+		mark_buffer_dirty(NULL, cp_bh);
- 
- 		kaddr = kmap_atomic(header_bh->b_page);
- 		header = nilfs_cpfile_block_get_header(cpfile, header_bh,
- 						       kaddr);
- 		le64_add_cpu(&header->ch_ncheckpoints, 1);
- 		kunmap_atomic(kaddr);
--		mark_buffer_dirty(header_bh);
-+		mark_buffer_dirty(NULL, header_bh);
- 		nilfs_mdt_mark_dirty(cpfile);
- 	}
- 
-@@ -370,7 +370,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
- 		}
- 		if (nicps > 0) {
- 			tnicps += nicps;
--			mark_buffer_dirty(cp_bh);
-+			mark_buffer_dirty(NULL, cp_bh);
- 			nilfs_mdt_mark_dirty(cpfile);
- 			if (!nilfs_cpfile_is_in_first(cpfile, cno)) {
- 				count =
-@@ -402,7 +402,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
- 		header = nilfs_cpfile_block_get_header(cpfile, header_bh,
- 						       kaddr);
- 		le64_add_cpu(&header->ch_ncheckpoints, -(u64)tnicps);
--		mark_buffer_dirty(header_bh);
-+		mark_buffer_dirty(NULL, header_bh);
- 		nilfs_mdt_mark_dirty(cpfile);
- 		kunmap_atomic(kaddr);
- 	}
-@@ -720,10 +720,10 @@ static int nilfs_cpfile_set_snapshot(struct inode *cpfile, __u64 cno)
- 	le64_add_cpu(&header->ch_nsnapshots, 1);
- 	kunmap_atomic(kaddr);
- 
--	mark_buffer_dirty(prev_bh);
--	mark_buffer_dirty(curr_bh);
--	mark_buffer_dirty(cp_bh);
--	mark_buffer_dirty(header_bh);
-+	mark_buffer_dirty(NULL, prev_bh);
-+	mark_buffer_dirty(NULL, curr_bh);
-+	mark_buffer_dirty(NULL, cp_bh);
-+	mark_buffer_dirty(NULL, header_bh);
- 	nilfs_mdt_mark_dirty(cpfile);
- 
- 	brelse(prev_bh);
-@@ -823,10 +823,10 @@ static int nilfs_cpfile_clear_snapshot(struct inode *cpfile, __u64 cno)
- 	le64_add_cpu(&header->ch_nsnapshots, -1);
- 	kunmap_atomic(kaddr);
- 
--	mark_buffer_dirty(next_bh);
--	mark_buffer_dirty(prev_bh);
--	mark_buffer_dirty(cp_bh);
--	mark_buffer_dirty(header_bh);
-+	mark_buffer_dirty(NULL, next_bh);
-+	mark_buffer_dirty(NULL, prev_bh);
-+	mark_buffer_dirty(NULL, cp_bh);
-+	mark_buffer_dirty(NULL, header_bh);
- 	nilfs_mdt_mark_dirty(cpfile);
- 
- 	brelse(prev_bh);
-diff --git a/fs/nilfs2/dat.c b/fs/nilfs2/dat.c
-index dffedb2f8817..8db180ed9812 100644
---- a/fs/nilfs2/dat.c
-+++ b/fs/nilfs2/dat.c
-@@ -56,7 +56,7 @@ static int nilfs_dat_prepare_entry(struct inode *dat,
- static void nilfs_dat_commit_entry(struct inode *dat,
- 				   struct nilfs_palloc_req *req)
- {
--	mark_buffer_dirty(req->pr_entry_bh);
-+	mark_buffer_dirty(NULL, req->pr_entry_bh);
- 	nilfs_mdt_mark_dirty(dat);
- 	brelse(req->pr_entry_bh);
- }
-@@ -362,7 +362,7 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
- 	entry->de_blocknr = cpu_to_le64(blocknr);
- 	kunmap_atomic(kaddr);
- 
--	mark_buffer_dirty(entry_bh);
-+	mark_buffer_dirty(NULL, entry_bh);
- 	nilfs_mdt_mark_dirty(dat);
- 
- 	brelse(entry_bh);
-diff --git a/fs/nilfs2/gcinode.c b/fs/nilfs2/gcinode.c
-index 853a831dcde0..ba2af926b39a 100644
---- a/fs/nilfs2/gcinode.c
-+++ b/fs/nilfs2/gcinode.c
-@@ -164,7 +164,7 @@ int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *bh)
- 		clear_buffer_uptodate(bh);
- 		return -EIO;
- 	}
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	return 0;
- }
- 
-diff --git a/fs/nilfs2/ifile.c b/fs/nilfs2/ifile.c
-index b8fa45c20c63..11262c2f46f4 100644
---- a/fs/nilfs2/ifile.c
-+++ b/fs/nilfs2/ifile.c
-@@ -82,7 +82,7 @@ int nilfs_ifile_create_inode(struct inode *ifile, ino_t *out_ino,
- 		return ret;
- 	}
- 	nilfs_palloc_commit_alloc_entry(ifile, &req);
--	mark_buffer_dirty(req.pr_entry_bh);
-+	mark_buffer_dirty(NULL, req.pr_entry_bh);
- 	nilfs_mdt_mark_dirty(ifile);
- 	*out_ino = (ino_t)req.pr_entry_nr;
- 	*out_bh = req.pr_entry_bh;
-@@ -130,7 +130,7 @@ int nilfs_ifile_delete_inode(struct inode *ifile, ino_t ino)
- 	raw_inode->i_flags = 0;
- 	kunmap_atomic(kaddr);
- 
--	mark_buffer_dirty(req.pr_entry_bh);
-+	mark_buffer_dirty(NULL, req.pr_entry_bh);
- 	brelse(req.pr_entry_bh);
- 
- 	nilfs_palloc_commit_free_entry(ifile, &req);
-diff --git a/fs/nilfs2/inode.c b/fs/nilfs2/inode.c
-index 7cc0268d68ce..811e4d952511 100644
---- a/fs/nilfs2/inode.c
-+++ b/fs/nilfs2/inode.c
-@@ -968,7 +968,7 @@ int __nilfs_mark_inode_dirty(struct inode *inode, int flags)
- 		return err;
- 	}
- 	nilfs_update_inode(inode, ibh, flags);
--	mark_buffer_dirty(ibh);
-+	mark_buffer_dirty(NULL, ibh);
- 	nilfs_mdt_mark_dirty(NILFS_I(inode)->i_root->ifile);
- 	brelse(ibh);
- 	return 0;
-diff --git a/fs/nilfs2/ioctl.c b/fs/nilfs2/ioctl.c
-index 1d2c3d7711fe..18b550252ff2 100644
---- a/fs/nilfs2/ioctl.c
-+++ b/fs/nilfs2/ioctl.c
-@@ -801,7 +801,7 @@ static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
- 				WARN_ON(ret == -ENOENT);
- 				return ret;
- 			}
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			nilfs_mdt_mark_dirty(nilfs->ns_dat);
- 			put_bh(bh);
- 		} else {
-diff --git a/fs/nilfs2/mdt.c b/fs/nilfs2/mdt.c
-index ca7bc0fba624..ad41b67eb25f 100644
---- a/fs/nilfs2/mdt.c
-+++ b/fs/nilfs2/mdt.c
-@@ -64,7 +64,7 @@ nilfs_mdt_insert_new_block(struct inode *inode, unsigned long block,
- 	kunmap_atomic(kaddr);
- 
- 	set_buffer_uptodate(bh);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	nilfs_mdt_mark_dirty(inode);
- 
- 	trace_nilfs2_mdt_insert_new_block(inode, inode->i_ino, block);
-diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-index 0952d0acab4a..8dc544e3fe6a 100644
---- a/fs/nilfs2/segment.c
-+++ b/fs/nilfs2/segment.c
-@@ -883,7 +883,7 @@ static int nilfs_segctor_create_checkpoint(struct nilfs_sc_info *sci)
- 		 * needed to collect the checkpoint even if it was not newly
- 		 * created.
- 		 */
--		mark_buffer_dirty(bh_cp);
-+		mark_buffer_dirty(NULL, bh_cp);
- 		nilfs_mdt_mark_dirty(nilfs->ns_cpfile);
- 		nilfs_cpfile_put_checkpoint(
- 			nilfs->ns_cpfile, nilfs->ns_cno, bh_cp);
-@@ -1964,7 +1964,7 @@ static int nilfs_segctor_collect_dirty_files(struct nilfs_sc_info *sci,
- 		}
- 
- 		// Always redirty the buffer to avoid race condition
--		mark_buffer_dirty(ii->i_bh);
-+		mark_buffer_dirty(NULL, ii->i_bh);
- 		nilfs_mdt_mark_dirty(ifile);
- 
- 		clear_bit(NILFS_I_QUEUED, &ii->i_state);
-diff --git a/fs/nilfs2/sufile.c b/fs/nilfs2/sufile.c
-index c7fa139d50e8..707f2231d348 100644
---- a/fs/nilfs2/sufile.c
-+++ b/fs/nilfs2/sufile.c
-@@ -122,7 +122,7 @@ static void nilfs_sufile_mod_counter(struct buffer_head *header_bh,
- 	le64_add_cpu(&header->sh_ndirtysegs, ndirtyadd);
- 	kunmap_atomic(kaddr);
- 
--	mark_buffer_dirty(header_bh);
-+	mark_buffer_dirty(NULL, header_bh);
- }
- 
- /**
-@@ -383,8 +383,8 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
- 			kunmap_atomic(kaddr);
- 
- 			sui->ncleansegs--;
--			mark_buffer_dirty(header_bh);
--			mark_buffer_dirty(su_bh);
-+			mark_buffer_dirty(NULL, header_bh);
-+			mark_buffer_dirty(NULL, su_bh);
- 			nilfs_mdt_mark_dirty(sufile);
- 			brelse(su_bh);
- 			*segnump = segnum;
-@@ -431,7 +431,7 @@ void nilfs_sufile_do_cancel_free(struct inode *sufile, __u64 segnum,
- 	nilfs_sufile_mod_counter(header_bh, -1, 1);
- 	NILFS_SUI(sufile)->ncleansegs--;
- 
--	mark_buffer_dirty(su_bh);
-+	mark_buffer_dirty(NULL, su_bh);
- 	nilfs_mdt_mark_dirty(sufile);
- }
- 
-@@ -462,7 +462,7 @@ void nilfs_sufile_do_scrap(struct inode *sufile, __u64 segnum,
- 	nilfs_sufile_mod_counter(header_bh, clean ? (u64)-1 : 0, dirty ? 0 : 1);
- 	NILFS_SUI(sufile)->ncleansegs -= clean;
- 
--	mark_buffer_dirty(su_bh);
-+	mark_buffer_dirty(NULL, su_bh);
- 	nilfs_mdt_mark_dirty(sufile);
- }
- 
-@@ -489,7 +489,7 @@ void nilfs_sufile_do_free(struct inode *sufile, __u64 segnum,
- 	sudirty = nilfs_segment_usage_dirty(su);
- 	nilfs_segment_usage_set_clean(su);
- 	kunmap_atomic(kaddr);
--	mark_buffer_dirty(su_bh);
-+	mark_buffer_dirty(NULL, su_bh);
- 
- 	nilfs_sufile_mod_counter(header_bh, 1, sudirty ? (u64)-1 : 0);
- 	NILFS_SUI(sufile)->ncleansegs++;
-@@ -511,7 +511,7 @@ int nilfs_sufile_mark_dirty(struct inode *sufile, __u64 segnum)
- 
- 	ret = nilfs_sufile_get_segment_usage_block(sufile, segnum, 0, &bh);
- 	if (!ret) {
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		nilfs_mdt_mark_dirty(sufile);
- 		brelse(bh);
- 	}
-@@ -546,7 +546,7 @@ int nilfs_sufile_set_segment_usage(struct inode *sufile, __u64 segnum,
- 	su->su_nblocks = cpu_to_le32(nblocks);
- 	kunmap_atomic(kaddr);
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	nilfs_mdt_mark_dirty(sufile);
- 	brelse(bh);
- 
-@@ -625,7 +625,7 @@ void nilfs_sufile_do_set_error(struct inode *sufile, __u64 segnum,
- 		nilfs_sufile_mod_counter(header_bh, -1, 0);
- 		NILFS_SUI(sufile)->ncleansegs--;
- 	}
--	mark_buffer_dirty(su_bh);
-+	mark_buffer_dirty(NULL, su_bh);
- 	nilfs_mdt_mark_dirty(sufile);
- }
- 
-@@ -711,7 +711,7 @@ static int nilfs_sufile_truncate_range(struct inode *sufile,
- 		}
- 		kunmap_atomic(kaddr);
- 		if (nc > 0) {
--			mark_buffer_dirty(su_bh);
-+			mark_buffer_dirty(NULL, su_bh);
- 			ncleaned += nc;
- 		}
- 		brelse(su_bh);
-@@ -790,7 +790,7 @@ int nilfs_sufile_resize(struct inode *sufile, __u64 newnsegs)
- 	header->sh_ncleansegs = cpu_to_le64(sui->ncleansegs);
- 	kunmap_atomic(kaddr);
- 
--	mark_buffer_dirty(header_bh);
-+	mark_buffer_dirty(NULL, header_bh);
- 	nilfs_mdt_mark_dirty(sufile);
- 	nilfs_set_nsegments(nilfs, newnsegs);
- 
-@@ -984,13 +984,13 @@ ssize_t nilfs_sufile_set_suinfo(struct inode *sufile, void *buf,
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+index e4bb435e614b..9602a7dfbc7b 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+@@ -769,7 +769,7 @@ void amdgpu_ttm_tt_mark_user_pages(struct ttm_tt *ttm)
  			continue;
  
- 		/* get different block */
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		put_bh(bh);
- 		ret = nilfs_mdt_get_block(sufile, blkoff, 1, NULL, &bh);
- 		if (unlikely(ret < 0))
- 			goto out_mark;
- 	}
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	put_bh(bh);
+ 		if (!(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY))
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
  
-  out_mark:
-diff --git a/fs/ntfs/file.c b/fs/ntfs/file.c
-index 860b3b2ff47d..bf07c0ca127e 100644
---- a/fs/ntfs/file.c
-+++ b/fs/ntfs/file.c
-@@ -743,7 +743,7 @@ static int ntfs_prepare_pages_for_non_resident_write(struct page **pages,
- 					/* We allocated the buffer. */
- 					clean_bdev_bh_alias(bh);
- 					if (bh_end <= pos || bh_pos >= end)
--						mark_buffer_dirty(bh);
-+						mark_buffer_dirty(NULL, bh);
- 					else
- 						set_buffer_new(bh);
- 				}
-@@ -799,7 +799,7 @@ static int ntfs_prepare_pages_for_non_resident_write(struct page **pages,
- 							blocksize);
- 					set_buffer_uptodate(bh);
- 				}
--				mark_buffer_dirty(bh);
-+				mark_buffer_dirty(NULL, bh);
- 				continue;
- 			}
- 			set_buffer_new(bh);
-@@ -1365,7 +1365,7 @@ static int ntfs_prepare_pages_for_non_resident_write(struct page **pages,
- 					set_buffer_uptodate(bh);
- 				}
- 			}
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 		} while ((bh = bh->b_this_page) != head);
- 	} while (++u <= nr_pages);
- 	ntfs_error(vol->sb, "Failed.  Returning error code %i.", err);
-@@ -1434,7 +1434,7 @@ static inline int ntfs_commit_pages_after_non_resident_write(
- 					partial = true;
- 			} else {
- 				set_buffer_uptodate(bh);
--				mark_buffer_dirty(bh);
-+				mark_buffer_dirty(NULL, bh);
- 			}
- 		} while (bh_pos += blocksize, (bh = bh->b_this_page) != head);
- 		/*
-diff --git a/fs/ntfs/super.c b/fs/ntfs/super.c
-index bb7159f697f2..0d21744db6ba 100644
---- a/fs/ntfs/super.c
-+++ b/fs/ntfs/super.c
-@@ -737,7 +737,7 @@ static struct buffer_head *read_ntfs_boot_sector(struct super_block *sb,
- 					"boot sector from backup copy.");
- 			memcpy(bh_primary->b_data, bh_backup->b_data,
- 					NTFS_BLOCK_SIZE);
--			mark_buffer_dirty(bh_primary);
-+			mark_buffer_dirty(NULL, bh_primary);
- 			sync_dirty_buffer(bh_primary);
- 			if (buffer_uptodate(bh_primary)) {
- 				brelse(bh_backup);
-diff --git a/fs/ocfs2/alloc.c b/fs/ocfs2/alloc.c
-index 9a876bb07cac..7ab61d67e89e 100644
---- a/fs/ocfs2/alloc.c
-+++ b/fs/ocfs2/alloc.c
-@@ -6815,7 +6815,7 @@ static int ocfs2_cache_extent_block_free(struct ocfs2_cached_dealloc_ctxt *ctxt,
- static int ocfs2_zero_func(handle_t *handle, struct buffer_head *bh)
- {
- 	set_buffer_uptodate(bh);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	return 0;
+ 		mark_page_accessed(page);
+ 	}
+diff --git a/drivers/gpu/drm/drm_gem.c b/drivers/gpu/drm/drm_gem.c
+index 01f8d9481211..b0ef6cd6ce7a 100644
+--- a/drivers/gpu/drm/drm_gem.c
++++ b/drivers/gpu/drm/drm_gem.c
+@@ -607,7 +607,7 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
+ 
+ 	for (i = 0; i < npages; i++) {
+ 		if (dirty)
+-			set_page_dirty(pages[i]);
++			set_page_dirty(NULL, pages[i]);
+ 
+ 		if (accessed)
+ 			mark_page_accessed(pages[i]);
+diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+index 6ff5d655c202..4ad397254c42 100644
+--- a/drivers/gpu/drm/i915/i915_gem.c
++++ b/drivers/gpu/drm/i915/i915_gem.c
+@@ -288,7 +288,7 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
+ 			memcpy(dst, vaddr, PAGE_SIZE);
+ 			kunmap_atomic(dst);
+ 
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			if (obj->mm.madv == I915_MADV_WILLNEED)
+ 				mark_page_accessed(page);
+ 			put_page(page);
+@@ -2279,7 +2279,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+ 
+ 	for_each_sgt_page(page, sgt_iter, pages) {
+ 		if (obj->mm.dirty)
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 
+ 		if (obj->mm.madv == I915_MADV_WILLNEED)
+ 			mark_page_accessed(page);
+@@ -5788,7 +5788,7 @@ i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj,
+ 
+ 	page = i915_gem_object_get_page(obj, n);
+ 	if (!obj->mm.dirty)
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 
+ 	return page;
  }
- 
-diff --git a/fs/ocfs2/aops.c b/fs/ocfs2/aops.c
-index 515e0a00839b..64002c13bdd1 100644
---- a/fs/ocfs2/aops.c
-+++ b/fs/ocfs2/aops.c
-@@ -701,7 +701,7 @@ int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
- 
- 		zero_user(page, block_start, bh->b_size);
- 		set_buffer_uptodate(bh);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 
- next_bh:
- 		block_start = block_end;
-@@ -930,7 +930,7 @@ static void ocfs2_zero_new_buffers(struct page *page, unsigned from, unsigned to
- 				}
- 
- 				clear_buffer_new(bh);
--				mark_buffer_dirty(bh);
-+				mark_buffer_dirty(NULL, bh);
- 			}
+diff --git a/drivers/gpu/drm/i915/i915_gem_fence_reg.c b/drivers/gpu/drm/i915/i915_gem_fence_reg.c
+index 012250f25255..e9a75a3d588c 100644
+--- a/drivers/gpu/drm/i915/i915_gem_fence_reg.c
++++ b/drivers/gpu/drm/i915/i915_gem_fence_reg.c
+@@ -760,7 +760,7 @@ i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj,
+ 		char new_bit_17 = page_to_phys(page) >> 17;
+ 		if ((new_bit_17 & 0x1) != (test_bit(i, obj->bit_17) != 0)) {
+ 			i915_gem_swizzle_page(page);
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
  		}
+ 		i++;
+ 	}
+diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
+index 382a77a1097e..9d29b00055d7 100644
+--- a/drivers/gpu/drm/i915/i915_gem_userptr.c
++++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
+@@ -685,7 +685,7 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
  
-diff --git a/fs/ocfs2/inode.c b/fs/ocfs2/inode.c
-index d51b80edd972..7a4e5e9db53d 100644
---- a/fs/ocfs2/inode.c
-+++ b/fs/ocfs2/inode.c
-@@ -1568,7 +1568,7 @@ static int ocfs2_filecheck_repair_inode_block(struct super_block *sb,
+ 	for_each_sgt_page(page, sgt_iter, pages) {
+ 		if (obj->mm.dirty)
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
  
- 	if (changed || ocfs2_validate_meta_ecc(sb, bh->b_data, &di->i_check)) {
- 		ocfs2_compute_meta_ecc(sb, bh->b_data, &di->i_check);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		mlog(ML_ERROR,
- 		     "Filecheck: reset dinode #%llu: compute meta ecc\n",
- 		     (unsigned long long)bh->b_blocknr);
-diff --git a/fs/omfs/bitmap.c b/fs/omfs/bitmap.c
-index 7147ba6a6afc..0a4a756e2865 100644
---- a/fs/omfs/bitmap.c
-+++ b/fs/omfs/bitmap.c
-@@ -63,7 +63,7 @@ static int set_run(struct super_block *sb, int map,
- 			bit = 0;
- 			map++;
+ 		mark_page_accessed(page);
+ 		put_page(page);
+diff --git a/drivers/gpu/drm/radeon/radeon_ttm.c b/drivers/gpu/drm/radeon/radeon_ttm.c
+index a0a839bc39bf..a7f156941448 100644
+--- a/drivers/gpu/drm/radeon/radeon_ttm.c
++++ b/drivers/gpu/drm/radeon/radeon_ttm.c
+@@ -621,7 +621,7 @@ static void radeon_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
+ 	for_each_sg_page(ttm->sg->sgl, &sg_iter, ttm->sg->nents, 0) {
+ 		struct page *page = sg_page_iter_page(&sg_iter);
+ 		if (!(gtt->userflags & RADEON_GEM_USERPTR_READONLY))
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
  
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			brelse(bh);
- 			bh = sb_bread(sb,
- 				clus_to_blk(sbi, sbi->s_bitmap_ino) + map);
-@@ -78,7 +78,7 @@ static int set_run(struct super_block *sb, int map,
- 			clear_bit(bit, (unsigned long *)bh->b_data);
+ 		mark_page_accessed(page);
+ 		put_page(page);
+diff --git a/drivers/gpu/drm/ttm/ttm_tt.c b/drivers/gpu/drm/ttm/ttm_tt.c
+index 5a046a3c543a..3138fc73c06d 100644
+--- a/drivers/gpu/drm/ttm/ttm_tt.c
++++ b/drivers/gpu/drm/ttm/ttm_tt.c
+@@ -359,7 +359,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
+ 			goto out_err;
  		}
+ 		copy_highpage(to_page, from_page);
+-		set_page_dirty(to_page);
++		set_page_dirty(NULL, to_page);
+ 		mark_page_accessed(to_page);
+ 		put_page(to_page);
  	}
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 	err = 0;
- out:
-@@ -111,7 +111,7 @@ int omfs_allocate_block(struct super_block *sb, u64 block)
- 			goto out;
- 
- 		set_bit(bit, (unsigned long *)bh->b_data);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		brelse(bh);
- 	}
- 	ret = 1;
-diff --git a/fs/omfs/dir.c b/fs/omfs/dir.c
-index b7146526afff..a5c6f506a0a0 100644
---- a/fs/omfs/dir.c
-+++ b/fs/omfs/dir.c
-@@ -103,7 +103,7 @@ int omfs_make_empty(struct inode *inode, struct super_block *sb)
- 	oi->i_head.h_self = cpu_to_be64(inode->i_ino);
- 	oi->i_sibling = ~cpu_to_be64(0ULL);
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 	return 0;
- }
-@@ -127,7 +127,7 @@ static int omfs_add_link(struct dentry *dentry, struct inode *inode)
- 	entry = (__be64 *) &bh->b_data[ofs];
- 	block = be64_to_cpu(*entry);
- 	*entry = cpu_to_be64(inode->i_ino);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 
- 	/* now set the sibling and parent pointers on the new inode */
-@@ -140,7 +140,7 @@ static int omfs_add_link(struct dentry *dentry, struct inode *inode)
- 	memset(oi->i_name + namelen, 0, OMFS_NAMELEN - namelen);
- 	oi->i_sibling = cpu_to_be64(block);
- 	oi->i_parent = cpu_to_be64(dir->i_ino);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	brelse(bh);
- 
- 	dir->i_ctime = current_time(dir);
-@@ -196,7 +196,7 @@ static int omfs_delete_entry(struct dentry *dentry)
- 	}
- 
- 	*entry = next;
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 
- 	if (prev != ~0) {
- 		dirty = omfs_iget(dir->i_sb, prev);
-diff --git a/fs/omfs/file.c b/fs/omfs/file.c
-index ac27a4b2186a..4dbfb35b1a40 100644
---- a/fs/omfs/file.c
-+++ b/fs/omfs/file.c
-@@ -80,7 +80,7 @@ int omfs_shrink_inode(struct inode *inode)
- 			entry++;
- 		}
- 		omfs_make_empty_table(bh, (char *) oe - bh->b_data);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		brelse(bh);
- 
- 		if (last != inode->i_ino)
-@@ -272,7 +272,7 @@ static int omfs_get_block(struct inode *inode, sector_t block,
- 	if (create) {
- 		ret = omfs_grow_extent(inode, oe, &new_block);
- 		if (ret == 0) {
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			mark_inode_dirty(inode);
- 			map_bh(bh_result, inode->i_sb,
- 					clus_to_blk(sbi, new_block));
-diff --git a/fs/omfs/inode.c b/fs/omfs/inode.c
-index ee14af9e26f2..4213ef2cd088 100644
---- a/fs/omfs/inode.c
-+++ b/fs/omfs/inode.c
-@@ -140,7 +140,7 @@ static int __omfs_write_inode(struct inode *inode, int wait)
- 
- 	omfs_update_checksums(oi);
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	if (wait) {
- 		sync_dirty_buffer(bh);
- 		if (buffer_req(bh) && !buffer_uptodate(bh))
-@@ -154,7 +154,7 @@ static int __omfs_write_inode(struct inode *inode, int wait)
- 			goto out_brelse;
- 
- 		memcpy(bh2->b_data, bh->b_data, bh->b_size);
--		mark_buffer_dirty(bh2);
-+		mark_buffer_dirty(NULL, bh2);
- 		if (wait) {
- 			sync_dirty_buffer(bh2);
- 			if (buffer_req(bh2) && !buffer_uptodate(bh2))
-diff --git a/fs/reiserfs/file.c b/fs/reiserfs/file.c
-index 843aadcc123c..804b13c45f53 100644
---- a/fs/reiserfs/file.c
-+++ b/fs/reiserfs/file.c
-@@ -214,7 +214,7 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
- 				reiserfs_prepare_for_journal(s, bh, 1);
- 				journal_mark_dirty(&th, bh);
- 			} else if (!buffer_dirty(bh)) {
--				mark_buffer_dirty(bh);
-+				mark_buffer_dirty(NULL, bh);
- 				/*
- 				 * do data=ordered on any page past the end
- 				 * of file and any buffer marked BH_New.
-diff --git a/fs/reiserfs/inode.c b/fs/reiserfs/inode.c
-index bc64ca190848..e438aed1b622 100644
---- a/fs/reiserfs/inode.c
-+++ b/fs/reiserfs/inode.c
-@@ -999,7 +999,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
- 				 * VM (which was also the case with
- 				 * __mark_buffer_dirty())
+diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
+index 2aadf5813a40..6a8077cbfc61 100644
+--- a/drivers/infiniband/core/umem_odp.c
++++ b/drivers/infiniband/core/umem_odp.c
+@@ -774,7 +774,7 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
+ 				 * continuing and allowing the page mapping to
+ 				 * be removed.
  				 */
--				mark_buffer_dirty(unbh);
-+				mark_buffer_dirty(NULL, unbh);
+-				set_page_dirty(head_page);
++				set_page_dirty(NULL, head_page);
  			}
- 		} else {
- 			/*
-@@ -2336,7 +2336,7 @@ int reiserfs_truncate_file(struct inode *inode, int update_timestamps)
- 			length = blocksize - length;
- 			zero_user(page, offset, length);
- 			if (buffer_mapped(bh) && bh->b_blocknr != 0) {
--				mark_buffer_dirty(bh);
-+				mark_buffer_dirty(NULL, bh);
- 			}
+ 			/* on demand pinning support */
+ 			if (!umem->context->invalidate_range)
+diff --git a/drivers/misc/vmw_vmci/vmci_queue_pair.c b/drivers/misc/vmw_vmci/vmci_queue_pair.c
+index 0339538c182d..4b1374ae5375 100644
+--- a/drivers/misc/vmw_vmci/vmci_queue_pair.c
++++ b/drivers/misc/vmw_vmci/vmci_queue_pair.c
+@@ -643,7 +643,7 @@ static void qp_release_pages(struct page **pages,
+ 
+ 	for (i = 0; i < num_pages; i++) {
+ 		if (dirty)
+-			set_page_dirty(pages[i]);
++			set_page_dirty(NULL, pages[i]);
+ 
+ 		put_page(pages[i]);
+ 		pages[i] = NULL;
+diff --git a/drivers/mtd/devices/block2mtd.c b/drivers/mtd/devices/block2mtd.c
+index 62fd6905c648..1581a00cf770 100644
+--- a/drivers/mtd/devices/block2mtd.c
++++ b/drivers/mtd/devices/block2mtd.c
+@@ -69,7 +69,7 @@ static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
+ 			if (*p != -1UL) {
+ 				lock_page(page);
+ 				memset(page_address(page), 0xff, PAGE_SIZE);
+-				set_page_dirty(page);
++				set_page_dirty(NULL, page);
+ 				unlock_page(page);
+ 				balance_dirty_pages_ratelimited(mapping);
+ 				break;
+@@ -160,7 +160,7 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
+ 		if (memcmp(page_address(page)+offset, buf, cpylen)) {
+ 			lock_page(page);
+ 			memcpy(page_address(page) + offset, buf, cpylen);
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			unlock_page(page);
+ 			balance_dirty_pages_ratelimited(mapping);
  		}
- 		unlock_page(page);
-diff --git a/fs/reiserfs/journal.c b/fs/reiserfs/journal.c
-index ee74c6cddbbe..68cbaba7b2e6 100644
---- a/fs/reiserfs/journal.c
-+++ b/fs/reiserfs/journal.c
-@@ -1111,7 +1111,7 @@ static int flush_commit_list(struct super_block *s,
- 	if (likely(!retval && !reiserfs_is_journal_aborted (journal))) {
- 		if (buffer_dirty(jl->j_commit_bh))
- 			BUG();
--		mark_buffer_dirty(jl->j_commit_bh) ;
-+		mark_buffer_dirty(NULL, jl->j_commit_bh);
- 		depth = reiserfs_write_unlock_nested(s);
- 		if (reiserfs_barrier_flush(s))
- 			__sync_dirty_buffer(jl->j_commit_bh,
-@@ -1712,7 +1712,7 @@ static int dirty_one_transaction(struct super_block *s,
- 				set_buffer_journal_restore_dirty(cn->bh);
- 			} else {
- 				set_buffer_journal_test(cn->bh);
--				mark_buffer_dirty(cn->bh);
-+				mark_buffer_dirty(NULL, cn->bh);
- 			}
- 		}
- 		cn = cn->next;
-@@ -3935,7 +3935,7 @@ void reiserfs_restore_prepared_buffer(struct super_block *sb,
- 					  bh->b_blocknr);
- 		if (cn && can_dirty(cn)) {
- 			set_buffer_journal_test(bh);
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 		}
- 		reiserfs_write_unlock(sb);
+diff --git a/drivers/platform/goldfish/goldfish_pipe.c b/drivers/platform/goldfish/goldfish_pipe.c
+index 3e32a4c14d5f..91b9a2045697 100644
+--- a/drivers/platform/goldfish/goldfish_pipe.c
++++ b/drivers/platform/goldfish/goldfish_pipe.c
+@@ -338,7 +338,7 @@ static void release_user_pages(struct page **pages, int pages_count,
+ 
+ 	for (i = 0; i < pages_count; i++) {
+ 		if (!is_write && consumed_size > 0)
+-			set_page_dirty(pages[i]);
++			set_page_dirty(NULL, pages[i]);
+ 		put_page(pages[i]);
  	}
-@@ -4183,7 +4183,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th, int flags)
- 	 * dirty now too.  Don't mark the commit block dirty until all the
- 	 * others are on disk
- 	 */
--	mark_buffer_dirty(d_bh);
-+	mark_buffer_dirty(NULL, d_bh);
+ }
+diff --git a/drivers/sbus/char/oradax.c b/drivers/sbus/char/oradax.c
+index 03dc04739225..43798fa51061 100644
+--- a/drivers/sbus/char/oradax.c
++++ b/drivers/sbus/char/oradax.c
+@@ -423,7 +423,7 @@ static void dax_unlock_pages(struct dax_ctx *ctx, int ccb_index, int nelem)
+ 			if (p) {
+ 				dax_dbg("freeing page %p", p);
+ 				if (j == OUT)
+-					set_page_dirty(p);
++					set_page_dirty(NULL, p);
+ 				put_page(p);
+ 				ctx->pages[i][j] = NULL;
+ 			}
+diff --git a/drivers/staging/lustre/lustre/llite/rw26.c b/drivers/staging/lustre/lustre/llite/rw26.c
+index 366ba0afbd0e..969f4dad2f82 100644
+--- a/drivers/staging/lustre/lustre/llite/rw26.c
++++ b/drivers/staging/lustre/lustre/llite/rw26.c
+@@ -237,7 +237,7 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
+ 			 * cl_io_submit()->...->vvp_page_prep_write().
+ 			 */
+ 			if (rw == WRITE)
+-				set_page_dirty(vmpage);
++				set_page_dirty(NULL, vmpage);
+ 
+ 			if (rw == READ) {
+ 				/* do not issue the page for read, since it
+diff --git a/drivers/staging/lustre/lustre/llite/vvp_io.c b/drivers/staging/lustre/lustre/llite/vvp_io.c
+index aaa06ba38b4c..301fd4d10499 100644
+--- a/drivers/staging/lustre/lustre/llite/vvp_io.c
++++ b/drivers/staging/lustre/lustre/llite/vvp_io.c
+@@ -797,7 +797,7 @@ static void write_commit_callback(const struct lu_env *env, struct cl_io *io,
+ 	struct page *vmpage = page->cp_vmpage;
+ 
+ 	SetPageUptodate(vmpage);
+-	set_page_dirty(vmpage);
++	set_page_dirty(NULL, vmpage);
+ 
+ 	cl_page_disown(env, io, page);
+ 
+@@ -1055,7 +1055,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
+ static void mkwrite_commit_callback(const struct lu_env *env, struct cl_io *io,
+ 				    struct cl_page *page)
+ {
+-	set_page_dirty(page->cp_vmpage);
++	set_page_dirty(NULL, page->cp_vmpage);
+ }
+ 
+ static int vvp_io_fault_start(const struct lu_env *env,
+diff --git a/drivers/staging/vc04_services/interface/vchiq_arm/vchiq_2835_arm.c b/drivers/staging/vc04_services/interface/vchiq_arm/vchiq_2835_arm.c
+index b59ef14890aa..1846ae06ce50 100644
+--- a/drivers/staging/vc04_services/interface/vchiq_arm/vchiq_2835_arm.c
++++ b/drivers/staging/vc04_services/interface/vchiq_arm/vchiq_2835_arm.c
+@@ -636,7 +636,7 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
+ 		unsigned int i;
+ 
+ 		for (i = 0; i < num_pages; i++)
+-			set_page_dirty(pages[i]);
++			set_page_dirty(NULL, pages[i]);
+ 	}
+ 
+ 	cleanup_pagelistinfo(pagelistinfo);
+diff --git a/fs/9p/vfs_addr.c b/fs/9p/vfs_addr.c
+index 1f4d49e7f811..835bd52f6215 100644
+--- a/fs/9p/vfs_addr.c
++++ b/fs/9p/vfs_addr.c
+@@ -342,7 +342,7 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
+ 		inode_add_bytes(inode, last_pos - inode->i_size);
+ 		i_size_write(inode, last_pos);
+ 	}
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ out:
+ 	unlock_page(page);
+ 	put_page(page);
+diff --git a/fs/afs/write.c b/fs/afs/write.c
+index 9c5bdad0bd72..20d5a3388012 100644
+--- a/fs/afs/write.c
++++ b/fs/afs/write.c
+@@ -203,7 +203,7 @@ int afs_write_end(struct file *file, struct address_space *mapping,
+ 		SetPageUptodate(page);
+ 	}
+ 
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	if (PageDirty(page))
+ 		_debug("dirtied");
+ 	ret = copied;
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 3c145b353873..5b12578ca5fb 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -5198,7 +5198,7 @@ int set_extent_buffer_dirty(struct extent_buffer *eb)
+ 	WARN_ON(!test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags));
+ 
+ 	for (i = 0; i < num_pages; i++)
+-		set_page_dirty(eb->pages[i]);
++		set_page_dirty(NULL, eb->pages[i]);
+ 	return was_dirty;
+ }
+ 
+diff --git a/fs/btrfs/file.c b/fs/btrfs/file.c
+index 989735cd751c..2630be84bdca 100644
+--- a/fs/btrfs/file.c
++++ b/fs/btrfs/file.c
+@@ -574,7 +574,7 @@ int btrfs_dirty_pages(struct inode *inode, struct page **pages,
+ 		struct page *p = pages[i];
+ 		SetPageUptodate(p);
+ 		ClearPageChecked(p);
+-		set_page_dirty(p);
++		set_page_dirty(NULL, p);
+ 	}
  
  	/*
- 	 * first data block is j_start + 1, so add one to
-@@ -4212,7 +4212,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th, int flags)
- 			       addr + offset_in_page(cn->bh->b_data),
- 			       cn->bh->b_size);
- 			kunmap(page);
--			mark_buffer_dirty(tmp_bh);
-+			mark_buffer_dirty(NULL, tmp_bh);
- 			jindex++;
- 			set_buffer_journal_dirty(cn->bh);
- 			clear_buffer_journaled(cn->bh);
-diff --git a/fs/reiserfs/resize.c b/fs/reiserfs/resize.c
-index 2196afda6e28..f80e8a7e7ac4 100644
---- a/fs/reiserfs/resize.c
-+++ b/fs/reiserfs/resize.c
-@@ -156,7 +156,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
- 			reiserfs_cache_bitmap_metadata(s, bh, bitmap + i);
- 
- 			set_buffer_uptodate(bh);
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			depth = reiserfs_write_unlock_nested(s);
- 			sync_dirty_buffer(bh);
- 			reiserfs_write_lock_nested(s, depth);
-diff --git a/fs/sysv/balloc.c b/fs/sysv/balloc.c
-index 0e69dbdf7277..bfee0260f869 100644
---- a/fs/sysv/balloc.c
-+++ b/fs/sysv/balloc.c
-@@ -84,7 +84,7 @@ void sysv_free_block(struct super_block * sb, sysv_zone_t nr)
- 		memset(bh->b_data, 0, sb->s_blocksize);
- 		*(__fs16*)bh->b_data = cpu_to_fs16(sbi, count);
- 		memcpy(get_chunk(sb,bh), blocks, count * sizeof(sysv_zone_t));
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		set_buffer_uptodate(bh);
- 		brelse(bh);
- 		count = 0;
-diff --git a/fs/sysv/ialloc.c b/fs/sysv/ialloc.c
-index 6c9801986af6..c3f09d9761a8 100644
---- a/fs/sysv/ialloc.c
-+++ b/fs/sysv/ialloc.c
-@@ -128,7 +128,7 @@ void sysv_free_inode(struct inode * inode)
- 	fs16_add(sbi, sbi->s_sb_total_free_inodes, 1);
- 	dirty_sb(sb);
- 	memset(raw_inode, 0, sizeof(struct sysv_inode));
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	mutex_unlock(&sbi->s_lock);
- 	brelse(bh);
- }
-diff --git a/fs/sysv/inode.c b/fs/sysv/inode.c
-index bec9f79adb25..d7494995157a 100644
---- a/fs/sysv/inode.c
-+++ b/fs/sysv/inode.c
-@@ -49,7 +49,7 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
- 		if (*sbi->s_sb_state == cpu_to_fs32(sbi, 0x7c269d38 - old_time))
- 			*sbi->s_sb_state = cpu_to_fs32(sbi, 0x7c269d38 - time);
- 		*sbi->s_sb_time = cpu_to_fs32(sbi, time);
--		mark_buffer_dirty(sbi->s_bh2);
-+		mark_buffer_dirty(NULL, sbi->s_bh2);
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index 968640312537..e6fdd6095579 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -2134,7 +2134,7 @@ static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
  	}
  
- 	mutex_unlock(&sbi->s_lock);
-@@ -73,9 +73,9 @@ static void sysv_put_super(struct super_block *sb)
- 
- 	if (!sb_rdonly(sb)) {
- 		/* XXX ext2 also updates the state here */
--		mark_buffer_dirty(sbi->s_bh1);
-+		mark_buffer_dirty(NULL, sbi->s_bh1);
- 		if (sbi->s_bh1 != sbi->s_bh2)
--			mark_buffer_dirty(sbi->s_bh2);
-+			mark_buffer_dirty(NULL, sbi->s_bh2);
+ 	ClearPageChecked(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE);
+ out:
+ 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, page_start, page_end,
+@@ -4869,7 +4869,7 @@ int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
+ 		kunmap(page);
  	}
+ 	ClearPageChecked(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	unlock_extent_cached(io_tree, block_start, block_end, &cached_state);
  
- 	brelse(sbi->s_bh1);
-@@ -265,7 +265,7 @@ static int __sysv_write_inode(struct inode *inode, int wait)
- 	for (block = 0; block < 10+1+1+1; block++)
- 		write3byte(sbi, (u8 *)&si->i_data[block],
- 			&raw_inode->i_data[3*block]);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	if (wait) {
-                 sync_dirty_buffer(bh);
-                 if (buffer_req(bh) && !buffer_uptodate(bh)) {
-diff --git a/fs/sysv/sysv.h b/fs/sysv/sysv.h
-index e913698779c0..3a3b5c16095a 100644
---- a/fs/sysv/sysv.h
-+++ b/fs/sysv/sysv.h
-@@ -116,9 +116,9 @@ static inline void dirty_sb(struct super_block *sb)
- {
- 	struct sysv_sb_info *sbi = SYSV_SB(sb);
+ out_unlock:
+@@ -9090,7 +9090,7 @@ int btrfs_page_mkwrite(struct vm_fault *vmf)
+ 		kunmap(page);
+ 	}
+ 	ClearPageChecked(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	SetPageUptodate(page);
  
--	mark_buffer_dirty(sbi->s_bh1);
-+	mark_buffer_dirty(NULL, sbi->s_bh1);
- 	if (sbi->s_bh1 != sbi->s_bh2)
--		mark_buffer_dirty(sbi->s_bh2);
-+		mark_buffer_dirty(NULL, sbi->s_bh2);
- }
+ 	BTRFS_I(inode)->last_trans = fs_info->generation;
+diff --git a/fs/btrfs/ioctl.c b/fs/btrfs/ioctl.c
+index c57e9ce8204d..3ec8d50799ff 100644
+--- a/fs/btrfs/ioctl.c
++++ b/fs/btrfs/ioctl.c
+@@ -1211,7 +1211,7 @@ static int cluster_pages_for_defrag(struct inode *inode,
+ 		clear_page_dirty_for_io(pages[i]);
+ 		ClearPageChecked(pages[i]);
+ 		set_page_extent_mapped(pages[i]);
+-		set_page_dirty(pages[i]);
++		set_page_dirty(NULL, pages[i]);
+ 		unlock_page(pages[i]);
+ 		put_page(pages[i]);
+ 	}
+diff --git a/fs/btrfs/relocation.c b/fs/btrfs/relocation.c
+index 6a530c59b519..454c1dd523ea 100644
+--- a/fs/btrfs/relocation.c
++++ b/fs/btrfs/relocation.c
+@@ -3284,7 +3284,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
+ 			goto out;
  
- 
-diff --git a/fs/udf/balloc.c b/fs/udf/balloc.c
-index 1b961b1d9699..9fa31c59835f 100644
---- a/fs/udf/balloc.c
-+++ b/fs/udf/balloc.c
-@@ -157,7 +157,7 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
- 			}
  		}
- 		udf_add_free_space(sb, sbi->s_partition, count);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		if (overflow) {
- 			block += count;
- 			count = overflow;
-@@ -209,7 +209,7 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
- 			bit++;
- 			block++;
- 		}
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 	} while (block_count > 0);
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 
+ 		unlock_extent(&BTRFS_I(inode)->io_tree,
+ 			      page_start, page_end);
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 24872b077269..343b8b3837e7 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -2517,7 +2517,7 @@ int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 
+ 	if (unlikely(ret < 0))
+ 		goto out_unlock;
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	wait_for_stable_page(page);
+ 	return 0;
+ out_unlock:
+@@ -2724,7 +2724,7 @@ int nobh_write_end(struct file *file, struct address_space *mapping,
+ 					copied, page, fsdata);
+ 
+ 	SetPageUptodate(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	if (pos+copied > inode->i_size) {
+ 		i_size_write(inode, pos+copied);
+ 		mark_inode_dirty(inode);
+@@ -2861,7 +2861,7 @@ int nobh_truncate_page(struct address_space *mapping,
+ 			goto has_buffers;
+ 	}
+ 	zero_user(page, offset, length);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	err = 0;
+ 
+ unlock:
+diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+index c274d8a32479..8497c198e76e 100644
+--- a/fs/ceph/addr.c
++++ b/fs/ceph/addr.c
+@@ -1382,7 +1382,7 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
+ 	if (pos+copied > i_size_read(inode))
+ 		check_cap = ceph_inode_set_size(inode, pos+copied);
+ 
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
  
  out:
-@@ -332,7 +332,7 @@ static udf_pblk_t udf_bitmap_new_block(struct super_block *sb,
- 		goto repeat;
+ 	unlock_page(page);
+@@ -1595,7 +1595,7 @@ static int ceph_page_mkwrite(struct vm_fault *vmf)
+ 		ret = ceph_update_writeable_page(vma->vm_file, off, len, page);
+ 		if (ret >= 0) {
+ 			/* success.  we'll keep the page locked. */
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			ret = VM_FAULT_LOCKED;
+ 		}
+ 	} while (ret == -EAGAIN);
+diff --git a/fs/cifs/file.c b/fs/cifs/file.c
+index 017fe16ae993..d460feb43595 100644
+--- a/fs/cifs/file.c
++++ b/fs/cifs/file.c
+@@ -2297,7 +2297,7 @@ static int cifs_write_end(struct file *file, struct address_space *mapping,
+ 	} else {
+ 		rc = copied;
+ 		pos += copied;
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
  	}
  
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
+ 	if (rc > 0) {
+@@ -3220,7 +3220,7 @@ collect_uncached_read_data(struct cifs_aio_ctx *ctx)
  
- 	udf_add_free_space(sb, partition, -1);
- 	mutex_unlock(&sbi->s_alloc_mutex);
-diff --git a/fs/udf/inode.c b/fs/udf/inode.c
-index 56cf8e70d298..6194f4c4bf12 100644
---- a/fs/udf/inode.c
-+++ b/fs/udf/inode.c
-@@ -1817,7 +1817,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
- 	unlock_buffer(bh);
+ 	for (i = 0; i < ctx->npages; i++) {
+ 		if (ctx->should_dirty)
+-			set_page_dirty(ctx->bv[i].bv_page);
++			set_page_dirty(NULL, ctx->bv[i].bv_page);
+ 		put_page(ctx->bv[i].bv_page);
+ 	}
  
- 	/* write the data blocks */
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	if (do_sync) {
- 		sync_dirty_buffer(bh);
- 		if (buffer_write_io_error(bh)) {
-diff --git a/fs/udf/partition.c b/fs/udf/partition.c
-index 090baff83990..0e4e05a41bee 100644
---- a/fs/udf/partition.c
-+++ b/fs/udf/partition.c
-@@ -204,7 +204,7 @@ int udf_relocate_blocks(struct super_block *sb, long old_block, long *new_block)
- 						  reallocationTableLen *
- 						  sizeof(struct sparingEntry);
- 						udf_update_tag((char *)st, len);
--						mark_buffer_dirty(bh);
-+						mark_buffer_dirty(NULL, bh);
- 					}
- 					*new_block = le32_to_cpu(
- 							entry->mappedLocation) +
-@@ -250,7 +250,7 @@ int udf_relocate_blocks(struct super_block *sb, long old_block, long *new_block)
- 						sizeof(struct sparingTable) +
- 						reallocationTableLen *
- 						sizeof(struct sparingEntry));
--					mark_buffer_dirty(bh);
-+					mark_buffer_dirty(NULL, bh);
- 				}
- 				*new_block =
- 					le32_to_cpu(
-diff --git a/fs/udf/super.c b/fs/udf/super.c
-index f73239a9a97d..79c2bfd32986 100644
---- a/fs/udf/super.c
-+++ b/fs/udf/super.c
-@@ -2001,7 +2001,7 @@ static void udf_open_lvid(struct super_block *sb)
- 			le16_to_cpu(lvid->descTag.descCRCLength)));
+diff --git a/fs/exofs/dir.c b/fs/exofs/dir.c
+index f0138674c1ed..e07ec3f0dfc3 100644
+--- a/fs/exofs/dir.c
++++ b/fs/exofs/dir.c
+@@ -70,7 +70,7 @@ static int exofs_commit_chunk(struct page *page, loff_t pos, unsigned len)
+ 		i_size_write(dir, pos+len);
+ 		mark_inode_dirty(dir);
+ 	}
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
  
- 	lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	sbi->s_lvid_dirty = 0;
- 	mutex_unlock(&sbi->s_alloc_mutex);
- 	/* Make opening of filesystem visible on the media immediately */
-@@ -2047,7 +2047,7 @@ static void udf_close_lvid(struct super_block *sb)
- 	 * the buffer as !uptodate
- 	 */
- 	set_buffer_uptodate(bh);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	sbi->s_lvid_dirty = 0;
- 	mutex_unlock(&sbi->s_alloc_mutex);
- 	/* Make closing of filesystem visible on the media immediately */
-@@ -2076,7 +2076,7 @@ u64 lvid_get_unique_id(struct super_block *sb)
- 		uniqueID += 16;
- 	lvhd->uniqueID = cpu_to_le64(uniqueID);
- 	mutex_unlock(&sbi->s_alloc_mutex);
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
+ 	if (IS_DIRSYNC(dir))
+ 		err = write_one_page(page);
+diff --git a/fs/exofs/inode.c b/fs/exofs/inode.c
+index 54d6b7dbd4e7..137f1d8c13e8 100644
+--- a/fs/exofs/inode.c
++++ b/fs/exofs/inode.c
+@@ -832,7 +832,7 @@ static int exofs_writepages(struct address_space *mapping,
+ 			struct page *page = pcol.pages[i];
  
- 	return ret;
+ 			end_page_writeback(page);
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			unlock_page(page);
+ 		}
+ 	}
+@@ -931,7 +931,7 @@ static int exofs_write_end(struct file *file, struct address_space *mapping,
+ 		i_size_write(inode, last_pos);
+ 		mark_inode_dirty(inode);
+ 	}
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ out:
+ 	unlock_page(page);
+ 	put_page(page);
+diff --git a/fs/f2fs/checkpoint.c b/fs/f2fs/checkpoint.c
+index b218fcacd395..d859c5682a1e 100644
+--- a/fs/f2fs/checkpoint.c
++++ b/fs/f2fs/checkpoint.c
+@@ -708,7 +708,7 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
+ 			orphan_blk->blk_addr = cpu_to_le16(index);
+ 			orphan_blk->blk_count = cpu_to_le16(orphan_blocks);
+ 			orphan_blk->entry_count = cpu_to_le32(nentries);
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			f2fs_put_page(page, 1);
+ 			index++;
+ 			nentries = 0;
+@@ -720,7 +720,7 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
+ 		orphan_blk->blk_addr = cpu_to_le16(index);
+ 		orphan_blk->blk_count = cpu_to_le16(orphan_blocks);
+ 		orphan_blk->entry_count = cpu_to_le32(nentries);
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		f2fs_put_page(page, 1);
+ 	}
  }
-@@ -2351,7 +2351,7 @@ static int udf_sync_fs(struct super_block *sb, int wait)
- 		 * Blockdevice will be synced later so we don't have to submit
- 		 * the buffer for IO
- 		 */
--		mark_buffer_dirty(sbi->s_lvid_bh);
-+		mark_buffer_dirty(NULL, sbi->s_lvid_bh);
- 		sbi->s_lvid_dirty = 0;
- 	}
- 	mutex_unlock(&sbi->s_alloc_mutex);
-diff --git a/fs/ufs/balloc.c b/fs/ufs/balloc.c
-index e727ee07dbe4..3648422218dc 100644
---- a/fs/ufs/balloc.c
-+++ b/fs/ufs/balloc.c
-@@ -311,7 +311,7 @@ static void ufs_change_blocknr(struct inode *inode, sector_t beg,
+diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
+index c1a8dd623444..4e6894169d0e 100644
+--- a/fs/f2fs/data.c
++++ b/fs/f2fs/data.c
+@@ -540,7 +540,7 @@ void set_data_blkaddr(struct dnode_of_data *dn)
+ {
+ 	f2fs_wait_on_page_writeback(dn->node_page, NODE, true);
+ 	__set_data_blkaddr(dn);
+-	if (set_page_dirty(dn->node_page))
++	if (set_page_dirty(NULL, dn->node_page))
+ 		dn->node_changed = true;
+ }
  
- 			bh->b_blocknr = newb + pos;
- 			clean_bdev_bh_alias(bh);
--			mark_buffer_dirty(bh);
-+			mark_buffer_dirty(NULL, bh);
- 			++j;
- 			bh = bh->b_this_page;
- 		} while (bh != head);
-@@ -333,7 +333,7 @@ static void ufs_clear_frags(struct inode *inode, sector_t beg, unsigned int n,
- 		lock_buffer(bh);
- 		memset(bh->b_data, 0, inode->i_sb->s_blocksize);
- 		set_buffer_uptodate(bh);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		unlock_buffer(bh);
- 		if (IS_SYNC(inode) || sync)
- 			sync_dirty_buffer(bh);
-diff --git a/fs/ufs/ialloc.c b/fs/ufs/ialloc.c
-index e1ef0f0a1353..3a6dd9eea6a9 100644
---- a/fs/ufs/ialloc.c
-+++ b/fs/ufs/ialloc.c
-@@ -144,7 +144,7 @@ static void ufs2_init_inodes_chunk(struct super_block *sb,
- 		lock_buffer(bh);
- 		memset(bh->b_data, 0, sb->s_blocksize);
- 		set_buffer_uptodate(bh);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		unlock_buffer(bh);
- 		if (sb->s_flags & SB_SYNCHRONOUS)
- 			sync_dirty_buffer(bh);
-@@ -328,7 +328,7 @@ struct inode *ufs_new_inode(struct inode *dir, umode_t mode)
- 		ktime_get_real_ts64(&ts);
- 		ufs2_inode->ui_birthtime = cpu_to_fs64(sb, ts.tv_sec);
- 		ufs2_inode->ui_birthnsec = cpu_to_fs32(sb, ts.tv_nsec);
--		mark_buffer_dirty(bh);
-+		mark_buffer_dirty(NULL, bh);
- 		unlock_buffer(bh);
- 		if (sb->s_flags & SB_SYNCHRONOUS)
- 			sync_dirty_buffer(bh);
+@@ -580,7 +580,7 @@ int reserve_new_blocks(struct dnode_of_data *dn, blkcnt_t count)
+ 		}
+ 	}
+ 
+-	if (set_page_dirty(dn->node_page))
++	if (set_page_dirty(NULL, dn->node_page))
+ 		dn->node_changed = true;
+ 	return 0;
+ }
+@@ -2261,7 +2261,7 @@ static int f2fs_write_end(struct file *file,
+ 	if (!copied)
+ 		goto unlock_out;
+ 
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 
+ 	if (pos + copied > i_size_read(inode))
+ 		f2fs_i_size_write(inode, pos + copied);
+diff --git a/fs/f2fs/dir.c b/fs/f2fs/dir.c
+index f00b5ed8c011..a6d560f57933 100644
+--- a/fs/f2fs/dir.c
++++ b/fs/f2fs/dir.c
+@@ -303,7 +303,7 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
+ 	de->ino = cpu_to_le32(inode->i_ino);
+ 	set_de_type(de, inode->i_mode);
+ 	f2fs_dentry_kunmap(dir, page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 
+ 	dir->i_mtime = dir->i_ctime = current_time(dir);
+ 	f2fs_mark_inode_dirty_sync(dir, false);
+@@ -320,7 +320,7 @@ static void init_dent_inode(const struct qstr *name, struct page *ipage)
+ 	ri = F2FS_INODE(ipage);
+ 	ri->i_namelen = cpu_to_le32(name->len);
+ 	memcpy(ri->i_name, name->name, name->len);
+-	set_page_dirty(ipage);
++	set_page_dirty(NULL, ipage);
+ }
+ 
+ void do_make_empty_dir(struct inode *inode, struct inode *parent,
+@@ -357,7 +357,7 @@ static int make_empty_dir(struct inode *inode,
+ 
+ 	kunmap_atomic(dentry_blk);
+ 
+-	set_page_dirty(dentry_page);
++	set_page_dirty(NULL, dentry_page);
+ 	f2fs_put_page(dentry_page, 1);
+ 	return 0;
+ }
+@@ -576,7 +576,7 @@ int f2fs_add_regular_entry(struct inode *dir, const struct qstr *new_name,
+ 	make_dentry_ptr_block(NULL, &d, dentry_blk);
+ 	f2fs_update_dentry(ino, mode, &d, new_name, dentry_hash, bit_pos);
+ 
+-	set_page_dirty(dentry_page);
++	set_page_dirty(NULL, dentry_page);
+ 
+ 	if (inode) {
+ 		f2fs_i_pino_write(inode, dir->i_ino);
+@@ -731,7 +731,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
+ 			NR_DENTRY_IN_BLOCK,
+ 			0);
+ 	kunmap(page); /* kunmap - pair of f2fs_find_entry */
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 
+ 	dir->i_ctime = dir->i_mtime = current_time(dir);
+ 	f2fs_mark_inode_dirty_sync(dir, false);
+diff --git a/fs/f2fs/file.c b/fs/f2fs/file.c
+index 5e9ac31240bb..d4f253a4cb3c 100644
+--- a/fs/f2fs/file.c
++++ b/fs/f2fs/file.c
+@@ -99,7 +99,7 @@ static int f2fs_vm_page_mkwrite(struct vm_fault *vmf)
+ 		offset = i_size_read(inode) & ~PAGE_MASK;
+ 		zero_user_segment(page, offset, PAGE_SIZE);
+ 	}
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	if (!PageUptodate(page))
+ 		SetPageUptodate(page);
+ 
+@@ -561,7 +561,7 @@ static int truncate_partial_data_page(struct inode *inode, u64 from,
+ 	/* An encrypted inode should have a key and truncate the last page. */
+ 	f2fs_bug_on(F2FS_I_SB(inode), cache_only && f2fs_encrypted_inode(inode));
+ 	if (!cache_only)
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 	f2fs_put_page(page, 1);
+ 	return 0;
+ }
+@@ -855,7 +855,7 @@ static int fill_zero(struct inode *inode, pgoff_t index,
+ 
+ 	f2fs_wait_on_page_writeback(page, DATA, true);
+ 	zero_user(page, start, len);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	f2fs_put_page(page, 1);
+ 	return 0;
+ }
+@@ -1084,7 +1084,7 @@ static int __clone_blkaddrs(struct inode *src_inode, struct inode *dst_inode,
+ 				return PTR_ERR(pdst);
+ 			}
+ 			f2fs_copy_page(psrc, pdst);
+-			set_page_dirty(pdst);
++			set_page_dirty(NULL, pdst);
+ 			f2fs_put_page(pdst, 1);
+ 			f2fs_put_page(psrc, 1);
+ 
+@@ -2205,7 +2205,7 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
+ 				goto clear_out;
+ 			}
+ 
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			f2fs_put_page(page, 1);
+ 
+ 			idx++;
+diff --git a/fs/f2fs/gc.c b/fs/f2fs/gc.c
+index aa720cc44509..86e387af01ac 100644
+--- a/fs/f2fs/gc.c
++++ b/fs/f2fs/gc.c
+@@ -678,7 +678,7 @@ static void move_data_block(struct inode *inode, block_t bidx,
+ 		goto put_page_out;
+ 	}
+ 
+-	set_page_dirty(fio.encrypted_page);
++	set_page_dirty(NULL, fio.encrypted_page);
+ 	f2fs_wait_on_page_writeback(fio.encrypted_page, DATA, true);
+ 	if (clear_page_dirty_for_io(fio.encrypted_page))
+ 		dec_page_count(fio.sbi, F2FS_DIRTY_META);
+@@ -739,7 +739,7 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type,
+ 	if (gc_type == BG_GC) {
+ 		if (PageWriteback(page))
+ 			goto out;
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		set_cold_data(page);
+ 	} else {
+ 		struct f2fs_io_info fio = {
+@@ -759,7 +759,7 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type,
+ 		int err;
+ 
+ retry:
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		f2fs_wait_on_page_writeback(page, DATA, true);
+ 		if (clear_page_dirty_for_io(page)) {
+ 			inode_dec_dirty_pages(inode);
+diff --git a/fs/f2fs/inline.c b/fs/f2fs/inline.c
+index 90e38d8ea688..b25425068168 100644
+--- a/fs/f2fs/inline.c
++++ b/fs/f2fs/inline.c
+@@ -75,7 +75,7 @@ void truncate_inline_inode(struct inode *inode, struct page *ipage, u64 from)
+ 
+ 	f2fs_wait_on_page_writeback(ipage, NODE, true);
+ 	memset(addr + from, 0, MAX_INLINE_DATA(inode) - from);
+-	set_page_dirty(ipage);
++	set_page_dirty(NULL, ipage);
+ 
+ 	if (from == 0)
+ 		clear_inode_flag(inode, FI_DATA_EXIST);
+@@ -132,7 +132,7 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
+ 	f2fs_bug_on(F2FS_P_SB(page), PageWriteback(page));
+ 
+ 	read_inline_data(page, dn->inode_page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 
+ 	/* clear dirty state */
+ 	dirty = clear_page_dirty_for_io(page);
+@@ -224,7 +224,7 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
+ 	dst_addr = inline_data_addr(inode, dn.inode_page);
+ 	memcpy(dst_addr, src_addr, MAX_INLINE_DATA(inode));
+ 	kunmap_atomic(src_addr);
+-	set_page_dirty(dn.inode_page);
++	set_page_dirty(NULL, dn.inode_page);
+ 
+ 	spin_lock_irqsave(&mapping->tree_lock, flags);
+ 	radix_tree_tag_clear(&mapping->page_tree, page_index(page),
+@@ -272,7 +272,7 @@ bool recover_inline_data(struct inode *inode, struct page *npage)
+ 		set_inode_flag(inode, FI_INLINE_DATA);
+ 		set_inode_flag(inode, FI_DATA_EXIST);
+ 
+-		set_page_dirty(ipage);
++		set_page_dirty(NULL, ipage);
+ 		f2fs_put_page(ipage, 1);
+ 		return true;
+ 	}
+@@ -334,7 +334,7 @@ int make_empty_inline_dir(struct inode *inode, struct inode *parent,
+ 	make_dentry_ptr_inline(inode, &d, inline_dentry);
+ 	do_make_empty_dir(inode, parent, &d);
+ 
+-	set_page_dirty(ipage);
++	set_page_dirty(NULL, ipage);
+ 
+ 	/* update i_size to MAX_INLINE_DATA */
+ 	if (i_size_read(inode) < MAX_INLINE_DATA(inode))
+@@ -389,7 +389,7 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
+ 	kunmap_atomic(dentry_blk);
+ 	if (!PageUptodate(page))
+ 		SetPageUptodate(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 
+ 	/* clear inline dir and flag after data writeback */
+ 	truncate_inline_inode(dir, ipage, 0);
+@@ -485,7 +485,7 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
+ 	memcpy(inline_dentry, backup_dentry, MAX_INLINE_DATA(dir));
+ 	f2fs_i_depth_write(dir, 0);
+ 	f2fs_i_size_write(dir, MAX_INLINE_DATA(dir));
+-	set_page_dirty(ipage);
++	set_page_dirty(NULL, ipage);
+ 	f2fs_put_page(ipage, 1);
+ 
+ 	kfree(backup_dentry);
+@@ -546,7 +546,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *new_name,
+ 	name_hash = f2fs_dentry_hash(new_name, NULL);
+ 	f2fs_update_dentry(ino, mode, &d, new_name, name_hash, bit_pos);
+ 
+-	set_page_dirty(ipage);
++	set_page_dirty(NULL, ipage);
+ 
+ 	/* we don't need to mark_inode_dirty now */
+ 	if (inode) {
+@@ -582,7 +582,7 @@ void f2fs_delete_inline_entry(struct f2fs_dir_entry *dentry, struct page *page,
+ 	for (i = 0; i < slots; i++)
+ 		__clear_bit_le(bit_pos + i, d.bitmap);
+ 
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	f2fs_put_page(page, 1);
+ 
+ 	dir->i_ctime = dir->i_mtime = current_time(dir);
+diff --git a/fs/f2fs/inode.c b/fs/f2fs/inode.c
+index 205add3d0f3a..920de42398f9 100644
+--- a/fs/f2fs/inode.c
++++ b/fs/f2fs/inode.c
+@@ -107,7 +107,7 @@ static void __recover_inline_status(struct inode *inode, struct page *ipage)
+ 
+ 			set_inode_flag(inode, FI_DATA_EXIST);
+ 			set_raw_inline(inode, F2FS_INODE(ipage));
+-			set_page_dirty(ipage);
++			set_page_dirty(NULL, ipage);
+ 			return;
+ 		}
+ 	}
+@@ -231,7 +231,7 @@ static int do_read_inode(struct inode *inode)
+ 	fi->i_dir_level = ri->i_dir_level;
+ 
+ 	if (f2fs_init_extent_tree(inode, &ri->i_ext))
+-		set_page_dirty(node_page);
++		set_page_dirty(NULL, node_page);
+ 
+ 	get_inline_info(inode, ri);
+ 
+@@ -375,7 +375,7 @@ void update_inode(struct inode *inode, struct page *node_page)
+ 	struct extent_tree *et = F2FS_I(inode)->extent_tree;
+ 
+ 	f2fs_wait_on_page_writeback(node_page, NODE, true);
+-	set_page_dirty(node_page);
++	set_page_dirty(NULL, node_page);
+ 
+ 	f2fs_inode_synced(inode);
+ 
+diff --git a/fs/f2fs/node.c b/fs/f2fs/node.c
+index 67737885cad5..e4e5798e9271 100644
+--- a/fs/f2fs/node.c
++++ b/fs/f2fs/node.c
+@@ -130,7 +130,7 @@ static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
+ 	src_addr = page_address(src_page);
+ 	dst_addr = page_address(dst_page);
+ 	memcpy(dst_addr, src_addr, PAGE_SIZE);
+-	set_page_dirty(dst_page);
++	set_page_dirty(NULL, dst_page);
+ 	f2fs_put_page(src_page, 1);
+ 
+ 	set_to_next_nat(nm_i, nid);
+@@ -966,7 +966,7 @@ int truncate_inode_blocks(struct inode *inode, pgoff_t from)
+ 			BUG_ON(page->mapping != NODE_MAPPING(sbi));
+ 			f2fs_wait_on_page_writeback(page, NODE, true);
+ 			ri->i_nid[offset[0] - NODE_DIR1_BLOCK] = 0;
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			unlock_page(page);
+ 		}
+ 		offset[1] = 0;
+@@ -1079,7 +1079,7 @@ struct page *new_node_page(struct dnode_of_data *dn, unsigned int ofs)
+ 	set_cold_node(dn->inode, page);
+ 	if (!PageUptodate(page))
+ 		SetPageUptodate(page);
+-	if (set_page_dirty(page))
++	if (set_page_dirty(NULL, page))
+ 		dn->node_changed = true;
+ 
+ 	if (f2fs_has_xattr_block(ofs))
+@@ -1253,7 +1253,7 @@ static void flush_inline_data(struct f2fs_sb_info *sbi, nid_t ino)
+ 	inode_dec_dirty_pages(inode);
+ 	remove_dirty_inode(inode);
+ 	if (ret)
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ page_out:
+ 	f2fs_put_page(page, 1);
+ iput_out:
+@@ -1412,7 +1412,7 @@ void move_node_page(struct page *node_page, int gc_type)
+ 			.for_reclaim = 0,
+ 		};
+ 
+-		set_page_dirty(node_page);
++		set_page_dirty(NULL, node_page);
+ 		f2fs_wait_on_page_writeback(node_page, NODE, true);
+ 
+ 		f2fs_bug_on(F2FS_P_SB(node_page), PageWriteback(node_page));
+@@ -1426,7 +1426,7 @@ void move_node_page(struct page *node_page, int gc_type)
+ 	} else {
+ 		/* set page dirty and write it */
+ 		if (!PageWriteback(node_page))
+-			set_page_dirty(node_page);
++			set_page_dirty(NULL, node_page);
+ 	}
+ out_page:
+ 	unlock_page(node_page);
+@@ -1514,7 +1514,7 @@ int fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
+ 				}
+ 				/*  may be written by other thread */
+ 				if (!PageDirty(page))
+-					set_page_dirty(page);
++					set_page_dirty(NULL, page);
+ 			}
+ 
+ 			if (!clear_page_dirty_for_io(page))
+@@ -1550,7 +1550,7 @@ int fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
+ 					ino, last_page->index);
+ 		lock_page(last_page);
+ 		f2fs_wait_on_page_writeback(last_page, NODE, true);
+-		set_page_dirty(last_page);
++		set_page_dirty(NULL, last_page);
+ 		unlock_page(last_page);
+ 		goto retry;
+ 	}
+@@ -2263,7 +2263,7 @@ int recover_xattr_data(struct inode *inode, struct page *page)
+ 	/* 3: update and set xattr node page dirty */
+ 	memcpy(F2FS_NODE(xpage), F2FS_NODE(page), VALID_XATTR_BLOCK_SIZE);
+ 
+-	set_page_dirty(xpage);
++	set_page_dirty(NULL, xpage);
+ 	f2fs_put_page(xpage, 1);
+ 
+ 	return 0;
+@@ -2324,7 +2324,7 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
+ 		WARN_ON(1);
+ 	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
+ 	inc_valid_inode_count(sbi);
+-	set_page_dirty(ipage);
++	set_page_dirty(NULL, ipage);
+ 	f2fs_put_page(ipage, 1);
+ 	return 0;
+ }
+diff --git a/fs/f2fs/node.h b/fs/f2fs/node.h
+index 081ef0d672bf..6945269e35ae 100644
+--- a/fs/f2fs/node.h
++++ b/fs/f2fs/node.h
+@@ -364,7 +364,7 @@ static inline int set_nid(struct page *p, int off, nid_t nid, bool i)
+ 		rn->i.i_nid[off - NODE_DIR1_BLOCK] = cpu_to_le32(nid);
+ 	else
+ 		rn->in.nid[off] = cpu_to_le32(nid);
+-	return set_page_dirty(p);
++	return set_page_dirty(NULL, p);
+ }
+ 
+ static inline nid_t get_nid(struct page *p, int off, bool i)
+diff --git a/fs/f2fs/recovery.c b/fs/f2fs/recovery.c
+index 337f3363f48f..d29eb2bda530 100644
+--- a/fs/f2fs/recovery.c
++++ b/fs/f2fs/recovery.c
+@@ -529,7 +529,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
+ 	copy_node_footer(dn.node_page, page);
+ 	fill_node_footer(dn.node_page, dn.nid, ni.ino,
+ 					ofs_of_node(page), false);
+-	set_page_dirty(dn.node_page);
++	set_page_dirty(NULL, dn.node_page);
+ err:
+ 	f2fs_put_dnode(&dn);
+ out:
+diff --git a/fs/f2fs/segment.c b/fs/f2fs/segment.c
+index b16a8e6625aa..e188e241e4c2 100644
+--- a/fs/f2fs/segment.c
++++ b/fs/f2fs/segment.c
+@@ -367,7 +367,7 @@ static int __commit_inmem_pages(struct inode *inode,
+ 		if (page->mapping == inode->i_mapping) {
+ 			trace_f2fs_commit_inmem_page(page, INMEM);
+ 
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			f2fs_wait_on_page_writeback(page, DATA, true);
+ 			if (clear_page_dirty_for_io(page)) {
+ 				inode_dec_dirty_pages(inode);
+@@ -2002,7 +2002,7 @@ void update_meta_page(struct f2fs_sb_info *sbi, void *src, block_t blk_addr)
+ 	struct page *page = grab_meta_page(sbi, blk_addr);
+ 
+ 	memcpy(page_address(page), src, PAGE_SIZE);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	f2fs_put_page(page, 1);
+ }
+ 
+@@ -2033,7 +2033,7 @@ static void write_current_sum_page(struct f2fs_sb_info *sbi,
+ 
+ 	mutex_unlock(&curseg->curseg_mutex);
+ 
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	f2fs_put_page(page, 1);
+ }
+ 
+@@ -3041,13 +3041,13 @@ static void write_compacted_summaries(struct f2fs_sb_info *sbi, block_t blkaddr)
+ 							SUM_FOOTER_SIZE)
+ 				continue;
+ 
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			f2fs_put_page(page, 1);
+ 			page = NULL;
+ 		}
+ 	}
+ 	if (page) {
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		f2fs_put_page(page, 1);
+ 	}
+ }
+@@ -3119,7 +3119,7 @@ static struct page *get_next_sit_page(struct f2fs_sb_info *sbi,
+ 	page = grab_meta_page(sbi, dst_off);
+ 	seg_info_to_sit_page(sbi, page, start);
+ 
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	set_to_next_sit(sit_i, start);
+ 
+ 	return page;
+diff --git a/fs/f2fs/xattr.c b/fs/f2fs/xattr.c
+index ae2dfa709f5d..9532139fa223 100644
+--- a/fs/f2fs/xattr.c
++++ b/fs/f2fs/xattr.c
+@@ -424,7 +424,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
+ 				return err;
+ 			}
+ 			memcpy(inline_addr, txattr_addr, inline_size);
+-			set_page_dirty(ipage ? ipage : in_page);
++			set_page_dirty(NULL, ipage ? ipage : in_page);
+ 			goto in_page_out;
+ 		}
+ 	}
+@@ -457,8 +457,8 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
+ 	memcpy(xattr_addr, txattr_addr + inline_size, VALID_XATTR_BLOCK_SIZE);
+ 
+ 	if (inline_size)
+-		set_page_dirty(ipage ? ipage : in_page);
+-	set_page_dirty(xpage);
++		set_page_dirty(NULL, ipage ? ipage : in_page);
++	set_page_dirty(NULL, xpage);
+ 
+ 	f2fs_put_page(xpage, 1);
+ in_page_out:
+diff --git a/fs/fuse/file.c b/fs/fuse/file.c
+index e63be7831f4d..8a4a84f3657a 100644
+--- a/fs/fuse/file.c
++++ b/fs/fuse/file.c
+@@ -2007,7 +2007,7 @@ static int fuse_write_end(struct file *file, struct address_space *mapping,
+ 	}
+ 
+ 	fuse_write_update_size(inode, pos + copied);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 
+ unlock:
+ 	unlock_page(page);
+diff --git a/fs/gfs2/file.c b/fs/gfs2/file.c
+index 2c4584deb077..bcb75335c711 100644
+--- a/fs/gfs2/file.c
++++ b/fs/gfs2/file.c
+@@ -488,7 +488,7 @@ static int gfs2_page_mkwrite(struct vm_fault *vmf)
+ out_uninit:
+ 	gfs2_holder_uninit(&gh);
+ 	if (ret == 0) {
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		wait_for_stable_page(page);
+ 	}
+ out:
+diff --git a/fs/hfs/bnode.c b/fs/hfs/bnode.c
+index b63a4df7327b..9de3a2f9796d 100644
+--- a/fs/hfs/bnode.c
++++ b/fs/hfs/bnode.c
+@@ -67,7 +67,7 @@ void hfs_bnode_write(struct hfs_bnode *node, void *buf, int off, int len)
+ 
+ 	memcpy(kmap(page) + off, buf, len);
+ 	kunmap(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ }
+ 
+ void hfs_bnode_write_u16(struct hfs_bnode *node, int off, u16 data)
+@@ -92,7 +92,7 @@ void hfs_bnode_clear(struct hfs_bnode *node, int off, int len)
+ 
+ 	memset(kmap(page) + off, 0, len);
+ 	kunmap(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ }
+ 
+ void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
+@@ -111,7 +111,7 @@ void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
+ 	memcpy(kmap(dst_page) + dst, kmap(src_page) + src, len);
+ 	kunmap(src_page);
+ 	kunmap(dst_page);
+-	set_page_dirty(dst_page);
++	set_page_dirty(NULL, dst_page);
+ }
+ 
+ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
+@@ -128,7 +128,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
+ 	ptr = kmap(page);
+ 	memmove(ptr + dst, ptr + src, len);
+ 	kunmap(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ }
+ 
+ void hfs_bnode_dump(struct hfs_bnode *node)
+@@ -427,11 +427,11 @@ struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num)
+ 	pagep = node->page;
+ 	memset(kmap(*pagep) + node->page_offset, 0,
+ 	       min((int)PAGE_SIZE, (int)tree->node_size));
+-	set_page_dirty(*pagep);
++	set_page_dirty(NULL, *pagep);
+ 	kunmap(*pagep);
+ 	for (i = 1; i < tree->pages_per_bnode; i++) {
+ 		memset(kmap(*++pagep), 0, PAGE_SIZE);
+-		set_page_dirty(*pagep);
++		set_page_dirty(NULL, *pagep);
+ 		kunmap(*pagep);
+ 	}
+ 	clear_bit(HFS_BNODE_NEW, &node->flags);
+diff --git a/fs/hfs/btree.c b/fs/hfs/btree.c
+index 374b5688e29e..91e7bdb5ecbb 100644
+--- a/fs/hfs/btree.c
++++ b/fs/hfs/btree.c
+@@ -181,7 +181,7 @@ void hfs_btree_write(struct hfs_btree *tree)
+ 	head->depth = cpu_to_be16(tree->depth);
+ 
+ 	kunmap(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	hfs_bnode_put(node);
+ }
+ 
+@@ -271,7 +271,7 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
+ 					if (!(byte & m)) {
+ 						idx += i;
+ 						data[off] |= m;
+-						set_page_dirty(*pagep);
++						set_page_dirty(NULL, *pagep);
+ 						kunmap(*pagep);
+ 						tree->free_nodes--;
+ 						mark_inode_dirty(tree->inode);
+@@ -362,7 +362,7 @@ void hfs_bmap_free(struct hfs_bnode *node)
+ 		return;
+ 	}
+ 	data[off] = byte & ~m;
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	kunmap(page);
+ 	hfs_bnode_put(node);
+ 	tree->free_nodes++;
+diff --git a/fs/hfsplus/bitmap.c b/fs/hfsplus/bitmap.c
+index cebce0cfe340..f9685c1a207d 100644
+--- a/fs/hfsplus/bitmap.c
++++ b/fs/hfsplus/bitmap.c
+@@ -126,7 +126,7 @@ int hfsplus_block_allocate(struct super_block *sb, u32 size,
+ 			*curr++ = cpu_to_be32(0xffffffff);
+ 			len -= 32;
+ 		}
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		kunmap(page);
+ 		offset += PAGE_CACHE_BITS;
+ 		page = read_mapping_page(mapping, offset / PAGE_CACHE_BITS,
+@@ -150,7 +150,7 @@ int hfsplus_block_allocate(struct super_block *sb, u32 size,
+ 	}
+ done:
+ 	*curr = cpu_to_be32(n);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	kunmap(page);
+ 	*max = offset + (curr - pptr) * 32 + i - start;
+ 	sbi->free_blocks -= *max;
+@@ -214,7 +214,7 @@ int hfsplus_block_free(struct super_block *sb, u32 offset, u32 count)
+ 		}
+ 		if (!count)
+ 			break;
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		kunmap(page);
+ 		page = read_mapping_page(mapping, ++pnr, NULL);
+ 		if (IS_ERR(page))
+@@ -230,7 +230,7 @@ int hfsplus_block_free(struct super_block *sb, u32 offset, u32 count)
+ 		*curr &= cpu_to_be32(mask);
+ 	}
+ out:
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	kunmap(page);
+ 	sbi->free_blocks += len;
+ 	hfsplus_mark_mdb_dirty(sb);
+diff --git a/fs/hfsplus/bnode.c b/fs/hfsplus/bnode.c
+index 177fae4e6581..8531709f667e 100644
+--- a/fs/hfsplus/bnode.c
++++ b/fs/hfsplus/bnode.c
+@@ -83,14 +83,14 @@ void hfs_bnode_write(struct hfs_bnode *node, void *buf, int off, int len)
+ 
+ 	l = min_t(int, len, PAGE_SIZE - off);
+ 	memcpy(kmap(*pagep) + off, buf, l);
+-	set_page_dirty(*pagep);
++	set_page_dirty(NULL, *pagep);
+ 	kunmap(*pagep);
+ 
+ 	while ((len -= l) != 0) {
+ 		buf += l;
+ 		l = min_t(int, len, PAGE_SIZE);
+ 		memcpy(kmap(*++pagep), buf, l);
+-		set_page_dirty(*pagep);
++		set_page_dirty(NULL, *pagep);
+ 		kunmap(*pagep);
+ 	}
+ }
+@@ -113,13 +113,13 @@ void hfs_bnode_clear(struct hfs_bnode *node, int off, int len)
+ 
+ 	l = min_t(int, len, PAGE_SIZE - off);
+ 	memset(kmap(*pagep) + off, 0, l);
+-	set_page_dirty(*pagep);
++	set_page_dirty(NULL, *pagep);
+ 	kunmap(*pagep);
+ 
+ 	while ((len -= l) != 0) {
+ 		l = min_t(int, len, PAGE_SIZE);
+ 		memset(kmap(*++pagep), 0, l);
+-		set_page_dirty(*pagep);
++		set_page_dirty(NULL, *pagep);
+ 		kunmap(*pagep);
+ 	}
+ }
+@@ -144,14 +144,14 @@ void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
+ 		l = min_t(int, len, PAGE_SIZE - src);
+ 		memcpy(kmap(*dst_page) + src, kmap(*src_page) + src, l);
+ 		kunmap(*src_page);
+-		set_page_dirty(*dst_page);
++		set_page_dirty(NULL, *dst_page);
+ 		kunmap(*dst_page);
+ 
+ 		while ((len -= l) != 0) {
+ 			l = min_t(int, len, PAGE_SIZE);
+ 			memcpy(kmap(*++dst_page), kmap(*++src_page), l);
+ 			kunmap(*src_page);
+-			set_page_dirty(*dst_page);
++			set_page_dirty(NULL, *dst_page);
+ 			kunmap(*dst_page);
+ 		}
+ 	} else {
+@@ -172,7 +172,7 @@ void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
+ 			l = min(len, l);
+ 			memcpy(dst_ptr, src_ptr, l);
+ 			kunmap(*src_page);
+-			set_page_dirty(*dst_page);
++			set_page_dirty(NULL, *dst_page);
+ 			kunmap(*dst_page);
+ 			if (!dst)
+ 				dst_page++;
+@@ -204,7 +204,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
+ 			while (src < len) {
+ 				memmove(kmap(*dst_page), kmap(*src_page), src);
+ 				kunmap(*src_page);
+-				set_page_dirty(*dst_page);
++				set_page_dirty(NULL, *dst_page);
+ 				kunmap(*dst_page);
+ 				len -= src;
+ 				src = PAGE_SIZE;
+@@ -215,7 +215,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
+ 			memmove(kmap(*dst_page) + src,
+ 				kmap(*src_page) + src, len);
+ 			kunmap(*src_page);
+-			set_page_dirty(*dst_page);
++			set_page_dirty(NULL, *dst_page);
+ 			kunmap(*dst_page);
+ 		} else {
+ 			void *src_ptr, *dst_ptr;
+@@ -235,7 +235,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
+ 				l = min(len, l);
+ 				memmove(dst_ptr - l, src_ptr - l, l);
+ 				kunmap(*src_page);
+-				set_page_dirty(*dst_page);
++				set_page_dirty(NULL, *dst_page);
+ 				kunmap(*dst_page);
+ 				if (dst == PAGE_SIZE)
+ 					dst_page--;
+@@ -254,7 +254,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
+ 			memmove(kmap(*dst_page) + src,
+ 				kmap(*src_page) + src, l);
+ 			kunmap(*src_page);
+-			set_page_dirty(*dst_page);
++			set_page_dirty(NULL, *dst_page);
+ 			kunmap(*dst_page);
+ 
+ 			while ((len -= l) != 0) {
+@@ -262,7 +262,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
+ 				memmove(kmap(*++dst_page),
+ 					kmap(*++src_page), l);
+ 				kunmap(*src_page);
+-				set_page_dirty(*dst_page);
++				set_page_dirty(NULL, *dst_page);
+ 				kunmap(*dst_page);
+ 			}
+ 		} else {
+@@ -284,7 +284,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
+ 				l = min(len, l);
+ 				memmove(dst_ptr, src_ptr, l);
+ 				kunmap(*src_page);
+-				set_page_dirty(*dst_page);
++				set_page_dirty(NULL, *dst_page);
+ 				kunmap(*dst_page);
+ 				if (!dst)
+ 					dst_page++;
+@@ -595,11 +595,11 @@ struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num)
+ 	pagep = node->page;
+ 	memset(kmap(*pagep) + node->page_offset, 0,
+ 	       min_t(int, PAGE_SIZE, tree->node_size));
+-	set_page_dirty(*pagep);
++	set_page_dirty(NULL, *pagep);
+ 	kunmap(*pagep);
+ 	for (i = 1; i < tree->pages_per_bnode; i++) {
+ 		memset(kmap(*++pagep), 0, PAGE_SIZE);
+-		set_page_dirty(*pagep);
++		set_page_dirty(NULL, *pagep);
+ 		kunmap(*pagep);
+ 	}
+ 	clear_bit(HFS_BNODE_NEW, &node->flags);
+diff --git a/fs/hfsplus/btree.c b/fs/hfsplus/btree.c
+index de14b2b6881b..985123b314eb 100644
+--- a/fs/hfsplus/btree.c
++++ b/fs/hfsplus/btree.c
+@@ -304,7 +304,7 @@ int hfs_btree_write(struct hfs_btree *tree)
+ 	head->depth = cpu_to_be16(tree->depth);
+ 
+ 	kunmap(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	hfs_bnode_put(node);
+ 	return 0;
+ }
+@@ -394,7 +394,7 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
+ 					if (!(byte & m)) {
+ 						idx += i;
+ 						data[off] |= m;
+-						set_page_dirty(*pagep);
++						set_page_dirty(NULL, *pagep);
+ 						kunmap(*pagep);
+ 						tree->free_nodes--;
+ 						mark_inode_dirty(tree->inode);
+@@ -490,7 +490,7 @@ void hfs_bmap_free(struct hfs_bnode *node)
+ 		return;
+ 	}
+ 	data[off] = byte & ~m;
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	kunmap(page);
+ 	hfs_bnode_put(node);
+ 	tree->free_nodes++;
+diff --git a/fs/hfsplus/xattr.c b/fs/hfsplus/xattr.c
+index e538b758c448..c00a14bf43d0 100644
+--- a/fs/hfsplus/xattr.c
++++ b/fs/hfsplus/xattr.c
+@@ -235,7 +235,7 @@ static int hfsplus_create_attributes_file(struct super_block *sb)
+ 			min_t(size_t, PAGE_SIZE, node_size - written));
+ 		kunmap_atomic(kaddr);
+ 
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		put_page(page);
+ 	}
+ 
+diff --git a/fs/iomap.c b/fs/iomap.c
+index 557d990c26ea..dd86d5ca6fe5 100644
+--- a/fs/iomap.c
++++ b/fs/iomap.c
+@@ -477,7 +477,7 @@ int iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
+ 		length -= ret;
+ 	}
+ 
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	wait_for_stable_page(page);
+ 	return VM_FAULT_LOCKED;
+ out_unlock:
+diff --git a/fs/jfs/jfs_metapage.c b/fs/jfs/jfs_metapage.c
+index 9071b4077108..84060e65e102 100644
+--- a/fs/jfs/jfs_metapage.c
++++ b/fs/jfs/jfs_metapage.c
+@@ -718,7 +718,7 @@ void force_metapage(struct metapage *mp)
+ 	clear_bit(META_sync, &mp->flag);
+ 	get_page(page);
+ 	lock_page(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	if (write_one_page(page))
+ 		jfs_error(mp->sb, "write_one_page() failed\n");
+ 	clear_bit(META_forcewrite, &mp->flag);
+@@ -762,7 +762,7 @@ void release_metapage(struct metapage * mp)
+ 	}
+ 
+ 	if (test_bit(META_dirty, &mp->flag)) {
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		if (test_bit(META_sync, &mp->flag)) {
+ 			clear_bit(META_sync, &mp->flag);
+ 			if (write_one_page(page))
+diff --git a/fs/libfs.c b/fs/libfs.c
+index 585ef1f37d54..360a64a454ab 100644
+--- a/fs/libfs.c
++++ b/fs/libfs.c
+@@ -494,7 +494,7 @@ int simple_write_end(struct file *file, struct address_space *mapping,
+ 	if (last_pos > inode->i_size)
+ 		i_size_write(inode, last_pos);
+ 
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	unlock_page(page);
+ 	put_page(page);
+ 
+diff --git a/fs/nfs/direct.c b/fs/nfs/direct.c
+index b752f5d8d5f4..58bdf005b877 100644
+--- a/fs/nfs/direct.c
++++ b/fs/nfs/direct.c
+@@ -413,7 +413,7 @@ static void nfs_direct_read_completion(struct nfs_pgio_header *hdr)
+ 		struct page *page = req->wb_page;
+ 
+ 		if (!PageCompound(page) && bytes < hdr->good_bytes)
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 		bytes += req->wb_bytes;
+ 		nfs_list_remove_request(req);
+ 		nfs_release_request(req);
+diff --git a/fs/ntfs/attrib.c b/fs/ntfs/attrib.c
+index 44a39a099b54..5b4f444fd080 100644
+--- a/fs/ntfs/attrib.c
++++ b/fs/ntfs/attrib.c
+@@ -1746,7 +1746,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
+ 	unmap_mft_record(base_ni);
+ 	up_write(&ni->runlist.lock);
+ 	if (page) {
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		unlock_page(page);
+ 		put_page(page);
+ 	}
+@@ -2543,7 +2543,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
+ 		memset(kaddr + start_ofs, val, size - start_ofs);
+ 		flush_dcache_page(page);
+ 		kunmap_atomic(kaddr);
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		put_page(page);
+ 		balance_dirty_pages_ratelimited(mapping);
+ 		cond_resched();
+@@ -2582,7 +2582,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
+ 		 * Set the page and all its buffers dirty and mark the inode
+ 		 * dirty, too.  The VM will write the page later on.
+ 		 */
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		/* Finally unlock and release the page. */
+ 		unlock_page(page);
+ 		put_page(page);
+@@ -2601,7 +2601,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
+ 		memset(kaddr, val, end_ofs);
+ 		flush_dcache_page(page);
+ 		kunmap_atomic(kaddr);
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		put_page(page);
+ 		balance_dirty_pages_ratelimited(mapping);
+ 		cond_resched();
+diff --git a/fs/ntfs/bitmap.c b/fs/ntfs/bitmap.c
+index ec130c588d2b..ee92820b7b8a 100644
+--- a/fs/ntfs/bitmap.c
++++ b/fs/ntfs/bitmap.c
+@@ -122,7 +122,7 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
+ 
+ 		/* Update @index and get the next page. */
+ 		flush_dcache_page(page);
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		ntfs_unmap_page(page);
+ 		page = ntfs_map_page(mapping, ++index);
+ 		if (IS_ERR(page))
+@@ -158,7 +158,7 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
+ done:
+ 	/* We are done.  Unmap the page and return success. */
+ 	flush_dcache_page(page);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	ntfs_unmap_page(page);
+ 	ntfs_debug("Done.");
+ 	return 0;
+diff --git a/fs/ntfs/file.c b/fs/ntfs/file.c
+index bf07c0ca127e..c551defedaab 100644
+--- a/fs/ntfs/file.c
++++ b/fs/ntfs/file.c
+@@ -247,7 +247,7 @@ static int ntfs_attr_extend_initialized(ntfs_inode *ni, const s64 new_init_size)
+ 			ni->initialized_size = new_init_size;
+ 		write_unlock_irqrestore(&ni->size_lock, flags);
+ 		/* Set the page dirty so it gets written out. */
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		put_page(page);
+ 		/*
+ 		 * Play nice with the vm and the rest of the system.  This is
+diff --git a/fs/ntfs/lcnalloc.c b/fs/ntfs/lcnalloc.c
+index 27a24a42f712..50a568f77a25 100644
+--- a/fs/ntfs/lcnalloc.c
++++ b/fs/ntfs/lcnalloc.c
+@@ -277,7 +277,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
+ 			if (need_writeback) {
+ 				ntfs_debug("Marking page dirty.");
+ 				flush_dcache_page(page);
+-				set_page_dirty(page);
++				set_page_dirty(NULL, page);
+ 				need_writeback = 0;
+ 			}
+ 			ntfs_unmap_page(page);
+@@ -745,7 +745,7 @@ switch_to_data1_zone:		search_zone = 2;
+ 		if (need_writeback) {
+ 			ntfs_debug("Marking page dirty.");
+ 			flush_dcache_page(page);
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			need_writeback = 0;
+ 		}
+ 		ntfs_unmap_page(page);
+diff --git a/fs/ntfs/mft.c b/fs/ntfs/mft.c
+index 2831f495a674..52757378b39d 100644
+--- a/fs/ntfs/mft.c
++++ b/fs/ntfs/mft.c
+@@ -1217,7 +1217,7 @@ static int ntfs_mft_bitmap_find_and_alloc_free_rec_nolock(ntfs_volume *vol,
+ 					}
+ 					*byte |= 1 << b;
+ 					flush_dcache_page(page);
+-					set_page_dirty(page);
++					set_page_dirty(NULL, page);
+ 					ntfs_unmap_page(page);
+ 					ntfs_debug("Done.  (Found and "
+ 							"allocated mft record "
+@@ -1342,7 +1342,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
+ 		/* Next cluster is free, allocate it. */
+ 		*b |= tb;
+ 		flush_dcache_page(page);
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		up_write(&vol->lcnbmp_lock);
+ 		ntfs_unmap_page(page);
+ 		/* Update the mft bitmap runlist. */
+diff --git a/fs/ntfs/usnjrnl.c b/fs/ntfs/usnjrnl.c
+index b2bc0d55b036..3f35649fc3f6 100644
+--- a/fs/ntfs/usnjrnl.c
++++ b/fs/ntfs/usnjrnl.c
+@@ -72,7 +72,7 @@ bool ntfs_stamp_usnjrnl(ntfs_volume *vol)
+ 				cpu_to_sle64(i_size_read(vol->usnjrnl_j_ino));
+ 		uh->journal_id = stamp;
+ 		flush_dcache_page(page);
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		ntfs_unmap_page(page);
+ 		/* Set the flag so we do not have to do it again on remount. */
+ 		NVolSetUsnJrnlStamped(vol);
+diff --git a/fs/udf/file.c b/fs/udf/file.c
+index 0f6a1de6b272..413f09b17136 100644
+--- a/fs/udf/file.c
++++ b/fs/udf/file.c
+@@ -122,7 +122,7 @@ static int udf_adinicb_write_end(struct file *file, struct address_space *mappin
+ 	loff_t last_pos = pos + copied;
+ 	if (last_pos > inode->i_size)
+ 		i_size_write(inode, last_pos);
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	unlock_page(page);
+ 	put_page(page);
+ 	return copied;
 diff --git a/fs/ufs/inode.c b/fs/ufs/inode.c
-index fcaa60bfad49..c96630059d9e 100644
+index c96630059d9e..abe8d36be626 100644
 --- a/fs/ufs/inode.c
 +++ b/fs/ufs/inode.c
-@@ -375,7 +375,7 @@ ufs_inode_getblock(struct inode *inode, u64 ind_block,
- 	if (new)
- 		*new = 1;
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	if (IS_SYNC(inode))
- 		sync_dirty_buffer(bh);
- 	inode->i_ctime = current_time(inode);
-@@ -829,7 +829,7 @@ static int ufs_update_inode(struct inode * inode, int do_sync)
- 		ufs1_update_inode(inode, ufs_inode + ufs_inotofsbo(inode->i_ino));
- 	}
- 
--	mark_buffer_dirty(bh);
-+	mark_buffer_dirty(NULL, bh);
- 	if (do_sync)
- 		sync_dirty_buffer(bh);
- 	brelse (bh);
-@@ -1095,7 +1095,7 @@ static int ufs_alloc_lastblock(struct inode *inode, loff_t size)
- 		* if it maped to hole, it already contains zeroes
+@@ -1096,7 +1096,7 @@ static int ufs_alloc_lastblock(struct inode *inode, loff_t size)
  		*/
  	       set_buffer_uptodate(bh);
--	       mark_buffer_dirty(bh);
-+	       mark_buffer_dirty(NULL, bh);
- 	       set_page_dirty(lastpage);
+ 	       mark_buffer_dirty(NULL, bh);
+-	       set_page_dirty(lastpage);
++	       set_page_dirty(NULL, lastpage);
         }
  
-@@ -1107,7 +1107,7 @@ static int ufs_alloc_lastblock(struct inode *inode, loff_t size)
- 		       lock_buffer(bh);
- 		       memset(bh->b_data, 0, sb->s_blocksize);
- 		       set_buffer_uptodate(bh);
--		       mark_buffer_dirty(bh);
-+		       mark_buffer_dirty(NULL, bh);
- 		       unlock_buffer(bh);
- 		       sync_dirty_buffer(bh);
- 		       brelse(bh);
-diff --git a/fs/ufs/util.c b/fs/ufs/util.c
-index e8b3d6b70ca9..131f6ad2311f 100644
---- a/fs/ufs/util.c
-+++ b/fs/ufs/util.c
-@@ -96,7 +96,7 @@ void ubh_mark_buffer_dirty (struct ufs_buffer_head * ubh)
- 	if (!ubh)
- 		return;
- 	for ( i = 0; i < ubh->count; i++ )
--		mark_buffer_dirty (ubh->bh[i]);
-+		mark_buffer_dirty(NULL, ubh->bh[i]);
- }
+        if (lastfrag >= UFS_IND_FRAGMENT) {
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 1793b2e4f6b1..da847c874f9f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1463,7 +1463,7 @@ int redirty_page_for_writepage(struct writeback_control *wbc,
+ void account_page_dirtied(struct page *page, struct address_space *mapping);
+ void account_page_cleaned(struct page *page, struct address_space *mapping,
+ 			  struct bdi_writeback *wb);
+-int set_page_dirty(struct page *page);
++int set_page_dirty(struct address_space *, struct page *);
+ int set_page_dirty_lock(struct page *page);
+ void __cancel_dirty_page(struct page *page);
+ static inline void cancel_dirty_page(struct page *page)
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a41c7cfb6351..c1ee7431bc4d 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2717,7 +2717,7 @@ int filemap_page_mkwrite(struct vm_fault *vmf)
+ 	 * progress, we are guaranteed that writeback during freezing will
+ 	 * see the dirty page and writeprotect it again.
+ 	 */
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	wait_for_stable_page(page);
+ out:
+ 	sb_end_pagefault(inode->i_sb);
+diff --git a/mm/gup.c b/mm/gup.c
+index 6afae32571ca..5b9cee21d9dd 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -164,7 +164,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
+ 	if (flags & FOLL_TOUCH) {
+ 		if ((flags & FOLL_WRITE) &&
+ 		    !pte_dirty(pte) && !PageDirty(page))
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 		/*
+ 		 * pte_mkyoung() would be more correct here, but atomic care
+ 		 * is needed to avoid losing the dirty bit: it is easier to use
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 5a68730eebd6..9d628ab218ce 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2892,7 +2892,7 @@ void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
+ 	pmdval = *pvmw->pmd;
+ 	pmdp_invalidate(vma, address, pvmw->pmd);
+ 	if (pmd_dirty(pmdval))
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 	entry = make_migration_entry(page, pmd_write(pmdval));
+ 	pmdswp = swp_entry_to_pmd(entry);
+ 	if (pmd_soft_dirty(pmdval))
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 976bbc5646fe..b4595b509d6e 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3387,7 +3387,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		pte = huge_ptep_get_and_clear(mm, address, ptep);
+ 		tlb_remove_huge_tlb_entry(h, tlb, ptep, address);
+ 		if (huge_pte_dirty(pte))
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
  
- void ubh_mark_buffer_uptodate (struct ufs_buffer_head * ubh, int flag)
-diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
-index 6c355f43b46b..5e77654f8e81 100644
---- a/include/linux/buffer_head.h
-+++ b/include/linux/buffer_head.h
-@@ -175,7 +175,7 @@ void buffer_check_dirty_writeback(struct page *page,
-  * Declarations
+ 		hugetlb_count_sub(pages_per_huge_page(h), mm);
+ 		page_remove_rmap(page, true);
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index e42568284e06..ccd5da4e855f 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1513,7 +1513,7 @@ static void collapse_shmem(struct mm_struct *mm,
+ 		retract_page_tables(mapping, start);
+ 
+ 		/* Everything is ready, let's unfreeze the new_page */
+-		set_page_dirty(new_page);
++		set_page_dirty(NULL, new_page);
+ 		SetPageUptodate(new_page);
+ 		page_ref_unfreeze(new_page, HPAGE_PMD_NR);
+ 		mem_cgroup_commit_charge(new_page, memcg, false, true);
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 293721f5da70..1c16a4309c1d 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1061,7 +1061,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
+ 			goto out_unlock;
+ 		}
+ 		if (pte_dirty(entry))
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 
+ 		if (pte_protnone(entry))
+ 			entry = pte_mkclean(pte_clear_savedwrite(entry));
+diff --git a/mm/memory.c b/mm/memory.c
+index 6ffd76528e7b..22906aab3922 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1327,7 +1327,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 			if (!PageAnon(page)) {
+ 				if (pte_dirty(ptent)) {
+ 					force_flush = 1;
+-					set_page_dirty(page);
++					set_page_dirty(NULL, page);
+ 				}
+ 				if (pte_young(ptent) &&
+ 				    likely(!(vma->vm_flags & VM_SEQ_READ)))
+@@ -2400,7 +2400,7 @@ static void fault_dirty_shared_page(struct vm_area_struct *vma,
+ 	bool dirtied;
+ 	bool page_mkwrite = vma->vm_ops && vma->vm_ops->page_mkwrite;
+ 
+-	dirtied = set_page_dirty(page);
++	dirtied = set_page_dirty(NULL, page);
+ 	VM_BUG_ON_PAGE(PageAnon(page), page);
+ 	/*
+ 	 * Take a local copy of the address_space - page.mapping may be zeroed
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index ed9424f84715..d8856be8cc70 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2548,7 +2548,7 @@ EXPORT_SYMBOL(redirty_page_for_writepage);
+  * If the mapping doesn't provide a set_page_dirty a_op, then
+  * just fall through and assume that it wants buffer_heads.
   */
+-int set_page_dirty(struct page *page)
++int set_page_dirty(struct address_space *_mapping, struct page *page)
+ {
+ 	struct address_space *mapping = page_mapping(page);
  
--void mark_buffer_dirty(struct buffer_head *bh);
-+void mark_buffer_dirty(struct address_space *, struct buffer_head *);
- void mark_buffer_write_io_error(struct address_space *mapping,
- 		struct page *page, struct buffer_head *bh);
- void touch_buffer(struct buffer_head *bh);
+@@ -2599,7 +2599,7 @@ int set_page_dirty_lock(struct page *page)
+ 	int ret;
+ 
+ 	lock_page(page);
+-	ret = set_page_dirty(page);
++	ret = set_page_dirty(NULL, page);
+ 	unlock_page(page);
+ 	return ret;
+ }
+@@ -2693,7 +2693,7 @@ int clear_page_dirty_for_io(struct page *page)
+ 		 * threads doing their things.
+ 		 */
+ 		if (page_mkclean(page))
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 		/*
+ 		 * We carefully synchronise fault handlers against
+ 		 * installing a dirty pte and marking the page dirty
+diff --git a/mm/page_io.c b/mm/page_io.c
+index b4a4c52bb4e9..5afc8b8a6b97 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -62,7 +62,7 @@ void end_swap_bio_write(struct bio *bio)
+ 		 *
+ 		 * Also clear PG_reclaim to avoid rotate_reclaimable_page()
+ 		 */
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		pr_alert("Write-error on swap-device (%u:%u:%llu)\n",
+ 			 MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)),
+ 			 (unsigned long long)bio->bi_iter.bi_sector);
+@@ -329,7 +329,7 @@ int __swap_writepage(struct address_space *mapping, struct page *page,
+ 			 * the normal direct-to-bio case as it could
+ 			 * be temporary.
+ 			 */
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			ClearPageReclaim(page);
+ 			pr_err_ratelimited("Write error on dio swapfile (%llu)\n",
+ 					   page_file_offset(page));
+@@ -348,7 +348,7 @@ int __swap_writepage(struct address_space *mapping, struct page *page,
+ 	ret = 0;
+ 	bio = get_swap_bio(GFP_NOIO, page, end_write_func);
+ 	if (bio == NULL) {
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		unlock_page(page);
+ 		ret = -ENOMEM;
+ 		goto out;
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 47db27f8049e..822a3a0cd51c 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1465,7 +1465,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 
+ 		/* Move the dirty bit to the page. Now the pte is gone. */
+ 		if (pte_dirty(pteval))
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 
+ 		/* Update high watermark before we lower rss */
+ 		update_hiwater_rss(mm);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 7f3168d547c8..cb09fea4a9ce 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -874,7 +874,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 				partial_end = 0;
+ 			}
+ 			zero_user_segment(page, partial_start, top);
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
+@@ -884,7 +884,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 		shmem_getpage(inode, end, &page, SGP_READ);
+ 		if (page) {
+ 			zero_user_segment(page, 0, partial_end);
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
+@@ -1189,7 +1189,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
+ 		 * only does trylock page: if we raced, best clean up here.
+ 		 */
+ 		delete_from_swap_cache(*pagep);
+-		set_page_dirty(*pagep);
++		set_page_dirty(NULL, *pagep);
+ 		if (!error) {
+ 			spin_lock_irq(&info->lock);
+ 			info->swapped--;
+@@ -1364,7 +1364,7 @@ static int shmem_writepage(struct address_space *_mapping, struct page *page,
+ free_swap:
+ 	put_swap_page(page, swap);
+ redirty:
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	if (wbc->for_reclaim)
+ 		return AOP_WRITEPAGE_ACTIVATE;	/* Return with page locked */
+ 	unlock_page(page);
+@@ -1738,7 +1738,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 			mark_page_accessed(page);
+ 
+ 		delete_from_swap_cache(page);
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		swap_free(swap);
+ 
+ 	} else {
+@@ -2416,7 +2416,7 @@ shmem_write_end(struct file *file, struct address_space *mapping,
+ 		}
+ 		SetPageUptodate(head);
+ 	}
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	unlock_page(page);
+ 	put_page(page);
+ 
+@@ -2469,7 +2469,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
+ 		}
+ 		if (page) {
+ 			if (sgp == SGP_CACHE)
+-				set_page_dirty(page);
++				set_page_dirty(NULL, page);
+ 			unlock_page(page);
+ 		}
+ 
+@@ -2970,7 +2970,7 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
+ 		 * than free the pages we are allocating (and SGP_CACHE pages
+ 		 * might still be clean: we now need to mark those dirty too).
+ 		 */
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		unlock_page(page);
+ 		put_page(page);
+ 		cond_resched();
+@@ -3271,7 +3271,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
+ 		inode->i_op = &shmem_symlink_inode_operations;
+ 		memcpy(page_address(page), symname, len);
+ 		SetPageUptodate(page);
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 		unlock_page(page);
+ 		put_page(page);
+ 	}
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 40a2437e3c34..3fede4bc753e 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -249,7 +249,7 @@ int add_to_swap(struct page *page)
+ 	 * is swap in later. Always setting the dirty bit for the page solves
+ 	 * the problem.
+ 	 */
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 
+ 	return 1;
+ 
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 57d4d0948f40..78d907008367 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -874,7 +874,7 @@ void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
+ 	 * is needed.
+ 	 */
+ 	if (page_mkclean(page))
+-		set_page_dirty(page);
++		set_page_dirty(NULL, page);
+ 	unlock_page(page);
+ 	put_page(page);
+ }
+diff --git a/net/rds/ib_rdma.c b/net/rds/ib_rdma.c
+index e678699268a2..91b2cb759bf9 100644
+--- a/net/rds/ib_rdma.c
++++ b/net/rds/ib_rdma.c
+@@ -252,7 +252,7 @@ void __rds_ib_teardown_mr(struct rds_ib_mr *ibmr)
+ 			/* FIXME we need a way to tell a r/w MR
+ 			 * from a r/o MR */
+ 			WARN_ON(!page->mapping && irqs_disabled());
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 			put_page(page);
+ 		}
+ 		kfree(ibmr->sg);
+diff --git a/net/rds/rdma.c b/net/rds/rdma.c
+index 634cfcb7bba6..0bc9839c2c01 100644
+--- a/net/rds/rdma.c
++++ b/net/rds/rdma.c
+@@ -461,7 +461,7 @@ void rds_rdma_free_op(struct rm_rdma_op *ro)
+ 		 * to local memory */
+ 		if (!ro->op_write) {
+ 			WARN_ON(!page->mapping && irqs_disabled());
+-			set_page_dirty(page);
++			set_page_dirty(NULL, page);
+ 		}
+ 		put_page(page);
+ 	}
+@@ -478,7 +478,7 @@ void rds_atomic_free_op(struct rm_atomic_op *ao)
+ 	/* Mark page dirty if it was possibly modified, which
+ 	 * is the case for a RDMA_READ which copies from remote
+ 	 * to local memory */
+-	set_page_dirty(page);
++	set_page_dirty(NULL, page);
+ 	put_page(page);
+ 
+ 	kfree(ao->op_notifier);
 -- 
 2.14.3
