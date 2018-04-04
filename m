@@ -1,42 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 684516B0005
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 22:11:43 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id q15-v6so194913itb.7
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 19:11:43 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y79sor1787941ioy.9.2018.04.03.19.11.42
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BF496B0005
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 22:17:55 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id a5so9699699uak.17
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 19:17:55 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id y184si1720192vka.35.2018.04.03.19.17.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Apr 2018 19:11:42 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Apr 2018 19:17:53 -0700 (PDT)
+Date: Tue, 3 Apr 2018 22:17:46 -0400
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: Re: [PATCH v2 1/2] mm: uninitialized struct page poisoning sanity
+ checking
+Message-ID: <20180404021746.m77czxidkaumkses@xakep.localdomain>
+References: <20180131210300.22963-1-pasha.tatashin@oracle.com>
+ <20180131210300.22963-2-pasha.tatashin@oracle.com>
+ <20180313234333.j3i43yxeawx5d67x@sasha-lappy>
+ <CAGM2reaPK=ZcLBOnmBiC2-u86DZC6ukOhL1xxZofB2OTW3ozoA@mail.gmail.com>
+ <20180314005350.6xdda2uqzuy4n3o6@sasha-lappy>
+ <20180315190430.o3vs7uxlafzdwgzd@xakep.localdomain>
+ <20180315204312.n7p4zzrftgg6m7zw@sasha-lappy>
 MIME-Version: 1.0
-In-Reply-To: <20180404010946.6186729B@viggo.jf.intel.com>
-References: <20180404010946.6186729B@viggo.jf.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 3 Apr 2018 19:11:41 -0700
-Message-ID: <CA+55aFxYunj-s2N60Q2Y63TsrhJKwqLa=-GJPMb6--RA_ud6Fw@mail.gmail.com>
-Subject: Re: [PATCH 00/11] [v4] Use global pages with PTI
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180315204312.n7p4zzrftgg6m7zw@sasha-lappy>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, the arch/x86 maintainers <x86@kernel.org>, namit@vmware.com
+To: Sasha Levin <Alexander.Levin@microsoft.com>
+Cc: "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@suse.com" <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "bharata@linux.vnet.ibm.com" <bharata@linux.vnet.ibm.com>
 
-On Tue, Apr 3, 2018 at 6:09 PM, Dave Hansen <dave.hansen@linux.intel.com> wrote:
-> Changes from v3:
->  * Fix whitespace issue noticed by willy
->  * Clarify comments about X86_FEATURE_PGE checks
->  * Clarify commit message around the necessity of _PAGE_GLOBAL
->    filtering when CR4.PGE=0 or PGE is unsupported.
+On 18-03-15 20:43:14, Sasha Levin wrote:
+> On Thu, Mar 15, 2018 at 03:04:30PM -0400, Pavel Tatashin wrote:
+> >>
+> >> Attached the config. It just happens on boot.
+> >
+> >Hi Sasha,
+> >
+> >I have tried unsuccessfully to reproduce the bug in qemu with 20G RAM,
+> >and 8 CPUs.
+> >
+> >Patch "mm: uninitialized struct page poisoning sanity" should be improved
+> >to make dump_page() to detect poisoned struct page, and simply print hex
+> >in such case. I will send an updated patch later.
+> >
+> >How do you run this on Microsoft hypervisor? Do I need Windows 10 for
+> >that?
+> 
+> Booting a Linux VM on Azure would be the easiest, and free too :)
 
-I couldn't see anything odd in this, but I only read the explanations
-and the patches, and the devil is in the details.
+Hi Sasha,
 
-But it all looks sane to me, and the added comments all seemed like
-good ideas. Plus the performance numbers certainly speak for
-themselves, even if the big changes are from that Atom microserver
-that I probably personally wouldn't want to use anyway ;).
+I have registered on Azure's portal, and created a VM with 4 CPUs and 16G
+of RAM. However, I still was not able to reproduce the boot bug you found.
 
-So Ack from me, maybe a weak review.
+Could you please try an updated patch that I sent out today, the panic
+message should improve:
 
-               Linus
+https://lkml.org/lkml/2018/4/3/583
+
+Thank you,
+Pasha
