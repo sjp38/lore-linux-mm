@@ -1,70 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 278B36B0006
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 10:34:51 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f19-v6so14576987plr.23
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 07:34:51 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t192si3868277pgb.595.2018.04.04.07.34.49
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E4DF6B0008
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 10:35:05 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id t1-v6so14687817plb.5
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 07:35:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u192sor1256294pgc.162.2018.04.04.07.35.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 04 Apr 2018 07:34:50 -0700 (PDT)
-Date: Wed, 4 Apr 2018 16:34:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] mm: memcontrol: Use cgroup_rstat for event accounting
-Message-ID: <20180404143447.GJ6312@dhcp22.suse.cz>
-References: <20180324160901.512135-1-tj@kernel.org>
- <20180324160901.512135-2-tj@kernel.org>
- <20180404140855.GA28966@cmpxchg.org>
- <20180404141850.GC28966@cmpxchg.org>
+        (Google Transport Security);
+        Wed, 04 Apr 2018 07:35:03 -0700 (PDT)
+Subject: Re: [PATCH v6 1/5] mm: page_alloc: remain memblock_next_valid_pfn()
+ on arm and arm64
+References: <1522810579-7466-2-git-send-email-hejianet@gmail.com>
+ <201804042156.YTVq2WAJ%fengguang.wu@intel.com>
+From: Jia He <hejianet@gmail.com>
+Message-ID: <dbc4a381-c952-6806-ed0d-b2a33748e7ac@gmail.com>
+Date: Wed, 4 Apr 2018 22:34:41 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180404141850.GC28966@cmpxchg.org>
+In-Reply-To: <201804042156.YTVq2WAJ%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tejun Heo <tj@kernel.org>, vdavydov.dev@gmail.com, guro@fb.com, riel@surriel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
 
-On Wed 04-04-18 10:18:50, Johannes Weiner wrote:
-> On Wed, Apr 04, 2018 at 10:08:55AM -0400, Johannes Weiner wrote:
-> > On Sat, Mar 24, 2018 at 09:08:59AM -0700, Tejun Heo wrote:
-> > > @@ -91,6 +91,9 @@ struct mem_cgroup_stat_cpu {
-> > >  	unsigned long events[MEMCG_NR_EVENTS];
-> > >  	unsigned long nr_page_events;
-> > >  	unsigned long targets[MEM_CGROUP_NTARGETS];
-> > > +
-> > > +	/* for cgroup rstat delta calculation */
-> > > +	unsigned long last_events[MEMCG_NR_EVENTS];
-> > >  };
-> > >  
-> > >  struct mem_cgroup_reclaim_iter {
-> > > @@ -233,7 +236,11 @@ struct mem_cgroup {
-> > >  
-> > >  	struct mem_cgroup_stat_cpu __percpu *stat_cpu;
-> > >  	atomic_long_t		stat[MEMCG_NR_STAT];
-> > > -	atomic_long_t		events[MEMCG_NR_EVENTS];
-> > > +
-> > > +	/* events is managed by cgroup rstat */
-> > > +	unsigned long long	events[MEMCG_NR_EVENTS];	/* local */
-> > > +	unsigned long long	tree_events[MEMCG_NR_EVENTS];	/* subtree */
-> > > +	unsigned long long	pending_events[MEMCG_NR_EVENTS];/* propagation */
-> > 
-> > The lazy updates are neat, but I'm a little concerned at the memory
-> > footprint. On a 64-cpu machine for example, this adds close to 9000
-> > words to struct mem_cgroup. And we really only need the accuracy for
-> > the 4 cgroup items in memory.events, not all VM events and stats.
-> > 
-> > Why not restrict the patch to those? It would also get rid of the
-> > weird sharing between VM and cgroup enums.
-> 
-> In fact, I wonder if we need per-cpuness for MEMCG_LOW, MEMCG_HIGH
-> etc. in the first place. They describe super high-level reclaim and
-> OOM events, so they're not nearly as hot as other VM events and
-> stats. We could probably just have a per-memcg array of atomics.
+sorry, will fix it right now
 
-Agreed!
+Cheer,
+
+Jia
+
+
+On 4/4/2018 10:19 PM, kbuild test robot Wrote:
+> Hi Jia,
+>
+> Thank you for the patch! Yet something to improve:
+>
+> [auto build test ERROR on arm64/for-next/core]
+> [also build test ERROR on v4.16 next-20180403]
+> [cannot apply to linus/master mmotm/master]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+>
+> url:    https://github.com/0day-ci/linux/commits/Jia-He/mm-page_alloc-remain-memblock_next_valid_pfn-on-arm-and-arm64/20180404-200732
+> base:   https://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git for-next/core
+> config: i386-randconfig-x013-201813 (attached as .config)
+> compiler: gcc-7 (Debian 7.3.0-1) 7.3.0
+> reproduce:
+>          # save the attached .config to linux build tree
+>          make ARCH=i386
+>
+> All error/warnings (new ones prefixed by >>):
+>
+>     In file included from include/linux/gfp.h:6:0,
+>                      from include/linux/mm.h:10,
+>                      from mm/page_alloc.c:18:
+>     mm/page_alloc.c: In function 'memmap_init_zone':
+>>> include/linux/mmzone.h:1299:28: error: called object is not a function or function pointer
+>      #define next_valid_pfn (pfn++)
+>                             ~~~~^~~
+>>> mm/page_alloc.c:5349:39: note: in expansion of macro 'next_valid_pfn'
+>       for (pfn = start_pfn; pfn < end_pfn; next_valid_pfn(pfn)) {
+>                                            ^~~~~~~~~~~~~~
+>
+> vim +1299 include/linux/mmzone.h
+>
+>    1296	
+>    1297	/* fallback to default defitions*/
+>    1298	#ifndef next_valid_pfn
+>> 1299	#define next_valid_pfn	(pfn++)
+>    1300	#endif
+>    1301	
+>
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
 -- 
-Michal Hocko
-SUSE Labs
+Cheers,
+Jia
