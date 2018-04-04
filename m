@@ -1,81 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E4DF6B0008
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 10:35:05 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id t1-v6so14687817plb.5
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 07:35:05 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u192sor1256294pgc.162.2018.04.04.07.35.03
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DE67B6B0006
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 10:39:02 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 91-v6so14612037pla.18
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 07:39:02 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id y6si4119051pfe.248.2018.04.04.07.39.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 04 Apr 2018 07:35:03 -0700 (PDT)
-Subject: Re: [PATCH v6 1/5] mm: page_alloc: remain memblock_next_valid_pfn()
- on arm and arm64
-References: <1522810579-7466-2-git-send-email-hejianet@gmail.com>
- <201804042156.YTVq2WAJ%fengguang.wu@intel.com>
-From: Jia He <hejianet@gmail.com>
-Message-ID: <dbc4a381-c952-6806-ed0d-b2a33748e7ac@gmail.com>
-Date: Wed, 4 Apr 2018 22:34:41 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 04 Apr 2018 07:39:01 -0700 (PDT)
+Date: Wed, 4 Apr 2018 07:39:00 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: Signal handling in a page fault handler
+Message-ID: <20180404143900.GA1777@bombadil.infradead.org>
+References: <20180402141058.GL13332@bombadil.infradead.org>
+ <20180404093254.GC3881@phenom.ffwll.local>
 MIME-Version: 1.0
-In-Reply-To: <201804042156.YTVq2WAJ%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180404093254.GC3881@phenom.ffwll.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
+To: dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Souptick Joarder <jrdr.linux@gmail.com>, linux-kernel@vger.kernel.org
 
-sorry, will fix it right now
+On Wed, Apr 04, 2018 at 11:32:54AM +0200, Daniel Vetter wrote:
+> So we've done some experiments for the case where the fault originated
+> from kernel context (copy_to|from_user and friends). The fixup code seems
+> to retry the copy once after the fault (in copy_user_handle_tail), if that
+> fails again we get a short read/write. This might result in an -EFAULT,
+> short read()/write() or anything else really, depending upon the syscall
+> api.
+> 
+> Except in some code paths in gpu drivers where we convert anything into
+> -ERESTARTSYS/EINTR if there's a signal pending it won't ever result in the
+> syscall getting restarted (well except maybe short read/writes if
+> userspace bothers with that).
+> 
+> So I guess gpu fault handlers indeed break the kernel's expectations, but
+> then I think we're getting away with that because the inner workings of
+> gpu memory objects is all heavily abstracted away by opengl/vulkan and
+> friends.
+> 
+> I guess what we could do is try to only do killable sleeps if it's a
+> kernel fault, but that means wiring a flag through all the callchains. Not
+> pretty. Except when there's a magic set of functions that would convert
+> all interruptible sleeps to killable ones only for us.
 
-Cheer,
+I actually have plans to allow mutex_lock_{interruptible,killable} to
+return -EWOULDBLOCK if a flag is set.  So this doesn't seem entirely
+unrelated.  Something like this perhaps:
 
-Jia
+ struct task_struct {
++	unsigned int sleep_state;
+ };
+
+ static noinline int __sched
+-__mutex_lock_interruptible_slowpath(struct mutex *lock)
++__mutex_lock_slowpath(struct mutex *lock, long state)
+ {
+-	return __mutex_lock(lock, TASK_INTERRUPTIBLE, 0, NULL, _RET_IP_);
++	if (state == TASK_NOBLOCK)
++		return -EWOULDBLOCK;
++	return __mutex_lock(lock, state, 0, NULL, _RET_IP_);
+ }
+
++int __sched mutex_lock_state(struct mutex *lock, long state)
++{
++	might_sleep();
++
++	if (__mutex_trylock_fast(lock))
++		return 0;
++
++	return __mutex_lock_slowpath(lock, state);
++}
++EXPORT_SYMBOL(mutex_lock_state);
+
+Then the page fault handler can do something like:
+
+	old_state = current->sleep_state;
+	current->sleep_state = TASK_INTERRUPTIBLE;
+	...
+	current->sleep_state = old_state;
 
 
-On 4/4/2018 10:19 PM, kbuild test robot Wrote:
-> Hi Jia,
->
-> Thank you for the patch! Yet something to improve:
->
-> [auto build test ERROR on arm64/for-next/core]
-> [also build test ERROR on v4.16 next-20180403]
-> [cannot apply to linus/master mmotm/master]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
->
-> url:    https://github.com/0day-ci/linux/commits/Jia-He/mm-page_alloc-remain-memblock_next_valid_pfn-on-arm-and-arm64/20180404-200732
-> base:   https://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git for-next/core
-> config: i386-randconfig-x013-201813 (attached as .config)
-> compiler: gcc-7 (Debian 7.3.0-1) 7.3.0
-> reproduce:
->          # save the attached .config to linux build tree
->          make ARCH=i386
->
-> All error/warnings (new ones prefixed by >>):
->
->     In file included from include/linux/gfp.h:6:0,
->                      from include/linux/mm.h:10,
->                      from mm/page_alloc.c:18:
->     mm/page_alloc.c: In function 'memmap_init_zone':
->>> include/linux/mmzone.h:1299:28: error: called object is not a function or function pointer
->      #define next_valid_pfn (pfn++)
->                             ~~~~^~~
->>> mm/page_alloc.c:5349:39: note: in expansion of macro 'next_valid_pfn'
->       for (pfn = start_pfn; pfn < end_pfn; next_valid_pfn(pfn)) {
->                                            ^~~~~~~~~~~~~~
->
-> vim +1299 include/linux/mmzone.h
->
->    1296	
->    1297	/* fallback to default defitions*/
->    1298	#ifndef next_valid_pfn
->> 1299	#define next_valid_pfn	(pfn++)
->    1300	#endif
->    1301	
->
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
--- 
-Cheers,
-Jia
+This has the page-fault-in-a-signal-handler problem.  I don't know if
+there's a way to determine if we're already in a signal handler and use
+a different sleep_state ...?
