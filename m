@@ -1,152 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C0C16B0005
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 05:23:21 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id v6so4663227qkd.23
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 02:23:21 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u41si4644912qtk.403.2018.04.04.02.23.19
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 31AEC6B0006
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 05:24:54 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id 86so14357454qkr.22
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 02:24:54 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id i8si2863692qtj.44.2018.04.04.02.24.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 02:23:20 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w349J8sl009701
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2018 05:23:19 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2h4puj4qd1-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 04 Apr 2018 05:23:18 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 4 Apr 2018 10:23:16 +0100
-Subject: Re: [PATCH v9 04/24] mm: Prepare for FAULT_FLAG_SPECULATIVE
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1520963994-28477-5-git-send-email-ldufour@linux.vnet.ibm.com>
- <alpine.DEB.2.20.1803251426120.80485@chino.kir.corp.google.com>
- <361fa6e7-3c17-e1b8-8046-af72c4459613@linux.vnet.ibm.com>
- <alpine.DEB.2.20.1804031449130.153232@chino.kir.corp.google.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 4 Apr 2018 11:23:05 +0200
+        Wed, 04 Apr 2018 02:24:53 -0700 (PDT)
+Subject: Re: WARNING in account_page_dirtied
+References: <001a113ff9ca1684ab0568cc6bb6@google.com>
+ <20180403120529.z3mthf2v64he52gg@quack2.suse.cz>
+From: Steven Whitehouse <swhiteho@redhat.com>
+Message-ID: <b81bbecb-1c3c-ca92-84a5-15db63611db6@redhat.com>
+Date: Wed, 4 Apr 2018 10:24:48 +0100
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1804031449130.153232@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <20180403120529.z3mthf2v64he52gg@quack2.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <bbc24965-2e78-c4c7-dd53-ebc24f73a9df@linux.vnet.ibm.com>
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Jan Kara <jack@suse.cz>, syzbot <syzbot+b7772c65a1d88bfd8fca@syzkaller.appspotmail.com>
+Cc: akpm@linux-foundation.org, axboe@kernel.dk, hannes@cmpxchg.org, jlayton@redhat.com, keescook@chromium.org, laoar.shao@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, syzkaller-bugs@googlegroups.com, tytso@mit.edu, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+
+Hi,
 
 
-
-On 03/04/2018 23:57, David Rientjes wrote:
-> On Wed, 28 Mar 2018, Laurent Dufour wrote:
-> 
->>>> diff --git a/include/linux/mm.h b/include/linux/mm.h
->>>> index 4d02524a7998..2f3e98edc94a 100644
->>>> --- a/include/linux/mm.h
->>>> +++ b/include/linux/mm.h
->>>> @@ -300,6 +300,7 @@ extern pgprot_t protection_map[16];
->>>>  #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
->>>>  #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
->>>>  #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
->>>> +#define FAULT_FLAG_SPECULATIVE	0x200	/* Speculative fault, not holding mmap_sem */
->>>>  
->>>>  #define FAULT_FLAG_TRACE \
->>>>  	{ FAULT_FLAG_WRITE,		"WRITE" }, \
->>>
->>> I think FAULT_FLAG_SPECULATIVE should be introduced in the patch that 
->>> actually uses it.
+On 03/04/18 13:05, Jan Kara wrote:
+> Hello,
+>
+> On Sun 01-04-18 10:01:02, syzbot wrote:
+>> syzbot hit the following crash on upstream commit
+>> 10b84daddbec72c6b440216a69de9a9605127f7a (Sat Mar 31 17:59:00 2018 +0000)
+>> Merge branch 'perf-urgent-for-linus' of
+>> git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
+>> syzbot dashboard link:
+>> https://syzkaller.appspot.com/bug?extid=b7772c65a1d88bfd8fca
 >>
->> I think you're right, I'll move down this define in the series.
+>> C reproducer: https://syzkaller.appspot.com/x/repro.c?id=5705587757154304
+>> syzkaller reproducer:
+>> https://syzkaller.appspot.com/x/repro.syz?id=5644332530925568
+>> Raw console output:
+>> https://syzkaller.appspot.com/x/log.txt?id=5472755969425408
+>> Kernel config:
+>> https://syzkaller.appspot.com/x/.config?id=-2760467897697295172
+>> compiler: gcc (GCC) 7.1.1 20170620
 >>
->>>> diff --git a/mm/memory.c b/mm/memory.c
->>>> index e0ae4999c824..8ac241b9f370 100644
->>>> --- a/mm/memory.c
->>>> +++ b/mm/memory.c
->>>> @@ -2288,6 +2288,13 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
->>>>  }
->>>>  EXPORT_SYMBOL_GPL(apply_to_page_range);
->>>>  
->>>> +static bool pte_map_lock(struct vm_fault *vmf)
->>>
->>> inline?
+>> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+>> Reported-by: syzbot+b7772c65a1d88bfd8fca@syzkaller.appspotmail.com
+>> It will help syzbot understand when the bug is fixed. See footer for
+>> details.
+>> If you forward the report, please keep this part and the footer.
 >>
->> Agreed.
+>> gfs2: fsid=loop0.0: jid=0, already locked for use
+>> gfs2: fsid=loop0.0: jid=0: Looking at journal...
+>> gfs2: fsid=loop0.0: jid=0: Done
+>> gfs2: fsid=loop0.0: first mount done, others may mount
+>> gfs2: fsid=loop0.0: found 1 quota changes
+>> WARNING: CPU: 0 PID: 4469 at ./include/linux/backing-dev.h:341 inode_to_wb
+>> include/linux/backing-dev.h:338 [inline]
+>> WARNING: CPU: 0 PID: 4469 at ./include/linux/backing-dev.h:341
+>> account_page_dirtied+0x8f9/0xcb0 mm/page-writeback.c:2416
+>> Kernel panic - not syncing: panic_on_warn set ...
 >>
-> 
-> Ignore this, the final form of the function after the full patchset 
-> shouldn't be inline.
+>> CPU: 0 PID: 4469 Comm: syzkaller368843 Not tainted 4.16.0-rc7+ #9
+>> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+>> Google 01/01/2011
+>> Call Trace:
+>>   __dump_stack lib/dump_stack.c:17 [inline]
+>>   dump_stack+0x194/0x24d lib/dump_stack.c:53
+>>   panic+0x1e4/0x41c kernel/panic.c:183
+>>   __warn+0x1dc/0x200 kernel/panic.c:547
+>>   report_bug+0x1f4/0x2b0 lib/bug.c:186
+>>   fixup_bug.part.10+0x37/0x80 arch/x86/kernel/traps.c:178
+>>   fixup_bug arch/x86/kernel/traps.c:247 [inline]
+>>   do_error_trap+0x2d7/0x3e0 arch/x86/kernel/traps.c:296
+>>   do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:315
+>>   invalid_op+0x1b/0x40 arch/x86/entry/entry_64.S:986
+>> RIP: 0010:inode_to_wb include/linux/backing-dev.h:338 [inline]
+>> RIP: 0010:account_page_dirtied+0x8f9/0xcb0 mm/page-writeback.c:2416
+>> RSP: 0018:ffff8801d966e5c0 EFLAGS: 00010093
+>> RAX: ffff8801acb7e600 RBX: 1ffff1003b2cdcba RCX: ffffffff818f47a9
+>> RDX: 0000000000000000 RSI: ffff8801d3338148 RDI: 0000000000000082
+>> RBP: ffff8801d966e698 R08: 1ffff1003b2cdc13 R09: 000000000000000c
+>> R10: ffff8801d966e558 R11: 0000000000000002 R12: ffff8801c96f0368
+>> R13: ffffea0006b12780 R14: ffff8801c96f01d8 R15: ffff8801c96f01d8
+>>   __set_page_dirty+0x100/0x4b0 fs/buffer.c:605
+>>   mark_buffer_dirty+0x454/0x5d0 fs/buffer.c:1126
+> Huh, I don't see how this could possibly happen. The warning is:
+>
+>          WARN_ON_ONCE(debug_locks &&
+>                       (!lockdep_is_held(&inode->i_lock) &&
+>                        !lockdep_is_held(&inode->i_mapping->tree_lock) &&
+>                        !lockdep_is_held(&inode->i_wb->list_lock)));
+>
+> Now __set_page_dirty() which called account_page_dirtied() just did:
+>
+> spin_lock_irqsave(&mapping->tree_lock, flags);
+>
+> Now the fact is that account_page_dirtied() actually checks
+> mapping->host->i_mapping->tree_lock so if mapping->host->i_mapping doesn't
+> get us back to 'mapping', that would explain the warning. But then
+> something would have to be very wrong in the GFS2 land... Adding some GFS2
+> related CCs just in case they have some idea.
+So I looked at this for some time trying to work out what is going on. 
+I'm sill not 100% sure now, but lets see if we can figure it out....
 
-Indeed, I only kept as inlined the small pte_map_lock() and later
-pte_spinlock() defined when CONFIG_SPECULATIVE_PAGE_FAULT is not set.
+The stack trace shows a call path to the end of the journal flush code 
+where we are unpinning pages that have been through the journal. 
+Assuming that jdata is not in use (it is used for some internal files, 
+even if it is not selected by the user) then it is most likely that this 
+applies to a metadata page.
 
->>>> +{
->>>> +	vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd,
->>>> +				       vmf->address, &vmf->ptl);
->>>> +	return true;
->>>> +}
->>>> +
->>>>  /*
->>>>   * handle_pte_fault chooses page fault handler according to an entry which was
->>>>   * read non-atomically.  Before making any commitment, on those architectures
->>>> @@ -2477,6 +2484,7 @@ static int wp_page_copy(struct vm_fault *vmf)
->>>>  	const unsigned long mmun_start = vmf->address & PAGE_MASK;
->>>>  	const unsigned long mmun_end = mmun_start + PAGE_SIZE;
->>>>  	struct mem_cgroup *memcg;
->>>> +	int ret = VM_FAULT_OOM;
->>>>  
->>>>  	if (unlikely(anon_vma_prepare(vma)))
->>>>  		goto oom;
->>>> @@ -2504,7 +2512,11 @@ static int wp_page_copy(struct vm_fault *vmf)
->>>>  	/*
->>>>  	 * Re-check the pte - we dropped the lock
->>>>  	 */
->>>> -	vmf->pte = pte_offset_map_lock(mm, vmf->pmd, vmf->address, &vmf->ptl);
->>>> +	if (!pte_map_lock(vmf)) {
->>>> +		mem_cgroup_cancel_charge(new_page, memcg, false);
->>>> +		ret = VM_FAULT_RETRY;
->>>> +		goto oom_free_new;
->>>> +	}
->>>
->>> Ugh, but we aren't oom here, so maybe rename oom_free_new so that it makes 
->>> sense for return values other than VM_FAULT_OOM?
->>
->> You're right, now this label name is not correct, I'll rename it to
->> "out_free_new" and rename also the label "oom" to "out" since it is generic too
->> now.
->>
-> 
-> I think it would just be better to introduce a out_uncharge that handles 
-> the mem_cgroup_cancel_charge() in the exit path.
+For recent gfs2, all the metadata pages are kept in an address space 
+which for inodes is in the relevant glock, and for resource groups is a 
+single address space kept for only that purpose in the super block. In 
+both of those cases the mapping->host points to the block device inode. 
+Since the inode's mapping->host reflects only the block device address 
+space (unused by gfs2) we would not expect it to point back to the 
+relevant address space.
 
-Yes adding an out_uncharge label sounds good too. I'll add it and also rename
-oom_* ones to out_*.
+As far as I can tell this usage is ok, since it doesn't make much sense 
+to require lots of inodes to be hanging around uselessly just to keep 
+metadata pages in. That after all, is why the address space and inode 
+are separate structures in the first place since it is not a one to one 
+relationship. So I think that probably explains why this triggers, since 
+the test is not really a valid one in all cases,
 
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2645,9 +2645,8 @@ static int wp_page_copy(struct vm_fault *vmf)
->  	 * Re-check the pte - we dropped the lock
->  	 */
->  	if (!pte_map_lock(vmf)) {
-> -		mem_cgroup_cancel_charge(new_page, memcg, false);
->  		ret = VM_FAULT_RETRY;
-> -		goto oom_free_new;
-> +		goto out_uncharge;
->  	}
->  	if (likely(pte_same(*vmf->pte, vmf->orig_pte))) {
->  		if (old_page) {
-> @@ -2735,6 +2734,8 @@ static int wp_page_copy(struct vm_fault *vmf)
->  		put_page(old_page);
->  	}
->  	return page_copied ? VM_FAULT_WRITE : 0;
-> +out_uncharge:
-> +	mem_cgroup_cancel_charge(new_page, memcg, false);
->  oom_free_new:
->  	put_page(new_page);
->  oom:
-> 
+Steve.
+
+>>   gfs2_unpin+0x143/0x12c0 fs/gfs2/lops.c:108
+>>   buf_lo_after_commit+0x273/0x430 fs/gfs2/lops.c:512
+>>   lops_after_commit fs/gfs2/lops.h:67 [inline]
+>>   gfs2_log_flush+0xe2a/0x2750 fs/gfs2/log.c:809
+>>   do_sync+0x666/0xe40 fs/gfs2/quota.c:958
+>>   gfs2_quota_sync+0x2cc/0x570 fs/gfs2/quota.c:1301
+>>   gfs2_sync_fs+0x46/0xb0 fs/gfs2/super.c:956
+>>   __sync_filesystem fs/sync.c:39 [inline]
+>>   sync_filesystem+0x188/0x2e0 fs/sync.c:64
+>>   generic_shutdown_super+0xd5/0x540 fs/super.c:425
+>>   kill_block_super+0x9b/0xf0 fs/super.c:1146
+>>   gfs2_kill_sb+0x133/0x1b0 fs/gfs2/ops_fstype.c:1392
+>>   deactivate_locked_super+0x88/0xd0 fs/super.c:312
+>>   deactivate_super+0x141/0x1b0 fs/super.c:343
+>>   cleanup_mnt+0xb2/0x150 fs/namespace.c:1173
+>>   __cleanup_mnt+0x16/0x20 fs/namespace.c:1180
+>>   task_work_run+0x199/0x270 kernel/task_work.c:113
+>>   exit_task_work include/linux/task_work.h:22 [inline]
+>>   do_exit+0x9bb/0x1ad0 kernel/exit.c:865
+>>   do_group_exit+0x149/0x400 kernel/exit.c:968
+>>   SYSC_exit_group kernel/exit.c:979 [inline]
+>>   SyS_exit_group+0x1d/0x20 kernel/exit.c:977
+>>   do_syscall_64+0x281/0x940 arch/x86/entry/common.c:287
+>>   entry_SYSCALL_64_after_hwframe+0x42/0xb7
+>> RIP: 0033:0x456c29
+>> RSP: 002b:00007fff74938dc8 EFLAGS: 00000202 ORIG_RAX: 00000000000000e7
+>> RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000456c29
+>> RDX: 00000000004170e0 RSI: 0000000000000000 RDI: 0000000000000001
+>> RBP: 0000000000000003 R08: 000000000000000a R09: 0000000000418100
+>> R10: 00000000200a9300 R11: 0000000000000202 R12: 0000000000000004
+>> R13: 0000000000418100 R14: 0000000000000000 R15: 0000000000000000
+>> Dumping ftrace buffer:
+>>     (ftrace buffer empty)
+>> Kernel Offset: disabled
+>> Rebooting in 86400 seconds..
+> 								Honza
