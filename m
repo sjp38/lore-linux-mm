@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DFE7C6B0009
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:03 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id n5so13576316qtl.13
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:03 -0700 (PDT)
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 696576B0009
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:04 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id i64-v6so1719043ybg.9
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:04 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u189si883346qkd.79.2018.04.04.12.19.02
+        by mx.google.com with ESMTPS id c29si4048297qtb.39.2018.04.04.12.19.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 12:19:02 -0700 (PDT)
+        Wed, 04 Apr 2018 12:19:03 -0700 (PDT)
 From: jglisse@redhat.com
-Subject: [RFC PATCH 07/79] mm/page: add helpers to find mapping give a page and buffer head
-Date: Wed,  4 Apr 2018 15:17:54 -0400
-Message-Id: <20180404191831.5378-5-jglisse@redhat.com>
+Subject: [RFC PATCH 08/79] mm/page: add helpers to find page mapping and private given a bio
+Date: Wed,  4 Apr 2018 15:17:55 -0400
+Message-Id: <20180404191831.5378-6-jglisse@redhat.com>
 In-Reply-To: <20180404191831.5378-1-jglisse@redhat.com>
 References: <20180404191831.5378-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -25,9 +25,12 @@ Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-For now this simply use exist page_mapping() inline. Latter it will
-use buffer head pointer as a key to lookup mapping for write protected
-page.
+When page undergo io it is associated with a unique bio and thus we can
+use it to lookup other page fields which are relevant only for the bio
+under consideration.
+
+Note this only apply when page is special ie page->mapping is pointing
+to some special structure which is not a valid struct address_space.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 Cc: linux-mm@kvack.org
@@ -39,27 +42,31 @@ Cc: Jan Kara <jack@suse.cz>
 Cc: Josef Bacik <jbacik@fb.com>
 Cc: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/linux/mm-page.h | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ include/linux/mm-page.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
 diff --git a/include/linux/mm-page.h b/include/linux/mm-page.h
-index 2981db45eeef..647a8a8cf9ba 100644
+index 647a8a8cf9ba..6ec3ba19b1a4 100644
 --- a/include/linux/mm-page.h
 +++ b/include/linux/mm-page.h
-@@ -132,5 +132,17 @@ static inline unsigned long _page_file_offset(struct page *page,
- 	return page->index << PAGE_SHIFT;
+@@ -24,6 +24,7 @@
+ 
+ /* External struct dependencies: */
+ struct address_space;
++struct bio;
+ 
+ /* External function dependencies: */
+ extern pgoff_t __page_file_index(struct page *page);
+@@ -144,5 +145,13 @@ static inline struct address_space *fs_page_mapping_get_with_bh(
+ 	return page_mapping(page);
  }
  
-+/*
-+ * fs_page_mapping_get_with_bh() - page mapping knowing buffer_head
-+ * @page: page struct pointer for which we want the mapping
-+ * @bh: buffer_head associated with the page for the mapping
-+ * Returns: page mapping for the given buffer head
-+ */
-+static inline struct address_space *fs_page_mapping_get_with_bh(
-+		struct page *page, struct buffer_head *bh)
++static inline void bio_page_mapping_and_private(struct page *page,
++		struct bio *bio, struct address_space **mappingp,
++		unsigned long *privatep)
 +{
-+	return page_mapping(page);
++	*mappingp = page->mapping;
++	*privatep = page_private(page);
 +}
 +
  #endif /* MM_PAGE_H */
