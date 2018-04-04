@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C7A2A6B0275
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:25 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id s138so3565177qke.10
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:25 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A2826B0275
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:26 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id l32so16351915qtd.19
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:26 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id o103si2640146qko.458.2018.04.04.12.19.24
+        by mx.google.com with ESMTPS id q40si6938952qtq.179.2018.04.04.12.19.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 12:19:24 -0700 (PDT)
+        Wed, 04 Apr 2018 12:19:25 -0700 (PDT)
 From: jglisse@redhat.com
-Subject: [RFC PATCH 52/79] fs/buffer: use _page_has_buffers() instead of page_has_buffers()
-Date: Wed,  4 Apr 2018 15:18:16 -0400
-Message-Id: <20180404191831.5378-27-jglisse@redhat.com>
+Subject: [RFC PATCH 63/79] mm/page: convert page's index lookup to be against specific mapping
+Date: Wed,  4 Apr 2018 15:18:17 -0400
+Message-Id: <20180404191831.5378-28-jglisse@redhat.com>
 In-Reply-To: <20180404191831.5378-1-jglisse@redhat.com>
 References: <20180404191831.5378-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,382 +21,353 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Josef Bacik <jbacik@fb.com>, Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Alexander Viro <viro@zeniv.linux.org.uk>
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-The former need the address_space for which the buffer_head is being
-lookup.
+This patch switch mm to lookup the page index or offset value to be
+against specific mapping. The page index value only have a meaning
+against a mapping.
 
-----------------------------------------------------------------------
-@exists@
-identifier M;
+Using coccinelle:
+---------------------------------------------------------------------
+@@
+struct page *P;
 expression E;
 @@
-struct address_space *M;
-...
--page_buffers(E)
-+_page_buffers(E, M)
+-P->index = E
++page_set_index(P, E)
 
-@exists@
-identifier M, F;
+@@
+struct page *P;
+@@
+-P->index
++page_index(P)
+
+@@
+struct page *P;
+@@
+-page_index(P) << PAGE_SHIFT
++page_offset(P)
+
+@@
 expression E;
 @@
-F(..., struct address_space *M, ...) {...
--page_buffers(E)
-+_page_buffers(E, M)
-...}
+-page_index(E)
++_page_index(E, mapping)
 
-@exists@
-identifier M;
+@@
+expression E1, E2;
+@@
+-page_set_index(E1, E2)
++_page_set_index(E1, mapping, E2)
+
+@@
 expression E;
 @@
-struct address_space *M;
-...
--page_has_buffers(E)
-+_page_has_buffers(E, M)
+-page_to_index(E)
++_page_to_index(E, mapping)
 
-@exists@
-identifier M, F;
+@@
 expression E;
 @@
-F(..., struct address_space *M, ...) {...
--page_has_buffers(E)
-+_page_has_buffers(E, M)
-...}
+-page_to_pgoff(E)
++_page_to_pgoff(E, mapping)
 
-@exists@
-identifier I;
+@@
 expression E;
 @@
-struct inode *I;
-...
--page_buffers(E)
-+_page_buffers(E, I->i_mapping)
+-page_offset(E)
++_page_offset(E, mapping)
 
-@exists@
-identifier I, F;
+@@
 expression E;
 @@
-F(..., struct inode *I, ...) {...
--page_buffers(E)
-+_page_buffers(E, I->i_mapping)
-...}
-
-@exists@
-identifier I;
-expression E;
-@@
-struct inode *I;
-...
--page_has_buffers(E)
-+_page_has_buffers(E, I->i_mapping)
-
-@exists@
-identifier I, F;
-expression E;
-@@
-F(..., struct inode *I, ...) {...
--page_has_buffers(E)
-+_page_has_buffers(E, I->i_mapping)
-...}
-----------------------------------------------------------------------
+-page_file_offset(E)
++_page_file_offset(E, mapping)
+---------------------------------------------------------------------
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 Cc: linux-fsdevel@vger.kernel.org
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Josef Bacik <jbacik@fb.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
 ---
- fs/buffer.c | 60 ++++++++++++++++++++++++++++++------------------------------
- fs/mpage.c  | 14 +++++++-------
- 2 files changed, 37 insertions(+), 37 deletions(-)
+ mm/filemap.c        | 26 ++++++++++++++------------
+ mm/page-writeback.c | 16 +++++++++-------
+ mm/shmem.c          | 11 +++++++----
+ mm/truncate.c       | 11 ++++++-----
+ 4 files changed, 36 insertions(+), 28 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 3c424b7af5af..27b19c629308 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -89,13 +89,13 @@ void buffer_check_dirty_writeback(struct page *page,
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 012a53964215..a41c7cfb6351 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -118,7 +118,8 @@ static int page_cache_tree_insert(struct address_space *mapping,
+ 	void **slot;
+ 	int error;
  
- 	BUG_ON(!PageLocked(page));
+-	error = __radix_tree_create(&mapping->page_tree, page->index, 0,
++	error = __radix_tree_create(&mapping->page_tree,
++				    _page_index(page, mapping), 0,
+ 				    &node, &slot);
+ 	if (error)
+ 		return error;
+@@ -155,7 +156,8 @@ static void page_cache_tree_delete(struct address_space *mapping,
+ 		struct radix_tree_node *node;
+ 		void **slot;
  
--	if (!page_has_buffers(page))
-+	if (!_page_has_buffers(page, mapping))
- 		return;
+-		__radix_tree_lookup(&mapping->page_tree, page->index + i,
++		__radix_tree_lookup(&mapping->page_tree,
++				    _page_index(page, mapping) + i,
+ 				    &node, &slot);
  
- 	if (PageWriteback(page))
- 		*writeback = true;
+ 		VM_BUG_ON_PAGE(!node && nr != 1, page);
+@@ -791,12 +793,12 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+ 		void (*freepage)(struct page *);
+ 		unsigned long flags;
  
--	head = page_buffers(page);
-+	head = _page_buffers(page, mapping);
- 	bh = head;
- 	do {
- 		if (buffer_locked(bh))
-@@ -211,9 +211,9 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
- 		goto out;
+-		pgoff_t offset = old->index;
++		pgoff_t offset = _page_index(old, mapping);
+ 		freepage = mapping->a_ops->freepage;
  
- 	spin_lock(&bd_mapping->private_lock);
--	if (!page_has_buffers(page))
-+	if (!_page_has_buffers(page, bd_mapping))
- 		goto out_unlock;
--	head = page_buffers(page);
-+	head = _page_buffers(page, bd_mapping);
- 	bh = head;
- 	do {
- 		if (!buffer_mapped(bh))
-@@ -648,8 +648,8 @@ int __set_page_dirty_buffers(struct address_space *mapping,
- 		return !TestSetPageDirty(page);
+ 		get_page(new);
+ 		new->mapping = mapping;
+-		new->index = offset;
++		_page_set_index(new, mapping, offset);
  
- 	spin_lock(&mapping->private_lock);
--	if (page_has_buffers(page)) {
--		struct buffer_head *head = page_buffers(page);
-+	if (_page_has_buffers(page, mapping)) {
-+		struct buffer_head *head = _page_buffers(page, mapping);
- 		struct buffer_head *bh = head;
+ 		spin_lock_irqsave(&mapping->tree_lock, flags);
+ 		__delete_from_page_cache(old, NULL);
+@@ -850,7 +852,7 @@ static int __add_to_page_cache_locked(struct page *page,
  
- 		do {
-@@ -913,7 +913,7 @@ static sector_t
- init_page_buffers(struct address_space *buffer, struct page *page,
- 		  struct block_device *bdev, sector_t block, int size)
- {
--	struct buffer_head *head = page_buffers(page);
-+	struct buffer_head *head = _page_buffers(page, buffer);
- 	struct buffer_head *bh = head;
- 	int uptodate = PageUptodate(page);
- 	sector_t end_block = blkdev_max_block(I_BDEV(bdev->bd_inode), size);
-@@ -969,8 +969,8 @@ grow_dev_page(struct block_device *bdev, sector_t block,
+ 	get_page(page);
+ 	page->mapping = mapping;
+-	page->index = offset;
++	_page_set_index(page, mapping, offset);
  
- 	BUG_ON(!PageLocked(page));
+ 	spin_lock_irq(&mapping->tree_lock);
+ 	error = page_cache_tree_insert(mapping, page, shadowp);
+@@ -1500,7 +1502,7 @@ struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset)
+ 			put_page(page);
+ 			goto repeat;
+ 		}
+-		VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
++		VM_BUG_ON_PAGE(_page_to_pgoff(page, mapping) != offset, page);
+ 	}
+ 	return page;
+ }
+@@ -1559,7 +1561,7 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+ 			put_page(page);
+ 			goto repeat;
+ 		}
+-		VM_BUG_ON_PAGE(page->index != offset, page);
++		VM_BUG_ON_PAGE(_page_index(page, mapping) != offset, page);
+ 	}
  
--	if (page_has_buffers(page)) {
--		bh = page_buffers(page);
-+	if (_page_has_buffers(page, inode->i_mapping)) {
-+		bh = _page_buffers(page, inode->i_mapping);
- 		if (bh->b_size == size) {
- 			end_block = init_page_buffers(inode->i_mapping, page,
- 					bdev, (sector_t)index << sizebits,
-@@ -1490,7 +1490,7 @@ void block_invalidatepage(struct address_space *mapping, struct page *page,
- 	unsigned int stop = length + offset;
+ 	if (page && (fgp_flags & FGP_ACCESSED))
+@@ -1751,7 +1753,7 @@ unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
  
- 	BUG_ON(!PageLocked(page));
--	if (!page_has_buffers(page))
-+	if (!_page_has_buffers(page, mapping))
- 		goto out;
+ 		pages[ret] = page;
+ 		if (++ret == nr_pages) {
+-			*start = pages[ret - 1]->index + 1;
++			*start = _page_index(pages[ret - 1], mapping) + 1;
+ 			goto out;
+ 		}
+ 	}
+@@ -1837,7 +1839,7 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
+ 		 * otherwise we can get both false positives and false
+ 		 * negatives, which is just confusing to the caller.
+ 		 */
+-		if (page->mapping == NULL || page_to_pgoff(page) != iter.index) {
++		if (page->mapping == NULL || _page_to_pgoff(page, mapping) != iter.index) {
+ 			put_page(page);
+ 			break;
+ 		}
+@@ -1923,7 +1925,7 @@ unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
+ 
+ 		pages[ret] = page;
+ 		if (++ret == nr_pages) {
+-			*index = pages[ret - 1]->index + 1;
++			*index = _page_index(pages[ret - 1], mapping) + 1;
+ 			goto out;
+ 		}
+ 	}
+@@ -2540,7 +2542,7 @@ int filemap_fault(struct vm_fault *vmf)
+ 		put_page(page);
+ 		goto retry_find;
+ 	}
+-	VM_BUG_ON_PAGE(page->index != offset, page);
++	VM_BUG_ON_PAGE(_page_index(page, mapping) != offset, page);
  
  	/*
-@@ -1498,7 +1498,7 @@ void block_invalidatepage(struct address_space *mapping, struct page *page,
- 	 */
- 	BUG_ON(stop > PAGE_SIZE || stop < length);
+ 	 * We have a locked page in the page cache, now we need to check
+@@ -2667,7 +2669,7 @@ void filemap_map_pages(struct vm_fault *vmf,
+ 			goto unlock;
  
--	head = page_buffers(page);
-+	head = _page_buffers(page, mapping);
- 	bh = head;
- 	do {
- 		unsigned int next_off = curr_off + bh->b_size;
-@@ -1605,7 +1605,7 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
- 		for (i = 0; i < count; i++) {
+ 		max_idx = DIV_ROUND_UP(i_size_read(mapping->host), PAGE_SIZE);
+-		if (page->index >= max_idx)
++		if (_page_index(page, mapping) >= max_idx)
+ 			goto unlock;
+ 
+ 		if (file->f_ra.mmap_miss > 0)
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 3c14d44639c8..ed9424f84715 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2201,7 +2201,7 @@ int write_cache_pages(struct address_space *mapping,
+ 		for (i = 0; i < nr_pages; i++) {
  			struct page *page = pvec.pages[i];
  
--			if (!page_has_buffers(page))
-+			if (!_page_has_buffers(page, bd_mapping))
- 				continue;
- 			/*
- 			 * We use page lock instead of bd_mapping->private_lock
-@@ -1614,9 +1614,9 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
- 			 */
+-			done_index = page->index;
++			done_index = _page_index(page, mapping);
+ 
  			lock_page(page);
- 			/* Recheck when the page is locked which pins bhs */
--			if (!page_has_buffers(page))
-+			if (!_page_has_buffers(page, bd_inode->i_mapping))
- 				goto unlock_page;
--			head = page_buffers(page);
-+			head = _page_buffers(page, bd_mapping);
- 			bh = head;
- 			do {
- 				if (!buffer_mapped(bh) || (bh->b_blocknr < block))
-@@ -1658,11 +1658,11 @@ static struct buffer_head *create_page_buffers(struct page *page, struct inode *
- {
- 	BUG_ON(!PageLocked(page));
  
--	if (!page_has_buffers(page))
-+	if (!_page_has_buffers(page, inode->i_mapping))
- 		create_empty_buffers(inode->i_mapping, page,
- 				     1 << READ_ONCE(inode->i_blkbits),
- 				     b_state);
--	return page_buffers(page);
-+	return _page_buffers(page, inode->i_mapping);
- }
+@@ -2251,7 +2251,8 @@ int write_cache_pages(struct address_space *mapping,
+ 					 * not be suitable for data integrity
+ 					 * writeout).
+ 					 */
+-					done_index = page->index + 1;
++					done_index = _page_index(page,
++								 mapping) + 1;
+ 					done = 1;
+ 					break;
+ 				}
+@@ -2470,7 +2471,8 @@ int __set_page_dirty_nobuffers(struct page *page)
+ 		BUG_ON(page_mapping(page) != mapping);
+ 		WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
+ 		account_page_dirtied(page, mapping);
+-		radix_tree_tag_set(&mapping->page_tree, page_index(page),
++		radix_tree_tag_set(&mapping->page_tree,
++				   _page_index(page, mapping),
+ 				   PAGECACHE_TAG_DIRTY);
+ 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+ 		unlock_page_memcg(page);
+@@ -2732,7 +2734,7 @@ int test_clear_page_writeback(struct page *page)
+ 		ret = TestClearPageWriteback(page);
+ 		if (ret) {
+ 			radix_tree_tag_clear(&mapping->page_tree,
+-						page_index(page),
++						_page_index(page, mapping),
+ 						PAGECACHE_TAG_WRITEBACK);
+ 			if (bdi_cap_account_writeback(bdi)) {
+ 				struct bdi_writeback *wb = inode_to_wb(inode);
+@@ -2785,7 +2787,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
+ 						   PAGECACHE_TAG_WRITEBACK);
  
- /*
-@@ -1870,10 +1870,10 @@ void page_zero_new_buffers(struct address_space *buffer, struct page *page,
- 	struct buffer_head *head, *bh;
- 
- 	BUG_ON(!PageLocked(page));
--	if (!page_has_buffers(page))
-+	if (!_page_has_buffers(page, buffer))
- 		return;
- 
--	bh = head = page_buffers(page);
-+	bh = head = _page_buffers(page, buffer);
- 	block_start = 0;
- 	do {
- 		block_end = block_start + bh->b_size;
-@@ -2057,7 +2057,7 @@ static int __block_commit_write(struct inode *inode, struct page *page,
- 	unsigned blocksize;
- 	struct buffer_head *bh, *head;
- 
--	bh = head = page_buffers(page);
-+	bh = head = _page_buffers(page, inode->i_mapping);
- 	blocksize = bh->b_size;
- 
- 	block_start = 0;
-@@ -2209,10 +2209,10 @@ int block_is_partially_uptodate(struct page *page,
- 	struct buffer_head *bh, *head;
- 	int ret = 1;
- 
--	if (!page_has_buffers(page))
-+	if (!_page_has_buffers(page, mapping))
- 		return 0;
- 
--	head = page_buffers(page);
-+	head = _page_buffers(page, mapping);
- 	blocksize = head->b_size;
- 	to = min_t(unsigned, PAGE_SIZE - from, count);
- 	to = from + to;
-@@ -2596,7 +2596,7 @@ int nobh_write_begin(struct address_space *mapping,
- 	*pagep = page;
- 	*fsdata = NULL;
- 
--	if (page_has_buffers(page)) {
-+	if (_page_has_buffers(page, mapping)) {
- 		ret = __block_write_begin(mapping, page, pos, len, get_block);
- 		if (unlikely(ret))
- 			goto out_release;
-@@ -2715,7 +2715,7 @@ int nobh_write_end(struct file *file, struct address_space *mapping,
- 	struct inode *inode = mapping->host;
- 	struct buffer_head *head = fsdata;
- 	struct buffer_head *bh;
--	BUG_ON(fsdata != NULL && page_has_buffers(page));
-+	BUG_ON(fsdata != NULL && _page_has_buffers(page, inode->i_mapping));
- 
- 	if (unlikely(copied < len) && head)
- 		attach_nobh_buffers(mapping, page, head);
-@@ -2822,7 +2822,7 @@ int nobh_truncate_page(struct address_space *mapping,
- 	if (!page)
- 		goto out;
- 
--	if (page_has_buffers(page)) {
-+	if (_page_has_buffers(page, mapping)) {
- has_buffers:
- 		unlock_page(page);
- 		put_page(page);
-@@ -2857,7 +2857,7 @@ int nobh_truncate_page(struct address_space *mapping,
- 			err = -EIO;
- 			goto unlock;
+ 			radix_tree_tag_set(&mapping->page_tree,
+-						page_index(page),
++						_page_index(page, mapping),
+ 						PAGECACHE_TAG_WRITEBACK);
+ 			if (bdi_cap_account_writeback(bdi))
+ 				inc_wb_stat(inode_to_wb(inode), WB_WRITEBACK);
+@@ -2800,11 +2802,11 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
  		}
--		if (page_has_buffers(page))
-+		if (_page_has_buffers(page, inode->i_mapping))
- 			goto has_buffers;
- 	}
- 	zero_user(page, offset, length);
-@@ -2900,11 +2900,11 @@ int block_truncate_page(struct address_space *mapping,
- 	if (!page)
- 		goto out;
+ 		if (!PageDirty(page))
+ 			radix_tree_tag_clear(&mapping->page_tree,
+-						page_index(page),
++						_page_index(page, mapping),
+ 						PAGECACHE_TAG_DIRTY);
+ 		if (!keep_write)
+ 			radix_tree_tag_clear(&mapping->page_tree,
+-						page_index(page),
++						_page_index(page, mapping),
+ 						PAGECACHE_TAG_TOWRITE);
+ 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+ 	} else {
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 7fee65df10b4..7f3168d547c8 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -588,7 +588,7 @@ static int shmem_add_to_page_cache(struct page *page,
  
--	if (!page_has_buffers(page))
-+	if (!_page_has_buffers(page, mapping))
- 		create_empty_buffers(mapping, page, blocksize, 0);
+ 	page_ref_add(page, nr);
+ 	page->mapping = mapping;
+-	page->index = index;
++	_page_set_index(page, mapping, index);
  
- 	/* Find the buffer that contains "offset" */
--	bh = page_buffers(page);
-+	bh = _page_buffers(page, mapping);
- 	pos = blocksize;
- 	while (offset >= pos) {
- 		bh = bh->b_this_page;
-@@ -3260,7 +3260,7 @@ static int
- drop_buffers(struct address_space *mapping, struct page *page,
- 	     struct buffer_head **buffers_to_free)
+ 	spin_lock_irq(&mapping->tree_lock);
+ 	if (PageTransHuge(page)) {
+@@ -644,7 +644,9 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
+ 	VM_BUG_ON_PAGE(PageCompound(page), page);
+ 
+ 	spin_lock_irq(&mapping->tree_lock);
+-	error = shmem_radix_tree_replace(mapping, page->index, page, radswap);
++	error = shmem_radix_tree_replace(mapping, _page_index(page, mapping),
++					 page,
++					 radswap);
+ 	page->mapping = NULL;
+ 	mapping->nrpages--;
+ 	__dec_node_page_state(page, NR_FILE_PAGES);
+@@ -822,7 +824,8 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 				continue;
+ 			}
+ 
+-			VM_BUG_ON_PAGE(page_to_pgoff(page) != index, page);
++			VM_BUG_ON_PAGE(_page_to_pgoff(page, mapping) != index,
++				       page);
+ 
+ 			if (!trylock_page(page))
+ 				continue;
+@@ -1267,7 +1270,7 @@ static int shmem_writepage(struct address_space *_mapping, struct page *page,
+ 	VM_BUG_ON_PAGE(PageCompound(page), page);
+ 	BUG_ON(!PageLocked(page));
+ 	mapping = page->mapping;
+-	index = page->index;
++	index = _page_index(page, mapping);
+ 	inode = mapping->host;
+ 	info = SHMEM_I(inode);
+ 	if (info->flags & VM_LOCKED)
+diff --git a/mm/truncate.c b/mm/truncate.c
+index a9415c96c966..57d4d0948f40 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -181,7 +181,8 @@ truncate_cleanup_page(struct address_space *mapping, struct page *page)
  {
--	struct buffer_head *head = page_buffers(page);
-+	struct buffer_head *head = _page_buffers(page, mapping);
- 	struct buffer_head *bh;
+ 	if (page_mapped(page)) {
+ 		pgoff_t nr = PageTransHuge(page) ? HPAGE_PMD_NR : 1;
+-		unmap_mapping_pages(mapping, page->index, nr, false);
++		unmap_mapping_pages(mapping, _page_index(page, mapping), nr,
++				    false);
+ 	}
  
- 	bh = head;
-@@ -3491,7 +3491,7 @@ page_seek_hole_data(struct address_space *mapping, struct page *page,
- 	if (lastoff < offset)
- 		lastoff = offset;
+ 	if (page_has_private(page))
+@@ -353,7 +354,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
  
--	bh = head = page_buffers(page);
-+	bh = head = _page_buffers(page, mapping);
- 	do {
- 		offset += bh->b_size;
- 		if (lastoff >= offset)
-@@ -3563,7 +3563,7 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
+ 			if (!trylock_page(page))
+ 				continue;
+-			WARN_ON(page_to_index(page) != index);
++			WARN_ON(_page_to_index(page, mapping) != index);
+ 			if (PageWriteback(page)) {
+ 				unlock_page(page);
+ 				continue;
+@@ -447,7 +448,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 				continue;
  
  			lock_page(page);
- 			if (likely(!page_is_truncated(page, inode->i_mapping)) &&
--			    page_has_buffers(page)) {
-+			    _page_has_buffers(page, inode->i_mapping)) {
- 				lastoff = page_seek_hole_data(inode->i_mapping,
- 							page, lastoff, whence);
- 				if (lastoff >= 0) {
-diff --git a/fs/mpage.c b/fs/mpage.c
-index ecdef63f464e..8141010b9f4c 100644
---- a/fs/mpage.c
-+++ b/fs/mpage.c
-@@ -107,7 +107,7 @@ map_buffer_to_page(struct inode *inode, struct page *page,
- 	struct buffer_head *page_bh, *head;
- 	int block = 0;
+-			WARN_ON(page_to_index(page) != index);
++			WARN_ON(_page_to_index(page, mapping) != index);
+ 			wait_on_page_writeback(page);
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+@@ -571,7 +572,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 			if (!trylock_page(page))
+ 				continue;
  
--	if (!page_has_buffers(page)) {
-+	if (!_page_has_buffers(page, inode->i_mapping)) {
- 		/*
- 		 * don't make any buffers if there is only one buffer on
- 		 * the page and the page just needs to be set up to date
-@@ -120,7 +120,7 @@ map_buffer_to_page(struct inode *inode, struct page *page,
- 		create_empty_buffers(inode->i_mapping, page,
- 				     i_blocksize(inode), 0);
- 	}
--	head = page_buffers(page);
-+	head = _page_buffers(page, inode->i_mapping);
- 	page_bh = head;
- 	do {
- 		if (block == page_block) {
-@@ -166,7 +166,7 @@ do_mpage_readpage(struct bio *bio, struct address_space *mapping,
- 	unsigned nblocks;
- 	unsigned relative_block;
+-			WARN_ON(page_to_index(page) != index);
++			WARN_ON(_page_to_index(page, mapping) != index);
  
--	if (page_has_buffers(page))
-+	if (_page_has_buffers(page, mapping))
- 		goto confused;
+ 			/* Middle of THP: skip */
+ 			if (PageTransTail(page)) {
+@@ -701,7 +702,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
+ 			}
  
- 	block_in_file = (sector_t)page->index << (PAGE_SHIFT - blkbits);
-@@ -453,9 +453,9 @@ static void clean_buffers(struct address_space *mapping, struct page *page,
- {
- 	unsigned buffer_counter = 0;
- 	struct buffer_head *bh, *head;
--	if (!page_has_buffers(page))
-+	if (!_page_has_buffers(page, mapping))
- 		return;
--	head = page_buffers(page);
-+	head = _page_buffers(page, mapping);
- 	bh = head;
- 
- 	do {
-@@ -508,8 +508,8 @@ static int __mpage_writepage(struct page *page, struct address_space *mapping,
- 	int ret = 0;
- 	int op_flags = wbc_to_write_flags(wbc);
- 
--	if (page_has_buffers(page)) {
--		struct buffer_head *head = page_buffers(page);
-+	if (_page_has_buffers(page, mapping)) {
-+		struct buffer_head *head = _page_buffers(page, mapping);
- 		struct buffer_head *bh = head;
- 
- 		/* If they're all mapped and dirty, do it */
+ 			lock_page(page);
+-			WARN_ON(page_to_index(page) != index);
++			WARN_ON(_page_to_index(page, mapping) != index);
+ 			if (page_is_truncated(page, mapping)) {
+ 				unlock_page(page);
+ 				continue;
 -- 
 2.14.3
