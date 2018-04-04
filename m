@@ -1,85 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 60E886B0005
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 22:23:53 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f3-v6so12347740plf.1
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 19:23:53 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id i3-v6si1931433pld.241.2018.04.03.19.23.52
+	by kanga.kvack.org (Postfix) with ESMTP id B2B726B0005
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 22:56:44 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id h61-v6so12452712pld.3
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 19:56:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e3sor1079664pfb.49.2018.04.03.19.56.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 03 Apr 2018 19:23:52 -0700 (PDT)
-Date: Tue, 3 Apr 2018 19:23:47 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 2/2] kfree_rcu() should use kfree_bulk() interface
-Message-ID: <20180404022347.GA17512@bombadil.infradead.org>
-References: <1522776173-7190-1-git-send-email-rao.shoaib@oracle.com>
- <1522776173-7190-3-git-send-email-rao.shoaib@oracle.com>
- <20180403205822.GB30145@bombadil.infradead.org>
- <d434c58c-082b-9a17-8d15-9c66e0c1941a@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <d434c58c-082b-9a17-8d15-9c66e0c1941a@oracle.com>
+        (Google Transport Security);
+        Tue, 03 Apr 2018 19:56:43 -0700 (PDT)
+From: Jia He <hejianet@gmail.com>
+Subject: [PATCH v6 0/5] optimize memblock_next_valid_pfn and early_pfn_valid on arm and arm64
+Date: Tue,  3 Apr 2018 19:56:14 -0700
+Message-Id: <1522810579-7466-1-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rao Shoaib <rao.shoaib@oracle.com>
-Cc: linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, joe@perches.com, brouer@redhat.com, linux-mm@kvack.org
+To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <hejianet@gmail.com>
 
-On Tue, Apr 03, 2018 at 05:55:55PM -0700, Rao Shoaib wrote:
-> On 04/03/2018 01:58 PM, Matthew Wilcox wrote:
-> > I think you might be better off with an IDR.  The IDR can always
-> > contain one entry, so there's no need for this 'rbf_list_head' or
-> > __rcu_bulk_schedule_list.  The IDR contains its first 64 entries in
-> > an array (if that array can be allocated), so it's compatible with the
-> > kfree_bulk() interface.
-> > 
-> I have just familiarized myself with what IDR is by reading your article. If
-> I am incorrect please correct me.
-> 
-> The list and head you have pointed are only used  if the container can not
-> be allocated. That could happen with IDR as well. Note that the containers
-> are allocated at boot time and are re-used.
+Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+where possible") tried to optimize the loop in memmap_init_zone(). But
+there is still some room for improvement.
 
-No, it can't happen with the IDR.  The IDR can always contain one entry
-without allocating anything.  If you fail to allocate the second entry,
-just free the first entry.
+Patch 1 remain the memblock_next_valid_pfn on arm and arm64
+Patch 2 optimizes the memblock_next_valid_pfn()
+Patch 3~5 optimizes the early_pfn_valid()
 
-> IDR seems to have some overhead, such as I have to specifically add the
-> pointer and free the ID, plus radix tree maintenance.
+As for the performance improvement, after this set, I can see the time
+overhead of memmap_init() is reduced from 41313 us to 24345 us in my
+armv8a server(QDF2400 with 96G memory).
 
-... what?  Adding a pointer is simply idr_alloc(), and you get back an
-integer telling you which index it has.  Your data structure has its
-own set of overhead.
+Attached the memblock region information in my server.
+[   86.956758] Zone ranges:
+[   86.959452]   DMA      [mem 0x0000000000200000-0x00000000ffffffff]
+[   86.966041]   Normal   [mem 0x0000000100000000-0x00000017ffffffff]
+[   86.972631] Movable zone start for each node
+[   86.977179] Early memory node ranges
+[   86.980985]   node   0: [mem 0x0000000000200000-0x000000000021ffff]
+[   86.987666]   node   0: [mem 0x0000000000820000-0x000000000307ffff]
+[   86.994348]   node   0: [mem 0x0000000003080000-0x000000000308ffff]
+[   87.001029]   node   0: [mem 0x0000000003090000-0x00000000031fffff]
+[   87.007710]   node   0: [mem 0x0000000003200000-0x00000000033fffff]
+[   87.014392]   node   0: [mem 0x0000000003410000-0x000000000563ffff]
+[   87.021073]   node   0: [mem 0x0000000005640000-0x000000000567ffff]
+[   87.027754]   node   0: [mem 0x0000000005680000-0x00000000056dffff]
+[   87.034435]   node   0: [mem 0x00000000056e0000-0x00000000086fffff]
+[   87.041117]   node   0: [mem 0x0000000008700000-0x000000000871ffff]
+[   87.047798]   node   0: [mem 0x0000000008720000-0x000000000894ffff]
+[   87.054479]   node   0: [mem 0x0000000008950000-0x0000000008baffff]
+[   87.061161]   node   0: [mem 0x0000000008bb0000-0x0000000008bcffff]
+[   87.067842]   node   0: [mem 0x0000000008bd0000-0x0000000008c4ffff]
+[   87.074524]   node   0: [mem 0x0000000008c50000-0x0000000008e2ffff]
+[   87.081205]   node   0: [mem 0x0000000008e30000-0x0000000008e4ffff]
+[   87.087886]   node   0: [mem 0x0000000008e50000-0x0000000008fcffff]
+[   87.094568]   node   0: [mem 0x0000000008fd0000-0x000000000910ffff]
+[   87.101249]   node   0: [mem 0x0000000009110000-0x00000000092effff]
+[   87.107930]   node   0: [mem 0x00000000092f0000-0x000000000930ffff]
+[   87.114612]   node   0: [mem 0x0000000009310000-0x000000000963ffff]
+[   87.121293]   node   0: [mem 0x0000000009640000-0x000000000e61ffff]
+[   87.127975]   node   0: [mem 0x000000000e620000-0x000000000e64ffff]
+[   87.134657]   node   0: [mem 0x000000000e650000-0x000000000fffffff]
+[   87.141338]   node   0: [mem 0x0000000010800000-0x0000000017feffff]
+[   87.148019]   node   0: [mem 0x000000001c000000-0x000000001c00ffff]
+[   87.154701]   node   0: [mem 0x000000001c010000-0x000000001c7fffff]
+[   87.161383]   node   0: [mem 0x000000001c810000-0x000000007efbffff]
+[   87.168064]   node   0: [mem 0x000000007efc0000-0x000000007efdffff]
+[   87.174746]   node   0: [mem 0x000000007efe0000-0x000000007efeffff]
+[   87.181427]   node   0: [mem 0x000000007eff0000-0x000000007effffff]
+[   87.188108]   node   0: [mem 0x000000007f000000-0x00000017ffffffff]
+[   87.194791] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
 
-IDR has a bulk-free option (idr_destroy()), but it doesn't have a get-bulk
-function yet.  I think that's a relatively straightforward function to
-add ...
+Without this patchset:
+[  117.106153] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
+[  117.113677] before memmap_init
+[  117.118195] after  memmap_init
+>>> memmap_init takes 4518 us
+[  117.121446] before memmap_init
+[  117.154992] after  memmap_init
+>>> memmap_init takes 33546 us
+[  117.158241] before memmap_init
+[  117.161490] after  memmap_init
+>>> memmap_init takes 3249 us
+>>> totally takes 41313 us
 
-/*
- * Return: number of elements pointed to by 'ptrs'.
- */
-int idr_get_bulk(struct idr *idr, void __rcu ***ptrs, u32 *start)
-{
-	struct radix_tree_iter iter;
-	void __rcu **slot;
-	unsigned long base = idr->idr_base;
-	unsigned long id = *start;
+With this patchset:
+[   87.194791] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
+[   87.202314] before memmap_init
+[   87.206164] after  memmap_init
+>>> memmap_init takes 3850 us
+[   87.209416] before memmap_init
+[   87.226662] after  memmap_init
+>>> memmap_init takes 17246 us
+[   87.229911] before memmap_init
+[   87.233160] after  memmap_init
+>>> memmap_init takes 3249 us
+>>> totally takes 24345 us
 
-	id = (id < base) ? 0 : id - base;
-	slot = radix_tree_iter_find(&idr->idr_rt, &iter, id);
-	if (!slot)
-		return 0;
-	*start = iter.index + base;
-	*ptrs = slot;
-	return iter.next_index - iter.index;
-}
+Changelog:
+V6: - simplify the codes, move arm/arm64 common codes to one file.
+    - refine patches as suggested by Danial Vacek and Ard Biesheuvel
+V5: - further refining as suggested by Danial Vacek. Make codes
+      arm/arm64 more arch specific
+V4: - refine patches as suggested by Danial Vacek and Wei Yang
+    - optimized on arm besides arm64
+V3: - fix 2 issues reported by kbuild test robot
+V2: - rebase to mmotm latest
+    - remain memblock_next_valid_pfn on arm64
+    - refine memblock_search_pfn_regions and pfn_valid_region
 
-(completely untested, but you get the idea.  For your case, it's just
-going to return a pointer to the first slot).
+Jia He (5):
+  mm: page_alloc: remain memblock_next_valid_pfn() on arm and arm64
+  arm: arm64: page_alloc: reduce unnecessary binary search in
+    memblock_next_valid_pfn()
+  mm/memblock: introduce memblock_search_pfn_regions()
+  arm: arm64: introduce pfn_valid_region()
+  mm: page_alloc: reduce unnecessary binary search in early_pfn_valid()
 
-> The change would also require retesting. So I would like to keep the current
-> design.
+ arch/arm/mm/init.c           |  1 +
+ arch/arm64/mm/init.c         |  1 +
+ include/linux/arm96_common.h | 76 ++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/memblock.h     |  2 ++
+ include/linux/mmzone.h       | 18 ++++++++++-
+ mm/memblock.c                |  9 ++++++
+ mm/page_alloc.c              |  2 +-
+ 7 files changed, 107 insertions(+), 2 deletions(-)
+ create mode 100644 include/linux/arm96_common.h
 
-That's not how review works.
+-- 
+2.7.4
