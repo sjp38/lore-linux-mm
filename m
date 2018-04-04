@@ -1,102 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DE3D96B0008
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 04:39:28 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id v195-v6so12474401ita.1
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 01:39:28 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id k12si4087901ioo.165.2018.04.04.01.39.27
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4B16B0005
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 05:08:07 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id l32so15318395qtd.19
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 02:08:07 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id q5si5251059qkf.481.2018.04.04.02.08.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 01:39:27 -0700 (PDT)
-Subject: Re: [PATCH 2/2] kfree_rcu() should use kfree_bulk() interface
-From: Rao Shoaib <rao.shoaib@oracle.com>
-References: <1522776173-7190-1-git-send-email-rao.shoaib@oracle.com>
- <1522776173-7190-3-git-send-email-rao.shoaib@oracle.com>
- <20180403205822.GB30145@bombadil.infradead.org>
- <d434c58c-082b-9a17-8d15-9c66e0c1941a@oracle.com>
- <20180404022347.GA17512@bombadil.infradead.org>
- <954a9ea2-5202-4ee3-1fa2-21acf8d07cdb@oracle.com>
-Message-ID: <d446938e-a3ee-04d0-ea68-96d85d632c3f@oracle.com>
-Date: Wed, 4 Apr 2018 01:39:07 -0700
+        Wed, 04 Apr 2018 02:08:06 -0700 (PDT)
+Subject: Re: Question: Using online_pages/offline_pages() with granularity <
+ mem section size
+References: <32e2bbbe-fe71-6607-fdbb-04767bec9bbb@redhat.com>
+ <CAPcyv4hvDg6KD0D+7bEzF2a=-oiSTutJiHfKWBihmSzMz5VvFw@mail.gmail.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <34f387ca-8a53-95ee-262f-1a476111a554@redhat.com>
+Date: Wed, 4 Apr 2018 11:08:03 +0200
 MIME-Version: 1.0
-In-Reply-To: <954a9ea2-5202-4ee3-1fa2-21acf8d07cdb@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPcyv4hvDg6KD0D+7bEzF2a=-oiSTutJiHfKWBihmSzMz5VvFw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, joe@perches.com, brouer@redhat.com, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Reza Arbab <arbab@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-
-
-On 04/04/2018 12:16 AM, Rao Shoaib wrote:
->
->
-> On 04/03/2018 07:23 PM, Matthew Wilcox wrote:
->> On Tue, Apr 03, 2018 at 05:55:55PM -0700, Rao Shoaib wrote:
->>> On 04/03/2018 01:58 PM, Matthew Wilcox wrote:
->>>> I think you might be better off with an IDR.A  The IDR can always
->>>> contain one entry, so there's no need for this 'rbf_list_head' or
->>>> __rcu_bulk_schedule_list.A  The IDR contains its first 64 entries in
->>>> an array (if that array can be allocated), so it's compatible with the
->>>> kfree_bulk() interface.
->>>>
->>> I have just familiarized myself with what IDR is by reading your 
->>> article. If
->>> I am incorrect please correct me.
->>>
->>> The list and head you have pointed are only usedA  if the container 
->>> can not
->>> be allocated. That could happen with IDR as well. Note that the 
->>> containers
->>> are allocated at boot time and are re-used.
->> No, it can't happen with the IDR.A  The IDR can always contain one entry
->> without allocating anything.A  If you fail to allocate the second entry,
->> just free the first entry.
+On 03.03.2018 18:53, Dan Williams wrote:
+> On Fri, Mar 2, 2018 at 7:23 AM, David Hildenbrand <david@redhat.com> wrote:
+>> Hi,
 >>
->>> IDR seems to have some overhead, such as I have to specifically add the
->>> pointer and free the ID, plus radix tree maintenance.
->> ... what?A  Adding a pointer is simply idr_alloc(), and you get back an
->> integer telling you which index it has.A  Your data structure has its
->> own set of overhead.
-> The only overhead is a pointer that points to the head and an int to 
-> keep count. If I use idr, I would have to allocate an struct idr which 
-> is much larger. idr_alloc()/idr_destroy() operations are much more 
-> costly than updating two pointers. As the pointers are stored in 
-> slots/nodes corresponding to the id, I wouldA  have to retrieve the 
-> pointers by calling idr_remove() to pass them to be freed, the 
-> slots/nodes would constantly be allocated and freed.
->
-> IDR is a very useful interface for allocating/managing ID's but I 
-> really do not see the justification for using it over here, perhaps 
-> you can elaborate more on the benefits and also on how I can just pass 
-> the array to be freed.
->
-> Shoaib
->
-I may have mis-understood your comment. You are probably suggesting that 
-I use IDR instead of allocating following containers.
+>> in the context of virtualization, I am experimenting right now with an
+>> approach to plug/unplug memory using a paravirtualized interface(not
+>> ACPI). And I stumbled over certain things, looking at the memory hot/un
+>> plug code.
+>>
+>> The big picture:
+>>
+>> A paravirtualized device provides a physical memory region to the guest.
+>> We could have multiple such devices. Each device is assigned to a NUMA
+>> node. We want to control how much memory in such a region the guest is
+>> allowed to use. We can dynamically add/remove memory to NUMA nodes this
+>> way and make sure a guest cannot make use of more memory than requested.
+>>
+>> Especially: We decide in the kernel which memory block to online/offline.
+>>
+>>
+>> The basic mechanism:
+>>
+>> The hypervisor provides a physical memory region to the guest. This
+>> memory region can be used by the guest to plug/unplug memory. The
+>> hypervisor asks for a certain amount of used memory and the guest should
+>> try to reach that goal, by plugging/unplugging memory. Whenever the
+>> guest wants to plug/unplug a block, it has to communicate that to the
+>> hypervisor.
+>>
+>> The hypervisor can grant/deny requests to plug/unplug a block of memory.
+>> Especially, the guest must not take more memory than requested. Trying
+>> to read unplugged memory succeeds (e.g. for kdump), writing to that
+>> memory is prohibited.
+>>
+>> Memory blocks can be of any granularity, but 1-4MB looks like a sane
+>> amount to not fragment memory too much. If the guest can't find free
+>> memory blocks, no unplug is possible.
+>>
+>>
+>> In the guest, I add_memory() new memory blocks to the NORMAL zone. The
+>> NORMAL zone makes it harder to remove memory but we don't run into any
+>> problems (e.g. too little NORMAL memory e.g. for page tables). Now,
+>> these chunks are fairly big (>= 128MB) and there seems to be no way to
+>> plug/unplug smaller chunks to Linux using official interfaces ("memory
+>> segments"). Trying to remove >=128MB of NORMAL memory will usually not
+>> succeed. So I thought about manually removing parts of a memory section.
+>>
+>> Yes, this sounds similar to a balloon, but it is different: I have to
+>> offline memory in a certain memory range, not just any memory in the
+>> system. So I cannot simply use kmalloc() - there is no allocator that
+>> guarantees that.
+>>
+>> So instead I want ahead and thought about simply manually
+>> offlining/onlining parts of a memory segment - especially "page blocks".
+>> I do my own bookkeeping about which parts of a memory segment are
+>> online/offline and use that information for finding blocks to
+>> plug/unplug. The offline_pages() interface made me assume that this
+>> should work with blocks in the size of pageblock_nr_pages.
+>>
+>>
+>> I stumbled over the following two problems:
+>>
+>> 1. __offline_isolated_pages() doesn't care about page blocks, it simply
+>> calls offline_mem_sections(), which marks the whole section as offline,
+>> although it has to remain online until all pages in that section were
+>> offlined. Now this can be handled by moving the offline_mem_sections()
+>> logic further outside to the caller of offline_pages().
+>>
+>> 2. While offlining 2MB blocks (page block size), I discovered that more
+>> memory was marked as reserved. Especially, a page block contains pages
+>> with an order 10 (4MB), which implies that two page blocks are "bound
+>> together". This is also done in __offline_isolated_pages(). Offlining
+>> 2MB will result in 4MB being marked as reserved.
+>>
+>> Now, when I switch to 4MB, my manual online_pages/offline_pages seems so
+>> far to work fine.
+>>
+>> So my questions are:
+>>
+>> Can I assume that online_pages/offline_pages() works with "MAX_ORDER -
+>> 1" sizes reliably? Should the checks in these functions be updated? page
+>> blocks does not seem to be the real deal.
+>>
+>> Any better approach to allocate memory in a specific memory range
+>> (without fake numa nodes)? So I could avoid using
+>> online_pages/offline_pages and instead do it similar to a balloon
+>> driver? (mark the page as reserved myself)
+> 
+> Not sure this answers your questions, but I did play with sub-section
+> memory hotplug last year in this patch set, but it fell to the bottom
+> of my queue. At least at the time it seemed possible to remove the
+> section alignment constraints of memory hotplug.
+> 
+> https://lists.01.org/pipermail/linux-nvdimm/2017-March/009167.html
+> 
 
-+	struct		rcu_bulk_free_container *rbf_container;
-+	struct		rcu_bulk_free_container *rbf_cached_container;
+Thanks, goes into a similar direction but seems to be more about "being
+able to add a persistent memory device with bad alignment". The
+!persistent memory part seems to be more complicated (e.g. struct pages
+are allocated per segment).
 
+In the meantime, I managed to make online_pages()/offline_pages() work
+reliably with 4MB chunks. So I can e.g. add_memory() 128MB but only
+online/offline 4MB chunks of that, which is sufficient for what I need
+right now.
 
-IDR uses radix_tree_node which allocates following two arrays. since I 
-do not need any ID's why not just use the radix_tree_node directly, but 
-I do not need a radix tree either, so why not just use an array. That is 
-what I am doing.
+Will send some patches soon. Thanks!
 
-void __rcuA A A A A  *slots[RADIX_TREE_MAP_SIZE];
-unsigned longA A  tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS]; ==> Not 
-needed
+-- 
 
-As far as allocation failure is concerned, the allocation has to be done 
-at run time. If the allocation of a container can fail, so can the 
-allocation of radix_tree_node as it also requires memory.
+Thanks,
 
-I really do not see any advantages of using IDR. The structure I have is 
-much simpler and does exactly what I need.
-
-Shoaib
+David / dhildenb
