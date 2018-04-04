@@ -1,46 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DDE26B0005
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 03:29:12 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id a207-v6so11401692itb.7
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 00:29:12 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id j124si3265150ioe.23.2018.04.04.00.29.11
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C82156B0005
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 03:42:51 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id o2-v6so10893584plk.14
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 00:42:51 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id m11-v6si2378216pls.337.2018.04.04.00.42.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 00:29:11 -0700 (PDT)
-Subject: Re: [PATCH 2/2] kfree_rcu() should use kfree_bulk() interface
-References: <1522647064-27167-1-git-send-email-rao.shoaib@oracle.com>
- <1522647064-27167-3-git-send-email-rao.shoaib@oracle.com>
- <alpine.DEB.2.20.1804021217070.24404@nuc-kabylake>
-From: Rao Shoaib <rao.shoaib@oracle.com>
-Message-ID: <d6a58a0d-be8b-44e9-29c7-ef2588afefbf@oracle.com>
-Date: Wed, 4 Apr 2018 00:28:53 -0700
+        Wed, 04 Apr 2018 00:42:50 -0700 (PDT)
+Date: Wed, 4 Apr 2018 15:42:27 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH 11/11] x86/pti: leave kernel text global for !PCID
+Message-ID: <201804041545.zhtcp6gi%fengguang.wu@intel.com>
+References: <20180404011011.82027E0C@viggo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1804021217070.24404@nuc-kabylake>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180404011011.82027E0C@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, joe@perches.com, willy@infradead.org, brouer@redhat.com, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org, namit@vmware.com
+
+Hi Dave,
+
+Thank you for the patch! Perhaps something to improve:
+
+[auto build test WARNING on tip/auto-latest]
+[also build test WARNING on next-20180403]
+[cannot apply to tip/x86/core v4.16]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Dave-Hansen/Use-global-pages-with-PTI/20180404-135611
+reproduce:
+        # apt-get install sparse
+        make ARCH=x86_64 allmodconfig
+        make C=1 CF=-D__CHECK_ENDIAN__
 
 
+sparse warnings: (new ones prefixed by >>)
 
-On 04/02/2018 10:20 AM, Christopher Lameter wrote:
-> On Sun, 1 Apr 2018, rao.shoaib@oracle.com wrote:
->
->> kfree_rcu() should use the new kfree_bulk() interface for freeing
->> rcu structures as it is more efficient.
-> It would be even better if this approach could also use
->
-> 	kmem_cache_free_bulk()
->
-> or
->
-> 	kfree_bulk()
-Sorry I do not understand your comment. The patch is using kfree_bulk() 
-which is an inline function.
+>> arch/x86/mm/pti.c:286:1: sparse: symbol 'pti_clone_pmds' was not declared. Should it be static?
+   arch/x86/mm/pti.c:439:6: sparse: symbol 'pti_set_kernel_image_nonglobal' was not declared. Should it be static?
 
-Shoaib
+Please review and possibly fold the followup patch.
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
