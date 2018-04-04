@@ -1,84 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DB41F6B0006
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 12:27:01 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id m15so15031333qke.16
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 09:27:01 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 6si4343796qkm.448.2018.04.04.09.27.00
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EF9166B0006
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 12:36:21 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 137-v6so18769880itj.2
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 09:36:21 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id v4-v6si4192263itd.110.2018.04.04.09.36.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 09:27:00 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w34GPqeT132452
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2018 12:26:59 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2h4yr20599-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:26:58 -0400
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 4 Apr 2018 17:26:54 +0100
-Subject: Re: [PATCH v9 15/24] mm: Introduce __vm_normal_page()
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1520963994-28477-16-git-send-email-ldufour@linux.vnet.ibm.com>
- <20180403193927.GD5935@redhat.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 4 Apr 2018 18:26:44 +0200
+        Wed, 04 Apr 2018 09:36:20 -0700 (PDT)
+Subject: Re: [PATCH v10 00/62] Convert page cache to XArray
+References: <20180330034245.10462-1-willy@infradead.org>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <ff6a317f-920b-62c7-9a7a-9bf235371d41@oracle.com>
+Date: Wed, 4 Apr 2018 09:35:46 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180403193927.GD5935@redhat.com>
+In-Reply-To: <20180330034245.10462-1-willy@infradead.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <a3446d86-8a29-a9f2-a1fe-b8cc1b748132@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>
 
-
-
-On 03/04/2018 21:39, Jerome Glisse wrote:
-> On Tue, Mar 13, 2018 at 06:59:45PM +0100, Laurent Dufour wrote:
->> When dealing with the speculative fault path we should use the VMA's field
->> cached value stored in the vm_fault structure.
->>
->> Currently vm_normal_page() is using the pointer to the VMA to fetch the
->> vm_flags value. This patch provides a new __vm_normal_page() which is
->> receiving the vm_flags flags value as parameter.
->>
->> Note: The speculative path is turned on for architecture providing support
->> for special PTE flag. So only the first block of vm_normal_page is used
->> during the speculative path.
+On 03/29/2018 08:41 PM, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> Might be a good idea to explicitly have SPECULATIVE Kconfig option depends
-> on ARCH_PTE_SPECIAL and a comment for !HAVE_PTE_SPECIAL in the function
-> explaining that speculative page fault should never reach that point.
+> I'd like to thank Andrew for taking the first eight XArray patches
+> into -next.  He's understandably nervous about taking the rest of the
+> patches into -next given how few of the remaining patches have review
+> tags on them.  So ... if you're on the cc, I'd really appreciate a review
+> on something that you feel somewhat responsible for, eg the particular
+> filesystem (nilfs, f2fs, lustre) that I've touched, or something in the
+> mm/ or fs/ directories that you've worked on recently.
+> 
+> This is against next-20180329.
+> 
 
-Unfortunately there is no ARCH_PTE_SPECIAL in the config file, it is defined in
-the per architecture header files.
-So I can't do anything in the Kconfig file
+I applied this series to next-20180329 and booted in a debug environment.
+My root fs is ext4, and next-20180329 had the first (bad) fix in bug
+https://bugzilla.kernel.org/show_bug.cgi?id=199185
+so, I had to apply the revised fix.
 
-However, I can check that at build time, and doing such a check in
-__vm_normal_page sounds to be a good place, like that:
+Running with this XArray series on top of next-20180329 consistently 'hangs'
+on shutdown looping (?forever?) in tag_pages_for_writeback/xas_for_each_tag.
+All I have to do is make sure there is some activity on the ext4 fs before
+shutdown.  Not sure if this is a 'next-20180329' issue or XArray issue.
+But the fact that we are looping in xas_for_each_tag looks suspicious.
 
-@@ -869,6 +870,14 @@ struct page *__vm_normal_page(struct vm_area_struct *vma,
-unsigned long addr,
+#0  xas_find_chunk (tag=<optimized out>, advance=<optimized out>, 
+    xas=<optimized out>) at ./include/linux/xarray.h:886
+#1  xas_next_tag (tag=<optimized out>, max=<optimized out>, 
+    xas=<optimized out>) at ./include/linux/xarray.h:915
+#2  tag_pages_for_writeback (mapping=<optimized out>, start=<optimized out>, 
+    end=2251799813685247) at mm/page-writeback.c:2109
+#3  0xffffffff812eccf0 in ext4_writepages (mapping=0xffff88012bf9b918, 
+    wbc=<optimized out>) at fs/ext4/inode.c:2793
+#4  0xffffffff811bbe4b in do_writepages (mapping=0xffffc90001727a28, 
+    wbc=0xffffffffffffffff) at mm/page-writeback.c:2332
+#5  0xffffffff812743bd in __writeback_single_inode (inode=0xffffc90001727a28, 
+    wbc=0xffffc90001727cc0) at fs/fs-writeback.c:1315
+#6  0xffffffff81274aaf in writeback_sb_inodes (sb=0xffff88012e2e2e98, 
+    wb=0xffff88012c02e000, work=0xffff88012c4aae18) at fs/fs-writeback.c:1579
+#7  0xffffffff81274ff7 in wb_writeback (wb=0xffff88012c02e000, 
+    work=0xffff88012c4aae18) at fs/fs-writeback.c:1755
+#8  0xffffffff812757df in wb_do_writeback (wb=<optimized out>)
+    at fs/fs-writeback.c:1900
+#9  wb_workfn (work=0xffffc90001727a28) at fs/fs-writeback.c:1941
+#10 0xffffffff810b7415 in process_one_work (worker=0xffff88012eff6d68, 
+    work=0xffff88012c02e190) at kernel/workqueue.c:2145
+#11 0xffffffff810b762e in worker_thread (__worker=0xffff88012eff6d68)
+    at kernel/workqueue.c:2279
+#12 0xffffffff810bd7c3 in kthread (_create=0xffff88012e88fc28)
+    at kernel/kthread.c:238
+#13 0xffffffff81a00205 in ret_from_fork () at arch/x86/entry/entry_64.S:411
+#14 0x0000000000000000 in ?? ()
 
-        /* !HAVE_PTE_SPECIAL case follows: */
-
-+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-+       /* This part should never get called when the speculative page fault
-+        * handler is turned on. This is mainly because we can't rely on
-+        * vm_start.
-+        */
-+#error CONFIG_SPECULATIVE_PAGE_FAULT requires HAVE_PTE_SPECIAL
-+#endif
-+
-        if (unlikely(vma_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
-                if (vma_flags & VM_MIXEDMAP) {
-                        if (!pfn_valid(pfn))
-
-Thanks,
-Laurent.
+-- 
+Mike Kravetz
