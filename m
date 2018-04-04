@@ -1,87 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C61426B0008
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 05:32:58 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id o70so3974899wrb.19
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 02:32:58 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t12sor2742858edi.31.2018.04.04.02.32.57
+	by kanga.kvack.org (Postfix) with ESMTP id AEB286B000C
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 05:36:59 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id j47so10760824wre.11
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 02:36:59 -0700 (PDT)
+Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:67c:670:201:290:27ff:fe1d:cc33])
+        by mx.google.com with ESMTPS id o184si1979252wma.178.2018.04.04.02.36.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 04 Apr 2018 02:32:57 -0700 (PDT)
-Date: Wed, 4 Apr 2018 11:32:54 +0200
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: Signal handling in a page fault handler
-Message-ID: <20180404093254.GC3881@phenom.ffwll.local>
-References: <20180402141058.GL13332@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180402141058.GL13332@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 04 Apr 2018 02:36:58 -0700 (PDT)
+Message-ID: <1522834611.3779.3.camel@pengutronix.de>
+Subject: Re: [RFC] Per file OOM badness
+From: Lucas Stach <l.stach@pengutronix.de>
+Date: Wed, 04 Apr 2018 11:36:51 +0200
+In-Reply-To: <3778a205-8b30-d147-b1f6-0a93d1de8beb@daenzer.net>
+References: <20180118170006.GG6584@dhcp22.suse.cz>
+	 <20180123152659.GA21817@castle.DHCP.thefacebook.com>
+	 <20180123153631.GR1526@dhcp22.suse.cz>
+	 <ccac4870-ced3-f169-17df-2ab5da468bf0@daenzer.net>
+	 <20180124092847.GI1526@dhcp22.suse.cz>
+	 <583f328e-ff46-c6a4-8548-064259995766@daenzer.net>
+	 <20180124110141.GA28465@dhcp22.suse.cz>
+	 <36b49523-792d-45f9-8617-32b6d9d77418@daenzer.net>
+	 <20180124115059.GC28465@dhcp22.suse.cz>
+	 <60e18da8-4d6e-dec9-7aef-ff003605d513@daenzer.net>
+	 <20180130102855.GY21609@dhcp22.suse.cz>
+	 <1522074988.1196.1.camel@pengutronix.de>
+	 <3778a205-8b30-d147-b1f6-0a93d1de8beb@daenzer.net>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Souptick Joarder <jrdr.linux@gmail.com>, linux-kernel@vger.kernel.org
+To: Michel =?ISO-8859-1?Q?D=E4nzer?= <michel@daenzer.net>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, Christian.Koenig@amd.com, linux-mm@kvack.org, amd-gfx@lists.freedesktop.org, Roman Gushchin <guro@fb.com>
 
-On Mon, Apr 02, 2018 at 07:10:58AM -0700, Matthew Wilcox wrote:
+Am Mittwoch, den 04.04.2018, 11:09 +0200 schrieb Michel DA?nzer:
+> On 2018-03-26 04:36 PM, Lucas Stach wrote:
+> > Am Dienstag, den 30.01.2018, 11:28 +0100 schrieb Michal Hocko:
+> > > On Tue 30-01-18 10:29:10, Michel DA?nzer wrote:
+> > > > On 2018-01-24 12:50 PM, Michal Hocko wrote:
+> > > > > On Wed 24-01-18 12:23:10, Michel DA?nzer wrote:
+> > > > > > On 2018-01-24 12:01 PM, Michal Hocko wrote:
+> > > > > > > On Wed 24-01-18 11:27:15, Michel DA?nzer wrote:
+> > > > > 
+> > > > > [...]
+> > > > > > > > 2. If the OOM killer kills a process which is sharing BOs
+> > > > > > > > with another
+> > > > > > > > process, this should result in the other process dropping
+> > > > > > > > its references
+> > > > > > > > to the BOs as well, at which point the memory is released.
+> > > > > > > 
+> > > > > > > OK. How exactly are those BOs mapped to the userspace?
+> > > > > > 
+> > > > > > I'm not sure what you're asking. Userspace mostly uses a GEM
+> > > > > > handle to
+> > > > > > refer to a BO. There can also be userspace CPU mappings of the
+> > > > > > BO's
+> > > > > > memory, but userspace doesn't need CPU mappings for all BOs and
+> > > > > > only
+> > > > > > creates them as needed.
+> > > > > 
+> > > > > OK, I guess you have to bear with me some more. This whole stack
+> > > > > is a
+> > > > > complete uknonwn. I am mostly after finding a boundary where you
+> > > > > can
+> > > > > charge the allocated memory to the process so that the oom killer
+> > > > > can
+> > > > > consider it. Is there anything like that? Except for the proposed
+> > > > > file
+> > > > > handle hack?
+> > > > 
+> > > > How about the other way around: what APIs can we use to charge /
+> > > > "uncharge" memory to a process? If we have those, we can experiment
+> > > > with
+> > > > different places to call them.
+> > > 
+> > > add_mm_counter() and I would add a new counter e.g. MM_KERNEL_PAGES.
+> > 
+> > So is anyone still working on this? This is hurting us bad enough that
+> > I don't want to keep this topic rotting for another year.
+> > 
+> > If no one is currently working on this I would volunteer to give the
+> > simple "just account private, non-shared buffers in process RSS" a
+> > spin.
 > 
-> Souptick and I have been auditing the various page fault handler routines
-> and we've noticed that graphics drivers assume that a signal should be
-> able to interrupt a page fault.  In contrast, the page cache takes great
-> care to allow only fatal signals to interrupt a page fault.
-> 
-> I believe (but have not verified) that a non-fatal signal being delivered
-> to a task which is in the middle of a page fault may well end up in an
-> infinite loop, attempting to handle the page fault and failing forever.
-> 
-> Here's one of the simpler ones:
-> 
->         ret = mutex_lock_interruptible(&etnaviv_obj->lock);
->         if (ret)
->                 return VM_FAULT_NOPAGE;
-> 
-> (many other drivers do essentially the same thing including i915)
-> 
-> On seeing NOPAGE, the fault handler believes the PTE is in the page
-> table, so does nothing before it returns to arch code at which point
-> I get lost in the magic assembler macros.  I believe it will end up
-> returning to userspace if the signal is non-fatal, at which point it'll
-> go right back into the page fault handler, and mutex_lock_interruptible()
-> will immediately fail.  So we've converted a sleeping lock into the most
-> expensive spinlock.
-> 
-> I don't think the graphics drivers really want to be interrupted by
-> any signal.  I think they want to be interruptible by fatal signals
-> and should use the mutex_lock_killable / fatal_signal_pending family of
-> functions.  That's going to be a bit of churn, funnelling TASK_KILLABLE
-> / TASK_INTERRUPTIBLE all the way down into the dma-fence code.  Before
-> anyone gets started on that, I want to be sure that my analysis is
-> correct, and the drivers are doing the wrong thing by using interruptible
-> waits in a page fault handler.
+> Sounds good. FWIW, I think shared buffers can also be easily handled by
+> accounting them in each process which has a reference. But that's more
+> of a detail, shouldn't make a big difference overall either way.
 
-So we've done some experiments for the case where the fault originated
-from kernel context (copy_to|from_user and friends). The fixup code seems
-to retry the copy once after the fault (in copy_user_handle_tail), if that
-fails again we get a short read/write. This might result in an -EFAULT,
-short read()/write() or anything else really, depending upon the syscall
-api.
+Yes, both options to wither never account shared buffers or to always
+account them into every process having a reference should be pretty
+easy. Where it gets hard is when trying to account the buffer only in
+the last process holding a reference or something like this.
 
-Except in some code paths in gpu drivers where we convert anything into
--ERESTARTSYS/EINTR if there's a signal pending it won't ever result in the
-syscall getting restarted (well except maybe short read/writes if
-userspace bothers with that).
+For the OOM case I think it makes more sense to never account shared
+buffers, as this may lead to a process (like the compositor) to have
+its RSS inflated by shared buffers, rendering it the likely victim for
+the OOM killer/reaper, while killing this process will not lead to
+freeing of any shared graphics memory, at least if the clients sharing
+the buffer survive killing of the compositor.
 
-So I guess gpu fault handlers indeed break the kernel's expectations, but
-then I think we're getting away with that because the inner workings of
-gpu memory objects is all heavily abstracted away by opengl/vulkan and
-friends.
+This opens up the possibility to "hide" buffers from the accounting by
+sharing them, but I guess it's still much better than the nothing we do
+today to account for graphics buffers.
 
-I guess what we could do is try to only do killable sleeps if it's a
-kernel fault, but that means wiring a flag through all the callchains. Not
-pretty. Except when there's a magic set of functions that would convert
-all interruptible sleeps to killable ones only for us.
--Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-http://blog.ffwll.ch
+Regards,
+Lucas
