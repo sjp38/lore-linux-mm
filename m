@@ -1,103 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 85B866B0008
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 11:52:39 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id g61-v6so14939868plb.10
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 08:52:39 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id q9-v6si3499841pll.449.2018.04.04.08.52.38
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E21C06B0006
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 11:53:14 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 91-v6so1995893plf.6
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 08:53:14 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 7-v6si3493876plf.552.2018.04.04.08.53.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 08:52:38 -0700 (PDT)
-Subject: Re: [PATCH 09/11] x86/pti: enable global pages for shared areas
-References: <20180404010946.6186729B@viggo.jf.intel.com>
- <20180404011007.A381CC8A@viggo.jf.intel.com>
- <5DEE9F6E-535C-4DBF-A513-69D9FD5C0235@vmware.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <50385d91-58a9-4b14-06bc-2340b99933c3@linux.intel.com>
-Date: Wed, 4 Apr 2018 08:52:37 -0700
+        Wed, 04 Apr 2018 08:53:13 -0700 (PDT)
+Date: Wed, 4 Apr 2018 11:53:10 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: [PATCH] ring-buffer: Add set/clear_current_oom_origin() during
+ allocations
+Message-ID: <20180404115310.6c69e7b9@gandalf.local.home>
 MIME-Version: 1.0
-In-Reply-To: <5DEE9F6E-535C-4DBF-A513-69D9FD5C0235@vmware.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <namit@vmware.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "keescook@google.com" <keescook@google.com>, Hugh Dickins <hughd@google.com>, Juergen Gross <jgross@suse.com>, "x86@kernel.org" <x86@kernel.org>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joelaf@google.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
-On 04/03/2018 09:45 PM, Nadav Amit wrote:
-> Dave Hansen <dave.hansen@linux.intel.com> wrote:
-> 
->>
->> From: Dave Hansen <dave.hansen@linux.intel.com>
->>
->> The entry/exit text and cpu_entry_area are mapped into userspace and
->> the kernel.  But, they are not _PAGE_GLOBAL.  This creates unnecessary
->> TLB misses.
->>
->> Add the _PAGE_GLOBAL flag for these areas.
->>
->> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Cc: Andy Lutomirski <luto@kernel.org>
->> Cc: Linus Torvalds <torvalds@linux-foundation.org>
->> Cc: Kees Cook <keescook@google.com>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Juergen Gross <jgross@suse.com>
->> Cc: x86@kernel.org
->> Cc: Nadav Amit <namit@vmware.com>
->> ---
->>
->> b/arch/x86/mm/cpu_entry_area.c |   10 +++++++++-
->> b/arch/x86/mm/pti.c            |   14 +++++++++++++-
->> 2 files changed, 22 insertions(+), 2 deletions(-)
->>
->> diff -puN arch/x86/mm/cpu_entry_area.c~kpti-why-no-global arch/x86/mm/cpu_entry_area.c
->> --- a/arch/x86/mm/cpu_entry_area.c~kpti-why-no-global	2018-04-02 16:41:17.157605167 -0700
->> +++ b/arch/x86/mm/cpu_entry_area.c	2018-04-02 16:41:17.162605167 -0700
->> @@ -27,8 +27,16 @@ EXPORT_SYMBOL(get_cpu_entry_area);
->> void cea_set_pte(void *cea_vaddr, phys_addr_t pa, pgprot_t flags)
->> {
->> 	unsigned long va = (unsigned long) cea_vaddr;
->> +	pte_t pte = pfn_pte(pa >> PAGE_SHIFT, flags);
->>
->> -	set_pte_vaddr(va, pfn_pte(pa >> PAGE_SHIFT, flags));
->> +	/*
->> +	 * The cpu_entry_area is shared between the user and kernel
->> +	 * page tables.  All of its ptes can safely be global.
->> +	 */
->> +	if (boot_cpu_has(X86_FEATURE_PGE))
->> +		pte = pte_set_flags(pte, _PAGE_GLOBAL);
-> 
-> I think it would be safer to check that the PTE is indeed present before
-> setting _PAGE_GLOBAL. For example, percpu_setup_debug_store() sets PAGE_NONE
-> for non-present entries. In this case, since PAGE_NONE and PAGE_GLOBAL use
-> the same bit, everything would be fine, but it might cause bugs one day.
+From: "Steven Rostedt (VMware)" <rostedt@goodmis.org>
 
-That's a reasonable safety thing to add, I think.
+As si_mem_available() can say there is enough memory even though the memory
+available is not useable by the ring buffer, it is best to not kill innocent
+applications because the ring buffer is taking up all the memory while it is
+trying to allocate a great deal of memory.
 
-But, looking at it, I am wondering why we did this in
-percpu_setup_debug_store():
+If the allocator is user space (because kernel threads can also increase the
+size of the kernel ring buffer on boot up), then after si_mem_available()
+says there is enough memory, set the OOM killer to kill the current task if
+an OOM triggers during the allocation.
 
-        for (; npages; npages--, cea += PAGE_SIZE)
-                cea_set_pte(cea, 0, PAGE_NONE);
+Link: http://lkml.kernel.org/r/20180404062340.GD6312@dhcp22.suse.cz
 
-Did we really want that to be PAGE_NONE, or was it supposed to create a
-PTE that returns true for pte_none()?
+Suggested-by: Michal Hocko <mhocko@kernel.org>
+Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+---
+ kernel/trace/ring_buffer.c | 48 ++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 38 insertions(+), 10 deletions(-)
 
->> 		/*
->> +		 * Setting 'target_pmd' below creates a mapping in both
->> +		 * the user and kernel page tables.  It is effectively
->> +		 * global, so set it as global in both copies.  Note:
->> +		 * the X86_FEATURE_PGE check is not _required_ because
->> +		 * the CPU ignores _PAGE_GLOBAL when PGE is not
->> +		 * supported.  The check keeps consistentency with
->> +		 * code that only set this bit when supported.
->> +		 */
->> +		if (boot_cpu_has(X86_FEATURE_PGE))
->> +			*pmd = pmd_set_flags(*pmd, _PAGE_GLOBAL);
-> 
-> Same here.
-
-Is there  a reason that the pmd_none() check above this does not work?
+diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
+index 966128f02121..c9cb9767d49b 100644
+--- a/kernel/trace/ring_buffer.c
++++ b/kernel/trace/ring_buffer.c
+@@ -22,6 +22,7 @@
+ #include <linux/hash.h>
+ #include <linux/list.h>
+ #include <linux/cpu.h>
++#include <linux/oom.h>
+ 
+ #include <asm/local.h>
+ 
+@@ -1162,35 +1163,60 @@ static int rb_check_pages(struct ring_buffer_per_cpu *cpu_buffer)
+ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
+ {
+ 	struct buffer_page *bpage, *tmp;
++	bool user_thread = current->mm != NULL;
++	gfp_t mflags;
+ 	long i;
+ 
+-	/* Check if the available memory is there first */
++	/*
++	 * Check if the available memory is there first.
++	 * Note, si_mem_available() only gives us a rough estimate of available
++	 * memory. It may not be accurate. But we don't care, we just want
++	 * to prevent doing any allocation when it is obvious that it is
++	 * not going to succeed.
++	 */
+ 	i = si_mem_available();
+ 	if (i < nr_pages)
+ 		return -ENOMEM;
+ 
++	/*
++	 * __GFP_RETRY_MAYFAIL flag makes sure that the allocation fails
++	 * gracefully without invoking oom-killer and the system is not
++	 * destabilized.
++	 */
++	mflags = GFP_KERNEL | __GFP_RETRY_MAYFAIL;
++
++	/*
++	 * If a user thread allocates too much, and si_mem_available()
++	 * reports there's enough memory, even though there is not.
++	 * Make sure the OOM killer kills this thread. This can happen
++	 * even with RETRY_MAYFAIL because another task may be doing
++	 * an allocation after this task has taken all memory.
++	 * This is the task the OOM killer needs to take out during this
++	 * loop, even if it was triggered by an allocation somewhere else.
++	 */
++	if (user_thread)
++		set_current_oom_origin();
+ 	for (i = 0; i < nr_pages; i++) {
+ 		struct page *page;
+-		/*
+-		 * __GFP_RETRY_MAYFAIL flag makes sure that the allocation fails
+-		 * gracefully without invoking oom-killer and the system is not
+-		 * destabilized.
+-		 */
++
+ 		bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
+-				    GFP_KERNEL | __GFP_RETRY_MAYFAIL,
+-				    cpu_to_node(cpu));
++				    mflags, cpu_to_node(cpu));
+ 		if (!bpage)
+ 			goto free_pages;
+ 
+ 		list_add(&bpage->list, pages);
+ 
+-		page = alloc_pages_node(cpu_to_node(cpu),
+-					GFP_KERNEL | __GFP_RETRY_MAYFAIL, 0);
++		page = alloc_pages_node(cpu_to_node(cpu), mflags, 0);
+ 		if (!page)
+ 			goto free_pages;
+ 		bpage->page = page_address(page);
+ 		rb_init_page(bpage->page);
++
++		if (user_thread && fatal_signal_pending(current))
++			goto free_pages;
+ 	}
++	if (user_thread)
++		clear_current_oom_origin();
+ 
+ 	return 0;
+ 
+@@ -1199,6 +1225,8 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
+ 		list_del_init(&bpage->list);
+ 		free_buffer_page(bpage);
+ 	}
++	if (user_thread)
++		clear_current_oom_origin();
+ 
+ 	return -ENOMEM;
+ }
+-- 
+2.13.6
