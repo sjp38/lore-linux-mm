@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F7486B0029
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:16 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id n51so16369749qta.9
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:16 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D13196B005D
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:17 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id v187so7761673qka.5
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:17 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id x10si6402418qkl.87.2018.04.04.12.19.15
+        by mx.google.com with ESMTPS id x63si1344161qkc.92.2018.04.04.12.19.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 12:19:15 -0700 (PDT)
+        Wed, 04 Apr 2018 12:19:16 -0700 (PDT)
 From: jglisse@redhat.com
-Subject: [RFC PATCH 31/79] fs/block: add struct address_space to __block_write_begin_int() args
-Date: Wed,  4 Apr 2018 15:18:05 -0400
-Message-Id: <20180404191831.5378-16-jglisse@redhat.com>
+Subject: [RFC PATCH 32/79] fs/block: do not rely on page->mapping get it from the context
+Date: Wed,  4 Apr 2018 15:18:06 -0400
+Message-Id: <20180404191831.5378-17-jglisse@redhat.com>
 In-Reply-To: <20180404191831.5378-1-jglisse@redhat.com>
 References: <20180404191831.5378-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -25,29 +25,9 @@ Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-Add struct address_space to __block_write_begin_int() arguments.
-
-One step toward dropping reliance on page->mapping.
-
-----------------------------------------------------------------------
-@exists@
-identifier M;
-expression E1, E2, E3, E4, E5;
-@@
-struct address_space *M;
-...
--__block_write_begin_int(E1, E2, E3, E4, E5)
-+__block_write_begin_int(M, E1, E2, E3, E4, E5)
-
-@exists@
-identifier M, F;
-expression E1, E2, E3, E4, E5;
-@@
-F(..., struct address_space *M, ...) {...
--__block_write_begin_int(E1, E2, E3, E4, E5)
-+__block_write_begin_int(M, E1, E2, E3, E4, E5)
-...}
-----------------------------------------------------------------------
+This patch remove most dereference of page->mapping and get the mapping
+from the call context (either already available in the function or by
+adding it to function arguments).
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 Cc: Jens Axboe <axboe@kernel.dk>
@@ -59,34 +39,38 @@ Cc: Jan Kara <jack@suse.cz>
 Cc: Josef Bacik <jbacik@fb.com>
 Cc: Mel Gorman <mgorman@techsingularity.net>
 ---
- fs/buffer.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ fs/block_dev.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index de16588d7f7f..c83878d0a4c0 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -1943,8 +1943,9 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
- 	}
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 502b6643bc74..dd9da97615e3 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -564,14 +564,14 @@ EXPORT_SYMBOL(thaw_bdev);
+ static int blkdev_writepage(struct address_space *mapping, struct page *page,
+ 			    struct writeback_control *wbc)
+ {
+-	return block_write_full_page(page->mapping->host, page,
++	return block_write_full_page(mapping->host, page,
+ 				     blkdev_get_block, wbc);
  }
  
--int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
--		get_block_t *get_block, struct iomap *iomap)
-+int __block_write_begin_int(struct address_space *mapping, struct page *page,
-+		loff_t pos, unsigned len, get_block_t *get_block,
-+		struct iomap *iomap)
+ static int blkdev_readpage(struct file * file, struct address_space *mapping,
+ 			   struct page * page)
  {
- 	unsigned from = pos & (PAGE_SIZE - 1);
- 	unsigned to = from + len;
-@@ -2031,7 +2032,8 @@ int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
- int __block_write_begin(struct address_space *mapping, struct page *page,
- 		loff_t pos, unsigned len, get_block_t *get_block)
- {
--	return __block_write_begin_int(page, pos, len, get_block, NULL);
-+	return __block_write_begin_int(mapping, page, pos, len, get_block,
-+				       NULL);
+-	return block_read_full_page(page->mapping->host,page,blkdev_get_block);
++	return block_read_full_page(mapping->host,page,blkdev_get_block);
  }
- EXPORT_SYMBOL(__block_write_begin);
  
+ static int blkdev_readpages(struct file *file, struct address_space *mapping,
+@@ -1941,7 +1941,7 @@ EXPORT_SYMBOL_GPL(blkdev_read_iter);
+ static int blkdev_releasepage(struct address_space *mapping,
+ 			      struct page *page, gfp_t wait)
+ {
+-	struct super_block *super = BDEV_I(page->mapping->host)->bdev.bd_super;
++	struct super_block *super = BDEV_I(mapping->host)->bdev.bd_super;
+ 
+ 	if (super && super->s_op->bdev_try_to_free_page)
+ 		return super->s_op->bdev_try_to_free_page(super, page, wait);
 -- 
 2.14.3
