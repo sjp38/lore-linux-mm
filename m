@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3758B6B0288
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:36 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id q185so15492520qke.0
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:36 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 14F656B0289
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:38 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id d12so9817939qki.17
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:38 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u22si636119qte.74.2018.04.04.12.19.34
+        by mx.google.com with ESMTPS id x123si6343858qke.473.2018.04.04.12.19.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 12:19:34 -0700 (PDT)
+        Wed, 04 Apr 2018 12:19:31 -0700 (PDT)
 From: jglisse@redhat.com
-Subject: [RFC PATCH 78/79] mm/ksm: rename PAGE_MAPPING_KSM to PAGE_MAPPING_RONLY
-Date: Wed,  4 Apr 2018 15:18:30 -0400
-Message-Id: <20180404191831.5378-41-jglisse@redhat.com>
+Subject: [RFC PATCH 73/79] mm: pass down struct address_space to set_page_dirty()
+Date: Wed,  4 Apr 2018 15:18:25 -0400
+Message-Id: <20180404191831.5378-36-jglisse@redhat.com>
 In-Reply-To: <20180404191831.5378-1-jglisse@redhat.com>
 References: <20180404191831.5378-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,305 +21,253 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Josef Bacik <jbacik@fb.com>, Mel Gorman <mgorman@techsingularity.net>
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-This just rename all KSM specific helper to generic page read only
-name. No functional change.
+Pass down struct address_space to set_page_dirty() everywhere it is
+already available.
+
+<---------------------------------------------------------------------
+@exists@
+expression E;
+identifier F, M;
+@@
+F(..., struct address_space * M, ...) {
+...
+-set_page_dirty(NULL, E)
++set_page_dirty(M, E)
+...
+}
+
+@exists@
+expression E;
+identifier M;
+@@
+struct address_space * M;
+...
+-set_page_dirty(NULL, E)
++set_page_dirty(M, E)
+
+@exists@
+expression E;
+identifier F, I;
+@@
+F(..., struct inode * I, ...) {
+...
+-set_page_dirty(NULL, E)
++set_page_dirty(I->i_mapping, E)
+...
+}
+
+@exists@
+expression E;
+identifier I;
+@@
+struct inode * I;
+...
+-set_page_dirty(NULL, E)
++set_page_dirty(I->i_mapping, E)
+--------------------------------------------------------------------->
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux-fsdevel@vger.kernel.org
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Josef Bacik <jbacik@fb.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
 ---
- fs/proc/page.c             |  2 +-
- include/linux/page-flags.h | 30 +++++++++++++++++-------------
- mm/ksm.c                   | 12 ++++++------
- mm/memory-failure.c        |  2 +-
- mm/memory.c                |  2 +-
- mm/migrate.c               |  6 +++---
- mm/mprotect.c              |  2 +-
- mm/page_idle.c             |  2 +-
- mm/rmap.c                  | 10 +++++-----
- mm/swapfile.c              |  2 +-
- 10 files changed, 37 insertions(+), 33 deletions(-)
+ mm/filemap.c        |  2 +-
+ mm/khugepaged.c     |  2 +-
+ mm/memory.c         |  2 +-
+ mm/page-writeback.c |  4 ++--
+ mm/page_io.c        |  4 ++--
+ mm/shmem.c          | 18 +++++++++---------
+ mm/truncate.c       |  2 +-
+ 7 files changed, 17 insertions(+), 17 deletions(-)
 
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index 1491918a33c3..00cc037758ef 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -110,7 +110,7 @@ u64 stable_page_flags(struct page *page)
- 		u |= 1 << KPF_MMAP;
- 	if (PageAnon(page))
- 		u |= 1 << KPF_ANON;
--	if (PageKsm(page))
-+	if (PageReadOnly(page))
- 		u |= 1 << KPF_KSM;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index c1ee7431bc4d..a15c29350a6a 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2717,7 +2717,7 @@ int filemap_page_mkwrite(struct vm_fault *vmf)
+ 	 * progress, we are guaranteed that writeback during freezing will
+ 	 * see the dirty page and writeprotect it again.
+ 	 */
+-	set_page_dirty(NULL, page);
++	set_page_dirty(inode->i_mapping, page);
+ 	wait_for_stable_page(page);
+ out:
+ 	sb_end_pagefault(inode->i_sb);
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index ccd5da4e855f..b9a968172fb9 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1513,7 +1513,7 @@ static void collapse_shmem(struct mm_struct *mm,
+ 		retract_page_tables(mapping, start);
  
- 	/*
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 50c2b8786831..0338fb5dde8d 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -374,12 +374,12 @@ PAGEFLAG(Idle, idle, PF_ANY)
-  * page->mapping points to its anon_vma, not to a struct address_space;
-  * with the PAGE_MAPPING_ANON bit set to distinguish it.  See rmap.h.
-  *
-- * On an anonymous page in a VM_MERGEABLE area, if CONFIG_KSM is enabled,
-+ * On an anonymous page in a VM_MERGEABLE area, if CONFIG_RONLY is enabled,
-  * the PAGE_MAPPING_MOVABLE bit may be set along with the PAGE_MAPPING_ANON
-  * bit; and then page->mapping points, not to an anon_vma, but to a private
-- * structure which KSM associates with that merged page.  See ksm.h.
-+ * structure which RONLY associates with that merged page.  See page-ronly.h.
-  *
-- * PAGE_MAPPING_KSM without PAGE_MAPPING_ANON is used for non-lru movable
-+ * PAGE_MAPPING_RONLY without PAGE_MAPPING_ANON is used for non-lru movable
-  * page and then page->mapping points a struct address_space.
-  *
-  * Please note that, confusingly, "page_mapping" refers to the inode
-@@ -388,7 +388,7 @@ PAGEFLAG(Idle, idle, PF_ANY)
-  */
- #define PAGE_MAPPING_ANON	0x1
- #define PAGE_MAPPING_MOVABLE	0x2
--#define PAGE_MAPPING_KSM	(PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
-+#define PAGE_MAPPING_RONLY	(PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
- #define PAGE_MAPPING_FLAGS	(PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
- 
- static __always_inline int PageMappingFlags(struct page *page)
-@@ -408,21 +408,25 @@ static __always_inline int __PageMovable(struct page *page)
- 				PAGE_MAPPING_MOVABLE;
- }
- 
--#ifdef CONFIG_KSM
--/*
-- * A KSM page is one of those write-protected "shared pages" or "merged pages"
-- * which KSM maps into multiple mms, wherever identical anonymous page content
-- * is found in VM_MERGEABLE vmas.  It's a PageAnon page, pointing not to any
-- * anon_vma, but to that page's node of the stable tree.
-+#ifdef CONFIG_PAGE_RONLY
-+/* PageReadOnly() - Returns true if page is read only, false otherwise.
-+ *
-+ * @page: Page under test.
-+ *
-+ * A read only page is one of those write-protected. Currently only KSM does
-+ * write protect a page as "shared pages" or "merged pages"  which KSM maps
-+ * into multiple mms, wherever identical anonymous page content is found in
-+ * VM_MERGEABLE vmas.  It's a PageAnon page, pointing not to any anon_vma,
-+ * but to that page's node of the stable tree.
-  */
--static __always_inline int PageKsm(struct page *page)
-+static __always_inline int PageReadOnly(struct page *page)
- {
- 	page = compound_head(page);
- 	return ((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) ==
--				PAGE_MAPPING_KSM;
-+				PAGE_MAPPING_RONLY;
- }
- #else
--TESTPAGEFLAG_FALSE(Ksm)
-+TESTPAGEFLAG_FALSE(ReadOnly)
- #endif
- 
- u64 stable_page_flags(struct page *page);
-diff --git a/mm/ksm.c b/mm/ksm.c
-index f9bd1251c288..6085068fb8b3 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -318,13 +318,13 @@ static void __init ksm_slab_free(void)
- 
- static inline struct stable_node *page_stable_node(struct page *page)
- {
--	return PageKsm(page) ? page_rmapping(page) : NULL;
-+	return PageReadOnly(page) ? page_rmapping(page) : NULL;
- }
- 
- static inline void set_page_stable_node(struct page *page,
- 					struct stable_node *stable_node)
- {
--	page->mapping = (void *)((unsigned long)stable_node | PAGE_MAPPING_KSM);
-+	page->mapping = (void *)((unsigned long)stable_node | PAGE_MAPPING_RONLY);
- }
- 
- static __always_inline bool is_stable_node_chain(struct stable_node *chain)
-@@ -470,7 +470,7 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
- 				FOLL_GET | FOLL_MIGRATION | FOLL_REMOTE);
- 		if (IS_ERR_OR_NULL(page))
- 			break;
--		if (PageKsm(page))
-+		if (PageReadOnly(page))
- 			ret = handle_mm_fault(vma, addr,
- 					FAULT_FLAG_WRITE | FAULT_FLAG_REMOTE);
- 		else
-@@ -684,7 +684,7 @@ static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
- 	unsigned long kpfn;
- 
- 	expected_mapping = (void *)((unsigned long)stable_node |
--					PAGE_MAPPING_KSM);
-+					PAGE_MAPPING_RONLY);
- again:
- 	kpfn = READ_ONCE(stable_node->kpfn); /* Address dependency. */
- 	page = pfn_to_page(kpfn);
-@@ -2490,7 +2490,7 @@ struct page *ksm_might_need_to_copy(struct page *page,
- 	struct anon_vma *anon_vma = page_anon_vma(page);
- 	struct page *new_page;
- 
--	if (PageKsm(page)) {
-+	if (PageReadOnly(page)) {
- 		if (page_stable_node(page) &&
- 		    !(ksm_run & KSM_RUN_UNMERGE))
- 			return page;	/* no need to copy it */
-@@ -2521,7 +2521,7 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
- 	struct rmap_item *rmap_item;
- 	int search_new_forks = 0;
- 
--	VM_BUG_ON_PAGE(!PageKsm(page), page);
-+	VM_BUG_ON_PAGE(!PageReadOnly(page), page);
- 
- 	/*
- 	 * Rely on the page lock to protect against concurrent modifications
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 8291b75f42c8..18efefc20e67 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -947,7 +947,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	if (!page_mapped(hpage))
- 		return true;
- 
--	if (PageKsm(p)) {
-+	if (PageReadOnly(p)) {
- 		pr_err("Memory failure: %#lx: can't handle KSM pages.\n", pfn);
- 		return false;
- 	}
+ 		/* Everything is ready, let's unfreeze the new_page */
+-		set_page_dirty(NULL, new_page);
++		set_page_dirty(mapping, new_page);
+ 		SetPageUptodate(new_page);
+ 		page_ref_unfreeze(new_page, HPAGE_PMD_NR);
+ 		mem_cgroup_commit_charge(new_page, memcg, false, true);
 diff --git a/mm/memory.c b/mm/memory.c
-index fbd80bb7a50a..b565db41400f 100644
+index 20443ebf9c42..fbd80bb7a50a 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2733,7 +2733,7 @@ static int do_wp_page(struct vm_fault *vmf)
- 	 * Take out anonymous pages first, anonymous shared vmas are
- 	 * not dirty accountable.
- 	 */
--	if (PageAnon(vmf->page) && !PageKsm(vmf->page)) {
-+	if (PageAnon(vmf->page) && !PageReadOnly(vmf->page)) {
- 		int total_map_swapcount;
- 		if (!trylock_page(vmf->page)) {
- 			get_page(vmf->page);
-diff --git a/mm/migrate.c b/mm/migrate.c
-index e4b20ac6cf36..b73b31f6d2fd 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -214,7 +214,7 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
+@@ -2400,7 +2400,7 @@ static void fault_dirty_shared_page(struct vm_area_struct *vma,
+ 	bool dirtied;
+ 	bool page_mkwrite = vma->vm_ops && vma->vm_ops->page_mkwrite;
  
- 	VM_BUG_ON_PAGE(PageTail(page), page);
- 	while (page_vma_mapped_walk(&pvmw)) {
--		if (PageKsm(page))
-+		if (PageReadOnly(page))
- 			new = page;
- 		else
- 			new = page - pvmw.page->index +
-@@ -1038,7 +1038,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
- 	 * because that implies that the anon page is no longer mapped
- 	 * (and cannot be remapped so long as we hold the page lock).
- 	 */
--	if (PageAnon(page) && !PageKsm(page))
-+	if (PageAnon(page) && !PageReadOnly(page))
- 		anon_vma = page_get_anon_vma(page);
- 
+-	dirtied = set_page_dirty(NULL, page);
++	dirtied = set_page_dirty(mapping, page);
+ 	VM_BUG_ON_PAGE(PageAnon(page), page);
  	/*
-@@ -1077,7 +1077,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 	 * Take a local copy of the address_space - page.mapping may be zeroed
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index eaa6c23ba752..59dc9a12efc7 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2599,7 +2599,7 @@ int set_page_dirty_lock(struct address_space *_mapping, struct page *page)
+ 	int ret;
+ 
+ 	lock_page(page);
+-	ret = set_page_dirty(NULL, page);
++	ret = set_page_dirty(_mapping, page);
+ 	unlock_page(page);
+ 	return ret;
+ }
+@@ -2693,7 +2693,7 @@ int clear_page_dirty_for_io(struct page *page)
+ 		 * threads doing their things.
+ 		 */
+ 		if (page_mkclean(page))
+-			set_page_dirty(NULL, page);
++			set_page_dirty(mapping, page);
+ 		/*
+ 		 * We carefully synchronise fault handlers against
+ 		 * installing a dirty pte and marking the page dirty
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 5afc8b8a6b97..fd3133cd50d4 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -329,7 +329,7 @@ int __swap_writepage(struct address_space *mapping, struct page *page,
+ 			 * the normal direct-to-bio case as it could
+ 			 * be temporary.
+ 			 */
+-			set_page_dirty(NULL, page);
++			set_page_dirty(mapping, page);
+ 			ClearPageReclaim(page);
+ 			pr_err_ratelimited("Write error on dio swapfile (%llu)\n",
+ 					   page_file_offset(page));
+@@ -348,7 +348,7 @@ int __swap_writepage(struct address_space *mapping, struct page *page,
+ 	ret = 0;
+ 	bio = get_swap_bio(GFP_NOIO, page, end_write_func);
+ 	if (bio == NULL) {
+-		set_page_dirty(NULL, page);
++		set_page_dirty(mapping, page);
+ 		unlock_page(page);
+ 		ret = -ENOMEM;
+ 		goto out;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index cb09fea4a9ce..eae03f684869 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -874,7 +874,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 				partial_end = 0;
+ 			}
+ 			zero_user_segment(page, partial_start, top);
+-			set_page_dirty(NULL, page);
++			set_page_dirty(mapping, page);
+ 			unlock_page(page);
+ 			put_page(page);
  		}
- 	} else if (page_mapped(page)) {
- 		/* Establish migration ptes */
--		VM_BUG_ON_PAGE(PageAnon(page) && !PageKsm(page) && !anon_vma,
-+		VM_BUG_ON_PAGE(PageAnon(page) && !PageReadOnly(page) && !anon_vma,
- 				page);
- 		try_to_unmap(page,
- 			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index e3309fcf586b..ab2f2e4961d8 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -81,7 +81,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				struct page *page;
+@@ -884,7 +884,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 		shmem_getpage(inode, end, &page, SGP_READ);
+ 		if (page) {
+ 			zero_user_segment(page, 0, partial_end);
+-			set_page_dirty(NULL, page);
++			set_page_dirty(mapping, page);
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
+@@ -1189,7 +1189,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
+ 		 * only does trylock page: if we raced, best clean up here.
+ 		 */
+ 		delete_from_swap_cache(*pagep);
+-		set_page_dirty(NULL, *pagep);
++		set_page_dirty(mapping, *pagep);
+ 		if (!error) {
+ 			spin_lock_irq(&info->lock);
+ 			info->swapped--;
+@@ -1364,7 +1364,7 @@ static int shmem_writepage(struct address_space *_mapping, struct page *page,
+ free_swap:
+ 	put_swap_page(page, swap);
+ redirty:
+-	set_page_dirty(NULL, page);
++	set_page_dirty(_mapping, page);
+ 	if (wbc->for_reclaim)
+ 		return AOP_WRITEPAGE_ACTIVATE;	/* Return with page locked */
+ 	unlock_page(page);
+@@ -1738,7 +1738,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 			mark_page_accessed(page);
  
- 				page = vm_normal_page(vma, addr, oldpte);
--				if (!page || PageKsm(page))
-+				if (!page || PageReadOnly(page))
- 					continue;
+ 		delete_from_swap_cache(page);
+-		set_page_dirty(NULL, page);
++		set_page_dirty(mapping, page);
+ 		swap_free(swap);
  
- 				/* Also skip shared copy-on-write pages */
-diff --git a/mm/page_idle.c b/mm/page_idle.c
-index 0a49374e6931..7e5258e4d2ad 100644
---- a/mm/page_idle.c
-+++ b/mm/page_idle.c
-@@ -104,7 +104,7 @@ static void page_idle_clear_pte_refs(struct page *page)
- 	    !page_rmapping(page))
- 		return;
- 
--	need_lock = !PageAnon(page) || PageKsm(page);
-+	need_lock = !PageAnon(page) || PageReadOnly(page);
- 	if (need_lock && !trylock_page(page))
- 		return;
- 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 822a3a0cd51c..70d37f77e7a4 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -855,7 +855,7 @@ int page_referenced(struct page *page,
- 	if (!page_rmapping(page))
- 		return 0;
- 
--	if (!is_locked && (!PageAnon(page) || PageKsm(page))) {
-+	if (!is_locked && (!PageAnon(page) || PageReadOnly(page))) {
- 		we_locked = trylock_page(page);
- 		if (!we_locked)
- 			return 1;
-@@ -1122,7 +1122,7 @@ void do_page_add_anon_rmap(struct page *page,
- 			__inc_node_page_state(page, NR_ANON_THPS);
- 		__mod_node_page_state(page_pgdat(page), NR_ANON_MAPPED, nr);
+ 	} else {
+@@ -2416,7 +2416,7 @@ shmem_write_end(struct file *file, struct address_space *mapping,
+ 		}
+ 		SetPageUptodate(head);
  	}
--	if (unlikely(PageKsm(page)))
-+	if (unlikely(PageReadOnly(page)))
- 		return;
+-	set_page_dirty(NULL, page);
++	set_page_dirty(mapping, page);
+ 	unlock_page(page);
+ 	put_page(page);
  
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
-@@ -1660,7 +1660,7 @@ bool try_to_unmap(struct page *page, enum ttu_flags flags)
- 	 * temporary VMAs until after exec() completes.
+@@ -2469,7 +2469,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
+ 		}
+ 		if (page) {
+ 			if (sgp == SGP_CACHE)
+-				set_page_dirty(NULL, page);
++				set_page_dirty(mapping, page);
+ 			unlock_page(page);
+ 		}
+ 
+@@ -2970,7 +2970,7 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
+ 		 * than free the pages we are allocating (and SGP_CACHE pages
+ 		 * might still be clean: we now need to mark those dirty too).
+ 		 */
+-		set_page_dirty(NULL, page);
++		set_page_dirty(inode->i_mapping, page);
+ 		unlock_page(page);
+ 		put_page(page);
+ 		cond_resched();
+@@ -3271,7 +3271,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
+ 		inode->i_op = &shmem_symlink_inode_operations;
+ 		memcpy(page_address(page), symname, len);
+ 		SetPageUptodate(page);
+-		set_page_dirty(NULL, page);
++		set_page_dirty(dir->i_mapping, page);
+ 		unlock_page(page);
+ 		put_page(page);
+ 	}
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 78d907008367..f4f018f35552 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -874,7 +874,7 @@ void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
+ 	 * is needed.
  	 */
- 	if ((flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))
--	    && !PageKsm(page) && PageAnon(page))
-+	    && !PageReadOnly(page) && PageAnon(page))
- 		rwc.invalid_vma = invalid_migration_vma;
- 
- 	if (flags & TTU_RMAP_LOCKED)
-@@ -1842,7 +1842,7 @@ static void rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
- 
- void rmap_walk(struct page *page, struct rmap_walk_control *rwc)
- {
--	if (unlikely(PageKsm(page)))
-+	if (unlikely(PageReadOnly(page)))
- 		rmap_walk_ksm(page, rwc);
- 	else if (PageAnon(page))
- 		rmap_walk_anon(page, rwc, false);
-@@ -1854,7 +1854,7 @@ void rmap_walk(struct page *page, struct rmap_walk_control *rwc)
- void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
- {
- 	/* no ksm support for now */
--	VM_BUG_ON_PAGE(PageKsm(page), page);
-+	VM_BUG_ON_PAGE(PageReadOnly(page), page);
- 	if (PageAnon(page))
- 		rmap_walk_anon(page, rwc, true);
- 	else
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index c429c19e5d5d..83c73cca9e21 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1552,7 +1552,7 @@ bool reuse_swap_page(struct page *page, int *total_map_swapcount)
- 	int count, total_mapcount, total_swapcount;
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
--	if (unlikely(PageKsm(page)))
-+	if (unlikely(PageReadOnly(page)))
- 		return false;
- 	count = page_trans_huge_map_swapcount(page, &total_mapcount,
- 					      &total_swapcount);
+ 	if (page_mkclean(page))
+-		set_page_dirty(NULL, page);
++		set_page_dirty(inode->i_mapping, page);
+ 	unlock_page(page);
+ 	put_page(page);
+ }
 -- 
 2.14.3
