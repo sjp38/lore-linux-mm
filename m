@@ -1,59 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 381626B0005
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 20:24:09 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b23so6607607wme.3
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 17:24:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r18sor1812210wrl.2.2018.04.03.17.24.07
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Apr 2018 17:24:07 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 196126B0005
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 20:31:14 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id c2-v6so8424511plo.21
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 17:31:14 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (lgeamrelo11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id y12-v6si1622055plt.453.2018.04.03.17.31.12
+        for <linux-mm@kvack.org>;
+        Tue, 03 Apr 2018 17:31:12 -0700 (PDT)
+Date: Wed, 4 Apr 2018 09:31:10 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v1] mm: help the ALLOC_HARDER allocation pass the
+ watermarki when CMA on
+Message-ID: <20180404003028.GA6628@js1304-desktop>
+References: <1521791852-7048-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+ <20180323083847.GJ23100@dhcp22.suse.cz>
+ <CAGWkznHxTaymoEuFEQ+nN0ZvpPLhdE_fbwpT3pbDf+NQyHw-3g@mail.gmail.com>
+ <20180323093327.GM23100@dhcp22.suse.cz>
+ <20180323130408.0c6451fac02c49b535ec7485@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20170914132452.d5klyizce72rhjaa@dhcp22.suse.cz>
-References: <1504672525-17915-1-git-send-email-iamjoonsoo.kim@lge.com> <20170914132452.d5klyizce72rhjaa@dhcp22.suse.cz>
-From: Joonsoo Kim <js1304@gmail.com>
-Date: Wed, 4 Apr 2018 09:24:06 +0900
-Message-ID: <CAAmzW4NGv7RyCYyokPoj4aR3ySKub4jaBZ3k=pt_YReFbByvsw@mail.gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
- ZONE_MOVABLE request
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180323130408.0c6451fac02c49b535ec7485@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, zhaoyang.huang@spreadtrum.com, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, vel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org
 
-Hello, Michal.
+On Fri, Mar 23, 2018 at 01:04:08PM -0700, Andrew Morton wrote:
+> On Fri, 23 Mar 2018 10:33:27 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > On Fri 23-03-18 17:19:26, Zhaoyang Huang wrote:
+> > > On Fri, Mar 23, 2018 at 4:38 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> > > > On Fri 23-03-18 15:57:32, Zhaoyang Huang wrote:
+> > > >> For the type of 'ALLOC_HARDER' page allocation, there is an express
+> > > >> highway for the whole process which lead the allocation reach __rmqueue_xxx
+> > > >> easier than other type.
+> > > >> However, when CMA is enabled, the free_page within zone_watermark_ok() will
+> > > >> be deducted for number the pages in CMA type, which may cause the watermark
+> > > >> check fail, but there are possible enough HighAtomic or Unmovable and
+> > > >> Reclaimable pages in the zone. So add 'alloc_harder' here to
+> > > >> count CMA pages in to clean the obstacles on the way to the final.
+> > > >
+> > > > This is no longer the case in the current mmotm tree. Have a look at
+> > > > Joonsoo's zone movable based CMA patchset http://lkml.kernel.org/r/1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com
+> > > >
+> > > Thanks for the information. However, I can't find the commit in the
+> > > latest mainline, is it merged?
+> > 
+> > Not yet. It is still sitting in the mmomt tree. I am not sure what is
+> > the merge plan but I guess it is still waiting for some review feedback.
+> 
+> http://lkml.kernel.org/r/20171222001113.GA1729@js1304-P5Q-DELUXE
+> 
+> That patchset has been floating about since December and still has
+> unresolved issues.
+> 
+> Joonsoo, can you please let us know the status?
 
-Sorry for a really long delay.
+Hello, Andrew.
+Sorry for a late response.
 
-2017-09-14 22:24 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> [Sorry for a later reply]
->
-> On Wed 06-09-17 13:35:25, Joonsoo Kim wrote:
->> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>
->> Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
->> important to reserve.
->
-> I am still not convinced this is a good idea. I do agree that reserving
-> memory in both HIGHMEM and MOVABLE is just wasting memory but removing
-> the reserve from the highmem as well will result that an oom victim will
-> allocate from lower zones and that might have unexpected side effects.
+Today, I finally have answered the question from Michal and it seems
+that there is no problem at all.
 
-Looks like you are confused.
+http://lkml.kernel.org/r/CAAmzW4NGv7RyCYyokPoj4aR3ySKub4jaBZ3k=pt_YReFbByvsw@mail.gmail.com
 
-This patch only affects the situation that ZONE_HIGHMEM and ZONE_MOVABLE is
-used at the same time. In that case, before this patch, ZONE_HIGHMEM has
-reserve for GFP_HIGHMEM | GFP_MOVABLE request, but, with this patch,  no reserve
-in ZONE_HIGHMEM for GFP_HIGHMEM | GFP_MOVABLE request. This perfectly
-matchs with your hope. :)
-
-> Can we simply leave HIGHMEM reserve and only remove it from the movable
-> zone if both are present?
-
-There is no higher zone than ZONE_MOVABLE so ZONE_MOVABLE has no reserve
-with/without this patch. To save memory, we need to remove the reserve in
-ZONE_HIGHMEM.
+You can merge the patch as is.
 
 Thanks.
