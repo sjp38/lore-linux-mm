@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C135B6B000C
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 21:12:49 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id m6-v6so12001769pln.8
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 18:12:49 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id k13si2871899pgr.124.2018.04.03.18.12.48
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 343476B000D
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2018 21:12:51 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id w9-v6so9926869plp.0
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2018 18:12:51 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id q10si2780653pgs.133.2018.04.03.18.12.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Apr 2018 18:12:48 -0700 (PDT)
-Subject: [PATCH 06/11] x86/mm: remove extra filtering in pageattr code
+        Tue, 03 Apr 2018 18:12:50 -0700 (PDT)
+Subject: [PATCH 07/11] x86/mm: comment _PAGE_GLOBAL mystery
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Tue, 03 Apr 2018 18:10:02 -0700
+Date: Tue, 03 Apr 2018 18:10:04 -0700
 References: <20180404010946.6186729B@viggo.jf.intel.com>
 In-Reply-To: <20180404010946.6186729B@viggo.jf.intel.com>
-Message-Id: <20180404011002.7112D64B@viggo.jf.intel.com>
+Message-Id: <20180404011004.FE082845@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,18 +23,18 @@ Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, aarcange@redh
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The pageattr code has a mode where it can set or clear PTE bits in
-existing PTEs, so the page protections of the *new* PTEs come from
-one of two places:
-1. The set/clear masks: cpa->mask_clr / cpa->mask_set
-2. The existing PTE
+I was mystified as to where the _PAGE_GLOBAL in the kernel page tables
+for kernel text came from.  I audited all the places I could find, but
+I missed one: head_64.S.
 
-We filter ->mask_set/clr for supported PTE bits at entry to
-__change_page_attr() so we never need to filter them again.
+The page tables that we create in here live for a long time, and they
+also have _PAGE_GLOBAL set, despite whether the processor supports it
+or not.  It's harmless, and we got *lucky* that the pageattr code
+accidentally clears it when we wipe it out of __supported_pte_mask and
+then later try to mark kernel text read-only.
 
-The only other place permissions can come from is an existing PTE
-and those already presumably have good bits.  We do not need to filter
-them again.
+Comment some of these properties to make it easier to find and
+understand in the future.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
@@ -45,47 +45,38 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: x86@kernel.org
 Cc: Nadav Amit <namit@vmware.com>
-
 ---
 
- b/arch/x86/mm/pageattr.c |    6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ b/arch/x86/kernel/head_64.S |   11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
-diff -puN arch/x86/mm/pageattr.c~x86-pageattr-dont-filter-global arch/x86/mm/pageattr.c
---- a/arch/x86/mm/pageattr.c~x86-pageattr-dont-filter-global	2018-04-02 16:41:15.543605172 -0700
-+++ b/arch/x86/mm/pageattr.c	2018-04-02 16:41:15.547605172 -0700
-@@ -598,7 +598,6 @@ try_preserve_large_page(pte_t *kpte, uns
- 	req_prot = pgprot_clear_protnone_bits(req_prot);
- 	if (pgprot_val(req_prot) & _PAGE_PRESENT)
- 		pgprot_val(req_prot) |= _PAGE_PSE;
--	req_prot = canon_pgprot(req_prot);
- 
- 	/*
- 	 * old_pfn points to the large page base pfn. So we need
-@@ -718,7 +717,7 @@ __split_large_page(struct cpa_data *cpa,
+diff -puN arch/x86/kernel/head_64.S~comment-global-page arch/x86/kernel/head_64.S
+--- a/arch/x86/kernel/head_64.S~comment-global-page	2018-04-02 16:41:16.085605170 -0700
++++ b/arch/x86/kernel/head_64.S	2018-04-02 16:41:16.088605170 -0700
+@@ -399,8 +399,13 @@ NEXT_PAGE(level3_ident_pgt)
+ 	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+ 	.fill	511, 8, 0
+ NEXT_PAGE(level2_ident_pgt)
+-	/* Since I easily can, map the first 1G.
++	/*
++	 * Since I easily can, map the first 1G.
+ 	 * Don't set NX because code runs from these pages.
++	 *
++	 * Note: This sets _PAGE_GLOBAL despite whether
++	 * the CPU supports it or it is enabled.  But,
++	 * the CPU should ignore the bit.
  	 */
- 	pfn = ref_pfn;
- 	for (i = 0; i < PTRS_PER_PTE; i++, pfn += pfninc)
--		set_pte(&pbase[i], pfn_pte(pfn, canon_pgprot(ref_prot)));
-+		set_pte(&pbase[i], pfn_pte(pfn, ref_prot));
- 
- 	if (virt_addr_valid(address)) {
- 		unsigned long pfn = PFN_DOWN(__pa(address));
-@@ -935,7 +934,6 @@ static void populate_pte(struct cpa_data
- 	pte = pte_offset_kernel(pmd, start);
- 
- 	pgprot = pgprot_clear_protnone_bits(pgprot);
--	pgprot = canon_pgprot(pgprot);
- 
- 	while (num_pages-- && start < end) {
- 		set_pte(pte, pfn_pte(cpa->pfn, pgprot));
-@@ -1234,7 +1232,7 @@ repeat:
- 		 * after all we're only going to change it's attributes
- 		 * not the memory it points to
- 		 */
--		new_pte = pfn_pte(pfn, canon_pgprot(new_prot));
-+		new_pte = pfn_pte(pfn, new_prot);
- 		cpa->pfn = pfn;
- 		/*
- 		 * Do we really change anything ?
+ 	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
+ #else
+@@ -431,6 +436,10 @@ NEXT_PAGE(level2_kernel_pgt)
+ 	 * (NOTE: at +512MB starts the module area, see MODULES_VADDR.
+ 	 *  If you want to increase this then increase MODULES_VADDR
+ 	 *  too.)
++	 *
++	 *  This table is eventually used by the kernel during normal
++	 *  runtime.  Care must be taken to clear out undesired bits
++	 *  later, like _PAGE_RW or _PAGE_GLOBAL in some cases.
+ 	 */
+ 	PMDS(0, __PAGE_KERNEL_LARGE_EXEC,
+ 		KERNEL_IMAGE_SIZE/PMD_SIZE)
 _
