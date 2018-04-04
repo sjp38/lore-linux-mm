@@ -1,100 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 14A1B6B0005
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 04:27:06 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id z83so8582959wmc.2
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 01:27:06 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id s35si1078462eda.464.2018.04.04.01.27.04
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 95AFB6B0005
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 04:28:46 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id a125so14438668qkd.4
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 01:28:46 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id f30si2842520qtg.451.2018.04.04.01.28.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 01:27:04 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w348QMZE030379
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2018 04:27:03 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2h4tv4rvnx-1
+        Wed, 04 Apr 2018 01:28:45 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w348OgBY017739
+	for <linux-mm@kvack.org>; Wed, 4 Apr 2018 04:28:44 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2h4pvhad6e-1
 	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 04 Apr 2018 04:26:25 -0400
+	for <linux-mm@kvack.org>; Wed, 04 Apr 2018 04:28:43 -0400
 Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 4 Apr 2018 09:25:06 +0100
-Subject: Re: [PATCH v9 09/24] mm: protect mremap() against SPF hanlder
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1520963994-28477-10-git-send-email-ldufour@linux.vnet.ibm.com>
- <alpine.DEB.2.20.1803271500540.43106@chino.kir.corp.google.com>
- <1fe7529a-947c-fdb2-12d2-b38bdd41bb04@linux.vnet.ibm.com>
- <alpine.DEB.2.20.1803281419460.167685@chino.kir.corp.google.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 4 Apr 2018 10:24:55 +0200
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
+	Wed, 4 Apr 2018 09:28:40 +0100
+From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+Subject: [PATCH v2 0/9] trace_uprobe: Support SDT markers having reference count (semaphore)
+Date: Wed,  4 Apr 2018 14:01:01 +0530
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1803281419460.167685@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <e9602fb6-7f74-58e0-2567-9c84b63e3383@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Message-Id: <20180404083110.18647-1-ravi.bangoria@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: mhiramat@kernel.org, oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org
+Cc: acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com, Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+
+Userspace Statically Defined Tracepoints[1] are dtrace style markers
+inside userspace applications. Applications like PostgreSQL, MySQL,
+Pthread, Perl, Python, Java, Ruby, Node.js, libvirt, QEMU, glib etc
+have these markers embedded in them. These markers are added by developer
+at important places in the code. Each marker source expands to a single
+nop instruction in the compiled code but there may be additional
+overhead for computing the marker arguments which expands to couple of
+instructions. In case the overhead is more, execution of it can be
+omitted by runtime if() condition when no one is tracing on the marker:
+
+    if (reference_counter > 0) {
+        Execute marker instructions;
+    }   
+
+Default value of reference counter is 0. Tracer has to increment the 
+reference counter before tracing on a marker and decrement it when
+done with the tracing.
+
+Currently, perf tool has limited supports for SDT markers. I.e. it
+can not trace markers surrounded by reference counter. Also, it's
+not easy to add reference counter logic in userspace tool like perf,
+so basic idea for this patchset is to add reference counter logic in
+the trace_uprobe infrastructure. Ex,[2]
+
+  # cat tick.c
+    ... 
+    for (i = 0; i < 100; i++) {
+	DTRACE_PROBE1(tick, loop1, i);
+        if (TICK_LOOP2_ENABLED()) {
+            DTRACE_PROBE1(tick, loop2, i); 
+        }
+        printf("hi: %d\n", i); 
+        sleep(1);
+    }   
+    ... 
+
+Here tick:loop1 is marker without reference counter where as tick:loop2
+is surrounded by reference counter condition.
+
+  # perf buildid-cache --add /tmp/tick
+  # perf probe sdt_tick:loop1
+  # perf probe sdt_tick:loop2
+
+  # perf stat -e sdt_tick:loop1,sdt_tick:loop2 -- /tmp/tick
+  hi: 0
+  hi: 1
+  hi: 2
+  ^C
+  Performance counter stats for '/tmp/tick':
+             3      sdt_tick:loop1
+             0      sdt_tick:loop2
+     2.747086086 seconds time elapsed
+
+Perf failed to record data for tick:loop2. Same experiment with this
+patch series:
+
+  # ./perf buildid-cache --add /tmp/tick
+  # ./perf probe sdt_tick:loop2
+  # ./perf stat -e sdt_tick:loop2 /tmp/tick
+    hi: 0
+    hi: 1
+    hi: 2
+    ^C  
+     Performance counter stats for '/tmp/tick':
+                 3      sdt_tick:loop2
+       2.561851452 seconds time elapsed
 
 
+Note:
+ - 'reference counter' is called as 'semaphore' in original Dtrace
+   (or Systemtap, bcc and even in ELF) documentation and code. But the 
+   term 'semaphore' is misleading in this context. This is just a counter
+   used to hold number of tracers tracing on a marker. This is not really
+   used for any synchronization. So we are referring it as 'reference
+   counter' in kernel / perf code.
 
-On 28/03/2018 23:21, David Rientjes wrote:
-> On Wed, 28 Mar 2018, Laurent Dufour wrote:
-> 
->>>> @@ -326,7 +336,10 @@ static unsigned long move_vma(struct vm_area_struct *vma,
->>>>  		mremap_userfaultfd_prep(new_vma, uf);
->>>>  		arch_remap(mm, old_addr, old_addr + old_len,
->>>>  			   new_addr, new_addr + new_len);
->>>> +		if (vma != new_vma)
->>>> +			vm_raw_write_end(vma);
->>>>  	}
->>>> +	vm_raw_write_end(new_vma);
->>>
->>> Just do
->>>
->>> vm_raw_write_end(vma);
->>> vm_raw_write_end(new_vma);
->>>
->>> here.
->>
->> Are you sure ? we can have vma = new_vma done if (unlikely(err))
->>
-> 
-> Sorry, what I meant was do
-> 
-> if (vma != new_vma)
-> 	vm_raw_write_end(vma);
-> vm_raw_write_end(new_vma);
-> 
-> after the conditional.  Having the locking unnecessarily embedded in the 
-> conditional has been an issue in the past with other areas of core code, 
-> unless you have a strong reason for it.
 
-Unfortunately, I can't see how doing this in another way since vma = new_vma is
-done in the error branch.
-So releasing the VMAs outside of the conditional may lead to miss 'vma' if the
-error branch is taken.
+v2 changes:
+ - [PATCH v2 3/9] is new. build_map_info() has a side effect. One has
+   to perform mmput() when he is done with the mm. Let free_map_info()
+   take care of mmput() so that one does not need to worry about it.
+ - [PATCH v2 6/9] sdt_update_ref_ctr(). No need to use memcpy().
+   Reference counter can be directly updated using normal assignment.
+ - [PATCH v2 6/9] Check valid vma is returned by sdt_find_vma() before
+   incrementing / decrementing a reference counter.
+ - [PATCH v2 6/9] Introduce utility functions for taking write lock on
+   dup_mmap_sem. Use these functions in trace_uprobe to avoide race with
+   fork / dup_mmap().
+ - [PATCH v2 6/9] Don't check presence of mm in tu->sml at decrement
+   time. Purpose of maintaining the list is to ensure increment happen
+   only once for each {trace_uprobe,mm} tuple.
+ - [PATCH v2 7/9] v1 was not removing mm from tu->sml when process
+   exits and tracing is still on. This leads to a problem if same
+   address gets used by new mm. Use mmu_notifier to remove such mm
+   from the list. This guarantees that all mm which has been added
+   to tu->sml will be removed from list either when tracing ends or
+   when process goes away.
+ - [PATCH v2 7/9] Patch description was misleading. Change it. Add
+   more generic python example.
+ - [PATCH v2 7/9] Convert sml_rw_sem into mutex sml_lock.
+ - [PATCH v2 7/9] Use builtin linked list in sdt_mm_list instead of
+   defining it's own pointer chain.
+ - Change the order of last two patches.
+ - [PATCH v2 9/9] Check availability of ref_ctr_offset support by
+   trace_uprobe infrastructure before using it. This ensures newer
+   perf tool will still work on older kernels which does not support
+   trace_uprobe with reference counter.
+ - Other changes as suggested by Masami, Oleg and Steve.
 
-Here is the code snippet as a reminder:
+v1 can be found at:
+  https://lkml.org/lkml/2018/3/13/432
 
-	new_vma = copy_vma(&vma, new_addr, new_len, new_pgoff,
-			   &need_rmap_locks);
-	[...]
-	if (vma != new_vma)
-		vm_raw_write_begin(vma);
-	[...]
-	if (unlikely(err)) {
-		[...]
-		if (vma != new_vma)
-			vm_raw_write_end(vma);
-		vma = new_vma; <<<< here we lost reference to vma
-		[...]
-	} else {
-		[...]
-		if (vma != new_vma)
-			vm_raw_write_end(vma);
-	}
-	vm_raw_write_end(new_vma);
+[1] https://sourceware.org/systemtap/wiki/UserSpaceProbeImplementation
+[2] https://github.com/iovisor/bcc/issues/327#issuecomment-200576506
+[3] https://lkml.org/lkml/2017/12/6/976
+
+
+Oleg Nesterov (1):
+  Uprobe: Move mmput() into free_map_info()
+
+Ravi Bangoria (8):
+  Uprobe: Export vaddr <-> offset conversion functions
+  mm: Prefix vma_ to vaddr_to_offset() and offset_to_vaddr()
+  Uprobe: Rename map_info to uprobe_map_info
+  Uprobe: Export uprobe_map_info along with
+    uprobe_{build/free}_map_info()
+  trace_uprobe: Support SDT markers having reference count (semaphore)
+  trace_uprobe/sdt: Fix multiple update of same reference counter
+  trace_uprobe/sdt: Document about reference counter
+  perf probe: Support SDT markers having reference counter (semaphore)
+
+ Documentation/trace/uprobetracer.txt |  16 ++-
+ include/linux/mm.h                   |  12 ++
+ include/linux/uprobes.h              |  19 +++
+ kernel/events/uprobes.c              |  79 ++++++-----
+ kernel/trace/trace.c                 |   2 +-
+ kernel/trace/trace_uprobe.c          | 261 ++++++++++++++++++++++++++++++++++-
+ tools/perf/util/probe-event.c        |  18 ++-
+ tools/perf/util/probe-event.h        |   1 +
+ tools/perf/util/probe-file.c         |  34 ++++-
+ tools/perf/util/probe-file.h         |   1 +
+ tools/perf/util/symbol-elf.c         |  46 ++++--
+ tools/perf/util/symbol.h             |   7 +
+ 12 files changed, 431 insertions(+), 65 deletions(-)
+
+-- 
+1.8.3.1
