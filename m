@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F395F6B028A
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:38 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id z1so16243254qtz.12
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0348F6B028B
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 15:19:39 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id p21so15439442qke.20
         for <linux-mm@kvack.org>; Wed, 04 Apr 2018 12:19:38 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id s3si5394548qte.4.2018.04.04.12.19.32
+        by mx.google.com with ESMTPS id u43si6849094qtb.359.2018.04.04.12.19.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Apr 2018 12:19:32 -0700 (PDT)
+        Wed, 04 Apr 2018 12:19:35 -0700 (PDT)
 From: jglisse@redhat.com
-Subject: [RFC PATCH 74/79] mm/page_ronly: add config option for generic read only page framework.
-Date: Wed,  4 Apr 2018 15:18:26 -0400
-Message-Id: <20180404191831.5378-37-jglisse@redhat.com>
+Subject: [RFC PATCH 79/79] mm/ksm: set page->mapping to page_ronly struct instead of stable_node.
+Date: Wed,  4 Apr 2018 15:18:31 -0400
+Message-Id: <20180404191831.5378-42-jglisse@redhat.com>
 In-Reply-To: <20180404191831.5378-1-jglisse@redhat.com>
 References: <20180404191831.5378-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -25,27 +25,61 @@ Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-It's really just a config option patch.
+Set page->mapping to the page_ronly struct instead of stable_node
+struct. There is no functional change as page_ronly is just a field
+of stable_node.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/Kconfig | 3 +++
- 1 file changed, 3 insertions(+)
+ mm/ksm.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index c782e8fb7235..aeffb6e8dd21 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -149,6 +149,9 @@ config NO_BOOTMEM
- config MEMORY_ISOLATION
- 	bool
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 6085068fb8b3..52b0ae291d23 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -39,6 +39,7 @@
+ #include <linux/freezer.h>
+ #include <linux/oom.h>
+ #include <linux/numa.h>
++#include <linux/page_ronly.h>
  
-+config PAGE_RONLY
-+	bool
+ #include <asm/tlbflush.h>
+ #include "internal.h"
+@@ -126,6 +127,7 @@ struct ksm_scan {
+ 
+ /**
+  * struct stable_node - node of the stable rbtree
++ * @ronly: Page read only struct wrapper (see include/linux/page_ronly.h).
+  * @node: rb node of this ksm page in the stable tree
+  * @head: (overlaying parent) &migrate_nodes indicates temporarily on that list
+  * @hlist_dup: linked into the stable_node->hlist with a stable_node chain
+@@ -137,6 +139,7 @@ struct ksm_scan {
+  * @nid: NUMA node id of stable tree in which linked (may not match kpfn)
+  */
+ struct stable_node {
++	struct page_ronly ronly;
+ 	union {
+ 		struct rb_node node;	/* when node of stable tree */
+ 		struct {		/* when listed for migration */
+@@ -318,13 +321,15 @@ static void __init ksm_slab_free(void)
+ 
+ static inline struct stable_node *page_stable_node(struct page *page)
+ {
+-	return PageReadOnly(page) ? page_rmapping(page) : NULL;
++	struct page_ronly *ronly = page_ronly(page);
 +
- #
- # Only be set on architectures that have completely implemented memory hotplug
- # feature. If you are not sure, don't touch it.
++	return ronly ? container_of(ronly, struct stable_node, ronly) : NULL;
+ }
+ 
+ static inline void set_page_stable_node(struct page *page,
+ 					struct stable_node *stable_node)
+ {
+-	page->mapping = (void *)((unsigned long)stable_node | PAGE_MAPPING_RONLY);
++	page_ronly_set(page, stable_node ? &stable_node->ronly : NULL);
+ }
+ 
+ static __always_inline bool is_stable_node_chain(struct stable_node *chain)
 -- 
 2.14.3
