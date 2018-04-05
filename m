@@ -1,73 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DEF136B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 14:34:04 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id e68so15803336iod.6
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 11:34:04 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id k5-v6si4228124itd.26.2018.04.05.11.34.03
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CBC7C6B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 14:43:29 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 140-v6so3782441itg.4
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 11:43:29 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 80sor3973659ion.311.2018.04.05.11.43.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 11:34:03 -0700 (PDT)
-Subject: Re: [PATCH v10 00/62] Convert page cache to XArray
-References: <20180330034245.10462-1-willy@infradead.org>
- <ff6a317f-920b-62c7-9a7a-9bf235371d41@oracle.com>
- <20180405035200.GE9301@bombadil.infradead.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <e2b37818-53bf-8e38-82c5-d05ac2804420@oracle.com>
-Date: Thu, 5 Apr 2018 11:33:29 -0700
+        (Google Transport Security);
+        Thu, 05 Apr 2018 11:43:28 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180405035200.GE9301@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180405211945-mutt-send-email-mst@kernel.org>
+References: <1522431382-4232-1-git-send-email-mst@redhat.com>
+ <20180405045231-mutt-send-email-mst@kernel.org> <CA+55aFwpe92MzEX2qRHO-MQsa1CP-iz6AmanFqXCV6_EaNKyMg@mail.gmail.com>
+ <20180405171009-mutt-send-email-mst@kernel.org> <CA+55aFz_mCZQPV6ownt+pYnLFf9O+LUK_J6y4t1GUyWL1NJ2Lg@mail.gmail.com>
+ <20180405211945-mutt-send-email-mst@kernel.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 5 Apr 2018 11:43:27 -0700
+Message-ID: <CA+55aFwEqnY_Z5T-5UUwbxNJfV5MmfV=-8r73xvBnA1tnU_d_w@mail.gmail.com>
+Subject: Re: [PATCH] gup: return -EFAULT on access_ok failure
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, syzbot+6304bf97ef436580fede@syzkaller.appspotmail.com, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Thorsten Leemhuis <regressions@leemhuis.info>
 
-On 04/04/2018 08:52 PM, Matthew Wilcox wrote:
-> On Wed, Apr 04, 2018 at 09:35:46AM -0700, Mike Kravetz wrote:
->> Running with this XArray series on top of next-20180329 consistently 'hangs'
->> on shutdown looping (?forever?) in tag_pages_for_writeback/xas_for_each_tag.
->> All I have to do is make sure there is some activity on the ext4 fs before
->> shutdown.  Not sure if this is a 'next-20180329' issue or XArray issue.
->> But the fact that we are looping in xas_for_each_tag looks suspicious.
-> 
-> Thanks for your help debugging this!  Particularly collecting the xa_dump.
-> I got bit by the undefined behaviour of shifting by BITS_PER_LONG,
-> but of course it was subtle.
-> 
-> The userspace testing framework wasn't catching this for a couple of
-> reasons; I'll work on making sure it catches this kind of thing in
-> the future.
-> 
-> I'll fold this in and post a v11 later this week or early next week.
+On Thu, Apr 5, 2018 at 11:28 AM, Michael S. Tsirkin <mst@redhat.com> wrote:
+>
+> to repeat what you are saying IIUC __get_user_pages_fast returns 0 if it can't
+> pin any pages and that is by design.  Returning 0 on error isn't usual I think
+> so I guess this behaviour should we well documented.
 
-Nice!  Added patch and it solves the hangs I observed.
+Arguably it happens elsewhere too, and not just in the kernel.
+"read()" at past the end of a file is not an error, you'll just get 0
+for EOF.
 
--- 
-Mike Kravetz
+So it's not really "returning 0 on error".
 
-> 
-> diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-> index eac04922eba2..f5b7e507a86f 100644
-> --- a/include/linux/xarray.h
-> +++ b/include/linux/xarray.h
-> @@ -904,9 +929,12 @@ static inline unsigned int xas_find_chunk(struct xa_state *xas, bool advance,
->  	if (advance)
->  		offset++;
->  	if (XA_CHUNK_SIZE == BITS_PER_LONG) {
-> -		unsigned long data = *addr & (~0UL << offset);
-> -		if (data)
-> -			return __ffs(data);
-> +		if (offset < XA_CHUNK_SIZE) {
-> +			unsigned long data = *addr & (~0UL << offset);
-> +
-> +			if (data)
-> +				return __ffs(data);
-> +		}
->  		return XA_CHUNK_SIZE;
->  	}
->  
-> 
+It really is simply returning the number of pages it got. End of
+story. That number of pages can be smaller than the requested number
+of pages, and _that_ is due to some error, but note how it can return
+"5" on error too - you asked for 10 pages, but the error happened in
+the middle!
+
+So the right way to check for error is to bverify that you get the
+number of pages that you asked for. If you don't, something bad
+happened.
+
+Of course, many users don't actually care about "I didn't get
+everything". They only care about "did I get _something_". Then that 0
+ends up being the error case, but note how it depends on the caller.
+
+> What about get_user_pages_fast though?
+
+We do seem to special-case the first page there. I'm not sure it's a
+good idea. But like the __get_user_pages_fast(), we seem to have users
+that know about the particular semantics and depend on it.
+
+It's all ugly, I agree.
+
+End result: we can't just change semantics of either of them.
+
+At least not without going through every single user and checking that
+they are ok with it.
+
+Which I guess I could be ok with. Maybe changing the semantics of
+__get_user_pages_fast() is acceptable, if you just change it
+*everywhere* (which includes not just he users, but also the couple of
+architecture-specific versions of that same function that we have.
+
+                    Linus
