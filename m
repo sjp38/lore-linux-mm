@@ -1,98 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FCF36B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 10:44:35 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id t4-v6so1519356plo.9
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 07:44:35 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id l30si5500400pgn.701.2018.04.05.07.44.31
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AFFA26B0007
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 10:48:17 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id b7-v6so17085196ybn.14
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 07:48:17 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id t19si6827516qtb.327.2018.04.05.07.48.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 07:44:31 -0700 (PDT)
-Date: Thu, 5 Apr 2018 10:44:28 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: [PATCH] ring-buffer: Check if memory is available before allocation
-Message-ID: <20180405104428.08ea9e08@gandalf.local.home>
+        Thu, 05 Apr 2018 07:48:15 -0700 (PDT)
+Date: Thu, 5 Apr 2018 15:47:50 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [RFC] mm: allow to decrease swap.max below actual swap usage
+Message-ID: <20180405144744.GA15097@castle.DHCP.thefacebook.com>
+References: <20180320223543.6188-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180320223543.6188-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Joel Fernandes <joelaf@google.com>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Shaohua Li <shli@fb.com>, Rik van Riel <riel@surriel.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-From: "Steven Rostedt (VMware)" <rostedt@goodmis.org>
+On Tue, Mar 20, 2018 at 10:35:43PM +0000, Roman Gushchin wrote:
+> Currently an attempt to set swap.max into a value lower
+> than the actual swap usage fails. And a user can't do much
+> with it, except turning off swap globally (using swapoff).
+> 
+> This patch aims to fix this issue by allowing setting swap.max
+> into any value (which corresponds to cgroup v2 API design),
+> and schedule a background job to fit swap size into the new limit.
+> 
+> The following script can be used to test the memory.swap behavior:
+>   #!/bin/bash
+> 
+>   mkdir -p /sys/fs/cgroup/test_swap
+>   echo 100M > /sys/fs/cgroup/test_swap/memory.max
+>   echo max > /sys/fs/cgroup/test_swap/memory.swap.max
+> 
+>   mkdir -p /sys/fs/cgroup/test_swap_2
+>   echo 100M > /sys/fs/cgroup/test_swap_2/memory.max
+>   echo max > /sys/fs/cgroup/test_swap_2/memory.swap.max
+> 
+>   echo $$ > /sys/fs/cgroup/test_swap/cgroup.procs
+>   allocate 200M &
+> 
+>   echo $$ > /sys/fs/cgroup/test_swap_2/cgroup.procs
+>   allocate 200M &
+> 
+>   sleep 2
+> 
+>   cat /sys/fs/cgroup/test_swap/memory.swap.current
+>   cat /sys/fs/cgroup/test_swap_2/memory.swap.current
+> 
+>   echo max > /sys/fs/cgroup/test_swap/memory.max
+>   echo 50M > /sys/fs/cgroup/test_swap/memory.swap.max
+> 
+>   sleep 10
+> 
+>   cat /sys/fs/cgroup/test_swap/memory.swap.current
+>   cat /sys/fs/cgroup/test_swap_2/memory.swap.current
+> 
+>   pkill allocate
+> 
+> Original test results:
+>   106024960
+>   106348544
+>   ./swap.sh: line 23: echo: write error: Device or resource busy
+>   106024960
+>   106348544
+> 
+> With this patch applied:
+>   106045440
+>   106352640
+>   52428800
+>   106201088
 
-The ring buffer is made up of a link list of pages. When making the ring
-buffer bigger, it will allocate all the pages it needs before adding to the
-ring buffer, and if it fails, it frees them and returns an error. This makes
-increasing the ring buffer size an all or nothing action. When this was
-first created, the pages were allocated with "NORETRY". This was to not
-cause any Out-Of-Memory (OOM) actions from allocating the ring buffer. But
-NORETRY was too strict, as the ring buffer would fail to expand even when
-there's memory available, but was taken up in the page cache.
+Any comments, thoughts, feedback?
 
-Commit 848618857d253 ("tracing/ring_buffer: Try harder to allocate") changed
-the allocating from NORETRY to RETRY_MAYFAIL. The RETRY_MAYFAIL would
-allocate from the page cache, but if there was no memory available, it would
-simple fail the allocation and not trigger an OOM.
+Rebased version below.
 
-This worked fine, but had one problem. As the ring buffer would allocate one
-page at a time, it could take up all memory in the system before it failed
-to allocate and free that memory. If the allocation is happening and the
-ring buffer allocates all memory and then tries to take more than available,
-its allocation will not trigger an OOM, but if there's any allocation that
-happens someplace else, that could trigger an OOM, even though once the ring
-buffer's allocation fails, it would free up all the previous memory it tried
-to allocate, and allow other memory allocations to succeed.
-
-Commit d02bd27bd33dd ("mm/page_alloc.c: calculate 'available' memory in a
-separate function") separated out si_mem_availble() as a separate function
-that could be used to see how much memory is available in the system. Using
-this function to make sure that the ring buffer could be allocated before it
-tries to allocate pages we can avoid allocating all memory in the system and
-making it vulnerable to OOMs if other allocations are taking place.
-
-Link: http://lkml.kernel.org/r/1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com
-
-CC: stable@vger.kernel.org
-Cc: linux-mm@kvack.org
-Fixes: 848618857d253 ("tracing/ring_buffer: Try harder to allocate")
-Requires: d02bd27bd33dd ("mm/page_alloc.c: calculate 'available' memory in a separate function")
-Reported-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Tested-by: Joel Fernandes <joelaf@google.com>
-Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
 ---
-
-Note: Zhaoyang notified me that I never actually posted this patch to
-the mailing list. And I plan on sending this to stable (to fix the
-current triggering of OOMs even though it is an abuse of
-si_mem_available()).
-
-I also have the patch on top of this that uses set_current_oom_origin()
-to kill this task if si_mem_available() advertises enough memory when
-there is not. Should that be marked for stable as well?
-
- See http://lkml.kernel.org/r/20180404115310.6c69e7b9@gandalf.local.home
-
- kernel/trace/ring_buffer.c | 5 +++++
- 1 file changed, 5 insertions(+)
-
-diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
-index 515be03e3009..966128f02121 100644
---- a/kernel/trace/ring_buffer.c
-+++ b/kernel/trace/ring_buffer.c
-@@ -1164,6 +1164,11 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
- 	struct buffer_page *bpage, *tmp;
- 	long i;
- 
-+	/* Check if the available memory is there first */
-+	i = si_mem_available();
-+	if (i < nr_pages)
-+		return -ENOMEM;
-+
- 	for (i = 0; i < nr_pages; i++) {
- 		struct page *page;
- 		/*
--- 
-2.13.6
