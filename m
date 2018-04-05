@@ -1,84 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 99E986B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 05:55:53 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id v191so1051125wmd.1
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 02:55:53 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n89si3738808wmi.47.2018.04.05.02.55.51
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 278276B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 07:24:21 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 91-v6so18607002pla.18
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 04:24:21 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
+        by mx.google.com with ESMTPS id l20si5773399pff.297.2018.04.05.04.24.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Apr 2018 02:55:52 -0700 (PDT)
-Date: Thu, 5 Apr 2018 11:55:50 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm/page_alloc: call set_pageblock_order() once for each
- node
-Message-ID: <20180405095550.GG6312@dhcp22.suse.cz>
-References: <20180329033607.8440-1-richard.weiyang@gmail.com>
- <20180329121109.xg5tfk6dyqzkrgrh@suse.de>
- <20180330010243.GA14446@WeideMacBook-Pro.local>
- <20180403075737.GB5501@dhcp22.suse.cz>
- <20180404012734.GA1841@WeideMacBook-Pro.local>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 05 Apr 2018 04:24:17 -0700 (PDT)
+Date: Thu, 5 Apr 2018 04:23:57 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v7 1/5] mm: page_alloc: remain memblock_next_valid_pfn()
+ on arm and arm64
+Message-ID: <20180405112357.GA2647@bombadil.infradead.org>
+References: <1522915478-5044-1-git-send-email-hejianet@gmail.com>
+ <1522915478-5044-2-git-send-email-hejianet@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180404012734.GA1841@WeideMacBook-Pro.local>
+In-Reply-To: <1522915478-5044-2-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Jia He <hejianet@gmail.com>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
 
-On Wed 04-04-18 09:27:34, Wei Yang wrote:
-> On Tue, Apr 03, 2018 at 09:57:37AM +0200, Michal Hocko wrote:
-> >On Fri 30-03-18 09:02:43, Wei Yang wrote:
-> >> On Thu, Mar 29, 2018 at 01:11:09PM +0100, Mel Gorman wrote:
-> >> >On Thu, Mar 29, 2018 at 11:36:07AM +0800, Wei Yang wrote:
-> >> >> set_pageblock_order() is a standalone function which sets pageblock_order,
-> >> >> while current implementation calls this function on each ZONE of each node
-> >> >> in free_area_init_core().
-> >> >> 
-> >> >> Since free_area_init_node() is the only user of free_area_init_core(),
-> >> >> this patch moves set_pageblock_order() up one level to invoke
-> >> >> set_pageblock_order() only once on each node.
-> >> >> 
-> >> >> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> >> >
-> >> >The patch looks ok but given that set_pageblock_order returns immediately
-> >> >if it has already been called, I expect the benefit is marginal. Was any
-> >> >improvement in boot time measured?
-> >> 
-> >> No, I don't expect measurable improvement from this since the number of nodes
-> >> and zones are limited.
-> >> 
-> >> This is just a code refine from logic point of view.
-> >
-> >Then, please make sure it is a real refinement. Calling this function
-> >per node is only half way to get there as the function is by no means
-> >per node.
-> >
-> 
-> Hi, Michal
-> 
-> I guess you are willing to see this function is only called once for the whole
-> system.
-> 
-> Yes, that is the ideal way, well I don't come up with an elegant way. The best
-> way is to move this to free_area_init_nodes(), while you can see not all arch
-> use this function.
-> 
-> Then I have two options:
-> 
-> A: Move this to free_area_init_nodes() for those arch using it. Call it
-> specifically for those arch not using free_area_init_nodes().
-> 
-> B: call it before setup_arch() in start_kernel()
-> 
-> Hmm... which one you would prefer? If you have a better idea, that would be
-> great.
+On Thu, Apr 05, 2018 at 01:04:34AM -0700, Jia He wrote:
+>  create mode 100644 include/linux/arm96_common.h
 
-or
-C: do nothing and/or just document why do we call it this way
-(convenience).
--- 
-Michal Hocko
-SUSE Labs
+'arm96_common'?!  No.  Just no.
+
+The right way to share common code is to create a header file (or use
+an existing one), either in asm-generic or linux, with a #ifdef CONFIG_foo
+block and then 'select foo' in the arm Kconfig files.  That allows this
+common code to be shared, maybe with powerpc or x86 or ... in the future.
