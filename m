@@ -1,63 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C9E6C6B0003
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2018 23:52:11 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id c2-v6so13700197plo.21
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 20:52:11 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n20si4957242pgc.508.2018.04.04.20.52.08
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 91FB26B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 00:12:55 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 140-v6so1413020itg.4
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2018 21:12:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n2-v6sor4141itg.86.2018.04.04.21.12.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 04 Apr 2018 20:52:09 -0700 (PDT)
-Date: Wed, 4 Apr 2018 20:52:00 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v10 00/62] Convert page cache to XArray
-Message-ID: <20180405035200.GE9301@bombadil.infradead.org>
-References: <20180330034245.10462-1-willy@infradead.org>
- <ff6a317f-920b-62c7-9a7a-9bf235371d41@oracle.com>
+        (Google Transport Security);
+        Wed, 04 Apr 2018 21:12:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ff6a317f-920b-62c7-9a7a-9bf235371d41@oracle.com>
+In-Reply-To: <20180405025841.GA9301@bombadil.infradead.org>
+References: <20180403121614.GV5501@dhcp22.suse.cz> <20180403082348.28cd3c1c@gandalf.local.home>
+ <20180403123514.GX5501@dhcp22.suse.cz> <20180403093245.43e7e77c@gandalf.local.home>
+ <20180403135607.GC5501@dhcp22.suse.cz> <CAGWkznH-yfAu=fMo1YWU9zo-DomHY8YP=rw447rUTgzvVH4RpQ@mail.gmail.com>
+ <20180404062340.GD6312@dhcp22.suse.cz> <20180404101149.08f6f881@gandalf.local.home>
+ <20180404142329.GI6312@dhcp22.suse.cz> <20180404114730.65118279@gandalf.local.home>
+ <20180405025841.GA9301@bombadil.infradead.org>
+From: Joel Fernandes <joelaf@google.com>
+Date: Wed, 4 Apr 2018 21:12:52 -0700
+Message-ID: <CAJWu+oqP64QzvPM6iHtzowek6s4p+3rb7WDXs1z51mwW-9mLbA@mail.gmail.com>
+Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Michal Hocko <mhocko@kernel.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, Apr 04, 2018 at 09:35:46AM -0700, Mike Kravetz wrote:
-> Running with this XArray series on top of next-20180329 consistently 'hangs'
-> on shutdown looping (?forever?) in tag_pages_for_writeback/xas_for_each_tag.
-> All I have to do is make sure there is some activity on the ext4 fs before
-> shutdown.  Not sure if this is a 'next-20180329' issue or XArray issue.
-> But the fact that we are looping in xas_for_each_tag looks suspicious.
+On Wed, Apr 4, 2018 at 7:58 PM, Matthew Wilcox <willy@infradead.org> wrote:
+> On Wed, Apr 04, 2018 at 11:47:30AM -0400, Steven Rostedt wrote:
+>> I originally was going to remove the RETRY_MAYFAIL, but adding this
+>> check (at the end of the loop though) appears to have OOM consistently
+>> kill this task.
+>>
+>> I still like to keep RETRY_MAYFAIL, because it wont trigger OOM if
+>> nothing comes in and tries to do an allocation, but instead will fail
+>> nicely with -ENOMEM.
+>
+> I still don't get why you want RETRY_MAYFAIL.  You know that tries
+> *harder* to allocate memory than plain GFP_KERNEL does, right?  And
+> that seems like the exact opposite of what you want.
 
-Thanks for your help debugging this!  Particularly collecting the xa_dump.
-I got bit by the undefined behaviour of shifting by BITS_PER_LONG,
-but of course it was subtle.
-
-The userspace testing framework wasn't catching this for a couple of
-reasons; I'll work on making sure it catches this kind of thing in
-the future.
-
-I'll fold this in and post a v11 later this week or early next week.
-
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index eac04922eba2..f5b7e507a86f 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -904,9 +929,12 @@ static inline unsigned int xas_find_chunk(struct xa_state *xas, bool advance,
- 	if (advance)
- 		offset++;
- 	if (XA_CHUNK_SIZE == BITS_PER_LONG) {
--		unsigned long data = *addr & (~0UL << offset);
--		if (data)
--			return __ffs(data);
-+		if (offset < XA_CHUNK_SIZE) {
-+			unsigned long data = *addr & (~0UL << offset);
-+
-+			if (data)
-+				return __ffs(data);
-+		}
- 		return XA_CHUNK_SIZE;
- 	}
- 
+No. We do want it to try harder but not if its already setup for failure.
