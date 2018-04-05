@@ -1,83 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EB97F6B0006
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 18:18:30 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id u7-v6so17234544plr.13
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 15:18:30 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c66si6185517pga.494.2018.04.05.15.18.29
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B48BB6B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 19:36:40 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 135-v6so2788882iti.0
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 16:36:40 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id u137-v6sor3536018itc.142.2018.04.05.16.36.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 15:18:30 -0700 (PDT)
-Date: Thu, 5 Apr 2018 15:18:28 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 4/4] mm/vmscan: Don't mess with pgdat->flags in memcg
- reclaim.
-Message-Id: <20180405151828.98b5bfb143a7a8b7dec4b153@linux-foundation.org>
-In-Reply-To: <20180323152029.11084-5-aryabinin@virtuozzo.com>
-References: <20180323152029.11084-1-aryabinin@virtuozzo.com>
-	<20180323152029.11084-5-aryabinin@virtuozzo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 05 Apr 2018 16:36:38 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAJWu+oqT0oPrEL4mPnWvF3Zt-psg2DWGj9Nrr+fda2JYFzRmqg@mail.gmail.com>
+References: <20180404115310.6c69e7b9@gandalf.local.home> <20180404120002.6561a5bc@gandalf.local.home>
+ <CAJWu+orC-1JDYHDTQU+DFckGq5ZnXBCCq9wLG-gNK0Nc4-vo7w@mail.gmail.com>
+ <20180404121326.6eca4fa3@gandalf.local.home> <CAJWu+op5-sr=2xWDYcd7FDBeMtrM9Zm96BgGzb4Q31UGBiU3ew@mail.gmail.com>
+ <CAJWu+opM6RjK-Z1dr35XvQ5cLKaV=cLG5uMu-rLkoO=X03c+FA@mail.gmail.com>
+ <20180405094346.104cf288@gandalf.local.home> <CAJWu+oqT0oPrEL4mPnWvF3Zt-psg2DWGj9Nrr+fda2JYFzRmqg@mail.gmail.com>
+From: Joel Fernandes <joelaf@google.com>
+Date: Thu, 5 Apr 2018 16:36:37 -0700
+Message-ID: <CAJWu+ooTV+VYib6aDXc9V2As6Nzz5DddBttaxYxyMJd0ZrcwDA@mail.gmail.com>
+Subject: Re: [PATCH] ring-buffer: Add set/clear_current_oom_origin() during allocations
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri, 23 Mar 2018 18:20:29 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+Hi Steve,
 
-> memcg reclaim may alter pgdat->flags based on the state of LRU lists
-> in cgroup and its children. PGDAT_WRITEBACK may force kswapd to sleep
-> congested_wait(), PGDAT_DIRTY may force kswapd to writeback filesystem
-> pages. But the worst here is PGDAT_CONGESTED, since it may force all
-> direct reclaims to stall in wait_iff_congested(). Note that only kswapd
-> have powers to clear any of these bits. This might just never happen if
-> cgroup limits configured that way. So all direct reclaims will stall
-> as long as we have some congested bdi in the system.
-> 
-> Leave all pgdat->flags manipulations to kswapd. kswapd scans the whole
-> pgdat, only kswapd can clear pgdat->flags once node is balance, thus
-> it's reasonable to leave all decisions about node state to kswapd.
-> 
-> Moving pgdat->flags manipulation to kswapd, means that cgroup2 recalim
-> now loses its congestion throttling mechanism. Add per-cgroup congestion
-> state and throttle cgroup2 reclaimers if memcg is in congestion state.
-> 
-> Currently there is no need in per-cgroup PGDAT_WRITEBACK and PGDAT_DIRTY
-> bits since they alter only kswapd behavior.
-> 
-> The problem could be easily demonstrated by creating heavy congestion
-> in one cgroup:
-> 
->     echo "+memory" > /sys/fs/cgroup/cgroup.subtree_control
->     mkdir -p /sys/fs/cgroup/congester
->     echo 512M > /sys/fs/cgroup/congester/memory.max
->     echo $$ > /sys/fs/cgroup/congester/cgroup.procs
->     /* generate a lot of diry data on slow HDD */
->     while true; do dd if=/dev/zero of=/mnt/sdb/zeroes bs=1M count=1024; done &
->     ....
->     while true; do dd if=/dev/zero of=/mnt/sdb/zeroes bs=1M count=1024; done &
-> 
-> and some job in another cgroup:
-> 
->     mkdir /sys/fs/cgroup/victim
->     echo 128M > /sys/fs/cgroup/victim/memory.max
-> 
->     # time cat /dev/sda > /dev/null
->     real    10m15.054s
->     user    0m0.487s
->     sys     1m8.505s
-> 
-> According to the tracepoint in wait_iff_congested(), the 'cat' spent 50%
-> of the time sleeping there.
-> 
-> With the patch, cat don't waste time anymore:
-> 
->     # time cat /dev/sda > /dev/null
->     real    5m32.911s
->     user    0m0.411s
->     sys     0m56.664s
-> 
+On Thu, Apr 5, 2018 at 12:57 PM, Joel Fernandes <joelaf@google.com> wrote:
+> On Thu, Apr 5, 2018 at 6:43 AM, Steven Rostedt <rostedt@goodmis.org> wrote:
+>> On Wed, 4 Apr 2018 16:59:18 -0700
+>> Joel Fernandes <joelaf@google.com> wrote:
+>>
+>>> Happy to try anything else, BTW when the si_mem_available check
+>>> enabled, this doesn't happen and the buffer_size_kb write fails
+>>> normally without hurting anything else.
+>>
+>> Can you remove the RETRY_MAYFAIL and see if you can try again? It may
+>> be that we just remove that, and if si_mem_available() is wrong, it
+>> will kill the process :-/ My original code would only add MAYFAIL if it
+>> was a kernel thread (which is why I created the mflags variable).
+>
+> Tried this. Dropping RETRY_MAYFAIL and the si_mem_available check
+> destabilized the system and brought it down (along with OOM killing
+> the victim).
+>
+> System hung for several seconds and then both the memory hog and bash
+> got killed.
 
-Reviewers, please?
+I think its still Ok to keep the OOM patch as a safe guard even though
+its hard to test, and the si_mem_available on its own seem sufficient.
+What do you think?
+
+thanks,
+
+
+- Joel
