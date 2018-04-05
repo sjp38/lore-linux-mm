@@ -1,89 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B6D76B0009
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 08:48:34 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 3so13476694wrb.5
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 05:48:34 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y21si5992437wrb.459.2018.04.05.05.48.33
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E8296B0009
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 08:51:07 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id o2-v6so16516848plk.14
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 05:51:07 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
+        by mx.google.com with ESMTPS id k185si979400pgk.2.2018.04.05.05.51.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Apr 2018 05:48:33 -0700 (PDT)
-Date: Thu, 5 Apr 2018 14:48:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1] mm: consider non-anonymous thp as unmovable page
-Message-ID: <20180405124830.GJ6312@dhcp22.suse.cz>
-References: <1522730788-24530-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20180403075928.GC5501@dhcp22.suse.cz>
- <20180403082405.GA23809@hori1.linux.bs1.fc.nec.co.jp>
- <20180403083451.GG5501@dhcp22.suse.cz>
- <20180403105411.hknofkbn6rzs26oz@node.shutemov.name>
- <20180405085927.GC6312@dhcp22.suse.cz>
- <20180405122838.6a6b35psizem4tcy@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 05 Apr 2018 05:51:06 -0700 (PDT)
+Date: Thu, 5 Apr 2018 05:50:54 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v7 2/5] arm: arm64: page_alloc: reduce unnecessary binary
+ search in memblock_next_valid_pfn()
+Message-ID: <20180405125054.GC2647@bombadil.infradead.org>
+References: <1522915478-5044-1-git-send-email-hejianet@gmail.com>
+ <1522915478-5044-3-git-send-email-hejianet@gmail.com>
+ <20180405113444.GB2647@bombadil.infradead.org>
+ <1f809296-e88d-1090-0027-890782b91d6e@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180405122838.6a6b35psizem4tcy@node.shutemov.name>
+In-Reply-To: <1f809296-e88d-1090-0027-890782b91d6e@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Jia He <hejianet@gmail.com>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
 
-On Thu 05-04-18 15:28:38, Kirill A. Shutemov wrote:
-> On Thu, Apr 05, 2018 at 10:59:27AM +0200, Michal Hocko wrote:
-> > On Tue 03-04-18 13:54:11, Kirill A. Shutemov wrote:
-> > > On Tue, Apr 03, 2018 at 10:34:51AM +0200, Michal Hocko wrote:
-> > > > On Tue 03-04-18 08:24:06, Naoya Horiguchi wrote:
-> > > > > On Tue, Apr 03, 2018 at 09:59:28AM +0200, Michal Hocko wrote:
-> > > > > > On Tue 03-04-18 13:46:28, Naoya Horiguchi wrote:
-> > > > > > > My testing for the latest kernel supporting thp migration found out an
-> > > > > > > infinite loop in offlining the memory block that is filled with shmem
-> > > > > > > thps.  We can get out of the loop with a signal, but kernel should
-> > > > > > > return with failure in this case.
-> > > > > > >
-> > > > > > > What happens in the loop is that scan_movable_pages() repeats returning
-> > > > > > > the same pfn without any progress. That's because page migration always
-> > > > > > > fails for shmem thps.
-> > > > > >
-> > > > > > Why does it fail? Shmem pages should be movable without any issues.
-> > > > > 
-> > > > > .. because try_to_unmap_one() explicitly skips unmapping for migration.
-> > > > > 
-> > > > >   #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> > > > >                   /* PMD-mapped THP migration entry */
-> > > > >                   if (!pvmw.pte && (flags & TTU_MIGRATION)) {
-> > > > >                           VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
-> > > > >   
-> > > > >                           if (!PageAnon(page))
-> > > > >                                   continue;
-> > > > >   
-> > > > >                           set_pmd_migration_entry(&pvmw, page);
-> > > > >                           continue;
-> > > > >                   }
-> > > > >   #endif
-> > > > > 
-> > > > > When I implemented this code, I felt hard to work on both of anon thp
-> > > > > and shmem thp at one time, so I separated the proposal into smaller steps.
-> > > > > Shmem uses pagecache so we need some non-trivial effort (including testing)
-> > > > > to extend thp migration for shmem. But I think it's a reasonable next step.
-> > > > 
-> > > > OK, I see. I have forgot about this part. Please be explicit about that
-> > > > in the changelog. Also the proper fix is to not use movable zone for
-> > > > shmem page THP rather than hack around it in the hotplug specific code
-> > > > IMHO.
-> > > 
-> > > No. We should just split the page before running
-> > > try_to_unmap(TTU_MIGRATION) on the page.
-> > 
-> > Something like this or it is completely broken. I completely forgot the
-> > whole page_vma_mapped_walk business.
+On Thu, Apr 05, 2018 at 08:44:12PM +0800, Jia He wrote:
 > 
-> No, this wouldn't work. We need to split page, not pmd to make migration
-> work.
+> 
+> On 4/5/2018 7:34 PM, Matthew Wilcox Wrote:
+> > On Thu, Apr 05, 2018 at 01:04:35AM -0700, Jia He wrote:
+> > > Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+> > > where possible") optimized the loop in memmap_init_zone(). But there is
+> > > still some room for improvement. E.g. if pfn and pfn+1 are in the same
+> > > memblock region, we can simply pfn++ instead of doing the binary search
+> > > in memblock_next_valid_pfn.
+> > Sure, but I bet if we are >end_pfn, we're almost certainly going to the
+> > start_pfn of the next block, so why not test that as well?
+> > 
+> > > +	/* fast path, return pfn+1 if next pfn is in the same region */
+> > > +	if (early_region_idx != -1) {
+> > > +		start_pfn = PFN_DOWN(regions[early_region_idx].base);
+> > > +		end_pfn = PFN_DOWN(regions[early_region_idx].base +
+> > > +				regions[early_region_idx].size);
+> > > +
+> > > +		if (pfn >= start_pfn && pfn < end_pfn)
+> > > +			return pfn;
+> > 		early_region_idx++;
+> > 		start_pfn = PFN_DOWN(regions[early_region_idx].base);
+> > 		if (pfn >= end_pfn && pfn <= start_pfn)
+> > 			return start_pfn;
+> Thanks, thus the binary search in next step can be discarded?
 
-RIght, I confused the two. What is the proper layer to fix that then?
-rmap_walk_file?
-
--- 
-Michal Hocko
-SUSE Labs
+I don't know all the circumstances in which this is called.  Maybe a linear
+search with memo is more appropriate than a binary search.
