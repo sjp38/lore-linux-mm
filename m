@@ -1,85 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B5BD56B0007
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 10:52:01 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r78so2115935wmd.0
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 07:52:01 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b31si5855178wrb.447.2018.04.05.07.52.00
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D9BF6B0007
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 10:57:56 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id z2-v6so4896162plk.3
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 07:57:56 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id n9-v6si5796014plk.71.2018.04.05.07.57.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Apr 2018 07:52:00 -0700 (PDT)
-Date: Thu, 5 Apr 2018 16:51:59 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] ring-buffer: Add set/clear_current_oom_origin() during
- allocations
-Message-ID: <20180405145159.GM6312@dhcp22.suse.cz>
-References: <20180404115310.6c69e7b9@gandalf.local.home>
- <20180404120002.6561a5bc@gandalf.local.home>
- <CAJWu+orC-1JDYHDTQU+DFckGq5ZnXBCCq9wLG-gNK0Nc4-vo7w@mail.gmail.com>
- <20180404121326.6eca4fa3@gandalf.local.home>
- <CAJWu+op5-sr=2xWDYcd7FDBeMtrM9Zm96BgGzb4Q31UGBiU3ew@mail.gmail.com>
- <CAJWu+opM6RjK-Z1dr35XvQ5cLKaV=cLG5uMu-rLkoO=X03c+FA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Apr 2018 07:57:54 -0700 (PDT)
+Date: Thu, 5 Apr 2018 22:57:26 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH 1/1] z3fold: fix memory leak
+Message-ID: <201804052205.ejzdZ5Qg%fengguang.wu@intel.com>
+References: <1522803111-29209-1-git-send-email-wangxidong_97@163.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJWu+opM6RjK-Z1dr35XvQ5cLKaV=cLG5uMu-rLkoO=X03c+FA@mail.gmail.com>
+In-Reply-To: <1522803111-29209-1-git-send-email-wangxidong_97@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joel Fernandes <joelaf@google.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Xidong Wang <wangxidong_97@163.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Vitaly Wool <vitalywool@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 04-04-18 16:59:18, Joel Fernandes wrote:
-> Hi Steve,
-> 
-> On Wed, Apr 4, 2018 at 9:18 AM, Joel Fernandes <joelaf@google.com> wrote:
-> > On Wed, Apr 4, 2018 at 9:13 AM, Steven Rostedt <rostedt@goodmis.org> wrote:
-> > [..]
-> >>>
-> >>> Also, I agree with the new patch and its nice idea to do that.
-> >>
-> >> Thanks, want to give it a test too?
-> 
-> With the latest tree and the below diff, I can still OOM-kill a victim
-> process doing a large buffer_size_kb write:
-> 
-> I pulled your ftrace/core and added this:
-> +       /*
->         i = si_mem_available();
->         if (i < nr_pages)
->                 return -ENOMEM;
-> +       */
-> 
-> Here's a run in Qemu with 4-cores 1GB total memory:
-> 
-> bash-4.3# ./m -m 1M &
-> [1] 1056
-> bash-4.3#
-> bash-4.3#
-> bash-4.3#
-> bash-4.3# echo 10000000 > /d/tracing/buffer_size_kb
-> [   33.213988] Out of memory: Kill process 1042 (bash) score
-> 1712050900 or sacrifice child
-> [   33.215349] Killed process 1056 (m) total-vm:9220kB,
-> anon-rss:7564kB, file-rss:4kB, shmem-rss:640kB
+Hi Xidong,
 
-OK, so the reason your memory hog is triggered is that your echo is
-built-in and we properly select bask as an oom_origin but then another
-clever heuristic jumps in and tries to reduce the damage by sacrificing
-a child process. And your memory hog runs as a child from the same bash
-session.
+Thank you for the patch! Perhaps something to improve:
 
-I cannot say I would love this heuristic. In fact I would really love to
-dig it deep under the ground. But this is a harder sell than it might
-seem. Anyway is your testing scenario really representative enough to
-care? Does the buffer_size_kb updater runs in the same process as any
-large memory process?
+[auto build test WARNING on mmotm/master]
+[also build test WARNING on v4.16 next-20180405]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
-> bash: echo: write error: Cannot allocate memory
-> [1]+  Killed                  ./m -m 1M
-> bash-4.3#
-> --
+url:    https://github.com/0day-ci/linux/commits/Xidong-Wang/z3fold-fix-memory-leak/20180404-114952
+base:   git://git.cmpxchg.org/linux-mmotm.git master
 
--- 
-Michal Hocko
-SUSE Labs
+smatch warnings:
+mm/z3fold.c:493 z3fold_create_pool() error: potential null dereference 'pool'.  (kzalloc returns null)
+mm/z3fold.c:493 z3fold_create_pool() error: we previously assumed 'pool' could be null (see line 465)
+
+vim +/pool +493 mm/z3fold.c
+
+   443	
+   444	
+   445	/*
+   446	 * API Functions
+   447	 */
+   448	
+   449	/**
+   450	 * z3fold_create_pool() - create a new z3fold pool
+   451	 * @name:	pool name
+   452	 * @gfp:	gfp flags when allocating the z3fold pool structure
+   453	 * @ops:	user-defined operations for the z3fold pool
+   454	 *
+   455	 * Return: pointer to the new z3fold pool or NULL if the metadata allocation
+   456	 * failed.
+   457	 */
+   458	static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp,
+   459			const struct z3fold_ops *ops)
+   460	{
+   461		struct z3fold_pool *pool = NULL;
+   462		int i, cpu;
+   463	
+   464		pool = kzalloc(sizeof(struct z3fold_pool), gfp);
+ > 465		if (!pool)
+   466			goto out;
+   467		spin_lock_init(&pool->lock);
+   468		spin_lock_init(&pool->stale_lock);
+   469		pool->unbuddied = __alloc_percpu(sizeof(struct list_head)*NCHUNKS, 2);
+   470		for_each_possible_cpu(cpu) {
+   471			struct list_head *unbuddied =
+   472					per_cpu_ptr(pool->unbuddied, cpu);
+   473			for_each_unbuddied_list(i, 0)
+   474				INIT_LIST_HEAD(&unbuddied[i]);
+   475		}
+   476		INIT_LIST_HEAD(&pool->lru);
+   477		INIT_LIST_HEAD(&pool->stale);
+   478		atomic64_set(&pool->pages_nr, 0);
+   479		pool->name = name;
+   480		pool->compact_wq = create_singlethread_workqueue(pool->name);
+   481		if (!pool->compact_wq)
+   482			goto out;
+   483		pool->release_wq = create_singlethread_workqueue(pool->name);
+   484		if (!pool->release_wq)
+   485			goto out_wq;
+   486		INIT_WORK(&pool->work, free_pages_work);
+   487		pool->ops = ops;
+   488		return pool;
+   489	
+   490	out_wq:
+   491		destroy_workqueue(pool->compact_wq);
+   492	out:
+ > 493		free_percpu(pool->unbuddied);
+   494		kfree(pool);
+   495		return NULL;
+   496	}
+   497	
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
