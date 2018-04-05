@@ -1,124 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A7CB06B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 03:58:00 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f137so854438wme.5
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 00:58:00 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z66si3865825wmb.189.2018.04.05.00.57.56
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 782196B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 04:05:02 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id o33-v6so15893373plb.16
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 01:05:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o2-v6sor2940386pll.104.2018.04.05.01.05.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Apr 2018 00:57:56 -0700 (PDT)
-Date: Thu, 5 Apr 2018 09:57:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/thp: don't count ZONE_MOVABLE as the target for
- freepage reserving
-Message-ID: <20180405075753.GZ6312@dhcp22.suse.cz>
-References: <1522913236-15776-1-git-send-email-iamjoonsoo.kim@lge.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1522913236-15776-1-git-send-email-iamjoonsoo.kim@lge.com>
+        (Google Transport Security);
+        Thu, 05 Apr 2018 01:05:00 -0700 (PDT)
+From: Jia He <hejianet@gmail.com>
+Subject: [PATCH v7 0/5] optimize memblock_next_valid_pfn and early_pfn_valid on arm and arm64
+Date: Thu,  5 Apr 2018 01:04:33 -0700
+Message-Id: <1522915478-5044-1-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <hejianet@gmail.com>
 
-On Thu 05-04-18 16:27:16, Joonsoo Kim wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> ZONE_MOVABLE only has movable pages so we don't need to keep enough
-> freepages to avoid or deal with fragmentation. So, don't count it.
-> 
-> This changes min_free_kbytes and thus min_watermark greatly
-> if ZONE_MOVABLE is used. It will make the user uses more memory.
+Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+where possible") tried to optimize the loop in memmap_init_zone(). But
+there is still some room for improvement.
 
-OK, but why does it matter. Has anybody seen this as an issue?
+Patch 1 remain the memblock_next_valid_pfn on arm and arm64
+Patch 2 optimizes the memblock_next_valid_pfn()
+Patch 3~5 optimizes the early_pfn_valid()
 
-> o System
-> 22GB ram, fakenuma, 2 nodes. 5 zones are used.
-> 
-> o Before
-> min_free_kbytes: 112640
-> 
-> zone_info (min_watermark):
-> Node 0, zone      DMA
->         min      19
-> Node 0, zone    DMA32
->         min      3778
-> Node 0, zone   Normal
->         min      10191
-> Node 0, zone  Movable
->         min      0
-> Node 0, zone   Device
->         min      0
-> Node 1, zone      DMA
->         min      0
-> Node 1, zone    DMA32
->         min      0
-> Node 1, zone   Normal
->         min      14043
-> Node 1, zone  Movable
->         min      127
-> Node 1, zone   Device
->         min      0
-> 
-> o After
-> min_free_kbytes: 90112
-> 
-> zone_info (min_watermark):
-> Node 0, zone      DMA
->         min      15
-> Node 0, zone    DMA32
->         min      3022
-> Node 0, zone   Normal
->         min      8152
-> Node 0, zone  Movable
->         min      0
-> Node 0, zone   Device
->         min      0
-> Node 1, zone      DMA
->         min      0
-> Node 1, zone    DMA32
->         min      0
-> Node 1, zone   Normal
->         min      11234
-> Node 1, zone  Movable
->         min      102
-> Node 1, zone   Device
->         min      0
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/khugepaged.c | 10 +++++++++-
->  1 file changed, 9 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> index 5de1c6f..92dd4e6 100644
-> --- a/mm/khugepaged.c
-> +++ b/mm/khugepaged.c
-> @@ -1880,8 +1880,16 @@ static void set_recommended_min_free_kbytes(void)
->  	int nr_zones = 0;
->  	unsigned long recommended_min;
->  
-> -	for_each_populated_zone(zone)
-> +	for_each_populated_zone(zone) {
-> +		/*
-> +		 * We don't need to worry about fragmentation of
-> +		 * ZONE_MOVABLE since it only has movable pages.
-> +		 */
-> +		if (zone_idx(zone) > gfp_zone(GFP_USER))
-> +			continue;
-> +
->  		nr_zones++;
-> +	}
->  
->  	/* Ensure 2 pageblocks are free to assist fragmentation avoidance */
->  	recommended_min = pageblock_nr_pages * nr_zones * 2;
-> -- 
-> 2.7.4
-> 
+As for the performance improvement, after this set, I can see the time
+overhead of memmap_init() is reduced from 41313 us to 24345 us in my
+armv8a server(QDF2400 with 96G memory).
+
+Attached the memblock region information in my server.
+[   86.956758] Zone ranges:
+[   86.959452]   DMA      [mem 0x0000000000200000-0x00000000ffffffff]
+[   86.966041]   Normal   [mem 0x0000000100000000-0x00000017ffffffff]
+[   86.972631] Movable zone start for each node
+[   86.977179] Early memory node ranges
+[   86.980985]   node   0: [mem 0x0000000000200000-0x000000000021ffff]
+[   86.987666]   node   0: [mem 0x0000000000820000-0x000000000307ffff]
+[   86.994348]   node   0: [mem 0x0000000003080000-0x000000000308ffff]
+[   87.001029]   node   0: [mem 0x0000000003090000-0x00000000031fffff]
+[   87.007710]   node   0: [mem 0x0000000003200000-0x00000000033fffff]
+[   87.014392]   node   0: [mem 0x0000000003410000-0x000000000563ffff]
+[   87.021073]   node   0: [mem 0x0000000005640000-0x000000000567ffff]
+[   87.027754]   node   0: [mem 0x0000000005680000-0x00000000056dffff]
+[   87.034435]   node   0: [mem 0x00000000056e0000-0x00000000086fffff]
+[   87.041117]   node   0: [mem 0x0000000008700000-0x000000000871ffff]
+[   87.047798]   node   0: [mem 0x0000000008720000-0x000000000894ffff]
+[   87.054479]   node   0: [mem 0x0000000008950000-0x0000000008baffff]
+[   87.061161]   node   0: [mem 0x0000000008bb0000-0x0000000008bcffff]
+[   87.067842]   node   0: [mem 0x0000000008bd0000-0x0000000008c4ffff]
+[   87.074524]   node   0: [mem 0x0000000008c50000-0x0000000008e2ffff]
+[   87.081205]   node   0: [mem 0x0000000008e30000-0x0000000008e4ffff]
+[   87.087886]   node   0: [mem 0x0000000008e50000-0x0000000008fcffff]
+[   87.094568]   node   0: [mem 0x0000000008fd0000-0x000000000910ffff]
+[   87.101249]   node   0: [mem 0x0000000009110000-0x00000000092effff]
+[   87.107930]   node   0: [mem 0x00000000092f0000-0x000000000930ffff]
+[   87.114612]   node   0: [mem 0x0000000009310000-0x000000000963ffff]
+[   87.121293]   node   0: [mem 0x0000000009640000-0x000000000e61ffff]
+[   87.127975]   node   0: [mem 0x000000000e620000-0x000000000e64ffff]
+[   87.134657]   node   0: [mem 0x000000000e650000-0x000000000fffffff]
+[   87.141338]   node   0: [mem 0x0000000010800000-0x0000000017feffff]
+[   87.148019]   node   0: [mem 0x000000001c000000-0x000000001c00ffff]
+[   87.154701]   node   0: [mem 0x000000001c010000-0x000000001c7fffff]
+[   87.161383]   node   0: [mem 0x000000001c810000-0x000000007efbffff]
+[   87.168064]   node   0: [mem 0x000000007efc0000-0x000000007efdffff]
+[   87.174746]   node   0: [mem 0x000000007efe0000-0x000000007efeffff]
+[   87.181427]   node   0: [mem 0x000000007eff0000-0x000000007effffff]
+[   87.188108]   node   0: [mem 0x000000007f000000-0x00000017ffffffff]
+[   87.194791] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
+
+Without this patchset:
+[  117.106153] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
+[  117.113677] before memmap_init
+[  117.118195] after  memmap_init
+>>> memmap_init takes 4518 us
+[  117.121446] before memmap_init
+[  117.154992] after  memmap_init
+>>> memmap_init takes 33546 us
+[  117.158241] before memmap_init
+[  117.161490] after  memmap_init
+>>> memmap_init takes 3249 us
+>>> totally takes 41313 us
+
+With this patchset:
+[   87.194791] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
+[   87.202314] before memmap_init
+[   87.206164] after  memmap_init
+>>> memmap_init takes 3850 us
+[   87.209416] before memmap_init
+[   87.226662] after  memmap_init
+>>> memmap_init takes 17246 us
+[   87.229911] before memmap_init
+[   87.233160] after  memmap_init
+>>> memmap_init takes 3249 us
+>>> totally takes 24345 us
+
+Changelog:
+V7: - fix i386 compilation error. refine the commit description
+V6: - simplify the codes, move arm/arm64 common codes to one file.
+    - refine patches as suggested by Danial Vacek and Ard Biesheuvel
+V5: - further refining as suggested by Danial Vacek. Make codes
+      arm/arm64 more arch specific
+V4: - refine patches as suggested by Danial Vacek and Wei Yang
+    - optimized on arm besides arm64
+V3: - fix 2 issues reported by kbuild test robot
+V2: - rebase to mmotm latest
+    - remain memblock_next_valid_pfn on arm64
+    - refine memblock_search_pfn_regions and pfn_valid_region
+
+Jia He (5):
+  mm: page_alloc: remain memblock_next_valid_pfn() on arm and arm64
+  arm: arm64: page_alloc: reduce unnecessary binary search in
+    memblock_next_valid_pfn()
+  mm/memblock: introduce memblock_search_pfn_regions()
+  arm: arm64: introduce pfn_valid_region()
+  mm: page_alloc: reduce unnecessary binary search in early_pfn_valid()
+
+ arch/arm/mm/init.c           |  1 +
+ arch/arm64/mm/init.c         |  1 +
+ include/linux/arm96_common.h | 76 ++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/memblock.h     |  2 ++
+ include/linux/mmzone.h       | 18 ++++++++++-
+ mm/memblock.c                |  9 ++++++
+ mm/page_alloc.c              |  2 +-
+ 7 files changed, 107 insertions(+), 2 deletions(-)
+ create mode 100644 include/linux/arm96_common.h
 
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
