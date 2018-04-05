@@ -1,79 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9283F6B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 14:30:19 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id n51so18474534qta.9
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 11:30:19 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q26si3536633qtl.157.2018.04.05.11.30.18
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DEF136B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 14:34:04 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id e68so15803336iod.6
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 11:34:04 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id k5-v6si4228124itd.26.2018.04.05.11.34.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 11:30:18 -0700 (PDT)
-Date: Thu, 5 Apr 2018 21:30:17 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v30 2/4] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-Message-ID: <20180405212850-mutt-send-email-mst@kernel.org>
-References: <1522771805-78927-1-git-send-email-wei.w.wang@intel.com>
- <1522771805-78927-3-git-send-email-wei.w.wang@intel.com>
- <20180403214147-mutt-send-email-mst@kernel.org>
- <5AC43377.2070607@intel.com>
- <20180404155907-mutt-send-email-mst@kernel.org>
- <286AC319A985734F985F78AFA26841F7394A6E96@shsmsx102.ccr.corp.intel.com>
- <20180405040900-mutt-send-email-mst@kernel.org>
- <286AC319A985734F985F78AFA26841F7394A7F3B@shsmsx102.ccr.corp.intel.com>
- <20180405170248-mutt-send-email-mst@kernel.org>
- <286AC319A985734F985F78AFA26841F7394A889E@shsmsx102.ccr.corp.intel.com>
+        Thu, 05 Apr 2018 11:34:03 -0700 (PDT)
+Subject: Re: [PATCH v10 00/62] Convert page cache to XArray
+References: <20180330034245.10462-1-willy@infradead.org>
+ <ff6a317f-920b-62c7-9a7a-9bf235371d41@oracle.com>
+ <20180405035200.GE9301@bombadil.infradead.org>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <e2b37818-53bf-8e38-82c5-d05ac2804420@oracle.com>
+Date: Thu, 5 Apr 2018 11:33:29 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <286AC319A985734F985F78AFA26841F7394A889E@shsmsx102.ccr.corp.intel.com>
+In-Reply-To: <20180405035200.GE9301@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Wei W" <wei.w.wang@intel.com>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "huangzhichao@huawei.com" <huangzhichao@huawei.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>
 
-On Thu, Apr 05, 2018 at 03:47:28PM +0000, Wang, Wei W wrote:
-> On Thursday, April 5, 2018 10:04 PM, Michael S. Tsirkin wrote:
-> > On Thu, Apr 05, 2018 at 02:05:03AM +0000, Wang, Wei W wrote:
-> > > On Thursday, April 5, 2018 9:12 AM, Michael S. Tsirkin wrote:
-> > > > On Thu, Apr 05, 2018 at 12:30:27AM +0000, Wang, Wei W wrote:
-> > > > > On Wednesday, April 4, 2018 10:08 PM, Michael S. Tsirkin wrote:
-> > > > > > On Wed, Apr 04, 2018 at 10:07:51AM +0800, Wei Wang wrote:
-> > > > > > > On 04/04/2018 02:47 AM, Michael S. Tsirkin wrote:
-> > > > > > > > On Wed, Apr 04, 2018 at 12:10:03AM +0800, Wei Wang wrote:
-> > > > > I'm afraid the driver couldn't be aware if the added hints are
-> > > > > stale or not,
-> > > >
-> > > >
-> > > > No - I mean that driver has code that compares two values and stops
-> > > > reporting. Can one of the values be stale?
-> > >
-> > > The driver compares "vb->cmd_id_use != vb->cmd_id_received" to decide
-> > > if it needs to stop reporting hints, and cmd_id_received is what the
-> > > driver reads from host (host notifies the driver to read for the
-> > > latest value). If host sends a new cmd id, it will notify the guest to
-> > > read again. I'm not sure how that could be a stale cmd id (or maybe I
-> > > misunderstood your point here?)
-> > >
-> > > Best,
-> > > Wei
-> > 
-> > The comparison is done in one thread, the update in another one.
+On 04/04/2018 08:52 PM, Matthew Wilcox wrote:
+> On Wed, Apr 04, 2018 at 09:35:46AM -0700, Mike Kravetz wrote:
+>> Running with this XArray series on top of next-20180329 consistently 'hangs'
+>> on shutdown looping (?forever?) in tag_pages_for_writeback/xas_for_each_tag.
+>> All I have to do is make sure there is some activity on the ext4 fs before
+>> shutdown.  Not sure if this is a 'next-20180329' issue or XArray issue.
+>> But the fact that we are looping in xas_for_each_tag looks suspicious.
 > 
-> I think this isn't something that could be solved by adding a lock,
-> unless host waits for the driver's ACK about finishing the update
-> (this is not agreed in the QEMU part discussion).
+> Thanks for your help debugging this!  Particularly collecting the xa_dump.
+> I got bit by the undefined behaviour of shifting by BITS_PER_LONG,
+> but of course it was subtle.
 > 
-> Actually virtio_balloon has F_IOMMU_PLATFORM disabled, maybe we don't
-> need to worry about that using DMA api case (we only have gpa added to
-> the vq, and having some entries stay in the vq seems fine). For this
-> feature, I think it would not work with F_IOMMU enabled either.
+> The userspace testing framework wasn't catching this for a couple of
+> reasons; I'll work on making sure it catches this kind of thing in
+> the future.
+> 
+> I'll fold this in and post a v11 later this week or early next week.
 
-Adding a code comment explaining all this might be a good idea.
+Nice!  Added patch and it solves the hangs I observed.
 
-> If there is any further need (I couldn't think of a need so far), I
-> think we could consider to let host inject a vq interrupt at some
-> point, and then the driver handler can do the virtqueue_get_buf work.
+-- 
+Mike Kravetz
+
 > 
-> Best,
-> Wei
+> diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+> index eac04922eba2..f5b7e507a86f 100644
+> --- a/include/linux/xarray.h
+> +++ b/include/linux/xarray.h
+> @@ -904,9 +929,12 @@ static inline unsigned int xas_find_chunk(struct xa_state *xas, bool advance,
+>  	if (advance)
+>  		offset++;
+>  	if (XA_CHUNK_SIZE == BITS_PER_LONG) {
+> -		unsigned long data = *addr & (~0UL << offset);
+> -		if (data)
+> -			return __ffs(data);
+> +		if (offset < XA_CHUNK_SIZE) {
+> +			unsigned long data = *addr & (~0UL << offset);
+> +
+> +			if (data)
+> +				return __ffs(data);
+> +		}
+>  		return XA_CHUNK_SIZE;
+>  	}
+>  
+> 
