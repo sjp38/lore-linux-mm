@@ -1,47 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 724DB6B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 17:51:11 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id z2-v6so6302683plk.3
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 14:51:11 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 53B7E6B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 18:08:45 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id o2-v6so18399572plk.14
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 15:08:45 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g3-v6si8960284plb.536.2018.04.05.14.51.10
+        by mx.google.com with ESMTPS id s10si6088354pgc.129.2018.04.05.15.08.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 14:51:10 -0700 (PDT)
-Date: Thu, 5 Apr 2018 14:51:08 -0700
+        Thu, 05 Apr 2018 15:08:44 -0700 (PDT)
+Date: Thu, 5 Apr 2018 15:08:42 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 23/25] slub: make struct kmem_cache_order_objects::x
- unsigned int
-Message-Id: <20180405145108.e1a9f788bea329653505cadc@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.20.1803061248540.29393@nuc-kabylake>
-References: <20180305200730.15812-1-adobriyan@gmail.com>
-	<20180305200730.15812-23-adobriyan@gmail.com>
-	<alpine.DEB.2.20.1803061248540.29393@nuc-kabylake>
+Subject: Re: [PATCH v3 0/4] mm/sparse: Optimize memmap allocation during
+ sparse_init()
+Message-Id: <20180405150842.350e4febc06a813138f00416@linux-foundation.org>
+In-Reply-To: <20180228032657.32385-1-bhe@redhat.com>
+References: <20180228032657.32385-1-bhe@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Alexey Dobriyan <adobriyan@gmail.com>, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org
+To: Baoquan He <bhe@redhat.com>
+Cc: linux-kernel@vger.kernel.org, dave.hansen@intel.com, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-On Tue, 6 Mar 2018 12:51:47 -0600 (CST) Christopher Lameter <cl@linux.com> wrote:
+On Wed, 28 Feb 2018 11:26:53 +0800 Baoquan He <bhe@redhat.com> wrote:
 
-> On Mon, 5 Mar 2018, Alexey Dobriyan wrote:
+> This is v3 post. V1 can be found here:
+> https://www.spinics.net/lists/linux-mm/msg144486.html
 > 
-> > struct kmem_cache_order_objects is for mixing order and number of objects,
-> > and orders aren't bit enough to warrant 64-bit width.
-> >
-> > Propagate unsignedness down so that everything fits.
-> >
-> > !!! Patch assumes that "PAGE_SIZE << order" doesn't overflow. !!!
+> In sparse_init(), two temporary pointer arrays, usemap_map and map_map
+> are allocated with the size of NR_MEM_SECTIONS. They are used to store
+> each memory section's usemap and mem map if marked as present. In
+> 5-level paging mode, this will cost 512M memory though they will be
+> released at the end of sparse_init(). System with few memory, like
+> kdump kernel which usually only has about 256M, will fail to boot
+> because of allocation failure if CONFIG_X86_5LEVEL=y.
 > 
-> PAGE_SIZE could be a couple of megs on some platforms (256 or so on
-> Itanium/PowerPC???) . So what are the worst case scenarios here?
-> 
-> I think both order and # object should fit in a 32 bit number.
-> 
-> A page with 256M size and 4 byte objects would have 64M objects.
+> In this patchset, optimize the memmap allocation code to only use
+> usemap_map and map_map with the size of nr_present_sections. This
+> makes kdump kernel boot up with normal crashkernel='' setting when
+> CONFIG_X86_5LEVEL=y.
 
-Another dangling review comment.  Alexey, please respond?
+This patchset could do with some more review, please?
