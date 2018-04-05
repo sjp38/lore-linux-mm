@@ -1,100 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 53A4F6B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 15:34:11 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id t24so18422845qtn.21
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 12:34:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id r11si2566661qkk.72.2018.04.05.12.34.10
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C12B6B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 15:36:45 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 136so2637797wmm.1
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 12:36:45 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id s11si2055902edj.407.2018.04.05.12.36.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 12:34:10 -0700 (PDT)
-Date: Thu, 5 Apr 2018 22:34:08 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH] gup: return -EFAULT on access_ok failure
-Message-ID: <20180405215744-mutt-send-email-mst@kernel.org>
-References: <1522431382-4232-1-git-send-email-mst@redhat.com>
- <20180405045231-mutt-send-email-mst@kernel.org>
- <CA+55aFwpe92MzEX2qRHO-MQsa1CP-iz6AmanFqXCV6_EaNKyMg@mail.gmail.com>
- <20180405171009-mutt-send-email-mst@kernel.org>
- <CA+55aFz_mCZQPV6ownt+pYnLFf9O+LUK_J6y4t1GUyWL1NJ2Lg@mail.gmail.com>
- <20180405211945-mutt-send-email-mst@kernel.org>
- <CA+55aFwEqnY_Z5T-5UUwbxNJfV5MmfV=-8r73xvBnA1tnU_d_w@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 05 Apr 2018 12:36:44 -0700 (PDT)
+Date: Thu, 5 Apr 2018 15:36:40 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3 2/4] mm: memory.low hierarchical behavior
+Message-ID: <20180405193640.GB27918@cmpxchg.org>
+References: <20180405185921.4942-1-guro@fb.com>
+ <20180405185921.4942-2-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFwEqnY_Z5T-5UUwbxNJfV5MmfV=-8r73xvBnA1tnU_d_w@mail.gmail.com>
+In-Reply-To: <20180405185921.4942-2-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, syzbot+6304bf97ef436580fede@syzkaller.appspotmail.com, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Thorsten Leemhuis <regressions@leemhuis.info>, Chris Wilson <chris@chris-wilson.co.uk>, Tvrtko Ursulin <tvrtko.ursulin@linux.intel.com>, "Gong, Zhipeng" <zhipeng.gong@intel.com>, Akash Goel <akash.goel@intel.com>, "Volkin, Bradley D" <bradley.d.volkin@intel.com>, Daniel Vetter <daniel.vetter@ffwll.ch>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Apr 05, 2018 at 11:43:27AM -0700, Linus Torvalds wrote:
-> On Thu, Apr 5, 2018 at 11:28 AM, Michael S. Tsirkin <mst@redhat.com> wrote:
-> >
-> > to repeat what you are saying IIUC __get_user_pages_fast returns 0 if it can't
-> > pin any pages and that is by design.  Returning 0 on error isn't usual I think
-> > so I guess this behaviour should we well documented.
+On Thu, Apr 05, 2018 at 07:59:19PM +0100, Roman Gushchin wrote:
+> This patch aims to address an issue in current memory.low semantics,
+> which makes it hard to use it in a hierarchy, where some leaf memory
+> cgroups are more valuable than others.
 > 
-> Arguably it happens elsewhere too, and not just in the kernel.
-> "read()" at past the end of a file is not an error, you'll just get 0
-> for EOF.
+> For example, there are memcgs A, A/B, A/C, A/D and A/E:
 > 
-> So it's not really "returning 0 on error".
+>   A      A/memory.low = 2G, A/memory.current = 6G
+>  //\\
+> BC  DE   B/memory.low = 3G  B/memory.current = 2G
+>          C/memory.low = 1G  C/memory.current = 2G
+>          D/memory.low = 0   D/memory.current = 2G
+> 	 E/memory.low = 10G E/memory.current = 0
 > 
-> It really is simply returning the number of pages it got. End of
-> story. That number of pages can be smaller than the requested number
-> of pages, and _that_ is due to some error, but note how it can return
-> "5" on error too - you asked for 10 pages, but the error happened in
-> the middle!
+> If we apply memory pressure, B, C and D are reclaimed at
+> the same pace while A's usage exceeds 2G.
+> This is obviously wrong, as B's usage is fully below B's memory.low,
+> and C has 1G of protection as well.
+> Also, A is pushed to the size, which is less than A's 2G memory.low,
+> which is also wrong.
 > 
-> So the right way to check for error is to bverify that you get the
-> number of pages that you asked for. If you don't, something bad
-> happened.
+> A simple bash script (provided below) can be used to reproduce
+> the problem. Current results are:
+>   A:    1430097920
+>   A/B:  711929856
+>   A/C:  717426688
+>   A/D:  741376
+>   A/E:  0
 > 
-> Of course, many users don't actually care about "I didn't get
-> everything". They only care about "did I get _something_". Then that 0
-> ends up being the error case, but note how it depends on the caller.
+> To address the issue a concept of effective memory.low is introduced.
+> Effective memory.low is always equal or less than original memory.low.
+> In a case, when there is no memory.low overcommittment (and also for
+> top-level cgroups), these two values are equal.
+> Otherwise it's a part of parent's effective memory.low, calculated as
+> a cgroup's memory.low usage divided by sum of sibling's memory.low
+> usages (under memory.low usage I mean the size of actually protected
+> memory: memory.current if memory.current < memory.low, 0 otherwise).
+> It's necessary to track the actual usage, because otherwise an empty
+> cgroup with memory.low set (A/E in my example) will affect actual
+> memory distribution, which makes no sense. To avoid traversing
+> the cgroup tree twice, page_counters code is reused.
 > 
-> > What about get_user_pages_fast though?
+> Calculating effective memory.low can be done in the reclaim path,
+> as we conveniently traversing the cgroup tree from top to bottom and
+> check memory.low on each level. So, it's a perfect place to calculate
+> effective memory low and save it to use it for children cgroups.
 > 
-> We do seem to special-case the first page there. I'm not sure it's a
-> good idea. But like the __get_user_pages_fast(), we seem to have users
-> that know about the particular semantics and depend on it.
+> This also eliminates a need to traverse the cgroup tree from bottom
+> to top each time to check if parent's guarantee is not exceeded.
 > 
-> It's all ugly, I agree.
+> Setting/resetting effective memory.low is intentionally racy, but
+> it's fine and shouldn't lead to any significant differences in
+> actual memory distribution.
 > 
-> End result: we can't just change semantics of either of them.
+> With this patch applied results are matching the expectations:
+>   A:    2147930112
+>   A/B:  1428721664
+>   A/C:  718393344
+>   A/D:  815104
+>   A/E:  0
 > 
-> At least not without going through every single user and checking that
-> they are ok with it.
+> Test script:
+>   #!/bin/bash
 > 
-> Which I guess I could be ok with. Maybe changing the semantics of
-> __get_user_pages_fast() is acceptable, if you just change it
-> *everywhere* (which includes not just he users, but also the couple of
-> architecture-specific versions of that same function that we have.
+>   CGPATH="/sys/fs/cgroup"
 > 
->                     Linus
+>   truncate /file1 --size 2G
+>   truncate /file2 --size 2G
+>   truncate /file3 --size 2G
+>   truncate /file4 --size 50G
+> 
+>   mkdir "${CGPATH}/A"
+>   echo "+memory" > "${CGPATH}/A/cgroup.subtree_control"
+>   mkdir "${CGPATH}/A/B" "${CGPATH}/A/C" "${CGPATH}/A/D" "${CGPATH}/A/E"
+> 
+>   echo 2G > "${CGPATH}/A/memory.low"
+>   echo 3G > "${CGPATH}/A/B/memory.low"
+>   echo 1G > "${CGPATH}/A/C/memory.low"
+>   echo 0 > "${CGPATH}/A/D/memory.low"
+>   echo 10G > "${CGPATH}/A/E/memory.low"
+> 
+>   echo $$ > "${CGPATH}/A/B/cgroup.procs" && vmtouch -qt /file1
+>   echo $$ > "${CGPATH}/A/C/cgroup.procs" && vmtouch -qt /file2
+>   echo $$ > "${CGPATH}/A/D/cgroup.procs" && vmtouch -qt /file3
+>   echo $$ > "${CGPATH}/cgroup.procs" && vmtouch -qt /file4
+> 
+>   echo "A:   " `cat "${CGPATH}/A/memory.current"`
+>   echo "A/B: " `cat "${CGPATH}/A/B/memory.current"`
+>   echo "A/C: " `cat "${CGPATH}/A/C/memory.current"`
+>   echo "A/D: " `cat "${CGPATH}/A/D/memory.current"`
+>   echo "A/E: " `cat "${CGPATH}/A/E/memory.current"`
+> 
+>   rmdir "${CGPATH}/A/B" "${CGPATH}/A/C" "${CGPATH}/A/D" "${CGPATH}/A/E"
+>   rmdir "${CGPATH}/A"
+>   rm /file1 /file2 /file3 /file4
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: kernel-team@fb.com
+> Cc: linux-mm@kvack.org
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-kernel@vger.kernel.org
 
-OK I hope I understood what you are saying here.
-
-At least drivers/gpu/drm/i915/i915_gem_userptr.c seems to
-get it wrong:
-
-        pinned = __get_user_pages_fast(obj->userptr.ptr,
-
-        if (pinned < 0) {
-                pages = ERR_PTR(pinned);
-                pinned = 0;
-        } else if (pinned < num_pages) {
-                pages = __i915_gem_userptr_get_pages_schedule(obj);
-                active = pages == ERR_PTR(-EAGAIN);
-        } else {
-                pages = __i915_gem_userptr_alloc_pages(obj, pvec, num_pages);
-                active = !IS_ERR(pages);
-        }
-
-The <0 path is never taken.
-
-Cc maintainers - should that driver be changed to use
-get_user_pages_fast?
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
