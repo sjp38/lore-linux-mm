@@ -1,112 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 493BD6B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 14:28:28 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id 20so17551809qkd.2
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 11:28:28 -0700 (PDT)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9283F6B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 14:30:19 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id n51so18474534qta.9
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 11:30:19 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id d10si4943824qtb.345.2018.04.05.11.28.27
+        by mx.google.com with ESMTPS id q26si3536633qtl.157.2018.04.05.11.30.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 11:28:27 -0700 (PDT)
-Date: Thu, 5 Apr 2018 21:28:25 +0300
+        Thu, 05 Apr 2018 11:30:18 -0700 (PDT)
+Date: Thu, 5 Apr 2018 21:30:17 +0300
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH] gup: return -EFAULT on access_ok failure
-Message-ID: <20180405211945-mutt-send-email-mst@kernel.org>
-References: <1522431382-4232-1-git-send-email-mst@redhat.com>
- <20180405045231-mutt-send-email-mst@kernel.org>
- <CA+55aFwpe92MzEX2qRHO-MQsa1CP-iz6AmanFqXCV6_EaNKyMg@mail.gmail.com>
- <20180405171009-mutt-send-email-mst@kernel.org>
- <CA+55aFz_mCZQPV6ownt+pYnLFf9O+LUK_J6y4t1GUyWL1NJ2Lg@mail.gmail.com>
+Subject: Re: [PATCH v30 2/4] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+Message-ID: <20180405212850-mutt-send-email-mst@kernel.org>
+References: <1522771805-78927-1-git-send-email-wei.w.wang@intel.com>
+ <1522771805-78927-3-git-send-email-wei.w.wang@intel.com>
+ <20180403214147-mutt-send-email-mst@kernel.org>
+ <5AC43377.2070607@intel.com>
+ <20180404155907-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F7394A6E96@shsmsx102.ccr.corp.intel.com>
+ <20180405040900-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F7394A7F3B@shsmsx102.ccr.corp.intel.com>
+ <20180405170248-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F7394A889E@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFz_mCZQPV6ownt+pYnLFf9O+LUK_J6y4t1GUyWL1NJ2Lg@mail.gmail.com>
+In-Reply-To: <286AC319A985734F985F78AFA26841F7394A889E@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, syzbot+6304bf97ef436580fede@syzkaller.appspotmail.com, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Thorsten Leemhuis <regressions@leemhuis.info>
+To: "Wang, Wei W" <wei.w.wang@intel.com>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "huangzhichao@huawei.com" <huangzhichao@huawei.com>
 
-On Thu, Apr 05, 2018 at 08:40:05AM -0700, Linus Torvalds wrote:
-> On Thu, Apr 5, 2018 at 7:17 AM, Michael S. Tsirkin <mst@redhat.com> wrote:
-> >
-> > I wonder however whether all the following should be changed then:
-> >
-> > static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-> >
-> > ...
-> >
-> >                         if (!vma || check_vma_flags(vma, gup_flags))
-> >                                 return i ? : -EFAULT;
-> >
-> > is this a bug in __get_user_pages?
+On Thu, Apr 05, 2018 at 03:47:28PM +0000, Wang, Wei W wrote:
+> On Thursday, April 5, 2018 10:04 PM, Michael S. Tsirkin wrote:
+> > On Thu, Apr 05, 2018 at 02:05:03AM +0000, Wang, Wei W wrote:
+> > > On Thursday, April 5, 2018 9:12 AM, Michael S. Tsirkin wrote:
+> > > > On Thu, Apr 05, 2018 at 12:30:27AM +0000, Wang, Wei W wrote:
+> > > > > On Wednesday, April 4, 2018 10:08 PM, Michael S. Tsirkin wrote:
+> > > > > > On Wed, Apr 04, 2018 at 10:07:51AM +0800, Wei Wang wrote:
+> > > > > > > On 04/04/2018 02:47 AM, Michael S. Tsirkin wrote:
+> > > > > > > > On Wed, Apr 04, 2018 at 12:10:03AM +0800, Wei Wang wrote:
+> > > > > I'm afraid the driver couldn't be aware if the added hints are
+> > > > > stale or not,
+> > > >
+> > > >
+> > > > No - I mean that driver has code that compares two values and stops
+> > > > reporting. Can one of the values be stale?
+> > >
+> > > The driver compares "vb->cmd_id_use != vb->cmd_id_received" to decide
+> > > if it needs to stop reporting hints, and cmd_id_received is what the
+> > > driver reads from host (host notifies the driver to read for the
+> > > latest value). If host sends a new cmd id, it will notify the guest to
+> > > read again. I'm not sure how that could be a stale cmd id (or maybe I
+> > > misunderstood your point here?)
+> > >
+> > > Best,
+> > > Wei
+> > 
+> > The comparison is done in one thread, the update in another one.
 > 
-> Note the difference between "get_user_pages()", and "get_user_pages_fast()".
+> I think this isn't something that could be solved by adding a lock,
+> unless host waits for the driver's ACK about finishing the update
+> (this is not agreed in the QEMU part discussion).
 > 
-> It's the *fast* versions that just return the number of pages pinned.
+> Actually virtio_balloon has F_IOMMU_PLATFORM disabled, maybe we don't
+> need to worry about that using DMA api case (we only have gpa added to
+> the vq, and having some entries stay in the vq seems fine). For this
+> feature, I think it would not work with F_IOMMU enabled either.
+
+Adding a code comment explaining all this might be a good idea.
+
+> If there is any further need (I couldn't think of a need so far), I
+> think we could consider to let host inject a vq interrupt at some
+> point, and then the driver handler can do the virtqueue_get_buf work.
 > 
-> The non-fast ones will return an error code for various cases.
-> 
-> Why?
-> 
-> The non-fast cases actually *have* various error cases. They can block
-> and get interrupted etc.
-> 
-> The fast cases are basically "just get me the pages, dammit, and if
-> you can't get some page, stop".
-> 
-> At least that's one excuse for the difference in behavior.
-> 
-> The real excuse is probably just "that's how it worked" - the fast
-> case just walked the page tables and that was it.
-> 
->                  Linus
-
-I see, thanks for the clarification Linus.
-
-to repeat what you are saying IIUC __get_user_pages_fast returns 0 if it can't
-pin any pages and that is by design.  Returning 0 on error isn't usual I think
-so I guess this behaviour should we well documented.
-
-That part of my patch was wrong and should be replaced with a doc
-update.
-
-What about get_user_pages_fast though? That's the other part of the
-patch. Right now get_user_pages_fast does:
-
-                ret = get_user_pages_unlocked(start, nr_pages - nr, pages,
-                                write ? FOLL_WRITE : 0);
-
-                /* Have to be a bit careful with return values */
-                if (nr > 0) {
-                        if (ret < 0)
-                                ret = nr;
-                        else
-                                ret += nr;
-                }
-
-so an error on the 1st page gets propagated to the caller,
-and that get_user_pages_unlocked eventually calls __get_user_pages
-so it does return an error sometimes.
-
-Would it be correct to apply the second part of the patch then
-(pasted below for reference) or should get_user_pages_fast
-and all its callers be changed to return 0 on error instead?
-
-@@ -1806,9 +1809,12 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	len = (unsigned long) nr_pages << PAGE_SHIFT;
- 	end = start + len;
- 
-+	if (nr_pages <= 0)
-+		return 0;
-+
- 	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
- 					(void __user *)start, len)))
--		return 0;
-+		return -EFAULT;
- 
- 	if (gup_fast_permitted(start, nr_pages, write)) {
- 		local_irq_disable();
-
--- 
-MST
+> Best,
+> Wei
