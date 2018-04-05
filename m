@@ -1,72 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CBC7C6B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 14:43:29 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id 140-v6so3782441itg.4
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 11:43:29 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 80sor3973659ion.311.2018.04.05.11.43.28
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E1D56B0005
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 14:54:49 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p4so13796754wrf.17
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 11:54:49 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f28si5950020wrf.393.2018.04.05.11.54.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 05 Apr 2018 11:43:28 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 05 Apr 2018 11:54:47 -0700 (PDT)
+Date: Thu, 5 Apr 2018 20:54:44 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
+Message-ID: <20180405185444.GQ6312@dhcp22.suse.cz>
+References: <20180404101149.08f6f881@gandalf.local.home>
+ <20180404142329.GI6312@dhcp22.suse.cz>
+ <20180404114730.65118279@gandalf.local.home>
+ <20180405025841.GA9301@bombadil.infradead.org>
+ <CAJWu+oqP64QzvPM6iHtzowek6s4p+3rb7WDXs1z51mwW-9mLbA@mail.gmail.com>
+ <20180405142258.GA28128@bombadil.infradead.org>
+ <20180405142749.GL6312@dhcp22.suse.cz>
+ <20180405151359.GB28128@bombadil.infradead.org>
+ <20180405153240.GO6312@dhcp22.suse.cz>
+ <20180405161501.GD28128@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180405211945-mutt-send-email-mst@kernel.org>
-References: <1522431382-4232-1-git-send-email-mst@redhat.com>
- <20180405045231-mutt-send-email-mst@kernel.org> <CA+55aFwpe92MzEX2qRHO-MQsa1CP-iz6AmanFqXCV6_EaNKyMg@mail.gmail.com>
- <20180405171009-mutt-send-email-mst@kernel.org> <CA+55aFz_mCZQPV6ownt+pYnLFf9O+LUK_J6y4t1GUyWL1NJ2Lg@mail.gmail.com>
- <20180405211945-mutt-send-email-mst@kernel.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 5 Apr 2018 11:43:27 -0700
-Message-ID: <CA+55aFwEqnY_Z5T-5UUwbxNJfV5MmfV=-8r73xvBnA1tnU_d_w@mail.gmail.com>
-Subject: Re: [PATCH] gup: return -EFAULT on access_ok failure
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180405161501.GD28128@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, syzbot+6304bf97ef436580fede@syzkaller.appspotmail.com, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Thorsten Leemhuis <regressions@leemhuis.info>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Joel Fernandes <joelaf@google.com>, Steven Rostedt <rostedt@goodmis.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, Apr 5, 2018 at 11:28 AM, Michael S. Tsirkin <mst@redhat.com> wrote:
->
-> to repeat what you are saying IIUC __get_user_pages_fast returns 0 if it can't
-> pin any pages and that is by design.  Returning 0 on error isn't usual I think
-> so I guess this behaviour should we well documented.
+On Thu 05-04-18 09:15:01, Matthew Wilcox wrote:
+> On Thu, Apr 05, 2018 at 05:32:40PM +0200, Michal Hocko wrote:
+> > On Thu 05-04-18 08:13:59, Matthew Wilcox wrote:
+> > > Argh.  The comment confused me.  OK, now I've read the source and
+> > > understand that GFP_KERNEL | __GFP_RETRY_MAYFAIL tries exactly as hard
+> > > as GFP_KERNEL *except* that it won't cause OOM itself.  But any other
+> > > simultaneous GFP_KERNEL allocation without __GFP_RETRY_MAYFAIL will
+> > > cause an OOM.  (And that's why we're having a conversation)
+> > 
+> > Well, I can udnerstand how this can be confusing. The all confusion
+> > boils down to the small-never-fails semantic we have. So all reclaim
+> > modificators (__GFP_NOFAIL, __GFP_RETRY_MAYFAIL, __GFP_NORETRY) only
+> > modify the _default_ behavior.
+> 
+> Now that I understand the flag, I'll try to write a more clear
+> explanation.
 
-Arguably it happens elsewhere too, and not just in the kernel.
-"read()" at past the end of a file is not an error, you'll just get 0
-for EOF.
+Good luck with that. It took me several iterations to land with the
+current state. It is quite hard to be not misleading yet understandable.
 
-So it's not really "returning 0 on error".
+> > > That's a problem because we have places in the kernel that call
+> > > kv[zm]alloc(very_large_size, GFP_KERNEL), and that will turn into vmalloc,
+> > > which will do the exact same thing, only it will trigger OOM all by itself
+> > > (assuming the largest free chunk of address space in the vmalloc area
+> > > is larger than the amount of free memory).
+> > 
+> > well, hardcoded GFP_KERNEL from vmalloc guts is yet another, ehm,
+> > herritage that you are not so proud of.
+> 
+> Certainly not, but that's not what I'm concerned about; I'm concerned
+> about the allocation of the pages, not the allocation of the array
+> containing the page pointers.
 
-It really is simply returning the number of pages it got. End of
-story. That number of pages can be smaller than the requested number
-of pages, and _that_ is due to some error, but note how it can return
-"5" on error too - you asked for 10 pages, but the error happened in
-the middle!
+Those pages will use the gfp flag you give to vmalloc IIRC. It is page
+tables that are GFP_KERNEL unconditionally.
 
-So the right way to check for error is to bverify that you get the
-number of pages that you asked for. If you don't, something bad
-happened.
+> > > We could also have a GFP flag that says to only succeed if we're further
+> > > above the existing watermark than normal.  __GFP_LOW (==ALLOC_LOW),
+> > > if you like.  That would give us the desired behaviour of trying all of
+> > > the reclaim methods that GFP_KERNEL would, but not being able to exhaust
+> > > all the memory that GFP_KERNEL allocations would take.
+> > 
+> > Well, I would be really careful with yet another gfp mask. They are so
+> > incredibly hard to define properly and then people kinda tend to screw
+> > your best intentions with their usecases ;)
+> > Failing on low wmark is very close to __GFP_NORETRY or even
+> > __GFP_NOWAIT, btw. So let's try to not overthink this...
+> 
+> Oh, indeed.  We must be able to clearly communicate to users when they
+> should use this flag.  I have in mind something like this:
+> 
+>  * __GFP_HIGH indicates that the caller is high-priority and that granting
+>  *   the request is necessary before the system can make forward progress.
+>  *   For example, creating an IO context to clean pages.
+>  *
+>  * __GFP_LOW indicates that the caller is low-priority and that it should
+>  *   not be allocated pages that would cause the system to get into an
+>  *   out-of-memory situation.  For example, allocating multiple individual
+>  *   pages in order to satisfy a larger request.
 
-Of course, many users don't actually care about "I didn't get
-everything". They only care about "did I get _something_". Then that 0
-ends up being the error case, but note how it depends on the caller.
+So how exactly the low fits into GFP_NOWAIT, GFP_NORETRY and
+GFP_RETRY_MAFAIL? We _do_have several levels of how hard to try and we
+have users relying on that. And do not forget about costly vs.
+non-costly sizes.
 
-> What about get_user_pages_fast though?
+That being said, we should not hijack this thread more and further
+enhancements should be discussed separatelly. I am all for making the
+whole allocation api less obscure but keep in mind that we have really
+hard historical restrictions.
 
-We do seem to special-case the first page there. I'm not sure it's a
-good idea. But like the __get_user_pages_fast(), we seem to have users
-that know about the particular semantics and depend on it.
-
-It's all ugly, I agree.
-
-End result: we can't just change semantics of either of them.
-
-At least not without going through every single user and checking that
-they are ok with it.
-
-Which I guess I could be ok with. Maybe changing the semantics of
-__get_user_pages_fast() is acceptable, if you just change it
-*everywhere* (which includes not just he users, but also the couple of
-architecture-specific versions of that same function that we have.
-
-                    Linus
+-- 
+Michal Hocko
+SUSE Labs
