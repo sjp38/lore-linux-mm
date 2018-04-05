@@ -1,98 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 856CF6B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 03:44:38 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id z2-v6so3515392plk.3
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 00:44:38 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (lgeamrelo12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id v4-v6si4987748plo.644.2018.04.05.00.44.36
-        for <linux-mm@kvack.org>;
-        Thu, 05 Apr 2018 00:44:37 -0700 (PDT)
-Date: Thu, 5 Apr 2018 16:44:34 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v1] mm: help the ALLOC_HARDER allocation pass the
- watermarki when CMA on
-Message-ID: <20180405074433.GA31920@js1304-desktop>
-References: <1521791852-7048-1-git-send-email-zhaoyang.huang@spreadtrum.com>
- <20180323083847.GJ23100@dhcp22.suse.cz>
- <CAGWkznHxTaymoEuFEQ+nN0ZvpPLhdE_fbwpT3pbDf+NQyHw-3g@mail.gmail.com>
- <20180323093327.GM23100@dhcp22.suse.cz>
- <20180323130408.0c6451fac02c49b535ec7485@linux-foundation.org>
- <20180404003028.GA6628@js1304-desktop>
- <20180404153703.8f9f04df4c991554f3bf0434@linux-foundation.org>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A7CB06B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 03:58:00 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f137so854438wme.5
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 00:58:00 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z66si3865825wmb.189.2018.04.05.00.57.56
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 05 Apr 2018 00:57:56 -0700 (PDT)
+Date: Thu, 5 Apr 2018 09:57:53 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/thp: don't count ZONE_MOVABLE as the target for
+ freepage reserving
+Message-ID: <20180405075753.GZ6312@dhcp22.suse.cz>
+References: <1522913236-15776-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180404153703.8f9f04df4c991554f3bf0434@linux-foundation.org>
+In-Reply-To: <1522913236-15776-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, zhaoyang.huang@spreadtrum.com, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, vel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-patch-test@lists.linaro.org
+To: js1304@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, Apr 04, 2018 at 03:37:03PM -0700, Andrew Morton wrote:
-> On Wed, 4 Apr 2018 09:31:10 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On Thu 05-04-18 16:27:16, Joonsoo Kim wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> > On Fri, Mar 23, 2018 at 01:04:08PM -0700, Andrew Morton wrote:
-> > > On Fri, 23 Mar 2018 10:33:27 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-> > > 
-> > > > On Fri 23-03-18 17:19:26, Zhaoyang Huang wrote:
-> > > > > On Fri, Mar 23, 2018 at 4:38 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > > > > > On Fri 23-03-18 15:57:32, Zhaoyang Huang wrote:
-> > > > > >> For the type of 'ALLOC_HARDER' page allocation, there is an express
-> > > > > >> highway for the whole process which lead the allocation reach __rmqueue_xxx
-> > > > > >> easier than other type.
-> > > > > >> However, when CMA is enabled, the free_page within zone_watermark_ok() will
-> > > > > >> be deducted for number the pages in CMA type, which may cause the watermark
-> > > > > >> check fail, but there are possible enough HighAtomic or Unmovable and
-> > > > > >> Reclaimable pages in the zone. So add 'alloc_harder' here to
-> > > > > >> count CMA pages in to clean the obstacles on the way to the final.
-> > > > > >
-> > > > > > This is no longer the case in the current mmotm tree. Have a look at
-> > > > > > Joonsoo's zone movable based CMA patchset http://lkml.kernel.org/r/1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com
-> > > > > >
-> > > > > Thanks for the information. However, I can't find the commit in the
-> > > > > latest mainline, is it merged?
-> > > > 
-> > > > Not yet. It is still sitting in the mmomt tree. I am not sure what is
-> > > > the merge plan but I guess it is still waiting for some review feedback.
-> > > 
-> > > http://lkml.kernel.org/r/20171222001113.GA1729@js1304-P5Q-DELUXE
-> > > 
-> > > That patchset has been floating about since December and still has
-> > > unresolved issues.
-> > > 
-> > > Joonsoo, can you please let us know the status?
-> > 
-> > Hello, Andrew.
-> > Sorry for a late response.
-> > 
-> > Today, I finally have answered the question from Michal and it seems
-> > that there is no problem at all.
-> > 
-> > http://lkml.kernel.org/r/CAAmzW4NGv7RyCYyokPoj4aR3ySKub4jaBZ3k=pt_YReFbByvsw@mail.gmail.com
-> > 
-> > You can merge the patch as is.
-> > 
+> ZONE_MOVABLE only has movable pages so we don't need to keep enough
+> freepages to avoid or deal with fragmentation. So, don't count it.
 > 
-> hm.
+> This changes min_free_kbytes and thus min_watermark greatly
+> if ZONE_MOVABLE is used. It will make the user uses more memory.
+
+OK, but why does it matter. Has anybody seen this as an issue?
+
+> o System
+> 22GB ram, fakenuma, 2 nodes. 5 zones are used.
 > 
-> There was also a performance regression reported:
-> http://lkml.kernel.org/r/20180102063528.GG30397@yexl-desktop
+> o Before
+> min_free_kbytes: 112640
+> 
+> zone_info (min_watermark):
+> Node 0, zone      DMA
+>         min      19
+> Node 0, zone    DMA32
+>         min      3778
+> Node 0, zone   Normal
+>         min      10191
+> Node 0, zone  Movable
+>         min      0
+> Node 0, zone   Device
+>         min      0
+> Node 1, zone      DMA
+>         min      0
+> Node 1, zone    DMA32
+>         min      0
+> Node 1, zone   Normal
+>         min      14043
+> Node 1, zone  Movable
+>         min      127
+> Node 1, zone   Device
+>         min      0
+> 
+> o After
+> min_free_kbytes: 90112
+> 
+> zone_info (min_watermark):
+> Node 0, zone      DMA
+>         min      15
+> Node 0, zone    DMA32
+>         min      3022
+> Node 0, zone   Normal
+>         min      8152
+> Node 0, zone  Movable
+>         min      0
+> Node 0, zone   Device
+>         min      0
+> Node 1, zone      DMA
+>         min      0
+> Node 1, zone    DMA32
+>         min      0
+> Node 1, zone   Normal
+>         min      11234
+> Node 1, zone  Movable
+>         min      102
+> Node 1, zone   Device
+>         min      0
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  mm/khugepaged.c | 10 +++++++++-
+>  1 file changed, 9 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index 5de1c6f..92dd4e6 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -1880,8 +1880,16 @@ static void set_recommended_min_free_kbytes(void)
+>  	int nr_zones = 0;
+>  	unsigned long recommended_min;
+>  
+> -	for_each_populated_zone(zone)
+> +	for_each_populated_zone(zone) {
+> +		/*
+> +		 * We don't need to worry about fragmentation of
+> +		 * ZONE_MOVABLE since it only has movable pages.
+> +		 */
+> +		if (zone_idx(zone) > gfp_zone(GFP_USER))
+> +			continue;
+> +
+>  		nr_zones++;
+> +	}
+>  
+>  	/* Ensure 2 pageblocks are free to assist fragmentation avoidance */
+>  	recommended_min = pageblock_nr_pages * nr_zones * 2;
+> -- 
+> 2.7.4
+> 
 
-I analyze the report and may find the reason.
-
-When we uses more zones, min_free_kbytes is increased for avoiding
-fragmentation if THP is enabled. This patch uses one more zone to
-manage CMA memory so min_free_kbytes and thus min_watermark is increased.
-It would reduce our usable memory and cause regression.
-
-However, this reservation for fragmentation isn't needed for
-ZONE_MOVABLE since it has only movable pages so I send a patch to fix it.
-
-http://lkml.kernel.org/r/<1522913236-15776-1-git-send-email-iamjoonsoo.kim@lge.com>
-
-I'm not sure that it is a root cause of above performance regression
-but I highly anticipate that they are related. I will ask the reporter
-to test this patch on top of that.
-
-Thanks.
+-- 
+Michal Hocko
+SUSE Labs
