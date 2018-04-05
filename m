@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 865436B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 15:53:25 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id f3-v6so20430078plf.1
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 12:53:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l185si6000667pgd.108.2018.04.05.12.53.24
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 31EE26B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 15:57:30 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 204-v6so4031511itu.6
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 12:57:30 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id g129-v6sor907274itd.46.2018.04.05.12.57.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 12:53:24 -0700 (PDT)
-Date: Thu, 5 Apr 2018 12:53:22 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] include: mm: Adding new inline function vmf_error
-Message-Id: <20180405125322.2ef3abfc6159a72725095bd0@linux-foundation.org>
-In-Reply-To: <20180405162225.GA23411@jordon-HP-15-Notebook-PC>
-References: <20180405162225.GA23411@jordon-HP-15-Notebook-PC>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 05 Apr 2018 12:57:29 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180405094346.104cf288@gandalf.local.home>
+References: <20180404115310.6c69e7b9@gandalf.local.home> <20180404120002.6561a5bc@gandalf.local.home>
+ <CAJWu+orC-1JDYHDTQU+DFckGq5ZnXBCCq9wLG-gNK0Nc4-vo7w@mail.gmail.com>
+ <20180404121326.6eca4fa3@gandalf.local.home> <CAJWu+op5-sr=2xWDYcd7FDBeMtrM9Zm96BgGzb4Q31UGBiU3ew@mail.gmail.com>
+ <CAJWu+opM6RjK-Z1dr35XvQ5cLKaV=cLG5uMu-rLkoO=X03c+FA@mail.gmail.com> <20180405094346.104cf288@gandalf.local.home>
+From: Joel Fernandes <joelaf@google.com>
+Date: Thu, 5 Apr 2018 12:57:28 -0700
+Message-ID: <CAJWu+oqT0oPrEL4mPnWvF3Zt-psg2DWGj9Nrr+fda2JYFzRmqg@mail.gmail.com>
+Subject: Re: [PATCH] ring-buffer: Add set/clear_current_oom_origin() during allocations
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: willy@infradead.org, linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, 5 Apr 2018 21:52:25 +0530 Souptick Joarder <jrdr.linux@gmail.com> wrote:
+Hi Steve,
 
-> Many places in drivers/ file systems error was handled
-> like below -
-> ret = (ret == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
-> 
-> This new inline function vmf_error() will replace this
-> and return vm_fault_t type err.
-> 
-> ...
+On Thu, Apr 5, 2018 at 6:43 AM, Steven Rostedt <rostedt@goodmis.org> wrote:
+> On Wed, 4 Apr 2018 16:59:18 -0700
+> Joel Fernandes <joelaf@google.com> wrote:
 >
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2453,6 +2453,18 @@ static inline vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma,
->  	return VM_FAULT_NOPAGE;
->  }
->  
-> +static inline vm_fault_t vmf_error(int err)
-> +{
-> +	vm_fault_t ret;
-> +
-> +	if (err == -ENOMEM)
-> +		ret = VM_FAULT_OOM;
-> +	else
-> +		ret = VM_FAULT_SIGBUS;
-> +
-> +	return ret;
-> +}
-> +
+>> Happy to try anything else, BTW when the si_mem_available check
+>> enabled, this doesn't happen and the buffer_size_kb write fails
+>> normally without hurting anything else.
+>
+> Can you remove the RETRY_MAYFAIL and see if you can try again? It may
+> be that we just remove that, and if si_mem_available() is wrong, it
+> will kill the process :-/ My original code would only add MAYFAIL if it
+> was a kernel thread (which is why I created the mflags variable).
 
-That's a bit verbose.  Why not simply
+Tried this. Dropping RETRY_MAYFAIL and the si_mem_available check
+destabilized the system and brought it down (along with OOM killing
+the victim).
 
-	return (err == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
+System hung for several seconds and then both the memory hog and bash
+got killed.
 
-Also, if would be nice to see some sites converted so we can see the
-benefit of the patch and to actually test it.
+thanks,
+
+- Joel
