@@ -1,48 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C7F516B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 10:34:25 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id m6-v6so19198257pln.8
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 07:34:25 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 9FCF36B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 10:44:35 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id t4-v6so1519356plo.9
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 07:44:35 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 13si6158309pfm.246.2018.04.05.07.34.24
+        by mx.google.com with ESMTPS id l30si5500400pgn.701.2018.04.05.07.44.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 07:34:24 -0700 (PDT)
-Date: Thu, 5 Apr 2018 10:34:21 -0400
+        Thu, 05 Apr 2018 07:44:31 -0700 (PDT)
+Date: Thu, 5 Apr 2018 10:44:28 -0400
 From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180405103421.60bcf53c@gandalf.local.home>
-In-Reply-To: <20180405142749.GL6312@dhcp22.suse.cz>
-References: <20180403093245.43e7e77c@gandalf.local.home>
-	<20180403135607.GC5501@dhcp22.suse.cz>
-	<CAGWkznH-yfAu=fMo1YWU9zo-DomHY8YP=rw447rUTgzvVH4RpQ@mail.gmail.com>
-	<20180404062340.GD6312@dhcp22.suse.cz>
-	<20180404101149.08f6f881@gandalf.local.home>
-	<20180404142329.GI6312@dhcp22.suse.cz>
-	<20180404114730.65118279@gandalf.local.home>
-	<20180405025841.GA9301@bombadil.infradead.org>
-	<CAJWu+oqP64QzvPM6iHtzowek6s4p+3rb7WDXs1z51mwW-9mLbA@mail.gmail.com>
-	<20180405142258.GA28128@bombadil.infradead.org>
-	<20180405142749.GL6312@dhcp22.suse.cz>
+Subject: [PATCH] ring-buffer: Check if memory is available before allocation
+Message-ID: <20180405104428.08ea9e08@gandalf.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Joel Fernandes <joelaf@google.com>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Zhaoyang Huang <huangzhaoyang@gmail.com>, Joel Fernandes <joelaf@google.com>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 5 Apr 2018 16:27:49 +0200
-Michal Hocko <mhocko@kernel.org> wrote:
+From: "Steven Rostedt (VMware)" <rostedt@goodmis.org>
 
-> > I understand you don't want GFP_NORETRY.  But why is it more important for
-> > this allocation to succeed than other normal GFP_KERNEL allocations?  
-> 
-> I guess they simply want a failure rather than OOM even when they can
-> shoot themselves into head by using oom_origin. It is still quite ugly
-> to see OOM report...
+The ring buffer is made up of a link list of pages. When making the ring
+buffer bigger, it will allocate all the pages it needs before adding to the
+ring buffer, and if it fails, it frees them and returns an error. This makes
+increasing the ring buffer size an all or nothing action. When this was
+first created, the pages were allocated with "NORETRY". This was to not
+cause any Out-Of-Memory (OOM) actions from allocating the ring buffer. But
+NORETRY was too strict, as the ring buffer would fail to expand even when
+there's memory available, but was taken up in the page cache.
 
-Exactly!
+Commit 848618857d253 ("tracing/ring_buffer: Try harder to allocate") changed
+the allocating from NORETRY to RETRY_MAYFAIL. The RETRY_MAYFAIL would
+allocate from the page cache, but if there was no memory available, it would
+simple fail the allocation and not trigger an OOM.
 
--- Steve
+This worked fine, but had one problem. As the ring buffer would allocate one
+page at a time, it could take up all memory in the system before it failed
+to allocate and free that memory. If the allocation is happening and the
+ring buffer allocates all memory and then tries to take more than available,
+its allocation will not trigger an OOM, but if there's any allocation that
+happens someplace else, that could trigger an OOM, even though once the ring
+buffer's allocation fails, it would free up all the previous memory it tried
+to allocate, and allow other memory allocations to succeed.
+
+Commit d02bd27bd33dd ("mm/page_alloc.c: calculate 'available' memory in a
+separate function") separated out si_mem_availble() as a separate function
+that could be used to see how much memory is available in the system. Using
+this function to make sure that the ring buffer could be allocated before it
+tries to allocate pages we can avoid allocating all memory in the system and
+making it vulnerable to OOMs if other allocations are taking place.
+
+Link: http://lkml.kernel.org/r/1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com
+
+CC: stable@vger.kernel.org
+Cc: linux-mm@kvack.org
+Fixes: 848618857d253 ("tracing/ring_buffer: Try harder to allocate")
+Requires: d02bd27bd33dd ("mm/page_alloc.c: calculate 'available' memory in a separate function")
+Reported-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Tested-by: Joel Fernandes <joelaf@google.com>
+Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+---
+
+Note: Zhaoyang notified me that I never actually posted this patch to
+the mailing list. And I plan on sending this to stable (to fix the
+current triggering of OOMs even though it is an abuse of
+si_mem_available()).
+
+I also have the patch on top of this that uses set_current_oom_origin()
+to kill this task if si_mem_available() advertises enough memory when
+there is not. Should that be marked for stable as well?
+
+ See http://lkml.kernel.org/r/20180404115310.6c69e7b9@gandalf.local.home
+
+ kernel/trace/ring_buffer.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
+index 515be03e3009..966128f02121 100644
+--- a/kernel/trace/ring_buffer.c
++++ b/kernel/trace/ring_buffer.c
+@@ -1164,6 +1164,11 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
+ 	struct buffer_page *bpage, *tmp;
+ 	long i;
+ 
++	/* Check if the available memory is there first */
++	i = si_mem_available();
++	if (i < nr_pages)
++		return -ENOMEM;
++
+ 	for (i = 0; i < nr_pages; i++) {
+ 		struct page *page;
+ 		/*
+-- 
+2.13.6
