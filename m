@@ -1,64 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E0DF6B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 08:28:07 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id x20so1449905wmc.0
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 05:28:07 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 65si2083073edb.361.2018.04.05.05.28.03
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 120A46B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 08:29:23 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f137so1257249wme.5
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 05:29:23 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a7sor647666edq.15.2018.04.05.05.29.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 05:28:03 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w35CKURw113698
-	for <linux-mm@kvack.org>; Thu, 5 Apr 2018 08:28:02 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2h5hv9d9e2-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 05 Apr 2018 08:28:02 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <imbrenda@linux.vnet.ibm.com>;
-	Thu, 5 Apr 2018 13:28:00 +0100
-From: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
-Subject: [PATCH v1 1/1] mm/ksm: fix inconsistent accounting of zero pages
-Date: Thu,  5 Apr 2018 14:27:54 +0200
-Message-Id: <1522931274-15552-1-git-send-email-imbrenda@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Thu, 05 Apr 2018 05:29:21 -0700 (PDT)
+Date: Thu, 5 Apr 2018 15:28:38 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v1] mm: consider non-anonymous thp as unmovable page
+Message-ID: <20180405122838.6a6b35psizem4tcy@node.shutemov.name>
+References: <1522730788-24530-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20180403075928.GC5501@dhcp22.suse.cz>
+ <20180403082405.GA23809@hori1.linux.bs1.fc.nec.co.jp>
+ <20180403083451.GG5501@dhcp22.suse.cz>
+ <20180403105411.hknofkbn6rzs26oz@node.shutemov.name>
+ <20180405085927.GC6312@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180405085927.GC6312@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, minchan@kernel.org, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, hughd@google.com, borntraeger@de.ibm.com, gerald.schaefer@de.ibm.com, stable@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-When using KSM with use_zero_pages, we replace anonymous pages
-containing only zeroes with actual zero pages, which are not anonymous.
-We need to do proper accounting of the mm counters, otherwise we will
-get wrong values in /proc and a BUG message in dmesg when tearing down
-the mm.
+On Thu, Apr 05, 2018 at 10:59:27AM +0200, Michal Hocko wrote:
+> On Tue 03-04-18 13:54:11, Kirill A. Shutemov wrote:
+> > On Tue, Apr 03, 2018 at 10:34:51AM +0200, Michal Hocko wrote:
+> > > On Tue 03-04-18 08:24:06, Naoya Horiguchi wrote:
+> > > > On Tue, Apr 03, 2018 at 09:59:28AM +0200, Michal Hocko wrote:
+> > > > > On Tue 03-04-18 13:46:28, Naoya Horiguchi wrote:
+> > > > > > My testing for the latest kernel supporting thp migration found out an
+> > > > > > infinite loop in offlining the memory block that is filled with shmem
+> > > > > > thps.  We can get out of the loop with a signal, but kernel should
+> > > > > > return with failure in this case.
+> > > > > >
+> > > > > > What happens in the loop is that scan_movable_pages() repeats returning
+> > > > > > the same pfn without any progress. That's because page migration always
+> > > > > > fails for shmem thps.
+> > > > >
+> > > > > Why does it fail? Shmem pages should be movable without any issues.
+> > > > 
+> > > > .. because try_to_unmap_one() explicitly skips unmapping for migration.
+> > > > 
+> > > >   #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+> > > >                   /* PMD-mapped THP migration entry */
+> > > >                   if (!pvmw.pte && (flags & TTU_MIGRATION)) {
+> > > >                           VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
+> > > >   
+> > > >                           if (!PageAnon(page))
+> > > >                                   continue;
+> > > >   
+> > > >                           set_pmd_migration_entry(&pvmw, page);
+> > > >                           continue;
+> > > >                   }
+> > > >   #endif
+> > > > 
+> > > > When I implemented this code, I felt hard to work on both of anon thp
+> > > > and shmem thp at one time, so I separated the proposal into smaller steps.
+> > > > Shmem uses pagecache so we need some non-trivial effort (including testing)
+> > > > to extend thp migration for shmem. But I think it's a reasonable next step.
+> > > 
+> > > OK, I see. I have forgot about this part. Please be explicit about that
+> > > in the changelog. Also the proper fix is to not use movable zone for
+> > > shmem page THP rather than hack around it in the hotplug specific code
+> > > IMHO.
+> > 
+> > No. We should just split the page before running
+> > try_to_unmap(TTU_MIGRATION) on the page.
+> 
+> Something like this or it is completely broken. I completely forgot the
+> whole page_vma_mapped_walk business.
 
-Fixes: e86c59b1b1 ("mm/ksm: improve deduplication of zero pages with colouring")
+No, this wouldn't work. We need to split page, not pmd to make migration
+work.
 
-Signed-off-by: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
----
- mm/ksm.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+> 
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 9eaa6354fe70..cbbfbcb08b83 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1356,6 +1356,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  		return true;
+>  
+>  	if (flags & TTU_SPLIT_HUGE_PMD) {
+> +split:
+>  		split_huge_pmd_address(vma, address,
+>  				flags & TTU_SPLIT_FREEZE, page);
+>  	}
+> @@ -1375,7 +1376,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  			VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
+>  
+>  			if (!PageAnon(page))
+> -				continue;
+> +				goto split;
+>  
+>  			set_pmd_migration_entry(&pvmw, page);
+>  			continue;
+> -- 
+> Michal Hocko
+> SUSE Labs
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 293721f..2d6b352 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1131,6 +1131,13 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
- 	} else {
- 		newpte = pte_mkspecial(pfn_pte(page_to_pfn(kpage),
- 					       vma->vm_page_prot));
-+		/*
-+		 * We're replacing an anonymous page with a zero page, which is
-+		 * not anonymous. We need to do proper accounting otherwise we
-+		 * will get wrong values in /proc, and a BUG message in dmesg
-+		 * when tearing down the mm.
-+		 */
-+		dec_mm_counter(mm, MM_ANONPAGES);
- 	}
- 
- 	flush_cache_page(vma, addr, pte_pfn(*ptep));
 -- 
-2.7.4
+ Kirill A. Shutemov
