@@ -1,84 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BADC56B0006
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 11:32:45 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id k44so13790613wrc.3
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 08:32:45 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k9si5713352wrk.429.2018.04.05.08.32.43
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E6BAE6B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 11:40:07 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 140-v6so3207747itg.4
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 08:40:07 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t204sor3742882iod.55.2018.04.05.08.40.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Apr 2018 08:32:44 -0700 (PDT)
-Date: Thu, 5 Apr 2018 17:32:40 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
-Message-ID: <20180405153240.GO6312@dhcp22.suse.cz>
-References: <CAGWkznH-yfAu=fMo1YWU9zo-DomHY8YP=rw447rUTgzvVH4RpQ@mail.gmail.com>
- <20180404062340.GD6312@dhcp22.suse.cz>
- <20180404101149.08f6f881@gandalf.local.home>
- <20180404142329.GI6312@dhcp22.suse.cz>
- <20180404114730.65118279@gandalf.local.home>
- <20180405025841.GA9301@bombadil.infradead.org>
- <CAJWu+oqP64QzvPM6iHtzowek6s4p+3rb7WDXs1z51mwW-9mLbA@mail.gmail.com>
- <20180405142258.GA28128@bombadil.infradead.org>
- <20180405142749.GL6312@dhcp22.suse.cz>
- <20180405151359.GB28128@bombadil.infradead.org>
+        (Google Transport Security);
+        Thu, 05 Apr 2018 08:40:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180405151359.GB28128@bombadil.infradead.org>
+In-Reply-To: <20180405171009-mutt-send-email-mst@kernel.org>
+References: <1522431382-4232-1-git-send-email-mst@redhat.com>
+ <20180405045231-mutt-send-email-mst@kernel.org> <CA+55aFwpe92MzEX2qRHO-MQsa1CP-iz6AmanFqXCV6_EaNKyMg@mail.gmail.com>
+ <20180405171009-mutt-send-email-mst@kernel.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 5 Apr 2018 08:40:05 -0700
+Message-ID: <CA+55aFz_mCZQPV6ownt+pYnLFf9O+LUK_J6y4t1GUyWL1NJ2Lg@mail.gmail.com>
+Subject: Re: [PATCH] gup: return -EFAULT on access_ok failure
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Joel Fernandes <joelaf@google.com>, Steven Rostedt <rostedt@goodmis.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
+To: "Michael S. Tsirkin" <mst@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, syzbot+6304bf97ef436580fede@syzkaller.appspotmail.com, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Thorsten Leemhuis <regressions@leemhuis.info>
 
-On Thu 05-04-18 08:13:59, Matthew Wilcox wrote:
-> On Thu, Apr 05, 2018 at 04:27:49PM +0200, Michal Hocko wrote:
-> > On Thu 05-04-18 07:22:58, Matthew Wilcox wrote:
-> > > On Wed, Apr 04, 2018 at 09:12:52PM -0700, Joel Fernandes wrote:
-> > > > On Wed, Apr 4, 2018 at 7:58 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> > > > > I still don't get why you want RETRY_MAYFAIL.  You know that tries
-> > > > > *harder* to allocate memory than plain GFP_KERNEL does, right?  And
-> > > > > that seems like the exact opposite of what you want.
-> 
-> Argh.  The comment confused me.  OK, now I've read the source and
-> understand that GFP_KERNEL | __GFP_RETRY_MAYFAIL tries exactly as hard
-> as GFP_KERNEL *except* that it won't cause OOM itself.  But any other
-> simultaneous GFP_KERNEL allocation without __GFP_RETRY_MAYFAIL will
-> cause an OOM.  (And that's why we're having a conversation)
+On Thu, Apr 5, 2018 at 7:17 AM, Michael S. Tsirkin <mst@redhat.com> wrote:
+>
+> I wonder however whether all the following should be changed then:
+>
+> static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>
+> ...
+>
+>                         if (!vma || check_vma_flags(vma, gup_flags))
+>                                 return i ? : -EFAULT;
+>
+> is this a bug in __get_user_pages?
 
-Well, I can udnerstand how this can be confusing. The all confusion
-boils down to the small-never-fails semantic we have. So all reclaim
-modificators (__GFP_NOFAIL, __GFP_RETRY_MAYFAIL, __GFP_NORETRY) only
-modify the _default_ behavior.
+Note the difference between "get_user_pages()", and "get_user_pages_fast()".
 
-> That's a problem because we have places in the kernel that call
-> kv[zm]alloc(very_large_size, GFP_KERNEL), and that will turn into vmalloc,
-> which will do the exact same thing, only it will trigger OOM all by itself
-> (assuming the largest free chunk of address space in the vmalloc area
-> is larger than the amount of free memory).
+It's the *fast* versions that just return the number of pages pinned.
 
-well, hardcoded GFP_KERNEL from vmalloc guts is yet another, ehm,
-herritage that you are not so proud of.
- 
-> I considered an alloc_page_array(), but that doesn't fit well with the
-> design of the ring buffer code.  We could have:
-> 
-> struct page *alloc_page_list_node(int nid, gfp_t gfp_mask, unsigned long nr);
-> 
-> and link the allocated pages together through page->lru.
-> 
-> We could also have a GFP flag that says to only succeed if we're further
-> above the existing watermark than normal.  __GFP_LOW (==ALLOC_LOW),
-> if you like.  That would give us the desired behaviour of trying all of
-> the reclaim methods that GFP_KERNEL would, but not being able to exhaust
-> all the memory that GFP_KERNEL allocations would take.
+The non-fast ones will return an error code for various cases.
 
-Well, I would be really careful with yet another gfp mask. They are so
-incredibly hard to define properly and then people kinda tend to screw
-your best intentions with their usecases ;)
-Failing on low wmark is very close to __GFP_NORETRY or even
-__GFP_NOWAIT, btw. So let's try to not overthink this...
--- 
-Michal Hocko
-SUSE Labs
+Why?
+
+The non-fast cases actually *have* various error cases. They can block
+and get interrupted etc.
+
+The fast cases are basically "just get me the pages, dammit, and if
+you can't get some page, stop".
+
+At least that's one excuse for the difference in behavior.
+
+The real excuse is probably just "that's how it worked" - the fast
+case just walked the page tables and that was it.
+
+                 Linus
