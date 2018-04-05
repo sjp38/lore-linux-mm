@@ -1,135 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FFFA6B0007
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 10:17:34 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id p21so17051908qke.20
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 07:17:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id s3si7511290qte.4.2018.04.05.07.17.33
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DC0E16B0007
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 10:23:03 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id c2-v6so15743359plo.21
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 07:23:03 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id u26si5462951pge.692.2018.04.05.07.23.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Apr 2018 07:17:33 -0700 (PDT)
-Date: Thu, 5 Apr 2018 17:17:30 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH] gup: return -EFAULT on access_ok failure
-Message-ID: <20180405171009-mutt-send-email-mst@kernel.org>
-References: <1522431382-4232-1-git-send-email-mst@redhat.com>
- <20180405045231-mutt-send-email-mst@kernel.org>
- <CA+55aFwpe92MzEX2qRHO-MQsa1CP-iz6AmanFqXCV6_EaNKyMg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 05 Apr 2018 07:23:01 -0700 (PDT)
+Date: Thu, 5 Apr 2018 07:22:58 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v1] kernel/trace:check the val against the available mem
+Message-ID: <20180405142258.GA28128@bombadil.infradead.org>
+References: <20180403123514.GX5501@dhcp22.suse.cz>
+ <20180403093245.43e7e77c@gandalf.local.home>
+ <20180403135607.GC5501@dhcp22.suse.cz>
+ <CAGWkznH-yfAu=fMo1YWU9zo-DomHY8YP=rw447rUTgzvVH4RpQ@mail.gmail.com>
+ <20180404062340.GD6312@dhcp22.suse.cz>
+ <20180404101149.08f6f881@gandalf.local.home>
+ <20180404142329.GI6312@dhcp22.suse.cz>
+ <20180404114730.65118279@gandalf.local.home>
+ <20180405025841.GA9301@bombadil.infradead.org>
+ <CAJWu+oqP64QzvPM6iHtzowek6s4p+3rb7WDXs1z51mwW-9mLbA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFwpe92MzEX2qRHO-MQsa1CP-iz6AmanFqXCV6_EaNKyMg@mail.gmail.com>
+In-Reply-To: <CAJWu+oqP64QzvPM6iHtzowek6s4p+3rb7WDXs1z51mwW-9mLbA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, syzbot+6304bf97ef436580fede@syzkaller.appspotmail.com, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Thorsten Leemhuis <regressions@leemhuis.info>
+To: Joel Fernandes <joelaf@google.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Michal Hocko <mhocko@kernel.org>, Zhaoyang Huang <huangzhaoyang@gmail.com>, Ingo Molnar <mingo@kernel.org>, LKML <linux-kernel@vger.kernel.org>, kernel-patch-test@lists.linaro.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, Apr 04, 2018 at 07:40:36PM -0700, Linus Torvalds wrote:
-> On Wed, Apr 4, 2018 at 6:53 PM, Michael S. Tsirkin <mst@redhat.com> wrote:
+On Wed, Apr 04, 2018 at 09:12:52PM -0700, Joel Fernandes wrote:
+> On Wed, Apr 4, 2018 at 7:58 PM, Matthew Wilcox <willy@infradead.org> wrote:
+> > On Wed, Apr 04, 2018 at 11:47:30AM -0400, Steven Rostedt wrote:
+> >> I originally was going to remove the RETRY_MAYFAIL, but adding this
+> >> check (at the end of the loop though) appears to have OOM consistently
+> >> kill this task.
+> >>
+> >> I still like to keep RETRY_MAYFAIL, because it wont trigger OOM if
+> >> nothing comes in and tries to do an allocation, but instead will fail
+> >> nicely with -ENOMEM.
 > >
-> > Any feedback on this? As this fixes a bug in vhost, I'll merge
-> > through the vhost tree unless someone objects.
+> > I still don't get why you want RETRY_MAYFAIL.  You know that tries
+> > *harder* to allocate memory than plain GFP_KERNEL does, right?  And
+> > that seems like the exact opposite of what you want.
 > 
-> NAK.
-> 
-> __get_user_pages_fast() returns the number of pages it gets.
-> 
-> It has never returned an error code, and all the other versions of it
-> (architecture-specific) don't either.
+> No. We do want it to try harder but not if its already setup for failure.
 
-Thanks Linus. I can change the docs and all the callers.
-
-
-I wonder however whether all the following should be changed then:
-
-static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-
-...
-
-                        if (!vma || check_vma_flags(vma, gup_flags))
-                                return i ? : -EFAULT;
-
-is this a bug in __get_user_pages?
-
-
-Another example:
-
-                                ret = get_gate_page(mm, start & PAGE_MASK,
-                                                gup_flags, &vma,
-                                                pages ? &pages[i] : NULL);
-                                if (ret)
-                                        return i ? : ret;
-
-and ret is -EFAULT on error.
-
-
-Another example:
-                        switch (ret) {
-                        case 0:
-                                goto retry;
-                        case -EFAULT:
-                        case -ENOMEM:
-                        case -EHWPOISON:
-                                return i ? i : ret;
-                        case -EBUSY:
-                                return i;
-                        case -ENOENT:
-                                goto next_page;
-                        }
-
-it looks like this will return -EFAULT/-ENOMEM/-EHWPOISON
-if i is 0.
-
-
-> If you ask for one page, and get zero pages, then that's an -EFAULT.
-> Note that that's an EFAULT regardless of whether that zero page
-> happened due to kernel addresses or just lack of mapping in user
-> space.
-> 
-> The documentation is simply wrong if it says anything else. Fix the
-> docs, and fix the users.
-> 
-> The correct use has always been to check the number of pages returned.
-> 
-> Just looking around, returning an error number looks like it could
-> seriously confuse some things.
->
-> You have things like the kvm code that
-> does the *right* thing:
-> 
->         unsigned long ... npinned ...
-> 
->         npinned = get_user_pages_fast(uaddr, npages, write ?
-> FOLL_WRITE : 0, pages);
->         if (npinned != npages) {
->      ...
-> 
-> err:
->         if (npinned > 0)
->                 release_pages(pages, npinned);
-> 
-> and the above code clearly depends on the actual behavior, not on the
-> documentation.
-
-This seems to work fine with my patch since it only changes the
-case where npinned == 0.
-
-> Any changes in this area would need some *extreme* care, exactly
-> because of code like the above that clearly depends on the existing
-> semantics.
-> 
-> In fact, the documentation really seems to be just buggy. The actual
-> get_user_pages() function itself is expressly being careful *not* to
-> return an error code, it even has a comment to the effect ("Have to be
-> a bit careful with return values").
-> 
-> So the "If no pages were pinned, returns -errno" comment is just bogus.
-> 
->                   Linus
-
-I'd like to change the doc then, but it seems that I'll have to change
-the implementation in that case too.
-
--- 
-MST
+I understand you don't want GFP_NORETRY.  But why is it more important for
+this allocation to succeed than other normal GFP_KERNEL allocations?
