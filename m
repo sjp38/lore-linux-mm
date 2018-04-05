@@ -1,108 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F0046B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 16:26:53 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id w9-v6so18389639plp.0
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 13:26:53 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j62si6104201pge.747.2018.04.05.13.26.52
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9643E6B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 17:03:51 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id n204-v6so15271234yba.1
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 14:03:51 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id m34si3569301qtc.121.2018.04.05.14.03.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 05 Apr 2018 13:26:52 -0700 (PDT)
-Date: Thu, 5 Apr 2018 13:26:51 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] include: mm: Adding new inline function vmf_error
-Message-ID: <20180405202651.GB3666@bombadil.infradead.org>
-References: <20180405162225.GA23411@jordon-HP-15-Notebook-PC>
- <20180405125322.2ef3abfc6159a72725095bd0@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Apr 2018 14:03:50 -0700 (PDT)
+Date: Fri, 6 Apr 2018 00:03:49 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: [PATCH v2 1/3] mm/gup_benchmark: handle gup failures
+Message-ID: <1522962072-182137-3-git-send-email-mst@redhat.com>
+References: <1522962072-182137-1-git-send-email-mst@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180405125322.2ef3abfc6159a72725095bd0@linux-foundation.org>
+In-Reply-To: <1522962072-182137-1-git-send-email-mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Jonathan Corbet <corbet@lwn.net>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Thorsten Leemhuis <regressions@leemhuis.info>, stable@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Apr 05, 2018 at 12:53:22PM -0700, Andrew Morton wrote:
-> > +static inline vm_fault_t vmf_error(int err)
-> > +{
-> > +	vm_fault_t ret;
-> > +
-> > +	if (err == -ENOMEM)
-> > +		ret = VM_FAULT_OOM;
-> > +	else
-> > +		ret = VM_FAULT_SIGBUS;
-> > +
-> > +	return ret;
-> > +}
-> > +
-> 
-> That's a bit verbose.  Why not simply
-> 
-> 	return (err == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
+__gup_benchmark_ioctl does not handle the case where
+get_user_pages_fast fails:
 
-That's a little skimpy for my taste (although Souptick's is more verbose
-than I like too) ... I suggested this:
+- a negative return code will cause a buffer overrun
+- returning with partial success will cause use of
+  uninitialized memory.
 
-> > @@ -8983,9 +8984,9 @@ int btrfs_page_mkwrite(struct vm_fault *vmf)
-> >  	}
-> >  	if (ret) {
-> >  		if (ret == -ENOMEM)
-> > -			ret = VM_FAULT_OOM;
-> > +			retval = VM_FAULT_OOM;
-> >  		else /* -ENOSPC, -EIO, etc */
-> > -			ret = VM_FAULT_SIGBUS;
-> > +			retval = VM_FAULT_SIGBUS;
-> >  		if (reserved)
-> >  			goto out;
-> >  		goto out_noreserve;
-> 
-> I'm seeing this pattern _a lot_ in filesystems.  It gets written in a
-> few different ways, but
-> 
-> 	ret = (err == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
-> 
-> is really common.  I think we should do a helper function as part of
-> these cleanups ... maybe:
-> 
-> static inline vm_fault_t vmf_error(int errno)
-> {
-> 	if (err == -ENOMEM)
-> 		return VM_FAULT_OOM;
-> 	return VM_FAULT_SIGBUS;
-> }
-> 
-> -		if (ret == -ENOMEM)
-> -			ret = VM_FAULT_OOM;
-> -		else /* -ENOSPC, -EIO, etc */
-> -			ret = VM_FAULT_SIGBUS;
-> +		ret = vmf_error(err);
-> 
-> I know we've mostly been deleting these errno-to-vm_fault converters,
-> but those try to do too much -- they handle an errno of 0 (when there
-> are at least three ways to return success -- 0, NOPAGE and LOCKED),
-> and often they've encoded some other VM_FAULT code in a different
-> errno, eg the way block_page_mkwrite() uses -EFAULT.
-> 
-> There are a few other error codes to handle under special conditions,
-> but the caller can handle them first.  eg I see block_page_mkwrite()
-> eventually looking like this:
-> 
-> 	err = __block_write_begin(page, 0, end, get_block);
-> 	if (!err)
-> 		err = block_commit_write(page, 0, end);
-> 
-> 	if (unlikely(err < 0))
-> 		goto error;
-> 	set_page_dirty(page);
-> 	wait_for_stable_page(page);
-> 	return 0;
-> error:
-> 	if (err == -EAGAIN)
-> 		ret = VM_FAULT_NOPAGE;
-> 	else
-> 		ret = vmf_error(err);
-> out_unlock:
-> 	unlock_page(page);
-> 	return ret;
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Huang Ying <ying.huang@intel.com>
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Thorsten Leemhuis <regressions@leemhuis.info>
+Cc: stable@vger.kernel.org
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+---
+ mm/gup_benchmark.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
+index 5c8e2ab..d743035 100644
+--- a/mm/gup_benchmark.c
++++ b/mm/gup_benchmark.c
+@@ -23,7 +23,7 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
+ 	struct page **pages;
+ 
+ 	nr_pages = gup->size / PAGE_SIZE;
+-	pages = kvmalloc(sizeof(void *) * nr_pages, GFP_KERNEL);
++	pages = kvzalloc(sizeof(void *) * nr_pages, GFP_KERNEL);
+ 	if (!pages)
+ 		return -ENOMEM;
+ 
+@@ -41,7 +41,8 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
+ 		}
+ 
+ 		nr = get_user_pages_fast(addr, nr, gup->flags & 1, pages + i);
+-		i += nr;
++		if (nr > 0)
++			i += nr;
+ 	}
+ 	end_time = ktime_get();
+ 
+-- 
+MST
