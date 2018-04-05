@@ -1,58 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E8296B0009
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 08:51:07 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id o2-v6so16516848plk.14
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 05:51:07 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
-        by mx.google.com with ESMTPS id k185si979400pgk.2.2018.04.05.05.51.06
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D2506B0006
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 08:53:35 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w59so13048601wrb.8
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 05:53:35 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id r13si3461331eda.331.2018.04.05.05.53.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 05 Apr 2018 05:51:06 -0700 (PDT)
-Date: Thu, 5 Apr 2018 05:50:54 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v7 2/5] arm: arm64: page_alloc: reduce unnecessary binary
- search in memblock_next_valid_pfn()
-Message-ID: <20180405125054.GC2647@bombadil.infradead.org>
-References: <1522915478-5044-1-git-send-email-hejianet@gmail.com>
- <1522915478-5044-3-git-send-email-hejianet@gmail.com>
- <20180405113444.GB2647@bombadil.infradead.org>
- <1f809296-e88d-1090-0027-890782b91d6e@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Apr 2018 05:53:34 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w35CogA7083421
+	for <linux-mm@kvack.org>; Thu, 5 Apr 2018 08:53:33 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2h5fxtbsek-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 05 Apr 2018 08:53:32 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Thu, 5 Apr 2018 13:53:30 +0100
+Subject: Re: [PATCH v9 15/24] mm: Introduce __vm_normal_page()
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1520963994-28477-16-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20180403193927.GD5935@redhat.com>
+ <a3446d86-8a29-a9f2-a1fe-b8cc1b748132@linux.vnet.ibm.com>
+ <20180404215916.GC3331@redhat.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Thu, 5 Apr 2018 14:53:19 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1f809296-e88d-1090-0027-890782b91d6e@gmail.com>
+In-Reply-To: <20180404215916.GC3331@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <6ebb4602-9455-65f3-ea60-bfaaee23a859@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jia He <hejianet@gmail.com>
-Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <jia.he@hxt-semitech.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Thu, Apr 05, 2018 at 08:44:12PM +0800, Jia He wrote:
+On 04/04/2018 23:59, Jerome Glisse wrote:
+> On Wed, Apr 04, 2018 at 06:26:44PM +0200, Laurent Dufour wrote:
+>>
+>>
+>> On 03/04/2018 21:39, Jerome Glisse wrote:
+>>> On Tue, Mar 13, 2018 at 06:59:45PM +0100, Laurent Dufour wrote:
+>>>> When dealing with the speculative fault path we should use the VMA's field
+>>>> cached value stored in the vm_fault structure.
+>>>>
+>>>> Currently vm_normal_page() is using the pointer to the VMA to fetch the
+>>>> vm_flags value. This patch provides a new __vm_normal_page() which is
+>>>> receiving the vm_flags flags value as parameter.
+>>>>
+>>>> Note: The speculative path is turned on for architecture providing support
+>>>> for special PTE flag. So only the first block of vm_normal_page is used
+>>>> during the speculative path.
+>>>
+>>> Might be a good idea to explicitly have SPECULATIVE Kconfig option depends
+>>> on ARCH_PTE_SPECIAL and a comment for !HAVE_PTE_SPECIAL in the function
+>>> explaining that speculative page fault should never reach that point.
+>>
+>> Unfortunately there is no ARCH_PTE_SPECIAL in the config file, it is defined in
+>> the per architecture header files.
+>> So I can't do anything in the Kconfig file
 > 
+> Maybe adding a new Kconfig symbol for ARCH_PTE_SPECIAL very much like
+> others ARCH_HAS_
 > 
-> On 4/5/2018 7:34 PM, Matthew Wilcox Wrote:
-> > On Thu, Apr 05, 2018 at 01:04:35AM -0700, Jia He wrote:
-> > > Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-> > > where possible") optimized the loop in memmap_init_zone(). But there is
-> > > still some room for improvement. E.g. if pfn and pfn+1 are in the same
-> > > memblock region, we can simply pfn++ instead of doing the binary search
-> > > in memblock_next_valid_pfn.
-> > Sure, but I bet if we are >end_pfn, we're almost certainly going to the
-> > start_pfn of the next block, so why not test that as well?
-> > 
-> > > +	/* fast path, return pfn+1 if next pfn is in the same region */
-> > > +	if (early_region_idx != -1) {
-> > > +		start_pfn = PFN_DOWN(regions[early_region_idx].base);
-> > > +		end_pfn = PFN_DOWN(regions[early_region_idx].base +
-> > > +				regions[early_region_idx].size);
-> > > +
-> > > +		if (pfn >= start_pfn && pfn < end_pfn)
-> > > +			return pfn;
-> > 		early_region_idx++;
-> > 		start_pfn = PFN_DOWN(regions[early_region_idx].base);
-> > 		if (pfn >= end_pfn && pfn <= start_pfn)
-> > 			return start_pfn;
-> Thanks, thus the binary search in next step can be discarded?
+>>
+>> However, I can check that at build time, and doing such a check in
+>> __vm_normal_page sounds to be a good place, like that:
+>>
+>> @@ -869,6 +870,14 @@ struct page *__vm_normal_page(struct vm_area_struct *vma,
+>> unsigned long addr,
+>>
+>>         /* !HAVE_PTE_SPECIAL case follows: */
+>>
+>> +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+>> +       /* This part should never get called when the speculative page fault
+>> +        * handler is turned on. This is mainly because we can't rely on
+>> +        * vm_start.
+>> +        */
+>> +#error CONFIG_SPECULATIVE_PAGE_FAULT requires HAVE_PTE_SPECIAL
+>> +#endif
+>> +
+>>         if (unlikely(vma_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
+>>                 if (vma_flags & VM_MIXEDMAP) {
+>>                         if (!pfn_valid(pfn))
+>>
+> 
+> I am not a fan of #if/#else/#endif in code. But that's a taste thing.
+> I honnestly think that adding a Kconfig for special pte is the cleanest
+> solution.
 
-I don't know all the circumstances in which this is called.  Maybe a linear
-search with memo is more appropriate than a binary search.
+I do agree, but this should be done in a separate series.
+
+I'll see how this could be done but there are some arch (like powerpc) where
+this is a bit obfuscated for unknown reason.
+
+For the time being, I'll remove the check and just let the comment in place.
