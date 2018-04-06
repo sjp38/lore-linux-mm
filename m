@@ -1,70 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E67586B0003
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 13:22:19 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id y10-v6so942086oia.15
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 10:22:19 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r69-v6si3277908ota.481.2018.04.06.10.22.18
-        for <linux-mm@kvack.org>;
-        Fri, 06 Apr 2018 10:22:18 -0700 (PDT)
-Date: Fri, 6 Apr 2018 18:22:11 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH 1/5] arm64: entry: isb in el1_irq
-Message-ID: <20180406172211.r42reit2bnpocab2@lakrids.cambridge.arm.com>
-References: <20180405171800.5648-1-ynorov@caviumnetworks.com>
- <20180405171800.5648-2-ynorov@caviumnetworks.com>
- <5036b99a-9faa-c220-27dd-e0d73f8b3fc7@arm.com>
- <20180406165402.nq3sabeku2mp3hpb@yury-thinkpad>
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5964C6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 13:24:32 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id b11-v6so1361586pla.19
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 10:24:32 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0104.outbound.protection.outlook.com. [104.47.1.104])
+        by mx.google.com with ESMTPS id u10si7277005pgp.45.2018.04.06.10.24.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 06 Apr 2018 10:24:30 -0700 (PDT)
+Subject: Re: [PATCH v2 3/4] mm/vmscan: Don't change pgdat state on base of a
+ single LRU list state.
+References: <20180323152029.11084-1-aryabinin@virtuozzo.com>
+ <20180323152029.11084-4-aryabinin@virtuozzo.com>
+ <20180406162835.GD20806@cmpxchg.org>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <312906df-80c4-aaaf-3d0f-caaeeceb9f39@virtuozzo.com>
+Date: Fri, 6 Apr 2018 20:25:10 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180406165402.nq3sabeku2mp3hpb@yury-thinkpad>
+In-Reply-To: <20180406162835.GD20806@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yury Norov <ynorov@caviumnetworks.com>
-Cc: James Morse <james.morse@arm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, Chris Metcalf <cmetcalf@mellanox.com>, Christopher Lameter <cl@linux.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Catalin Marinas <catalin.marinas@arm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Alexey Klimov <klimov.linux@gmail.com>, linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Fri, Apr 06, 2018 at 07:54:02PM +0300, Yury Norov wrote:
-> In general, kick_all_cpus_sync() is needed to switch contexts. But exit from
-> userspace is anyway the switch of context. And while in userspace, we cannot
-> do something wrong on kernel side. For me it means that we can safely drop
-> IPI for all userspace modes - both normal and nohz_full. 
 
-This *may* be true, but only if we never have to patch text in the
-windows:
 
-* between exception entry and eqs_exit()
+On 04/06/2018 07:28 PM, Johannes Weiner wrote:
+> 
+> This isn't quite equivalent to what we have right now.
+> 
+> Yes, nr_dirty, nr_unqueued_dirty and nr_congested apply to file pages
+> only. That part is about waking the flushers and avoiding writing
+> files in 4k chunks from reclaim context. So those numbers do need to
+> be compared against scanned *file* pages.
+> 
+> But nr_writeback and nr_immediate is about throttling reclaim when we
+> hit too many pages under writeout, and that applies to both file and
+> anonymous/swap pages. We do want to throttle on swapout, too.
+> 
+> So nr_writeback needs to check against all nr_taken, not just file.
+> 
 
-* between eqs_enter() and exception return
+Agreed, the fix bellow. It causes conflict in the next 4/4 patch,
+so I'll just send v3 with all fixes folded.
 
-* between eqs_enter() and eqs_exit() in the idle loop.
+---
+ mm/vmscan.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-If it's possible that we need to execute patched text in any of those
-paths, we must IPI all CPUs in order to correctly serialize things.
-
-Digging a bit, I also thing that our ct_user_exit and ct_user_enter
-usage is on dodgy ground today.
-
-For example, in el0_dbg we call do_debug_exception() *before* calling
-ct_user_exit. Which I believe means we'd use RCU while supposedly in an
-extended quiescent period, which would be bad.
-
-In other paths, we unmask all DAIF bits before calling ct_user_exit, so
-we could similarly take an EL1 debug exception without having exited the
-extended quiescent period.
-
-I think similar applies to SDEI; we don't negotiate with RCU prior to
-invoking handlers, which might need RCU.
-
-> If it's correct, for v3 I would suggest:
->  - in kick_all_cpus_sync() mask all is_idle_task() and user_mode() CPUs;
->  - add isb() for arm64 in do_idle() path only - this path doesn't imply
->    context switch.
-
-As mentioned in my other reply, I don't think the ISB in do_idle()
-makes sense, unless that occurs *after* we exit the extended quiescent
-state.
-
-Thanks,
-Mark.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4d848b8df01f..c45497475e84 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -124,6 +124,7 @@ struct scan_control {
+ 		unsigned int writeback;
+ 		unsigned int immediate;
+ 		unsigned int file_taken;
++		unsigned int taken;
+ 	} nr;
+ };
+ 
+@@ -1771,6 +1772,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	sc->nr.unqueued_dirty += stat.nr_unqueued_dirty;
+ 	sc->nr.writeback += stat.nr_writeback;
+ 	sc->nr.immediate += stat.nr_immediate;
++	sc->nr.taken += nr_taken;
+ 	if (file)
+ 		sc->nr.file_taken += nr_taken;
+ 
+@@ -2553,7 +2555,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 		 * number of pages under pages flagged for immediate reclaim and
+ 		 * stall if any are encountered in the nr_immediate check below.
+ 		 */
+-		if (sc->nr.writeback && sc->nr.writeback == sc->nr.file_taken)
++		if (sc->nr.writeback && sc->nr.writeback == sc->nr.taken)
+ 			set_bit(PGDAT_WRITEBACK, &pgdat->flags);
+ 
+ 		/*
+-- 
+2.16.1
