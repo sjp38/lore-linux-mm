@@ -1,101 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E35836B000D
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 08:36:21 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id i137so596017pfe.0
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 05:36:21 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id y1-v6si9100342pli.586.2018.04.06.05.36.20
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A03F46B0022
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 08:45:43 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id a125so622463qkd.4
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 05:45:43 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id k2si2471336qth.409.2018.04.06.05.45.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Apr 2018 05:36:20 -0700 (PDT)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v31 4/4] virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
-Date: Fri,  6 Apr 2018 20:17:25 +0800
-Message-Id: <1523017045-18315-5-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1523017045-18315-1-git-send-email-wei.w.wang@intel.com>
-References: <1523017045-18315-1-git-send-email-wei.w.wang@intel.com>
+        Fri, 06 Apr 2018 05:45:42 -0700 (PDT)
+Date: Fri, 6 Apr 2018 08:45:35 -0400
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: Re: [PATCH v2 1/2] mm: uninitialized struct page poisoning sanity
+ checking
+Message-ID: <20180406124535.k3qyxjfrlo55d5if@xakep.localdomain>
+References: <20180131210300.22963-1-pasha.tatashin@oracle.com>
+ <20180131210300.22963-2-pasha.tatashin@oracle.com>
+ <20180313234333.j3i43yxeawx5d67x@sasha-lappy>
+ <CAGM2reaPK=ZcLBOnmBiC2-u86DZC6ukOhL1xxZofB2OTW3ozoA@mail.gmail.com>
+ <20180314005350.6xdda2uqzuy4n3o6@sasha-lappy>
+ <20180315190430.o3vs7uxlafzdwgzd@xakep.localdomain>
+ <20180315204312.n7p4zzrftgg6m7zw@sasha-lappy>
+ <20180404021746.m77czxidkaumkses@xakep.localdomain>
+ <20180405134940.2yzx4p7hjed7lfdk@xakep.localdomain>
+ <20180405192256.GQ7561@sasha-vm>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180405192256.GQ7561@sasha-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: Sasha Levin <Alexander.Levin@microsoft.com>
+Cc: "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@suse.com" <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "bharata@linux.vnet.ibm.com" <bharata@linux.vnet.ibm.com>
 
-The VIRTIO_BALLOON_F_PAGE_POISON feature bit is used to indicate if the
-guest is using page poisoning. Guest writes to the poison_val config
-field to tell host about the page poisoning value in use.
+On 18-04-05 19:22:58, Sasha Levin wrote:
+> On Thu, Apr 05, 2018 at 09:49:40AM -0400, Pavel Tatashin wrote:
+> >> Hi Sasha,
+> >>
+> >> I have registered on Azure's portal, and created a VM with 4 CPUs and 16G
+> >> of RAM. However, I still was not able to reproduce the boot bug you found.
+> >
+> >I have also tried to reproduce this issue on Windows 10 + Hyper-V, still
+> >unsuccessful.
+> 
+> I'm not sure why you can't reproduce it. I built a 4.16 kernel + your 6
+> patches on top, and booting on a D64s_v3 instance gives me this:
 
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- drivers/virtio/virtio_balloon.c     | 10 ++++++++++
- include/uapi/linux/virtio_balloon.h |  3 +++
- 2 files changed, 13 insertions(+)
+Hi Sasha,
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index aef73ee..47b02d5 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -714,6 +714,7 @@ static struct file_system_type balloon_fs = {
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
-+	__u32 poison_val;
- 	int err;
- 
- 	if (!vdev->config->get) {
-@@ -759,6 +760,11 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 		vb->stop_cmd_id = cpu_to_virtio32(vb->vdev,
- 				VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
- 		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
-+		if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON)) {
-+			memset(&poison_val, PAGE_POISON, sizeof(poison_val));
-+			virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-+				      poison_val, &poison_val);
-+		}
- 	}
- 
- 	vb->nb.notifier_call = virtballoon_oom_notify;
-@@ -877,6 +883,9 @@ static int virtballoon_restore(struct virtio_device *vdev)
- 
- static int virtballoon_validate(struct virtio_device *vdev)
- {
-+	if (!page_poisoning_enabled())
-+		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
-+
- 	__virtio_clear_bit(vdev, VIRTIO_F_IOMMU_PLATFORM);
- 	return 0;
- }
-@@ -886,6 +895,7 @@ static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
- 	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
-+	VIRTIO_BALLOON_F_PAGE_POISON,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index b2d86c2..8b93581 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -35,6 +35,7 @@
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
- #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
-+#define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
-@@ -47,6 +48,8 @@ struct virtio_balloon_config {
- 	__u32 actual;
- 	/* Free page report command id, readonly by guest */
- 	__u32 free_page_report_cmd_id;
-+	/* Stores PAGE_POISON if page poisoning is in use */
-+	__u32 poison_val;
- };
- 
- #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
--- 
-2.7.4
+Thank you for running it again, the new trace is cleaner, as we do not get
+nested panics within dump_page.
+
+Perhaps a NUMA is required to reproduce this issue. I have tried,
+unsuccessfully, on D4S_V3. This is the largest VM allowed with free trial,
+as 4 CPU is the limit. D64S_V3 is with 64 CPUs and over $2K a month! :)
+
+Let me study your trace, perhaps I will able to figure out the issue
+without reproducing it.
+
+Thank you,
+Pasha
