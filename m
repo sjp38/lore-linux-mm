@@ -1,79 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B77186B0022
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 06:57:17 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id i18-v6so381510ota.13
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 03:57:17 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id y131-v6si2830938oia.82.2018.04.06.03.57.16
-        for <linux-mm@kvack.org>;
-        Fri, 06 Apr 2018 03:57:16 -0700 (PDT)
-Date: Fri, 6 Apr 2018 11:57:09 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH 1/5] arm64: entry: isb in el1_irq
-Message-ID: <20180406105709.kd3uumwustwnzcd4@lakrids.cambridge.arm.com>
-References: <20180405171800.5648-1-ynorov@caviumnetworks.com>
- <20180405171800.5648-2-ynorov@caviumnetworks.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A3B16B0003
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 07:06:43 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e185so711601wmg.5
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 04:06:43 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c4sor4997636edk.28.2018.04.06.04.06.42
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 06 Apr 2018 04:06:42 -0700 (PDT)
+Date: Fri, 6 Apr 2018 14:05:57 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v3 0/4] mm/sparse: Optimize memmap allocation during
+ sparse_init()
+Message-ID: <20180406110557.xg2edtjgzmsdksry@node.shutemov.name>
+References: <20180228032657.32385-1-bhe@redhat.com>
+ <20180405150842.350e4febc06a813138f00416@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180405171800.5648-2-ynorov@caviumnetworks.com>
+In-Reply-To: <20180405150842.350e4febc06a813138f00416@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yury Norov <ynorov@caviumnetworks.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Will Deacon <will.deacon@arm.com>, Chris Metcalf <cmetcalf@mellanox.com>, Christopher Lameter <cl@linux.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Catalin Marinas <catalin.marinas@arm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Alexey Klimov <klimov.linux@gmail.com>, linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com
+Cc: Baoquan He <bhe@redhat.com>, linux-kernel@vger.kernel.org, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-On Thu, Apr 05, 2018 at 08:17:56PM +0300, Yury Norov wrote:
-> Kernel text patching framework relies on IPI to ensure that other
-> SMP cores observe the change. Target core calls isb() in IPI handler
-> path, but not at the beginning of el1_irq entry. There's a chance
-> that modified instruction will appear prior isb(), and so will not be
-> observed.
+On Thu, Apr 05, 2018 at 03:08:42PM -0700, Andrew Morton wrote:
+> On Wed, 28 Feb 2018 11:26:53 +0800 Baoquan He <bhe@redhat.com> wrote:
 > 
-> This patch inserts isb early at el1_irq entry to avoid that chance.
-
-As James pointed out, taking an exception is context synchronizing, so
-this looks unnecessary.
-
-Also, it's important to realise that the exception entry is not tied to a
-specific interrupt. We might take an EL1 IRQ because of a timer interrupt,
-then an IPI could be taken before we get to gic_handle_irq().
-
-This means that we can race:
-
-	CPU0				CPU1
-	<take IRQ>
-	ISB
-					<patch text>
-					<send IPI>
-	<discover IPI pending>
-
-... and thus the ISB is too early.
-
-Only once we're in the interrupt handler can we pair an ISB with the IPI, and
-any code executed before that is not guaranteed to be up-to-date.
-
-Thanks,
-Mark.
-
+> > This is v3 post. V1 can be found here:
+> > https://www.spinics.net/lists/linux-mm/msg144486.html
+> > 
+> > In sparse_init(), two temporary pointer arrays, usemap_map and map_map
+> > are allocated with the size of NR_MEM_SECTIONS. They are used to store
+> > each memory section's usemap and mem map if marked as present. In
+> > 5-level paging mode, this will cost 512M memory though they will be
+> > released at the end of sparse_init(). System with few memory, like
+> > kdump kernel which usually only has about 256M, will fail to boot
+> > because of allocation failure if CONFIG_X86_5LEVEL=y.
+> > 
+> > In this patchset, optimize the memmap allocation code to only use
+> > usemap_map and map_map with the size of nr_present_sections. This
+> > makes kdump kernel boot up with normal crashkernel='' setting when
+> > CONFIG_X86_5LEVEL=y.
 > 
-> Signed-off-by: Yury Norov <ynorov@caviumnetworks.com>
-> ---
->  arch/arm64/kernel/entry.S | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/arch/arm64/kernel/entry.S b/arch/arm64/kernel/entry.S
-> index ec2ee720e33e..9c06b4b80060 100644
-> --- a/arch/arm64/kernel/entry.S
-> +++ b/arch/arm64/kernel/entry.S
-> @@ -593,6 +593,7 @@ ENDPROC(el1_sync)
->  
->  	.align	6
->  el1_irq:
-> +	isb					// pairs with aarch64_insn_patch_text
->  	kernel_entry 1
->  	enable_da_f
->  #ifdef CONFIG_TRACE_IRQFLAGS
-> -- 
-> 2.14.1
-> 
+> This patchset could do with some more review, please?
+
+I don't really understand sparsemem good enough to comment on the
+patchset.
+
+Dave, could you review this?
+
+-- 
+ Kirill A. Shutemov
